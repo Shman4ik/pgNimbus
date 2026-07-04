@@ -8,6 +8,7 @@ namespace PgNimbus.App.ViewModels;
 public sealed partial class ConnectionDialogViewModel : ObservableObject
 {
     private readonly ConnectionProfileStore _store;
+    private readonly ICredentialStore _credentialStore;
 
     public ObservableCollection<ConnectionProfile> Profiles { get; } = [];
 
@@ -43,9 +44,10 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
     /// <summary>Raised with the built connection string when the user clicks Connect.</summary>
     public event Action<string>? Connected;
 
-    public ConnectionDialogViewModel(ConnectionProfileStore store)
+    public ConnectionDialogViewModel(ConnectionProfileStore store, ICredentialStore credentialStore)
     {
         _store = store;
+        _credentialStore = credentialStore;
 
         foreach (var profile in _store.Load())
         {
@@ -66,7 +68,7 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         Database = value.Database;
         Username = value.Username;
         SslMode = value.SslMode;
-        Password = string.Empty;
+        Password = _credentialStore.LoadPassword(value.Id) ?? string.Empty;
     }
 
     [RelayCommand]
@@ -103,6 +105,12 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         }
 
         _store.Save(Profiles);
+
+        if (!string.IsNullOrEmpty(Password))
+        {
+            _credentialStore.SavePassword(profile.Id, Password);
+        }
+
         SelectedProfile = profile;
     }
 
@@ -114,8 +122,10 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
             return;
         }
 
+        var idToDelete = SelectedProfile.Id;
         Profiles.Remove(SelectedProfile);
         _store.Save(Profiles);
+        _credentialStore.DeletePassword(idToDelete);
         New();
     }
 
