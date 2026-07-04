@@ -1,3 +1,4 @@
+using PgNimbus.App.Completion;
 using PgNimbus.Core.Query;
 using PgNimbus.Core.Schema;
 
@@ -11,11 +12,14 @@ public sealed class MainViewModel
 
     public SchemaTreeViewModel SchemaTree { get; }
 
-    public MainViewModel(QueryViewModel query, SchemaTreeViewModel schemaTree, SchemaService schemaService)
+    public SqlCompletionProvider CompletionProvider { get; }
+
+    public MainViewModel(QueryViewModel query, SchemaTreeViewModel schemaTree, SchemaService schemaService, SqlCompletionProvider completionProvider)
     {
         Query = query;
         SchemaTree = schemaTree;
         _schemaService = schemaService;
+        CompletionProvider = completionProvider;
     }
 
     public async Task PreviewTableAsync(TableNode table)

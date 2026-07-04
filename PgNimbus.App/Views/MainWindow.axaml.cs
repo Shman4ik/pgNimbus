@@ -6,6 +6,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Avalonia.VisualTree;
+using AvaloniaEdit.CodeCompletion;
 using PgNimbus.App.ViewModels;
 
 namespace PgNimbus.App.Views;
@@ -18,6 +19,7 @@ public partial class MainWindow : Window
     private object?[]? _pendingEditRow;
     private int _pendingEditColumnIndex;
     private string? _pendingEditText;
+    private CompletionWindow? _completionWindow;
 
     public MainWindow()
     {
@@ -39,6 +41,9 @@ public partial class MainWindow : Window
         SchemaTreeView.AddHandler(Gestures.DoubleTappedEvent, OnSchemaTreeDoubleTapped, RoutingStrategies.Bubble, handledEventsToo: true);
         ResultsGrid.CellEditEnding += OnCellEditEnding;
         ResultsGrid.CellEditEnded += OnCellEditEnded;
+
+        SqlEditor.TextArea.TextEntered += OnSqlTextEntered;
+        SqlEditor.KeyDown += OnSqlEditorKeyDown;
 
         DataContextChanged += (_, _) =>
         {
@@ -105,6 +110,53 @@ public partial class MainWindow : Window
         }
 
         await _queryViewModel.CommitCellEditAsync(row, columnIndex, text);
+    }
+
+    private void OnSqlTextEntered(object? sender, TextInputEventArgs e)
+    {
+        if (string.IsNullOrEmpty(e.Text) || _completionWindow is not null)
+        {
+            return;
+        }
+
+        var c = e.Text[0];
+        if (char.IsLetter(c) || c == '_')
+        {
+            ShowCompletion(includeTypedChar: true);
+        }
+    }
+
+    private void OnSqlEditorKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Space && e.KeyModifiers == KeyModifiers.Control)
+        {
+            ShowCompletion(includeTypedChar: false);
+            e.Handled = true;
+        }
+    }
+
+    private void ShowCompletion(bool includeTypedChar)
+    {
+        var data = _viewModel?.CompletionProvider.GetCompletionData();
+        if (data is not { Count: > 0 })
+        {
+            return;
+        }
+
+        var completionWindow = new CompletionWindow(SqlEditor.TextArea);
+        if (includeTypedChar)
+        {
+            completionWindow.StartOffset -= 1;
+        }
+
+        foreach (var item in data)
+        {
+            completionWindow.CompletionList.CompletionData.Add(item);
+        }
+
+        completionWindow.Show();
+        completionWindow.Closed += (_, _) => _completionWindow = null;
+        _completionWindow = completionWindow;
     }
 
     private async void OnExportCsvClick(object? sender, RoutedEventArgs e)

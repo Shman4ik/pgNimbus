@@ -16,6 +16,8 @@ public sealed record TableInfo(string Name, RelationKind Kind);
 
 public sealed record ColumnDetail(string Name, string DataType, bool NotNull, bool IsPrimaryKey);
 
+public sealed record TableColumn(string Table, string Column);
+
 /// <summary>
 /// Reads structure straight from pg_catalog rather than relying on
 /// information_schema, so it reflects the real Postgres model (matviews,
@@ -125,6 +127,38 @@ public sealed class SchemaService
                 reader.GetString(1),
                 reader.GetBoolean(2),
                 reader.GetBoolean(3)));
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// Column names for every table/view in a schema, in one query - used to
+    /// power SQL autocomplete without an N+1 GetColumnsAsync call per table.
+    /// </summary>
+    public async Task<IReadOnlyList<TableColumn>> GetAllColumnsAsync(string schema, CancellationToken ct)
+    {
+        const string sql = """
+            SELECT c.relname, a.attname
+            FROM pg_catalog.pg_attribute a
+            JOIN pg_catalog.pg_class c ON c.oid = a.attrelid
+            JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname = @schema
+              AND c.relkind IN ('r', 'v', 'm', 'p')
+              AND a.attnum > 0
+              AND NOT a.attisdropped
+            ORDER BY c.relname, a.attnum
+            """;
+
+        await using var connection = await _dataSource.OpenConnectionAsync(ct);
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("schema", schema);
+        await using var reader = await command.ExecuteReaderAsync(ct);
+
+        var results = new List<TableColumn>();
+        while (await reader.ReadAsync(ct))
+        {
+            results.Add(new TableColumn(reader.GetString(0), reader.GetString(1)));
         }
 
         return results;

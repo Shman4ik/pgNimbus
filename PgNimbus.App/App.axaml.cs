@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Npgsql;
+using PgNimbus.App.Completion;
 using PgNimbus.App.ViewModels;
 using PgNimbus.App.Views;
 using PgNimbus.Core.Connections;
@@ -57,10 +58,11 @@ public partial class App : Application
         var engine = new QueryEngine(dataSource);
         var schemaService = new SchemaService(dataSource);
         var schemaTree = new SchemaTreeViewModel(schemaService);
+        var completionProvider = new SqlCompletionProvider(schemaService);
 
         var window = new MainWindow
         {
-            DataContext = new MainViewModel(new QueryViewModel(engine), schemaTree, schemaService),
+            DataContext = new MainViewModel(new QueryViewModel(engine), schemaTree, schemaService, completionProvider),
         };
 
         if (tunnel is not null)
@@ -69,6 +71,7 @@ public partial class App : Application
         }
 
         _ = schemaTree.RefreshCommand.ExecuteAsync(null);
+        _ = completionProvider.RefreshAsync(CancellationToken.None);
 
         return window;
     }
