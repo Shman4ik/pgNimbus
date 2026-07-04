@@ -139,6 +139,10 @@
             <StackPanel Orientation="Horizontal" Grid.Row="1" Spacing="8" Margin="0,0,0,8">
                 <Button Content="Run" Command="{Binding ActiveTab.RunCommand}" ToolTip.Tip="Ctrl+Enter" />
                 <Button Content="Cancel" Command="{Binding ActiveTab.CancelCommand}" ToolTip.Tip="Esc" />
+                <Button Content="Explain" Command="{Binding ActiveTab.ExplainCommand}" />
+                <Button Content="Explain Analyze" Command="{Binding ActiveTab.ExplainAnalyzeCommand}" />
+                <Button Content="Show results" Command="{Binding ActiveTab.ShowResultsCommand}"
+                        IsVisible="{Binding ActiveTab.IsShowingPlan}" />
                 <Button Name="ExportButton" Content="Export">
                     <Button.Flyout>
                         <MenuFlyout>
@@ -157,11 +161,34 @@
             </Border>
 
             <Border Grid.Row="3" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1" Margin="0,8,0,8">
-                <DataGrid Name="ResultsGrid"
-                          IsReadOnly="{Binding !ActiveTab.IsEditable}"
-                          CanUserReorderColumns="False"
-                          GridLinesVisibility="All"
-                          AutoGenerateColumns="False" />
+                <Grid>
+                    <DataGrid Name="ResultsGrid"
+                              IsVisible="{Binding !ActiveTab.IsShowingPlan}"
+                              IsReadOnly="{Binding !ActiveTab.IsEditable}"
+                              CanUserReorderColumns="False"
+                              GridLinesVisibility="All"
+                              AutoGenerateColumns="False" />
+                    <Grid RowDefinitions="Auto,*" IsVisible="{Binding ActiveTab.IsShowingPlan}">
+                        <TextBlock Grid.Row="0" Text="{Binding ActiveTab.ExplainSummary}" Margin="4" FontSize="12" Opacity="0.8" />
+                        <ScrollViewer Grid.Row="1">
+                            <TreeView ItemsSource="{Binding ActiveTab.ExplainRoots}" Margin="4">
+                                <TreeView.ItemTemplate>
+                                    <TreeDataTemplate DataType="vm:ExplainNodeViewModel" ItemsSource="{Binding Children}">
+                                        <StackPanel Margin="0,2">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <Rectangle Width="{Binding BarWidth}" Height="10" Fill="#4C8BF5" VerticalAlignment="Center" />
+                                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                                            </StackPanel>
+                                            <TextBlock Text="{Binding CostLabel}" FontSize="11" Opacity="0.7" Margin="16,0,0,0" />
+                                            <TextBlock Text="{Binding ActualLabel}" FontSize="11" Opacity="0.7" Margin="16,0,0,0"
+                                                       IsVisible="{Binding ActualLabel, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                                        </StackPanel>
+                                    </TreeDataTemplate>
+                                </TreeView.ItemTemplate>
+                            </TreeView>
+                        </ScrollViewer>
+                    </Grid>
+                </Grid>
             </Border>
 
             <Border Grid.Row="4" Padding="4">
