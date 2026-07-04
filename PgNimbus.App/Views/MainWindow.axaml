@@ -8,6 +8,7 @@
         xmlns:notify="using:PgNimbus.Core.Notifications"
         xmlns:sys="using:System"
         xmlns:conv="using:Avalonia.Data.Converters"
+        xmlns:conv2="using:PgNimbus.App.Converters"
         mc:Ignorable="d"
         d:DesignWidth="1000" d:DesignHeight="650"
         x:Class="PgNimbus.App.Views.MainWindow"
@@ -48,6 +49,10 @@
         <KeyBinding Gesture="Ctrl+Enter" Command="{Binding ActiveTab.RunCommand}" />
         <KeyBinding Gesture="Escape" Command="{Binding ActiveTab.CancelCommand}" />
     </Window.KeyBindings>
+
+    <DockPanel>
+        <Border DockPanel.Dock="Top" Height="4"
+                Background="{Binding AccentColor, Converter={x:Static conv2:HexToBrushConverter.Instance}}" />
 
     <Grid ColumnDefinitions="300,Auto,*" Margin="8">
 
@@ -256,5 +261,6 @@
         </Grid>
 
     </Grid>
+    </DockPanel>
 
 </Window>

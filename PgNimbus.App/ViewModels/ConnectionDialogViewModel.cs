@@ -16,6 +16,10 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
 
     public IReadOnlyList<SshAuthMethod> SshAuthMethods { get; } = Enum.GetValues<SshAuthMethod>();
 
+    /// <summary>Preset swatches shown in the dialog; a per-connection accent color helps tell environments (prod vs. dev) apart at a glance.</summary>
+    public IReadOnlyList<string> AccentColorSwatches { get; } =
+        ["#E5484D", "#F76B15", "#FFB224", "#46A758", "#0091FF", "#8E4EC6", "#6B7280"];
+
     [ObservableProperty]
     private ConnectionProfile? _selectedProfile;
 
@@ -36,6 +40,9 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
 
     [ObservableProperty]
     private SslMode _sslMode = SslMode.Prefer;
+
+    [ObservableProperty]
+    private string? _accentColor;
 
     [ObservableProperty]
     private string _password = string.Empty;
@@ -67,8 +74,8 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
     [ObservableProperty]
     private bool _isConnecting;
 
-    /// <summary>Raised with the built connection string and, if a tunnel was used, the live SshTunnel to keep alive.</summary>
-    public event Action<string, SshTunnel?>? Connected;
+    /// <summary>Raised with the built connection string, the profile's accent color, and, if a tunnel was used, the live SshTunnel to keep alive.</summary>
+    public event Action<string, string?, SshTunnel?>? Connected;
 
     public ConnectionDialogViewModel(ConnectionProfileStore store, ICredentialStore credentialStore)
     {
@@ -94,6 +101,7 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         Database = value.Database;
         Username = value.Username;
         SslMode = value.SslMode;
+        AccentColor = value.AccentColor;
         Password = _credentialStore.LoadPassword(value.Id) ?? string.Empty;
 
         UseSshTunnel = value.SshTunnel is not null;
@@ -115,6 +123,7 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         Database = "postgres";
         Username = "postgres";
         SslMode = SslMode.Prefer;
+        AccentColor = null;
         Password = string.Empty;
         UseSshTunnel = false;
         SshHost = string.Empty;
@@ -161,6 +170,9 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void SelectAccentColor(string? color) => AccentColor = color;
+
+    [RelayCommand]
     private void Delete()
     {
         if (SelectedProfile is null)
@@ -196,12 +208,12 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
                 var connectionString = profile.BuildConnectionString(
                     string.IsNullOrEmpty(Password) ? null : Password,
                     (tunnel.LocalHost, tunnel.LocalPort));
-                Connected?.Invoke(connectionString, tunnel);
+                Connected?.Invoke(connectionString, profile.AccentColor, tunnel);
             }
             else
             {
                 var connectionString = profile.BuildConnectionString(string.IsNullOrEmpty(Password) ? null : Password);
-                Connected?.Invoke(connectionString, null);
+                Connected?.Invoke(connectionString, profile.AccentColor, null);
             }
         }
         catch (Exception ex)
@@ -242,7 +254,8 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
             Database,
             Username,
             SslMode,
-            SshTunnel: sshTunnel);
+            AccentColor,
+            sshTunnel);
         error = null;
         return true;
     }

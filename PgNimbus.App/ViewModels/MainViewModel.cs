@@ -21,6 +21,9 @@ public sealed partial class MainViewModel : ObservableObject
 
     public NotifyMonitorViewModel NotifyMonitor { get; }
 
+    /// <summary>The connected profile's accent color ("#RRGGBB"), or null. Lets the window chrome show at a glance which environment (e.g. prod vs. dev) is connected.</summary>
+    public string? AccentColor { get; }
+
     public ObservableCollection<QueryViewModel> Tabs { get; } = [];
 
     [ObservableProperty]
@@ -32,7 +35,8 @@ public sealed partial class MainViewModel : ObservableObject
         SchemaTreeViewModel schemaTree,
         SchemaService schemaService,
         SqlCompletionProvider completionProvider,
-        NotifyMonitorViewModel notifyMonitor)
+        NotifyMonitorViewModel notifyMonitor,
+        string? accentColor = null)
     {
         _engine = engine;
         _explainService = explainService;
@@ -41,6 +45,7 @@ public sealed partial class MainViewModel : ObservableObject
         CompletionProvider = completionProvider;
         SavedQueries = new SavedQueriesViewModel(new SavedQueryStore(), new QueryHistoryStore(), () => ActiveTab);
         NotifyMonitor = notifyMonitor;
+        AccentColor = accentColor;
 
         AddTab();
     }
