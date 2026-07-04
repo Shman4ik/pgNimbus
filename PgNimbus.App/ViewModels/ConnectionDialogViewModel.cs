@@ -14,6 +14,8 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
 
     public IReadOnlyList<SslMode> SslModes { get; } = Enum.GetValues<SslMode>();
 
+    public IReadOnlyList<SshAuthMethod> SshAuthMethods { get; } = Enum.GetValues<SshAuthMethod>();
+
     [ObservableProperty]
     private ConnectionProfile? _selectedProfile;
 
@@ -39,10 +41,34 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
     private string _password = string.Empty;
 
     [ObservableProperty]
+    private bool _useSshTunnel;
+
+    [ObservableProperty]
+    private string _sshHost = string.Empty;
+
+    [ObservableProperty]
+    private int _sshPort = SshTunnelOptions.DefaultPort;
+
+    [ObservableProperty]
+    private string _sshUsername = string.Empty;
+
+    [ObservableProperty]
+    private SshAuthMethod _sshAuthMethod = SshAuthMethod.Password;
+
+    [ObservableProperty]
+    private string _sshPrivateKeyPath = string.Empty;
+
+    [ObservableProperty]
+    private string _sshPassword = string.Empty;
+
+    [ObservableProperty]
     private string? _errorMessage;
 
-    /// <summary>Raised with the built connection string when the user clicks Connect.</summary>
-    public event Action<string>? Connected;
+    [ObservableProperty]
+    private bool _isConnecting;
+
+    /// <summary>Raised with the built connection string and, if a tunnel was used, the live SshTunnel to keep alive.</summary>
+    public event Action<string, SshTunnel?>? Connected;
 
     public ConnectionDialogViewModel(ConnectionProfileStore store, ICredentialStore credentialStore)
     {
@@ -69,6 +95,14 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         Username = value.Username;
         SslMode = value.SslMode;
         Password = _credentialStore.LoadPassword(value.Id) ?? string.Empty;
+
+        UseSshTunnel = value.SshTunnel is not null;
+        SshHost = value.SshTunnel?.Host ?? string.Empty;
+        SshPort = value.SshTunnel?.Port ?? SshTunnelOptions.DefaultPort;
+        SshUsername = value.SshTunnel?.Username ?? string.Empty;
+        SshAuthMethod = value.SshTunnel?.AuthMethod ?? SshAuthMethod.Password;
+        SshPrivateKeyPath = value.SshTunnel?.PrivateKeyPath ?? string.Empty;
+        SshPassword = _credentialStore.LoadPassword(DeriveSshCredentialId(value.Id)) ?? string.Empty;
     }
 
     [RelayCommand]
@@ -82,6 +116,13 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         Username = "postgres";
         SslMode = SslMode.Prefer;
         Password = string.Empty;
+        UseSshTunnel = false;
+        SshHost = string.Empty;
+        SshPort = SshTunnelOptions.DefaultPort;
+        SshUsername = string.Empty;
+        SshAuthMethod = SshAuthMethod.Password;
+        SshPrivateKeyPath = string.Empty;
+        SshPassword = string.Empty;
         ErrorMessage = null;
     }
 
@@ -111,6 +152,11 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
             _credentialStore.SavePassword(profile.Id, Password);
         }
 
+        if (UseSshTunnel && !string.IsNullOrEmpty(SshPassword))
+        {
+            _credentialStore.SavePassword(DeriveSshCredentialId(profile.Id), SshPassword);
+        }
+
         SelectedProfile = profile;
     }
 
@@ -126,11 +172,12 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         Profiles.Remove(SelectedProfile);
         _store.Save(Profiles);
         _credentialStore.DeletePassword(idToDelete);
+        _credentialStore.DeletePassword(DeriveSshCredentialId(idToDelete));
         New();
     }
 
     [RelayCommand]
-    private void Connect()
+    private async Task ConnectAsync()
     {
         if (!TryBuildProfile(out var profile, out var error))
         {
@@ -139,8 +186,32 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         }
 
         ErrorMessage = null;
-        var connectionString = profile.BuildConnectionString(string.IsNullOrEmpty(Password) ? null : Password);
-        Connected?.Invoke(connectionString);
+        IsConnecting = true;
+
+        try
+        {
+            if (profile.SshTunnel is { } sshOptions)
+            {
+                var tunnel = await Task.Run(() => SshTunnel.Connect(sshOptions, SshPassword, profile.Host, profile.Port));
+                var connectionString = profile.BuildConnectionString(
+                    string.IsNullOrEmpty(Password) ? null : Password,
+                    (tunnel.LocalHost, tunnel.LocalPort));
+                Connected?.Invoke(connectionString, tunnel);
+            }
+            else
+            {
+                var connectionString = profile.BuildConnectionString(string.IsNullOrEmpty(Password) ? null : Password);
+                Connected?.Invoke(connectionString, null);
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"SSH tunnel failed: {ex.Message}";
+        }
+        finally
+        {
+            IsConnecting = false;
+        }
     }
 
     private bool TryBuildProfile(out ConnectionProfile profile, out string? error)
@@ -152,6 +223,17 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
             return false;
         }
 
+        if (UseSshTunnel && (string.IsNullOrWhiteSpace(SshHost) || string.IsNullOrWhiteSpace(SshUsername)))
+        {
+            profile = null!;
+            error = "SSH host and username are required when the tunnel is enabled.";
+            return false;
+        }
+
+        var sshTunnel = UseSshTunnel
+            ? new SshTunnelOptions(SshHost, SshPort, SshUsername, SshAuthMethod, string.IsNullOrWhiteSpace(SshPrivateKeyPath) ? null : SshPrivateKeyPath)
+            : null;
+
         profile = new ConnectionProfile(
             SelectedProfile?.Id ?? Guid.NewGuid(),
             string.IsNullOrWhiteSpace(Name) ? Host : Name,
@@ -159,8 +241,25 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
             Port,
             Database,
             Username,
-            SslMode);
+            SslMode,
+            SshTunnel: sshTunnel);
         error = null;
         return true;
+    }
+
+    /// <summary>
+    /// SSH credentials are stored via the same ICredentialStore as the DB
+    /// password, keyed by a distinct id derived from the connection's own id
+    /// (a simple byte-wise XOR) so the two secrets never collide on disk.
+    /// </summary>
+    private static Guid DeriveSshCredentialId(Guid connectionId)
+    {
+        var bytes = connectionId.ToByteArray();
+        for (var i = 0; i < bytes.Length; i++)
+        {
+            bytes[i] ^= 0x5A;
+        }
+
+        return new Guid(bytes);
     }
 }

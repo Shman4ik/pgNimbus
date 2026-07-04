@@ -24,19 +24,25 @@ public sealed record ConnectionProfile(
     string Database,
     string Username,
     SslMode SslMode,
-    string? AccentColor = null)
+    string? AccentColor = null,
+    SshTunnelOptions? SshTunnel = null)
 {
     public const int DefaultPort = 5432;
 
     // Callers resolve the password via ICredentialStore (DPAPI on Windows, a
     // permission-restricted file fallback elsewhere) and pass it in here -
     // it never lives on this record itself.
-    public string BuildConnectionString(string? password)
+    //
+    // When tunneling through SSH, pass the tunnel's local endpoint as
+    // `endpointOverride` - Npgsql then connects to 127.0.0.1:<local port>
+    // instead of the real host, while the rest of the profile (database,
+    // username, SSL mode) still applies.
+    public string BuildConnectionString(string? password, (string Host, int Port)? endpointOverride = null)
     {
         var builder = new NpgsqlConnectionStringBuilder
         {
-            Host = Host,
-            Port = Port,
+            Host = endpointOverride?.Host ?? Host,
+            Port = endpointOverride?.Port ?? Port,
             Database = Database,
             Username = Username,
             Password = password,

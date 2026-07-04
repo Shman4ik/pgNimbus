@@ -40,9 +40,9 @@ public partial class App : Application
         var viewModel = new ConnectionDialogViewModel(new ConnectionProfileStore(), CredentialStore.Create());
         var dialog = new ConnectionDialog { DataContext = viewModel };
 
-        viewModel.Connected += connectionString =>
+        viewModel.Connected += (connectionString, tunnel) =>
         {
-            var mainWindow = BuildMainWindow(connectionString);
+            var mainWindow = BuildMainWindow(connectionString, tunnel);
             desktop.MainWindow = mainWindow;
             mainWindow.Show();
             dialog.Close();
@@ -51,7 +51,7 @@ public partial class App : Application
         return dialog;
     }
 
-    private static MainWindow BuildMainWindow(string connectionString)
+    private static MainWindow BuildMainWindow(string connectionString, SshTunnel? tunnel = null)
     {
         var dataSource = NpgsqlDataSource.Create(connectionString);
         var engine = new QueryEngine(dataSource);
@@ -62,6 +62,11 @@ public partial class App : Application
         {
             DataContext = new MainViewModel(new QueryViewModel(engine), schemaTree, schemaService),
         };
+
+        if (tunnel is not null)
+        {
+            window.Closed += (_, _) => tunnel.Dispose();
+        }
 
         _ = schemaTree.RefreshCommand.ExecuteAsync(null);
 

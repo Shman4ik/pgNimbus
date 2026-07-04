@@ -6,7 +6,7 @@
         x:Class="PgNimbus.App.Views.ConnectionDialog"
         x:DataType="vm:ConnectionDialogViewModel"
         Title="pgNimbus — Connect"
-        Width="640" Height="440"
+        Width="640" Height="620"
         CanResize="False"
         WindowStartupLocation="CenterScreen">
 
@@ -29,7 +29,8 @@
             <Button Grid.Row="2" Content="New" Command="{Binding NewCommand}" Margin="0,6,0,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
         </Grid>
 
-        <Grid Grid.Column="1" Margin="16,0,0,0" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,*,Auto">
+        <ScrollViewer Grid.Column="1" Margin="16,0,0,0" HorizontalScrollBarVisibility="Disabled">
+        <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
 
             <TextBlock Grid.Row="0" Text="Name" />
             <TextBox Grid.Row="1" Text="{Binding Name}" Margin="0,0,0,8" />
@@ -59,16 +60,53 @@
                 <TextBox Text="{Binding Password}" PasswordChar="•" />
             </StackPanel>
 
-            <TextBlock Grid.Row="8" Text="{Binding ErrorMessage}" Foreground="IndianRed" TextWrapping="Wrap"
-                       IsVisible="{Binding ErrorMessage, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+            <CheckBox Grid.Row="8" Content="Connect through an SSH tunnel" IsChecked="{Binding UseSshTunnel}" Margin="0,0,0,8" />
 
-            <StackPanel Grid.Row="9" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" Margin="0,8,0,0">
+            <Border Grid.Row="9" IsVisible="{Binding UseSshTunnel}"
+                    BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1"
+                    Padding="8" Margin="0,0,0,8">
+                <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
+                    <TextBlock Grid.Row="0" Text="SSH Host / Port" />
+                    <Grid Grid.Row="1" ColumnDefinitions="*,100" Margin="0,0,0,8">
+                        <TextBox Grid.Column="0" Text="{Binding SshHost}" Margin="0,0,6,0" />
+                        <NumericUpDown Grid.Column="1" Value="{Binding SshPort}" Minimum="1" Maximum="65535" FormatString="0" />
+                    </Grid>
+
+                    <Grid Grid.Row="2" ColumnDefinitions="*,*" Margin="0,0,0,8">
+                        <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                            <TextBlock Text="SSH Username" />
+                            <TextBox Text="{Binding SshUsername}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Auth Method" />
+                            <ComboBox ItemsSource="{Binding SshAuthMethods}" SelectedItem="{Binding SshAuthMethod}" HorizontalAlignment="Stretch" />
+                        </StackPanel>
+                    </Grid>
+
+                    <StackPanel Grid.Row="3" Margin="0,0,0,8"
+                                IsVisible="{Binding SshAuthMethod, Converter={x:Static conv:ObjectConverters.Equal}, ConverterParameter={x:Static conn:SshAuthMethod.PrivateKey}}">
+                        <TextBlock Text="Private Key Path" />
+                        <TextBox Text="{Binding SshPrivateKeyPath}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="4">
+                        <TextBlock Text="SSH Password / Passphrase" />
+                        <TextBox Text="{Binding SshPassword}" PasswordChar="•" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <TextBlock Grid.Row="10" Text="{Binding ErrorMessage}" Foreground="IndianRed" TextWrapping="Wrap"
+                       IsVisible="{Binding ErrorMessage, Converter={x:Static conv:ObjectConverters.IsNotNull}}" Margin="0,0,0,8" />
+
+            <StackPanel Grid.Row="12" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" Margin="0,8,0,0">
                 <Button Content="Delete" Command="{Binding DeleteCommand}" />
                 <Button Content="Save" Command="{Binding SaveCommand}" />
-                <Button Content="Connect" Command="{Binding ConnectCommand}" />
+                <Button Content="Connect" Command="{Binding ConnectCommand}" IsEnabled="{Binding !IsConnecting}" />
             </StackPanel>
 
         </Grid>
+        </ScrollViewer>
 
     </Grid>
 
