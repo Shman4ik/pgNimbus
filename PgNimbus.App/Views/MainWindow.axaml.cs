@@ -1,7 +1,10 @@
 using System.ComponentModel;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Data;
 using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.VisualTree;
 using PgNimbus.App.ViewModels;
 
 namespace PgNimbus.App.Views;
@@ -26,7 +29,10 @@ public partial class MainWindow : Window
             _queryViewModel.Sql = SqlEditor.Text;
         };
 
-        SchemaTreeView.DoubleTapped += OnSchemaTreeDoubleTapped;
+        // TreeViewItem's own DoubleTapped handling (toggling expand) marks the
+        // event Handled, so it never reaches a plain `+=` subscription on the
+        // parent TreeView. Use AddHandler with handledEventsToo to still see it.
+        SchemaTreeView.AddHandler(Gestures.DoubleTappedEvent, OnSchemaTreeDoubleTapped, RoutingStrategies.Bubble, handledEventsToo: true);
 
         DataContextChanged += (_, _) =>
         {
@@ -57,7 +63,12 @@ public partial class MainWindow : Window
 
     private void OnSchemaTreeDoubleTapped(object? sender, TappedEventArgs e)
     {
-        if (_viewModel is not null && SchemaTreeView.SelectedItem is TableNode table)
+        // Read the node off the tapped TreeViewItem's DataContext rather than
+        // SchemaTreeView.SelectedItem: on the very first click of a row that
+        // wasn't already selected, SelectedItem can still be stale/null at
+        // the point this handler runs.
+        var container = (e.Source as Visual)?.FindAncestorOfType<TreeViewItem>(includeSelf: true);
+        if (_viewModel is not null && container?.DataContext is TableNode table)
         {
             _viewModel.PreviewTable(table);
         }
