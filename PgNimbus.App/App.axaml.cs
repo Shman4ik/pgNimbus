@@ -6,6 +6,7 @@ using PgNimbus.App.Completion;
 using PgNimbus.App.ViewModels;
 using PgNimbus.App.Views;
 using PgNimbus.Core.Connections;
+using PgNimbus.Core.Notifications;
 using PgNimbus.Core.Query;
 using PgNimbus.Core.Schema;
 
@@ -60,16 +61,18 @@ public partial class App : Application
         var schemaService = new SchemaService(dataSource);
         var schemaTree = new SchemaTreeViewModel(schemaService);
         var completionProvider = new SqlCompletionProvider(schemaService);
+        var notifyMonitor = new NotifyMonitorViewModel(new NotificationListener(dataSource));
 
         var window = new MainWindow
         {
-            DataContext = new MainViewModel(engine, explainService, schemaTree, schemaService, completionProvider),
+            DataContext = new MainViewModel(engine, explainService, schemaTree, schemaService, completionProvider, notifyMonitor),
         };
 
-        if (tunnel is not null)
+        window.Closed += (_, _) =>
         {
-            window.Closed += (_, _) => tunnel.Dispose();
-        }
+            _ = notifyMonitor.DisposeAsync();
+            tunnel?.Dispose();
+        };
 
         _ = schemaTree.RefreshCommand.ExecuteAsync(null);
         _ = completionProvider.RefreshAsync(CancellationToken.None);

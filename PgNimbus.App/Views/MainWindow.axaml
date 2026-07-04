@@ -5,6 +5,8 @@
         xmlns:ae="using:AvaloniaEdit"
         xmlns:vm="using:PgNimbus.App.ViewModels"
         xmlns:query="using:PgNimbus.Core.Query"
+        xmlns:notify="using:PgNimbus.Core.Notifications"
+        xmlns:sys="using:System"
         xmlns:conv="using:Avalonia.Data.Converters"
         mc:Ignorable="d"
         d:DesignWidth="1000" d:DesignHeight="650"
@@ -47,9 +49,16 @@
         <KeyBinding Gesture="Escape" Command="{Binding ActiveTab.CancelCommand}" />
     </Window.KeyBindings>
 
-    <Grid ColumnDefinitions="260,Auto,*" Margin="8">
+    <Grid ColumnDefinitions="300,Auto,*" Margin="8">
 
         <TabControl Grid.Column="0">
+            <TabControl.Styles>
+                <Style Selector="TabItem">
+                    <Setter Property="Padding" Value="8,6" />
+                    <Setter Property="MinWidth" Value="0" />
+                    <Setter Property="FontSize" Value="13" />
+                </Style>
+            </TabControl.Styles>
             <TabItem Header="Schemas">
                 <Grid RowDefinitions="*,Auto">
                     <Border Grid.Row="0" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1">
@@ -108,6 +117,55 @@
                         <Button Content="Load selected" Command="{Binding LoadHistoryEntryCommand}" CommandParameter="{Binding #HistoryList.SelectedItem}" />
                         <Button Content="Clear history" Command="{Binding ClearHistoryCommand}" />
                     </StackPanel>
+                </Grid>
+            </TabItem>
+            <TabItem Header="Notify">
+                <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto" x:DataType="vm:NotifyMonitorViewModel" DataContext="{Binding NotifyMonitor}">
+                    <TextBlock Grid.Row="0" Text="Channels" FontWeight="SemiBold" Margin="4" />
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="4" Margin="4">
+                        <TextBox Text="{Binding ChannelName}" Watermark="Channel name" Width="140" />
+                        <Button Content="Add" Command="{Binding AddChannelCommand}" />
+                    </StackPanel>
+                    <Border Grid.Row="2" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1" MinHeight="60">
+                        <ListBox ItemsSource="{Binding Channels}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="sys:String">
+                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                        <TextBlock Text="{Binding}" VerticalAlignment="Center" />
+                                        <Button Content="✕" Padding="2,0" FontSize="10" Tag="{Binding}" Click="OnRemoveChannelClick" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Border>
+                    <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="4" Margin="4">
+                        <Button Content="Start listening" Command="{Binding StartListeningCommand}" />
+                        <Button Content="Stop" Command="{Binding StopListeningCommand}" />
+                    </StackPanel>
+                    <StackPanel Grid.Row="4" Margin="4">
+                        <TextBlock Text="{Binding IsListening, StringFormat='Listening: {0}'}" FontSize="11" Opacity="0.7" />
+                        <TextBlock Text="{Binding ErrorMessage}" Foreground="IndianRed" TextWrapping="Wrap" FontSize="11"
+                                   IsVisible="{Binding ErrorMessage, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                    </StackPanel>
+                    <Grid Grid.Row="5" RowDefinitions="Auto,*">
+                        <TextBlock Grid.Row="0" Text="Notifications" FontWeight="SemiBold" Margin="4" />
+                        <Border Grid.Row="1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1" MinHeight="80">
+                            <ListBox ItemsSource="{Binding Notifications}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="notify:DatabaseNotification">
+                                        <StackPanel>
+                                            <TextBlock FontSize="12">
+                                                <Run Text="{Binding Channel}" FontWeight="SemiBold" />
+                                                <Run Text="{Binding Payload}" />
+                                            </TextBlock>
+                                            <TextBlock Text="{Binding ReceivedAt}" Opacity="0.6" FontSize="10" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Border>
+                    </Grid>
+                    <Button Grid.Row="6" Content="Clear" Command="{Binding ClearNotificationsCommand}" Margin="4" />
                 </Grid>
             </TabItem>
         </TabControl>
