@@ -4,6 +4,7 @@ using Avalonia.Markup.Xaml;
 using Npgsql;
 using PgNimbus.App.ViewModels;
 using PgNimbus.App.Views;
+using PgNimbus.Core.Connections;
 using PgNimbus.Core.Query;
 using PgNimbus.Core.Schema;
 
@@ -11,9 +12,6 @@ namespace PgNimbus.App;
 
 public partial class App : Application
 {
-    private const string DefaultConnectionString =
-        "Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=postgres;Application Name=pgNimbus";
-
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
@@ -23,22 +21,50 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            // TODO: replace with a real connection manager UI; for now the
-            // app connects using whatever PGNIMBUS_CONN provides.
-            var connectionString = Environment.GetEnvironmentVariable("PGNIMBUS_CONN") ?? DefaultConnectionString;
-            var dataSource = NpgsqlDataSource.Create(connectionString);
-            var engine = new QueryEngine(dataSource);
-            var schemaService = new SchemaService(dataSource);
-            var schemaTree = new SchemaTreeViewModel(schemaService);
-
-            desktop.MainWindow = new MainWindow
+            var envConnectionString = Environment.GetEnvironmentVariable("PGNIMBUS_CONN");
+            if (!string.IsNullOrWhiteSpace(envConnectionString))
             {
-                DataContext = new MainViewModel(new QueryViewModel(engine), schemaTree),
-            };
-
-            _ = schemaTree.RefreshCommand.ExecuteAsync(null);
+                desktop.MainWindow = BuildMainWindow(envConnectionString);
+            }
+            else
+            {
+                desktop.MainWindow = BuildConnectionDialog(desktop);
+            }
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    private static ConnectionDialog BuildConnectionDialog(IClassicDesktopStyleApplicationLifetime desktop)
+    {
+        var viewModel = new ConnectionDialogViewModel(new ConnectionProfileStore(), CredentialStore.Create());
+        var dialog = new ConnectionDialog { DataContext = viewModel };
+
+        viewModel.Connected += connectionString =>
+        {
+            var mainWindow = BuildMainWindow(connectionString);
+            desktop.MainWindow = mainWindow;
+            mainWindow.Show();
+            dialog.Close();
+        };
+
+        return dialog;
+    }
+
+    private static MainWindow BuildMainWindow(string connectionString)
+    {
+        var dataSource = NpgsqlDataSource.Create(connectionString);
+        var engine = new QueryEngine(dataSource);
+        var schemaService = new SchemaService(dataSource);
+        var schemaTree = new SchemaTreeViewModel(schemaService);
+
+        var window = new MainWindow
+        {
+            DataContext = new MainViewModel(new QueryViewModel(engine), schemaTree),
+        };
+
+        _ = schemaTree.RefreshCommand.ExecuteAsync(null);
+
+        return window;
     }
 }
