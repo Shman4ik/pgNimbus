@@ -1,3 +1,4 @@
+using System.Collections.Specialized;
 using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
@@ -56,20 +57,56 @@ public partial class MainWindow : Window
 
     private void Attach(MainViewModel vm)
     {
-        if (_queryViewModel is not null)
+        if (_viewModel is not null)
         {
-            _queryViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+            _viewModel.PropertyChanged -= OnMainViewModelPropertyChanged;
         }
 
         _viewModel = vm;
-        _queryViewModel = vm.Query;
+        _viewModel.PropertyChanged += OnMainViewModelPropertyChanged;
+
+        AttachQuery(vm.ActiveTab);
+    }
+
+    private void OnMainViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(MainViewModel.ActiveTab) && _viewModel is not null)
+        {
+            AttachQuery(_viewModel.ActiveTab);
+        }
+    }
+
+    // Switching the active tab swaps which QueryViewModel the shared editor/grid
+    // controls reflect - each tab keeps its own Sql/Rows/Status, but there's only
+    // one on-screen editor and grid, so this re-points them at the new tab.
+    private void AttachQuery(QueryViewModel query)
+    {
+        if (_queryViewModel is not null)
+        {
+            _queryViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+            _queryViewModel.ColumnNames.CollectionChanged -= OnColumnNamesChanged;
+        }
+
+        _queryViewModel = query;
         _queryViewModel.PropertyChanged += OnViewModelPropertyChanged;
+        _queryViewModel.ColumnNames.CollectionChanged += OnColumnNamesChanged;
 
-        SqlEditor.Text = vm.Query.Sql;
-        ResultsGrid.ItemsSource = vm.Query.Rows;
-        RebuildColumns(vm.Query);
+        _suppressEditorSync = true;
+        SqlEditor.Text = query.Sql;
+        _suppressEditorSync = false;
 
-        vm.Query.ColumnNames.CollectionChanged += (_, _) => RebuildColumns(vm.Query);
+        ResultsGrid.ItemsSource = query.Rows;
+        RebuildColumns(query);
+    }
+
+    private void OnColumnNamesChanged(object? sender, NotifyCollectionChangedEventArgs e) => RebuildColumns(_queryViewModel!);
+
+    private void OnCloseTabClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: QueryViewModel tab })
+        {
+            _viewModel?.CloseTabCommand.Execute(tab);
+        }
     }
 
     private void OnSchemaTreeDoubleTapped(object? sender, TappedEventArgs e)
