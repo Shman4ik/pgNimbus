@@ -5,6 +5,7 @@ using Npgsql;
 using PgNimbus.App.ViewModels;
 using PgNimbus.App.Views;
 using PgNimbus.Core.Query;
+using PgNimbus.Core.Schema;
 
 namespace PgNimbus.App;
 
@@ -27,11 +28,15 @@ public partial class App : Application
             var connectionString = Environment.GetEnvironmentVariable("PGNIMBUS_CONN") ?? DefaultConnectionString;
             var dataSource = NpgsqlDataSource.Create(connectionString);
             var engine = new QueryEngine(dataSource);
+            var schemaService = new SchemaService(dataSource);
+            var schemaTree = new SchemaTreeViewModel(schemaService);
 
             desktop.MainWindow = new MainWindow
             {
-                DataContext = new QueryViewModel(engine),
+                DataContext = new MainViewModel(new QueryViewModel(engine), schemaTree),
             };
+
+            _ = schemaTree.RefreshCommand.ExecuteAsync(null);
         }
 
         base.OnFrameworkInitializationCompleted();

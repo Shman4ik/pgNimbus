@@ -57,7 +57,7 @@ public sealed class SchemaService
     public async Task<IReadOnlyList<TableInfo>> GetTablesAsync(string schema, CancellationToken ct)
     {
         const string sql = """
-            SELECT c.relname, c.relkind
+            SELECT c.relname, c.relkind::text
             FROM pg_catalog.pg_class c
             JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
             WHERE n.nspname = @schema

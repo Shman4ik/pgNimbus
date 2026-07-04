@@ -4,43 +4,99 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:ae="using:AvaloniaEdit"
         xmlns:vm="using:PgNimbus.App.ViewModels"
+        xmlns:conv="using:Avalonia.Data.Converters"
         mc:Ignorable="d"
         d:DesignWidth="1000" d:DesignHeight="650"
         x:Class="PgNimbus.App.Views.MainWindow"
-        x:DataType="vm:QueryViewModel"
+        x:DataType="vm:MainViewModel"
         Title="pgNimbus"
         Width="1100" Height="700"
         FontFamily="{StaticResource InterFont}">
 
+    <Window.DataTemplates>
+        <DataTemplate DataType="vm:SchemaNode">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBlock Text="🗄" />
+                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+            </StackPanel>
+        </DataTemplate>
+        <DataTemplate DataType="vm:TableNode">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBlock Text="{Binding Glyph}" />
+                <TextBlock Text="{Binding Name}" />
+            </StackPanel>
+        </DataTemplate>
+        <DataTemplate DataType="vm:ColumnNode">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBlock Text="{Binding PrimaryKeyGlyph}" Width="14" />
+                <TextBlock Text="{Binding Name}" />
+                <TextBlock Text="{Binding DataType}" Opacity="0.6" FontSize="11" VerticalAlignment="Center" />
+            </StackPanel>
+        </DataTemplate>
+        <DataTemplate DataType="vm:PlaceholderNode">
+            <TextBlock Text="Loading..." Opacity="0.5" FontStyle="Italic" />
+        </DataTemplate>
+        <DataTemplate DataType="vm:ErrorNode">
+            <TextBlock Text="{Binding Name}" Foreground="IndianRed" TextWrapping="Wrap" />
+        </DataTemplate>
+    </Window.DataTemplates>
+
     <Window.KeyBindings>
-        <KeyBinding Gesture="Ctrl+Enter" Command="{Binding RunCommand}" />
-        <KeyBinding Gesture="Escape" Command="{Binding CancelCommand}" />
+        <KeyBinding Gesture="Ctrl+Enter" Command="{Binding Query.RunCommand}" />
+        <KeyBinding Gesture="Escape" Command="{Binding Query.CancelCommand}" />
     </Window.KeyBindings>
 
-    <Grid RowDefinitions="Auto,*,*,Auto" Margin="8">
+    <Grid ColumnDefinitions="260,Auto,*" Margin="8">
 
-        <StackPanel Orientation="Horizontal" Grid.Row="0" Spacing="8" Margin="0,0,0,8">
-            <Button Content="Run" Command="{Binding RunCommand}" ToolTip.Tip="Ctrl+Enter" />
-            <Button Content="Cancel" Command="{Binding CancelCommand}" ToolTip.Tip="Esc" />
-        </StackPanel>
+        <Grid Grid.Column="0" RowDefinitions="Auto,*,Auto">
+            <TextBlock Grid.Row="0" Text="Schemas" FontWeight="SemiBold" Margin="4" />
+            <Border Grid.Row="1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1">
+                <TreeView Name="SchemaTreeView" ItemsSource="{Binding SchemaTree.Schemas}">
+                    <TreeView.Styles>
+                        <Style Selector="TreeViewItem">
+                            <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay, DataType=vm:SchemaTreeNode}" />
+                        </Style>
+                    </TreeView.Styles>
+                    <TreeView.ItemTemplate>
+                        <TreeDataTemplate ItemsSource="{Binding Children}">
+                            <ContentControl Content="{Binding}" />
+                        </TreeDataTemplate>
+                    </TreeView.ItemTemplate>
+                </TreeView>
+            </Border>
+            <TextBlock Grid.Row="2" Text="{Binding SchemaTree.ErrorMessage}"
+                       IsVisible="{Binding SchemaTree.ErrorMessage, Converter={x:Static conv:ObjectConverters.IsNotNull}}"
+                       Foreground="IndianRed" TextWrapping="Wrap" Margin="4" FontSize="11" />
+        </Grid>
 
-        <Border Grid.Row="1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1">
-            <ae:TextEditor Name="SqlEditor"
-                           ShowLineNumbers="True"
-                           FontFamily="Cascadia Code,Consolas,Menlo,monospace"
-                           FontSize="14" />
-        </Border>
+        <GridSplitter Grid.Column="1" Width="4" />
 
-        <Border Grid.Row="2" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1" Margin="0,8,0,8">
-            <DataGrid Name="ResultsGrid"
-                      IsReadOnly="True"
-                      GridLinesVisibility="All"
-                      AutoGenerateColumns="False" />
-        </Border>
+        <Grid Grid.Column="2" RowDefinitions="Auto,*,*,Auto">
 
-        <Border Grid.Row="3" Padding="4">
-            <TextBlock Text="{Binding Status}" />
-        </Border>
+            <StackPanel Orientation="Horizontal" Grid.Row="0" Spacing="8" Margin="0,0,0,8">
+                <Button Content="Run" Command="{Binding Query.RunCommand}" ToolTip.Tip="Ctrl+Enter" />
+                <Button Content="Cancel" Command="{Binding Query.CancelCommand}" ToolTip.Tip="Esc" />
+            </StackPanel>
+
+            <Border Grid.Row="1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1">
+                <ae:TextEditor Name="SqlEditor"
+                               ShowLineNumbers="True"
+                               FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                               FontSize="14" />
+            </Border>
+
+            <Border Grid.Row="2" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1" Margin="0,8,0,8">
+                <DataGrid Name="ResultsGrid"
+                          IsReadOnly="True"
+                          GridLinesVisibility="All"
+                          AutoGenerateColumns="False" />
+            </Border>
+
+            <Border Grid.Row="3" Padding="4">
+                <TextBlock Text="{Binding Query.Status}" />
+            </Border>
+
+        </Grid>
 
     </Grid>
 
