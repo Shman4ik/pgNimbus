@@ -19,6 +19,8 @@ public sealed partial class MainViewModel : ObservableObject
 
     public SavedQueriesViewModel SavedQueries { get; }
 
+    public NotifyMonitorViewModel NotifyMonitor { get; }
+
     public ObservableCollection<QueryViewModel> Tabs { get; } = [];
 
     [ObservableProperty]
@@ -29,7 +31,8 @@ public sealed partial class MainViewModel : ObservableObject
         ExplainService explainService,
         SchemaTreeViewModel schemaTree,
         SchemaService schemaService,
-        SqlCompletionProvider completionProvider)
+        SqlCompletionProvider completionProvider,
+        NotifyMonitorViewModel notifyMonitor)
     {
         _engine = engine;
         _explainService = explainService;
@@ -37,6 +40,7 @@ public sealed partial class MainViewModel : ObservableObject
         _schemaService = schemaService;
         CompletionProvider = completionProvider;
         SavedQueries = new SavedQueriesViewModel(new SavedQueryStore(), new QueryHistoryStore(), () => ActiveTab);
+        NotifyMonitor = notifyMonitor;
 
         AddTab();
     }
