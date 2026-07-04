@@ -14,6 +14,7 @@ bld/
 [Bb]in/
 [Oo]bj/
 [Oo]ut/
+.avalonia-build-tasks/
 msbuild.log
 msbuild.err
 msbuild.wrn

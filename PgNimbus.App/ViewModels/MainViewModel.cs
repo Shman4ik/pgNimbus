@@ -14,12 +14,20 @@ public sealed class MainViewModel
 
     public SqlCompletionProvider CompletionProvider { get; }
 
-    public MainViewModel(QueryViewModel query, SchemaTreeViewModel schemaTree, SchemaService schemaService, SqlCompletionProvider completionProvider)
+    public SavedQueriesViewModel SavedQueries { get; }
+
+    public MainViewModel(
+        QueryViewModel query,
+        SchemaTreeViewModel schemaTree,
+        SchemaService schemaService,
+        SqlCompletionProvider completionProvider,
+        SavedQueriesViewModel savedQueries)
     {
         Query = query;
         SchemaTree = schemaTree;
         _schemaService = schemaService;
         CompletionProvider = completionProvider;
+        SavedQueries = savedQueries;
     }
 
     public async Task PreviewTableAsync(TableNode table)
