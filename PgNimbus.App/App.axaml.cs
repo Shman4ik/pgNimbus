@@ -60,7 +60,7 @@ public partial class App : Application
 
         var window = new MainWindow
         {
-            DataContext = new MainViewModel(new QueryViewModel(engine), schemaTree),
+            DataContext = new MainViewModel(new QueryViewModel(engine), schemaTree, schemaService),
         };
 
         _ = schemaTree.RefreshCommand.ExecuteAsync(null);

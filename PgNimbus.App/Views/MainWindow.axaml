@@ -87,7 +87,8 @@
 
             <Border Grid.Row="2" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1" Margin="0,8,0,8">
                 <DataGrid Name="ResultsGrid"
-                          IsReadOnly="True"
+                          IsReadOnly="{Binding !Query.IsEditable}"
+                          CanUserReorderColumns="False"
                           GridLinesVisibility="All"
                           AutoGenerateColumns="False" />
             </Border>

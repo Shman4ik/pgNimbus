@@ -20,6 +20,11 @@ public sealed partial class QueryViewModel : ObservableObject
     [ObservableProperty]
     private bool _isRunning;
 
+    [ObservableProperty]
+    private EditableTableContext? _editContext;
+
+    public bool IsEditable => EditContext is { PrimaryKeyColumns.Count: > 0 };
+
     public ObservableCollection<string> ColumnNames { get; } = [];
 
     public ObservableCollection<object?[]> Rows { get; } = [];
@@ -111,5 +116,80 @@ public sealed partial class QueryViewModel : ObservableObject
     {
         RunCommand.NotifyCanExecuteChanged();
         CancelCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnSqlChanged(string value) => EditContext = null;
+
+    partial void OnEditContextChanged(EditableTableContext? value) => OnPropertyChanged(nameof(IsEditable));
+
+    /// <summary>
+    /// Commits an inline grid edit as a targeted UPDATE, or reverts the cell
+    /// (with a proper UI refresh) if the edit context is missing/invalid or
+    /// the statement fails.
+    /// </summary>
+    public async Task CommitCellEditAsync(object?[] originalRow, object?[] editedRow, int columnIndex)
+    {
+        if (EditContext is not { } context)
+        {
+            RevertCell(originalRow, editedRow, columnIndex);
+            return;
+        }
+
+        var columnName = ColumnNames[columnIndex];
+
+        if (context.PrimaryKeyColumns.Contains(columnName))
+        {
+            RevertCell(originalRow, editedRow, columnIndex);
+            Status = "Editing primary key columns isn't supported yet.";
+            return;
+        }
+
+        var pkIndexes = context.PrimaryKeyColumns.Select(pk => ColumnNames.IndexOf(pk)).ToList();
+        if (pkIndexes.Any(i => i < 0))
+        {
+            RevertCell(originalRow, editedRow, columnIndex);
+            Status = "Cannot edit: primary key column isn't present in this result set.";
+            return;
+        }
+
+        var whereClause = string.Join(
+            " AND ",
+            context.PrimaryKeyColumns.Select((pk, n) => $"{SqlIdentifier.Quote(pk)} = @pk{n}"));
+
+        var sql = $"""
+            UPDATE {SqlIdentifier.Quote(context.Schema)}.{SqlIdentifier.Quote(context.Table)}
+            SET {SqlIdentifier.Quote(columnName)} = @value
+            WHERE {whereClause}
+            """;
+
+        var parameters = new Dictionary<string, object?> { ["value"] = editedRow[columnIndex] };
+        for (var n = 0; n < pkIndexes.Count; n++)
+        {
+            parameters[$"pk{n}"] = originalRow[pkIndexes[n]];
+        }
+
+        try
+        {
+            await _engine.ExecuteNonQueryAsync(sql, parameters, CancellationToken.None);
+            Status = $"Saved {context.Schema}.{context.Table}.{columnName}";
+        }
+        catch (Exception ex)
+        {
+            RevertCell(originalRow, editedRow, columnIndex);
+            Status = $"Update failed: {ex.Message}";
+        }
+    }
+
+    private void RevertCell(object?[] originalRow, object?[] editedRow, int columnIndex)
+    {
+        var index = Rows.IndexOf(editedRow);
+        if (index < 0)
+        {
+            return;
+        }
+
+        var reverted = (object?[])editedRow.Clone();
+        reverted[columnIndex] = originalRow[columnIndex];
+        Rows[index] = reverted;
     }
 }
