@@ -24,9 +24,11 @@ speed with TablePlus's polish, PostgreSQL-first.
    `pg_catalog` directly (not `information_schema`) so it can see materialized
    views, partitioned tables, and real Postgres semantics (e.g. primary-key
    flags via `pg_constraint`).
-4. **No passwords on `ConnectionProfile`.** Passwords come from the OS
-   credential store at connect time (currently a `// TODO`), never persisted
-   on the profile record itself.
+4. **No passwords on `ConnectionProfile`.** Passwords come from
+   `ICredentialStore` (DPAPI on Windows via `WindowsDpapiCredentialStore`, a
+   permission-restricted file fallback elsewhere via
+   `PlainFileCredentialStore`) at connect time, never persisted on the
+   profile record itself.
 
 ## Tech stack
 

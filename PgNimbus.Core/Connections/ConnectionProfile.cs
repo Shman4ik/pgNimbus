@@ -28,8 +28,9 @@ public sealed record ConnectionProfile(
 {
     public const int DefaultPort = 5432;
 
-    // TODO: OS credential store (Windows Credential Manager / macOS Keychain / libsecret)
-    // should supply the password here instead of it ever living on the profile.
+    // Callers resolve the password via ICredentialStore (DPAPI on Windows, a
+    // permission-restricted file fallback elsewhere) and pass it in here -
+    // it never lives on this record itself.
     public string BuildConnectionString(string? password)
     {
         var builder = new NpgsqlConnectionStringBuilder
