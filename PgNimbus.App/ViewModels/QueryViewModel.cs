@@ -26,6 +26,9 @@ public sealed partial class QueryViewModel : ObservableObject
     [ObservableProperty]
     private EditableTableContext? _editContext;
 
+    [ObservableProperty]
+    private string _tabTitle = "Query";
+
     public bool IsEditable => EditContext is { PrimaryKeyColumns.Count: > 0 };
 
     public ObservableCollection<string> ColumnNames { get; } = [];

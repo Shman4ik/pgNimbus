@@ -43,8 +43,8 @@
     </Window.DataTemplates>
 
     <Window.KeyBindings>
-        <KeyBinding Gesture="Ctrl+Enter" Command="{Binding Query.RunCommand}" />
-        <KeyBinding Gesture="Escape" Command="{Binding Query.CancelCommand}" />
+        <KeyBinding Gesture="Ctrl+Enter" Command="{Binding ActiveTab.RunCommand}" />
+        <KeyBinding Gesture="Escape" Command="{Binding ActiveTab.CancelCommand}" />
     </Window.KeyBindings>
 
     <Grid ColumnDefinitions="260,Auto,*" Margin="8">
@@ -114,11 +114,31 @@
 
         <GridSplitter Grid.Column="1" Width="4" />
 
-        <Grid Grid.Column="2" RowDefinitions="Auto,*,*,Auto">
+        <Grid Grid.Column="2" RowDefinitions="Auto,Auto,*,*,Auto">
 
-            <StackPanel Orientation="Horizontal" Grid.Row="0" Spacing="8" Margin="0,0,0,8">
-                <Button Content="Run" Command="{Binding Query.RunCommand}" ToolTip.Tip="Ctrl+Enter" />
-                <Button Content="Cancel" Command="{Binding Query.CancelCommand}" ToolTip.Tip="Esc" />
+            <DockPanel Grid.Row="0" Margin="0,0,0,4">
+                <Button DockPanel.Dock="Right" Content="+" Command="{Binding AddTabCommand}" ToolTip.Tip="New query tab" />
+                <ListBox Name="TabsList" ItemsSource="{Binding Tabs}" SelectedItem="{Binding ActiveTab, Mode=TwoWay}"
+                          SelectionMode="Single">
+                    <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" />
+                        </ItemsPanelTemplate>
+                    </ListBox.ItemsPanel>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:QueryViewModel">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock Text="{Binding TabTitle}" VerticalAlignment="Center" />
+                                <Button Content="✕" Padding="2,0" FontSize="10" Tag="{Binding}" Click="OnCloseTabClick" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+
+            <StackPanel Orientation="Horizontal" Grid.Row="1" Spacing="8" Margin="0,0,0,8">
+                <Button Content="Run" Command="{Binding ActiveTab.RunCommand}" ToolTip.Tip="Ctrl+Enter" />
+                <Button Content="Cancel" Command="{Binding ActiveTab.CancelCommand}" ToolTip.Tip="Esc" />
                 <Button Name="ExportButton" Content="Export">
                     <Button.Flyout>
                         <MenuFlyout>
@@ -129,23 +149,23 @@
                 </Button>
             </StackPanel>
 
-            <Border Grid.Row="1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1">
+            <Border Grid.Row="2" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1">
                 <ae:TextEditor Name="SqlEditor"
                                ShowLineNumbers="True"
                                FontFamily="Cascadia Code,Consolas,Menlo,monospace"
                                FontSize="14" />
             </Border>
 
-            <Border Grid.Row="2" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1" Margin="0,8,0,8">
+            <Border Grid.Row="3" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1" Margin="0,8,0,8">
                 <DataGrid Name="ResultsGrid"
-                          IsReadOnly="{Binding !Query.IsEditable}"
+                          IsReadOnly="{Binding !ActiveTab.IsEditable}"
                           CanUserReorderColumns="False"
                           GridLinesVisibility="All"
                           AutoGenerateColumns="False" />
             </Border>
 
-            <Border Grid.Row="3" Padding="4">
-                <TextBlock Text="{Binding Query.Status}" />
+            <Border Grid.Row="4" Padding="4">
+                <TextBlock Text="{Binding ActiveTab.Status}" />
             </Border>
 
         </Grid>
