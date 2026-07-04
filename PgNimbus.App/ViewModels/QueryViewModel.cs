@@ -32,6 +32,9 @@ public sealed partial class QueryViewModel : ObservableObject
 
     public ObservableCollection<object?[]> Rows { get; } = [];
 
+    /// <summary>Raised once per <see cref="RunAsync"/> completion (success, command, error, or cancellation) so a history tracker can record it without RunAsync knowing about persistence.</summary>
+    public event Action<QueryHistoryEntry>? Executed;
+
     public QueryViewModel(QueryEngine engine)
     {
         _engine = engine;
@@ -44,6 +47,7 @@ public sealed partial class QueryViewModel : ObservableObject
     {
         _cts = new CancellationTokenSource();
         var ct = _cts.Token;
+        var executedSql = Sql;
 
         IsRunning = true;
         Status = "Running...";
@@ -55,7 +59,7 @@ public sealed partial class QueryViewModel : ObservableObject
 
         try
         {
-            var result = await _engine.ExecuteAsync(Sql, ct);
+            var result = await _engine.ExecuteAsync(executedSql, ct);
 
             switch (result)
             {
@@ -96,10 +100,13 @@ public sealed partial class QueryViewModel : ObservableObject
                     Status = $"Error: {error.Message}";
                     break;
             }
+
+            Executed?.Invoke(new QueryHistoryEntry(executedSql, DateTimeOffset.UtcNow, stopwatch.Elapsed.TotalMilliseconds, Status));
         }
         catch (OperationCanceledException)
         {
             Status = "Cancelled";
+            Executed?.Invoke(new QueryHistoryEntry(executedSql, DateTimeOffset.UtcNow, stopwatch.Elapsed.TotalMilliseconds, Status));
         }
         finally
         {

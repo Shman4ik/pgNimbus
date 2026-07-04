@@ -59,10 +59,12 @@ public partial class App : Application
         var schemaService = new SchemaService(dataSource);
         var schemaTree = new SchemaTreeViewModel(schemaService);
         var completionProvider = new SqlCompletionProvider(schemaService);
+        var queryViewModel = new QueryViewModel(engine);
+        var savedQueries = new SavedQueriesViewModel(new SavedQueryStore(), new QueryHistoryStore(), queryViewModel);
 
         var window = new MainWindow
         {
-            DataContext = new MainViewModel(new QueryViewModel(engine), schemaTree, schemaService, completionProvider),
+            DataContext = new MainViewModel(queryViewModel, schemaTree, schemaService, completionProvider, savedQueries),
         };
 
         if (tunnel is not null)

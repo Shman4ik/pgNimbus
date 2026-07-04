@@ -4,6 +4,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:ae="using:AvaloniaEdit"
         xmlns:vm="using:PgNimbus.App.ViewModels"
+        xmlns:query="using:PgNimbus.Core.Query"
         xmlns:conv="using:Avalonia.Data.Converters"
         mc:Ignorable="d"
         d:DesignWidth="1000" d:DesignHeight="650"
@@ -48,26 +49,68 @@
 
     <Grid ColumnDefinitions="260,Auto,*" Margin="8">
 
-        <Grid Grid.Column="0" RowDefinitions="Auto,*,Auto">
-            <TextBlock Grid.Row="0" Text="Schemas" FontWeight="SemiBold" Margin="4" />
-            <Border Grid.Row="1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1">
-                <TreeView Name="SchemaTreeView" ItemsSource="{Binding SchemaTree.Schemas}">
-                    <TreeView.Styles>
-                        <Style Selector="TreeViewItem">
-                            <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay, DataType=vm:SchemaTreeNode}" />
-                        </Style>
-                    </TreeView.Styles>
-                    <TreeView.ItemTemplate>
-                        <TreeDataTemplate ItemsSource="{Binding Children}">
-                            <ContentControl Content="{Binding}" />
-                        </TreeDataTemplate>
-                    </TreeView.ItemTemplate>
-                </TreeView>
-            </Border>
-            <TextBlock Grid.Row="2" Text="{Binding SchemaTree.ErrorMessage}"
-                       IsVisible="{Binding SchemaTree.ErrorMessage, Converter={x:Static conv:ObjectConverters.IsNotNull}}"
-                       Foreground="IndianRed" TextWrapping="Wrap" Margin="4" FontSize="11" />
-        </Grid>
+        <TabControl Grid.Column="0">
+            <TabItem Header="Schemas">
+                <Grid RowDefinitions="*,Auto">
+                    <Border Grid.Row="0" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1">
+                        <TreeView Name="SchemaTreeView" ItemsSource="{Binding SchemaTree.Schemas}">
+                            <TreeView.Styles>
+                                <Style Selector="TreeViewItem">
+                                    <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay, DataType=vm:SchemaTreeNode}" />
+                                </Style>
+                            </TreeView.Styles>
+                            <TreeView.ItemTemplate>
+                                <TreeDataTemplate ItemsSource="{Binding Children}">
+                                    <ContentControl Content="{Binding}" />
+                                </TreeDataTemplate>
+                            </TreeView.ItemTemplate>
+                        </TreeView>
+                    </Border>
+                    <TextBlock Grid.Row="1" Text="{Binding SchemaTree.ErrorMessage}"
+                               IsVisible="{Binding SchemaTree.ErrorMessage, Converter={x:Static conv:ObjectConverters.IsNotNull}}"
+                               Foreground="IndianRed" TextWrapping="Wrap" Margin="4" FontSize="11" />
+                </Grid>
+            </TabItem>
+            <TabItem Header="Queries">
+                <Grid RowDefinitions="Auto,*,Auto,Auto,Auto,*,Auto" x:DataType="vm:SavedQueriesViewModel" DataContext="{Binding SavedQueries}">
+                    <TextBlock Grid.Row="0" Text="Saved queries" FontWeight="SemiBold" Margin="4" />
+                    <Border Grid.Row="1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1" MinHeight="80">
+                        <ListBox Name="SavedQueriesList" ItemsSource="{Binding SavedQueries}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="query:SavedQuery">
+                                    <TextBlock Text="{Binding Name}" ToolTip.Tip="{Binding Sql}" />
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Border>
+                    <TextBox Grid.Row="2" Name="NewQueryNameBox" Text="{Binding NewQueryName}" Watermark="Query name" Margin="4,4,4,0" />
+                    <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="4" Margin="4">
+                        <Button Content="Save" Command="{Binding SaveCurrentQueryCommand}" />
+                        <Button Content="Load" Command="{Binding LoadSavedQueryCommand}" CommandParameter="{Binding #SavedQueriesList.SelectedItem}" />
+                        <Button Content="Delete" Command="{Binding DeleteSavedQueryCommand}" CommandParameter="{Binding #SavedQueriesList.SelectedItem}" />
+                    </StackPanel>
+                    <Grid Grid.Row="4" RowDefinitions="Auto">
+                        <TextBlock Grid.Row="0" Text="History" FontWeight="SemiBold" Margin="4" />
+                    </Grid>
+                    <Border Grid.Row="5" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1" MinHeight="80">
+                        <ListBox Name="HistoryList" ItemsSource="{Binding History}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="query:QueryHistoryEntry">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Sql}" TextTrimming="CharacterEllipsis" MaxLines="2" TextWrapping="Wrap" FontSize="12" />
+                                        <TextBlock Text="{Binding ExecutedAt}" Opacity="0.6" FontSize="10" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Border>
+                    <StackPanel Grid.Row="6" Orientation="Horizontal" Spacing="4" Margin="4">
+                        <Button Content="Load selected" Command="{Binding LoadHistoryEntryCommand}" CommandParameter="{Binding #HistoryList.SelectedItem}" />
+                        <Button Content="Clear history" Command="{Binding ClearHistoryCommand}" />
+                    </StackPanel>
+                </Grid>
+            </TabItem>
+        </TabControl>
 
         <GridSplitter Grid.Column="1" Width="4" />
 
