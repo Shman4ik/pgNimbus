@@ -14,6 +14,7 @@ public partial class MainWindow : Window
     private MainViewModel? _viewModel;
     private QueryViewModel? _queryViewModel;
     private bool _suppressEditorSync;
+    private object?[]? _pendingEditOriginalRow;
 
     public MainWindow()
     {
@@ -33,6 +34,8 @@ public partial class MainWindow : Window
         // event Handled, so it never reaches a plain `+=` subscription on the
         // parent TreeView. Use AddHandler with handledEventsToo to still see it.
         SchemaTreeView.AddHandler(Gestures.DoubleTappedEvent, OnSchemaTreeDoubleTapped, RoutingStrategies.Bubble, handledEventsToo: true);
+        ResultsGrid.CellEditEnding += OnCellEditEnding;
+        ResultsGrid.CellEditEnded += OnCellEditEnded;
 
         DataContextChanged += (_, _) =>
         {
@@ -70,8 +73,31 @@ public partial class MainWindow : Window
         var container = (e.Source as Visual)?.FindAncestorOfType<TreeViewItem>(includeSelf: true);
         if (_viewModel is not null && container?.DataContext is TableNode table)
         {
-            _viewModel.PreviewTable(table);
+            _ = _viewModel.PreviewTableAsync(table);
         }
+    }
+
+    private void OnCellEditEnding(object? sender, DataGridCellEditEndingEventArgs e)
+    {
+        _pendingEditOriginalRow = e.Row.DataContext is object?[] row ? (object?[])row.Clone() : null;
+    }
+
+    private async void OnCellEditEnded(object? sender, DataGridCellEditEndedEventArgs e)
+    {
+        var originalRow = _pendingEditOriginalRow;
+        _pendingEditOriginalRow = null;
+
+        if (_queryViewModel is null || originalRow is null || e.EditAction != DataGridEditAction.Commit)
+        {
+            return;
+        }
+
+        if (e.Row.DataContext is not object?[] editedRow)
+        {
+            return;
+        }
+
+        await _queryViewModel.CommitCellEditAsync(originalRow, editedRow, e.Column.DisplayIndex);
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)

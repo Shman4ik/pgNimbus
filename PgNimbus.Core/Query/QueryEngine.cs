@@ -20,6 +20,24 @@ public sealed class QueryEngine
         _dataSource = dataSource;
     }
 
+    /// <summary>
+    /// Executes a parameterized statement that returns no rows (used for
+    /// inline cell-edit UPDATEs). Unlike <see cref="ExecuteAsync"/>, callers
+    /// supply real parameters instead of a raw user-typed statement.
+    /// </summary>
+    public async Task ExecuteNonQueryAsync(string sql, IReadOnlyDictionary<string, object?> parameters, CancellationToken ct)
+    {
+        await using var connection = await _dataSource.OpenConnectionAsync(ct);
+        await using var command = new NpgsqlCommand(sql, connection);
+
+        foreach (var (name, value) in parameters)
+        {
+            command.Parameters.AddWithValue(name, value ?? DBNull.Value);
+        }
+
+        await command.ExecuteNonQueryAsync(ct);
+    }
+
     public async Task<StatementResult> ExecuteAsync(string sql, CancellationToken ct)
     {
         var stopwatch = Stopwatch.StartNew();
