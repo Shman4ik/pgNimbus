@@ -59,13 +59,14 @@ public partial class App : Application
         var engine = new QueryEngine(dataSource);
         var explainService = new ExplainService(dataSource);
         var schemaService = new SchemaService(dataSource);
+        var schemaEditor = new SchemaEditor(dataSource);
         var schemaTree = new SchemaTreeViewModel(schemaService);
         var completionProvider = new SqlCompletionProvider(schemaService);
         var notifyMonitor = new NotifyMonitorViewModel(new NotificationListener(dataSource));
 
         var window = new MainWindow
         {
-            DataContext = new MainViewModel(engine, explainService, schemaTree, schemaService, completionProvider, notifyMonitor, accentColor),
+            DataContext = new MainViewModel(engine, explainService, schemaTree, schemaService, schemaEditor, completionProvider, notifyMonitor, accentColor),
         };
 
         window.Closed += (_, _) =>

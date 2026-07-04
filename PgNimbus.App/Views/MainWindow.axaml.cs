@@ -117,6 +117,22 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OnAlterTableClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem { Tag: TableNode table } || _viewModel is null)
+        {
+            return;
+        }
+
+        var alterTableViewModel = _viewModel.CreateAlterTableViewModel(table);
+        // Same TableNode instance the schema tree displays, so reloading its
+        // children in place picks up the ALTER TABLE without a full tree refresh.
+        alterTableViewModel.SchemaChanged += () => _ = table.RefreshAsync();
+
+        var dialog = new AlterTableDialog { DataContext = alterTableViewModel };
+        dialog.ShowDialog(this);
+    }
+
     private void OnSchemaTreeDoubleTapped(object? sender, TappedEventArgs e)
     {
         // Read the node off the tapped TreeViewItem's DataContext rather than

@@ -26,6 +26,11 @@
         </DataTemplate>
         <DataTemplate DataType="vm:TableNode">
             <StackPanel Orientation="Horizontal" Spacing="6">
+                <StackPanel.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="Alter Table..." Tag="{Binding}" Click="OnAlterTableClick" />
+                    </ContextMenu>
+                </StackPanel.ContextMenu>
                 <TextBlock Text="{Binding Glyph}" />
                 <TextBlock Text="{Binding Name}" />
             </StackPanel>

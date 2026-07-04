@@ -12,6 +12,7 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly QueryEngine _engine;
     private readonly ExplainService _explainService;
     private readonly SchemaService _schemaService;
+    private readonly SchemaEditor _schemaEditor;
 
     public SchemaTreeViewModel SchemaTree { get; }
 
@@ -34,6 +35,7 @@ public sealed partial class MainViewModel : ObservableObject
         ExplainService explainService,
         SchemaTreeViewModel schemaTree,
         SchemaService schemaService,
+        SchemaEditor schemaEditor,
         SqlCompletionProvider completionProvider,
         NotifyMonitorViewModel notifyMonitor,
         string? accentColor = null)
@@ -42,6 +44,7 @@ public sealed partial class MainViewModel : ObservableObject
         _explainService = explainService;
         SchemaTree = schemaTree;
         _schemaService = schemaService;
+        _schemaEditor = schemaEditor;
         CompletionProvider = completionProvider;
         SavedQueries = new SavedQueriesViewModel(new SavedQueryStore(), new QueryHistoryStore(), () => ActiveTab);
         NotifyMonitor = notifyMonitor;
@@ -49,6 +52,9 @@ public sealed partial class MainViewModel : ObservableObject
 
         AddTab();
     }
+
+    public AlterTableViewModel CreateAlterTableViewModel(TableNode table) =>
+        new(_schemaEditor, _schemaService, table.Schema, table.Name);
 
     private bool CanCloseTab() => Tabs.Count > 1;
 
