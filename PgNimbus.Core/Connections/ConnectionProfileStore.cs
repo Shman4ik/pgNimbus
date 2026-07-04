@@ -14,26 +14,7 @@ public sealed class ConnectionProfileStore
 
     public ConnectionProfileStore(string? filePath = null)
     {
-        _filePath = filePath ?? Path.Combine(ResolveAppDataDirectory(), "pgNimbus", "connections.json");
-    }
-
-    /// <summary>
-    /// <see cref="Environment.SpecialFolder.ApplicationData"/> can resolve to an
-    /// empty string in minimal/containerized Linux environments (e.g. no usable
-    /// passwd entry for the current UID), which would otherwise make Save/Load
-    /// silently use a path relative to the working directory. Fall back to
-    /// $HOME, then the OS temp directory, rather than risk that.
-    /// </summary>
-    private static string ResolveAppDataDirectory()
-    {
-        var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        if (!string.IsNullOrEmpty(appData))
-        {
-            return appData;
-        }
-
-        var home = Environment.GetEnvironmentVariable("HOME");
-        return string.IsNullOrEmpty(home) ? Path.GetTempPath() : Path.Combine(home, ".config");
+        _filePath = filePath ?? Path.Combine(AppDataPaths.GetRootDirectory(), "connections.json");
     }
 
     public IReadOnlyList<ConnectionProfile> Load()

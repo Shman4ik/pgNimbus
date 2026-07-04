@@ -36,7 +36,7 @@ public partial class App : Application
 
     private static ConnectionDialog BuildConnectionDialog(IClassicDesktopStyleApplicationLifetime desktop)
     {
-        var viewModel = new ConnectionDialogViewModel(new ConnectionProfileStore());
+        var viewModel = new ConnectionDialogViewModel(new ConnectionProfileStore(), CredentialStore.Create());
         var dialog = new ConnectionDialog { DataContext = viewModel };
 
         viewModel.Connected += connectionString =>
