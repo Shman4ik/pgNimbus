@@ -24,6 +24,9 @@ public abstract partial class SchemaTreeNode : ObservableObject
     /// <summary>Seeds a placeholder child so an as-yet-unloaded expandable node still shows an expand arrow.</summary>
     protected void MarkExpandable() => Children.Add(new PlaceholderNode());
 
+    /// <summary>Re-fetches this node's children immediately, bypassing the lazy-load-once gate (used after schema-changing operations like ALTER TABLE).</summary>
+    public Task RefreshAsync() => LoadChildrenAsync();
+
     partial void OnIsExpandedChanged(bool value)
     {
         if (!value || _loaded)
