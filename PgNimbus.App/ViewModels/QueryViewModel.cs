@@ -1,7 +1,9 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using PgNimbus.Core.Export;
 using PgNimbus.Core.Query;
 
 namespace PgNimbus.App.ViewModels;
@@ -10,6 +12,7 @@ public sealed partial class QueryViewModel : ObservableObject
 {
     private readonly QueryEngine _engine;
     private CancellationTokenSource? _cts;
+    private IReadOnlyList<ColumnInfo> _columns = [];
 
     [ObservableProperty]
     private string _sql = "SELECT 1;";
@@ -46,6 +49,7 @@ public sealed partial class QueryViewModel : ObservableObject
         Status = "Running...";
         ColumnNames.Clear();
         Rows.Clear();
+        _columns = [];
 
         var stopwatch = Stopwatch.StartNew();
 
@@ -56,6 +60,7 @@ public sealed partial class QueryViewModel : ObservableObject
             switch (result)
             {
                 case ResultSet resultSet:
+                    _columns = resultSet.Columns;
                     foreach (var column in resultSet.Columns)
                     {
                         ColumnNames.Add(column.Name);
@@ -123,15 +128,19 @@ public sealed partial class QueryViewModel : ObservableObject
     partial void OnEditContextChanged(EditableTableContext? value) => OnPropertyChanged(nameof(IsEditable));
 
     /// <summary>
-    /// Commits an inline grid edit as a targeted UPDATE, or reverts the cell
-    /// (with a proper UI refresh) if the edit context is missing/invalid or
-    /// the statement fails.
+    /// Commits an inline grid edit (the raw text typed into the cell editor)
+    /// as a targeted UPDATE. The grid's own column bindings are one-way, so
+    /// <paramref name="row"/> is never mutated by the UI itself - on success
+    /// this applies the converted value and replaces the row (via
+    /// ObservableCollection replace, since mutating an array element in
+    /// place doesn't raise a UI change notification); on failure it simply
+    /// does nothing, since the row was never touched.
     /// </summary>
-    public async Task CommitCellEditAsync(object?[] originalRow, object?[] editedRow, int columnIndex)
+    public async Task CommitCellEditAsync(object?[] row, int columnIndex, string newValueText)
     {
         if (EditContext is not { } context)
         {
-            RevertCell(originalRow, editedRow, columnIndex);
+            Status = "Editing isn't available for this result set.";
             return;
         }
 
@@ -139,7 +148,6 @@ public sealed partial class QueryViewModel : ObservableObject
 
         if (context.PrimaryKeyColumns.Contains(columnName))
         {
-            RevertCell(originalRow, editedRow, columnIndex);
             Status = "Editing primary key columns isn't supported yet.";
             return;
         }
@@ -147,7 +155,6 @@ public sealed partial class QueryViewModel : ObservableObject
         var pkIndexes = context.PrimaryKeyColumns.Select(pk => ColumnNames.IndexOf(pk)).ToList();
         if (pkIndexes.Any(i => i < 0))
         {
-            RevertCell(originalRow, editedRow, columnIndex);
             Status = "Cannot edit: primary key column isn't present in this result set.";
             return;
         }
@@ -162,34 +169,78 @@ public sealed partial class QueryViewModel : ObservableObject
             WHERE {whereClause}
             """;
 
-        var parameters = new Dictionary<string, object?> { ["value"] = editedRow[columnIndex] };
+        object? newValue;
+        try
+        {
+            newValue = ConvertEditedValue(newValueText, columnIndex);
+        }
+        catch (Exception ex)
+        {
+            Status = $"Invalid value for {columnName}: {ex.Message}";
+            return;
+        }
+
+        var parameters = new Dictionary<string, object?> { ["value"] = newValue };
         for (var n = 0; n < pkIndexes.Count; n++)
         {
-            parameters[$"pk{n}"] = originalRow[pkIndexes[n]];
+            parameters[$"pk{n}"] = row[pkIndexes[n]];
         }
 
         try
         {
             await _engine.ExecuteNonQueryAsync(sql, parameters, CancellationToken.None);
+
+            var rowIndex = Rows.IndexOf(row);
+            if (rowIndex >= 0)
+            {
+                var updated = (object?[])row.Clone();
+                updated[columnIndex] = newValue;
+                Rows[rowIndex] = updated;
+            }
+
             Status = $"Saved {context.Schema}.{context.Table}.{columnName}";
         }
         catch (Exception ex)
         {
-            RevertCell(originalRow, editedRow, columnIndex);
             Status = $"Update failed: {ex.Message}";
         }
     }
 
-    private void RevertCell(object?[] originalRow, object?[] editedRow, int columnIndex)
+    /// <summary>
+    /// Converts the cell editor's raw text back to the column's real CLR
+    /// type, so the parameter Npgsql sends matches what the column expects
+    /// (a bare string parameter against, say, a numeric column fails with a
+    /// Postgres type-mismatch error, since text isn't assignment-castable to
+    /// most non-text types).
+    /// </summary>
+    private object ConvertEditedValue(string text, int columnIndex)
     {
-        var index = Rows.IndexOf(editedRow);
-        if (index < 0)
+        var targetType = columnIndex < _columns.Count ? _columns[columnIndex].ClrType : typeof(string);
+        var underlying = Nullable.GetUnderlyingType(targetType) ?? targetType;
+
+        if (underlying == typeof(string))
         {
-            return;
+            return text;
         }
 
-        var reverted = (object?[])editedRow.Clone();
-        reverted[columnIndex] = originalRow[columnIndex];
-        Rows[index] = reverted;
+        if (underlying == typeof(Guid))
+        {
+            return Guid.Parse(text);
+        }
+
+        if (typeof(IConvertible).IsAssignableFrom(underlying))
+        {
+            return Convert.ChangeType(text, underlying, CultureInfo.InvariantCulture);
+        }
+
+        return text;
     }
+
+    public void ExportCsv(Stream stream)
+    {
+        using var writer = new StreamWriter(stream, leaveOpen: true);
+        ResultExporter.WriteCsv(writer, ColumnNames, Rows);
+    }
+
+    public void ExportJson(Stream stream) => ResultExporter.WriteJson(stream, ColumnNames, Rows);
 }

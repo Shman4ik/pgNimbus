@@ -76,6 +76,14 @@
             <StackPanel Orientation="Horizontal" Grid.Row="0" Spacing="8" Margin="0,0,0,8">
                 <Button Content="Run" Command="{Binding Query.RunCommand}" ToolTip.Tip="Ctrl+Enter" />
                 <Button Content="Cancel" Command="{Binding Query.CancelCommand}" ToolTip.Tip="Esc" />
+                <Button Name="ExportButton" Content="Export">
+                    <Button.Flyout>
+                        <MenuFlyout>
+                            <MenuItem Header="Export as CSV..." Click="OnExportCsvClick" />
+                            <MenuItem Header="Export as JSON..." Click="OnExportJsonClick" />
+                        </MenuFlyout>
+                    </Button.Flyout>
+                </Button>
             </StackPanel>
 
             <Border Grid.Row="1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1">
