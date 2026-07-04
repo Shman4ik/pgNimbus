@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Data;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
 using Avalonia.VisualTree;
 using PgNimbus.App.ViewModels;
 
@@ -14,7 +15,9 @@ public partial class MainWindow : Window
     private MainViewModel? _viewModel;
     private QueryViewModel? _queryViewModel;
     private bool _suppressEditorSync;
-    private object?[]? _pendingEditOriginalRow;
+    private object?[]? _pendingEditRow;
+    private int _pendingEditColumnIndex;
+    private string? _pendingEditText;
 
     public MainWindow()
     {
@@ -79,25 +82,75 @@ public partial class MainWindow : Window
 
     private void OnCellEditEnding(object? sender, DataGridCellEditEndingEventArgs e)
     {
-        _pendingEditOriginalRow = e.Row.DataContext is object?[] row ? (object?[])row.Clone() : null;
+        // Column bindings are one-way (see RebuildColumns), so the grid never
+        // mutates Row's array elements itself - the edited text has to be
+        // read directly off the editing TextBox here, before it's torn down.
+        // (DataGridCellEditEndedEventArgs doesn't expose EditingElement.)
+        _pendingEditRow = e.Row.DataContext as object?[];
+        _pendingEditColumnIndex = e.Column.DisplayIndex;
+        _pendingEditText = (e.EditingElement as TextBox)?.Text;
     }
 
     private async void OnCellEditEnded(object? sender, DataGridCellEditEndedEventArgs e)
     {
-        var originalRow = _pendingEditOriginalRow;
-        _pendingEditOriginalRow = null;
+        var row = _pendingEditRow;
+        var columnIndex = _pendingEditColumnIndex;
+        var text = _pendingEditText;
+        _pendingEditRow = null;
+        _pendingEditText = null;
 
-        if (_queryViewModel is null || originalRow is null || e.EditAction != DataGridEditAction.Commit)
+        if (_queryViewModel is null || row is null || text is null || e.EditAction != DataGridEditAction.Commit)
         {
             return;
         }
 
-        if (e.Row.DataContext is not object?[] editedRow)
+        await _queryViewModel.CommitCellEditAsync(row, columnIndex, text);
+    }
+
+    private async void OnExportCsvClick(object? sender, RoutedEventArgs e)
+    {
+        var query = _queryViewModel;
+        if (query is not null)
+        {
+            await ExportAsync("csv", "CSV", ["*.csv"], stream => query.ExportCsv(stream));
+        }
+    }
+
+    private async void OnExportJsonClick(object? sender, RoutedEventArgs e)
+    {
+        var query = _queryViewModel;
+        if (query is not null)
+        {
+            await ExportAsync("json", "JSON", ["*.json"], stream => query.ExportJson(stream));
+        }
+    }
+
+    private async Task ExportAsync(string extension, string typeName, string[] patterns, Action<Stream>? write)
+    {
+        if (write is null || _queryViewModel is null || _queryViewModel.Rows.Count == 0)
         {
             return;
         }
 
-        await _queryViewModel.CommitCellEditAsync(originalRow, editedRow, e.Column.DisplayIndex);
+        var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
+        if (storageProvider is null)
+        {
+            return;
+        }
+
+        var file = await storageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            SuggestedFileName = $"export.{extension}",
+            FileTypeChoices = [new FilePickerFileType(typeName) { Patterns = patterns }],
+        });
+
+        if (file is null)
+        {
+            return;
+        }
+
+        await using var stream = await file.OpenWriteAsync();
+        write(stream);
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -127,7 +180,7 @@ public partial class MainWindow : Window
             ResultsGrid.Columns.Add(new DataGridTextColumn
             {
                 Header = query.ColumnNames[index],
-                Binding = new Binding($"[{index}]"),
+                Binding = new Binding($"[{index}]") { Mode = BindingMode.OneWay },
             });
         }
     }
