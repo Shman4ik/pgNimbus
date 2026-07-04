@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Npgsql;
 using PgNimbus.Core.Export;
 using PgNimbus.Core.Query;
 
@@ -11,6 +12,7 @@ namespace PgNimbus.App.ViewModels;
 public sealed partial class QueryViewModel : ObservableObject
 {
     private readonly QueryEngine _engine;
+    private readonly ExplainService _explainService;
     private CancellationTokenSource? _cts;
     private IReadOnlyList<ColumnInfo> _columns = [];
 
@@ -29,7 +31,21 @@ public sealed partial class QueryViewModel : ObservableObject
     [ObservableProperty]
     private string _tabTitle = "Query";
 
+    [ObservableProperty]
+    private ExplainNodeViewModel? _explainRoot;
+
+    [ObservableProperty]
+    private string? _explainSummary;
+
+    [ObservableProperty]
+    private bool _isShowingPlan;
+
     public bool IsEditable => EditContext is { PrimaryKeyColumns.Count: > 0 };
+
+    /// <summary>Single-root wrapper so the plan tree's TreeView can bind an IEnumerable ItemsSource to one node.</summary>
+    public IReadOnlyList<ExplainNodeViewModel> ExplainRoots => ExplainRoot is null ? [] : [ExplainRoot];
+
+    partial void OnExplainRootChanged(ExplainNodeViewModel? value) => OnPropertyChanged(nameof(ExplainRoots));
 
     public ObservableCollection<string> ColumnNames { get; } = [];
 
@@ -38,9 +54,10 @@ public sealed partial class QueryViewModel : ObservableObject
     /// <summary>Raised once per <see cref="RunAsync"/> completion (success, command, error, or cancellation) so a history tracker can record it without RunAsync knowing about persistence.</summary>
     public event Action<QueryHistoryEntry>? Executed;
 
-    public QueryViewModel(QueryEngine engine)
+    public QueryViewModel(QueryEngine engine, ExplainService explainService)
     {
         _engine = engine;
+        _explainService = explainService;
     }
 
     private bool CanRun() => !IsRunning;
@@ -54,6 +71,7 @@ public sealed partial class QueryViewModel : ObservableObject
 
         IsRunning = true;
         Status = "Running...";
+        IsShowingPlan = false;
         ColumnNames.Clear();
         Rows.Clear();
         _columns = [];
@@ -127,13 +145,57 @@ public sealed partial class QueryViewModel : ObservableObject
         _cts?.Cancel();
     }
 
+    [RelayCommand(CanExecute = nameof(CanRun))]
+    private Task ExplainAsync() => RunExplainAsync(analyze: false);
+
+    [RelayCommand(CanExecute = nameof(CanRun))]
+    private Task ExplainAnalyzeAsync() => RunExplainAsync(analyze: true);
+
+    [RelayCommand]
+    private void ShowResults() => IsShowingPlan = false;
+
+    private async Task RunExplainAsync(bool analyze)
+    {
+        IsRunning = true;
+        Status = analyze ? "Running EXPLAIN ANALYZE..." : "Running EXPLAIN...";
+
+        try
+        {
+            var result = await _explainService.ExplainAsync(Sql, analyze, CancellationToken.None);
+            ExplainRoot = new ExplainNodeViewModel(result.Root, result.Root.TotalCost);
+            ExplainSummary = result.ExecutionTimeMs is { } execMs
+                ? $"Planning: {result.PlanningTimeMs:F3} ms   Execution: {execMs:F3} ms"
+                : $"Planning: {result.PlanningTimeMs:F3} ms";
+            IsShowingPlan = true;
+            Status = "Plan ready";
+        }
+        catch (PostgresException ex)
+        {
+            Status = $"Explain failed: {ex.MessageText}";
+        }
+        catch (Exception ex)
+        {
+            Status = $"Explain failed: {ex.Message}";
+        }
+        finally
+        {
+            IsRunning = false;
+        }
+    }
+
     partial void OnIsRunningChanged(bool value)
     {
         RunCommand.NotifyCanExecuteChanged();
         CancelCommand.NotifyCanExecuteChanged();
+        ExplainCommand.NotifyCanExecuteChanged();
+        ExplainAnalyzeCommand.NotifyCanExecuteChanged();
     }
 
-    partial void OnSqlChanged(string value) => EditContext = null;
+    partial void OnSqlChanged(string value)
+    {
+        EditContext = null;
+        IsShowingPlan = false;
+    }
 
     partial void OnEditContextChanged(EditableTableContext? value) => OnPropertyChanged(nameof(IsEditable));
 

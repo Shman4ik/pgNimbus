@@ -10,6 +10,7 @@ namespace PgNimbus.App.ViewModels;
 public sealed partial class MainViewModel : ObservableObject
 {
     private readonly QueryEngine _engine;
+    private readonly ExplainService _explainService;
     private readonly SchemaService _schemaService;
 
     public SchemaTreeViewModel SchemaTree { get; }
@@ -25,11 +26,13 @@ public sealed partial class MainViewModel : ObservableObject
 
     public MainViewModel(
         QueryEngine engine,
+        ExplainService explainService,
         SchemaTreeViewModel schemaTree,
         SchemaService schemaService,
         SqlCompletionProvider completionProvider)
     {
         _engine = engine;
+        _explainService = explainService;
         SchemaTree = schemaTree;
         _schemaService = schemaService;
         CompletionProvider = completionProvider;
@@ -43,7 +46,7 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void AddTab()
     {
-        var tab = new QueryViewModel(_engine) { TabTitle = $"Query {Tabs.Count + 1}" };
+        var tab = new QueryViewModel(_engine, _explainService) { TabTitle = $"Query {Tabs.Count + 1}" };
         tab.Executed += SavedQueries.RecordExecution;
         Tabs.Add(tab);
         ActiveTab = tab;

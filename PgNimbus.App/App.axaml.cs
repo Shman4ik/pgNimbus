@@ -56,13 +56,14 @@ public partial class App : Application
     {
         var dataSource = NpgsqlDataSource.Create(connectionString);
         var engine = new QueryEngine(dataSource);
+        var explainService = new ExplainService(dataSource);
         var schemaService = new SchemaService(dataSource);
         var schemaTree = new SchemaTreeViewModel(schemaService);
         var completionProvider = new SqlCompletionProvider(schemaService);
 
         var window = new MainWindow
         {
-            DataContext = new MainViewModel(engine, schemaTree, schemaService, completionProvider),
+            DataContext = new MainViewModel(engine, explainService, schemaTree, schemaService, completionProvider),
         };
 
         if (tunnel is not null)
