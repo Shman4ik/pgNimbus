@@ -1,0 +1,47 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:ae="using:AvaloniaEdit"
+        xmlns:vm="using:PgNimbus.App.ViewModels"
+        mc:Ignorable="d"
+        d:DesignWidth="1000" d:DesignHeight="650"
+        x:Class="PgNimbus.App.Views.MainWindow"
+        x:DataType="vm:QueryViewModel"
+        Title="pgNimbus"
+        Width="1100" Height="700"
+        FontFamily="{StaticResource InterFont}">
+
+    <Window.KeyBindings>
+        <KeyBinding Gesture="Ctrl+Enter" Command="{Binding RunCommand}" />
+        <KeyBinding Gesture="Escape" Command="{Binding CancelCommand}" />
+    </Window.KeyBindings>
+
+    <Grid RowDefinitions="Auto,*,*,Auto" Margin="8">
+
+        <StackPanel Orientation="Horizontal" Grid.Row="0" Spacing="8" Margin="0,0,0,8">
+            <Button Content="Run" Command="{Binding RunCommand}" ToolTip.Tip="Ctrl+Enter" />
+            <Button Content="Cancel" Command="{Binding CancelCommand}" ToolTip.Tip="Esc" />
+        </StackPanel>
+
+        <Border Grid.Row="1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1">
+            <ae:TextEditor Name="SqlEditor"
+                           ShowLineNumbers="True"
+                           FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                           FontSize="14" />
+        </Border>
+
+        <Border Grid.Row="2" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1" Margin="0,8,0,8">
+            <DataGrid Name="ResultsGrid"
+                      IsReadOnly="True"
+                      GridLinesVisibility="All"
+                      AutoGenerateColumns="False" />
+        </Border>
+
+        <Border Grid.Row="3" Padding="4">
+            <TextBlock Text="{Binding Status}" />
+        </Border>
+
+    </Grid>
+
+</Window>
