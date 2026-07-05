@@ -76,6 +76,45 @@
         <Setter Property="Padding" Value="12" />
     </Style>
 
+    <!--
+        Files-style segmented status bar: a quiet strip flush along the
+        layer's bottom edge, segments divided by hairline separators.
+    -->
+    <Style Selector="Border.statusBar">
+        <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}" />
+        <Setter Property="BorderThickness" Value="0,1,0,0" />
+        <Setter Property="Padding" Value="12,6" />
+    </Style>
+    <Style Selector="TextBlock.statusText">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Opacity" Value="0.85" />
+    </Style>
+    <Style Selector="TextBlock.statusText.dim">
+        <Setter Property="Opacity" Value="0.6" />
+    </Style>
+    <Style Selector="TextBlock.statusText.error">
+        <Setter Property="Foreground" Value="IndianRed" />
+    </Style>
+    <!-- Fixed amber that stays legible on both light and dark surfaces -->
+    <Style Selector="TextBlock.statusText.warn">
+        <Setter Property="Foreground" Value="#D9822B" />
+        <Setter Property="Opacity" Value="1" />
+    </Style>
+    <Style Selector="Rectangle.statusSeparator">
+        <Setter Property="Width" Value="1" />
+        <Setter Property="Height" Value="12" />
+        <Setter Property="Fill" Value="{StaticResource CardBorderBrush}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- Compact sidebar section headers (Files-style micro-headers) -->
+    <Style Selector="TextBlock.sectionHeader">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Opacity" Value="0.55" />
+        <Setter Property="LetterSpacing" Value="0.8" />
+    </Style>
+
     <!-- Buttons -->
     <Style Selector="Button">
         <Setter Property="CornerRadius" Value="{StaticResource ControlCornerRadius}" />

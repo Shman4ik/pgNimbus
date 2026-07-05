@@ -115,7 +115,7 @@
                     </StackPanel>
                 </TabItem.Header>
                 <Grid RowDefinitions="Auto,*,Auto,Auto,Auto,*,Auto" Margin="0,8,0,0" x:DataType="vm:SavedQueriesViewModel" DataContext="{Binding SavedQueries}">
-                    <TextBlock Grid.Row="0" Text="Saved queries" FontWeight="SemiBold" Margin="4,0,4,6" />
+                    <TextBlock Grid.Row="0" Classes="sectionHeader" Text="SAVED QUERIES" Margin="4,0,4,6" />
                     <Border Grid.Row="1" Classes="card" MinHeight="80">
                         <ListBox Name="SavedQueriesList" ItemsSource="{Binding SavedQueries}">
                             <ListBox.ItemTemplate>
@@ -131,7 +131,7 @@
                         <Button Content="Load" Command="{Binding LoadSavedQueryCommand}" CommandParameter="{Binding #SavedQueriesList.SelectedItem}" />
                         <Button Content="Delete" Command="{Binding DeleteSavedQueryCommand}" CommandParameter="{Binding #SavedQueriesList.SelectedItem}" />
                     </StackPanel>
-                    <TextBlock Grid.Row="4" Text="History" FontWeight="SemiBold" Margin="4,16,4,6" />
+                    <TextBlock Grid.Row="4" Classes="sectionHeader" Text="HISTORY" Margin="4,16,4,6" />
                     <Border Grid.Row="5" Classes="card" MinHeight="80">
                         <ListBox Name="HistoryList" ItemsSource="{Binding History}">
                             <ListBox.ItemTemplate>
@@ -158,7 +158,7 @@
                     </StackPanel>
                 </TabItem.Header>
                 <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto" Margin="0,8,0,0" x:DataType="vm:NotifyMonitorViewModel" DataContext="{Binding NotifyMonitor}">
-                    <TextBlock Grid.Row="0" Text="Channels" FontWeight="SemiBold" Margin="4,0,4,6" />
+                    <TextBlock Grid.Row="0" Classes="sectionHeader" Text="CHANNELS" Margin="4,0,4,6" />
                     <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6">
                         <TextBox Text="{Binding ChannelName}" PlaceholderText="Channel name" Width="140" />
                         <Button Content="Add" Command="{Binding AddChannelCommand}" />
@@ -189,7 +189,7 @@
                                    IsVisible="{Binding ErrorMessage, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
                     </StackPanel>
                     <Grid Grid.Row="5" RowDefinitions="Auto,*" Margin="0,8,0,0">
-                        <TextBlock Grid.Row="0" Text="Notifications" FontWeight="SemiBold" Margin="4,0,4,6" />
+                        <TextBlock Grid.Row="0" Classes="sectionHeader" Text="NOTIFICATIONS" Margin="4,0,4,6" />
                         <Border Grid.Row="1" Classes="card" MinHeight="80">
                             <ListBox ItemsSource="{Binding Notifications}">
                                 <ListBox.ItemTemplate>
@@ -213,8 +213,10 @@
 
         <GridSplitter Grid.Column="1" Width="12" Background="Transparent" />
 
-        <Border Grid.Column="2" Classes="layer">
-        <Grid RowDefinitions="Auto,Auto,*,*,Auto">
+        <!-- Padding moves to the inner grid so the status bar can run flush along the layer's bottom edge -->
+        <Border Grid.Column="2" Classes="layer" Padding="0">
+        <Grid RowDefinitions="*,Auto">
+        <Grid Grid.Row="0" Margin="12,12,12,0" RowDefinitions="Auto,Auto,*,*">
 
             <DockPanel Grid.Row="0" Margin="0,0,0,8">
                 <Button DockPanel.Dock="Right" Classes="chip" Content="+" FontSize="14" Command="{Binding AddTabCommand}" ToolTip.Tip="New query tab" />
@@ -334,8 +336,30 @@
                 </Grid>
             </Border>
 
-            <Border Grid.Row="4" Padding="4,0">
-                <TextBlock Text="{Binding ActiveTab.Status}" Opacity="0.8" FontSize="12" />
+        </Grid>
+
+            <!-- Files-style segmented status bar: message · rows · timing · cap warning -->
+            <Border Grid.Row="1" Classes="statusBar">
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                    <TextBlock Text="{Binding ActiveTab.Status}"
+                               Classes="statusText" Classes.error="{Binding ActiveTab.HasError}"
+                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                    <StackPanel Orientation="Horizontal" Spacing="10"
+                                IsVisible="{Binding ActiveTab.RowCountText, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
+                        <Rectangle Classes="statusSeparator" />
+                        <TextBlock Classes="statusText dim" Text="{Binding ActiveTab.RowCountText}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="10"
+                                IsVisible="{Binding ActiveTab.TimingText, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
+                        <Rectangle Classes="statusSeparator" />
+                        <TextBlock Classes="statusText dim" Text="{Binding ActiveTab.TimingText}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="10"
+                                IsVisible="{Binding ActiveTab.CapText, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
+                        <Rectangle Classes="statusSeparator" />
+                        <TextBlock Classes="statusText warn" Text="{Binding ActiveTab.CapText}" VerticalAlignment="Center" />
+                    </StackPanel>
+                </StackPanel>
             </Border>
 
         </Grid>

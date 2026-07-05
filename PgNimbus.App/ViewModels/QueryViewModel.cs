@@ -33,6 +33,21 @@ public sealed partial class QueryViewModel : ObservableObject
     [ObservableProperty]
     private string _status = "Ready";
 
+    /// <summary>Paints the status-bar message red for error outcomes.</summary>
+    [ObservableProperty]
+    private bool _hasError;
+
+    // Structured status-bar segments (Files-style): each renders as its own
+    // divided segment in the bottom bar; null collapses the segment.
+    [ObservableProperty]
+    private string? _rowCountText;
+
+    [ObservableProperty]
+    private string? _timingText;
+
+    [ObservableProperty]
+    private string? _capText;
+
     [ObservableProperty]
     private bool _isRunning;
 
@@ -94,6 +109,10 @@ public sealed partial class QueryViewModel : ObservableObject
 
         IsRunning = true;
         Status = "Running...";
+        HasError = false;
+        RowCountText = null;
+        TimingText = null;
+        CapText = null;
         IsShowingPlan = false;
         ColumnNames.Clear();
         Rows = [];
@@ -156,7 +175,8 @@ public sealed partial class QueryViewModel : ObservableObject
                                 }
 
                                 allRows.AddRange(rows);
-                                var statusText = $"{allRows.Count} rows ({firstByteMs} ms to first byte, {resultSet.Elapsed.TotalMilliseconds:F0} ms elapsed)";
+                                var rowText = $"{allRows.Count:N0} rows";
+                                var timeText = $"{resultSet.Elapsed.TotalMilliseconds:F0} ms · first byte {firstByteMs} ms";
 
                                 if (!firstScreenShown)
                                 {
@@ -165,13 +185,18 @@ public sealed partial class QueryViewModel : ObservableObject
                                     await Dispatcher.UIThread.InvokeAsync(() =>
                                     {
                                         Rows = firstScreen;
-                                        Status = statusText;
+                                        RowCountText = rowText;
+                                        TimingText = timeText;
                                     });
                                 }
                                 else if (stopwatch.ElapsedMilliseconds - lastStatusMs >= 100)
                                 {
                                     lastStatusMs = stopwatch.ElapsedMilliseconds;
-                                    Dispatcher.UIThread.Post(() => Status = statusText);
+                                    Dispatcher.UIThread.Post(() =>
+                                    {
+                                        RowCountText = rowText;
+                                        TimingText = timeText;
+                                    });
                                 }
                             }
                         }, ct);
@@ -184,26 +209,32 @@ public sealed partial class QueryViewModel : ObservableObject
                         Rows = new AvaloniaList<object?[]>(allRows);
                     }
 
-                    Status = truncated
-                        ? $"Showing first {allRows.Count:N0} rows (capped at {MaxDisplayRows:N0} — refine the query for the full set) in {stopwatch.Elapsed.TotalMilliseconds:F0} ms"
-                        : $"{allRows.Count} rows in {stopwatch.Elapsed.TotalMilliseconds:F0} ms ({firstByteMs} ms to first byte)";
+                    Status = "Done";
+                    RowCountText = $"{allRows.Count:N0} rows";
+                    TimingText = $"{stopwatch.Elapsed.TotalMilliseconds:F0} ms · first byte {firstByteMs} ms";
+                    CapText = truncated
+                        ? $"capped at {MaxDisplayRows:N0} rows — refine the query for the full set"
+                        : null;
                     break;
 
                 case CommandResult commandResult:
-                    Status = $"{commandResult.CommandTag} — {commandResult.RowsAffected} row(s) affected in {commandResult.Elapsed.TotalMilliseconds:F0} ms";
+                    Status = commandResult.CommandTag;
+                    RowCountText = $"{commandResult.RowsAffected} row(s) affected";
+                    TimingText = $"{commandResult.Elapsed.TotalMilliseconds:F0} ms";
                     break;
 
                 case QueryError error:
                     Status = $"Error: {error.Message}";
+                    HasError = true;
                     break;
             }
 
-            Executed?.Invoke(new QueryHistoryEntry(executedSql, DateTimeOffset.UtcNow, stopwatch.Elapsed.TotalMilliseconds, Status));
+            Executed?.Invoke(new QueryHistoryEntry(executedSql, DateTimeOffset.UtcNow, stopwatch.Elapsed.TotalMilliseconds, StatusSummary()));
         }
         catch (OperationCanceledException)
         {
             Status = "Cancelled";
-            Executed?.Invoke(new QueryHistoryEntry(executedSql, DateTimeOffset.UtcNow, stopwatch.Elapsed.TotalMilliseconds, Status));
+            Executed?.Invoke(new QueryHistoryEntry(executedSql, DateTimeOffset.UtcNow, stopwatch.Elapsed.TotalMilliseconds, StatusSummary()));
         }
         finally
         {
@@ -212,6 +243,10 @@ public sealed partial class QueryViewModel : ObservableObject
             _cts = null;
         }
     }
+
+    /// <summary>Flattens the segmented status back into one line for query-history entries.</summary>
+    private string StatusSummary() =>
+        string.Join(" · ", new[] { Status, RowCountText, TimingText, CapText }.Where(s => !string.IsNullOrEmpty(s)));
 
     private bool CanCancel() => IsRunning;
 
@@ -234,6 +269,7 @@ public sealed partial class QueryViewModel : ObservableObject
     {
         IsRunning = true;
         Status = analyze ? "Running EXPLAIN ANALYZE..." : "Running EXPLAIN...";
+        HasError = false;
 
         try
         {
@@ -248,10 +284,12 @@ public sealed partial class QueryViewModel : ObservableObject
         catch (PostgresException ex)
         {
             Status = $"Explain failed: {ex.MessageText}";
+            HasError = true;
         }
         catch (Exception ex)
         {
             Status = $"Explain failed: {ex.Message}";
+            HasError = true;
         }
         finally
         {
@@ -286,6 +324,8 @@ public sealed partial class QueryViewModel : ObservableObject
     /// </summary>
     public async Task CommitCellEditAsync(object?[] row, int columnIndex, string newValueText)
     {
+        HasError = false;
+
         if (EditContext is not { } context)
         {
             Status = "Editing isn't available for this result set.";
@@ -325,6 +365,7 @@ public sealed partial class QueryViewModel : ObservableObject
         catch (Exception ex)
         {
             Status = $"Invalid value for {columnName}: {ex.Message}";
+            HasError = true;
             return;
         }
 
@@ -351,6 +392,7 @@ public sealed partial class QueryViewModel : ObservableObject
         catch (Exception ex)
         {
             Status = $"Update failed: {ex.Message}";
+            HasError = true;
         }
     }
 
