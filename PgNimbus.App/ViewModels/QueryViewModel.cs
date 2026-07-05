@@ -239,9 +239,9 @@ public sealed partial class QueryViewModel : ObservableObject
         {
             var result = await _explainService.ExplainAsync(Sql, analyze, CancellationToken.None);
             ExplainRoot = new ExplainNodeViewModel(result.Root, result.Root.TotalCost);
-            ExplainSummary = result.ExecutionTimeMs is { } execMs
-                ? $"Planning: {result.PlanningTimeMs:F3} ms   Execution: {execMs:F3} ms"
-                : $"Planning: {result.PlanningTimeMs:F3} ms";
+            var planningFragment = result.PlanningTimeMs is { } planMs ? $"Planning: {planMs:F3} ms" : null;
+            var executionFragment = result.ExecutionTimeMs is { } execMs ? $"Execution: {execMs:F3} ms" : null;
+            ExplainSummary = string.Join("   ", new[] { planningFragment, executionFragment }.Where(f => f is not null));
             IsShowingPlan = true;
             Status = "Plan ready";
         }
