@@ -62,6 +62,20 @@
         <Setter Property="CornerRadius" Value="{StaticResource CardCornerRadius}" />
     </Style>
 
+    <!--
+        Files-style two-tone shell: the window base carries a chrome tint
+        (the sidebar sits directly on it), and the main content pane is a
+        raised "layer" - page-background fill, hairline border, rounded
+        corners - like Files' content area on its Mica base.
+    -->
+    <Style Selector="Border.layer">
+        <Setter Property="Background" Value="{DynamicResource SystemControlPageBackgroundAltHighBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource CardCornerRadius}" />
+        <Setter Property="Padding" Value="12" />
+    </Style>
+
     <!-- Buttons -->
     <Style Selector="Button">
         <Setter Property="CornerRadius" Value="{StaticResource ControlCornerRadius}" />

@@ -63,12 +63,17 @@ means for pgNimbus. Adopting its language where Avalonia allows.
 | --- | --- | --- |
 | Files-style command bar | Query toolbar is now a rounded card containing an accent Run (play icon) and quiet icon+label secondaries (stop/flash/gauge/table/export MDI glyphs) that are transparent at rest with Fluent's own hover wash. Disabled buttons stay quiet (dim text, no grey fill) via a container-scoped `ButtonBackgroundDisabled` resource override — the reliable per-area escape from ControlTheme repainting. Verified rest/hover/disabled in light and dark. | (this commit) |
 
+## Iteration 7
+
+| Item | Outcome | Commit |
+| --- | --- | --- |
+| Files two-tone shell | Window base now carries the chrome tint (`SystemControlBackgroundChromeMediumLowBrush`); the sidebar (nav pills + schema tree, card chrome removed) sits directly on it, and the whole right pane became a raised `Border.layer` — page-background fill, hairline border, 8 px radius — matching Files' content-on-Mica layering. Verified light + dark with results on screen. | (this commit) |
+
 ## Open / candidate items
-- [ ] More Files-language adoption: layered content tones (sidebar vs
-      content), compact left sidebar with section headers, breadcrumb-style
-      context (connection › database), segmented status bar. Mica/acrylic
-      backdrop remains blocked on safe verification (a headless sandbox
-      can't see transparency failures).
+- [ ] More Files-language adoption: compact sidebar section headers,
+      breadcrumb-style context (connection › database), segmented status
+      bar. Mica/acrylic backdrop remains blocked on safe verification (a
+      headless sandbox can't see transparency failures).
 - [ ] Keyboard navigation audit (tab order, editor ↔ grid focus, Ctrl+W
       close tab?)
 - [ ] Roadmap features (command palette, extension manager) — out of polish

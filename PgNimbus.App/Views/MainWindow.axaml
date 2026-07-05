@@ -58,7 +58,8 @@
         <KeyBinding Gesture="Escape" Command="{Binding ActiveTab.CancelCommand}" />
     </Window.KeyBindings>
 
-    <DockPanel Background="{DynamicResource SystemControlPageBackgroundAltHighBrush}">
+    <!-- Two-tone shell (Files-style): chrome-tinted base; the content pane is a raised layer -->
+    <DockPanel Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}">
         <Border DockPanel.Dock="Top" Height="40" Padding="16,0"
                 BorderThickness="0,0,0,1" BorderBrush="{StaticResource CardBorderBrush}">
             <DockPanel>
@@ -80,7 +81,8 @@
                     </StackPanel>
                 </TabItem.Header>
                 <Grid RowDefinitions="*,Auto" Margin="0,8,0,0">
-                    <Border Grid.Row="0" Classes="card">
+                    <!-- Sidebar content sits directly on the shell tone, Files-style - no card chrome -->
+                    <Border Grid.Row="0">
                         <TreeView Name="SchemaTreeView" ItemsSource="{Binding SchemaTree.Schemas}">
                             <TreeView.Styles>
                                 <Style Selector="TreeViewItem">
@@ -205,7 +207,8 @@
 
         <GridSplitter Grid.Column="1" Width="12" Background="Transparent" />
 
-        <Grid Grid.Column="2" RowDefinitions="Auto,Auto,*,*,Auto">
+        <Border Grid.Column="2" Classes="layer">
+        <Grid RowDefinitions="Auto,Auto,*,*,Auto">
 
             <DockPanel Grid.Row="0" Margin="0,0,0,8">
                 <Button DockPanel.Dock="Right" Classes="chip" Content="+" FontSize="14" Command="{Binding AddTabCommand}" ToolTip.Tip="New query tab" />
@@ -330,6 +333,7 @@
             </Border>
 
         </Grid>
+        </Border>
 
     </Grid>
     </DockPanel>
