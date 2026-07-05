@@ -64,9 +64,15 @@ public partial class App : Application
         var completionProvider = new SqlCompletionProvider(schemaService);
         var notifyMonitor = new NotifyMonitorViewModel(new NotificationListener(dataSource));
 
+        var csb = new NpgsqlConnectionStringBuilder(connectionString);
+
         var window = new MainWindow
         {
-            DataContext = new MainViewModel(engine, explainService, schemaTree, schemaService, schemaEditor, completionProvider, notifyMonitor, accentColor),
+            DataContext = new MainViewModel(
+                engine, explainService, schemaTree, schemaService, schemaEditor, completionProvider, notifyMonitor,
+                accentColor,
+                connectionHost: csb.Host ?? "",
+                connectionDatabase: csb.Database ?? ""),
         };
 
         window.Closed += (_, _) =>

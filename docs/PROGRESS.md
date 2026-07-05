@@ -69,11 +69,16 @@ means for pgNimbus. Adopting its language where Avalonia allows.
 | --- | --- | --- |
 | Files two-tone shell | Window base now carries the chrome tint (`SystemControlBackgroundChromeMediumLowBrush`); the sidebar (nav pills + schema tree, card chrome removed) sits directly on it, and the whole right pane became a raised `Border.layer` — page-background fill, hairline border, 8 px radius — matching Files' content-on-Mica layering. Verified light + dark with results on screen. | (this commit) |
 
+## Iteration 8
+
+| Item | Outcome | Commit |
+| --- | --- | --- |
+| Title-bar connection breadcrumb | Files-style context in the chrome: "pgNimbus  host › database", parsed from the connection string (`NpgsqlConnectionStringBuilder`) and exposed as `ConnectionHost`/`ConnectionDatabase` on `MainViewModel`. Quiet 65 %-opacity text next to the accent environment dot. | (this commit) |
+
 ## Open / candidate items
 - [ ] More Files-language adoption: compact sidebar section headers,
-      breadcrumb-style context (connection › database), segmented status
-      bar. Mica/acrylic backdrop remains blocked on safe verification (a
-      headless sandbox can't see transparency failures).
+      segmented status bar. Mica/acrylic backdrop remains blocked on safe
+      verification (a headless sandbox can't see transparency failures).
 - [ ] Keyboard navigation audit (tab order, editor ↔ grid focus, Ctrl+W
       close tab?)
 - [ ] Roadmap features (command palette, extension manager) — out of polish
