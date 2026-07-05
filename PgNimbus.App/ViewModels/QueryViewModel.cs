@@ -13,6 +13,15 @@ namespace PgNimbus.App.ViewModels;
 
 public sealed partial class QueryViewModel : ObservableObject
 {
+    /// <summary>
+    /// Ceiling on rows kept in memory per result set. Streaming keeps the UI
+    /// responsive during a huge SELECT, but every fetched row still lives on
+    /// the client - without a cap an unbounded scan of a big table (or a
+    /// runaway join) eventually exhausts memory. Past the cap the query is
+    /// cancelled server-side via the same path as the Cancel button.
+    /// </summary>
+    public const int MaxDisplayRows = 100_000;
+
     private readonly QueryEngine _engine;
     private readonly ExplainService _explainService;
     private CancellationTokenSource? _cts;
@@ -89,7 +98,10 @@ public sealed partial class QueryViewModel : ObservableObject
 
         try
         {
-            var result = await _engine.ExecuteAsync(executedSql, ct);
+            // Ask for one row past the cap: receiving it proves the result was
+            // actually cut short, so an exactly-at-the-cap result isn't
+            // mislabeled as truncated.
+            var result = await _engine.ExecuteAsync(executedSql, ct, MaxDisplayRows + 1);
 
             switch (result)
             {
@@ -102,6 +114,7 @@ public sealed partial class QueryViewModel : ObservableObject
 
                     var rowCount = 0;
                     var firstByteMs = -1L;
+                    var truncated = false;
 
                     // Read and materialize batches on a background thread. NpgsqlDataReader.ReadAsync
                     // frequently completes synchronously once data is already buffered, so consuming
@@ -118,18 +131,29 @@ public sealed partial class QueryViewModel : ObservableObject
                                 firstByteMs = stopwatch.ElapsedMilliseconds;
                             }
 
-                            rowCount += batch.Rows.Count;
+                            // The engine streams at most MaxDisplayRows + 1 rows;
+                            // the sentinel row past the cap is dropped, not shown.
+                            var rows = batch.Rows;
+                            if (rowCount + rows.Count > MaxDisplayRows)
+                            {
+                                rows = rows.Take(MaxDisplayRows - rowCount).ToList();
+                                truncated = true;
+                            }
+
+                            rowCount += rows.Count;
                             var statusText = $"{rowCount} rows ({firstByteMs} ms to first byte, {resultSet.Elapsed.TotalMilliseconds:F0} ms elapsed)";
 
                             await Dispatcher.UIThread.InvokeAsync(() =>
                             {
-                                Rows.AddRange(batch.Rows);
+                                Rows.AddRange(rows);
                                 Status = statusText;
                             });
                         }
                     }, ct);
 
-                    Status = $"{rowCount} rows in {stopwatch.Elapsed.TotalMilliseconds:F0} ms ({firstByteMs} ms to first byte)";
+                    Status = truncated
+                        ? $"Showing first {rowCount:N0} rows (capped at {MaxDisplayRows:N0} — refine the query for the full set) in {stopwatch.Elapsed.TotalMilliseconds:F0} ms"
+                        : $"{rowCount} rows in {stopwatch.Elapsed.TotalMilliseconds:F0} ms ({firstByteMs} ms to first byte)";
                     break;
 
                 case CommandResult commandResult:
