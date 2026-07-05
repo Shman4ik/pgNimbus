@@ -39,7 +39,7 @@ public partial class MainWindow : Window
         // TreeViewItem's own DoubleTapped handling (toggling expand) marks the
         // event Handled, so it never reaches a plain `+=` subscription on the
         // parent TreeView. Use AddHandler with handledEventsToo to still see it.
-        SchemaTreeView.AddHandler(Gestures.DoubleTappedEvent, OnSchemaTreeDoubleTapped, RoutingStrategies.Bubble, handledEventsToo: true);
+        SchemaTreeView.AddHandler(InputElement.DoubleTappedEvent, OnSchemaTreeDoubleTapped, RoutingStrategies.Bubble, handledEventsToo: true);
         ResultsGrid.CellEditEnding += OnCellEditEnding;
         ResultsGrid.CellEditEnded += OnCellEditEnded;
 

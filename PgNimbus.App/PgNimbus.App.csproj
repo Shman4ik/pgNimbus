@@ -14,26 +14,15 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Avalonia" Version="11.2.3" />
-    <PackageReference Include="Avalonia.Desktop" Version="11.2.3" />
-    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.3" />
-    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.2.3" />
-    <PackageReference Include="Avalonia.Controls.DataGrid" Version="11.2.3" />
-    <PackageReference Include="Avalonia.AvaloniaEdit" Version="11.1.0" />
+    <PackageReference Include="Avalonia" Version="12.0.5" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.0.5" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.5" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.0.5" />
+    <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.0.1" />
+    <PackageReference Include="Avalonia.AvaloniaEdit" Version="12.0.0" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
-    <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="11.2.3" />
+    <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="11.3.18" />
   </ItemGroup>
-
-  <!--
-    NU1903: Avalonia's X11 backend transitively pulls Tmds.DBus.Protocol 0.20.0,
-    which carries a known DoS advisory (GHSA-xrw6-gwf8-vvr9). The only fixed
-    releases (0.90.0+) are a breaking rewrite that Avalonia 11.2.3 cannot load
-    (TypeLoadException at startup on Linux), so this is accepted until Avalonia
-    itself bumps the dependency. Not reachable on the Windows-primary target.
-  -->
-  <PropertyGroup>
-    <NoWarn>$(NoWarn);NU1903</NoWarn>
-  </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\PgNimbus.Core\PgNimbus.Core.csproj" />

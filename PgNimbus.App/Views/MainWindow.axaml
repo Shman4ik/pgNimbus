@@ -55,23 +55,29 @@
         <KeyBinding Gesture="Escape" Command="{Binding ActiveTab.CancelCommand}" />
     </Window.KeyBindings>
 
-    <DockPanel>
-        <Border DockPanel.Dock="Top" Height="4"
-                Background="{Binding AccentColor, Converter={x:Static conv2:HexToBrushConverter.Instance}}" />
+    <DockPanel Background="{DynamicResource SystemControlPageBackgroundAltHighBrush}">
+        <Border DockPanel.Dock="Top" Height="40" Padding="16,0"
+                BorderThickness="0,0,0,1" BorderBrush="{StaticResource CardBorderBrush}">
+            <DockPanel>
+                <Border DockPanel.Dock="Left" Width="10" Height="10" CornerRadius="5" Margin="0,0,10,0"
+                        VerticalAlignment="Center"
+                        Background="{Binding AccentColor, Converter={x:Static conv2:HexToBrushConverter.Instance}}" />
+                <TextBlock Text="pgNimbus" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center" />
+            </DockPanel>
+        </Border>
 
-    <Grid ColumnDefinitions="300,Auto,*" Margin="8">
+    <Grid ColumnDefinitions="300,Auto,*" Margin="16">
 
         <TabControl Grid.Column="0">
-            <TabControl.Styles>
-                <Style Selector="TabItem">
-                    <Setter Property="Padding" Value="8,6" />
-                    <Setter Property="MinWidth" Value="0" />
-                    <Setter Property="FontSize" Value="13" />
-                </Style>
-            </TabControl.Styles>
-            <TabItem Header="Schemas">
-                <Grid RowDefinitions="*,Auto">
-                    <Border Grid.Row="0" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1">
+            <TabItem>
+                <TabItem.Header>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="🗄" />
+                        <TextBlock Text="Schemas" />
+                    </StackPanel>
+                </TabItem.Header>
+                <Grid RowDefinitions="*,Auto" Margin="0,8,0,0">
+                    <Border Grid.Row="0" Classes="card">
                         <TreeView Name="SchemaTreeView" ItemsSource="{Binding SchemaTree.Schemas}">
                             <TreeView.Styles>
                                 <Style Selector="TreeViewItem">
@@ -90,10 +96,16 @@
                                Foreground="IndianRed" TextWrapping="Wrap" Margin="4" FontSize="11" />
                 </Grid>
             </TabItem>
-            <TabItem Header="Queries">
-                <Grid RowDefinitions="Auto,*,Auto,Auto,Auto,*,Auto" x:DataType="vm:SavedQueriesViewModel" DataContext="{Binding SavedQueries}">
-                    <TextBlock Grid.Row="0" Text="Saved queries" FontWeight="SemiBold" Margin="4" />
-                    <Border Grid.Row="1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1" MinHeight="80">
+            <TabItem>
+                <TabItem.Header>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="📝" />
+                        <TextBlock Text="Queries" />
+                    </StackPanel>
+                </TabItem.Header>
+                <Grid RowDefinitions="Auto,*,Auto,Auto,Auto,*,Auto" Margin="0,8,0,0" x:DataType="vm:SavedQueriesViewModel" DataContext="{Binding SavedQueries}">
+                    <TextBlock Grid.Row="0" Text="Saved queries" FontWeight="SemiBold" Margin="4,0,4,6" />
+                    <Border Grid.Row="1" Classes="card" MinHeight="80">
                         <ListBox Name="SavedQueriesList" ItemsSource="{Binding SavedQueries}">
                             <ListBox.ItemTemplate>
                                 <DataTemplate x:DataType="query:SavedQuery">
@@ -102,16 +114,14 @@
                             </ListBox.ItemTemplate>
                         </ListBox>
                     </Border>
-                    <TextBox Grid.Row="2" Name="NewQueryNameBox" Text="{Binding NewQueryName}" Watermark="Query name" Margin="4,4,4,0" />
-                    <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="4" Margin="4">
+                    <TextBox Grid.Row="2" Name="NewQueryNameBox" Text="{Binding NewQueryName}" PlaceholderText="Query name" Margin="0,8,0,0" />
+                    <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="6" Margin="0,8,0,0">
                         <Button Content="Save" Command="{Binding SaveCurrentQueryCommand}" />
                         <Button Content="Load" Command="{Binding LoadSavedQueryCommand}" CommandParameter="{Binding #SavedQueriesList.SelectedItem}" />
                         <Button Content="Delete" Command="{Binding DeleteSavedQueryCommand}" CommandParameter="{Binding #SavedQueriesList.SelectedItem}" />
                     </StackPanel>
-                    <Grid Grid.Row="4" RowDefinitions="Auto">
-                        <TextBlock Grid.Row="0" Text="History" FontWeight="SemiBold" Margin="4" />
-                    </Grid>
-                    <Border Grid.Row="5" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1" MinHeight="80">
+                    <TextBlock Grid.Row="4" Text="History" FontWeight="SemiBold" Margin="4,16,4,6" />
+                    <Border Grid.Row="5" Classes="card" MinHeight="80">
                         <ListBox Name="HistoryList" ItemsSource="{Binding History}">
                             <ListBox.ItemTemplate>
                                 <DataTemplate x:DataType="query:QueryHistoryEntry">
@@ -123,43 +133,49 @@
                             </ListBox.ItemTemplate>
                         </ListBox>
                     </Border>
-                    <StackPanel Grid.Row="6" Orientation="Horizontal" Spacing="4" Margin="4">
+                    <StackPanel Grid.Row="6" Orientation="Horizontal" Spacing="6" Margin="0,8,0,0">
                         <Button Content="Load selected" Command="{Binding LoadHistoryEntryCommand}" CommandParameter="{Binding #HistoryList.SelectedItem}" />
                         <Button Content="Clear history" Command="{Binding ClearHistoryCommand}" />
                     </StackPanel>
                 </Grid>
             </TabItem>
-            <TabItem Header="Notify">
-                <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto" x:DataType="vm:NotifyMonitorViewModel" DataContext="{Binding NotifyMonitor}">
-                    <TextBlock Grid.Row="0" Text="Channels" FontWeight="SemiBold" Margin="4" />
-                    <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="4" Margin="4">
-                        <TextBox Text="{Binding ChannelName}" Watermark="Channel name" Width="140" />
+            <TabItem>
+                <TabItem.Header>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="🔔" />
+                        <TextBlock Text="Notify" />
+                    </StackPanel>
+                </TabItem.Header>
+                <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto" Margin="0,8,0,0" x:DataType="vm:NotifyMonitorViewModel" DataContext="{Binding NotifyMonitor}">
+                    <TextBlock Grid.Row="0" Text="Channels" FontWeight="SemiBold" Margin="4,0,4,6" />
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6">
+                        <TextBox Text="{Binding ChannelName}" PlaceholderText="Channel name" Width="140" />
                         <Button Content="Add" Command="{Binding AddChannelCommand}" />
                     </StackPanel>
-                    <Border Grid.Row="2" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1" MinHeight="60">
+                    <Border Grid.Row="2" Classes="card" MinHeight="60" Margin="0,8,0,0">
                         <ListBox ItemsSource="{Binding Channels}">
                             <ListBox.ItemTemplate>
                                 <DataTemplate x:DataType="sys:String">
-                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
                                         <TextBlock Text="{Binding}" VerticalAlignment="Center" />
-                                        <Button Content="✕" Padding="2,0" FontSize="10" Tag="{Binding}" Click="OnRemoveChannelClick" />
+                                        <Button Classes="chip" Content="✕" FontSize="10" Tag="{Binding}" Click="OnRemoveChannelClick" />
                                     </StackPanel>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>
                     </Border>
-                    <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="4" Margin="4">
+                    <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="6" Margin="0,8,0,0">
                         <Button Content="Start listening" Command="{Binding StartListeningCommand}" />
                         <Button Content="Stop" Command="{Binding StopListeningCommand}" />
                     </StackPanel>
-                    <StackPanel Grid.Row="4" Margin="4">
+                    <StackPanel Grid.Row="4" Margin="4,8,4,0">
                         <TextBlock Text="{Binding IsListening, StringFormat='Listening: {0}'}" FontSize="11" Opacity="0.7" />
                         <TextBlock Text="{Binding ErrorMessage}" Foreground="IndianRed" TextWrapping="Wrap" FontSize="11"
                                    IsVisible="{Binding ErrorMessage, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
                     </StackPanel>
-                    <Grid Grid.Row="5" RowDefinitions="Auto,*">
-                        <TextBlock Grid.Row="0" Text="Notifications" FontWeight="SemiBold" Margin="4" />
-                        <Border Grid.Row="1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1" MinHeight="80">
+                    <Grid Grid.Row="5" RowDefinitions="Auto,*" Margin="0,8,0,0">
+                        <TextBlock Grid.Row="0" Text="Notifications" FontWeight="SemiBold" Margin="4,0,4,6" />
+                        <Border Grid.Row="1" Classes="card" MinHeight="80">
                             <ListBox ItemsSource="{Binding Notifications}">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate x:DataType="notify:DatabaseNotification">
@@ -175,37 +191,37 @@
                             </ListBox>
                         </Border>
                     </Grid>
-                    <Button Grid.Row="6" Content="Clear" Command="{Binding ClearNotificationsCommand}" Margin="4" />
+                    <Button Grid.Row="6" Content="Clear" Command="{Binding ClearNotificationsCommand}" Margin="0,8,0,0" />
                 </Grid>
             </TabItem>
         </TabControl>
 
-        <GridSplitter Grid.Column="1" Width="4" />
+        <GridSplitter Grid.Column="1" Width="12" Background="Transparent" />
 
         <Grid Grid.Column="2" RowDefinitions="Auto,Auto,*,*,Auto">
 
-            <DockPanel Grid.Row="0" Margin="0,0,0,4">
-                <Button DockPanel.Dock="Right" Content="+" Command="{Binding AddTabCommand}" ToolTip.Tip="New query tab" />
+            <DockPanel Grid.Row="0" Margin="0,0,0,8">
+                <Button DockPanel.Dock="Right" Classes="chip" Content="+" FontSize="14" Command="{Binding AddTabCommand}" ToolTip.Tip="New query tab" />
                 <ListBox Name="TabsList" ItemsSource="{Binding Tabs}" SelectedItem="{Binding ActiveTab, Mode=TwoWay}"
                           SelectionMode="Single">
                     <ListBox.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <StackPanel Orientation="Horizontal" />
+                            <StackPanel Orientation="Horizontal" Spacing="2" />
                         </ItemsPanelTemplate>
                     </ListBox.ItemsPanel>
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="vm:QueryViewModel">
                             <StackPanel Orientation="Horizontal" Spacing="4">
                                 <TextBlock Text="{Binding TabTitle}" VerticalAlignment="Center" />
-                                <Button Content="✕" Padding="2,0" FontSize="10" Tag="{Binding}" Click="OnCloseTabClick" />
+                                <Button Classes="chip" Content="✕" FontSize="10" Tag="{Binding}" Click="OnCloseTabClick" />
                             </StackPanel>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
             </DockPanel>
 
-            <StackPanel Orientation="Horizontal" Grid.Row="1" Spacing="8" Margin="0,0,0,8">
-                <Button Content="Run" Command="{Binding ActiveTab.RunCommand}" ToolTip.Tip="Ctrl+Enter" />
+            <StackPanel Orientation="Horizontal" Grid.Row="1" Spacing="8" Margin="0,0,0,12">
+                <Button Classes="accent" Content="Run" Command="{Binding ActiveTab.RunCommand}" ToolTip.Tip="Ctrl+Enter" />
                 <Button Content="Cancel" Command="{Binding ActiveTab.CancelCommand}" ToolTip.Tip="Esc" />
                 <Button Content="Explain" Command="{Binding ActiveTab.ExplainCommand}" />
                 <Button Content="Explain Analyze" Command="{Binding ActiveTab.ExplainAnalyzeCommand}" />
@@ -221,20 +237,19 @@
                 </Button>
             </StackPanel>
 
-            <Border Grid.Row="2" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1">
+            <Border Grid.Row="2" Classes="card">
                 <ae:TextEditor Name="SqlEditor"
                                ShowLineNumbers="True"
                                FontFamily="Cascadia Code,Consolas,Menlo,monospace"
                                FontSize="14" />
             </Border>
 
-            <Border Grid.Row="3" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1" Margin="0,8,0,8">
+            <Border Grid.Row="3" Classes="card" Margin="0,12,0,12">
                 <Grid>
                     <DataGrid Name="ResultsGrid"
                               IsVisible="{Binding !ActiveTab.IsShowingPlan}"
                               IsReadOnly="{Binding !ActiveTab.IsEditable}"
                               CanUserReorderColumns="False"
-                              GridLinesVisibility="All"
                               AutoGenerateColumns="False" />
                     <Grid RowDefinitions="Auto,*" IsVisible="{Binding ActiveTab.IsShowingPlan}">
                         <TextBlock Grid.Row="0" Text="{Binding ActiveTab.ExplainSummary}" Margin="4" FontSize="12" Opacity="0.8" />
@@ -244,7 +259,8 @@
                                     <TreeDataTemplate DataType="vm:ExplainNodeViewModel" ItemsSource="{Binding Children}">
                                         <StackPanel Margin="0,2">
                                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                                <Rectangle Width="{Binding BarWidth}" Height="10" Fill="#4C8BF5" VerticalAlignment="Center" />
+                                                <Rectangle Width="{Binding BarWidth}" Height="10" RadiusX="2" RadiusY="2"
+                                                           Fill="{DynamicResource SystemAccentColor}" VerticalAlignment="Center" />
                                                 <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
                                             </StackPanel>
                                             <TextBlock Text="{Binding CostLabel}" FontSize="11" Opacity="0.7" Margin="16,0,0,0" />
@@ -259,8 +275,8 @@
                 </Grid>
             </Border>
 
-            <Border Grid.Row="4" Padding="4">
-                <TextBlock Text="{Binding ActiveTab.Status}" />
+            <Border Grid.Row="4" Padding="4,0">
+                <TextBlock Text="{Binding ActiveTab.Status}" Opacity="0.8" FontSize="12" />
             </Border>
 
         </Grid>

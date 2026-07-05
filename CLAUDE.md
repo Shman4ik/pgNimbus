@@ -2,7 +2,7 @@
 
 ## What this is
 
-A fast, open-source PostgreSQL GUI client (.NET 10 + Avalonia 11), MIT
+A fast, open-source PostgreSQL GUI client (.NET 10 + Avalonia 12), MIT
 licensed. Windows is the primary target; the core engine stays
 cross-platform-capable. The thesis: **truly fast + open source + modern UI** —
 a gap none of pgAdmin/DBeaver (heavy), TablePlus (fast but paid/closed), or
@@ -53,8 +53,51 @@ speed with TablePlus's polish, PostgreSQL-first.
   Two-way sync with the ViewModel is done manually in `MainWindow.axaml.cs`
   (via `TextChanged` + `PropertyChanged`, with a re-entrancy guard), not via
   XAML `Binding`.
-- Known accepted warning: Avalonia's Linux X11 backend transitively pulls
-  `Tmds.DBus.Protocol` 0.20.0, which has an open low-relevance advisory
-  (GHSA-xrw6-gwf8-vvr9). The only fixed line (0.90.0+) is a breaking rewrite
-  that Avalonia 11.2.3 can't load (TypeLoadException at startup). Don't try to
-  force-bump this package without confirming Avalonia has moved first.
+
+## Bootstrapping a fresh Linux/CI sandbox (no .NET, no display, no Postgres)
+
+A bare container has none of this preinstalled. All of it installs cleanly
+via `apt-get` (no external downloads needed — `dotnet-install.sh` /
+`dot.net` are typically blocked by sandboxed network policies, but the
+Ubuntu `dotnet-sdk-10.0` apt package works and is the reliable path):
+
+```bash
+apt-get update -qq
+apt-get install -y dotnet-sdk-10.0          # build/run the app
+apt-get install -y xvfb imagemagick xdotool # headless display + screenshot + input
+apt-get install -y postgresql               # a real DB to click through, not just mocks
+```
+
+Then, to actually see and drive the UI:
+
+```bash
+# 1. A virtual display, once per sandbox lifetime:
+Xvfb :99 -screen 0 1280x800x24 &
+
+# 2. A local Postgres with seed data:
+service postgresql start
+su - postgres -c "psql -c \"ALTER USER postgres PASSWORD 'postgres';\""
+su - postgres -c "createdb demo"
+PGPASSWORD=postgres psql -h localhost -U postgres -d demo -c "CREATE TABLE ..."
+
+# 3. Build once, then run against DISPLAY=:99. Set PGNIMBUS_CONN so the
+#    app opens straight to MainWindow instead of the connection dialog —
+#    App.axaml.cs reads this env var and skips ConnectionDialog entirely:
+dotnet build
+DISPLAY=:99 PGNIMBUS_CONN="Host=localhost;Port=5432;Database=demo;Username=postgres;Password=postgres" \
+    timeout 15 dotnet run --project PgNimbus.App --no-build &
+
+# 4. Drive it (optional) and capture a screenshot:
+DISPLAY=:99 xdotool mousemove <x> <y> click 1   # click/expand/select
+DISPLAY=:99 xdotool key ctrl+a; xdotool type "SELECT * FROM t;"
+DISPLAY=:99 import -window root screenshot.png  # ImageMagick, captures the whole root window
+```
+
+Notes:
+- `dotnet run` under `timeout` is normal — the app has no natural exit, so
+  screenshot then let the timeout reap it.
+- Test both themes by toggling `RequestedThemeVariant` in `App.axaml`
+  (`Default`/`Dark`) between runs — revert it before committing.
+- This is how the Avalonia 11→12 upgrade and the PowerToys-style UI polish
+  were actually verified (not just built) in a Claude Code sandbox with no
+  prior .NET/GUI tooling.
