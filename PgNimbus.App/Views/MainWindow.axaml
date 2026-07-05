@@ -14,6 +14,7 @@
         x:Class="PgNimbus.App.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="pgNimbus"
+        Icon="avares://PgNimbus.App/Assets/icon-256.png"
         Width="1100" Height="700"
         FontFamily="{StaticResource InterFont}">
 

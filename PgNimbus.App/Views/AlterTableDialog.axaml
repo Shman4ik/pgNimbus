@@ -6,6 +6,7 @@
         x:Class="PgNimbus.App.Views.AlterTableDialog"
         x:DataType="vm:AlterTableViewModel"
         Title="pgNimbus — Alter Table"
+        Icon="avares://PgNimbus.App/Assets/icon-256.png"
         Width="520" Height="560"
         WindowStartupLocation="CenterOwner">
 
@@ -39,7 +40,10 @@
                     <TextBox Grid.Column="0" Text="{Binding NewColumnName}" PlaceholderText="Column name" Margin="0,0,6,0" />
                     <ComboBox Grid.Column="1" ItemsSource="{Binding ColumnTypeOptions}" SelectedItem="{Binding NewColumnType}"
                               HorizontalAlignment="Stretch" Margin="0,0,6,0" />
-                    <CheckBox Grid.Column="2" Content="Nullable" IsChecked="{Binding NewColumnNullable}" VerticalAlignment="Center" />
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <ToggleSwitch IsChecked="{Binding NewColumnNullable}" OnContent="" OffContent="" />
+                        <TextBlock Text="Nullable" VerticalAlignment="Center" />
+                    </StackPanel>
                 </Grid>
                 <Button Classes="accent" Content="Add Column" Command="{Binding AddColumnCommand}" HorizontalAlignment="Right" />
             </StackPanel>
