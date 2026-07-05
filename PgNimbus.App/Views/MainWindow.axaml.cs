@@ -42,6 +42,7 @@ public partial class MainWindow : Window
         SchemaTreeView.AddHandler(InputElement.DoubleTappedEvent, OnSchemaTreeDoubleTapped, RoutingStrategies.Bubble, handledEventsToo: true);
         ResultsGrid.CellEditEnding += OnCellEditEnding;
         ResultsGrid.CellEditEnded += OnCellEditEnded;
+        ResultsGrid.PreparingCellForEdit += OnPreparingCellForEdit;
 
         SqlEditor.TextArea.TextEntered += OnSqlTextEntered;
         SqlEditor.KeyDown += OnSqlEditorKeyDown;
@@ -143,6 +144,21 @@ public partial class MainWindow : Window
         if (_viewModel is not null && container?.DataContext is TableNode table)
         {
             _ = _viewModel.PreviewTableAsync(table);
+        }
+    }
+
+    private void OnPreparingCellForEdit(object? sender, DataGridPreparingCellForEditEventArgs e)
+    {
+        // NULL cells display a "NULL" placeholder through the column's
+        // converter - which also pre-fills the cell editor. Clear it so
+        // committing an untouched editor can't turn SQL NULL into the
+        // literal string "NULL".
+        if (e.EditingElement is TextBox textBox
+            && e.Row.DataContext is object?[] row
+            && e.Column.DisplayIndex < row.Length
+            && row[e.Column.DisplayIndex] is null)
+        {
+            textBox.Text = string.Empty;
         }
     }
 
@@ -303,7 +319,7 @@ public partial class MainWindow : Window
 
         for (var i = 0; i < query.ColumnNames.Count; i++)
         {
-            ResultsGrid.Columns.Add(new DataGridTextColumn
+            ResultsGrid.Columns.Add(new ResultTextColumn(i)
             {
                 Header = query.ColumnNames[i],
                 // Empty path + converter instead of "[i]": indexer paths

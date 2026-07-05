@@ -48,13 +48,19 @@ current when landing work on this branch.
 | Progress log | This file. | `607e0fc` |
 | Header-click sorting on result columns | Columns bind through a converter (no path), so the stock sort has no key: each column gets a `RowCellComparer` (`CustomSortComparer`) comparing its cell — NULLs last, same-type `IComparable` natively, ordinal-string fallback — plus explicit `CanUserSort`/`CanUserSortColumns`. Verified: text asc/desc with arrows, numeric `id` sorts 1,2,3 (not 1,10,100), and a 100k-row result sorts in ~1 s. | (this commit) |
 
+## Iteration 5
+
+| Item | Outcome | Commit |
+| --- | --- | --- |
+| NULL cells indistinguishable from empty strings | `RowIndexConverter` renders SQL NULL as a "NULL" placeholder; `ResultTextColumn` dims those cells to 0.4 opacity via a per-element binding (a style can't see the cell value), so the marker reads as a marker while a literal `'NULL'` string stays full-contrast. `PreparingCellForEdit` clears the placeholder out of the cell editor so an untouched commit can't write the string "NULL". Verified with NULL / `''` / `'NULL'` side by side. | (this commit) |
+
 ## Open / candidate items
-- [ ] NULL cells indistinguishable from empty strings in the grid (dim
-      "NULL" placeholder? needs care: display text feeds the inline cell
-      editor, so a converter-only approach risks writing the string "NULL")
+- [ ] **UI north star: [Files](https://github.com/files-community/Files)** —
+      adopt its Windows design language where Avalonia allows: command-bar
+      toolbar (icon+label, transparent-until-hover), layered content tones,
+      8 px radii, compact sidebar. Mica/acrylic backdrop remains blocked on
+      safe verification (a headless sandbox can't see transparency failures).
 - [ ] Keyboard navigation audit (tab order, editor ↔ grid focus, Ctrl+W
       close tab?)
-- [ ] Mica/acrylic backdrop — still deliberately skipped: can't safely
-      verify transparency fallbacks headlessly
 - [ ] Roadmap features (command palette, extension manager) — out of polish
       scope
