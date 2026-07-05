@@ -36,7 +36,9 @@ public sealed class ExplainService
 
     public async Task<ExplainResult> ExplainAsync(string sql, bool analyze, CancellationToken ct)
     {
-        var options = analyze ? "ANALYZE, FORMAT JSON, BUFFERS false, TIMING true" : "FORMAT JSON";
+        // Plain EXPLAIN omits "Planning Time" unless SUMMARY is requested explicitly
+        // (ANALYZE defaults SUMMARY to true already, so it's fine either way there).
+        var options = analyze ? "ANALYZE, FORMAT JSON, BUFFERS false, TIMING true" : "FORMAT JSON, SUMMARY";
         var explainSql = $"EXPLAIN ({options}) {sql}";
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);

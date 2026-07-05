@@ -42,6 +42,7 @@ public partial class MainWindow : Window
         SchemaTreeView.AddHandler(InputElement.DoubleTappedEvent, OnSchemaTreeDoubleTapped, RoutingStrategies.Bubble, handledEventsToo: true);
         ResultsGrid.CellEditEnding += OnCellEditEnding;
         ResultsGrid.CellEditEnded += OnCellEditEnded;
+        ResultsGrid.PreparingCellForEdit += OnPreparingCellForEdit;
 
         SqlEditor.TextArea.TextEntered += OnSqlTextEntered;
         SqlEditor.KeyDown += OnSqlEditorKeyDown;
@@ -143,6 +144,21 @@ public partial class MainWindow : Window
         if (_viewModel is not null && container?.DataContext is TableNode table)
         {
             _ = _viewModel.PreviewTableAsync(table);
+        }
+    }
+
+    private void OnPreparingCellForEdit(object? sender, DataGridPreparingCellForEditEventArgs e)
+    {
+        // NULL cells display a "NULL" placeholder through the column's
+        // converter - which also pre-fills the cell editor. Clear it so
+        // committing an untouched editor can't turn SQL NULL into the
+        // literal string "NULL".
+        if (e.EditingElement is TextBox textBox
+            && e.Row.DataContext is object?[] row
+            && e.Column.DisplayIndex < row.Length
+            && row[e.Column.DisplayIndex] is null)
+        {
+            textBox.Text = string.Empty;
         }
     }
 
@@ -268,7 +284,21 @@ public partial class MainWindow : Window
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName != nameof(QueryViewModel.Sql) || _queryViewModel is null)
+        if (_queryViewModel is null)
+        {
+            return;
+        }
+
+        // Rows is swapped wholesale instead of mutated in place (bulk
+        // collection-change handling in the DataGrid costs ~200 µs/row; a
+        // fresh ItemsSource costs a viewport) - re-point the grid each time.
+        if (e.PropertyName == nameof(QueryViewModel.Rows))
+        {
+            ResultsGrid.ItemsSource = _queryViewModel.Rows;
+            return;
+        }
+
+        if (e.PropertyName != nameof(QueryViewModel.Sql))
         {
             return;
         }
@@ -289,11 +319,21 @@ public partial class MainWindow : Window
 
         for (var i = 0; i < query.ColumnNames.Count; i++)
         {
-            var index = i;
-            ResultsGrid.Columns.Add(new DataGridTextColumn
+            ResultsGrid.Columns.Add(new ResultTextColumn(i)
             {
-                Header = query.ColumnNames[index],
-                Binding = new Binding($"[{index}]") { Mode = BindingMode.OneWay },
+                Header = query.ColumnNames[i],
+                // Empty path + converter instead of "[i]": indexer paths
+                // resolve via reflection, which trips NativeAOT/trimming.
+                Binding = new Binding
+                {
+                    Converter = new Converters.RowIndexConverter(i),
+                    Mode = BindingMode.OneWay,
+                },
+                // No binding path also means no stock sort key - header-click
+                // sorting needs an explicit comparer, and with no path to
+                // infer sortability from, CanUserSort must be set by hand.
+                CustomSortComparer = new RowCellComparer(i),
+                CanUserSort = true,
             });
         }
     }

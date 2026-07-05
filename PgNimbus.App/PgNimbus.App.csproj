@@ -11,6 +11,15 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <InvariantGlobalization>true</InvariantGlobalization>
+    <!--
+        English-only: don't ship localized satellite assemblies (the DataGrid
+        pulls in zh-Hans). Under NativeAOT the satellites are bundled into the
+        binary and enumerated by AppDomain.GetAssemblies() - with invariant
+        globalization, AssemblyName construction for a culture-named satellite
+        throws CultureNotFoundException inside Avalonia's asset resolver,
+        which surfaces as a bogus "avares://... not found" crash at startup.
+    -->
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
   </PropertyGroup>
 

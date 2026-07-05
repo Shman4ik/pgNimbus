@@ -9,7 +9,7 @@
         x:DataType="vm:ConnectionDialogViewModel"
         Title="pgNimbus — Connect"
         Icon="avares://PgNimbus.App/Assets/icon-256.png"
-        Width="640" Height="620"
+        Width="640" Height="680"
         CanResize="False"
         WindowStartupLocation="CenterScreen">
 
@@ -38,7 +38,8 @@
 
         <Grid Grid.Column="1" Margin="20,0,0,0" RowDefinitions="*,Auto">
         <ScrollViewer Grid.Row="0" HorizontalScrollBarVisibility="Disabled">
-        <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+        <!-- Right margin keeps the scrollbar (shown once the SSH section expands) off the field edges -->
+        <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" Margin="0,0,14,0">
 
             <TextBlock Grid.Row="0" Text="Name" />
             <TextBox Grid.Row="1" Text="{Binding Name}" Margin="0,0,0,8" />

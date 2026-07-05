@@ -21,7 +21,7 @@
     <Window.DataTemplates>
         <DataTemplate DataType="vm:SchemaNode">
             <StackPanel Orientation="Horizontal" Spacing="6">
-                <TextBlock Text="🗄" />
+                <PathIcon Data="{StaticResource DatabaseIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
                 <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
             </StackPanel>
         </DataTemplate>
@@ -38,7 +38,9 @@
         </DataTemplate>
         <DataTemplate DataType="vm:ColumnNode">
             <StackPanel Orientation="Horizontal" Spacing="6">
-                <TextBlock Text="{Binding PrimaryKeyGlyph}" Width="14" />
+                <Panel Width="14" VerticalAlignment="Center">
+                    <PathIcon Data="{StaticResource KeyIconGeometry}" Width="12" Height="12" IsVisible="{Binding IsPrimaryKey}" />
+                </Panel>
                 <TextBlock Text="{Binding Name}" />
                 <TextBlock Text="{Binding DataType}" Opacity="0.6" FontSize="11" VerticalAlignment="Center" />
             </StackPanel>
@@ -56,14 +58,21 @@
         <KeyBinding Gesture="Escape" Command="{Binding ActiveTab.CancelCommand}" />
     </Window.KeyBindings>
 
-    <DockPanel Background="{DynamicResource SystemControlPageBackgroundAltHighBrush}">
+    <!-- Two-tone shell (Files-style): chrome-tinted base; the content pane is a raised layer -->
+    <DockPanel Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}">
         <Border DockPanel.Dock="Top" Height="40" Padding="16,0"
                 BorderThickness="0,0,0,1" BorderBrush="{StaticResource CardBorderBrush}">
             <DockPanel>
                 <Border DockPanel.Dock="Left" Width="10" Height="10" CornerRadius="5" Margin="0,0,10,0"
                         VerticalAlignment="Center"
                         Background="{Binding AccentColor, Converter={x:Static conv2:HexToBrushConverter.Instance}}" />
-                <TextBlock Text="pgNimbus" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center" />
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <TextBlock Text="pgNimbus" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center" />
+                    <!-- Files-style breadcrumb: where am I connected -->
+                    <TextBlock Text="{Binding ConnectionHost}" FontSize="12" Opacity="0.65" VerticalAlignment="Center" Margin="10,0,0,0" />
+                    <TextBlock Text="›" FontSize="12" Opacity="0.45" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding ConnectionDatabase}" FontSize="12" Opacity="0.65" VerticalAlignment="Center" />
+                </StackPanel>
             </DockPanel>
         </Border>
 
@@ -73,12 +82,13 @@
             <TabItem>
                 <TabItem.Header>
                     <StackPanel Orientation="Horizontal" Spacing="8">
-                        <TextBlock Text="🗄" />
+                        <PathIcon Data="{StaticResource DatabaseIconGeometry}" Width="14" Height="14" VerticalAlignment="Center" />
                         <TextBlock Text="Schemas" />
                     </StackPanel>
                 </TabItem.Header>
                 <Grid RowDefinitions="*,Auto" Margin="0,8,0,0">
-                    <Border Grid.Row="0" Classes="card">
+                    <!-- Sidebar content sits directly on the shell tone, Files-style - no card chrome -->
+                    <Border Grid.Row="0">
                         <TreeView Name="SchemaTreeView" ItemsSource="{Binding SchemaTree.Schemas}">
                             <TreeView.Styles>
                                 <Style Selector="TreeViewItem">
@@ -100,7 +110,7 @@
             <TabItem>
                 <TabItem.Header>
                     <StackPanel Orientation="Horizontal" Spacing="8">
-                        <TextBlock Text="📝" />
+                        <PathIcon Data="{StaticResource QueriesIconGeometry}" Width="14" Height="14" VerticalAlignment="Center" />
                         <TextBlock Text="Queries" />
                     </StackPanel>
                 </TabItem.Header>
@@ -143,7 +153,7 @@
             <TabItem>
                 <TabItem.Header>
                     <StackPanel Orientation="Horizontal" Spacing="8">
-                        <TextBlock Text="🔔" />
+                        <PathIcon Data="{StaticResource BellIconGeometry}" Width="14" Height="14" VerticalAlignment="Center" />
                         <TextBlock Text="Notify" />
                     </StackPanel>
                 </TabItem.Header>
@@ -166,11 +176,15 @@
                         </ListBox>
                     </Border>
                     <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="6" Margin="0,8,0,0">
-                        <Button Content="Start listening" Command="{Binding StartListeningCommand}" />
+                        <Button Classes="accent" Content="Start listening" Command="{Binding StartListeningCommand}" />
                         <Button Content="Stop" Command="{Binding StopListeningCommand}" />
                     </StackPanel>
                     <StackPanel Grid.Row="4" Margin="4,8,4,0">
-                        <TextBlock Text="{Binding IsListening, StringFormat='Listening: {0}'}" FontSize="11" Opacity="0.7" />
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Ellipse Width="8" Height="8" VerticalAlignment="Center"
+                                     Fill="{Binding IsListening, Converter={x:Static conv2:ListeningDotBrushConverter.Instance}}" />
+                            <TextBlock Text="{Binding ListeningStatus}" FontSize="11" Opacity="0.8" />
+                        </StackPanel>
                         <TextBlock Text="{Binding ErrorMessage}" Foreground="IndianRed" TextWrapping="Wrap" FontSize="11"
                                    IsVisible="{Binding ErrorMessage, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
                     </StackPanel>
@@ -199,7 +213,8 @@
 
         <GridSplitter Grid.Column="1" Width="12" Background="Transparent" />
 
-        <Grid Grid.Column="2" RowDefinitions="Auto,Auto,*,*,Auto">
+        <Border Grid.Column="2" Classes="layer">
+        <Grid RowDefinitions="Auto,Auto,*,*,Auto">
 
             <DockPanel Grid.Row="0" Margin="0,0,0,8">
                 <Button DockPanel.Dock="Right" Classes="chip" Content="+" FontSize="14" Command="{Binding AddTabCommand}" ToolTip.Tip="New query tab" />
@@ -221,22 +236,64 @@
                 </ListBox>
             </DockPanel>
 
-            <StackPanel Orientation="Horizontal" Grid.Row="1" Spacing="8" Margin="0,0,0,12">
-                <Button Classes="accent" Content="Run" Command="{Binding ActiveTab.RunCommand}" ToolTip.Tip="Ctrl+Enter" />
-                <Button Content="Cancel" Command="{Binding ActiveTab.CancelCommand}" ToolTip.Tip="Esc" />
-                <Button Content="Explain" Command="{Binding ActiveTab.ExplainCommand}" />
-                <Button Content="Explain Analyze" Command="{Binding ActiveTab.ExplainAnalyzeCommand}" />
-                <Button Content="Show results" Command="{Binding ActiveTab.ShowResultsCommand}"
-                        IsVisible="{Binding ActiveTab.IsShowingPlan}" />
-                <Button Name="ExportButton" Content="Export">
-                    <Button.Flyout>
-                        <MenuFlyout>
-                            <MenuItem Header="Export as CSV..." Click="OnExportCsvClick" />
-                            <MenuItem Header="Export as JSON..." Click="OnExportJsonClick" />
-                        </MenuFlyout>
-                    </Button.Flyout>
-                </Button>
-            </StackPanel>
+            <!-- Files-style command bar: accent primary action, quiet icon+label secondaries -->
+            <Border Grid.Row="1" Classes="card" Padding="4" Margin="0,0,0,12" HorizontalAlignment="Left">
+                <Border.Resources>
+                    <!--
+                        Disabled buttons inside the command bar stay transparent
+                        (dim text only) instead of Fluent's grey fill - the
+                        ControlTheme paints the ContentPresenter from this
+                        resource, and a container-scoped override is the one
+                        reliable way to restyle it per-area.
+                    -->
+                    <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
+                </Border.Resources>
+                <StackPanel Orientation="Horizontal" Spacing="2">
+                    <Button Classes="accent" Command="{Binding ActiveTab.RunCommand}" ToolTip.Tip="Run (Ctrl+Enter)">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <PathIcon Data="{StaticResource PlayIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
+                            <TextBlock Text="Run" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="toolbar" Command="{Binding ActiveTab.CancelCommand}" ToolTip.Tip="Cancel (Esc)">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <PathIcon Data="{StaticResource StopIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
+                            <TextBlock Text="Cancel" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="toolbar" Command="{Binding ActiveTab.ExplainCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <PathIcon Data="{StaticResource FlashIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
+                            <TextBlock Text="Explain" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="toolbar" Command="{Binding ActiveTab.ExplainAnalyzeCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <PathIcon Data="{StaticResource GaugeIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
+                            <TextBlock Text="Explain Analyze" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="toolbar" Command="{Binding ActiveTab.ShowResultsCommand}"
+                            IsVisible="{Binding ActiveTab.IsShowingPlan}">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <PathIcon Data="{StaticResource TableIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
+                            <TextBlock Text="Show results" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="toolbar" Name="ExportButton">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <PathIcon Data="{StaticResource ExportIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
+                            <TextBlock Text="Export" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <Button.Flyout>
+                            <MenuFlyout>
+                                <MenuItem Header="Export as CSV..." Click="OnExportCsvClick" />
+                                <MenuItem Header="Export as JSON..." Click="OnExportJsonClick" />
+                            </MenuFlyout>
+                        </Button.Flyout>
+                    </Button>
+                </StackPanel>
+            </Border>
 
             <Border Grid.Row="2" Classes="card">
                 <ae:TextEditor Name="SqlEditor"
@@ -251,6 +308,7 @@
                               IsVisible="{Binding !ActiveTab.IsShowingPlan}"
                               IsReadOnly="{Binding !ActiveTab.IsEditable}"
                               CanUserReorderColumns="False"
+                              CanUserSortColumns="True"
                               AutoGenerateColumns="False" />
                     <Grid RowDefinitions="Auto,*" IsVisible="{Binding ActiveTab.IsShowingPlan}">
                         <TextBlock Grid.Row="0" Text="{Binding ActiveTab.ExplainSummary}" Margin="4" FontSize="12" Opacity="0.8" />
@@ -281,6 +339,7 @@
             </Border>
 
         </Grid>
+        </Border>
 
     </Grid>
     </DockPanel>

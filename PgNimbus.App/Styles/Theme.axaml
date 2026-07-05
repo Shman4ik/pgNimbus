@@ -16,6 +16,42 @@
         <SolidColorBrush x:Key="CardBackgroundBrush" Color="#80808080" Opacity="0.06" />
         <SolidColorBrush x:Key="CardBorderBrush" Color="#80808080" Opacity="0.16" />
         <SolidColorBrush x:Key="HoverBackgroundBrush" Color="#80808080" Opacity="0.1" />
+
+        <!--
+            Nav pill highlight. FluentTheme's TabItem ControlTheme repaints
+            PART_LayoutRoot's background from TabItemHeaderBackground*
+            resources on :pointerover/:pressed (transparent by default), which
+            erases any background set on the TabItem itself as soon as the
+            pointer touches the selected tab. Those inner ControlTheme styles
+            also win the precedence fight against app-level /template/ styles,
+            so the reliable override point is the DynamicResource values they
+            paint with. This StyleInclude loads after FluentTheme, so these
+            take priority in resource lookup.
+        -->
+        <StaticResource x:Key="TabItemHeaderBackgroundSelected" ResourceKey="SystemControlHighlightListAccentLowBrush" />
+        <StaticResource x:Key="TabItemHeaderBackgroundSelectedPointerOver" ResourceKey="SystemControlHighlightListAccentLowBrush" />
+        <StaticResource x:Key="TabItemHeaderBackgroundSelectedPressed" ResourceKey="SystemControlHighlightListAccentLowBrush" />
+        <StaticResource x:Key="TabItemHeaderBackgroundUnselectedPointerOver" ResourceKey="HoverBackgroundBrush" />
+        <StaticResource x:Key="TabItemHeaderBackgroundUnselectedPressed" ResourceKey="HoverBackgroundBrush" />
+        <!-- The pill *is* the selection indicator - hide the stock underline pipe -->
+        <SolidColorBrush x:Key="TabItemHeaderSelectedPipeFill" Color="Transparent" />
+
+        <!--
+            Vector icons (Material Design Icons, Apache-2.0, pictogrammers.com).
+            Emoji glyphs render as tofu boxes on Linux without a color emoji
+            font; PathIcon fills with the inherited Foreground, so these also
+            pick up the accent color inside a selected nav pill for free.
+        -->
+        <StreamGeometry x:Key="DatabaseIconGeometry">M12,3C7.58,3 4,4.79 4,7C4,9.21 7.58,11 12,11C16.42,11 20,9.21 20,7C20,4.79 16.42,3 12,3M4,9V12C4,14.21 7.58,16 12,16C16.42,16 20,14.21 20,12V9C20,11.21 16.42,13 12,13C7.58,13 4,11.21 4,9M4,14V17C4,19.21 7.58,21 12,21C16.42,21 20,19.21 20,17V14C20,16.21 16.42,18 12,18C7.58,18 4,16.21 4,14Z</StreamGeometry>
+        <StreamGeometry x:Key="QueriesIconGeometry">M5,3C3.89,3 3,3.89 3,5V19C3,20.11 3.89,21 5,21H19C20.11,21 21,20.11 21,19V5C21,3.89 20.11,3 19,3H5M7,7H17V9H7V7M7,11H17V13H7V11M7,15H14V17H7V15Z</StreamGeometry>
+        <StreamGeometry x:Key="BellIconGeometry">M21,19V20H3V19L5,17V11C5,7.9 7.03,5.17 10,4.29C10,4.19 10,4.1 10,4A2,2 0 0,1 12,2A2,2 0 0,1 14,4C14,4.1 14,4.19 14,4.29C16.97,5.17 19,7.9 19,11V17L21,19M14,21A2,2 0 0,1 12,23A2,2 0 0,1 10,21</StreamGeometry>
+        <StreamGeometry x:Key="KeyIconGeometry">M22,18V22H18V19H15V16H12L9.74,13.74C9.19,13.91 8.61,14 8,14A6,6 0 0,1 2,8A6,6 0 0,1 8,2A6,6 0 0,1 14,8C14,8.61 13.91,9.19 13.74,9.74L22,18M7,5A2,2 0 0,0 5,7A2,2 0 0,0 7,9A2,2 0 0,0 9,7A2,2 0 0,0 7,5Z</StreamGeometry>
+        <StreamGeometry x:Key="PlayIconGeometry">M8,5.14V19.14L19,12.14L8,5.14Z</StreamGeometry>
+        <StreamGeometry x:Key="StopIconGeometry">M18,18H6V6H18V18Z</StreamGeometry>
+        <StreamGeometry x:Key="FlashIconGeometry">M7,2V13H10V22L17,10H13L17,2H7Z</StreamGeometry>
+        <StreamGeometry x:Key="GaugeIconGeometry">M12,16A3,3 0 0,1 9,13C9,11.88 9.61,10.9 10.5,10.39L20.21,4.77L14.68,14.35C14.18,15.33 13.17,16 12,16M12,3C13.81,3 15.5,3.5 16.97,4.32L14.87,5.53C14,5.19 13,5 12,5A8,8 0 0,0 4,13C4,15.21 4.89,17.21 6.34,18.65H6.35C6.74,19.04 6.74,19.67 6.35,20.06C5.96,20.45 5.32,20.45 4.93,20.07V20.07C3.12,18.26 2,15.76 2,13A10,10 0 0,1 12,3M22,13C22,15.76 20.88,18.26 19.07,20.07V20.07C18.68,20.45 18.05,20.45 17.66,20.06C17.27,19.67 17.27,19.04 17.66,18.65V18.65C19.11,17.2 20,15.21 20,13C20,12 19.81,11 19.46,10.1L20.67,8C21.5,9.5 22,11.18 22,13Z</StreamGeometry>
+        <StreamGeometry x:Key="ExportIconGeometry">M2,12H4V17H20V12H22V17A2,2 0 0,1 20,19H4A2,2 0 0,1 2,17V12M12,15L17.55,9.54L16.13,8.13L13,11.25V2H11V11.25L7.88,8.13L6.46,9.54L12,15Z</StreamGeometry>
+        <StreamGeometry x:Key="TableIconGeometry">M5,4H19A2,2 0 0,1 21,6V17A2,2 0 0,1 19,19H5A2,2 0 0,1 3,17V6A2,2 0 0,1 5,4M5,8V12H11V8H5M13,8V12H19V8H13M5,14V17H11V14H5M13,14V17H19V14H13Z</StreamGeometry>
     </Styles.Resources>
 
     <!-- Card container: Border Classes="card" wraps a grouped panel -->
@@ -24,6 +60,20 @@
         <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="CornerRadius" Value="{StaticResource CardCornerRadius}" />
+    </Style>
+
+    <!--
+        Files-style two-tone shell: the window base carries a chrome tint
+        (the sidebar sits directly on it), and the main content pane is a
+        raised "layer" - page-background fill, hairline border, rounded
+        corners - like Files' content area on its Mica base.
+    -->
+    <Style Selector="Border.layer">
+        <Setter Property="Background" Value="{DynamicResource SystemControlPageBackgroundAltHighBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource CardCornerRadius}" />
+        <Setter Property="Padding" Value="12" />
     </Style>
 
     <!-- Buttons -->
@@ -47,6 +97,18 @@
     <Style Selector="Button.accent:disabled">
         <Setter Property="Background" Value="{DynamicResource SystemControlDisabledBaseLowBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource SystemControlDisabledBaseMediumLowBrush}" />
+    </Style>
+
+    <!--
+        Quiet command-bar buttons (Files-style toolbar): transparent at rest,
+        FluentTheme's own pointerover/pressed washes provide the hover state -
+        the ControlTheme repaints the ContentPresenter on hover anyway, and
+        its default is exactly the subtle grey a quiet toolbar wants.
+    -->
+    <Style Selector="Button.toolbar">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="10,7" />
     </Style>
 
     <!-- Round "close chip" buttons used for tab/channel close (✕) -->
@@ -77,11 +139,7 @@
         <Setter Property="FontSize" Value="13" />
         <Setter Property="MinWidth" Value="0" />
     </Style>
-    <Style Selector="TabItem:pointerover">
-        <Setter Property="Background" Value="{StaticResource HoverBackgroundBrush}" />
-    </Style>
     <Style Selector="TabItem:selected">
-        <Setter Property="Background" Value="{DynamicResource SystemControlHighlightListAccentLowBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource SystemAccentColor}" />
         <Setter Property="FontWeight" Value="SemiBold" />
     </Style>

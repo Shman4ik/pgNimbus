@@ -17,6 +17,4 @@ public sealed class ColumnNode : SchemaTreeNode
     public bool NotNull { get; }
 
     public bool IsPrimaryKey { get; }
-
-    public string PrimaryKeyGlyph => IsPrimaryKey ? "🔑" : string.Empty;
 }

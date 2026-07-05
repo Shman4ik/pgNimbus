@@ -25,6 +25,12 @@ public sealed partial class MainViewModel : ObservableObject
     /// <summary>The connected profile's accent color ("#RRGGBB"), or null. Lets the window chrome show at a glance which environment (e.g. prod vs. dev) is connected.</summary>
     public string? AccentColor { get; }
 
+    /// <summary>Server host for the title-bar breadcrumb (host › database).</summary>
+    public string ConnectionHost { get; }
+
+    /// <summary>Database name for the title-bar breadcrumb (host › database).</summary>
+    public string ConnectionDatabase { get; }
+
     public ObservableCollection<QueryViewModel> Tabs { get; } = [];
 
     [ObservableProperty]
@@ -38,8 +44,12 @@ public sealed partial class MainViewModel : ObservableObject
         SchemaEditor schemaEditor,
         SqlCompletionProvider completionProvider,
         NotifyMonitorViewModel notifyMonitor,
-        string? accentColor = null)
+        string? accentColor = null,
+        string connectionHost = "",
+        string connectionDatabase = "")
     {
+        ConnectionHost = connectionHost;
+        ConnectionDatabase = connectionDatabase;
         _engine = engine;
         _explainService = explainService;
         SchemaTree = schemaTree;

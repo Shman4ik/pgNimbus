@@ -38,7 +38,17 @@ public sealed class QueryEngine
         await command.ExecuteNonQueryAsync(ct);
     }
 
-    public async Task<StatementResult> ExecuteAsync(string sql, CancellationToken ct)
+    /// <param name="sql">The statement to execute.</param>
+    /// <param name="ct">Cancels the execution mid-flight.</param>
+    /// <param name="maxRows">
+    /// If set, the result stream ends after this many rows and the query is
+    /// cancelled server-side. Merely abandoning the reader doesn't stop
+    /// anything: Npgsql's reader disposal drains the entire remaining result
+    /// set to leave the connection usable, so a bounded consumer of an
+    /// unbounded SELECT would still pull every row over the wire. An explicit
+    /// backend cancel makes the drain a no-op.
+    /// </param>
+    public async Task<StatementResult> ExecuteAsync(string sql, CancellationToken ct, int? maxRows = null)
     {
         var stopwatch = Stopwatch.StartNew();
 
@@ -77,7 +87,7 @@ public sealed class QueryEngine
             {
                 Elapsed = stopwatch.Elapsed,
                 Columns = columns,
-                Batches = StreamBatches(connection, command, reader, ct),
+                Batches = StreamBatches(connection, command, reader, maxRows, ct),
             };
         }
         catch (Exception ex)
@@ -123,22 +133,43 @@ public sealed class QueryEngine
         NpgsqlConnection connection,
         NpgsqlCommand command,
         NpgsqlDataReader reader,
+        int? maxRows,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
     {
+        var stoppedAtRowCap = false;
+
         try
         {
             var fieldCount = reader.FieldCount;
             var buffer = new List<object?[]>(BatchSize);
+            var produced = 0;
 
             while (await reader.ReadAsync(ct))
             {
                 var row = new object?[fieldCount];
                 for (var i = 0; i < fieldCount; i++)
                 {
-                    row[i] = await reader.IsDBNullAsync(i, ct) ? null : reader.GetValue(i);
+                    // Non-sequential access: the row is fully buffered once
+                    // ReadAsync returns, so sync GetValue never blocks on I/O.
+                    // One call per cell instead of IsDBNullAsync + GetValue -
+                    // half a million awaits per 100k×5 result was measurable.
+                    var value = reader.GetValue(i);
+                    row[i] = value is DBNull ? null : value;
                 }
 
                 buffer.Add(row);
+                produced++;
+
+                if (produced >= maxRows)
+                {
+                    stoppedAtRowCap = true;
+                    if (buffer.Count > 0)
+                    {
+                        yield return new RowBatch(buffer);
+                    }
+
+                    yield break;
+                }
 
                 if (buffer.Count >= BatchSize)
                 {
@@ -154,7 +185,24 @@ public sealed class QueryEngine
         }
         finally
         {
-            await reader.DisposeAsync();
+            // Only cancel when the cap cut the stream short. A cancel request
+            // after normal completion could race a pooled-connection reuse and
+            // kill an unrelated subsequent query on the same backend.
+            if (stoppedAtRowCap)
+            {
+                command.Cancel();
+            }
+
+            try
+            {
+                await reader.DisposeAsync();
+            }
+            catch (PostgresException ex) when (stoppedAtRowCap && ex.SqlState == PostgresErrorCodes.QueryCanceled)
+            {
+                // The backend acknowledged the row-cap cancel while the reader
+                // was draining; the rows already yielded are still valid.
+            }
+
             await command.DisposeAsync();
             await connection.DisposeAsync();
         }

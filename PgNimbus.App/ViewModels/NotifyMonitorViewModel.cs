@@ -30,6 +30,11 @@ public sealed partial class NotifyMonitorViewModel : ObservableObject, IAsyncDis
 
     public ObservableCollection<DatabaseNotification> Notifications { get; } = [];
 
+    /// <summary>Human status line ("Listening on 2 channels" / "Not listening") instead of a raw bool.</summary>
+    public string ListeningStatus => IsListening
+        ? $"Listening on {Channels.Count} channel{(Channels.Count == 1 ? "" : "s")}"
+        : "Not listening";
+
     public NotifyMonitorViewModel(NotificationListener listener)
     {
         _listener = listener;
@@ -94,6 +99,7 @@ public sealed partial class NotifyMonitorViewModel : ObservableObject, IAsyncDis
     {
         StartListeningCommand.NotifyCanExecuteChanged();
         StopListeningCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(ListeningStatus));
     }
 
     public async ValueTask DisposeAsync()

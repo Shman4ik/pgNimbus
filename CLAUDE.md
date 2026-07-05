@@ -75,7 +75,18 @@ apt-get update -qq
 apt-get install -y dotnet-sdk-10.0          # build/run the app
 apt-get install -y xvfb imagemagick xdotool # headless display + screenshot + input
 apt-get install -y postgresql               # a real DB to click through, not just mocks
+apt-get install -y clang zlib1g-dev         # only for NativeAOT publish (linux-x64)
 ```
+
+The linux-x64 NativeAOT publish works and is the build to use for
+startup-time claims (`dotnet publish PgNimbus.App -c Release -r linux-x64
+-p:PublishAot=true`, ~100 ms launch-to-window vs ~700 ms JIT). Two
+AOT-specific landmines are already handled in the codebase — keep them
+that way: `SatelliteResourceLanguages=en` in the App csproj (a
+culture-named satellite assembly + InvariantGlobalization crashes
+Avalonia's asset resolver at startup under AOT, surfacing as a bogus
+"avares://... not found") and no reflection binding paths (the results
+grid binds columns via `RowIndexConverter`, not `"[i]"` indexer paths).
 
 Then, to actually see and drive the UI:
 
