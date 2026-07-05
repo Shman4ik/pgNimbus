@@ -1,7 +1,7 @@
 # pgNimbus
 
 A fast, native-feeling, open-source **PostgreSQL** GUI client, built with **.NET
-10 + Avalonia 11**. MIT licensed. Windows is the primary target, but the
+10 + Avalonia 12**. MIT licensed. Windows is the primary target, but the
 codebase stays cross-platform-capable — no Windows-only APIs live in the core
 engine.
 
@@ -22,11 +22,40 @@ from the ground up.
 
 1. **Native performance** — NativeAOT-friendly code, cold start under 500 ms.
 2. **PostgreSQL-first** — deep `pg_catalog` introspection (materialized views,
-   real types, primary-key flags, and later EXPLAIN visualization); never the
+   real types, primary-key flags, and EXPLAIN visualization); never the
    lowest-common-denominator SQL dialect.
 3. **Keyboard-first** — run, cancel, and navigate without touching the mouse.
 4. **Streaming results** — the first screenful renders before the full result
    set arrives, backed by a virtualized grid for large results.
+
+## Screenshots
+
+| Query editor + results (light) | Query editor + results (dark) |
+| --- | --- |
+| ![Main window, light theme](docs/screenshots/main-light.png) | ![Main window, dark theme](docs/screenshots/main-dark.png) |
+
+| Connection manager |
+| --- |
+| ![Connection dialog with saved profiles](docs/screenshots/connection-dialog.png) |
+
+## Features
+
+- **Schema tree sidebar** — schemas → tables/views → columns, reading
+  `pg_catalog` directly (materialized views, partitioned tables, real
+  primary-key flags), with an "Alter Table" UI for no-SQL column add/rename/drop.
+- **Connection manager** — saved profiles with a per-connection accent color
+  (so production doesn't look like staging), SSH tunnel support, and
+  passwords held by the OS credential store (DPAPI on Windows) instead of
+  being written to disk with the profile.
+- **Multi-tab query editor** — schema-aware SQL autocomplete, saved queries,
+  and run history.
+- **Streaming, cancellable results** — the first screenful renders before the
+  full result set arrives, backed by a virtualized grid with inline cell
+  editing and CSV/JSON export.
+- **EXPLAIN visualization** — a graphical plan tree for `EXPLAIN` and
+  `EXPLAIN ANALYZE`, not just raw text output.
+- **LISTEN/NOTIFY monitor** — subscribe to channels and watch notifications
+  arrive live.
 
 ## Architecture
 
@@ -62,9 +91,13 @@ dotnet run --project PgNimbus.App
 
 ### Connecting to a database
 
-The app currently reads its connection string from the `PGNIMBUS_CONN`
-environment variable (falling back to a `localhost:5432/postgres` default if
-unset) — there's no connection-manager UI yet, see the roadmap below.
+On launch, pgNimbus opens a connection dialog where you can create and save
+connection profiles (host, port, database, credentials, optional SSH tunnel,
+accent color) — saved profiles never store the password, only the OS
+credential store does.
+
+For scripted or repeated local testing, you can skip the dialog entirely by
+setting `PGNIMBUS_CONN`, which opens straight to the main window:
 
 ```bash
 export PGNIMBUS_CONN="Host=localhost;Port=5432;Database=mydb;Username=postgres;Password=secret"
@@ -77,14 +110,9 @@ dotnet run --project PgNimbus.App
 dotnet publish PgNimbus.App -c Release -r win-x64 -p:PublishAot=true
 ```
 
-## Roadmap (post-MVP)
+## Roadmap
 
 - Command palette
-- Schema-aware SQL autocomplete
-- EXPLAIN tree visualization
-- Inline cell editing in the results grid
-- Per-connection accent color (e.g. red for production)
-- LISTEN/NOTIFY monitor
 - Extension manager
 
 ## License
