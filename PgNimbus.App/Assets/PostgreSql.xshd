@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    PostgreSQL syntax highlighting for the query editor. The foreground
+    values baked in here are the dark-theme palette; MainWindow recolors
+    the named colors at runtime for the light theme (and back), so keep
+    the color names in sync with ApplySqlHighlightingTheme.
+-->
+<SyntaxDefinition name="PostgreSQL" extensions=".sql" xmlns="http://icsharpcode.net/sharpdevelop/syntaxdefinition/2008">
+    <Color name="Comment" foreground="#6A9955" />
+    <Color name="String" foreground="#CE9178" />
+    <Color name="Number" foreground="#B5CEA8" />
+    <Color name="Keyword" foreground="#569CD6" fontWeight="bold" />
+    <Color name="Type" foreground="#4EC9B0" />
+
+    <RuleSet ignoreCase="true">
+        <Span color="Comment" begin="--" />
+        <Span color="Comment" multiline="true" begin="/\*" end="\*/" />
+        <Span color="String" begin="'" end="'" />
+
+        <Keywords color="Keyword">
+            <Word>SELECT</Word>
+            <Word>INSERT</Word>
+            <Word>UPDATE</Word>
+            <Word>DELETE</Word>
+            <Word>TRUNCATE</Word>
+            <Word>FROM</Word>
+            <Word>WHERE</Word>
+            <Word>JOIN</Word>
+            <Word>INNER</Word>
+            <Word>LEFT</Word>
+            <Word>RIGHT</Word>
+            <Word>FULL</Word>
+            <Word>OUTER</Word>
+            <Word>CROSS</Word>
+            <Word>LATERAL</Word>
+            <Word>ON</Word>
+            <Word>USING</Word>
+            <Word>GROUP</Word>
+            <Word>BY</Word>
+            <Word>ORDER</Word>
+            <Word>HAVING</Word>
+            <Word>LIMIT</Word>
+            <Word>OFFSET</Word>
+            <Word>AS</Word>
+            <Word>AND</Word>
+            <Word>OR</Word>
+            <Word>NOT</Word>
+            <Word>IN</Word>
+            <Word>IS</Word>
+            <Word>NULL</Word>
+            <Word>DISTINCT</Word>
+            <Word>UNION</Word>
+            <Word>ALL</Word>
+            <Word>EXCEPT</Word>
+            <Word>INTERSECT</Word>
+            <Word>CASE</Word>
+            <Word>WHEN</Word>
+            <Word>THEN</Word>
+            <Word>ELSE</Word>
+            <Word>END</Word>
+            <Word>BETWEEN</Word>
+            <Word>LIKE</Word>
+            <Word>ILIKE</Word>
+            <Word>SIMILAR</Word>
+            <Word>EXISTS</Word>
+            <Word>ANY</Word>
+            <Word>SOME</Word>
+            <Word>CREATE</Word>
+            <Word>ALTER</Word>
+            <Word>DROP</Word>
+            <Word>TABLE</Word>
+            <Word>VIEW</Word>
+            <Word>MATERIALIZED</Word>
+            <Word>INDEX</Word>
+            <Word>SCHEMA</Word>
+            <Word>DATABASE</Word>
+            <Word>SEQUENCE</Word>
+            <Word>FUNCTION</Word>
+            <Word>PROCEDURE</Word>
+            <Word>TRIGGER</Word>
+            <Word>EXTENSION</Word>
+            <Word>PRIMARY</Word>
+            <Word>FOREIGN</Word>
+            <Word>KEY</Word>
+            <Word>REFERENCES</Word>
+            <Word>UNIQUE</Word>
+            <Word>CHECK</Word>
+            <Word>DEFAULT</Word>
+            <Word>CONSTRAINT</Word>
+            <Word>INTO</Word>
+            <Word>VALUES</Word>
+            <Word>SET</Word>
+            <Word>RETURNING</Word>
+            <Word>WITH</Word>
+            <Word>RECURSIVE</Word>
+            <Word>ASC</Word>
+            <Word>DESC</Word>
+            <Word>NULLS</Word>
+            <Word>FIRST</Word>
+            <Word>LAST</Word>
+            <Word>TRUE</Word>
+            <Word>FALSE</Word>
+            <Word>BEGIN</Word>
+            <Word>COMMIT</Word>
+            <Word>ROLLBACK</Word>
+            <Word>TRANSACTION</Word>
+            <Word>SAVEPOINT</Word>
+            <Word>EXPLAIN</Word>
+            <Word>ANALYZE</Word>
+            <Word>VERBOSE</Word>
+            <Word>VACUUM</Word>
+            <Word>REINDEX</Word>
+            <Word>CLUSTER</Word>
+            <Word>GRANT</Word>
+            <Word>REVOKE</Word>
+            <Word>CAST</Word>
+            <Word>COALESCE</Word>
+            <Word>NULLIF</Word>
+            <Word>GREATEST</Word>
+            <Word>LEAST</Word>
+            <Word>EXTRACT</Word>
+            <Word>ADD</Word>
+            <Word>COLUMN</Word>
+            <Word>RENAME</Word>
+            <Word>TO</Word>
+            <Word>OWNER</Word>
+            <Word>IF</Word>
+            <Word>CASCADE</Word>
+            <Word>RESTRICT</Word>
+            <Word>LISTEN</Word>
+            <Word>NOTIFY</Word>
+            <Word>UNLISTEN</Word>
+            <Word>PARTITION</Word>
+            <Word>OVER</Word>
+            <Word>WINDOW</Word>
+            <Word>FILTER</Word>
+            <Word>RETURNS</Word>
+            <Word>LANGUAGE</Word>
+            <Word>DECLARE</Word>
+            <Word>CURSOR</Word>
+            <Word>FETCH</Word>
+            <Word>TEMP</Word>
+            <Word>TEMPORARY</Word>
+            <Word>UNLOGGED</Word>
+            <Word>CONCURRENTLY</Word>
+            <Word>ONLY</Word>
+            <Word>CONFLICT</Word>
+            <Word>DO</Word>
+            <Word>NOTHING</Word>
+        </Keywords>
+
+        <Keywords color="Type">
+            <Word>SMALLINT</Word>
+            <Word>INT</Word>
+            <Word>INTEGER</Word>
+            <Word>BIGINT</Word>
+            <Word>DECIMAL</Word>
+            <Word>NUMERIC</Word>
+            <Word>REAL</Word>
+            <Word>DOUBLE</Word>
+            <Word>PRECISION</Word>
+            <Word>SMALLSERIAL</Word>
+            <Word>SERIAL</Word>
+            <Word>BIGSERIAL</Word>
+            <Word>MONEY</Word>
+            <Word>TEXT</Word>
+            <Word>VARCHAR</Word>
+            <Word>CHAR</Word>
+            <Word>CHARACTER</Word>
+            <Word>VARYING</Word>
+            <Word>BYTEA</Word>
+            <Word>TIMESTAMP</Word>
+            <Word>TIMESTAMPTZ</Word>
+            <Word>DATE</Word>
+            <Word>TIME</Word>
+            <Word>TIMETZ</Word>
+            <Word>INTERVAL</Word>
+            <Word>BOOLEAN</Word>
+            <Word>BOOL</Word>
+            <Word>INET</Word>
+            <Word>CIDR</Word>
+            <Word>MACADDR</Word>
+            <Word>UUID</Word>
+            <Word>XML</Word>
+            <Word>JSON</Word>
+            <Word>JSONB</Word>
+            <Word>ARRAY</Word>
+            <Word>TSVECTOR</Word>
+            <Word>TSQUERY</Word>
+            <Word>REGCLASS</Word>
+            <Word>OID</Word>
+        </Keywords>
+
+        <Rule color="Number">\b\d+(\.\d+)?\b</Rule>
+    </RuleSet>
+</SyntaxDefinition>
