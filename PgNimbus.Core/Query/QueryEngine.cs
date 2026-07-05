@@ -149,7 +149,12 @@ public sealed class QueryEngine
                 var row = new object?[fieldCount];
                 for (var i = 0; i < fieldCount; i++)
                 {
-                    row[i] = await reader.IsDBNullAsync(i, ct) ? null : reader.GetValue(i);
+                    // Non-sequential access: the row is fully buffered once
+                    // ReadAsync returns, so sync GetValue never blocks on I/O.
+                    // One call per cell instead of IsDBNullAsync + GetValue -
+                    // half a million awaits per 100k×5 result was measurable.
+                    var value = reader.GetValue(i);
+                    row[i] = value is DBNull ? null : value;
                 }
 
                 buffer.Add(row);

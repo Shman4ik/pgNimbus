@@ -268,7 +268,21 @@ public partial class MainWindow : Window
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName != nameof(QueryViewModel.Sql) || _queryViewModel is null)
+        if (_queryViewModel is null)
+        {
+            return;
+        }
+
+        // Rows is swapped wholesale instead of mutated in place (bulk
+        // collection-change handling in the DataGrid costs ~200 µs/row; a
+        // fresh ItemsSource costs a viewport) - re-point the grid each time.
+        if (e.PropertyName == nameof(QueryViewModel.Rows))
+        {
+            ResultsGrid.ItemsSource = _queryViewModel.Rows;
+            return;
+        }
+
+        if (e.PropertyName != nameof(QueryViewModel.Sql))
         {
             return;
         }

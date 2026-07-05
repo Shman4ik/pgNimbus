@@ -61,13 +61,18 @@ public sealed partial class QueryViewModel : ObservableObject
     public ObservableCollection<string> ColumnNames { get; } = [];
 
     /// <summary>
-    /// AvaloniaList instead of ObservableCollection: a big unbounded result set
-    /// arrives as thousands of 200-row batches, and AddRange raises one
-    /// collection-changed notification per batch instead of one per row —
-    /// with a plain ObservableCollection the DataGrid's per-item handling
-    /// made large results appear to hang the UI.
+    /// The grid's rows. Replaced wholesale (a fresh list instance) rather than
+    /// mutated in bulk: the DataGrid's CollectionChanged handling costs
+    /// ~200 µs per row whether the change arrives as per-item Adds, a range
+    /// Add, or a Reset (~20 s for a capped 100k result, measured), while
+    /// assigning a pre-populated ItemsSource costs ~10 ms because
+    /// virtualization only ever realizes a viewport. The view watches this
+    /// property and re-points DataGrid.ItemsSource at the new instance.
+    /// Single-item mutations (inline cell edits) still notify normally and
+    /// stay cheap.
     /// </summary>
-    public AvaloniaList<object?[]> Rows { get; } = [];
+    [ObservableProperty]
+    private AvaloniaList<object?[]> _rows = [];
 
     /// <summary>Raised once per <see cref="RunAsync"/> completion (success, command, error, or cancellation) so a history tracker can record it without RunAsync knowing about persistence.</summary>
     public event Action<QueryHistoryEntry>? Executed;
@@ -91,7 +96,7 @@ public sealed partial class QueryViewModel : ObservableObject
         Status = "Running...";
         IsShowingPlan = false;
         ColumnNames.Clear();
-        Rows.Clear();
+        Rows = [];
         _columns = [];
 
         var stopwatch = Stopwatch.StartNew();
@@ -112,7 +117,7 @@ public sealed partial class QueryViewModel : ObservableObject
                         ColumnNames.Add(column.Name);
                     }
 
-                    var rowCount = 0;
+                    var allRows = new List<object?[]>();
                     var firstByteMs = -1L;
                     var truncated = false;
 
@@ -120,40 +125,68 @@ public sealed partial class QueryViewModel : ObservableObject
                     // frequently completes synchronously once data is already buffered, so consuming
                     // the async enumerable directly on the UI thread lets `await foreach` run many
                     // batches back-to-back without ever yielding — a big unbounded result set freezes
-                    // the UI and makes Cancel unresponsive until the whole query finishes. Only the
-                    // (cheap) Rows/Status mutation needs to happen on the UI thread.
-                    await Task.Run(async () =>
+                    // the UI and makes Cancel unresponsive until the whole query finishes.
+                    //
+                    // The grid gets exactly two row deliveries: the first batch immediately (the
+                    // "first screenful renders before the query finishes" promise), and the full
+                    // list swapped in at the end (see the Rows doc comment for why bulk mutation
+                    // of a bound collection is ruinously slow). In between, only the status line
+                    // ticks — appended rows would land below the fold anyway.
+                    try
                     {
-                        await foreach (var batch in resultSet.Batches.WithCancellation(ct))
+                        await Task.Run(async () =>
                         {
-                            if (firstByteMs < 0)
+                            var firstScreenShown = false;
+                            var lastStatusMs = 0L;
+
+                            await foreach (var batch in resultSet.Batches.WithCancellation(ct))
                             {
-                                firstByteMs = stopwatch.ElapsedMilliseconds;
+                                if (firstByteMs < 0)
+                                {
+                                    firstByteMs = stopwatch.ElapsedMilliseconds;
+                                }
+
+                                // The engine streams at most MaxDisplayRows + 1 rows;
+                                // the sentinel row past the cap is dropped, not shown.
+                                var rows = batch.Rows;
+                                if (allRows.Count + rows.Count > MaxDisplayRows)
+                                {
+                                    rows = rows.Take(MaxDisplayRows - allRows.Count).ToList();
+                                    truncated = true;
+                                }
+
+                                allRows.AddRange(rows);
+                                var statusText = $"{allRows.Count} rows ({firstByteMs} ms to first byte, {resultSet.Elapsed.TotalMilliseconds:F0} ms elapsed)";
+
+                                if (!firstScreenShown)
+                                {
+                                    firstScreenShown = true;
+                                    var firstScreen = new AvaloniaList<object?[]>(allRows);
+                                    await Dispatcher.UIThread.InvokeAsync(() =>
+                                    {
+                                        Rows = firstScreen;
+                                        Status = statusText;
+                                    });
+                                }
+                                else if (stopwatch.ElapsedMilliseconds - lastStatusMs >= 100)
+                                {
+                                    lastStatusMs = stopwatch.ElapsedMilliseconds;
+                                    Dispatcher.UIThread.Post(() => Status = statusText);
+                                }
                             }
-
-                            // The engine streams at most MaxDisplayRows + 1 rows;
-                            // the sentinel row past the cap is dropped, not shown.
-                            var rows = batch.Rows;
-                            if (rowCount + rows.Count > MaxDisplayRows)
-                            {
-                                rows = rows.Take(MaxDisplayRows - rowCount).ToList();
-                                truncated = true;
-                            }
-
-                            rowCount += rows.Count;
-                            var statusText = $"{rowCount} rows ({firstByteMs} ms to first byte, {resultSet.Elapsed.TotalMilliseconds:F0} ms elapsed)";
-
-                            await Dispatcher.UIThread.InvokeAsync(() =>
-                            {
-                                Rows.AddRange(rows);
-                                Status = statusText;
-                            });
-                        }
-                    }, ct);
+                        }, ct);
+                    }
+                    finally
+                    {
+                        // Runs on the UI thread (the awaiter resumed here) for
+                        // success, cancellation, and failure alike, so whatever
+                        // was streamed is always what the grid shows.
+                        Rows = new AvaloniaList<object?[]>(allRows);
+                    }
 
                     Status = truncated
-                        ? $"Showing first {rowCount:N0} rows (capped at {MaxDisplayRows:N0} — refine the query for the full set) in {stopwatch.Elapsed.TotalMilliseconds:F0} ms"
-                        : $"{rowCount} rows in {stopwatch.Elapsed.TotalMilliseconds:F0} ms ({firstByteMs} ms to first byte)";
+                        ? $"Showing first {allRows.Count:N0} rows (capped at {MaxDisplayRows:N0} — refine the query for the full set) in {stopwatch.Elapsed.TotalMilliseconds:F0} ms"
+                        : $"{allRows.Count} rows in {stopwatch.Elapsed.TotalMilliseconds:F0} ms ({firstByteMs} ms to first byte)";
                     break;
 
                 case CommandResult commandResult:
