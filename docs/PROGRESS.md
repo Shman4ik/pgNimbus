@@ -54,12 +54,21 @@ current when landing work on this branch.
 | --- | --- | --- |
 | NULL cells indistinguishable from empty strings | `RowIndexConverter` renders SQL NULL as a "NULL" placeholder; `ResultTextColumn` dims those cells to 0.4 opacity via a per-element binding (a style can't see the cell value), so the marker reads as a marker while a literal `'NULL'` string stays full-contrast. `PreparingCellForEdit` clears the placeholder out of the cell editor so an untouched commit can't write the string "NULL". Verified with NULL / `''` / `'NULL'` side by side. | (this commit) |
 
+## Iteration 6 — UI north star: [Files](https://github.com/files-community/Files)
+
+Per owner direction, Files is the reference for what "great Windows UI"
+means for pgNimbus. Adopting its language where Avalonia allows.
+
+| Item | Outcome | Commit |
+| --- | --- | --- |
+| Files-style command bar | Query toolbar is now a rounded card containing an accent Run (play icon) and quiet icon+label secondaries (stop/flash/gauge/table/export MDI glyphs) that are transparent at rest with Fluent's own hover wash. Disabled buttons stay quiet (dim text, no grey fill) via a container-scoped `ButtonBackgroundDisabled` resource override — the reliable per-area escape from ControlTheme repainting. Verified rest/hover/disabled in light and dark. | (this commit) |
+
 ## Open / candidate items
-- [ ] **UI north star: [Files](https://github.com/files-community/Files)** —
-      adopt its Windows design language where Avalonia allows: command-bar
-      toolbar (icon+label, transparent-until-hover), layered content tones,
-      8 px radii, compact sidebar. Mica/acrylic backdrop remains blocked on
-      safe verification (a headless sandbox can't see transparency failures).
+- [ ] More Files-language adoption: layered content tones (sidebar vs
+      content), compact left sidebar with section headers, breadcrumb-style
+      context (connection › database), segmented status bar. Mica/acrylic
+      backdrop remains blocked on safe verification (a headless sandbox
+      can't see transparency failures).
 - [ ] Keyboard navigation audit (tab order, editor ↔ grid focus, Ctrl+W
       close tab?)
 - [ ] Roadmap features (command palette, extension manager) — out of polish

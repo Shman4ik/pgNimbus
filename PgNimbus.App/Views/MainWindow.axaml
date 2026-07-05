@@ -227,22 +227,64 @@
                 </ListBox>
             </DockPanel>
 
-            <StackPanel Orientation="Horizontal" Grid.Row="1" Spacing="8" Margin="0,0,0,12">
-                <Button Classes="accent" Content="Run" Command="{Binding ActiveTab.RunCommand}" ToolTip.Tip="Ctrl+Enter" />
-                <Button Content="Cancel" Command="{Binding ActiveTab.CancelCommand}" ToolTip.Tip="Esc" />
-                <Button Content="Explain" Command="{Binding ActiveTab.ExplainCommand}" />
-                <Button Content="Explain Analyze" Command="{Binding ActiveTab.ExplainAnalyzeCommand}" />
-                <Button Content="Show results" Command="{Binding ActiveTab.ShowResultsCommand}"
-                        IsVisible="{Binding ActiveTab.IsShowingPlan}" />
-                <Button Name="ExportButton" Content="Export">
-                    <Button.Flyout>
-                        <MenuFlyout>
-                            <MenuItem Header="Export as CSV..." Click="OnExportCsvClick" />
-                            <MenuItem Header="Export as JSON..." Click="OnExportJsonClick" />
-                        </MenuFlyout>
-                    </Button.Flyout>
-                </Button>
-            </StackPanel>
+            <!-- Files-style command bar: accent primary action, quiet icon+label secondaries -->
+            <Border Grid.Row="1" Classes="card" Padding="4" Margin="0,0,0,12" HorizontalAlignment="Left">
+                <Border.Resources>
+                    <!--
+                        Disabled buttons inside the command bar stay transparent
+                        (dim text only) instead of Fluent's grey fill - the
+                        ControlTheme paints the ContentPresenter from this
+                        resource, and a container-scoped override is the one
+                        reliable way to restyle it per-area.
+                    -->
+                    <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
+                </Border.Resources>
+                <StackPanel Orientation="Horizontal" Spacing="2">
+                    <Button Classes="accent" Command="{Binding ActiveTab.RunCommand}" ToolTip.Tip="Run (Ctrl+Enter)">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <PathIcon Data="{StaticResource PlayIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
+                            <TextBlock Text="Run" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="toolbar" Command="{Binding ActiveTab.CancelCommand}" ToolTip.Tip="Cancel (Esc)">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <PathIcon Data="{StaticResource StopIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
+                            <TextBlock Text="Cancel" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="toolbar" Command="{Binding ActiveTab.ExplainCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <PathIcon Data="{StaticResource FlashIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
+                            <TextBlock Text="Explain" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="toolbar" Command="{Binding ActiveTab.ExplainAnalyzeCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <PathIcon Data="{StaticResource GaugeIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
+                            <TextBlock Text="Explain Analyze" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="toolbar" Command="{Binding ActiveTab.ShowResultsCommand}"
+                            IsVisible="{Binding ActiveTab.IsShowingPlan}">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <PathIcon Data="{StaticResource TableIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
+                            <TextBlock Text="Show results" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="toolbar" Name="ExportButton">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <PathIcon Data="{StaticResource ExportIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
+                            <TextBlock Text="Export" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <Button.Flyout>
+                            <MenuFlyout>
+                                <MenuItem Header="Export as CSV..." Click="OnExportCsvClick" />
+                                <MenuItem Header="Export as JSON..." Click="OnExportJsonClick" />
+                            </MenuFlyout>
+                        </Button.Flyout>
+                    </Button>
+                </StackPanel>
+            </Border>
 
             <Border Grid.Row="2" Classes="card">
                 <ae:TextEditor Name="SqlEditor"
