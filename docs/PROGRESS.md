@@ -75,11 +75,24 @@ means for pgNimbus. Adopting its language where Avalonia allows.
 | --- | --- | --- |
 | Title-bar connection breadcrumb | Files-style context in the chrome: "pgNimbus  host › database", parsed from the connection string (`NpgsqlConnectionStringBuilder`) and exposed as `ConnectionHost`/`ConnectionDatabase` on `MainViewModel`. Quiet 65 %-opacity text next to the accent environment dot. | (this commit) |
 
+## Iteration 9
+
+| Item | Outcome | Commit |
+| --- | --- | --- |
+| Files-style segmented status bar | The single concatenated `Status` string became structured segments — message · row count · timing · amber cap warning — divided by hairline separators in a strip flush along the layer's bottom edge (layer padding moved inward so the bar and its top hairline run edge-to-edge). New `RowCountText`/`TimingText`/`CapText`/`HasError` observables on `QueryViewModel`; streaming ticks update the row/timing segments while the message stays "Running..."; errors paint the message IndianRed; history entries get the segments flattened back into one line (`StatusSummary`). Verified live: success, 100k cap (backend `idle` after, 415 ms JIT / capped display intact), error, both themes. | (this commit) |
+| Compact sidebar section headers | SAVED QUERIES / HISTORY / CHANNELS / NOTIFICATIONS as Files-style micro-headers: 11 px semibold, 0.55 opacity, letter-spaced uppercase (`TextBlock.sectionHeader`). Verified both themes. | (this commit) |
+| AOT re-check | New compiled bindings only; publish clean (known DataGrid warnings), AOT binary runs the new status bar (500 rows in 31 ms, first byte 4 ms). | (this commit) |
+
+## Iteration 10
+
+| Item | Outcome | Commit |
+| --- | --- | --- |
+| Keyboard navigation | New shortcuts alongside Ctrl+Enter/Escape: **F5** run (DB-tool convention), **Ctrl+T** new tab, **Ctrl+W** close tab (parameterless → active tab), **Ctrl+PageDown/PageUp** cycle tabs (`NextTab`/`PreviousTab` on `MainViewModel`), **F6** hops focus editor ↔ results grid (code-behind — the target depends on where focus is). All exercised via xdotool from editor focus; AOT publish + shortcut smoke re-checked. | (this commit) |
+| Close-tab selection bug (pre-existing, ✕ button too) | Closing the active tab left no tab selected and the editor/grid showing the dead tab's content: `Tabs.RemoveAt` makes the two-way-bound tab ListBox push `SelectedItem = null` into `ActiveTab` synchronously, so `CloseTab`'s "was it active" check compared against null (and the swallowed NRE in `AttachQuery` hid it). Fixed by deciding before the removal + guarding the transient null in the view. Verified: close via Ctrl+W lands on the neighbor tab, pill highlighted, its own SQL/results restored. | (this commit) |
+| Status-bar pluralization | "1 rows" → "1 row"; "N row(s) affected" → real singular/plural. | (this commit) |
+
 ## Open / candidate items
-- [ ] More Files-language adoption: compact sidebar section headers,
-      segmented status bar. Mica/acrylic backdrop remains blocked on safe
-      verification (a headless sandbox can't see transparency failures).
-- [ ] Keyboard navigation audit (tab order, editor ↔ grid focus, Ctrl+W
-      close tab?)
+- [ ] Mica/acrylic backdrop remains blocked on safe verification (a headless
+      sandbox can't see transparency failures).
 - [ ] Roadmap features (command palette, extension manager) — out of polish
       scope
