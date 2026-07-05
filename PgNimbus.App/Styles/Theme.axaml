@@ -16,6 +16,25 @@
         <SolidColorBrush x:Key="CardBackgroundBrush" Color="#80808080" Opacity="0.06" />
         <SolidColorBrush x:Key="CardBorderBrush" Color="#80808080" Opacity="0.16" />
         <SolidColorBrush x:Key="HoverBackgroundBrush" Color="#80808080" Opacity="0.1" />
+
+        <!--
+            Nav pill highlight. FluentTheme's TabItem ControlTheme repaints
+            PART_LayoutRoot's background from TabItemHeaderBackground*
+            resources on :pointerover/:pressed (transparent by default), which
+            erases any background set on the TabItem itself as soon as the
+            pointer touches the selected tab. Those inner ControlTheme styles
+            also win the precedence fight against app-level /template/ styles,
+            so the reliable override point is the DynamicResource values they
+            paint with. This StyleInclude loads after FluentTheme, so these
+            take priority in resource lookup.
+        -->
+        <StaticResource x:Key="TabItemHeaderBackgroundSelected" ResourceKey="SystemControlHighlightListAccentLowBrush" />
+        <StaticResource x:Key="TabItemHeaderBackgroundSelectedPointerOver" ResourceKey="SystemControlHighlightListAccentLowBrush" />
+        <StaticResource x:Key="TabItemHeaderBackgroundSelectedPressed" ResourceKey="SystemControlHighlightListAccentLowBrush" />
+        <StaticResource x:Key="TabItemHeaderBackgroundUnselectedPointerOver" ResourceKey="HoverBackgroundBrush" />
+        <StaticResource x:Key="TabItemHeaderBackgroundUnselectedPressed" ResourceKey="HoverBackgroundBrush" />
+        <!-- The pill *is* the selection indicator - hide the stock underline pipe -->
+        <SolidColorBrush x:Key="TabItemHeaderSelectedPipeFill" Color="Transparent" />
     </Styles.Resources>
 
     <!-- Card container: Border Classes="card" wraps a grouped panel -->
@@ -77,11 +96,7 @@
         <Setter Property="FontSize" Value="13" />
         <Setter Property="MinWidth" Value="0" />
     </Style>
-    <Style Selector="TabItem:pointerover">
-        <Setter Property="Background" Value="{StaticResource HoverBackgroundBrush}" />
-    </Style>
     <Style Selector="TabItem:selected">
-        <Setter Property="Background" Value="{DynamicResource SystemControlHighlightListAccentLowBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource SystemAccentColor}" />
         <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
