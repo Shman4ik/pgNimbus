@@ -303,11 +303,16 @@ public partial class MainWindow : Window
 
         for (var i = 0; i < query.ColumnNames.Count; i++)
         {
-            var index = i;
             ResultsGrid.Columns.Add(new DataGridTextColumn
             {
-                Header = query.ColumnNames[index],
-                Binding = new Binding($"[{index}]") { Mode = BindingMode.OneWay },
+                Header = query.ColumnNames[i],
+                // Empty path + converter instead of "[i]": indexer paths
+                // resolve via reflection, which trips NativeAOT/trimming.
+                Binding = new Binding
+                {
+                    Converter = new Converters.RowIndexConverter(i),
+                    Mode = BindingMode.OneWay,
+                },
             });
         }
     }

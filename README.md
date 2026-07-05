@@ -20,10 +20,8 @@ from the ground up.
 
 ### Differentiators
 
-1. **Native performance** — measured ~0.7 s from launch to window (JIT,
-   Release, Linux container); sub-500 ms is the target via NativeAOT, which
-   currently has known blockers (asset loading and DataGrid reflection
-   bindings under trimming/AOT).
+1. **Native performance** — measured launch-to-window: ~100 ms as a NativeAOT
+   binary, ~0.7 s under JIT (Release, Linux container, 5-run spread).
 2. **PostgreSQL-first** — deep `pg_catalog` introspection (materialized views,
    real types, primary-key flags, and EXPLAIN visualization); never the
    lowest-common-denominator SQL dialect.
@@ -107,11 +105,18 @@ export PGNIMBUS_CONN="Host=localhost;Port=5432;Database=mydb;Username=postgres;P
 dotnet run --project PgNimbus.App
 ```
 
-### Publishing a NativeAOT build (Windows)
+### Publishing a NativeAOT build
 
 ```bash
-dotnet publish PgNimbus.App -c Release -r win-x64 -p:PublishAot=true
+dotnet publish PgNimbus.App -c Release -r win-x64 -p:PublishAot=true    # Windows
+dotnet publish PgNimbus.App -c Release -r linux-x64 -p:PublishAot=true  # Linux (needs clang + zlib1g-dev)
 ```
+
+The linux-x64 AOT binary is exercised as part of development: it launches to a
+window in ~100 ms and the query grid, EXPLAIN visualization, and profile
+stores all work (JSON persistence uses source-generated serializer contexts,
+and the results grid binds columns via converters instead of reflection
+paths, both of which trimming/AOT require).
 
 ## Roadmap
 
