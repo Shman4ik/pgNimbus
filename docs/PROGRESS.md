@@ -41,10 +41,14 @@ current when landing work on this branch.
 | Memory on unbounded 5M-row scan | unbounded growth | capped (~30 MB data + runtime) |
 | Backend after cap/cancel | kept running | `idle` (explicit backend cancel) |
 
-## Open / candidate items
+## Iteration 4
 
-- [ ] Click-to-sort on result grid columns (needs `CustomSortComparer`;
-      columns have no sortable binding path by design) — in progress
+| Item | Outcome | Commit |
+| --- | --- | --- |
+| Progress log | This file. | `607e0fc` |
+| Header-click sorting on result columns | Columns bind through a converter (no path), so the stock sort has no key: each column gets a `RowCellComparer` (`CustomSortComparer`) comparing its cell — NULLs last, same-type `IComparable` natively, ordinal-string fallback — plus explicit `CanUserSort`/`CanUserSortColumns`. Verified: text asc/desc with arrows, numeric `id` sorts 1,2,3 (not 1,10,100), and a 100k-row result sorts in ~1 s. | (this commit) |
+
+## Open / candidate items
 - [ ] NULL cells indistinguishable from empty strings in the grid (dim
       "NULL" placeholder? needs care: display text feeds the inline cell
       editor, so a converter-only approach risks writing the string "NULL")

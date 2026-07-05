@@ -257,6 +257,7 @@
                               IsVisible="{Binding !ActiveTab.IsShowingPlan}"
                               IsReadOnly="{Binding !ActiveTab.IsEditable}"
                               CanUserReorderColumns="False"
+                              CanUserSortColumns="True"
                               AutoGenerateColumns="False" />
                     <Grid RowDefinitions="Auto,*" IsVisible="{Binding ActiveTab.IsShowingPlan}">
                         <TextBlock Grid.Row="0" Text="{Binding ActiveTab.ExplainSummary}" Margin="4" FontSize="12" Opacity="0.8" />

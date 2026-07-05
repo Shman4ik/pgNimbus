@@ -313,6 +313,11 @@ public partial class MainWindow : Window
                     Converter = new Converters.RowIndexConverter(i),
                     Mode = BindingMode.OneWay,
                 },
+                // No binding path also means no stock sort key - header-click
+                // sorting needs an explicit comparer, and with no path to
+                // infer sortability from, CanUserSort must be set by hand.
+                CustomSortComparer = new RowCellComparer(i),
+                CanUserSort = true,
             });
         }
     }
