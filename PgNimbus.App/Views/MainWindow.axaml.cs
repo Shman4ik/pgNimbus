@@ -1,13 +1,19 @@
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Xml;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Data;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media;
+using Avalonia.Platform;
 using Avalonia.Platform.Storage;
+using Avalonia.Styling;
 using Avalonia.VisualTree;
 using AvaloniaEdit.CodeCompletion;
+using AvaloniaEdit.Highlighting;
+using AvaloniaEdit.Highlighting.Xshd;
 using PgNimbus.App.ViewModels;
 
 namespace PgNimbus.App.Views;
@@ -21,10 +27,17 @@ public partial class MainWindow : Window
     private int _pendingEditColumnIndex;
     private string? _pendingEditText;
     private CompletionWindow? _completionWindow;
+    private IHighlightingDefinition? _sqlHighlighting;
 
     public MainWindow()
     {
         InitializeComponent();
+
+        LoadSqlHighlighting();
+        // ActualThemeVariant isn't final at construction time - re-resolve the
+        // palette once the window opens, and again on any live theme switch.
+        Opened += (_, _) => ApplySqlHighlightingTheme();
+        ActualThemeVariantChanged += (_, _) => ApplySqlHighlightingTheme();
 
         SqlEditor.TextChanged += (_, _) =>
         {
@@ -54,6 +67,45 @@ public partial class MainWindow : Window
                 Attach(vm);
             }
         };
+    }
+
+    private void LoadSqlHighlighting()
+    {
+        using var stream = AssetLoader.Open(new Uri("avares://PgNimbus.App/Assets/PostgreSql.xshd"));
+        using var reader = XmlReader.Create(stream);
+        _sqlHighlighting = HighlightingLoader.Load(reader, HighlightingManager.Instance);
+        ApplySqlHighlightingTheme();
+    }
+
+    // The XSHD bakes in the dark palette; the highlighter has no theme
+    // awareness of its own, so the named colors are rewritten whenever the
+    // actual theme variant resolves or changes.
+    private void ApplySqlHighlightingTheme()
+    {
+        if (_sqlHighlighting is null)
+        {
+            return;
+        }
+
+        var dark = ActualThemeVariant == ThemeVariant.Dark;
+        SetHighlightColor("Comment", dark ? "#6A9955" : "#008000");
+        SetHighlightColor("String", dark ? "#CE9178" : "#A31515");
+        SetHighlightColor("Number", dark ? "#B5CEA8" : "#098658");
+        SetHighlightColor("Keyword", dark ? "#569CD6" : "#0000E0");
+        SetHighlightColor("Type", dark ? "#4EC9B0" : "#267F99");
+
+        // Reassigning is what makes the TextView drop its cached line
+        // visuals and re-run the highlighter with the new brushes.
+        SqlEditor.SyntaxHighlighting = null;
+        SqlEditor.SyntaxHighlighting = _sqlHighlighting;
+    }
+
+    private void SetHighlightColor(string name, string hex)
+    {
+        if (_sqlHighlighting!.GetNamedColor(name) is { } color)
+        {
+            color.Foreground = new SimpleHighlightingBrush(Color.Parse(hex));
+        }
     }
 
     // F6 hops focus between the SQL editor and the results grid (the two
