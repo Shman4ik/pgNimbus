@@ -9,6 +9,15 @@ a gap none of pgAdmin/DBeaver (heavy), TablePlus (fast but paid/closed), or
 HeidiSQL (fast but dated, MySQL-first) fill. pgNimbus aims for HeidiSQL's
 speed with TablePlus's polish, PostgreSQL-first.
 
+## Keep this file current
+
+Whenever a change touches something this file documents — tech stack
+versions, architectural rules, coding conventions, the sandbox bootstrap
+steps — update the corresponding section in the same commit/PR. Treat a
+stale `CLAUDE.md` (e.g. it still saying "Avalonia 11" after an upgrade to
+12) as a bug, not a nitpick: it's the first thing a fresh session reads,
+and wrong project memory is worse than none.
+
 ## Hard architectural rules
 
 1. **`PgNimbus.Core` has zero Avalonia/UI dependencies.** It references only
