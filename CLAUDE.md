@@ -53,8 +53,3 @@ speed with TablePlus's polish, PostgreSQL-first.
   Two-way sync with the ViewModel is done manually in `MainWindow.axaml.cs`
   (via `TextChanged` + `PropertyChanged`, with a re-entrancy guard), not via
   XAML `Binding`.
-- Known accepted warning: Avalonia's Linux X11 backend transitively pulls
-  `Tmds.DBus.Protocol` 0.20.0, which has an open low-relevance advisory
-  (GHSA-xrw6-gwf8-vvr9). The only fixed line (0.90.0+) is a breaking rewrite
-  that Avalonia 11.2.3 can't load (TypeLoadException at startup). Don't try to
-  force-bump this package without confirming Avalonia has moved first.

@@ -36,7 +36,7 @@
             <StackPanel>
                 <TextBlock Text="Add column" FontWeight="SemiBold" Margin="0,0,0,6" />
                 <Grid ColumnDefinitions="*,120,Auto" Margin="0,0,0,8">
-                    <TextBox Grid.Column="0" Text="{Binding NewColumnName}" Watermark="Column name" Margin="0,0,6,0" />
+                    <TextBox Grid.Column="0" Text="{Binding NewColumnName}" PlaceholderText="Column name" Margin="0,0,6,0" />
                     <ComboBox Grid.Column="1" ItemsSource="{Binding ColumnTypeOptions}" SelectedItem="{Binding NewColumnType}"
                               HorizontalAlignment="Stretch" Margin="0,0,6,0" />
                     <CheckBox Grid.Column="2" Content="Nullable" IsChecked="{Binding NewColumnNullable}" VerticalAlignment="Center" />
@@ -49,7 +49,7 @@
             <StackPanel>
                 <TextBlock Text="Rename selected column" FontWeight="SemiBold" Margin="0,0,0,6" />
                 <Grid ColumnDefinitions="*,Auto">
-                    <TextBox Grid.Column="0" Text="{Binding RenameTo}" Watermark="New name" Margin="0,0,6,0" />
+                    <TextBox Grid.Column="0" Text="{Binding RenameTo}" PlaceholderText="New name" Margin="0,0,6,0" />
                     <Button Grid.Column="1" Content="Rename" Command="{Binding RenameColumnCommand}" />
                 </Grid>
             </StackPanel>
