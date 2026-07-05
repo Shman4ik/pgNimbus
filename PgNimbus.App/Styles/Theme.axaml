@@ -1,0 +1,124 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+        PowerToys-inspired design tokens: soft rounded cards, pill-shaped nav
+        selection, accent-colored primary actions. Keep everything driven off
+        FluentTheme's DynamicResource brushes so light/dark and accent-color
+        changes keep working automatically.
+    -->
+    <Styles.Resources>
+        <CornerRadius x:Key="CardCornerRadius">8</CornerRadius>
+        <CornerRadius x:Key="ControlCornerRadius">6</CornerRadius>
+        <CornerRadius x:Key="PillCornerRadius">16</CornerRadius>
+
+        <!-- Fixed-alpha neutral grey so cards read the same, subtle weight in light and dark -->
+        <SolidColorBrush x:Key="CardBackgroundBrush" Color="#80808080" Opacity="0.06" />
+        <SolidColorBrush x:Key="CardBorderBrush" Color="#80808080" Opacity="0.16" />
+        <SolidColorBrush x:Key="HoverBackgroundBrush" Color="#80808080" Opacity="0.1" />
+    </Styles.Resources>
+
+    <!-- Card container: Border Classes="card" wraps a grouped panel -->
+    <Style Selector="Border.card">
+        <Setter Property="Background" Value="{StaticResource CardBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource CardCornerRadius}" />
+    </Style>
+
+    <!-- Buttons -->
+    <Style Selector="Button">
+        <Setter Property="CornerRadius" Value="{StaticResource ControlCornerRadius}" />
+        <Setter Property="Padding" Value="14,7" />
+    </Style>
+
+    <Style Selector="Button.accent">
+        <Setter Property="Background" Value="{DynamicResource SystemAccentColor}" />
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="Button.accent:pointerover">
+        <Setter Property="Background" Value="{DynamicResource SystemAccentColorLight1}" />
+    </Style>
+    <Style Selector="Button.accent:pressed">
+        <Setter Property="Background" Value="{DynamicResource SystemAccentColorDark1}" />
+    </Style>
+    <Style Selector="Button.accent:disabled">
+        <Setter Property="Background" Value="{DynamicResource SystemControlDisabledBaseLowBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlDisabledBaseMediumLowBrush}" />
+    </Style>
+
+    <!-- Round "close chip" buttons used for tab/channel close (✕) -->
+    <Style Selector="Button.chip">
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="Padding" Value="4,0" />
+        <Setter Property="MinWidth" Value="18" />
+        <Setter Property="MinHeight" Value="18" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Opacity" Value="0.6" />
+    </Style>
+    <Style Selector="Button.chip:pointerover">
+        <Setter Property="Background" Value="{StaticResource HoverBackgroundBrush}" />
+        <Setter Property="Opacity" Value="1" />
+    </Style>
+
+    <!-- Left-nav style TabItem: pill highlight instead of the classic underline tab strip -->
+    <Style Selector="TabControl">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
+    <Style Selector="TabItem">
+        <Setter Property="Padding" Value="12,9" />
+        <Setter Property="Margin" Value="3,2" />
+        <Setter Property="CornerRadius" Value="{StaticResource ControlCornerRadius}" />
+        <Setter Property="HorizontalContentAlignment" Value="Left" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="MinWidth" Value="0" />
+    </Style>
+    <Style Selector="TabItem:pointerover">
+        <Setter Property="Background" Value="{StaticResource HoverBackgroundBrush}" />
+    </Style>
+    <Style Selector="TabItem:selected">
+        <Setter Property="Background" Value="{DynamicResource SystemControlHighlightListAccentLowBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource SystemAccentColor}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <!-- Lists / trees: rounded row selection instead of edge-to-edge highlight bars -->
+    <Style Selector="ListBox, TreeView">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="4" />
+    </Style>
+    <Style Selector="ListBoxItem">
+        <Setter Property="CornerRadius" Value="{StaticResource ControlCornerRadius}" />
+        <Setter Property="Padding" Value="8,6" />
+        <Setter Property="Margin" Value="0,1" />
+    </Style>
+    <Style Selector="ListBoxItem:selected">
+        <Setter Property="Background" Value="{DynamicResource SystemControlHighlightListAccentLowBrush}" />
+    </Style>
+    <Style Selector="TreeViewItem">
+        <Setter Property="CornerRadius" Value="{StaticResource ControlCornerRadius}" />
+        <Setter Property="Padding" Value="4,4" />
+    </Style>
+    <Style Selector="TreeViewItem:selected /template/ Border#PART_LayoutRoot">
+        <Setter Property="Background" Value="{DynamicResource SystemControlHighlightListAccentLowBrush}" />
+    </Style>
+
+    <!-- Inputs: rounded to match the rest of the surface -->
+    <Style Selector="TextBox, ComboBox, NumericUpDown">
+        <Setter Property="CornerRadius" Value="{StaticResource ControlCornerRadius}" />
+    </Style>
+
+    <!-- Results grid: soft horizontal rules instead of a full grid -->
+    <Style Selector="DataGrid">
+        <Setter Property="GridLinesVisibility" Value="Horizontal" />
+        <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource SystemControlForegroundBaseLowBrush}" />
+        <Setter Property="RowBackground" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+</Styles>
