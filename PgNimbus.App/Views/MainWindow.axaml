@@ -168,11 +168,15 @@
                         </ListBox>
                     </Border>
                     <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="6" Margin="0,8,0,0">
-                        <Button Content="Start listening" Command="{Binding StartListeningCommand}" />
+                        <Button Classes="accent" Content="Start listening" Command="{Binding StartListeningCommand}" />
                         <Button Content="Stop" Command="{Binding StopListeningCommand}" />
                     </StackPanel>
                     <StackPanel Grid.Row="4" Margin="4,8,4,0">
-                        <TextBlock Text="{Binding IsListening, StringFormat='Listening: {0}'}" FontSize="11" Opacity="0.7" />
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Ellipse Width="8" Height="8" VerticalAlignment="Center"
+                                     Fill="{Binding IsListening, Converter={x:Static conv2:ListeningDotBrushConverter.Instance}}" />
+                            <TextBlock Text="{Binding ListeningStatus}" FontSize="11" Opacity="0.8" />
+                        </StackPanel>
                         <TextBlock Text="{Binding ErrorMessage}" Foreground="IndianRed" TextWrapping="Wrap" FontSize="11"
                                    IsVisible="{Binding ErrorMessage, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
                     </StackPanel>
