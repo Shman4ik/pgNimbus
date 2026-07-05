@@ -175,7 +175,7 @@ public sealed partial class QueryViewModel : ObservableObject
                                 }
 
                                 allRows.AddRange(rows);
-                                var rowText = $"{allRows.Count:N0} rows";
+                                var rowText = RowLabel(allRows.Count);
                                 var timeText = $"{resultSet.Elapsed.TotalMilliseconds:F0} ms · first byte {firstByteMs} ms";
 
                                 if (!firstScreenShown)
@@ -210,7 +210,7 @@ public sealed partial class QueryViewModel : ObservableObject
                     }
 
                     Status = "Done";
-                    RowCountText = $"{allRows.Count:N0} rows";
+                    RowCountText = RowLabel(allRows.Count);
                     TimingText = $"{stopwatch.Elapsed.TotalMilliseconds:F0} ms · first byte {firstByteMs} ms";
                     CapText = truncated
                         ? $"capped at {MaxDisplayRows:N0} rows — refine the query for the full set"
@@ -219,7 +219,7 @@ public sealed partial class QueryViewModel : ObservableObject
 
                 case CommandResult commandResult:
                     Status = commandResult.CommandTag;
-                    RowCountText = $"{commandResult.RowsAffected} row(s) affected";
+                    RowCountText = $"{RowLabel(commandResult.RowsAffected)} affected";
                     TimingText = $"{commandResult.Elapsed.TotalMilliseconds:F0} ms";
                     break;
 
@@ -243,6 +243,8 @@ public sealed partial class QueryViewModel : ObservableObject
             _cts = null;
         }
     }
+
+    private static string RowLabel(long count) => count == 1 ? "1 row" : $"{count:N0} rows";
 
     /// <summary>Flattens the segmented status back into one line for query-history entries.</summary>
     private string StatusSummary() =>

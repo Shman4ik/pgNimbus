@@ -56,6 +56,29 @@ public partial class MainWindow : Window
         };
     }
 
+    // F6 hops focus between the SQL editor and the results grid (the two
+    // keyboard workspaces). Done in code because the target depends on where
+    // focus currently is - a KeyBinding can't express a toggle.
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        if (e.Key == Key.F6 && e.KeyModifiers == KeyModifiers.None)
+        {
+            if (SqlEditor.IsKeyboardFocusWithin)
+            {
+                ResultsGrid.Focus();
+            }
+            else
+            {
+                SqlEditor.TextArea.Focus();
+            }
+
+            e.Handled = true;
+            return;
+        }
+
+        base.OnKeyDown(e);
+    }
+
     private void Attach(MainViewModel vm)
     {
         if (_viewModel is not null)
@@ -71,7 +94,9 @@ public partial class MainWindow : Window
 
     private void OnMainViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(MainViewModel.ActiveTab) && _viewModel is not null)
+        // ActiveTab is transiently null while the tab ListBox reacts to the
+        // removal of its selected item (see MainViewModel.CloseTab).
+        if (e.PropertyName == nameof(MainViewModel.ActiveTab) && _viewModel is { ActiveTab: not null })
         {
             AttachQuery(_viewModel.ActiveTab);
         }

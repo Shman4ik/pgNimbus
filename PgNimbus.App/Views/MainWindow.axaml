@@ -55,7 +55,13 @@
 
     <Window.KeyBindings>
         <KeyBinding Gesture="Ctrl+Enter" Command="{Binding ActiveTab.RunCommand}" />
+        <KeyBinding Gesture="F5" Command="{Binding ActiveTab.RunCommand}" />
         <KeyBinding Gesture="Escape" Command="{Binding ActiveTab.CancelCommand}" />
+        <KeyBinding Gesture="Ctrl+T" Command="{Binding AddTabCommand}" />
+        <!-- No parameter: CloseTab falls back to the active tab -->
+        <KeyBinding Gesture="Ctrl+W" Command="{Binding CloseTabCommand}" />
+        <KeyBinding Gesture="Ctrl+PageDown" Command="{Binding NextTabCommand}" />
+        <KeyBinding Gesture="Ctrl+PageUp" Command="{Binding PreviousTabCommand}" />
     </Window.KeyBindings>
 
     <!-- Two-tone shell (Files-style): chrome-tinted base; the content pane is a raised layer -->

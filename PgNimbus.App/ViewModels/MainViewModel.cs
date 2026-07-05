@@ -93,15 +93,37 @@ public sealed partial class MainViewModel : ObservableObject
             return;
         }
 
+        // Decide before the removal: when the removed item is the ListBox's
+        // selection, RemoveAt makes the two-way SelectedItem binding push
+        // ActiveTab = null synchronously, so comparing afterwards misses.
+        var wasActive = ReferenceEquals(ActiveTab, tab);
+
         tab.Executed -= SavedQueries.RecordExecution;
         Tabs.RemoveAt(index);
 
-        if (ReferenceEquals(ActiveTab, tab))
+        if (wasActive || ActiveTab is null)
         {
             ActiveTab = Tabs[Math.Min(index, Tabs.Count - 1)];
         }
 
         CloseTabCommand.NotifyCanExecuteChanged();
+    }
+
+    [RelayCommand]
+    private void NextTab() => CycleTab(+1);
+
+    [RelayCommand]
+    private void PreviousTab() => CycleTab(-1);
+
+    private void CycleTab(int direction)
+    {
+        if (Tabs.Count < 2)
+        {
+            return;
+        }
+
+        var index = Tabs.IndexOf(ActiveTab);
+        ActiveTab = Tabs[(index + direction + Tabs.Count) % Tabs.Count];
     }
 
     public async Task PreviewTableAsync(TableNode table)
