@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
+using Avalonia.Collections;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Npgsql;
@@ -49,7 +51,14 @@ public sealed partial class QueryViewModel : ObservableObject
 
     public ObservableCollection<string> ColumnNames { get; } = [];
 
-    public ObservableCollection<object?[]> Rows { get; } = [];
+    /// <summary>
+    /// AvaloniaList instead of ObservableCollection: a big unbounded result set
+    /// arrives as thousands of 200-row batches, and AddRange raises one
+    /// collection-changed notification per batch instead of one per row —
+    /// with a plain ObservableCollection the DataGrid's per-item handling
+    /// made large results appear to hang the UI.
+    /// </summary>
+    public AvaloniaList<object?[]> Rows { get; } = [];
 
     /// <summary>Raised once per <see cref="RunAsync"/> completion (success, command, error, or cancellation) so a history tracker can record it without RunAsync knowing about persistence.</summary>
     public event Action<QueryHistoryEntry>? Executed;
@@ -94,21 +103,31 @@ public sealed partial class QueryViewModel : ObservableObject
                     var rowCount = 0;
                     var firstByteMs = -1L;
 
-                    await foreach (var batch in resultSet.Batches.WithCancellation(ct))
+                    // Read and materialize batches on a background thread. NpgsqlDataReader.ReadAsync
+                    // frequently completes synchronously once data is already buffered, so consuming
+                    // the async enumerable directly on the UI thread lets `await foreach` run many
+                    // batches back-to-back without ever yielding — a big unbounded result set freezes
+                    // the UI and makes Cancel unresponsive until the whole query finishes. Only the
+                    // (cheap) Rows/Status mutation needs to happen on the UI thread.
+                    await Task.Run(async () =>
                     {
-                        if (firstByteMs < 0)
+                        await foreach (var batch in resultSet.Batches.WithCancellation(ct))
                         {
-                            firstByteMs = stopwatch.ElapsedMilliseconds;
-                        }
+                            if (firstByteMs < 0)
+                            {
+                                firstByteMs = stopwatch.ElapsedMilliseconds;
+                            }
 
-                        foreach (var row in batch.Rows)
-                        {
-                            Rows.Add(row);
-                        }
+                            rowCount += batch.Rows.Count;
+                            var statusText = $"{rowCount} rows ({firstByteMs} ms to first byte, {resultSet.Elapsed.TotalMilliseconds:F0} ms elapsed)";
 
-                        rowCount += batch.Rows.Count;
-                        Status = $"{rowCount} rows ({firstByteMs} ms to first byte, {resultSet.Elapsed.TotalMilliseconds:F0} ms elapsed)";
-                    }
+                            await Dispatcher.UIThread.InvokeAsync(() =>
+                            {
+                                Rows.AddRange(batch.Rows);
+                                Status = statusText;
+                            });
+                        }
+                    }, ct);
 
                     Status = $"{rowCount} rows in {stopwatch.Elapsed.TotalMilliseconds:F0} ms ({firstByteMs} ms to first byte)";
                     break;
