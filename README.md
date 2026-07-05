@@ -20,7 +20,10 @@ from the ground up.
 
 ### Differentiators
 
-1. **Native performance** — NativeAOT-friendly code, cold start under 500 ms.
+1. **Native performance** — measured ~0.7 s from launch to window (JIT,
+   Release, Linux container); sub-500 ms is the target via NativeAOT, which
+   currently has known blockers (asset loading and DataGrid reflection
+   bindings under trimming/AOT).
 2. **PostgreSQL-first** — deep `pg_catalog` introspection (materialized views,
    real types, primary-key flags, and EXPLAIN visualization); never the
    lowest-common-denominator SQL dialect.
