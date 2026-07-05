@@ -26,7 +26,10 @@ public partial class App : Application
             var envConnectionString = Environment.GetEnvironmentVariable("PGNIMBUS_CONN");
             if (!string.IsNullOrWhiteSpace(envConnectionString))
             {
-                desktop.MainWindow = BuildMainWindow(envConnectionString);
+                // PGNIMBUS_CONN accepts any format the connection dialog does
+                // (postgres:// URI, JDBC, libpq keywords, ...), not just
+                // Npgsql Key=Value.
+                desktop.MainWindow = BuildMainWindow(ConnectionStringParser.NormalizeToNpgsql(envConnectionString));
             }
             else
             {

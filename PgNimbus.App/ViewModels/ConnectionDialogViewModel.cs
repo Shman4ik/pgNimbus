@@ -69,6 +69,9 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
     private string _sshPassword = string.Empty;
 
     [ObservableProperty]
+    private string _importText = string.Empty;
+
+    [ObservableProperty]
     private string? _errorMessage;
 
     [ObservableProperty]
@@ -171,6 +174,60 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
 
     [RelayCommand]
     private void SelectAccentColor(string? color) => AccentColor = color;
+
+    /// <summary>
+    /// Fills the form from whatever connection string is on the clipboard —
+    /// postgres:// URI, JDBC URL, Key=Value;, libpq keywords, or a full psql
+    /// command line. Only the fields the paste mentions are overwritten.
+    /// </summary>
+    [RelayCommand]
+    private void ImportConnectionString()
+    {
+        if (!ConnectionStringParser.TryParse(ImportText, out var parsed, out var parseError))
+        {
+            ErrorMessage = parseError;
+            return;
+        }
+
+        if (parsed.Host is not null)
+        {
+            Host = parsed.Host;
+        }
+
+        if (parsed.Port is { } port)
+        {
+            Port = port;
+        }
+
+        if (parsed.Database is not null)
+        {
+            Database = parsed.Database;
+        }
+
+        if (parsed.Username is not null)
+        {
+            Username = parsed.Username;
+        }
+
+        if (parsed.Password is not null)
+        {
+            Password = parsed.Password;
+        }
+
+        if (parsed.SslMode is { } sslMode)
+        {
+            SslMode = sslMode;
+        }
+
+        // Give a fresh profile a recognizable name; never rename a saved one.
+        if (SelectedProfile is null && parsed.Host is not null)
+        {
+            Name = parsed.Database is null ? parsed.Host : $"{parsed.Host}/{parsed.Database}";
+        }
+
+        ErrorMessage = null;
+        ImportText = string.Empty;
+    }
 
     [RelayCommand]
     private void Delete()
