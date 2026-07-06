@@ -62,6 +62,7 @@
         <KeyBinding Gesture="Ctrl+W" Command="{Binding CloseTabCommand}" />
         <KeyBinding Gesture="Ctrl+PageDown" Command="{Binding NextTabCommand}" />
         <KeyBinding Gesture="Ctrl+PageUp" Command="{Binding PreviousTabCommand}" />
+        <KeyBinding Gesture="Ctrl+Shift+R" Command="{Binding RefreshSchemaCommand}" />
     </Window.KeyBindings>
 
     <!-- Root grid layers the command-palette overlay above the whole shell -->
@@ -103,8 +104,15 @@
                     </StackPanel>
                 </TabItem.Header>
                 <Grid RowDefinitions="Auto,*,Auto" Margin="0,8,0,0">
+                    <!-- Filter box + a refresh button that reloads the tree, autocomplete, and palette from the server -->
+                    <DockPanel Grid.Row="0" Margin="4,0,4,8">
+                    <Button DockPanel.Dock="Right" Classes="chip" Padding="5" Margin="6,0,0,0"
+                            VerticalAlignment="Center" Command="{Binding RefreshSchemaCommand}"
+                            ToolTip.Tip="Refresh database &amp; schema (Ctrl+Shift+R)">
+                        <PathIcon Data="{StaticResource RefreshIconGeometry}" Width="14" Height="14" />
+                    </Button>
                     <!-- Type-to-filter box: matches schema and loaded-table names, case-insensitive substring -->
-                    <TextBox Grid.Row="0" Margin="4,0,4,8" FontSize="12"
+                    <TextBox FontSize="12"
                              PlaceholderText="Filter schemas &amp; tables…"
                              Text="{Binding SchemaTree.FilterText, Mode=TwoWay}">
                         <TextBox.InnerLeftContent>
@@ -121,6 +129,7 @@
                             </Button>
                         </TextBox.InnerRightContent>
                     </TextBox>
+                    </DockPanel>
                     <!-- Sidebar content sits directly on the shell tone, Files-style - no card chrome -->
                     <Border Grid.Row="1">
                         <TreeView Name="SchemaTreeView" ItemsSource="{Binding SchemaTree.Schemas}">

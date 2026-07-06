@@ -80,6 +80,23 @@ public sealed partial class MainViewModel : ObservableObject
     public AddRowViewModel CreateAddRowViewModel(string schema, string table) =>
         new(_engine, _schemaService, schema, table);
 
+    /// <summary>
+    /// Reloads everything derived from the live catalog — the schema tree, the
+    /// autocomplete cache, and the command palette's table list — so objects
+    /// created or altered in another session (or via a DDL statement here) show
+    /// up without reconnecting.
+    /// </summary>
+    [RelayCommand]
+    private async Task RefreshSchemaAsync()
+    {
+        // Force the palette to re-fetch relations on its next open.
+        _relationCache = null;
+
+        await Task.WhenAll(
+            SchemaTree.RefreshCommand.ExecuteAsync(null),
+            CompletionProvider.RefreshAsync(CancellationToken.None));
+    }
+
     private bool CanCloseTab() => Tabs.Count > 1;
 
     [RelayCommand]
@@ -187,6 +204,7 @@ public sealed partial class MainViewModel : ObservableObject
         yield return new PaletteItem("Cancel query", "Action", "■", Invoke(() => ActiveTab.CancelCommand));
         yield return new PaletteItem("Explain", "Action", "⚡", Invoke(() => ActiveTab.ExplainCommand));
         yield return new PaletteItem("Explain Analyze", "Action", "⚡", Invoke(() => ActiveTab.ExplainAnalyzeCommand));
+        yield return new PaletteItem("Refresh database & schema", "Action", "⟳", Invoke(() => RefreshSchemaCommand));
         yield return new PaletteItem("New query tab", "Action", "＋", Invoke(() => AddTabCommand));
         yield return new PaletteItem("Close tab", "Action", "✕", Invoke(() => CloseTabCommand));
         yield return new PaletteItem("Next tab", "Action", "›", Invoke(() => NextTabCommand));

@@ -44,6 +44,10 @@ from the ground up.
 - **Schema tree sidebar** — schemas → tables/views → columns, reading
   `pg_catalog` directly (materialized views, partitioned tables, real
   primary-key flags), with an "Alter Table" UI for no-SQL column add/rename/drop.
+- **Refresh database & schema** — a sidebar refresh button (or
+  <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd>) reloads the schema tree,
+  autocomplete cache, and command-palette table list from the server, so
+  objects created or altered elsewhere appear without reconnecting.
 - **No-SQL table browsing** — previewing a table opens a browse bar with a
   `WHERE` filter, `ORDER BY` from clicking a column header, and prev/next
   paging — all pushed down to Postgres (`WHERE`/`ORDER BY`/`LIMIT`/`OFFSET`),
@@ -82,6 +86,7 @@ Press <kbd>F1</kbd> in the app for the full cheat sheet. The highlights:
 | Action | Shortcut |
 | --- | --- |
 | Command palette (jump to table / query / action) | <kbd>Ctrl</kbd>+<kbd>K</kbd> or <kbd>Ctrl</kbd>+<kbd>P</kbd> |
+| Refresh database & schema | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd> |
 | Run query | <kbd>Ctrl</kbd>+<kbd>Enter</kbd> or <kbd>F5</kbd> |
 | Cancel running query | <kbd>Esc</kbd> |
 | New / close query tab | <kbd>Ctrl</kbd>+<kbd>T</kbd> / <kbd>Ctrl</kbd>+<kbd>W</kbd> |
@@ -174,7 +179,7 @@ individually shippable pieces.
 
 Things a person needs before pgNimbus can be their only Postgres client:
 
-- [ ] **Refresh database & schema** — reload the schema tree and autocomplete
+- [x] **Refresh database & schema** — reload the schema tree and autocomplete
   cache from the server on demand (toolbar button / shortcut), so newly created
   or altered tables, columns, and other objects show up without reconnecting.
 - [x] **Command palette** (`Ctrl+K`/`Ctrl+P`) — fuzzy-jump to any table, saved
@@ -260,7 +265,8 @@ bar (the Files community app remains the visual north star):
   (initially: custom result visualizers).
 - [ ] **Localization** — externalize UI strings; ship Russian and German first.
 
-Recently shipped: grid CRUD (add-row dialog + delete selected rows), no-SQL
+Recently shipped: on-demand database & schema refresh (tree + autocomplete +
+palette), grid CRUD (add-row dialog + delete selected rows), no-SQL
 table browsing (server-side WHERE filter, header-click ORDER BY, LIMIT/OFFSET
 paging), the Ctrl+K/Ctrl+P command palette (fuzzy-jump to
 any table, saved query, or action), SQL-derived tab titles with a dirty dot, results-grid copy
