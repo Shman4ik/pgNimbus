@@ -74,6 +74,11 @@
                         Background="{Binding AccentColor, Converter={x:Static conv2:HexToBrushConverter.Instance}}" />
                 <Button DockPanel.Dock="Right" Classes="chip" Content="?" FontSize="13" VerticalAlignment="Center"
                         Click="OnShowShortcutsClick" ToolTip.Tip="Keyboard shortcuts (F1)" />
+                <Button Name="ThemeToggleButton" DockPanel.Dock="Right" Classes="chip" Padding="5"
+                        Margin="0,0,4,0" VerticalAlignment="Center"
+                        Click="OnToggleThemeClick" ToolTip.Tip="Toggle light/dark theme">
+                    <PathIcon Name="ThemeIcon" Data="{StaticResource WeatherNightIconGeometry}" Width="14" Height="14" />
+                </Button>
                 <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                     <TextBlock Text="pgNimbus" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center" />
                     <!-- Files-style breadcrumb: where am I connected -->

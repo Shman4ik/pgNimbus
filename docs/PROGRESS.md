@@ -103,6 +103,12 @@ means for pgNimbus. Adopting its language where Avalonia allows.
 | --- | --- | --- |
 | Schema-tree filter box | Type-to-filter `TextBox` above the sidebar tree (magnifier `InnerLeftContent`, clear-✕ `InnerRightContent` shown only when non-empty). `SchemaTreeViewModel.FilterText` drives `ApplyFilter()`, which toggles a new `IsFilteredIn` on each node — bound to `TreeViewItem.IsVisible`. A schema survives when its own name matches (all its loaded tables stay visible) or when any loaded table matches (only the matches show, and the schema auto-expands to reveal them); an empty box reveals everything, and `RefreshAsync` re-applies so a lingering query holds across a catalog reload. Only schema + table names participate (case-insensitive substring); unloaded lazily-expandable tables can't match until expanded. Verified under Xvfb against a 4-schema seed: `customer` narrowed analytics→customer_metrics and billing→customer_accounts (non-matches + unmatched schemas hidden), and the ✕ button restored the full tree. | (this commit) |
 
+## Iteration 13
+
+| Item | Outcome | Commit |
+| --- | --- | --- |
+| In-app theme toggle | Title-bar sun/moon `chip` button (left of the `?`) flips `Application.Current.RequestedThemeVariant` between Light and Dark, so the app no longer only follows the OS. The window's existing `ActualThemeVariantChanged` hook — already there for the SQL highlighter — now also swaps the button glyph (`UpdateThemeIcon`: sun while dark = "click for light", moon while light), so the SQL palette and the toggle icon stay in lockstep however the variant changes. Verified under Xvfb: light→dark→light round-trip, whole shell + editor + syntax colors repaint each way and the glyph tracks. | (this commit) |
+
 ## Open / candidate items
 - [ ] Mica/acrylic backdrop remains blocked on safe verification (a headless
       sandbox can't see transparency failures).

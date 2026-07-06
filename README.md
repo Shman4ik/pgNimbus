@@ -192,8 +192,9 @@ Things a person needs before pgNimbus can be their only Postgres client:
   extensions, install/enable) beyond tables and views.
 - [ ] **Query history search** — full-text search over history with
   per-connection scoping and pinning.
-- [ ] **In-app theme toggle** — light/dark switch in the title bar instead of
-  following the OS only.
+- [x] **In-app theme toggle** — light/dark switch in the title bar (sun/moon
+  button) instead of following the OS only; the SQL syntax palette repaints
+  with it.
 
 ### Polish — UX/UI fit and finish
 
@@ -244,7 +245,8 @@ bar (the Files community app remains the visual north star):
   (initially: custom result visualizers).
 - [ ] **Localization** — externalize UI strings; ship Russian and German first.
 
-Recently shipped: the schema-tree filter box, paste-anything connection
+Recently shipped: the in-app light/dark theme toggle, the schema-tree filter
+box, paste-anything connection
 string parsing (URI / JDBC /
 ADO.NET / libpq / psql), the F1 shortcuts cheat sheet, theme-aware SQL
 syntax highlighting, the segmented status bar, keyboard tab navigation,
