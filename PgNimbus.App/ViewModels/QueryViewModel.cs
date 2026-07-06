@@ -77,6 +77,14 @@ public sealed partial class QueryViewModel : ObservableObject
     [ObservableProperty]
     private string _defaultTitle = "Query";
 
+    /// <summary>
+    /// A fixed tab label that wins over both the SQL-derived name and
+    /// <see cref="DefaultTitle"/> — set for special tabs (e.g. an object's
+    /// reconstructed source) whose SQL wouldn't name them sensibly.
+    /// </summary>
+    [ObservableProperty]
+    private string? _titleOverride;
+
     /// <summary>True when the SQL has been edited since it was last run — surfaced as a dot on the tab.</summary>
     [ObservableProperty]
     private bool _isDirty;
@@ -505,8 +513,11 @@ public sealed partial class QueryViewModel : ObservableObject
 
     partial void OnDefaultTitleChanged(string value) => UpdateTabTitle();
 
-    // Name the tab after the first table the SQL references, falling back to "Query N".
-    private void UpdateTabTitle() => TabTitle = DeriveTableName(Sql) ?? DefaultTitle;
+    partial void OnTitleOverrideChanged(string? value) => UpdateTabTitle();
+
+    // A fixed override wins; otherwise name the tab after the first table the SQL
+    // references, falling back to "Query N".
+    private void UpdateTabTitle() => TabTitle = TitleOverride ?? DeriveTableName(Sql) ?? DefaultTitle;
 
     private static string? DeriveTableName(string sql)
     {

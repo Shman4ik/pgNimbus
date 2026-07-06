@@ -290,6 +290,16 @@ public partial class MainWindow : Window
         dialog.ShowDialog(this);
     }
 
+    // "Source (DDL)" - reconstructs the object's CREATE definition and opens it
+    // in a new query tab.
+    private async void OnShowSourceClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem { Tag: TableNode table } && _viewModel is not null)
+        {
+            await _viewModel.ShowSourceAsync(table);
+        }
+    }
+
     private void OnSchemaTreeDoubleTapped(object? sender, TappedEventArgs e)
     {
         // Read the node off the tapped TreeViewItem's DataContext rather than

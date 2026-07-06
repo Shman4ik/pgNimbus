@@ -43,7 +43,10 @@ from the ground up.
 
 - **Schema tree sidebar** — schemas → tables/views → columns, reading
   `pg_catalog` directly (materialized views, partitioned tables, real
-  primary-key flags), with an "Alter Table" UI for no-SQL column add/rename/drop.
+  primary-key flags), with an "Alter Table" UI for no-SQL column add/rename/drop
+  and a **"Source (DDL)"** action that reconstructs an object's
+  `CREATE TABLE`/`CREATE VIEW` — columns, defaults, identity, constraints,
+  partition key, and secondary indexes — into a new editor tab.
 - **Refresh database & schema** — a sidebar refresh button (or
   <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd>) reloads the schema tree,
   autocomplete cache, and command-palette table list from the server, so
@@ -196,7 +199,7 @@ Things a person needs before pgNimbus can be their only Postgres client:
   primary key.
 - [x] **Multiple result sets per script** — run a whole script; each statement
   gets its own result tab/section, with per-statement timings.
-- [ ] **DDL view** — a "Source" tab per object: reconstructed
+- [x] **DDL view** — a "Source" tab per object: reconstructed
   `CREATE TABLE`/`CREATE VIEW`/index definitions from `pg_catalog`.
 - [ ] **Windows installer + releases** — signed MSI/winget package and a CI
   pipeline that publishes NativeAOT builds per tag.
@@ -269,7 +272,9 @@ bar (the Files community app remains the visual north star):
   (initially: custom result visualizers).
 - [ ] **Localization** — externalize UI strings; ship Russian and German first.
 
-Recently shipped: multiple result sets per script (one shared connection,
+Recently shipped: DDL "Source" view (reconstructed CREATE TABLE/VIEW +
+constraints + indexes from pg_catalog, opened in a new tab), multiple result
+sets per script (one shared connection,
 per-statement result sections + timings, stop-on-error), on-demand database &
 schema refresh (tree + autocomplete +
 palette), grid CRUD (add-row dialog + delete selected rows), no-SQL
