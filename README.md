@@ -174,6 +174,9 @@ individually shippable pieces.
 
 Things a person needs before pgNimbus can be their only Postgres client:
 
+- [ ] **Refresh database & schema** — reload the schema tree and autocomplete
+  cache from the server on demand (toolbar button / shortcut), so newly created
+  or altered tables, columns, and other objects show up without reconnecting.
 - [x] **Command palette** (`Ctrl+K`/`Ctrl+P`) — fuzzy-jump to any table, saved
   query, or action; the keyboard-first differentiator in one control.
 - [x] **Data browsing without SQL** — filter bar, ORDER BY on header click, and
