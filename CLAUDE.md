@@ -45,7 +45,8 @@ and wrong project memory is worse than none.
 - Core: `Npgsql`.
 - App: `Avalonia`, `Avalonia.Desktop`, `Avalonia.Themes.Fluent`,
   `Avalonia.Fonts.Inter`, `Avalonia.Controls.DataGrid`, `Avalonia.AvaloniaEdit`,
-  `CommunityToolkit.Mvvm`, `Avalonia.Diagnostics` (Debug only).
+  `CommunityToolkit.Mvvm`, `AvaloniaUI.DiagnosticsSupport` (DevTools/MCP —
+  wired via `.WithDeveloperTools()` in `Program.cs`, see below).
 - `AvaloniaUseCompiledBindingsByDefault` is on — don't add uncompiled
   (reflection) bindings.
 
@@ -62,6 +63,30 @@ and wrong project memory is worse than none.
   Two-way sync with the ViewModel is done manually in `MainWindow.axaml.cs`
   (via `TextChanged` + `PropertyChanged`, with a re-entrancy guard), not via
   XAML `Binding`.
+
+## Avalonia DevTools MCP
+
+The app exposes its live visual tree / runtime state to an MCP client (Claude
+Code, VS, Rider) via the Avalonia DevTools MCP server. Two pieces make it work:
+
+1. **In the app** — `AvaloniaUI.DiagnosticsSupport` is referenced and
+   `.WithDeveloperTools()` is on the `AppBuilder` in `Program.cs`. Without
+   this, a running app can't be discovered by the MCP server. Keep it wired
+   up (it's the discovery hook, not a Debug-only convenience).
+2. **The MCP server** — the `avdt` global .NET tool runs as `avdt mcp`.
+   Register it once at user scope; it reads its license from the
+   `AVALONIA_TOOLS_LICENSE_KEY` env var (`ACCELERATE_LICENSE_KEY` on
+   Avalonia 11.x and earlier):
+
+   ```bash
+   claude mcp add --scope user avalonia_devtools \
+     -e AVALONIA_TOOLS_LICENSE_KEY=<key> -- avdt mcp
+   claude mcp list   # avalonia_devtools: avdt mcp - ✓ Connected
+   ```
+
+   The server only sees the app while it's running, so launch the app before
+   asking the MCP to inspect it. Docs:
+   https://docs.avaloniaui.net/tools/developer-tools/mcp
 
 ## Bootstrapping a fresh Linux/CI sandbox (no .NET, no display, no Postgres)
 
