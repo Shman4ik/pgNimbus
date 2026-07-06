@@ -68,6 +68,13 @@ public sealed partial class QueryViewModel : ObservableObject
 
     public bool IsEditable => EditContext is { PrimaryKeyColumns.Count: > 0 };
 
+    /// <summary>
+    /// True when the results grid has nothing to show and isn't mid-run or displaying a plan — drives the
+    /// empty-state hint ("Run a query"). Recomputed from the <see cref="Rows"/>, <see cref="IsShowingPlan"/>,
+    /// and <see cref="IsRunning"/> change hooks.
+    /// </summary>
+    public bool HasNoResults => Rows.Count == 0 && !IsShowingPlan && !IsRunning;
+
     /// <summary>Single-root wrapper so the plan tree's TreeView can bind an IEnumerable ItemsSource to one node.</summary>
     public IReadOnlyList<ExplainNodeViewModel> ExplainRoots => ExplainRoot is null ? [] : [ExplainRoot];
 
@@ -305,7 +312,12 @@ public sealed partial class QueryViewModel : ObservableObject
         CancelCommand.NotifyCanExecuteChanged();
         ExplainCommand.NotifyCanExecuteChanged();
         ExplainAnalyzeCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(HasNoResults));
     }
+
+    partial void OnRowsChanged(AvaloniaList<object?[]> value) => OnPropertyChanged(nameof(HasNoResults));
+
+    partial void OnIsShowingPlanChanged(bool value) => OnPropertyChanged(nameof(HasNoResults));
 
     partial void OnSqlChanged(string value)
     {

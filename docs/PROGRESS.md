@@ -109,6 +109,12 @@ means for pgNimbus. Adopting its language where Avalonia allows.
 | --- | --- | --- |
 | In-app theme toggle | Title-bar sun/moon `chip` button (left of the `?`) flips `Application.Current.RequestedThemeVariant` between Light and Dark, so the app no longer only follows the OS. The window's existing `ActualThemeVariantChanged` hook — already there for the SQL highlighter — now also swaps the button glyph (`UpdateThemeIcon`: sun while dark = "click for light", moon while light), so the SQL palette and the toggle icon stay in lockstep however the variant changes. Verified under Xvfb: light→dark→light round-trip, whole shell + editor + syntax colors repaint each way and the glyph tracks. | (this commit) |
 
+## Iteration 14
+
+| Item | Outcome | Commit |
+| --- | --- | --- |
+| Empty states | Blank areas now guide instead of sitting bare. A centered dimmed table-icon hint ("No results yet — run a query with Ctrl+Enter or F5") overlays the results grid, driven by a new `QueryViewModel.HasNoResults` (`Rows.Count == 0 && !IsShowingPlan && !IsRunning`, recomputed from the Rows/IsShowingPlan/IsRunning change hooks). The saved-queries and history cards get their own centered hints via `SavedQueriesViewModel.HasNoSavedQueries`/`HasNoHistory` (notified on each collection change). All overlays are `IsHitTestVisible=False` so they never eat clicks. Verified under Xvfb: the results hint shows at startup and vanishes when `SELECT 1` returns a row; both list hints render on a fresh profile. | (this commit) |
+
 ## Open / candidate items
 - [ ] Mica/acrylic backdrop remains blocked on safe verification (a headless
       sandbox can't see transparency failures).

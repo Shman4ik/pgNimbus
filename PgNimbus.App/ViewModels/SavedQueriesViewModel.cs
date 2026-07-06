@@ -25,6 +25,12 @@ public sealed partial class SavedQueriesViewModel : ObservableObject
 
     public ObservableCollection<QueryHistoryEntry> History { get; } = [];
 
+    /// <summary>Drives the empty-state hint under an empty saved-queries list.</summary>
+    public bool HasNoSavedQueries => SavedQueries.Count == 0;
+
+    /// <summary>Drives the empty-state hint under an empty history list.</summary>
+    public bool HasNoHistory => History.Count == 0;
+
     public SavedQueriesViewModel(SavedQueryStore savedQueryStore, QueryHistoryStore historyStore, Func<QueryViewModel?> getActiveQuery)
     {
         _savedQueryStore = savedQueryStore;
@@ -40,6 +46,9 @@ public sealed partial class SavedQueriesViewModel : ObservableObject
         {
             History.Add(entry);
         }
+
+        SavedQueries.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasNoSavedQueries));
+        History.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasNoHistory));
     }
 
     public void RecordExecution(QueryHistoryEntry entry)
