@@ -1,0 +1,19 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="PgNimbus.App.Views.ConfirmDialog"
+        Title="pgNimbus"
+        Icon="avares://PgNimbus.App/Assets/icon-256.png"
+        Width="380" SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        FontFamily="{StaticResource InterFont}">
+
+    <StackPanel Margin="20" Spacing="16">
+        <TextBlock Name="MessageText" TextWrapping="Wrap" FontSize="13" />
+        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+            <Button Name="ConfirmButton" Classes="accent" Content="Delete" Click="OnConfirmClick" />
+            <Button Content="Cancel" Click="OnCancelClick" />
+        </StackPanel>
+    </StackPanel>
+
+</Window>

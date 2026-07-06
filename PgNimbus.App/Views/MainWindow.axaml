@@ -404,7 +404,7 @@
                               ClipboardCopyMode="None"
                               AutoGenerateColumns="False">
                         <DataGrid.ContextMenu>
-                            <ContextMenu>
+                            <ContextMenu x:DataType="vm:MainViewModel">
                                 <MenuItem Header="Copy" InputGesture="Ctrl+C" Click="OnCopyCells" />
                                 <Separator />
                                 <MenuItem Header="Copy as">
@@ -413,6 +413,11 @@
                                     <MenuItem Header="Markdown table" Click="OnCopyAsMarkdown" />
                                     <MenuItem Header="INSERT statements" Click="OnCopyAsInsert" />
                                 </MenuItem>
+                                <Separator />
+                                <MenuItem Header="Add row…" Click="OnAddRowClick"
+                                          IsEnabled="{Binding ActiveTab.IsEditable}" />
+                                <MenuItem Header="Delete selected row(s)" InputGesture="Delete" Click="OnDeleteRowsClick"
+                                          IsEnabled="{Binding ActiveTab.IsEditable}" />
                             </ContextMenu>
                         </DataGrid.ContextMenu>
                     </DataGrid>

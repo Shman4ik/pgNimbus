@@ -67,6 +67,9 @@ from the ground up.
 - **Streaming, cancellable results** — the first screenful renders before the
   full result set arrives, backed by a virtualized grid with inline cell
   editing and CSV/JSON export.
+- **Grid CRUD** — beyond inline cell edits: an "Add row" dialog (each column
+  cast to its real type server-side, blanks fall back to defaults) and
+  "Delete selected row(s)" with a confirmation, both keyed on the primary key.
 - **EXPLAIN visualization** — a graphical plan tree for `EXPLAIN` and
   `EXPLAIN ANALYZE`, not just raw text output.
 - **LISTEN/NOTIFY monitor** — subscribe to channels and watch notifications
@@ -176,7 +179,7 @@ Things a person needs before pgNimbus can be their only Postgres client:
 - [x] **Data browsing without SQL** — filter bar, ORDER BY on header click, and
   paging when previewing a table, pushed down to the server (`WHERE`/`LIMIT`/
   `OFFSET`), not client-side.
-- [ ] **Row insert & delete from the grid** — cell editing exists; complete the
+- [x] **Row insert & delete from the grid** — cell editing exists; complete the
   CRUD triangle with "add row" and "delete selected rows" for tables with a
   primary key.
 - [ ] **Multiple result sets per script** — run a whole script; each statement
@@ -254,8 +257,9 @@ bar (the Files community app remains the visual north star):
   (initially: custom result visualizers).
 - [ ] **Localization** — externalize UI strings; ship Russian and German first.
 
-Recently shipped: no-SQL table browsing (server-side WHERE filter, header-click
-ORDER BY, LIMIT/OFFSET paging), the Ctrl+K/Ctrl+P command palette (fuzzy-jump to
+Recently shipped: grid CRUD (add-row dialog + delete selected rows), no-SQL
+table browsing (server-side WHERE filter, header-click ORDER BY, LIMIT/OFFSET
+paging), the Ctrl+K/Ctrl+P command palette (fuzzy-jump to
 any table, saved query, or action), SQL-derived tab titles with a dirty dot, results-grid copy
 (Ctrl+C / Copy as CSV·JSON·Markdown·INSERT),
 empty-state hints, the in-app light/dark theme toggle, the

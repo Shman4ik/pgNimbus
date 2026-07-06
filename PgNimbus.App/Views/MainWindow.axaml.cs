@@ -401,6 +401,18 @@ public partial class MainWindow : Window
         {
             _ = CopySelectionAsync(QueryViewModel.CopyFormat.Tsv);
             e.Handled = true;
+            return;
+        }
+
+        // Delete key removes selected rows, but only for an editable result set
+        // and never while a cell is being edited (let the editor keep the key).
+        if (e.Key == Key.Delete && _queryViewModel is { IsEditable: true } && !ResultsGrid.IsReadOnly)
+        {
+            if (ResultsGrid.SelectedItems.OfType<object?[]>().Any())
+            {
+                _ = DeleteSelectedRowsAsync();
+                e.Handled = true;
+            }
         }
     }
 
@@ -422,6 +434,46 @@ public partial class MainWindow : Window
         {
             browse.ApplyFilterCommand.Execute(null);
             e.Handled = true;
+        }
+    }
+
+    // "Add row…" - opens the insert dialog for the mapped table; on a successful
+    // insert the grid refreshes (browse page reload, or a re-run of the query).
+    private async void OnAddRowClick(object? sender, RoutedEventArgs e)
+    {
+        if (_viewModel is null || _queryViewModel?.EditContext is not { } context)
+        {
+            return;
+        }
+
+        var addRowViewModel = _viewModel.CreateAddRowViewModel(context.Schema, context.Table);
+        addRowViewModel.Inserted += () => _ = _queryViewModel.RefreshCurrentAsync();
+
+        var dialog = new AddRowDialog { DataContext = addRowViewModel };
+        await dialog.ShowDialog(this);
+    }
+
+    private async void OnDeleteRowsClick(object? sender, RoutedEventArgs e) => await DeleteSelectedRowsAsync();
+
+    // Confirms, then deletes the selected rows via primary-key-keyed DELETEs.
+    private async Task DeleteSelectedRowsAsync()
+    {
+        if (_queryViewModel is not { IsEditable: true })
+        {
+            return;
+        }
+
+        var rows = ResultsGrid.SelectedItems.OfType<object?[]>().ToList();
+        if (rows.Count == 0)
+        {
+            return;
+        }
+
+        var noun = rows.Count == 1 ? "this row" : $"these {rows.Count} rows";
+        var confirm = new ConfirmDialog($"Delete {noun}? This can't be undone.", "Delete");
+        if (await confirm.ShowDialog<bool>(this))
+        {
+            await _queryViewModel.DeleteRowsAsync(rows);
         }
     }
 

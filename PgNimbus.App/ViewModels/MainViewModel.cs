@@ -77,6 +77,9 @@ public sealed partial class MainViewModel : ObservableObject
     public AlterTableViewModel CreateAlterTableViewModel(TableNode table) =>
         new(_schemaEditor, _schemaService, table.Schema, table.Name);
 
+    public AddRowViewModel CreateAddRowViewModel(string schema, string table) =>
+        new(_engine, _schemaService, schema, table);
+
     private bool CanCloseTab() => Tabs.Count > 1;
 
     [RelayCommand]
