@@ -275,6 +275,11 @@
                         <DataTemplate x:DataType="vm:QueryViewModel">
                             <StackPanel Orientation="Horizontal" Spacing="4">
                                 <TextBlock Text="{Binding TabTitle}" VerticalAlignment="Center" />
+                                <!-- Dirty-state dot: SQL edited since last run -->
+                                <Ellipse Width="6" Height="6" VerticalAlignment="Center"
+                                         Fill="{DynamicResource SystemAccentColor}"
+                                         IsVisible="{Binding IsDirty}"
+                                         ToolTip.Tip="Unsaved changes since last run" />
                                 <Button Classes="chip" Content="✕" FontSize="10" Tag="{Binding}" Click="OnCloseTabClick" />
                             </StackPanel>
                         </DataTemplate>

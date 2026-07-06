@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
+using System.Text.RegularExpressions;
 using Avalonia.Collections;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -57,6 +58,17 @@ public sealed partial class QueryViewModel : ObservableObject
     [ObservableProperty]
     private string _tabTitle = "Query";
 
+    /// <summary>Fallback tab label ("Query N") used when the SQL names no table to derive a title from.</summary>
+    [ObservableProperty]
+    private string _defaultTitle = "Query";
+
+    /// <summary>True when the SQL has been edited since it was last run — surfaced as a dot on the tab.</summary>
+    [ObservableProperty]
+    private bool _isDirty;
+
+    // The SQL as of the last run; edits away from it mark the tab dirty.
+    private string _lastRunSql;
+
     [ObservableProperty]
     private ExplainNodeViewModel? _explainRoot;
 
@@ -103,6 +115,8 @@ public sealed partial class QueryViewModel : ObservableObject
     {
         _engine = engine;
         _explainService = explainService;
+        _lastRunSql = Sql;
+        UpdateTabTitle();
     }
 
     private bool CanRun() => !IsRunning;
@@ -113,6 +127,10 @@ public sealed partial class QueryViewModel : ObservableObject
         _cts = new CancellationTokenSource();
         var ct = _cts.Token;
         var executedSql = Sql;
+
+        // Running clears the dirty flag: the on-screen SQL is now what produced the result.
+        _lastRunSql = executedSql;
+        IsDirty = false;
 
         IsRunning = true;
         Status = "Running...";
@@ -323,7 +341,33 @@ public sealed partial class QueryViewModel : ObservableObject
     {
         EditContext = null;
         IsShowingPlan = false;
+        IsDirty = !string.Equals(value, _lastRunSql, StringComparison.Ordinal);
+        UpdateTabTitle();
     }
+
+    partial void OnDefaultTitleChanged(string value) => UpdateTabTitle();
+
+    // Name the tab after the first table the SQL references, falling back to "Query N".
+    private void UpdateTabTitle() => TabTitle = DeriveTableName(Sql) ?? DefaultTitle;
+
+    private static string? DeriveTableName(string sql)
+    {
+        var match = TableReferenceRegex().Match(sql);
+        if (!match.Success)
+        {
+            return null;
+        }
+
+        var raw = match.Groups[1].Value;
+        // Keep just the table part of a schema-qualified name, and drop any quoting.
+        var table = (raw.Contains('.') ? raw[(raw.LastIndexOf('.') + 1)..] : raw).Trim('"');
+        return string.IsNullOrEmpty(table) ? null : table;
+    }
+
+    // First identifier after FROM/JOIN/UPDATE/INTO (covers SELECT, DELETE FROM, UPDATE, INSERT INTO);
+    // captures an optionally-quoted, optionally schema-qualified name. Source-generated for AOT.
+    [GeneratedRegex(@"\b(?:from|join|update|into)\s+(""?[\w$]+""?(?:\.""?[\w$]+""?)?)", RegexOptions.IgnoreCase)]
+    private static partial Regex TableReferenceRegex();
 
     partial void OnEditContextChanged(EditableTableContext? value) => OnPropertyChanged(nameof(IsEditable));
 

@@ -121,6 +121,12 @@ means for pgNimbus. Adopting its language where Avalonia allows.
 | --- | --- | --- |
 | Copy from the results grid | `Ctrl+C` copies the selected rows (or the whole result set when nothing is selected) as TSV; a grid context menu adds **Copy** and **Copy as ▸ CSV / JSON / Markdown table / INSERT statements**. Formatting lives in `Core`'s `ResultExporter` (new `WriteTsv`/`WriteMarkdown`/`WriteInsert` beside the existing CSV/JSON, plus public `QuoteIdentifier` and SQL-literal quoting — NULL, unquoted numbers/booleans, `''`-escaped text, `\x…` bytea), so it stays UI-free and reuses one value formatter. `QueryViewModel.CopyRows` renders to a string; the grid is `SelectionMode=Extended` with `ClipboardCopyMode=None` (our columns bind through a path-less converter, so the stock copy has no cell text — the view builds it and writes via `IClipboard.SetTextAsync`). INSERT targets the edited table when the result maps to one, else a `table_name` placeholder. Verified under Xvfb against `SELECT id,name,email FROM customers LIMIT 3`: Ctrl+C produced tab-separated header+rows, and the context menu produced valid INSERTs (numeric id unquoted, text quoted) and a GitHub Markdown table. | (this commit) |
 
+## Iteration 16
+
+| Item | Outcome | Commit |
+| --- | --- | --- |
+| Smarter tab titles | Tabs are named from the first table the SQL references (a source-generated `[GeneratedRegex]` grabs the identifier after FROM/JOIN/UPDATE/INTO, keeps the table part of a schema-qualified name, strips quotes), falling back to a `DefaultTitle` ("Query N") when none. A dirty-state accent dot (`IsDirty`) shows when the SQL differs from `_lastRunSql` — set as the baseline at the start of each run — so the dot appears on edit and clears on run. Regex is source-generated to stay AOT-clean. Verified under Xvfb: `SELECT 1` stayed "Query 1"; pasting `SELECT * FROM public.customers …` retitled the tab to "customers" with the dot; F5 cleared the dot. | (this commit) |
+
 ## Open / candidate items
 - [ ] Mica/acrylic backdrop remains blocked on safe verification (a headless
       sandbox can't see transparency failures).

@@ -71,7 +71,7 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void AddTab()
     {
-        var tab = new QueryViewModel(_engine, _explainService) { TabTitle = $"Query {Tabs.Count + 1}" };
+        var tab = new QueryViewModel(_engine, _explainService) { DefaultTitle = $"Query {Tabs.Count + 1}" };
         tab.Executed += SavedQueries.RecordExecution;
         Tabs.Add(tab);
         ActiveTab = tab;
