@@ -1,0 +1,7 @@
+# winget version manifest — https://learn.microsoft.com/windows/package-manager/package/manifest
+# Rendered by scripts/winget/render-manifest.sh, placeholders filled from the release tag.
+PackageIdentifier: pgNimbus.pgNimbus
+PackageVersion: __VERSION__
+DefaultLocale: en-US
+ManifestType: version
+ManifestVersion: 1.6.0

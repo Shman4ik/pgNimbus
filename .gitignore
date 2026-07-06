@@ -42,6 +42,14 @@ publish/
 *.pubxml
 *.publishproj
 
+# Local release/installer build output
+*.msi
+*.wixpdb
+*.dmg
+dist/
+manifests/
+winget-manifests.zip
+
 # ASP.NET / general
 project.lock.json
 project.fragment.lock.json
