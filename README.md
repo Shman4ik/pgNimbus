@@ -219,8 +219,9 @@ bar (the Files community app remains the visual north star):
   <kbd>Ctrl</kbd>+<kbd>±</kbd>).
 - [ ] **Alias-aware autocomplete** — complete column names after
   `alias.`/`table.`, not just bare identifiers.
-- [ ] **Smarter tab titles** — name query tabs from their SQL (first table
-  referenced) instead of "Query N", with a dirty-state dot.
+- [x] **Smarter tab titles** — query tabs are named from their SQL (first table
+  referenced) instead of "Query N", with a dirty-state dot when the SQL has
+  changed since the last run.
 - [ ] **Running-query feedback** — an indeterminate progress bar in the
   status bar and a live elapsed-time tick while a query runs (the row/timing
   segments only update per batch today).
@@ -245,7 +246,8 @@ bar (the Files community app remains the visual north star):
   (initially: custom result visualizers).
 - [ ] **Localization** — externalize UI strings; ship Russian and German first.
 
-Recently shipped: results-grid copy (Ctrl+C / Copy as CSV·JSON·Markdown·INSERT),
+Recently shipped: SQL-derived tab titles with a dirty dot, results-grid copy
+(Ctrl+C / Copy as CSV·JSON·Markdown·INSERT),
 empty-state hints, the in-app light/dark theme toggle, the
 schema-tree filter
 box, paste-anything connection
