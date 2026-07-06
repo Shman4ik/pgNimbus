@@ -15,11 +15,18 @@ public sealed class SqlCompletionData : ICompletionData
     /// form (<c>"Spells"</c>) so the user filters on the bare name but inserts a
     /// spelling Postgres will resolve.
     /// </param>
-    public SqlCompletionData(string text, string description, string? insertText = null)
+    /// <param name="priority">
+    /// Ranking hint the completion list uses to pre-select the best match among
+    /// equally-good textual matches — higher wins. Lets context-aware
+    /// completion float the current table's columns above the rest of the
+    /// catalog (see <see cref="SqlCompletionProvider"/>).
+    /// </param>
+    public SqlCompletionData(string text, string description, string? insertText = null, double priority = 0)
     {
         Text = text;
         Description = description;
         InsertText = insertText ?? text;
+        Priority = priority;
     }
 
     public IImage? Image => null;
@@ -33,7 +40,7 @@ public sealed class SqlCompletionData : ICompletionData
 
     public object Description { get; }
 
-    public double Priority => 0;
+    public double Priority { get; }
 
     public void Complete(TextArea textArea, ISegment completionSegment, EventArgs insertionRequestEventArgs) =>
         textArea.Document.Replace(completionSegment, InsertText);

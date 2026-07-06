@@ -243,9 +243,9 @@ bar (the Files community app remains the visual north star):
 - [ ] **Editor niceties** — current-line highlight, matching-bracket
   highlight, and font-size zoom (<kbd>Ctrl</kbd>+wheel /
   <kbd>Ctrl</kbd>+<kbd>±</kbd>).
-- [ ] **Alias-aware autocomplete** — complete column names after
+- [x] **Alias-aware autocomplete** — complete column names after
   `alias.`/`table.`, not just bare identifiers.
-- [ ] **Context-aware IntelliSense** — inside a `SELECT`, rank the current
+- [x] **Context-aware IntelliSense** — inside a `SELECT`, rank the current
   table's columns first and hide noise like `pg_catalog`; in the results-grid
   `WHERE` filter box, suggest *only* the current dataset's columns (no SQL
   functions or unrelated tables).

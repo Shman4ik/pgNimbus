@@ -18,6 +18,7 @@ using AvaloniaEdit.CodeCompletion;
 using AvaloniaEdit.Highlighting;
 using AvaloniaEdit.Highlighting.Xshd;
 using PgNimbus.App.ViewModels;
+using PgNimbus.Core.Query;
 
 namespace PgNimbus.App.Views;
 
@@ -30,6 +31,10 @@ public partial class MainWindow : Window
     private int _pendingEditColumnIndex;
     private string? _pendingEditText;
     private CompletionWindow? _completionWindow;
+    // Set while an accepted filter-completion writes back into the box, so the
+    // resulting TextChanged doesn't immediately re-open the popup on the word we
+    // just inserted.
+    private bool _suppressFilterCompletion;
     private ShortcutsWindow? _shortcutsWindow;
     private IHighlightingDefinition? _sqlHighlighting;
 
@@ -74,6 +79,10 @@ public partial class MainWindow : Window
 
         SqlEditor.TextArea.TextEntered += OnSqlTextEntered;
         SqlEditor.KeyDown += OnSqlEditorKeyDown;
+
+        // Column autocomplete inside the browse WHERE box (see the popup in XAML).
+        BrowseFilterBox.TextChanged += OnBrowseFilterTextChanged;
+        BrowseFilterBox.LostFocus += (_, _) => CloseFilterCompletion();
 
         DataContextChanged += (_, _) =>
         {
@@ -358,12 +367,28 @@ public partial class MainWindow : Window
 
     private void OnSqlTextEntered(object? sender, TextInputEventArgs e)
     {
-        if (string.IsNullOrEmpty(e.Text) || _completionWindow is not null)
+        if (string.IsNullOrEmpty(e.Text))
         {
             return;
         }
 
         var c = e.Text[0];
+
+        // A dot starts member access (alias./table./schema.). Re-trigger even
+        // when a bare-identifier list is already open, so it switches to the
+        // qualifier's columns instead of staying on the catalog-wide list.
+        if (c == '.')
+        {
+            _completionWindow?.Close();
+            ShowCompletion(includeTypedChar: false);
+            return;
+        }
+
+        if (_completionWindow is not null)
+        {
+            return;
+        }
+
         if (char.IsLetter(c) || c == '_')
         {
             ShowCompletion(includeTypedChar: true);
@@ -381,7 +406,7 @@ public partial class MainWindow : Window
 
     private void ShowCompletion(bool includeTypedChar)
     {
-        var data = _viewModel?.CompletionProvider.GetCompletionData();
+        var data = _viewModel?.CompletionProvider.GetCompletionData(SqlEditor.Text, SqlEditor.CaretOffset);
         if (data is not { Count: > 0 })
         {
             return;
@@ -438,14 +463,133 @@ public partial class MainWindow : Window
         }
     }
 
-    // Enter in the browse filter box applies the WHERE predicate (re-query from page 1).
+    // Keys in the browse filter box: while the column-completion popup is open it
+    // owns arrow/Enter/Tab/Esc; otherwise Enter applies the WHERE predicate
+    // (re-query from page 1).
     private void OnBrowseFilterKeyDown(object? sender, KeyEventArgs e)
     {
+        if (FilterCompletionPopup.IsOpen)
+        {
+            switch (e.Key)
+            {
+                case Key.Down:
+                    MoveFilterCompletionSelection(+1);
+                    e.Handled = true;
+                    return;
+                case Key.Up:
+                    MoveFilterCompletionSelection(-1);
+                    e.Handled = true;
+                    return;
+                case Key.Enter:
+                case Key.Tab:
+                    AcceptFilterCompletion();
+                    e.Handled = true;
+                    return;
+                case Key.Escape:
+                    CloseFilterCompletion();
+                    e.Handled = true;
+                    return;
+            }
+        }
+
         if (e.Key == Key.Enter && _queryViewModel?.Browse is { } browse)
         {
             browse.ApplyFilterCommand.Execute(null);
             e.Handled = true;
         }
+    }
+
+    // Offers the current dataset's columns as the user types an identifier in the
+    // WHERE box — and nothing else (no keywords, functions, or other tables), so
+    // the suggestions are exactly the columns a predicate here can reference.
+    private void OnBrowseFilterTextChanged(object? sender, TextChangedEventArgs e)
+    {
+        if (_suppressFilterCompletion || _queryViewModel is null)
+        {
+            return;
+        }
+
+        var text = BrowseFilterBox.Text ?? string.Empty;
+        var (start, end) = CurrentWordBounds(text, BrowseFilterBox.CaretIndex);
+        var word = text[start..end];
+        if (word.Length == 0)
+        {
+            CloseFilterCompletion();
+            return;
+        }
+
+        var matches = _queryViewModel.ColumnNames
+            .Where(c => c.Contains(word, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(c => c.StartsWith(word, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        // Nothing worth showing: no match, or the only match is already fully typed.
+        if (matches.Count == 0 || (matches.Count == 1 && string.Equals(matches[0], word, StringComparison.OrdinalIgnoreCase)))
+        {
+            CloseFilterCompletion();
+            return;
+        }
+
+        FilterCompletionList.ItemsSource = matches;
+        FilterCompletionList.SelectedIndex = 0;
+        FilterCompletionPopup.IsOpen = true;
+    }
+
+    private void OnFilterCompletionTapped(object? sender, TappedEventArgs e) => AcceptFilterCompletion();
+
+    private void MoveFilterCompletionSelection(int delta)
+    {
+        var count = FilterCompletionList.ItemCount;
+        if (count == 0)
+        {
+            return;
+        }
+
+        var index = FilterCompletionList.SelectedIndex + delta;
+        FilterCompletionList.SelectedIndex = (index % count + count) % count;
+        if (FilterCompletionList.SelectedItem is { } selected)
+        {
+            FilterCompletionList.ScrollIntoView(selected);
+        }
+    }
+
+    // Replaces the identifier under the caret with the chosen column (quoted only
+    // if Postgres needs it) and drops the popup.
+    private void AcceptFilterCompletion()
+    {
+        if (!FilterCompletionPopup.IsOpen || FilterCompletionList.SelectedItem is not string column)
+        {
+            return;
+        }
+
+        var text = BrowseFilterBox.Text ?? string.Empty;
+        var (start, end) = CurrentWordBounds(text, BrowseFilterBox.CaretIndex);
+        var insert = SqlIdentifier.QuoteIfNeeded(column);
+        var newText = string.Concat(text.AsSpan(0, start), insert, text.AsSpan(end));
+
+        _suppressFilterCompletion = true;
+        BrowseFilterBox.Text = newText;
+        BrowseFilterBox.CaretIndex = start + insert.Length;
+        _suppressFilterCompletion = false;
+
+        CloseFilterCompletion();
+    }
+
+    private void CloseFilterCompletion() => FilterCompletionPopup.IsOpen = false;
+
+    // Bounds of the identifier the caret sits in (empty span when not on one).
+    private static (int Start, int End) CurrentWordBounds(string text, int caret)
+    {
+        var end = Math.Clamp(caret, 0, text.Length);
+        var start = end;
+        while (start > 0 && IsIdentChar(text[start - 1]))
+        {
+            start--;
+        }
+
+        return (start, end);
+
+        static bool IsIdentChar(char c) => char.IsLetterOrDigit(c) || c == '_' || c == '$';
     }
 
     // "Add row…" - opens the insert dialog for the mapped table; on a successful

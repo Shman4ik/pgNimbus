@@ -390,6 +390,36 @@
                                     </Button>
                                 </TextBox.InnerRightContent>
                             </TextBox>
+                            <!-- Column autocomplete for the WHERE predicate: only this dataset's
+                                 columns (no keywords/functions/other tables). Driven from code-behind. -->
+                            <Popup Grid.Column="1" Name="FilterCompletionPopup"
+                                   PlacementTarget="{Binding #BrowseFilterBox}"
+                                   Placement="BottomEdgeAlignedLeft"
+                                   IsLightDismissEnabled="False"
+                                   WindowManagerAddShadowHint="False">
+                                <Border Background="{DynamicResource SystemControlPageBackgroundAltHighBrush}"
+                                        BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
+                                        CornerRadius="6" BoxShadow="0 6 16 0 #40000000" Padding="2">
+                                    <!-- Non-focusable so keyboard focus stays in the filter box: arrow/Enter
+                                         keys are handled there, and clicking an item doesn't blur (and thus
+                                         auto-close) the popup before the tap is handled. -->
+                                    <ListBox Name="FilterCompletionList" MinWidth="220" MaxHeight="220"
+                                             Background="Transparent" Focusable="False"
+                                             Tapped="OnFilterCompletionTapped">
+                                        <ListBox.Styles>
+                                            <Style Selector="ListBoxItem">
+                                                <Setter Property="Focusable" Value="False" />
+                                            </Style>
+                                        </ListBox.Styles>
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate x:DataType="sys:String">
+                                                <TextBlock Text="{Binding}" FontSize="12"
+                                                           FontFamily="Cascadia Code,Consolas,monospace" />
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                </Border>
+                            </Popup>
                             <Button Grid.Column="2" Content="Apply" Classes="toolbar" Command="{Binding ApplyFilterCommand}"
                                     Margin="6,0,0,0" VerticalAlignment="Center" />
                             <TextBlock Grid.Column="3" Text="{Binding SortLabel}"
