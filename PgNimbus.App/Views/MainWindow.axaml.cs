@@ -5,6 +5,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Data;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Platform;
@@ -66,6 +67,7 @@ public partial class MainWindow : Window
         ResultsGrid.CellEditEnding += OnCellEditEnding;
         ResultsGrid.CellEditEnded += OnCellEditEnded;
         ResultsGrid.PreparingCellForEdit += OnPreparingCellForEdit;
+        ResultsGrid.KeyDown += OnResultsGridKeyDown;
 
         SqlEditor.TextArea.TextEntered += OnSqlTextEntered;
         SqlEditor.KeyDown += OnSqlEditorKeyDown;
@@ -372,6 +374,50 @@ public partial class MainWindow : Window
         completionWindow.Show();
         completionWindow.Closed += (_, _) => _completionWindow = null;
         _completionWindow = completionWindow;
+    }
+
+    // Ctrl+C copies the selection as TSV (spreadsheet-friendly). ClipboardCopyMode
+    // is None on the grid because our columns bind through a converter with no
+    // path, so the stock copy has no cell text to read - we build it ourselves.
+    private void OnResultsGridKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.C && e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        {
+            _ = CopySelectionAsync(QueryViewModel.CopyFormat.Tsv);
+            e.Handled = true;
+        }
+    }
+
+    private void OnCopyCells(object? sender, RoutedEventArgs e) => _ = CopySelectionAsync(QueryViewModel.CopyFormat.Tsv);
+
+    private void OnCopyAsCsv(object? sender, RoutedEventArgs e) => _ = CopySelectionAsync(QueryViewModel.CopyFormat.Csv);
+
+    private void OnCopyAsJson(object? sender, RoutedEventArgs e) => _ = CopySelectionAsync(QueryViewModel.CopyFormat.Json);
+
+    private void OnCopyAsMarkdown(object? sender, RoutedEventArgs e) => _ = CopySelectionAsync(QueryViewModel.CopyFormat.Markdown);
+
+    private void OnCopyAsInsert(object? sender, RoutedEventArgs e) => _ = CopySelectionAsync(QueryViewModel.CopyFormat.Insert);
+
+    // Copies the selected rows (or the whole result set when nothing is selected)
+    // in the chosen shape.
+    private async Task CopySelectionAsync(QueryViewModel.CopyFormat format)
+    {
+        if (_queryViewModel is null)
+        {
+            return;
+        }
+
+        var selected = ResultsGrid.SelectedItems.OfType<object?[]>().ToList();
+        var text = _queryViewModel.CopyRows(format, selected);
+        if (string.IsNullOrEmpty(text))
+        {
+            return;
+        }
+
+        if (TopLevel.GetTopLevel(this)?.Clipboard is { } clipboard)
+        {
+            await clipboard.SetTextAsync(text);
+        }
     }
 
     private async void OnExportCsvClick(object? sender, RoutedEventArgs e)

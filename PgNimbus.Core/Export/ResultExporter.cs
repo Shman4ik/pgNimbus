@@ -24,6 +24,59 @@ public static class ResultExporter
         }
     }
 
+    /// <summary>
+    /// Tab-separated rows with a header line — the spreadsheet-friendly shape for a plain clipboard copy.
+    /// Tabs and newlines inside a value are collapsed to spaces so the row/column grid stays intact on paste.
+    /// </summary>
+    public static void WriteTsv(TextWriter writer, IReadOnlyList<string> columns, IEnumerable<object?[]> rows)
+    {
+        writer.Write(string.Join('\t', columns.Select(SanitizeTsv)));
+        writer.Write('\n');
+
+        foreach (var row in rows)
+        {
+            writer.Write(string.Join('\t', row.Select(v => SanitizeTsv(FormatCsvValue(v)))));
+            writer.Write('\n');
+        }
+    }
+
+    /// <summary>A GitHub-flavored Markdown table (header, separator row, then data), pipes and newlines escaped.</summary>
+    public static void WriteMarkdown(TextWriter writer, IReadOnlyList<string> columns, IEnumerable<object?[]> rows)
+    {
+        writer.Write("| ");
+        writer.Write(string.Join(" | ", columns.Select(EscapeMarkdown)));
+        writer.Write(" |\n| ");
+        writer.Write(string.Join(" | ", columns.Select(_ => "---")));
+        writer.Write(" |\n");
+
+        foreach (var row in rows)
+        {
+            writer.Write("| ");
+            writer.Write(string.Join(" | ", row.Select(v => EscapeMarkdown(FormatCsvValue(v)))));
+            writer.Write(" |\n");
+        }
+    }
+
+    /// <summary>
+    /// One <c>INSERT INTO table (cols) VALUES (...);</c> per row, with proper SQL literal quoting (NULL,
+    /// unquoted numbers/booleans, single-quoted and '-escaped text, <c>\x…</c> bytea).
+    /// </summary>
+    public static void WriteInsert(TextWriter writer, string table, IReadOnlyList<string> columns, IEnumerable<object?[]> rows)
+    {
+        var columnList = string.Join(", ", columns.Select(QuoteIdentifier));
+
+        foreach (var row in rows)
+        {
+            writer.Write("INSERT INTO ");
+            writer.Write(table);
+            writer.Write(" (");
+            writer.Write(columnList);
+            writer.Write(") VALUES (");
+            writer.Write(string.Join(", ", row.Select(FormatSqlLiteral)));
+            writer.Write(");\n");
+        }
+    }
+
     public static void WriteJson(Stream stream, IReadOnlyList<string> columns, IEnumerable<object?[]> rows)
     {
         using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
@@ -57,6 +110,33 @@ public static class ResultExporter
 
     private static string EscapeCsvField(string value) =>
         value.IndexOfAny([',', '"', '\n', '\r']) < 0 ? value : $"\"{value.Replace("\"", "\"\"")}\"";
+
+    private static string SanitizeTsv(string value) =>
+        value.IndexOfAny(['\t', '\n', '\r']) < 0
+            ? value
+            : value.Replace('\t', ' ').Replace('\r', ' ').Replace('\n', ' ');
+
+    private static string EscapeMarkdown(string value) =>
+        value.Replace("\\", "\\\\").Replace("|", "\\|").Replace("\r", string.Empty).Replace("\n", "<br>");
+
+    /// <summary>
+    /// Quote a Postgres identifier only when needed: a bare lowercase identifier is left as-is, anything
+    /// else is double-quoted (with <c>"</c>-doubling) so mixed-case/reserved names round-trip.
+    /// </summary>
+    public static string QuoteIdentifier(string name) =>
+        name.Length > 0 && (char.IsLower(name[0]) || name[0] == '_') && name.All(c => char.IsLower(c) || char.IsDigit(c) || c == '_')
+            ? name
+            : $"\"{name.Replace("\"", "\"\"")}\"";
+
+    private static string FormatSqlLiteral(object? value) => value switch
+    {
+        null or DBNull => "NULL",
+        bool b => b ? "TRUE" : "FALSE",
+        byte or sbyte or short or ushort or int or uint or long or ulong => Convert.ToString(value, CultureInfo.InvariantCulture) ?? "NULL",
+        float or double or decimal => ((IFormattable)value).ToString(null, CultureInfo.InvariantCulture),
+        byte[] bytes => $"'\\x{Convert.ToHexString(bytes)}'",
+        _ => $"'{FormatCsvValue(value).Replace("'", "''")}'",
+    };
 
     private static void WriteJsonValue(Utf8JsonWriter writer, object? value)
     {
