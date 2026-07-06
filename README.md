@@ -44,6 +44,10 @@ from the ground up.
 - **Schema tree sidebar** — schemas → tables/views → columns, reading
   `pg_catalog` directly (materialized views, partitioned tables, real
   primary-key flags), with an "Alter Table" UI for no-SQL column add/rename/drop.
+- **No-SQL table browsing** — previewing a table opens a browse bar with a
+  `WHERE` filter, `ORDER BY` from clicking a column header, and prev/next
+  paging — all pushed down to Postgres (`WHERE`/`ORDER BY`/`LIMIT`/`OFFSET`),
+  so browsing a huge table stays as cheap as one page.
 - **Connection manager** — saved profiles with a per-connection accent color
   (so production doesn't look like staging), SSH tunnel support, and
   passwords held by the OS credential store (DPAPI on Windows) instead of
@@ -169,7 +173,7 @@ Things a person needs before pgNimbus can be their only Postgres client:
 
 - [x] **Command palette** (`Ctrl+K`/`Ctrl+P`) — fuzzy-jump to any table, saved
   query, or action; the keyboard-first differentiator in one control.
-- [ ] **Data browsing without SQL** — filter bar, ORDER BY on header click, and
+- [x] **Data browsing without SQL** — filter bar, ORDER BY on header click, and
   paging when previewing a table, pushed down to the server (`WHERE`/`LIMIT`/
   `OFFSET`), not client-side.
 - [ ] **Row insert & delete from the grid** — cell editing exists; complete the
@@ -250,8 +254,9 @@ bar (the Files community app remains the visual north star):
   (initially: custom result visualizers).
 - [ ] **Localization** — externalize UI strings; ship Russian and German first.
 
-Recently shipped: the Ctrl+K/Ctrl+P command palette (fuzzy-jump to any table,
-saved query, or action), SQL-derived tab titles with a dirty dot, results-grid copy
+Recently shipped: no-SQL table browsing (server-side WHERE filter, header-click
+ORDER BY, LIMIT/OFFSET paging), the Ctrl+K/Ctrl+P command palette (fuzzy-jump to
+any table, saved query, or action), SQL-derived tab titles with a dirty dot, results-grid copy
 (Ctrl+C / Copy as CSV·JSON·Markdown·INSERT),
 empty-state hints, the in-app light/dark theme toggle, the
 schema-tree filter

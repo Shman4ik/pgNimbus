@@ -69,6 +69,7 @@ public partial class MainWindow : Window
         ResultsGrid.CellEditEnded += OnCellEditEnded;
         ResultsGrid.PreparingCellForEdit += OnPreparingCellForEdit;
         ResultsGrid.KeyDown += OnResultsGridKeyDown;
+        ResultsGrid.Sorting += OnResultsGridSorting;
 
         SqlEditor.TextArea.TextEntered += OnSqlTextEntered;
         SqlEditor.KeyDown += OnSqlEditorKeyDown;
@@ -399,6 +400,27 @@ public partial class MainWindow : Window
         if (e.Key == Key.C && e.KeyModifiers.HasFlag(KeyModifiers.Control))
         {
             _ = CopySelectionAsync(QueryViewModel.CopyFormat.Tsv);
+            e.Handled = true;
+        }
+    }
+
+    // In browse mode a header click sorts server-side (ORDER BY + reload page 1)
+    // instead of the client-side comparer sort - cancel the default and re-query.
+    private void OnResultsGridSorting(object? sender, DataGridColumnEventArgs e)
+    {
+        if (_queryViewModel?.Browse is { } browse && e.Column.Header is string columnName)
+        {
+            e.Handled = true;
+            _ = browse.SortByAsync(columnName);
+        }
+    }
+
+    // Enter in the browse filter box applies the WHERE predicate (re-query from page 1).
+    private void OnBrowseFilterKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter && _queryViewModel?.Browse is { } browse)
+        {
+            browse.ApplyFilterCommand.Execute(null);
             e.Handled = true;
         }
     }
