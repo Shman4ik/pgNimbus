@@ -148,3 +148,40 @@ Notes:
 - This is how the Avalonia 11→12 upgrade and the PowerToys-style UI polish
   were actually verified (not just built) in a Claude Code sandbox with no
   prior .NET/GUI tooling.
+
+## Release pipeline
+
+`.github/workflows/release.yml` runs on every `vX.Y.Z` tag push (or manually
+via `workflow_dispatch`, which builds everything but skips the "release"
+job so it never publishes). It produces, per tag:
+
+- **Windows** — `dotnet publish -r win-x64 -p:PublishAot=true`, then a
+  per-user WiX v5 MSI built from [`installer/windows/Product.wxs`](installer/windows/Product.wxs)
+  via the `wix` .NET global tool (`wix build ... -d PublishDir=... -d
+  Version=...`). Per-user (installs to `%LocalAppData%`, no elevation) is
+  deliberate: the MSI is currently **unsigned** (no code-signing cert yet),
+  and per-machine + unsigned is a much worse UAC/SmartScreen experience.
+  The `UpgradeCode` GUID in `Product.wxs` is fixed forever — never
+  regenerate it, that's what makes installing a newer tag upgrade in place
+  instead of side-by-side.
+- **macOS** — built as *two separate native jobs*, not a cross-compiled or
+  universal binary: `osx-x64` on a `macos-13` (Intel) runner, `osx-arm64` on
+  a `macos-14` (Apple Silicon) runner. Each publish output is wrapped into
+  an unsigned/unnotarized `.app` + `.dmg` by
+  [`scripts/macos/build-app-bundle.sh`](scripts/macos/build-app-bundle.sh),
+  which also generates `.icns` from `PgNimbus.App/Assets/icon-256.png` via
+  `sips`/`iconutil` (stock macOS tools, no extra dependency).
+- **winget** — the workflow renders (via
+  [`scripts/winget/render-manifest.sh`](scripts/winget/render-manifest.sh)
+  and the templates in `packaging/winget/`) the three manifest files
+  winget requires and validates them with `winget validate`, but does
+  **not** submit them anywhere. `winget-pkgs` needs a manual first PR
+  (registers the `pgNimbus.pgNimbus` identifier) before any automated
+  submission could work — the generated `winget-manifests.zip` release
+  asset is for that manual step.
+
+No code signing (Windows Authenticode or Apple Developer ID) is wired up
+yet — both platforms ship unsigned until certs/accounts are available.
+When they are, signing slots in as an extra step in `build-windows` /
+`build-macos` before packaging, gated on whether the relevant secret is
+present, so the pipeline doesn't need restructuring.

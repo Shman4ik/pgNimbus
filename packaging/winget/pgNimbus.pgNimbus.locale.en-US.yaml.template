@@ -1,0 +1,25 @@
+# winget default locale manifest — https://learn.microsoft.com/windows/package-manager/package/manifest
+# Rendered by scripts/winget/render-manifest.sh, placeholders filled from the release tag.
+PackageIdentifier: pgNimbus.pgNimbus
+PackageVersion: __VERSION__
+PackageLocale: en-US
+Publisher: pgNimbus
+PublisherUrl: https://github.com/Shman4ik/pgNimbus
+PackageName: pgNimbus
+PackageUrl: https://github.com/Shman4ik/pgNimbus
+License: MIT
+LicenseUrl: https://github.com/Shman4ik/pgNimbus/blob/main/LICENSE
+ShortDescription: A fast, open-source PostgreSQL GUI client
+Description: >-
+  pgNimbus is a fast, open-source PostgreSQL GUI client built with .NET and
+  Avalonia. Native performance (NativeAOT), deep pg_catalog introspection,
+  streaming query results, and a keyboard-first workflow.
+Moniker: pgnimbus
+Tags:
+  - postgresql
+  - postgres
+  - database
+  - sql
+  - database-gui
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0
