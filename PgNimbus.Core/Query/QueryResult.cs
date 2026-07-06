@@ -23,6 +23,21 @@ public sealed record ResultSet : StatementResult
     public required IAsyncEnumerable<RowBatch> Batches { get; init; }
 }
 
+/// <summary>
+/// A fully-materialized result-returning statement. Used by script execution,
+/// where several statements share one connection and each result must be read to
+/// completion before the next statement can run — so, unlike <see cref="ResultSet"/>,
+/// the rows can't stream out lazily and are collected up front instead.
+/// </summary>
+public sealed record MaterializedResultSet : StatementResult
+{
+    public required IReadOnlyList<ColumnInfo> Columns { get; init; }
+    public required IReadOnlyList<object?[]> Rows { get; init; }
+
+    /// <summary>True when the row cap cut this statement's result short.</summary>
+    public bool Truncated { get; init; }
+}
+
 /// <summary>A non-result statement (INSERT/UPDATE/DDL/etc).</summary>
 public sealed record CommandResult : StatementResult
 {

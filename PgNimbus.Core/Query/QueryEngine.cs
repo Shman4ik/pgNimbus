@@ -118,6 +118,137 @@ public sealed class QueryEngine
         }
     }
 
+    /// <summary>
+    /// Runs a multi-statement script and yields one <see cref="StatementResult"/>
+    /// per statement, in order. All statements execute on a single connection, so
+    /// session state carries across them (a <c>BEGIN…COMMIT</c> block, <c>SET</c>,
+    /// temp tables), which sequential <see cref="ExecuteAsync"/> calls — each on
+    /// its own pooled connection — cannot. Each result carries its own elapsed
+    /// time (the per-statement timing). Execution stops at the first
+    /// <see cref="QueryError"/> (like psql's <c>ON_ERROR_STOP</c>): the error is
+    /// yielded and no further statements run, since the transaction is aborted.
+    /// </summary>
+    /// <param name="statements">The already-split statements to run in order.</param>
+    /// <param name="maxRowsPerStatement">
+    /// If set, each result-returning statement keeps at most this many rows;
+    /// hitting the cap flags the result truncated and cancels that statement
+    /// server-side (see <see cref="ExecuteAsync"/> for why abandoning the reader
+    /// isn't enough).
+    /// </param>
+    /// <param name="ct">Cancels the script mid-flight, between or within statements.</param>
+    public async IAsyncEnumerable<StatementResult> ExecuteScriptAsync(
+        IReadOnlyList<string> statements,
+        int? maxRowsPerStatement,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
+    {
+        await using var connection = await _dataSource.OpenConnectionAsync(ct);
+
+        foreach (var statement in statements)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            var result = await ExecuteOnConnectionAsync(connection, statement, maxRowsPerStatement, ct);
+            yield return result;
+
+            if (result is QueryError)
+            {
+                yield break;
+            }
+        }
+    }
+
+    // Executes one statement on an already-open connection and materializes its
+    // result. Separate from ExecuteAsync because the shared-connection script
+    // path can't hand off a lazily-streaming reader: the next statement can't run
+    // until this one's reader is fully read and closed.
+    private static async Task<StatementResult> ExecuteOnConnectionAsync(
+        NpgsqlConnection connection,
+        string sql,
+        int? maxRows,
+        CancellationToken ct)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        await using var command = new NpgsqlCommand(sql, connection);
+
+        NpgsqlDataReader? reader = null;
+        var truncated = false;
+        try
+        {
+            reader = await command.ExecuteReaderAsync(CommandBehavior.Default, ct);
+
+            if (reader.FieldCount == 0)
+            {
+                var rowsAffected = reader.RecordsAffected;
+                return new CommandResult
+                {
+                    Elapsed = stopwatch.Elapsed,
+                    RowsAffected = rowsAffected < 0 ? 0 : rowsAffected,
+                    CommandTag = BuildCommandTag(sql),
+                };
+            }
+
+            var columns = BuildColumns(reader);
+            var fieldCount = reader.FieldCount;
+            var rows = new List<object?[]>();
+
+            while (await reader.ReadAsync(ct))
+            {
+                if (maxRows is { } cap && rows.Count >= cap)
+                {
+                    // A row past the cap exists: keep exactly `cap` rows, flag the
+                    // truncation, and cancel so disposal doesn't drain the rest.
+                    truncated = true;
+                    command.Cancel();
+                    break;
+                }
+
+                var row = new object?[fieldCount];
+                for (var i = 0; i < fieldCount; i++)
+                {
+                    var value = reader.GetValue(i);
+                    row[i] = value is DBNull ? null : value;
+                }
+
+                rows.Add(row);
+            }
+
+            return new MaterializedResultSet
+            {
+                Elapsed = stopwatch.Elapsed,
+                Columns = columns,
+                Rows = rows,
+                Truncated = truncated,
+            };
+        }
+        catch (PostgresException pg)
+        {
+            return new QueryError
+            {
+                Elapsed = stopwatch.Elapsed,
+                Message = pg.MessageText,
+                SqlState = pg.SqlState,
+                Detail = pg.Detail,
+                Hint = pg.Hint,
+                Position = ParsePosition(pg.Position),
+            };
+        }
+        finally
+        {
+            if (reader is not null)
+            {
+                try
+                {
+                    await reader.DisposeAsync();
+                }
+                catch (PostgresException ex) when (truncated && ex.SqlState == PostgresErrorCodes.QueryCanceled)
+                {
+                    // The backend acknowledged the row-cap cancel while draining;
+                    // the rows already collected are still valid.
+                }
+            }
+        }
+    }
+
     private static IReadOnlyList<ColumnInfo> BuildColumns(NpgsqlDataReader reader)
     {
         var columns = new ColumnInfo[reader.FieldCount];
