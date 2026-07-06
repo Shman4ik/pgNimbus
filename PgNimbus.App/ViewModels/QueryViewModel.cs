@@ -447,4 +447,57 @@ public sealed partial class QueryViewModel : ObservableObject
     }
 
     public void ExportJson(Stream stream) => ResultExporter.WriteJson(stream, ColumnNames, Rows);
+
+    /// <summary>The clipboard "Copy as" shapes the results grid offers.</summary>
+    public enum CopyFormat
+    {
+        Tsv,
+        Csv,
+        Json,
+        Markdown,
+        Insert,
+    }
+
+    /// <summary>
+    /// Renders the given rows (or the whole result set when <paramref name="selectedRows"/> is empty) in
+    /// <paramref name="format"/> for the clipboard. Returns null when there's nothing to copy. INSERT statements
+    /// target the edited table when the result set maps to one, otherwise a <c>table_name</c> placeholder.
+    /// </summary>
+    public string? CopyRows(CopyFormat format, IReadOnlyList<object?[]> selectedRows)
+    {
+        var rows = selectedRows.Count > 0 ? selectedRows : (IReadOnlyList<object?[]>)Rows;
+        if (rows.Count == 0 || ColumnNames.Count == 0)
+        {
+            return null;
+        }
+
+        using var writer = new StringWriter();
+        switch (format)
+        {
+            case CopyFormat.Tsv:
+                ResultExporter.WriteTsv(writer, ColumnNames, rows);
+                break;
+            case CopyFormat.Csv:
+                ResultExporter.WriteCsv(writer, ColumnNames, rows);
+                break;
+            case CopyFormat.Markdown:
+                ResultExporter.WriteMarkdown(writer, ColumnNames, rows);
+                break;
+            case CopyFormat.Insert:
+                ResultExporter.WriteInsert(writer, InsertTargetTable, ColumnNames, rows);
+                break;
+            case CopyFormat.Json:
+                using (var stream = new MemoryStream())
+                {
+                    ResultExporter.WriteJson(stream, ColumnNames, rows);
+                    return System.Text.Encoding.UTF8.GetString(stream.ToArray());
+                }
+        }
+
+        return writer.ToString();
+    }
+
+    private string InsertTargetTable => EditContext is { } ctx
+        ? $"{ResultExporter.QuoteIdentifier(ctx.Schema)}.{ResultExporter.QuoteIdentifier(ctx.Table)}"
+        : "table_name";
 }

@@ -205,9 +205,9 @@ bar (the Files community app remains the visual north star):
   (schemas and loaded tables, case-insensitive substring); a schema stays
   when its name matches or a loaded table inside it does, auto-expanding to
   reveal the match, with a clear (✕) button.
-- [ ] **Copy from the results grid** — <kbd>Ctrl</kbd>+<kbd>C</kbd> for the
-  selected cell/rows, plus "Copy as" (CSV, JSON, Markdown table, `INSERT`
-  statements) on the grid context menu.
+- [x] **Copy from the results grid** — <kbd>Ctrl</kbd>+<kbd>C</kbd> copies the
+  selected rows (or all rows) as TSV, plus "Copy as" (CSV, JSON, Markdown table,
+  `INSERT` statements) on the grid context menu.
 - [ ] **Cell inspector** — a detail pane (or popover) for the selected cell so
   long `text`/`jsonb` values are readable and copyable without inline-edit
   tricks; pretty-print JSON.
@@ -245,7 +245,8 @@ bar (the Files community app remains the visual north star):
   (initially: custom result visualizers).
 - [ ] **Localization** — externalize UI strings; ship Russian and German first.
 
-Recently shipped: empty-state hints, the in-app light/dark theme toggle, the
+Recently shipped: results-grid copy (Ctrl+C / Copy as CSV·JSON·Markdown·INSERT),
+empty-state hints, the in-app light/dark theme toggle, the
 schema-tree filter
 box, paste-anything connection
 string parsing (URI / JDBC /

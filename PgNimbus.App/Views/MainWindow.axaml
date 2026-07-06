@@ -355,7 +355,22 @@
                               IsReadOnly="{Binding !ActiveTab.IsEditable}"
                               CanUserReorderColumns="False"
                               CanUserSortColumns="True"
-                              AutoGenerateColumns="False" />
+                              SelectionMode="Extended"
+                              ClipboardCopyMode="None"
+                              AutoGenerateColumns="False">
+                        <DataGrid.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Copy" InputGesture="Ctrl+C" Click="OnCopyCells" />
+                                <Separator />
+                                <MenuItem Header="Copy as">
+                                    <MenuItem Header="CSV" Click="OnCopyAsCsv" />
+                                    <MenuItem Header="JSON" Click="OnCopyAsJson" />
+                                    <MenuItem Header="Markdown table" Click="OnCopyAsMarkdown" />
+                                    <MenuItem Header="INSERT statements" Click="OnCopyAsInsert" />
+                                </MenuItem>
+                            </ContextMenu>
+                        </DataGrid.ContextMenu>
+                    </DataGrid>
                     <!-- Empty state: a friendly hint instead of a bare grid before any query has run -->
                     <StackPanel IsVisible="{Binding ActiveTab.HasNoResults}"
                                 HorizontalAlignment="Center" VerticalAlignment="Center"

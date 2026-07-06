@@ -115,6 +115,12 @@ means for pgNimbus. Adopting its language where Avalonia allows.
 | --- | --- | --- |
 | Empty states | Blank areas now guide instead of sitting bare. A centered dimmed table-icon hint ("No results yet — run a query with Ctrl+Enter or F5") overlays the results grid, driven by a new `QueryViewModel.HasNoResults` (`Rows.Count == 0 && !IsShowingPlan && !IsRunning`, recomputed from the Rows/IsShowingPlan/IsRunning change hooks). The saved-queries and history cards get their own centered hints via `SavedQueriesViewModel.HasNoSavedQueries`/`HasNoHistory` (notified on each collection change). All overlays are `IsHitTestVisible=False` so they never eat clicks. Verified under Xvfb: the results hint shows at startup and vanishes when `SELECT 1` returns a row; both list hints render on a fresh profile. | (this commit) |
 
+## Iteration 15
+
+| Item | Outcome | Commit |
+| --- | --- | --- |
+| Copy from the results grid | `Ctrl+C` copies the selected rows (or the whole result set when nothing is selected) as TSV; a grid context menu adds **Copy** and **Copy as ▸ CSV / JSON / Markdown table / INSERT statements**. Formatting lives in `Core`'s `ResultExporter` (new `WriteTsv`/`WriteMarkdown`/`WriteInsert` beside the existing CSV/JSON, plus public `QuoteIdentifier` and SQL-literal quoting — NULL, unquoted numbers/booleans, `''`-escaped text, `\x…` bytea), so it stays UI-free and reuses one value formatter. `QueryViewModel.CopyRows` renders to a string; the grid is `SelectionMode=Extended` with `ClipboardCopyMode=None` (our columns bind through a path-less converter, so the stock copy has no cell text — the view builds it and writes via `IClipboard.SetTextAsync`). INSERT targets the edited table when the result maps to one, else a `table_name` placeholder. Verified under Xvfb against `SELECT id,name,email FROM customers LIMIT 3`: Ctrl+C produced tab-separated header+rows, and the context menu produced valid INSERTs (numeric id unquoted, text quoted) and a GitHub Markdown table. | (this commit) |
+
 ## Open / candidate items
 - [ ] Mica/acrylic backdrop remains blocked on safe verification (a headless
       sandbox can't see transparency failures).
