@@ -92,19 +92,15 @@ jobs:
       msi_sha256: ${{ steps.sha.outputs.sha256 }}
 
   build-macos:
+    # Apple Silicon only: GitHub retired the last Intel macOS runner image
+    # (macos-13) in December 2025, and has said x86_64 macOS support ends
+    # entirely after the macos-15 image retires (Fall 2027). There's no
+    # GitHub-hosted way to build osx-x64 anymore, and virtually all Macs
+    # sold since 2020 are Apple Silicon anyway.
     needs: prepare
+    runs-on: macos-14
     env:
       VERSION: ${{ needs.prepare.outputs.version }}
-    strategy:
-      matrix:
-        include:
-          - rid: osx-x64
-            arch: x64
-            runner: macos-13
-          - rid: osx-arm64
-            arch: arm64
-            runner: macos-14
-    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
 
@@ -143,24 +139,24 @@ jobs:
           fi
           xcodebuild -version
 
-      - name: Publish NativeAOT (${{ matrix.rid }})
+      - name: Publish NativeAOT (osx-arm64)
         run: >
-          dotnet publish PgNimbus.App -c Release -r ${{ matrix.rid }}
+          dotnet publish PgNimbus.App -c Release -r osx-arm64
           --self-contained true
           -p:PublishAot=true
           -p:Version=${{ env.VERSION }}
           -p:FileVersion=${{ env.VERSION }}
           -p:InformationalVersion=${{ env.VERSION }}
-          -o publish/${{ matrix.rid }}
+          -o publish/osx-arm64
 
       - name: Build .app bundle + .dmg
         run: |
           chmod +x scripts/macos/build-app-bundle.sh
-          ./scripts/macos/build-app-bundle.sh publish/${{ matrix.rid }} "$VERSION" ${{ matrix.rid }} dist
+          ./scripts/macos/build-app-bundle.sh publish/osx-arm64 "$VERSION" osx-arm64 dist
 
       - uses: actions/upload-artifact@v4
         with:
-          name: macos-dmg-${{ matrix.arch }}
+          name: macos-dmg-arm64
           path: dist/*.dmg
 
   winget-manifest:
