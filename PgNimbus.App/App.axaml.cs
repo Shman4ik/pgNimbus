@@ -63,6 +63,7 @@ public partial class App : Application
         var explainService = new ExplainService(dataSource);
         var schemaService = new SchemaService(dataSource);
         var schemaEditor = new SchemaEditor(dataSource);
+        var ddlService = new DdlService(dataSource);
         var schemaTree = new SchemaTreeViewModel(schemaService);
         var completionProvider = new SqlCompletionProvider(schemaService);
         var notifyMonitor = new NotifyMonitorViewModel(new NotificationListener(dataSource));
@@ -72,7 +73,7 @@ public partial class App : Application
         var window = new MainWindow
         {
             DataContext = new MainViewModel(
-                engine, explainService, schemaTree, schemaService, schemaEditor, completionProvider, notifyMonitor,
+                engine, explainService, schemaTree, schemaService, schemaEditor, ddlService, completionProvider, notifyMonitor,
                 accentColor,
                 connectionHost: csb.Host ?? "",
                 connectionDatabase: csb.Database ?? ""),

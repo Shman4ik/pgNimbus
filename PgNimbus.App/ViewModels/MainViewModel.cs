@@ -13,6 +13,7 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly ExplainService _explainService;
     private readonly SchemaService _schemaService;
     private readonly SchemaEditor _schemaEditor;
+    private readonly DdlService _ddlService;
 
     public SchemaTreeViewModel SchemaTree { get; }
 
@@ -53,6 +54,7 @@ public sealed partial class MainViewModel : ObservableObject
         SchemaTreeViewModel schemaTree,
         SchemaService schemaService,
         SchemaEditor schemaEditor,
+        DdlService ddlService,
         SqlCompletionProvider completionProvider,
         NotifyMonitorViewModel notifyMonitor,
         string? accentColor = null,
@@ -66,6 +68,7 @@ public sealed partial class MainViewModel : ObservableObject
         SchemaTree = schemaTree;
         _schemaService = schemaService;
         _schemaEditor = schemaEditor;
+        _ddlService = ddlService;
         CompletionProvider = completionProvider;
         SavedQueries = new SavedQueriesViewModel(new SavedQueryStore(), new QueryHistoryStore(), () => ActiveTab);
         NotifyMonitor = notifyMonitor;
@@ -100,13 +103,31 @@ public sealed partial class MainViewModel : ObservableObject
     private bool CanCloseTab() => Tabs.Count > 1;
 
     [RelayCommand]
-    private void AddTab()
+    private void AddTab() => NewTab();
+
+    // Creates a query tab, wires its history hook, and makes it active.
+    private QueryViewModel NewTab()
     {
         var tab = new QueryViewModel(_engine, _explainService) { DefaultTitle = $"Query {Tabs.Count + 1}" };
         tab.Executed += SavedQueries.RecordExecution;
         Tabs.Add(tab);
         ActiveTab = tab;
         CloseTabCommand.NotifyCanExecuteChanged();
+        return tab;
+    }
+
+    /// <summary>
+    /// Reconstructs a relation's <c>CREATE …</c> definition from pg_catalog and
+    /// opens it in a new query tab (its "Source"), where it can be read, copied,
+    /// or tweaked and run.
+    /// </summary>
+    public async Task ShowSourceAsync(TableNode table)
+    {
+        var ddl = await _ddlService.GenerateAsync(table.Schema, table.Name, CancellationToken.None);
+
+        var tab = NewTab();
+        tab.TitleOverride = $"{table.Name} · source";
+        tab.Sql = ddl;
     }
 
     [RelayCommand(CanExecute = nameof(CanCloseTab))]

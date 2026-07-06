@@ -29,6 +29,7 @@
             <StackPanel Orientation="Horizontal" Spacing="6">
                 <StackPanel.ContextMenu>
                     <ContextMenu>
+                        <MenuItem Header="Source (DDL)" Tag="{Binding}" Click="OnShowSourceClick" />
                         <MenuItem Header="Alter Table..." Tag="{Binding}" Click="OnAlterTableClick" />
                     </ContextMenu>
                 </StackPanel.ContextMenu>
