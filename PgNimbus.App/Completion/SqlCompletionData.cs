@@ -42,6 +42,15 @@ public sealed class SqlCompletionData : ICompletionData
 
     public double Priority { get; }
 
-    public void Complete(TextArea textArea, ISegment completionSegment, EventArgs insertionRequestEventArgs) =>
+    public void Complete(TextArea textArea, ISegment completionSegment, EventArgs insertionRequestEventArgs)
+    {
         textArea.Document.Replace(completionSegment, InsertText);
+
+        // A function inserts as "name()" — land the caret between the parens so
+        // the arguments can be typed straight away.
+        if (InsertText.EndsWith("()", StringComparison.Ordinal))
+        {
+            textArea.Caret.Offset -= 1;
+        }
+    }
 }

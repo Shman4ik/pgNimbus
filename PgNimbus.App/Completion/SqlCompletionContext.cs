@@ -2,25 +2,222 @@ using System.Text.RegularExpressions;
 
 namespace PgNimbus.App.Completion;
 
+/// <summary>Where the caret sits grammatically, as far as completion cares.</summary>
+internal enum SqlClause
+{
+    /// <summary>No clause identified — offer the full catalog.</summary>
+    None,
+    /// <summary>A table/view name goes here (after FROM, JOIN, INTO, UPDATE, TABLE…).</summary>
+    TableRef,
+    /// <summary>A column/expression goes here (after SELECT, WHERE, ON, SET, BY…).</summary>
+    ColumnRef,
+}
+
 /// <summary>
 /// A lightweight, regex-based read of the SQL being edited — just enough to make
-/// completion context-aware without pulling in a full parser. It answers the two
+/// completion context-aware without pulling in a full parser. It answers the
 /// questions <see cref="SqlCompletionProvider"/> asks at the caret:
 /// <list type="number">
 /// <item>Is this a <c>qualifier.partial</c> member access, and if so what is the
 /// qualifier (the alias/table/schema before the dot)?</item>
 /// <item>Which tables — with their aliases — does the surrounding statement pull
-/// <c>FROM</c> (and <c>JOIN</c>)?</item>
+/// <c>FROM</c>/<c>JOIN</c>, <c>UPDATE</c>, or <c>INSERT INTO</c>?</item>
+/// <item>Is the caret inside a string/comment (suppress), and which clause is it
+/// in (tables after FROM, columns after WHERE, …)?</item>
 /// </list>
-/// Both are heuristics: they handle the shapes real queries actually take
+/// All are heuristics: they handle the shapes real queries actually take
 /// (schema-qualified names, <c>AS</c>/implicit aliases, comma and JOIN lists)
-/// and quietly give up on the exotic (correlated subqueries, CTEs) rather than
+/// and quietly give up on the exotic (correlated subqueries) rather than
 /// guess wrong.
 /// </summary>
 internal static partial class SqlCompletionContext
 {
     /// <summary>A table reference parsed out of a FROM/JOIN clause, with its alias if one was given.</summary>
     public readonly record struct TableRef(string Schema, string Table, string? Alias);
+
+    /// <summary>What surrounds the caret: literal/comment state plus the governing clause.</summary>
+    public readonly record struct CaretContext(bool InStringOrComment, SqlClause Clause);
+
+    /// <summary>
+    /// Scans the text before the caret (excluding the word being typed — that's
+    /// the completion filter, not context) tracking string/comment state and the
+    /// last clause keyword of the current statement. One forward pass, no regex,
+    /// so it's cheap enough to run per keystroke.
+    /// </summary>
+    public static CaretContext GetCaretContext(string sql, int caret)
+    {
+        var end = Math.Clamp(caret, 0, sql.Length);
+        while (end > 0 && IsIdentPart(sql[end - 1]))
+        {
+            end--;
+        }
+
+        var clause = SqlClause.None;
+        var i = 0;
+        while (i < end)
+        {
+            var c = sql[i];
+
+            if (c == '-' && i + 1 < end && sql[i + 1] == '-')
+            {
+                var eol = sql.IndexOf('\n', i + 2, end - (i + 2));
+                if (eol < 0)
+                {
+                    return new CaretContext(true, clause);
+                }
+
+                i = eol + 1;
+                continue;
+            }
+
+            if (c == '/' && i + 1 < end && sql[i + 1] == '*')
+            {
+                // Postgres block comments nest.
+                var depth = 1;
+                i += 2;
+                while (i < end && depth > 0)
+                {
+                    if (sql[i] == '/' && i + 1 < end && sql[i + 1] == '*')
+                    {
+                        depth++;
+                        i += 2;
+                    }
+                    else if (sql[i] == '*' && i + 1 < end && sql[i + 1] == '/')
+                    {
+                        depth--;
+                        i += 2;
+                    }
+                    else
+                    {
+                        i++;
+                    }
+                }
+
+                if (depth > 0)
+                {
+                    return new CaretContext(true, clause);
+                }
+
+                continue;
+            }
+
+            if (c == '\'' || c == '"')
+            {
+                // A '' (or "") escape reads as close+reopen — same net state.
+                var close = sql.IndexOf(c, i + 1, end - (i + 1));
+                if (close < 0)
+                {
+                    return new CaretContext(true, clause);
+                }
+
+                i = close + 1;
+                continue;
+            }
+
+            if (c == '$' && TrySkipDollarQuote(sql, i, end, ref i))
+            {
+                if (i < 0)
+                {
+                    return new CaretContext(true, clause);
+                }
+
+                continue;
+            }
+
+            if (c == ';')
+            {
+                clause = SqlClause.None;
+                i++;
+                continue;
+            }
+
+            if (c == '(')
+            {
+                // "INSERT INTO t (" — the parenthesised list is columns, not more
+                // tables. (A "FROM (" subquery also lands here, and its own SELECT
+                // will re-set the clause the moment it's typed.)
+                if (clause == SqlClause.TableRef)
+                {
+                    clause = SqlClause.ColumnRef;
+                }
+
+                i++;
+                continue;
+            }
+
+            if (IsIdentPart(c))
+            {
+                var start = i;
+                while (i < end && IsIdentPart(sql[i]))
+                {
+                    i++;
+                }
+
+                if (!char.IsAsciiDigit(c))
+                {
+                    clause = ClassifyKeyword(sql.AsSpan(start, i - start), clause);
+                }
+
+                continue;
+            }
+
+            i++;
+        }
+
+        return new CaretContext(false, clause);
+    }
+
+    // The keywords that move the caret into table position or column position;
+    // everything else leaves the clause as-is.
+    private static SqlClause ClassifyKeyword(ReadOnlySpan<char> word, SqlClause current)
+    {
+        foreach (var kw in TableClauseKeywords)
+        {
+            if (word.Equals(kw, StringComparison.OrdinalIgnoreCase))
+            {
+                return SqlClause.TableRef;
+            }
+        }
+
+        foreach (var kw in ColumnClauseKeywords)
+        {
+            if (word.Equals(kw, StringComparison.OrdinalIgnoreCase))
+            {
+                return SqlClause.ColumnRef;
+            }
+        }
+
+        return current;
+    }
+
+    /// <summary>The keywords a table reference follows. "update" also covers <c>ON CONFLICT DO UPDATE</c> — its SET flips back to columns.</summary>
+    private static readonly string[] TableClauseKeywords =
+        ["from", "join", "into", "update", "table", "truncate"];
+
+    private static readonly string[] ColumnClauseKeywords =
+        ["select", "where", "on", "having", "by", "set", "returning", "using", "values", "when", "then", "else", "distinct"];
+
+    // Skips a $$…$$ / $tag$…$tag$ literal starting at `start`. Returns false when
+    // the '$' isn't a dollar-quote opener (e.g. a $1 parameter); on true, `i` is
+    // the index after the closing tag, or -1 when the literal is still open at `end`.
+    private static bool TrySkipDollarQuote(string sql, int start, int end, ref int i)
+    {
+        var t = start + 1;
+        while (t < end && (char.IsAsciiLetter(sql[t]) || sql[t] == '_'))
+        {
+            t++;
+        }
+
+        if (t >= end || sql[t] != '$')
+        {
+            return false;
+        }
+
+        var tag = sql.Substring(start, t - start + 1);
+        var close = sql.IndexOf(tag, t + 1, end - (t + 1), StringComparison.Ordinal);
+        i = close < 0 ? -1 : close + tag.Length;
+        return true;
+    }
 
     /// <summary>
     /// If the caret sits in the member position of a <c>qualifier.partial</c>
@@ -48,9 +245,11 @@ internal static partial class SqlCompletionContext
     }
 
     /// <summary>
-    /// Extracts the table references from every FROM clause in <paramref name="sql"/>.
-    /// Scoped to the FROM…(WHERE/GROUP/…) span so commas in a SELECT list aren't
-    /// mistaken for table separators.
+    /// Extracts the table references the statement operates on: every FROM clause
+    /// (scoped to the FROM…(WHERE/GROUP/…) span so commas in a SELECT list aren't
+    /// mistaken for table separators) plus <c>UPDATE</c> / <c>INSERT INTO</c> /
+    /// <c>SELECT … INTO</c> targets, so their columns complete in SET lists and
+    /// column lists too.
     /// </summary>
     public static IReadOnlyList<TableRef> ExtractTables(string sql)
     {
@@ -65,30 +264,58 @@ internal static partial class SqlCompletionContext
             // because SingleTableRefRegex is anchored at the segment start.
             foreach (var segment in JoinSplitRegex().Split(body))
             {
-                var match = SingleTableRefRegex().Match(segment);
-                if (!match.Success)
-                {
-                    continue;
-                }
-
-                var (schema, table) = SplitQualified(match.Groups["table"].Value);
-                if (string.IsNullOrEmpty(table))
-                {
-                    continue;
-                }
-
-                var alias = match.Groups["alias"].Success ? Unquote(match.Groups["alias"].Value) : null;
-                // A trailing keyword (ON, WHERE, …) can look like an alias — it isn't.
-                if (alias is not null && ReservedAfterTable.Contains(alias))
-                {
-                    alias = null;
-                }
-
-                tables.Add(new TableRef(schema, table, alias));
+                AddTableRef(tables, SingleTableRefRegex().Match(segment));
             }
         }
 
+        foreach (Match match in UpdateIntoTargetRegex().Matches(sql))
+        {
+            AddTableRef(tables, match);
+        }
+
         return tables;
+    }
+
+    /// <summary>
+    /// The CTE names a <c>WITH</c> clause introduces — they complete like table
+    /// names even though the catalog has never heard of them.
+    /// </summary>
+    public static IReadOnlyList<string> ExtractCteNames(string sql)
+    {
+        var names = new List<string>();
+        foreach (Match match in CteNameRegex().Matches(sql))
+        {
+            names.Add(Unquote(match.Groups["name"].Value));
+        }
+
+        return names;
+    }
+
+    // Appends the table (and alias) captured by a SingleTableRefRegex-shaped
+    // match, filtering out keyword false-positives on both.
+    private static void AddTableRef(List<TableRef> tables, Match match)
+    {
+        if (!match.Success)
+        {
+            return;
+        }
+
+        var (schema, table) = SplitQualified(match.Groups["table"].Value);
+        // "UPDATE" in ON CONFLICT DO UPDATE SET has no table after it — the regex
+        // then swallows the next keyword as the "table".
+        if (string.IsNullOrEmpty(table) || (schema.Length == 0 && ReservedAfterTable.Contains(table)))
+        {
+            return;
+        }
+
+        var alias = match.Groups["alias"].Success ? Unquote(match.Groups["alias"].Value) : null;
+        // A trailing keyword (ON, WHERE, …) can look like an alias — it isn't.
+        if (alias is not null && ReservedAfterTable.Contains(alias))
+        {
+            alias = null;
+        }
+
+        tables.Add(new TableRef(schema, table, alias));
     }
 
     // Reads the identifier that ends just before exclusive index `end` (walking
@@ -160,7 +387,7 @@ internal static partial class SqlCompletionContext
         "on", "using", "where", "group", "order", "having", "limit", "offset",
         "join", "inner", "left", "right", "full", "outer", "cross", "natural",
         "and", "or", "union", "intersect", "except", "returning", "window",
-        "for", "as", "tablesample",
+        "for", "as", "tablesample", "set", "values", "select",
     };
 
     // FROM (or a comma/JOIN list under it), captured up to the next top-level
@@ -183,4 +410,19 @@ internal static partial class SqlCompletionContext
         """^\s*(?<table>(?:"[^"]+"|[\w$]+)(?:\s*\.\s*(?:"[^"]+"|[\w$]+))?)(?:\s+(?:as\s+)?(?<alias>"[^"]+"|[\w$]+))?""",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex SingleTableRefRegex();
+
+    // The write target after UPDATE / (INSERT|SELECT …) INTO — same table+alias
+    // shape as SingleTableRefRegex; keyword pseudo-captures ("SET" as the alias,
+    // or as the table in ON CONFLICT DO UPDATE) are filtered by AddTableRef.
+    [GeneratedRegex(
+        """\b(?:update|into)\s+(?<table>(?:"[^"]+"|[\w$]+)(?:\s*\.\s*(?:"[^"]+"|[\w$]+))?)(?:[ \t]+(?:as\s+)?(?<alias>"[^"]+"|[\w$]+))?""",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex UpdateIntoTargetRegex();
+
+    // A CTE header: the name right after WITH [RECURSIVE] — or after the ") ,"
+    // that closes the previous CTE — with an optional column list, then AS (.
+    [GeneratedRegex(
+        """(?:\bwith\s+(?:recursive\s+)?|\)\s*,\s*)(?<name>"[^"]+"|[\w$]+)\s*(?:\([^)]*\))?\s+as\s*(?:not\s+)?(?:materialized\s+)?\(""",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex CteNameRegex();
 }

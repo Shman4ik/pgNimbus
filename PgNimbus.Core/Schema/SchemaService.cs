@@ -18,7 +18,7 @@ public sealed record RelationInfo(string Schema, string Name, RelationKind Kind)
 
 public sealed record ColumnDetail(string Name, string DataType, bool NotNull, bool IsPrimaryKey);
 
-public sealed record TableColumn(string Table, string Column);
+public sealed record TableColumn(string Table, string Column, string DataType);
 
 /// <summary>
 /// Reads structure straight from pg_catalog rather than relying on
@@ -215,13 +215,14 @@ public sealed class SchemaService
     }
 
     /// <summary>
-    /// Column names for every table/view in a schema, in one query - used to
-    /// power SQL autocomplete without an N+1 GetColumnsAsync call per table.
+    /// Column names (with their formatted data types) for every table/view in a
+    /// schema, in one query - used to power SQL autocomplete without an N+1
+    /// GetColumnsAsync call per table.
     /// </summary>
     public async Task<IReadOnlyList<TableColumn>> GetAllColumnsAsync(string schema, CancellationToken ct)
     {
         const string sql = """
-            SELECT c.relname, a.attname
+            SELECT c.relname, a.attname, format_type(a.atttypid, a.atttypmod)
             FROM pg_catalog.pg_attribute a
             JOIN pg_catalog.pg_class c ON c.oid = a.attrelid
             JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
@@ -240,7 +241,7 @@ public sealed class SchemaService
         var results = new List<TableColumn>();
         while (await reader.ReadAsync(ct))
         {
-            results.Add(new TableColumn(reader.GetString(0), reader.GetString(1)));
+            results.Add(new TableColumn(reader.GetString(0), reader.GetString(1), reader.GetString(2)));
         }
 
         return results;
