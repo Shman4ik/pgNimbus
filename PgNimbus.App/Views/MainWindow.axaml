@@ -403,6 +403,39 @@
                                     Margin="2,0,0,0" VerticalAlignment="Center" />
                         </Grid>
                     </Border>
+
+                    <!-- Script sections: one selectable chip per statement of a multi-statement run -->
+                    <Border DockPanel.Dock="Top" IsVisible="{Binding ActiveTab.IsScriptResult}"
+                            BorderThickness="0,0,0,1" BorderBrush="{StaticResource CardBorderBrush}"
+                            Padding="2,2,2,5" Margin="0,0,0,4">
+                        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                            <ListBox ItemsSource="{Binding ActiveTab.ResultSections}"
+                                     SelectedItem="{Binding ActiveTab.SelectedSection, Mode=TwoWay}"
+                                     Background="Transparent" Padding="0">
+                                <ListBox.Styles>
+                                    <Style Selector="TextBlock.err">
+                                        <Setter Property="Foreground" Value="#E03131" />
+                                    </Style>
+                                </ListBox.Styles>
+                                <ListBox.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" Spacing="4" />
+                                    </ItemsPanelTemplate>
+                                </ListBox.ItemsPanel>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:ScriptResultViewModel">
+                                        <StackPanel MinWidth="64" Margin="6,2">
+                                            <TextBlock Text="{Binding Label}" FontWeight="SemiBold" FontSize="12"
+                                                       Classes.err="{Binding HasError}" />
+                                            <TextBlock Text="{Binding Summary}" FontSize="11" Opacity="0.6"
+                                                       Classes.err="{Binding HasError}" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </ScrollViewer>
+                    </Border>
+
                 <Grid>
                     <DataGrid Name="ResultsGrid"
                               IsVisible="{Binding !ActiveTab.IsShowingPlan}"

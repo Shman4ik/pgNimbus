@@ -68,6 +68,10 @@ from the ground up.
   title-bar button) for an overview of every binding.
 - **Multi-tab query editor** — schema-aware SQL autocomplete, saved queries,
   and run history.
+- **Run a whole script** — execute several `;`-separated statements at once on a
+  single connection (so `BEGIN…COMMIT`, `SET`, and temp tables carry across
+  them); each statement gets its own selectable result section with per-statement
+  timing, and the run stops at the first error (psql `ON_ERROR_STOP` style).
 - **Streaming, cancellable results** — the first screenful renders before the
   full result set arrives, backed by a virtualized grid with inline cell
   editing and CSV/JSON export.
@@ -190,7 +194,7 @@ Things a person needs before pgNimbus can be their only Postgres client:
 - [x] **Row insert & delete from the grid** — cell editing exists; complete the
   CRUD triangle with "add row" and "delete selected rows" for tables with a
   primary key.
-- [ ] **Multiple result sets per script** — run a whole script; each statement
+- [x] **Multiple result sets per script** — run a whole script; each statement
   gets its own result tab/section, with per-statement timings.
 - [ ] **DDL view** — a "Source" tab per object: reconstructed
   `CREATE TABLE`/`CREATE VIEW`/index definitions from `pg_catalog`.
@@ -265,7 +269,9 @@ bar (the Files community app remains the visual north star):
   (initially: custom result visualizers).
 - [ ] **Localization** — externalize UI strings; ship Russian and German first.
 
-Recently shipped: on-demand database & schema refresh (tree + autocomplete +
+Recently shipped: multiple result sets per script (one shared connection,
+per-statement result sections + timings, stop-on-error), on-demand database &
+schema refresh (tree + autocomplete +
 palette), grid CRUD (add-row dialog + delete selected rows), no-SQL
 table browsing (server-side WHERE filter, header-click ORDER BY, LIMIT/OFFSET
 paging), the Ctrl+K/Ctrl+P command palette (fuzzy-jump to

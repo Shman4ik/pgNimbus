@@ -100,12 +100,25 @@ public sealed partial class QueryViewModel : ObservableObject
     /// empty-state hint ("Run a query"). Recomputed from the <see cref="Rows"/>, <see cref="IsShowingPlan"/>,
     /// and <see cref="IsRunning"/> change hooks.
     /// </summary>
-    public bool HasNoResults => Rows.Count == 0 && !IsShowingPlan && !IsRunning;
+    public bool HasNoResults => Rows.Count == 0 && !IsShowingPlan && !IsRunning && ResultSections.Count == 0;
 
     /// <summary>Single-root wrapper so the plan tree's TreeView can bind an IEnumerable ItemsSource to one node.</summary>
     public IReadOnlyList<ExplainNodeViewModel> ExplainRoots => ExplainRoot is null ? [] : [ExplainRoot];
 
     partial void OnExplainRootChanged(ExplainNodeViewModel? value) => OnPropertyChanged(nameof(ExplainRoots));
+
+    /// <summary>
+    /// One entry per statement when the editor holds a multi-statement script;
+    /// empty for a single statement. Selecting an entry re-points the shared grid
+    /// and status bar at that statement's result (see <see cref="OnSelectedSectionChanged"/>).
+    /// </summary>
+    public ObservableCollection<ScriptResultViewModel> ResultSections { get; } = [];
+
+    [ObservableProperty]
+    private ScriptResultViewModel? _selectedSection;
+
+    /// <summary>True once a run produced more than one statement result — drives the section strip.</summary>
+    public bool IsScriptResult => ResultSections.Count > 1;
 
     public ObservableCollection<string> ColumnNames { get; } = [];
 
@@ -157,11 +170,27 @@ public sealed partial class QueryViewModel : ObservableObject
         ColumnNames.Clear();
         Rows = [];
         _columns = [];
+        SelectedSection = null;
+        ResultSections.Clear();
+        NotifyScriptResultChanged();
 
         var stopwatch = Stopwatch.StartNew();
 
+        // Split off the multi-statement script path. A single statement keeps the
+        // streaming/editing/browse path below untouched; only a genuine script
+        // (two or more statements) runs on one shared connection with per-statement
+        // result sections.
+        var statements = SqlScriptSplitter.Split(executedSql);
+
         try
         {
+            if (statements.Count > 1)
+            {
+                await RunScriptAsync(statements, stopwatch, ct);
+                Executed?.Invoke(new QueryHistoryEntry(executedSql, DateTimeOffset.UtcNow, stopwatch.Elapsed.TotalMilliseconds, StatusSummary()));
+                return;
+            }
+
             // Ask for one row past the cap: receiving it proves the result was
             // actually cut short, so an exactly-at-the-cap result isn't
             // mislabeled as truncated.
@@ -282,6 +311,80 @@ public sealed partial class QueryViewModel : ObservableObject
             _cts?.Dispose();
             _cts = null;
         }
+    }
+
+    // Runs each statement of a script sequentially on one shared connection,
+    // adding a selectable result section per statement as it lands. The engine
+    // enumeration runs on a background thread (ReadAsync often completes
+    // synchronously, so consuming it on the UI thread would freeze it and make
+    // Cancel unresponsive); section adds are marshaled back to the UI thread.
+    private async Task RunScriptAsync(IReadOnlyList<string> statements, Stopwatch stopwatch, CancellationToken ct)
+    {
+        var index = 0;
+
+        await Task.Run(async () =>
+        {
+            await foreach (var result in _engine.ExecuteScriptAsync(statements, MaxDisplayRows, ct).WithCancellation(ct))
+            {
+                index++;
+                var section = ScriptResultViewModel.From(index, statements[index - 1], result);
+
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    ResultSections.Add(section);
+                    // Show the first section the moment it arrives.
+                    SelectedSection ??= section;
+                    NotifyScriptResultChanged();
+                });
+            }
+        }, ct);
+
+        // Surface a failure by jumping to the statement that failed, and let its
+        // section (via OnSelectedSectionChanged) leave the real error message and
+        // red status in the bar. On success, summarize the whole script instead.
+        var firstError = ResultSections.FirstOrDefault(s => s.HasError);
+        if (firstError is not null)
+        {
+            SelectedSection = firstError;
+        }
+        else
+        {
+            var count = ResultSections.Count;
+            Status = $"Script: {count} statement{(count == 1 ? "" : "s")} OK";
+        }
+
+        // The selected section fills the row-count segment; append the whole-script total here.
+        TimingText = $"{stopwatch.Elapsed.TotalMilliseconds:F0} ms total";
+    }
+
+    // Selecting a script section re-points the shared grid and status-bar
+    // segments at that statement's materialized result.
+    partial void OnSelectedSectionChanged(ScriptResultViewModel? value)
+    {
+        if (value is null)
+        {
+            return;
+        }
+
+        _columns = value.Columns;
+        ColumnNames.Clear();
+        foreach (var name in value.ColumnNames)
+        {
+            ColumnNames.Add(name);
+        }
+
+        Rows = value.Rows;
+        Status = value.StatusText;
+        HasError = value.HasError;
+        RowCountText = value.RowCountText;
+        TimingText = value.TimingText;
+        CapText = value.CapText;
+    }
+
+    private void NotifyScriptResultChanged()
+    {
+        OnPropertyChanged(nameof(IsScriptResult));
+        OnPropertyChanged(nameof(HasNoResults));
     }
 
     private static string RowLabel(long count) => count == 1 ? "1 row" : $"{count:N0} rows";
