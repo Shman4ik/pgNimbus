@@ -134,6 +134,26 @@
                         </StackPanel>
                     </Grid>
                     <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
+                        <TextBlock Classes="what" Text="Zoom font size in / out" />
+                        <StackPanel Grid.Column="1" Classes="keys">
+                            <Border Classes="kbd"><TextBlock Text="Ctrl" /></Border>
+                            <Border Classes="kbd"><TextBlock Text="+" /></Border>
+                            <TextBlock Classes="combo" Text="/" />
+                            <Border Classes="kbd"><TextBlock Text="Ctrl" /></Border>
+                            <Border Classes="kbd"><TextBlock Text="−" /></Border>
+                            <TextBlock Classes="combo" Text="or" />
+                            <Border Classes="kbd"><TextBlock Text="Ctrl" /></Border>
+                            <TextBlock Classes="combo" Text="wheel" />
+                        </StackPanel>
+                    </Grid>
+                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
+                        <TextBlock Classes="what" Text="Reset font size" />
+                        <StackPanel Grid.Column="1" Classes="keys">
+                            <Border Classes="kbd"><TextBlock Text="Ctrl" /></Border>
+                            <Border Classes="kbd"><TextBlock Text="0" /></Border>
+                        </StackPanel>
+                    </Grid>
+                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
                         <TextBlock Classes="what" Text="Move to word start / end" />
                         <StackPanel Grid.Column="1" Classes="keys">
                             <Border Classes="kbd"><TextBlock Text="Ctrl" /></Border>
@@ -161,6 +181,12 @@
                             <Border Classes="kbd"><TextBlock Text="Enter" /></Border>
                             <TextBlock Classes="combo" Text="/" />
                             <Border Classes="kbd"><TextBlock Text="Esc" /></Border>
+                        </StackPanel>
+                    </Grid>
+                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
+                        <TextBlock Classes="what" Text="Set cell to NULL" />
+                        <StackPanel Grid.Column="1" Classes="keys">
+                            <TextBlock Classes="combo" Text="context menu" />
                         </StackPanel>
                     </Grid>
                     <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">

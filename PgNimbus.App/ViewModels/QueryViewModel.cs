@@ -725,6 +725,82 @@ public sealed partial class QueryViewModel : ObservableObject
     }
 
     /// <summary>
+    /// Sets a single cell to SQL NULL via a targeted primary-key-keyed
+    /// UPDATE. Inline editing can't express NULL (an emptied editor is an
+    /// empty string), so this is the explicit gesture behind the grid's
+    /// "Set cell to NULL" context-menu action. On success the row is
+    /// replaced in place (same replace-not-mutate rule as
+    /// <see cref="CommitCellEditAsync"/>).
+    /// </summary>
+    public async Task SetCellNullAsync(object?[] row, int columnIndex)
+    {
+        HasError = false;
+
+        if (EditContext is not { } context)
+        {
+            Status = "Editing isn't available for this result set.";
+            return;
+        }
+
+        if (columnIndex < 0 || columnIndex >= ColumnNames.Count)
+        {
+            return;
+        }
+
+        var columnName = ColumnNames[columnIndex];
+
+        if (context.PrimaryKeyColumns.Contains(columnName))
+        {
+            Status = "Primary key columns can't be set to NULL.";
+            HasError = true;
+            return;
+        }
+
+        var pkIndexes = context.PrimaryKeyColumns.Select(pk => ColumnNames.IndexOf(pk)).ToList();
+        if (pkIndexes.Any(i => i < 0))
+        {
+            Status = "Cannot edit: primary key column isn't present in this result set.";
+            return;
+        }
+
+        var whereClause = string.Join(
+            " AND ",
+            context.PrimaryKeyColumns.Select((pk, n) => $"{SqlIdentifier.Quote(pk)} = @pk{n}"));
+
+        var sql = $"""
+            UPDATE {SqlIdentifier.Quote(context.Schema)}.{SqlIdentifier.Quote(context.Table)}
+            SET {SqlIdentifier.Quote(columnName)} = NULL
+            WHERE {whereClause}
+            """;
+
+        var parameters = new Dictionary<string, object?>();
+        for (var n = 0; n < pkIndexes.Count; n++)
+        {
+            parameters[$"pk{n}"] = row[pkIndexes[n]];
+        }
+
+        try
+        {
+            await _engine.ExecuteNonQueryAsync(sql, parameters, CancellationToken.None);
+
+            var rowIndex = Rows.IndexOf(row);
+            if (rowIndex >= 0)
+            {
+                var updated = (object?[])row.Clone();
+                updated[columnIndex] = null;
+                Rows[rowIndex] = updated;
+            }
+
+            Status = $"Set {context.Schema}.{context.Table}.{columnName} to NULL";
+        }
+        catch (Exception ex)
+        {
+            Status = $"Update failed: {ex.Message}";
+            HasError = true;
+        }
+    }
+
+    /// <summary>
     /// Converts the cell editor's raw text back to the column's real CLR
     /// type, so the parameter Npgsql sends matches what the column expects
     /// (a bare string parameter against, say, a numeric column fails with a

@@ -490,6 +490,8 @@
                                 </MenuItem>
                                 <Separator />
                                 <MenuItem Header="Inspect cell…" Click="OnInspectCellClick" />
+                                <MenuItem Header="Set cell to NULL" Click="OnSetCellNullClick"
+                                          IsEnabled="{Binding ActiveTab.IsEditable}" />
                                 <Separator />
                                 <MenuItem Header="Add row…" Click="OnAddRowClick"
                                           IsEnabled="{Binding ActiveTab.IsEditable}" />
