@@ -1,5 +1,6 @@
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Xml;
 using Avalonia;
 using Avalonia.Controls;
@@ -672,6 +673,13 @@ public partial class MainWindow : Window
     // Swallow presses on the card so they don't bubble to the scrim and close it.
     private void OnPaletteCardPressed(object? sender, PointerPressedEventArgs e) => e.Handled = true;
 
+    // The column Binding has an empty Path - it passes the row array straight
+    // to RowIndexConverter and never resolves a member by name, so the
+    // reflection/dynamic code the analyzers warn about is never exercised.
+    [UnconditionalSuppressMessage("Trimming", "IL2026",
+        Justification = "Pathless binding uses a converter only; no reflection member access.")]
+    [UnconditionalSuppressMessage("AOT", "IL3050",
+        Justification = "Pathless binding uses a converter only; no dynamic code.")]
     private void RebuildColumns(QueryViewModel query)
     {
         ResultsGrid.Columns.Clear();

@@ -245,6 +245,25 @@ bar (the Files community app remains the visual north star):
   <kbd>Ctrl</kbd>+<kbd>±</kbd>).
 - [ ] **Alias-aware autocomplete** — complete column names after
   `alias.`/`table.`, not just bare identifiers.
+- [ ] **Context-aware IntelliSense** — inside a `SELECT`, rank the current
+  table's columns first and hide noise like `pg_catalog`; in the results-grid
+  `WHERE` filter box, suggest *only* the current dataset's columns (no SQL
+  functions or unrelated tables).
+- [ ] **`Shift`+`Enter` smart execution** — run with <kbd>Shift</kbd>+<kbd>Enter</kbd>
+  (alongside <kbd>Ctrl</kbd>+<kbd>Enter</kbd>/<kbd>F5</kbd>), executing just the
+  statement the cursor sits in (between `;`s) without having to select it first.
+- [ ] **Overflowing tab bar navigation** — once many tabs are open, stop
+  squeezing them unreadably; add `<`/`>` scroll arrows and a dropdown listing
+  all open tabs with type-to-search.
+- [ ] **Drag-and-drop from the schema tree** — drag a table, column, or other
+  object from the sidebar tree into the SQL editor and drop a valid, quoted
+  identifier at the cursor (e.g. `"CreatedAt"`).
+- [ ] **Collapsible sidebar** — a 200px minimum width on manual resize (so it
+  can't shrink to an unreadable sliver) plus a collapse button / <kbd>Ctrl</kbd>+<kbd>B</kbd>
+  that fully hides the sidebar and gives the editor and results the full width.
+- [ ] **Abbreviated column types in the tree** — show long types compactly
+  (e.g. `timestamp with time zone` → `timestamptz`), with the full type name in
+  a tooltip on a ~150 ms hover delay.
 - [x] **Smarter tab titles** — query tabs are named from their SQL (first table
   referenced) instead of "Query N", with a dirty-state dot when the SQL has
   changed since the last run.

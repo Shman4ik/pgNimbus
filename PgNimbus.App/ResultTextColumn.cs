@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Data;
@@ -18,6 +19,13 @@ public sealed class ResultTextColumn : DataGridTextColumn
 
     public ResultTextColumn(int index) => _index = index;
 
+    // The Binding has an empty Path - it passes the row array straight to the
+    // converter and never resolves a member by name, so the reflection/dynamic
+    // code the analyzers warn about is never exercised. Safe under trimming/AOT.
+    [UnconditionalSuppressMessage("Trimming", "IL2026",
+        Justification = "Pathless binding uses a converter only; no reflection member access.")]
+    [UnconditionalSuppressMessage("AOT", "IL3050",
+        Justification = "Pathless binding uses a converter only; no dynamic code.")]
     protected override Control GenerateElement(DataGridCell cell, object dataItem)
     {
         var element = base.GenerateElement(cell, dataItem);
