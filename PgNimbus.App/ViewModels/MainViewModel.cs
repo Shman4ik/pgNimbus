@@ -22,6 +22,17 @@ public sealed partial class MainViewModel : ObservableObject
 
     public NotifyMonitorViewModel NotifyMonitor { get; }
 
+    public CommandPaletteViewModel CommandPalette { get; } = new();
+
+    // Palette actions that need the window (theme, dialogs) live in the view;
+    // MainWindow subscribes to these so the palette can trigger them.
+    public event Action? ThemeToggleRequested;
+    public event Action? ShortcutsRequested;
+
+    // Relations rarely change mid-session, so the palette's "jump to a table"
+    // list is fetched once and reused across opens.
+    private IReadOnlyList<RelationInfo>? _relationCache;
+
     /// <summary>The connected profile's accent color ("#RRGGBB"), or null. Lets the window chrome show at a glance which environment (e.g. prod vs. dev) is connected.</summary>
     public string? AccentColor { get; }
 
@@ -126,16 +137,97 @@ public sealed partial class MainViewModel : ObservableObject
         ActiveTab = Tabs[(index + direction + Tabs.Count) % Tabs.Count];
     }
 
-    public async Task PreviewTableAsync(TableNode table)
-    {
-        ActiveTab.Sql = $"SELECT * FROM {SqlIdentifier.Quote(table.Schema)}.{SqlIdentifier.Quote(table.Name)} LIMIT 100;";
+    public Task PreviewTableAsync(TableNode table) => PreviewTableAsync(table.Schema, table.Name);
 
-        var columns = await _schemaService.GetColumnsAsync(table.Schema, table.Name, CancellationToken.None);
+    public async Task PreviewTableAsync(string schema, string name)
+    {
+        ActiveTab.Sql = $"SELECT * FROM {SqlIdentifier.Quote(schema)}.{SqlIdentifier.Quote(name)} LIMIT 100;";
+
+        var columns = await _schemaService.GetColumnsAsync(schema, name, CancellationToken.None);
         var primaryKeyColumns = columns.Where(c => c.IsPrimaryKey).Select(c => c.Name).ToList();
 
         if (primaryKeyColumns.Count > 0)
         {
-            ActiveTab.EditContext = new EditableTableContext(table.Schema, table.Name, primaryKeyColumns);
+            ActiveTab.EditContext = new EditableTableContext(schema, name, primaryKeyColumns);
         }
     }
+
+    /// <summary>
+    /// Opens the command palette. Actions and saved queries are available
+    /// instantly; the (potentially larger) table list is fetched in the
+    /// background and merged in without blocking the palette from showing.
+    /// </summary>
+    public async Task OpenCommandPaletteAsync()
+    {
+        var baseItems = BuildActionItems().Concat(BuildSavedQueryItems()).ToList();
+        CommandPalette.Open(baseItems);
+
+        try
+        {
+            _relationCache ??= await _schemaService.GetAllRelationsAsync(CancellationToken.None);
+        }
+        catch
+        {
+            // No connection / query failure: the palette still works for
+            // actions and saved queries, just without table jumps.
+            return;
+        }
+
+        if (!CommandPalette.IsOpen)
+        {
+            return; // dismissed before the tables arrived
+        }
+
+        CommandPalette.SetItems(baseItems.Concat(BuildTableItems(_relationCache)).ToList());
+    }
+
+    private IEnumerable<PaletteItem> BuildActionItems()
+    {
+        yield return new PaletteItem("Run query", "Action", "▶", Invoke(() => ActiveTab.RunCommand));
+        yield return new PaletteItem("Cancel query", "Action", "■", Invoke(() => ActiveTab.CancelCommand));
+        yield return new PaletteItem("Explain", "Action", "⚡", Invoke(() => ActiveTab.ExplainCommand));
+        yield return new PaletteItem("Explain Analyze", "Action", "⚡", Invoke(() => ActiveTab.ExplainAnalyzeCommand));
+        yield return new PaletteItem("New query tab", "Action", "＋", Invoke(() => AddTabCommand));
+        yield return new PaletteItem("Close tab", "Action", "✕", Invoke(() => CloseTabCommand));
+        yield return new PaletteItem("Next tab", "Action", "›", Invoke(() => NextTabCommand));
+        yield return new PaletteItem("Previous tab", "Action", "‹", Invoke(() => PreviousTabCommand));
+        yield return new PaletteItem("Toggle light/dark theme", "Action", "◐", () => { ThemeToggleRequested?.Invoke(); return Task.CompletedTask; });
+        yield return new PaletteItem("Keyboard shortcuts", "Action", "?", () => { ShortcutsRequested?.Invoke(); return Task.CompletedTask; });
+    }
+
+    private IEnumerable<PaletteItem> BuildSavedQueryItems() =>
+        SavedQueries.SavedQueries.Select(q => new PaletteItem(
+            q.Name,
+            "Saved query",
+            "★",
+            () => { SavedQueries.LoadSavedQueryCommand.Execute(q); return Task.CompletedTask; }));
+
+    private IEnumerable<PaletteItem> BuildTableItems(IReadOnlyList<RelationInfo> relations) =>
+        relations.Select(r => new PaletteItem(
+            $"{r.Schema}.{r.Name}",
+            "Table",
+            GlyphFor(r.Kind),
+            () => PreviewTableAsync(r.Schema, r.Name)));
+
+    private static string GlyphFor(RelationKind kind) => kind switch
+    {
+        RelationKind.Table => "▤",
+        RelationKind.View => "▥",
+        RelationKind.MaterializedView => "▦",
+        RelationKind.PartitionedTable => "▧",
+        _ => "▤",
+    };
+
+    // A command may be null at build time (ActiveTab settles later); resolve it
+    // lazily at invoke time and only fire when it can execute.
+    private static Func<Task> Invoke(Func<System.Windows.Input.ICommand?> resolve) => () =>
+    {
+        var command = resolve();
+        if (command?.CanExecute(null) == true)
+        {
+            command.Execute(null);
+        }
+
+        return Task.CompletedTask;
+    };
 }

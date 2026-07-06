@@ -14,6 +14,8 @@ public enum RelationKind
 
 public sealed record TableInfo(string Name, RelationKind Kind);
 
+public sealed record RelationInfo(string Schema, string Name, RelationKind Kind);
+
 public sealed record ColumnDetail(string Name, string DataType, bool NotNull, bool IsPrimaryKey);
 
 public sealed record TableColumn(string Table, string Column);
@@ -85,6 +87,45 @@ public sealed class SchemaService
             };
 
             results.Add(new TableInfo(reader.GetString(0), kind));
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// Every relation (table/view/matview/partitioned table) across all
+    /// non-system schemas in one query, schema-qualified — feeds the command
+    /// palette's fuzzy "jump to a table" list without an N+1 per-schema walk.
+    /// </summary>
+    public async Task<IReadOnlyList<RelationInfo>> GetAllRelationsAsync(CancellationToken ct)
+    {
+        const string sql = """
+            SELECT n.nspname, c.relname, c.relkind::text
+            FROM pg_catalog.pg_class c
+            JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname NOT LIKE 'pg\_%'
+              AND n.nspname <> 'information_schema'
+              AND c.relkind IN ('r', 'v', 'm', 'p')
+            ORDER BY n.nspname, c.relname
+            """;
+
+        await using var connection = await _dataSource.OpenConnectionAsync(ct);
+        await using var command = new NpgsqlCommand(sql, connection);
+        await using var reader = await command.ExecuteReaderAsync(ct);
+
+        var results = new List<RelationInfo>();
+        while (await reader.ReadAsync(ct))
+        {
+            var kind = reader.GetString(2) switch
+            {
+                "r" => RelationKind.Table,
+                "v" => RelationKind.View,
+                "m" => RelationKind.MaterializedView,
+                "p" => RelationKind.PartitionedTable,
+                _ => RelationKind.Table,
+            };
+
+            results.Add(new RelationInfo(reader.GetString(0), reader.GetString(1), kind));
         }
 
         return results;

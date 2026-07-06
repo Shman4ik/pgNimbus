@@ -53,6 +53,9 @@ from the ground up.
   (Heroku/Supabase/Neon-style), `jdbc:postgresql://` URLs, ADO.NET/Npgsql
   `Key=Value;` strings, libpq `host=… dbname=…` keyword strings, and even
   full `psql` command lines (including `PGPASSWORD=… psql -h …` prefixes).
+- **Command palette** — press <kbd>Ctrl</kbd>+<kbd>K</kbd> (or
+  <kbd>Ctrl</kbd>+<kbd>P</kbd>) to fuzzy-jump to any table, saved query, or
+  action from one keyboard-driven control.
 - **Keyboard shortcuts cheat sheet** — press <kbd>F1</kbd> (or the `?`
   title-bar button) for an overview of every binding.
 - **Multi-tab query editor** — schema-aware SQL autocomplete, saved queries,
@@ -71,6 +74,7 @@ Press <kbd>F1</kbd> in the app for the full cheat sheet. The highlights:
 
 | Action | Shortcut |
 | --- | --- |
+| Command palette (jump to table / query / action) | <kbd>Ctrl</kbd>+<kbd>K</kbd> or <kbd>Ctrl</kbd>+<kbd>P</kbd> |
 | Run query | <kbd>Ctrl</kbd>+<kbd>Enter</kbd> or <kbd>F5</kbd> |
 | Cancel running query | <kbd>Esc</kbd> |
 | New / close query tab | <kbd>Ctrl</kbd>+<kbd>T</kbd> / <kbd>Ctrl</kbd>+<kbd>W</kbd> |
@@ -163,7 +167,7 @@ individually shippable pieces.
 
 Things a person needs before pgNimbus can be their only Postgres client:
 
-- [ ] **Command palette** (`Ctrl+K`/`Ctrl+P`) — fuzzy-jump to any table, saved
+- [x] **Command palette** (`Ctrl+K`/`Ctrl+P`) — fuzzy-jump to any table, saved
   query, or action; the keyboard-first differentiator in one control.
 - [ ] **Data browsing without SQL** — filter bar, ORDER BY on header click, and
   paging when previewing a table, pushed down to the server (`WHERE`/`LIMIT`/
@@ -246,7 +250,8 @@ bar (the Files community app remains the visual north star):
   (initially: custom result visualizers).
 - [ ] **Localization** — externalize UI strings; ship Russian and German first.
 
-Recently shipped: SQL-derived tab titles with a dirty dot, results-grid copy
+Recently shipped: the Ctrl+K/Ctrl+P command palette (fuzzy-jump to any table,
+saved query, or action), SQL-derived tab titles with a dirty dot, results-grid copy
 (Ctrl+C / Copy as CSV·JSON·Markdown·INSERT),
 empty-state hints, the in-app light/dark theme toggle, the
 schema-tree filter
