@@ -12,6 +12,20 @@ public enum SslMode
     VerifyFull,
 }
 
+internal static class SslModeExtensions
+{
+    public static Npgsql.SslMode ToNpgsql(this SslMode mode) => mode switch
+    {
+        SslMode.Disable => Npgsql.SslMode.Disable,
+        SslMode.Allow => Npgsql.SslMode.Allow,
+        SslMode.Prefer => Npgsql.SslMode.Prefer,
+        SslMode.Require => Npgsql.SslMode.Require,
+        SslMode.VerifyCa => Npgsql.SslMode.VerifyCA,
+        SslMode.VerifyFull => Npgsql.SslMode.VerifyFull,
+        _ => Npgsql.SslMode.Prefer,
+    };
+}
+
 /// <summary>
 /// A saved connection target. Never carries a password — the password is
 /// supplied at connect time from wherever the caller retrieves it.
@@ -46,7 +60,7 @@ public sealed record ConnectionProfile(
             Database = Database,
             Username = Username,
             Password = password,
-            SslMode = MapSslMode(SslMode),
+            SslMode = SslMode.ToNpgsql(),
             Timeout = 8,
             CommandTimeout = 0,
             IncludeErrorDetail = true,
@@ -55,15 +69,4 @@ public sealed record ConnectionProfile(
 
         return builder.ConnectionString;
     }
-
-    private static Npgsql.SslMode MapSslMode(SslMode mode) => mode switch
-    {
-        SslMode.Disable => Npgsql.SslMode.Disable,
-        SslMode.Allow => Npgsql.SslMode.Allow,
-        SslMode.Prefer => Npgsql.SslMode.Prefer,
-        SslMode.Require => Npgsql.SslMode.Require,
-        SslMode.VerifyCa => Npgsql.SslMode.VerifyCA,
-        SslMode.VerifyFull => Npgsql.SslMode.VerifyFull,
-        _ => Npgsql.SslMode.Prefer,
-    };
 }

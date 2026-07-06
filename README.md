@@ -35,9 +35,9 @@ from the ground up.
 | --- | --- |
 | ![Main window, light theme](docs/screenshots/main-light.png) | ![Main window, dark theme](docs/screenshots/main-dark.png) |
 
-| Connection manager |
-| --- |
-| ![Connection dialog with saved profiles](docs/screenshots/connection-dialog.png) |
+| Connection manager | Keyboard shortcuts (F1) |
+| --- | --- |
+| ![Connection dialog with saved profiles and paste-anything import](docs/screenshots/connection-dialog.png) | ![Keyboard shortcuts cheat sheet](docs/screenshots/shortcuts.png) |
 
 ## Features
 
@@ -48,6 +48,13 @@ from the ground up.
   (so production doesn't look like staging), SSH tunnel support, and
   passwords held by the OS credential store (DPAPI on Windows) instead of
   being written to disk with the profile.
+- **Paste-anything connection strings** — drop whatever is on your clipboard
+  into the connection dialog and it fills the form: `postgres://` URIs
+  (Heroku/Supabase/Neon-style), `jdbc:postgresql://` URLs, ADO.NET/Npgsql
+  `Key=Value;` strings, libpq `host=… dbname=…` keyword strings, and even
+  full `psql` command lines (including `PGPASSWORD=… psql -h …` prefixes).
+- **Keyboard shortcuts cheat sheet** — press <kbd>F1</kbd> (or the `?`
+  title-bar button) for an overview of every binding.
 - **Multi-tab query editor** — schema-aware SQL autocomplete, saved queries,
   and run history.
 - **Streaming, cancellable results** — the first screenful renders before the
@@ -57,6 +64,21 @@ from the ground up.
   `EXPLAIN ANALYZE`, not just raw text output.
 - **LISTEN/NOTIFY monitor** — subscribe to channels and watch notifications
   arrive live.
+
+## Keyboard shortcuts
+
+Press <kbd>F1</kbd> in the app for the full cheat sheet. The highlights:
+
+| Action | Shortcut |
+| --- | --- |
+| Run query | <kbd>Ctrl</kbd>+<kbd>Enter</kbd> or <kbd>F5</kbd> |
+| Cancel running query | <kbd>Esc</kbd> |
+| New / close query tab | <kbd>Ctrl</kbd>+<kbd>T</kbd> / <kbd>Ctrl</kbd>+<kbd>W</kbd> |
+| Next / previous tab | <kbd>Ctrl</kbd>+<kbd>PageDown</kbd> / <kbd>Ctrl</kbd>+<kbd>PageUp</kbd> |
+| SQL autocomplete | <kbd>Ctrl</kbd>+<kbd>Space</kbd> (also triggers while typing) |
+| Switch focus: editor ↔ results grid | <kbd>F6</kbd> |
+| Edit selected result cell | <kbd>F2</kbd>, then <kbd>Enter</kbd> to commit / <kbd>Esc</kbd> to cancel |
+| Keyboard shortcuts window | <kbd>F1</kbd> |
 
 ## Architecture
 
@@ -97,11 +119,24 @@ connection profiles (host, port, database, credentials, optional SSH tunnel,
 accent color) — saved profiles never store the password, only the OS
 credential store does.
 
+The **paste box at the top of the dialog** accepts a connection string in any
+common syntax and fills the form from it — only the fields the string
+mentions are overwritten:
+
+```text
+postgres://alice:s3cret@db.example.com:5433/appdb?sslmode=require
+jdbc:postgresql://db.example.com:5433/appdb?user=alice&ssl=true
+Host=db.example.com;Port=5433;Database=appdb;Username=alice;Password=s3cret
+host=db.example.com port=5433 dbname=appdb user=alice sslmode=require
+PGPASSWORD=s3cret psql -h db.example.com -p 5433 -U alice appdb
+```
+
 For scripted or repeated local testing, you can skip the dialog entirely by
-setting `PGNIMBUS_CONN`, which opens straight to the main window:
+setting `PGNIMBUS_CONN`, which opens straight to the main window. It accepts
+the same formats as the paste box:
 
 ```bash
-export PGNIMBUS_CONN="Host=localhost;Port=5432;Database=mydb;Username=postgres;Password=secret"
+export PGNIMBUS_CONN="postgres://postgres:secret@localhost:5432/mydb"
 dotnet run --project PgNimbus.App
 ```
 
@@ -118,10 +153,66 @@ stores all work (JSON persistence uses source-generated serializer contexts,
 and the results grid binds columns via converters instead of reflection
 paths, both of which trimming/AOT require).
 
-## Roadmap
+## Backlog
 
-- Command palette
-- Extension manager
+Prioritized by how much they advance the thesis (fast + open + modern,
+PostgreSQL-first). Contributions welcome — these are intentionally scoped as
+individually shippable pieces.
+
+### Now — the daily-driver gap
+
+Things a person needs before pgNimbus can be their only Postgres client:
+
+- [ ] **Command palette** (`Ctrl+K`/`Ctrl+P`) — fuzzy-jump to any table, saved
+  query, or action; the keyboard-first differentiator in one control.
+- [ ] **Data browsing without SQL** — filter bar, ORDER BY on header click, and
+  paging when previewing a table, pushed down to the server (`WHERE`/`LIMIT`/
+  `OFFSET`), not client-side.
+- [ ] **Row insert & delete from the grid** — cell editing exists; complete the
+  CRUD triangle with "add row" and "delete selected rows" for tables with a
+  primary key.
+- [ ] **Multiple result sets per script** — run a whole script; each statement
+  gets its own result tab/section, with per-statement timings.
+- [ ] **DDL view** — a "Source" tab per object: reconstructed
+  `CREATE TABLE`/`CREATE VIEW`/index definitions from `pg_catalog`.
+- [ ] **Windows installer + releases** — signed MSI/winget package and a CI
+  pipeline that publishes NativeAOT builds per tag.
+
+### Next — depth on the Postgres-first promise
+
+- [ ] **Transaction control** — explicit BEGIN/COMMIT/ROLLBACK toolbar state,
+  with a visible "in transaction" indicator and auto-rollback on error.
+- [ ] **SQL formatting** — one-keystroke pretty-printing of the current
+  statement.
+- [ ] **CSV/JSON import** — the inverse of export: load a file into a new or
+  existing table with type inference.
+- [ ] **Server activity dashboard** — `pg_stat_activity` live view with
+  cancel/terminate backend actions; lock waits highlighted.
+- [ ] **Roles, extensions, and functions in the schema tree** — browse (and for
+  extensions, install/enable) beyond tables and views.
+- [ ] **Query history search** — full-text search over history with
+  per-connection scoping and pinning.
+- [ ] **In-app theme toggle** — light/dark switch in the title bar instead of
+  following the OS only.
+
+### Later — bigger bets
+
+- [ ] **ER diagram** — auto-laid-out foreign-key graph of a schema, exportable
+  as SVG.
+- [ ] **EXPLAIN plan diffing** — run the same query twice (e.g. before/after an
+  index) and diff the plan trees node-by-node.
+- [ ] **Backup/restore UI** — `pg_dump`/`pg_restore` orchestration with
+  progress streaming.
+- [ ] **Notebook mode** — mixed SQL + Markdown documents with inline result
+  snapshots, saved as shareable files.
+- [ ] **Plugin/extension API** — a stable surface for community panels
+  (initially: custom result visualizers).
+- [ ] **Localization** — externalize UI strings; ship Russian and German first.
+
+Recently shipped: paste-anything connection string parsing (URI / JDBC /
+ADO.NET / libpq / psql), the F1 shortcuts cheat sheet, keyboard tab
+navigation, EXPLAIN visualization, LISTEN/NOTIFY monitor, SSH tunnels, and
+the Files-style two-tone UI.
 
 ## License
 

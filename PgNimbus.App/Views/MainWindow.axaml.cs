@@ -27,6 +27,7 @@ public partial class MainWindow : Window
     private int _pendingEditColumnIndex;
     private string? _pendingEditText;
     private CompletionWindow? _completionWindow;
+    private ShortcutsWindow? _shortcutsWindow;
     private IHighlightingDefinition? _sqlHighlighting;
 
     public MainWindow()
@@ -113,6 +114,13 @@ public partial class MainWindow : Window
     // focus currently is - a KeyBinding can't express a toggle.
     protected override void OnKeyDown(KeyEventArgs e)
     {
+        if (e.Key == Key.F1 && e.KeyModifiers == KeyModifiers.None)
+        {
+            ShowShortcutsWindow();
+            e.Handled = true;
+            return;
+        }
+
         if (e.Key == Key.F6 && e.KeyModifiers == KeyModifiers.None)
         {
             if (SqlEditor.IsKeyboardFocusWithin)
@@ -185,6 +193,23 @@ public partial class MainWindow : Window
         {
             _viewModel?.CloseTabCommand.Execute(tab);
         }
+    }
+
+    private void OnShowShortcutsClick(object? sender, RoutedEventArgs e) => ShowShortcutsWindow();
+
+    private void ShowShortcutsWindow()
+    {
+        // Reuse the open instance instead of stacking copies when F1 is
+        // pressed twice (the window nulls the field on close).
+        if (_shortcutsWindow is not null)
+        {
+            _shortcutsWindow.Activate();
+            return;
+        }
+
+        _shortcutsWindow = new ShortcutsWindow();
+        _shortcutsWindow.Closed += (_, _) => _shortcutsWindow = null;
+        _shortcutsWindow.Show(this);
     }
 
     private void OnRemoveChannelClick(object? sender, RoutedEventArgs e)

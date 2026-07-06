@@ -72,6 +72,8 @@
                 <Border DockPanel.Dock="Left" Width="10" Height="10" CornerRadius="5" Margin="0,0,10,0"
                         VerticalAlignment="Center"
                         Background="{Binding AccentColor, Converter={x:Static conv2:HexToBrushConverter.Instance}}" />
+                <Button DockPanel.Dock="Right" Classes="chip" Content="?" FontSize="13" VerticalAlignment="Center"
+                        Click="OnShowShortcutsClick" ToolTip.Tip="Keyboard shortcuts (F1)" />
                 <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                     <TextBlock Text="pgNimbus" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center" />
                     <!-- Files-style breadcrumb: where am I connected -->

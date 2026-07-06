@@ -102,7 +102,9 @@ PGPASSWORD=postgres psql -h localhost -U postgres -d demo -c "CREATE TABLE ..."
 
 # 3. Build once, then run against DISPLAY=:99. Set PGNIMBUS_CONN so the
 #    app opens straight to MainWindow instead of the connection dialog —
-#    App.axaml.cs reads this env var and skips ConnectionDialog entirely:
+#    App.axaml.cs reads this env var and skips ConnectionDialog entirely.
+#    Any format ConnectionStringParser understands works here (postgres://
+#    URI, JDBC, Key=Value;, libpq keywords, psql command line):
 dotnet build
 DISPLAY=:99 PGNIMBUS_CONN="Host=localhost;Port=5432;Database=demo;Username=postgres;Password=postgres" \
     timeout 15 dotnet run --project PgNimbus.App --no-build &
