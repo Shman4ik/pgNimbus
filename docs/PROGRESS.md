@@ -97,8 +97,13 @@ means for pgNimbus. Adopting its language where Avalonia allows.
 | --- | --- | --- |
 | No SQL syntax highlighting (every query rendered plain) | Custom PostgreSQL XSHD (`Assets/PostgreSql.xshd`: keywords, types, strings, `--`/`/* */` comments, numbers; `ignoreCase`) loaded through AvaloniaEdit's `HighlightingLoader`. The highlighter has no theme awareness, so `MainWindow` rewrites the named colors on `Opened`/`ActualThemeVariantChanged` — VS-dark palette (#569CD6 keywords etc.) vs. saturated light palette — and reassigns `SyntaxHighlighting` to drop cached line visuals. Verified in both themes and under NativeAOT (the `AssetLoader.Open` path is the historical AOT landmine — publish + launch re-checked, highlighting renders). xdotool note: typed text gets garbled by the completion popup; paste via `xclip`/Ctrl+V for clean editor screenshots. | (this commit) |
 
+## Iteration 12
+
+| Item | Outcome | Commit |
+| --- | --- | --- |
+| Schema-tree filter box | Type-to-filter `TextBox` above the sidebar tree (magnifier `InnerLeftContent`, clear-✕ `InnerRightContent` shown only when non-empty). `SchemaTreeViewModel.FilterText` drives `ApplyFilter()`, which toggles a new `IsFilteredIn` on each node — bound to `TreeViewItem.IsVisible`. A schema survives when its own name matches (all its loaded tables stay visible) or when any loaded table matches (only the matches show, and the schema auto-expands to reveal them); an empty box reveals everything, and `RefreshAsync` re-applies so a lingering query holds across a catalog reload. Only schema + table names participate (case-insensitive substring); unloaded lazily-expandable tables can't match until expanded. Verified under Xvfb against a 4-schema seed: `customer` narrowed analytics→customer_metrics and billing→customer_accounts (non-matches + unmatched schemas hidden), and the ✕ button restored the full tree. | (this commit) |
+
 ## Open / candidate items
-- [ ] Schema-tree filter box (Files-style search; valuable with 30+ schemas)
 - [ ] Mica/acrylic backdrop remains blocked on safe verification (a headless
       sandbox can't see transparency failures).
 - [ ] Roadmap features (command palette, extension manager) — out of polish

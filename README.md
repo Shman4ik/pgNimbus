@@ -200,9 +200,10 @@ Things a person needs before pgNimbus can be their only Postgres client:
 Small, individually shippable refinements toward the TablePlus-level polish
 bar (the Files community app remains the visual north star):
 
-- [ ] **Schema-tree filter box** — type-to-filter above the sidebar tree
-  (schemas and loaded tables, case-insensitive substring); with dozens of
-  schemas the tree is scroll-only today.
+- [x] **Schema-tree filter box** — type-to-filter above the sidebar tree
+  (schemas and loaded tables, case-insensitive substring); a schema stays
+  when its name matches or a loaded table inside it does, auto-expanding to
+  reveal the match, with a clear (✕) button.
 - [ ] **Copy from the results grid** — <kbd>Ctrl</kbd>+<kbd>C</kbd> for the
   selected cell/rows, plus "Copy as" (CSV, JSON, Markdown table, `INSERT`
   statements) on the grid context menu.
@@ -243,7 +244,8 @@ bar (the Files community app remains the visual north star):
   (initially: custom result visualizers).
 - [ ] **Localization** — externalize UI strings; ship Russian and German first.
 
-Recently shipped: paste-anything connection string parsing (URI / JDBC /
+Recently shipped: the schema-tree filter box, paste-anything connection
+string parsing (URI / JDBC /
 ADO.NET / libpq / psql), the F1 shortcuts cheat sheet, theme-aware SQL
 syntax highlighting, the segmented status bar, keyboard tab navigation,
 EXPLAIN visualization, LISTEN/NOTIFY monitor, SSH tunnels, and the
