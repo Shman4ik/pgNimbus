@@ -25,6 +25,12 @@ public sealed partial class QueryViewModel : ObservableObject
 
     private readonly QueryEngine _engine;
     private readonly ExplainService _explainService;
+
+    // Supplies a catalog-backed reconciler on demand so a failed unquoted query
+    // can offer a "did you mean the quoted form?" fix. Null in contexts that
+    // don't wire it up (the fix affordance simply never appears).
+    private readonly Func<CancellationToken, Task<IdentifierReconciler?>>? _reconcilerFactory;
+
     private CancellationTokenSource? _cts;
     private IReadOnlyList<ColumnInfo> _columns = [];
 
@@ -144,13 +150,29 @@ public sealed partial class QueryViewModel : ObservableObject
     [ObservableProperty]
     private AvaloniaList<object?[]> _rows = [];
 
+    /// <summary>
+    /// The rewritten SQL a one-click fix would apply after a query fails on an
+    /// unquoted identifier that resolves to a case-differing catalog name; null
+    /// when there's no safe fix to offer. Drives the status-bar "Fix" affordance.
+    /// </summary>
+    [ObservableProperty]
+    private string? _fixSuggestionSql;
+
+    /// <summary>Human-readable summary of the pending fix (e.g. <c>Did you mean "games"."Spells"?</c>).</summary>
+    [ObservableProperty]
+    private string? _fixSuggestionText;
+
     /// <summary>Raised once per <see cref="RunAsync"/> completion (success, command, error, or cancellation) so a history tracker can record it without RunAsync knowing about persistence.</summary>
     public event Action<QueryHistoryEntry>? Executed;
 
-    public QueryViewModel(QueryEngine engine, ExplainService explainService)
+    public QueryViewModel(
+        QueryEngine engine,
+        ExplainService explainService,
+        Func<CancellationToken, Task<IdentifierReconciler?>>? reconcilerFactory = null)
     {
         _engine = engine;
         _explainService = explainService;
+        _reconcilerFactory = reconcilerFactory;
         _lastRunSql = Sql;
         UpdateTabTitle();
     }
@@ -171,6 +193,8 @@ public sealed partial class QueryViewModel : ObservableObject
         IsRunning = true;
         Status = "Running...";
         HasError = false;
+        FixSuggestionSql = null;
+        FixSuggestionText = null;
         RowCountText = null;
         TimingText = null;
         CapText = null;
@@ -195,6 +219,11 @@ public sealed partial class QueryViewModel : ObservableObject
             if (statements.Count > 1)
             {
                 await RunScriptAsync(statements, stopwatch, ct);
+                if (HasError)
+                {
+                    await TryOfferFixAsync(executedSql);
+                }
+
                 Executed?.Invoke(new QueryHistoryEntry(executedSql, DateTimeOffset.UtcNow, stopwatch.Elapsed.TotalMilliseconds, StatusSummary()));
                 return;
             }
@@ -303,6 +332,7 @@ public sealed partial class QueryViewModel : ObservableObject
                 case QueryError error:
                     Status = $"Error: {error.Message}";
                     HasError = true;
+                    await TryOfferFixAsync(executedSql);
                     break;
             }
 
@@ -364,6 +394,54 @@ public sealed partial class QueryViewModel : ObservableObject
         // The selected section fills the row-count segment; append the whole-script total here.
         TimingText = $"{stopwatch.Elapsed.TotalMilliseconds:F0} ms total";
     }
+
+    // After a failed run, ask the catalog-backed reconciler whether the query's
+    // unquoted identifiers map unambiguously to case-differing real names (the
+    // classic "typed games.spells, the table is \"Spells\"" miss) and, if so,
+    // stage a one-click fix. Best-effort: any failure just leaves no offer.
+    private async Task TryOfferFixAsync(string executedSql)
+    {
+        if (_reconcilerFactory is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var reconciler = await _reconcilerFactory(CancellationToken.None);
+            if (reconciler is not null
+                && reconciler.TryReconcile(executedSql, out var fixedSql, out var fixes)
+                && fixes.Count > 0)
+            {
+                FixSuggestionSql = fixedSql;
+                FixSuggestionText = fixes.Count == 1
+                    ? $"Did you mean {fixes[0].Replacement}?"
+                    : $"Quote {fixes.Count} identifiers to match the database?";
+            }
+        }
+        catch
+        {
+            // No catalog snapshot (e.g. connection dropped): simply offer nothing.
+        }
+    }
+
+    private bool CanApplyFix() => FixSuggestionSql is not null && !IsRunning;
+
+    /// <summary>Applies the staged identifier fix to the editor and re-runs the query.</summary>
+    [RelayCommand(CanExecute = nameof(CanApplyFix))]
+    private async Task ApplyFixAsync()
+    {
+        if (FixSuggestionSql is not { } fixedSql)
+        {
+            return;
+        }
+
+        // Read the fix before assigning Sql — OnSqlChanged clears the suggestion.
+        Sql = fixedSql;
+        await RunCommand.ExecuteAsync(null);
+    }
+
+    partial void OnFixSuggestionSqlChanged(string? value) => ApplyFixCommand.NotifyCanExecuteChanged();
 
     // Selecting a script section re-points the shared grid and status-bar
     // segments at that statement's materialized result.
@@ -456,6 +534,7 @@ public sealed partial class QueryViewModel : ObservableObject
         CancelCommand.NotifyCanExecuteChanged();
         ExplainCommand.NotifyCanExecuteChanged();
         ExplainAnalyzeCommand.NotifyCanExecuteChanged();
+        ApplyFixCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(HasNoResults));
     }
 
@@ -472,6 +551,10 @@ public sealed partial class QueryViewModel : ObservableObject
             EditContext = null;
             Browse = null;
         }
+
+        // A stale "did you mean…?" offer no longer matches the edited text.
+        FixSuggestionSql = null;
+        FixSuggestionText = null;
 
         IsShowingPlan = false;
         IsDirty = !string.Equals(value, _lastRunSql, StringComparison.Ordinal);

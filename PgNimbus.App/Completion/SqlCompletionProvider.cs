@@ -1,3 +1,4 @@
+using PgNimbus.Core.Query;
 using PgNimbus.Core.Schema;
 
 namespace PgNimbus.App.Completion;
@@ -37,18 +38,20 @@ public sealed class SqlCompletionProvider
         var schemas = await _schemaService.GetSchemasAsync(ct);
         foreach (var schema in schemas)
         {
-            items.Add(new SqlCompletionData(schema.Name, "schema"));
+            // The bare name filters the list; the quote-if-needed form is what gets
+            // inserted, so accepting a mixed-case object writes "Spells" not spells.
+            items.Add(new SqlCompletionData(schema.Name, "schema", SqlIdentifier.QuoteIfNeeded(schema.Name)));
 
             var tables = await _schemaService.GetTablesAsync(schema.Name, ct);
             foreach (var table in tables)
             {
-                items.Add(new SqlCompletionData(table.Name, $"table ({schema.Name})"));
+                items.Add(new SqlCompletionData(table.Name, $"table ({schema.Name})", SqlIdentifier.QuoteIfNeeded(table.Name)));
             }
 
             var columns = await _schemaService.GetAllColumnsAsync(schema.Name, ct);
             foreach (var column in columns)
             {
-                items.Add(new SqlCompletionData(column.Column, $"column ({column.Table})"));
+                items.Add(new SqlCompletionData(column.Column, $"column ({column.Table})", SqlIdentifier.QuoteIfNeeded(column.Column)));
             }
         }
 

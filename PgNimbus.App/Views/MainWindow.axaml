@@ -509,6 +509,15 @@
                     <TextBlock Text="{Binding ActiveTab.Status}"
                                Classes="statusText" Classes.error="{Binding ActiveTab.HasError}"
                                TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                    <!-- "Did you mean the quoted form?" fix, offered after a failed unquoted-identifier run -->
+                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center"
+                                IsVisible="{Binding ActiveTab.FixSuggestionSql, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
+                        <Rectangle Classes="statusSeparator" />
+                        <TextBlock Classes="statusText" Text="{Binding ActiveTab.FixSuggestionText}" VerticalAlignment="Center" />
+                        <Button Classes="accent" FontSize="11" Padding="10,3" Content="Fix &amp; re-run"
+                                Command="{Binding ActiveTab.ApplyFixCommand}"
+                                ToolTip.Tip="Rewrite the unquoted identifiers to match the database and run again" />
+                    </StackPanel>
                     <StackPanel Orientation="Horizontal" Spacing="10"
                                 IsVisible="{Binding ActiveTab.RowCountText, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
                         <Rectangle Classes="statusSeparator" />

@@ -34,6 +34,10 @@ public sealed partial class MainViewModel : ObservableObject
     // list is fetched once and reused across opens.
     private IReadOnlyList<RelationInfo>? _relationCache;
 
+    // Catalog-name snapshot for the unquoted-identifier fix, built lazily on the
+    // first failed query and reused until the schema is refreshed.
+    private IdentifierReconciler? _reconciler;
+
     /// <summary>The connected profile's accent color ("#RRGGBB"), or null. Lets the window chrome show at a glance which environment (e.g. prod vs. dev) is connected.</summary>
     public string? AccentColor { get; }
 
@@ -77,6 +81,20 @@ public sealed partial class MainViewModel : ObservableObject
         AddTab();
     }
 
+    // Lazily builds (and caches) the reconciler each query tab uses to offer an
+    // identifier fix after a failed run. One catalog round trip, amortized across
+    // tabs and reruns; invalidated by RefreshSchemaAsync.
+    private async Task<IdentifierReconciler?> GetReconcilerAsync(CancellationToken ct)
+    {
+        if (_reconciler is not null)
+        {
+            return _reconciler;
+        }
+
+        var names = await _schemaService.GetCatalogNamesAsync(ct);
+        return _reconciler = new IdentifierReconciler(names);
+    }
+
     public AlterTableViewModel CreateAlterTableViewModel(TableNode table) =>
         new(_schemaEditor, _schemaService, table.Schema, table.Name);
 
@@ -92,8 +110,10 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     private async Task RefreshSchemaAsync()
     {
-        // Force the palette to re-fetch relations on its next open.
+        // Force the palette to re-fetch relations, and the fix reconciler to
+        // rebuild its name snapshot, on next use.
         _relationCache = null;
+        _reconciler = null;
 
         await Task.WhenAll(
             SchemaTree.RefreshCommand.ExecuteAsync(null),
@@ -108,7 +128,7 @@ public sealed partial class MainViewModel : ObservableObject
     // Creates a query tab, wires its history hook, and makes it active.
     private QueryViewModel NewTab()
     {
-        var tab = new QueryViewModel(_engine, _explainService) { DefaultTitle = $"Query {Tabs.Count + 1}" };
+        var tab = new QueryViewModel(_engine, _explainService, GetReconcilerAsync) { DefaultTitle = $"Query {Tabs.Count + 1}" };
         tab.Executed += SavedQueries.RecordExecution;
         Tabs.Add(tab);
         ActiveTab = tab;

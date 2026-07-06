@@ -174,6 +174,47 @@ public sealed class SchemaService
     }
 
     /// <summary>
+    /// Every case-preserved identifier a query might name — schema, relation, and
+    /// column names across all user schemas — collected in a single round trip.
+    /// Feeds <see cref="Query.IdentifierReconciler"/>, which only needs the set of
+    /// real spellings (not their namespaces) to reconcile an unquoted query.
+    /// </summary>
+    public async Task<IReadOnlyList<string>> GetCatalogNamesAsync(CancellationToken ct)
+    {
+        const string sql = """
+            SELECT nspname AS name
+            FROM pg_catalog.pg_namespace
+            WHERE nspname NOT LIKE 'pg\_%' AND nspname <> 'information_schema'
+            UNION
+            SELECT c.relname
+            FROM pg_catalog.pg_class c
+            JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname NOT LIKE 'pg\_%' AND n.nspname <> 'information_schema'
+              AND c.relkind IN ('r', 'v', 'm', 'p')
+            UNION
+            SELECT a.attname
+            FROM pg_catalog.pg_attribute a
+            JOIN pg_catalog.pg_class c ON c.oid = a.attrelid
+            JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname NOT LIKE 'pg\_%' AND n.nspname <> 'information_schema'
+              AND c.relkind IN ('r', 'v', 'm', 'p')
+              AND a.attnum > 0 AND NOT a.attisdropped
+            """;
+
+        await using var connection = await _dataSource.OpenConnectionAsync(ct);
+        await using var command = new NpgsqlCommand(sql, connection);
+        await using var reader = await command.ExecuteReaderAsync(ct);
+
+        var results = new List<string>();
+        while (await reader.ReadAsync(ct))
+        {
+            results.Add(reader.GetString(0));
+        }
+
+        return results;
+    }
+
+    /// <summary>
     /// Column names for every table/view in a schema, in one query - used to
     /// power SQL autocomplete without an N+1 GetColumnsAsync call per table.
     /// </summary>
