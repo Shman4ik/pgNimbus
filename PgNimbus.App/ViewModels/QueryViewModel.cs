@@ -539,6 +539,84 @@ public sealed partial class QueryViewModel : ObservableObject
         return text;
     }
 
+    /// <summary>
+    /// Deletes the given rows from the mapped table, one targeted
+    /// primary-key-keyed DELETE each. In browse mode the page is reloaded
+    /// afterward (so paging/counts stay correct and the page refills from the
+    /// server); otherwise the rows are dropped from the grid in place. Returns
+    /// how many rows were deleted.
+    /// </summary>
+    public async Task<int> DeleteRowsAsync(IReadOnlyList<object?[]> rows)
+    {
+        HasError = false;
+
+        if (EditContext is not { PrimaryKeyColumns.Count: > 0 } context)
+        {
+            Status = "Delete isn't available for this result set.";
+            HasError = true;
+            return 0;
+        }
+
+        var pkIndexes = context.PrimaryKeyColumns.Select(pk => ColumnNames.IndexOf(pk)).ToList();
+        if (pkIndexes.Any(i => i < 0))
+        {
+            Status = "Cannot delete: a primary key column isn't present in this result set.";
+            HasError = true;
+            return 0;
+        }
+
+        var whereClause = string.Join(
+            " AND ",
+            context.PrimaryKeyColumns.Select((pk, n) => $"{SqlIdentifier.Quote(pk)} = @pk{n}"));
+
+        var sql = $"DELETE FROM {SqlIdentifier.Quote(context.Schema)}.{SqlIdentifier.Quote(context.Table)} WHERE {whereClause}";
+
+        var deleted = 0;
+        try
+        {
+            foreach (var row in rows)
+            {
+                var parameters = new Dictionary<string, object?>();
+                for (var n = 0; n < pkIndexes.Count; n++)
+                {
+                    parameters[$"pk{n}"] = row[pkIndexes[n]];
+                }
+
+                await _engine.ExecuteNonQueryAsync(sql, parameters, CancellationToken.None);
+                deleted++;
+
+                if (Browse is null)
+                {
+                    Rows.Remove(row);
+                }
+            }
+
+            Status = deleted == 1 ? "Deleted 1 row" : $"Deleted {deleted:N0} rows";
+        }
+        catch (Exception ex)
+        {
+            Status = deleted == 0
+                ? $"Delete failed: {ex.Message}"
+                : $"Delete failed after {deleted:N0} row(s): {ex.Message}";
+            HasError = true;
+        }
+
+        if (Browse is { } browse)
+        {
+            await browse.LoadAsync();
+        }
+        else
+        {
+            RowCountText = RowLabel(Rows.Count);
+        }
+
+        return deleted;
+    }
+
+    /// <summary>Reloads whatever the grid currently shows — the browse page if browsing, else the last query — after an out-of-band change (e.g. a row insert).</summary>
+    public Task RefreshCurrentAsync() =>
+        Browse is { } browse ? browse.LoadAsync() : RunCommand.ExecuteAsync(null);
+
     public void ExportCsv(Stream stream)
     {
         using var writer = new StreamWriter(stream, leaveOpen: true);
