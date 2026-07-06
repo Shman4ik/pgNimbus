@@ -17,6 +17,10 @@ public abstract partial class SchemaTreeNode : ObservableObject
     [ObservableProperty]
     private bool _isLoading;
 
+    /// <summary>Whether this node passes the sidebar filter. Bound to <c>TreeViewItem.IsVisible</c>; true when no filter is active.</summary>
+    [ObservableProperty]
+    private bool _isFilteredIn = true;
+
     public string Name { get; init; } = string.Empty;
 
     public ObservableCollection<SchemaTreeNode> Children { get; } = [];

@@ -94,13 +94,32 @@
                         <TextBlock Text="Schemas" />
                     </StackPanel>
                 </TabItem.Header>
-                <Grid RowDefinitions="*,Auto" Margin="0,8,0,0">
+                <Grid RowDefinitions="Auto,*,Auto" Margin="0,8,0,0">
+                    <!-- Type-to-filter box: matches schema and loaded-table names, case-insensitive substring -->
+                    <TextBox Grid.Row="0" Margin="4,0,4,8" FontSize="12"
+                             PlaceholderText="Filter schemas &amp; tables…"
+                             Text="{Binding SchemaTree.FilterText, Mode=TwoWay}">
+                        <TextBox.InnerLeftContent>
+                            <PathIcon Data="{StaticResource MagnifyIconGeometry}" Width="13" Height="13"
+                                      Opacity="0.5" Margin="8,0,0,0" VerticalAlignment="Center" />
+                        </TextBox.InnerLeftContent>
+                        <TextBox.InnerRightContent>
+                            <Button Command="{Binding SchemaTree.ClearFilterCommand}"
+                                    Classes="chip" Margin="0,0,4,0"
+                                    VerticalAlignment="Center"
+                                    ToolTip.Tip="Clear filter"
+                                    IsVisible="{Binding SchemaTree.FilterText, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}">
+                                <PathIcon Data="{StaticResource CloseIconGeometry}" Width="11" Height="11" />
+                            </Button>
+                        </TextBox.InnerRightContent>
+                    </TextBox>
                     <!-- Sidebar content sits directly on the shell tone, Files-style - no card chrome -->
-                    <Border Grid.Row="0">
+                    <Border Grid.Row="1">
                         <TreeView Name="SchemaTreeView" ItemsSource="{Binding SchemaTree.Schemas}">
                             <TreeView.Styles>
                                 <Style Selector="TreeViewItem">
                                     <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay, DataType=vm:SchemaTreeNode}" />
+                                    <Setter Property="IsVisible" Value="{Binding IsFilteredIn, Mode=OneWay, DataType=vm:SchemaTreeNode}" />
                                 </Style>
                             </TreeView.Styles>
                             <TreeView.ItemTemplate>
@@ -110,7 +129,7 @@
                             </TreeView.ItemTemplate>
                         </TreeView>
                     </Border>
-                    <TextBlock Grid.Row="1" Text="{Binding SchemaTree.ErrorMessage}"
+                    <TextBlock Grid.Row="2" Text="{Binding SchemaTree.ErrorMessage}"
                                IsVisible="{Binding SchemaTree.ErrorMessage, Converter={x:Static conv:ObjectConverters.IsNotNull}}"
                                Foreground="IndianRed" TextWrapping="Wrap" Margin="4" FontSize="11" />
                 </Grid>
