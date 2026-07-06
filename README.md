@@ -224,9 +224,9 @@ bar (the Files community app remains the visual north star):
 - [ ] **Running-query feedback** — an indeterminate progress bar in the
   status bar and a live elapsed-time tick while a query runs (the row/timing
   segments only update per batch today).
-- [ ] **Empty states** — friendly hints in the blank results area ("Run a
-  query — Ctrl+Enter") and empty saved-queries/history lists instead of bare
-  cards.
+- [x] **Empty states** — friendly hints in the blank results area ("No results
+  yet — run a query with Ctrl+Enter or F5") and in empty saved-queries/history
+  lists instead of bare cards.
 - [ ] **Mica/acrylic backdrop on Windows** — the two-tone shell is ready for
   it; deliberately deferred until it can be verified on a real Windows
   desktop (transparency fallbacks can't be seen headless).
@@ -245,7 +245,8 @@ bar (the Files community app remains the visual north star):
   (initially: custom result visualizers).
 - [ ] **Localization** — externalize UI strings; ship Russian and German first.
 
-Recently shipped: the in-app light/dark theme toggle, the schema-tree filter
+Recently shipped: empty-state hints, the in-app light/dark theme toggle, the
+schema-tree filter
 box, paste-anything connection
 string parsing (URI / JDBC /
 ADO.NET / libpq / psql), the F1 shortcuts cheat sheet, theme-aware SQL

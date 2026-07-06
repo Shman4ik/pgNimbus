@@ -149,13 +149,19 @@
                 <Grid RowDefinitions="Auto,*,Auto,Auto,Auto,*,Auto" Margin="0,8,0,0" x:DataType="vm:SavedQueriesViewModel" DataContext="{Binding SavedQueries}">
                     <TextBlock Grid.Row="0" Classes="sectionHeader" Text="SAVED QUERIES" Margin="4,0,4,6" />
                     <Border Grid.Row="1" Classes="card" MinHeight="80">
-                        <ListBox Name="SavedQueriesList" ItemsSource="{Binding SavedQueries}">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate x:DataType="query:SavedQuery">
-                                    <TextBlock Text="{Binding Name}" ToolTip.Tip="{Binding Sql}" />
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
+                        <Grid>
+                            <ListBox Name="SavedQueriesList" ItemsSource="{Binding SavedQueries}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="query:SavedQuery">
+                                        <TextBlock Text="{Binding Name}" ToolTip.Tip="{Binding Sql}" />
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <TextBlock IsVisible="{Binding HasNoSavedQueries}" IsHitTestVisible="False"
+                                       Text="Name a query above and Save to keep it here"
+                                       TextWrapping="Wrap" TextAlignment="Center" Opacity="0.4" FontSize="12"
+                                       Margin="12" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Grid>
                     </Border>
                     <TextBox Grid.Row="2" Name="NewQueryNameBox" Text="{Binding NewQueryName}" PlaceholderText="Query name" Margin="0,8,0,0" />
                     <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="6" Margin="0,8,0,0">
@@ -165,16 +171,22 @@
                     </StackPanel>
                     <TextBlock Grid.Row="4" Classes="sectionHeader" Text="HISTORY" Margin="4,16,4,6" />
                     <Border Grid.Row="5" Classes="card" MinHeight="80">
-                        <ListBox Name="HistoryList" ItemsSource="{Binding History}">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate x:DataType="query:QueryHistoryEntry">
-                                    <StackPanel>
-                                        <TextBlock Text="{Binding Sql}" TextTrimming="CharacterEllipsis" MaxLines="2" TextWrapping="Wrap" FontSize="12" />
-                                        <TextBlock Text="{Binding ExecutedAt}" Opacity="0.6" FontSize="10" />
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
+                        <Grid>
+                            <ListBox Name="HistoryList" ItemsSource="{Binding History}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="query:QueryHistoryEntry">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Sql}" TextTrimming="CharacterEllipsis" MaxLines="2" TextWrapping="Wrap" FontSize="12" />
+                                            <TextBlock Text="{Binding ExecutedAt}" Opacity="0.6" FontSize="10" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <TextBlock IsVisible="{Binding HasNoHistory}" IsHitTestVisible="False"
+                                       Text="Queries you run will appear here"
+                                       TextWrapping="Wrap" TextAlignment="Center" Opacity="0.4" FontSize="12"
+                                       Margin="12" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Grid>
                     </Border>
                     <StackPanel Grid.Row="6" Orientation="Horizontal" Spacing="6" Margin="0,8,0,0">
                         <Button Content="Load selected" Command="{Binding LoadHistoryEntryCommand}" CommandParameter="{Binding #HistoryList.SelectedItem}" />
@@ -344,6 +356,18 @@
                               CanUserReorderColumns="False"
                               CanUserSortColumns="True"
                               AutoGenerateColumns="False" />
+                    <!-- Empty state: a friendly hint instead of a bare grid before any query has run -->
+                    <StackPanel IsVisible="{Binding ActiveTab.HasNoResults}"
+                                HorizontalAlignment="Center" VerticalAlignment="Center"
+                                Spacing="10" IsHitTestVisible="False">
+                        <PathIcon Data="{StaticResource TableIconGeometry}" Width="34" Height="34"
+                                  Opacity="0.28" HorizontalAlignment="Center" />
+                        <TextBlock Text="No results yet" FontSize="14" FontWeight="SemiBold"
+                                   Opacity="0.6" HorizontalAlignment="Center" />
+                        <TextBlock Opacity="0.45" FontSize="12" HorizontalAlignment="Center">
+                            Run a query with <Run FontWeight="SemiBold">Ctrl+Enter</Run> or <Run FontWeight="SemiBold">F5</Run>
+                        </TextBlock>
+                    </StackPanel>
                     <Grid RowDefinitions="Auto,*" IsVisible="{Binding ActiveTab.IsShowingPlan}">
                         <TextBlock Grid.Row="0" Text="{Binding ActiveTab.ExplainSummary}" Margin="4" FontSize="12" Opacity="0.8" />
                         <ScrollViewer Grid.Row="1">
