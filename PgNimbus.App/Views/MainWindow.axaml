@@ -17,6 +17,7 @@
         Icon="avares://PgNimbus.App/Assets/icon-256.png"
         WindowStartupLocation="CenterOwner"
         Width="1100" Height="800"
+        MinWidth="940" MinHeight="560"
         FontFamily="{StaticResource InterFont}">
 
     <Window.DataTemplates>
@@ -278,8 +279,13 @@
 
             <DockPanel Grid.Row="0" Margin="0,0,0,8">
                 <Button DockPanel.Dock="Right" Classes="chip" Content="+" FontSize="14" Command="{Binding AddTabCommand}" ToolTip.Tip="New query tab" />
+                <!-- Horizontal scroll (not clipping): with many tabs the strip
+                     used to cut off mid-tab and hide the active tab entirely;
+                     AutoScrollToSelectedItem keeps a newly added tab in view. -->
                 <ListBox Name="TabsList" ItemsSource="{Binding Tabs}" SelectedItem="{Binding ActiveTab, Mode=TwoWay}"
-                          SelectionMode="Single">
+                          SelectionMode="Single" AutoScrollToSelectedItem="True"
+                          ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                          ScrollViewer.VerticalScrollBarVisibility="Disabled">
                     <ListBox.ItemsPanel>
                         <ItemsPanelTemplate>
                             <StackPanel Orientation="Horizontal" Spacing="2" />
@@ -646,7 +652,7 @@
             IsVisible="{Binding CellInspector.IsOpen}"
             Background="#66000000"
             PointerPressed="OnCellInspectorScrimPressed">
-        <Border Width="640" MaxHeight="520" MinHeight="200"
+        <Border Width="640" MaxHeight="520" MinHeight="120" VerticalAlignment="Center"
                 Background="{DynamicResource SystemControlPageBackgroundAltHighBrush}"
                 BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
                 CornerRadius="10" BoxShadow="0 12 32 0 #40000000"

@@ -226,8 +226,16 @@ Things a person needs before pgNimbus can be their only Postgres client:
   gets its own result tab/section, with per-statement timings.
 - [x] **DDL view** — a "Source" tab per object: reconstructed
   `CREATE TABLE`/`CREATE VIEW`/index definitions from `pg_catalog`.
-- [ ] **Windows installer + releases** — signed MSI/winget package and a CI
-  pipeline that publishes NativeAOT builds per tag.
+- [x] **Windows installer + releases** — a per-user MSI and a macOS `.dmg`
+  built and published by CI on every tag, plus generated winget manifests.
+- [ ] **Code signing** — Authenticode for the MSI, Developer ID +
+  notarization for the `.dmg`. Both ship unsigned today, so SmartScreen and
+  Gatekeeper warn on first run — the single biggest first-impression blocker
+  for a production release. The pipeline already has the slot for it; needs
+  a cert and an Apple developer account.
+- [ ] **winget submission** — manifests are generated and validated per
+  release, but the first manual `winget-pkgs` PR (which registers the
+  `pgNimbus.pgNimbus` identifier) hasn't been made yet.
 
 ### Next — depth on the Postgres-first promise
 
@@ -283,9 +291,24 @@ bar (the Files community app remains the visual north star):
 - [x] **`Shift`+`Enter` smart execution** — run with <kbd>Shift</kbd>+<kbd>Enter</kbd>
   (alongside <kbd>Ctrl</kbd>+<kbd>Enter</kbd>/<kbd>F5</kbd>), executing just the
   statement the cursor sits in (between `;`s) without having to select it first.
-- [ ] **Overflowing tab bar navigation** — once many tabs are open, stop
-  squeezing them unreadably; add `<`/`>` scroll arrows and a dropdown listing
-  all open tabs with type-to-search.
+- [x] **Tab bar overflow scrolling** — with many tabs open, the strip now
+  scrolls horizontally and keeps the active tab in view. (It used to clip:
+  the "+" button overlapped the last visible tab and a newly opened tab
+  could sit fully off-screen with no way to reach it.)
+- [ ] **Tab bar navigation extras** — `<`/`>` scroll arrows and a dropdown
+  listing all open tabs with type-to-search, on top of the basic scrolling.
+- [x] **Capped results-grid column width** — auto column width sizes to the
+  widest cell, so a single long `text` value used to push every other column
+  out of view; columns now cap at 560 px, with the cell inspector
+  (double-click) carrying the full value.
+- [x] **Content-sized cell inspector** — the inspector card sizes to its
+  value (small values get a small card) instead of always opening at full
+  height.
+- [x] **Window minimum size** — a 940×560 floor, below which the command bar
+  and browse bar used to clip into unreadability.
+- [ ] **Empty state for the connection dialog** — the Saved Connections list
+  is a bare grey panel when empty; give it the same friendly hint the
+  saved-queries and history lists already have.
 - [ ] **Drag-and-drop from the schema tree** — drag a table, column, or other
   object from the sidebar tree into the SQL editor and drop a valid, quoted
   identifier at the cursor (e.g. `"CreatedAt"`).
@@ -322,7 +345,9 @@ bar (the Files community app remains the visual north star):
   (initially: custom result visualizers).
 - [ ] **Localization** — externalize UI strings; ship Russian and German first.
 
-Recently shipped: clause-aware SQL IntelliSense (tables after FROM/JOIN,
+Recently shipped: tab-strip overflow scrolling, capped results-grid column
+widths, a content-sized cell inspector, a window minimum size,
+clause-aware SQL IntelliSense (tables after FROM/JOIN,
 typed columns, aliases, CTEs, function-call insertion, auto-popup, no popups
 inside strings/comments), editor niceties (current-line highlight,
 matching-bracket highlight, Ctrl+wheel / Ctrl+± font zoom), "Set cell to

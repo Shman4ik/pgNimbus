@@ -1036,6 +1036,10 @@ public partial class MainWindow : Window
                 // infer sortability from, CanUserSort must be set by hand.
                 CustomSortComparer = new RowCellComparer(i),
                 CanUserSort = true,
+                // Auto width sizes to the widest cell, so one long text value
+                // used to blow the column past the viewport; cap it and let
+                // the cell inspector carry the full value.
+                MaxWidth = 560,
             });
         }
     }
