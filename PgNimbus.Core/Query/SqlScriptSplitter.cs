@@ -21,9 +21,72 @@ public static class SqlScriptSplitter
     public static IReadOnlyList<string> Split(string sql)
     {
         var statements = new List<string>();
+        foreach (var (start, end) in RawSpans(sql))
+        {
+            var text = sql[start..end].Trim();
+            if (text.Length > 0)
+            {
+                statements.Add(text);
+            }
+        }
+
+        return statements;
+    }
+
+    /// <summary>
+    /// Finds the statement that <paramref name="offset"/> (a caret position
+    /// into <paramref name="sql"/>) sits in - the same semicolon-delimited
+    /// unit <see cref="Split"/> would produce for it - so "run just this
+    /// statement" execution doesn't require selecting it first. An offset
+    /// sitting in a blank/comment-only gap between statements resolves to the
+    /// next statement, or the previous one if there is none after it. Returns
+    /// null only when <paramref name="sql"/> has no statement at all.
+    /// </summary>
+    public static string? StatementAt(string sql, int offset)
+    {
         if (string.IsNullOrEmpty(sql))
         {
-            return statements;
+            return null;
+        }
+
+        offset = Math.Clamp(offset, 0, sql.Length);
+
+        string? before = null;
+        foreach (var (start, end) in RawSpans(sql))
+        {
+            var text = sql[start..end].Trim();
+            if (text.Length == 0)
+            {
+                continue;
+            }
+
+            if (offset >= start && offset <= end)
+            {
+                return text;
+            }
+
+            if (start > offset)
+            {
+                return text;
+            }
+
+            before = text;
+        }
+
+        return before;
+    }
+
+    // Raw, untrimmed [start, end) spans between semicolons - the lexical scan
+    // both Split and StatementAt key off. Respects single-quoted string
+    // literals ('' escapes), double-quoted identifiers, dollar-quoted strings
+    // ($tag$...$tag$), line comments (-- to end of line), and (nestable)
+    // block comments, per the type-level remarks.
+    private static List<(int Start, int End)> RawSpans(string sql)
+    {
+        var spans = new List<(int, int)>();
+        if (string.IsNullOrEmpty(sql))
+        {
+            return spans;
         }
 
         var n = sql.Length;
@@ -52,7 +115,7 @@ public static class SqlScriptSplitter
                     i = afterDollar > i ? afterDollar : i + 1;
                     break;
                 case ';':
-                    AddStatement(statements, sql, start, i);
+                    spans.Add((start, i));
                     start = i + 1;
                     i = start;
                     break;
@@ -63,17 +126,8 @@ public static class SqlScriptSplitter
         }
 
         // Trailing statement with no closing semicolon.
-        AddStatement(statements, sql, start, n);
-        return statements;
-    }
-
-    private static void AddStatement(List<string> statements, string sql, int start, int end)
-    {
-        var text = sql[start..end].Trim();
-        if (text.Length > 0)
-        {
-            statements.Add(text);
-        }
+        spans.Add((start, n));
+        return spans;
     }
 
     // Returns the index just past the closing quote (or end-of-string if the

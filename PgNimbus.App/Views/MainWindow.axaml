@@ -476,7 +476,8 @@
                               CanUserSortColumns="True"
                               SelectionMode="Extended"
                               ClipboardCopyMode="None"
-                              AutoGenerateColumns="False">
+                              AutoGenerateColumns="False"
+                              CellPointerPressed="OnResultsGridCellPointerPressed">
                         <DataGrid.ContextMenu>
                             <ContextMenu x:DataType="vm:MainViewModel">
                                 <MenuItem Header="Copy" InputGesture="Ctrl+C" Click="OnCopyCells" />
@@ -487,6 +488,8 @@
                                     <MenuItem Header="Markdown table" Click="OnCopyAsMarkdown" />
                                     <MenuItem Header="INSERT statements" Click="OnCopyAsInsert" />
                                 </MenuItem>
+                                <Separator />
+                                <MenuItem Header="Inspect cell…" Click="OnInspectCellClick" />
                                 <Separator />
                                 <MenuItem Header="Add row…" Click="OnAddRowClick"
                                           IsEnabled="{Binding ActiveTab.IsEditable}" />
@@ -627,6 +630,39 @@
                                    HorizontalAlignment="Center" VerticalAlignment="Center" Margin="16" />
                     </Grid>
                 </Border>
+            </Grid>
+        </Border>
+    </Border>
+
+    <!--
+        Cell inspector: double-click a results-grid cell (or its context menu)
+        to see the full value - readable and copyable without inline-edit
+        tricks, with jsonb/json pretty-printed. Same centered-overlay-over-scrim
+        shape as the command palette, closed by the scrim, the × button, or Esc.
+    -->
+    <Border Name="CellInspectorOverlay"
+            IsVisible="{Binding CellInspector.IsOpen}"
+            Background="#66000000"
+            PointerPressed="OnCellInspectorScrimPressed">
+        <Border Width="640" MaxHeight="520" MinHeight="200"
+                Background="{DynamicResource SystemControlPageBackgroundAltHighBrush}"
+                BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
+                CornerRadius="10" BoxShadow="0 12 32 0 #40000000"
+                PointerPressed="OnCellInspectorCardPressed"
+                x:DataType="vm:CellInspectorViewModel" DataContext="{Binding CellInspector}">
+            <Grid RowDefinitions="Auto,*" Margin="14">
+                <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,10">
+                    <TextBlock Grid.Column="0" Text="{Binding ColumnName}" FontWeight="SemiBold" FontSize="14"
+                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                    <Button Grid.Column="1" Content="Copy" Classes="chip" Margin="6,0,0,0"
+                            Click="OnCellInspectorCopyClick" />
+                    <Button Grid.Column="2" Content="✕" Classes="chip" Margin="6,0,0,0"
+                            Command="{Binding CloseCommand}" />
+                </Grid>
+                <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <SelectableTextBlock Text="{Binding DisplayText}" TextWrapping="NoWrap"
+                                          FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="13" />
+                </ScrollViewer>
             </Grid>
         </Border>
     </Border>
