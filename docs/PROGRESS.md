@@ -91,7 +91,14 @@ means for pgNimbus. Adopting its language where Avalonia allows.
 | Close-tab selection bug (pre-existing, ✕ button too) | Closing the active tab left no tab selected and the editor/grid showing the dead tab's content: `Tabs.RemoveAt` makes the two-way-bound tab ListBox push `SelectedItem = null` into `ActiveTab` synchronously, so `CloseTab`'s "was it active" check compared against null (and the swallowed NRE in `AttachQuery` hid it). Fixed by deciding before the removal + guarding the transient null in the view. Verified: close via Ctrl+W lands on the neighbor tab, pill highlighted, its own SQL/results restored. | (this commit) |
 | Status-bar pluralization | "1 rows" → "1 row"; "N row(s) affected" → real singular/plural. | (this commit) |
 
+## Iteration 11
+
+| Item | Outcome | Commit |
+| --- | --- | --- |
+| No SQL syntax highlighting (every query rendered plain) | Custom PostgreSQL XSHD (`Assets/PostgreSql.xshd`: keywords, types, strings, `--`/`/* */` comments, numbers; `ignoreCase`) loaded through AvaloniaEdit's `HighlightingLoader`. The highlighter has no theme awareness, so `MainWindow` rewrites the named colors on `Opened`/`ActualThemeVariantChanged` — VS-dark palette (#569CD6 keywords etc.) vs. saturated light palette — and reassigns `SyntaxHighlighting` to drop cached line visuals. Verified in both themes and under NativeAOT (the `AssetLoader.Open` path is the historical AOT landmine — publish + launch re-checked, highlighting renders). xdotool note: typed text gets garbled by the completion popup; paste via `xclip`/Ctrl+V for clean editor screenshots. | (this commit) |
+
 ## Open / candidate items
+- [ ] Schema-tree filter box (Files-style search; valuable with 30+ schemas)
 - [ ] Mica/acrylic backdrop remains blocked on safe verification (a headless
       sandbox can't see transparency failures).
 - [ ] Roadmap features (command palette, extension manager) — out of polish
