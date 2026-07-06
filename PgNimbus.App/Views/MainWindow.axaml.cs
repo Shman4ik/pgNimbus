@@ -11,6 +11,7 @@ using Avalonia.Media;
 using Avalonia.Platform;
 using Avalonia.Platform.Storage;
 using Avalonia.Styling;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 using AvaloniaEdit.CodeCompletion;
 using AvaloniaEdit.Highlighting;
@@ -125,6 +126,13 @@ public partial class MainWindow : Window
     // focus currently is - a KeyBinding can't express a toggle.
     protected override void OnKeyDown(KeyEventArgs e)
     {
+        if ((e.Key == Key.K || e.Key == Key.P) && e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        {
+            OpenCommandPalette();
+            e.Handled = true;
+            return;
+        }
+
         if (e.Key == Key.F1 && e.KeyModifiers == KeyModifiers.None)
         {
             ShowShortcutsWindow();
@@ -155,10 +163,15 @@ public partial class MainWindow : Window
         if (_viewModel is not null)
         {
             _viewModel.PropertyChanged -= OnMainViewModelPropertyChanged;
+            _viewModel.ThemeToggleRequested -= ToggleTheme;
+            _viewModel.ShortcutsRequested -= ShowShortcutsWindow;
         }
 
         _viewModel = vm;
         _viewModel.PropertyChanged += OnMainViewModelPropertyChanged;
+        // Palette actions that touch the window are handled here.
+        _viewModel.ThemeToggleRequested += ToggleTheme;
+        _viewModel.ShortcutsRequested += ShowShortcutsWindow;
 
         AttachQuery(vm.ActiveTab);
     }
@@ -210,7 +223,9 @@ public partial class MainWindow : Window
     // follow the OS. Setting the application variant flips ActualThemeVariant on
     // the window, which the ActualThemeVariantChanged handler above picks up to
     // repaint the SQL palette and swap this button's glyph.
-    private void OnToggleThemeClick(object? sender, RoutedEventArgs e)
+    private void OnToggleThemeClick(object? sender, RoutedEventArgs e) => ToggleTheme();
+
+    private void ToggleTheme()
     {
         if (Application.Current is not { } app)
         {
@@ -496,6 +511,82 @@ public partial class MainWindow : Window
         SqlEditor.Text = _queryViewModel.Sql;
         _suppressEditorSync = false;
     }
+
+    // Opens the command palette and moves keyboard focus straight to its search
+    // box, so typing filters immediately without a mouse.
+    private void OpenCommandPalette()
+    {
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        _ = _viewModel.OpenCommandPaletteAsync();
+        // Focus after the overlay has been laid out (IsVisible flips this frame).
+        Dispatcher.UIThread.Post(() =>
+        {
+            PaletteSearchBox.Focus();
+            PaletteSearchBox.SelectAll();
+        }, DispatcherPriority.Input);
+    }
+
+    // Arrow keys move the highlight, Enter runs it, Esc dismisses - all while the
+    // caret stays in the search box, so the palette is fully keyboard-driven.
+    private void OnPaletteSearchKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        var palette = _viewModel.CommandPalette;
+        switch (e.Key)
+        {
+            case Key.Down:
+                palette.MoveSelection(+1);
+                ScrollPaletteSelectionIntoView();
+                e.Handled = true;
+                break;
+            case Key.Up:
+                palette.MoveSelection(-1);
+                ScrollPaletteSelectionIntoView();
+                e.Handled = true;
+                break;
+            case Key.Enter:
+                _ = palette.AcceptAsync();
+                e.Handled = true;
+                break;
+            case Key.Escape:
+                palette.CloseCommand.Execute(null);
+                e.Handled = true;
+                break;
+        }
+    }
+
+    private void ScrollPaletteSelectionIntoView()
+    {
+        if (_viewModel?.CommandPalette.SelectedItem is { } item)
+        {
+            PaletteList.ScrollIntoView(item);
+        }
+    }
+
+    // A click on a result row accepts it immediately (the binding has already
+    // updated SelectedItem by the time this fires).
+    private void OnPaletteListTapped(object? sender, TappedEventArgs e)
+    {
+        if (_viewModel is not null && _viewModel.CommandPalette.SelectedItem is not null)
+        {
+            _ = _viewModel.CommandPalette.AcceptAsync();
+        }
+    }
+
+    // A press on the scrim (but not the card) dismisses the palette.
+    private void OnPaletteScrimPressed(object? sender, PointerPressedEventArgs e) =>
+        _viewModel?.CommandPalette.CloseCommand.Execute(null);
+
+    // Swallow presses on the card so they don't bubble to the scrim and close it.
+    private void OnPaletteCardPressed(object? sender, PointerPressedEventArgs e) => e.Handled = true;
 
     private void RebuildColumns(QueryViewModel query)
     {

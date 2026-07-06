@@ -127,8 +127,14 @@ means for pgNimbus. Adopting its language where Avalonia allows.
 | --- | --- | --- |
 | Smarter tab titles | Tabs are named from the first table the SQL references (a source-generated `[GeneratedRegex]` grabs the identifier after FROM/JOIN/UPDATE/INTO, keeps the table part of a schema-qualified name, strips quotes), falling back to a `DefaultTitle` ("Query N") when none. A dirty-state accent dot (`IsDirty`) shows when the SQL differs from `_lastRunSql` — set as the baseline at the start of each run — so the dot appears on edit and clears on run. Regex is source-generated to stay AOT-clean. Verified under Xvfb: `SELECT 1` stayed "Query 1"; pasting `SELECT * FROM public.customers …` retitled the tab to "customers" with the dot; F5 cleared the dot. | (this commit) |
 
+## Iteration 17
+
+| Item | Outcome | Commit |
+| --- | --- | --- |
+| Command palette (`Ctrl+K` / `Ctrl+P`) | A centered overlay above the whole shell that fuzzy-jumps to any table, saved query, or action — the keyboard-first differentiator in one control. `CommandPaletteViewModel` owns the query/selection/invocation; `MainViewModel.OpenCommandPaletteAsync` builds the candidate set (actions + saved queries instantly, then merges in tables once `SchemaService.GetAllRelationsAsync` — a new single `pg_catalog` query returning schema-qualified relations — returns, so the palette shows without blocking on the DB). A `PaletteItem` carries a `Func<Task>` effect: table entries call `PreviewTableAsync(schema, name)` (refactored to a schema/name overload), actions resolve `ICommand`s lazily and fire only when `CanExecute`, and window-level actions (theme toggle, shortcuts) route through `ThemeToggleRequested`/`ShortcutsRequested` events the view subscribes to. Ranking is a subsequence `FuzzyMatcher` (prefix / word-boundary / adjacency bonuses) over "Title Category". Fully keyboard-driven from the search box: ↑/↓ move the highlight, Enter accepts, Esc / outside-click dismiss. Verified under Xvfb: Ctrl+K listed 10 actions + tables; typing "order" narrowed to `sales.order_summary` + `sales.orders`; Enter jumped the editor to `SELECT * FROM "sales"."order_summary" LIMIT 100;` and closed; Ctrl+P + "theme" ran the toggle. README (feature bullet, shortcut row) + F1 cheat sheet updated. | (this commit) |
+
 ## Open / candidate items
 - [ ] Mica/acrylic backdrop remains blocked on safe verification (a headless
       sandbox can't see transparency failures).
-- [ ] Roadmap features (command palette, extension manager) — out of polish
+- [ ] Roadmap features (extension manager, plugin API) — out of polish
       scope

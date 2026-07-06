@@ -163,6 +163,16 @@
             <Border Classes="card" Padding="4">
                 <StackPanel>
                     <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
+                        <TextBlock Classes="what" Text="Command palette (jump to table / query / action)" />
+                        <StackPanel Grid.Column="1" Classes="keys">
+                            <Border Classes="kbd"><TextBlock Text="Ctrl" /></Border>
+                            <Border Classes="kbd"><TextBlock Text="K" /></Border>
+                            <TextBlock Classes="combo" Text="or" />
+                            <Border Classes="kbd"><TextBlock Text="Ctrl" /></Border>
+                            <Border Classes="kbd"><TextBlock Text="P" /></Border>
+                        </StackPanel>
+                    </Grid>
+                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
                         <TextBlock Classes="what" Text="Switch focus: editor ↔ results grid" />
                         <StackPanel Grid.Column="1" Classes="keys">
                             <Border Classes="kbd"><TextBlock Text="F6" /></Border>

@@ -64,6 +64,9 @@
         <KeyBinding Gesture="Ctrl+PageUp" Command="{Binding PreviousTabCommand}" />
     </Window.KeyBindings>
 
+    <!-- Root grid layers the command-palette overlay above the whole shell -->
+    <Grid>
+
     <!-- Two-tone shell (Files-style): chrome-tinted base; the content pane is a raised layer -->
     <DockPanel Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}">
         <Border DockPanel.Dock="Top" Height="40" Padding="16,0"
@@ -443,5 +446,65 @@
 
     </Grid>
     </DockPanel>
+
+    <!--
+        Command palette (Ctrl+K / Ctrl+P): a centered overlay above everything.
+        The scrim closes it on an outside click; the card holds a search box and
+        a fuzzy-ranked list of tables, saved queries, and actions.
+    -->
+    <Border Name="PaletteOverlay"
+            IsVisible="{Binding CommandPalette.IsOpen}"
+            Background="#66000000"
+            PointerPressed="OnPaletteScrimPressed">
+        <Border Width="560" MaxHeight="440" Margin="0,90,0,0"
+                VerticalAlignment="Top" HorizontalAlignment="Center"
+                Background="{DynamicResource SystemControlPageBackgroundAltHighBrush}"
+                BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
+                CornerRadius="10" BoxShadow="0 12 32 0 #40000000"
+                PointerPressed="OnPaletteCardPressed"
+                x:DataType="vm:CommandPaletteViewModel" DataContext="{Binding CommandPalette}">
+            <Grid RowDefinitions="Auto,*">
+                <TextBox Grid.Row="0" Name="PaletteSearchBox" Margin="10"
+                         FontSize="15" BorderThickness="0"
+                         Background="Transparent"
+                         Text="{Binding SearchText, Mode=TwoWay}"
+                         KeyDown="OnPaletteSearchKeyDown"
+                         PlaceholderText="Jump to a table, saved query, or action…">
+                    <TextBox.InnerLeftContent>
+                        <PathIcon Data="{StaticResource MagnifyIconGeometry}" Width="15" Height="15"
+                                  Opacity="0.5" Margin="8,0,4,0" VerticalAlignment="Center" />
+                    </TextBox.InnerLeftContent>
+                </TextBox>
+                <Border Grid.Row="1" BorderThickness="0,1,0,0" BorderBrush="{StaticResource CardBorderBrush}">
+                    <Grid>
+                        <ListBox Name="PaletteList" ItemsSource="{Binding Results}"
+                                 SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
+                                 SelectionMode="Single" Padding="6"
+                                 Tapped="OnPaletteListTapped"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="vm:PaletteItem">
+                                    <Grid ColumnDefinitions="Auto,*,Auto">
+                                        <TextBlock Grid.Column="0" Text="{Binding Glyph}" Width="20"
+                                                   Opacity="0.7" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Title}"
+                                                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="2" Text="{Binding Category}"
+                                                   FontSize="11" Opacity="0.45" VerticalAlignment="Center"
+                                                   Margin="12,0,0,0" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                        <TextBlock IsVisible="{Binding !Results.Count}" IsHitTestVisible="False"
+                                   Text="No matches" Opacity="0.4" FontSize="13"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" Margin="16" />
+                    </Grid>
+                </Border>
+            </Grid>
+        </Border>
+    </Border>
+
+    </Grid>
 
 </Window>
