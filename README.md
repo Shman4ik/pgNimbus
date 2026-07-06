@@ -89,7 +89,8 @@ Every tag push (`vX.Y.Z`) builds all of the above via
 - **Keyboard shortcuts cheat sheet** — press <kbd>F1</kbd> (or the `?`
   title-bar button) for an overview of every binding.
 - **Multi-tab query editor** — schema-aware SQL autocomplete, saved queries,
-  and run history.
+  run history, current-line and matching-bracket highlighting, and font-size
+  zoom (<kbd>Ctrl</kbd>+wheel / <kbd>Ctrl</kbd>+<kbd>±</kbd>).
 - **Run a whole script** — execute several `;`-separated statements at once on a
   single connection (so `BEGIN…COMMIT`, `SET`, and temp tables carry across
   them); each statement gets its own selectable result section with per-statement
@@ -98,8 +99,9 @@ Every tag push (`vX.Y.Z`) builds all of the above via
   full result set arrives, backed by a virtualized grid with inline cell
   editing and CSV/JSON export.
 - **Grid CRUD** — beyond inline cell edits: an "Add row" dialog (each column
-  cast to its real type server-side, blanks fall back to defaults) and
-  "Delete selected row(s)" with a confirmation, both keyed on the primary key.
+  cast to its real type server-side, blanks fall back to defaults),
+  "Delete selected row(s)" with a confirmation, and "Set cell to NULL" (the
+  gesture inline editing can't express), all keyed on the primary key.
 - **EXPLAIN visualization** — a graphical plan tree for `EXPLAIN` and
   `EXPLAIN ANALYZE`, not just raw text output.
 - **LISTEN/NOTIFY monitor** — subscribe to channels and watch notifications
@@ -258,12 +260,12 @@ bar (the Files community app remains the visual north star):
 - [x] **Cell inspector** — a detail pane (or popover) for the selected cell so
   long `text`/`jsonb` values are readable and copyable without inline-edit
   tricks; pretty-print JSON.
-- [ ] **Set a cell to NULL from the grid** — inline editing can't express
-  "make it NULL" today (empty string ≠ NULL); needs an explicit gesture or
-  context-menu action.
-- [ ] **Editor niceties** — current-line highlight, matching-bracket
+- [x] **Set a cell to NULL from the grid** — inline editing can't express
+  "make it NULL" (empty string ≠ NULL); a "Set cell to NULL" context-menu
+  action on the results grid issues the targeted UPDATE.
+- [x] **Editor niceties** — current-line highlight, matching-bracket
   highlight, and font-size zoom (<kbd>Ctrl</kbd>+wheel /
-  <kbd>Ctrl</kbd>+<kbd>±</kbd>).
+  <kbd>Ctrl</kbd>+<kbd>±</kbd>, <kbd>Ctrl</kbd>+<kbd>0</kbd> resets).
 - [x] **Alias-aware autocomplete** — complete column names after
   `alias.`/`table.`, not just bare identifiers.
 - [x] **Context-aware IntelliSense** — inside a `SELECT`, rank the current
@@ -312,7 +314,9 @@ bar (the Files community app remains the visual north star):
   (initially: custom result visualizers).
 - [ ] **Localization** — externalize UI strings; ship Russian and German first.
 
-Recently shipped: DDL "Source" view (reconstructed CREATE TABLE/VIEW +
+Recently shipped: editor niceties (current-line highlight, matching-bracket
+highlight, Ctrl+wheel / Ctrl+± font zoom), "Set cell to NULL" on the results
+grid, DDL "Source" view (reconstructed CREATE TABLE/VIEW +
 constraints + indexes from pg_catalog, opened in a new tab), multiple result
 sets per script (one shared connection,
 per-statement result sections + timings, stop-on-error), on-demand database &

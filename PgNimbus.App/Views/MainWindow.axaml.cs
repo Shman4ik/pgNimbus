@@ -42,10 +42,19 @@ public partial class MainWindow : Window
     // to open - kept in sync by every press, not just the one that opens it.
     private object?[]? _lastPressedRow;
     private int _lastPressedColumnIndex;
+    private readonly BracketHighlightRenderer _bracketRenderer;
+
+    private const double MinEditorFontSize = 8;
+    private const double MaxEditorFontSize = 32;
+    private const double DefaultEditorFontSize = 14;
 
     public MainWindow()
     {
         InitializeComponent();
+
+        // Must exist before LoadSqlHighlighting - the theme pass that call
+        // triggers also resolves this renderer's brush.
+        _bracketRenderer = new BracketHighlightRenderer(SqlEditor.TextArea.TextView);
 
         LoadSqlHighlighting();
         // ActualThemeVariant isn't final at construction time - re-resolve the
@@ -85,6 +94,14 @@ public partial class MainWindow : Window
         SqlEditor.TextArea.TextEntered += OnSqlTextEntered;
         SqlEditor.KeyDown += OnSqlEditorKeyDown;
 
+        // Editor niceties: current-line wash (brushes are theme-resolved in
+        // ApplySqlHighlightingTheme), matching-bracket highlight, and
+        // Ctrl+wheel font zoom. The wheel handler tunnels because the
+        // TextView claims wheel events for scrolling before they'd bubble.
+        SqlEditor.Options.HighlightCurrentLine = true;
+        SqlEditor.TextArea.Caret.PositionChanged += (_, _) => UpdateBracketHighlight();
+        SqlEditor.AddHandler(PointerWheelChangedEvent, OnSqlEditorPointerWheel, RoutingStrategies.Tunnel);
+
         // Column autocomplete inside the browse WHERE box (see the popup in XAML).
         BrowseFilterBox.TextChanged += OnBrowseFilterTextChanged;
         BrowseFilterBox.LostFocus += (_, _) => CloseFilterCompletion();
@@ -122,6 +139,15 @@ public partial class MainWindow : Window
         SetHighlightColor("Number", dark ? "#B5CEA8" : "#098658");
         SetHighlightColor("Keyword", dark ? "#569CD6" : "#0000E0");
         SetHighlightColor("Type", dark ? "#4EC9B0" : "#267F99");
+
+        // Editor chrome that has to track the theme with the palette: a
+        // barely-there wash on the caret's line (border suppressed - the
+        // stock one draws a hard outline box) and a stronger accent-tinted
+        // wash behind the matched bracket pair.
+        var textView = SqlEditor.TextArea.TextView;
+        textView.CurrentLineBackground = new SolidColorBrush(Color.Parse(dark ? "#0DFFFFFF" : "#0D000000"));
+        textView.CurrentLineBorder = new Pen(Brushes.Transparent);
+        _bracketRenderer.Brush = new SolidColorBrush(Color.Parse(dark ? "#40569CD6" : "#332B5FBF"));
 
         // Reassigning is what makes the TextView drop its cached line
         // visuals and re-run the highlighter with the new brushes.
@@ -428,8 +454,49 @@ public partial class MainWindow : Window
             }
 
             e.Handled = true;
+            return;
+        }
+
+        // Font-size zoom: Ctrl+= / Ctrl+- step, Ctrl+0 resets (numpad
+        // variants included). Ctrl+wheel does the same via the tunneled
+        // pointer handler. Shift is tolerated because "Ctrl and +" is
+        // physically Ctrl+Shift+= on most layouts.
+        if (e.KeyModifiers.HasFlag(KeyModifiers.Control) && !e.KeyModifiers.HasFlag(KeyModifiers.Alt))
+        {
+            switch (e.Key)
+            {
+                case Key.OemPlus or Key.Add:
+                    AdjustEditorFontSize(+1);
+                    e.Handled = true;
+                    break;
+                case Key.OemMinus or Key.Subtract:
+                    AdjustEditorFontSize(-1);
+                    e.Handled = true;
+                    break;
+                case Key.D0 or Key.NumPad0:
+                    SqlEditor.FontSize = DefaultEditorFontSize;
+                    e.Handled = true;
+                    break;
+            }
         }
     }
+
+    private void OnSqlEditorPointerWheel(object? sender, PointerWheelEventArgs e)
+    {
+        if (!e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        {
+            return;
+        }
+
+        AdjustEditorFontSize(e.Delta.Y >= 0 ? +1 : -1);
+        e.Handled = true;
+    }
+
+    private void AdjustEditorFontSize(int delta) =>
+        SqlEditor.FontSize = Math.Clamp(SqlEditor.FontSize + delta, MinEditorFontSize, MaxEditorFontSize);
+
+    private void UpdateBracketHighlight() =>
+        _bracketRenderer.Update(SqlEditor.Text, SqlEditor.CaretOffset);
 
     private void ShowCompletion(bool includeTypedChar)
     {
@@ -503,6 +570,17 @@ public partial class MainWindow : Window
         if (_lastPressedRow is { } row)
         {
             OpenCellInspector(row, _lastPressedColumnIndex);
+        }
+    }
+
+    // "Set cell to NULL" acts on the same last-pressed cell the inspector
+    // uses - inline editing can't express NULL (empty editor text is an
+    // empty string), so this is the explicit gesture.
+    private void OnSetCellNullClick(object? sender, RoutedEventArgs e)
+    {
+        if (_queryViewModel is { } vm && _lastPressedRow is { } row)
+        {
+            _ = vm.SetCellNullAsync(row, _lastPressedColumnIndex);
         }
     }
 
