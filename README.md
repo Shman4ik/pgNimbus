@@ -46,10 +46,10 @@ Grab the latest build from [Releases](https://github.com/Shman4ik/pgNimbus/relea
 - **Windows** — `pgNimbus-<version>-win-x64.msi`, a per-user installer (no
   admin rights needed). It's unsigned for now, so Windows SmartScreen will
   warn on first run — click "More info" → "Run anyway".
-- **macOS** — `pgNimbus-<version>-macos-x64.dmg` (Intel) or
-  `pgNimbus-<version>-macos-arm64.dmg` (Apple Silicon). Also unsigned/
-  unnotarized: right-click the app → "Open" the first time to bypass
-  Gatekeeper.
+- **macOS** — `pgNimbus-<version>-macos-arm64.dmg` (Apple Silicon only;
+  GitHub retired hosted Intel macOS runners in December 2025, and Apple
+  hasn't sold an Intel Mac since 2023). Unsigned/unnotarized: right-click
+  the app → "Open" the first time to bypass Gatekeeper.
 - **winget** — a manifest is generated per release but not yet submitted to
   the community `winget-pkgs` repo; `winget install` support is coming once
   that's done.

@@ -164,11 +164,19 @@ job so it never publishes). It produces, per tag:
   The `UpgradeCode` GUID in `Product.wxs` is fixed forever — never
   regenerate it, that's what makes installing a newer tag upgrade in place
   instead of side-by-side.
-- **macOS** — built as *two separate native jobs*, not a cross-compiled or
-  universal binary: `osx-x64` on a `macos-13` (Intel) runner, `osx-arm64` on
-  a `macos-14` (Apple Silicon) runner. Each publish output is wrapped into
-  an unsigned/unnotarized `.app` + `.dmg` by
-  [`scripts/macos/build-app-bundle.sh`](scripts/macos/build-app-bundle.sh),
+- **macOS** — `osx-arm64` only, built on a `macos-14` runner. GitHub retired
+  the last Intel macOS runner image (`macos-13`) in December 2025 and has
+  said x86_64 macOS support ends entirely once the `macos-15` image retires
+  (Fall 2027) — there's no GitHub-hosted way to build `osx-x64` anymore, so
+  don't re-add an Intel matrix leg without a self-hosted Intel Mac runner.
+  Also pins to the newest pre-installed Xcode below major version 26:
+  Xcode 26 changed Swift auto-linking in a way that breaks NativeAOT's
+  static link of `libSystem.Security.Cryptography.Native.Apple.a`
+  ("symbol(s) not found for architecture arm64" / `pal_swiftbindings`),
+  closed "not planned" upstream
+  ([dotnet/runtime#116448](https://github.com/dotnet/runtime/issues/116448)).
+  The publish output is wrapped into an unsigned/unnotarized `.app` + `.dmg`
+  by [`scripts/macos/build-app-bundle.sh`](scripts/macos/build-app-bundle.sh),
   which also generates `.icns` from `PgNimbus.App/Assets/icon-256.png` via
   `sips`/`iconutil` (stock macOS tools, no extra dependency).
 - **winget** — the workflow renders (via
