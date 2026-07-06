@@ -55,6 +55,21 @@ public sealed partial class QueryViewModel : ObservableObject
     [ObservableProperty]
     private EditableTableContext? _editContext;
 
+    /// <summary>Non-null when this tab is in no-SQL "browse a table" mode (filter/sort/paging bar shown).</summary>
+    [ObservableProperty]
+    private TableBrowseViewModel? _browse;
+
+    // Primary-key columns of the browsed table, re-applied as the edit context
+    // after each page load (composing the page SQL clears it via OnSqlChanged).
+    private IReadOnlyList<string> _browsePkColumns = [];
+
+    // Set while browse mode composes the page SQL, so OnSqlChanged doesn't treat
+    // that programmatic write as a manual edit and tear browse mode down.
+    private bool _applyingBrowseSql;
+
+    /// <summary>Drives visibility of the browse (filter/sort/paging) bar.</summary>
+    public bool IsBrowsing => Browse is not null;
+
     [ObservableProperty]
     private string _tabTitle = "Query";
 
@@ -339,10 +354,50 @@ public sealed partial class QueryViewModel : ObservableObject
 
     partial void OnSqlChanged(string value)
     {
-        EditContext = null;
+        // A manual edit invalidates both the inline-edit mapping and browse
+        // mode; a programmatic browse-page compose keeps them.
+        if (!_applyingBrowseSql)
+        {
+            EditContext = null;
+            Browse = null;
+        }
+
         IsShowingPlan = false;
         IsDirty = !string.Equals(value, _lastRunSql, StringComparison.Ordinal);
         UpdateTabTitle();
+    }
+
+    partial void OnBrowseChanged(TableBrowseViewModel? value) => OnPropertyChanged(nameof(IsBrowsing));
+
+    /// <summary>
+    /// Enters no-SQL browse mode for a table and loads its first page. The
+    /// filter/sort/paging bar (bound to <see cref="Browse"/>) takes over from
+    /// there, re-querying the server on every change.
+    /// </summary>
+    public Task StartBrowseAsync(string schema, string name, IReadOnlyList<string> primaryKeyColumns)
+    {
+        _browsePkColumns = primaryKeyColumns;
+        Browse = new TableBrowseViewModel(schema, name, RunBrowseSqlAsync);
+        return Browse.LoadAsync();
+    }
+
+    // Runs one composed browse page through the normal streaming/grid path,
+    // then re-establishes inline editing for the browsed table (setting Sql
+    // cleared it). Returns the displayed row count so paging can advance.
+    private async Task<int> RunBrowseSqlAsync(string sql)
+    {
+        _applyingBrowseSql = true;
+        Sql = sql;
+        _applyingBrowseSql = false;
+
+        await RunCommand.ExecuteAsync(null);
+
+        if (_browsePkColumns is { Count: > 0 } pk && Browse is { } browse)
+        {
+            EditContext = new EditableTableContext(browse.Schema, browse.Name, pk);
+        }
+
+        return Rows.Count;
     }
 
     partial void OnDefaultTitleChanged(string value) => UpdateTabTitle();

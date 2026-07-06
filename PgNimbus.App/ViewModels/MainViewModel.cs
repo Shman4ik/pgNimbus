@@ -141,15 +141,12 @@ public sealed partial class MainViewModel : ObservableObject
 
     public async Task PreviewTableAsync(string schema, string name)
     {
-        ActiveTab.Sql = $"SELECT * FROM {SqlIdentifier.Quote(schema)}.{SqlIdentifier.Quote(name)} LIMIT 100;";
-
         var columns = await _schemaService.GetColumnsAsync(schema, name, CancellationToken.None);
         var primaryKeyColumns = columns.Where(c => c.IsPrimaryKey).Select(c => c.Name).ToList();
 
-        if (primaryKeyColumns.Count > 0)
-        {
-            ActiveTab.EditContext = new EditableTableContext(schema, name, primaryKeyColumns);
-        }
+        // Open the table in no-SQL browse mode: server-side filter/sort/paging,
+        // with inline editing when the table has a primary key.
+        await ActiveTab.StartBrowseAsync(schema, name, primaryKeyColumns);
     }
 
     /// <summary>
