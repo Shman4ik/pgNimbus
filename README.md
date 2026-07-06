@@ -195,6 +195,40 @@ Things a person needs before pgNimbus can be their only Postgres client:
 - [ ] **In-app theme toggle** — light/dark switch in the title bar instead of
   following the OS only.
 
+### Polish — UX/UI fit and finish
+
+Small, individually shippable refinements toward the TablePlus-level polish
+bar (the Files community app remains the visual north star):
+
+- [ ] **Schema-tree filter box** — type-to-filter above the sidebar tree
+  (schemas and loaded tables, case-insensitive substring); with dozens of
+  schemas the tree is scroll-only today.
+- [ ] **Copy from the results grid** — <kbd>Ctrl</kbd>+<kbd>C</kbd> for the
+  selected cell/rows, plus "Copy as" (CSV, JSON, Markdown table, `INSERT`
+  statements) on the grid context menu.
+- [ ] **Cell inspector** — a detail pane (or popover) for the selected cell so
+  long `text`/`jsonb` values are readable and copyable without inline-edit
+  tricks; pretty-print JSON.
+- [ ] **Set a cell to NULL from the grid** — inline editing can't express
+  "make it NULL" today (empty string ≠ NULL); needs an explicit gesture or
+  context-menu action.
+- [ ] **Editor niceties** — current-line highlight, matching-bracket
+  highlight, and font-size zoom (<kbd>Ctrl</kbd>+wheel /
+  <kbd>Ctrl</kbd>+<kbd>±</kbd>).
+- [ ] **Alias-aware autocomplete** — complete column names after
+  `alias.`/`table.`, not just bare identifiers.
+- [ ] **Smarter tab titles** — name query tabs from their SQL (first table
+  referenced) instead of "Query N", with a dirty-state dot.
+- [ ] **Running-query feedback** — an indeterminate progress bar in the
+  status bar and a live elapsed-time tick while a query runs (the row/timing
+  segments only update per batch today).
+- [ ] **Empty states** — friendly hints in the blank results area ("Run a
+  query — Ctrl+Enter") and empty saved-queries/history lists instead of bare
+  cards.
+- [ ] **Mica/acrylic backdrop on Windows** — the two-tone shell is ready for
+  it; deliberately deferred until it can be verified on a real Windows
+  desktop (transparency fallbacks can't be seen headless).
+
 ### Later — bigger bets
 
 - [ ] **ER diagram** — auto-laid-out foreign-key graph of a schema, exportable
@@ -210,9 +244,10 @@ Things a person needs before pgNimbus can be their only Postgres client:
 - [ ] **Localization** — externalize UI strings; ship Russian and German first.
 
 Recently shipped: paste-anything connection string parsing (URI / JDBC /
-ADO.NET / libpq / psql), the F1 shortcuts cheat sheet, keyboard tab
-navigation, EXPLAIN visualization, LISTEN/NOTIFY monitor, SSH tunnels, and
-the Files-style two-tone UI.
+ADO.NET / libpq / psql), the F1 shortcuts cheat sheet, theme-aware SQL
+syntax highlighting, the segmented status bar, keyboard tab navigation,
+EXPLAIN visualization, LISTEN/NOTIFY monitor, SSH tunnels, and the
+Files-style two-tone UI.
 
 ## License
 
