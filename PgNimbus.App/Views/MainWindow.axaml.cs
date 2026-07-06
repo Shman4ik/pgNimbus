@@ -36,9 +36,18 @@ public partial class MainWindow : Window
 
         LoadSqlHighlighting();
         // ActualThemeVariant isn't final at construction time - re-resolve the
-        // palette once the window opens, and again on any live theme switch.
-        Opened += (_, _) => ApplySqlHighlightingTheme();
-        ActualThemeVariantChanged += (_, _) => ApplySqlHighlightingTheme();
+        // palette (and the toggle glyph) once the window opens, and again on
+        // any live theme switch, however it originates.
+        Opened += (_, _) =>
+        {
+            ApplySqlHighlightingTheme();
+            UpdateThemeIcon();
+        };
+        ActualThemeVariantChanged += (_, _) =>
+        {
+            ApplySqlHighlightingTheme();
+            UpdateThemeIcon();
+        };
 
         SqlEditor.TextChanged += (_, _) =>
         {
@@ -192,6 +201,33 @@ public partial class MainWindow : Window
         if (sender is Button { Tag: QueryViewModel tab })
         {
             _viewModel?.CloseTabCommand.Execute(tab);
+        }
+    }
+
+    // Explicit light/dark switch in the title bar, so the app isn't forced to
+    // follow the OS. Setting the application variant flips ActualThemeVariant on
+    // the window, which the ActualThemeVariantChanged handler above picks up to
+    // repaint the SQL palette and swap this button's glyph.
+    private void OnToggleThemeClick(object? sender, RoutedEventArgs e)
+    {
+        if (Application.Current is not { } app)
+        {
+            return;
+        }
+
+        app.RequestedThemeVariant = ActualThemeVariant == ThemeVariant.Dark
+            ? ThemeVariant.Light
+            : ThemeVariant.Dark;
+    }
+
+    // Show the glyph for where a click will take you: a sun while dark (click
+    // to go light), a moon while light (click to go dark).
+    private void UpdateThemeIcon()
+    {
+        var key = ActualThemeVariant == ThemeVariant.Dark ? "WeatherSunnyIconGeometry" : "WeatherNightIconGeometry";
+        if (this.TryFindResource(key, out var geometry) && geometry is Geometry data)
+        {
+            ThemeIcon.Data = data;
         }
     }
 
