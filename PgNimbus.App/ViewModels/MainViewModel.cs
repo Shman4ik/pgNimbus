@@ -25,6 +25,8 @@ public sealed partial class MainViewModel : ObservableObject
 
     public CommandPaletteViewModel CommandPalette { get; } = new();
 
+    public CellInspectorViewModel CellInspector { get; } = new();
+
     // Palette actions that need the window (theme, dialogs) live in the view;
     // MainWindow subscribes to these so the palette can trigger them.
     public event Action? ThemeToggleRequested;

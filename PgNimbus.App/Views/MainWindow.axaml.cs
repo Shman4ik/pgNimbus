@@ -37,6 +37,11 @@ public partial class MainWindow : Window
     private bool _suppressFilterCompletion;
     private ShortcutsWindow? _shortcutsWindow;
     private IHighlightingDefinition? _sqlHighlighting;
+    // The row/column the pointer last pressed in the results grid, so "Inspect
+    // cell…" on the context menu (which carries no cell of its own) knows what
+    // to open - kept in sync by every press, not just the one that opens it.
+    private object?[]? _lastPressedRow;
+    private int _lastPressedColumnIndex;
 
     public MainWindow()
     {
@@ -137,6 +142,13 @@ public partial class MainWindow : Window
     // focus currently is - a KeyBinding can't express a toggle.
     protected override void OnKeyDown(KeyEventArgs e)
     {
+        if (e.Key == Key.Escape && _viewModel?.CellInspector.IsOpen == true)
+        {
+            _viewModel.CellInspector.CloseCommand.Execute(null);
+            e.Handled = true;
+            return;
+        }
+
         if ((e.Key == Key.K || e.Key == Key.P) && e.KeyModifiers.HasFlag(KeyModifiers.Control))
         {
             OpenCommandPalette();
@@ -401,6 +413,21 @@ public partial class MainWindow : Window
         {
             ShowCompletion(includeTypedChar: false);
             e.Handled = true;
+            return;
+        }
+
+        // Smart execution: runs just the statement the caret sits in (between
+        // ;s) rather than the whole tab, so trying one statement out of a
+        // multi-statement script doesn't require selecting it by hand first.
+        if (e.Key == Key.Enter && e.KeyModifiers == KeyModifiers.Shift)
+        {
+            if (_queryViewModel is { } query
+                && SqlScriptSplitter.StatementAt(SqlEditor.Text, SqlEditor.CaretOffset) is { } statement)
+            {
+                _ = query.RunStatementAsync(statement);
+            }
+
+            e.Handled = true;
         }
     }
 
@@ -451,6 +478,60 @@ public partial class MainWindow : Window
             }
         }
     }
+
+    // Tracks the last-pressed cell for "Inspect cell…" (the context menu click
+    // carries no cell of its own), and opens the inspector immediately on a
+    // double-click - the discoverable, no-menu path to the same place.
+    private void OnResultsGridCellPointerPressed(object? sender, DataGridCellPointerPressedEventArgs e)
+    {
+        if (e.Row.DataContext is not object?[] row)
+        {
+            return;
+        }
+
+        _lastPressedRow = row;
+        _lastPressedColumnIndex = e.Column.DisplayIndex;
+
+        if (e.PointerPressedEventArgs.ClickCount == 2)
+        {
+            OpenCellInspector(row, e.Column.DisplayIndex);
+        }
+    }
+
+    private void OnInspectCellClick(object? sender, RoutedEventArgs e)
+    {
+        if (_lastPressedRow is { } row)
+        {
+            OpenCellInspector(row, _lastPressedColumnIndex);
+        }
+    }
+
+    private void OpenCellInspector(object?[] row, int columnIndex)
+    {
+        if (_viewModel is null || _queryViewModel is null || columnIndex >= row.Length
+            || columnIndex >= _queryViewModel.ColumnNames.Count)
+        {
+            return;
+        }
+
+        _viewModel.CellInspector.Open(_queryViewModel.ColumnNames[columnIndex], row[columnIndex]);
+    }
+
+    private async void OnCellInspectorCopyClick(object? sender, RoutedEventArgs e)
+    {
+        if (_viewModel is null || TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard)
+        {
+            return;
+        }
+
+        await clipboard.SetTextAsync(_viewModel.CellInspector.DisplayText);
+    }
+
+    private void OnCellInspectorScrimPressed(object? sender, PointerPressedEventArgs e) =>
+        _viewModel?.CellInspector.CloseCommand.Execute(null);
+
+    // Swallow presses on the card so they don't bubble to the scrim and close it.
+    private void OnCellInspectorCardPressed(object? sender, PointerPressedEventArgs e) => e.Handled = true;
 
     // In browse mode a header click sorts server-side (ORDER BY + reload page 1)
     // instead of the client-side comparer sort - cancel the default and re-query.

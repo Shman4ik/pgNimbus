@@ -57,6 +57,13 @@
                         </StackPanel>
                     </Grid>
                     <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
+                        <TextBlock Classes="what" Text="Run just the statement under the cursor" />
+                        <StackPanel Grid.Column="1" Classes="keys">
+                            <Border Classes="kbd"><TextBlock Text="Shift" /></Border>
+                            <Border Classes="kbd"><TextBlock Text="Enter" /></Border>
+                        </StackPanel>
+                    </Grid>
+                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
                         <TextBlock Classes="what" Text="Cancel running query" />
                         <StackPanel Grid.Column="1" Classes="keys">
                             <Border Classes="kbd"><TextBlock Text="Esc" /></Border>
@@ -154,6 +161,14 @@
                             <Border Classes="kbd"><TextBlock Text="Enter" /></Border>
                             <TextBlock Classes="combo" Text="/" />
                             <Border Classes="kbd"><TextBlock Text="Esc" /></Border>
+                        </StackPanel>
+                    </Grid>
+                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
+                        <TextBlock Classes="what" Text="Inspect cell (full value, pretty-printed JSON)" />
+                        <StackPanel Grid.Column="1" Classes="keys">
+                            <TextBlock Classes="combo" Text="Double-click" />
+                            <TextBlock Classes="combo" Text="or" />
+                            <TextBlock Classes="combo" Text="context menu" />
                         </StackPanel>
                     </Grid>
                 </StackPanel>

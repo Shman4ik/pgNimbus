@@ -114,12 +114,14 @@ Press <kbd>F1</kbd> in the app for the full cheat sheet. The highlights:
 | Command palette (jump to table / query / action) | <kbd>Ctrl</kbd>+<kbd>K</kbd> or <kbd>Ctrl</kbd>+<kbd>P</kbd> |
 | Refresh database & schema | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd> |
 | Run query | <kbd>Ctrl</kbd>+<kbd>Enter</kbd> or <kbd>F5</kbd> |
+| Run just the statement under the cursor | <kbd>Shift</kbd>+<kbd>Enter</kbd> |
 | Cancel running query | <kbd>Esc</kbd> |
 | New / close query tab | <kbd>Ctrl</kbd>+<kbd>T</kbd> / <kbd>Ctrl</kbd>+<kbd>W</kbd> |
 | Next / previous tab | <kbd>Ctrl</kbd>+<kbd>PageDown</kbd> / <kbd>Ctrl</kbd>+<kbd>PageUp</kbd> |
 | SQL autocomplete | <kbd>Ctrl</kbd>+<kbd>Space</kbd> (also triggers while typing) |
 | Switch focus: editor ↔ results grid | <kbd>F6</kbd> |
 | Edit selected result cell | <kbd>F2</kbd>, then <kbd>Enter</kbd> to commit / <kbd>Esc</kbd> to cancel |
+| Inspect a result cell (full value, pretty-printed JSON) | Double-click, or "Inspect cell…" on the grid context menu |
 | Keyboard shortcuts window | <kbd>F1</kbd> |
 
 ## Architecture
@@ -253,7 +255,7 @@ bar (the Files community app remains the visual north star):
 - [x] **Copy from the results grid** — <kbd>Ctrl</kbd>+<kbd>C</kbd> copies the
   selected rows (or all rows) as TSV, plus "Copy as" (CSV, JSON, Markdown table,
   `INSERT` statements) on the grid context menu.
-- [ ] **Cell inspector** — a detail pane (or popover) for the selected cell so
+- [x] **Cell inspector** — a detail pane (or popover) for the selected cell so
   long `text`/`jsonb` values are readable and copyable without inline-edit
   tricks; pretty-print JSON.
 - [ ] **Set a cell to NULL from the grid** — inline editing can't express
@@ -268,7 +270,7 @@ bar (the Files community app remains the visual north star):
   table's columns first and hide noise like `pg_catalog`; in the results-grid
   `WHERE` filter box, suggest *only* the current dataset's columns (no SQL
   functions or unrelated tables).
-- [ ] **`Shift`+`Enter` smart execution** — run with <kbd>Shift</kbd>+<kbd>Enter</kbd>
+- [x] **`Shift`+`Enter` smart execution** — run with <kbd>Shift</kbd>+<kbd>Enter</kbd>
   (alongside <kbd>Ctrl</kbd>+<kbd>Enter</kbd>/<kbd>F5</kbd>), executing just the
   statement the cursor sits in (between `;`s) without having to select it first.
 - [ ] **Overflowing tab bar navigation** — once many tabs are open, stop

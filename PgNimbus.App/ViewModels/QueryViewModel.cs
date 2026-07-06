@@ -180,15 +180,30 @@ public sealed partial class QueryViewModel : ObservableObject
     private bool CanRun() => !IsRunning;
 
     [RelayCommand(CanExecute = nameof(CanRun))]
-    private async Task RunAsync()
+    private Task RunAsync() => RunCoreAsync(Sql, isEntireScript: true);
+
+    /// <summary>
+    /// Runs a single statement in isolation - e.g. the one the caret sits in,
+    /// for <c>Shift</c>+<c>Enter</c> "smart execution" - without touching
+    /// <see cref="Sql"/>, the dirty flag, or the multi-statement script/section
+    /// machinery. The tab's on-screen script is left exactly as it was; only
+    /// the grid and status bar reflect this one statement's outcome. A no-op
+    /// while a run is already in flight, same as <see cref="RunCommand"/>.
+    /// </summary>
+    public Task RunStatementAsync(string statementSql) =>
+        CanRun() ? RunCoreAsync(statementSql, isEntireScript: false) : Task.CompletedTask;
+
+    private async Task RunCoreAsync(string executedSql, bool isEntireScript)
     {
         _cts = new CancellationTokenSource();
         var ct = _cts.Token;
-        var executedSql = Sql;
 
-        // Running clears the dirty flag: the on-screen SQL is now what produced the result.
-        _lastRunSql = executedSql;
-        IsDirty = false;
+        if (isEntireScript)
+        {
+            // Running clears the dirty flag: the on-screen SQL is now what produced the result.
+            _lastRunSql = executedSql;
+            IsDirty = false;
+        }
 
         IsRunning = true;
         Status = "Running...";
@@ -208,24 +223,27 @@ public sealed partial class QueryViewModel : ObservableObject
 
         var stopwatch = Stopwatch.StartNew();
 
-        // Split off the multi-statement script path. A single statement keeps the
-        // streaming/editing/browse path below untouched; only a genuine script
-        // (two or more statements) runs on one shared connection with per-statement
-        // result sections.
-        var statements = SqlScriptSplitter.Split(executedSql);
-
         try
         {
-            if (statements.Count > 1)
+            if (isEntireScript)
             {
-                await RunScriptAsync(statements, stopwatch, ct);
-                if (HasError)
+                // Split off the multi-statement script path. A single statement keeps the
+                // streaming/editing/browse path below untouched; only a genuine script
+                // (two or more statements) runs on one shared connection with per-statement
+                // result sections. A statement run in isolation (RunStatementAsync) is
+                // already exactly one statement, so it always takes the path below.
+                var statements = SqlScriptSplitter.Split(executedSql);
+                if (statements.Count > 1)
                 {
-                    await TryOfferFixAsync(executedSql);
-                }
+                    await RunScriptAsync(statements, stopwatch, ct);
+                    if (HasError)
+                    {
+                        await TryOfferFixAsync(executedSql);
+                    }
 
-                Executed?.Invoke(new QueryHistoryEntry(executedSql, DateTimeOffset.UtcNow, stopwatch.Elapsed.TotalMilliseconds, StatusSummary()));
-                return;
+                    Executed?.Invoke(new QueryHistoryEntry(executedSql, DateTimeOffset.UtcNow, stopwatch.Elapsed.TotalMilliseconds, StatusSummary()));
+                    return;
+                }
             }
 
             // Ask for one row past the cap: receiving it proves the result was
