@@ -15,7 +15,8 @@
         x:DataType="vm:MainViewModel"
         Title="pgNimbus"
         Icon="avares://PgNimbus.App/Assets/icon-256.png"
-        Width="1100" Height="700"
+        WindowStartupLocation="CenterOwner"
+        Width="1100" Height="800"
         FontFamily="{StaticResource InterFont}">
 
     <Window.DataTemplates>
