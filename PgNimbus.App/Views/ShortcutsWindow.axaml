@@ -173,6 +173,14 @@
                         </StackPanel>
                     </Grid>
                     <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
+                        <TextBlock Classes="what" Text="Refresh database &amp; schema" />
+                        <StackPanel Grid.Column="1" Classes="keys">
+                            <Border Classes="kbd"><TextBlock Text="Ctrl" /></Border>
+                            <Border Classes="kbd"><TextBlock Text="Shift" /></Border>
+                            <Border Classes="kbd"><TextBlock Text="R" /></Border>
+                        </StackPanel>
+                    </Grid>
+                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
                         <TextBlock Classes="what" Text="Switch focus: editor ↔ results grid" />
                         <StackPanel Grid.Column="1" Classes="keys">
                             <Border Classes="kbd"><TextBlock Text="F6" /></Border>
