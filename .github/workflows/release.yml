@@ -112,6 +112,37 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
+      - name: Select pre-Xcode-26 toolchain
+        # Xcode 26 changed Swift auto-linking in a way that breaks NativeAOT's
+        # static link of libSystem.Security.Cryptography.Native.Apple.a ("symbol(s)
+        # not found for architecture arm64" / pal_swiftbindings). Closed as
+        # "not planned" upstream: https://github.com/dotnet/runtime/issues/116448.
+        # Pin to the newest Xcode below 26 that the runner image has installed.
+        run: |
+          echo "Installed Xcode apps:"
+          ls -d /Applications/Xcode_*.app 2>/dev/null || true
+
+          best=""
+          best_major=0
+          for app in /Applications/Xcode_*.app; do
+            [ -d "$app" ] || continue
+            ver="$(basename "$app" .app | sed 's/Xcode_//')"
+            major="${ver%%.*}"
+            case "$major" in ''|*[!0-9]*) continue ;; esac
+            if [ "$major" -lt 26 ] && [ "$major" -gt "$best_major" ]; then
+              best_major="$major"
+              best="$app"
+            fi
+          done
+
+          if [ -n "$best" ]; then
+            echo "Selecting $best"
+            sudo xcode-select -s "$best/Contents/Developer"
+          else
+            echo "No Xcode <26 install found; continuing with the default (may fail, see comment above)"
+          fi
+          xcodebuild -version
+
       - name: Publish NativeAOT (${{ matrix.rid }})
         run: >
           dotnet publish PgNimbus.App -c Release -r ${{ matrix.rid }}
