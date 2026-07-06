@@ -88,7 +88,9 @@ Every tag push (`vX.Y.Z`) builds all of the above via
   action from one keyboard-driven control.
 - **Keyboard shortcuts cheat sheet** — press <kbd>F1</kbd> (or the `?`
   title-bar button) for an overview of every binding.
-- **Multi-tab query editor** — schema-aware SQL autocomplete, saved queries,
+- **Multi-tab query editor** — schema-aware SQL autocomplete (tables after
+  `FROM`/`JOIN`, columns with their data types elsewhere, `alias.` member
+  access, CTE names, common functions inserted as calls), saved queries,
   and run history.
 - **Run a whole script** — execute several `;`-separated statements at once on a
   single connection (so `BEGIN…COMMIT`, `SET`, and temp tables carry across
@@ -270,6 +272,12 @@ bar (the Files community app remains the visual north star):
   table's columns first and hide noise like `pg_catalog`; in the results-grid
   `WHERE` filter box, suggest *only* the current dataset's columns (no SQL
   functions or unrelated tables).
+- [x] **Clause-aware IntelliSense** — the list opens by itself after
+  `FROM`/`JOIN`/`INTO`/`UPDATE` and offers only what can go there (tables,
+  schemas, the statement's CTEs — no columns); column suggestions show their
+  data type, the statement's aliases complete too, common functions insert as
+  `name()` with the caret between the parens, and nothing pops up inside
+  string literals or comments.
 - [x] **`Shift`+`Enter` smart execution** — run with <kbd>Shift</kbd>+<kbd>Enter</kbd>
   (alongside <kbd>Ctrl</kbd>+<kbd>Enter</kbd>/<kbd>F5</kbd>), executing just the
   statement the cursor sits in (between `;`s) without having to select it first.
@@ -312,7 +320,9 @@ bar (the Files community app remains the visual north star):
   (initially: custom result visualizers).
 - [ ] **Localization** — externalize UI strings; ship Russian and German first.
 
-Recently shipped: DDL "Source" view (reconstructed CREATE TABLE/VIEW +
+Recently shipped: clause-aware SQL IntelliSense (tables after FROM/JOIN,
+typed columns, aliases, CTEs, function-call insertion, auto-popup, no popups
+inside strings/comments), DDL "Source" view (reconstructed CREATE TABLE/VIEW +
 constraints + indexes from pg_catalog, opened in a new tab), multiple result
 sets per script (one shared connection,
 per-statement result sections + timings, stop-on-error), on-demand database &

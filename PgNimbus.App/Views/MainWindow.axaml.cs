@@ -404,7 +404,39 @@ public partial class MainWindow : Window
         if (char.IsLetter(c) || c == '_')
         {
             ShowCompletion(includeTypedChar: true);
+            return;
         }
+
+        // The space right after FROM/JOIN/INTO/UPDATE opens the table list
+        // unprompted — the one spot where what comes next is most predictable.
+        if (c == ' ' && WordBeforeCaretStartsTableClause())
+        {
+            ShowCompletion(includeTypedChar: false);
+        }
+    }
+
+    // True when the word just left of the caret (which sits right after the
+    // freshly typed space) is a keyword that a table name follows.
+    private bool WordBeforeCaretStartsTableClause()
+    {
+        var text = SqlEditor.Text;
+        var end = Math.Min(SqlEditor.CaretOffset, text.Length) - 1; // skip the space
+        if (end <= 0)
+        {
+            return false;
+        }
+
+        var start = end;
+        while (start > 0 && (char.IsLetter(text[start - 1]) || text[start - 1] == '_'))
+        {
+            start--;
+        }
+
+        var word = text.AsSpan(start, Math.Max(end - start, 0));
+        return word.Equals("from", StringComparison.OrdinalIgnoreCase)
+            || word.Equals("join", StringComparison.OrdinalIgnoreCase)
+            || word.Equals("into", StringComparison.OrdinalIgnoreCase)
+            || word.Equals("update", StringComparison.OrdinalIgnoreCase);
     }
 
     private void OnSqlEditorKeyDown(object? sender, KeyEventArgs e)
