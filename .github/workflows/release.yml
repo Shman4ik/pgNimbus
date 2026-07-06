@@ -192,3 +192,6 @@ jobs:
             artifacts/*.zip
             artifacts/SHA256SUMS.txt
           generate_release_notes: true
+          # Every build is unsigned until a code-signing cert / Apple
+          # Developer account is added — flip this off once that lands.
+          prerelease: true
