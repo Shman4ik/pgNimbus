@@ -226,6 +226,7 @@ public partial class MainWindow : Window
             _viewModel.ThemeToggleRequested -= ToggleTheme;
             _viewModel.ShortcutsRequested -= ShowShortcutsWindow;
             _viewModel.SwitchConnectionRequested -= SwitchConnection;
+            _viewModel.FormatSqlRequested -= FormatCurrentStatement;
         }
 
         _viewModel = vm;
@@ -234,6 +235,7 @@ public partial class MainWindow : Window
         _viewModel.ThemeToggleRequested += ToggleTheme;
         _viewModel.ShortcutsRequested += ShowShortcutsWindow;
         _viewModel.SwitchConnectionRequested += SwitchConnection;
+        _viewModel.FormatSqlRequested += FormatCurrentStatement;
 
         AttachQuery(vm.ActiveTab);
     }
@@ -521,6 +523,14 @@ public partial class MainWindow : Window
             return;
         }
 
+        // Ctrl+Shift+F: pretty-print the statement the caret sits in, in place.
+        if (e.Key == Key.F && e.KeyModifiers == (KeyModifiers.Control | KeyModifiers.Shift))
+        {
+            FormatCurrentStatement();
+            e.Handled = true;
+            return;
+        }
+
         // Font-size zoom: Ctrl+= / Ctrl+- step, Ctrl+0 resets (numpad
         // variants included). Ctrl+wheel does the same via the tunneled
         // pointer handler. Shift is tolerated because "Ctrl and +" is
@@ -584,6 +594,29 @@ public partial class MainWindow : Window
         completionWindow.Show();
         completionWindow.Closed += (_, _) => _completionWindow = null;
         _completionWindow = completionWindow;
+    }
+
+    // Pretty-prints the statement under the caret and replaces just that span, so
+    // formatting one statement in a multi-statement script leaves the others alone.
+    // Puts the caret at the end of the reformatted text. A no-op when the caret
+    // isn't in a statement or the formatter left the text unchanged.
+    private void FormatCurrentStatement()
+    {
+        var text = SqlEditor.Text;
+        if (SqlScriptSplitter.StatementSpanAt(text, SqlEditor.CaretOffset) is not { } span)
+        {
+            return;
+        }
+
+        var (start, end) = span;
+        var formatted = SqlFormatter.Format(text[start..end]);
+        if (formatted == text[start..end])
+        {
+            return;
+        }
+
+        SqlEditor.Document.Replace(start, end - start, formatted);
+        SqlEditor.CaretOffset = start + formatted.Length;
     }
 
     // Ctrl+C copies the selection as TSV (spreadsheet-friendly). ClipboardCopyMode

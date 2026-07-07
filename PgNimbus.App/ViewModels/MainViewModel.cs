@@ -34,6 +34,9 @@ public sealed partial class MainViewModel : ObservableObject
     // Raised when the user asks to connect to a different server/database;
     // MainWindow reopens the connection dialog (App.BuildConnectionDialog).
     public event Action? SwitchConnectionRequested;
+    // Raised to pretty-print the statement under the caret; MainWindow owns the
+    // editor text (AvaloniaEdit's Text isn't bindable) so it does the rewrite.
+    public event Action? FormatSqlRequested;
 
     [RelayCommand]
     private void SwitchConnection() => SwitchConnectionRequested?.Invoke();
@@ -258,6 +261,7 @@ public sealed partial class MainViewModel : ObservableObject
         yield return new PaletteItem("Close tab", "Action", "✕", Invoke(() => CloseTabCommand));
         yield return new PaletteItem("Next tab", "Action", "›", Invoke(() => NextTabCommand));
         yield return new PaletteItem("Previous tab", "Action", "‹", Invoke(() => PreviousTabCommand));
+        yield return new PaletteItem("Format SQL", "Action", "❖", () => { FormatSqlRequested?.Invoke(); return Task.CompletedTask; });
         yield return new PaletteItem("Switch connection…", "Action", "⇄", () => { SwitchConnectionRequested?.Invoke(); return Task.CompletedTask; });
         yield return new PaletteItem("Toggle light/dark theme", "Action", "◐", () => { ThemeToggleRequested?.Invoke(); return Task.CompletedTask; });
         yield return new PaletteItem("Keyboard shortcuts", "Action", "?", () => { ShortcutsRequested?.Invoke(); return Task.CompletedTask; });

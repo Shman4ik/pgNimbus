@@ -76,6 +76,66 @@ public static class SqlScriptSplitter
         return before;
     }
 
+    /// <summary>
+    /// Like <see cref="StatementAt"/>, but returns the trimmed statement's
+    /// <c>[Start, End)</c> character span in <paramref name="sql"/> instead of its
+    /// text, so a caller can replace exactly that region (e.g. format-in-place).
+    /// Uses the same gap-resolution rule and returns null only when there is no
+    /// statement at all.
+    /// </summary>
+    public static (int Start, int End)? StatementSpanAt(string sql, int offset)
+    {
+        if (string.IsNullOrEmpty(sql))
+        {
+            return null;
+        }
+
+        offset = Math.Clamp(offset, 0, sql.Length);
+
+        (int, int)? before = null;
+        foreach (var (start, end) in RawSpans(sql))
+        {
+            var trimmed = TrimSpan(sql, start, end);
+            if (trimmed is not { } span)
+            {
+                continue;
+            }
+
+            if (offset >= start && offset <= end)
+            {
+                return span;
+            }
+
+            if (start > offset)
+            {
+                return span;
+            }
+
+            before = span;
+        }
+
+        return before;
+    }
+
+    // Narrows a raw [start, end) span to the non-whitespace text inside it,
+    // returning null when the span holds only whitespace.
+    private static (int Start, int End)? TrimSpan(string sql, int start, int end)
+    {
+        var s = start;
+        while (s < end && char.IsWhiteSpace(sql[s]))
+        {
+            s++;
+        }
+
+        var e = end;
+        while (e > s && char.IsWhiteSpace(sql[e - 1]))
+        {
+            e--;
+        }
+
+        return e > s ? (s, e) : null;
+    }
+
     // Raw, untrimmed [start, end) spans between semicolons - the lexical scan
     // both Split and StatementAt key off. Respects single-quoted string
     // literals ('' escapes), double-quoted identifiers, dollar-quoted strings

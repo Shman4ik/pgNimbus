@@ -70,6 +70,14 @@
                             <Border Classes="kbd"><TextBlock Text="Esc" /></Border>
                         </StackPanel>
                     </Grid>
+                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
+                        <TextBlock Classes="what" Text="Format the statement under the cursor" />
+                        <StackPanel Grid.Column="1" Classes="keys">
+                            <Border Classes="kbd"><TextBlock Text="Ctrl" /></Border>
+                            <Border Classes="kbd"><TextBlock Text="Shift" /></Border>
+                            <Border Classes="kbd"><TextBlock Text="F" /></Border>
+                        </StackPanel>
+                    </Grid>
                 </StackPanel>
             </Border>
 
