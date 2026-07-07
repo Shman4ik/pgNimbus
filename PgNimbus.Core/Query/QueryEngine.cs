@@ -15,9 +15,118 @@ public sealed class QueryEngine
 
     private readonly NpgsqlDataSource _dataSource;
 
+    // Non-null while an explicit user transaction is open. Every execution then
+    // runs on this one connection (instead of a fresh pooled one) so BEGIN and a
+    // later COMMIT/ROLLBACK bracket the same session. Cleared — and the
+    // connection disposed back to the pool — when the transaction ends.
+    private NpgsqlConnection? _transactionConnection;
+
     public QueryEngine(NpgsqlDataSource dataSource)
     {
         _dataSource = dataSource;
+    }
+
+    /// <summary>True while an explicit BEGIN…COMMIT/ROLLBACK transaction is open.</summary>
+    public bool IsInTransaction => _transactionConnection is not null;
+
+    /// <summary>
+    /// Raised whenever the explicit-transaction state changes — a BEGIN, a
+    /// COMMIT/ROLLBACK, or an auto-rollback after a statement failed. Lets the UI
+    /// keep its "in transaction" indicator in sync no matter which path changed
+    /// the state. May fire on a background thread, so subscribers that touch UI
+    /// must marshal to their UI thread.
+    /// </summary>
+    public event Action? TransactionStateChanged;
+
+    /// <summary>
+    /// Opens an explicit transaction: takes a dedicated connection and runs
+    /// <c>BEGIN</c> on it. Subsequent executions run on that connection until
+    /// <see cref="CommitAsync"/> or <see cref="RollbackAsync"/>. A no-op if a
+    /// transaction is already open.
+    /// </summary>
+    public async Task BeginTransactionAsync(CancellationToken ct)
+    {
+        if (_transactionConnection is not null)
+        {
+            return;
+        }
+
+        var connection = await _dataSource.OpenConnectionAsync(ct);
+        try
+        {
+            await using var command = new NpgsqlCommand("BEGIN", connection);
+            await command.ExecuteNonQueryAsync(ct);
+        }
+        catch
+        {
+            await connection.DisposeAsync();
+            throw;
+        }
+
+        _transactionConnection = connection;
+        TransactionStateChanged?.Invoke();
+    }
+
+    /// <summary>Commits the open transaction. A no-op if none is open.</summary>
+    public Task CommitAsync(CancellationToken ct) => EndTransactionAsync("COMMIT", ct);
+
+    /// <summary>Rolls back the open transaction. A no-op if none is open.</summary>
+    public Task RollbackAsync(CancellationToken ct) => EndTransactionAsync("ROLLBACK", ct);
+
+    // Ends the transaction with COMMIT or ROLLBACK. The session connection is
+    // always released and the state cleared (in the finally), even when the verb
+    // itself fails — a failed COMMIT still ends the transaction server-side, so
+    // leaving the connection marked "in transaction" would be a lie.
+    private async Task EndTransactionAsync(string verb, CancellationToken ct)
+    {
+        var connection = _transactionConnection;
+        if (connection is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await using var command = new NpgsqlCommand(verb, connection);
+            await command.ExecuteNonQueryAsync(ct);
+        }
+        finally
+        {
+            _transactionConnection = null;
+            await connection.DisposeAsync();
+            TransactionStateChanged?.Invoke();
+        }
+    }
+
+    // Auto-rollback after a statement failed inside a transaction. A failed
+    // statement puts Postgres in the "current transaction is aborted" state where
+    // every further statement errors until the block is rolled back, so rather
+    // than strand the user there, undo the whole transaction and release the
+    // connection. Best-effort: a rollback that itself fails still clears state.
+    private async Task AutoRollbackAsync()
+    {
+        var connection = _transactionConnection;
+        if (connection is null)
+        {
+            return;
+        }
+
+        _transactionConnection = null;
+        try
+        {
+            await using var command = new NpgsqlCommand("ROLLBACK", connection);
+            await command.ExecuteNonQueryAsync();
+        }
+        catch
+        {
+            // The connection is being discarded regardless; a rollback failure
+            // here changes nothing the caller can act on.
+        }
+        finally
+        {
+            await connection.DisposeAsync();
+            TransactionStateChanged?.Invoke();
+        }
     }
 
     /// <summary>
@@ -27,6 +136,30 @@ public sealed class QueryEngine
     /// </summary>
     public async Task ExecuteNonQueryAsync(string sql, IReadOnlyDictionary<string, object?> parameters, CancellationToken ct)
     {
+        // Inside a transaction the edit must run on the session connection so it's
+        // part of the same block; a failure there aborts the transaction, so
+        // auto-rollback before surfacing the error.
+        if (_transactionConnection is { } tx)
+        {
+            await using var txCommand = new NpgsqlCommand(sql, tx);
+            foreach (var (name, value) in parameters)
+            {
+                txCommand.Parameters.AddWithValue(name, value ?? DBNull.Value);
+            }
+
+            try
+            {
+                await txCommand.ExecuteNonQueryAsync(ct);
+            }
+            catch (PostgresException)
+            {
+                await AutoRollbackAsync();
+                throw;
+            }
+
+            return;
+        }
+
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
         await using var command = new NpgsqlCommand(sql, connection);
 
@@ -50,6 +183,15 @@ public sealed class QueryEngine
     /// </param>
     public async Task<StatementResult> ExecuteAsync(string sql, CancellationToken ct, int? maxRows = null)
     {
+        // Inside a transaction the statement runs on the shared session
+        // connection and its result is fully materialized: a lazily-streaming
+        // reader would pin that one connection open, blocking the next statement
+        // in the transaction until the grid finished consuming it.
+        if (_transactionConnection is not null)
+        {
+            return await ExecuteInTransactionAsync(sql, maxRows, ct);
+        }
+
         var stopwatch = Stopwatch.StartNew();
 
         NpgsqlConnection? connection = null;
@@ -141,20 +283,88 @@ public sealed class QueryEngine
         int? maxRowsPerStatement,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
     {
-        await using var connection = await _dataSource.OpenConnectionAsync(ct);
+        // In a transaction the whole script runs on the shared session connection
+        // (so it joins the open block); otherwise it gets its own pooled
+        // connection that's disposed when the script ends.
+        var inTransaction = _transactionConnection is not null;
+        var connection = inTransaction ? _transactionConnection! : await _dataSource.OpenConnectionAsync(ct);
 
-        foreach (var statement in statements)
+        try
         {
-            ct.ThrowIfCancellationRequested();
-
-            var result = await ExecuteOnConnectionAsync(connection, statement, maxRowsPerStatement, ct);
-            yield return result;
-
-            if (result is QueryError)
+            foreach (var statement in statements)
             {
-                yield break;
+                ct.ThrowIfCancellationRequested();
+
+                var result = await ExecuteOnConnectionAsync(connection, statement, maxRowsPerStatement, ct);
+
+                if (result is QueryError error)
+                {
+                    // A failed statement aborts the transaction; undo it and flag
+                    // the rollback so the last section can say so.
+                    if (inTransaction)
+                    {
+                        await AutoRollbackAsync();
+                        yield return error with { RolledBack = true };
+                    }
+                    else
+                    {
+                        yield return error;
+                    }
+
+                    yield break;
+                }
+
+                yield return result;
             }
         }
+        finally
+        {
+            // AutoRollbackAsync already disposed the session connection on the
+            // error path; only a pooled (non-transaction) connection is ours to
+            // release here.
+            if (!inTransaction)
+            {
+                await connection.DisposeAsync();
+            }
+        }
+    }
+
+    // Runs one statement on the open transaction's connection and materializes
+    // its result (see ExecuteAsync for why streaming is avoided here). A failure
+    // auto-rolls-back the transaction and comes back flagged so the UI can note
+    // that the block is gone.
+    private async Task<StatementResult> ExecuteInTransactionAsync(string sql, int? maxRows, CancellationToken ct)
+    {
+        var connection = _transactionConnection!;
+        var stopwatch = Stopwatch.StartNew();
+
+        StatementResult result;
+        try
+        {
+            // ExecuteOnConnectionAsync converts PostgresExceptions to QueryError
+            // but lets other failures (e.g. a dropped connection) escape; ExecuteAsync
+            // promises never to throw those, so translate them here too.
+            result = await ExecuteOnConnectionAsync(connection, sql, maxRows, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            // A cancelled statement doesn't abort the transaction — leave the
+            // block open so the user can retry, commit, or roll back explicitly.
+            throw;
+        }
+        catch (Exception ex)
+        {
+            await AutoRollbackAsync();
+            return new QueryError { Elapsed = stopwatch.Elapsed, Message = ex.Message, RolledBack = true };
+        }
+
+        if (result is QueryError error)
+        {
+            await AutoRollbackAsync();
+            return error with { RolledBack = true };
+        }
+
+        return result;
     }
 
     // Executes one statement on an already-open connection and materializes its

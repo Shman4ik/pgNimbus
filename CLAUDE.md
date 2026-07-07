@@ -28,7 +28,14 @@ and wrong project memory is worse than none.
    returns result rows via `IAsyncEnumerable<RowBatch>` in ~200-row batches so
    the UI can render before the full result set arrives. Every execution
    takes a `CancellationToken` and must actually stop mid-flight, not just at
-   the start.
+   the start. The one deliberate exception: inside an explicit transaction
+   (`BeginTransactionAsync`), statements run on the single held session
+   connection and return a fully-materialized `MaterializedResultSet` instead —
+   a lazily-streaming reader would pin that connection open and block the next
+   statement in the transaction. A failed statement inside a transaction
+   auto-rolls-back the block (so the connection never lingers in Postgres's
+   aborted-transaction state), and `TransactionStateChanged` is how the App's
+   "in transaction" indicator stays in sync no matter which path changed it.
 3. **PostgreSQL-first, not lowest-common-denominator.** `SchemaService` reads
    `pg_catalog` directly (not `information_schema`) so it can see materialized
    views, partitioned tables, and real Postgres semantics (e.g. primary-key

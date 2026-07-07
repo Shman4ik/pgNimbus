@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PgNimbus.App.Completion;
@@ -63,6 +64,15 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private QueryViewModel _activeTab = null!;
 
+    /// <summary>
+    /// True while an explicit BEGIN…COMMIT/ROLLBACK transaction is open — drives
+    /// the toolbar's "in transaction" indicator and which transaction buttons
+    /// show. Kept in sync with the engine (including auto-rollback on error) via
+    /// its <see cref="QueryEngine.TransactionStateChanged"/> event.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isInTransaction;
+
     public MainViewModel(
         QueryEngine engine,
         ExplainService explainService,
@@ -89,7 +99,74 @@ public sealed partial class MainViewModel : ObservableObject
         NotifyMonitor = notifyMonitor;
         AccentColor = accentColor;
 
+        // The engine owns the transaction state; mirror it here so the indicator
+        // and command availability follow every change — including an
+        // auto-rollback that fires from a background query thread.
+        _engine.TransactionStateChanged += OnEngineTransactionStateChanged;
+
         AddTab();
+    }
+
+    private void OnEngineTransactionStateChanged() =>
+        Dispatcher.UIThread.Post(() => IsInTransaction = _engine.IsInTransaction);
+
+    partial void OnIsInTransactionChanged(bool value)
+    {
+        BeginTransactionCommand.NotifyCanExecuteChanged();
+        CommitTransactionCommand.NotifyCanExecuteChanged();
+        RollbackTransactionCommand.NotifyCanExecuteChanged();
+    }
+
+    private bool CanBeginTransaction() => !IsInTransaction;
+
+    private bool CanEndTransaction() => IsInTransaction;
+
+    /// <summary>Opens an explicit transaction (BEGIN); subsequent statements run inside it until commit or rollback.</summary>
+    [RelayCommand(CanExecute = nameof(CanBeginTransaction))]
+    private async Task BeginTransactionAsync()
+    {
+        try
+        {
+            await _engine.BeginTransactionAsync(CancellationToken.None);
+            ActiveTab.Status = "Transaction started — BEGIN";
+        }
+        catch (Exception ex)
+        {
+            ActiveTab.Status = $"Couldn't begin transaction: {ex.Message}";
+            ActiveTab.HasError = true;
+        }
+    }
+
+    /// <summary>Commits the open transaction (COMMIT).</summary>
+    [RelayCommand(CanExecute = nameof(CanEndTransaction))]
+    private async Task CommitTransactionAsync()
+    {
+        try
+        {
+            await _engine.CommitAsync(CancellationToken.None);
+            ActiveTab.Status = "Transaction committed — COMMIT";
+        }
+        catch (Exception ex)
+        {
+            ActiveTab.Status = $"Commit failed: {ex.Message}";
+            ActiveTab.HasError = true;
+        }
+    }
+
+    /// <summary>Rolls back the open transaction (ROLLBACK).</summary>
+    [RelayCommand(CanExecute = nameof(CanEndTransaction))]
+    private async Task RollbackTransactionAsync()
+    {
+        try
+        {
+            await _engine.RollbackAsync(CancellationToken.None);
+            ActiveTab.Status = "Transaction rolled back — ROLLBACK";
+        }
+        catch (Exception ex)
+        {
+            ActiveTab.Status = $"Rollback failed: {ex.Message}";
+            ActiveTab.HasError = true;
+        }
     }
 
     // Lazily builds (and caches) the reconciler each query tab uses to offer an
@@ -256,6 +333,9 @@ public sealed partial class MainViewModel : ObservableObject
         yield return new PaletteItem("Cancel query", "Action", "■", Invoke(() => ActiveTab.CancelCommand));
         yield return new PaletteItem("Explain", "Action", "⚡", Invoke(() => ActiveTab.ExplainCommand));
         yield return new PaletteItem("Explain Analyze", "Action", "⚡", Invoke(() => ActiveTab.ExplainAnalyzeCommand));
+        yield return new PaletteItem("Begin transaction", "Action", "⛃", Invoke(() => BeginTransactionCommand));
+        yield return new PaletteItem("Commit transaction", "Action", "✓", Invoke(() => CommitTransactionCommand));
+        yield return new PaletteItem("Rollback transaction", "Action", "↺", Invoke(() => RollbackTransactionCommand));
         yield return new PaletteItem("Refresh database & schema", "Action", "⟳", Invoke(() => RefreshSchemaCommand));
         yield return new PaletteItem("New query tab", "Action", "＋", Invoke(() => AddTabCommand));
         yield return new PaletteItem("Close tab", "Action", "✕", Invoke(() => CloseTabCommand));

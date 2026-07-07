@@ -55,4 +55,10 @@ public sealed record QueryError : StatementResult
 
     /// <summary>1-based character position into the submitted SQL, for editor error highlighting.</summary>
     public int? Position { get; init; }
+
+    /// <summary>
+    /// True when this failure happened inside an explicit transaction and the
+    /// engine auto-rolled it back — the block is gone, so the UI can say so.
+    /// </summary>
+    public bool RolledBack { get; init; }
 }
