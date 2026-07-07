@@ -378,6 +378,34 @@
                             </MenuFlyout>
                         </Button.Flyout>
                     </Button>
+
+                    <!-- Transaction control: Begin toggles to Commit/Rollback + an
+                         "in transaction" indicator while a block is open -->
+                    <Rectangle Classes="statusSeparator" Margin="6,0" />
+                    <Button Classes="toolbar" Command="{Binding BeginTransactionCommand}"
+                            IsVisible="{Binding !IsInTransaction}"
+                            ToolTip.Tip="Begin a transaction (BEGIN)">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <TextBlock Text="⛃" FontSize="13" VerticalAlignment="Center" />
+                            <TextBlock Text="Begin" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="toolbar" Command="{Binding CommitTransactionCommand}"
+                            IsVisible="{Binding IsInTransaction}"
+                            ToolTip.Tip="Commit the transaction (COMMIT)">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <TextBlock Text="✓" FontSize="13" VerticalAlignment="Center" />
+                            <TextBlock Text="Commit" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="toolbar" Command="{Binding RollbackTransactionCommand}"
+                            IsVisible="{Binding IsInTransaction}"
+                            ToolTip.Tip="Roll back the transaction (ROLLBACK)">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <TextBlock Text="↺" FontSize="13" VerticalAlignment="Center" />
+                            <TextBlock Text="Rollback" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
             </Border>
 
@@ -566,6 +594,15 @@
                     <TextBlock Text="{Binding ActiveTab.Status}"
                                Classes="statusText" Classes.error="{Binding ActiveTab.HasError}"
                                TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                    <!-- Persistent "in transaction" indicator: an explicit BEGIN block is open -->
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
+                                IsVisible="{Binding IsInTransaction}"
+                                ToolTip.Tip="A transaction is open — statements run inside it until you commit or roll back">
+                        <Rectangle Classes="statusSeparator" />
+                        <Ellipse Width="8" Height="8" Fill="#D9822B" VerticalAlignment="Center" />
+                        <TextBlock Text="In transaction" Classes="statusText" Foreground="#D9822B"
+                                   FontWeight="SemiBold" VerticalAlignment="Center" />
+                    </StackPanel>
                     <!-- "Did you mean the quoted form?" fix, offered after a failed unquoted-identifier run -->
                     <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center"
                                 IsVisible="{Binding ActiveTab.FixSuggestionSql, Converter={x:Static conv:ObjectConverters.IsNotNull}}">

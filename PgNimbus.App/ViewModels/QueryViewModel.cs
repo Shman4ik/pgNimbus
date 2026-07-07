@@ -341,6 +341,30 @@ public sealed partial class QueryViewModel : ObservableObject
                         : null;
                     break;
 
+                case MaterializedResultSet materialized:
+                    // Fully-materialized result of a statement run inside a
+                    // transaction (see QueryEngine): no streaming, the rows are
+                    // already in memory. Mirror the streaming path's cap handling.
+                    _columns = materialized.Columns;
+                    foreach (var column in materialized.Columns)
+                    {
+                        ColumnNames.Add(column.Name);
+                    }
+
+                    var overCap = materialized.Truncated || materialized.Rows.Count > MaxDisplayRows;
+                    var shown = overCap
+                        ? materialized.Rows.Take(MaxDisplayRows).ToList()
+                        : materialized.Rows;
+
+                    Rows = new AvaloniaList<object?[]>(shown);
+                    Status = "Done";
+                    RowCountText = RowLabel(shown.Count);
+                    TimingText = $"{materialized.Elapsed.TotalMilliseconds:F0} ms";
+                    CapText = overCap
+                        ? $"capped at {MaxDisplayRows:N0} rows — refine the query for the full set"
+                        : null;
+                    break;
+
                 case CommandResult commandResult:
                     Status = commandResult.CommandTag;
                     RowCountText = $"{RowLabel(commandResult.RowsAffected)} affected";
@@ -348,7 +372,9 @@ public sealed partial class QueryViewModel : ObservableObject
                     break;
 
                 case QueryError error:
-                    Status = $"Error: {error.Message}";
+                    Status = error.RolledBack
+                        ? $"Error: {error.Message} — transaction rolled back"
+                        : $"Error: {error.Message}";
                     HasError = true;
                     await TryOfferFixAsync(executedSql);
                     break;

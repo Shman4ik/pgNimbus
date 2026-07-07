@@ -109,6 +109,12 @@ Every tag push (`vX.Y.Z`) builds all of the above via
   single connection (so `BEGIN…COMMIT`, `SET`, and temp tables carry across
   them); each statement gets its own selectable result section with per-statement
   timing, and the run stops at the first error (psql `ON_ERROR_STOP` style).
+- **Transaction control** — an explicit **Begin** toolbar button opens a
+  transaction that every statement (and inline grid edit) then runs inside on
+  one held connection; **Commit**/**Rollback** end it, a status-bar "in
+  transaction" indicator shows while it's open, and a failed statement
+  auto-rolls-back the block so you're never stranded in Postgres's
+  aborted-transaction state.
 - **Streaming, cancellable results** — the first screenful renders before the
   full result set arrives, backed by a virtualized grid with inline cell
   editing and CSV/JSON export.
@@ -270,7 +276,7 @@ Things a person needs before pgNimbus can be their only Postgres client:
 
 ### Next — depth on the Postgres-first promise
 
-- [ ] **Transaction control** — explicit BEGIN/COMMIT/ROLLBACK toolbar state,
+- [x] **Transaction control** — explicit BEGIN/COMMIT/ROLLBACK toolbar state,
   with a visible "in transaction" indicator and auto-rollback on error.
 - [x] **SQL formatting** — one-keystroke pretty-printing of the statement under
   the cursor (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd>, or "Format SQL" in the
@@ -390,7 +396,8 @@ bar (the Files community app remains the visual north star):
   (initially: custom result visualizers).
 - [ ] **Localization** — externalize UI strings; ship Russian and German first.
 
-Recently shipped: abbreviated column types in the schema tree
+Recently shipped: transaction control (Begin/Commit/Rollback toolbar state, an
+"in transaction" status-bar indicator, and auto-rollback on error), abbreviated column types in the schema tree
 (timestamptz/varchar…, full name on hover), a collapsible sidebar (Ctrl+B, 200px
 resize floor), a
 remembered-across-launches theme choice, one-keystroke SQL
