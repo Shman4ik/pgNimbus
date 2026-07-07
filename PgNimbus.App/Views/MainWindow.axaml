@@ -335,6 +335,7 @@
                     <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
                 </Border.Resources>
                 <StackPanel Orientation="Horizontal" Spacing="2">
+                    <!-- Group 1 — execution: the primary Run + its Cancel -->
                     <Button Classes="accent" Command="{Binding ActiveTab.RunCommand}" ToolTip.Tip="Run (Ctrl+Enter)">
                         <StackPanel Orientation="Horizontal" Spacing="7">
                             <PathIcon Data="{StaticResource PlayIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
@@ -347,13 +348,49 @@
                             <TextBlock Text="Cancel" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
-                    <Button Classes="toolbar" Command="{Binding ActiveTab.ExplainCommand}">
+
+                    <!-- Group 2 — transaction control (sits right after execution,
+                         ahead of the analysis tools: running inside a transaction
+                         is a core workflow, not a secondary one). Begin toggles to
+                         Commit/Rollback while a block is open; the amber tint on
+                         Commit/Rollback marks them as the state-changing pair. -->
+                    <Rectangle Classes="statusSeparator" Margin="7,0" />
+                    <Button Classes="toolbar" Command="{Binding BeginTransactionCommand}"
+                            IsVisible="{Binding !IsInTransaction}"
+                            ToolTip.Tip="Begin a transaction (BEGIN)">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <TextBlock Text="⛃" FontSize="13" VerticalAlignment="Center" />
+                            <TextBlock Text="Begin" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="toolbar" Command="{Binding CommitTransactionCommand}"
+                            IsVisible="{Binding IsInTransaction}"
+                            Foreground="#D9822B"
+                            ToolTip.Tip="Commit the transaction (COMMIT)">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <TextBlock Text="✓" FontSize="13" VerticalAlignment="Center" />
+                            <TextBlock Text="Commit" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="toolbar" Command="{Binding RollbackTransactionCommand}"
+                            IsVisible="{Binding IsInTransaction}"
+                            Foreground="#D9822B"
+                            ToolTip.Tip="Roll back the transaction (ROLLBACK)">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <TextBlock Text="↺" FontSize="13" VerticalAlignment="Center" />
+                            <TextBlock Text="Rollback" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Group 3 — analysis: plan inspection (secondary to running) -->
+                    <Rectangle Classes="statusSeparator" Margin="7,0" />
+                    <Button Classes="toolbar" Command="{Binding ActiveTab.ExplainCommand}" ToolTip.Tip="Show the query plan (EXPLAIN)">
                         <StackPanel Orientation="Horizontal" Spacing="7">
                             <PathIcon Data="{StaticResource FlashIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
                             <TextBlock Text="Explain" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
-                    <Button Classes="toolbar" Command="{Binding ActiveTab.ExplainAnalyzeCommand}">
+                    <Button Classes="toolbar" Command="{Binding ActiveTab.ExplainAnalyzeCommand}" ToolTip.Tip="Run and show the actual plan (EXPLAIN ANALYZE)">
                         <StackPanel Orientation="Horizontal" Spacing="7">
                             <PathIcon Data="{StaticResource GaugeIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
                             <TextBlock Text="Explain Analyze" VerticalAlignment="Center" />
@@ -366,7 +403,10 @@
                             <TextBlock Text="Show results" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
-                    <Button Classes="toolbar" Name="ExportButton">
+
+                    <!-- Group 4 — data out: export -->
+                    <Rectangle Classes="statusSeparator" Margin="7,0" />
+                    <Button Classes="toolbar" Name="ExportButton" ToolTip.Tip="Export results (CSV / JSON)">
                         <StackPanel Orientation="Horizontal" Spacing="7">
                             <PathIcon Data="{StaticResource ExportIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
                             <TextBlock Text="Export" VerticalAlignment="Center" />
@@ -377,34 +417,6 @@
                                 <MenuItem Header="Export as JSON..." Click="OnExportJsonClick" />
                             </MenuFlyout>
                         </Button.Flyout>
-                    </Button>
-
-                    <!-- Transaction control: Begin toggles to Commit/Rollback + an
-                         "in transaction" indicator while a block is open -->
-                    <Rectangle Classes="statusSeparator" Margin="6,0" />
-                    <Button Classes="toolbar" Command="{Binding BeginTransactionCommand}"
-                            IsVisible="{Binding !IsInTransaction}"
-                            ToolTip.Tip="Begin a transaction (BEGIN)">
-                        <StackPanel Orientation="Horizontal" Spacing="7">
-                            <TextBlock Text="⛃" FontSize="13" VerticalAlignment="Center" />
-                            <TextBlock Text="Begin" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Button>
-                    <Button Classes="toolbar" Command="{Binding CommitTransactionCommand}"
-                            IsVisible="{Binding IsInTransaction}"
-                            ToolTip.Tip="Commit the transaction (COMMIT)">
-                        <StackPanel Orientation="Horizontal" Spacing="7">
-                            <TextBlock Text="✓" FontSize="13" VerticalAlignment="Center" />
-                            <TextBlock Text="Commit" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Button>
-                    <Button Classes="toolbar" Command="{Binding RollbackTransactionCommand}"
-                            IsVisible="{Binding IsInTransaction}"
-                            ToolTip.Tip="Roll back the transaction (ROLLBACK)">
-                        <StackPanel Orientation="Horizontal" Spacing="7">
-                            <TextBlock Text="↺" FontSize="13" VerticalAlignment="Center" />
-                            <TextBlock Text="Rollback" VerticalAlignment="Center" />
-                        </StackPanel>
                     </Button>
                 </StackPanel>
             </Border>
@@ -594,6 +606,14 @@
                     <TextBlock Text="{Binding ActiveTab.Status}"
                                Classes="statusText" Classes.error="{Binding ActiveTab.HasError}"
                                TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                    <!-- Running indicator: indeterminate bar + live elapsed tick while a query is in flight -->
+                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center"
+                                IsVisible="{Binding ActiveTab.IsRunning}">
+                        <Rectangle Classes="statusSeparator" />
+                        <ProgressBar IsIndeterminate="True" Width="90" Height="4"
+                                     VerticalAlignment="Center" ShowProgressText="False" />
+                        <TextBlock Classes="statusText dim" Text="{Binding ActiveTab.RunningElapsedText}" VerticalAlignment="Center" />
+                    </StackPanel>
                     <!-- Persistent "in transaction" indicator: an explicit BEGIN block is open -->
                     <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
                                 IsVisible="{Binding IsInTransaction}"
