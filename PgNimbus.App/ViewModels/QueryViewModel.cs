@@ -34,6 +34,12 @@ public sealed partial class QueryViewModel : ObservableObject
     private CancellationTokenSource? _cts;
     private IReadOnlyList<ColumnInfo> _columns = [];
 
+    // Live "still running" clock: a UI-thread timer ticks the elapsed time while a
+    // query (or EXPLAIN) is in flight, so a slow statement that hasn't produced a
+    // batch yet still shows visible progress instead of a frozen "Running…".
+    private readonly Stopwatch _runClock = new();
+    private DispatcherTimer? _runClockTimer;
+
     [ObservableProperty]
     private string _sql = "SELECT 1;";
 
@@ -57,6 +63,10 @@ public sealed partial class QueryViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _isRunning;
+
+    /// <summary>Live elapsed time of the in-flight query ("1.2 s"), ticked while <see cref="IsRunning"/>; null when idle. Drives the status-bar running indicator alongside the indeterminate progress bar.</summary>
+    [ObservableProperty]
+    private string? _runningElapsedText;
 
     [ObservableProperty]
     private EditableTableContext? _editContext;
@@ -580,7 +590,40 @@ public sealed partial class QueryViewModel : ObservableObject
         ExplainAnalyzeCommand.NotifyCanExecuteChanged();
         ApplyFixCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(HasNoResults));
+
+        if (value)
+        {
+            StartRunClock();
+        }
+        else
+        {
+            StopRunClock();
+        }
     }
+
+    // The live clock runs entirely on the UI thread: IsRunning flips on the UI
+    // thread (before the first await, and again in the run's finally, which
+    // resumes on the captured UI context), so timer create/start/stop are safe here.
+    private void StartRunClock()
+    {
+        _runClock.Restart();
+        RunningElapsedText = "0.0 s";
+
+        _runClockTimer ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
+        _runClockTimer.Tick -= OnRunClockTick;
+        _runClockTimer.Tick += OnRunClockTick;
+        _runClockTimer.Start();
+    }
+
+    private void StopRunClock()
+    {
+        _runClockTimer?.Stop();
+        _runClock.Stop();
+        RunningElapsedText = null;
+    }
+
+    private void OnRunClockTick(object? sender, EventArgs e) =>
+        RunningElapsedText = $"{_runClock.Elapsed.TotalSeconds:F1} s";
 
     partial void OnRowsChanged(AvaloniaList<object?[]> value) => OnPropertyChanged(nameof(HasNoResults));
 
