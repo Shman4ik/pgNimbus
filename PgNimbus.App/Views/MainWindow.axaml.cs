@@ -106,6 +106,16 @@ public partial class MainWindow : Window
         BrowseFilterBox.TextChanged += OnBrowseFilterTextChanged;
         BrowseFilterBox.LostFocus += (_, _) => CloseFilterCompletion();
 
+        // On Windows, popups are native always-on-top windows, and one left
+        // open while the user Alt+Tabs (or clicks) into another program keeps
+        // floating above that program. Close every popup we own the moment
+        // this window stops being the foreground one.
+        Deactivated += (_, _) =>
+        {
+            _completionWindow?.Close();
+            CloseFilterCompletion();
+        };
+
         DataContextChanged += (_, _) =>
         {
             if (DataContext is MainViewModel vm)
