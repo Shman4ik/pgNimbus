@@ -299,6 +299,9 @@ public partial class MainWindow : Window
         app.RequestedThemeVariant = ActualThemeVariant == ThemeVariant.Dark
             ? ThemeVariant.Light
             : ThemeVariant.Dark;
+
+        // Remember the choice so the next launch doesn't snap back to the OS default.
+        App.PersistTheme(app.RequestedThemeVariant);
     }
 
     // Show the glyph for where a click will take you: a sun while dark (click
