@@ -358,9 +358,11 @@ bar (the Files community app remains the visual north star):
   can't shrink to an unreadable sliver) plus a collapse button (the ☰ in the
   title bar) / <kbd>Ctrl</kbd>+<kbd>B</kbd> that fully hides the sidebar and gives
   the editor and results the full width, restoring to the last dragged width.
-- [ ] **Abbreviated column types in the tree** — show long types compactly
-  (e.g. `timestamp with time zone` → `timestamptz`), with the full type name in
-  a tooltip on a ~150 ms hover delay.
+- [x] **Abbreviated column types in the tree** — long types show compactly
+  (e.g. `timestamp with time zone` → `timestamptz`, `character varying(50)` →
+  `varchar(50)`, preserving modifiers and `[]` array markers), with the full type
+  name in a tooltip on a ~150 ms hover delay (only where it was actually
+  shortened).
 - [x] **Smarter tab titles** — query tabs are named from their SQL (first table
   referenced) instead of "Query N", with a dirty-state dot when the SQL has
   changed since the last run.
@@ -388,7 +390,9 @@ bar (the Files community app remains the visual north star):
   (initially: custom result visualizers).
 - [ ] **Localization** — externalize UI strings; ship Russian and German first.
 
-Recently shipped: a collapsible sidebar (Ctrl+B, 200px resize floor), a
+Recently shipped: abbreviated column types in the schema tree
+(timestamptz/varchar…, full name on hover), a collapsible sidebar (Ctrl+B, 200px
+resize floor), a
 remembered-across-launches theme choice, one-keystroke SQL
 formatting (Ctrl+Shift+F, block-style
 pretty-print with a never-corrupt token round-trip check), FROM-scoped
