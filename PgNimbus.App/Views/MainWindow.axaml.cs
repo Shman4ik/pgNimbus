@@ -49,6 +49,11 @@ public partial class MainWindow : Window
     private const double MaxEditorFontSize = 32;
     private const double DefaultEditorFontSize = 14;
 
+    // Sidebar collapse (Ctrl+B): the width to restore to, and whether it's hidden.
+    private const double SidebarMinWidth = 200;
+    private GridLength _savedSidebarWidth = new(300);
+    private bool _sidebarCollapsed;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -200,6 +205,13 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (e.Key == Key.B && e.KeyModifiers == KeyModifiers.Control)
+        {
+            ToggleSidebar();
+            e.Handled = true;
+            return;
+        }
+
         if (e.Key == Key.F6 && e.KeyModifiers == KeyModifiers.None)
         {
             if (SqlEditor.IsKeyboardFocusWithin)
@@ -280,6 +292,35 @@ public partial class MainWindow : Window
         if (sender is Button { Tag: QueryViewModel tab })
         {
             _viewModel?.CloseTabCommand.Execute(tab);
+        }
+    }
+
+    private void OnToggleSidebarClick(object? sender, RoutedEventArgs e) => ToggleSidebar();
+
+    // Fully hides the schema/queries/notify sidebar (and its splitter) to give the
+    // editor and results the whole width, or restores it. The last manual width is
+    // remembered so re-showing returns to where the user had dragged it. Collapsing
+    // also drops the column's 200px floor (it's the manual-resize guard, not a
+    // collapse guard) so the column can actually reach zero.
+    private void ToggleSidebar()
+    {
+        var column = ContentGrid.ColumnDefinitions[0];
+        _sidebarCollapsed = !_sidebarCollapsed;
+
+        if (_sidebarCollapsed)
+        {
+            _savedSidebarWidth = column.Width is { IsAbsolute: true, Value: > 0 } w ? w : new GridLength(300);
+            column.MinWidth = 0;
+            column.Width = new GridLength(0);
+            SidebarTabs.IsVisible = false;
+            SidebarSplitter.IsVisible = false;
+        }
+        else
+        {
+            column.MinWidth = SidebarMinWidth;
+            column.Width = _savedSidebarWidth;
+            SidebarTabs.IsVisible = true;
+            SidebarSplitter.IsVisible = true;
         }
     }
 
