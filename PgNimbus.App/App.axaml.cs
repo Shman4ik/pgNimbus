@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Avalonia.Styling;
 using Npgsql;
 using PgNimbus.App.Completion;
 using PgNimbus.App.ViewModels;
@@ -10,11 +11,35 @@ using PgNimbus.Core.Connections;
 using PgNimbus.Core.Notifications;
 using PgNimbus.Core.Query;
 using PgNimbus.Core.Schema;
+using PgNimbus.Core.Settings;
 
 namespace PgNimbus.App;
 
 public partial class App : Application
 {
+    private static readonly AppSettingsStore SettingsStore = new();
+
+    /// <summary>
+    /// Applies the theme the user last chose (see <see cref="PersistTheme"/>).
+    /// A fresh install has no saved theme, which maps to <see cref="ThemeVariant.Default"/>
+    /// — i.e. follow the OS, the pre-persistence behaviour.
+    /// </summary>
+    private void ApplyPersistedTheme() =>
+        RequestedThemeVariant = ThemeFromString(SettingsStore.Load().Theme);
+
+    /// <summary>Remembers an explicit light/dark choice so it survives a restart.</summary>
+    internal static void PersistTheme(ThemeVariant variant) =>
+        SettingsStore.Save(new AppSettings { Theme = ThemeToString(variant) });
+
+    private static ThemeVariant ThemeFromString(string? theme) => theme?.ToLowerInvariant() switch
+    {
+        "light" => ThemeVariant.Light,
+        "dark" => ThemeVariant.Dark,
+        _ => ThemeVariant.Default,
+    };
+
+    private static string ThemeToString(ThemeVariant variant) =>
+        variant == ThemeVariant.Dark ? "dark" : variant == ThemeVariant.Light ? "light" : "system";
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
@@ -26,6 +51,10 @@ public partial class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
+        // Restore the saved light/dark choice before any window resolves its
+        // ActualThemeVariant, so the first frame already paints in the right theme.
+        ApplyPersistedTheme();
+
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var envConnectionString = Environment.GetEnvironmentVariable("PGNIMBUS_CONN");

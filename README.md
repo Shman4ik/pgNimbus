@@ -288,7 +288,7 @@ Things a person needs before pgNimbus can be their only Postgres client:
   per-connection scoping and pinning.
 - [x] **In-app theme toggle** — light/dark switch in the title bar (sun/moon
   button) instead of following the OS only; the SQL syntax palette repaints
-  with it.
+  with it, and the choice is remembered across launches.
 
 ### Polish — UX/UI fit and finish
 
@@ -346,9 +346,10 @@ bar (the Files community app remains the visual north star):
 - [ ] **Empty state for the connection dialog** — the Saved Connections list
   is a bare grey panel when empty; give it the same friendly hint the
   saved-queries and history lists already have.
-- [ ] **Persist the theme choice** — the in-app light/dark toggle resets to
-  the OS default on every launch; remember it alongside the other persisted
-  app state.
+- [x] **Persist the theme choice** — the in-app light/dark toggle is now
+  remembered across launches (saved to `settings.json` alongside the other
+  persisted app state) instead of snapping back to the OS default; a fresh
+  install with no saved choice still follows the OS.
 - [ ] **Drag-and-drop from the schema tree** — drag a table, column, or other
   object from the sidebar tree into the SQL editor and drop a valid, quoted
   identifier at the cursor (e.g. `"CreatedAt"`).
@@ -385,7 +386,8 @@ bar (the Files community app remains the visual north star):
   (initially: custom result visualizers).
 - [ ] **Localization** — externalize UI strings; ship Russian and German first.
 
-Recently shipped: one-keystroke SQL formatting (Ctrl+Shift+F, block-style
+Recently shipped: a remembered-across-launches theme choice, one-keystroke SQL
+formatting (Ctrl+Shift+F, block-style
 pretty-print with a never-corrupt token round-trip check), FROM-scoped
 WHERE/ORDER BY column suggestions and
 schema-qualified table completion after FROM/JOIN, tab-strip overflow scrolling,
