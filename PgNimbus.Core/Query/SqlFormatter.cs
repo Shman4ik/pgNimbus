@@ -7,6 +7,12 @@ namespace PgNimbus.Core.Query;
 /// readable block style — each major clause on its own line, select-list and
 /// SET/GROUP BY/ORDER BY items and JOINs broken one-per-line, <c>AND</c>/<c>OR</c>
 /// predicates stacked, subqueries indented — and upper-cases reserved keywords.
+/// Layout is width-aware: a clause whose exploded body fits within
+/// <see cref="MaxCompactWidth"/> columns collapses back onto the keyword's line
+/// (<c>SELECT *</c>, <c>WHERE active = TRUE</c>), so short queries stay short
+/// and only genuinely long clauses go tall. JOINs keep their own line however
+/// short, and <c>LIMIT</c>/<c>OFFSET</c>/<c>FETCH</c> share a line as one
+/// pagination clause when they fit.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -29,6 +35,10 @@ public static class SqlFormatter
 {
     private const string IndentUnit = "    ";
 
+    // A clause whose whole body fits on the keyword's line within this many
+    // columns stays on one line instead of breaking one item per line.
+    private const int MaxCompactWidth = 80;
+
     /// <summary>
     /// Formats a single SQL statement. Returns the input unchanged when it is empty,
     /// comment-only, or when the formatted output wouldn't round-trip to the same
@@ -47,7 +57,7 @@ public static class SqlFormatter
             return sql;
         }
 
-        var formatted = Layout(tokens);
+        var formatted = Compact(Layout(tokens));
 
         // Never corrupt: if our output doesn't re-tokenize to the same token
         // sequence, hand the original back verbatim.
@@ -74,6 +84,7 @@ public static class SqlFormatter
         var clauseParenDepth = 0;   // paren depth the current clause lives at
         var parenDepth = 0;
         var prevJoinMod = false;    // last emitted token was a JOIN modifier (LEFT/INNER/…)
+        var betweenDepth = 0;       // BETWEENs awaiting their AND, so "a BETWEEN x AND y" never breaks at that AND
         string? prevKeyword = null; // last keyword emitted, lower-cased (for DELETE FROM etc.)
         var lineStart = true;       // sb is empty or sits right after a newline+indent
         var pendingBreakIndent = -1; // >=0 ⇒ start the next token on a fresh line at this indent
@@ -82,7 +93,7 @@ public static class SqlFormatter
         var prevText = "";
 
         // Per-open-paren saved clause state, restored on the matching close.
-        var stack = new Stack<(int Indent, int BodyIndent, bool BodyActive, int ClauseParenDepth, bool PrevJoinMod, string? PrevKeyword, int OpenLineIndent, bool Subquery)>();
+        var stack = new Stack<(int Indent, int BodyIndent, bool BodyActive, int ClauseParenDepth, bool PrevJoinMod, string? PrevKeyword, int OpenLineIndent, bool Subquery, int BetweenDepth)>();
 
         void Break(int level) => pendingBreakIndent = level;
 
@@ -165,6 +176,7 @@ public static class SqlFormatter
 
                     prevKeyword = lower;
                     prevJoinMod = false;
+                    betweenDepth = 0;
                     break;
 
                 case Kind.Word when atClause && JoinModifiers.Contains(lower!):
@@ -190,13 +202,32 @@ public static class SqlFormatter
                     break;
 
                 case Kind.Word when atClause && bodyActive && (lower == "and" || lower == "or"):
-                    Break(bodyIndent);
+                    // The AND that closes "a BETWEEN x AND y" is part of the
+                    // expression, not a predicate separator — keep it inline.
+                    if (lower == "and" && betweenDepth > 0)
+                    {
+                        betweenDepth--;
+                    }
+                    else
+                    {
+                        Break(bodyIndent);
+                    }
+
                     Emit(Upper(t.Text, lower), Kind.Word, spaceBefore: true);
                     prevJoinMod = false;
                     prevKeyword = lower;
                     break;
 
                 case Kind.Word:
+                    if (lower == "between")
+                    {
+                        betweenDepth++;
+                    }
+                    else if (lower == "and" && betweenDepth > 0)
+                    {
+                        betweenDepth--;
+                    }
+
                     Emit(Upper(t.Text, lower), Kind.Word, spaceBefore: true);
                     prevJoinMod = false;
                     if (Keywords.Contains(lower!))
@@ -225,7 +256,8 @@ public static class SqlFormatter
                     // there and that token is callable/subscriptable — so "count(*)"
                     // stays tight while "users (…)" and "in (…)" keep their space.
                     var funcCall = !t.SpaceBefore && i > 0 && IsCallTarget(tokens[i - 1]);
-                    stack.Push((indent, bodyIndent, bodyActive, clauseParenDepth, prevJoinMod, prevKeyword, curLineIndent, subquery));
+                    stack.Push((indent, bodyIndent, bodyActive, clauseParenDepth, prevJoinMod, prevKeyword, curLineIndent, subquery, betweenDepth));
+                    betweenDepth = 0;
 
                     Emit("(", Kind.OpenParen, spaceBefore: !funcCall);
                     parenDepth++;
@@ -254,6 +286,7 @@ public static class SqlFormatter
                         clauseParenDepth = s.ClauseParenDepth;
                         prevJoinMod = s.PrevJoinMod;
                         prevKeyword = s.PrevKeyword;
+                        betweenDepth = s.BetweenDepth;
                         if (s.Subquery)
                         {
                             Break(s.OpenLineIndent); // ")" lines up under the "(" that opened it
@@ -272,6 +305,7 @@ public static class SqlFormatter
                     clauseParenDepth = parenDepth;
                     prevKeyword = null;
                     prevJoinMod = false;
+                    betweenDepth = 0;
                     if (i < tokens.Count - 1)
                     {
                         Break(0);
@@ -305,6 +339,173 @@ public static class SqlFormatter
         }
 
         return sb.ToString();
+    }
+
+    // ---- Compaction -------------------------------------------------------
+
+    // Collapses clauses whose exploded body fits on one line back onto the
+    // clause keyword's line: "SELECT\n    *" → "SELECT *", "WHERE\n    a = 1\n
+    // AND b = 2" → "WHERE a = 1 AND b = 2". Runs to a fixpoint so an inner
+    // merge (a subquery's SELECT list) can enable an outer one (the whole
+    // "FROM (…) t"). Finishes by pairing LIMIT/OFFSET/FETCH onto one line.
+    private static string Compact(string formatted)
+    {
+        var lines = new List<string>(formatted.Split('\n'));
+
+        bool changed;
+        do
+        {
+            changed = false;
+            for (var i = 0; i < lines.Count; i++)
+            {
+                changed |= TryMergeClause(lines, i);
+            }
+        }
+        while (changed);
+
+        MergePagination(lines);
+        return string.Join('\n', lines);
+    }
+
+    // Merges the group headed by lines[i] — the run of deeper-indented lines
+    // below it — onto that line, when it is safe and it fits. A group merges
+    // only when every body line sits exactly one level below the header (deeper
+    // nesting keeps the clause tall), no body line is a JOIN (joins keep their
+    // own line however short), and the merged text re-tokenizes to the same
+    // tokens as the lines it replaces — which rejects any merge that would
+    // swallow code into a line comment or reflow a multi-line literal. A header
+    // that opens a subquery ("FROM (") also pulls in its closing ") alias" line.
+    private static bool TryMergeClause(List<string> lines, int i)
+    {
+        var header = lines[i].TrimEnd();
+        var headerIndent = IndentLevel(lines[i]);
+        if (header.Length == 0)
+        {
+            return false;
+        }
+
+        var j = i + 1;
+        var flat = true;
+        while (j < lines.Count && IndentLevel(lines[j]) > headerIndent)
+        {
+            flat &= IndentLevel(lines[j]) == headerIndent + 1;
+            j++;
+        }
+
+        if (j == i + 1 || !flat)
+        {
+            return false;
+        }
+
+        for (var k = i + 1; k < j; k++)
+        {
+            if (StartsWithJoinKeyword(lines[k]))
+            {
+                return false;
+            }
+        }
+
+        // "FROM (" / "WITH x AS (": the group is only complete with its closing
+        // ") …" line, so require and include it; any other dangling "(" stays tall.
+        var end = j;
+        if (header.EndsWith('('))
+        {
+            if (j >= lines.Count || IndentLevel(lines[j]) != headerIndent || !lines[j].TrimStart().StartsWith(')'))
+            {
+                return false;
+            }
+
+            end = j + 1;
+        }
+
+        var sb = new StringBuilder(header);
+        for (var k = i + 1; k < end; k++)
+        {
+            var part = lines[k].Trim();
+            if (sb[^1] != '(' && !part.StartsWith(')'))
+            {
+                sb.Append(' ');
+            }
+
+            sb.Append(part);
+        }
+
+        var merged = sb.ToString();
+        if (merged.Length > MaxCompactWidth)
+        {
+            return false;
+        }
+
+        var original = string.Join("\n", lines.GetRange(i, end - i));
+        if (!SameTokens(Tokenize(original), Tokenize(merged)))
+        {
+            return false;
+        }
+
+        lines[i] = merged;
+        lines.RemoveRange(i + 1, end - i - 1);
+        return true;
+    }
+
+    // "LIMIT 100" + "OFFSET 0" (and an ANSI "FETCH …" after either) read as one
+    // pagination clause, so they share a line when the pair fits.
+    private static void MergePagination(List<string> lines)
+    {
+        for (var i = lines.Count - 1; i > 0; i--)
+        {
+            var cur = FirstWordLower(lines[i]);
+            var prev = FirstWordLower(lines[i - 1]);
+            var pair = (cur == "offset" && prev == "limit")
+                || (cur == "fetch" && prev is "offset" or "limit");
+            if (!pair || IndentLevel(lines[i]) != IndentLevel(lines[i - 1]))
+            {
+                continue;
+            }
+
+            var merged = lines[i - 1].TrimEnd() + " " + lines[i].Trim();
+            if (merged.Length > MaxCompactWidth
+                || !SameTokens(Tokenize(lines[i - 1] + "\n" + lines[i]), Tokenize(merged)))
+            {
+                continue;
+            }
+
+            lines[i - 1] = merged;
+            lines.RemoveAt(i);
+        }
+    }
+
+    private static int IndentLevel(string line)
+    {
+        var spaces = 0;
+        while (spaces < line.Length && line[spaces] == ' ')
+        {
+            spaces++;
+        }
+
+        return spaces / IndentUnit.Length;
+    }
+
+    private static string FirstWordLower(string line)
+    {
+        var start = 0;
+        while (start < line.Length && line[start] == ' ')
+        {
+            start++;
+        }
+
+        var end = start;
+        while (end < line.Length && char.IsLetter(line[end]))
+        {
+            end++;
+        }
+
+        return line[start..end].ToLowerInvariant();
+    }
+
+    private static bool StartsWithJoinKeyword(string line)
+    {
+        var word = FirstWordLower(line);
+        return word == "join" || JoinModifiers.Contains(word);
     }
 
     // "group"/"order"/"partition" followed by "by": emit as one upper-cased clause
