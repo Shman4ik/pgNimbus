@@ -70,11 +70,14 @@ public partial class MainWindow : Window
         {
             ApplySqlHighlightingTheme();
             UpdateThemeIcon();
+            ApplyBackdrop();
         };
         ActualThemeVariantChanged += (_, _) =>
         {
             ApplySqlHighlightingTheme();
             UpdateThemeIcon();
+            // ShellBackdropBrush is theme-split, so re-resolve on a theme flip.
+            ApplyBackdrop();
         };
 
         SqlEditor.TextChanged += (_, _) =>
@@ -353,6 +356,30 @@ public partial class MainWindow : Window
         if (this.TryFindResource(key, out var geometry) && geometry is Geometry data)
         {
             ThemeIcon.Data = data;
+        }
+    }
+
+    // Windows 11 Mica backdrop. When the platform honors a translucent backdrop
+    // (Mica, or Acrylic as the Windows 10 fallback), the two-tone shell's base
+    // becomes ShellBackdropBrush so the backdrop shows through it; the content
+    // pane stays opaque. Anywhere the hint can't be honored (Linux, macOS, older
+    // Windows, transparency disabled), ActualTransparencyLevel is None and the
+    // base keeps its opaque chrome tone.
+    private void ApplyBackdrop()
+    {
+        var backdropActive = ActualTransparencyLevel == WindowTransparencyLevel.Mica
+            || ActualTransparencyLevel == WindowTransparencyLevel.AcrylicBlur;
+
+        var key = backdropActive
+            ? "ShellBackdropBrush"
+            : "SystemControlBackgroundChromeMediumLowBrush";
+
+        // Must resolve against the actual theme: ShellBackdropBrush lives only in
+        // Light/Dark theme dictionaries (no Default), so the theme-less overload
+        // silently misses it and the swap never happens.
+        if (this.TryFindResource(key, ActualThemeVariant, out var resource) && resource is IBrush brush)
+        {
+            ShellBase.Background = brush;
         }
     }
 

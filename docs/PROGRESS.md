@@ -177,7 +177,36 @@ means for pgNimbus. Adopting its language where Avalonia allows.
 | Smarter SQL IntelliSense | Completion now reads the caret's grammatical position instead of always dumping the catalog. A new single-pass scanner (`SqlCompletionContext.GetCaretContext`) tracks string/comment state (`'…'` with `''` escapes, quoted identifiers, `--`, nestable `/* */`, `$tag$…$tag$`) and the governing clause per statement, so: **(1)** nothing pops up inside literals/comments; **(2)** after `FROM`/`JOIN`/`INTO`/`UPDATE` only tables/schemas/CTE names (+keywords) are offered — the list opens by itself on the space after those keywords, tables first — while `INSERT INTO t (` flips back to columns; **(3)** everywhere else the statement's own columns float to the top as before, now also from `UPDATE`/`INSERT INTO` targets (new `UpdateIntoTargetRegex`) and joined by the statement's aliases and `WITH` CTE names (new `CteNameRegex`). Column items now carry their `format_type` data type (`GetAllColumnsAsync` returns it; description reads `column (users) : integer`), and ~70 curated everyday functions (`coalesce`, `date_trunc`, `string_agg`, window functions…) complete as `name()` with the caret placed between the parens. Logic verified by a 58-case scratch harness (clause detection, suppression, table/CTE extraction — all pass) and end-to-end under Xvfb: `FROM ` auto-opened tables-first list; `cu`→Enter inserted `customers`; `c.` listed exactly its 4 columns; the selected column's tooltip showed `column (customers) : integer`; typing inside `'nam` showed no popup; `coale`→Enter produced `coalesce(│)` with the next popup led by alias `c` + floated columns; a `WITH recent AS (…)` query listed `recent` first after `FROM `. | (this commit) |
 
 ## Open / candidate items
-- [ ] Mica/acrylic backdrop remains blocked on safe verification (a headless
-      sandbox can't see transparency failures).
+- [x] Mica/acrylic backdrop on Windows — `MainWindow` sets
+      `TransparencyLevelHint="Mica,AcrylicBlur"` + transparent window
+      background; `ApplyBackdrop` (code-behind) swaps the two-tone shell's base
+      (`ShellBase`) to the theme-split `ShellBackdropBrush` when
+      `ActualTransparencyLevel` is Mica/Acrylic, and keeps the opaque chrome
+      tone otherwise (Win10-, Linux, macOS, transparency off) so the base is
+      never a see-through hole. Content pane stays opaque. Needs a live desktop
+      to eyeball the frost.
+- [x] Dropped the OS `SystemAccentColor`/`SystemControlHighlightListAccentLowBrush`
+      for a fixed brand blue (`AppAccentBrush`/`Hover`/`Pressed` + low-alpha
+      `AppSelectionBrush` in `Theme.axaml`). The OS accent could be any hue, so
+      keeping every selection/hover/primary surface legible against it wasn't
+      worth polishing. Per-connection `AccentColor` (the connection dot) is
+      unrelated and untouched.
+- [ ] Compact schema tree — reduce the *per-level* horizontal indent. Row
+      height/padding was tightened via `TreeViewItem` style setters (those win
+      over the ControlTheme's setters), but the indent lives on
+      `PART_Header.Margin` (a `MultiBinding` on `TreeViewItem.Level`) set inside
+      the Fluent **template**, which is `BindingPriority.Template` — higher than
+      an app-level `Style`, so a `/template/` setter override is silently
+      ignored. Two viable paths: (a) counter-offset each nested
+      `PART_ItemsPresenter` with a negative left `Margin` via a plain style
+      (its margin is *not* template-set, so a style can win there); or (b) ship
+      a full replacement `TreeViewItem` ControlTheme with a smaller indent
+      converter. Deferred — needs verification on a live tree.
+- [ ] `Window.MinWidth`/`MinHeight` clamp the layout size (and the `Width`
+      property) but do **not** feed the Win32 min-track-size, so an OS frame
+      drag can still shrink the window below `940` and squeeze the right pane
+      to a sliver (content clips / DataGrid auto-scrolls a clicked cell into
+      view). Fix candidates: push the min into the platform impl, or make the
+      command bar wrap and the pane degrade gracefully. Deferred.
 - [ ] Roadmap features (extension manager, plugin API) — out of polish
       scope
