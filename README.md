@@ -78,6 +78,11 @@ Every tag push (`vX.Y.Z`) builds all of the above via
   (so production doesn't look like staging), SSH tunnel support, and
   passwords held by the OS credential store (DPAPI on Windows) instead of
   being written to disk with the profile.
+- **Switch connection without restarting** — the ⇄ button next to the
+  title-bar breadcrumb (or "Switch connection…" in the command palette)
+  reopens the connection dialog; the current window stays fully usable until
+  the new connection succeeds, then hands over cleanly (LISTEN subscriptions
+  and SSH tunnels for the old connection are torn down).
 - **Paste-anything connection strings** — drop whatever is on your clipboard
   into the connection dialog and it fills the form: `postgres://` URIs
   (Heroku/Supabase/Neon-style), `jdbc:postgresql://` URLs, ADO.NET/Npgsql
@@ -104,6 +109,10 @@ Every tag push (`vX.Y.Z`) builds all of the above via
   cast to its real type server-side, blanks fall back to defaults),
   "Delete selected row(s)" with a confirmation, and "Set cell to NULL" (the
   gesture inline editing can't express), all keyed on the primary key.
+- **Cell inspector** — double-click a cell (or "Inspect cell…" on the grid
+  context menu) to read the full value of a long `text`/`jsonb` cell in an
+  overlay: JSON pretty-printed, word wrap on by default with a toggle, and a
+  one-click copy.
 - **EXPLAIN visualization** — a graphical plan tree for `EXPLAIN` and
   `EXPLAIN ANALYZE`, not just raw text output.
 - **LISTEN/NOTIFY monitor** — subscribe to channels and watch notifications
@@ -227,7 +236,9 @@ Things a person needs before pgNimbus can be their only Postgres client:
 - [x] **DDL view** — a "Source" tab per object: reconstructed
   `CREATE TABLE`/`CREATE VIEW`/index definitions from `pg_catalog`.
 - [x] **Windows installer + releases** — a per-user MSI and a macOS `.dmg`
-  built and published by CI on every tag, plus generated winget manifests.
+  built and published by CI on every tag
+  ([`release.yml`](.github/workflows/release.yml)), plus generated winget
+  manifests.
 - [ ] **Code signing** — Authenticode for the MSI, Developer ID +
   notarization for the `.dmg`. Both ship unsigned today, so SmartScreen and
   Gatekeeper warn on first run — the single biggest first-impression blocker
@@ -269,7 +280,9 @@ bar (the Files community app remains the visual north star):
   `INSERT` statements) on the grid context menu.
 - [x] **Cell inspector** — a detail pane (or popover) for the selected cell so
   long `text`/`jsonb` values are readable and copyable without inline-edit
-  tricks; pretty-print JSON.
+  tricks; pretty-print JSON. Word wrap is on by default (Notepad++-style),
+  with a "Wrap" toggle in the header, and non-ASCII text (e.g. Cyrillic)
+  displays as itself rather than `\uXXXX` escapes.
 - [x] **Set a cell to NULL from the grid** — inline editing can't express
   "make it NULL" (empty string ≠ NULL); a "Set cell to NULL" context-menu
   action on the results grid issues the targeted UPDATE.

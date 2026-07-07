@@ -1,4 +1,6 @@
+using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Unicode;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -24,6 +26,19 @@ public sealed partial class CellInspectorViewModel : ObservableObject
     /// <summary>True when <see cref="DisplayText"/> is pretty-printed JSON - drives monospace display in the view.</summary>
     [ObservableProperty]
     private bool _isJson;
+
+    /// <summary>Whether the inspector wraps long lines, Notepad++-style. On by default so a long text/jsonb value never scrolls off-screen horizontally.</summary>
+    [ObservableProperty]
+    private bool _wordWrap = true;
+
+    private static readonly JsonSerializerOptions PrettyPrintOptions = new()
+    {
+        WriteIndented = true,
+        // Default JsonSerializer escaping is ASCII-only (everything else
+        // becomes \uXXXX) - relax to all Unicode so e.g. Cyrillic values
+        // show as themselves, not escape sequences.
+        Encoder = JavaScriptEncoder.Create(UnicodeRanges.All),
+    };
 
     public void Open(string columnName, object? value)
     {
@@ -63,7 +78,7 @@ public sealed partial class CellInspectorViewModel : ObservableObject
         try
         {
             using var document = JsonDocument.Parse(text);
-            pretty = JsonSerializer.Serialize(document, new JsonSerializerOptions { WriteIndented = true });
+            pretty = JsonSerializer.Serialize(document, PrettyPrintOptions);
             return true;
         }
         catch (JsonException)

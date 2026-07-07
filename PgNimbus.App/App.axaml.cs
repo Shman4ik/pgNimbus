@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Npgsql;
@@ -44,7 +45,16 @@ public partial class App : Application
         base.OnFrameworkInitializationCompleted();
     }
 
-    private static ConnectionDialog BuildConnectionDialog(IClassicDesktopStyleApplicationLifetime desktop)
+    /// <summary>
+    /// Builds the connection-profile picker. Used both at startup (as
+    /// <see cref="IClassicDesktopStyleApplicationLifetime.MainWindow"/>, no
+    /// <paramref name="previousWindow"/>) and for "switch connection" from an
+    /// already-open <see cref="MainWindow"/> — in that case, connecting closes
+    /// <paramref name="previousWindow"/> after the new one is up, so its
+    /// resources (notify-listen connection, SSH tunnel) tear down via its own
+    /// <c>Closed</c> handler exactly as they would on a normal window close.
+    /// </summary>
+    internal static ConnectionDialog BuildConnectionDialog(IClassicDesktopStyleApplicationLifetime desktop, Window? previousWindow = null)
     {
         var viewModel = new ConnectionDialogViewModel(new ConnectionProfileStore(), CredentialStore.Create());
         var dialog = new ConnectionDialog { DataContext = viewModel };
@@ -55,12 +65,13 @@ public partial class App : Application
             desktop.MainWindow = mainWindow;
             mainWindow.Show();
             dialog.Close();
+            previousWindow?.Close();
         };
 
         return dialog;
     }
 
-    private static MainWindow BuildMainWindow(string connectionString, string? accentColor = null, SshTunnel? tunnel = null)
+    internal static MainWindow BuildMainWindow(string connectionString, string? accentColor = null, SshTunnel? tunnel = null)
     {
         var dataSource = NpgsqlDataSource.Create(connectionString);
         var engine = new QueryEngine(dataSource);
