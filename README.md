@@ -239,6 +239,8 @@ Things a person needs before pgNimbus can be their only Postgres client:
   built and published by CI on every tag
   ([`release.yml`](.github/workflows/release.yml)), plus generated winget
   manifests.
+- [ ] **From-scoped WHERE suggestions** — restrict column autocomplete in the query editor's `WHERE` clause to only show fields from tables/collections specified in the `FROM` clause instead of the entire schema.
+- [ ] **Automatic schema completion** — automatically prepend the parent schema prefix when selecting a table name immediately after a `FROM` or `JOIN` keyword.
 - [ ] **Code signing** — Authenticode for the MSI, Developer ID +
   notarization for the `.dmg`. Both ship unsigned today, so SmartScreen and
   Gatekeeper warn on first run — the single biggest first-impression blocker
