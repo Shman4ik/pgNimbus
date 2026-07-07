@@ -3,8 +3,9 @@
         x:Class="PgNimbus.App.Views.ShortcutsWindow"
         Title="pgNimbus — Keyboard Shortcuts"
         Icon="avares://PgNimbus.App/Assets/icon-256.png"
-        Width="600" Height="800"
-        CanResize="False"
+        Width="600" Height="700"
+        MinWidth="480" MinHeight="400"
+        CanResize="True"
         WindowStartupLocation="CenterOwner"
         FontFamily="{StaticResource InterFont}">
 
