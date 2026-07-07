@@ -169,6 +169,11 @@
         <Setter Property="Background" Value="{StaticResource HoverBackgroundBrush}" />
         <Setter Property="Opacity" Value="1" />
     </Style>
+    <!-- Checked state for chip-styled ToggleButtons (e.g. cell inspector's Wrap toggle) -->
+    <Style Selector="ToggleButton.chip:checked">
+        <Setter Property="Background" Value="{StaticResource HoverBackgroundBrush}" />
+        <Setter Property="Opacity" Value="1" />
+    </Style>
 
     <!-- Left-nav style TabItem: pill highlight instead of the classic underline tab strip -->
     <Style Selector="TabControl">

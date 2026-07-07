@@ -31,6 +31,12 @@ public sealed partial class MainViewModel : ObservableObject
     // MainWindow subscribes to these so the palette can trigger them.
     public event Action? ThemeToggleRequested;
     public event Action? ShortcutsRequested;
+    // Raised when the user asks to connect to a different server/database;
+    // MainWindow reopens the connection dialog (App.BuildConnectionDialog).
+    public event Action? SwitchConnectionRequested;
+
+    [RelayCommand]
+    private void SwitchConnection() => SwitchConnectionRequested?.Invoke();
 
     // Relations rarely change mid-session, so the palette's "jump to a table"
     // list is fetched once and reused across opens.
@@ -252,6 +258,7 @@ public sealed partial class MainViewModel : ObservableObject
         yield return new PaletteItem("Close tab", "Action", "✕", Invoke(() => CloseTabCommand));
         yield return new PaletteItem("Next tab", "Action", "›", Invoke(() => NextTabCommand));
         yield return new PaletteItem("Previous tab", "Action", "‹", Invoke(() => PreviousTabCommand));
+        yield return new PaletteItem("Switch connection…", "Action", "⇄", () => { SwitchConnectionRequested?.Invoke(); return Task.CompletedTask; });
         yield return new PaletteItem("Toggle light/dark theme", "Action", "◐", () => { ThemeToggleRequested?.Invoke(); return Task.CompletedTask; });
         yield return new PaletteItem("Keyboard shortcuts", "Action", "?", () => { ShortcutsRequested?.Invoke(); return Task.CompletedTask; });
     }

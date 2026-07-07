@@ -4,6 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Xml;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
@@ -224,6 +225,7 @@ public partial class MainWindow : Window
             _viewModel.PropertyChanged -= OnMainViewModelPropertyChanged;
             _viewModel.ThemeToggleRequested -= ToggleTheme;
             _viewModel.ShortcutsRequested -= ShowShortcutsWindow;
+            _viewModel.SwitchConnectionRequested -= SwitchConnection;
         }
 
         _viewModel = vm;
@@ -231,6 +233,7 @@ public partial class MainWindow : Window
         // Palette actions that touch the window are handled here.
         _viewModel.ThemeToggleRequested += ToggleTheme;
         _viewModel.ShortcutsRequested += ShowShortcutsWindow;
+        _viewModel.SwitchConnectionRequested += SwitchConnection;
 
         AttachQuery(vm.ActiveTab);
     }
@@ -308,6 +311,25 @@ public partial class MainWindow : Window
     }
 
     private void OnShowShortcutsClick(object? sender, RoutedEventArgs e) => ShowShortcutsWindow();
+
+    private void OnSwitchConnectionClick(object? sender, RoutedEventArgs e) => SwitchConnection();
+
+    // Reopens the connection dialog so a different profile (or an ad-hoc
+    // connection) can be chosen without restarting the app. This window stays
+    // usable until the new connection succeeds; only then does the dialog's
+    // Connected handler close it (tearing down its notify listener/tunnel via
+    // the Closed hook in App.BuildMainWindow). Cancelling the dialog leaves
+    // everything as it was.
+    private void SwitchConnection()
+    {
+        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            return;
+        }
+
+        var dialog = App.BuildConnectionDialog(desktop, previousWindow: this);
+        dialog.Show(this);
+    }
 
     private void ShowShortcutsWindow()
     {

@@ -1,5 +1,7 @@
 using System.Globalization;
+using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Unicode;
 
 namespace PgNimbus.Core.Export;
 
@@ -77,9 +79,19 @@ public static class ResultExporter
         }
     }
 
+    // Escaping is relaxed to all Unicode ranges instead of the JsonSerializer
+    // default (ASCII-only, everything else \uXXXX-escaped) - non-Latin text
+    // (e.g. Cyrillic) should read as itself in an exported/copied JSON file,
+    // not as escape sequences.
+    private static readonly JsonWriterOptions JsonOptions = new()
+    {
+        Indented = true,
+        Encoder = JavaScriptEncoder.Create(UnicodeRanges.All),
+    };
+
     public static void WriteJson(Stream stream, IReadOnlyList<string> columns, IEnumerable<object?[]> rows)
     {
-        using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
+        using var writer = new Utf8JsonWriter(stream, JsonOptions);
 
         writer.WriteStartArray();
         foreach (var row in rows)

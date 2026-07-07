@@ -92,6 +92,8 @@
                     <TextBlock Text="{Binding ConnectionHost}" FontSize="12" Opacity="0.65" VerticalAlignment="Center" Margin="10,0,0,0" />
                     <TextBlock Text="›" FontSize="12" Opacity="0.45" VerticalAlignment="Center" />
                     <TextBlock Text="{Binding ConnectionDatabase}" FontSize="12" Opacity="0.65" VerticalAlignment="Center" />
+                    <Button Classes="chip" Content="⇄" FontSize="12" VerticalAlignment="Center" Margin="4,0,0,0"
+                            Click="OnSwitchConnectionClick" ToolTip.Tip="Switch connection" />
                 </StackPanel>
             </DockPanel>
         </Border>
@@ -661,16 +663,19 @@
                 PointerPressed="OnCellInspectorCardPressed"
                 x:DataType="vm:CellInspectorViewModel" DataContext="{Binding CellInspector}">
             <Grid RowDefinitions="Auto,*" Margin="14">
-                <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,10">
+                <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto,Auto" Margin="0,0,0,10">
                     <TextBlock Grid.Column="0" Text="{Binding ColumnName}" FontWeight="SemiBold" FontSize="14"
                                VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                    <Button Grid.Column="1" Content="Copy" Classes="chip" Margin="6,0,0,0"
+                    <ToggleButton Grid.Column="1" Content="Wrap" Classes="chip" Margin="6,0,0,0"
+                                  IsChecked="{Binding WordWrap}" ToolTip.Tip="Toggle word wrap" />
+                    <Button Grid.Column="2" Content="Copy" Classes="chip" Margin="6,0,0,0"
                             Click="OnCellInspectorCopyClick" />
-                    <Button Grid.Column="2" Content="✕" Classes="chip" Margin="6,0,0,0"
+                    <Button Grid.Column="3" Content="✕" Classes="chip" Margin="6,0,0,0"
                             Command="{Binding CloseCommand}" />
                 </Grid>
                 <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-                    <SelectableTextBlock Text="{Binding DisplayText}" TextWrapping="NoWrap"
+                    <SelectableTextBlock Text="{Binding DisplayText}"
+                                          TextWrapping="{Binding WordWrap, Converter={x:Static conv2:BoolToTextWrappingConverter.Instance}}"
                                           FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="13" />
                 </ScrollViewer>
             </Grid>
