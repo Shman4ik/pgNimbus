@@ -309,6 +309,9 @@ bar (the Files community app remains the visual north star):
 - [ ] **Empty state for the connection dialog** — the Saved Connections list
   is a bare grey panel when empty; give it the same friendly hint the
   saved-queries and history lists already have.
+- [ ] **Persist the theme choice** — the in-app light/dark toggle resets to
+  the OS default on every launch; remember it alongside the other persisted
+  app state.
 - [ ] **Drag-and-drop from the schema tree** — drag a table, column, or other
   object from the sidebar tree into the SQL editor and drop a valid, quoted
   identifier at the cursor (e.g. `"CreatedAt"`).
