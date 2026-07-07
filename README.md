@@ -93,9 +93,10 @@ Every tag push (`vX.Y.Z`) builds all of the above via
   action from one keyboard-driven control.
 - **Keyboard shortcuts cheat sheet** — press <kbd>F1</kbd> (or the `?`
   title-bar button) for an overview of every binding.
-- **Multi-tab query editor** — schema-aware SQL autocomplete (tables after
-  `FROM`/`JOIN`, columns with their data types elsewhere, `alias.` member
-  access, CTE names, common functions inserted as calls), saved queries,
+- **Multi-tab query editor** — schema-aware SQL autocomplete (schema-qualified
+  tables after `FROM`/`JOIN`, `FROM`-scoped columns in `WHERE`/`ON`/`ORDER BY`,
+  columns with their data types elsewhere, `alias.` member access, CTE names,
+  common functions inserted as calls), saved queries,
   run history, current-line and matching-bracket highlighting, and font-size
   zoom (<kbd>Ctrl</kbd>+wheel / <kbd>Ctrl</kbd>+<kbd>±</kbd>).
 - **Run a whole script** — execute several `;`-separated statements at once on a
@@ -239,8 +240,17 @@ Things a person needs before pgNimbus can be their only Postgres client:
   built and published by CI on every tag
   ([`release.yml`](.github/workflows/release.yml)), plus generated winget
   manifests.
-- [ ] **From-scoped WHERE suggestions** — restrict column autocomplete in the query editor's `WHERE` clause to only show fields from tables/collections specified in the `FROM` clause instead of the entire schema.
-- [ ] **Automatic schema completion** — automatically prepend the parent schema prefix when selecting a table name immediately after a `FROM` or `JOIN` keyword.
+- [x] **From-scoped WHERE suggestions** — column autocomplete in the query
+  editor's `WHERE`/`ON`/`HAVING`/`GROUP BY`/`ORDER BY` clauses now offers only the
+  columns of the tables in the statement's `FROM` (plus its aliases, CTEs,
+  functions and keywords) instead of the entire schema; it falls back to the full
+  catalog when no `FROM` table has resolved yet, so an incomplete query is never
+  left with a near-empty list.
+- [x] **Automatic schema completion** — accepting a table in table position
+  (after `FROM`/`JOIN`/`INTO`/`UPDATE`) inserts it schema-qualified
+  (`public.users`, `analytics.events`), so the reference resolves regardless of
+  the server's `search_path`; the bare name still filters the list, and a table
+  referenced elsewhere (or picked after typing `schema.`) stays unqualified.
 - [ ] **Code signing** — Authenticode for the MSI, Developer ID +
   notarization for the `.dmg`. Both ship unsigned today, so SmartScreen and
   Gatekeeper warn on first run — the single biggest first-impression blocker
@@ -363,7 +373,9 @@ bar (the Files community app remains the visual north star):
   (initially: custom result visualizers).
 - [ ] **Localization** — externalize UI strings; ship Russian and German first.
 
-Recently shipped: tab-strip overflow scrolling, capped results-grid column
+Recently shipped: FROM-scoped WHERE/ORDER BY column suggestions and
+schema-qualified table completion after FROM/JOIN, tab-strip overflow scrolling,
+capped results-grid column
 widths, a content-sized cell inspector, a window minimum size,
 clause-aware SQL IntelliSense (tables after FROM/JOIN,
 typed columns, aliases, CTEs, function-call insertion, auto-popup, no popups
