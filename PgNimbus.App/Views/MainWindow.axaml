@@ -45,7 +45,9 @@
                     <PathIcon Data="{StaticResource KeyIconGeometry}" Width="12" Height="12" IsVisible="{Binding IsPrimaryKey}" />
                 </Panel>
                 <TextBlock Text="{Binding Name}" />
-                <TextBlock Text="{Binding DataType}" Opacity="0.6" FontSize="11" VerticalAlignment="Center" />
+                <!-- Abbreviated type (timestamptz, varchar…) with the full name on a brief hover -->
+                <TextBlock Text="{Binding DataTypeShort}" Opacity="0.6" FontSize="11" VerticalAlignment="Center"
+                           ToolTip.Tip="{Binding FullTypeTip}" ToolTip.ShowDelay="150" />
             </StackPanel>
         </DataTemplate>
         <DataTemplate DataType="vm:PlaceholderNode">
