@@ -15,7 +15,12 @@ namespace PgNimbus.App.Completion;
 /// table's columns (or, after <c>schema.</c>, that schema's tables).</item>
 /// <item><b>Table position</b> — after FROM/JOIN/INTO/UPDATE, only what can
 /// legally go there: tables, schemas, the statement's CTE names, and keywords —
-/// no column noise.</item>
+/// no column noise. A table completes schema-qualified (<c>public.users</c>) so
+/// the reference resolves regardless of the search_path.</item>
+/// <item><b>Predicate position</b> — after WHERE/ON/HAVING/GROUP BY/ORDER BY,
+/// only the columns of the tables the statement pulls FROM (plus its aliases,
+/// CTEs, functions and keywords); the rest of the catalog's columns and tables
+/// are dropped, since nothing else is in scope for a row predicate.</item>
 /// <item><b>Anywhere else</b> — everything, but with the columns of the tables
 /// the statement touches (FROM/JOIN plus UPDATE/INSERT INTO targets) floated to
 /// the top and pre-selected, and the statement's aliases offered too. System
@@ -97,6 +102,9 @@ public sealed class SqlCompletionProvider
     private IReadOnlyList<SqlCompletionData> _baseItems = [];
     // Its table-position subset: keywords + schemas + tables, no columns/functions.
     private IReadOnlyList<SqlCompletionData> _tableRefItems = [];
+    // Its predicate subset: keywords + functions only, no catalog columns/tables —
+    // a WHERE/ON/BY caret gets these plus just the FROM tables' own columns.
+    private IReadOnlyList<SqlCompletionData> _predicateBaseItems = [];
 
     public SqlCompletionProvider(SchemaService schemaService)
     {
@@ -109,8 +117,9 @@ public sealed class SqlCompletionProvider
         var columnsByTable = new Dictionary<string, List<TableColumn>>(StringComparer.OrdinalIgnoreCase);
 
         var keywordItems = Keywords.Select(k => new SqlCompletionData(k, "keyword")).ToList();
+        var functionItems = Functions.Select(f => new SqlCompletionData(f, "function", $"{f}()", FunctionPriority)).ToList();
         var baseItems = new List<SqlCompletionData>(keywordItems);
-        baseItems.AddRange(Functions.Select(f => new SqlCompletionData(f, "function", $"{f}()", FunctionPriority)));
+        baseItems.AddRange(functionItems);
         // Keywords go *after* the catalog here: with nothing typed yet the list
         // renders in insertion order, and right after FROM/JOIN the point is the
         // tables, not SELECT/WHERE.
@@ -129,9 +138,12 @@ public sealed class SqlCompletionProvider
             foreach (var table in schemaTables)
             {
                 tables.Add((schema.Name, table.Name));
-                var tableItem = new SqlCompletionData(table.Name, $"table ({schema.Name})", SqlIdentifier.QuoteIfNeeded(table.Name), TablePriority);
-                baseItems.Add(tableItem);
-                tableRefItems.Add(tableItem);
+                // Elsewhere a table completes to its bare name; in table position
+                // (after FROM/JOIN) it completes schema-qualified ("public.users")
+                // so the reference is unambiguous whatever the search_path is.
+                var qualified = $"{SqlIdentifier.QuoteIfNeeded(schema.Name)}.{SqlIdentifier.QuoteIfNeeded(table.Name)}";
+                baseItems.Add(new SqlCompletionData(table.Name, $"table ({schema.Name})", SqlIdentifier.QuoteIfNeeded(table.Name), TablePriority));
+                tableRefItems.Add(new SqlCompletionData(table.Name, $"table ({schema.Name})", qualified, TablePriority));
             }
 
             var columns = await _schemaService.GetAllColumnsAsync(schema.Name, ct);
@@ -149,6 +161,9 @@ public sealed class SqlCompletionProvider
         _columnsByTable = columnsByTable;
         _baseItems = Dedupe(baseItems);
         _tableRefItems = Dedupe(tableRefItems);
+        // A predicate caret gets keywords + functions but no catalog columns/tables;
+        // GetPredicateCompletions prepends just the FROM tables' own columns.
+        _predicateBaseItems = Dedupe(keywordItems.Concat(functionItems));
     }
 
     /// <summary>
@@ -172,9 +187,12 @@ public sealed class SqlCompletionProvider
             return GetMemberCompletions(qualifier, sql);
         }
 
-        return context.Clause == SqlClause.TableRef
-            ? GetTableRefCompletions(sql)
-            : GetGeneralCompletions(sql);
+        return context.Clause switch
+        {
+            SqlClause.TableRef => GetTableRefCompletions(sql),
+            SqlClause.Predicate => GetPredicateCompletions(sql),
+            _ => GetGeneralCompletions(sql),
+        };
     }
 
     // After "qualifier.": the columns of the table the qualifier names (directly
@@ -223,8 +241,38 @@ public sealed class SqlCompletionProvider
     // columns win, plus its aliases and CTE names.
     private IReadOnlyList<SqlCompletionData> GetGeneralCompletions(string sql)
     {
+        var items = CollectStatementItems(sql, out _);
+        items.AddRange(_baseItems);
+        return Dedupe(items);
+    }
+
+    // Predicate/row position (WHERE, ON, HAVING, GROUP/ORDER BY, USING): only the
+    // columns of the FROM tables can be named here, so we offer those (plus the
+    // statement's aliases, CTE names, functions and keywords) and drop the rest of
+    // the catalog's columns/tables/schemas. If nothing in FROM resolves to known
+    // columns yet, fall back to the full catalog rather than a near-empty list.
+    private IReadOnlyList<SqlCompletionData> GetPredicateCompletions(string sql)
+    {
+        var items = CollectStatementItems(sql, out var resolvedColumns);
+        if (!resolvedColumns)
+        {
+            items.AddRange(_baseItems);
+            return Dedupe(items);
+        }
+
+        items.AddRange(_predicateBaseItems);
+        return Dedupe(items);
+    }
+
+    // The current statement's own contributions — every FROM/UPDATE/INTO table's
+    // columns (top priority) and aliases, plus CTE names. Sets
+    // <paramref name="resolvedColumns"/> when at least one table resolved to real
+    // catalog columns, so a predicate caret knows whether it can safely narrow.
+    private List<SqlCompletionData> CollectStatementItems(string sql, out bool resolvedColumns)
+    {
         var items = new List<SqlCompletionData>();
         var added = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        resolvedColumns = false;
 
         foreach (var table in SqlCompletionContext.ExtractTables(sql))
         {
@@ -238,6 +286,7 @@ public sealed class SqlCompletionProvider
                 continue;
             }
 
+            resolvedColumns = true;
             foreach (var column in columns)
             {
                 items.Add(ColumnItem(column, CurrentColumnPriority));
@@ -249,8 +298,7 @@ public sealed class SqlCompletionProvider
             items.Add(new SqlCompletionData(cte, "CTE", SqlIdentifier.QuoteIfNeeded(cte), CtePriority));
         }
 
-        items.AddRange(_baseItems);
-        return Dedupe(items);
+        return items;
     }
 
     private IReadOnlyList<TableColumn>? ColumnsFor(string schema, string table)

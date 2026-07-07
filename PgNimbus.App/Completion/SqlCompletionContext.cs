@@ -9,8 +9,10 @@ internal enum SqlClause
     None,
     /// <summary>A table/view name goes here (after FROM, JOIN, INTO, UPDATE, TABLE…).</summary>
     TableRef,
-    /// <summary>A column/expression goes here (after SELECT, WHERE, ON, SET, BY…).</summary>
+    /// <summary>A column/expression goes here (after SELECT, SET, RETURNING…) — the full catalog, current tables' columns floated up.</summary>
     ColumnRef,
+    /// <summary>A row-scoped column reference (after WHERE, ON, HAVING, GROUP/ORDER BY, USING) — only the FROM-clause tables' columns can go here, not the whole schema.</summary>
+    Predicate,
 }
 
 /// <summary>
@@ -179,6 +181,14 @@ internal static partial class SqlCompletionContext
             }
         }
 
+        foreach (var kw in PredicateClauseKeywords)
+        {
+            if (word.Equals(kw, StringComparison.OrdinalIgnoreCase))
+            {
+                return SqlClause.Predicate;
+            }
+        }
+
         foreach (var kw in ColumnClauseKeywords)
         {
             if (word.Equals(kw, StringComparison.OrdinalIgnoreCase))
@@ -194,8 +204,14 @@ internal static partial class SqlCompletionContext
     private static readonly string[] TableClauseKeywords =
         ["from", "join", "into", "update", "table", "truncate"];
 
+    // Row-scoped column contexts: a predicate (WHERE/ON/HAVING) or a
+    // GROUP/ORDER BY / USING list can only name columns of the tables already in
+    // the statement's FROM, so completion narrows to those instead of the catalog.
+    private static readonly string[] PredicateClauseKeywords =
+        ["where", "on", "having", "by", "using"];
+
     private static readonly string[] ColumnClauseKeywords =
-        ["select", "where", "on", "having", "by", "set", "returning", "using", "values", "when", "then", "else", "distinct"];
+        ["select", "set", "returning", "values", "when", "then", "else", "distinct"];
 
     // Skips a $$…$$ / $tag$…$tag$ literal starting at `start`. Returns false when
     // the '$' isn't a dollar-quote opener (e.g. a $1 parameter); on true, `i` is
