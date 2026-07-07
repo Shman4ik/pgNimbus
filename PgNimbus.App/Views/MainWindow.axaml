@@ -168,7 +168,7 @@
                             <ListBox Name="SavedQueriesList" ItemsSource="{Binding SavedQueries}">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate x:DataType="query:SavedQuery">
-                                        <TextBlock Text="{Binding Name}" ToolTip.Tip="{Binding Sql}" />
+                                        <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Sql}" />
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
                             </ListBox>
@@ -254,7 +254,9 @@
                                 <ListBox.ItemTemplate>
                                     <DataTemplate x:DataType="notify:DatabaseNotification">
                                         <StackPanel>
-                                            <TextBlock FontSize="12">
+                                            <!-- Long payloads wrap (capped) instead of clipping at the panel edge -->
+                                            <TextBlock FontSize="12" TextWrapping="Wrap" MaxLines="4"
+                                                       TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Payload}">
                                                 <Run Text="{Binding Channel}" FontWeight="SemiBold" />
                                                 <Run Text="{Binding Payload}" />
                                             </TextBlock>
