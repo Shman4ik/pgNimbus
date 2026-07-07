@@ -99,6 +99,12 @@ Every tag push (`vX.Y.Z`) builds all of the above via
   common functions inserted as calls), saved queries,
   run history, current-line and matching-bracket highlighting, and font-size
   zoom (<kbd>Ctrl</kbd>+wheel / <kbd>Ctrl</kbd>+<kbd>±</kbd>).
+- **SQL formatting** — <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> (or "Format
+  SQL" in the command palette) pretty-prints the statement under the cursor in a
+  readable block style — clauses on their own lines, list items and JOINs one per
+  line, `AND`/`OR` stacked, subqueries indented, keywords upper-cased — replacing
+  just that statement so the rest of a multi-statement script is left alone. A
+  self-check guarantees it never alters a query's tokens, only its whitespace.
 - **Run a whole script** — execute several `;`-separated statements at once on a
   single connection (so `BEGIN…COMMIT`, `SET`, and temp tables carry across
   them); each statement gets its own selectable result section with per-statement
@@ -129,6 +135,7 @@ Press <kbd>F1</kbd> in the app for the full cheat sheet. The highlights:
 | Refresh database & schema | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd> |
 | Run query | <kbd>Ctrl</kbd>+<kbd>Enter</kbd> or <kbd>F5</kbd> |
 | Run just the statement under the cursor | <kbd>Shift</kbd>+<kbd>Enter</kbd> |
+| Format the statement under the cursor | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> |
 | Cancel running query | <kbd>Esc</kbd> |
 | New / close query tab | <kbd>Ctrl</kbd>+<kbd>T</kbd> / <kbd>Ctrl</kbd>+<kbd>W</kbd> |
 | Next / previous tab | <kbd>Ctrl</kbd>+<kbd>PageDown</kbd> / <kbd>Ctrl</kbd>+<kbd>PageUp</kbd> |
@@ -264,8 +271,13 @@ Things a person needs before pgNimbus can be their only Postgres client:
 
 - [ ] **Transaction control** — explicit BEGIN/COMMIT/ROLLBACK toolbar state,
   with a visible "in transaction" indicator and auto-rollback on error.
-- [ ] **SQL formatting** — one-keystroke pretty-printing of the current
-  statement.
+- [x] **SQL formatting** — one-keystroke pretty-printing of the statement under
+  the cursor (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd>, or "Format SQL" in the
+  command palette): each clause on its own line, select-list/`SET`/`GROUP BY`
+  items and JOINs broken one-per-line, `AND`/`OR` predicates stacked, subqueries
+  indented, and reserved keywords upper-cased. It re-tokenizes its own output and
+  compares it to the input, so if a layout would ever alter a token it returns the
+  text untouched — it can never corrupt a query.
 - [ ] **CSV/JSON import** — the inverse of export: load a file into a new or
   existing table with type inference.
 - [ ] **Server activity dashboard** — `pg_stat_activity` live view with
@@ -373,7 +385,9 @@ bar (the Files community app remains the visual north star):
   (initially: custom result visualizers).
 - [ ] **Localization** — externalize UI strings; ship Russian and German first.
 
-Recently shipped: FROM-scoped WHERE/ORDER BY column suggestions and
+Recently shipped: one-keystroke SQL formatting (Ctrl+Shift+F, block-style
+pretty-print with a never-corrupt token round-trip check), FROM-scoped
+WHERE/ORDER BY column suggestions and
 schema-qualified table completion after FROM/JOIN, tab-strip overflow scrolling,
 capped results-grid column
 widths, a content-sized cell inspector, a window minimum size,
