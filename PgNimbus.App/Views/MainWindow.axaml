@@ -76,6 +76,9 @@
         <Border DockPanel.Dock="Top" Height="40" Padding="16,0"
                 BorderThickness="0,0,0,1" BorderBrush="{StaticResource CardBorderBrush}">
             <DockPanel>
+                <Button Name="SidebarToggleButton" DockPanel.Dock="Left" Classes="chip" Content="☰"
+                        FontSize="13" Padding="7,3" Margin="0,0,10,0" VerticalAlignment="Center"
+                        Click="OnToggleSidebarClick" ToolTip.Tip="Toggle sidebar (Ctrl+B)" />
                 <Border DockPanel.Dock="Left" Width="10" Height="10" CornerRadius="5" Margin="0,0,10,0"
                         VerticalAlignment="Center"
                         Background="{Binding AccentColor, Converter={x:Static conv2:HexToBrushConverter.Instance}}" />
@@ -98,9 +101,15 @@
             </DockPanel>
         </Border>
 
-    <Grid ColumnDefinitions="300,Auto,*" Margin="16">
+    <Grid Name="ContentGrid" Margin="16">
+        <Grid.ColumnDefinitions>
+            <!-- 200px floor so a manual splitter drag can't shrink the sidebar to a sliver -->
+            <ColumnDefinition Width="300" MinWidth="200" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
 
-        <TabControl Grid.Column="0">
+        <TabControl Name="SidebarTabs" Grid.Column="0">
             <TabItem>
                 <TabItem.Header>
                     <StackPanel Orientation="Horizontal" Spacing="8">
@@ -274,7 +283,7 @@
             </TabItem>
         </TabControl>
 
-        <GridSplitter Grid.Column="1" Width="12" Background="Transparent" />
+        <GridSplitter Name="SidebarSplitter" Grid.Column="1" Width="12" Background="Transparent" />
 
         <!-- Padding moves to the inner grid so the status bar can run flush along the layer's bottom edge -->
         <Border Grid.Column="2" Classes="layer" Padding="0">

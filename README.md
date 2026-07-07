@@ -133,6 +133,7 @@ Press <kbd>F1</kbd> in the app for the full cheat sheet. The highlights:
 | --- | --- |
 | Command palette (jump to table / query / action) | <kbd>Ctrl</kbd>+<kbd>K</kbd> or <kbd>Ctrl</kbd>+<kbd>P</kbd> |
 | Refresh database & schema | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd> |
+| Collapse / show the sidebar | <kbd>Ctrl</kbd>+<kbd>B</kbd> |
 | Run query | <kbd>Ctrl</kbd>+<kbd>Enter</kbd> or <kbd>F5</kbd> |
 | Run just the statement under the cursor | <kbd>Shift</kbd>+<kbd>Enter</kbd> |
 | Format the statement under the cursor | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> |
@@ -353,9 +354,10 @@ bar (the Files community app remains the visual north star):
 - [ ] **Drag-and-drop from the schema tree** — drag a table, column, or other
   object from the sidebar tree into the SQL editor and drop a valid, quoted
   identifier at the cursor (e.g. `"CreatedAt"`).
-- [ ] **Collapsible sidebar** — a 200px minimum width on manual resize (so it
-  can't shrink to an unreadable sliver) plus a collapse button / <kbd>Ctrl</kbd>+<kbd>B</kbd>
-  that fully hides the sidebar and gives the editor and results the full width.
+- [x] **Collapsible sidebar** — a 200px minimum width on manual resize (so it
+  can't shrink to an unreadable sliver) plus a collapse button (the ☰ in the
+  title bar) / <kbd>Ctrl</kbd>+<kbd>B</kbd> that fully hides the sidebar and gives
+  the editor and results the full width, restoring to the last dragged width.
 - [ ] **Abbreviated column types in the tree** — show long types compactly
   (e.g. `timestamp with time zone` → `timestamptz`), with the full type name in
   a tooltip on a ~150 ms hover delay.
@@ -386,7 +388,8 @@ bar (the Files community app remains the visual north star):
   (initially: custom result visualizers).
 - [ ] **Localization** — externalize UI strings; ship Russian and German first.
 
-Recently shipped: a remembered-across-launches theme choice, one-keystroke SQL
+Recently shipped: a collapsible sidebar (Ctrl+B, 200px resize floor), a
+remembered-across-launches theme choice, one-keystroke SQL
 formatting (Ctrl+Shift+F, block-style
 pretty-print with a never-corrupt token round-trip check), FROM-scoped
 WHERE/ORDER BY column suggestions and

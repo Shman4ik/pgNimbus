@@ -237,6 +237,13 @@
                         </StackPanel>
                     </Grid>
                     <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
+                        <TextBlock Classes="what" Text="Collapse / show the sidebar" />
+                        <StackPanel Grid.Column="1" Classes="keys">
+                            <Border Classes="kbd"><TextBlock Text="Ctrl" /></Border>
+                            <Border Classes="kbd"><TextBlock Text="B" /></Border>
+                        </StackPanel>
+                    </Grid>
+                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
                         <TextBlock Classes="what" Text="Preview a table (in the schema tree)" />
                         <StackPanel Grid.Column="1" Classes="keys">
                             <TextBlock Classes="combo" Text="Double-click" />
