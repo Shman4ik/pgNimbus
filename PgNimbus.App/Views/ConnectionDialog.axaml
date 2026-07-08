@@ -18,20 +18,26 @@
         <Grid Grid.Column="0" RowDefinitions="Auto,*,Auto">
             <TextBlock Grid.Row="0" Text="Saved Connections" FontWeight="SemiBold" Margin="0,0,0,8" />
             <Border Grid.Row="1" Classes="card">
-                <ListBox ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate DataType="conn:ConnectionProfile">
-                            <StackPanel>
-                                <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <Ellipse Width="8" Height="8" VerticalAlignment="Center"
-                                             Fill="{Binding AccentColor, Converter={x:Static converters:HexToBrushConverter.Instance}}" />
-                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                <Grid>
+                    <ListBox ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate DataType="conn:ConnectionProfile">
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <Ellipse Width="8" Height="8" VerticalAlignment="Center"
+                                                 Fill="{Binding AccentColor, Converter={x:Static converters:HexToBrushConverter.Instance}}" />
+                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                    </StackPanel>
+                                    <TextBlock Text="{Binding Host}" FontSize="11" Opacity="0.7" Margin="14,0,0,0" />
                                 </StackPanel>
-                                <TextBlock Text="{Binding Host}" FontSize="11" Opacity="0.7" Margin="14,0,0,0" />
-                            </StackPanel>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                    <TextBlock IsVisible="{Binding HasNoProfiles}" IsHitTestVisible="False"
+                               Text="No saved connections yet — fill in the form and press Save to keep one here"
+                               TextWrapping="Wrap" TextAlignment="Center" Opacity="0.4" FontSize="12"
+                               Margin="12" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Grid>
             </Border>
             <Button Grid.Row="2" Content="New" Command="{Binding NewCommand}" Margin="0,8,0,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
         </Grid>

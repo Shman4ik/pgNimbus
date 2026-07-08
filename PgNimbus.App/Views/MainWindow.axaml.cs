@@ -111,6 +111,27 @@ public partial class MainWindow : Window
         SqlEditor.TextArea.Caret.PositionChanged += (_, _) => UpdateBracketHighlight();
         SqlEditor.AddHandler(PointerWheelChangedEvent, OnSqlEditorPointerWheel, RoutingStrategies.Tunnel);
 
+        // Tab-strip navigation extras: the ‹/› arrows only appear when the
+        // strip overflows, and the ▾ dropdown lists every open tab with
+        // type-to-search for when scrolling would take too long.
+        TabsList.Loaded += (_, _) => HookTabStripScroll();
+        if (TabListButton.Flyout is Flyout tabFlyout)
+        {
+            tabFlyout.Opened += (_, _) => OpenTabList();
+        }
+
+        TabSearchBox.TextChanged += (_, _) => FilterTabList();
+        TabSearchBox.KeyDown += OnTabSearchKeyDown;
+        TabSearchList.Tapped += (_, e) =>
+        {
+            // Only a tap on an actual item activates; taps on the scrollbar
+            // or empty space must not close the flyout.
+            if (e.Source is Visual v && v.FindAncestorOfType<ListBoxItem>(includeSelf: true) is not null)
+            {
+                ActivateSelectedTabFromList();
+            }
+        };
+
         // Column autocomplete inside the browse WHERE box (see the popup in XAML).
         BrowseFilterBox.TextChanged += OnBrowseFilterTextChanged;
         BrowseFilterBox.LostFocus += (_, _) => CloseFilterCompletion();
@@ -296,6 +317,121 @@ public partial class MainWindow : Window
         {
             _viewModel?.CloseTabCommand.Execute(tab);
         }
+    }
+
+    // --- Tab-strip navigation extras -------------------------------------
+
+    private ScrollViewer? _tabsScrollViewer;
+    private const double TabScrollStep = 160;
+
+    private void HookTabStripScroll()
+    {
+        if (_tabsScrollViewer is not null)
+        {
+            return;
+        }
+
+        _tabsScrollViewer = TabsList.FindDescendantOfType<ScrollViewer>();
+        if (_tabsScrollViewer is null)
+        {
+            return;
+        }
+
+        // ScrollChanged also fires on extent changes (tabs opened/closed/
+        // retitled), so one subscription keeps the arrows in sync with both
+        // scrolling and the tab set itself.
+        _tabsScrollViewer.ScrollChanged += (_, _) => UpdateTabScrollArrows();
+        UpdateTabScrollArrows();
+    }
+
+    private void UpdateTabScrollArrows()
+    {
+        if (_tabsScrollViewer is not { } viewer)
+        {
+            return;
+        }
+
+        var overflows = viewer.Extent.Width > viewer.Viewport.Width + 1;
+        TabScrollLeftButton.IsVisible = overflows;
+        TabScrollRightButton.IsVisible = overflows;
+        if (!overflows)
+        {
+            return;
+        }
+
+        TabScrollLeftButton.IsEnabled = viewer.Offset.X > 1;
+        TabScrollRightButton.IsEnabled = viewer.Offset.X < viewer.Extent.Width - viewer.Viewport.Width - 1;
+    }
+
+    private void OnTabScrollLeft(object? sender, RoutedEventArgs e)
+    {
+        if (_tabsScrollViewer is { } viewer)
+        {
+            viewer.Offset = viewer.Offset.WithX(Math.Max(0, viewer.Offset.X - TabScrollStep));
+        }
+    }
+
+    private void OnTabScrollRight(object? sender, RoutedEventArgs e)
+    {
+        if (_tabsScrollViewer is { } viewer)
+        {
+            viewer.Offset = viewer.Offset.WithX(Math.Min(viewer.Extent.Width - viewer.Viewport.Width, viewer.Offset.X + TabScrollStep));
+        }
+    }
+
+    private void OpenTabList()
+    {
+        TabSearchBox.Text = string.Empty;
+        FilterTabList();
+        // Focus after the flyout finishes opening, or it reclaims focus itself.
+        Dispatcher.UIThread.Post(() => TabSearchBox.Focus());
+    }
+
+    private void FilterTabList()
+    {
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        var query = TabSearchBox.Text ?? string.Empty;
+        var matches = _viewModel.Tabs
+            .Where(t => t.TabTitle.Contains(query, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        TabSearchList.ItemsSource = matches;
+        // The active tab keeps the highlight while it matches; otherwise the
+        // best (first) match takes it so Enter always has a target.
+        TabSearchList.SelectedItem = matches.FirstOrDefault(t => ReferenceEquals(t, _viewModel.ActiveTab)) ?? matches.FirstOrDefault();
+    }
+
+    private void OnTabSearchKeyDown(object? sender, KeyEventArgs e)
+    {
+        var count = TabSearchList.ItemCount;
+        switch (e.Key)
+        {
+            case Key.Down when count > 0:
+                TabSearchList.SelectedIndex = Math.Min(TabSearchList.SelectedIndex + 1, count - 1);
+                e.Handled = true;
+                break;
+            case Key.Up when count > 0:
+                TabSearchList.SelectedIndex = Math.Max(TabSearchList.SelectedIndex - 1, 0);
+                e.Handled = true;
+                break;
+            case Key.Enter:
+                ActivateSelectedTabFromList();
+                e.Handled = true;
+                break;
+        }
+    }
+
+    private void ActivateSelectedTabFromList()
+    {
+        if (_viewModel is not null && TabSearchList.SelectedItem is QueryViewModel tab)
+        {
+            _viewModel.ActiveTab = tab;
+        }
+
+        TabListButton.Flyout?.Hide();
     }
 
     private void OnToggleSidebarClick(object? sender, RoutedEventArgs e) => ToggleSidebar();
