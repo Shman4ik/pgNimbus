@@ -287,8 +287,12 @@ Things a person needs before pgNimbus can be their only Postgres client:
   text untouched — it can never corrupt a query.
 - [ ] **CSV/JSON import** — the inverse of export: load a file into a new or
   existing table with type inference.
-- [ ] **Server activity dashboard** — `pg_stat_activity` live view with
-  cancel/terminate backend actions; lock waits highlighted.
+- [x] **Server activity dashboard** — a Server Activity window (title-bar ∿
+  button or command palette) showing `pg_stat_activity` client backends with
+  a 2-second auto-refresh (pausable), lock waits highlighted amber, and
+  Cancel query (`pg_cancel_backend`) / Terminate backend
+  (`pg_terminate_backend`, confirm-guarded) on the selected row; the
+  selection survives refreshes.
 - [x] **Roles, extensions, and functions in the schema tree** — each schema
   gains a "Functions" group (functions/procedures/aggregates with their
   argument and return types, and a "Source (DDL)" context action via
@@ -409,7 +413,8 @@ bar (the Files community app remains the visual north star):
   (initially: custom result visualizers).
 - [ ] **Localization** — externalize UI strings; ship Russian and German first.
 
-Recently shipped: functions, extensions, and roles in the schema tree
+Recently shipped: a server-activity window (live pg_stat_activity, amber
+lock waits, cancel/terminate backends), functions, extensions, and roles in the schema tree
 (function DDL source, extension install/drop from the sidebar),
 query-history search with per-connection scoping and
 pinning, drag-and-drop from the schema tree into the editor

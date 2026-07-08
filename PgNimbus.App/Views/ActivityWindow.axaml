@@ -1,0 +1,85 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:PgNimbus.App.ViewModels"
+        x:Class="PgNimbus.App.Views.ActivityWindow"
+        x:DataType="vm:ActivityViewModel"
+        Title="pgNimbus — Server Activity"
+        Icon="avares://PgNimbus.App/Assets/icon-256.png"
+        Width="980" Height="560"
+        MinWidth="720" MinHeight="320"
+        WindowStartupLocation="CenterOwner"
+        FontFamily="{StaticResource InterFont}">
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="12">
+
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="6" Margin="0,0,0,10">
+            <Button Classes="toolbar" Command="{Binding RefreshCommand}" ToolTip.Tip="Refresh now">
+                <StackPanel Orientation="Horizontal" Spacing="7">
+                    <PathIcon Data="{StaticResource RefreshIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
+                    <TextBlock Text="Refresh" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+            <ToggleButton Classes="chip" IsChecked="{Binding AutoRefresh}" Padding="8,4"
+                          ToolTip.Tip="Refresh every 2 seconds while this window is open">
+                <TextBlock Text="Auto" FontSize="12" />
+            </ToggleButton>
+            <Border Width="1" Margin="4,4" Background="{StaticResource CardBorderBrush}" />
+            <Button Classes="toolbar" Command="{Binding CancelBackendCommand}"
+                    IsEnabled="{Binding SelectedRow, Converter={x:Static ObjectConverters.IsNotNull}}"
+                    ToolTip.Tip="pg_cancel_backend — stop the running statement, keep the session">
+                <StackPanel Orientation="Horizontal" Spacing="7">
+                    <PathIcon Data="{StaticResource StopIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
+                    <TextBlock Text="Cancel query" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+            <Button Classes="toolbar" Click="OnTerminateClick"
+                    IsEnabled="{Binding SelectedRow, Converter={x:Static ObjectConverters.IsNotNull}}"
+                    ToolTip.Tip="pg_terminate_backend — kill the whole session">
+                <StackPanel Orientation="Horizontal" Spacing="7">
+                    <PathIcon Data="{StaticResource CloseIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
+                    <TextBlock Text="Terminate..." VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+        </StackPanel>
+
+        <DataGrid Grid.Row="1" ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow, Mode=TwoWay}"
+                  IsReadOnly="True" SelectionMode="Single" CanUserResizeColumns="True"
+                  GridLinesVisibility="Horizontal" HeadersVisibility="Column">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="PID" Binding="{Binding Pid}" Width="70" />
+                <DataGridTextColumn Header="User" Binding="{Binding User}" Width="90" />
+                <DataGridTextColumn Header="Database" Binding="{Binding Database}" Width="100" />
+                <DataGridTextColumn Header="Application" Binding="{Binding Application}" Width="110" />
+                <DataGridTextColumn Header="Client" Binding="{Binding Client}" Width="90" />
+                <DataGridTextColumn Header="State" Binding="{Binding State}" Width="90" />
+                <DataGridTemplateColumn Header="Wait" Width="130">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate x:DataType="vm:ActivityRow">
+                            <Panel Margin="12,0">
+                                <!-- Lock waits are the rows worth spotting instantly - amber + bold -->
+                                <TextBlock Text="{Binding Wait}" VerticalAlignment="Center"
+                                           Foreground="#E5A50A" FontWeight="SemiBold"
+                                           IsVisible="{Binding IsWaitingOnLock}" />
+                                <TextBlock Text="{Binding Wait}" VerticalAlignment="Center" Opacity="0.7"
+                                           IsVisible="{Binding !IsWaitingOnLock}" />
+                            </Panel>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Time" Binding="{Binding Elapsed}" Width="80" />
+                <DataGridTemplateColumn Header="Query" Width="*">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate x:DataType="vm:ActivityRow">
+                            <TextBlock Text="{Binding Query}" Margin="12,0" VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Query}" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <TextBlock Grid.Row="2" Text="{Binding Status}" FontSize="11" Opacity="0.7" Margin="2,8,2,0" />
+
+    </Grid>
+
+</Window>
