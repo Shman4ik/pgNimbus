@@ -19,6 +19,7 @@ using AvaloniaEdit.CodeCompletion;
 using AvaloniaEdit.Highlighting;
 using AvaloniaEdit.Highlighting.Xshd;
 using PgNimbus.App.ViewModels;
+using PgNimbus.Core.Import;
 using PgNimbus.Core.Query;
 
 namespace PgNimbus.App.Views;
@@ -1294,6 +1295,95 @@ public partial class MainWindow : Window
         {
             await ExportAsync("json", "JSON", ["*.json"], stream => query.ExportJson(stream));
         }
+    }
+
+    // "Import" on the command bar: pick a CSV/JSON file, parse it, and hand a
+    // prefilled target-table dialog to the user. On success the schema tree
+    // refreshes and the active tab SELECTs the fresh table as visible proof.
+    private async void OnImportClick(object? sender, RoutedEventArgs e)
+    {
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
+        if (storageProvider is null)
+        {
+            return;
+        }
+
+        var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Import CSV or JSON",
+            AllowMultiple = false,
+            FileTypeFilter =
+            [
+                new FilePickerFileType("CSV or JSON") { Patterns = ["*.csv", "*.json"] },
+                new FilePickerFileType("All files") { Patterns = ["*"] },
+            ],
+        });
+
+        if (files.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            await using var stream = await files[0].OpenReadAsync();
+            using var reader = new StreamReader(stream);
+            var text = await reader.ReadToEndAsync();
+            var data = files[0].Name.EndsWith(".json", StringComparison.OrdinalIgnoreCase)
+                ? TabularFileParser.ParseJson(text)
+                : TabularFileParser.ParseCsv(text);
+
+            if (data.Columns.Count == 0)
+            {
+                _viewModel.ActiveTab.Status = "Nothing to import — the file has no rows.";
+                return;
+            }
+
+            var schemas = _viewModel.SchemaTree.Schemas.OfType<SchemaNode>().Select(s => s.Name).ToList();
+            var importViewModel = new ImportViewModel(_viewModel.Importer, data, SuggestTableName(files[0].Name), schemas);
+            importViewModel.Completed += (schema, table, count) => _ = OnImportCompletedAsync(schema, table, count);
+
+            var dialog = new ImportDialog { DataContext = importViewModel };
+            await dialog.ShowDialog<bool>(this);
+        }
+        catch (Exception ex)
+        {
+            _viewModel.ActiveTab.Status = $"Import failed: {ex.Message}";
+            _viewModel.ActiveTab.HasError = true;
+        }
+    }
+
+    private async Task OnImportCompletedAsync(string schema, string table, long count)
+    {
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        await _viewModel.RefreshSchemaCommand.ExecuteAsync(null);
+
+        var tab = _viewModel.ActiveTab;
+        tab.Sql = $"SELECT * FROM {SqlIdentifier.QuoteIfNeeded(schema)}.{SqlIdentifier.QuoteIfNeeded(table)} LIMIT 100;";
+        await tab.RunCommand.ExecuteAsync(null);
+        tab.Status = $"Imported {count:N0} row{(count == 1 ? "" : "s")} into {schema}.{table}";
+    }
+
+    /// <summary>A usable default table name from the file name: lower-cased, non-alphanumerics collapsed to '_'.</summary>
+    private static string SuggestTableName(string fileName)
+    {
+        var stem = Path.GetFileNameWithoutExtension(fileName).ToLowerInvariant();
+        var name = new string(stem.Select(c => char.IsAsciiLetterOrDigit(c) ? c : '_').ToArray()).Trim('_');
+        if (name.Length == 0)
+        {
+            name = "imported";
+        }
+
+        return char.IsAsciiDigit(name[0]) ? "t_" + name : name;
     }
 
     private async Task ExportAsync(string extension, string typeName, string[] patterns, Action<Stream>? write)

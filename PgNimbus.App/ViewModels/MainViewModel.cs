@@ -3,6 +3,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PgNimbus.App.Completion;
+using PgNimbus.Core.Import;
 using PgNimbus.Core.Monitoring;
 using PgNimbus.Core.Query;
 using PgNimbus.Core.Schema;
@@ -27,6 +28,9 @@ public sealed partial class MainViewModel : ObservableObject
 
     /// <summary>Backs the Server Activity window (pg_stat_activity live view).</summary>
     public ActivityViewModel Activity { get; }
+
+    /// <summary>COPY-based CSV/JSON loader behind the Import dialog (the view constructs the dialog's ViewModel from it).</summary>
+    public ImportService Importer { get; }
 
     public CommandPaletteViewModel CommandPalette { get; } = new();
 
@@ -92,6 +96,7 @@ public sealed partial class MainViewModel : ObservableObject
         SqlCompletionProvider completionProvider,
         NotifyMonitorViewModel notifyMonitor,
         ActivityService activityService,
+        ImportService importService,
         string? accentColor = null,
         string connectionHost = "",
         string connectionDatabase = "")
@@ -113,6 +118,7 @@ public sealed partial class MainViewModel : ObservableObject
             () => string.IsNullOrEmpty(ConnectionHost) ? null : $"{ConnectionHost}/{ConnectionDatabase}");
         NotifyMonitor = notifyMonitor;
         Activity = new ActivityViewModel(activityService);
+        Importer = importService;
         AccentColor = accentColor;
 
         // The engine owns the transaction state; mirror it here so the indicator
