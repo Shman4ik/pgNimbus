@@ -285,14 +285,32 @@ Things a person needs before pgNimbus can be their only Postgres client:
   indented, and reserved keywords upper-cased. It re-tokenizes its own output and
   compares it to the input, so if a layout would ever alter a token it returns the
   text untouched — it can never corrupt a query.
-- [ ] **CSV/JSON import** — the inverse of export: load a file into a new or
-  existing table with type inference.
-- [ ] **Server activity dashboard** — `pg_stat_activity` live view with
-  cancel/terminate backend actions; lock waits highlighted.
-- [ ] **Roles, extensions, and functions in the schema tree** — browse (and for
-  extensions, install/enable) beyond tables and views.
-- [ ] **Query history search** — full-text search over history with
-  per-connection scoping and pinning.
+- [x] **CSV/JSON import** — the inverse of export: an Import button on the
+  command bar loads a CSV (RFC 4180 quoting, delimiter sniffed) or JSON
+  (array of objects) file into a new or existing table. Column types are
+  inferred conservatively (leading-zero codes like `007` stay text) and
+  editable in the dialog; the load itself goes through
+  `COPY … FROM STDIN (FORMAT csv)` so Postgres does the real parsing, and on
+  success the schema tree refreshes and the active tab SELECTs the fresh
+  table.
+- [x] **Server activity dashboard** — a Server Activity window (title-bar ∿
+  button or command palette) showing `pg_stat_activity` client backends with
+  a 2-second auto-refresh (pausable), lock waits highlighted amber, and
+  Cancel query (`pg_cancel_backend`) / Terminate backend
+  (`pg_terminate_backend`, confirm-guarded) on the selected row; the
+  selection survives refreshes.
+- [x] **Roles, extensions, and functions in the schema tree** — each schema
+  gains a "Functions" group (functions/procedures/aggregates with their
+  argument and return types, and a "Source (DDL)" context action via
+  `pg_get_functiondef`), and the tree root gains "Extensions" (installed ones
+  green-dotted first, the rest of `pg_available_extensions` dimmed, with
+  Install / Drop context actions) and "Roles" (non-system roles with
+  superuser/login/createdb/createrole tags).
+- [x] **Query history search** — a search box over the history list
+  (case-insensitive, matches the SQL text), a "this connection only" scope
+  toggle (entries record which connection ran them), and pinning: pinned
+  entries float to the top, survive the 200-entry cap, and survive "Clear
+  history".
 - [x] **In-app theme toggle** — light/dark switch in the title bar (sun/moon
   button) instead of following the OS only; the SQL syntax palette repaints
   with it, and the choice is remembered across launches.
@@ -339,8 +357,10 @@ bar (the Files community app remains the visual north star):
   scrolls horizontally and keeps the active tab in view. (It used to clip:
   the "+" button overlapped the last visible tab and a newly opened tab
   could sit fully off-screen with no way to reach it.)
-- [ ] **Tab bar navigation extras** — `<`/`>` scroll arrows and a dropdown
-  listing all open tabs with type-to-search, on top of the basic scrolling.
+- [x] **Tab bar navigation extras** — `<`/`>` scroll arrows (shown only when
+  the strip actually overflows, disabled at the ends) and a dropdown listing
+  all open tabs with type-to-search (↑/↓ + Enter jumps), on top of the basic
+  scrolling.
 - [x] **Capped results-grid column width** — auto column width sizes to the
   widest cell, so a single long `text` value used to push every other column
   out of view; columns now cap at 560 px, with the cell inspector
@@ -350,16 +370,18 @@ bar (the Files community app remains the visual north star):
   height.
 - [x] **Window minimum size** — a 940×560 floor, below which the command bar
   and browse bar used to clip into unreadability.
-- [ ] **Empty state for the connection dialog** — the Saved Connections list
-  is a bare grey panel when empty; give it the same friendly hint the
-  saved-queries and history lists already have.
+- [x] **Empty state for the connection dialog** — the Saved Connections list
+  used to be a bare grey panel when empty; it now shows the same friendly hint
+  the saved-queries and history lists already have.
 - [x] **Persist the theme choice** — the in-app light/dark toggle is now
   remembered across launches (saved to `settings.json` alongside the other
   persisted app state) instead of snapping back to the OS default; a fresh
   install with no saved choice still follows the OS.
-- [ ] **Drag-and-drop from the schema tree** — drag a table, column, or other
-  object from the sidebar tree into the SQL editor and drop a valid, quoted
-  identifier at the cursor (e.g. `"CreatedAt"`).
+- [x] **Drag-and-drop from the schema tree** — drag a schema, table, or column
+  from the sidebar tree into the SQL editor and it drops as a valid identifier
+  at the pointer (schema-qualified for tables, quoted only when a bare name
+  wouldn't round-trip, e.g. `"CreatedAt"`); the caret tracks the pointer during
+  the drag so the landing spot is always visible.
 - [x] **Collapsible sidebar** — a 200px minimum width on manual resize (so it
   can't shrink to an unreadable sliver) plus a collapse button (the ☰ in the
   title bar) / <kbd>Ctrl</kbd>+<kbd>B</kbd> that fully hides the sidebar and gives
@@ -372,9 +394,10 @@ bar (the Files community app remains the visual north star):
 - [x] **Smarter tab titles** — query tabs are named from their SQL (first table
   referenced) instead of "Query N", with a dirty-state dot when the SQL has
   changed since the last run.
-- [ ] **Running-query feedback** — an indeterminate progress bar in the
-  status bar and a live elapsed-time tick while a query runs (the row/timing
-  segments only update per batch today).
+- [x] **Running-query feedback** — an indeterminate progress bar in the
+  status bar and a live elapsed-time tick while a query or EXPLAIN runs, so a
+  slow statement that hasn't produced a batch yet still shows visible
+  progress instead of a frozen "Running...".
 - [x] **Empty states** — friendly hints in the blank results area ("No results
   yet — run a query with Ctrl+Enter or F5") and in empty saved-queries/history
   lists instead of bare cards.
@@ -396,7 +419,16 @@ bar (the Files community app remains the visual north star):
   (initially: custom result visualizers).
 - [ ] **Localization** — externalize UI strings; ship Russian and German first.
 
-Recently shipped: transaction control (Begin/Commit/Rollback toolbar state, an
+Recently shipped: CSV/JSON import (type inference, editable target columns,
+COPY-based load), a server-activity window (live pg_stat_activity, amber
+lock waits, cancel/terminate backends), functions, extensions, and roles in the schema tree
+(function DDL source, extension install/drop from the sidebar),
+query-history search with per-connection scoping and
+pinning, drag-and-drop from the schema tree into the editor
+(quoted-as-needed identifiers, caret tracks the pointer), a more compact
+schema-tree indent, tab-bar navigation extras (overflow-only ‹/› scroll arrows
+and an all-tabs dropdown with type-to-search), a connection-dialog
+empty-state hint, transaction control (Begin/Commit/Rollback toolbar state, an
 "in transaction" status-bar indicator, and auto-rollback on error), abbreviated column types in the schema tree
 (timestamptz/varchar…, full name on hover), a collapsible sidebar (Ctrl+B, 200px
 resize floor), a

@@ -3,6 +3,8 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PgNimbus.App.Completion;
+using PgNimbus.Core.Import;
+using PgNimbus.Core.Monitoring;
 using PgNimbus.Core.Query;
 using PgNimbus.Core.Schema;
 
@@ -24,6 +26,12 @@ public sealed partial class MainViewModel : ObservableObject
 
     public NotifyMonitorViewModel NotifyMonitor { get; }
 
+    /// <summary>Backs the Server Activity window (pg_stat_activity live view).</summary>
+    public ActivityViewModel Activity { get; }
+
+    /// <summary>COPY-based CSV/JSON loader behind the Import dialog (the view constructs the dialog's ViewModel from it).</summary>
+    public ImportService Importer { get; }
+
     public CommandPaletteViewModel CommandPalette { get; } = new();
 
     public CellInspectorViewModel CellInspector { get; } = new();
@@ -38,9 +46,14 @@ public sealed partial class MainViewModel : ObservableObject
     // Raised to pretty-print the statement under the caret; MainWindow owns the
     // editor text (AvaloniaEdit's Text isn't bindable) so it does the rewrite.
     public event Action? FormatSqlRequested;
+    // Raised to open (or focus) the Server Activity window, which the view owns.
+    public event Action? ActivityRequested;
 
     [RelayCommand]
     private void SwitchConnection() => SwitchConnectionRequested?.Invoke();
+
+    [RelayCommand]
+    private void ShowActivity() => ActivityRequested?.Invoke();
 
     // Relations rarely change mid-session, so the palette's "jump to a table"
     // list is fetched once and reused across opens.
@@ -82,6 +95,8 @@ public sealed partial class MainViewModel : ObservableObject
         DdlService ddlService,
         SqlCompletionProvider completionProvider,
         NotifyMonitorViewModel notifyMonitor,
+        ActivityService activityService,
+        ImportService importService,
         string? accentColor = null,
         string connectionHost = "",
         string connectionDatabase = "")
@@ -95,8 +110,15 @@ public sealed partial class MainViewModel : ObservableObject
         _schemaEditor = schemaEditor;
         _ddlService = ddlService;
         CompletionProvider = completionProvider;
-        SavedQueries = new SavedQueriesViewModel(new SavedQueryStore(), new QueryHistoryStore(), () => ActiveTab);
+        SavedQueries = new SavedQueriesViewModel(
+            new SavedQueryStore(),
+            new QueryHistoryStore(),
+            () => ActiveTab,
+            // History entries are stamped with this label for per-connection scoping.
+            () => string.IsNullOrEmpty(ConnectionHost) ? null : $"{ConnectionHost}/{ConnectionDatabase}");
         NotifyMonitor = notifyMonitor;
+        Activity = new ActivityViewModel(activityService);
+        Importer = importService;
         AccentColor = accentColor;
 
         // The engine owns the transaction state; mirror it here so the indicator
@@ -238,6 +260,39 @@ public sealed partial class MainViewModel : ObservableObject
         tab.Sql = ddl;
     }
 
+    /// <summary>Opens pg_get_functiondef's stored definition of a function/procedure in a new tab.</summary>
+    public async Task ShowFunctionSourceAsync(FunctionNode function)
+    {
+        var ddl = await _ddlService.GenerateFunctionAsync(function.Schema, function.Name, function.Arguments, CancellationToken.None);
+
+        var tab = NewTab();
+        tab.TitleOverride = $"{function.Name} · source";
+        tab.Sql = ddl;
+    }
+
+    /// <summary>CREATE/DROP EXTENSION, then reload the Extensions group so the list reflects reality. Errors land in the sidebar's message strip.</summary>
+    public async Task SetExtensionInstalledAsync(ExtensionNode extension, bool install)
+    {
+        SchemaTree.ErrorMessage = null;
+        try
+        {
+            if (install)
+            {
+                await _schemaEditor.CreateExtensionAsync(extension.Name, CancellationToken.None);
+            }
+            else
+            {
+                await _schemaEditor.DropExtensionAsync(extension.Name, CancellationToken.None);
+            }
+
+            await extension.Group.RefreshAsync();
+        }
+        catch (Exception ex)
+        {
+            SchemaTree.ErrorMessage = ex.Message;
+        }
+    }
+
     [RelayCommand(CanExecute = nameof(CanCloseTab))]
     private void CloseTab(QueryViewModel? tab)
     {
@@ -337,6 +392,7 @@ public sealed partial class MainViewModel : ObservableObject
         yield return new PaletteItem("Commit transaction", "Action", "✓", Invoke(() => CommitTransactionCommand));
         yield return new PaletteItem("Rollback transaction", "Action", "↺", Invoke(() => RollbackTransactionCommand));
         yield return new PaletteItem("Refresh database & schema", "Action", "⟳", Invoke(() => RefreshSchemaCommand));
+        yield return new PaletteItem("Server activity", "Action", "∿", () => { ActivityRequested?.Invoke(); return Task.CompletedTask; });
         yield return new PaletteItem("New query tab", "Action", "＋", Invoke(() => AddTabCommand));
         yield return new PaletteItem("Close tab", "Action", "✕", Invoke(() => CloseTabCommand));
         yield return new PaletteItem("Next tab", "Action", "›", Invoke(() => NextTabCommand));

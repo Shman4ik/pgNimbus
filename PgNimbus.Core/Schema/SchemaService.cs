@@ -20,6 +20,17 @@ public sealed record ColumnDetail(string Name, string DataType, bool NotNull, bo
 
 public sealed record TableColumn(string Table, string Column, string DataType);
 
+/// <summary>A function/procedure/aggregate/window function. <paramref name="Kind"/> is pg_proc.prokind: f, p, a, or w.</summary>
+public sealed record FunctionInfo(string Name, string Arguments, string ReturnType, char Kind);
+
+/// <summary>An extension from pg_available_extensions; <paramref name="InstalledVersion"/> is null when not installed.</summary>
+public sealed record ExtensionInfo(string Name, string? InstalledVersion, string DefaultVersion, string? Description)
+{
+    public bool IsInstalled => InstalledVersion is not null;
+}
+
+public sealed record RoleInfo(string Name, bool CanLogin, bool IsSuperuser, bool CanCreateDb, bool CanCreateRole);
+
 /// <summary>
 /// Reads structure straight from pg_catalog rather than relying on
 /// information_schema, so it reflects the real Postgres model (matviews,
@@ -168,6 +179,93 @@ public sealed class SchemaService
                 reader.GetString(1),
                 reader.GetBoolean(2),
                 reader.GetBoolean(3)));
+        }
+
+        return results;
+    }
+
+    /// <summary>Functions, procedures, aggregates, and window functions in a schema, with identity arguments and result type.</summary>
+    public async Task<IReadOnlyList<FunctionInfo>> GetFunctionsAsync(string schema, CancellationToken ct)
+    {
+        const string sql = """
+            SELECT p.proname,
+                   pg_catalog.pg_get_function_identity_arguments(p.oid),
+                   COALESCE(pg_catalog.pg_get_function_result(p.oid), ''),
+                   p.prokind::text
+            FROM pg_catalog.pg_proc p
+            JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
+            WHERE n.nspname = @schema
+            ORDER BY p.proname, 2
+            """;
+
+        await using var connection = await _dataSource.OpenConnectionAsync(ct);
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("schema", schema);
+        await using var reader = await command.ExecuteReaderAsync(ct);
+
+        var results = new List<FunctionInfo>();
+        while (await reader.ReadAsync(ct))
+        {
+            results.Add(new FunctionInfo(
+                reader.GetString(0),
+                reader.GetString(1),
+                reader.GetString(2),
+                reader.GetString(3)[0]));
+        }
+
+        return results;
+    }
+
+    /// <summary>All extensions the server knows, installed first — installed ones carry their version, the rest are available to install.</summary>
+    public async Task<IReadOnlyList<ExtensionInfo>> GetExtensionsAsync(CancellationToken ct)
+    {
+        const string sql = """
+            SELECT a.name, e.extversion, a.default_version, a.comment
+            FROM pg_catalog.pg_available_extensions a
+            LEFT JOIN pg_catalog.pg_extension e ON e.extname = a.name
+            ORDER BY (e.extversion IS NULL), a.name
+            """;
+
+        await using var connection = await _dataSource.OpenConnectionAsync(ct);
+        await using var command = new NpgsqlCommand(sql, connection);
+        await using var reader = await command.ExecuteReaderAsync(ct);
+
+        var results = new List<ExtensionInfo>();
+        while (await reader.ReadAsync(ct))
+        {
+            results.Add(new ExtensionInfo(
+                reader.GetString(0),
+                reader.IsDBNull(1) ? null : reader.GetString(1),
+                reader.GetString(2),
+                reader.IsDBNull(3) ? null : reader.GetString(3)));
+        }
+
+        return results;
+    }
+
+    /// <summary>Non-system roles with the attribute flags worth showing at a glance.</summary>
+    public async Task<IReadOnlyList<RoleInfo>> GetRolesAsync(CancellationToken ct)
+    {
+        const string sql = """
+            SELECT rolname, rolcanlogin, rolsuper, rolcreatedb, rolcreaterole
+            FROM pg_catalog.pg_roles
+            WHERE rolname NOT LIKE 'pg\_%'
+            ORDER BY rolname
+            """;
+
+        await using var connection = await _dataSource.OpenConnectionAsync(ct);
+        await using var command = new NpgsqlCommand(sql, connection);
+        await using var reader = await command.ExecuteReaderAsync(ct);
+
+        var results = new List<RoleInfo>();
+        while (await reader.ReadAsync(ct))
+        {
+            results.Add(new RoleInfo(
+                reader.GetString(0),
+                reader.GetBoolean(1),
+                reader.GetBoolean(2),
+                reader.GetBoolean(3),
+                reader.GetBoolean(4)));
         }
 
         return results;

@@ -17,13 +17,26 @@ public sealed partial class SavedQueriesViewModel : ObservableObject
     private readonly SavedQueryStore _savedQueryStore;
     private readonly QueryHistoryStore _historyStore;
     private readonly Func<QueryViewModel?> _getActiveQuery;
+    private readonly Func<string?> _getConnectionLabel;
 
     [ObservableProperty]
     private string _newQueryName = string.Empty;
 
+    /// <summary>Case-insensitive substring filter over the history entries' SQL.</summary>
+    [ObservableProperty]
+    private string _historyFilter = string.Empty;
+
+    /// <summary>When on, only entries recorded against the current connection show.</summary>
+    [ObservableProperty]
+    private bool _scopeHistoryToConnection;
+
     public ObservableCollection<SavedQuery> SavedQueries { get; } = [];
 
+    /// <summary>The full history, most recent first — the source of truth the filtered view derives from.</summary>
     public ObservableCollection<QueryHistoryEntry> History { get; } = [];
+
+    /// <summary>What the history list actually shows: filter + scope applied, pinned entries floated to the top.</summary>
+    public ObservableCollection<QueryHistoryEntry> FilteredHistory { get; } = [];
 
     /// <summary>Drives the empty-state hint under an empty saved-queries list.</summary>
     public bool HasNoSavedQueries => SavedQueries.Count == 0;
@@ -31,11 +44,15 @@ public sealed partial class SavedQueriesViewModel : ObservableObject
     /// <summary>Drives the empty-state hint under an empty history list.</summary>
     public bool HasNoHistory => History.Count == 0;
 
-    public SavedQueriesViewModel(SavedQueryStore savedQueryStore, QueryHistoryStore historyStore, Func<QueryViewModel?> getActiveQuery)
+    /// <summary>True when history exists but the filter/scope hides all of it — drives a "no matches" hint.</summary>
+    public bool HasNoHistoryMatches => History.Count > 0 && FilteredHistory.Count == 0;
+
+    public SavedQueriesViewModel(SavedQueryStore savedQueryStore, QueryHistoryStore historyStore, Func<QueryViewModel?> getActiveQuery, Func<string?>? getConnectionLabel = null)
     {
         _savedQueryStore = savedQueryStore;
         _historyStore = historyStore;
         _getActiveQuery = getActiveQuery;
+        _getConnectionLabel = getConnectionLabel ?? (() => null);
 
         foreach (var saved in _savedQueryStore.Load())
         {
@@ -48,13 +65,63 @@ public sealed partial class SavedQueriesViewModel : ObservableObject
         }
 
         SavedQueries.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasNoSavedQueries));
-        History.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasNoHistory));
+        History.CollectionChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(HasNoHistory));
+            ApplyHistoryFilter();
+        };
+        ApplyHistoryFilter();
     }
 
     public void RecordExecution(QueryHistoryEntry entry)
     {
+        entry = entry with { Connection = _getConnectionLabel() };
         History.Insert(0, entry);
         _historyStore.Append(entry);
+    }
+
+    partial void OnHistoryFilterChanged(string value) => ApplyHistoryFilter();
+
+    partial void OnScopeHistoryToConnectionChanged(bool value) => ApplyHistoryFilter();
+
+    private void ApplyHistoryFilter()
+    {
+        var scope = ScopeHistoryToConnection ? _getConnectionLabel() : null;
+        var matches = History.Where(e =>
+                (scope is null || e.Connection == scope) &&
+                (HistoryFilter.Length == 0 || e.Sql.Contains(HistoryFilter, StringComparison.OrdinalIgnoreCase)))
+            .OrderByDescending(e => e.Pinned)
+            .ToList();
+
+        FilteredHistory.Clear();
+        foreach (var entry in matches)
+        {
+            FilteredHistory.Add(entry);
+        }
+
+        OnPropertyChanged(nameof(HasNoHistoryMatches));
+    }
+
+    [RelayCommand]
+    private void ClearHistoryFilter() => HistoryFilter = string.Empty;
+
+    /// <summary>Pins/unpins an entry: pinned ones float to the top and survive both the size cap and Clear.</summary>
+    [RelayCommand]
+    private void TogglePin(QueryHistoryEntry? entry)
+    {
+        if (entry is null)
+        {
+            return;
+        }
+
+        var index = History.IndexOf(entry);
+        if (index < 0)
+        {
+            return;
+        }
+
+        History[index] = entry with { Pinned = !entry.Pinned };
+        _historyStore.Save(History);
     }
 
     private bool CanSave() => !string.IsNullOrWhiteSpace(NewQueryName) && !string.IsNullOrWhiteSpace(_getActiveQuery()?.Sql);
@@ -103,11 +170,19 @@ public sealed partial class SavedQueriesViewModel : ObservableObject
         }
     }
 
+    /// <summary>Clears the history except pinned entries — pinning is the "keep this" signal.</summary>
     [RelayCommand]
     private void ClearHistory()
     {
-        History.Clear();
-        _historyStore.Clear();
+        for (var i = History.Count - 1; i >= 0; i--)
+        {
+            if (!History[i].Pinned)
+            {
+                History.RemoveAt(i);
+            }
+        }
+
+        _historyStore.Save(History);
     }
 
     partial void OnNewQueryNameChanged(string value) => SaveCurrentQueryCommand.NotifyCanExecuteChanged();

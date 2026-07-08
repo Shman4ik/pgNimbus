@@ -19,6 +19,7 @@ using AvaloniaEdit.CodeCompletion;
 using AvaloniaEdit.Highlighting;
 using AvaloniaEdit.Highlighting.Xshd;
 using PgNimbus.App.ViewModels;
+using PgNimbus.Core.Import;
 using PgNimbus.Core.Query;
 
 namespace PgNimbus.App.Views;
@@ -94,6 +95,18 @@ public partial class MainWindow : Window
         // event Handled, so it never reaches a plain `+=` subscription on the
         // parent TreeView. Use AddHandler with handledEventsToo to still see it.
         SchemaTreeView.AddHandler(InputElement.DoubleTappedEvent, OnSchemaTreeDoubleTapped, RoutingStrategies.Bubble, handledEventsToo: true);
+
+        // Drag a schema/table/column out of the tree and drop it into the SQL
+        // editor as a properly quoted identifier. The drag arms on press and
+        // only starts after a small movement threshold, so plain clicks,
+        // expander toggles, and double-click previews all behave as before.
+        SchemaTreeView.AddHandler(InputElement.PointerPressedEvent, OnSchemaTreePointerPressed, RoutingStrategies.Tunnel);
+        SchemaTreeView.AddHandler(InputElement.PointerMovedEvent, OnSchemaTreePointerMoved, RoutingStrategies.Tunnel);
+        SchemaTreeView.AddHandler(InputElement.PointerReleasedEvent, (_, _) => _treeDragCandidate = null, RoutingStrategies.Tunnel);
+
+        DragDrop.SetAllowDrop(SqlEditor, true);
+        SqlEditor.AddHandler(DragDrop.DragOverEvent, OnEditorDragOver);
+        SqlEditor.AddHandler(DragDrop.DropEvent, OnEditorDrop);
         ResultsGrid.CellEditEnding += OnCellEditEnding;
         ResultsGrid.CellEditEnded += OnCellEditEnded;
         ResultsGrid.PreparingCellForEdit += OnPreparingCellForEdit;
@@ -110,6 +123,27 @@ public partial class MainWindow : Window
         SqlEditor.Options.HighlightCurrentLine = true;
         SqlEditor.TextArea.Caret.PositionChanged += (_, _) => UpdateBracketHighlight();
         SqlEditor.AddHandler(PointerWheelChangedEvent, OnSqlEditorPointerWheel, RoutingStrategies.Tunnel);
+
+        // Tab-strip navigation extras: the ‹/› arrows only appear when the
+        // strip overflows, and the ▾ dropdown lists every open tab with
+        // type-to-search for when scrolling would take too long.
+        TabsList.Loaded += (_, _) => HookTabStripScroll();
+        if (TabListButton.Flyout is Flyout tabFlyout)
+        {
+            tabFlyout.Opened += (_, _) => OpenTabList();
+        }
+
+        TabSearchBox.TextChanged += (_, _) => FilterTabList();
+        TabSearchBox.KeyDown += OnTabSearchKeyDown;
+        TabSearchList.Tapped += (_, e) =>
+        {
+            // Only a tap on an actual item activates; taps on the scrollbar
+            // or empty space must not close the flyout.
+            if (e.Source is Visual v && v.FindAncestorOfType<ListBoxItem>(includeSelf: true) is not null)
+            {
+                ActivateSelectedTabFromList();
+            }
+        };
 
         // Column autocomplete inside the browse WHERE box (see the popup in XAML).
         BrowseFilterBox.TextChanged += OnBrowseFilterTextChanged;
@@ -242,6 +276,7 @@ public partial class MainWindow : Window
             _viewModel.ShortcutsRequested -= ShowShortcutsWindow;
             _viewModel.SwitchConnectionRequested -= SwitchConnection;
             _viewModel.FormatSqlRequested -= FormatCurrentStatement;
+            _viewModel.ActivityRequested -= ShowActivityWindow;
         }
 
         _viewModel = vm;
@@ -251,6 +286,7 @@ public partial class MainWindow : Window
         _viewModel.ShortcutsRequested += ShowShortcutsWindow;
         _viewModel.SwitchConnectionRequested += SwitchConnection;
         _viewModel.FormatSqlRequested += FormatCurrentStatement;
+        _viewModel.ActivityRequested += ShowActivityWindow;
 
         AttachQuery(vm.ActiveTab);
     }
@@ -296,6 +332,212 @@ public partial class MainWindow : Window
         {
             _viewModel?.CloseTabCommand.Execute(tab);
         }
+    }
+
+    // --- Schema-tree drag & drop into the editor --------------------------
+
+    // Armed on press over a draggable node; the drag itself starts only after
+    // the pointer moves past a threshold with the button still down. The press
+    // args are kept because DoDragDropAsync can only start from them.
+    private (Point Origin, string Text, PointerPressedEventArgs PressArgs)? _treeDragCandidate;
+    private const double DragThreshold = 4;
+
+    /// <summary>The SQL identifier a tree node drops as, quoted only where a bare name wouldn't round-trip.</summary>
+    private static string? DragTextFor(object? node) => node switch
+    {
+        ColumnNode column => SqlIdentifier.QuoteIfNeeded(column.Name),
+        TableNode table => $"{SqlIdentifier.QuoteIfNeeded(table.Schema)}.{SqlIdentifier.QuoteIfNeeded(table.Name)}",
+        SchemaNode schema => SqlIdentifier.QuoteIfNeeded(schema.Name),
+        _ => null,
+    };
+
+    private void OnSchemaTreePointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (!e.GetCurrentPoint(SchemaTreeView).Properties.IsLeftButtonPressed)
+        {
+            return;
+        }
+
+        var node = (e.Source as Visual)?.DataContext;
+        _treeDragCandidate = DragTextFor(node) is { } text
+            ? (e.GetPosition(SchemaTreeView), text, e)
+            : null;
+    }
+
+    private async void OnSchemaTreePointerMoved(object? sender, PointerEventArgs e)
+    {
+        if (_treeDragCandidate is not { } candidate)
+        {
+            return;
+        }
+
+        if (!e.GetCurrentPoint(SchemaTreeView).Properties.IsLeftButtonPressed)
+        {
+            _treeDragCandidate = null;
+            return;
+        }
+
+        var position = e.GetPosition(SchemaTreeView);
+        if (Math.Abs(position.X - candidate.Origin.X) < DragThreshold &&
+            Math.Abs(position.Y - candidate.Origin.Y) < DragThreshold)
+        {
+            return;
+        }
+
+        _treeDragCandidate = null;
+        var data = new DataTransfer();
+        data.Add(DataTransferItem.CreateText(candidate.Text));
+        await DragDrop.DoDragDropAsync(candidate.PressArgs, data, DragDropEffects.Copy);
+    }
+
+    private void OnEditorDragOver(object? sender, DragEventArgs e)
+    {
+        if (!e.DataTransfer.Formats.Contains(DataFormat.Text))
+        {
+            e.DragEffects = DragDropEffects.None;
+            return;
+        }
+
+        e.DragEffects = DragDropEffects.Copy;
+        // Live caret preview: the caret tracks the pointer so it's obvious
+        // where the identifier will land.
+        if (SqlEditor.GetPositionFromPoint(e.GetPosition(SqlEditor)) is { } position)
+        {
+            SqlEditor.TextArea.Caret.Position = position;
+        }
+
+        e.Handled = true;
+    }
+
+    private void OnEditorDrop(object? sender, DragEventArgs e)
+    {
+        if (e.DataTransfer.TryGetText() is not { Length: > 0 } text)
+        {
+            return;
+        }
+
+        var offset = SqlEditor.GetPositionFromPoint(e.GetPosition(SqlEditor)) is { } position
+            ? SqlEditor.Document.GetOffset(position.Location)
+            : SqlEditor.CaretOffset;
+        SqlEditor.Document.Insert(offset, text);
+        SqlEditor.CaretOffset = offset + text.Length;
+        SqlEditor.TextArea.Focus();
+        e.Handled = true;
+    }
+
+    // --- Tab-strip navigation extras -------------------------------------
+
+    private ScrollViewer? _tabsScrollViewer;
+    private const double TabScrollStep = 160;
+
+    private void HookTabStripScroll()
+    {
+        if (_tabsScrollViewer is not null)
+        {
+            return;
+        }
+
+        _tabsScrollViewer = TabsList.FindDescendantOfType<ScrollViewer>();
+        if (_tabsScrollViewer is null)
+        {
+            return;
+        }
+
+        // ScrollChanged also fires on extent changes (tabs opened/closed/
+        // retitled), so one subscription keeps the arrows in sync with both
+        // scrolling and the tab set itself.
+        _tabsScrollViewer.ScrollChanged += (_, _) => UpdateTabScrollArrows();
+        UpdateTabScrollArrows();
+    }
+
+    private void UpdateTabScrollArrows()
+    {
+        if (_tabsScrollViewer is not { } viewer)
+        {
+            return;
+        }
+
+        var overflows = viewer.Extent.Width > viewer.Viewport.Width + 1;
+        TabScrollLeftButton.IsVisible = overflows;
+        TabScrollRightButton.IsVisible = overflows;
+        if (!overflows)
+        {
+            return;
+        }
+
+        TabScrollLeftButton.IsEnabled = viewer.Offset.X > 1;
+        TabScrollRightButton.IsEnabled = viewer.Offset.X < viewer.Extent.Width - viewer.Viewport.Width - 1;
+    }
+
+    private void OnTabScrollLeft(object? sender, RoutedEventArgs e)
+    {
+        if (_tabsScrollViewer is { } viewer)
+        {
+            viewer.Offset = viewer.Offset.WithX(Math.Max(0, viewer.Offset.X - TabScrollStep));
+        }
+    }
+
+    private void OnTabScrollRight(object? sender, RoutedEventArgs e)
+    {
+        if (_tabsScrollViewer is { } viewer)
+        {
+            viewer.Offset = viewer.Offset.WithX(Math.Min(viewer.Extent.Width - viewer.Viewport.Width, viewer.Offset.X + TabScrollStep));
+        }
+    }
+
+    private void OpenTabList()
+    {
+        TabSearchBox.Text = string.Empty;
+        FilterTabList();
+        // Focus after the flyout finishes opening, or it reclaims focus itself.
+        Dispatcher.UIThread.Post(() => TabSearchBox.Focus());
+    }
+
+    private void FilterTabList()
+    {
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        var query = TabSearchBox.Text ?? string.Empty;
+        var matches = _viewModel.Tabs
+            .Where(t => t.TabTitle.Contains(query, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        TabSearchList.ItemsSource = matches;
+        // The active tab keeps the highlight while it matches; otherwise the
+        // best (first) match takes it so Enter always has a target.
+        TabSearchList.SelectedItem = matches.FirstOrDefault(t => ReferenceEquals(t, _viewModel.ActiveTab)) ?? matches.FirstOrDefault();
+    }
+
+    private void OnTabSearchKeyDown(object? sender, KeyEventArgs e)
+    {
+        var count = TabSearchList.ItemCount;
+        switch (e.Key)
+        {
+            case Key.Down when count > 0:
+                TabSearchList.SelectedIndex = Math.Min(TabSearchList.SelectedIndex + 1, count - 1);
+                e.Handled = true;
+                break;
+            case Key.Up when count > 0:
+                TabSearchList.SelectedIndex = Math.Max(TabSearchList.SelectedIndex - 1, 0);
+                e.Handled = true;
+                break;
+            case Key.Enter:
+                ActivateSelectedTabFromList();
+                e.Handled = true;
+                break;
+        }
+    }
+
+    private void ActivateSelectedTabFromList()
+    {
+        if (_viewModel is not null && TabSearchList.SelectedItem is QueryViewModel tab)
+        {
+            _viewModel.ActiveTab = tab;
+        }
+
+        TabListButton.Flyout?.Hide();
     }
 
     private void OnToggleSidebarClick(object? sender, RoutedEventArgs e) => ToggleSidebar();
@@ -419,6 +661,24 @@ public partial class MainWindow : Window
         _shortcutsWindow.Show(this);
     }
 
+    private ActivityWindow? _activityWindow;
+
+    private void OnShowActivityClick(object? sender, RoutedEventArgs e) => ShowActivityWindow();
+
+    // One live instance: reopening focuses it instead of stacking pollers.
+    private void ShowActivityWindow()
+    {
+        if (_activityWindow is not null)
+        {
+            _activityWindow.Activate();
+            return;
+        }
+
+        _activityWindow = new ActivityWindow { DataContext = _viewModel?.Activity };
+        _activityWindow.Closed += (_, _) => _activityWindow = null;
+        _activityWindow.Show(this);
+    }
+
     private void OnRemoveChannelClick(object? sender, RoutedEventArgs e)
     {
         if (sender is Button { Tag: string channel })
@@ -450,6 +710,34 @@ public partial class MainWindow : Window
         if (sender is MenuItem { Tag: TableNode table } && _viewModel is not null)
         {
             await _viewModel.ShowSourceAsync(table);
+        }
+    }
+
+    private async void OnShowFunctionSourceClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem { Tag: FunctionNode function } && _viewModel is not null)
+        {
+            await _viewModel.ShowFunctionSourceAsync(function);
+        }
+    }
+
+    private async void OnInstallExtensionClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem { Tag: ExtensionNode extension } && _viewModel is not null)
+        {
+            await _viewModel.SetExtensionInstalledAsync(extension, install: true);
+        }
+    }
+
+    private async void OnDropExtensionClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem { Tag: ExtensionNode extension } && _viewModel is not null)
+        {
+            var confirm = new ConfirmDialog($"Drop extension \"{extension.Name}\"? Objects it provides will be removed.", "Drop");
+            if (await confirm.ShowDialog<bool>(this))
+            {
+                await _viewModel.SetExtensionInstalledAsync(extension, install: false);
+            }
         }
     }
 
@@ -1007,6 +1295,95 @@ public partial class MainWindow : Window
         {
             await ExportAsync("json", "JSON", ["*.json"], stream => query.ExportJson(stream));
         }
+    }
+
+    // "Import" on the command bar: pick a CSV/JSON file, parse it, and hand a
+    // prefilled target-table dialog to the user. On success the schema tree
+    // refreshes and the active tab SELECTs the fresh table as visible proof.
+    private async void OnImportClick(object? sender, RoutedEventArgs e)
+    {
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
+        if (storageProvider is null)
+        {
+            return;
+        }
+
+        var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Import CSV or JSON",
+            AllowMultiple = false,
+            FileTypeFilter =
+            [
+                new FilePickerFileType("CSV or JSON") { Patterns = ["*.csv", "*.json"] },
+                new FilePickerFileType("All files") { Patterns = ["*"] },
+            ],
+        });
+
+        if (files.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            await using var stream = await files[0].OpenReadAsync();
+            using var reader = new StreamReader(stream);
+            var text = await reader.ReadToEndAsync();
+            var data = files[0].Name.EndsWith(".json", StringComparison.OrdinalIgnoreCase)
+                ? TabularFileParser.ParseJson(text)
+                : TabularFileParser.ParseCsv(text);
+
+            if (data.Columns.Count == 0)
+            {
+                _viewModel.ActiveTab.Status = "Nothing to import — the file has no rows.";
+                return;
+            }
+
+            var schemas = _viewModel.SchemaTree.Schemas.OfType<SchemaNode>().Select(s => s.Name).ToList();
+            var importViewModel = new ImportViewModel(_viewModel.Importer, data, SuggestTableName(files[0].Name), schemas);
+            importViewModel.Completed += (schema, table, count) => _ = OnImportCompletedAsync(schema, table, count);
+
+            var dialog = new ImportDialog { DataContext = importViewModel };
+            await dialog.ShowDialog<bool>(this);
+        }
+        catch (Exception ex)
+        {
+            _viewModel.ActiveTab.Status = $"Import failed: {ex.Message}";
+            _viewModel.ActiveTab.HasError = true;
+        }
+    }
+
+    private async Task OnImportCompletedAsync(string schema, string table, long count)
+    {
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        await _viewModel.RefreshSchemaCommand.ExecuteAsync(null);
+
+        var tab = _viewModel.ActiveTab;
+        tab.Sql = $"SELECT * FROM {SqlIdentifier.QuoteIfNeeded(schema)}.{SqlIdentifier.QuoteIfNeeded(table)} LIMIT 100;";
+        await tab.RunCommand.ExecuteAsync(null);
+        tab.Status = $"Imported {count:N0} row{(count == 1 ? "" : "s")} into {schema}.{table}";
+    }
+
+    /// <summary>A usable default table name from the file name: lower-cased, non-alphanumerics collapsed to '_'.</summary>
+    private static string SuggestTableName(string fileName)
+    {
+        var stem = Path.GetFileNameWithoutExtension(fileName).ToLowerInvariant();
+        var name = new string(stem.Select(c => char.IsAsciiLetterOrDigit(c) ? c : '_').ToArray()).Trim('_');
+        if (name.Length == 0)
+        {
+            name = "imported";
+        }
+
+        return char.IsAsciiDigit(name[0]) ? "t_" + name : name;
     }
 
     private async Task ExportAsync(string extension, string typeName, string[] patterns, Action<Stream>? write)

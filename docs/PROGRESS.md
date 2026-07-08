@@ -176,6 +176,45 @@ means for pgNimbus. Adopting its language where Avalonia allows.
 | --- | --- | --- |
 | Smarter SQL IntelliSense | Completion now reads the caret's grammatical position instead of always dumping the catalog. A new single-pass scanner (`SqlCompletionContext.GetCaretContext`) tracks string/comment state (`'…'` with `''` escapes, quoted identifiers, `--`, nestable `/* */`, `$tag$…$tag$`) and the governing clause per statement, so: **(1)** nothing pops up inside literals/comments; **(2)** after `FROM`/`JOIN`/`INTO`/`UPDATE` only tables/schemas/CTE names (+keywords) are offered — the list opens by itself on the space after those keywords, tables first — while `INSERT INTO t (` flips back to columns; **(3)** everywhere else the statement's own columns float to the top as before, now also from `UPDATE`/`INSERT INTO` targets (new `UpdateIntoTargetRegex`) and joined by the statement's aliases and `WITH` CTE names (new `CteNameRegex`). Column items now carry their `format_type` data type (`GetAllColumnsAsync` returns it; description reads `column (users) : integer`), and ~70 curated everyday functions (`coalesce`, `date_trunc`, `string_agg`, window functions…) complete as `name()` with the caret placed between the parens. Logic verified by a 58-case scratch harness (clause detection, suppression, table/CTE extraction — all pass) and end-to-end under Xvfb: `FROM ` auto-opened tables-first list; `cu`→Enter inserted `customers`; `c.` listed exactly its 4 columns; the selected column's tooltip showed `column (customers) : integer`; typing inside `'nam` showed no popup; `coale`→Enter produced `coalesce(│)` with the next popup led by alias `c` + floated columns; a `WITH recent AS (…)` query listed `recent` first after `FROM `. | (this commit) |
 
+## Iteration 25
+
+| Item | Outcome | Commit |
+| --- | --- | --- |
+| Tab-bar navigation extras | ‹/› scroll arrows on the tab strip, visible only while the strip actually overflows (one `ScrollChanged` subscription tracks both scrolling and extent changes from tabs opening/closing) and disabled at the respective end; each click nudges the strip 160 px. Plus a ▾ dropdown (chip button, `Flyout`) listing every open tab with type-to-search: the search box gets focus on open (posted via the dispatcher — the flyout otherwise reclaims it), typing filters case-insensitively on the tab title, ↑/↓ move the highlight, Enter (or a tap on an item — taps on the scrollbar deliberately don't count) activates the tab and closes the flyout; the active tab keeps the initial highlight while it matches. Dirty-state dots carry into the list. Verified under Xvfb with 13 tabs: arrows appeared on overflow, ‹ scrolled Query 7–13 back to 4–10, dropdown listed all 13 with the active one highlighted, typing `5` narrowed to Query 5 and Enter jumped to it. | (this commit) |
+| Connection-dialog empty state | The Saved Connections list was a bare grey panel on first launch; it now shows the same centered dimmed hint the saved-queries/history lists use ("No saved connections yet — fill in the form and press Save to keep one here"), driven by `HasNoProfiles` on `ConnectionDialogViewModel` (recomputed on every `Profiles` collection change). Verified under Xvfb with a fresh `$HOME`: hint shows on first launch and disappears the moment a profile is saved. | (this commit) |
+| README hygiene | The running-query-feedback backlog entry was still unchecked although #54 shipped it — flipped, with the description updated to what was actually built. | (this commit) |
+
+## Iteration 26
+
+| Item | Outcome | Commit |
+| --- | --- | --- |
+| Drag-and-drop from the schema tree | Schemas, tables, and columns drag out of the sidebar tree and drop into the SQL editor as identifiers quoted only where a bare name wouldn't round-trip (`SqlIdentifier.QuoteIfNeeded`; tables drop schema-qualified). The drag arms on press over a draggable node and starts only past a 4 px movement threshold, so clicks, expander toggles, and double-click previews behave exactly as before. **Avalonia 12 landmine:** the old `DataObject`/`DataFormats`/`DoDragDrop` API is compile-error obsolete — it's `DataTransfer` + `DataTransferItem.CreateText` + `DragDrop.DoDragDropAsync` now, and `DoDragDropAsync` only starts from the original `PointerPressedEventArgs`, so the press args ride along in the armed-candidate tuple. On the editor side `DragOver` moves the caret with the pointer (live landing preview) and `Drop` inserts at that position and focuses the editor. Verified under Xvfb: `customers` dropped as `public.customers` at the pointer; the `name` column dropped mid-token exactly at the pointer position. | (this commit) |
+| Compact schema-tree indent | The deferred item from the open list, via path (a): the header's own indent is `Level*16` px set at Template priority (unbeatable from a style), but each nested `PART_ItemsPresenter`'s `Margin` is *not* template-set, so a `-8,0,0,0` style counter-offset (scoped inside the schema `TreeView.Styles`) nets out to ~8 px per level. Verified on a live three-level tree (schema → table → columns) — clearly tighter, chevrons and key icons intact. | (this commit) |
+
+## Iteration 27
+
+| Item | Outcome | Commit |
+| --- | --- | --- |
+| Query history search + pinning + per-connection scoping | The history list gained a search box (case-insensitive substring over the SQL), a "this connection only" chip toggle, and per-entry pinning. `QueryHistoryEntry` grew `Pinned` and `Connection` (both with defaults, so pre-existing `history.json` files load unchanged — verified by seeding an old-shape file); `RecordExecution` stamps each new entry with a `host/database` label supplied by `MainViewModel`. The list now binds to a derived `FilteredHistory` (filter + scope applied, pinned floated first) rebuilt from the master `History` on any change; a "Nothing in history matches" hint covers the filtered-empty case. Pinning is the "keep this" signal throughout: the store's 200-entry cap evicts oldest-unpinned only, and "Clear history" removes only unpinned entries. Verified under Xvfb end-to-end: search narrowed 5 seeded entries to 1; scope showed only the current connection's 2; pinning floated an `otherhost/prod` entry to the top with an accent pin; Clear kept exactly that entry; an app restart reloaded it still pinned; a fresh `SELECT 1` recorded with the `localhost/demo` stamp and sorted below the older pinned entry. | (this commit) |
+
+## Iteration 28
+
+| Item | Outcome | Commit |
+| --- | --- | --- |
+| Functions, extensions & roles in the schema tree | Three catalog surfaces beyond tables/views. **Functions**: each schema's children now end with a lazy "Functions" group (`pg_proc` via `pg_get_function_identity_arguments` + `pg_get_function_result`) listing functions/procedures/aggregates/window functions with dimmed `→ return type` + kind tags, and a "Source (DDL)" context action that resolves overloads by identity-arguments match and opens `pg_get_functiondef` output in a titled tab (disabled for aggregates — they have no stored def). **Extensions**: a root-level group over `pg_available_extensions LEFT JOIN pg_extension` — installed ones first with a green dot + version, the rest dimmed "x.y available" — with Install (plain) and Drop (ConfirmDialog-guarded) context actions running `CREATE/DROP EXTENSION` through `SchemaEditor` (quoted names) and refreshing the group in place; errors land in the sidebar's red message strip. **Roles**: a root-level group over `pg_roles` (non-`pg_` only) with the PK key icon marking superusers and dimmed `superuser · login · createdb · createrole` tags. Verified under Xvfb: `add_numbers → integer` and `refresh_stats procedure` listed; Source opened `CREATE OR REPLACE FUNCTION public.add_numbers(...) ... $function$ SELECT a+b $function$`; Install on `citext` moved it to the green-dotted installed section (confirmed in `pg_extension`); Roles listed `postgres` with key + tags. | (this commit) |
+
+## Iteration 29
+
+| Item | Outcome | Commit |
+| --- | --- | --- |
+| Server activity dashboard | A dedicated Server Activity window (title-bar ∿ chip, singleton like the shortcuts window, or the "Server activity" palette action). Core `ActivityService` snapshots `pg_stat_activity` client backends (own pid excluded, active first) and wraps `pg_cancel_backend`/`pg_terminate_backend`; `ActivityViewModel` shapes rows (formatted elapsed, `Lock:` wait labels, whitespace-collapsed single-line query — multi-line SQL used to blow the row height out) and keeps the selection pinned by pid across refreshes so the 2-second auto-refresh (window-owned `DispatcherTimer`, only ticks while open, "Auto" toggle pauses) can't yank it mid-decision. Lock waits render amber+bold in the Wait column and are counted in the status line ("N backends · M waiting on locks · time"). Terminate goes through the destructive ConfirmDialog; Cancel fires directly. Verified live with a staged three-backend scene (sleeper, ACCESS EXCLUSIVE locker, blocked UPDATE): the UPDATE showed amber `Lock: relation`, Cancel on the locker's statement produced `ERROR: canceling statement due to user request` in its psql and chain-released the lock (`UPDATE 1` completed), and Terminate (after the confirm dialog, selection intact through refreshes) removed the sleeper from the grid and `pg_stat_activity`. | (this commit) |
+
+## Iteration 30
+
+| Item | Outcome | Commit |
+| --- | --- | --- |
+| CSV/JSON import | The last feasible backlog feature: an **Import** button beside Export. Core: `TabularFileParser` (CSV with RFC 4180 quoting — embedded commas/quotes/newlines — delimiter sniffed among `,`/`;`/tab, unquoted-empty = NULL vs quoted-empty = ''; JSON arrays of flat objects with union-of-keys columns and nested values kept as raw JSON), `TypeInferrer` (conservative: a type only wins if every non-null value parses; leading-zero codes like `007` stay **text** — the first live run exposed that the leading-zero guard only covered bigint, letting `007` infer double precision and silently become `7`, now fixed for both), and `ImportService` (optional CREATE TABLE from the allow-listed type set, then `COPY … FROM STDIN (FORMAT csv)` so Postgres parses values against real column types server-side). App: the dialog shows rows/columns parsed, schema combo + table name (suggested from the file name, sanitized), create-new vs append-to-existing radios (type combos disable for append), renameable columns with editable types; on success the schema tree refreshes and the active tab runs `SELECT * … LIMIT 100` as visible proof. Verified under Xvfb both ways: `products.csv` (5 rows: quoted commas, embedded quotes, a multi-line value, a NULL, leading-zero codes) created `public.products` with bigint/text/double/boolean/date/text/text and every edge case intact in psql; `products.json` appended 2 more rows in append mode (JSON null → NULL, `055` stayed text). GTK file-picker note for future flows: the location bar's inline autocomplete garbles xdotool-typed paths — navigate to the directory and double-click the file instead. | (this commit) |
+
 ## Open / candidate items
 - [x] Mica/acrylic backdrop on Windows — `MainWindow` sets
       `TransparencyLevelHint="Mica,AcrylicBlur"` + transparent window
@@ -191,17 +230,10 @@ means for pgNimbus. Adopting its language where Avalonia allows.
       keeping every selection/hover/primary surface legible against it wasn't
       worth polishing. Per-connection `AccentColor` (the connection dot) is
       unrelated and untouched.
-- [ ] Compact schema tree — reduce the *per-level* horizontal indent. Row
-      height/padding was tightened via `TreeViewItem` style setters (those win
-      over the ControlTheme's setters), but the indent lives on
-      `PART_Header.Margin` (a `MultiBinding` on `TreeViewItem.Level`) set inside
-      the Fluent **template**, which is `BindingPriority.Template` — higher than
-      an app-level `Style`, so a `/template/` setter override is silently
-      ignored. Two viable paths: (a) counter-offset each nested
-      `PART_ItemsPresenter` with a negative left `Margin` via a plain style
-      (its margin is *not* template-set, so a style can win there); or (b) ship
-      a full replacement `TreeViewItem` ControlTheme with a smaller indent
-      converter. Deferred — needs verification on a live tree.
+- [x] Compact schema tree — done in Iteration 26 via path (a): a `-8,0,0,0`
+      style margin on each nested `PART_ItemsPresenter` (not template-set, so
+      a style wins) counter-offsets the template's `Level*16` header indent
+      to ~8 px per level. Verified on a live three-level tree.
 - [ ] `Window.MinWidth`/`MinHeight` clamp the layout size (and the `Width`
       property) but do **not** feed the Win32 min-track-size, so an OS frame
       drag can still shrink the window below `940` and squeeze the right pane

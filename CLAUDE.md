@@ -48,12 +48,17 @@ and wrong project memory is worse than none.
 
 ## Tech stack
 
-- `net10.0` for both projects.
+- `net10.0` for all projects.
 - Core: `Npgsql`.
 - App: `Avalonia`, `Avalonia.Desktop`, `Avalonia.Themes.Fluent`,
   `Avalonia.Fonts.Inter`, `Avalonia.Controls.DataGrid`, `Avalonia.AvaloniaEdit`,
   `CommunityToolkit.Mvvm`, `AvaloniaUI.DiagnosticsSupport` (DevTools/MCP —
   wired via `.WithDeveloperTools()` in `Program.cs`, see below).
+- Tests: `PgNimbus.Core.Tests` — TUnit on Microsoft.Testing.Platform. Run
+  `dotnet test --project PgNimbus.Core.Tests` (MTP mode comes from the
+  `test.runner` opt-in in the repo-root `global.json`) or plain
+  `dotnet run --project PgNimbus.Core.Tests`. Never add
+  `Microsoft.NET.Test.Sdk` to a TUnit project — it breaks test discovery.
 - `AvaloniaUseCompiledBindingsByDefault` is on — don't add uncompiled
   (reflection) bindings.
 
@@ -70,6 +75,11 @@ and wrong project memory is worse than none.
   Two-way sync with the ViewModel is done manually in `MainWindow.axaml.cs`
   (via `TextChanged` + `PropertyChanged`, with a re-entrancy guard), not via
   XAML `Binding`.
+- `SqlFormatter` follows <https://www.sqlstyle.guide/> ("river" layout: root
+  keywords right-aligned to a common column, content to its right). The tests
+  in `PgNimbus.Core.Tests` assert exact spacing — a deliberate layout change
+  must update them, and every layout must survive the formatter's token
+  round-trip safety net.
 
 ## Avalonia DevTools MCP
 

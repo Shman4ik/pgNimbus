@@ -3,16 +3,16 @@ using System.Text;
 namespace PgNimbus.Core.Query;
 
 /// <summary>
-/// A pragmatic, dependency-free SQL pretty-printer: it lays a statement out in a
-/// readable block style — each major clause on its own line, select-list and
-/// SET/GROUP BY/ORDER BY items and JOINs broken one-per-line, <c>AND</c>/<c>OR</c>
-/// predicates stacked, subqueries indented — and upper-cases reserved keywords.
-/// Layout is width-aware: a clause whose exploded body fits within
-/// <see cref="MaxCompactWidth"/> columns collapses back onto the keyword's line
-/// (<c>SELECT *</c>, <c>WHERE active = TRUE</c>), so short queries stay short
-/// and only genuinely long clauses go tall. JOINs keep their own line however
-/// short, and <c>LIMIT</c>/<c>OFFSET</c>/<c>FETCH</c> share a line as one
-/// pagination clause when they fit.
+/// A pragmatic, dependency-free SQL pretty-printer following the layout of
+/// <see href="https://www.sqlstyle.guide/">sqlstyle.guide</see>: root keywords are
+/// right-aligned so they all end at the same column, forming a whitespace "river"
+/// between keyword and content (<c>SELECT</c> at the margin, <c>&#160;&#160;FROM</c>,
+/// <c>&#160;WHERE</c>, right-aligned <c>AND</c>/<c>OR</c>), <c>ON</c> indented under
+/// its <c>JOIN</c>, and subqueries forming their own nested river anchored at their
+/// opening paren. Reserved keywords are upper-cased. Layout is width-aware: a clause
+/// whose items all fit within <see cref="MaxCompactWidth"/> columns stays on the
+/// keyword's line (<c>SELECT id, name</c>); longer lists break one item per line
+/// aligned on the content side of the river.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -33,7 +33,9 @@ namespace PgNimbus.Core.Query;
 /// </remarks>
 public static class SqlFormatter
 {
-    private const string IndentUnit = "    ";
+    // The river column: root keywords right-align to end here ("SELECT".Length,
+    // per sqlstyle.guide). Content starts one space to the right.
+    private const int RiverWidth = 6;
 
     // A clause whose whole body fits on the keyword's line within this many
     // columns stays on one line instead of breaking one item per line.
@@ -57,7 +59,9 @@ public static class SqlFormatter
             return sql;
         }
 
-        var formatted = Compact(Layout(tokens));
+        var lines = Layout(tokens);
+        Compact(lines);
+        var formatted = Render(lines);
 
         // Never corrupt: if our output doesn't re-tokenize to the same token
         // sequence, hand the original back verbatim.
@@ -74,57 +78,67 @@ public static class SqlFormatter
 
     // ---- Layout -----------------------------------------------------------
 
-    private static string Layout(List<Tok> tokens)
-    {
-        var sb = new StringBuilder();
+    // What started an output line — Compact uses this to know which lines are
+    // clause keywords, which are wrapped list items that may fold back onto
+    // them, and which must always keep their own line (JOINs, AND/OR).
+    private enum LineKind { ClauseHead, Item, AndOr, Join, Other }
 
-        var indent = 0;             // clause-keyword indentation (grows inside subqueries)
-        var bodyIndent = 1;         // indentation of the current clause's items
+    private sealed class Line(int column, LineKind kind)
+    {
+        public int Column { get; } = column;
+        public LineKind Kind { get; } = kind;
+        public StringBuilder Text { get; } = new();
+    }
+
+    private static List<Line> Layout(List<Tok> tokens)
+    {
+        var lines = new List<Line>();
+        Line? cur = null;
+
+        var riverEnd = RiverWidth;  // column clause keywords right-align to (grows inside subqueries)
         var bodyActive = false;     // are we in a clause whose items/AND/OR break one-per-line?
         var clauseParenDepth = 0;   // paren depth the current clause lives at
         var parenDepth = 0;
         var prevJoinMod = false;    // last emitted token was a JOIN modifier (LEFT/INNER/…)
         var betweenDepth = 0;       // BETWEENs awaiting their AND, so "a BETWEEN x AND y" never breaks at that AND
+        var joinContext = false;    // between a JOIN and its ON/USING, which get their own line
+        var glueClause = false;     // next clause keyword opens a subquery — keep it glued to its "("
         string? prevKeyword = null; // last keyword emitted, lower-cased (for DELETE FROM etc.)
-        var lineStart = true;       // sb is empty or sits right after a newline+indent
-        var pendingBreakIndent = -1; // >=0 ⇒ start the next token on a fresh line at this indent
-        var curLineIndent = 0;      // indent of the line currently being built
         var prevKind = Kind.Semicolon; // last emitted token, for suppressing the following space
         var prevText = "";
 
-        // Per-open-paren saved clause state, restored on the matching close.
-        var stack = new Stack<(int Indent, int BodyIndent, bool BodyActive, int ClauseParenDepth, bool PrevJoinMod, string? PrevKeyword, int OpenLineIndent, bool Subquery, int BetweenDepth)>();
+        // When set, the next emitted token starts a fresh line there.
+        (int Column, LineKind Kind)? pending = (0, LineKind.ClauseHead);
 
-        void Break(int level) => pendingBreakIndent = level;
+        // Per-open-paren saved clause state, restored on the matching close.
+        var stack = new Stack<(int RiverEnd, bool BodyActive, int ClauseParenDepth, bool PrevJoinMod, string? PrevKeyword, int BetweenDepth, bool JoinContext)>();
+
+        void Break(int column, LineKind kind) => pending = (Math.Max(0, column), kind);
 
         void Emit(string text, Kind kind, bool spaceBefore)
         {
-            if (pendingBreakIndent >= 0 && sb.Length > 0)
+            if (cur is null || pending is not null)
             {
-                sb.Append('\n');
-                for (var k = 0; k < pendingBreakIndent; k++)
-                {
-                    sb.Append(IndentUnit);
-                }
-
-                curLineIndent = pendingBreakIndent;
-                lineStart = true;
+                // The statement's very first line sits at the margin whatever
+                // its keyword's river position would be.
+                var (column, lineKind) = pending ?? (0, LineKind.Other);
+                cur = new Line(lines.Count == 0 ? 0 : column, lineKind);
+                lines.Add(cur);
             }
 
-            pendingBreakIndent = -1;
+            pending = null;
 
             // A "." , "(" , or "::" glues to whatever follows it, whatever the token asks.
             var space = spaceBefore
                 && prevKind != Kind.Dot
                 && prevKind != Kind.OpenParen
                 && !(prevKind == Kind.Op && prevText == "::");
-            if (!lineStart && space)
+            if (cur.Text.Length > 0 && space)
             {
-                sb.Append(' ');
+                cur.Text.Append(' ');
             }
 
-            sb.Append(text);
-            lineStart = false;
+            cur.Text.Append(text);
             prevKind = kind;
             prevText = text;
         }
@@ -138,16 +152,20 @@ public static class SqlFormatter
             switch (t.Kind)
             {
                 case Kind.Word when atClause && TryTwoWordClause(tokens, i, out var clauseText, out var advance):
-                    Break(indent);
+                {
+                    // Only the first word right-aligns to the river; "BY" spills right.
+                    var firstLength = clauseText.IndexOf(' ');
+                    Break(riverEnd - firstLength, LineKind.ClauseHead);
                     Emit(clauseText, Kind.Word, spaceBefore: true);
                     bodyActive = true;
-                    bodyIndent = indent + 1;
                     clauseParenDepth = parenDepth;
                     prevKeyword = clauseText.ToLowerInvariant();
                     prevJoinMod = false;
-                    Break(bodyIndent);
+                    joinContext = false;
+                    betweenDepth = 0;
                     i += advance;
                     break;
+                }
 
                 case Kind.Word when atClause && MajorBreak.Contains(lower!):
                     // "DELETE FROM" / "INSERT INTO … SELECT": keep FROM glued to the
@@ -159,30 +177,33 @@ public static class SqlFormatter
                     }
                     else
                     {
-                        Break(indent);
-                        Emit(Upper(t.Text, lower), Kind.Word, spaceBefore: true);
-                        clauseParenDepth = parenDepth;
-                        if (BodyForcing.Contains(lower!))
+                        // A subquery's first keyword stays glued to its "(";
+                        // anywhere else the keyword right-aligns to the river,
+                        // with its body flowing on the same line.
+                        if (glueClause)
                         {
-                            bodyActive = true;
-                            bodyIndent = indent + 1;
-                            Break(bodyIndent);
+                            glueClause = false;
                         }
                         else
                         {
-                            bodyActive = false;
+                            Break(riverEnd - lower!.Length, LineKind.ClauseHead);
                         }
+
+                        Emit(Upper(t.Text, lower), Kind.Word, spaceBefore: true);
+                        clauseParenDepth = parenDepth;
+                        bodyActive = BodyForcing.Contains(lower!);
                     }
 
                     prevKeyword = lower;
                     prevJoinMod = false;
+                    joinContext = false;
                     betweenDepth = 0;
                     break;
 
                 case Kind.Word when atClause && JoinModifiers.Contains(lower!):
                     if (!prevJoinMod)
                     {
-                        Break(bodyActive ? bodyIndent : indent + 1);
+                        Break(riverEnd - lower!.Length, LineKind.Join);
                     }
 
                     Emit(Upper(t.Text, lower), Kind.Word, spaceBefore: true);
@@ -193,12 +214,23 @@ public static class SqlFormatter
                 case Kind.Word when atClause && lower == "join":
                     if (!prevJoinMod)
                     {
-                        Break(bodyActive ? bodyIndent : indent + 1);
+                        Break(riverEnd - 4, LineKind.Join);
                     }
 
                     Emit("JOIN", Kind.Word, spaceBefore: true);
                     prevJoinMod = false;
                     prevKeyword = lower;
+                    joinContext = true;
+                    break;
+
+                case Kind.Word when atClause && joinContext && lower is "on" or "using":
+                    // The join condition gets its own line on the content side
+                    // of the river, under the table it joins.
+                    Break(riverEnd + 1, LineKind.Other);
+                    Emit(Upper(t.Text, lower), Kind.Word, spaceBefore: true);
+                    prevKeyword = lower;
+                    prevJoinMod = false;
+                    joinContext = false;
                     break;
 
                 case Kind.Word when atClause && bodyActive && (lower == "and" || lower == "or"):
@@ -210,7 +242,7 @@ public static class SqlFormatter
                     }
                     else
                     {
-                        Break(bodyIndent);
+                        Break(riverEnd - lower!.Length, LineKind.AndOr);
                     }
 
                     Emit(Upper(t.Text, lower), Kind.Word, spaceBefore: true);
@@ -243,7 +275,7 @@ public static class SqlFormatter
                     Emit(",", Kind.Comma, spaceBefore: false);
                     if (atClause && bodyActive)
                     {
-                        Break(bodyIndent);
+                        Break(riverEnd + 1, LineKind.Item);
                     }
 
                     prevJoinMod = false;
@@ -256,18 +288,23 @@ public static class SqlFormatter
                     // there and that token is callable/subscriptable — so "count(*)"
                     // stays tight while "users (…)" and "in (…)" keep their space.
                     var funcCall = !t.SpaceBefore && i > 0 && IsCallTarget(tokens[i - 1]);
-                    stack.Push((indent, bodyIndent, bodyActive, clauseParenDepth, prevJoinMod, prevKeyword, curLineIndent, subquery, betweenDepth));
+                    stack.Push((riverEnd, bodyActive, clauseParenDepth, prevJoinMod, prevKeyword, betweenDepth, joinContext));
                     betweenDepth = 0;
+                    joinContext = false;
 
                     Emit("(", Kind.OpenParen, spaceBefore: !funcCall);
                     parenDepth++;
 
                     if (subquery)
                     {
-                        indent = curLineIndent + 1;
+                        // The subquery's river anchors at its "(": the inner
+                        // SELECT starts right after it and inner clause
+                        // keywords right-align to where that SELECT ends.
+                        var parenColumn = cur!.Column + cur.Text.Length - 1;
+                        riverEnd = parenColumn + 1 + RiverWidth;
                         bodyActive = false;
                         clauseParenDepth = parenDepth;
-                        Break(indent);
+                        glueClause = true;
                     }
 
                     prevJoinMod = false;
@@ -275,40 +312,37 @@ public static class SqlFormatter
                 }
 
                 case Kind.CloseParen:
-                {
                     parenDepth = Math.Max(0, parenDepth - 1);
                     if (stack.Count > 0)
                     {
                         var s = stack.Pop();
-                        indent = s.Indent;
-                        bodyIndent = s.BodyIndent;
+                        riverEnd = s.RiverEnd;
                         bodyActive = s.BodyActive;
                         clauseParenDepth = s.ClauseParenDepth;
                         prevJoinMod = s.PrevJoinMod;
                         prevKeyword = s.PrevKeyword;
                         betweenDepth = s.BetweenDepth;
-                        if (s.Subquery)
-                        {
-                            Break(s.OpenLineIndent); // ")" lines up under the "(" that opened it
-                        }
+                        joinContext = s.JoinContext;
                     }
 
+                    // ")" hugs the last token of what it closes, even for a
+                    // multi-line subquery (per sqlstyle.guide).
                     Emit(")", Kind.CloseParen, spaceBefore: false);
                     break;
-                }
 
                 case Kind.Semicolon:
                     Emit(";", Kind.Semicolon, spaceBefore: false);
                     // Reset clause state for a following statement.
-                    indent = 0;
+                    riverEnd = RiverWidth;
                     bodyActive = false;
                     clauseParenDepth = parenDepth;
                     prevKeyword = null;
                     prevJoinMod = false;
+                    joinContext = false;
                     betweenDepth = 0;
                     if (i < tokens.Count - 1)
                     {
-                        Break(0);
+                        Break(0, LineKind.ClauseHead);
                     }
 
                     break;
@@ -320,7 +354,7 @@ public static class SqlFormatter
 
                 case Kind.LineComment:
                     Emit(t.Text, Kind.LineComment, spaceBefore: true);
-                    Break(bodyActive ? bodyIndent : indent); // a line comment runs to EOL
+                    Break(riverEnd + 1, LineKind.Item); // a line comment runs to EOL
                     prevJoinMod = false;
                     break;
 
@@ -338,174 +372,124 @@ public static class SqlFormatter
             }
         }
 
+        return lines;
+    }
+
+    private static string Render(List<Line> lines)
+    {
+        var sb = new StringBuilder();
+        foreach (var line in lines)
+        {
+            if (sb.Length > 0)
+            {
+                sb.Append('\n');
+            }
+
+            sb.Append(' ', line.Column).Append(line.Text);
+        }
+
         return sb.ToString();
     }
 
     // ---- Compaction -------------------------------------------------------
 
-    // Collapses clauses whose exploded body fits on one line back onto the
-    // clause keyword's line: "SELECT\n    *" → "SELECT *", "WHERE\n    a = 1\n
-    // AND b = 2" → "WHERE a = 1 AND b = 2". Runs to a fixpoint so an inner
-    // merge (a subquery's SELECT list) can enable an outer one (the whole
-    // "FROM (…) t"). Finishes by pairing LIMIT/OFFSET/FETCH onto one line.
-    private static string Compact(string formatted)
+    // Folds a clause's wrapped items back onto the keyword's line when the
+    // whole clause fits: "SELECT id,\n       name" → "SELECT id, name". Only
+    // Item lines fold — JOINs and AND/OR always keep their own line, per the
+    // style guide. Every fold is validated by re-tokenizing: a fold that would
+    // swallow code into a line comment or reflow a multi-line literal is
+    // rejected. Finishes by pairing LIMIT/OFFSET/FETCH onto one line.
+    private static void Compact(List<Line> lines)
     {
-        var lines = new List<string>(formatted.Split('\n'));
-
-        bool changed;
-        do
+        for (var i = 0; i < lines.Count; i++)
         {
-            changed = false;
-            for (var i = 0; i < lines.Count; i++)
+            if (lines[i].Kind != LineKind.ClauseHead)
             {
-                changed |= TryMergeClause(lines, i);
+                continue;
+            }
+
+            var end = i + 1;
+            while (end < lines.Count && lines[end].Kind == LineKind.Item)
+            {
+                end++;
+            }
+
+            if (end > i + 1)
+            {
+                TryFold(lines, i, end);
             }
         }
-        while (changed);
 
         MergePagination(lines);
-        return string.Join('\n', lines);
     }
 
-    // Merges the group headed by lines[i] — the run of deeper-indented lines
-    // below it — onto that line, when it is safe and it fits. A group merges
-    // only when every body line sits exactly one level below the header (deeper
-    // nesting keeps the clause tall), no body line is a JOIN (joins keep their
-    // own line however short), and the merged text re-tokenizes to the same
-    // tokens as the lines it replaces — which rejects any merge that would
-    // swallow code into a line comment or reflow a multi-line literal. A header
-    // that opens a subquery ("FROM (") also pulls in its closing ") alias" line.
-    private static bool TryMergeClause(List<string> lines, int i)
+    private static void TryFold(List<Line> lines, int start, int end)
     {
-        var header = lines[i].TrimEnd();
-        var headerIndent = IndentLevel(lines[i]);
-        if (header.Length == 0)
+        var texts = new string[end - start];
+        for (var i = start; i < end; i++)
         {
-            return false;
-        }
-
-        var j = i + 1;
-        var flat = true;
-        while (j < lines.Count && IndentLevel(lines[j]) > headerIndent)
-        {
-            flat &= IndentLevel(lines[j]) == headerIndent + 1;
-            j++;
-        }
-
-        if (j == i + 1 || !flat)
-        {
-            return false;
-        }
-
-        for (var k = i + 1; k < j; k++)
-        {
-            if (StartsWithJoinKeyword(lines[k]))
+            texts[i - start] = lines[i].Text.ToString();
+            if (texts[i - start].Contains('\n'))
             {
-                return false;
+                return; // a multi-line literal or comment never folds
             }
         }
 
-        // "FROM (" / "WITH x AS (": the group is only complete with its closing
-        // ") …" line, so require and include it; any other dangling "(" stays tall.
-        var end = j;
-        if (header.EndsWith('('))
+        var folded = string.Join(' ', texts);
+        if (lines[start].Column + folded.Length > MaxCompactWidth
+            || !SameTokens(Tokenize(string.Join('\n', texts)), Tokenize(folded)))
         {
-            if (j >= lines.Count || IndentLevel(lines[j]) != headerIndent || !lines[j].TrimStart().StartsWith(')'))
-            {
-                return false;
-            }
-
-            end = j + 1;
+            return;
         }
 
-        var sb = new StringBuilder(header);
-        for (var k = i + 1; k < end; k++)
-        {
-            var part = lines[k].Trim();
-            if (sb[^1] != '(' && !part.StartsWith(')'))
-            {
-                sb.Append(' ');
-            }
-
-            sb.Append(part);
-        }
-
-        var merged = sb.ToString();
-        if (merged.Length > MaxCompactWidth)
-        {
-            return false;
-        }
-
-        var original = string.Join("\n", lines.GetRange(i, end - i));
-        if (!SameTokens(Tokenize(original), Tokenize(merged)))
-        {
-            return false;
-        }
-
-        lines[i] = merged;
-        lines.RemoveRange(i + 1, end - i - 1);
-        return true;
+        lines[start].Text.Clear();
+        lines[start].Text.Append(folded);
+        lines.RemoveRange(start + 1, end - start - 1);
     }
 
     // "LIMIT 100" + "OFFSET 0" (and an ANSI "FETCH …" after either) read as one
     // pagination clause, so they share a line when the pair fits.
-    private static void MergePagination(List<string> lines)
+    private static void MergePagination(List<Line> lines)
     {
         for (var i = lines.Count - 1; i > 0; i--)
         {
-            var cur = FirstWordLower(lines[i]);
-            var prev = FirstWordLower(lines[i - 1]);
-            var pair = (cur == "offset" && prev == "limit")
-                || (cur == "fetch" && prev is "offset" or "limit");
-            if (!pair || IndentLevel(lines[i]) != IndentLevel(lines[i - 1]))
+            if (lines[i].Kind != LineKind.ClauseHead || lines[i - 1].Kind != LineKind.ClauseHead)
             {
                 continue;
             }
 
-            var merged = lines[i - 1].TrimEnd() + " " + lines[i].Trim();
-            if (merged.Length > MaxCompactWidth
-                || !SameTokens(Tokenize(lines[i - 1] + "\n" + lines[i]), Tokenize(merged)))
+            var cur = lines[i].Text.ToString();
+            var prev = lines[i - 1].Text.ToString();
+            var curFirst = FirstWordLower(cur);
+            var prevFirst = FirstWordLower(prev);
+            var pair = (curFirst == "offset" && prevFirst == "limit")
+                || (curFirst == "fetch" && prevFirst is "offset" or "limit");
+            if (!pair || cur.Contains('\n') || prev.Contains('\n'))
             {
                 continue;
             }
 
-            lines[i - 1] = merged;
+            var merged = prev + " " + cur;
+            if (lines[i - 1].Column + merged.Length > MaxCompactWidth
+                || !SameTokens(Tokenize(prev + "\n" + cur), Tokenize(merged)))
+            {
+                continue;
+            }
+
+            lines[i - 1].Text.Append(' ').Append(cur);
             lines.RemoveAt(i);
         }
     }
 
-    private static int IndentLevel(string line)
+    private static string FirstWordLower(string text)
     {
-        var spaces = 0;
-        while (spaces < line.Length && line[spaces] == ' ')
-        {
-            spaces++;
-        }
-
-        return spaces / IndentUnit.Length;
-    }
-
-    private static string FirstWordLower(string line)
-    {
-        var start = 0;
-        while (start < line.Length && line[start] == ' ')
-        {
-            start++;
-        }
-
-        var end = start;
-        while (end < line.Length && char.IsLetter(line[end]))
+        var end = 0;
+        while (end < text.Length && char.IsLetter(text[end]))
         {
             end++;
         }
 
-        return line[start..end].ToLowerInvariant();
-    }
-
-    private static bool StartsWithJoinKeyword(string line)
-    {
-        var word = FirstWordLower(line);
-        return word == "join" || JoinModifiers.Contains(word);
+        return text[..end].ToLowerInvariant();
     }
 
     // "group"/"order"/"partition" followed by "by": emit as one upper-cased clause
@@ -932,7 +916,7 @@ public static class SqlFormatter
 
     // ---- Keyword tables ---------------------------------------------------
 
-    // Clause keywords that start a fresh line at the clause indent.
+    // Clause keywords that start a fresh line right-aligned to the river.
     private static readonly HashSet<string> MajorBreak = new(StringComparer.Ordinal)
     {
         "select", "from", "where", "having", "limit", "offset", "values", "set",

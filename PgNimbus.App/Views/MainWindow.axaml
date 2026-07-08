@@ -52,6 +52,61 @@
                            ToolTip.Tip="{Binding FullTypeTip}" ToolTip.ShowDelay="150" />
             </StackPanel>
         </DataTemplate>
+        <DataTemplate DataType="vm:FunctionsGroupNode">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+                <PathIcon Data="{StaticResource FunctionIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" Opacity="0.8" />
+                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Opacity="0.85" />
+            </StackPanel>
+        </DataTemplate>
+        <DataTemplate DataType="vm:FunctionNode">
+            <StackPanel Orientation="Horizontal" Spacing="6" ToolTip.Tip="{Binding Tooltip}" ToolTip.ShowDelay="150">
+                <StackPanel.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="Source (DDL)" Tag="{Binding}" Click="OnShowFunctionSourceClick" IsEnabled="{Binding HasSource}" />
+                    </ContextMenu>
+                </StackPanel.ContextMenu>
+                <TextBlock Text="{Binding Name}" />
+                <TextBlock Text="{Binding Detail}" Opacity="0.6" FontSize="11" VerticalAlignment="Center" />
+            </StackPanel>
+        </DataTemplate>
+        <DataTemplate DataType="vm:ExtensionsGroupNode">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+                <PathIcon Data="{StaticResource PuzzleIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+            </StackPanel>
+        </DataTemplate>
+        <DataTemplate DataType="vm:ExtensionNode">
+            <StackPanel Orientation="Horizontal" Spacing="6" ToolTip.Tip="{Binding Description}" ToolTip.ShowDelay="150">
+                <StackPanel.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="Install" Tag="{Binding}" Click="OnInstallExtensionClick" IsVisible="{Binding !IsInstalled}" />
+                        <MenuItem Header="Drop..." Tag="{Binding}" Click="OnDropExtensionClick" IsVisible="{Binding IsInstalled}" />
+                    </ContextMenu>
+                </StackPanel.ContextMenu>
+                <!-- Green dot = installed; the fixed-width panel keeps names aligned either way -->
+                <Panel Width="9" VerticalAlignment="Center">
+                    <Ellipse Width="7" Height="7" Fill="#46A758" IsVisible="{Binding IsInstalled}" />
+                </Panel>
+                <TextBlock Text="{Binding Name}" IsVisible="{Binding IsInstalled}" />
+                <TextBlock Text="{Binding Name}" Opacity="0.55" IsVisible="{Binding !IsInstalled}" />
+                <TextBlock Text="{Binding VersionLabel}" Opacity="0.5" FontSize="11" VerticalAlignment="Center" />
+            </StackPanel>
+        </DataTemplate>
+        <DataTemplate DataType="vm:RolesGroupNode">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+                <PathIcon Data="{StaticResource AccountMultipleIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+            </StackPanel>
+        </DataTemplate>
+        <DataTemplate DataType="vm:RoleNode">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+                <Panel Width="14" VerticalAlignment="Center">
+                    <PathIcon Data="{StaticResource KeyIconGeometry}" Width="11" Height="11" IsVisible="{Binding IsSuperuser}" ToolTip.Tip="superuser" />
+                </Panel>
+                <TextBlock Text="{Binding Name}" />
+                <TextBlock Text="{Binding AttributesLabel}" Opacity="0.6" FontSize="11" VerticalAlignment="Center" />
+            </StackPanel>
+        </DataTemplate>
         <DataTemplate DataType="vm:PlaceholderNode">
             <TextBlock Text="Loading..." Opacity="0.5" FontStyle="Italic" />
         </DataTemplate>
@@ -98,6 +153,11 @@
                         Margin="0,0,4,0" VerticalAlignment="Center"
                         Click="OnToggleThemeClick" ToolTip.Tip="Toggle light/dark theme">
                     <PathIcon Name="ThemeIcon" Data="{StaticResource WeatherNightIconGeometry}" Width="14" Height="14" />
+                </Button>
+                <Button DockPanel.Dock="Right" Classes="chip" Padding="5"
+                        Margin="0,0,4,0" VerticalAlignment="Center"
+                        Click="OnShowActivityClick" ToolTip.Tip="Server activity (pg_stat_activity)">
+                    <PathIcon Data="{StaticResource PulseIconGeometry}" Width="14" Height="14" />
                 </Button>
                 <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                     <TextBlock Text="pgNimbus" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center" />
@@ -166,6 +226,13 @@
                                     <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay, DataType=vm:SchemaTreeNode}" />
                                     <Setter Property="IsVisible" Value="{Binding IsFilteredIn, Mode=OneWay, DataType=vm:SchemaTreeNode}" />
                                 </Style>
+                                <!-- Compact per-level indent: the header's own indent is Level*16px,
+                                     set at Template priority (unbeatable from a style), but each
+                                     nested items presenter's Margin is NOT template-set, so a
+                                     -8px counter-offset here nets out to 8px per level. -->
+                                <Style Selector="TreeViewItem /template/ ItemsPresenter#PART_ItemsPresenter">
+                                    <Setter Property="Margin" Value="-8,0,0,0" />
+                                </Style>
                             </TreeView.Styles>
                             <TreeView.ItemTemplate>
                                 <TreeDataTemplate ItemsSource="{Binding Children}">
@@ -187,7 +254,7 @@
                                    IsVisible="{Binding $parent[TabControl].Bounds.Width, Converter={x:Static conv2:MinWidthVisibilityConverter.Instance}, ConverterParameter=300}" />
                     </StackPanel>
                 </TabItem.Header>
-                <Grid RowDefinitions="Auto,*,Auto,Auto,Auto,*,Auto" Margin="0,8,0,0" x:DataType="vm:SavedQueriesViewModel" DataContext="{Binding SavedQueries}">
+                <Grid RowDefinitions="Auto,*,Auto,Auto,Auto,Auto,*,Auto" Margin="0,8,0,0" x:DataType="vm:SavedQueriesViewModel" DataContext="{Binding SavedQueries}">
                     <TextBlock Grid.Row="0" Classes="sectionHeader" Text="SAVED QUERIES" Margin="4,0,4,6" />
                     <Border Grid.Row="1" Classes="card" MinHeight="80">
                         <Grid>
@@ -211,15 +278,55 @@
                         <Button Content="Delete" Command="{Binding DeleteSavedQueryCommand}" CommandParameter="{Binding #SavedQueriesList.SelectedItem}" />
                     </StackPanel>
                     <TextBlock Grid.Row="4" Classes="sectionHeader" Text="HISTORY" Margin="4,16,4,6" />
-                    <Border Grid.Row="5" Classes="card" MinHeight="80">
+                    <!-- Search + per-connection scope toggle -->
+                    <DockPanel Grid.Row="5" Margin="0,0,0,6">
+                        <ToggleButton DockPanel.Dock="Right" Classes="chip" Padding="5" Margin="6,0,0,0"
+                                      VerticalAlignment="Center" IsChecked="{Binding ScopeHistoryToConnection}"
+                                      ToolTip.Tip="Only queries run against the current connection">
+                            <PathIcon Data="{StaticResource DatabaseIconGeometry}" Width="12" Height="12" />
+                        </ToggleButton>
+                        <TextBox FontSize="12" Text="{Binding HistoryFilter, Mode=TwoWay}"
+                                 PlaceholderText="Search history…">
+                            <TextBox.InnerLeftContent>
+                                <PathIcon Data="{StaticResource MagnifyIconGeometry}" Width="13" Height="13"
+                                          Opacity="0.5" Margin="8,0,0,0" VerticalAlignment="Center" />
+                            </TextBox.InnerLeftContent>
+                            <TextBox.InnerRightContent>
+                                <Button Classes="chip" Margin="0,0,4,0" VerticalAlignment="Center"
+                                        Command="{Binding ClearHistoryFilterCommand}"
+                                        ToolTip.Tip="Clear search"
+                                        IsVisible="{Binding HistoryFilter, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}">
+                                    <PathIcon Data="{StaticResource CloseIconGeometry}" Width="11" Height="11" />
+                                </Button>
+                            </TextBox.InnerRightContent>
+                        </TextBox>
+                    </DockPanel>
+                    <Border Grid.Row="6" Classes="card" MinHeight="80">
                         <Grid>
-                            <ListBox Name="HistoryList" ItemsSource="{Binding History}">
+                            <ListBox Name="HistoryList" ItemsSource="{Binding FilteredHistory}">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate x:DataType="query:QueryHistoryEntry">
-                                        <StackPanel>
-                                            <TextBlock Text="{Binding Sql}" TextTrimming="CharacterEllipsis" MaxLines="2" TextWrapping="Wrap" FontSize="12" />
-                                            <TextBlock Text="{Binding ExecutedAt}" Opacity="0.6" FontSize="10" />
-                                        </StackPanel>
+                                        <DockPanel>
+                                            <Button DockPanel.Dock="Right" Classes="chip" Padding="4" VerticalAlignment="Center"
+                                                    Command="{Binding $parent[ListBox].((vm:SavedQueriesViewModel)DataContext).TogglePinCommand}"
+                                                    CommandParameter="{Binding}"
+                                                    ToolTip.Tip="Pin — pinned entries stay on top and survive Clear">
+                                                <Panel>
+                                                    <PathIcon Data="{StaticResource PinIconGeometry}" Width="11" Height="11"
+                                                              Foreground="{DynamicResource AppAccentBrush}" IsVisible="{Binding Pinned}" />
+                                                    <PathIcon Data="{StaticResource PinIconGeometry}" Width="11" Height="11"
+                                                              Opacity="0.35" IsVisible="{Binding !Pinned}" />
+                                                </Panel>
+                                            </Button>
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Sql}" TextTrimming="CharacterEllipsis" MaxLines="2" TextWrapping="Wrap" FontSize="12" />
+                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                    <TextBlock Text="{Binding ExecutedAt}" Opacity="0.6" FontSize="10" />
+                                                    <TextBlock Text="{Binding Connection}" Opacity="0.45" FontSize="10"
+                                                               IsVisible="{Binding Connection, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </DockPanel>
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
                             </ListBox>
@@ -227,9 +334,13 @@
                                        Text="Queries you run will appear here"
                                        TextWrapping="Wrap" TextAlignment="Center" Opacity="0.4" FontSize="12"
                                        Margin="12" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <TextBlock IsVisible="{Binding HasNoHistoryMatches}" IsHitTestVisible="False"
+                                       Text="Nothing in history matches"
+                                       TextWrapping="Wrap" TextAlignment="Center" Opacity="0.4" FontSize="12"
+                                       Margin="12" HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Grid>
                     </Border>
-                    <StackPanel Grid.Row="6" Orientation="Horizontal" Spacing="6" Margin="0,8,0,0">
+                    <StackPanel Grid.Row="7" Orientation="Horizontal" Spacing="6" Margin="0,8,0,0">
                         <Button Content="Load selected" Command="{Binding LoadHistoryEntryCommand}" CommandParameter="{Binding #HistoryList.SelectedItem}" />
                         <Button Content="Clear history" Command="{Binding ClearHistoryCommand}" />
                     </StackPanel>
@@ -308,6 +419,39 @@
 
             <DockPanel Grid.Row="0" Margin="0,0,0,8">
                 <Button DockPanel.Dock="Right" Classes="chip" Content="+" FontSize="14" Command="{Binding AddTabCommand}" ToolTip.Tip="New query tab" />
+                <!-- All-tabs dropdown: lists every open tab with type-to-search;
+                     the one way to reach a tab that scrolling would take ages to find -->
+                <Button DockPanel.Dock="Right" Classes="chip" Name="TabListButton" ToolTip.Tip="All open tabs">
+                    <PathIcon Data="{StaticResource MenuDownIconGeometry}" Width="12" Height="12" />
+                    <Button.Flyout>
+                        <Flyout Placement="BottomEdgeAlignedRight">
+                            <StackPanel Width="260" Spacing="6">
+                                <TextBox Name="TabSearchBox" PlaceholderText="Search tabs…" />
+                                <ListBox Name="TabSearchList" MaxHeight="320">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:QueryViewModel">
+                                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                                <TextBlock Text="{Binding TabTitle}" VerticalAlignment="Center" />
+                                                <Ellipse Width="6" Height="6" VerticalAlignment="Center"
+                                                         Fill="{DynamicResource AppAccentBrush}"
+                                                         IsVisible="{Binding IsDirty}" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </StackPanel>
+                        </Flyout>
+                    </Button.Flyout>
+                </Button>
+                <!-- Scroll arrows: only visible when the strip actually overflows -->
+                <Button DockPanel.Dock="Right" Classes="chip" Name="TabScrollRightButton" IsVisible="False"
+                        Click="OnTabScrollRight" ToolTip.Tip="Scroll tabs right">
+                    <PathIcon Data="{StaticResource ChevronRightIconGeometry}" Width="12" Height="12" />
+                </Button>
+                <Button DockPanel.Dock="Right" Classes="chip" Name="TabScrollLeftButton" IsVisible="False"
+                        Click="OnTabScrollLeft" ToolTip.Tip="Scroll tabs left">
+                    <PathIcon Data="{StaticResource ChevronLeftIconGeometry}" Width="12" Height="12" />
+                </Button>
                 <!-- Horizontal scroll (not clipping): with many tabs the strip
                      used to cut off mid-tab and hide the active tab entirely;
                      AutoScrollToSelectedItem keeps a newly added tab in view. -->
@@ -431,6 +575,12 @@
                                 <MenuItem Header="Export as JSON..." Click="OnExportJsonClick" />
                             </MenuFlyout>
                         </Button.Flyout>
+                    </Button>
+                    <Button Classes="toolbar" Click="OnImportClick" ToolTip.Tip="Import a CSV or JSON file into a table">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <PathIcon Data="{StaticResource ImportIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
+                            <TextBlock Text="Import" VerticalAlignment="Center" />
+                        </StackPanel>
                     </Button>
                 </StackPanel>
             </Border>
