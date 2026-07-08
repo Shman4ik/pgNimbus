@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <!-- TUnit runs on Microsoft.Testing.Platform: the test project is its own
+         executable and must NOT reference Microsoft.NET.Test.Sdk (VSTest),
+         which would break test discovery. "dotnet test" works through the
+         MTP runner opt-in in the repo-root global.json. -->
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="TUnit" Version="1.58.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PgNimbus.Core\PgNimbus.Core.csproj" />
+  </ItemGroup>
+
+</Project>

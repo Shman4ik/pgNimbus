@@ -23,10 +23,9 @@ public static class SqlScriptSplitter
         var statements = new List<string>();
         foreach (var (start, end) in RawSpans(sql))
         {
-            var text = sql[start..end].Trim();
-            if (text.Length > 0)
+            if (HasSignificantText(sql, start, end))
             {
-                statements.Add(text);
+                statements.Add(sql[start..end].Trim());
             }
         }
 
@@ -54,12 +53,12 @@ public static class SqlScriptSplitter
         string? before = null;
         foreach (var (start, end) in RawSpans(sql))
         {
-            var text = sql[start..end].Trim();
-            if (text.Length == 0)
+            if (!HasSignificantText(sql, start, end))
             {
                 continue;
             }
 
+            var text = sql[start..end].Trim();
             if (offset >= start && offset <= end)
             {
                 return text;
@@ -95,8 +94,7 @@ public static class SqlScriptSplitter
         (int, int)? before = null;
         foreach (var (start, end) in RawSpans(sql))
         {
-            var trimmed = TrimSpan(sql, start, end);
-            if (trimmed is not { } span)
+            if (!HasSignificantText(sql, start, end) || TrimSpan(sql, start, end) is not { } span)
             {
                 continue;
             }
@@ -115,6 +113,36 @@ public static class SqlScriptSplitter
         }
 
         return before;
+    }
+
+    // True when the span contains anything besides whitespace and comments —
+    // i.e. text worth returning as a statement. This is what makes comment-only
+    // segments count as gaps rather than statements, per the type-level summary.
+    private static bool HasSignificantText(string sql, int start, int end)
+    {
+        var i = start;
+        while (i < end)
+        {
+            var c = sql[i];
+            if (char.IsWhiteSpace(c))
+            {
+                i++;
+            }
+            else if (c == '-' && i + 1 < end && sql[i + 1] == '-')
+            {
+                i = SkipLineComment(sql, i);
+            }
+            else if (c == '/' && i + 1 < end && sql[i + 1] == '*')
+            {
+                i = SkipBlockComment(sql, i);
+            }
+            else
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // Narrows a raw [start, end) span to the non-whitespace text inside it,
