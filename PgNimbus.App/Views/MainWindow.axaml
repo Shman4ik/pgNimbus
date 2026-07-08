@@ -308,6 +308,39 @@
 
             <DockPanel Grid.Row="0" Margin="0,0,0,8">
                 <Button DockPanel.Dock="Right" Classes="chip" Content="+" FontSize="14" Command="{Binding AddTabCommand}" ToolTip.Tip="New query tab" />
+                <!-- All-tabs dropdown: lists every open tab with type-to-search;
+                     the one way to reach a tab that scrolling would take ages to find -->
+                <Button DockPanel.Dock="Right" Classes="chip" Name="TabListButton" ToolTip.Tip="All open tabs">
+                    <PathIcon Data="{StaticResource MenuDownIconGeometry}" Width="12" Height="12" />
+                    <Button.Flyout>
+                        <Flyout Placement="BottomEdgeAlignedRight">
+                            <StackPanel Width="260" Spacing="6">
+                                <TextBox Name="TabSearchBox" PlaceholderText="Search tabs…" />
+                                <ListBox Name="TabSearchList" MaxHeight="320">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:QueryViewModel">
+                                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                                <TextBlock Text="{Binding TabTitle}" VerticalAlignment="Center" />
+                                                <Ellipse Width="6" Height="6" VerticalAlignment="Center"
+                                                         Fill="{DynamicResource AppAccentBrush}"
+                                                         IsVisible="{Binding IsDirty}" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </StackPanel>
+                        </Flyout>
+                    </Button.Flyout>
+                </Button>
+                <!-- Scroll arrows: only visible when the strip actually overflows -->
+                <Button DockPanel.Dock="Right" Classes="chip" Name="TabScrollRightButton" IsVisible="False"
+                        Click="OnTabScrollRight" ToolTip.Tip="Scroll tabs right">
+                    <PathIcon Data="{StaticResource ChevronRightIconGeometry}" Width="12" Height="12" />
+                </Button>
+                <Button DockPanel.Dock="Right" Classes="chip" Name="TabScrollLeftButton" IsVisible="False"
+                        Click="OnTabScrollLeft" ToolTip.Tip="Scroll tabs left">
+                    <PathIcon Data="{StaticResource ChevronLeftIconGeometry}" Width="12" Height="12" />
+                </Button>
                 <!-- Horizontal scroll (not clipping): with many tabs the strip
                      used to cut off mid-tab and hide the active tab entirely;
                      AutoScrollToSelectedItem keeps a newly added tab in view. -->

@@ -12,6 +12,9 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
 
     public ObservableCollection<ConnectionProfile> Profiles { get; } = [];
 
+    /// <summary>Drives the empty-state hint over the Saved Connections list.</summary>
+    public bool HasNoProfiles => Profiles.Count == 0;
+
     public IReadOnlyList<SslMode> SslModes { get; } = Enum.GetValues<SslMode>();
 
     public IReadOnlyList<SshAuthMethod> SshAuthMethods { get; } = Enum.GetValues<SshAuthMethod>();
@@ -84,6 +87,8 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
     {
         _store = store;
         _credentialStore = credentialStore;
+
+        Profiles.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasNoProfiles));
 
         foreach (var profile in _store.Load())
         {

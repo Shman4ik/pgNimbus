@@ -339,8 +339,10 @@ bar (the Files community app remains the visual north star):
   scrolls horizontally and keeps the active tab in view. (It used to clip:
   the "+" button overlapped the last visible tab and a newly opened tab
   could sit fully off-screen with no way to reach it.)
-- [ ] **Tab bar navigation extras** — `<`/`>` scroll arrows and a dropdown
-  listing all open tabs with type-to-search, on top of the basic scrolling.
+- [x] **Tab bar navigation extras** — `<`/`>` scroll arrows (shown only when
+  the strip actually overflows, disabled at the ends) and a dropdown listing
+  all open tabs with type-to-search (↑/↓ + Enter jumps), on top of the basic
+  scrolling.
 - [x] **Capped results-grid column width** — auto column width sizes to the
   widest cell, so a single long `text` value used to push every other column
   out of view; columns now cap at 560 px, with the cell inspector
@@ -350,9 +352,9 @@ bar (the Files community app remains the visual north star):
   height.
 - [x] **Window minimum size** — a 940×560 floor, below which the command bar
   and browse bar used to clip into unreadability.
-- [ ] **Empty state for the connection dialog** — the Saved Connections list
-  is a bare grey panel when empty; give it the same friendly hint the
-  saved-queries and history lists already have.
+- [x] **Empty state for the connection dialog** — the Saved Connections list
+  used to be a bare grey panel when empty; it now shows the same friendly hint
+  the saved-queries and history lists already have.
 - [x] **Persist the theme choice** — the in-app light/dark toggle is now
   remembered across launches (saved to `settings.json` alongside the other
   persisted app state) instead of snapping back to the OS default; a fresh
@@ -372,9 +374,10 @@ bar (the Files community app remains the visual north star):
 - [x] **Smarter tab titles** — query tabs are named from their SQL (first table
   referenced) instead of "Query N", with a dirty-state dot when the SQL has
   changed since the last run.
-- [ ] **Running-query feedback** — an indeterminate progress bar in the
-  status bar and a live elapsed-time tick while a query runs (the row/timing
-  segments only update per batch today).
+- [x] **Running-query feedback** — an indeterminate progress bar in the
+  status bar and a live elapsed-time tick while a query or EXPLAIN runs, so a
+  slow statement that hasn't produced a batch yet still shows visible
+  progress instead of a frozen "Running...".
 - [x] **Empty states** — friendly hints in the blank results area ("No results
   yet — run a query with Ctrl+Enter or F5") and in empty saved-queries/history
   lists instead of bare cards.
@@ -396,7 +399,9 @@ bar (the Files community app remains the visual north star):
   (initially: custom result visualizers).
 - [ ] **Localization** — externalize UI strings; ship Russian and German first.
 
-Recently shipped: transaction control (Begin/Commit/Rollback toolbar state, an
+Recently shipped: tab-bar navigation extras (overflow-only ‹/› scroll arrows
+and an all-tabs dropdown with type-to-search), a connection-dialog
+empty-state hint, transaction control (Begin/Commit/Rollback toolbar state, an
 "in transaction" status-bar indicator, and auto-rollback on error), abbreviated column types in the schema tree
 (timestamptz/varchar…, full name on hover), a collapsible sidebar (Ctrl+B, 200px
 resize floor), a
