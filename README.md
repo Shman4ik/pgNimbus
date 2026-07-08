@@ -291,8 +291,11 @@ Things a person needs before pgNimbus can be their only Postgres client:
   cancel/terminate backend actions; lock waits highlighted.
 - [ ] **Roles, extensions, and functions in the schema tree** — browse (and for
   extensions, install/enable) beyond tables and views.
-- [ ] **Query history search** — full-text search over history with
-  per-connection scoping and pinning.
+- [x] **Query history search** — a search box over the history list
+  (case-insensitive, matches the SQL text), a "this connection only" scope
+  toggle (entries record which connection ran them), and pinning: pinned
+  entries float to the top, survive the 200-entry cap, and survive "Clear
+  history".
 - [x] **In-app theme toggle** — light/dark switch in the title bar (sun/moon
   button) instead of following the OS only; the SQL syntax palette repaints
   with it, and the choice is remembered across launches.
@@ -401,7 +404,8 @@ bar (the Files community app remains the visual north star):
   (initially: custom result visualizers).
 - [ ] **Localization** — externalize UI strings; ship Russian and German first.
 
-Recently shipped: drag-and-drop from the schema tree into the editor
+Recently shipped: query-history search with per-connection scoping and
+pinning, drag-and-drop from the schema tree into the editor
 (quoted-as-needed identifiers, caret tracks the pointer), a more compact
 schema-tree indent, tab-bar navigation extras (overflow-only ‹/› scroll arrows
 and an all-tabs dropdown with type-to-search), a connection-dialog

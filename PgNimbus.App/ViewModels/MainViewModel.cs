@@ -95,7 +95,12 @@ public sealed partial class MainViewModel : ObservableObject
         _schemaEditor = schemaEditor;
         _ddlService = ddlService;
         CompletionProvider = completionProvider;
-        SavedQueries = new SavedQueriesViewModel(new SavedQueryStore(), new QueryHistoryStore(), () => ActiveTab);
+        SavedQueries = new SavedQueriesViewModel(
+            new SavedQueryStore(),
+            new QueryHistoryStore(),
+            () => ActiveTab,
+            // History entries are stamped with this label for per-connection scoping.
+            () => string.IsNullOrEmpty(ConnectionHost) ? null : $"{ConnectionHost}/{ConnectionDatabase}");
         NotifyMonitor = notifyMonitor;
         AccentColor = accentColor;
 

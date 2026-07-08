@@ -31,9 +31,15 @@ public sealed class QueryHistoryStore
     {
         var entries = Load().ToList();
         entries.Insert(0, entry);
-        if (entries.Count > MaxEntries)
+
+        // Trim oldest-first, but never a pinned entry - pinning is the
+        // "keep this around" signal, so the cap only evicts unpinned ones.
+        for (var i = entries.Count - 1; i >= 0 && entries.Count > MaxEntries; i--)
         {
-            entries.RemoveRange(MaxEntries, entries.Count - MaxEntries);
+            if (!entries[i].Pinned)
+            {
+                entries.RemoveAt(i);
+            }
         }
 
         Save(entries);
@@ -41,7 +47,7 @@ public sealed class QueryHistoryStore
 
     public void Clear() => Save([]);
 
-    private void Save(IReadOnlyList<QueryHistoryEntry> entries)
+    public void Save(IReadOnlyList<QueryHistoryEntry> entries)
     {
         var directory = Path.GetDirectoryName(_filePath);
         if (!string.IsNullOrEmpty(directory))
