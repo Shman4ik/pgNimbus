@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Text;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PgNimbus.Core.Connections;
@@ -79,6 +80,14 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _isConnecting;
+
+    /// <summary>
+    /// Guards against feedback loops between the import box and the form
+    /// fields: set while applying a parsed string onto the fields, or while
+    /// rebuilding the preview string from the fields, so the other side's
+    /// change handler doesn't re-trigger.
+    /// </summary>
+    private bool _syncingConnectionString;
 
     /// <summary>Raised with the built connection string, the profile's accent color, and, if a tunnel was used, the live SshTunnel to keep alive.</summary>
     public event Action<string, string?, SshTunnel?>? Connected;
@@ -181,9 +190,11 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
     private void SelectAccentColor(string? color) => AccentColor = color;
 
     /// <summary>
-    /// Fills the form from whatever connection string is on the clipboard —
-    /// postgres:// URI, JDBC URL, Key=Value;, libpq keywords, or a full psql
-    /// command line. Only the fields the paste mentions are overwritten.
+    /// Re-parses whatever connection string is in the import box — postgres://
+    /// URI, JDBC URL, Key=Value;, libpq keywords, or a full psql command line —
+    /// and applies it to the form. Exists for explicit re-trigger (e.g. to see
+    /// the parse error); pasting or typing into the box already does this
+    /// automatically via <see cref="OnImportTextChanged"/>.
     /// </summary>
     [RelayCommand]
     private void ImportConnectionString()
@@ -194,45 +205,147 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
             return;
         }
 
-        if (parsed.Host is not null)
-        {
-            Host = parsed.Host;
-        }
-
-        if (parsed.Port is { } port)
-        {
-            Port = port;
-        }
-
-        if (parsed.Database is not null)
-        {
-            Database = parsed.Database;
-        }
-
-        if (parsed.Username is not null)
-        {
-            Username = parsed.Username;
-        }
-
-        if (parsed.Password is not null)
-        {
-            Password = parsed.Password;
-        }
-
-        if (parsed.SslMode is { } sslMode)
-        {
-            SslMode = sslMode;
-        }
-
-        // Give a fresh profile a recognizable name; never rename a saved one.
-        if (SelectedProfile is null && parsed.Host is not null)
-        {
-            Name = parsed.Database is null ? parsed.Host : $"{parsed.Host}/{parsed.Database}";
-        }
-
+        ApplyParsed(parsed);
         ErrorMessage = null;
-        ImportText = string.Empty;
     }
+
+    /// <summary>Auto-parses the import box as soon as its content looks like a full connection string — no need to press "Fill".</summary>
+    partial void OnImportTextChanged(string value)
+    {
+        if (_syncingConnectionString || string.IsNullOrWhiteSpace(value))
+        {
+            return;
+        }
+
+        if (ConnectionStringParser.TryParse(value, out var parsed, out _))
+        {
+            ApplyParsed(parsed);
+        }
+    }
+
+    partial void OnHostChanged(string value) => SyncImportTextFromFields();
+    partial void OnPortChanged(int value) => SyncImportTextFromFields();
+    partial void OnDatabaseChanged(string value) => SyncImportTextFromFields();
+    partial void OnUsernameChanged(string value) => SyncImportTextFromFields();
+    partial void OnPasswordChanged(string value) => SyncImportTextFromFields();
+    partial void OnSslModeChanged(SslMode value) => SyncImportTextFromFields();
+
+    /// <summary>Only the fields a parsed string actually mentions are overwritten; the rest of the form is left alone.</summary>
+    private void ApplyParsed(ParsedConnectionString parsed)
+    {
+        _syncingConnectionString = true;
+        try
+        {
+            if (parsed.Host is not null)
+            {
+                Host = parsed.Host;
+            }
+
+            if (parsed.Port is { } port)
+            {
+                Port = port;
+            }
+
+            if (parsed.Database is not null)
+            {
+                Database = parsed.Database;
+            }
+
+            if (parsed.Username is not null)
+            {
+                Username = parsed.Username;
+            }
+
+            if (parsed.Password is not null)
+            {
+                Password = parsed.Password;
+            }
+
+            if (parsed.SslMode is { } sslMode)
+            {
+                SslMode = sslMode;
+            }
+
+            // Give a fresh profile a recognizable name; never rename a saved one.
+            if (SelectedProfile is null && parsed.Host is not null)
+            {
+                Name = parsed.Database is null ? parsed.Host : $"{parsed.Host}/{parsed.Database}";
+            }
+
+            ImportText = BuildPreviewConnectionString();
+        }
+        finally
+        {
+            _syncingConnectionString = false;
+        }
+    }
+
+    /// <summary>Mirrors the current form fields into the import box as a postgres:// URI whenever a field is edited by hand.</summary>
+    private void SyncImportTextFromFields()
+    {
+        if (_syncingConnectionString)
+        {
+            return;
+        }
+
+        _syncingConnectionString = true;
+        try
+        {
+            ImportText = BuildPreviewConnectionString();
+        }
+        finally
+        {
+            _syncingConnectionString = false;
+        }
+    }
+
+    /// <summary>Renders the current fields as a postgres:// URI — the most widely recognized connection string format.</summary>
+    private string BuildPreviewConnectionString()
+    {
+        var builder = new StringBuilder("postgres://");
+
+        if (!string.IsNullOrEmpty(Username))
+        {
+            builder.Append(Uri.EscapeDataString(Username));
+            if (!string.IsNullOrEmpty(Password))
+            {
+                builder.Append(':').Append(Uri.EscapeDataString(Password));
+            }
+
+            builder.Append('@');
+        }
+
+        builder.Append(string.IsNullOrEmpty(Host) ? "localhost" : Host);
+
+        if (Port != ConnectionProfile.DefaultPort)
+        {
+            builder.Append(':').Append(Port);
+        }
+
+        builder.Append('/');
+        if (!string.IsNullOrEmpty(Database))
+        {
+            builder.Append(Uri.EscapeDataString(Database));
+        }
+
+        if (SslMode != SslMode.Prefer)
+        {
+            builder.Append("?sslmode=").Append(SslModeToQueryValue(SslMode));
+        }
+
+        return builder.ToString();
+    }
+
+    private static string SslModeToQueryValue(SslMode mode) => mode switch
+    {
+        SslMode.Disable => "disable",
+        SslMode.Allow => "allow",
+        SslMode.Prefer => "prefer",
+        SslMode.Require => "require",
+        SslMode.VerifyCa => "verify-ca",
+        SslMode.VerifyFull => "verify-full",
+        _ => "prefer",
+    };
 
     [RelayCommand]
     private void Delete()
