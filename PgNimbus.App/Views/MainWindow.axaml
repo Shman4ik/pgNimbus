@@ -166,6 +166,13 @@
                                     <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay, DataType=vm:SchemaTreeNode}" />
                                     <Setter Property="IsVisible" Value="{Binding IsFilteredIn, Mode=OneWay, DataType=vm:SchemaTreeNode}" />
                                 </Style>
+                                <!-- Compact per-level indent: the header's own indent is Level*16px,
+                                     set at Template priority (unbeatable from a style), but each
+                                     nested items presenter's Margin is NOT template-set, so a
+                                     -8px counter-offset here nets out to 8px per level. -->
+                                <Style Selector="TreeViewItem /template/ ItemsPresenter#PART_ItemsPresenter">
+                                    <Setter Property="Margin" Value="-8,0,0,0" />
+                                </Style>
                             </TreeView.Styles>
                             <TreeView.ItemTemplate>
                                 <TreeDataTemplate ItemsSource="{Binding Children}">
