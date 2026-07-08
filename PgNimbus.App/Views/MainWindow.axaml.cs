@@ -275,6 +275,7 @@ public partial class MainWindow : Window
             _viewModel.ShortcutsRequested -= ShowShortcutsWindow;
             _viewModel.SwitchConnectionRequested -= SwitchConnection;
             _viewModel.FormatSqlRequested -= FormatCurrentStatement;
+            _viewModel.ActivityRequested -= ShowActivityWindow;
         }
 
         _viewModel = vm;
@@ -284,6 +285,7 @@ public partial class MainWindow : Window
         _viewModel.ShortcutsRequested += ShowShortcutsWindow;
         _viewModel.SwitchConnectionRequested += SwitchConnection;
         _viewModel.FormatSqlRequested += FormatCurrentStatement;
+        _viewModel.ActivityRequested += ShowActivityWindow;
 
         AttachQuery(vm.ActiveTab);
     }
@@ -656,6 +658,24 @@ public partial class MainWindow : Window
         _shortcutsWindow = new ShortcutsWindow();
         _shortcutsWindow.Closed += (_, _) => _shortcutsWindow = null;
         _shortcutsWindow.Show(this);
+    }
+
+    private ActivityWindow? _activityWindow;
+
+    private void OnShowActivityClick(object? sender, RoutedEventArgs e) => ShowActivityWindow();
+
+    // One live instance: reopening focuses it instead of stacking pollers.
+    private void ShowActivityWindow()
+    {
+        if (_activityWindow is not null)
+        {
+            _activityWindow.Activate();
+            return;
+        }
+
+        _activityWindow = new ActivityWindow { DataContext = _viewModel?.Activity };
+        _activityWindow.Closed += (_, _) => _activityWindow = null;
+        _activityWindow.Show(this);
     }
 
     private void OnRemoveChannelClick(object? sender, RoutedEventArgs e)

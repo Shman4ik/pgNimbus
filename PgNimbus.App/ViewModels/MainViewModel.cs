@@ -3,6 +3,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PgNimbus.App.Completion;
+using PgNimbus.Core.Monitoring;
 using PgNimbus.Core.Query;
 using PgNimbus.Core.Schema;
 
@@ -24,6 +25,9 @@ public sealed partial class MainViewModel : ObservableObject
 
     public NotifyMonitorViewModel NotifyMonitor { get; }
 
+    /// <summary>Backs the Server Activity window (pg_stat_activity live view).</summary>
+    public ActivityViewModel Activity { get; }
+
     public CommandPaletteViewModel CommandPalette { get; } = new();
 
     public CellInspectorViewModel CellInspector { get; } = new();
@@ -38,9 +42,14 @@ public sealed partial class MainViewModel : ObservableObject
     // Raised to pretty-print the statement under the caret; MainWindow owns the
     // editor text (AvaloniaEdit's Text isn't bindable) so it does the rewrite.
     public event Action? FormatSqlRequested;
+    // Raised to open (or focus) the Server Activity window, which the view owns.
+    public event Action? ActivityRequested;
 
     [RelayCommand]
     private void SwitchConnection() => SwitchConnectionRequested?.Invoke();
+
+    [RelayCommand]
+    private void ShowActivity() => ActivityRequested?.Invoke();
 
     // Relations rarely change mid-session, so the palette's "jump to a table"
     // list is fetched once and reused across opens.
@@ -82,6 +91,7 @@ public sealed partial class MainViewModel : ObservableObject
         DdlService ddlService,
         SqlCompletionProvider completionProvider,
         NotifyMonitorViewModel notifyMonitor,
+        ActivityService activityService,
         string? accentColor = null,
         string connectionHost = "",
         string connectionDatabase = "")
@@ -102,6 +112,7 @@ public sealed partial class MainViewModel : ObservableObject
             // History entries are stamped with this label for per-connection scoping.
             () => string.IsNullOrEmpty(ConnectionHost) ? null : $"{ConnectionHost}/{ConnectionDatabase}");
         NotifyMonitor = notifyMonitor;
+        Activity = new ActivityViewModel(activityService);
         AccentColor = accentColor;
 
         // The engine owns the transaction state; mirror it here so the indicator
@@ -375,6 +386,7 @@ public sealed partial class MainViewModel : ObservableObject
         yield return new PaletteItem("Commit transaction", "Action", "✓", Invoke(() => CommitTransactionCommand));
         yield return new PaletteItem("Rollback transaction", "Action", "↺", Invoke(() => RollbackTransactionCommand));
         yield return new PaletteItem("Refresh database & schema", "Action", "⟳", Invoke(() => RefreshSchemaCommand));
+        yield return new PaletteItem("Server activity", "Action", "∿", () => { ActivityRequested?.Invoke(); return Task.CompletedTask; });
         yield return new PaletteItem("New query tab", "Action", "＋", Invoke(() => AddTabCommand));
         yield return new PaletteItem("Close tab", "Action", "✕", Invoke(() => CloseTabCommand));
         yield return new PaletteItem("Next tab", "Action", "›", Invoke(() => NextTabCommand));
