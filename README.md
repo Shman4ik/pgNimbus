@@ -289,8 +289,13 @@ Things a person needs before pgNimbus can be their only Postgres client:
   existing table with type inference.
 - [ ] **Server activity dashboard** — `pg_stat_activity` live view with
   cancel/terminate backend actions; lock waits highlighted.
-- [ ] **Roles, extensions, and functions in the schema tree** — browse (and for
-  extensions, install/enable) beyond tables and views.
+- [x] **Roles, extensions, and functions in the schema tree** — each schema
+  gains a "Functions" group (functions/procedures/aggregates with their
+  argument and return types, and a "Source (DDL)" context action via
+  `pg_get_functiondef`), and the tree root gains "Extensions" (installed ones
+  green-dotted first, the rest of `pg_available_extensions` dimmed, with
+  Install / Drop context actions) and "Roles" (non-system roles with
+  superuser/login/createdb/createrole tags).
 - [x] **Query history search** — a search box over the history list
   (case-insensitive, matches the SQL text), a "this connection only" scope
   toggle (entries record which connection ran them), and pinning: pinned
@@ -404,7 +409,9 @@ bar (the Files community app remains the visual north star):
   (initially: custom result visualizers).
 - [ ] **Localization** — externalize UI strings; ship Russian and German first.
 
-Recently shipped: query-history search with per-connection scoping and
+Recently shipped: functions, extensions, and roles in the schema tree
+(function DDL source, extension install/drop from the sidebar),
+query-history search with per-connection scoping and
 pinning, drag-and-drop from the schema tree into the editor
 (quoted-as-needed identifiers, caret tracks the pointer), a more compact
 schema-tree indent, tab-bar navigation extras (overflow-only ‹/› scroll arrows

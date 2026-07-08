@@ -46,6 +46,34 @@ public sealed class DdlService
         };
     }
 
+    /// <summary>
+    /// The server-stored definition of a function or procedure via
+    /// pg_get_functiondef. <paramref name="arguments"/> must be the identity
+    /// arguments string (from <see cref="SchemaService.GetFunctionsAsync"/>) so
+    /// an overloaded name resolves to the right variant. Aggregates have no
+    /// stored definition — callers shouldn't offer this for prokind 'a'.
+    /// </summary>
+    public async Task<string> GenerateFunctionAsync(string schema, string name, string arguments, CancellationToken ct)
+    {
+        const string sql = """
+            SELECT pg_catalog.pg_get_functiondef(p.oid)
+            FROM pg_catalog.pg_proc p
+            JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
+            WHERE n.nspname = @schema
+              AND p.proname = @name
+              AND pg_catalog.pg_get_function_identity_arguments(p.oid) = @arguments
+            """;
+
+        await using var connection = await _dataSource.OpenConnectionAsync(ct);
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("schema", schema);
+        command.Parameters.AddWithValue("name", name);
+        command.Parameters.AddWithValue("arguments", arguments);
+
+        return await command.ExecuteScalarAsync(ct) as string
+            ?? $"-- function {schema}.{name}({arguments}) not found";
+    }
+
     private static async Task<(uint Oid, char RelKind)> ResolveRelationAsync(
         NpgsqlConnection connection, string schema, string name, CancellationToken ct)
     {

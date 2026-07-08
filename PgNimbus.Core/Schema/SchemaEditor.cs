@@ -61,6 +61,13 @@ public sealed class SchemaEditor
         return ExecuteAsync(sql, ct);
     }
 
+    /// <summary>CREATE EXTENSION for a name taken from pg_available_extensions (quoted, never raw).</summary>
+    public Task CreateExtensionAsync(string name, CancellationToken ct) =>
+        ExecuteAsync($"CREATE EXTENSION {SqlIdentifier.Quote(name)}", ct);
+
+    public Task DropExtensionAsync(string name, CancellationToken ct) =>
+        ExecuteAsync($"DROP EXTENSION {SqlIdentifier.Quote(name)}", ct);
+
     private async Task ExecuteAsync(string sql, CancellationToken ct)
     {
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
