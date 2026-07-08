@@ -359,9 +359,11 @@ bar (the Files community app remains the visual north star):
   remembered across launches (saved to `settings.json` alongside the other
   persisted app state) instead of snapping back to the OS default; a fresh
   install with no saved choice still follows the OS.
-- [ ] **Drag-and-drop from the schema tree** — drag a table, column, or other
-  object from the sidebar tree into the SQL editor and drop a valid, quoted
-  identifier at the cursor (e.g. `"CreatedAt"`).
+- [x] **Drag-and-drop from the schema tree** — drag a schema, table, or column
+  from the sidebar tree into the SQL editor and it drops as a valid identifier
+  at the pointer (schema-qualified for tables, quoted only when a bare name
+  wouldn't round-trip, e.g. `"CreatedAt"`); the caret tracks the pointer during
+  the drag so the landing spot is always visible.
 - [x] **Collapsible sidebar** — a 200px minimum width on manual resize (so it
   can't shrink to an unreadable sliver) plus a collapse button (the ☰ in the
   title bar) / <kbd>Ctrl</kbd>+<kbd>B</kbd> that fully hides the sidebar and gives
@@ -399,7 +401,9 @@ bar (the Files community app remains the visual north star):
   (initially: custom result visualizers).
 - [ ] **Localization** — externalize UI strings; ship Russian and German first.
 
-Recently shipped: tab-bar navigation extras (overflow-only ‹/› scroll arrows
+Recently shipped: drag-and-drop from the schema tree into the editor
+(quoted-as-needed identifiers, caret tracks the pointer), a more compact
+schema-tree indent, tab-bar navigation extras (overflow-only ‹/› scroll arrows
 and an all-tabs dropdown with type-to-search), a connection-dialog
 empty-state hint, transaction control (Begin/Commit/Rollback toolbar state, an
 "in transaction" status-bar indicator, and auto-rollback on error), abbreviated column types in the schema tree

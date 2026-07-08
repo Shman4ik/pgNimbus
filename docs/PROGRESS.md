@@ -184,6 +184,13 @@ means for pgNimbus. Adopting its language where Avalonia allows.
 | Connection-dialog empty state | The Saved Connections list was a bare grey panel on first launch; it now shows the same centered dimmed hint the saved-queries/history lists use ("No saved connections yet — fill in the form and press Save to keep one here"), driven by `HasNoProfiles` on `ConnectionDialogViewModel` (recomputed on every `Profiles` collection change). Verified under Xvfb with a fresh `$HOME`: hint shows on first launch and disappears the moment a profile is saved. | (this commit) |
 | README hygiene | The running-query-feedback backlog entry was still unchecked although #54 shipped it — flipped, with the description updated to what was actually built. | (this commit) |
 
+## Iteration 26
+
+| Item | Outcome | Commit |
+| --- | --- | --- |
+| Drag-and-drop from the schema tree | Schemas, tables, and columns drag out of the sidebar tree and drop into the SQL editor as identifiers quoted only where a bare name wouldn't round-trip (`SqlIdentifier.QuoteIfNeeded`; tables drop schema-qualified). The drag arms on press over a draggable node and starts only past a 4 px movement threshold, so clicks, expander toggles, and double-click previews behave exactly as before. **Avalonia 12 landmine:** the old `DataObject`/`DataFormats`/`DoDragDrop` API is compile-error obsolete — it's `DataTransfer` + `DataTransferItem.CreateText` + `DragDrop.DoDragDropAsync` now, and `DoDragDropAsync` only starts from the original `PointerPressedEventArgs`, so the press args ride along in the armed-candidate tuple. On the editor side `DragOver` moves the caret with the pointer (live landing preview) and `Drop` inserts at that position and focuses the editor. Verified under Xvfb: `customers` dropped as `public.customers` at the pointer; the `name` column dropped mid-token exactly at the pointer position. | (this commit) |
+| Compact schema-tree indent | The deferred item from the open list, via path (a): the header's own indent is `Level*16` px set at Template priority (unbeatable from a style), but each nested `PART_ItemsPresenter`'s `Margin` is *not* template-set, so a `-8,0,0,0` style counter-offset (scoped inside the schema `TreeView.Styles`) nets out to ~8 px per level. Verified on a live three-level tree (schema → table → columns) — clearly tighter, chevrons and key icons intact. | (this commit) |
+
 ## Open / candidate items
 - [x] Mica/acrylic backdrop on Windows — `MainWindow` sets
       `TransparencyLevelHint="Mica,AcrylicBlur"` + transparent window
@@ -199,17 +206,10 @@ means for pgNimbus. Adopting its language where Avalonia allows.
       keeping every selection/hover/primary surface legible against it wasn't
       worth polishing. Per-connection `AccentColor` (the connection dot) is
       unrelated and untouched.
-- [ ] Compact schema tree — reduce the *per-level* horizontal indent. Row
-      height/padding was tightened via `TreeViewItem` style setters (those win
-      over the ControlTheme's setters), but the indent lives on
-      `PART_Header.Margin` (a `MultiBinding` on `TreeViewItem.Level`) set inside
-      the Fluent **template**, which is `BindingPriority.Template` — higher than
-      an app-level `Style`, so a `/template/` setter override is silently
-      ignored. Two viable paths: (a) counter-offset each nested
-      `PART_ItemsPresenter` with a negative left `Margin` via a plain style
-      (its margin is *not* template-set, so a style can win there); or (b) ship
-      a full replacement `TreeViewItem` ControlTheme with a smaller indent
-      converter. Deferred — needs verification on a live tree.
+- [x] Compact schema tree — done in Iteration 26 via path (a): a `-8,0,0,0`
+      style margin on each nested `PART_ItemsPresenter` (not template-set, so
+      a style wins) counter-offsets the template's `Level*16` header indent
+      to ~8 px per level. Verified on a live three-level tree.
 - [ ] `Window.MinWidth`/`MinHeight` clamp the layout size (and the `Width`
       property) but do **not** feed the Win32 min-track-size, so an OS frame
       drag can still shrink the window below `940` and squeeze the right pane

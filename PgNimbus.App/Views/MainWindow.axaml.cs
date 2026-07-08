@@ -94,6 +94,18 @@ public partial class MainWindow : Window
         // event Handled, so it never reaches a plain `+=` subscription on the
         // parent TreeView. Use AddHandler with handledEventsToo to still see it.
         SchemaTreeView.AddHandler(InputElement.DoubleTappedEvent, OnSchemaTreeDoubleTapped, RoutingStrategies.Bubble, handledEventsToo: true);
+
+        // Drag a schema/table/column out of the tree and drop it into the SQL
+        // editor as a properly quoted identifier. The drag arms on press and
+        // only starts after a small movement threshold, so plain clicks,
+        // expander toggles, and double-click previews all behave as before.
+        SchemaTreeView.AddHandler(InputElement.PointerPressedEvent, OnSchemaTreePointerPressed, RoutingStrategies.Tunnel);
+        SchemaTreeView.AddHandler(InputElement.PointerMovedEvent, OnSchemaTreePointerMoved, RoutingStrategies.Tunnel);
+        SchemaTreeView.AddHandler(InputElement.PointerReleasedEvent, (_, _) => _treeDragCandidate = null, RoutingStrategies.Tunnel);
+
+        DragDrop.SetAllowDrop(SqlEditor, true);
+        SqlEditor.AddHandler(DragDrop.DragOverEvent, OnEditorDragOver);
+        SqlEditor.AddHandler(DragDrop.DropEvent, OnEditorDrop);
         ResultsGrid.CellEditEnding += OnCellEditEnding;
         ResultsGrid.CellEditEnded += OnCellEditEnded;
         ResultsGrid.PreparingCellForEdit += OnPreparingCellForEdit;
@@ -317,6 +329,97 @@ public partial class MainWindow : Window
         {
             _viewModel?.CloseTabCommand.Execute(tab);
         }
+    }
+
+    // --- Schema-tree drag & drop into the editor --------------------------
+
+    // Armed on press over a draggable node; the drag itself starts only after
+    // the pointer moves past a threshold with the button still down. The press
+    // args are kept because DoDragDropAsync can only start from them.
+    private (Point Origin, string Text, PointerPressedEventArgs PressArgs)? _treeDragCandidate;
+    private const double DragThreshold = 4;
+
+    /// <summary>The SQL identifier a tree node drops as, quoted only where a bare name wouldn't round-trip.</summary>
+    private static string? DragTextFor(object? node) => node switch
+    {
+        ColumnNode column => SqlIdentifier.QuoteIfNeeded(column.Name),
+        TableNode table => $"{SqlIdentifier.QuoteIfNeeded(table.Schema)}.{SqlIdentifier.QuoteIfNeeded(table.Name)}",
+        SchemaNode schema => SqlIdentifier.QuoteIfNeeded(schema.Name),
+        _ => null,
+    };
+
+    private void OnSchemaTreePointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (!e.GetCurrentPoint(SchemaTreeView).Properties.IsLeftButtonPressed)
+        {
+            return;
+        }
+
+        var node = (e.Source as Visual)?.DataContext;
+        _treeDragCandidate = DragTextFor(node) is { } text
+            ? (e.GetPosition(SchemaTreeView), text, e)
+            : null;
+    }
+
+    private async void OnSchemaTreePointerMoved(object? sender, PointerEventArgs e)
+    {
+        if (_treeDragCandidate is not { } candidate)
+        {
+            return;
+        }
+
+        if (!e.GetCurrentPoint(SchemaTreeView).Properties.IsLeftButtonPressed)
+        {
+            _treeDragCandidate = null;
+            return;
+        }
+
+        var position = e.GetPosition(SchemaTreeView);
+        if (Math.Abs(position.X - candidate.Origin.X) < DragThreshold &&
+            Math.Abs(position.Y - candidate.Origin.Y) < DragThreshold)
+        {
+            return;
+        }
+
+        _treeDragCandidate = null;
+        var data = new DataTransfer();
+        data.Add(DataTransferItem.CreateText(candidate.Text));
+        await DragDrop.DoDragDropAsync(candidate.PressArgs, data, DragDropEffects.Copy);
+    }
+
+    private void OnEditorDragOver(object? sender, DragEventArgs e)
+    {
+        if (!e.DataTransfer.Formats.Contains(DataFormat.Text))
+        {
+            e.DragEffects = DragDropEffects.None;
+            return;
+        }
+
+        e.DragEffects = DragDropEffects.Copy;
+        // Live caret preview: the caret tracks the pointer so it's obvious
+        // where the identifier will land.
+        if (SqlEditor.GetPositionFromPoint(e.GetPosition(SqlEditor)) is { } position)
+        {
+            SqlEditor.TextArea.Caret.Position = position;
+        }
+
+        e.Handled = true;
+    }
+
+    private void OnEditorDrop(object? sender, DragEventArgs e)
+    {
+        if (e.DataTransfer.TryGetText() is not { Length: > 0 } text)
+        {
+            return;
+        }
+
+        var offset = SqlEditor.GetPositionFromPoint(e.GetPosition(SqlEditor)) is { } position
+            ? SqlEditor.Document.GetOffset(position.Location)
+            : SqlEditor.CaretOffset;
+        SqlEditor.Document.Insert(offset, text);
+        SqlEditor.CaretOffset = offset + text.Length;
+        SqlEditor.TextArea.Focus();
+        e.Handled = true;
     }
 
     // --- Tab-strip navigation extras -------------------------------------
