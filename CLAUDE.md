@@ -53,7 +53,7 @@ and wrong project memory is worse than none.
 - App: `Avalonia`, `Avalonia.Desktop`, `Avalonia.Themes.Fluent`,
   `Avalonia.Fonts.Inter`, `Avalonia.Controls.DataGrid`, `Avalonia.AvaloniaEdit`,
   `CommunityToolkit.Mvvm`, `AvaloniaUI.DiagnosticsSupport` (DevTools/MCP —
-  wired via `.WithDeveloperTools()` in `Program.cs`, see below).
+  Debug-only, wired via `.WithDeveloperTools()` in `Program.cs`, see below).
 - Tests: `PgNimbus.Core.Tests` — TUnit on Microsoft.Testing.Platform. Run
   `dotnet test --project PgNimbus.Core.Tests` (MTP mode comes from the
   `test.runner` opt-in in the repo-root `global.json`) or plain
@@ -88,8 +88,14 @@ Code, VS, Rider) via the Avalonia DevTools MCP server. Two pieces make it work:
 
 1. **In the app** — `AvaloniaUI.DiagnosticsSupport` is referenced and
    `.WithDeveloperTools()` is on the `AppBuilder` in `Program.cs`. Without
-   this, a running app can't be discovered by the MCP server. Keep it wired
-   up (it's the discovery hook, not a Debug-only convenience).
+   this, a running app can't be discovered by the MCP server. Both are
+   **Debug-only** (a `Condition` on the `PackageReference`, `#if DEBUG`
+   around the call): the package is part of AvaloniaUI's commercial
+   Developer Tools and ships no explicit redistribution license, so it must
+   not be linked into public Release/AOT binaries. Consequence: MCP
+   inspection only works against a Debug build — `dotnet run` (default
+   Debug) is fine, a `-c Release` or published AOT binary won't be
+   discoverable.
 2. **The MCP server** — the `avdt` global .NET tool runs as `avdt mcp`.
    Register it once at user scope; it reads its license from the
    `AVALONIA_TOOLS_LICENSE_KEY` env var (`ACCELERATE_LICENSE_KEY` on

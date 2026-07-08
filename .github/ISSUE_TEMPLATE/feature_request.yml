@@ -1,0 +1,27 @@
+name: Feature request
+description: Suggest an improvement or a new capability.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please skim the [README backlog](https://github.com/Shman4ik/pgNimbus#backlog)
+        first — a lot of planned work is already listed there. If your idea is
+        on it, an issue is still welcome as a place to discuss specifics or
+        register demand; just link the backlog line.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the workflow that's currently painful or impossible, not just the feature itself.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What would it look like? How do other clients (psql, TablePlus, DBeaver…) handle it, if they do?
+    validations:
+      required: false

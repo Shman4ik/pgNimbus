@@ -30,69 +30,80 @@ anything embarrassing or sensitive must be dealt with *before*, not after.
       for open source, but if you'd rather use GitHub's noreply address
       going forward, set `git config user.email` now — rewriting history
       for the old ones is not worth it.
-- [ ] **Verify the `AvaloniaUI.DiagnosticsSupport` license situation.**
-      The package (and the `avdt` MCP tool it pairs with) is part of
-      AvaloniaUI's commercial tooling. Confirm its license permits
-      referencing it in a public MIT repo and shipping it in release
-      binaries; if it doesn't, gate the reference behind a `Debug`-only
-      condition or a local-only project override before going public.
+- [x] **Verify the `AvaloniaUI.DiagnosticsSupport` license situation.**
+      Verified against the 2.2.3 nupkg: it ships **no license at all** — no
+      `<license>`/`<licenseUrl>` in the nuspec, no LICENSE file in the
+      package — and its own README shows the `#if DEBUG` pattern. No
+      explicit grant means no redistribution right to assume, so the
+      reference is now gated: `Condition="'$(Configuration)' == 'Debug'"`
+      on the `PackageReference` and `#if DEBUG` around
+      `.WithDeveloperTools()` in `Program.cs`. Release/AOT binaries no
+      longer link it; MCP inspection still works against Debug builds
+      (`dotnet run` is Debug by default). CLAUDE.md updated to match.
       (The `AVALONIA_TOOLS_LICENSE_KEY` itself is only in local MCP
       config, never committed — that part is fine.)
-- [ ] **Skim `docs/PROGRESS.md` and `CLAUDE.md` one last time** with
-      "public reader" glasses. Both are clean of secrets and honestly
-      good marketing for how the app is built, but they're the two files
-      that were written assuming a private audience.
-- [ ] **Add package metadata to the csproj files** — `Authors`,
+- [x] **Skim `docs/PROGRESS.md` and `CLAUDE.md` one last time** with
+      "public reader" glasses. Done 2026-07-08: no secrets, no internal
+      hostnames, nothing embarrassing — both read as engineering notes a
+      public audience can see. (CLAUDE.md's DevTools section was updated
+      for the Debug-only gating above in the same pass.)
+- [x] **Add package metadata to the csproj files** — `Authors`,
       `Description`, `Copyright`, `PackageLicenseExpression`,
       `RepositoryUrl`. Cosmetic, but it's what shows in file properties
-      of shipped binaries.
+      of shipped binaries. Added to `PgNimbus.Core` and `PgNimbus.App`
+      (the test project isn't packable/shipped).
 
 ## Phase 2 — CI and quality gates
 
 Once outside PRs are possible, an untested default branch becomes a
 liability. These exist to protect `main`, not to chase coverage numbers.
 
-- [ ] **Add a PR/push build workflow** (`.github/workflows/ci.yml`):
+- [x] **Add a PR/push build workflow** (`.github/workflows/ci.yml`):
       `dotnet build` + `dotnet test` on ubuntu-latest for every PR and
-      push to `main`. Today nothing verifies that a PR even compiles —
-      `release.yml` only runs on tags.
-- [ ] **Add a first test project** (`PgNimbus.Core.Tests`). The
-      highest-value, zero-infrastructure targets are the pure functions:
-      `ConnectionStringParser` (five input syntaxes, quoting/escaping
-      edge cases) and `FuzzyMatcher`. Even a small suite makes the CI
-      gate meaningful and signals to contributors that tests are wanted.
+      push to `main`. Builds both Debug (which includes the Debug-only
+      DiagnosticsSupport reference) and Release, then runs the tests.
+- [x] **Add a first test project** (`PgNimbus.Core.Tests`). Exists since
+      this item was written — TUnit on Microsoft.Testing.Platform, currently
+      covering `SqlFormatter` and `SqlScriptSplitter`. Still-open
+      good-first-test targets: `ConnectionStringParser` (five input
+      syntaxes, quoting/escaping edge cases) and `FuzzyMatcher`.
 - [ ] **Enable branch protection on `main`** — require the CI check to
       pass, require PRs (no direct pushes). Do this right after the CI
       workflow exists.
-- [ ] **Turn on Dependabot** (`.github/dependabot.yml`) for NuGet and
-      GitHub Actions. Low noise on a project this size, and it keeps
-      Npgsql/Avalonia patch releases flowing.
+- [x] **Turn on Dependabot** (`.github/dependabot.yml`) for NuGet and
+      GitHub Actions, weekly, with Avalonia packages grouped into one PR
+      (they bump in lockstep).
 
 ## Phase 3 — Community scaffolding
 
 What a stranger needs to file a good issue or PR without asking.
 
-- [ ] **CONTRIBUTING.md** — how to build (link the README section), the
+- [x] **CONTRIBUTING.md** — how to build (links the README section), the
       two hard architectural rules that gate every PR (`PgNimbus.Core`
       has zero UI dependencies; streaming + cancellation are
       non-negotiable), coding conventions (records, MVVM source
       generators, no sync-over-async), and how UI changes get verified
       (the Xvfb + screenshot loop from CLAUDE.md).
-- [ ] **SECURITY.md** — where to privately report vulnerabilities
-      (GitHub private vulnerability reporting is the zero-infrastructure
-      option — enable it in Settings → Code security). A DB client holds
-      credentials; someone *will* look.
-- [ ] **CODE_OF_CONDUCT.md** — stock Contributor Covenant is fine.
-- [ ] **Issue templates** (`.github/ISSUE_TEMPLATE/`): a bug report that
-      asks for OS, install method (MSI/dmg/source), PostgreSQL version,
-      and repro steps; a feature request that links the README backlog
-      first.
-- [ ] **Curate "good first issue" candidates.** Move 5–10 of the small
-      unchecked README backlog items (empty state for the connection
-      dialog, persist the theme choice, abbreviated column types in the
-      tree, tab-bar navigation extras…) into actual GitHub issues with
-      the `good first issue` label. An empty issue tracker at launch
-      reads as "not really open to contributors".
+- [x] **SECURITY.md** — points at GitHub private vulnerability reporting.
+      **Still manual:** enable the feature itself (Settings → Code
+      security → Private vulnerability reporting) once the repo is
+      public, or the link 404s.
+- [x] **CODE_OF_CONDUCT.md** — stock Contributor Covenant 2.1.
+- [x] **Issue templates** (`.github/ISSUE_TEMPLATE/`): a bug-report form
+      (OS, install method MSI/dmg/source, pgNimbus + PostgreSQL versions,
+      repro steps) and a feature-request form that links the README
+      backlog first, plus a config that routes security reports to
+      private reporting.
+- [ ] **Curate "good first issue" candidates.** Move 5–10 small README
+      backlog items into actual GitHub issues with the `good first
+      issue` label. An empty issue tracker at launch reads as "not
+      really open to contributors". *Note (2026-07-08): the examples
+      originally listed here (connection-dialog empty state, theme
+      persistence, abbreviated column types, tab-bar extras) have all
+      shipped since — pick from what's still open, e.g.
+      `ConnectionStringParser`/`FuzzyMatcher` test coverage, the Win32
+      min-track-size clamp from PROGRESS.md's open items, or slices of
+      the "Later" backlog.*
 
 ## Phase 4 — First release
 

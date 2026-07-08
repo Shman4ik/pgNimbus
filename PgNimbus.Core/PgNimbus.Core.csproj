@@ -7,6 +7,12 @@
     <RootNamespace>PgNimbus.Core</RootNamespace>
     <AssemblyName>PgNimbus.Core</AssemblyName>
     <IsAotCompatible>true</IsAotCompatible>
+    <Authors>Shman4ik</Authors>
+    <Product>pgNimbus</Product>
+    <Description>PostgreSQL engine for pgNimbus: connections, streaming query execution, and pg_catalog schema introspection. No UI dependencies.</Description>
+    <Copyright>Copyright (c) 2026 Shman4ik</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/Shman4ik/pgNimbus</RepositoryUrl>
   </PropertyGroup>
 
   <ItemGroup>
