@@ -52,6 +52,61 @@
                            ToolTip.Tip="{Binding FullTypeTip}" ToolTip.ShowDelay="150" />
             </StackPanel>
         </DataTemplate>
+        <DataTemplate DataType="vm:FunctionsGroupNode">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+                <PathIcon Data="{StaticResource FunctionIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" Opacity="0.8" />
+                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Opacity="0.85" />
+            </StackPanel>
+        </DataTemplate>
+        <DataTemplate DataType="vm:FunctionNode">
+            <StackPanel Orientation="Horizontal" Spacing="6" ToolTip.Tip="{Binding Tooltip}" ToolTip.ShowDelay="150">
+                <StackPanel.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="Source (DDL)" Tag="{Binding}" Click="OnShowFunctionSourceClick" IsEnabled="{Binding HasSource}" />
+                    </ContextMenu>
+                </StackPanel.ContextMenu>
+                <TextBlock Text="{Binding Name}" />
+                <TextBlock Text="{Binding Detail}" Opacity="0.6" FontSize="11" VerticalAlignment="Center" />
+            </StackPanel>
+        </DataTemplate>
+        <DataTemplate DataType="vm:ExtensionsGroupNode">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+                <PathIcon Data="{StaticResource PuzzleIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+            </StackPanel>
+        </DataTemplate>
+        <DataTemplate DataType="vm:ExtensionNode">
+            <StackPanel Orientation="Horizontal" Spacing="6" ToolTip.Tip="{Binding Description}" ToolTip.ShowDelay="150">
+                <StackPanel.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="Install" Tag="{Binding}" Click="OnInstallExtensionClick" IsVisible="{Binding !IsInstalled}" />
+                        <MenuItem Header="Drop..." Tag="{Binding}" Click="OnDropExtensionClick" IsVisible="{Binding IsInstalled}" />
+                    </ContextMenu>
+                </StackPanel.ContextMenu>
+                <!-- Green dot = installed; the fixed-width panel keeps names aligned either way -->
+                <Panel Width="9" VerticalAlignment="Center">
+                    <Ellipse Width="7" Height="7" Fill="#46A758" IsVisible="{Binding IsInstalled}" />
+                </Panel>
+                <TextBlock Text="{Binding Name}" IsVisible="{Binding IsInstalled}" />
+                <TextBlock Text="{Binding Name}" Opacity="0.55" IsVisible="{Binding !IsInstalled}" />
+                <TextBlock Text="{Binding VersionLabel}" Opacity="0.5" FontSize="11" VerticalAlignment="Center" />
+            </StackPanel>
+        </DataTemplate>
+        <DataTemplate DataType="vm:RolesGroupNode">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+                <PathIcon Data="{StaticResource AccountMultipleIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+            </StackPanel>
+        </DataTemplate>
+        <DataTemplate DataType="vm:RoleNode">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+                <Panel Width="14" VerticalAlignment="Center">
+                    <PathIcon Data="{StaticResource KeyIconGeometry}" Width="11" Height="11" IsVisible="{Binding IsSuperuser}" ToolTip.Tip="superuser" />
+                </Panel>
+                <TextBlock Text="{Binding Name}" />
+                <TextBlock Text="{Binding AttributesLabel}" Opacity="0.6" FontSize="11" VerticalAlignment="Center" />
+            </StackPanel>
+        </DataTemplate>
         <DataTemplate DataType="vm:PlaceholderNode">
             <TextBlock Text="Loading..." Opacity="0.5" FontStyle="Italic" />
         </DataTemplate>

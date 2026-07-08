@@ -96,6 +96,11 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
                 Schemas.Add(new SchemaNode(_schemaService, schema.Name));
             }
 
+            // Server-wide groups after the schemas: installed/available
+            // extensions and non-system roles, both lazily loaded.
+            Schemas.Add(new ExtensionsGroupNode(_schemaService));
+            Schemas.Add(new RolesGroupNode(_schemaService));
+
             // A fresh catalog invalidates any prior filter pass; re-apply so a lingering query still holds.
             ApplyFilter();
         }

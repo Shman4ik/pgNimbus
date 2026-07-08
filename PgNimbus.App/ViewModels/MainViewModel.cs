@@ -243,6 +243,39 @@ public sealed partial class MainViewModel : ObservableObject
         tab.Sql = ddl;
     }
 
+    /// <summary>Opens pg_get_functiondef's stored definition of a function/procedure in a new tab.</summary>
+    public async Task ShowFunctionSourceAsync(FunctionNode function)
+    {
+        var ddl = await _ddlService.GenerateFunctionAsync(function.Schema, function.Name, function.Arguments, CancellationToken.None);
+
+        var tab = NewTab();
+        tab.TitleOverride = $"{function.Name} · source";
+        tab.Sql = ddl;
+    }
+
+    /// <summary>CREATE/DROP EXTENSION, then reload the Extensions group so the list reflects reality. Errors land in the sidebar's message strip.</summary>
+    public async Task SetExtensionInstalledAsync(ExtensionNode extension, bool install)
+    {
+        SchemaTree.ErrorMessage = null;
+        try
+        {
+            if (install)
+            {
+                await _schemaEditor.CreateExtensionAsync(extension.Name, CancellationToken.None);
+            }
+            else
+            {
+                await _schemaEditor.DropExtensionAsync(extension.Name, CancellationToken.None);
+            }
+
+            await extension.Group.RefreshAsync();
+        }
+        catch (Exception ex)
+        {
+            SchemaTree.ErrorMessage = ex.Message;
+        }
+    }
+
     [RelayCommand(CanExecute = nameof(CanCloseTab))]
     private void CloseTab(QueryViewModel? tab)
     {

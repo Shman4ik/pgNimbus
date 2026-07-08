@@ -692,6 +692,34 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void OnShowFunctionSourceClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem { Tag: FunctionNode function } && _viewModel is not null)
+        {
+            await _viewModel.ShowFunctionSourceAsync(function);
+        }
+    }
+
+    private async void OnInstallExtensionClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem { Tag: ExtensionNode extension } && _viewModel is not null)
+        {
+            await _viewModel.SetExtensionInstalledAsync(extension, install: true);
+        }
+    }
+
+    private async void OnDropExtensionClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem { Tag: ExtensionNode extension } && _viewModel is not null)
+        {
+            var confirm = new ConfirmDialog($"Drop extension \"{extension.Name}\"? Objects it provides will be removed.", "Drop");
+            if (await confirm.ShowDialog<bool>(this))
+            {
+                await _viewModel.SetExtensionInstalledAsync(extension, install: false);
+            }
+        }
+    }
+
     private void OnSchemaTreeDoubleTapped(object? sender, TappedEventArgs e)
     {
         // Read the node off the tapped TreeViewItem's DataContext rather than
