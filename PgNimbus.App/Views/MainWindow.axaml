@@ -576,6 +576,12 @@
                             </MenuFlyout>
                         </Button.Flyout>
                     </Button>
+                    <Button Classes="toolbar" Click="OnImportClick" ToolTip.Tip="Import a CSV or JSON file into a table">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <PathIcon Data="{StaticResource ImportIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
+                            <TextBlock Text="Import" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
             </Border>
 

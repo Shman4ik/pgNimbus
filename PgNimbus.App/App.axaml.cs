@@ -8,6 +8,7 @@ using PgNimbus.App.Completion;
 using PgNimbus.App.ViewModels;
 using PgNimbus.App.Views;
 using PgNimbus.Core.Connections;
+using PgNimbus.Core.Import;
 using PgNimbus.Core.Monitoring;
 using PgNimbus.Core.Notifications;
 using PgNimbus.Core.Query;
@@ -110,6 +111,7 @@ public partial class App : Application
         var schemaEditor = new SchemaEditor(dataSource);
         var ddlService = new DdlService(dataSource);
         var activityService = new ActivityService(dataSource);
+        var importService = new ImportService(dataSource);
         var schemaTree = new SchemaTreeViewModel(schemaService);
         var completionProvider = new SqlCompletionProvider(schemaService);
         var notifyMonitor = new NotifyMonitorViewModel(new NotificationListener(dataSource));
@@ -119,7 +121,7 @@ public partial class App : Application
         var window = new MainWindow
         {
             DataContext = new MainViewModel(
-                engine, explainService, schemaTree, schemaService, schemaEditor, ddlService, completionProvider, notifyMonitor, activityService,
+                engine, explainService, schemaTree, schemaService, schemaEditor, ddlService, completionProvider, notifyMonitor, activityService, importService,
                 accentColor,
                 connectionHost: csb.Host ?? "",
                 connectionDatabase: csb.Database ?? ""),

@@ -285,8 +285,14 @@ Things a person needs before pgNimbus can be their only Postgres client:
   indented, and reserved keywords upper-cased. It re-tokenizes its own output and
   compares it to the input, so if a layout would ever alter a token it returns the
   text untouched — it can never corrupt a query.
-- [ ] **CSV/JSON import** — the inverse of export: load a file into a new or
-  existing table with type inference.
+- [x] **CSV/JSON import** — the inverse of export: an Import button on the
+  command bar loads a CSV (RFC 4180 quoting, delimiter sniffed) or JSON
+  (array of objects) file into a new or existing table. Column types are
+  inferred conservatively (leading-zero codes like `007` stay text) and
+  editable in the dialog; the load itself goes through
+  `COPY … FROM STDIN (FORMAT csv)` so Postgres does the real parsing, and on
+  success the schema tree refreshes and the active tab SELECTs the fresh
+  table.
 - [x] **Server activity dashboard** — a Server Activity window (title-bar ∿
   button or command palette) showing `pg_stat_activity` client backends with
   a 2-second auto-refresh (pausable), lock waits highlighted amber, and
@@ -413,7 +419,8 @@ bar (the Files community app remains the visual north star):
   (initially: custom result visualizers).
 - [ ] **Localization** — externalize UI strings; ship Russian and German first.
 
-Recently shipped: a server-activity window (live pg_stat_activity, amber
+Recently shipped: CSV/JSON import (type inference, editable target columns,
+COPY-based load), a server-activity window (live pg_stat_activity, amber
 lock waits, cancel/terminate backends), functions, extensions, and roles in the schema tree
 (function DDL source, extension install/drop from the sidebar),
 query-history search with per-connection scoping and
