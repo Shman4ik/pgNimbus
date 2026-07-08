@@ -18,7 +18,8 @@
         <Grid Grid.Column="0" RowDefinitions="Auto,*,Auto">
             <TextBlock Grid.Row="0" Text="Saved Connections" FontWeight="SemiBold" Margin="0,0,0,8" />
             <Border Grid.Row="1" Classes="card">
-                <ListBox ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}">
+                <ListBox ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}"
+                         DoubleTapped="OnProfileDoubleTapped">
                     <ListBox.ItemTemplate>
                         <DataTemplate DataType="conn:ConnectionProfile">
                             <StackPanel>
@@ -38,17 +39,19 @@
 
         <Grid Grid.Column="1" Margin="20,0,0,0" RowDefinitions="Auto,*,Auto">
 
-        <!-- Paste-anything import: URI / JDBC / Key=Value / libpq / psql command line -->
+        <!-- Paste-anything import: URI / JDBC / Key=Value / libpq / psql command line.
+             Parses automatically as you paste/type, and mirrors the fields below
+             as a postgres:// URI whenever you edit them by hand. -->
         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,14,12">
             <TextBox Grid.Column="0" Text="{Binding ImportText}" Margin="0,0,6,0"
                      PlaceholderText="Paste a connection string (postgres://…, jdbc:…, Key=Value;…, psql …)"
-                     ToolTip.Tip="Accepts postgres:// URIs, JDBC URLs, Npgsql Key=Value strings, libpq keyword strings, and psql command lines">
+                     ToolTip.Tip="Accepts postgres:// URIs, JDBC URLs, Npgsql Key=Value strings, libpq keyword strings, and psql command lines — applied automatically as you paste">
                 <TextBox.KeyBindings>
                     <KeyBinding Gesture="Enter" Command="{Binding ImportConnectionStringCommand}" />
                 </TextBox.KeyBindings>
             </TextBox>
             <Button Grid.Column="1" Content="Fill" Command="{Binding ImportConnectionStringCommand}"
-                    ToolTip.Tip="Fill the form from the pasted connection string" />
+                    ToolTip.Tip="Re-apply the pasted connection string (already applied automatically on paste)" />
         </Grid>
 
         <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
