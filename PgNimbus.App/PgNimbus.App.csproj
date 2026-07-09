@@ -22,6 +22,12 @@
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <RuntimeIdentifiers>win-x64;osx-arm64</RuntimeIdentifiers>
+    <Authors>Shman4ik</Authors>
+    <Product>pgNimbus</Product>
+    <Description>A fast, open-source PostgreSQL GUI client built with .NET and Avalonia.</Description>
+    <Copyright>Copyright (c) 2026 Shman4ik</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/Shman4ik/pgNimbus</RepositoryUrl>
   </PropertyGroup>
 
   <ItemGroup>
@@ -35,7 +41,10 @@
     <PackageReference Include="Avalonia.Fonts.Inter" Version="12.0.5" />
     <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.0.1" />
     <PackageReference Include="Avalonia.AvaloniaEdit" Version="12.0.0" />
-    <PackageReference Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.3" />
+    <!-- Part of AvaloniaUI's commercial Developer Tools; the package ships no
+         explicit redistribution license, so it must not end up in Release
+         binaries — Debug-only, matching the vendor's own #if DEBUG guidance. -->
+    <PackageReference Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.3" Condition="'$(Configuration)' == 'Debug'" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
   </ItemGroup>
 

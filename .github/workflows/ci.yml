@@ -1,0 +1,41 @@
+name: CI
+
+# The PR/push quality gate: does it build, do the tests pass. Release
+# packaging lives in release.yml (tag-triggered) — this stays fast and
+# runs on every change instead.
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: "1"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      # Debug first: it's the configuration that includes the Debug-only
+      # AvaloniaUI.DiagnosticsSupport reference, so both dependency graphs
+      # get compiled.
+      - name: Build (Debug)
+        run: dotnet build -c Debug
+
+      - name: Build (Release)
+        run: dotnet build -c Release
+
+      # TUnit on Microsoft.Testing.Platform — "dotnet test --project" works
+      # via the test.runner opt-in in the repo-root global.json.
+      - name: Test
+        run: dotnet test --project PgNimbus.Core.Tests -c Release

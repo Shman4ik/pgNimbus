@@ -1,0 +1,16 @@
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      # Avalonia packages version-lockstep with each other; one PR per bump.
+      avalonia:
+        patterns:
+          - "Avalonia*"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

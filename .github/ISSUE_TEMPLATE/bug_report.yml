@@ -1,0 +1,60 @@
+name: Bug report
+description: Something in pgNimbus doesn't work the way it should.
+labels: [bug]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, what happened instead?
+      placeholder: |
+        1. Connect to …
+        2. Run …
+        3. Expected …, but got …
+    validations:
+      required: true
+
+  - type: input
+    id: pgnimbus-version
+    attributes:
+      label: pgNimbus version
+      description: Shown in the installer/dmg file name, or the commit if built from source.
+      placeholder: "0.1.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install-method
+    attributes:
+      label: Install method
+      options:
+        - Windows MSI
+        - macOS dmg
+        - Built from source
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: "Windows 11 24H2 / macOS 15.5 / Ubuntu 24.04"
+    validations:
+      required: true
+
+  - type: input
+    id: postgres-version
+    attributes:
+      label: PostgreSQL version
+      description: "`SELECT version();` — include the hosting flavor if relevant (RDS, Supabase, Neon…)."
+      placeholder: "PostgreSQL 17.2"
+    validations:
+      required: false
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Screenshots, the SQL involved, error text, SSH tunnel in play, etc. Please redact hostnames and credentials.
+    validations:
+      required: false
