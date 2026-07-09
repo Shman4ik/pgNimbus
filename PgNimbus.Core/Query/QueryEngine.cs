@@ -442,6 +442,14 @@ public sealed class QueryEngine
                 Position = ParsePosition(pg.Position),
             };
         }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // A non-Postgres failure (dropped connection, socket timeout, ...):
+            // the shared-connection script/transaction paths turn any statement
+            // failure into a QueryError rather than letting it escape and crash
+            // the app. Cancellation still propagates so it reads as "Cancelled".
+            return new QueryError { Elapsed = stopwatch.Elapsed, Message = ex.Message };
+        }
         finally
         {
             if (reader is not null)
@@ -454,6 +462,11 @@ public sealed class QueryEngine
                 {
                     // The backend acknowledged the row-cap cancel while draining;
                     // the rows already collected are still valid.
+                }
+                catch
+                {
+                    // The connection faulted mid-drain; the result we're returning
+                    // is already built and the connection is being discarded.
                 }
             }
         }
@@ -543,9 +556,16 @@ public sealed class QueryEngine
                 // The backend acknowledged the row-cap cancel while the reader
                 // was draining; the rows already yielded are still valid.
             }
-
-            await command.DisposeAsync();
-            await connection.DisposeAsync();
+            catch
+            {
+                // A faulted reader (e.g. a dropped connection) must not skip the
+                // command/connection disposals below, or the pool connection leaks.
+            }
+            finally
+            {
+                await command.DisposeAsync();
+                await connection.DisposeAsync();
+            }
         }
     }
 

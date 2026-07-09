@@ -21,8 +21,17 @@ public sealed class SavedQueryStore
             return [];
         }
 
-        var json = File.ReadAllText(_filePath);
-        return JsonSerializer.Deserialize(json, SavedQueryJsonContext.Default.ListSavedQuery) ?? [];
+        // A corrupt/empty/half-written file must never block startup - fall back
+        // to an empty list rather than throwing out of the constructor path.
+        try
+        {
+            var json = File.ReadAllText(_filePath);
+            return JsonSerializer.Deserialize(json, SavedQueryJsonContext.Default.ListSavedQuery) ?? [];
+        }
+        catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException)
+        {
+            return [];
+        }
     }
 
     public void Save(IEnumerable<SavedQuery> queries)

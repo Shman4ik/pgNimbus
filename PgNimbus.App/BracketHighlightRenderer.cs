@@ -33,8 +33,13 @@ public sealed class BracketHighlightRenderer : IBackgroundRenderer
 
     public KnownLayer Layer => KnownLayer.Selection;
 
-    /// <summary>Recomputes the highlighted pair for the given caret offset and repaints.</summary>
-    public void Update(string text, int caretOffset)
+    /// <summary>
+    /// Recomputes the highlighted pair for the given caret offset and repaints.
+    /// Takes the live document (an <see cref="ITextSource"/>) rather than a
+    /// string so caret movement doesn't allocate a full-document copy on every
+    /// tick — only a couple of characters around the caret are ever read.
+    /// </summary>
+    public void Update(ITextSource text, int caretOffset)
     {
         var (first, second) = FindPair(text, caretOffset);
         if (first == _firstOffset && second == _secondOffset)
@@ -71,14 +76,15 @@ public sealed class BracketHighlightRenderer : IBackgroundRenderer
     /// before the caret wins over the one after it, matching how the caret
     /// visually "sits after" what was just typed.
     /// </summary>
-    private static (int First, int Second) FindPair(string text, int caretOffset)
+    private static (int First, int Second) FindPair(ITextSource text, int caretOffset)
     {
+        var length = text.TextLength;
         var bracketOffset = -1;
-        if (caretOffset > 0 && caretOffset <= text.Length && IsBracket(text[caretOffset - 1]))
+        if (caretOffset > 0 && caretOffset <= length && IsBracket(text.GetCharAt(caretOffset - 1)))
         {
             bracketOffset = caretOffset - 1;
         }
-        else if (caretOffset >= 0 && caretOffset < text.Length && IsBracket(text[caretOffset]))
+        else if (caretOffset >= 0 && caretOffset < length && IsBracket(text.GetCharAt(caretOffset)))
         {
             bracketOffset = caretOffset;
         }
@@ -88,7 +94,7 @@ public sealed class BracketHighlightRenderer : IBackgroundRenderer
             return (-1, -1);
         }
 
-        var c = text[bracketOffset];
+        var c = text.GetCharAt(bracketOffset);
         var openIndex = Open.IndexOf(c);
         var forward = openIndex >= 0;
         var (open, close) = forward
@@ -97,13 +103,14 @@ public sealed class BracketHighlightRenderer : IBackgroundRenderer
 
         var depth = 0;
         var step = forward ? 1 : -1;
-        for (var i = bracketOffset; i >= 0 && i < text.Length; i += step)
+        for (var i = bracketOffset; i >= 0 && i < length; i += step)
         {
-            if (text[i] == open)
+            var ch = text.GetCharAt(i);
+            if (ch == open)
             {
                 depth += step;
             }
-            else if (text[i] == close)
+            else if (ch == close)
             {
                 depth -= step;
             }

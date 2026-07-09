@@ -33,12 +33,23 @@ public sealed class NotificationListener : IAsyncDisposable
         await StopAsync();
 
         var connection = await _dataSource.OpenConnectionAsync(ct);
-        connection.Notification += OnNotification;
-
-        foreach (var channel in channels)
+        try
         {
-            await using var command = new NpgsqlCommand($"LISTEN {SqlIdentifier.Quote(channel)}", connection);
-            await command.ExecuteNonQueryAsync(ct);
+            connection.Notification += OnNotification;
+
+            foreach (var channel in channels)
+            {
+                await using var command = new NpgsqlCommand($"LISTEN {SqlIdentifier.Quote(channel)}", connection);
+                await command.ExecuteNonQueryAsync(ct);
+            }
+        }
+        catch
+        {
+            // The connection isn't assigned to _connection yet, so StopAsync
+            // couldn't dispose it - do it here or it leaks out of the pool.
+            connection.Notification -= OnNotification;
+            await connection.DisposeAsync();
+            throw;
         }
 
         _connection = connection;
@@ -59,6 +70,12 @@ public sealed class NotificationListener : IAsyncDisposable
             catch (OperationCanceledException)
             {
                 // Expected: cancelling the wait loop on stop.
+            }
+            catch
+            {
+                // The loop faulted (e.g. the connection dropped). Swallow it so
+                // cleanup below still runs - rethrowing here would leave the
+                // listener half-stopped with the connection never disposed.
             }
         }
 

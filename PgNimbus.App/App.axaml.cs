@@ -136,9 +136,14 @@ public partial class App : Application
                 connectionDatabase: csb.Database ?? ""),
         };
 
-        window.Closed += (_, _) =>
+        window.Closed += async (_, _) =>
         {
-            _ = notifyMonitor.DisposeAsync();
+            // Order matters: drain the notify listener's connection back to the
+            // pool first, then dispose the data source (the pool itself, which
+            // otherwise leaks on every "switch connection"), then the SSH tunnel
+            // that carries all of it.
+            await notifyMonitor.DisposeAsync();
+            await dataSource.DisposeAsync();
             tunnel?.Dispose();
         };
 

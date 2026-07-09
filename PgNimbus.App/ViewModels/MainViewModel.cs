@@ -313,6 +313,11 @@ public sealed partial class MainViewModel : ObservableObject
         // ActiveTab = null synchronously, so comparing afterwards misses.
         var wasActive = ReferenceEquals(ActiveTab, tab);
 
+        // A query still running in the closed tab would otherwise keep streaming
+        // in the background, holding a pool connection and server-side work for a
+        // result nothing will show — cancel it as the tab goes away.
+        tab.CancelCommand.Execute(null);
+
         tab.Executed -= SavedQueries.RecordExecution;
         Tabs.RemoveAt(index);
 
@@ -345,12 +350,17 @@ public sealed partial class MainViewModel : ObservableObject
 
     public async Task PreviewTableAsync(string schema, string name)
     {
+        // Capture the target tab before the await: if the user switches tabs
+        // while the metadata loads, ActiveTab changes, and browse mode would
+        // otherwise open in whichever tab happens to be active on resume.
+        var tab = ActiveTab;
+
         var columns = await _schemaService.GetColumnsAsync(schema, name, CancellationToken.None);
         var primaryKeyColumns = columns.Where(c => c.IsPrimaryKey).Select(c => c.Name).ToList();
 
         // Open the table in no-SQL browse mode: server-side filter/sort/paging,
         // with inline editing when the table has a primary key.
-        await ActiveTab.StartBrowseAsync(schema, name, primaryKeyColumns);
+        await tab.StartBrowseAsync(schema, name, primaryKeyColumns);
     }
 
     /// <summary>
