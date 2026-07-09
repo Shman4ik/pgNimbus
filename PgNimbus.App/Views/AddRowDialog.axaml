@@ -5,7 +5,6 @@
         x:Class="PgNimbus.App.Views.AddRowDialog"
         x:DataType="vm:AddRowViewModel"
         Title="pgNimbus — Add Row"
-        Icon="avares://PgNimbus.App/Assets/icon-256.png"
         Width="520" Height="560"
         WindowStartupLocation="CenterOwner"
         FontFamily="{StaticResource InterFont}">

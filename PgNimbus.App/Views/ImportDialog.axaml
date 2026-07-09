@@ -5,7 +5,6 @@
         x:Class="PgNimbus.App.Views.ImportDialog"
         x:DataType="vm:ImportViewModel"
         Title="pgNimbus — Import"
-        Icon="avares://PgNimbus.App/Assets/icon-256.png"
         Width="560" Height="620"
         MinWidth="480" MinHeight="420"
         WindowStartupLocation="CenterOwner"

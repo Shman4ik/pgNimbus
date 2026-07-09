@@ -12,6 +12,7 @@ public partial class ConnectionDialog : Window
     public ConnectionDialog()
     {
         InitializeComponent();
+        ThemedWindowChrome.Attach(this);
     }
 
     // Reads the profile off the tapped ListBoxItem's DataContext rather than

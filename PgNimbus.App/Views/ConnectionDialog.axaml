@@ -8,7 +8,6 @@
         x:Class="PgNimbus.App.Views.ConnectionDialog"
         x:DataType="vm:ConnectionDialogViewModel"
         Title="pgNimbus — Connect"
-        Icon="avares://PgNimbus.App/Assets/icon-256.png"
         Width="640" Height="680"
         CanResize="False"
         WindowStartupLocation="CenterScreen">

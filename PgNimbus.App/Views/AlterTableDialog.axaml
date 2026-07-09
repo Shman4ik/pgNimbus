@@ -6,7 +6,6 @@
         x:Class="PgNimbus.App.Views.AlterTableDialog"
         x:DataType="vm:AlterTableViewModel"
         Title="pgNimbus — Alter Table"
-        Icon="avares://PgNimbus.App/Assets/icon-256.png"
         Width="520" Height="560"
         WindowStartupLocation="CenterOwner">
 

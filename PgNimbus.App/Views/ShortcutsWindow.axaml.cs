@@ -12,6 +12,7 @@ public partial class ShortcutsWindow : Window
     public ShortcutsWindow()
     {
         InitializeComponent();
+        ThemedWindowChrome.Attach(this);
     }
 
     protected override void OnKeyDown(KeyEventArgs e)

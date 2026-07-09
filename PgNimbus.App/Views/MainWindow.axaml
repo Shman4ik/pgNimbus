@@ -14,7 +14,6 @@
         x:Class="PgNimbus.App.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="pgNimbus"
-        Icon="avares://PgNimbus.App/Assets/icon-256.png"
         WindowStartupLocation="CenterOwner"
         Width="1100" Height="800"
         MinWidth="940" MinHeight="560"
@@ -141,9 +140,11 @@
         <Border DockPanel.Dock="Top" Height="40" Padding="16,0"
                 BorderThickness="0,0,0,1" BorderBrush="{StaticResource CardBorderBrush}">
             <DockPanel>
-                <Button Name="SidebarToggleButton" DockPanel.Dock="Left" Classes="chip" Content="☰"
-                        FontSize="13" Padding="7,3" Margin="0,0,10,0" VerticalAlignment="Center"
-                        Click="OnToggleSidebarClick" ToolTip.Tip="Toggle sidebar (Ctrl+B)" />
+                <Button Name="SidebarToggleButton" DockPanel.Dock="Left" Classes="chip" Padding="5"
+                        Margin="0,0,10,0" VerticalAlignment="Center"
+                        Click="OnToggleSidebarClick" ToolTip.Tip="Toggle sidebar (Ctrl+B)">
+                    <PathIcon Data="{StaticResource SidebarToggleIconGeometry}" Width="14" Height="14" />
+                </Button>
                 <Border DockPanel.Dock="Left" Width="10" Height="10" CornerRadius="5" Margin="0,0,10,0"
                         VerticalAlignment="Center"
                         Background="{Binding AccentColor, Converter={x:Static conv2:HexToBrushConverter.Instance}}" />

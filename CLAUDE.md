@@ -46,6 +46,24 @@ and wrong project memory is worse than none.
    `PlainFileCredentialStore`) at connect time, never persisted on the
    profile record itself.
 
+## App icon / logo assets
+
+`design/` holds the icon sources: `logo.svg` (vector master),
+`logo-light.png` / `logo-dark.png` (transparent line art, named for the
+theme they're shown on — README on GitHub and the in-app window icons), and
+`icon-tile.png` (the glyph on a dark square). Everything in
+`PgNimbus.App/Assets/` below is **generated** from those sources by
+`scripts/windows/make-app-icons.ps1` (Windows-only, System.Drawing) —
+regenerate via that script instead of hand-editing:
+
+- `icon-256-light.png` / `icon-256-dark.png` — window (title-bar/taskbar)
+  icons. Windows don't set `Icon` in XAML; each window calls
+  `ThemedWindowIcon.Attach(this)` in its constructor, which picks the
+  variant for the actual theme and re-applies it on any live theme switch.
+- `icon-256.png` — the rounded dark tile; the macOS `.icns` source.
+- `app.ico` — 16–256px multi-size tile; the exe (`ApplicationIcon`) and MSI
+  icon.
+
 ## Tech stack
 
 - `net10.0` for all projects.
