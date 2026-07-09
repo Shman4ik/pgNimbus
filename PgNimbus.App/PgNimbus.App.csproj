@@ -45,7 +45,7 @@
          explicit redistribution license, so it must not end up in Release
          binaries — Debug-only, matching the vendor's own #if DEBUG guidance. -->
     <PackageReference Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.3" Condition="'$(Configuration)' == 'Debug'" />
-    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
   </ItemGroup>
 
   <ItemGroup>
