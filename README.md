@@ -332,6 +332,53 @@ individually shippable pieces. Shipped items graduate from this list into
   it; deliberately deferred until it can be verified on a real Windows
   desktop (transparency fallbacks can't be seen headless).
 
+### SQL editor — completion that predicts the next move
+
+Findings from a hands-on Windows testing session (2026-07-09) against a live
+multi-schema database. The context-aware core (clause detection, alias/CTE
+resolution, `qualifier.` member access, auto-open after FROM/JOIN) all works —
+these are the gaps between "correct" and "feels like magic", roughly in
+impact order:
+
+- [ ] **First-keystroke preselection (bug — fix first)** — the popup opened
+  by the first typed letter shows the *unfiltered* list with nothing
+  selected, so `f` → Enter inserts nothing instead of `FROM`; filtering and
+  preselection only kick in from the second character. Apply the initial
+  character as the filter when the window opens.
+- [ ] **FK-aware JOIN magic** — the flagship. After `JOIN`, rank tables
+  connected by a foreign key to the statement's tables first (today it's the
+  same flat catalog dump as `FROM`); after `ON `, auto-open and offer the
+  complete join condition (`oi.order_id = o.id`) as the top, one-keystroke
+  item. Needs FK edges (`pg_constraint contype = 'f'`) in the completion
+  catalog — the same data the ER-diagram backlog item wants.
+- [ ] **Fuzzy matching + smarter ranking** — filtering is strict-prefix:
+  `dr` offers only `DROP` and never finds `daily_revenue`; `ord` preselects
+  `order_items` when `orders` is at least as likely. Reuse the command
+  palette's `FuzzyMatcher` (subsequence + word-boundary + adjacency bonuses)
+  in the completion list, breaking ties by exact-prefix, then shorter name,
+  then recency of use. Requires replacing the stock AvaloniaEdit
+  `CompletionList` filter.
+- [ ] **Auto-open in more predictable spots** — the list opens by itself
+  only after FROM/JOIN/INTO/UPDATE today. `WHERE `, `ON `, `AND `/`OR `,
+  `SELECT ` and a comma inside a select list are just as predictable (the
+  statement's own columns are already scoped and floated there) but
+  currently require Ctrl+Space.
+- [ ] **Auto-alias on table accept** — accepting `sales.orders` after
+  FROM/JOIN could also insert a short alias (`o`, dedup as `o2`…) so the
+  `o.` member-access flow is immediately available; make it a setting.
+- [ ] **Auto-close pairs** — `(`, `'`, `"` should insert their closer with
+  type-over on the closing character; today `coalesce()` from a completion
+  accept is the only paired insert in the editor.
+- [ ] **Completion popup visual polish** — stock AvaloniaEdit look: no kind
+  icons, no type column. Give items a kind glyph + color (table / column /
+  function / keyword / schema / alias / CTE), right-align the column data
+  type that's currently buried in the description panel, and restyle the
+  card (radius, shadow, padding) to match the Files-style shell in both
+  themes.
+- [ ] **`SELECT *` expansion** — a completion item (and/or command-palette
+  action) that replaces `*` with the explicit column list of the statement's
+  FROM tables.
+
 ### Later — bigger bets
 
 - [ ] **ER diagram** — auto-laid-out foreign-key graph of a schema, exportable
