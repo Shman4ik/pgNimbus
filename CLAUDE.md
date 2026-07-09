@@ -77,6 +77,9 @@ regenerate via that script instead of hand-editing:
   `test.runner` opt-in in the repo-root `global.json`) or plain
   `dotnet run --project PgNimbus.Core.Tests`. Never add
   `Microsoft.NET.Test.Sdk` to a TUnit project — it breaks test discovery.
+- Benchmarks: `PgNimbus.Benchmarks` — a plain console project (Core-only, no
+  UI deps) measuring the query engine through its streaming API; see
+  "Benchmarks pipeline" below.
 - `AvaloniaUseCompiledBindingsByDefault` is on — don't add uncompiled
   (reflection) bindings.
 
@@ -189,6 +192,39 @@ Notes:
 - This is how the Avalonia 11→12 upgrade and the PowerToys-style UI polish
   were actually verified (not just built) in a Claude Code sandbox with no
   prior .NET/GUI tooling.
+
+## Benchmarks pipeline
+
+"Fast" is measured, not asserted. `.github/workflows/benchmark.yml` runs
+[`scripts/benchmarks/run-benchmarks.sh`](scripts/benchmarks/run-benchmarks.sh)
+on every PR and push to `main` (ubuntu runner + a `postgres:17` service
+container). Results go to the job summary and a `bench-results` artifact;
+pushes to `main` also append to the gh-pages history via
+`benchmark-action/github-action-benchmark` (charts at
+`https://shman4ik.github.io/pgNimbus/dev/bench/`). Three moving parts:
+
+1. **Startup probe** — `PGNIMBUS_STARTUP_PROBE=1` makes the app print
+   `PGNIMBUS_STARTUP_PROBE window_ms=… rss_bytes=…` after its first window
+   renders its first frame, then exit (`PgNimbus.App/StartupProbe.cs`, armed
+   in `App.OnFrameworkInitializationCompleted`). `window_ms` is measured from
+   OS process start, so it captures AOT-vs-JIT differences honestly.
+2. **`PgNimbus.Benchmarks`** — console project measuring connect (cold pool),
+   `SELECT 1` round-trip, time-to-first-`RowBatch`, and full-stream
+   throughput of a 100k-row mixed-type SELECT, through `QueryEngine`'s
+   streaming path (the same API the UI uses). Prints `PGNIMBUS_BENCH
+   name=value` lines; config via `PGNIMBUS_BENCH_CONN/ROWS/ITERS`.
+3. **The script** — builds JIT Release, publishes linux-x64 NativeAOT, runs
+   the startup probe N times per mode under Xvfb (one discarded warm-up run,
+   then medians), runs the query benchmarks, and writes
+   `bench-results/benchmarks.json` (github-action-benchmark
+   `customSmallerIsBetter` format — keep every metric smaller-is-better, so
+   throughput is reported as stream *time*) plus `summary.md`.
+   `PGNIMBUS_BENCH_SKIP_AOT=1` skips the slow AOT publish for local runs.
+
+Numbers are machine-relative (this sandbox: ~160 ms AOT / ~2 s JIT to first
+frame; CI runners differ) — the point is the trend per commit, not the
+absolute value. If a change renames a metric in `benchmarks.json`, its
+gh-pages history starts over under the new name.
 
 ## Release pipeline
 

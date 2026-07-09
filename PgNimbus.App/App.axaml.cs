@@ -75,6 +75,8 @@ public partial class App : Application
             {
                 desktop.MainWindow = BuildConnectionDialog(desktop);
             }
+
+            StartupProbe.ArmIfRequested(desktop);
         }
 
         base.OnFrameworkInitializationCompleted();
