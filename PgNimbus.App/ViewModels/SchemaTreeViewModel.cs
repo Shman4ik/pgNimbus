@@ -8,6 +8,7 @@ namespace PgNimbus.App.ViewModels;
 public sealed partial class SchemaTreeViewModel : ObservableObject
 {
     private readonly SchemaService _schemaService;
+    private readonly Action<bool>? _persistShowAdvanced;
 
     [ObservableProperty]
     private bool _isLoading;
@@ -19,11 +20,50 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
     [ObservableProperty]
     private string _filterText = string.Empty;
 
+    /// <summary>
+    /// The sidebar's "advanced objects" toggle. Off (the default), the tree
+    /// shows just schemas/tables and Roles; on, each schema also gets its
+    /// Functions group and the root gains the Extensions group. Purely a
+    /// declutter switch — the advanced groups are lazy either way, so the
+    /// toggle never costs a catalog query by itself.
+    /// </summary>
+    [ObservableProperty]
+    private bool _showAdvancedObjects;
+
     public ObservableCollection<SchemaTreeNode> Schemas { get; } = [];
 
-    public SchemaTreeViewModel(SchemaService schemaService)
+    public SchemaTreeViewModel(SchemaService schemaService, bool showAdvancedObjects = false, Action<bool>? persistShowAdvanced = null)
     {
         _schemaService = schemaService;
+        _showAdvancedObjects = showAdvancedObjects;
+        _persistShowAdvanced = persistShowAdvanced;
+    }
+
+    partial void OnShowAdvancedObjectsChanged(bool value)
+    {
+        _persistShowAdvanced?.Invoke(value);
+
+        // Flip the already-loaded tree in place rather than refetching: the
+        // Extensions group slots in right before Roles, and each loaded schema
+        // adds/drops its Functions sub-group.
+        var extensions = Schemas.OfType<ExtensionsGroupNode>().FirstOrDefault();
+        if (value && extensions is null)
+        {
+            var roles = Schemas.OfType<RolesGroupNode>().FirstOrDefault();
+            Schemas.Insert(roles is null ? Schemas.Count : Schemas.IndexOf(roles), new ExtensionsGroupNode(_schemaService));
+        }
+        else if (!value && extensions is not null)
+        {
+            Schemas.Remove(extensions);
+        }
+
+        foreach (var schema in Schemas.OfType<SchemaNode>())
+        {
+            schema.SetFunctionsGroupVisible(value);
+        }
+
+        // Newly inserted nodes default to visible; a live filter has to vet them.
+        ApplyFilter();
     }
 
     [RelayCommand]
@@ -93,12 +133,16 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
             Schemas.Clear();
             foreach (var schema in schemas)
             {
-                Schemas.Add(new SchemaNode(_schemaService, schema.Name));
+                Schemas.Add(new SchemaNode(_schemaService, schema.Name, () => ShowAdvancedObjects));
             }
 
-            // Server-wide groups after the schemas: installed/available
-            // extensions and non-system roles, both lazily loaded.
-            Schemas.Add(new ExtensionsGroupNode(_schemaService));
+            // Server-wide groups after the schemas, both lazily loaded.
+            // Extensions is advanced-only; Roles is always shown.
+            if (ShowAdvancedObjects)
+            {
+                Schemas.Add(new ExtensionsGroupNode(_schemaService));
+            }
+
             Schemas.Add(new RolesGroupNode(_schemaService));
 
             // A fresh catalog invalidates any prior filter pass; re-apply so a lingering query still holds.

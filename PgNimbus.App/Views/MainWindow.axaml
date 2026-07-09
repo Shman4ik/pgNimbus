@@ -199,6 +199,12 @@
                             ToolTip.Tip="Refresh database &amp; schema (Ctrl+Shift+R)">
                         <PathIcon Data="{StaticResource RefreshIconGeometry}" Width="14" Height="14" />
                     </Button>
+                    <!-- Advanced-objects toggle: off = schemas/tables + Roles only; on adds Functions groups and Extensions -->
+                    <ToggleButton DockPanel.Dock="Right" Classes="chip" Padding="5" Margin="6,0,0,0"
+                                  VerticalAlignment="Center" IsChecked="{Binding SchemaTree.ShowAdvancedObjects}"
+                                  ToolTip.Tip="Show advanced objects (functions &amp; extensions)">
+                        <PathIcon Data="{StaticResource TuneIconGeometry}" Width="14" Height="14" />
+                    </ToggleButton>
                     <!-- Type-to-filter box: matches schema and loaded-table names, case-insensitive substring -->
                     <TextBox FontSize="12"
                              PlaceholderText="Filter schemas &amp; tables…"
