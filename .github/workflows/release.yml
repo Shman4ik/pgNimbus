@@ -83,7 +83,7 @@ jobs:
           $hash = (Get-FileHash "pgNimbus-${{ env.VERSION }}-win-x64.msi" -Algorithm SHA256).Hash.ToLower()
           "sha256=$hash" >> $env:GITHUB_OUTPUT
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: windows-msi
           path: pgNimbus-${{ env.VERSION }}-win-x64.msi
@@ -154,7 +154,7 @@ jobs:
           chmod +x scripts/macos/build-app-bundle.sh
           ./scripts/macos/build-app-bundle.sh publish/osx-arm64 "$VERSION" osx-arm64 dist
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: macos-dmg-arm64
           path: dist/*.dmg
@@ -187,7 +187,7 @@ jobs:
         shell: pwsh
         run: Compress-Archive -Path manifests\* -DestinationPath winget-manifests.zip
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: winget-manifests
           path: winget-manifests.zip
