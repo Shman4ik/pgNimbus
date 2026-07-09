@@ -40,6 +40,16 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Building version $VERSION"
 
+  benchmark:
+    needs: prepare
+    uses: ./.github/workflows/benchmark.yml
+    permissions:
+      contents: write
+    with:
+      # Only append to the gh-pages trend history on a real tag-triggered
+      # release, not a workflow_dispatch test run.
+      record_history: ${{ startsWith(github.ref, 'refs/tags/v') }}
+
   build-windows:
     needs: prepare
     runs-on: windows-latest

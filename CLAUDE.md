@@ -197,11 +197,19 @@ Notes:
 
 "Fast" is measured, not asserted. `.github/workflows/benchmark.yml` runs
 [`scripts/benchmarks/run-benchmarks.sh`](scripts/benchmarks/run-benchmarks.sh)
-on every PR and push to `main` (ubuntu runner + a `postgres:17` service
-container). Results go to the job summary and a `bench-results` artifact;
-pushes to `main` also append to the gh-pages history via
+(ubuntu runner + a `postgres:17` service container). It's a reusable
+workflow (`workflow_call`) invoked as a job from `release.yml` — it no
+longer runs on every PR or push to `main`, only as part of the release
+pipeline (tag push, or a manual `workflow_dispatch` test run of
+`release.yml`), so it measures a real tagged build rather than every commit.
+It's also directly `workflow_dispatch`-able on its own for ad hoc
+measurement. Results go to the job summary and a `bench-results` artifact;
+real tag-triggered releases also append to the gh-pages history via
 `benchmark-action/github-action-benchmark` (charts at
-`https://shman4ik.github.io/pgNimbus/dev/bench/`). Three moving parts:
+`https://shman4ik.github.io/pgNimbus/dev/bench/`) — controlled by the
+`record_history` input, which `release.yml` sets from
+`startsWith(github.ref, 'refs/tags/v')` so `workflow_dispatch` test runs of
+the release pipeline don't pollute the trend history. Three moving parts:
 
 1. **Startup probe** — `PGNIMBUS_STARTUP_PROBE=1` makes the app print
    `PGNIMBUS_STARTUP_PROBE window_ms=… rss_bytes=…` after its first window

@@ -1,21 +1,30 @@
 name: Benchmarks
 
 # Measures the headline performance numbers (startup time, memory, binary
-# size, query-engine latency/throughput) on every PR and push to main, so a
-# regression shows up in the change that caused it instead of in a user
-# report. scripts/benchmarks/run-benchmarks.sh does the actual measuring;
-# results land in the job summary, a downloadable artifact, and — for pushes
-# to main — the gh-pages benchmark history (charts at
+# size, query-engine latency/throughput) as part of the release pipeline
+# (release.yml calls this as a reusable workflow), so a regression shows up
+# against a real tagged build instead of on every PR. Results land in the
+# job summary, a downloadable artifact, and — for actual tag-triggered
+# releases — the gh-pages benchmark history (charts at
 # https://shman4ik.github.io/pgNimbus/dev/bench/).
+#
+# Also runnable standalone via workflow_dispatch for ad hoc measurement.
 #
 # Shared runners are noisy: treat the trend and big jumps as signal, not
 # single-digit-percent wiggles between runs.
 on:
-  push:
-    branches:
-      - main
-  pull_request:
+  workflow_call:
+    inputs:
+      record_history:
+        description: "Push results to the gh-pages benchmark history"
+        type: boolean
+        default: false
   workflow_dispatch:
+    inputs:
+      record_history:
+        description: "Push results to the gh-pages benchmark history"
+        type: boolean
+        default: false
 
 env:
   DOTNET_NOLOGO: "1"
@@ -24,8 +33,8 @@ env:
 jobs:
   benchmark:
     runs-on: ubuntu-latest
-    # contents: write is for the gh-pages history push on main; PRs from
-    # forks get a read-only token automatically, so this doesn't widen them.
+    # contents: write is for the gh-pages history push on real releases; the
+    # caller job's permissions cap what's actually granted.
     permissions:
       contents: write
 
@@ -68,11 +77,12 @@ jobs:
           name: bench-results
           path: bench-results/
 
-      # Push-to-main runs append to the benchmark history on gh-pages
-      # (./dev/bench), which renders per-metric trend charts. PR runs skip
-      # this — they only get the job-summary table above.
+      # Real tag-triggered releases append to the benchmark history on
+      # gh-pages (./dev/bench), which renders per-metric trend charts.
+      # workflow_dispatch test runs skip this by default — they only get the
+      # job-summary table above, unless record_history is explicitly set.
       - name: Record benchmark history
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: inputs.record_history
         uses: benchmark-action/github-action-benchmark@v1
         with:
           name: pgNimbus benchmarks
