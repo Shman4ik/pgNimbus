@@ -1,0 +1,87 @@
+name: Benchmarks
+
+# Measures the headline performance numbers (startup time, memory, binary
+# size, query-engine latency/throughput) on every PR and push to main, so a
+# regression shows up in the change that caused it instead of in a user
+# report. scripts/benchmarks/run-benchmarks.sh does the actual measuring;
+# results land in the job summary, a downloadable artifact, and — for pushes
+# to main — the gh-pages benchmark history (charts at
+# https://shman4ik.github.io/pgNimbus/dev/bench/).
+#
+# Shared runners are noisy: treat the trend and big jumps as signal, not
+# single-digit-percent wiggles between runs.
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+env:
+  DOTNET_NOLOGO: "1"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    # contents: write is for the gh-pages history push on main; PRs from
+    # forks get a read-only token automatically, so this doesn't widen them.
+    permissions:
+      contents: write
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      # Xvfb: the startup benchmark opens a real window. clang/zlib are the
+      # NativeAOT publish prerequisites (usually preinstalled on the runner,
+      # but cheap to make explicit).
+      - name: Install benchmark dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb clang zlib1g-dev
+
+      - name: Run benchmarks
+        run: scripts/benchmarks/run-benchmarks.sh
+        env:
+          PGNIMBUS_BENCH_CONN: "Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=postgres"
+
+      - name: Upload results
+        uses: actions/upload-artifact@v7
+        with:
+          name: bench-results
+          path: bench-results/
+
+      # Push-to-main runs append to the benchmark history on gh-pages
+      # (./dev/bench), which renders per-metric trend charts. PR runs skip
+      # this — they only get the job-summary table above.
+      - name: Record benchmark history
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: pgNimbus benchmarks
+          tool: customSmallerIsBetter
+          output-file-path: bench-results/benchmarks.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true
+          # Shared-runner noise: only flag genuinely large regressions, as a
+          # job-summary alert rather than a commit comment.
+          alert-threshold: "150%"
+          comment-on-alert: false
+          fail-on-alert: false

@@ -68,3 +68,6 @@ Thumbs.db
 *.trx
 *.coverage
 *.coveragexml
+
+# Benchmark output (scripts/benchmarks/run-benchmarks.sh)
+bench-results/

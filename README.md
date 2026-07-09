@@ -27,8 +27,9 @@ from the ground up.
 
 ### Differentiators
 
-1. **Native performance** — measured launch-to-window: ~100 ms as a NativeAOT
-   binary, ~0.7 s under JIT (Release, Linux container, 5-run spread).
+1. **Native performance** — launch-to-window in the ~100 ms range as a
+   NativeAOT binary. Not a one-off claim: startup, memory, and query-engine
+   numbers are measured on every commit — see [Benchmarks](#benchmarks).
 2. **PostgreSQL-first** — deep `pg_catalog` introspection (materialized views,
    real types, primary-key flags, and EXPLAIN visualization); never the
    lowest-common-denominator SQL dialect.
@@ -177,11 +178,13 @@ pgNimbus/
 │   ├── Query/QueryResult.cs
 │   ├── Query/QueryEngine.cs
 │   └── Schema/SchemaService.cs
-└── PgNimbus.App/                 # Avalonia MVVM front-end.
-    ├── ViewModels/QueryViewModel.cs
-    ├── Views/MainWindow.axaml(.cs)
-    ├── App.axaml(.cs)
-    └── Program.cs
+├── PgNimbus.App/                 # Avalonia MVVM front-end.
+│   ├── ViewModels/QueryViewModel.cs
+│   ├── Views/MainWindow.axaml(.cs)
+│   ├── App.axaml(.cs)
+│   └── Program.cs
+├── PgNimbus.Core.Tests/          # TUnit tests for the engine.
+└── PgNimbus.Benchmarks/          # Query-engine benchmarks (see Benchmarks).
 ```
 
 `PgNimbus.Core` is a plain class library that depends only on `Npgsql`. It
@@ -234,52 +237,55 @@ dotnet publish PgNimbus.App -c Release -r win-x64 -p:PublishAot=true    # Window
 dotnet publish PgNimbus.App -c Release -r linux-x64 -p:PublishAot=true  # Linux (needs clang + zlib1g-dev)
 ```
 
-The linux-x64 AOT binary is exercised as part of development: it launches to a
-window in ~100 ms and the query grid, EXPLAIN visualization, and profile
-stores all work (JSON persistence uses source-generated serializer contexts,
-and the results grid binds columns via converters instead of reflection
-paths, both of which trimming/AOT require).
+The linux-x64 AOT binary is exercised as part of development: the query grid,
+EXPLAIN visualization, and profile stores all work under AOT (JSON persistence
+uses source-generated serializer contexts, and the results grid binds columns
+via converters instead of reflection paths, both of which trimming/AOT
+require).
+
+## Benchmarks
+
+"Fast" is the thesis, so it's measured, not asserted. The
+[Benchmarks workflow](.github/workflows/benchmark.yml) runs on every PR and
+push to `main`:
+
+| Metric | What it proves |
+| --- | --- |
+| Startup, launch → first frame (NativeAOT and JIT) | The app is on screen in the ~100 ms range as an AOT binary — measured from OS process start to the first rendered frame, median of 7 runs |
+| Memory at first frame, AOT binary size | The footprint stays "native app", not "Electron app" |
+| Connect (cold pool) / round-trip (`SELECT 1`, warm) | Interactive latency of the query path |
+| First row batch of a 100 000-row `SELECT` | Streaming works: the first screenful arrives long before the full result |
+| Full 100 000-row stream (rows/s) | Sustained throughput of the `IAsyncEnumerable<RowBatch>` engine path |
+
+Each run writes the numbers to the workflow's job summary and a
+`bench-results` artifact; pushes to `main` also append to the historical
+charts at <https://shman4ik.github.io/pgNimbus/dev/bench/>, so a regression
+shows up as a visible step in the graph of the commit that caused it.
+(Shared CI runners are noisy — read trends and big jumps, not single-percent
+wiggles.)
+
+To run the suite locally (Linux, needs Xvfb and a reachable PostgreSQL):
+
+```bash
+PGNIMBUS_BENCH_CONN="Host=localhost;Database=postgres;Username=postgres;Password=postgres" \
+    scripts/benchmarks/run-benchmarks.sh          # add PGNIMBUS_BENCH_SKIP_AOT=1 to skip the slow AOT publish
+```
+
+Two small pieces make it work: `PGNIMBUS_STARTUP_PROBE=1` makes the app print
+launch-to-first-frame time and RSS and exit
+([`StartupProbe.cs`](PgNimbus.App/StartupProbe.cs)), and the
+[`PgNimbus.Benchmarks`](PgNimbus.Benchmarks/Program.cs) console project
+measures the query engine through the same streaming API the UI uses.
 
 ## Backlog
 
 Prioritized by how much they advance the thesis (fast + open + modern,
 PostgreSQL-first). Contributions welcome — these are intentionally scoped as
-individually shippable pieces.
+individually shippable pieces. Shipped items graduate from this list into
+[Features](#features) above.
 
-### Now — the daily-driver gap
+### Now — release blockers
 
-Things a person needs before pgNimbus can be their only Postgres client:
-
-- [x] **Refresh database & schema** — reload the schema tree and autocomplete
-  cache from the server on demand (toolbar button / shortcut), so newly created
-  or altered tables, columns, and other objects show up without reconnecting.
-- [x] **Command palette** (`Ctrl+K`/`Ctrl+P`) — fuzzy-jump to any table, saved
-  query, or action; the keyboard-first differentiator in one control.
-- [x] **Data browsing without SQL** — filter bar, ORDER BY on header click, and
-  paging when previewing a table, pushed down to the server (`WHERE`/`LIMIT`/
-  `OFFSET`), not client-side.
-- [x] **Row insert & delete from the grid** — cell editing exists; complete the
-  CRUD triangle with "add row" and "delete selected rows" for tables with a
-  primary key.
-- [x] **Multiple result sets per script** — run a whole script; each statement
-  gets its own result tab/section, with per-statement timings.
-- [x] **DDL view** — a "Source" tab per object: reconstructed
-  `CREATE TABLE`/`CREATE VIEW`/index definitions from `pg_catalog`.
-- [x] **Windows installer + releases** — a per-user MSI and a macOS `.dmg`
-  built and published by CI on every tag
-  ([`release.yml`](.github/workflows/release.yml)), plus generated winget
-  manifests.
-- [x] **From-scoped WHERE suggestions** — column autocomplete in the query
-  editor's `WHERE`/`ON`/`HAVING`/`GROUP BY`/`ORDER BY` clauses now offers only the
-  columns of the tables in the statement's `FROM` (plus its aliases, CTEs,
-  functions and keywords) instead of the entire schema; it falls back to the full
-  catalog when no `FROM` table has resolved yet, so an incomplete query is never
-  left with a near-empty list.
-- [x] **Automatic schema completion** — accepting a table in table position
-  (after `FROM`/`JOIN`/`INTO`/`UPDATE`) inserts it schema-qualified
-  (`public.users`, `analytics.events`), so the reference resolves regardless of
-  the server's `search_path`; the bare name still filters the list, and a table
-  referenced elsewhere (or picked after typing `schema.`) stays unqualified.
 - [ ] **Code signing** — Authenticode for the MSI, Developer ID +
   notarization for the `.dmg`. Both ship unsigned today, so SmartScreen and
   Gatekeeper warn on first run — the single biggest first-impression blocker
@@ -289,135 +295,8 @@ Things a person needs before pgNimbus can be their only Postgres client:
   release, but the first manual `winget-pkgs` PR (which registers the
   `pgNimbus.pgNimbus` identifier) hasn't been made yet.
 
-### Next — depth on the Postgres-first promise
+### Polish
 
-- [x] **Transaction control** — explicit BEGIN/COMMIT/ROLLBACK toolbar state,
-  with a visible "in transaction" indicator and auto-rollback on error.
-- [x] **SQL formatting** — one-keystroke pretty-printing of the statement under
-  the cursor (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd>, or "Format SQL" in the
-  command palette): each clause on its own line, select-list/`SET`/`GROUP BY`
-  items and JOINs broken one-per-line, `AND`/`OR` predicates stacked, subqueries
-  indented, and reserved keywords upper-cased. It re-tokenizes its own output and
-  compares it to the input, so if a layout would ever alter a token it returns the
-  text untouched — it can never corrupt a query.
-- [x] **CSV/JSON import** — the inverse of export: an Import button on the
-  command bar loads a CSV (RFC 4180 quoting, delimiter sniffed) or JSON
-  (array of objects) file into a new or existing table. Column types are
-  inferred conservatively (leading-zero codes like `007` stay text) and
-  editable in the dialog; the load itself goes through
-  `COPY … FROM STDIN (FORMAT csv)` so Postgres does the real parsing, and on
-  success the schema tree refreshes and the active tab SELECTs the fresh
-  table.
-- [x] **Server activity dashboard** — a Server Activity window (title-bar ∿
-  button or command palette) showing `pg_stat_activity` client backends with
-  a 2-second auto-refresh (pausable), lock waits highlighted amber, and
-  Cancel query (`pg_cancel_backend`) / Terminate backend
-  (`pg_terminate_backend`, confirm-guarded) on the selected row; the
-  selection survives refreshes.
-- [x] **Roles, extensions, and functions in the schema tree** — each schema
-  gains a "Functions" group (functions/procedures/aggregates with their
-  argument and return types, and a "Source (DDL)" context action via
-  `pg_get_functiondef`), and the tree root gains "Extensions" (installed ones
-  green-dotted first, the rest of `pg_available_extensions` dimmed, with
-  Install / Drop context actions) and "Roles" (non-system roles with
-  superuser/login/createdb/createrole tags). Functions and Extensions sit
-  behind an "advanced objects" sidebar toggle (persisted) so the default
-  tree stays just schemas/tables and Roles.
-- [x] **Query history search** — a search box over the history list
-  (case-insensitive, matches the SQL text), a "this connection only" scope
-  toggle (entries record which connection ran them), and pinning: pinned
-  entries float to the top, survive the 200-entry cap, and survive "Clear
-  history".
-- [x] **In-app theme toggle** — light/dark switch in the title bar (sun/moon
-  button) instead of following the OS only; the SQL syntax palette repaints
-  with it, and the choice is remembered across launches.
-
-### Polish — UX/UI fit and finish
-
-Small, individually shippable refinements toward the TablePlus-level polish
-bar (the Files community app remains the visual north star):
-
-- [x] **Schema-tree filter box** — type-to-filter above the sidebar tree
-  (schemas and loaded tables, case-insensitive substring); a schema stays
-  when its name matches or a loaded table inside it does, auto-expanding to
-  reveal the match, with a clear (✕) button.
-- [x] **Copy from the results grid** — <kbd>Ctrl</kbd>+<kbd>C</kbd> copies the
-  selected rows (or all rows) as TSV, plus "Copy as" (CSV, JSON, Markdown table,
-  `INSERT` statements) on the grid context menu.
-- [x] **Cell inspector** — a detail pane (or popover) for the selected cell so
-  long `text`/`jsonb` values are readable and copyable without inline-edit
-  tricks; pretty-print JSON. Word wrap is on by default (Notepad++-style),
-  with a "Wrap" toggle in the header, and non-ASCII text (e.g. Cyrillic)
-  displays as itself rather than `\uXXXX` escapes.
-- [x] **Set a cell to NULL from the grid** — inline editing can't express
-  "make it NULL" (empty string ≠ NULL); a "Set cell to NULL" context-menu
-  action on the results grid issues the targeted UPDATE.
-- [x] **Editor niceties** — current-line highlight, matching-bracket
-  highlight, and font-size zoom (<kbd>Ctrl</kbd>+wheel /
-  <kbd>Ctrl</kbd>+<kbd>±</kbd>, <kbd>Ctrl</kbd>+<kbd>0</kbd> resets).
-- [x] **Alias-aware autocomplete** — complete column names after
-  `alias.`/`table.`, not just bare identifiers.
-- [x] **Context-aware IntelliSense** — inside a `SELECT`, rank the current
-  table's columns first and hide noise like `pg_catalog`; in the results-grid
-  `WHERE` filter box, suggest *only* the current dataset's columns (no SQL
-  functions or unrelated tables).
-- [x] **Clause-aware IntelliSense** — the list opens by itself after
-  `FROM`/`JOIN`/`INTO`/`UPDATE` and offers only what can go there (tables,
-  schemas, the statement's CTEs — no columns); column suggestions show their
-  data type, the statement's aliases complete too, common functions insert as
-  `name()` with the caret between the parens, and nothing pops up inside
-  string literals or comments.
-- [x] **`Shift`+`Enter` smart execution** — run with <kbd>Shift</kbd>+<kbd>Enter</kbd>
-  (alongside <kbd>Ctrl</kbd>+<kbd>Enter</kbd>/<kbd>F5</kbd>), executing just the
-  statement the cursor sits in (between `;`s) without having to select it first.
-- [x] **Tab bar overflow scrolling** — with many tabs open, the strip now
-  scrolls horizontally and keeps the active tab in view. (It used to clip:
-  the "+" button overlapped the last visible tab and a newly opened tab
-  could sit fully off-screen with no way to reach it.)
-- [x] **Tab bar navigation extras** — `<`/`>` scroll arrows (shown only when
-  the strip actually overflows, disabled at the ends) and a dropdown listing
-  all open tabs with type-to-search (↑/↓ + Enter jumps), on top of the basic
-  scrolling.
-- [x] **Capped results-grid column width** — auto column width sizes to the
-  widest cell, so a single long `text` value used to push every other column
-  out of view; columns now cap at 560 px, with the cell inspector
-  (double-click) carrying the full value.
-- [x] **Content-sized cell inspector** — the inspector card sizes to its
-  value (small values get a small card) instead of always opening at full
-  height.
-- [x] **Window minimum size** — a 940×560 floor, below which the command bar
-  and browse bar used to clip into unreadability.
-- [x] **Empty state for the connection dialog** — the Saved Connections list
-  used to be a bare grey panel when empty; it now shows the same friendly hint
-  the saved-queries and history lists already have.
-- [x] **Persist the theme choice** — the in-app light/dark toggle is now
-  remembered across launches (saved to `settings.json` alongside the other
-  persisted app state) instead of snapping back to the OS default; a fresh
-  install with no saved choice still follows the OS.
-- [x] **Drag-and-drop from the schema tree** — drag a schema, table, or column
-  from the sidebar tree into the SQL editor and it drops as a valid identifier
-  at the pointer (schema-qualified for tables, quoted only when a bare name
-  wouldn't round-trip, e.g. `"CreatedAt"`); the caret tracks the pointer during
-  the drag so the landing spot is always visible.
-- [x] **Collapsible sidebar** — a 200px minimum width on manual resize (so it
-  can't shrink to an unreadable sliver) plus a collapse button (the ☰ in the
-  title bar) / <kbd>Ctrl</kbd>+<kbd>B</kbd> that fully hides the sidebar and gives
-  the editor and results the full width, restoring to the last dragged width.
-- [x] **Abbreviated column types in the tree** — long types show compactly
-  (e.g. `timestamp with time zone` → `timestamptz`, `character varying(50)` →
-  `varchar(50)`, preserving modifiers and `[]` array markers), with the full type
-  name in a tooltip on a ~150 ms hover delay (only where it was actually
-  shortened).
-- [x] **Smarter tab titles** — query tabs are named from their SQL (first table
-  referenced) instead of "Query N", with a dirty-state dot when the SQL has
-  changed since the last run.
-- [x] **Running-query feedback** — an indeterminate progress bar in the
-  status bar and a live elapsed-time tick while a query or EXPLAIN runs, so a
-  slow statement that hasn't produced a batch yet still shows visible
-  progress instead of a frozen "Running...".
-- [x] **Empty states** — friendly hints in the blank results area ("No results
-  yet — run a query with Ctrl+Enter or F5") and in empty saved-queries/history
-  lists instead of bare cards.
 - [ ] **Mica/acrylic backdrop on Windows** — the two-tone shell is ready for
   it; deliberately deferred until it can be verified on a real Windows
   desktop (transparency fallbacks can't be seen headless).
@@ -435,49 +314,6 @@ bar (the Files community app remains the visual north star):
 - [ ] **Plugin/extension API** — a stable surface for community panels
   (initially: custom result visualizers).
 - [ ] **Localization** — externalize UI strings; ship Russian and German first.
-
-Recently shipped: CSV/JSON import (type inference, editable target columns,
-COPY-based load), a server-activity window (live pg_stat_activity, amber
-lock waits, cancel/terminate backends), functions, extensions, and roles in the schema tree
-(function DDL source, extension install/drop from the sidebar),
-query-history search with per-connection scoping and
-pinning, drag-and-drop from the schema tree into the editor
-(quoted-as-needed identifiers, caret tracks the pointer), a more compact
-schema-tree indent, tab-bar navigation extras (overflow-only ‹/› scroll arrows
-and an all-tabs dropdown with type-to-search), a connection-dialog
-empty-state hint, transaction control (Begin/Commit/Rollback toolbar state, an
-"in transaction" status-bar indicator, and auto-rollback on error), abbreviated column types in the schema tree
-(timestamptz/varchar…, full name on hover), a collapsible sidebar (Ctrl+B, 200px
-resize floor), a
-remembered-across-launches theme choice, one-keystroke SQL
-formatting (Ctrl+Shift+F, block-style
-pretty-print with a never-corrupt token round-trip check), FROM-scoped
-WHERE/ORDER BY column suggestions and
-schema-qualified table completion after FROM/JOIN, tab-strip overflow scrolling,
-capped results-grid column
-widths, a content-sized cell inspector, a window minimum size,
-clause-aware SQL IntelliSense (tables after FROM/JOIN,
-typed columns, aliases, CTEs, function-call insertion, auto-popup, no popups
-inside strings/comments), editor niceties (current-line highlight,
-matching-bracket highlight, Ctrl+wheel / Ctrl+± font zoom), "Set cell to
-NULL" on the results grid, DDL "Source" view (reconstructed CREATE TABLE/VIEW +
-constraints + indexes from pg_catalog, opened in a new tab), multiple result
-sets per script (one shared connection,
-per-statement result sections + timings, stop-on-error), on-demand database &
-schema refresh (tree + autocomplete +
-palette), grid CRUD (add-row dialog + delete selected rows), no-SQL
-table browsing (server-side WHERE filter, header-click ORDER BY, LIMIT/OFFSET
-paging), the Ctrl+K/Ctrl+P command palette (fuzzy-jump to
-any table, saved query, or action), SQL-derived tab titles with a dirty dot, results-grid copy
-(Ctrl+C / Copy as CSV·JSON·Markdown·INSERT),
-empty-state hints, the in-app light/dark theme toggle, the
-schema-tree filter
-box, paste-anything connection
-string parsing (URI / JDBC /
-ADO.NET / libpq / psql), the F1 shortcuts cheat sheet, theme-aware SQL
-syntax highlighting, the segmented status bar, keyboard tab navigation,
-EXPLAIN visualization, LISTEN/NOTIFY monitor, SSH tunnels, and the
-Files-style two-tone UI.
 
 ## License
 
