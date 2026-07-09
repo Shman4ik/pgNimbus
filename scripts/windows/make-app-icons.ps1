@@ -1,6 +1,7 @@
 # Regenerates the shipped app icons from the design sources:
 #   design/icon-tile.png  ->  PgNimbus.App/Assets/icon-256.png        (macOS .icns source)
 #                         ->  PgNimbus.App/Assets/app.ico             (exe + MSI icon)
+#                         ->  PgNimbus.App/Assets/Msix/*.png          (MSIX package tile assets)
 #   design/logo-light.png ->  PgNimbus.App/Assets/icon-256-light.png  (window icon, light theme)
 #   design/logo-dark.png  ->  PgNimbus.App/Assets/icon-256-dark.png   (window icon, dark theme)
 #
@@ -129,5 +130,19 @@ foreach ($img in $images) { $w.Write([byte[]]$img.Bytes) }
 $w.Flush()
 [System.IO.File]::WriteAllBytes((Join-Path $repo 'PgNimbus.App\Assets\app.ico'), $ms.ToArray())
 $w.Dispose(); $ms.Dispose()
-$src.Dispose()
 Write-Host ("wrote PgNimbus.App\Assets\app.ico ({0} sizes: {1})" -f $images.Count, ($sizes -join ', '))
+
+# --- MSIX package tile assets: the two sizes uap:VisualElements needs plus
+#     the Properties/Logo (StoreLogo) the manifest schema requires ---
+$msixDir = Join-Path $repo 'PgNimbus.App\Assets\Msix'
+New-Item -ItemType Directory -Force -Path $msixDir | Out-Null
+foreach ($pair in @(
+        @{ Size = 44;  Name = 'Square44x44Logo.png' },
+        @{ Size = 150; Name = 'Square150x150Logo.png' },
+        @{ Size = 50;  Name = 'StoreLogo.png' })) {
+    $tile = New-Tile $pair.Size
+    [System.IO.File]::WriteAllBytes((Join-Path $msixDir $pair.Name), (Get-PngBytes $tile))
+    $tile.Dispose()
+    Write-Host "wrote PgNimbus.App\Assets\Msix\$($pair.Name)"
+}
+$src.Dispose()

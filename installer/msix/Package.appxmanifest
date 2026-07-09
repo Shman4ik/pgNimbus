@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Template rendered by scripts/windows/build-msix.ps1, which stages this file
+  (with $VERSION$ substituted for a 4-part x.y.z.0 version) as AppxManifest.xml
+  next to the win-x64 publish output before `makeappx pack`.
+
+  Identity/Publisher come from the Package/Identity/Name and
+  Package/Identity/Publisher values Partner Center assigned when the app name
+  was reserved (Store submission > product identity page) — they must match
+  exactly, and Publisher must match the CN of whatever certificate signs the
+  package (self-signed for local/CI builds; Microsoft Store re-signs with its
+  own trusted certificate during certification, so the upload cert's trust
+  chain itself doesn't matter).
+-->
+<Package
+    xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+    xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+    xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+    IgnorableNamespaces="uap rescap">
+
+  <Identity
+      Name="DmitriiShmanev.pgNimbus"
+      Publisher="CN=04FDF7B0-6D86-4EB7-B798-21CD434897BC"
+      Version="$VERSION$" />
+
+  <Properties>
+    <DisplayName>pgNimbus</DisplayName>
+    <PublisherDisplayName>Dmitrii Shmanev</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="en-us" />
+  </Resources>
+
+  <Applications>
+    <Application Id="pgNimbus" Executable="PgNimbus.App.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+          DisplayName="pgNimbus"
+          Description="A fast, open-source PostgreSQL GUI client"
+          Square150x150Logo="Assets\Square150x150Logo.png"
+          Square44x44Logo="Assets\Square44x44Logo.png"
+          BackgroundColor="transparent" />
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+</Package>
