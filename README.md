@@ -42,9 +42,17 @@ from the ground up.
 | --- | --- |
 | ![Main window, light theme](docs/screenshots/main-light.png) | ![Main window, dark theme](docs/screenshots/main-dark.png) |
 
-| Connection manager | Keyboard shortcuts (F1) |
+| EXPLAIN ANALYZE visualization | Command palette (Ctrl+K) |
 | --- | --- |
-| ![Connection dialog with saved profiles and paste-anything import](docs/screenshots/connection-dialog.png) | ![Keyboard shortcuts cheat sheet](docs/screenshots/shortcuts.png) |
+| ![Graphical EXPLAIN ANALYZE plan tree with per-node cost and timing](docs/screenshots/explain-visualization.png) | ![Command palette fuzzy-jumping to a table](docs/screenshots/command-palette.png) |
+
+| Server activity (pg_stat_activity) | Connection manager |
+| --- | --- |
+| ![Server activity window showing a live backend and its wait event](docs/screenshots/server-activity.png) | ![Connection dialog with saved profiles and paste-anything import](docs/screenshots/connection-dialog.png) |
+
+Keyboard shortcuts cheat sheet (<kbd>F1</kbd>):
+
+<img src="docs/screenshots/shortcuts.png" alt="Keyboard shortcuts cheat sheet" width="360">
 
 ## Download
 
