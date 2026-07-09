@@ -31,7 +31,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <AvaloniaResource Include="Assets\**" />
+    <!-- Assets\Msix\** are packaging-time-only MSIX tile images (see
+         scripts/windows/make-app-icons.ps1), not app resources. -->
+    <AvaloniaResource Include="Assets\**" Exclude="Assets\Msix\**" />
   </ItemGroup>
 
   <ItemGroup>

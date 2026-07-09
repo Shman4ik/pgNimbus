@@ -88,6 +88,25 @@ jobs:
           name: windows-msi
           path: pgNimbus-${{ env.VERSION }}-win-x64.msi
 
+      - name: Build MSIX (for Microsoft Store submission)
+        # Self-signed for upload only — Store re-signs with its own trusted
+        # certificate during certification (see scripts/windows/build-msix.ps1).
+        # Not part of the public GitHub Release: a self-signed MSIX can't be
+        # installed without the user trusting the cert first, so this is a
+        # CI-only artifact — download it from the workflow run and upload to
+        # Partner Center. See CLAUDE.md "Microsoft Store (MSIX)".
+        shell: pwsh
+        run: >
+          scripts/windows/build-msix.ps1
+          -PublishDir publish/win-x64
+          -Version ${{ env.VERSION }}
+          -Output pgNimbus-${{ env.VERSION }}-win-x64.msix
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows-msix
+          path: pgNimbus-${{ env.VERSION }}-win-x64.msix
+
     outputs:
       msi_sha256: ${{ steps.sha.outputs.sha256 }}
 
