@@ -1,0 +1,4 @@
+# All PRs require review from the repo owner — see branch protection on
+# main (require_code_owner_reviews). Deliberate while the project is young:
+# every change gets a human pass from @Shman4ik before merge.
+* @Shman4ik
