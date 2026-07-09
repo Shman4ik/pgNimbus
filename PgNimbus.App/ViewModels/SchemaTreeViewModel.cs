@@ -83,28 +83,45 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
 
         if (query.Length == 0)
         {
-            foreach (var schema in Schemas)
+            foreach (var node in Schemas)
             {
-                schema.IsFilteredIn = true;
-                foreach (var table in schema.Children)
+                node.IsFilteredIn = true;
+                foreach (var child in node.Children)
                 {
-                    table.IsFilteredIn = true;
+                    child.IsFilteredIn = true;
                 }
             }
 
             return;
         }
 
-        foreach (var schema in Schemas)
+        foreach (var node in Schemas)
         {
+            // The root-level Extensions/Roles groups aren't schemas and their
+            // children aren't tables, so a schema/table-name filter has nothing
+            // to say about them - keep them in rather than hiding them outright.
+            if (node is not SchemaNode schema)
+            {
+                node.IsFilteredIn = true;
+                foreach (var child in node.Children)
+                {
+                    child.IsFilteredIn = true;
+                }
+
+                continue;
+            }
+
             var schemaMatches = Contains(schema.Name, query);
             var anyTableMatches = false;
 
-            foreach (var table in schema.Children)
+            foreach (var child in schema.Children)
             {
-                // Placeholder/error rows have no meaningful name to match; ride the schema's own visibility.
-                var tableMatches = table is TableNode && Contains(table.Name, query);
-                table.IsFilteredIn = schemaMatches || tableMatches;
+                // Only real tables are matched by name. Sub-groups (Functions)
+                // and placeholder/error rows aren't tables and have no name to
+                // match, so they ride the schema's own visibility instead of
+                // being filtered out.
+                var tableMatches = child is TableNode && Contains(child.Name, query);
+                child.IsFilteredIn = schemaMatches || tableMatches || child is not TableNode;
                 anyTableMatches |= tableMatches;
             }
 

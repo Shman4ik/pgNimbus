@@ -23,8 +23,17 @@ public sealed class QueryHistoryStore
             return [];
         }
 
-        var json = File.ReadAllText(_filePath);
-        return JsonSerializer.Deserialize(json, QueryHistoryJsonContext.Default.ListQueryHistoryEntry) ?? [];
+        // A corrupt/empty/half-written file must never block startup - fall back
+        // to an empty history rather than throwing out of the constructor path.
+        try
+        {
+            var json = File.ReadAllText(_filePath);
+            return JsonSerializer.Deserialize(json, QueryHistoryJsonContext.Default.ListQueryHistoryEntry) ?? [];
+        }
+        catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException)
+        {
+            return [];
+        }
     }
 
     public void Append(QueryHistoryEntry entry)

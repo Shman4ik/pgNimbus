@@ -397,6 +397,16 @@ public sealed partial class QueryViewModel : ObservableObject
             Status = "Cancelled";
             Executed?.Invoke(new QueryHistoryEntry(executedSql, DateTimeOffset.UtcNow, stopwatch.Elapsed.TotalMilliseconds, StatusSummary()));
         }
+        catch (Exception ex)
+        {
+            // A mid-stream failure the engine couldn't turn into a QueryError
+            // (e.g. a dropped connection surfacing while the batches enumerate on
+            // the background thread). Surface it in the status bar instead of
+            // letting it escape the command and crash the app.
+            Status = $"Error: {ex.Message}";
+            HasError = true;
+            Executed?.Invoke(new QueryHistoryEntry(executedSql, DateTimeOffset.UtcNow, stopwatch.Elapsed.TotalMilliseconds, StatusSummary()));
+        }
         finally
         {
             IsRunning = false;
@@ -552,19 +562,31 @@ public sealed partial class QueryViewModel : ObservableObject
 
     private async Task RunExplainAsync(bool analyze)
     {
+        // Own a CTS so the Cancel button (enabled by IsRunning) actually cancels
+        // the EXPLAIN, not just SELECTs.
+        _cts = new CancellationTokenSource();
+        var ct = _cts.Token;
+
         IsRunning = true;
         Status = analyze ? "Running EXPLAIN ANALYZE..." : "Running EXPLAIN...";
         HasError = false;
+        // Hide any plan already on screen until this run yields a fresh one, so a
+        // failed or cancelled re-run can't leave a stale plan beside the new error.
+        IsShowingPlan = false;
 
         try
         {
-            var result = await _explainService.ExplainAsync(Sql, analyze, CancellationToken.None);
+            var result = await _explainService.ExplainAsync(Sql, analyze, ct);
             ExplainRoot = new ExplainNodeViewModel(result.Root, result.Root.TotalCost);
             var planningFragment = result.PlanningTimeMs is { } planMs ? $"Planning: {planMs:F3} ms" : null;
             var executionFragment = result.ExecutionTimeMs is { } execMs ? $"Execution: {execMs:F3} ms" : null;
             ExplainSummary = string.Join("   ", new[] { planningFragment, executionFragment }.Where(f => f is not null));
             IsShowingPlan = true;
             Status = "Plan ready";
+        }
+        catch (OperationCanceledException)
+        {
+            Status = "Cancelled";
         }
         catch (PostgresException ex)
         {
@@ -579,6 +601,8 @@ public sealed partial class QueryViewModel : ObservableObject
         finally
         {
             IsRunning = false;
+            _cts?.Dispose();
+            _cts = null;
         }
     }
 
@@ -891,6 +915,30 @@ public sealed partial class QueryViewModel : ObservableObject
             return Guid.Parse(text);
         }
 
+        // Common Postgres types Npgsql maps to CLR types that don't implement
+        // IConvertible (timestamptz→DateTimeOffset, date→DateOnly, time→TimeOnly,
+        // interval→TimeSpan). Convert.ChangeType throws on these, so a raw string
+        // would fall through and hit a Postgres type-mismatch - parse explicitly.
+        if (underlying == typeof(DateTimeOffset))
+        {
+            return DateTimeOffset.Parse(text, CultureInfo.InvariantCulture);
+        }
+
+        if (underlying == typeof(DateOnly))
+        {
+            return DateOnly.Parse(text, CultureInfo.InvariantCulture);
+        }
+
+        if (underlying == typeof(TimeOnly))
+        {
+            return TimeOnly.Parse(text, CultureInfo.InvariantCulture);
+        }
+
+        if (underlying == typeof(TimeSpan))
+        {
+            return TimeSpan.Parse(text, CultureInfo.InvariantCulture);
+        }
+
         if (typeof(IConvertible).IsAssignableFrom(underlying))
         {
             return Convert.ChangeType(text, underlying, CultureInfo.InvariantCulture);
@@ -977,13 +1025,31 @@ public sealed partial class QueryViewModel : ObservableObject
     public Task RefreshCurrentAsync() =>
         Browse is { } browse ? browse.LoadAsync() : RunCommand.ExecuteAsync(null);
 
-    public void ExportCsv(Stream stream)
+    /// <summary>
+    /// Snapshots the current result (columns + rows) and returns a writer that
+    /// renders it as CSV. The snapshot is taken synchronously on the calling
+    /// (UI) thread, so the returned delegate is safe to run on a background
+    /// thread — a large export then writes without freezing the UI or racing a
+    /// concurrent grid mutation.
+    /// </summary>
+    public Action<Stream> CreateCsvExport()
     {
-        using var writer = new StreamWriter(stream, leaveOpen: true);
-        ResultExporter.WriteCsv(writer, ColumnNames, Rows);
+        var columns = ColumnNames.ToList();
+        var rows = Rows.ToList();
+        return stream =>
+        {
+            using var writer = new StreamWriter(stream, leaveOpen: true);
+            ResultExporter.WriteCsv(writer, columns, rows);
+        };
     }
 
-    public void ExportJson(Stream stream) => ResultExporter.WriteJson(stream, ColumnNames, Rows);
+    /// <summary>JSON counterpart of <see cref="CreateCsvExport"/> — snapshots on the UI thread, writes off it.</summary>
+    public Action<Stream> CreateJsonExport()
+    {
+        var columns = ColumnNames.ToList();
+        var rows = Rows.ToList();
+        return stream => ResultExporter.WriteJson(stream, columns, rows);
+    }
 
     /// <summary>The clipboard "Copy as" shapes the results grid offers.</summary>
     public enum CopyFormat

@@ -366,6 +366,14 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
     [RelayCommand]
     private async Task ConnectAsync()
     {
+        // Guard re-entry: a double-click on a profile (which fires ConnectCommand)
+        // could otherwise start a second connect and spin up a duplicate SSH
+        // tunnel while the first is still in flight.
+        if (IsConnecting)
+        {
+            return;
+        }
+
         if (!TryBuildProfile(out var profile, out var error))
         {
             ErrorMessage = error;
@@ -375,11 +383,12 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         ErrorMessage = null;
         IsConnecting = true;
 
+        SshTunnel? tunnel = null;
         try
         {
             if (profile.SshTunnel is { } sshOptions)
             {
-                var tunnel = await Task.Run(() => SshTunnel.Connect(sshOptions, SshPassword, profile.Host, profile.Port));
+                tunnel = await Task.Run(() => SshTunnel.Connect(sshOptions, SshPassword, profile.Host, profile.Port));
                 var connectionString = profile.BuildConnectionString(
                     string.IsNullOrEmpty(Password) ? null : Password,
                     (tunnel.LocalHost, tunnel.LocalPort));
@@ -393,7 +402,12 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            ErrorMessage = $"SSH tunnel failed: {ex.Message}";
+            // If the tunnel came up but the hand-off threw (or nothing was
+            // listening on Connected), it owns a live SSH session and port
+            // forward the main window's Closed handler will never dispose —
+            // release it here so it doesn't leak.
+            tunnel?.Dispose();
+            ErrorMessage = $"Connection failed: {ex.Message}";
         }
         finally
         {

@@ -938,7 +938,9 @@ public partial class MainWindow : Window
         SqlEditor.FontSize = Math.Clamp(SqlEditor.FontSize + delta, MinEditorFontSize, MaxEditorFontSize);
 
     private void UpdateBracketHighlight() =>
-        _bracketRenderer.Update(SqlEditor.Text, SqlEditor.CaretOffset);
+        // Pass the live document, not SqlEditor.Text — the latter allocates a
+        // full-document string on every caret move, this reads a few chars.
+        _bracketRenderer.Update(SqlEditor.Document, SqlEditor.CaretOffset);
 
     private void ShowCompletion(bool includeTypedChar)
     {
@@ -1067,7 +1069,16 @@ public partial class MainWindow : Window
             return;
         }
 
-        await clipboard.SetTextAsync(_viewModel.CellInspector.DisplayText);
+        try
+        {
+            await clipboard.SetTextAsync(_viewModel.CellInspector.DisplayText);
+        }
+        catch
+        {
+            // Clipboard access can throw if another app holds it locked. This is
+            // an async void handler, so an unhandled throw would crash the app —
+            // a failed copy is not worth that.
+        }
     }
 
     private void OnCellInspectorScrimPressed(object? sender, PointerPressedEventArgs e) =>
@@ -1083,7 +1094,12 @@ public partial class MainWindow : Window
         if (_queryViewModel?.Browse is { } browse && e.Column.Header is string columnName)
         {
             e.Handled = true;
-            _ = browse.SortByAsync(columnName);
+            // A header click re-queries page 1; ignore it while a run is already
+            // in flight so it can't start a second concurrent execution.
+            if (!_queryViewModel.IsRunning)
+            {
+                _ = browse.SortByAsync(columnName);
+            }
         }
     }
 
@@ -1293,7 +1309,8 @@ public partial class MainWindow : Window
         var query = _queryViewModel;
         if (query is not null)
         {
-            await ExportAsync("csv", "CSV", ["*.csv"], stream => query.ExportCsv(stream));
+            // Snapshot on the UI thread; ExportAsync runs the returned writer off it.
+            await ExportAsync("csv", "CSV", ["*.csv"], query.CreateCsvExport());
         }
     }
 
@@ -1302,7 +1319,7 @@ public partial class MainWindow : Window
         var query = _queryViewModel;
         if (query is not null)
         {
-            await ExportAsync("json", "JSON", ["*.json"], stream => query.ExportJson(stream));
+            await ExportAsync("json", "JSON", ["*.json"], query.CreateJsonExport());
         }
     }
 
@@ -1420,7 +1437,9 @@ public partial class MainWindow : Window
         }
 
         await using var stream = await file.OpenWriteAsync();
-        write(stream);
+        // The writer was snapshotted on the UI thread; do the (potentially large)
+        // formatting + file write off it so the interface stays responsive.
+        await Task.Run(() => write(stream));
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)

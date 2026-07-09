@@ -24,8 +24,17 @@ public sealed class ConnectionProfileStore
             return [];
         }
 
-        var json = File.ReadAllText(_filePath);
-        return JsonSerializer.Deserialize(json, ConnectionProfileJsonContext.Default.ListConnectionProfile) ?? [];
+        // A corrupt/empty/half-written file must never block the connection
+        // dialog - fall back to an empty list rather than throwing at startup.
+        try
+        {
+            var json = File.ReadAllText(_filePath);
+            return JsonSerializer.Deserialize(json, ConnectionProfileJsonContext.Default.ListConnectionProfile) ?? [];
+        }
+        catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException)
+        {
+            return [];
+        }
     }
 
     public void Save(IEnumerable<ConnectionProfile> profiles)
