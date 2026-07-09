@@ -31,7 +31,11 @@ public partial class App : Application
 
     /// <summary>Remembers an explicit light/dark choice so it survives a restart.</summary>
     internal static void PersistTheme(ThemeVariant variant) =>
-        SettingsStore.Save(new AppSettings { Theme = ThemeToString(variant) });
+        SettingsStore.Save(SettingsStore.Load() with { Theme = ThemeToString(variant) });
+
+    /// <summary>Remembers the sidebar's advanced-objects toggle so it survives a restart.</summary>
+    private static void PersistShowAdvancedSchemaObjects(bool value) =>
+        SettingsStore.Save(SettingsStore.Load() with { ShowAdvancedSchemaObjects = value });
 
     private static ThemeVariant ThemeFromString(string? theme) => theme?.ToLowerInvariant() switch
     {
@@ -112,7 +116,10 @@ public partial class App : Application
         var ddlService = new DdlService(dataSource);
         var activityService = new ActivityService(dataSource);
         var importService = new ImportService(dataSource);
-        var schemaTree = new SchemaTreeViewModel(schemaService);
+        var schemaTree = new SchemaTreeViewModel(
+            schemaService,
+            SettingsStore.Load().ShowAdvancedSchemaObjects,
+            PersistShowAdvancedSchemaObjects);
         var completionProvider = new SqlCompletionProvider(schemaService);
         var notifyMonitor = new NotifyMonitorViewModel(new NotificationListener(dataSource));
 

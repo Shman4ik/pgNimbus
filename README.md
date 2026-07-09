@@ -305,7 +305,9 @@ Things a person needs before pgNimbus can be their only Postgres client:
   `pg_get_functiondef`), and the tree root gains "Extensions" (installed ones
   green-dotted first, the rest of `pg_available_extensions` dimmed, with
   Install / Drop context actions) and "Roles" (non-system roles with
-  superuser/login/createdb/createrole tags).
+  superuser/login/createdb/createrole tags). Functions and Extensions sit
+  behind an "advanced objects" sidebar toggle (persisted) so the default
+  tree stays just schemas/tables and Roles.
 - [x] **Query history search** — a search box over the history list
   (case-insensitive, matches the SQL text), a "this connection only" scope
   toggle (entries record which connection ran them), and pinning: pinned
