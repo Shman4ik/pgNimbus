@@ -221,6 +221,17 @@ means for pgNimbus. Adopting its language where Avalonia allows.
 | --- | --- | --- |
 | Advanced-objects sidebar toggle | Decluttered the default schema tree: a tune-icon chip ToggleButton next to the filter box gates the Iteration-28 catalog surfaces — off (the default) the tree shows schemas/tables and Roles only; on, each schema regains its Functions group and the root regains Extensions. Flipping the toggle mutates the loaded tree in place (Extensions inserts just before Roles; loaded schemas add/drop their Functions sub-group; unloaded schemas consult the flag on first expand via a `Func<bool>` passed to `SchemaNode`) and re-runs the sidebar filter so a live query vets the new nodes. The choice persists as `ShowAdvancedSchemaObjects` in `settings.json`; `PersistTheme` was fixed to load-modify-save so the two settings stop clobbering each other. Perf note: this is purely a declutter switch — the advanced groups were already lazy (zero catalog queries until expanded), so startup cost was unchanged either way. | (this commit) |
 
+## Iteration 32 — SQL completion: predicting the next move
+
+Working branch for this iteration: `loop/completion-magic`, working through the
+README "SQL editor — completion that predicts the next move" backlog
+(findings from a 2026-07-09 live-testing session, PR #79), one item per
+iteration.
+
+| Item | Outcome | Commit |
+| --- | --- | --- |
+| First-keystroke preselection bug | AvaloniaEdit's `CompletionWindow` only (re)filters its list from `TextArea.Caret.PositionChanged` (`CompletionWindow.CaretPositionChanged` → `CompletionList.SelectItem`), which fires *before* the popup exists — the keystroke that opens it already moved the caret. Result: the first character showed the full unfiltered catalog with nothing selected, so `f` → Enter inserted nothing. `MainWindow.ShowCompletion` now replays that filter once itself — after `StartOffset`/`EndOffset` and the candidate data are set but before `Show()`, it calls `CompletionList.SelectItem(typedChar)` directly (confirmed safe: `SelectItem` lazily calls `ApplyTemplate()` if the list box isn't realized yet). Pure UI wiring in `PgNimbus.App/Views/MainWindow.axaml.cs` — no new parsing/ranking logic, so no new `PgNimbus.Core.Tests` cases; full suite (32 tests) still green. Verified live (Debug build, `PGNIMBUS_CONN` against the `pgnimbus-test` Docker Postgres, computer-use with real per-char keystrokes) in both themes: typing `f` now filters to `IF`/`first_value`/`nullif`/`format`/`floor`/`justify_interval`/`pg_typeof` with `first_value` preselected and Enter inserts `first_value()` (AvalonEdit's own case-sensitive-match quality genuinely prefers the lowercase function name over uppercase `FROM` at one typed character — the case-*insensitive* ranking that would surface `FROM` first is exactly the follow-up "fuzzy matching + smarter ranking" backlog item, not this one). Regression-checked neighboring scenarios: `select * from ` still auto-opens the schema/table list; `o.` + `s` still filters/preselects `orders`' own columns (`status` wins) and inserts correctly; `coale` → Enter still inserts `coalesce()`; a typed character inside an open `'…` string still shows no popup. | `(this commit)` |
+
 ## Open / candidate items
 - [x] Mica/acrylic backdrop on Windows — `MainWindow` sets
       `TransparencyLevelHint="Mica,AcrylicBlur"` + transparent window
