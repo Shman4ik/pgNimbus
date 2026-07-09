@@ -4,7 +4,6 @@
         x:Class="PgNimbus.App.Views.ActivityWindow"
         x:DataType="vm:ActivityViewModel"
         Title="pgNimbus — Server Activity"
-        Icon="avares://PgNimbus.App/Assets/icon-256.png"
         Width="980" Height="560"
         MinWidth="720" MinHeight="320"
         WindowStartupLocation="CenterOwner"

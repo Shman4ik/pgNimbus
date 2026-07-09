@@ -10,6 +10,7 @@ public partial class ImportDialog : Window
     public ImportDialog()
     {
         InitializeComponent();
+        ThemedWindowChrome.Attach(this);
 
         DataContextChanged += (_, _) =>
         {

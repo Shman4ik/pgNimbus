@@ -9,6 +9,7 @@ public partial class AlterTableDialog : Window
     public AlterTableDialog()
     {
         InitializeComponent();
+        ThemedWindowChrome.Attach(this);
 
         Opened += async (_, _) =>
         {

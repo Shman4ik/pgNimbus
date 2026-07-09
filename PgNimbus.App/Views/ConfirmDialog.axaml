@@ -2,7 +2,6 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="PgNimbus.App.Views.ConfirmDialog"
         Title="pgNimbus"
-        Icon="avares://PgNimbus.App/Assets/icon-256.png"
         Width="380" SizeToContent="Height"
         CanResize="False"
         WindowStartupLocation="CenterOwner"

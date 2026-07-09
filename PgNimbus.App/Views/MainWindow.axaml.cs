@@ -58,6 +58,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        ThemedWindowChrome.Attach(this);
 
         // Must exist before LoadSqlHighlighting - the theme pass that call
         // triggers also resolves this renderer's brush.
@@ -80,6 +81,10 @@ public partial class MainWindow : Window
             // ShellBackdropBrush is theme-split, so re-resolve on a theme flip.
             ApplyBackdrop();
         };
+        // The backdrop material only renders while the window is active - swap
+        // the shell base between translucent and opaque on focus changes.
+        Activated += (_, _) => ApplyBackdrop();
+        Deactivated += (_, _) => ApplyBackdrop();
 
         SqlEditor.TextChanged += (_, _) =>
         {
@@ -606,11 +611,15 @@ public partial class MainWindow : Window
     // becomes ShellBackdropBrush so the backdrop shows through it; the content
     // pane stays opaque. Anywhere the hint can't be honored (Linux, macOS, older
     // Windows, transparency disabled), ActualTransparencyLevel is None and the
-    // base keeps its opaque chrome tone.
+    // base keeps its opaque chrome tone. The IsActive check matters on Windows:
+    // DWM drops the backdrop material while the window is inactive, leaving the
+    // mostly-transparent tint sitting on black - so an unfocused window must
+    // fall back to the opaque tone too (same fallback WinUI apps apply).
     private void ApplyBackdrop()
     {
-        var backdropActive = ActualTransparencyLevel == WindowTransparencyLevel.Mica
-            || ActualTransparencyLevel == WindowTransparencyLevel.AcrylicBlur;
+        var backdropActive = (ActualTransparencyLevel == WindowTransparencyLevel.Mica
+            || ActualTransparencyLevel == WindowTransparencyLevel.AcrylicBlur)
+            && IsActive;
 
         var key = backdropActive
             ? "ShellBackdropBrush"

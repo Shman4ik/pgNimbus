@@ -17,6 +17,7 @@ public partial class ActivityWindow : Window
     public ActivityWindow()
     {
         InitializeComponent();
+        ThemedWindowChrome.Attach(this);
 
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
         _timer.Tick += (_, _) =>

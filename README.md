@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="design/logo-dark.png">
+    <img src="design/logo-light.png" alt="pgNimbus logo — an elephant riding a broom" width="180">
+  </picture>
+</p>
+
 # pgNimbus
 
 A fast, native-feeling, open-source **PostgreSQL** GUI client, built with **.NET
