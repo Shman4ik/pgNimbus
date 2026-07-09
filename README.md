@@ -29,7 +29,7 @@ from the ground up.
 
 1. **Native performance** — launch-to-window in the ~100 ms range as a
    NativeAOT binary. Not a one-off claim: startup, memory, and query-engine
-   numbers are measured on every commit — see [Benchmarks](#benchmarks).
+   numbers are measured on every release — see [Benchmarks](#benchmarks).
 2. **PostgreSQL-first** — deep `pg_catalog` introspection (materialized views,
    real types, primary-key flags, and EXPLAIN visualization); never the
    lowest-common-denominator SQL dialect.
@@ -57,18 +57,40 @@ Keyboard shortcuts cheat sheet (<kbd>F1</kbd>):
 
 ## Download
 
-Grab the latest build from [Releases](https://github.com/Shman4ik/pgNimbus/releases):
+### Windows
 
-- **Windows** — `pgNimbus-<version>-win-x64.msi`, a per-user installer (no
-  admin rights needed). It's unsigned for now, so Windows SmartScreen will
-  warn on first run — click "More info" → "Run anyway".
-- **macOS** — `pgNimbus-<version>-macos-arm64.dmg` (Apple Silicon only;
-  GitHub retired hosted Intel macOS runners in December 2025, and Apple
-  hasn't sold an Intel Mac since 2023). Unsigned/unnotarized: right-click
-  the app → "Open" the first time to bypass Gatekeeper.
-- **winget** — a manifest is generated per release but not yet submitted to
-  the community `winget-pkgs` repo; `winget install` support is coming once
-  that's done.
+The **Microsoft Store is the preferred way to install** on Windows: the Store
+signs the package with its own trusted certificate (no SmartScreen warnings)
+and keeps it updated automatically.
+
+- **Microsoft Store** — [pgNimbus on the Microsoft Store](https://apps.microsoft.com/detail/9N6SZT42XJ24).
+  *The app has been submitted and is currently in Store certification — the
+  listing goes live as soon as that completes.*
+- **winget** — Store apps are installable through winget's built-in
+  `msstore` source, so once the listing is live:
+
+  ```text
+  winget install --id 9N6SZT42XJ24 --source msstore
+  ```
+
+- **Direct download** — `pgNimbus-<version>-win-x64.msi` from
+  [Releases](https://github.com/Shman4ik/pgNimbus/releases), a per-user
+  installer (no admin rights needed). The direct MSI is unsigned, so Windows
+  SmartScreen will warn on first run — click "More info" → "Run anyway".
+  Prefer the Store/winget path above if you can.
+
+### macOS (very early beta)
+
+The macOS build is a **very early beta**: it's produced by the same CI
+pipeline but has seen far less real-world testing than Windows, and full
+macOS support (signing, notarization, broader testing) is planned for
+later. If you want to try it anyway:
+
+- `pgNimbus-<version>-macos-arm64.dmg` from
+  [Releases](https://github.com/Shman4ik/pgNimbus/releases) (Apple Silicon
+  only; GitHub retired hosted Intel macOS runners in December 2025, and
+  Apple hasn't sold an Intel Mac since 2023). Unsigned/unnotarized:
+  right-click the app → "Open" the first time to bypass Gatekeeper.
 
 Every tag push (`vX.Y.Z`) builds all of the above via
 [`.github/workflows/release.yml`](.github/workflows/release.yml) — see
@@ -246,8 +268,9 @@ require).
 ## Benchmarks
 
 "Fast" is the thesis, so it's measured, not asserted. The
-[Benchmarks workflow](.github/workflows/benchmark.yml) runs on every PR and
-push to `main`:
+[Benchmarks workflow](.github/workflows/benchmark.yml) runs as part of the
+release pipeline (so every tagged build is measured) and on demand via
+`workflow_dispatch`:
 
 | Metric | What it proves |
 | --- | --- |
@@ -258,9 +281,9 @@ push to `main`:
 | Full 100 000-row stream (rows/s) | Sustained throughput of the `IAsyncEnumerable<RowBatch>` engine path |
 
 Each run writes the numbers to the workflow's job summary and a
-`bench-results` artifact; pushes to `main` also append to the historical
+`bench-results` artifact; tagged releases also append to the historical
 charts at <https://shman4ik.github.io/pgNimbus/dev/bench/>, so a regression
-shows up as a visible step in the graph of the commit that caused it.
+shows up as a visible step in the graph of the release that introduced it.
 (Shared CI runners are noisy — read trends and big jumps, not single-percent
 wiggles.)
 
@@ -286,14 +309,22 @@ individually shippable pieces. Shipped items graduate from this list into
 
 ### Now — release blockers
 
-- [ ] **Code signing** — Authenticode for the MSI, Developer ID +
-  notarization for the `.dmg`. Both ship unsigned today, so SmartScreen and
-  Gatekeeper warn on first run — the single biggest first-impression blocker
-  for a production release. The pipeline already has the slot for it; needs
-  a cert and an Apple developer account.
-- [ ] **winget submission** — manifests are generated and validated per
+- [ ] **Microsoft Store certification** — the MSIX has been submitted to
+  the Store and is in certification. Once live, the Store listing becomes
+  the trusted, SmartScreen-clean install path on Windows (the Store re-signs
+  the package with its own certificate), and `winget install` works through
+  the built-in `msstore` source. Buying an Authenticode cert for the direct
+  MSI is deliberately *not* planned — the Store covers the trust story for
+  $0; the direct MSI stays as an unsigned convenience download.
+- [ ] **winget-pkgs submission** — manifests are generated and validated per
   release, but the first manual `winget-pkgs` PR (which registers the
-  `pgNimbus.pgNimbus` identifier) hasn't been made yet.
+  `pgNimbus.pgNimbus` identifier for the classic community source) hasn't
+  been made yet. Lower priority now that the `msstore` source will cover
+  `winget install`.
+- [ ] **Full macOS support** — the current `.dmg` is a very early beta:
+  arm64-only, unsigned/unnotarized, lightly tested. Proper support (Apple
+  Developer ID signing + notarization, real-world testing) is planned for
+  later and needs an Apple developer account.
 
 ### Polish
 
