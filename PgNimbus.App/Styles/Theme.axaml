@@ -76,6 +76,37 @@
         <SolidColorBrush x:Key="TabItemHeaderSelectedPipeFill" Color="Transparent" />
 
         <!--
+            Modern slim scrollbars, app-wide. FluentTheme's ScrollBar is 16px
+            with a near-opaque track band and end arrow buttons, drawn OVER the
+            content it scrolls. The template sizes and paints every part via
+            DynamicResource lookups, so overriding the resources here (this
+            include loads after FluentTheme) restyles all scrollbars without
+            replacing the ControlTheme: 10px thumb-only overlay, no track, no
+            arrows (hidden by the ScrollBar styles after this dictionary).
+            Fixed-alpha neutral grey like the card tokens above, so the thumb
+            reads the same in light and dark.
+        -->
+        <x:Double x:Key="ScrollBarSize">10</x:Double>
+        <SolidColorBrush x:Key="ScrollBarTrackFill" Color="Transparent" />
+        <SolidColorBrush x:Key="ScrollBarTrackFillPointerOver" Color="Transparent" />
+        <!-- Expanded thumb (a Color by contract: Fluent's template assigns it
+             to Thumb.Background directly), hover/pressed darken from there -->
+        <Color x:Key="ScrollBarThumbBackgroundColor">#66808080</Color>
+        <SolidColorBrush x:Key="ScrollBarThumbFillPointerOver" Color="#99808080" />
+        <SolidColorBrush x:Key="ScrollBarThumbFillPressed" Color="#B3808080" />
+        <!-- Collapsed (idle) thumb -->
+        <SolidColorBrush x:Key="ScrollBarPanningThumbBackground" Color="#66808080" />
+        <!-- Corner square where two visible bars would meet -->
+        <SolidColorBrush x:Key="ScrollViewerScrollBarsSeparatorBackground" Color="Transparent" />
+        <!--
+            Idle thumb = the expanded thumb scaled down. Fluent's 0.125 factor
+            gives a 2px line at 16px; at 10px it would vanish (1.25px), so
+            scale 0.3 → a 3px line, kept 2px off the content edge.
+        -->
+        <TransformOperations x:Key="VerticalSmallScrollThumbScaleTransform">scaleX(0.3) translateX(-2px)</TransformOperations>
+        <TransformOperations x:Key="HorizontalSmallScrollThumbScaleTransform">scaleY(0.3) translateY(-2px)</TransformOperations>
+
+        <!--
             Vector icons (Material Design Icons, Apache-2.0, pictogrammers.com).
             Emoji glyphs render as tofu boxes on Linux without a color emoji
             font; PathIcon fills with the inherited Foreground, so these also
@@ -150,6 +181,24 @@
         </ControlTheme>
         </ResourceDictionary>
     </Styles.Resources>
+
+    <!--
+        Scrollbar part tweaks that can't be done via resources. Both properties
+        are NOT set by the Fluent template (only Theme/size/transform are), so
+        plain styles reach them — unlike template-set values, which outrank
+        app styles (see the TabItem note above).
+    -->
+    <!-- Pill thumb: half of ScrollBarSize -->
+    <Style Selector="ScrollBar /template/ Thumb">
+        <Setter Property="CornerRadius" Value="5" />
+    </Style>
+    <!-- Drop the end arrow buttons; the track then spans the full length -->
+    <Style Selector="ScrollBar /template/ RepeatButton#PART_LineUpButton">
+        <Setter Property="IsVisible" Value="False" />
+    </Style>
+    <Style Selector="ScrollBar /template/ RepeatButton#PART_LineDownButton">
+        <Setter Property="IsVisible" Value="False" />
+    </Style>
 
     <!-- Card container: Border Classes="card" wraps a grouped panel -->
     <Style Selector="Border.card">
