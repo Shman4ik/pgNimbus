@@ -1,5 +1,7 @@
 <Styles xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:cc="clr-namespace:AvaloniaEdit.CodeCompletion;assembly=AvaloniaEdit"
+        xmlns:completion="using:PgNimbus.App.Completion">
 
     <!--
         PowerToys-inspired design tokens: soft rounded cards, pill-shaped nav
@@ -115,6 +117,37 @@
         <StreamGeometry x:Key="SidebarToggleIconGeometry">M5,3C3.9,3 3,3.9 3,5V19C3,20.11 3.9,21 5,21H19C20.11,21 21,20.11 21,19V5C21,3.9 20.11,3 19,3H5M10,5H19V19H10V5Z</StreamGeometry>
         <StreamGeometry x:Key="WeatherSunnyIconGeometry">M12,7A5,5 0 0,1 17,12A5,5 0 0,1 12,17A5,5 0 0,1 7,12A5,5 0 0,1 12,7M12,9A3,3 0 0,0 9,12A3,3 0 0,0 12,15A3,3 0 0,0 15,12A3,3 0 0,0 12,9M12,2L14.39,5.42C13.65,5.15 12.84,5 12,5C11.16,5 10.35,5.15 9.61,5.42L12,2M3.34,7L7.5,6.65C6.9,7.16 6.36,7.78 5.94,8.5C5.5,9.24 5.25,10 5.11,10.79L3.34,7M3.36,17L5.12,13.23C5.26,14 5.53,14.78 5.95,15.5C6.37,16.24 6.91,16.86 7.5,17.37L3.36,17M20.65,7L18.88,10.79C18.74,10 18.47,9.23 18.05,8.5C17.63,7.78 17.1,7.15 16.5,6.64L20.65,7M20.64,17L16.5,17.36C17.09,16.85 17.62,16.22 18.04,15.5C18.46,14.77 18.73,14 18.87,13.21L20.64,17M12,22L9.59,18.56C10.33,18.83 11.14,19 12,19C12.82,19 13.63,18.85 14.37,18.58L12,22Z</StreamGeometry>
         <StreamGeometry x:Key="WeatherNightIconGeometry">M17.75,4.09L15.22,6.03L16.13,9.09L13.5,7.28L10.87,9.09L11.78,6.03L9.25,4.09L12.44,4L13.5,1L14.56,4L17.75,4.09M21.25,11L19.61,12.25L20.2,14.23L18.5,13.06L16.8,14.23L17.39,12.25L15.75,11L17.81,10.95L18.5,9L19.19,10.95L21.25,11M18.97,15.95C19.8,15.87 20.69,17.05 20.16,17.8C19.84,18.25 19.5,18.67 19.08,19.07C15.17,23 8.84,23 4.94,19.07C1.03,15.17 1.03,8.83 4.94,4.93C5.34,4.53 5.76,4.17 6.21,3.85C6.96,3.32 8.14,4.21 8.06,5.04C7.79,7.9 8.75,10.87 10.95,13.06C13.14,15.26 16.1,16.22 18.97,15.95Z</StreamGeometry>
+        <!-- Completion popup kind glyphs: tag / table-column / layers-triple / link-variant (MDI).
+             The other kinds reuse the shared icons above (table, database, function, swap);
+             CompletionKindVisuals maps kind → resource key + fixed color. -->
+        <StreamGeometry x:Key="TagIconGeometry">M5.5,7A1.5,1.5 0 0,1 4,5.5A1.5,1.5 0 0,1 5.5,4A1.5,1.5 0 0,1 7,5.5A1.5,1.5 0 0,1 5.5,7M21.41,11.58L12.41,2.58C12.05,2.22 11.55,2 11,2H4C2.89,2 2,2.89 2,4V11C2,11.55 2.22,12.05 2.59,12.41L11.58,21.41C11.95,21.77 12.45,22 13,22C13.55,22 14.05,21.77 14.41,21.41L21.41,14.41C21.78,14.05 22,13.55 22,13C22,12.44 21.77,11.94 21.41,11.58Z</StreamGeometry>
+        <StreamGeometry x:Key="TableColumnIconGeometry">M10,10.02H15V21H10V10.02M17,21H20C21.1,21 22,20.1 22,19V10H17V21M20,3H5C3.9,3 3,3.9 3,5V8H22V5C22,3.9 21.1,3 20,3M3,19C3,20.1 3.9,21 5,21H8V10H3V19Z</StreamGeometry>
+        <StreamGeometry x:Key="LayersIconGeometry">M12,16L19.36,10.27L21,9L12,2L3,9L4.63,10.27M12,18.54L4.62,12.81L3,14.07L12,21.07L21,14.07L19.37,12.8L12,18.54Z</StreamGeometry>
+        <StreamGeometry x:Key="LinkIconGeometry">M10.59,13.41C11,13.8 11,14.44 10.59,14.83C10.2,15.22 9.56,15.22 9.17,14.83C7.22,12.88 7.22,9.71 9.17,7.76V7.76L12.71,4.22C14.66,2.27 17.83,2.27 19.78,4.22C21.73,6.17 21.73,9.34 19.78,11.29L18.29,12.78C18.3,11.96 18.17,11.14 17.89,10.36L18.36,9.88C19.54,8.71 19.54,6.81 18.36,5.64C17.19,4.46 15.29,4.46 14.12,5.64L10.59,9.17C9.41,10.34 9.41,12.24 10.59,13.41M13.41,9.17C13.8,8.78 14.44,8.78 14.83,9.17C16.78,11.12 16.78,14.29 14.83,16.24V16.24L11.29,19.78C9.34,21.73 6.17,21.73 4.22,19.78C2.27,17.83 2.27,14.66 4.22,12.71L5.71,11.22C5.7,12.04 5.83,12.86 6.11,13.65L5.64,14.12C4.46,15.29 4.46,17.19 5.64,18.36C6.81,19.54 8.71,19.54 9.88,18.36L13.41,14.83C14.59,13.66 14.59,11.76 13.41,10.59C13,10.2 13,9.56 13.41,9.17Z</StreamGeometry>
+
+        <!--
+            SQL completion popup card. Replaces AvaloniaEdit's CompletionList
+            theme (bare ListBox) with a Files-style raised layer — page
+            background, hairline border, rounded corners, soft shadow. The
+            margin gives the popup's transparent surface room to draw the
+            shadow. Row visuals live in the cc|CompletionListBox styles at the
+            bottom of this file; this include loads after AvaloniaEdit's, so
+            this theme wins the implicit-resource lookup.
+        -->
+        <ControlTheme x:Key="{x:Type cc:CompletionList}" TargetType="cc:CompletionList">
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Margin="4,2,10,14"
+                            Background="{DynamicResource SystemControlPageBackgroundAltHighBrush}"
+                            BorderBrush="{StaticResource CardBorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="{StaticResource CardCornerRadius}"
+                            BoxShadow="0 4 16 0 #38000000">
+                        <cc:CompletionListBox Name="PART_ListBox" />
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </ControlTheme>
         </ResourceDictionary>
     </Styles.Resources>
 
@@ -290,6 +323,51 @@
         <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource SystemControlForegroundBaseLowBrush}" />
         <Setter Property="RowBackground" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <!--
+        SQL completion popup rows (the card shell is the CompletionList
+        ControlTheme in Styles.Resources above). The list itself goes
+        transparent — the card Border paints the surface — and each row is
+        kind-glyph + name + right-aligned detail (a column's data type, a
+        table's schema, an alias's target). Items are always SqlCompletionData;
+        the glyph/color pair comes from CompletionKindVisuals.
+    -->
+    <Style Selector="cc|CompletionListBox">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="4" />
+        <Setter Property="ItemTemplate">
+            <DataTemplate x:DataType="completion:SqlCompletionData">
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <Path Grid.Column="0" Width="13" Height="13" Margin="1,0,9,0"
+                          VerticalAlignment="Center" Stretch="Uniform"
+                          Data="{Binding KindGlyph}" Fill="{Binding KindBrush}" />
+                    <TextBlock Grid.Column="1" Text="{Binding Text}"
+                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Grid.Column="2" Text="{Binding Detail}"
+                               VerticalAlignment="Center" Margin="18,0,2,0"
+                               FontSize="11" Opacity="0.55"
+                               IsVisible="{Binding Detail, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                </Grid>
+            </DataTemplate>
+        </Setter>
+    </Style>
+    <!-- Denser rows than the app-wide ListBoxItem padding; pill selection is inherited -->
+    <Style Selector="cc|CompletionListBox ListBoxItem">
+        <Setter Property="Padding" Value="8,4" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    </Style>
+
+    <!-- The description tip beside the popup, restyled to the same card language -->
+    <Style Selector="cc|CompletionTipContentControl">
+        <Setter Property="Background" Value="{DynamicResource SystemControlPageBackgroundAltHighBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource ControlCornerRadius}" />
+        <Setter Property="Padding" Value="10,5" />
+        <Setter Property="FontSize" Value="12" />
     </Style>
 
 </Styles>
