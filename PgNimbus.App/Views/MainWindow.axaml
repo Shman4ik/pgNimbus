@@ -589,6 +589,15 @@
                             <TextBlock Text="Import" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
+
+                    <!-- Group 5 — editor behavior: auto-alias on table completion
+                         ("FROM public.orders" completes to "… orders o") -->
+                    <Rectangle Classes="statusSeparator" Margin="7,0" />
+                    <ToggleButton Classes="chip" VerticalAlignment="Center"
+                                  IsChecked="{Binding AutoAliasTables}"
+                                  ToolTip.Tip="Auto-alias tables accepted from completion after FROM/JOIN (orders → orders o)">
+                        <TextBlock Text="AS" FontSize="11" FontWeight="SemiBold" />
+                    </ToggleButton>
                 </StackPanel>
             </Border>
 
