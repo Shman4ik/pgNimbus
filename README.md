@@ -351,7 +351,7 @@ impact order:
   complete join condition (`oi.order_id = o.id`) as the top, one-keystroke
   item. Needs FK edges (`pg_constraint contype = 'f'`) in the completion
   catalog — the same data the ER-diagram backlog item wants.
-- [ ] **Fuzzy matching + smarter ranking** — filtering is strict-prefix:
+- [x] **Fuzzy matching + smarter ranking** — filtering is strict-prefix:
   `dr` offers only `DROP` and never finds `daily_revenue`; `ord` preselects
   `order_items` when `orders` is at least as likely. Reuse the command
   palette's `FuzzyMatcher` (subsequence + word-boundary + adjacency bonuses)

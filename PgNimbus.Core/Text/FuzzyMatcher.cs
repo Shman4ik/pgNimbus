@@ -1,7 +1,8 @@
-namespace PgNimbus.App;
+namespace PgNimbus.Core.Text;
 
 /// <summary>
-/// Lightweight subsequence fuzzy matcher for the command palette. Returns a
+/// Lightweight subsequence fuzzy matcher shared by the command palette and the
+/// SQL completion popup (via <see cref="CompletionRanker"/>). Returns a
 /// score (higher is better) when every character of the query appears in order
 /// in the target, or <c>null</c> when it doesn't match at all. Rewards a prefix
 /// hit, word-boundary hits, and consecutive runs so that, e.g., typing

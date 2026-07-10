@@ -18,9 +18,11 @@ using Avalonia.VisualTree;
 using AvaloniaEdit.CodeCompletion;
 using AvaloniaEdit.Highlighting;
 using AvaloniaEdit.Highlighting.Xshd;
+using PgNimbus.App.Completion;
 using PgNimbus.App.ViewModels;
 using PgNimbus.Core.Import;
 using PgNimbus.Core.Query;
+using PgNimbus.Core.Text;
 
 namespace PgNimbus.App.Views;
 
@@ -33,6 +35,8 @@ public partial class MainWindow : Window
     private int _pendingEditColumnIndex;
     private string? _pendingEditText;
     private CompletionWindow? _completionWindow;
+    // "Accepted a moment ago" tie-breaker for the completion ranking; session-scoped.
+    private readonly CompletionRecency _completionRecency = new();
     // Set while an accepted filter-completion writes back into the box, so the
     // resulting TextChanged doesn't immediately re-open the popup on the word we
     // just inserted.
@@ -953,32 +957,92 @@ public partial class MainWindow : Window
         }
 
         var completionWindow = new CompletionWindow(SqlEditor.TextArea);
+        // The stock filter is prefix/substring-only and can't be swapped out
+        // (SelectItem isn't virtual, the list isn't replaceable), so it's turned
+        // off and ApplyFuzzyFilter below owns filtering + ranking instead. What
+        // remains of the stock path (SelectItemWithStart on every caret move) only
+        // touches the selection, and the re-rank that runs right after overrides it.
+        completionWindow.CompletionList.IsFiltering = false;
         if (includeTypedChar)
         {
             completionWindow.StartOffset -= 1;
         }
 
-        foreach (var item in data)
+        if (!ApplyFuzzyFilter(completionWindow, data))
         {
-            completionWindow.CompletionList.CompletionData.Add(item);
+            return; // nothing matches the already-typed character — never show
         }
 
-        // AvaloniaEdit only (re)filters CompletionList from TextArea.Caret.PositionChanged,
-        // which fired *before* this window existed (the triggering keystroke already moved
-        // the caret). Without this, the popup shows the unfiltered list with nothing
-        // selected — Enter would insert nothing. Replay that filter once, now that
-        // StartOffset/EndOffset and the data are in place; an empty typed segment (the
-        // auto-open-on-space cases) still selects the best-priority item, e.g. the FK
-        // join condition after "ON ". Clamp defensively: StartOffset -= 1 above (or
-        // AvaloniaEdit's own offset bookkeeping) must never be allowed to slice out of
-        // document bounds and crash the app.
-        var start = Math.Max(0, completionWindow.StartOffset);
-        var end = Math.Clamp(completionWindow.EndOffset, start, SqlEditor.Text.Length);
-        completionWindow.CompletionList.SelectItem(SqlEditor.Text[start..end]);
+        // Stock AvaloniaEdit only moves the *selection* as the user keeps typing;
+        // re-filtering the visible items is on us, from the same caret event it uses.
+        // Registered after the window's own handler, so this runs second and wins.
+        EventHandler caretMoved = (_, _) =>
+        {
+            if (_completionWindow != completionWindow)
+            {
+                return; // already closed by the stock handler in this same event
+            }
 
+            if (!ApplyFuzzyFilter(completionWindow, data))
+            {
+                completionWindow.Hide(); // fuzzy-matches nothing — done, not "show all"
+            }
+        };
+        SqlEditor.TextArea.Caret.PositionChanged += caretMoved;
+
+        // Feed the "picked it recently" ranking tie-breaker on every accept.
+        completionWindow.CompletionList.InsertionRequested += (_, _) =>
+        {
+            if (completionWindow.CompletionList.SelectedItem is SqlCompletionData accepted)
+            {
+                _completionRecency.Record(accepted.Text);
+            }
+        };
+
+        completionWindow.Closed += (_, _) =>
+        {
+            SqlEditor.TextArea.Caret.PositionChanged -= caretMoved;
+            _completionWindow = null;
+        };
         completionWindow.Show();
-        completionWindow.Closed += (_, _) => _completionWindow = null;
         _completionWindow = completionWindow;
+    }
+
+    // Re-ranks the candidate set against the segment typed since the popup opened
+    // and pushes the result into the list. False when nothing matches (caller
+    // hides the window). Clamp defensively: StartOffset -= 1 above (or
+    // AvaloniaEdit's own offset bookkeeping) must never be allowed to slice out
+    // of document bounds and crash the app.
+    private bool ApplyFuzzyFilter(CompletionWindow completionWindow, IReadOnlyList<SqlCompletionData> data)
+    {
+        var document = SqlEditor.Document;
+        var start = Math.Max(0, completionWindow.StartOffset);
+        var caret = Math.Clamp(SqlEditor.CaretOffset, start, document.TextLength);
+        var query = document.GetText(start, caret - start);
+
+        var ranked = CompletionRanker.Rank(
+            data, query, static d => d.Text, static d => d.Priority, d => _completionRecency.RankOf(d.Text));
+        if (ranked.Items.Count == 0)
+        {
+            return false;
+        }
+
+        // CompletionData is a plain list the ListBox binds once at template time —
+        // mutating it alone changes nothing on screen. Keep it in sync (the stock
+        // selection-only pass indexes into it) and rebind ItemsSource for the
+        // visible refresh, exactly like the stock filtering path does.
+        var list = completionWindow.CompletionList;
+        list.CompletionData.Clear();
+        foreach (var item in ranked.Items)
+        {
+            list.CompletionData.Add(item);
+        }
+
+        list.ListBox.ItemsSource = ranked.Items;
+        var selected = ranked.Items[ranked.SelectedIndex];
+        list.SelectedItem = selected;
+        list.ScrollIntoView(selected);
+        return true;
     }
 
     // Pretty-prints the statement under the caret and replaces just that span, so
