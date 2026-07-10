@@ -345,7 +345,7 @@ impact order:
   selected, so `f` → Enter inserts nothing instead of `FROM`; filtering and
   preselection only kick in from the second character. Apply the initial
   character as the filter when the window opens.
-- [ ] **FK-aware JOIN magic** — the flagship. After `JOIN`, rank tables
+- [x] **FK-aware JOIN magic** — the flagship. After `JOIN`, rank tables
   connected by a foreign key to the statement's tables first (today it's the
   same flat catalog dump as `FROM`); after `ON `, auto-open and offer the
   complete join condition (`oi.order_id = o.id`) as the top, one-keystroke

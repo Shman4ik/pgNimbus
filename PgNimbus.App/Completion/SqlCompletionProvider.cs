@@ -81,8 +81,10 @@ public sealed class SqlCompletionProvider
     // Ranking bands. Current-statement items (its tables' columns, its aliases)
     // sit far above the rest so a match among them wins pre-selection; the base
     // bands only order ties within the catalog-wide list.
+    private const double JoinConditionPriority = 200;
     private const double CurrentColumnPriority = 100;
     private const double AliasPriority = 90;
+    private const double FkTablePriority = 15;
     private const double CtePriority = 20;
     private const double TablePriority = 10;
     private const double ColumnPriority = 5;
@@ -105,6 +107,10 @@ public sealed class SqlCompletionProvider
     // Its predicate subset: keywords + functions only, no catalog columns/tables —
     // a WHERE/ON/BY caret gets these plus just the FROM tables' own columns.
     private IReadOnlyList<SqlCompletionData> _predicateBaseItems = [];
+    // FK edges across every schema; the graph-matching (which tables are FK-adjacent,
+    // what condition connects two of them) is pure Core logic in ForeignKeyMatcher —
+    // this is just its input, refreshed alongside everything else below.
+    private IReadOnlyList<ForeignKeyInfo> _foreignKeys = [];
 
     public SqlCompletionProvider(SchemaService schemaService)
     {
@@ -157,6 +163,8 @@ public sealed class SqlCompletionProvider
 
         tableRefItems.AddRange(keywordItems);
 
+        var foreignKeys = await _schemaService.GetForeignKeysAsync(ct);
+
         _tables = tables;
         _columnsByTable = columnsByTable;
         _baseItems = Dedupe(baseItems);
@@ -164,6 +172,7 @@ public sealed class SqlCompletionProvider
         // A predicate caret gets keywords + functions but no catalog columns/tables;
         // GetPredicateCompletions prepends just the FROM tables' own columns.
         _predicateBaseItems = Dedupe(keywordItems.Concat(functionItems));
+        _foreignKeys = foreignKeys;
     }
 
     /// <summary>
@@ -190,6 +199,8 @@ public sealed class SqlCompletionProvider
         return context.Clause switch
         {
             SqlClause.TableRef => GetTableRefCompletions(sql),
+            SqlClause.JoinTableRef => GetJoinTableRefCompletions(sql),
+            SqlClause.Predicate when SqlCompletionContext.IsAfterOnKeyword(sql, caretOffset) => GetJoinConditionCompletions(sql),
             SqlClause.Predicate => GetPredicateCompletions(sql),
             _ => GetGeneralCompletions(sql),
         };
@@ -221,10 +232,19 @@ public sealed class SqlCompletionProvider
             .ToList();
     }
 
-    // Table position (after FROM/JOIN/INTO/UPDATE …): only what can be a table
-    // there — the statement's CTEs first, then schemas + tables (+ keywords, so
+    // Table position (after FROM/INTO/UPDATE …): only what can be a table there —
+    // the statement's CTEs first, then schemas + tables (+ keywords, so
     // "JOIN"/"WHERE" still complete after "FROM users "). No columns.
-    private IReadOnlyList<SqlCompletionData> GetTableRefCompletions(string sql)
+    private IReadOnlyList<SqlCompletionData> GetTableRefCompletions(string sql) =>
+        BuildTableRefCompletions(sql, boosted: []);
+
+    // Table position specifically after JOIN: same as GetTableRefCompletions, but
+    // tables connected by a foreign key to one already in the statement are
+    // floated above the flat catalog dump — the "flagship" JOIN magic.
+    private IReadOnlyList<SqlCompletionData> GetJoinTableRefCompletions(string sql) =>
+        BuildTableRefCompletions(sql, FkNeighborItems(sql));
+
+    private IReadOnlyList<SqlCompletionData> BuildTableRefCompletions(string sql, IEnumerable<SqlCompletionData> boosted)
     {
         var items = new List<SqlCompletionData>();
         foreach (var cte in SqlCompletionContext.ExtractCteNames(sql))
@@ -232,9 +252,50 @@ public sealed class SqlCompletionProvider
             items.Add(new SqlCompletionData(cte, "CTE", SqlIdentifier.QuoteIfNeeded(cte), CtePriority));
         }
 
+        items.AddRange(boosted);
         items.AddRange(_tableRefItems);
         return Dedupe(items);
     }
+
+    // Every table FK-adjacent to a table already in the statement (either side of
+    // the relationship — the new table can be the "many" or the "one" side),
+    // excluding tables the statement already references. The graph walk itself is
+    // pure Core logic (ForeignKeyMatcher, unit-tested there); this just maps the
+    // App's parsed TableRef to Core's TableReference and wraps the result.
+    private List<SqlCompletionData> FkNeighborItems(string sql)
+    {
+        var statementTables = ToTableReferences(SqlCompletionContext.ExtractTables(sql));
+        var items = new List<SqlCompletionData>();
+        foreach (var (neighborSchema, neighborTable) in ForeignKeyMatcher.FindJoinCandidates(statementTables, _foreignKeys))
+        {
+            var qualified = $"{SqlIdentifier.QuoteIfNeeded(neighborSchema)}.{SqlIdentifier.QuoteIfNeeded(neighborTable)}";
+            items.Add(new SqlCompletionData(neighborTable, $"table ({neighborSchema}) · FK", qualified, FkTablePriority));
+        }
+
+        return items;
+    }
+
+    // The join condition suggestion after ON: pairs the most recently joined
+    // table with the closest earlier table it has a direct FK to, and offers
+    // "child.fk_col = parent.pk_col" (AND-joined for a composite key) as the
+    // single top item — one keystroke (Enter) completes the whole condition.
+    private IReadOnlyList<SqlCompletionData> GetJoinConditionCompletions(string sql)
+    {
+        var predicateItems = GetPredicateCompletions(sql);
+        var statementTables = ToTableReferences(SqlCompletionContext.ExtractTables(sql));
+        if (ForeignKeyMatcher.BuildJoinCondition(statementTables, _foreignKeys) is not { } condition)
+        {
+            return predicateItems;
+        }
+
+        var joinItem = new SqlCompletionData(condition, "FK join condition", condition, JoinConditionPriority);
+        var items = new List<SqlCompletionData>(predicateItems.Count + 1) { joinItem };
+        items.AddRange(predicateItems);
+        return Dedupe(items);
+    }
+
+    private static List<TableReference> ToTableReferences(IReadOnlyList<SqlCompletionContext.TableRef> tables) =>
+        tables.Select(t => new TableReference(t.Schema, t.Table, t.Alias)).ToList();
 
     // Bare identifier: the whole catalog, with the columns of the statement's
     // tables hoisted to the front (and top priority) so the statement's own

@@ -835,17 +835,18 @@ public partial class MainWindow : Window
             return;
         }
 
-        // The space right after FROM/JOIN/INTO/UPDATE opens the table list
-        // unprompted — the one spot where what comes next is most predictable.
-        if (c == ' ' && WordBeforeCaretStartsTableClause())
+        // The space right after FROM/JOIN/INTO/UPDATE/ON opens the list
+        // unprompted — the spots where what comes next is most predictable (ON
+        // is where the FK join-condition suggestion shows up, when there is one).
+        if (c == ' ' && WordBeforeCaretTriggersAutoOpen())
         {
             ShowCompletion(includeTypedChar: false);
         }
     }
 
     // True when the word just left of the caret (which sits right after the
-    // freshly typed space) is a keyword that a table name follows.
-    private bool WordBeforeCaretStartsTableClause()
+    // freshly typed space) is a keyword after which the popup should open itself.
+    private bool WordBeforeCaretTriggersAutoOpen()
     {
         var text = SqlEditor.Text;
         var end = Math.Min(SqlEditor.CaretOffset, text.Length) - 1; // skip the space
@@ -864,7 +865,8 @@ public partial class MainWindow : Window
         return word.Equals("from", StringComparison.OrdinalIgnoreCase)
             || word.Equals("join", StringComparison.OrdinalIgnoreCase)
             || word.Equals("into", StringComparison.OrdinalIgnoreCase)
-            || word.Equals("update", StringComparison.OrdinalIgnoreCase);
+            || word.Equals("update", StringComparison.OrdinalIgnoreCase)
+            || word.Equals("on", StringComparison.OrdinalIgnoreCase);
     }
 
     private void OnSqlEditorKeyDown(object? sender, KeyEventArgs e)
@@ -963,14 +965,16 @@ public partial class MainWindow : Window
 
         // AvaloniaEdit only (re)filters CompletionList from TextArea.Caret.PositionChanged,
         // which fired *before* this window existed (the triggering keystroke already moved
-        // the caret). Without this, the first character shows the unfiltered list with
-        // nothing selected — Enter would insert nothing. Replay that filter once, now that
-        // StartOffset/EndOffset and the data are in place.
-        if (includeTypedChar)
-        {
-            var typed = SqlEditor.Text[completionWindow.StartOffset..completionWindow.EndOffset];
-            completionWindow.CompletionList.SelectItem(typed);
-        }
+        // the caret). Without this, the popup shows the unfiltered list with nothing
+        // selected — Enter would insert nothing. Replay that filter once, now that
+        // StartOffset/EndOffset and the data are in place; an empty typed segment (the
+        // auto-open-on-space cases) still selects the best-priority item, e.g. the FK
+        // join condition after "ON ". Clamp defensively: StartOffset -= 1 above (or
+        // AvaloniaEdit's own offset bookkeeping) must never be allowed to slice out of
+        // document bounds and crash the app.
+        var start = Math.Max(0, completionWindow.StartOffset);
+        var end = Math.Clamp(completionWindow.EndOffset, start, SqlEditor.Text.Length);
+        completionWindow.CompletionList.SelectItem(SqlEditor.Text[start..end]);
 
         completionWindow.Show();
         completionWindow.Closed += (_, _) => _completionWindow = null;

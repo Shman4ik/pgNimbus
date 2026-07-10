@@ -32,6 +32,15 @@ public sealed record ExtensionInfo(string Name, string? InstalledVersion, string
 public sealed record RoleInfo(string Name, bool CanLogin, bool IsSuperuser, bool CanCreateDb, bool CanCreateRole);
 
 /// <summary>
+/// A foreign key edge: <paramref name="FromColumns"/> on <paramref name="FromSchema"/>.<paramref name="FromTable"/>
+/// (the referencing/"child" side) reference <paramref name="ToColumns"/> on
+/// <paramref name="ToSchema"/>.<paramref name="ToTable"/> (the referenced/"parent" side), positionally paired.
+/// </summary>
+public sealed record ForeignKeyInfo(
+    string FromSchema, string FromTable, IReadOnlyList<string> FromColumns,
+    string ToSchema, string ToTable, IReadOnlyList<string> ToColumns);
+
+/// <summary>
 /// Reads structure straight from pg_catalog rather than relying on
 /// information_schema, so it reflects the real Postgres model (matviews,
 /// partitioned tables, actual type names) instead of the SQL-standard
@@ -340,6 +349,47 @@ public sealed class SchemaService
         while (await reader.ReadAsync(ct))
         {
             results.Add(new TableColumn(reader.GetString(0), reader.GetString(1), reader.GetString(2)));
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// Every foreign key across all non-system schemas in one query — the edges
+    /// that power completion's "rank JOIN targets by FK" and "offer the join
+    /// condition" magic. <c>unnest(conkey, confkey) WITH ORDINALITY</c> zips the
+    /// referencing/referenced column-number arrays positionally so a composite
+    /// key's columns pair up correctly after the <c>array_agg</c>.
+    /// </summary>
+    public async Task<IReadOnlyList<ForeignKeyInfo>> GetForeignKeysAsync(CancellationToken ct)
+    {
+        const string sql = """
+            SELECT ns.nspname, c.relname, array_agg(a.attname ORDER BY k.ord),
+                   fns.nspname, fc.relname, array_agg(fa.attname ORDER BY k.ord)
+            FROM pg_catalog.pg_constraint con
+            JOIN pg_catalog.pg_class c ON c.oid = con.conrelid
+            JOIN pg_catalog.pg_namespace ns ON ns.oid = c.relnamespace
+            JOIN pg_catalog.pg_class fc ON fc.oid = con.confrelid
+            JOIN pg_catalog.pg_namespace fns ON fns.oid = fc.relnamespace
+            JOIN LATERAL unnest(con.conkey, con.confkey) WITH ORDINALITY AS k(conkey, confkey, ord) ON true
+            JOIN pg_catalog.pg_attribute a ON a.attrelid = con.conrelid AND a.attnum = k.conkey
+            JOIN pg_catalog.pg_attribute fa ON fa.attrelid = con.confrelid AND fa.attnum = k.confkey
+            WHERE con.contype = 'f'
+              AND ns.nspname NOT LIKE 'pg\_%' AND ns.nspname <> 'information_schema'
+            GROUP BY con.oid, ns.nspname, c.relname, fns.nspname, fc.relname
+            ORDER BY ns.nspname, c.relname
+            """;
+
+        await using var connection = await _dataSource.OpenConnectionAsync(ct);
+        await using var command = new NpgsqlCommand(sql, connection);
+        await using var reader = await command.ExecuteReaderAsync(ct);
+
+        var results = new List<ForeignKeyInfo>();
+        while (await reader.ReadAsync(ct))
+        {
+            results.Add(new ForeignKeyInfo(
+                reader.GetString(0), reader.GetString(1), reader.GetFieldValue<string[]>(2),
+                reader.GetString(3), reader.GetString(4), reader.GetFieldValue<string[]>(5)));
         }
 
         return results;
