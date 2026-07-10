@@ -86,6 +86,19 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private bool _isInTransaction;
 
+    /// <summary>
+    /// Whether accepting a table from completion after FROM/JOIN also appends a
+    /// short alias. Bound to the toolbar's "AS" toggle; persisted via the
+    /// callback so the choice survives a restart (same pattern as the sidebar's
+    /// advanced-objects toggle).
+    /// </summary>
+    [ObservableProperty]
+    private bool _autoAliasTables;
+
+    private readonly Action<bool>? _persistAutoAliasTables;
+
+    partial void OnAutoAliasTablesChanged(bool value) => _persistAutoAliasTables?.Invoke(value);
+
     public MainViewModel(
         QueryEngine engine,
         ExplainService explainService,
@@ -99,10 +112,14 @@ public sealed partial class MainViewModel : ObservableObject
         ImportService importService,
         string? accentColor = null,
         string connectionHost = "",
-        string connectionDatabase = "")
+        string connectionDatabase = "",
+        bool autoAliasTables = true,
+        Action<bool>? persistAutoAliasTables = null)
     {
         ConnectionHost = connectionHost;
         ConnectionDatabase = connectionDatabase;
+        _autoAliasTables = autoAliasTables;
+        _persistAutoAliasTables = persistAutoAliasTables;
         _engine = engine;
         _explainService = explainService;
         SchemaTree = schemaTree;

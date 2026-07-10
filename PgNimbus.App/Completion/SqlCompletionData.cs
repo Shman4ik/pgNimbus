@@ -36,6 +36,14 @@ public sealed class SqlCompletionData : ICompletionData
     /// <summary>The literal inserted on completion — may be quoted even when <see cref="Text"/> isn't.</summary>
     public string InsertText { get; }
 
+    /// <summary>
+    /// The bare table name when this item completes a table — the seed for the
+    /// auto-alias appended after an accept in FROM/JOIN position (see
+    /// <c>MainWindow.MaybeInsertTableAlias</c>). Null for anything that isn't a
+    /// table, which opts the item out of aliasing entirely.
+    /// </summary>
+    public string? AliasTable { get; init; }
+
     public object Content => Text;
 
     public object Description { get; }

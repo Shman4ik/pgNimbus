@@ -37,6 +37,9 @@ public partial class MainWindow : Window
     private CompletionWindow? _completionWindow;
     // "Accepted a moment ago" tie-breaker for the completion ranking; session-scoped.
     private readonly CompletionRecency _completionRecency = new();
+    // Closer promised by OnSqlTextEntering's InsertPair verdict, written by
+    // OnSqlTextEntered once the opener is in the document. '\0' = none pending.
+    private char _pendingAutoCloser;
     // Set while an accepted filter-completion writes back into the box, so the
     // resulting TextChanged doesn't immediately re-open the popup on the word we
     // just inserted.
@@ -122,6 +125,7 @@ public partial class MainWindow : Window
         ResultsGrid.KeyDown += OnResultsGridKeyDown;
         ResultsGrid.Sorting += OnResultsGridSorting;
 
+        SqlEditor.TextArea.TextEntering += OnSqlTextEntering;
         SqlEditor.TextArea.TextEntered += OnSqlTextEntered;
         SqlEditor.KeyDown += OnSqlEditorKeyDown;
 
@@ -809,6 +813,45 @@ public partial class MainWindow : Window
         await _queryViewModel.CommitCellEditAsync(row, columnIndex, text);
     }
 
+    // Auto-close pairs. Decided here — before the character lands — because a
+    // TypeOver must suppress the insertion entirely, and an InsertPair verdict
+    // needs the pre-insert text (AutoClosePairs.Decide's contract). The closer
+    // itself is written in OnSqlTextEntered, after the opener exists.
+    private void OnSqlTextEntering(object? sender, TextInputEventArgs e)
+    {
+        _pendingAutoCloser = '\0';
+        if (e.Text is not { Length: 1 } entered || entered[0] is not ('(' or ')' or '\'' or '"'))
+        {
+            return;
+        }
+
+        var typed = entered[0];
+        var textArea = SqlEditor.TextArea;
+
+        // Typing an opener over a selection wraps it instead of replacing it.
+        if (typed is not ')' && !textArea.Selection.IsEmpty)
+        {
+            textArea.Selection.ReplaceSelectionWithText(
+                typed + textArea.Selection.GetText() + AutoClosePairs.CloserFor(typed));
+            e.Handled = true;
+            return;
+        }
+
+        var text = SqlEditor.Text;
+        var caret = SqlEditor.CaretOffset;
+        var inStringOrComment = SqlCompletionContext.GetCaretContext(text, caret).InStringOrComment;
+        switch (AutoClosePairs.Decide(text, caret, typed, inStringOrComment))
+        {
+            case AutoClosePairs.Verdict.TypeOver:
+                SqlEditor.CaretOffset = caret + 1;
+                e.Handled = true;
+                break;
+            case AutoClosePairs.Verdict.InsertPair:
+                _pendingAutoCloser = AutoClosePairs.CloserFor(typed);
+                break;
+        }
+    }
+
     private void OnSqlTextEntered(object? sender, TextInputEventArgs e)
     {
         if (string.IsNullOrEmpty(e.Text))
@@ -817,6 +860,18 @@ public partial class MainWindow : Window
         }
 
         var c = e.Text[0];
+
+        // The closer OnSqlTextEntering promised: write it after the caret so
+        // the pair hugs it — "(|)" — and typing continues between them.
+        if (_pendingAutoCloser != '\0')
+        {
+            var closer = _pendingAutoCloser;
+            _pendingAutoCloser = '\0';
+            var openerEnd = SqlEditor.CaretOffset;
+            SqlEditor.Document.Insert(openerEnd, closer.ToString());
+            SqlEditor.CaretOffset = openerEnd;
+            return;
+        }
 
         // A dot starts member access (alias./table./schema.). Re-trigger even
         // when a bare-identifier list is already open, so it switches to the
@@ -839,14 +894,48 @@ public partial class MainWindow : Window
             return;
         }
 
-        // The space right after FROM/JOIN/INTO/UPDATE/ON opens the list
-        // unprompted — the spots where what comes next is most predictable (ON
-        // is where the FK join-condition suggestion shows up, when there is one).
-        if (c == ' ' && WordBeforeCaretTriggersAutoOpen())
+        // A comma continuing a list (SELECT list, FROM list, GROUP/ORDER BY …)
+        // reopens the list on the spot — the next item is as predictable as the
+        // first one was right after the clause keyword.
+        if (c == ',' && CaretIsInKnownClause())
+        {
+            ShowCompletion(includeTypedChar: false);
+            return;
+        }
+
+        if (c != ' ')
+        {
+            return;
+        }
+
+        // The space right after a clause keyword (FROM/WHERE/SELECT/AND …)
+        // opens the list unprompted — the spots where what comes next is most
+        // predictable (ON is where the FK join-condition suggestion shows up,
+        // when there is one). A space right after a comma re-opens the list the
+        // comma itself opened (the space closed it by matching nothing).
+        var caret = SqlEditor.CaretOffset;
+        var text = SqlEditor.Text;
+        var beforeSpace = caret >= 2 && caret <= text.Length ? text[caret - 2] : '\0';
+        if (beforeSpace == ',' ? CaretIsInKnownClause() : WordBeforeCaretTriggersAutoOpen())
         {
             ShowCompletion(includeTypedChar: false);
         }
     }
+
+    // True when the caret sits in a recognized clause (table position, select
+    // list, predicate…) outside strings/comments — the contexts where the
+    // popup's contents are scoped enough to be worth opening unasked.
+    private bool CaretIsInKnownClause()
+    {
+        var context = SqlCompletionContext.GetCaretContext(SqlEditor.Text, SqlEditor.CaretOffset);
+        return !context.InStringOrComment && context.Clause != SqlClause.None;
+    }
+
+    // The keywords whose trailing space auto-opens the popup: the ones after
+    // which the very next token is predictable — a table (FROM/JOIN/INTO/
+    // UPDATE), a scoped column (WHERE/ON/AND/OR), or a select-list expression.
+    private static readonly string[] AutoOpenKeywords =
+        ["from", "join", "into", "update", "on", "where", "and", "or", "select"];
 
     // True when the word just left of the caret (which sits right after the
     // freshly typed space) is a keyword after which the popup should open itself.
@@ -866,11 +955,15 @@ public partial class MainWindow : Window
         }
 
         var word = text.AsSpan(start, Math.Max(end - start, 0));
-        return word.Equals("from", StringComparison.OrdinalIgnoreCase)
-            || word.Equals("join", StringComparison.OrdinalIgnoreCase)
-            || word.Equals("into", StringComparison.OrdinalIgnoreCase)
-            || word.Equals("update", StringComparison.OrdinalIgnoreCase)
-            || word.Equals("on", StringComparison.OrdinalIgnoreCase);
+        foreach (var keyword in AutoOpenKeywords)
+        {
+            if (word.Equals(keyword, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void OnSqlEditorKeyDown(object? sender, KeyEventArgs e)
@@ -990,12 +1083,18 @@ public partial class MainWindow : Window
         };
         SqlEditor.TextArea.Caret.PositionChanged += caretMoved;
 
-        // Feed the "picked it recently" ranking tie-breaker on every accept.
+        // On accept: feed the "picked it recently" ranking tie-breaker, and
+        // append the auto-alias when a table just landed after FROM/JOIN. The
+        // alias insert is posted, not run inline: this handler's order relative
+        // to the window's own (which writes the completion text) isn't
+        // guaranteed — text inserted before Complete() runs sits inside the
+        // completion segment and gets replaced away with the filter word.
         completionWindow.CompletionList.InsertionRequested += (_, _) =>
         {
             if (completionWindow.CompletionList.SelectedItem is SqlCompletionData accepted)
             {
                 _completionRecency.Record(accepted.Text);
+                Dispatcher.UIThread.Post(() => MaybeInsertTableAlias(accepted));
             }
         };
 
@@ -1006,6 +1105,45 @@ public partial class MainWindow : Window
         };
         completionWindow.Show();
         _completionWindow = completionWindow;
+    }
+
+    // Appends the short auto-alias after a table accepted in FROM/JOIN position
+    // ("FROM public.orders" → "FROM public.orders o") so the "o." member-access
+    // flow works immediately — deduped against every name the statement already
+    // uses (aliases, table names, CTEs). Gated by the persisted "AS" toggle and
+    // re-checked against the clause at the caret, because the same table item
+    // can be accepted in places where an alias is wrong (SELECT list) or
+    // illegal (INSERT INTO / TRUNCATE targets).
+    private void MaybeInsertTableAlias(SqlCompletionData accepted)
+    {
+        if (accepted.AliasTable is null || _viewModel is not { AutoAliasTables: true })
+        {
+            return;
+        }
+
+        var text = SqlEditor.Text;
+        var caret = SqlEditor.CaretOffset;
+        var context = SqlCompletionContext.GetCaretContext(text, caret);
+        if (context.Clause is not (SqlClause.FromTableRef or SqlClause.JoinTableRef))
+        {
+            return;
+        }
+
+        var taken = new List<string>();
+        foreach (var table in SqlCompletionContext.ExtractTables(text))
+        {
+            taken.Add(table.Table);
+            if (table.Alias is not null)
+            {
+                taken.Add(table.Alias);
+            }
+        }
+
+        taken.AddRange(SqlCompletionContext.ExtractCteNames(text));
+
+        var alias = TableAliaser.Derive(accepted.AliasTable, taken);
+        SqlEditor.Document.Insert(caret, " " + alias);
+        SqlEditor.CaretOffset = caret + alias.Length + 1;
     }
 
     // Re-ranks the candidate set against the segment typed since the popup opened

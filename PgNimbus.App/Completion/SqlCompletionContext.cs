@@ -7,9 +7,11 @@ internal enum SqlClause
 {
     /// <summary>No clause identified — offer the full catalog.</summary>
     None,
-    /// <summary>A table/view name goes here (after FROM, INTO, UPDATE, TABLE…).</summary>
+    /// <summary>A table/view name goes here (after INTO, UPDATE, TABLE, TRUNCATE…).</summary>
     TableRef,
-    /// <summary>A table/view name goes here, specifically after JOIN — FK-connected tables float to the top.</summary>
+    /// <summary>A table/view name goes here, specifically after FROM — same list as <see cref="TableRef"/>, but a table accepted here can also take an auto-alias (INTO/TRUNCATE targets can't).</summary>
+    FromTableRef,
+    /// <summary>A table/view name goes here, specifically after JOIN — FK-connected tables float to the top, and an accepted table can take an auto-alias.</summary>
     JoinTableRef,
     /// <summary>A column/expression goes here (after SELECT, SET, RETURNING…) — the full catalog, current tables' columns floated up.</summary>
     ColumnRef,
@@ -140,7 +142,7 @@ internal static partial class SqlCompletionContext
                 // "INSERT INTO t (" — the parenthesised list is columns, not more
                 // tables. (A "FROM (" subquery also lands here, and its own SELECT
                 // will re-set the clause the moment it's typed.)
-                if (clause == SqlClause.TableRef)
+                if (clause is SqlClause.TableRef or SqlClause.FromTableRef)
                 {
                     clause = SqlClause.ColumnRef;
                 }
@@ -175,11 +177,17 @@ internal static partial class SqlCompletionContext
     // everything else leaves the clause as-is.
     private static SqlClause ClassifyKeyword(ReadOnlySpan<char> word, SqlClause current)
     {
-        // Split out from TableClauseKeywords so FK-aware JOIN ranking only kicks
-        // in after an actual JOIN, not FROM/INTO/UPDATE.
+        // JOIN and FROM split out from TableClauseKeywords: FK-aware ranking
+        // only kicks in after an actual JOIN, and auto-aliasing only after
+        // FROM/JOIN (an INTO/TRUNCATE target can't legally take a bare alias).
         if (word.Equals("join", StringComparison.OrdinalIgnoreCase))
         {
             return SqlClause.JoinTableRef;
+        }
+
+        if (word.Equals("from", StringComparison.OrdinalIgnoreCase))
+        {
+            return SqlClause.FromTableRef;
         }
 
         foreach (var kw in TableClauseKeywords)
@@ -209,9 +217,9 @@ internal static partial class SqlCompletionContext
         return current;
     }
 
-    /// <summary>The keywords a table reference follows (besides JOIN, classified separately above). "update" also covers <c>ON CONFLICT DO UPDATE</c> — its SET flips back to columns.</summary>
+    /// <summary>The keywords a table reference follows (besides FROM and JOIN, classified separately above). "update" also covers <c>ON CONFLICT DO UPDATE</c> — its SET flips back to columns.</summary>
     private static readonly string[] TableClauseKeywords =
-        ["from", "into", "update", "table", "truncate"];
+        ["into", "update", "table", "truncate"];
 
     // Row-scoped column contexts: a predicate (WHERE/ON/HAVING) or a
     // GROUP/ORDER BY / USING list can only name columns of the tables already in

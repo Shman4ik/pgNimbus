@@ -148,8 +148,8 @@ public sealed class SqlCompletionProvider
                 // (after FROM/JOIN) it completes schema-qualified ("public.users")
                 // so the reference is unambiguous whatever the search_path is.
                 var qualified = $"{SqlIdentifier.QuoteIfNeeded(schema.Name)}.{SqlIdentifier.QuoteIfNeeded(table.Name)}";
-                baseItems.Add(new SqlCompletionData(table.Name, $"table ({schema.Name})", SqlIdentifier.QuoteIfNeeded(table.Name), TablePriority));
-                tableRefItems.Add(new SqlCompletionData(table.Name, $"table ({schema.Name})", qualified, TablePriority));
+                baseItems.Add(new SqlCompletionData(table.Name, $"table ({schema.Name})", SqlIdentifier.QuoteIfNeeded(table.Name), TablePriority) { AliasTable = table.Name });
+                tableRefItems.Add(new SqlCompletionData(table.Name, $"table ({schema.Name})", qualified, TablePriority) { AliasTable = table.Name });
             }
 
             var columns = await _schemaService.GetAllColumnsAsync(schema.Name, ct);
@@ -198,7 +198,7 @@ public sealed class SqlCompletionProvider
 
         return context.Clause switch
         {
-            SqlClause.TableRef => GetTableRefCompletions(sql),
+            SqlClause.TableRef or SqlClause.FromTableRef => GetTableRefCompletions(sql),
             SqlClause.JoinTableRef => GetJoinTableRefCompletions(sql),
             SqlClause.Predicate when SqlCompletionContext.IsAfterOnKeyword(sql, caretOffset) => GetJoinConditionCompletions(sql),
             SqlClause.Predicate => GetPredicateCompletions(sql),
@@ -228,7 +228,7 @@ public sealed class SqlCompletionProvider
         // schema. → the schema's tables
         return _tables
             .Where(t => string.Equals(t.Schema, qualifier, StringComparison.OrdinalIgnoreCase))
-            .Select(t => new SqlCompletionData(t.Table, $"table ({t.Schema})", SqlIdentifier.QuoteIfNeeded(t.Table), TablePriority))
+            .Select(t => new SqlCompletionData(t.Table, $"table ({t.Schema})", SqlIdentifier.QuoteIfNeeded(t.Table), TablePriority) { AliasTable = t.Table })
             .ToList();
     }
 
@@ -269,7 +269,7 @@ public sealed class SqlCompletionProvider
         foreach (var (neighborSchema, neighborTable) in ForeignKeyMatcher.FindJoinCandidates(statementTables, _foreignKeys))
         {
             var qualified = $"{SqlIdentifier.QuoteIfNeeded(neighborSchema)}.{SqlIdentifier.QuoteIfNeeded(neighborTable)}";
-            items.Add(new SqlCompletionData(neighborTable, $"table ({neighborSchema}) · FK", qualified, FkTablePriority));
+            items.Add(new SqlCompletionData(neighborTable, $"table ({neighborSchema}) · FK", qualified, FkTablePriority) { AliasTable = neighborTable });
         }
 
         return items;

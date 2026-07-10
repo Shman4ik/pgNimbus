@@ -37,6 +37,10 @@ public partial class App : Application
     private static void PersistShowAdvancedSchemaObjects(bool value) =>
         SettingsStore.Save(SettingsStore.Load() with { ShowAdvancedSchemaObjects = value });
 
+    /// <summary>Remembers the editor's auto-alias-tables toggle so it survives a restart.</summary>
+    private static void PersistAutoAliasTables(bool value) =>
+        SettingsStore.Save(SettingsStore.Load() with { AutoAliasTables = value });
+
     private static ThemeVariant ThemeFromString(string? theme) => theme?.ToLowerInvariant() switch
     {
         "light" => ThemeVariant.Light,
@@ -133,7 +137,9 @@ public partial class App : Application
                 engine, explainService, schemaTree, schemaService, schemaEditor, ddlService, completionProvider, notifyMonitor, activityService, importService,
                 accentColor,
                 connectionHost: csb.Host ?? "",
-                connectionDatabase: csb.Database ?? ""),
+                connectionDatabase: csb.Database ?? "",
+                autoAliasTables: SettingsStore.Load().AutoAliasTables,
+                persistAutoAliasTables: PersistAutoAliasTables),
         };
 
         window.Closed += async (_, _) =>
