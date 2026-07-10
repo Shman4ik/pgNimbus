@@ -122,8 +122,8 @@ public sealed class SqlCompletionProvider
         var tables = new List<(string Schema, string Table)>();
         var columnsByTable = new Dictionary<string, List<TableColumn>>(StringComparer.OrdinalIgnoreCase);
 
-        var keywordItems = Keywords.Select(k => new SqlCompletionData(k, "keyword")).ToList();
-        var functionItems = Functions.Select(f => new SqlCompletionData(f, "function", $"{f}()", FunctionPriority)).ToList();
+        var keywordItems = Keywords.Select(k => new SqlCompletionData(k, SqlCompletionKind.Keyword)).ToList();
+        var functionItems = Functions.Select(f => new SqlCompletionData(f, SqlCompletionKind.Function, $"{f}()", FunctionPriority)).ToList();
         var baseItems = new List<SqlCompletionData>(keywordItems);
         baseItems.AddRange(functionItems);
         // Keywords go *after* the catalog here: with nothing typed yet the list
@@ -136,7 +136,7 @@ public sealed class SqlCompletionProvider
         {
             // The bare name filters the list; the quote-if-needed form is what gets
             // inserted, so accepting a mixed-case object writes "Spells" not spells.
-            var schemaItem = new SqlCompletionData(schema.Name, "schema", SqlIdentifier.QuoteIfNeeded(schema.Name), SchemaPriority);
+            var schemaItem = new SqlCompletionData(schema.Name, SqlCompletionKind.Schema, SqlIdentifier.QuoteIfNeeded(schema.Name), SchemaPriority);
             baseItems.Add(schemaItem);
             tableRefItems.Add(schemaItem);
 
@@ -148,8 +148,8 @@ public sealed class SqlCompletionProvider
                 // (after FROM/JOIN) it completes schema-qualified ("public.users")
                 // so the reference is unambiguous whatever the search_path is.
                 var qualified = $"{SqlIdentifier.QuoteIfNeeded(schema.Name)}.{SqlIdentifier.QuoteIfNeeded(table.Name)}";
-                baseItems.Add(new SqlCompletionData(table.Name, $"table ({schema.Name})", SqlIdentifier.QuoteIfNeeded(table.Name), TablePriority) { AliasTable = table.Name });
-                tableRefItems.Add(new SqlCompletionData(table.Name, $"table ({schema.Name})", qualified, TablePriority) { AliasTable = table.Name });
+                baseItems.Add(new SqlCompletionData(table.Name, SqlCompletionKind.Table, SqlIdentifier.QuoteIfNeeded(table.Name), TablePriority) { AliasTable = table.Name, Detail = schema.Name });
+                tableRefItems.Add(new SqlCompletionData(table.Name, SqlCompletionKind.Table, qualified, TablePriority) { AliasTable = table.Name, Detail = schema.Name });
             }
 
             var columns = await _schemaService.GetAllColumnsAsync(schema.Name, ct);
@@ -228,7 +228,7 @@ public sealed class SqlCompletionProvider
         // schema. → the schema's tables
         return _tables
             .Where(t => string.Equals(t.Schema, qualifier, StringComparison.OrdinalIgnoreCase))
-            .Select(t => new SqlCompletionData(t.Table, $"table ({t.Schema})", SqlIdentifier.QuoteIfNeeded(t.Table), TablePriority) { AliasTable = t.Table })
+            .Select(t => new SqlCompletionData(t.Table, SqlCompletionKind.Table, SqlIdentifier.QuoteIfNeeded(t.Table), TablePriority) { AliasTable = t.Table, Detail = t.Schema })
             .ToList();
     }
 
@@ -249,7 +249,7 @@ public sealed class SqlCompletionProvider
         var items = new List<SqlCompletionData>();
         foreach (var cte in SqlCompletionContext.ExtractCteNames(sql))
         {
-            items.Add(new SqlCompletionData(cte, "CTE", SqlIdentifier.QuoteIfNeeded(cte), CtePriority));
+            items.Add(new SqlCompletionData(cte, SqlCompletionKind.Cte, SqlIdentifier.QuoteIfNeeded(cte), CtePriority));
         }
 
         items.AddRange(boosted);
@@ -269,7 +269,12 @@ public sealed class SqlCompletionProvider
         foreach (var (neighborSchema, neighborTable) in ForeignKeyMatcher.FindJoinCandidates(statementTables, _foreignKeys))
         {
             var qualified = $"{SqlIdentifier.QuoteIfNeeded(neighborSchema)}.{SqlIdentifier.QuoteIfNeeded(neighborTable)}";
-            items.Add(new SqlCompletionData(neighborTable, $"table ({neighborSchema}) · FK", qualified, FkTablePriority) { AliasTable = neighborTable });
+            items.Add(new SqlCompletionData(neighborTable, SqlCompletionKind.Table, qualified, FkTablePriority)
+            {
+                AliasTable = neighborTable,
+                Detail = neighborSchema,
+                DescriptionText = "table · FK match",
+            });
         }
 
         return items;
@@ -288,7 +293,7 @@ public sealed class SqlCompletionProvider
             return predicateItems;
         }
 
-        var joinItem = new SqlCompletionData(condition, "FK join condition", condition, JoinConditionPriority);
+        var joinItem = new SqlCompletionData(condition, SqlCompletionKind.JoinCondition, condition, JoinConditionPriority);
         var items = new List<SqlCompletionData>(predicateItems.Count + 1) { joinItem };
         items.AddRange(predicateItems);
         return Dedupe(items);
@@ -339,7 +344,11 @@ public sealed class SqlCompletionProvider
         {
             if (table.Alias is not null)
             {
-                items.Add(new SqlCompletionData(table.Alias, $"alias ({table.Table})", table.Alias, AliasPriority));
+                items.Add(new SqlCompletionData(table.Alias, SqlCompletionKind.Alias, table.Alias, AliasPriority)
+                {
+                    Detail = table.Table,
+                    DescriptionText = $"alias for {table.Table}",
+                });
             }
 
             if (!added.Add($"{table.Schema}.{table.Table}") || ColumnsFor(table.Schema, table.Table) is not { } columns)
@@ -356,7 +365,7 @@ public sealed class SqlCompletionProvider
 
         foreach (var cte in SqlCompletionContext.ExtractCteNames(sql))
         {
-            items.Add(new SqlCompletionData(cte, "CTE", SqlIdentifier.QuoteIfNeeded(cte), CtePriority));
+            items.Add(new SqlCompletionData(cte, SqlCompletionKind.Cte, SqlIdentifier.QuoteIfNeeded(cte), CtePriority));
         }
 
         return items;
@@ -375,8 +384,14 @@ public sealed class SqlCompletionProvider
     private static List<SqlCompletionData> ColumnItems(IReadOnlyList<TableColumn> columns) =>
         columns.Select(c => ColumnItem(c, CurrentColumnPriority)).ToList();
 
+    // The data type rides in Detail (right-aligned in the row); the tooltip
+    // names the owning table, which the row itself doesn't show.
     private static SqlCompletionData ColumnItem(TableColumn column, double priority) =>
-        new(column.Column, $"column ({column.Table}) : {column.DataType}", SqlIdentifier.QuoteIfNeeded(column.Column), priority);
+        new(column.Column, SqlCompletionKind.Column, SqlIdentifier.QuoteIfNeeded(column.Column), priority)
+        {
+            Detail = column.DataType,
+            DescriptionText = $"column · {column.Table}",
+        };
 
     private static void Index(Dictionary<string, List<TableColumn>> map, string key, TableColumn column)
     {
