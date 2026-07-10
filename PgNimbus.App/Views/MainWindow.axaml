@@ -688,29 +688,11 @@
                             BorderThickness="0,0,0,1" BorderBrush="{StaticResource CardBorderBrush}"
                             Padding="2,2,2,2" Margin="0,0,0,4">
                         <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
-                            <ScrollViewer.Resources>
-                                <!--
-                                    Slim scrollbar for this one-row chip strip: the stock
-                                    Fluent bar is 16px with an opaque track + arrow buttons
-                                    and overlays (covers) the chips' bottom text line. The
-                                    template sizes its parts via DynamicResource lookups, so
-                                    scoping smaller/transparent values here restyles just
-                                    this strip — thumb only, no track band, no end arrows.
-                                    The ListBox's bottom padding reserves the 8px the overlay
-                                    thumb occupies, so it never sits on top of the chips.
-                                -->
-                                <x:Double x:Key="ScrollBarSize">8</x:Double>
-                                <SolidColorBrush x:Key="ScrollBarTrackFill" Color="Transparent" />
-                                <SolidColorBrush x:Key="ScrollBarTrackFillPointerOver" Color="Transparent" />
-                                <SolidColorBrush x:Key="ScrollBarButtonBackgroundPointerOver" Color="Transparent" />
-                                <SolidColorBrush x:Key="ScrollBarButtonBackgroundPressed" Color="Transparent" />
-                                <SolidColorBrush x:Key="ScrollBarButtonArrowForeground" Color="Transparent" />
-                                <SolidColorBrush x:Key="ScrollBarButtonArrowForegroundPointerOver" Color="Transparent" />
-                                <SolidColorBrush x:Key="ScrollBarButtonArrowForegroundPressed" Color="Transparent" />
-                            </ScrollViewer.Resources>
+                            <!-- Bottom padding = ScrollBarSize: the overlay thumb gets its
+                                 own lane below the chips instead of covering their text -->
                             <ListBox ItemsSource="{Binding ActiveTab.ResultSections}"
                                      SelectedItem="{Binding ActiveTab.SelectedSection, Mode=TwoWay}"
-                                     Background="Transparent" Padding="0,0,0,8">
+                                     Background="Transparent" Padding="0,0,0,10">
                                 <ListBox.Styles>
                                     <Style Selector="TextBlock.err">
                                         <Setter Property="Foreground" Value="#E03131" />
