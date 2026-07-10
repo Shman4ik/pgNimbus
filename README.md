@@ -340,7 +340,7 @@ resolution, `qualifier.` member access, auto-open after FROM/JOIN) all works —
 these are the gaps between "correct" and "feels like magic", roughly in
 impact order:
 
-- [ ] **First-keystroke preselection (bug — fix first)** — the popup opened
+- [x] **First-keystroke preselection (bug — fix first)** — the popup opened
   by the first typed letter shows the *unfiltered* list with nothing
   selected, so `f` → Enter inserts nothing instead of `FROM`; filtering and
   preselection only kick in from the second character. Apply the initial

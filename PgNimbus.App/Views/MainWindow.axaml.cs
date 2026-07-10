@@ -961,6 +961,17 @@ public partial class MainWindow : Window
             completionWindow.CompletionList.CompletionData.Add(item);
         }
 
+        // AvaloniaEdit only (re)filters CompletionList from TextArea.Caret.PositionChanged,
+        // which fired *before* this window existed (the triggering keystroke already moved
+        // the caret). Without this, the first character shows the unfiltered list with
+        // nothing selected — Enter would insert nothing. Replay that filter once, now that
+        // StartOffset/EndOffset and the data are in place.
+        if (includeTypedChar)
+        {
+            var typed = SqlEditor.Text[completionWindow.StartOffset..completionWindow.EndOffset];
+            completionWindow.CompletionList.SelectItem(typed);
+        }
+
         completionWindow.Show();
         completionWindow.Closed += (_, _) => _completionWindow = null;
         _completionWindow = completionWindow;
