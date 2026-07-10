@@ -115,6 +115,39 @@ public class ForeignKeyMatcherTests
     }
 
     [Test]
+    public async Task BuildJoinCondition_QuotesAliasesThatNeedIt()
+    {
+        // Aliases are stored unquoted (SqlCompletionContext.Unquote strips the
+        // quotes a "MyOrders"-style alias was written with) — the mixed case
+        // means the generated condition must re-quote it to round-trip.
+        TableReference[] tables =
+        [
+            new("sales", "orders", "MyOrders"),
+            new("public", "customers", "c"),
+        ];
+
+        var condition = ForeignKeyMatcher.BuildJoinCondition(tables, [OrderToCustomer]);
+
+        await Assert.That(condition).IsEqualTo("\"MyOrders\".customer_id = c.id");
+    }
+
+    [Test]
+    public async Task BuildJoinCondition_QuotesFallbackTableNameThatNeedsIt()
+    {
+        // No alias, and the bare table name itself needs quoting (mixed case).
+        TableReference[] tables =
+        [
+            new("sales", "Orders", null),
+            new("public", "customers", "c"),
+        ];
+
+        var condition = ForeignKeyMatcher.BuildJoinCondition(
+            tables, [new ForeignKeyInfo("sales", "Orders", ["customer_id"], "public", "customers", ["id"])]);
+
+        await Assert.That(condition).IsEqualTo("\"Orders\".customer_id = c.id");
+    }
+
+    [Test]
     public async Task FindJoinCandidates_IncludesBothTheParentAndChildSide()
     {
         // orders is in the statement; customers (parent) and order_items (child
@@ -165,5 +198,25 @@ public class ForeignKeyMatcherTests
         var candidates = ForeignKeyMatcher.FindJoinCandidates(tables, [OrderToCustomer, OrderItemToOrder]);
 
         await Assert.That(candidates).IsEmpty();
+    }
+
+    [Test]
+    public async Task FindJoinCandidates_DoesNotExcludeASameNamedTableInADifferentSchema()
+    {
+        // The statement already has public.orders; line_items (a different table)
+        // has its own FK to archive.orders — a distinct table that merely shares a
+        // bare name with one already referenced. A bare-name-only "already
+        // referenced" check would wrongly hide it; schema+table must both match.
+        var lineItemToArchiveOrder = new ForeignKeyInfo(
+            "sales", "line_items", ["order_id"], "archive", "orders", ["id"]);
+        TableReference[] tables =
+        [
+            new("public", "orders", "o"),
+            new("sales", "line_items", "li"),
+        ];
+
+        var candidates = ForeignKeyMatcher.FindJoinCandidates(tables, [lineItemToArchiveOrder]);
+
+        await Assert.That(candidates).Contains(("archive", "orders"));
     }
 }

@@ -24,16 +24,6 @@ public static class ForeignKeyMatcher
     public static IReadOnlyList<(string Schema, string Table)> FindJoinCandidates(
         IReadOnlyList<TableReference> statementTables, IReadOnlyList<ForeignKeyInfo> foreignKeys)
     {
-        var already = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var table in statementTables)
-        {
-            already.Add(table.Table);
-            if (!string.IsNullOrEmpty(table.Schema))
-            {
-                already.Add($"{table.Schema}.{table.Table}");
-            }
-        }
-
         var results = new List<(string Schema, string Table)>();
         var added = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var table in statementTables)
@@ -44,8 +34,10 @@ public static class ForeignKeyMatcher
                     ? (fk.ToSchema, fk.ToTable)
                     : (fk.FromSchema, fk.FromTable);
 
-                if (already.Contains(neighbor.Item2)
-                    || already.Contains($"{neighbor.Item1}.{neighbor.Item2}")
+                // A bare-name check here would wrongly exclude a same-named table in a
+                // different schema (e.g. public.orders in the statement shouldn't hide
+                // archive.orders as a candidate) — match schema-and-table precisely.
+                if (statementTables.Any(t => Matches(neighbor.Item1, neighbor.Item2, t))
                     || !added.Add($"{neighbor.Item1}.{neighbor.Item2}"))
                 {
                     continue;
@@ -81,8 +73,8 @@ public static class ForeignKeyMatcher
             }
 
             var (fk, leftIsChild) = match;
-            var leftRef = left.Alias ?? SqlIdentifier.QuoteIfNeeded(left.Table);
-            var rightRef = right.Alias ?? SqlIdentifier.QuoteIfNeeded(right.Table);
+            var leftRef = SqlIdentifier.QuoteIfNeeded(left.Alias ?? left.Table);
+            var rightRef = SqlIdentifier.QuoteIfNeeded(right.Alias ?? right.Table);
             var (childRef, childCols, parentRef, parentCols) = leftIsChild
                 ? (leftRef, fk.FromColumns, rightRef, fk.ToColumns)
                 : (rightRef, fk.FromColumns, leftRef, fk.ToColumns);

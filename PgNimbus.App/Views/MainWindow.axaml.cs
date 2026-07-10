@@ -969,9 +969,12 @@ public partial class MainWindow : Window
         // selected — Enter would insert nothing. Replay that filter once, now that
         // StartOffset/EndOffset and the data are in place; an empty typed segment (the
         // auto-open-on-space cases) still selects the best-priority item, e.g. the FK
-        // join condition after "ON ".
-        var typed = SqlEditor.Text[completionWindow.StartOffset..completionWindow.EndOffset];
-        completionWindow.CompletionList.SelectItem(typed);
+        // join condition after "ON ". Clamp defensively: StartOffset -= 1 above (or
+        // AvaloniaEdit's own offset bookkeeping) must never be allowed to slice out of
+        // document bounds and crash the app.
+        var start = Math.Max(0, completionWindow.StartOffset);
+        var end = Math.Clamp(completionWindow.EndOffset, start, SqlEditor.Text.Length);
+        completionWindow.CompletionList.SelectItem(SqlEditor.Text[start..end]);
 
         completionWindow.Show();
         completionWindow.Closed += (_, _) => _completionWindow = null;
