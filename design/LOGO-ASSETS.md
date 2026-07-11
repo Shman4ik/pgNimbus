@@ -68,10 +68,20 @@ MSIX manifest / CI reference them unchanged.
 | `app.ico` | 16,24,32,48,64,128,256 | solid tile | exe icon (`ApplicationIcon` in csproj) + MSI (`Product.wxs` → `ARPPRODUCTICON`, shortcut) |
 | `icon-256-light.png` | 256 | transparent | light-theme window icon (`ThemedWindowChrome.cs`) |
 | `icon-256-dark.png` | 256 | transparent | dark-theme window icon (`ThemedWindowChrome.cs`) |
-| `Msix/Square44x44Logo.png` | 44 | solid tile | MSIX small tile (`Package.appxmanifest`) |
-| `Msix/Square150x150Logo.png` | 150 | solid tile | MSIX medium tile |
-| `Msix/StoreLogo.png` | 50 | solid tile | MSIX `Properties/Logo` |
+| `Msix/Square44x44Logo.scale-{100,125,150,200,400}.png` | 44,55,66,88,176 | solid tile | MSIX small tile (`Package.appxmanifest`) |
+| `Msix/Square150x150Logo.scale-{100,125,150,200,400}.png` | 150,188,225,300,600 | solid tile | MSIX medium tile |
+| `Msix/StoreLogo.scale-{100,125,150,200,400}.png` | 50,63,75,100,200 | solid tile | MSIX `Properties/Logo` |
+| `Msix/Square44x44Logo.targetsize-{16,24,32,48,256}_altform-unplated.png` | 16,24,32,48,256 | transparent | taskbar/Alt+Tab/Start/install-dialog icon on dark surfaces |
+| `Msix/Square44x44Logo.targetsize-{16,24,32,48,256}_altform-lightunplated.png` | 16,24,32,48,256 | transparent | same, on light surfaces |
 | `PostgreSql.xshd` | — | n/a | *(not a logo — syntax highlighting; listed to avoid confusion)* |
+
+The scale/targetsize sets replaced a single flat file per logo (fixed
+2026-07): without a qualifier-matched size, Windows shrinks the one file it
+has and adds its own backplate around it — visible as an undersized icon on
+a big dark square in the taskbar, Start, and the sideload "Install app?"
+dialog. The qualified filenames alone don't do anything, though —
+`scripts/windows/build-msix.ps1` has to compile them into `resources.pri`
+via `makepri` at pack time for Windows to actually resolve them (see Part 3).
 
 ---
 
@@ -86,10 +96,19 @@ window/window-light-256.png ── copy ─────────► Assets/ic
 window/window-dark-256.png  ── copy ─────────► Assets/icon-256-dark.png
 icon/icon-{16,24,32,48}.png ── copy (as-is) ─┐
 icon/icon-256.png ── downscale → 64,128 ─────┼─► Assets/app.ico  (7 entries)
-icon/icon-48.png  ── → 44 ───────────────────► Assets/Msix/Square44x44Logo.png
-icon/icon-48.png  ── → 50 ───────────────────► Assets/Msix/StoreLogo.png
-icon/icon-256.png ── → 150 ──────────────────► Assets/Msix/Square150x150Logo.png
+icon/icon-48.png   ── → 44,55,66 ────────────► Assets/Msix/Square44x44Logo.scale-{100,125,150}.png
+icon/icon-1024.png ── → 88,176 ──────────────► Assets/Msix/Square44x44Logo.scale-{200,400}.png
+icon/icon-48.png   ── → 50,63,75 ────────────► Assets/Msix/StoreLogo.scale-{100,125,150}.png
+icon/icon-1024.png ── → 100,200 ─────────────► Assets/Msix/StoreLogo.scale-{200,400}.png
+icon/icon-256.png  ── → 150,188,225 ─────────► Assets/Msix/Square150x150Logo.scale-{100,125,150}.png
+icon/icon-1024.png ── → 300,600 ─────────────► Assets/Msix/Square150x150Logo.scale-{200,400}.png
+window/window-dark-256.png  ── → 16,24,32,48,256 ► Assets/Msix/Square44x44Logo.targetsize-*_altform-unplated.png
+window/window-light-256.png ── → 16,24,32,48,256 ► Assets/Msix/Square44x44Logo.targetsize-*_altform-lightunplated.png
 ```
+
+(scale-200/400 fall back to the 1024 master instead of upscaling the small
+48/256 master, which would blur; sizes ≤ the small master still use it, same
+as before — see the script's `SmallFrom` per-logo mapping.)
 
 ### `scripts/macos/build-app-bundle.sh` (macOS, sips/iconutil)
 Builds the `.icns` for the `.app`/`.dmg`. For each iconset slot it uses the
@@ -149,9 +168,11 @@ bigger), so it bounds quality of every derived size.
 (Apple masks). Mac App Store upload additionally wants a flat **1024×1024, no
 alpha**.
 
-**MSIX / Microsoft Store tiles** — shipped: 44, 150, 50 (required). Optional
-for a richer Store tile set, each at scale 100/125/150/200/400 %: Square71x71,
-Square310x310, Wide310x150, SplashScreen 620×300.
+**MSIX / Microsoft Store tiles** — shipped: 44, 150, 50 (required), each at
+scale 100/125/150/200/400%, plus Square44x44Logo's unplated
+targetsize-{16,24,32,48,256} pair (dark/light) for taskbar/Start/Alt+Tab.
+Optional for a richer Store tile set: Square71x71, Square310x310,
+Wide310x150, SplashScreen 620×300 (same per-scale set each).
 
 **Microsoft Store listing images** (Partner Center, upload-only; from
 `make-store-logos.ps1`): box art 2160², tile 300²/150²/71², 9:16 poster
