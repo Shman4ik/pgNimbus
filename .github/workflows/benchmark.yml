@@ -46,7 +46,7 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U postgres"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
@@ -81,8 +81,14 @@ jobs:
       # gh-pages (./dev/bench), which renders per-metric trend charts.
       # workflow_dispatch test runs skip this by default — they only get the
       # job-summary table above, unless record_history is explicitly set.
+      #
+      # continue-on-error: this is best-effort history bookkeeping, not the
+      # point of the job — a gh-pages push hiccup (e.g. a race between two
+      # concurrent releases) shouldn't mark the whole benchmark job failed
+      # when the actual measurements above already succeeded.
       - name: Record benchmark history
         if: inputs.record_history
+        continue-on-error: true
         uses: benchmark-action/github-action-benchmark@v1
         with:
           name: pgNimbus benchmarks
