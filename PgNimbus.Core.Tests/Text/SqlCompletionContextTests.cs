@@ -102,6 +102,10 @@ public class SqlCompletionContextTests
     [Arguments("SELECT * FROM a JOIN b ON a.id = b.a_id JOIN public.orders o |")]
     [Arguments("SELECT * FROM t JOIN \"Order Items\" oi |")]
     [Arguments("SELECT * FROM t JOIN orders o\n|")]
+    // A "join" inside a comment or string earlier in the statement must not
+    // pose as the JOIN whose target is being checked.
+    [Arguments("SELECT * FROM t /* join note */ JOIN orders o |")]
+    [Arguments("SELECT 'self join', * FROM t JOIN orders o |")]
     public async Task IsAfterCompleteJoinTarget_TrueAfterFinishedTableAndAlias(string marked)
     {
         var (sql, caret) = AtCaret(marked);
@@ -228,6 +232,25 @@ public class SqlCompletionContextTests
         var tables = SqlCompletionContext.ExtractTables("SELECT * FROM \"Sales\".\"Order Items\" oi");
 
         await Assert.That(tables[0]).IsEqualTo(new SqlCompletionContext.TableRef("Sales", "Order Items", "oi"));
+    }
+
+    [Test]
+    public async Task ExtractTables_KeywordInsideACommentDoesNotCutTheFromBody()
+    {
+        // "order" in the line comment must not end the FROM span before the JOIN.
+        var tables = SqlCompletionContext.ExtractTables(
+            "SELECT * FROM customers c -- order by signup date\nJOIN orders o ON c.id = o.customer_id");
+
+        await Assert.That(tables).HasCount().EqualTo(2);
+        await Assert.That(tables[1].Table).IsEqualTo("orders");
+    }
+
+    [Test]
+    public async Task ExtractTables_FromInsideAStringLiteralIsNotAFromClause()
+    {
+        var tables = SqlCompletionContext.ExtractTables("SELECT 'copied from fake_table' AS note");
+
+        await Assert.That(tables).IsEmpty();
     }
 
     // --- ExtractCteNames ---

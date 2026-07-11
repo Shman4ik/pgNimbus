@@ -230,6 +230,102 @@ public static partial class SqlCompletionContext
     private static readonly string[] ColumnClauseKeywords =
         ["select", "set", "returning", "values", "when", "then", "else", "distinct"];
 
+    // Blanks the interiors of comments (--, nested /* */) and string literals
+    // ('…', $$…$$) to spaces, length-preserved so every offset stays valid —
+    // the regex heuristics below can't be made quote/comment-aware one by one,
+    // so they run over this masked text instead. Double-quoted identifiers are
+    // *kept* (they're names the heuristics need) but skipped atomically so
+    // their content can't open a fake comment/literal. Same single forward
+    // pass as GetCaretContext; returns the original string when there's
+    // nothing to mask.
+    private static string MaskCommentsAndStrings(string sql)
+    {
+        char[]? masked = null;
+        var i = 0;
+        while (i < sql.Length)
+        {
+            var c = sql[i];
+
+            if (c == '"')
+            {
+                var close = sql.IndexOf('"', i + 1);
+                i = close < 0 ? sql.Length : close + 1;
+                continue;
+            }
+
+            if (c == '-' && i + 1 < sql.Length && sql[i + 1] == '-')
+            {
+                var eol = sql.IndexOf('\n', i + 2);
+                var stop = eol < 0 ? sql.Length : eol;
+                Blank(ref masked, sql, i, stop - i);
+                i = stop;
+                continue;
+            }
+
+            if (c == '/' && i + 1 < sql.Length && sql[i + 1] == '*')
+            {
+                var start = i;
+                var depth = 1;
+                i += 2;
+                while (i < sql.Length && depth > 0)
+                {
+                    if (sql[i] == '/' && i + 1 < sql.Length && sql[i + 1] == '*')
+                    {
+                        depth++;
+                        i += 2;
+                    }
+                    else if (sql[i] == '*' && i + 1 < sql.Length && sql[i + 1] == '/')
+                    {
+                        depth--;
+                        i += 2;
+                    }
+                    else
+                    {
+                        i++;
+                    }
+                }
+
+                Blank(ref masked, sql, start, i - start);
+                continue;
+            }
+
+            if (c == '\'')
+            {
+                var start = i;
+                var close = sql.IndexOf('\'', i + 1);
+                i = close < 0 ? sql.Length : close + 1;
+                Blank(ref masked, sql, start, i - start);
+                continue;
+            }
+
+            if (c == '$')
+            {
+                var start = i;
+                var next = i;
+                if (TrySkipDollarQuote(sql, start, sql.Length, ref next))
+                {
+                    // -1 means the literal is still open — mask to the end.
+                    i = next < 0 ? sql.Length : next;
+                    Blank(ref masked, sql, start, i - start);
+                    continue;
+                }
+            }
+
+            i++;
+        }
+
+        return masked is null ? sql : new string(masked);
+
+        static void Blank(ref char[]? masked, string sql, int start, int count)
+        {
+            masked ??= sql.ToCharArray();
+            for (var j = start; j < start + count; j++)
+            {
+                masked[j] = ' ';
+            }
+        }
+    }
+
     // Skips a $$…$$ / $tag$…$tag$ literal starting at `start`. Returns false when
     // the '$' isn't a dollar-quote opener (e.g. a $1 parameter); on true, `i` is
     // the index after the closing tag, or -1 when the literal is still open at `end`.
@@ -316,7 +412,9 @@ public static partial class SqlCompletionContext
     public static bool IsAfterCompleteJoinTarget(string sql, int caret)
     {
         var end = Math.Clamp(caret, 0, sql.Length);
-        var before = sql[..end];
+        // Masked so a "join" inside a comment or string literal before the
+        // caret can't pose as the JOIN whose target we're checking.
+        var before = MaskCommentsAndStrings(sql[..end]);
         var joins = JoinKeywordRegex().Matches(before);
         if (joins.Count == 0)
         {
@@ -353,6 +451,9 @@ public static partial class SqlCompletionContext
     /// </summary>
     public static IReadOnlyList<TableRef> ExtractTables(string sql)
     {
+        // Masked first: a FROM/JOIN/keyword inside a comment or string literal
+        // must not spawn phantom tables or cut a real FROM body short.
+        sql = MaskCommentsAndStrings(sql);
         var tables = new List<TableRef>();
 
         foreach (Match clause in FromClauseRegex().Matches(sql))
@@ -383,7 +484,7 @@ public static partial class SqlCompletionContext
     public static IReadOnlyList<string> ExtractCteNames(string sql)
     {
         var names = new List<string>();
-        foreach (Match match in CteNameRegex().Matches(sql))
+        foreach (Match match in CteNameRegex().Matches(MaskCommentsAndStrings(sql)))
         {
             names.Add(Unquote(match.Groups["name"].Value));
         }
@@ -491,11 +592,13 @@ public static partial class SqlCompletionContext
     };
 
     // FROM (or a comma/JOIN list under it), captured up to the next top-level
-    // clause keyword or statement end. Quoted sections are consumed atomically
-    // so a keyword *inside* an identifier or literal ("Order Items", 'set x')
-    // can't cut the body short; [\s\S] so the body spans newlines.
+    // clause keyword or statement end. Runs over MaskCommentsAndStrings output,
+    // so comments and string literals are already blanked; quoted identifiers
+    // survive the mask and are consumed atomically here so a keyword *inside*
+    // one ("Order Items") can't cut the body short. [\s\S] so the body spans
+    // newlines.
     [GeneratedRegex(
-        """\bfrom\b(?<body>(?:"[^"]*"|'[^']*'|[\s\S])*?)(?=\b(?:where|group|having|order|limit|offset|union|intersect|except|returning|window|for|into|values|set)\b|;|$)""",
+        """\bfrom\b(?<body>(?:"[^"]*"|[\s\S])*?)(?=\b(?:where|group|having|order|limit|offset|union|intersect|except|returning|window|for|into|values|set)\b|;|$)""",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex FromClauseRegex();
 
