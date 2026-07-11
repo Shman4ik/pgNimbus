@@ -12,26 +12,29 @@ public class AppSettingsStoreTests
         var settings = store.Load();
 
         await Assert.That(settings.Theme).IsEqualTo("system");
-        await Assert.That(settings.AutoAliasTables).IsTrue();
+        await Assert.That(settings.AutoAliasTables).IsFalse();
     }
 
     [Test]
     public async Task Load_FileFromOlderBuild_MissingFieldsFallBackToTheirDefaults()
     {
         // The trap this guards: the source-generated JSON deserializer bypasses
-        // property initializers for init-only setters, so a default-true flag
-        // added after this file was written would silently load as false if
-        // AppSettings ever regressed from set to init accessors.
+        // property initializers for init-only setters, so a non-zero default
+        // added after this file was written would silently load as null/false if
+        // AppSettings ever regressed from set to init accessors. Theme carries
+        // that guard — a file omitting it must still fall back to "system", not
+        // null. ShowAdvancedSchemaObjects and AutoAliasTables default to false,
+        // so they can't detect the regression; they're checked for completeness.
         var path = Path.Combine(Path.GetTempPath(), $"pgnimbus-{Guid.NewGuid():N}.json");
-        await File.WriteAllTextAsync(path, """{ "Theme": "dark", "ShowAdvancedSchemaObjects": true }""");
+        await File.WriteAllTextAsync(path, """{ "ShowAdvancedSchemaObjects": true }""");
 
         try
         {
             var settings = new AppSettingsStore(path).Load();
 
-            await Assert.That(settings.Theme).IsEqualTo("dark");
+            await Assert.That(settings.Theme).IsEqualTo("system");
             await Assert.That(settings.ShowAdvancedSchemaObjects).IsTrue();
-            await Assert.That(settings.AutoAliasTables).IsTrue();
+            await Assert.That(settings.AutoAliasTables).IsFalse();
         }
         finally
         {
