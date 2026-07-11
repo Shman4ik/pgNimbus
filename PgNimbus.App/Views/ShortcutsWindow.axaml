@@ -164,6 +164,14 @@
                         </StackPanel>
                     </Grid>
                     <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
+                        <TextBlock Classes="what" Text="Toggle auto-alias on table completion" />
+                        <StackPanel Grid.Column="1" Classes="keys">
+                            <Border Classes="kbd"><TextBlock Classes="cmdKey" Text="Ctrl" /></Border>
+                            <Border Classes="kbd"><TextBlock Text="Shift" /></Border>
+                            <Border Classes="kbd"><TextBlock Text="A" /></Border>
+                        </StackPanel>
+                    </Grid>
+                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
                         <TextBlock Classes="what" Text="Move to word start / end" />
                         <StackPanel Grid.Column="1" Classes="keys">
                             <Border Classes="kbd"><TextBlock Classes="cmdKey" Text="Ctrl" /></Border>
@@ -248,6 +256,13 @@
                         <TextBlock Classes="what" Text="Preview a table (in the schema tree)" />
                         <StackPanel Grid.Column="1" Classes="keys">
                             <TextBlock Classes="combo" Text="Double-click" />
+                        </StackPanel>
+                    </Grid>
+                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
+                        <TextBlock Classes="what" Text="Preferences" />
+                        <StackPanel Grid.Column="1" Classes="keys">
+                            <Border Classes="kbd"><TextBlock Classes="cmdKey" Text="Ctrl" /></Border>
+                            <Border Classes="kbd"><TextBlock Text="," /></Border>
                         </StackPanel>
                     </Grid>
                     <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">

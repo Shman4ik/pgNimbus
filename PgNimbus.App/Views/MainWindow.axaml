@@ -142,6 +142,13 @@
                         Background="{Binding AccentColor, Converter={x:Static conv2:HexToBrushConverter.Instance}}" />
                 <Button DockPanel.Dock="Right" Classes="chip" Content="?" FontSize="13" VerticalAlignment="Center"
                         Click="OnShowShortcutsClick" ToolTip.Tip="Keyboard shortcuts (F1)" />
+                <!-- Tooltip is set in code (BuildKeyBindings) so its shortcut
+                     label tracks the live Ctrl/Cmd scheme. -->
+                <Button Name="PreferencesButton" DockPanel.Dock="Right" Classes="chip" Padding="5"
+                        Margin="0,0,4,0" VerticalAlignment="Center"
+                        Click="OnShowPreferencesClick">
+                    <PathIcon Data="{StaticResource CogIconGeometry}" Width="14" Height="14" />
+                </Button>
                 <Button Name="ThemeToggleButton" DockPanel.Dock="Right" Classes="chip" Padding="5"
                         Margin="0,0,4,0" VerticalAlignment="Center"
                         Click="OnToggleThemeClick" ToolTip.Tip="Toggle light/dark theme">

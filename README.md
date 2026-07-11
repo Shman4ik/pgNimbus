@@ -160,8 +160,9 @@ Every tag push (`vX.Y.Z`) builds all of the above via
   title-bar button) for an overview of every binding.
 - **Preferences page** — theme (system/light/dark), editor behavior
   (auto-alias on completion), and the shortcut modifier (Ctrl/Cmd,
-  auto-detected per platform) on one page, opened from the command palette
-  ("Preferences…"); every change applies immediately.
+  auto-detected per platform) on one page, opened via the gear title-bar
+  button, <kbd>Ctrl</kbd>+<kbd>,</kbd>, or "Preferences…" in the command
+  palette; every change applies immediately.
 - **Multi-tab query editor** — schema-aware SQL autocomplete (schema-qualified
   tables after `FROM`/`JOIN`, `FROM`-scoped columns in `WHERE`/`ON`/`ORDER BY`,
   columns with their data types elsewhere, `alias.` member access, CTE names,
@@ -221,6 +222,7 @@ The highlights:
 | Next / previous tab | <kbd>Ctrl</kbd>+<kbd>PageDown</kbd> / <kbd>Ctrl</kbd>+<kbd>PageUp</kbd> |
 | SQL autocomplete | <kbd>Ctrl</kbd>+<kbd>Space</kbd> (also triggers while typing) |
 | Switch focus: editor ↔ results grid | <kbd>F6</kbd> |
+| Preferences | <kbd>Ctrl</kbd>+<kbd>,</kbd> |
 | Edit selected result cell | <kbd>F2</kbd>, then <kbd>Enter</kbd> to commit / <kbd>Esc</kbd> to cancel |
 | Inspect a result cell (full value, pretty-printed JSON) | Double-click, or "Inspect cell…" on the grid context menu |
 | Keyboard shortcuts window | <kbd>F1</kbd> |
@@ -366,6 +368,15 @@ individually shippable pieces. Shipped items graduate from this list into
 - [ ] **Mica/acrylic backdrop on Windows** — the two-tone shell is ready for
   it; deliberately deferred until it can be verified on a real Windows
   desktop (transparency fallbacks can't be seen headless).
+- [ ] **Verify results-grid trackpad scrolling on a real mac** — the fix
+  (horizontal wheel deltas are fed to the grid's horizontal scrollbar on
+  hover, no click-into-grid needed) is implemented but was exercised on
+  Windows only; needs a pass with an actual macOS trackpad, ideally as part
+  of a broader macOS input/gesture sweep.
+- [ ] **Per-action hotkey remapping** — the Ctrl/Cmd scheme switch
+  (Preferences → Keyboard, `Hotkeys.cs`) is the foundation; the next step is
+  letting users rebind individual actions, persisted in `AppSettings`, with
+  conflict detection and a reset-to-defaults.
 
 ### SQL editor — completion that predicts the next move
 

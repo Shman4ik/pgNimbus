@@ -57,6 +57,23 @@ public sealed partial class MainViewModel : ObservableObject
     private void SwitchConnection() => SwitchConnectionRequested?.Invoke();
 
     [RelayCommand]
+    private void ShowPreferences() => PreferencesRequested?.Invoke();
+
+    /// <summary>
+    /// Flips auto-alias and reports the new state in the status bar — the
+    /// setting has no always-visible indicator, so a hotkey/palette toggle
+    /// needs some visible confirmation.
+    /// </summary>
+    [RelayCommand]
+    private void ToggleAutoAlias()
+    {
+        AutoAliasTables = !AutoAliasTables;
+        ActiveTab.Status = AutoAliasTables
+            ? "Auto-alias tables: on (orders → orders o)"
+            : "Auto-alias tables: off";
+    }
+
+    [RelayCommand]
     private void ShowActivity() => ActivityRequested?.Invoke();
 
     // Relations rarely change mid-session, so the palette's "jump to a table"
@@ -436,10 +453,10 @@ public sealed partial class MainViewModel : ObservableObject
         yield return new PaletteItem("Previous tab", "Action", "‹", Invoke(() => PreviousTabCommand), Hotkeys.Label("PgUp"));
         yield return new PaletteItem("Format SQL", "Action", "❖", () => { FormatSqlRequested?.Invoke(); return Task.CompletedTask; }, Hotkeys.Label("Shift+F"));
         yield return new PaletteItem("Toggle sidebar", "Action", "◫", () => { SidebarToggleRequested?.Invoke(); return Task.CompletedTask; }, Hotkeys.Label("B"));
-        yield return new PaletteItem("Toggle auto-alias tables (orders → orders o)", "Action", "a", () => { AutoAliasTables = !AutoAliasTables; return Task.CompletedTask; });
+        yield return new PaletteItem("Toggle auto-alias tables (orders → orders o)", "Action", "a", Invoke(() => ToggleAutoAliasCommand), Hotkeys.Label("Shift+A"));
         yield return new PaletteItem("Switch connection…", "Action", "⇄", () => { SwitchConnectionRequested?.Invoke(); return Task.CompletedTask; });
         yield return new PaletteItem("Toggle light/dark theme", "Action", "◐", () => { ThemeToggleRequested?.Invoke(); return Task.CompletedTask; });
-        yield return new PaletteItem("Preferences…", "Action", "⚙", () => { PreferencesRequested?.Invoke(); return Task.CompletedTask; });
+        yield return new PaletteItem("Preferences…", "Action", "⚙", Invoke(() => ShowPreferencesCommand), Hotkeys.Label(","));
         yield return new PaletteItem("Keyboard shortcuts", "Action", "?", () => { ShortcutsRequested?.Invoke(); return Task.CompletedTask; }, "F1");
     }
 

@@ -239,6 +239,13 @@ public partial class MainWindow : Window
         Add(new KeyGesture(Key.PageDown, Hotkeys.Command), () => _viewModel?.NextTabCommand);
         Add(new KeyGesture(Key.PageUp, Hotkeys.Command), () => _viewModel?.PreviousTabCommand);
         Add(new KeyGesture(Key.R, Hotkeys.Command | KeyModifiers.Shift), () => _viewModel?.RefreshSchemaCommand);
+        // Ctrl/Cmd+, — the near-universal preferences shortcut.
+        Add(new KeyGesture(Key.OemComma, Hotkeys.Command), () => _viewModel?.ShowPreferencesCommand);
+        Add(new KeyGesture(Key.A, Hotkeys.Command | KeyModifiers.Shift), () => _viewModel?.ToggleAutoAliasCommand);
+
+        // The gear button's tooltip carries the shortcut, so it's set here
+        // (not in XAML) to track the live Ctrl/Cmd scheme.
+        ToolTip.SetTip(PreferencesButton, $"Preferences ({Hotkeys.Label(",")})");
 
         void Add(KeyGesture gesture, Func<System.Windows.Input.ICommand?> resolve) =>
             KeyBindings.Add(new KeyBinding { Gesture = gesture, Command = new DelegatedCommand(resolve) });
@@ -746,6 +753,8 @@ public partial class MainWindow : Window
     }
 
     private PreferencesWindow? _preferencesWindow;
+
+    private void OnShowPreferencesClick(object? sender, RoutedEventArgs e) => ShowPreferencesWindow();
 
     // One live instance, same pattern as the shortcuts window.
     private void ShowPreferencesWindow()
