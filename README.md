@@ -358,18 +358,18 @@ impact order:
   in the completion list, breaking ties by exact-prefix, then shorter name,
   then recency of use. Requires replacing the stock AvaloniaEdit
   `CompletionList` filter.
-- [ ] **Auto-open in more predictable spots** — the list opens by itself
+- [x] **Auto-open in more predictable spots** — the list opens by itself
   only after FROM/JOIN/INTO/UPDATE today. `WHERE `, `ON `, `AND `/`OR `,
   `SELECT ` and a comma inside a select list are just as predictable (the
   statement's own columns are already scoped and floated there) but
   currently require Ctrl+Space.
-- [ ] **Auto-alias on table accept** — accepting `sales.orders` after
+- [x] **Auto-alias on table accept** — accepting `sales.orders` after
   FROM/JOIN could also insert a short alias (`o`, dedup as `o2`…) so the
   `o.` member-access flow is immediately available; make it a setting.
-- [ ] **Auto-close pairs** — `(`, `'`, `"` should insert their closer with
+- [x] **Auto-close pairs** — `(`, `'`, `"` should insert their closer with
   type-over on the closing character; today `coalesce()` from a completion
   accept is the only paired insert in the editor.
-- [ ] **Completion popup visual polish** — stock AvaloniaEdit look: no kind
+- [x] **Completion popup visual polish** — stock AvaloniaEdit look: no kind
   icons, no type column. Give items a kind glyph + color (table / column /
   function / keyword / schema / alias / CTE), right-align the column data
   type that's currently buried in the description panel, and restyle the
