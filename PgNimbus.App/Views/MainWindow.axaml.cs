@@ -103,6 +103,20 @@ public partial class MainWindow : Window
             _queryViewModel.Sql = SqlEditor.Text;
         };
 
+        // Feed the editor's live selection to the active tab so "Run" executes
+        // just the highlighted SQL when there is a selection (see RunAsync).
+        // Empty selection -> null, i.e. run the whole buffer.
+        SqlEditor.TextArea.SelectionChanged += (_, _) =>
+        {
+            if (_queryViewModel is null)
+            {
+                return;
+            }
+
+            var selected = SqlEditor.SelectedText;
+            _queryViewModel.SelectedSql = string.IsNullOrEmpty(selected) ? null : selected;
+        };
+
         // TreeViewItem's own DoubleTapped handling (toggling expand) marks the
         // event Handled, so it never reaches a plain `+=` subscription on the
         // parent TreeView. Use AddHandler with handledEventsToo to still see it.
@@ -127,7 +141,11 @@ public partial class MainWindow : Window
 
         SqlEditor.TextArea.TextEntering += OnSqlTextEntering;
         SqlEditor.TextArea.TextEntered += OnSqlTextEntered;
-        SqlEditor.KeyDown += OnSqlEditorKeyDown;
+        // Tunnel on the TextArea: AvaloniaEdit's editing input handler consumes
+        // Enter (inserts a newline) and marks the event handled before it bubbles
+        // up to the editor, so a plain bubbling KeyDown handler never sees
+        // Shift+Enter. Tunneling runs us first, so our shortcuts win.
+        SqlEditor.TextArea.AddHandler(KeyDownEvent, OnSqlEditorKeyDown, RoutingStrategies.Tunnel);
 
         // Editor niceties: current-line wash (brushes are theme-resolved in
         // ApplySqlHighlightingTheme), matching-bracket highlight, and
