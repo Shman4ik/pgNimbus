@@ -32,4 +32,12 @@ public sealed record AppSettings
     /// opt in from the completion preferences toggle.
     /// </summary>
     public bool AutoAliasTables { get; set; }
+
+    /// <summary>
+    /// Which modifier the app's command shortcuts use: <c>"auto"</c> (Cmd on
+    /// macOS, Ctrl elsewhere — the default), <c>"windows"</c> (always Ctrl), or
+    /// <c>"mac"</c> (always Cmd). A plain string for the same reason as
+    /// <see cref="Theme"/>; the App maps it to key modifiers.
+    /// </summary>
+    public string HotkeyScheme { get; set; } = "auto";
 }
