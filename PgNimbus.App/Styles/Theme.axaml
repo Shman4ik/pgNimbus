@@ -308,6 +308,11 @@
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="Opacity" Value="0.6" />
+        <!-- Buttons default to Stretch content alignment, which pins a glyph
+             smaller than MinWidth/MinHeight to the top-left of the rounded
+             highlight (visible on the tab ✕ and the new-tab +) - center it. -->
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
     </Style>
     <Style Selector="Button.chip:pointerover, ToggleButton.chip:pointerover">
         <Setter Property="Background" Value="{StaticResource HoverBackgroundBrush}" />

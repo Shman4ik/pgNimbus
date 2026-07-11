@@ -46,6 +46,22 @@ and wrong project memory is worse than none.
    `PlainFileCredentialStore`) at connect time, never persisted on the
    profile record itself.
 
+## UI design rules
+
+1. **Minimalist design is a priority.** Every new always-visible control —
+   especially a toolbar button — must be explicitly discussed and justified
+   before it's added; the default answer is no. Secondary/rare actions belong
+   in the command palette (Ctrl+K) or a context menu, not on the toolbar
+   (that's why the auto-alias "AS" toggle moved from the toolbar to the
+   palette, 2026-07).
+2. **Double-click triggers the default action.** Anywhere a list/tree item
+   has an obvious primary action, double-clicking it must perform that
+   action: schema-tree table → browse, function → source, saved query /
+   history entry → open in a new tab, connection profile → connect, result
+   cell → inspector. Apply the same rule to any new list-like UI.
+3. **Loading a query never overwrites the active tab.** Saved queries,
+   history entries, and generated DDL all open in a *new* tab.
+
 ## App icon / logo assets
 
 Full reference: [`design/LOGO-ASSETS.md`](design/LOGO-ASSETS.md); the

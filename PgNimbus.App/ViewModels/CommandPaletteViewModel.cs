@@ -10,7 +10,8 @@ namespace PgNimbus.App.ViewModels;
 /// <param name="Category">A quiet right-aligned tag ("Table", "Saved query", "Action").</param>
 /// <param name="Glyph">A single-character icon shown at the leading edge.</param>
 /// <param name="InvokeAsync">Runs the entry's effect; awaited after the palette closes.</param>
-public sealed record PaletteItem(string Title, string Category, string Glyph, Func<Task> InvokeAsync);
+/// <param name="Shortcut">The action's hotkey ("Ctrl+Enter"), shown so users learn it; null when it has none.</param>
+public sealed record PaletteItem(string Title, string Category, string Glyph, Func<Task> InvokeAsync, string? Shortcut = null);
 
 /// <summary>
 /// The command palette (Ctrl+K / Ctrl+P): one keyboard-first control to

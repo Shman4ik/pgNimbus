@@ -17,6 +17,7 @@ public sealed partial class SavedQueriesViewModel : ObservableObject
     private readonly SavedQueryStore _savedQueryStore;
     private readonly QueryHistoryStore _historyStore;
     private readonly Func<QueryViewModel?> _getActiveQuery;
+    private readonly Action<string?, string> _openInNewTab;
     private readonly Func<string?> _getConnectionLabel;
 
     [ObservableProperty]
@@ -47,11 +48,12 @@ public sealed partial class SavedQueriesViewModel : ObservableObject
     /// <summary>True when history exists but the filter/scope hides all of it — drives a "no matches" hint.</summary>
     public bool HasNoHistoryMatches => History.Count > 0 && FilteredHistory.Count == 0;
 
-    public SavedQueriesViewModel(SavedQueryStore savedQueryStore, QueryHistoryStore historyStore, Func<QueryViewModel?> getActiveQuery, Func<string?>? getConnectionLabel = null)
+    public SavedQueriesViewModel(SavedQueryStore savedQueryStore, QueryHistoryStore historyStore, Func<QueryViewModel?> getActiveQuery, Action<string?, string> openInNewTab, Func<string?>? getConnectionLabel = null)
     {
         _savedQueryStore = savedQueryStore;
         _historyStore = historyStore;
         _getActiveQuery = getActiveQuery;
+        _openInNewTab = openInNewTab;
         _getConnectionLabel = getConnectionLabel ?? (() => null);
 
         foreach (var saved in _savedQueryStore.Load())
@@ -152,21 +154,23 @@ public sealed partial class SavedQueriesViewModel : ObservableObject
         _savedQueryStore.Save(SavedQueries);
     }
 
+    // Loading always lands in a fresh tab: it must never overwrite whatever the
+    // active tab holds (double-click on a list item takes the same path).
     [RelayCommand]
     private void LoadSavedQuery(SavedQuery? query)
     {
-        if (query is not null && _getActiveQuery() is { } active)
+        if (query is not null)
         {
-            active.Sql = query.Sql;
+            _openInNewTab(query.Name, query.Sql);
         }
     }
 
     [RelayCommand]
     private void LoadHistoryEntry(QueryHistoryEntry? entry)
     {
-        if (entry is not null && _getActiveQuery() is { } active)
+        if (entry is not null)
         {
-            active.Sql = entry.Sql;
+            _openInNewTab(null, entry.Sql);
         }
     }
 
