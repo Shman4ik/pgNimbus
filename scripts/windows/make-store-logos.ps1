@@ -16,12 +16,11 @@ $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
 
 $repo = Resolve-Path (Join-Path $PSScriptRoot '..\..')
-$src  = New-Object System.Drawing.Bitmap((Join-Path $repo 'design\icon-tile.png'))
-$bg   = [System.Drawing.Color]::FromArgb(255, 59, 68, 77)  # sampled from icon-tile.png's own background
+$src  = New-Object System.Drawing.Bitmap((Join-Path $repo 'design\masters\icon\icon-1024.png'))
+$bg   = [System.Drawing.Color]::FromArgb(255, 59, 68, 77)  # dark tile background (poster fill)
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 
-# Rounded-corner tile at a given size, rendered fresh from the full-res
-# source (same approach as make-app-icons.ps1's New-Tile).
+# Square full-bleed tile at a given size, rendered from the 1024 master.
 function New-Tile([int]$size) {
     $bmp = New-Object System.Drawing.Bitmap($size, $size, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
     $g = [System.Drawing.Graphics]::FromImage($bmp)
@@ -29,20 +28,8 @@ function New-Tile([int]$size) {
     $g.InterpolationMode  = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
     $g.PixelOffsetMode    = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
     $g.CompositingQuality = [System.Drawing.Drawing2D.CompositingQuality]::HighQuality
-
-    $r = [Math]::Max(1, [Math]::Round($size * 0.22))
-    $d = $r * 2
-    $path = New-Object System.Drawing.Drawing2D.GraphicsPath
-    $path.AddArc(0, 0, $d, $d, 180, 90)
-    $path.AddArc($size - $d, 0, $d, $d, 270, 90)
-    $path.AddArc($size - $d, $size - $d, $d, $d, 0, 90)
-    $path.AddArc(0, $size - $d, $d, $d, 90, 90)
-    $path.CloseFigure()
-
-    $g.SetClip($path)
     $g.DrawImage($src, 0, 0, $size, $size)
     $g.Dispose()
-    $path.Dispose()
     return $bmp
 }
 

@@ -48,21 +48,37 @@ and wrong project memory is worse than none.
 
 ## App icon / logo assets
 
-`design/` holds the icon sources: `logo.svg` (vector master),
-`logo-light.png` / `logo-dark.png` (transparent line art, named for the
-theme they're shown on — README on GitHub and the in-app window icons), and
-`icon-tile.png` (the glyph on a dark square). Everything in
-`PgNimbus.App/Assets/` below is **generated** from those sources by
+Full reference: [`design/LOGO-ASSETS.md`](design/LOGO-ASSETS.md); the
+designer hand-off brief is [`design/DESIGNER-BRIEF.md`](design/DESIGNER-BRIEF.md).
+**Keep both current** when assets or the pipeline change.
+
+Sources live in `design/masters/` and are **hand-drawn per size** — the
+scripts *copy/assemble* them, they do **not** downscale one master into every
+tiny icon (that produced muddy 16–32px icons; fixed 2026-07). Icon tiles are
+**square full-bleed** (no baked rounding); the OS/store rounds them. Layout:
+
+- `design/masters/icon/icon-{16,24,32,48,256,1024}.png` — the app tile,
+  square solid-bg, hand-tuned/simplified at small sizes.
+- `design/masters/window/window-{light,dark}-256.png` — transparent line-art
+  window icons.
+- `design/masters/logo/` — README logo (`logo.svg`, `logo-{light,dark}.png`),
+  plus planned `wordmark-*` lockup and `social-preview.png` (1280×640).
+- `design/archive/` — superseded concepts (old `icon-tile.png`, `simple/`, …).
+
+Everything in `PgNimbus.App/Assets/` is **generated** by
 `scripts/windows/make-app-icons.ps1` (Windows-only, System.Drawing) —
-regenerate via that script instead of hand-editing:
+regenerate via that script, don't hand-edit. Output filenames are stable so
+csproj / WiX / MSIX manifest reference them unchanged:
 
 - `icon-256-light.png` / `icon-256-dark.png` — window (title-bar/taskbar)
-  icons. Windows don't set `Icon` in XAML; each window calls
-  `ThemedWindowIcon.Attach(this)` in its constructor, which picks the
-  variant for the actual theme and re-applies it on any live theme switch.
-- `icon-256.png` — the rounded dark tile; the macOS `.icns` source.
+  icons, copied verbatim from `window/`. Windows don't set `Icon` in XAML;
+  each window calls `ThemedWindowIcon.Attach(this)` in its constructor, which
+  picks the variant for the actual theme and re-applies it on live switches.
+- `icon-256.png` — the square dark tile; the macOS `.icns` source
+  (`scripts/macos/build-app-bundle.sh` assembles the iconset per size).
 - `app.ico` — 16–256px multi-size tile; the exe (`ApplicationIcon`) and MSI
   icon.
+- `Assets/Msix/*` — MSIX tiles (44/150/50), packaging-time-only.
 
 ## Tech stack
 

@@ -1,49 +1,61 @@
-# Regenerates the shipped app icons from the design sources:
-#   design/icon-tile.png  ->  PgNimbus.App/Assets/icon-256.png        (macOS .icns source)
-#                         ->  PgNimbus.App/Assets/app.ico             (exe + MSI icon)
-#                         ->  PgNimbus.App/Assets/Msix/*.png          (MSIX package tile assets)
-#   design/logo-light.png ->  PgNimbus.App/Assets/icon-256-light.png  (window icon, light theme)
-#   design/logo-dark.png  ->  PgNimbus.App/Assets/icon-256-dark.png   (window icon, dark theme)
+# Assembles the shipped app icons from the prepared design masters. The
+# masters are hand-drawn per size (see design/DESIGNER-BRIEF.md) — this script
+# does NOT resample the small, legibility-critical sizes: it copies them
+# verbatim and only downscales the larger, non-critical sizes from a master.
 #
-# Windows-only (uses System.Drawing/GDI+). Run after changing the design PNGs:
-#   pwsh scripts/windows/make-app-icons.ps1
+#   INPUT  design/masters/icon/icon-{16,24,32,48,256,1024}.png   square full-bleed tiles
+#          design/masters/window/window-{light,dark}-256.png     transparent line art
+#
+#   OUTPUT PgNimbus.App/Assets/app.ico                exe + MSI icon (multi-size)
+#          PgNimbus.App/Assets/icon-256.png           macOS .icns source (square)
+#          PgNimbus.App/Assets/icon-256-light.png     light-theme window icon (transparent)
+#          PgNimbus.App/Assets/icon-256-dark.png      dark-theme  window icon (transparent)
+#          PgNimbus.App/Assets/Msix/Square44x44Logo.png    MSIX small tile
+#          PgNimbus.App/Assets/Msix/Square150x150Logo.png  MSIX medium tile
+#          PgNimbus.App/Assets/Msix/StoreLogo.png          MSIX / Store listing icon (50px)
+#
+# Windows-only (uses System.Drawing/GDI+). Run after the designer updates the
+# masters:  pwsh scripts/windows/make-app-icons.ps1
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
 
-$repo = Resolve-Path (Join-Path $PSScriptRoot '..\..')
-$src  = New-Object System.Drawing.Bitmap((Join-Path $repo 'design\icon-tile.png'))
+$repo    = Resolve-Path (Join-Path $PSScriptRoot '..\..')
+$iconDir = Join-Path $repo 'design\masters\icon'
+$winDir  = Join-Path $repo 'design\masters\window'
+$outDir  = Join-Path $repo 'PgNimbus.App\Assets'
+$msixDir = Join-Path $outDir 'Msix'
 
-# Rounded-corner tile at a given size, rendered fresh from the full-res source
-# so corners stay crisp at every ICO entry size.
-function New-Tile([int]$size) {
+function Get-Master([int]$size) {
+    $p = Join-Path $iconDir "icon-$size.png"
+    if (-not (Test-Path $p)) { throw "Missing icon master: $p" }
+    return $p
+}
+
+# A square tile bitmap at the requested size. If a hand-drawn master exists at
+# exactly that size it is loaded as-is (no resample); otherwise it is
+# high-quality-downscaled from `fromSize` (always a LARGER master, never
+# upscaled) so glyph detail is preserved.
+function Get-Tile([int]$size, [int]$fromSize) {
+    $exact = Join-Path $iconDir "icon-$size.png"
+    if (Test-Path $exact) {
+        return New-Object System.Drawing.Bitmap($exact)
+    }
+    $src = New-Object System.Drawing.Bitmap((Get-Master $fromSize))
     $bmp = New-Object System.Drawing.Bitmap($size, $size, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
     $g = [System.Drawing.Graphics]::FromImage($bmp)
-    $g.SmoothingMode      = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
     $g.InterpolationMode  = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
     $g.PixelOffsetMode    = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
     $g.CompositingQuality = [System.Drawing.Drawing2D.CompositingQuality]::HighQuality
-
-    $r = [Math]::Max(1, [Math]::Round($size * 0.22))  # Windows-11-style corner ratio
-    $d = $r * 2
-    $path = New-Object System.Drawing.Drawing2D.GraphicsPath
-    $path.AddArc(0, 0, $d, $d, 180, 90)
-    $path.AddArc($size - $d, 0, $d, $d, 270, 90)
-    $path.AddArc($size - $d, $size - $d, $d, $d, 0, 90)
-    $path.AddArc(0, $size - $d, $d, $d, 90, 90)
-    $path.CloseFigure()
-
-    $g.SetClip($path)
+    $g.SmoothingMode      = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
     $g.DrawImage($src, 0, 0, $size, $size)
-    $g.Dispose()
-    $path.Dispose()
+    $g.Dispose(); $src.Dispose()
     return $bmp
 }
 
 function Get-PngBytes([System.Drawing.Bitmap]$bmp) {
     $ms = New-Object System.IO.MemoryStream
     $bmp.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
-    $bytes = $ms.ToArray()
-    $ms.Dispose()
+    $bytes = $ms.ToArray(); $ms.Dispose()
     Write-Output -NoEnumerate $bytes
 }
 
@@ -71,78 +83,64 @@ function Get-BmpEntryBytes([System.Drawing.Bitmap]$bmp) {
     $maskRow = [Math]::Ceiling($s / 32.0) * 4  # 1bpp AND mask, rows padded to 32 bits
     $bw.Write((New-Object byte[] ($maskRow * $s)))
     $bw.Flush()
-    $bytes = $ms.ToArray()
-    $bw.Dispose(); $ms.Dispose()
+    $bytes = $ms.ToArray(); $bw.Dispose(); $ms.Dispose()
     Write-Output -NoEnumerate $bytes
 }
 
-# --- per-theme window icons: plain 256px resizes of the transparent line art ---
+New-Item -ItemType Directory -Force -Path $msixDir | Out-Null
+
+# --- per-theme window icons: copy the transparent 256px line art verbatim ---
 foreach ($pair in @(
-        @{ Src = 'logo-light.png'; Dst = 'icon-256-light.png' },
-        @{ Src = 'logo-dark.png';  Dst = 'icon-256-dark.png' })) {
-    $art = New-Object System.Drawing.Bitmap((Join-Path $repo "design\$($pair.Src)"))
-    $bmp = New-Object System.Drawing.Bitmap(256, 256, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
-    $g = [System.Drawing.Graphics]::FromImage($bmp)
-    $g.InterpolationMode  = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
-    $g.PixelOffsetMode    = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
-    $g.CompositingQuality = [System.Drawing.Drawing2D.CompositingQuality]::HighQuality
-    $g.DrawImage($art, 0, 0, 256, 256)
-    $g.Dispose()
-    [System.IO.File]::WriteAllBytes((Join-Path $repo "PgNimbus.App\Assets\$($pair.Dst)"), (Get-PngBytes $bmp))
-    $bmp.Dispose(); $art.Dispose()
-    Write-Host "wrote PgNimbus.App\Assets\$($pair.Dst)"
+        @{ Src = 'window-light-256.png'; Dst = 'icon-256-light.png' },
+        @{ Src = 'window-dark-256.png';  Dst = 'icon-256-dark.png' })) {
+    $s = Join-Path $winDir $pair.Src
+    if (-not (Test-Path $s)) { throw "Missing window master: $s" }
+    Copy-Item $s (Join-Path $outDir $pair.Dst) -Force
+    Write-Host "copied PgNimbus.App\Assets\$($pair.Dst)"
 }
 
-# --- icon-256.png (macOS icns source) ---
-$tile256 = New-Tile 256
-[System.IO.File]::WriteAllBytes((Join-Path $repo 'PgNimbus.App\Assets\icon-256.png'), (Get-PngBytes $tile256))
-$tile256.Dispose()
-Write-Host 'wrote PgNimbus.App\Assets\icon-256.png'
+# --- icon-256.png (macOS .icns source): copy the 256 tile master verbatim ---
+Copy-Item (Get-Master 256) (Join-Path $outDir 'icon-256.png') -Force
+Write-Host 'copied PgNimbus.App\Assets\icon-256.png'
 
-# --- app.ico (exe + MSI icon): BMP entries up to 128, PNG for 256 ---
-$sizes = 16, 24, 32, 48, 64, 128, 256
-$images = foreach ($s in $sizes) {
-    $t = New-Tile $s
-    if ($s -ge 256) { [byte[]]$b = Get-PngBytes $t } else { [byte[]]$b = Get-BmpEntryBytes $t }
+# --- app.ico: 16/24/32/48 are hand-drawn masters copied as-is; 64/128 are
+#     downscaled from the 256 master, 256 from itself ---
+$icoPlan = @(
+    @{ Size = 16;  From = 16  }, @{ Size = 24;  From = 24  },
+    @{ Size = 32;  From = 32  }, @{ Size = 48;  From = 48  },
+    @{ Size = 64;  From = 256 }, @{ Size = 128; From = 256 },
+    @{ Size = 256; From = 256 })
+$images = foreach ($e in $icoPlan) {
+    $t = Get-Tile $e.Size $e.From
+    if ($e.Size -ge 256) { [byte[]]$b = Get-PngBytes $t } else { [byte[]]$b = Get-BmpEntryBytes $t }
     $t.Dispose()
-    @{ Size = $s; Bytes = $b }
+    @{ Size = $e.Size; Bytes = $b }
 }
-
 $ms = New-Object System.IO.MemoryStream
 $w  = New-Object System.IO.BinaryWriter($ms)
-$w.Write([uint16]0)                 # reserved
-$w.Write([uint16]1)                 # type: icon
-$w.Write([uint16]$images.Count)
+$w.Write([uint16]0); $w.Write([uint16]1); $w.Write([uint16]$images.Count)
 $offset = 6 + 16 * $images.Count
 foreach ($img in $images) {
     $dim = if ($img.Size -ge 256) { 0 } else { $img.Size }
-    $w.Write([byte]$dim)            # width  (0 = 256)
-    $w.Write([byte]$dim)            # height
-    $w.Write([byte]0)               # palette colors
-    $w.Write([byte]0)               # reserved
-    $w.Write([uint16]1)             # color planes
-    $w.Write([uint16]32)            # bits per pixel
-    $w.Write([uint32]([byte[]]$img.Bytes).Length)
-    $w.Write([uint32]$offset)
+    $w.Write([byte]$dim); $w.Write([byte]$dim); $w.Write([byte]0); $w.Write([byte]0)
+    $w.Write([uint16]1); $w.Write([uint16]32)
+    $w.Write([uint32]([byte[]]$img.Bytes).Length); $w.Write([uint32]$offset)
     $offset += ([byte[]]$img.Bytes).Length
 }
 foreach ($img in $images) { $w.Write([byte[]]$img.Bytes) }
 $w.Flush()
-[System.IO.File]::WriteAllBytes((Join-Path $repo 'PgNimbus.App\Assets\app.ico'), $ms.ToArray())
+[System.IO.File]::WriteAllBytes((Join-Path $outDir 'app.ico'), $ms.ToArray())
 $w.Dispose(); $ms.Dispose()
-Write-Host ("wrote PgNimbus.App\Assets\app.ico ({0} sizes: {1})" -f $images.Count, ($sizes -join ', '))
+Write-Host ("wrote PgNimbus.App\Assets\app.ico ({0} sizes: {1})" -f $images.Count, (($icoPlan | ForEach-Object { $_.Size }) -join ', '))
 
-# --- MSIX package tile assets: the two sizes uap:VisualElements needs plus
-#     the Properties/Logo (StoreLogo) the manifest schema requires ---
-$msixDir = Join-Path $repo 'PgNimbus.App\Assets\Msix'
-New-Item -ItemType Directory -Force -Path $msixDir | Out-Null
+# --- MSIX tiles: small tiles (44/50) from the hand-drawn 48 master so the
+#     glyph stays crisp; the medium tile (150) from the 256 master ---
 foreach ($pair in @(
-        @{ Size = 44;  Name = 'Square44x44Logo.png' },
-        @{ Size = 150; Name = 'Square150x150Logo.png' },
-        @{ Size = 50;  Name = 'StoreLogo.png' })) {
-    $tile = New-Tile $pair.Size
-    [System.IO.File]::WriteAllBytes((Join-Path $msixDir $pair.Name), (Get-PngBytes $tile))
-    $tile.Dispose()
+        @{ Size = 44;  From = 48;  Name = 'Square44x44Logo.png' },
+        @{ Size = 50;  From = 48;  Name = 'StoreLogo.png' },
+        @{ Size = 150; From = 256; Name = 'Square150x150Logo.png' })) {
+    $t = Get-Tile $pair.Size $pair.From
+    [System.IO.File]::WriteAllBytes((Join-Path $msixDir $pair.Name), (Get-PngBytes $t))
+    $t.Dispose()
     Write-Host "wrote PgNimbus.App\Assets\Msix\$($pair.Name)"
 }
-$src.Dispose()
