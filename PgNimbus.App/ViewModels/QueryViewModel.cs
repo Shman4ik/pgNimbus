@@ -43,6 +43,15 @@ public sealed partial class QueryViewModel : ObservableObject
     [ObservableProperty]
     private string _sql = "SELECT 1;";
 
+    /// <summary>
+    /// The SQL editor's current selection, pushed from the view on every
+    /// selection change (null/blank when nothing is highlighted). When set,
+    /// <see cref="RunCommand"/> executes just this instead of the whole buffer,
+    /// so highlighting one statement out of many and hitting Run runs only it.
+    /// Not observable — pure view→VM input state, read at run time.
+    /// </summary>
+    public string? SelectedSql { get; set; }
+
     [ObservableProperty]
     private string _status = "Ready";
 
@@ -190,7 +199,14 @@ public sealed partial class QueryViewModel : ObservableObject
     private bool CanRun() => !IsRunning;
 
     [RelayCommand(CanExecute = nameof(CanRun))]
-    private Task RunAsync() => RunCoreAsync(Sql, isEntireScript: true);
+    private Task RunAsync() =>
+        // "Run" (button, Ctrl+Enter, F5) executes just the highlighted SQL when
+        // the editor has a selection — so running one statement out of several
+        // is a matter of selecting it — and the whole buffer otherwise. A
+        // selection run doesn't touch the tab's dirty flag: only part ran.
+        string.IsNullOrWhiteSpace(SelectedSql)
+            ? RunCoreAsync(Sql, trackAsFullRun: true)
+            : RunCoreAsync(SelectedSql, trackAsFullRun: false);
 
     /// <summary>
     /// Runs a single statement in isolation - e.g. the one the caret sits in,
@@ -201,14 +217,14 @@ public sealed partial class QueryViewModel : ObservableObject
     /// while a run is already in flight, same as <see cref="RunCommand"/>.
     /// </summary>
     public Task RunStatementAsync(string statementSql) =>
-        CanRun() ? RunCoreAsync(statementSql, isEntireScript: false) : Task.CompletedTask;
+        CanRun() ? RunCoreAsync(statementSql, trackAsFullRun: false) : Task.CompletedTask;
 
-    private async Task RunCoreAsync(string executedSql, bool isEntireScript)
+    private async Task RunCoreAsync(string executedSql, bool trackAsFullRun)
     {
         _cts = new CancellationTokenSource();
         var ct = _cts.Token;
 
-        if (isEntireScript)
+        if (trackAsFullRun)
         {
             // Running clears the dirty flag: the on-screen SQL is now what produced the result.
             _lastRunSql = executedSql;
@@ -235,25 +251,23 @@ public sealed partial class QueryViewModel : ObservableObject
 
         try
         {
-            if (isEntireScript)
+            // Split off the multi-statement script path. A single statement keeps the
+            // streaming/editing/browse path below untouched; only a genuine script
+            // (two or more statements) runs on one shared connection with per-statement
+            // result sections. Applies to whatever is being run — the whole buffer or
+            // just a selection; a lone statement (RunStatementAsync) splits to one and
+            // falls through to the path below unchanged.
+            var statements = SqlScriptSplitter.Split(executedSql);
+            if (statements.Count > 1)
             {
-                // Split off the multi-statement script path. A single statement keeps the
-                // streaming/editing/browse path below untouched; only a genuine script
-                // (two or more statements) runs on one shared connection with per-statement
-                // result sections. A statement run in isolation (RunStatementAsync) is
-                // already exactly one statement, so it always takes the path below.
-                var statements = SqlScriptSplitter.Split(executedSql);
-                if (statements.Count > 1)
+                await RunScriptAsync(statements, stopwatch, ct);
+                if (HasError)
                 {
-                    await RunScriptAsync(statements, stopwatch, ct);
-                    if (HasError)
-                    {
-                        await TryOfferFixAsync(executedSql);
-                    }
-
-                    Executed?.Invoke(new QueryHistoryEntry(executedSql, DateTimeOffset.UtcNow, stopwatch.Elapsed.TotalMilliseconds, StatusSummary()));
-                    return;
+                    await TryOfferFixAsync(executedSql);
                 }
+
+                Executed?.Invoke(new QueryHistoryEntry(executedSql, DateTimeOffset.UtcNow, stopwatch.Elapsed.TotalMilliseconds, StatusSummary()));
+                return;
             }
 
             // Ask for one row past the cap: receiving it proves the result was
@@ -667,6 +681,12 @@ public sealed partial class QueryViewModel : ObservableObject
         FixSuggestionSql = null;
         FixSuggestionText = null;
 
+        // Any change to the buffer drops a stale selection: the view re-pushes
+        // the live one on the next SelectionChanged. This also keeps programmatic
+        // "set Sql, then RunCommand" callers (apply-fix, browse, import preview)
+        // running the whole buffer they just set, not a leftover highlight.
+        SelectedSql = null;
+
         IsShowingPlan = false;
         IsDirty = !string.Equals(value, _lastRunSql, StringComparison.Ordinal);
         UpdateTabTitle();
@@ -1023,7 +1043,10 @@ public sealed partial class QueryViewModel : ObservableObject
 
     /// <summary>Reloads whatever the grid currently shows — the browse page if browsing, else the last query — after an out-of-band change (e.g. a row insert).</summary>
     public Task RefreshCurrentAsync() =>
-        Browse is { } browse ? browse.LoadAsync() : RunCommand.ExecuteAsync(null);
+        // Full buffer, never the current selection: a background reload after an
+        // out-of-band change re-runs what's on screen, independent of any live
+        // highlight (unlike the user-driven RunCommand).
+        Browse is { } browse ? browse.LoadAsync() : RunCoreAsync(Sql, trackAsFullRun: true);
 
     /// <summary>
     /// Snapshots the current result (columns + rows) and returns a writer that

@@ -28,7 +28,8 @@ public sealed record AppSettings
     /// <summary>
     /// Whether accepting a table from completion after FROM/JOIN also appends a
     /// short alias (<c>public.orders</c> → <c>public.orders o</c>), so the
-    /// <c>o.</c> member-access flow is available immediately. On by default.
+    /// <c>o.</c> member-access flow is available immediately. Off by default;
+    /// opt in from the completion preferences toggle.
     /// </summary>
-    public bool AutoAliasTables { get; set; } = true;
+    public bool AutoAliasTables { get; set; }
 }
