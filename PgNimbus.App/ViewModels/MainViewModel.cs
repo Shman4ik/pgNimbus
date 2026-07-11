@@ -394,10 +394,10 @@ public sealed partial class MainViewModel : ObservableObject
 
     public async Task PreviewTableAsync(string schema, string name)
     {
-        // Capture the target tab before the await: if the user switches tabs
-        // while the metadata loads, ActiveTab changes, and browse mode would
-        // otherwise open in whichever tab happens to be active on resume.
-        var tab = ActiveTab;
+        // Opens in a new tab rather than the active one - see the "loading a
+        // query never overwrites the active tab" rule (CLAUDE.md).
+        var tab = NewTab();
+        tab.TitleOverride = name;
 
         var columns = await _schemaService.GetColumnsAsync(schema, name, CancellationToken.None);
         var primaryKeyColumns = columns.Where(c => c.IsPrimaryKey).Select(c => c.Name).ToList();
