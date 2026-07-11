@@ -9,9 +9,12 @@
 #   OUTPUT PgNimbus.App/Assets/app.ico                exe + MSI icon (multi-size)
 #          PgNimbus.App/Assets/icon-256-light.png     light-theme window icon (transparent)
 #          PgNimbus.App/Assets/icon-256-dark.png      dark-theme  window icon (transparent)
-#          PgNimbus.App/Assets/Msix/Square44x44Logo.png    MSIX small tile
-#          PgNimbus.App/Assets/Msix/Square150x150Logo.png  MSIX medium tile
-#          PgNimbus.App/Assets/Msix/StoreLogo.png          MSIX / Store listing icon (50px)
+#          PgNimbus.App/Assets/Msix/{Square44x44Logo,Square150x150Logo,StoreLogo}
+#              .scale-{100,125,150,200,400}.png           MSIX plated tiles, one file per DPI
+#          PgNimbus.App/Assets/Msix/Square44x44Logo
+#              .targetsize-{16,24,32,48,256}_altform-{unplated,lightunplated}.png
+#              transparent taskbar/Alt+Tab/Start icon — without these, Windows adds
+#              its own backplate around the plated logo on those surfaces
 #
 # Windows-only (uses System.Drawing/GDI+). Run after the designer updates the
 # masters:  pwsh scripts/windows/make-app-icons.ps1
@@ -40,6 +43,23 @@ function Get-Tile([int]$size, [int]$fromSize) {
         return New-Object System.Drawing.Bitmap($exact)
     }
     $src = New-Object System.Drawing.Bitmap((Get-Master $fromSize))
+    $bmp = New-Object System.Drawing.Bitmap($size, $size, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
+    $g = [System.Drawing.Graphics]::FromImage($bmp)
+    $g.InterpolationMode  = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+    $g.PixelOffsetMode    = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
+    $g.CompositingQuality = [System.Drawing.Drawing2D.CompositingQuality]::HighQuality
+    $g.SmoothingMode      = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
+    $g.DrawImage($src, 0, 0, $size, $size)
+    $g.Dispose(); $src.Dispose()
+    return $bmp
+}
+
+# Alpha-preserving downscale of a transparent master (unlike Get-Tile, which
+# only ever reads opaque full-bleed icon masters). Used for the unplated MSIX
+# taskbar/Alt+Tab icons, sourced from the transparent window-icon masters.
+function Get-TransparentTile([string]$masterPath, [int]$size) {
+    $src = New-Object System.Drawing.Bitmap($masterPath)
+    if ($src.Width -eq $size -and $src.Height -eq $size) { return $src }
     $bmp = New-Object System.Drawing.Bitmap($size, $size, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
     $g = [System.Drawing.Graphics]::FromImage($bmp)
     $g.InterpolationMode  = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
@@ -128,14 +148,49 @@ $w.Flush()
 $w.Dispose(); $ms.Dispose()
 Write-Host ("wrote PgNimbus.App\Assets\app.ico ({0} sizes: {1})" -f $images.Count, (($icoPlan | ForEach-Object { $_.Size }) -join ', '))
 
-# --- MSIX tiles: small tiles (44/50) from the hand-drawn 48 master so the
-#     glyph stays crisp; the medium tile (150) from the 256 master ---
-foreach ($pair in @(
-        @{ Size = 44;  From = 48;  Name = 'Square44x44Logo.png' },
-        @{ Size = 50;  From = 48;  Name = 'StoreLogo.png' },
-        @{ Size = 150; From = 256; Name = 'Square150x150Logo.png' })) {
-    $t = Get-Tile $pair.Size $pair.From
-    [System.IO.File]::WriteAllBytes((Join-Path $msixDir $pair.Name), (Get-PngBytes $t))
-    $t.Dispose()
-    Write-Host "wrote PgNimbus.App\Assets\Msix\$($pair.Name)"
+# --- MSIX plated tiles: one file per DPI scale factor (100/125/150/200/400%)
+#     for each logo, instead of a single flat file — Windows falls back to
+#     scaling (and backplating) a lone unqualified asset when it can't find a
+#     qualifier-matched size for the surface it's rendering. Small tiles
+#     (Square44x44Logo/StoreLogo) come from the hand-drawn 48 master so the
+#     glyph stays crisp; the medium tile (Square150x150Logo) from the 256
+#     master — but scale-200/400 can exceed both of those, so anything larger
+#     than the logo's small master falls back to the 1024 master instead of
+#     upscaling (blurring) it.
+$msixScales = @(
+    @{ Suffix = 'scale-100'; Factor = 1.0 },
+    @{ Suffix = 'scale-125'; Factor = 1.25 },
+    @{ Suffix = 'scale-150'; Factor = 1.5 },
+    @{ Suffix = 'scale-200'; Factor = 2.0 },
+    @{ Suffix = 'scale-400'; Factor = 4.0 })
+foreach ($logo in @(
+        @{ Base = 44;  SmallFrom = 48;  Name = 'Square44x44Logo' },
+        @{ Base = 50;  SmallFrom = 48;  Name = 'StoreLogo' },
+        @{ Base = 150; SmallFrom = 256; Name = 'Square150x150Logo' })) {
+    foreach ($s in $msixScales) {
+        $size = [int][Math]::Round($logo.Base * $s.Factor)
+        $from = if ($size -le $logo.SmallFrom) { $logo.SmallFrom } else { 1024 }
+        $t = Get-Tile $size $from
+        [System.IO.File]::WriteAllBytes((Join-Path $msixDir "$($logo.Name).$($s.Suffix).png"), (Get-PngBytes $t))
+        $t.Dispose()
+    }
+    Write-Host "wrote PgNimbus.App\Assets\Msix\$($logo.Name).scale-{100,125,150,200,400}.png"
 }
+
+# --- MSIX unplated Square44x44Logo: transparent taskbar/Alt+Tab/Start icon.
+#     Dark-theme (altform-unplated) reuses the light-line window-dark master;
+#     light-theme (altform-lightunplated) reuses the dark-line window-light
+#     master — both already transparent line art, no new design work needed.
+$unplatedSizes = 16, 24, 32, 48, 256
+foreach ($pair in @(
+        @{ Src = Join-Path $winDir 'window-dark-256.png';  Suffix = 'altform-unplated' },
+        @{ Src = Join-Path $winDir 'window-light-256.png'; Suffix = 'altform-lightunplated' })) {
+    if (-not (Test-Path $pair.Src)) { throw "Missing window master: $($pair.Src)" }
+    foreach ($size in $unplatedSizes) {
+        $t = Get-TransparentTile $pair.Src $size
+        $name = "Square44x44Logo.targetsize-${size}_$($pair.Suffix).png"
+        [System.IO.File]::WriteAllBytes((Join-Path $msixDir $name), (Get-PngBytes $t))
+        $t.Dispose()
+    }
+}
+Write-Host "wrote PgNimbus.App\Assets\Msix\Square44x44Logo.targetsize-{16,24,32,48,256}_altform-{unplated,lightunplated}.png"

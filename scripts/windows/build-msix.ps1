@@ -40,6 +40,7 @@ function ConvertTo-MsixVersion([string]$V) {
 }
 
 $makeappx = Resolve-SdkTool 'makeappx.exe'
+$makepri  = Resolve-SdkTool 'makepri.exe'
 $signtool = Resolve-SdkTool 'signtool.exe'
 $msixVersion = ConvertTo-MsixVersion $Version
 
@@ -53,6 +54,32 @@ try {
     Copy-Item "$PublishDir\*" -Destination $stage -Recurse -Force
     Copy-Item "$AssetsDir\*.png" -Destination "$stage\Assets" -Force
     ($manifestXml -replace '\$VERSION\$', $msixVersion) | Set-Content -Path "$stage\AppxManifest.xml" -Encoding utf8NoBOM
+
+    # The scale-/targetsize-qualified icon filenames (Square44x44Logo.scale-200.png,
+    # Square44x44Logo.targetsize-48_altform-unplated.png, etc.) only get resolved by
+    # Windows through a resource map — makeappx does not infer one from filenames
+    # alone. Compile it here so the qualified assets actually take effect instead of
+    # silently packing as inert extra files.
+    Write-Host "Indexing resources (makepri)"
+    $priConfig = Join-Path $stage 'priconfig.xml'
+    & $makepri createconfig /cf $priConfig /dq en-US /o
+    if ($LASTEXITCODE -ne 0) { throw "makepri createconfig failed with exit code $LASTEXITCODE" }
+
+    # createconfig defaults to splitting scale-qualified resources out into
+    # separate resources.scale-*.pri side files — meant for AppxBundle resource
+    # packages, where the manifest declares a <ResourcePackage> per file. We
+    # ship one flat, non-bundle package with every qualified asset already
+    # inside it, so without that manifest wiring those side files would just
+    # be dead weight and Windows would only ever see the scale-100 entries in
+    # the main resources.pri. Strip the auto-split so everything lands in one
+    # resources.pri instead.
+    [xml]$priConfigXml = Get-Content $priConfig
+    $priConfigXml.resources.packaging.RemoveAll()
+    $priConfigXml.Save($priConfig)
+
+    & $makepri new /pr $stage /cf $priConfig /of (Join-Path $stage 'resources.pri') /o
+    if ($LASTEXITCODE -ne 0) { throw "makepri new failed with exit code $LASTEXITCODE" }
+    Remove-Item $priConfig -Force
 
     Write-Host "Packing MSIX (version $msixVersion) -> $Output"
     & $makeappx pack /d $stage /p $Output /o
