@@ -67,6 +67,12 @@ public partial class MainWindow : Window
         InitializeComponent();
         ThemedWindowChrome.Attach(this);
 
+        // Gestures use the platform/preference command modifier (Ctrl or Cmd),
+        // so they're built in code, and rebuilt live when the scheme changes.
+        BuildKeyBindings();
+        Hotkeys.Changed += BuildKeyBindings;
+        Closed += (_, _) => Hotkeys.Changed -= BuildKeyBindings;
+
         // Must exist before LoadSqlHighlighting - the theme pass that call
         // triggers also resolves this renderer's brush.
         _bracketRenderer = new BracketHighlightRenderer(SqlEditor.TextArea.TextView);
@@ -212,6 +218,32 @@ public partial class MainWindow : Window
         };
     }
 
+    // KeyBinding.Command must be a live ICommand, but most targets hang off
+    // ActiveTab, which changes on every tab switch — resolve at invoke time.
+    private sealed class DelegatedCommand(Func<System.Windows.Input.ICommand?> resolve) : System.Windows.Input.ICommand
+    {
+        public event EventHandler? CanExecuteChanged { add { } remove { } }
+        public bool CanExecute(object? parameter) => resolve()?.CanExecute(parameter) ?? false;
+        public void Execute(object? parameter) => resolve()?.Execute(parameter);
+    }
+
+    private void BuildKeyBindings()
+    {
+        KeyBindings.Clear();
+        Add(new KeyGesture(Key.Enter, Hotkeys.Command), () => _viewModel?.ActiveTab?.RunCommand);
+        Add(new KeyGesture(Key.F5), () => _viewModel?.ActiveTab?.RunCommand);
+        Add(new KeyGesture(Key.Escape), () => _viewModel?.ActiveTab?.CancelCommand);
+        Add(new KeyGesture(Key.T, Hotkeys.Command), () => _viewModel?.AddTabCommand);
+        // No parameter: CloseTab falls back to the active tab.
+        Add(new KeyGesture(Key.W, Hotkeys.Command), () => _viewModel?.CloseTabCommand);
+        Add(new KeyGesture(Key.PageDown, Hotkeys.Command), () => _viewModel?.NextTabCommand);
+        Add(new KeyGesture(Key.PageUp, Hotkeys.Command), () => _viewModel?.PreviousTabCommand);
+        Add(new KeyGesture(Key.R, Hotkeys.Command | KeyModifiers.Shift), () => _viewModel?.RefreshSchemaCommand);
+
+        void Add(KeyGesture gesture, Func<System.Windows.Input.ICommand?> resolve) =>
+            KeyBindings.Add(new KeyBinding { Gesture = gesture, Command = new DelegatedCommand(resolve) });
+    }
+
     private void LoadSqlHighlighting()
     {
         using var stream = AssetLoader.Open(new Uri("avares://PgNimbus.App/Assets/PostgreSql.xshd"));
@@ -272,7 +304,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        if ((e.Key == Key.K || e.Key == Key.P) && e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        if ((e.Key == Key.K || e.Key == Key.P) && e.KeyModifiers.HasFlag(Hotkeys.Command))
         {
             OpenCommandPalette();
             e.Handled = true;
@@ -286,7 +318,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (e.Key == Key.B && e.KeyModifiers == KeyModifiers.Control)
+        if (e.Key == Key.B && e.KeyModifiers == Hotkeys.Command)
         {
             ToggleSidebar();
             e.Handled = true;
@@ -322,6 +354,7 @@ public partial class MainWindow : Window
             _viewModel.FormatSqlRequested -= FormatCurrentStatement;
             _viewModel.ActivityRequested -= ShowActivityWindow;
             _viewModel.SidebarToggleRequested -= ToggleSidebar;
+            _viewModel.PreferencesRequested -= ShowPreferencesWindow;
         }
 
         _viewModel = vm;
@@ -333,6 +366,7 @@ public partial class MainWindow : Window
         _viewModel.FormatSqlRequested += FormatCurrentStatement;
         _viewModel.ActivityRequested += ShowActivityWindow;
         _viewModel.SidebarToggleRequested += ToggleSidebar;
+        _viewModel.PreferencesRequested += ShowPreferencesWindow;
 
         AttachQuery(vm.ActiveTab);
     }
@@ -711,6 +745,27 @@ public partial class MainWindow : Window
         _shortcutsWindow.Show(this);
     }
 
+    private PreferencesWindow? _preferencesWindow;
+
+    // One live instance, same pattern as the shortcuts window.
+    private void ShowPreferencesWindow()
+    {
+        if (_preferencesWindow is not null)
+        {
+            _preferencesWindow.Activate();
+            return;
+        }
+
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        _preferencesWindow = new PreferencesWindow { DataContext = new PreferencesViewModel(_viewModel) };
+        _preferencesWindow.Closed += (_, _) => _preferencesWindow = null;
+        _preferencesWindow.Show(this);
+    }
+
     private ActivityWindow? _activityWindow;
 
     private void OnShowActivityClick(object? sender, RoutedEventArgs e) => ShowActivityWindow();
@@ -1077,8 +1132,8 @@ public partial class MainWindow : Window
             return;
         }
 
-        // Ctrl+Shift+F: pretty-print the statement the caret sits in, in place.
-        if (e.Key == Key.F && e.KeyModifiers == (KeyModifiers.Control | KeyModifiers.Shift))
+        // Ctrl/Cmd+Shift+F: pretty-print the statement the caret sits in, in place.
+        if (e.Key == Key.F && e.KeyModifiers == (Hotkeys.Command | KeyModifiers.Shift))
         {
             FormatCurrentStatement();
             e.Handled = true;
@@ -1086,10 +1141,10 @@ public partial class MainWindow : Window
         }
 
         // Font-size zoom: Ctrl+= / Ctrl+- step, Ctrl+0 resets (numpad
-        // variants included). Ctrl+wheel does the same via the tunneled
-        // pointer handler. Shift is tolerated because "Ctrl and +" is
-        // physically Ctrl+Shift+= on most layouts.
-        if (e.KeyModifiers.HasFlag(KeyModifiers.Control) && !e.KeyModifiers.HasFlag(KeyModifiers.Alt))
+        // variants included; Cmd on the mac scheme). Ctrl+wheel does the same
+        // via the tunneled pointer handler. Shift is tolerated because
+        // "Ctrl and +" is physically Ctrl+Shift+= on most layouts.
+        if (e.KeyModifiers.HasFlag(Hotkeys.Command) && !e.KeyModifiers.HasFlag(KeyModifiers.Alt))
         {
             switch (e.Key)
             {
@@ -1111,7 +1166,7 @@ public partial class MainWindow : Window
 
     private void OnSqlEditorPointerWheel(object? sender, PointerWheelEventArgs e)
     {
-        if (!e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        if (!e.KeyModifiers.HasFlag(Hotkeys.Command))
         {
             return;
         }
@@ -1298,7 +1353,7 @@ public partial class MainWindow : Window
     // path, so the stock copy has no cell text to read - we build it ourselves.
     private void OnResultsGridKeyDown(object? sender, KeyEventArgs e)
     {
-        if (e.Key == Key.C && e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        if (e.Key == Key.C && e.KeyModifiers.HasFlag(Hotkeys.Command))
         {
             _ = CopySelectionAsync(QueryViewModel.CopyFormat.Tsv);
             e.Handled = true;

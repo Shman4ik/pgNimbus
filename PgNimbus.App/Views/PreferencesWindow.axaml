@@ -1,0 +1,75 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:PgNimbus.App.ViewModels"
+        x:Class="PgNimbus.App.Views.PreferencesWindow"
+        x:DataType="vm:PreferencesViewModel"
+        Title="pgNimbus — Preferences"
+        Width="520" Height="430"
+        MinWidth="440" MinHeight="360"
+        WindowStartupLocation="CenterOwner"
+        FontFamily="{StaticResource InterFont}">
+
+    <Window.Styles>
+        <Style Selector="TextBlock.label">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="TextBlock.hint">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Opacity" Value="0.55" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+    </Window.Styles>
+
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="20" Spacing="6">
+
+            <TextBlock Classes="sectionHeader" Text="APPEARANCE" Margin="4,0,4,4" />
+            <Border Classes="card" Padding="14,12">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Spacing="2" Margin="0,0,16,0">
+                        <TextBlock Classes="label" Text="Theme" />
+                        <TextBlock Classes="hint" Text="System follows the OS light/dark setting" />
+                    </StackPanel>
+                    <ComboBox Grid.Column="1" MinWidth="130" VerticalAlignment="Center"
+                              SelectedIndex="{Binding ThemeIndex}">
+                        <ComboBoxItem Content="System" />
+                        <ComboBoxItem Content="Light" />
+                        <ComboBoxItem Content="Dark" />
+                    </ComboBox>
+                </Grid>
+            </Border>
+
+            <TextBlock Classes="sectionHeader" Text="EDITOR" Margin="4,10,4,4" />
+            <Border Classes="card" Padding="14,12">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Spacing="2" Margin="0,0,16,0">
+                        <TextBlock Classes="label" Text="Auto-alias tables from completion" />
+                        <TextBlock Classes="hint" Text="Accepting a table after FROM/JOIN also inserts a short alias (orders → orders o)" />
+                    </StackPanel>
+                    <ToggleSwitch Grid.Column="1" VerticalAlignment="Center"
+                                  OnContent="" OffContent=""
+                                  IsChecked="{Binding AutoAliasTables}" />
+                </Grid>
+            </Border>
+
+            <TextBlock Classes="sectionHeader" Text="KEYBOARD" Margin="4,10,4,4" />
+            <Border Classes="card" Padding="14,12">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Spacing="2" Margin="0,0,16,0">
+                        <TextBlock Classes="label" Text="Shortcut modifier" />
+                        <TextBlock Classes="hint" Text="Auto uses Cmd on macOS and Ctrl elsewhere. Applies immediately to shortcuts, the command palette, and the cheat sheet." />
+                    </StackPanel>
+                    <ComboBox Grid.Column="1" MinWidth="130" VerticalAlignment="Center"
+                              SelectedIndex="{Binding HotkeySchemeIndex}">
+                        <ComboBoxItem Content="Auto" />
+                        <ComboBoxItem Content="Ctrl" />
+                        <ComboBoxItem Content="Cmd" />
+                    </ComboBox>
+                </Grid>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
+
+</Window>

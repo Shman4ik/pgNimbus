@@ -114,17 +114,9 @@
         </DataTemplate>
     </Window.DataTemplates>
 
-    <Window.KeyBindings>
-        <KeyBinding Gesture="Ctrl+Enter" Command="{Binding ActiveTab.RunCommand}" />
-        <KeyBinding Gesture="F5" Command="{Binding ActiveTab.RunCommand}" />
-        <KeyBinding Gesture="Escape" Command="{Binding ActiveTab.CancelCommand}" />
-        <KeyBinding Gesture="Ctrl+T" Command="{Binding AddTabCommand}" />
-        <!-- No parameter: CloseTab falls back to the active tab -->
-        <KeyBinding Gesture="Ctrl+W" Command="{Binding CloseTabCommand}" />
-        <KeyBinding Gesture="Ctrl+PageDown" Command="{Binding NextTabCommand}" />
-        <KeyBinding Gesture="Ctrl+PageUp" Command="{Binding PreviousTabCommand}" />
-        <KeyBinding Gesture="Ctrl+Shift+R" Command="{Binding RefreshSchemaCommand}" />
-    </Window.KeyBindings>
+    <!-- Key bindings are built in code-behind (BuildKeyBindings): the command
+         modifier is Ctrl or Cmd depending on platform/preference, which a
+         hardcoded XAML gesture can't express. -->
 
     <!-- Root grid layers the command-palette overlay above the whole shell -->
     <Grid>

@@ -41,6 +41,27 @@ public partial class App : Application
     private static void PersistAutoAliasTables(bool value) =>
         SettingsStore.Save(SettingsStore.Load() with { AutoAliasTables = value });
 
+    /// <summary>The saved settings snapshot, for the preferences page to initialize from.</summary>
+    internal static AppSettings LoadSettings() => SettingsStore.Load();
+
+    /// <summary>Applies and persists a theme chosen on the preferences page ("system"/"light"/"dark").</summary>
+    internal static void SetTheme(string theme)
+    {
+        if (Current is { } app)
+        {
+            app.RequestedThemeVariant = ThemeFromString(theme);
+        }
+
+        SettingsStore.Save(SettingsStore.Load() with { Theme = theme });
+    }
+
+    /// <summary>Persists the hotkey scheme and re-resolves the live command modifier (see <see cref="Hotkeys"/>).</summary>
+    internal static void SetHotkeyScheme(string scheme)
+    {
+        SettingsStore.Save(SettingsStore.Load() with { HotkeyScheme = scheme });
+        Hotkeys.Initialize(scheme);
+    }
+
     private static ThemeVariant ThemeFromString(string? theme) => theme?.ToLowerInvariant() switch
     {
         "light" => ThemeVariant.Light,
@@ -64,6 +85,9 @@ public partial class App : Application
         // Restore the saved light/dark choice before any window resolves its
         // ActualThemeVariant, so the first frame already paints in the right theme.
         ApplyPersistedTheme();
+
+        // Resolve Ctrl-vs-Cmd before any window builds its key bindings.
+        Hotkeys.Initialize(SettingsStore.Load().HotkeyScheme);
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {

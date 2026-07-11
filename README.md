@@ -158,6 +158,10 @@ Every tag push (`vX.Y.Z`) builds all of the above via
   action from one keyboard-driven control.
 - **Keyboard shortcuts cheat sheet** — press <kbd>F1</kbd> (or the `?`
   title-bar button) for an overview of every binding.
+- **Preferences page** — theme (system/light/dark), editor behavior
+  (auto-alias on completion), and the shortcut modifier (Ctrl/Cmd,
+  auto-detected per platform) on one page, opened from the command palette
+  ("Preferences…"); every change applies immediately.
 - **Multi-tab query editor** — schema-aware SQL autocomplete (schema-qualified
   tables after `FROM`/`JOIN`, `FROM`-scoped columns in `WHERE`/`ON`/`ORDER BY`,
   columns with their data types elsewhere, `alias.` member access, CTE names,
@@ -198,7 +202,11 @@ Every tag push (`vX.Y.Z`) builds all of the above via
 
 ## Keyboard shortcuts
 
-Press <kbd>F1</kbd> in the app for the full cheat sheet. The highlights:
+Press <kbd>F1</kbd> in the app for the full cheat sheet. On macOS,
+<kbd>Cmd</kbd> takes the place of <kbd>Ctrl</kbd> automatically (except SQL
+autocomplete, which stays on <kbd>Ctrl</kbd>+<kbd>Space</kbd> — Cmd+Space is
+Spotlight); the modifier can also be forced either way from Preferences.
+The highlights:
 
 | Action | Shortcut |
 | --- | --- |

@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.LogicalTree;
 
 namespace PgNimbus.App.Views;
 
@@ -13,6 +14,20 @@ public partial class ShortcutsWindow : Window
     {
         InitializeComponent();
         ThemedWindowChrome.Attach(this);
+
+        // The key caps are authored as "Ctrl"; when the resolved command
+        // modifier is Cmd (macOS, or the explicit mac scheme), relabel every
+        // cap marked cmdKey. Ctrl+Space (completion) stays literal Ctrl.
+        if (Hotkeys.CommandLabel != "Ctrl")
+        {
+            foreach (var text in this.GetLogicalDescendants().OfType<TextBlock>())
+            {
+                if (text.Classes.Contains("cmdKey"))
+                {
+                    text.Text = Hotkeys.CommandLabel;
+                }
+            }
+        }
     }
 
     protected override void OnKeyDown(KeyEventArgs e)

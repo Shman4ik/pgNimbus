@@ -50,6 +50,8 @@ public sealed partial class MainViewModel : ObservableObject
     public event Action? ActivityRequested;
     // Raised to collapse/restore the sidebar (the view owns the grid column).
     public event Action? SidebarToggleRequested;
+    // Raised to open (or focus) the preferences window, which the view owns.
+    public event Action? PreferencesRequested;
 
     [RelayCommand]
     private void SwitchConnection() => SwitchConnectionRequested?.Invoke();
@@ -419,24 +421,25 @@ public sealed partial class MainViewModel : ObservableObject
 
     private IEnumerable<PaletteItem> BuildActionItems()
     {
-        yield return new PaletteItem("Run query", "Action", "▶", Invoke(() => ActiveTab.RunCommand), "Ctrl+Enter");
+        yield return new PaletteItem("Run query", "Action", "▶", Invoke(() => ActiveTab.RunCommand), Hotkeys.Label("Enter"));
         yield return new PaletteItem("Cancel query", "Action", "■", Invoke(() => ActiveTab.CancelCommand), "Esc");
         yield return new PaletteItem("Explain", "Action", "⚡", Invoke(() => ActiveTab.ExplainCommand));
         yield return new PaletteItem("Explain Analyze", "Action", "⚡", Invoke(() => ActiveTab.ExplainAnalyzeCommand));
         yield return new PaletteItem("Begin transaction", "Action", "⛃", Invoke(() => BeginTransactionCommand));
         yield return new PaletteItem("Commit transaction", "Action", "✓", Invoke(() => CommitTransactionCommand));
         yield return new PaletteItem("Rollback transaction", "Action", "↺", Invoke(() => RollbackTransactionCommand));
-        yield return new PaletteItem("Refresh database & schema", "Action", "⟳", Invoke(() => RefreshSchemaCommand), "Ctrl+Shift+R");
+        yield return new PaletteItem("Refresh database & schema", "Action", "⟳", Invoke(() => RefreshSchemaCommand), Hotkeys.Label("Shift+R"));
         yield return new PaletteItem("Server activity", "Action", "∿", () => { ActivityRequested?.Invoke(); return Task.CompletedTask; });
-        yield return new PaletteItem("New query tab", "Action", "＋", Invoke(() => AddTabCommand), "Ctrl+T");
-        yield return new PaletteItem("Close tab", "Action", "✕", Invoke(() => CloseTabCommand), "Ctrl+W");
-        yield return new PaletteItem("Next tab", "Action", "›", Invoke(() => NextTabCommand), "Ctrl+PgDn");
-        yield return new PaletteItem("Previous tab", "Action", "‹", Invoke(() => PreviousTabCommand), "Ctrl+PgUp");
-        yield return new PaletteItem("Format SQL", "Action", "❖", () => { FormatSqlRequested?.Invoke(); return Task.CompletedTask; }, "Ctrl+Shift+F");
-        yield return new PaletteItem("Toggle sidebar", "Action", "◫", () => { SidebarToggleRequested?.Invoke(); return Task.CompletedTask; }, "Ctrl+B");
+        yield return new PaletteItem("New query tab", "Action", "＋", Invoke(() => AddTabCommand), Hotkeys.Label("T"));
+        yield return new PaletteItem("Close tab", "Action", "✕", Invoke(() => CloseTabCommand), Hotkeys.Label("W"));
+        yield return new PaletteItem("Next tab", "Action", "›", Invoke(() => NextTabCommand), Hotkeys.Label("PgDn"));
+        yield return new PaletteItem("Previous tab", "Action", "‹", Invoke(() => PreviousTabCommand), Hotkeys.Label("PgUp"));
+        yield return new PaletteItem("Format SQL", "Action", "❖", () => { FormatSqlRequested?.Invoke(); return Task.CompletedTask; }, Hotkeys.Label("Shift+F"));
+        yield return new PaletteItem("Toggle sidebar", "Action", "◫", () => { SidebarToggleRequested?.Invoke(); return Task.CompletedTask; }, Hotkeys.Label("B"));
         yield return new PaletteItem("Toggle auto-alias tables (orders → orders o)", "Action", "a", () => { AutoAliasTables = !AutoAliasTables; return Task.CompletedTask; });
         yield return new PaletteItem("Switch connection…", "Action", "⇄", () => { SwitchConnectionRequested?.Invoke(); return Task.CompletedTask; });
         yield return new PaletteItem("Toggle light/dark theme", "Action", "◐", () => { ThemeToggleRequested?.Invoke(); return Task.CompletedTask; });
+        yield return new PaletteItem("Preferences…", "Action", "⚙", () => { PreferencesRequested?.Invoke(); return Task.CompletedTask; });
         yield return new PaletteItem("Keyboard shortcuts", "Action", "?", () => { ShortcutsRequested?.Invoke(); return Task.CompletedTask; }, "F1");
     }
 
