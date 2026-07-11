@@ -31,14 +31,29 @@ mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
 sed "s/__VERSION__/$VERSION/g" "$REPO_ROOT/installer/macos/Info.plist.template" \
   > "$APP_DIR/Contents/Info.plist"
 
-# App icon: build a .iconset from the existing 256px PNG and compile it to .icns.
+# App icon: build a .iconset from the prepared square tile masters and compile
+# it to .icns. Each iconset slot is filled from the hand-drawn master at that
+# exact pixel size when one exists (design/masters/icon/icon-<px>.png), else
+# high-quality-downscaled from the 1024 master — so the small sizes stay crisp
+# instead of being resampled from a single mid-size PNG. Apple applies its own
+# rounded-rect mask, so the masters are square full-bleed (no pre-rounding).
 ICONSET_DIR="$WORK_DIR/app.iconset"
 mkdir -p "$ICONSET_DIR"
-SRC_ICON="$REPO_ROOT/PgNimbus.App/Assets/icon-256.png"
+MASTER_DIR="$REPO_ROOT/design/masters/icon"
+ICON_1024="$MASTER_DIR/icon-1024.png"
+
+# emit one iconset PNG of the given pixel size (uses the exact master if present)
+emit_icon() {  # <pixels> <dest-filename>
+  local px="$1" dest="$2" exact="$MASTER_DIR/icon-$1.png"
+  if [ -f "$exact" ]; then
+    cp "$exact" "$ICONSET_DIR/$dest"
+  else
+    sips -z "$px" "$px" "$ICON_1024" --out "$ICONSET_DIR/$dest" >/dev/null
+  fi
+}
 for size in 16 32 64 128 256 512; do
-  sips -z "$size" "$size" "$SRC_ICON" --out "$ICONSET_DIR/icon_${size}x${size}.png" >/dev/null
-  double=$((size * 2))
-  sips -z "$double" "$double" "$SRC_ICON" --out "$ICONSET_DIR/icon_${size}x${size}@2x.png" >/dev/null
+  emit_icon "$size" "icon_${size}x${size}.png"
+  emit_icon "$((size * 2))" "icon_${size}x${size}@2x.png"
 done
 iconutil -c icns "$ICONSET_DIR" -o "$APP_DIR/Contents/Resources/app.icns"
 

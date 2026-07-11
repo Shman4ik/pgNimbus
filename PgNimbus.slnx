@@ -1,0 +1,72 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/design/">
+    <File Path="design/DESIGNER-BRIEF.md" />
+    <File Path="design/LOGO-ASSETS.md" />
+  </Folder>
+  <Folder Name="/design/masters/" />
+  <Folder Name="/design/masters/icon/">
+    <File Path="design/masters/icon/icon-1024.png" />
+    <File Path="design/masters/icon/icon-16.png" />
+    <File Path="design/masters/icon/icon-24.png" />
+    <File Path="design/masters/icon/icon-256.png" />
+    <File Path="design/masters/icon/icon-32.png" />
+    <File Path="design/masters/icon/icon-48.png" />
+  </Folder>
+  <Folder Name="/design/masters/logo/">
+    <File Path="design/masters/logo/logo-dark.png" />
+    <File Path="design/masters/logo/logo-light.png" />
+    <File Path="design/masters/logo/logo.svg" />
+  </Folder>
+  <Folder Name="/design/masters/window/">
+    <File Path="design/masters/window/window-dark-256.png" />
+    <File Path="design/masters/window/window-light-256.png" />
+  </Folder>
+  <Folder Name="/docs/">
+    <File Path="docs/PRE-LAUNCH-CHECKLIST.md" />
+    <File Path="docs/PROGRESS.md" />
+  </Folder>
+  <Folder Name="/docs/screenshots/">
+    <File Path="docs/screenshots/command-palette.png" />
+    <File Path="docs/screenshots/connection-dialog.png" />
+    <File Path="docs/screenshots/explain-visualization.png" />
+    <File Path="docs/screenshots/main-dark.png" />
+    <File Path="docs/screenshots/main-light.png" />
+    <File Path="docs/screenshots/server-activity.png" />
+    <File Path="docs/screenshots/shortcuts.png" />
+  </Folder>
+  <Folder Name="/installer/">
+    <File Path="installer/macos/Info.plist.template" />
+    <File Path="installer/msix/Package.appxmanifest" />
+    <File Path="installer/windows/Product.wxs" />
+  </Folder>
+  <Folder Name="/packaging/" />
+  <Folder Name="/packaging/winget/">
+    <File Path="packaging/winget/pgNimbus.pgNimbus.installer.yaml.template" />
+    <File Path="packaging/winget/pgNimbus.pgNimbus.locale.en-US.yaml.template" />
+    <File Path="packaging/winget/pgNimbus.pgNimbus.yaml.template" />
+  </Folder>
+  <Folder Name="/scripts/">
+    <File Path="scripts/benchmarks/run-benchmarks.sh" />
+    <File Path="scripts/macos/build-app-bundle.sh" />
+    <File Path="scripts/winget/render-manifest.sh" />
+  </Folder>
+  <Folder Name="/scripts/windows/">
+    <File Path="scripts/windows/build-msix.ps1" />
+    <File Path="scripts/windows/make-app-icons.ps1" />
+    <File Path="scripts/windows/make-store-logos.ps1" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path="CLAUDE.md" />
+    <File Path="LICENSE" />
+    <File Path="README.md" />
+  </Folder>
+  <Project Path="PgNimbus.App/PgNimbus.App.csproj" />
+  <Project Path="PgNimbus.Benchmarks/PgNimbus.Benchmarks.csproj" />
+  <Project Path="PgNimbus.Core.Tests/PgNimbus.Core.Tests.csproj" />
+  <Project Path="PgNimbus.Core/PgNimbus.Core.csproj" />
+</Solution>
