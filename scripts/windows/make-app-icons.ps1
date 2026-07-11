@@ -7,7 +7,6 @@
 #          design/masters/window/window-{light,dark}-256.png     transparent line art
 #
 #   OUTPUT PgNimbus.App/Assets/app.ico                exe + MSI icon (multi-size)
-#          PgNimbus.App/Assets/icon-256.png           macOS .icns source (square)
 #          PgNimbus.App/Assets/icon-256-light.png     light-theme window icon (transparent)
 #          PgNimbus.App/Assets/icon-256-dark.png      dark-theme  window icon (transparent)
 #          PgNimbus.App/Assets/Msix/Square44x44Logo.png    MSIX small tile
@@ -98,10 +97,6 @@ foreach ($pair in @(
     Copy-Item $s (Join-Path $outDir $pair.Dst) -Force
     Write-Host "copied PgNimbus.App\Assets\$($pair.Dst)"
 }
-
-# --- icon-256.png (macOS .icns source): copy the 256 tile master verbatim ---
-Copy-Item (Get-Master 256) (Join-Path $outDir 'icon-256.png') -Force
-Write-Host 'copied PgNimbus.App\Assets\icon-256.png'
 
 # --- app.ico: 16/24/32/48 are hand-drawn masters copied as-is; 64/128 are
 #     downscaled from the 256 master, 256 from itself ---
