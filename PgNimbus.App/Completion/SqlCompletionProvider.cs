@@ -1,5 +1,6 @@
 using PgNimbus.Core.Query;
 using PgNimbus.Core.Schema;
+using PgNimbus.Core.Text;
 
 namespace PgNimbus.App.Completion;
 
@@ -199,6 +200,7 @@ public sealed class SqlCompletionProvider
         return context.Clause switch
         {
             SqlClause.TableRef or SqlClause.FromTableRef => GetTableRefCompletions(sql),
+            SqlClause.JoinTableRef when SqlCompletionContext.IsAfterCompleteJoinTarget(sql, caretOffset) => GetJoinKeywordCompletions(sql),
             SqlClause.JoinTableRef => GetJoinTableRefCompletions(sql),
             SqlClause.Predicate when SqlCompletionContext.IsAfterOnKeyword(sql, caretOffset) => GetJoinConditionCompletions(sql),
             SqlClause.Predicate => GetPredicateCompletions(sql),
@@ -243,6 +245,18 @@ public sealed class SqlCompletionProvider
     // floated above the flat catalog dump — the "flagship" JOIN magic.
     private IReadOnlyList<SqlCompletionData> GetJoinTableRefCompletions(string sql) =>
         BuildTableRefCompletions(sql, FkNeighborItems(sql));
+
+    // Table position after JOIN, but the table+alias is already fully typed
+    // (trailing whitespace) — ON/USING are the only grammatical next tokens, so
+    // they're boosted to the top instead of the flat table/keyword dump.
+    private IReadOnlyList<SqlCompletionData> GetJoinKeywordCompletions(string sql) =>
+        BuildTableRefCompletions(sql, JoinKeywordBoostItems);
+
+    private static readonly IReadOnlyList<SqlCompletionData> JoinKeywordBoostItems =
+    [
+        new SqlCompletionData("ON", SqlCompletionKind.Keyword, "ON", JoinConditionPriority),
+        new SqlCompletionData("USING", SqlCompletionKind.Keyword, "USING", JoinConditionPriority),
+    ];
 
     private IReadOnlyList<SqlCompletionData> BuildTableRefCompletions(string sql, IEnumerable<SqlCompletionData> boosted)
     {

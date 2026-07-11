@@ -1,9 +1,9 @@
 using System.Text.RegularExpressions;
 
-namespace PgNimbus.App.Completion;
+namespace PgNimbus.Core.Text;
 
 /// <summary>Where the caret sits grammatically, as far as completion cares.</summary>
-internal enum SqlClause
+public enum SqlClause
 {
     /// <summary>No clause identified — offer the full catalog.</summary>
     None,
@@ -22,7 +22,7 @@ internal enum SqlClause
 /// <summary>
 /// A lightweight, regex-based read of the SQL being edited — just enough to make
 /// completion context-aware without pulling in a full parser. It answers the
-/// questions <see cref="SqlCompletionProvider"/> asks at the caret:
+/// questions the App's completion provider asks at the caret:
 /// <list type="number">
 /// <item>Is this a <c>qualifier.partial</c> member access, and if so what is the
 /// qualifier (the alias/table/schema before the dot)?</item>
@@ -36,7 +36,7 @@ internal enum SqlClause
 /// and quietly give up on the exotic (correlated subqueries) rather than
 /// guess wrong.
 /// </summary>
-internal static partial class SqlCompletionContext
+public static partial class SqlCompletionContext
 {
     /// <summary>A table reference parsed out of a FROM/JOIN clause, with its alias if one was given.</summary>
     public readonly record struct TableRef(string Schema, string Table, string? Alias);
@@ -306,6 +306,45 @@ internal static partial class SqlCompletionContext
     }
 
     /// <summary>
+    /// True when the caret sits right after a JOIN's table reference (and its
+    /// alias, if any) plus at least one trailing space — i.e. the table/alias is
+    /// done and the only sensible next tokens are <c>ON</c>/<c>USING</c>, not
+    /// another catalog dump. Requires the trailing space specifically so a table
+    /// name or alias still being typed (no space yet, and possibly a prefix of
+    /// "on" itself, e.g. an alias like <c>o</c>) doesn't trip this early.
+    /// </summary>
+    public static bool IsAfterCompleteJoinTarget(string sql, int caret)
+    {
+        var end = Math.Clamp(caret, 0, sql.Length);
+        var before = sql[..end];
+        var joins = JoinKeywordRegex().Matches(before);
+        if (joins.Count == 0)
+        {
+            return false;
+        }
+
+        var last = joins[^1];
+        var segment = before[(last.Index + last.Length)..];
+        var match = JoinTargetCompleteRegex().Match(segment);
+        if (!match.Success)
+        {
+            return false;
+        }
+
+        // "JOIN orders AS " or "JOIN orders INNER " — the regex would swallow
+        // the keyword as the alias; those mean the target is *not* complete
+        // (an alias is still coming / another JOIN is being typed). Same
+        // keyword-pseudo-capture filter AddTableRef applies.
+        var (schema, table) = SplitQualified(match.Groups["table"].Value);
+        if (schema.Length == 0 && ReservedAfterTable.Contains(table))
+        {
+            return false;
+        }
+
+        return !match.Groups["alias"].Success || !ReservedAfterTable.Contains(Unquote(match.Groups["alias"].Value));
+    }
+
+    /// <summary>
     /// Extracts the table references the statement operates on: every FROM clause
     /// (scoped to the FROM…(WHERE/GROUP/…) span so commas in a SELECT list aren't
     /// mistaken for table separators) plus <c>UPDATE</c> / <c>INSERT INTO</c> /
@@ -452,9 +491,11 @@ internal static partial class SqlCompletionContext
     };
 
     // FROM (or a comma/JOIN list under it), captured up to the next top-level
-    // clause keyword or statement end. [\s\S] so the body spans newlines.
+    // clause keyword or statement end. Quoted sections are consumed atomically
+    // so a keyword *inside* an identifier or literal ("Order Items", 'set x')
+    // can't cut the body short; [\s\S] so the body spans newlines.
     [GeneratedRegex(
-        @"\bfrom\b(?<body>[\s\S]*?)(?=\b(?:where|group|having|order|limit|offset|union|intersect|except|returning|window|for|into|values|set)\b|;|$)",
+        """\bfrom\b(?<body>(?:"[^"]*"|'[^']*'|[\s\S])*?)(?=\b(?:where|group|having|order|limit|offset|union|intersect|except|returning|window|for|into|values|set)\b|;|$)""",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex FromClauseRegex();
 
@@ -464,6 +505,23 @@ internal static partial class SqlCompletionContext
         @",|\b(?:cross\s+|natural\s+|inner\s+|left\s+|right\s+|full\s+|outer\s+)*join\b",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex JoinSplitRegex();
+
+    // A bare JOIN keyword (with its optional flavour prefix), used to find where
+    // the current JOIN's table reference starts — unlike JoinSplitRegex this
+    // doesn't also match commas, since IsAfterCompleteJoinTarget only cares
+    // about the most recent JOIN.
+    [GeneratedRegex(
+        @"\b(?:cross\s+|natural\s+|inner\s+|left\s+|right\s+|full\s+|outer\s+)*join\b",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex JoinKeywordRegex();
+
+    // A complete table ref (optionally schema-qualified, optionally aliased)
+    // spanning the whole segment after JOIN, with mandatory trailing whitespace —
+    // that trailing space is what proves the alias/table isn't still mid-typing.
+    [GeneratedRegex(
+        """^\s*(?<table>(?:"[^"]+"|[\w$]+)(?:\s*\.\s*(?:"[^"]+"|[\w$]+))?)(?:\s+(?:as\s+)?(?<alias>"[^"]+"|[\w$]+))?\s+$""",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex JoinTargetCompleteRegex();
 
     // A single table ref at the start of a segment: an optionally schema-qualified,
     // optionally quoted name, then an optional (AS) alias.
