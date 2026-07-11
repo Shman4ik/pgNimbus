@@ -281,7 +281,8 @@
                     <TextBox Grid.Row="2" Name="NewQueryNameBox" Text="{Binding NewQueryName}" PlaceholderText="Query name" Margin="0,8,0,0" />
                     <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="6" Margin="0,8,0,0">
                         <Button Content="Save" Command="{Binding SaveCurrentQueryCommand}" />
-                        <Button Content="Load" Command="{Binding LoadSavedQueryCommand}" CommandParameter="{Binding #SavedQueriesList.SelectedItem}" />
+                        <Button Content="Load" Command="{Binding LoadSavedQueryCommand}" CommandParameter="{Binding #SavedQueriesList.SelectedItem}"
+                                ToolTip.Tip="Open the selected query in a new tab (or double-click it)" />
                         <Button Content="Delete" Command="{Binding DeleteSavedQueryCommand}" CommandParameter="{Binding #SavedQueriesList.SelectedItem}" />
                     </StackPanel>
                     <TextBlock Grid.Row="4" Classes="sectionHeader" Text="HISTORY" Margin="4,16,4,6" />
@@ -348,7 +349,8 @@
                         </Grid>
                     </Border>
                     <StackPanel Grid.Row="7" Orientation="Horizontal" Spacing="6" Margin="0,8,0,0">
-                        <Button Content="Load selected" Command="{Binding LoadHistoryEntryCommand}" CommandParameter="{Binding #HistoryList.SelectedItem}" />
+                        <Button Content="Load selected" Command="{Binding LoadHistoryEntryCommand}" CommandParameter="{Binding #HistoryList.SelectedItem}"
+                                ToolTip.Tip="Open the selected entry in a new tab (or double-click it)" />
                         <Button Content="Clear history" Command="{Binding ClearHistoryCommand}" />
                     </StackPanel>
                 </Grid>
@@ -499,6 +501,17 @@
                     -->
                     <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
                 </Border.Resources>
+                <Border.Styles>
+                    <!-- Responsive command bar: on a narrow window (or a wide
+                         sidebar) the secondary buttons drop their text labels
+                         and fall back to icon + tooltip, so the bar never
+                         clips off the pane's right edge. $parent[Grid] is the
+                         editor pane's row grid - its width is what the bar
+                         actually has to fit into. -->
+                    <Style Selector="TextBlock.collapsible">
+                        <Setter Property="IsVisible" Value="{Binding $parent[Grid].Bounds.Width, Converter={x:Static conv2:MinWidthVisibilityConverter.Instance}, ConverterParameter=660}" />
+                    </Style>
+                </Border.Styles>
                 <StackPanel Orientation="Horizontal" Spacing="2">
                     <!-- Group 1 — execution: the primary Run + its Cancel -->
                     <Button Classes="accent" Command="{Binding ActiveTab.RunCommand}" ToolTip.Tip="Run (Ctrl+Enter)">
@@ -510,7 +523,7 @@
                     <Button Classes="toolbar" Command="{Binding ActiveTab.CancelCommand}" ToolTip.Tip="Cancel (Esc)">
                         <StackPanel Orientation="Horizontal" Spacing="7">
                             <PathIcon Data="{StaticResource StopIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
-                            <TextBlock Text="Cancel" VerticalAlignment="Center" />
+                            <TextBlock Text="Cancel" VerticalAlignment="Center" Classes="collapsible" />
                         </StackPanel>
                     </Button>
 
@@ -525,7 +538,7 @@
                             ToolTip.Tip="Begin a transaction (BEGIN)">
                         <StackPanel Orientation="Horizontal" Spacing="7">
                             <PathIcon Data="{StaticResource FlagIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
-                            <TextBlock Text="Begin" VerticalAlignment="Center" />
+                            <TextBlock Text="Begin" VerticalAlignment="Center" Classes="collapsible" />
                         </StackPanel>
                     </Button>
                     <Button Classes="toolbar" Command="{Binding CommitTransactionCommand}"
@@ -534,7 +547,7 @@
                             ToolTip.Tip="Commit the transaction (COMMIT)">
                         <StackPanel Orientation="Horizontal" Spacing="7">
                             <PathIcon Data="{StaticResource CheckIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
-                            <TextBlock Text="Commit" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <TextBlock Text="Commit" FontWeight="SemiBold" VerticalAlignment="Center" Classes="collapsible" />
                         </StackPanel>
                     </Button>
                     <Button Classes="toolbar" Command="{Binding RollbackTransactionCommand}"
@@ -543,7 +556,7 @@
                             ToolTip.Tip="Roll back the transaction (ROLLBACK)">
                         <StackPanel Orientation="Horizontal" Spacing="7">
                             <PathIcon Data="{StaticResource UndoIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
-                            <TextBlock Text="Rollback" VerticalAlignment="Center" />
+                            <TextBlock Text="Rollback" VerticalAlignment="Center" Classes="collapsible" />
                         </StackPanel>
                     </Button>
 
@@ -552,20 +565,20 @@
                     <Button Classes="toolbar" Command="{Binding ActiveTab.ExplainCommand}" ToolTip.Tip="Show the query plan (EXPLAIN)">
                         <StackPanel Orientation="Horizontal" Spacing="7">
                             <PathIcon Data="{StaticResource FlashIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
-                            <TextBlock Text="Explain" VerticalAlignment="Center" />
+                            <TextBlock Text="Explain" VerticalAlignment="Center" Classes="collapsible" />
                         </StackPanel>
                     </Button>
                     <Button Classes="toolbar" Command="{Binding ActiveTab.ExplainAnalyzeCommand}" ToolTip.Tip="Run and show the actual plan (EXPLAIN ANALYZE)">
                         <StackPanel Orientation="Horizontal" Spacing="7">
                             <PathIcon Data="{StaticResource GaugeIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
-                            <TextBlock Text="Explain Analyze" VerticalAlignment="Center" />
+                            <TextBlock Text="Explain Analyze" VerticalAlignment="Center" Classes="collapsible" />
                         </StackPanel>
                     </Button>
                     <Button Classes="toolbar" Command="{Binding ActiveTab.ShowResultsCommand}"
                             IsVisible="{Binding ActiveTab.IsShowingPlan}">
                         <StackPanel Orientation="Horizontal" Spacing="7">
                             <PathIcon Data="{StaticResource TableIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
-                            <TextBlock Text="Show results" VerticalAlignment="Center" />
+                            <TextBlock Text="Show results" VerticalAlignment="Center" Classes="collapsible" />
                         </StackPanel>
                     </Button>
 
@@ -574,7 +587,7 @@
                     <Button Classes="toolbar" Name="ExportButton" ToolTip.Tip="Export results (CSV / JSON)">
                         <StackPanel Orientation="Horizontal" Spacing="7">
                             <PathIcon Data="{StaticResource ExportIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
-                            <TextBlock Text="Export" VerticalAlignment="Center" />
+                            <TextBlock Text="Export" VerticalAlignment="Center" Classes="collapsible" />
                         </StackPanel>
                         <Button.Flyout>
                             <MenuFlyout>
@@ -586,18 +599,9 @@
                     <Button Classes="toolbar" Click="OnImportClick" ToolTip.Tip="Import a CSV or JSON file into a table">
                         <StackPanel Orientation="Horizontal" Spacing="7">
                             <PathIcon Data="{StaticResource ImportIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
-                            <TextBlock Text="Import" VerticalAlignment="Center" />
+                            <TextBlock Text="Import" VerticalAlignment="Center" Classes="collapsible" />
                         </StackPanel>
                     </Button>
-
-                    <!-- Group 5 — editor behavior: auto-alias on table completion
-                         ("FROM public.orders" completes to "… orders o") -->
-                    <Rectangle Classes="statusSeparator" Margin="7,0" />
-                    <ToggleButton Classes="chip" VerticalAlignment="Center"
-                                  IsChecked="{Binding AutoAliasTables}"
-                                  ToolTip.Tip="Auto-alias tables accepted from completion after FROM/JOIN (orders → orders o)">
-                        <TextBlock Text="AS" FontSize="11" FontWeight="SemiBold" />
-                    </ToggleButton>
                 </StackPanel>
             </Border>
 
@@ -881,12 +885,17 @@
                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                             <ListBox.ItemTemplate>
                                 <DataTemplate x:DataType="vm:PaletteItem">
-                                    <Grid ColumnDefinitions="Auto,*,Auto">
+                                    <Grid ColumnDefinitions="Auto,*,Auto,Auto">
                                         <TextBlock Grid.Column="0" Text="{Binding Glyph}" Width="20"
                                                    Opacity="0.7" VerticalAlignment="Center" />
                                         <TextBlock Grid.Column="1" Text="{Binding Title}"
                                                    TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
-                                        <TextBlock Grid.Column="2" Text="{Binding Category}"
+                                        <!-- The action's hotkey, so the palette doubles as a way to learn them -->
+                                        <TextBlock Grid.Column="2" Text="{Binding Shortcut}"
+                                                   IsVisible="{Binding Shortcut, Converter={x:Static conv:ObjectConverters.IsNotNull}}"
+                                                   FontSize="11" Opacity="0.55" VerticalAlignment="Center"
+                                                   Margin="12,0,0,0" />
+                                        <TextBlock Grid.Column="3" Text="{Binding Category}"
                                                    FontSize="11" Opacity="0.45" VerticalAlignment="Center"
                                                    Margin="12,0,0,0" />
                                     </Grid>

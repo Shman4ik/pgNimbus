@@ -176,6 +176,19 @@ public partial class MainWindow : Window
             }
         };
 
+        // Double-click on a saved query or history entry opens it in a new tab
+        // (the same action as its Load button - see SavedQueriesViewModel).
+        SavedQueriesList.DoubleTapped += (_, e) => OnQueryListDoubleTapped(e,
+            item => _viewModel?.SavedQueries.LoadSavedQueryCommand.Execute(item as SavedQuery));
+        HistoryList.DoubleTapped += (_, e) => OnQueryListDoubleTapped(e,
+            item => _viewModel?.SavedQueries.LoadHistoryEntryCommand.Execute(item as QueryHistoryEntry));
+
+        // Trackpads and tilt-wheels scroll the results grid horizontally on
+        // hover: the DataGrid's own wheel handling only consumes the vertical
+        // axis, so a mostly-horizontal delta is fed to its horizontal
+        // scrollbar here (tunneled - the grid marks wheel events handled).
+        ResultsGrid.AddHandler(PointerWheelChangedEvent, OnResultsGridPointerWheel, RoutingStrategies.Tunnel);
+
         // Column autocomplete inside the browse WHERE box (see the popup in XAML).
         BrowseFilterBox.TextChanged += OnBrowseFilterTextChanged;
         BrowseFilterBox.LostFocus += (_, _) => CloseFilterCompletion();
@@ -308,6 +321,7 @@ public partial class MainWindow : Window
             _viewModel.SwitchConnectionRequested -= SwitchConnection;
             _viewModel.FormatSqlRequested -= FormatCurrentStatement;
             _viewModel.ActivityRequested -= ShowActivityWindow;
+            _viewModel.SidebarToggleRequested -= ToggleSidebar;
         }
 
         _viewModel = vm;
@@ -318,6 +332,7 @@ public partial class MainWindow : Window
         _viewModel.SwitchConnectionRequested += SwitchConnection;
         _viewModel.FormatSqlRequested += FormatCurrentStatement;
         _viewModel.ActivityRequested += ShowActivityWindow;
+        _viewModel.SidebarToggleRequested += ToggleSidebar;
 
         AttachQuery(vm.ActiveTab);
     }
@@ -783,10 +798,64 @@ public partial class MainWindow : Window
         // wasn't already selected, SelectedItem can still be stale/null at
         // the point this handler runs.
         var container = (e.Source as Visual)?.FindAncestorOfType<TreeViewItem>(includeSelf: true);
-        if (_viewModel is not null && container?.DataContext is TableNode table)
+        if (_viewModel is null)
         {
-            _ = _viewModel.PreviewTableAsync(table);
+            return;
         }
+
+        switch (container?.DataContext)
+        {
+            case TableNode table:
+                _ = _viewModel.PreviewTableAsync(table);
+                break;
+            // A function's natural default action is its source - same as the
+            // context menu's "Source (DDL)".
+            case FunctionNode { HasSource: true } function:
+                _ = _viewModel.ShowFunctionSourceAsync(function);
+                break;
+        }
+    }
+
+    // Shared double-click handling for the saved-query and history lists:
+    // resolve the double-clicked row's item and load it, ignoring taps that
+    // land on an inline button (e.g. the history pin) - those own their clicks.
+    private void OnQueryListDoubleTapped(TappedEventArgs e, Action<object?> load)
+    {
+        var source = e.Source as Visual;
+        if (source?.FindAncestorOfType<Button>(includeSelf: true) is not null)
+        {
+            return;
+        }
+
+        if (source?.FindAncestorOfType<ListBoxItem>(includeSelf: true) is { DataContext: { } item })
+        {
+            load(item);
+        }
+    }
+
+    // Cached template part of the results grid; the template never re-applies
+    // for the window's lifetime, so one lookup is enough.
+    private Avalonia.Controls.Primitives.ScrollBar? _resultsHorizontalScrollBar;
+
+    private void OnResultsGridPointerWheel(object? sender, PointerWheelEventArgs e)
+    {
+        // Mostly-vertical deltas stay with the DataGrid's own wheel handling.
+        if (Math.Abs(e.Delta.X) <= Math.Abs(e.Delta.Y))
+        {
+            return;
+        }
+
+        _resultsHorizontalScrollBar ??= ResultsGrid.GetVisualDescendants()
+            .OfType<Avalonia.Controls.Primitives.ScrollBar>()
+            .FirstOrDefault(s => s.Orientation == Avalonia.Layout.Orientation.Horizontal);
+        if (_resultsHorizontalScrollBar is not { } bar)
+        {
+            return;
+        }
+
+        // Same direction convention as ScrollViewer: offset moves against the delta.
+        bar.Value = Math.Clamp(bar.Value - e.Delta.X * 48, bar.Minimum, bar.Maximum);
+        e.Handled = true;
     }
 
     private void OnPreparingCellForEdit(object? sender, DataGridPreparingCellForEditEventArgs e)

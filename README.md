@@ -89,8 +89,35 @@ later. If you want to try it anyway:
 - `pgNimbus-<version>-macos-arm64.dmg` from
   [Releases](https://github.com/Shman4ik/pgNimbus/releases) (Apple Silicon
   only; GitHub retired hosted Intel macOS runners in December 2025, and
-  Apple hasn't sold an Intel Mac since 2023). Unsigned/unnotarized:
-  right-click the app → "Open" the first time to bypass Gatekeeper.
+  Apple hasn't sold an Intel Mac since 2023).
+
+#### Fixing the Gatekeeper "App is damaged" error
+
+Because the beta binary is currently unsigned and unnotarized, macOS
+Gatekeeper will block it on the first launch, showing a misleading security
+warning:
+
+> *"pgNimbus" is damaged and can't be opened. You should move it to the
+> Trash.*
+
+This is standard macOS behavior for unsigned apps. The file is completely
+safe. To fix this and open the app, you need to clear the quarantine flag
+via Terminal:
+
+1. Drag `pgNimbus.app` from the DMG into your **Applications** folder (or
+   keep it in `Downloads`).
+2. Open **Terminal** (`Terminal.app`) and run the corresponding command:
+
+   ```bash
+   # If you moved the app to the Applications folder:
+   xattr -cr /Applications/pgNimbus.app
+
+   # If the app is still in your Downloads folder:
+   xattr -cr ~/Downloads/pgNimbus.app
+   ```
+
+3. Launch `pgNimbus.app` normally — the warning is gone for good (each
+   downloaded update needs the command once).
 
 Every tag push (`vX.Y.Z`) builds all of the above via
 [`.github/workflows/release.yml`](.github/workflows/release.yml) — see
