@@ -18,6 +18,10 @@ just **replace the placeholder file of the same name** in the `design/masters/`
 folders below. The build tooling picks them up automatically — nothing else
 needs to change. Please keep the exact filenames, sizes, and PNG format.
 
+The only exceptions: the `wordmark-*` files and `social-preview.png` are
+**new** — there's no placeholder to replace, just add them to
+`design/masters/logo/` under exactly those names.
+
 ```
 design/masters/
 ├── icon/      ← the app icon (a colored square "tile") — hand-drawn per size
@@ -82,7 +86,7 @@ Shown at the top of the project's web page (GitHub). **Transparent.**
 | `logo-dark.png` | 1024 × 1024 | Transparent, light ink (for dark backgrounds). |
 | `wordmark-light.svg` + `wordmark-light.png` | vector + PNG ~880 wide | **Horizontal lockup**: the mark **+ the word “pgNimbus”**. Dark ink. See note below. |
 | `wordmark-dark.svg` + `wordmark-dark.png` | vector + PNG ~880 wide | Same, light ink. |
-| `social-preview.png` | **1280 × 640** | A share/link-preview **card** — mark + “pgNimbus” + short tagline, **on a solid branded background** (this one is NOT transparent). |
+| `social-preview.png` | **1280 × 640** | A share/link-preview **card** — mark + “pgNimbus” + short tagline, **on a solid branded background** (this one is NOT transparent). Keep it under ~1 MB. |
 
 **Wordmark note (important for how it looks on phones):** please deliver it as
 **SVG** — that stays razor-sharp on any screen, phone or 4K monitor. Keep the

@@ -28,7 +28,7 @@ from them by the scripts in Part 3.
 | File | Size | Hand-drawn? | Feeds |
 |---|---|---|---|
 | `icon-1024.png` | 1024² | ⭐ master | macOS 512/1024, Store listing images |
-| `icon-256.png` | 256² | yes (full detail) | window `icon-256.png`, `app.ico` 64/128/256, MSIX 150, macOS 64–256 |
+| `icon-256.png` | 256² | yes (full detail) | `app.ico` 64/128/256, MSIX 150, macOS 64–256 |
 | `icon-48.png` | 48² | yes | `app.ico` 48, MSIX 44 & 50 |
 | `icon-32.png` | 32² | yes (**simplified**) | `app.ico` 32, macOS 32 |
 | `icon-24.png` | 24² | yes (**simplified**) | `app.ico` 24 |
@@ -52,6 +52,8 @@ from them by the scripts in Part 3.
 
 > The current files in `masters/` are **placeholders** seeded from the old art
 > so the build keeps working. The designer overwrites them (see the brief).
+> `wordmark-*` and `social-preview.png` have **no placeholder yet** — nothing
+> consumes them, the designer adds them as new files.
 > Superseded/old concepts live in `design/archive/`.
 
 ---
@@ -64,7 +66,6 @@ MSIX manifest / CI reference them unchanged.
 | File | Size(s) | Bg | Consumed by |
 |---|---|---|---|
 | `app.ico` | 16,24,32,48,64,128,256 | solid tile | exe icon (`ApplicationIcon` in csproj) + MSI (`Product.wxs` → `ARPPRODUCTICON`, shortcut) |
-| `icon-256.png` | 256 | solid tile | macOS `.icns` source (`build-app-bundle.sh`) |
 | `icon-256-light.png` | 256 | transparent | light-theme window icon (`ThemedWindowChrome.cs`) |
 | `icon-256-dark.png` | 256 | transparent | dark-theme window icon (`ThemedWindowChrome.cs`) |
 | `Msix/Square44x44Logo.png` | 44 | solid tile | MSIX small tile (`Package.appxmanifest`) |
@@ -83,7 +84,6 @@ derives only larger sizes:
 ```
 window/window-light-256.png ── copy ─────────► Assets/icon-256-light.png
 window/window-dark-256.png  ── copy ─────────► Assets/icon-256-dark.png
-icon/icon-256.png           ── copy ─────────► Assets/icon-256.png
 icon/icon-{16,24,32,48}.png ── copy (as-is) ─┐
 icon/icon-256.png ── downscale → 64,128 ─────┼─► Assets/app.ico  (7 entries)
 icon/icon-48.png  ── → 44 ───────────────────► Assets/Msix/Square44x44Logo.png
