@@ -1,6 +1,8 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
+using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using PgNimbus.App.ViewModels;
 using PgNimbus.Core.Connections;
@@ -26,6 +28,25 @@ public partial class ConnectionDialog : Window
         {
             vm.SelectedProfile = profile;
             vm.ConnectCommand.Execute(null);
+        }
+    }
+
+    private async void OnCopyConnectionStringClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not ConnectionDialogViewModel vm || TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard)
+        {
+            return;
+        }
+
+        try
+        {
+            await clipboard.SetTextAsync(vm.ImportText);
+        }
+        catch
+        {
+            // Clipboard access can throw if another app holds it locked. This is
+            // an async void handler, so an unhandled throw would crash the app —
+            // a failed copy is not worth that.
         }
     }
 }
