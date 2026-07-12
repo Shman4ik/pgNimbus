@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Runtime.InteropServices;
 using Avalonia.Controls;
 using Avalonia.Media;
@@ -22,8 +23,16 @@ namespace PgNimbus.App;
 /// </summary>
 public static class ThemedWindowChrome
 {
-    private static readonly Lazy<WindowIcon> LightThemeIcon = new(() => Load("icon-256-light.png"));
-    private static readonly Lazy<WindowIcon> DarkThemeIcon = new(() => Load("icon-256-dark.png"));
+    private static readonly Lazy<byte[]> LightIcoBytes = new(() => LoadBytes("window-icon-light.ico"));
+    private static readonly Lazy<byte[]> DarkIcoBytes = new(() => LoadBytes("window-icon-dark.ico"));
+    private static readonly Lazy<WindowIcon> LightThemeIcon = new(() => new WindowIcon(new MemoryStream(LightIcoBytes.Value)));
+    private static readonly Lazy<WindowIcon> DarkThemeIcon = new(() => new WindowIcon(new MemoryStream(DarkIcoBytes.Value)));
+
+    // Raw HICONs handed to Win32 directly (see ApplyNativeIcon) — built once
+    // per theme and reused across every window for the app's lifetime, same
+    // as Avalonia's own internal icon caching; never explicitly destroyed.
+    private static readonly Lazy<(IntPtr Small, IntPtr Big)> LightNativeIcons = new(() => CreateNativeIcons(LightIcoBytes.Value));
+    private static readonly Lazy<(IntPtr Small, IntPtr Big)> DarkNativeIcons = new(() => CreateNativeIcons(DarkIcoBytes.Value));
 
     public static void Attach(Window window)
     {
@@ -40,10 +49,70 @@ public static class ThemedWindowChrome
         var dark = window.ActualThemeVariant == ThemeVariant.Dark;
         window.Icon = dark ? DarkThemeIcon.Value : LightThemeIcon.Value;
         ApplyCaptionColor(window, dark);
+        ApplyNativeIcon(window, dark);
     }
 
-    private static WindowIcon Load(string name) =>
-        new(AssetLoader.Open(new Uri($"avares://PgNimbus.App/Assets/{name}")));
+    private static byte[] LoadBytes(string name)
+    {
+        using var stream = AssetLoader.Open(new Uri($"avares://PgNimbus.App/Assets/{name}"));
+        using var buffer = new MemoryStream();
+        stream.CopyTo(buffer);
+        return buffer.ToArray();
+    }
+
+    /// <summary>
+    /// Window.Icon above reliably updates the title bar but, on some Windows
+    /// 11 builds, not the taskbar button — a known Avalonia/Win32 gap
+    /// (AvaloniaUI/Avalonia#12343, #11569: Avalonia's WM_SETICON doesn't
+    /// always land for the taskbar's HICON). Send WM_SETICON directly with
+    /// icons built from the same .ico bytes so both surfaces agree.
+    /// </summary>
+    private static void ApplyNativeIcon(Window window, bool dark)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        if (window.TryGetPlatformHandle() is not { } handle)
+        {
+            return; // not opened yet; the Opened hook re-applies
+        }
+
+        var icons = dark ? DarkNativeIcons.Value : LightNativeIcons.Value;
+        SendMessage(handle.Handle, WmSeticon, (IntPtr)IconSmall, icons.Small);
+        SendMessage(handle.Handle, WmSeticon, (IntPtr)IconBig, icons.Big);
+    }
+
+    private static (IntPtr Small, IntPtr Big) CreateNativeIcons(byte[] icoBytes) =>
+        (CreateIcon(icoBytes, 16), CreateIcon(icoBytes, 32));
+
+    private static IntPtr CreateIcon(byte[] icoBytes, int size)
+    {
+        var entry = ExtractIcoEntry(icoBytes, size);
+        return CreateIconFromResourceEx(entry, (uint)entry.Length, true, 0x00030000, size, size, 0);
+    }
+
+    /// <summary>Pulls one image's raw bytes (always a PNG blob here) out of an in-memory .ico by exact pixel size.</summary>
+    private static byte[] ExtractIcoEntry(byte[] ico, int size)
+    {
+        var count = BitConverter.ToUInt16(ico, 4);
+        for (var i = 0; i < count; i++)
+        {
+            var entryOffset16 = 6 + i * 16;
+            var width = ico[entryOffset16] == 0 ? 256 : ico[entryOffset16];
+            if (width != size)
+            {
+                continue;
+            }
+
+            var byteCount = BitConverter.ToUInt32(ico, entryOffset16 + 8);
+            var dataOffset = BitConverter.ToUInt32(ico, entryOffset16 + 12);
+            return ico[(int)dataOffset..(int)(dataOffset + byteCount)];
+        }
+
+        throw new InvalidOperationException($"Icon has no {size}x{size} entry.");
+    }
 
     private const int DwmwaCaptionColor = 35; // DWMWA_CAPTION_COLOR, Windows 11+
     private const int DwmwaTextColor = 36;    // DWMWA_TEXT_COLOR,    Windows 11+
@@ -79,4 +148,16 @@ public static class ThemedWindowChrome
 
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref uint value, int size);
+
+    private const uint WmSeticon = 0x0080;
+    private const int IconSmall = 0;
+    private const int IconBig = 1;
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr SendMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern IntPtr CreateIconFromResourceEx(
+        byte[] pbIconBits, uint cbIconBits, [MarshalAs(UnmanagedType.Bool)] bool fIcon,
+        uint dwVersion, int cxDesired, int cyDesired, uint flags);
 }

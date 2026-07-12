@@ -63,7 +63,11 @@
 
   <Fragment>
     <ComponentGroup Id="PublishedFiles" Directory="INSTALLFOLDER">
-      <Files Include="$(var.PublishDir)\**" />
+      <!-- .pdb debug symbols are dev-only (crash-dump/symbol-server use) and
+           add tens of MB (e.g. libSkiaSharp.pdb) with no end-user benefit. -->
+      <Files Include="$(var.PublishDir)\**">
+        <Exclude Files="$(var.PublishDir)\**\*.pdb" />
+      </Files>
     </ComponentGroup>
   </Fragment>
 </Wix>

@@ -108,14 +108,43 @@ function Get-BmpEntryBytes([System.Drawing.Bitmap]$bmp) {
 
 New-Item -ItemType Directory -Force -Path $msixDir | Out-Null
 
-# --- per-theme window icons: copy the transparent 256px line art verbatim ---
+# --- per-theme window icons: a real multi-size .ico (16/24/32/48/256, all
+#     PNG-compressed entries — Windows Vista+ decodes PNG at any .ico size,
+#     so this needs no BMP fallback like app.ico's legacy sizes do) built
+#     from the transparent 256px line art. A flat single-size PNG here (the
+#     previous approach) leaves Avalonia's Win32 WM_SETICON call with only
+#     one oversized image to downscale, which Windows silently fails to
+#     apply to the title bar/taskbar on some Windows 11 builds — see
+#     ThemedWindowChrome's SendMessage(WM_SETICON) workaround, which needs
+#     these multi-size .ico files to pick a correctly-sized HICON from.
+$windowIconSizes = 16, 24, 32, 48, 256
 foreach ($pair in @(
-        @{ Src = 'window-light-256.png'; Dst = 'icon-256-light.png' },
-        @{ Src = 'window-dark-256.png';  Dst = 'icon-256-dark.png' })) {
+        @{ Src = 'window-light-256.png'; Dst = 'window-icon-light.ico' },
+        @{ Src = 'window-dark-256.png';  Dst = 'window-icon-dark.ico' })) {
     $s = Join-Path $winDir $pair.Src
     if (-not (Test-Path $s)) { throw "Missing window master: $s" }
-    Copy-Item $s (Join-Path $outDir $pair.Dst) -Force
-    Write-Host "copied PgNimbus.App\Assets\$($pair.Dst)"
+    $entries = foreach ($size in $windowIconSizes) {
+        $t = Get-TransparentTile $s $size
+        $bytes = Get-PngBytes $t
+        $t.Dispose()
+        @{ Size = $size; Bytes = $bytes }
+    }
+    $ms = New-Object System.IO.MemoryStream
+    $w  = New-Object System.IO.BinaryWriter($ms)
+    $w.Write([uint16]0); $w.Write([uint16]1); $w.Write([uint16]$entries.Count)
+    $offset = 6 + 16 * $entries.Count
+    foreach ($e in $entries) {
+        $dim = if ($e.Size -ge 256) { 0 } else { $e.Size }
+        $w.Write([byte]$dim); $w.Write([byte]$dim); $w.Write([byte]0); $w.Write([byte]0)
+        $w.Write([uint16]1); $w.Write([uint16]32)
+        $w.Write([uint32]([byte[]]$e.Bytes).Length); $w.Write([uint32]$offset)
+        $offset += ([byte[]]$e.Bytes).Length
+    }
+    foreach ($e in $entries) { $w.Write([byte[]]$e.Bytes) }
+    $w.Flush()
+    [System.IO.File]::WriteAllBytes((Join-Path $outDir $pair.Dst), $ms.ToArray())
+    $w.Dispose(); $ms.Dispose()
+    Write-Host ("wrote PgNimbus.App\Assets\$($pair.Dst) ({0} sizes)" -f ($windowIconSizes -join ', '))
 }
 
 # --- app.ico: 16/24/32/48 are hand-drawn masters copied as-is; 64/128 are

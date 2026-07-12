@@ -22,10 +22,10 @@
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <RuntimeIdentifiers>win-x64;osx-arm64</RuntimeIdentifiers>
-    <Authors>Shman4ik</Authors>
+    <Authors>Dmitrii Shmanev</Authors>
     <Product>pgNimbus</Product>
     <Description>A fast, open-source PostgreSQL GUI client built with .NET and Avalonia.</Description>
-    <Copyright>Copyright (c) 2026 Shman4ik</Copyright>
+    <Copyright>Copyright (c) 2026 Dmitrii Shmanev</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <RepositoryUrl>https://github.com/Shman4ik/pgNimbus</RepositoryUrl>
   </PropertyGroup>

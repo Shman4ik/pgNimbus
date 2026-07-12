@@ -38,8 +38,8 @@ from them by the scripts in Part 3.
 
 | File | Size | Feeds |
 |---|---|---|
-| `window-light-256.png` | 256² | `Assets/icon-256-light.png` (light theme) |
-| `window-dark-256.png` | 256² | `Assets/icon-256-dark.png` (dark theme) |
+| `window-light-256.png` | 256² | `Assets/window-icon-light.ico` (light theme) |
+| `window-dark-256.png` | 256² | `Assets/window-icon-dark.ico` (dark theme) |
 
 ### `logo/` — website / marketing (**transparent**, except the social card)
 
@@ -66,8 +66,8 @@ MSIX manifest / CI reference them unchanged.
 | File | Size(s) | Bg | Consumed by |
 |---|---|---|---|
 | `app.ico` | 16,24,32,48,64,128,256 | solid tile | exe icon (`ApplicationIcon` in csproj) + MSI (`Product.wxs` → `ARPPRODUCTICON`, shortcut) |
-| `icon-256-light.png` | 256 | transparent | light-theme window icon (`ThemedWindowChrome.cs`) |
-| `icon-256-dark.png` | 256 | transparent | dark-theme window icon (`ThemedWindowChrome.cs`) |
+| `window-icon-light.ico` | 16,24,32,48,256 | transparent | light-theme window icon, title bar + taskbar (`ThemedWindowChrome.cs`) |
+| `window-icon-dark.ico` | 16,24,32,48,256 | transparent | dark-theme window icon, title bar + taskbar (`ThemedWindowChrome.cs`) |
 | `Msix/Square44x44Logo.scale-{100,125,150,200,400}.png` | 44,55,66,88,176 | solid tile | MSIX small tile (`Package.appxmanifest`) |
 | `Msix/Square150x150Logo.scale-{100,125,150,200,400}.png` | 150,188,225,300,600 | solid tile | MSIX medium tile |
 | `Msix/StoreLogo.scale-{100,125,150,200,400}.png` | 50,63,75,100,200 | solid tile | MSIX `Properties/Logo` |
@@ -92,8 +92,8 @@ Run after the designer updates `masters/`. Copies exact-size masters verbatim,
 derives only larger sizes:
 
 ```
-window/window-light-256.png ── copy ─────────► Assets/icon-256-light.png
-window/window-dark-256.png  ── copy ─────────► Assets/icon-256-dark.png
+window/window-light-256.png ── resize to 16/24/32/48/256 ──► Assets/window-icon-light.ico
+window/window-dark-256.png  ── resize to 16/24/32/48/256 ──► Assets/window-icon-dark.ico
 icon/icon-{16,24,32,48}.png ── copy (as-is) ─┐
 icon/icon-256.png ── downscale → 64,128 ─────┼─► Assets/app.ico  (7 entries)
 icon/icon-48.png   ── → 44,55,66 ────────────► Assets/Msix/Square44x44Logo.scale-{100,125,150}.png
