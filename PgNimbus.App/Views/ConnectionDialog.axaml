@@ -55,8 +55,10 @@
                     <KeyBinding Gesture="Enter" Command="{Binding ImportConnectionStringCommand}" />
                 </TextBox.KeyBindings>
             </TextBox>
-            <Button Grid.Column="1" Content="Fill" Command="{Binding ImportConnectionStringCommand}"
-                    ToolTip.Tip="Re-apply the pasted connection string (already applied automatically on paste)" />
+            <Button Grid.Column="1" Classes="chip" Padding="7" Click="OnCopyConnectionStringClick"
+                    ToolTip.Tip="Copy connection string to clipboard">
+                <PathIcon Data="{StaticResource ClipboardIconGeometry}" Width="14" Height="14" />
+            </Button>
         </Grid>
 
         <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
