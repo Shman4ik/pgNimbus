@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Reflection;
 using System.Text;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -12,6 +13,23 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
     private readonly ICredentialStore _credentialStore;
 
     public ObservableCollection<ConnectionProfile> Profiles { get; } = [];
+
+    /// <summary>
+    /// Dialog footer: release version (e.g. "0.4.5", stripped of the
+    /// "+&lt;git-sha&gt;" build metadata the release pipeline embeds via
+    /// -p:InformationalVersion) plus the copyright/license from the csproj,
+    /// so the footer doesn't hardcode anything the release pipeline already owns.
+    /// </summary>
+    public string FooterText { get; } = BuildFooterText();
+
+    private static string BuildFooterText()
+    {
+        var assembly = Assembly.GetEntryAssembly();
+        var version = "v" + (assembly?.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+            .Split('+')[0] ?? "0.0.0");
+        var copyright = assembly?.GetCustomAttribute<AssemblyCopyrightAttribute>()?.Copyright;
+        return string.IsNullOrEmpty(copyright) ? version : $"{version} · {copyright} · MIT";
+    }
 
     /// <summary>Drives the empty-state hint over the Saved Connections list.</summary>
     public bool HasNoProfiles => Profiles.Count == 0;

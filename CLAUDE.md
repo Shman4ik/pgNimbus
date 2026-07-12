@@ -94,10 +94,16 @@ Everything in `PgNimbus.App/Assets/` is **generated** by
 regenerate via that script, don't hand-edit. Output filenames are stable so
 csproj / WiX / MSIX manifest reference them unchanged:
 
-- `icon-256-light.png` / `icon-256-dark.png` — window (title-bar/taskbar)
-  icons, copied verbatim from `window/`. Windows don't set `Icon` in XAML;
-  each window calls `ThemedWindowIcon.Attach(this)` in its constructor, which
-  picks the variant for the actual theme and re-applies it on live switches.
+- `window-icon-light.ico` / `window-icon-dark.ico` — window (title-bar/
+  taskbar) icons: multi-size (16/24/32/48/256), all PNG-compressed entries,
+  built from the transparent `window/` masters. A single flat PNG here
+  isn't enough — Avalonia's `Window.Icon` reliably updates the title bar
+  from one, but not the Windows 11 taskbar button (a known Avalonia/Win32
+  gap, see below). Windows don't set `Icon` in XAML; each window calls
+  `ThemedWindowChrome.Attach(this)` in its constructor, which sets
+  `Window.Icon` for the live theme *and* sends `WM_SETICON` directly via
+  P/Invoke (built from the same `.ico` bytes) so the taskbar icon actually
+  updates too — re-applied on live theme switches.
 - `app.ico` — 16–256px multi-size tile; the exe (`ApplicationIcon`) and MSI
   icon.
 - `Assets/Msix/*` — MSIX tiles, packaging-time-only. Each of
@@ -274,7 +280,11 @@ the release pipeline don't pollute the trend history. Three moving parts:
    `bench-results/benchmarks.json` (github-action-benchmark
    `customSmallerIsBetter` format — keep every metric smaller-is-better, so
    throughput is reported as stream *time*) plus `summary.md`.
-   `PGNIMBUS_BENCH_SKIP_AOT=1` skips the slow AOT publish for local runs.
+   `PGNIMBUS_BENCH_SKIP_AOT=1` skips the slow AOT publish for local runs. Also
+   tracks size: the AOT exe alone (`binary_size_mb`) and the whole publish
+   dir (`publish_size_mb`, `du -sb` on the publish output) — the latter is
+   the more honest "app size" number since side-car native libs bundled
+   alongside the exe (`libSkiaSharp`, `libHarfBuzzSharp`) dwarf it.
 
 Numbers are machine-relative (this sandbox: ~160 ms AOT / ~2 s JIT to first
 frame; CI runners differ) — the point is the trend per commit, not the

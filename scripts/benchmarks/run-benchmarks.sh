@@ -9,7 +9,10 @@
 #   startup_aot_ms   launch → first rendered frame, NativeAOT Release binary
 #   startup_jit_ms   launch → first rendered frame, JIT Release build
 #   startup_rss_mb   resident memory at first frame (AOT)
-#   binary_size_mb   size of the AOT executable
+#   binary_size_mb   size of the AOT executable alone
+#   publish_size_mb  total size of the AOT publish dir (exe + native deps
+#                     like libSkiaSharp/libHarfBuzzSharp) — what actually
+#                     ships, since those side-car libs dwarf the exe itself
 #   connect_ms       first physical connection on a cold pool
 #   roundtrip_ms     SELECT 1 on a warm pooled connection (median)
 #   first_batch_ms   large SELECT: call → first streamed RowBatch (median)
@@ -81,6 +84,9 @@ if [[ -z "${PGNIMBUS_BENCH_SKIP_AOT:-}" ]]; then
     dotnet publish PgNimbus.App -c Release -r linux-x64 -p:PublishAot=true >/dev/null
     AOT_BINARY=PgNimbus.App/bin/Release/net10.0/linux-x64/publish/PgNimbus.App
     BINARY_SIZE_MB=$(awk "BEGIN { printf \"%.1f\", $(stat -c%s "$AOT_BINARY") / 1024 / 1024 }")
+    PUBLISH_DIR=$(dirname "$AOT_BINARY")
+    PUBLISH_SIZE_BYTES=$(du -sb "$PUBLISH_DIR" | cut -f1)
+    PUBLISH_SIZE_MB=$(awk "BEGIN { printf \"%.1f\", $PUBLISH_SIZE_BYTES / 1024 / 1024 }")
 fi
 
 # --- startup -----------------------------------------------------------------
@@ -113,6 +119,7 @@ ROWS_PER_SEC=$(bench_value rows_per_sec)
   { "name": "Startup, launch to first frame (NativeAOT)", "unit": "ms", "value": $STARTUP_AOT_MS },
   { "name": "Memory at first frame (NativeAOT)", "unit": "MB", "value": $RSS_AOT_MB },
   { "name": "Binary size (NativeAOT)", "unit": "MB", "value": $BINARY_SIZE_MB },
+  { "name": "Publish size (NativeAOT, all files)", "unit": "MB", "value": $PUBLISH_SIZE_MB },
 EOF
     cat <<EOF
   { "name": "Startup, launch to first frame (JIT)", "unit": "ms", "value": $STARTUP_JIT_MS },
@@ -133,6 +140,7 @@ EOF
         echo "| Startup, launch → first frame (NativeAOT) | $STARTUP_AOT_MS ms |"
         echo "| Memory at first frame (NativeAOT) | $RSS_AOT_MB MB |"
         echo "| Binary size (NativeAOT) | $BINARY_SIZE_MB MB |"
+        echo "| Publish size (NativeAOT, all files) | $PUBLISH_SIZE_MB MB |"
     }
     echo "| Startup, launch → first frame (JIT) | $STARTUP_JIT_MS ms |"
     echo "| Connect (cold pool) | $CONNECT_MS ms |"

@@ -12,9 +12,11 @@
         CanResize="False"
         WindowStartupLocation="CenterScreen">
 
-    <Grid ColumnDefinitions="220,*" Margin="16">
+    <Grid Margin="16" RowDefinitions="*,Auto,Auto">
 
-        <Grid Grid.Column="0" RowDefinitions="Auto,*,Auto">
+    <Grid Grid.Row="0" ColumnDefinitions="220,*">
+
+        <Grid Grid.Column="0" RowDefinitions="Auto,*">
             <TextBlock Grid.Row="0" Text="Saved Connections" FontWeight="SemiBold" Margin="0,0,0,8" />
             <Border Grid.Row="1" Classes="card">
                 <Grid>
@@ -39,10 +41,9 @@
                                Margin="12" HorizontalAlignment="Center" VerticalAlignment="Center" />
                 </Grid>
             </Border>
-            <Button Grid.Row="2" Content="New" Command="{Binding NewCommand}" Margin="0,8,0,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
         </Grid>
 
-        <Grid Grid.Column="1" Margin="20,0,0,0" RowDefinitions="Auto,*,Auto">
+        <Grid Grid.Column="1" Margin="20,0,0,0" RowDefinitions="Auto,*">
 
         <!-- Paste-anything import: URI / JDBC / Key=Value / libpq / psql command line.
              Parses automatically as you paste/type, and mirrors the fields below
@@ -164,13 +165,24 @@
 
         </Grid>
         </ScrollViewer>
+        </Grid>
 
-        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" Margin="0,8,0,0">
+    </Grid>
+
+    <!-- All action buttons on one row: New (scoped to the saved-connections
+         column) on the left, the current form's actions on the right. -->
+    <Grid Grid.Row="1" ColumnDefinitions="220,*" Margin="0,8,0,0">
+        <Button Grid.Column="0" Content="New" Command="{Binding NewCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" Margin="20,0,0,0">
             <Button Content="Delete" Command="{Binding DeleteCommand}" />
             <Button Content="Save" Command="{Binding SaveCommand}" />
             <Button Classes="accent" Content="Connect" Command="{Binding ConnectCommand}" IsEnabled="{Binding !IsConnecting}" />
         </StackPanel>
-        </Grid>
+    </Grid>
+
+    <!-- Thin full-width footer strip, below the buttons like everything else. -->
+    <TextBlock Grid.Row="2" Text="{Binding FooterText}" FontSize="10" Opacity="0.4"
+               HorizontalAlignment="Center" Margin="0,10,0,0" />
 
     </Grid>
 

@@ -38,8 +38,8 @@ from them by the scripts in Part 3.
 
 | File | Size | Feeds |
 |---|---|---|
-| `window-light-256.png` | 256² | `Assets/icon-256-light.png` (light theme) |
-| `window-dark-256.png` | 256² | `Assets/icon-256-dark.png` (dark theme) |
+| `window-light-256.png` | 256² | `Assets/window-icon-light.ico` (light theme) |
+| `window-dark-256.png` | 256² | `Assets/window-icon-dark.ico` (dark theme) |
 
 ### `logo/` — website / marketing (**transparent**, except the social card)
 
@@ -66,8 +66,8 @@ MSIX manifest / CI reference them unchanged.
 | File | Size(s) | Bg | Consumed by |
 |---|---|---|---|
 | `app.ico` | 16,24,32,48,64,128,256 | solid tile | exe icon (`ApplicationIcon` in csproj) + MSI (`Product.wxs` → `ARPPRODUCTICON`, shortcut) |
-| `icon-256-light.png` | 256 | transparent | light-theme window icon (`ThemedWindowChrome.cs`) |
-| `icon-256-dark.png` | 256 | transparent | dark-theme window icon (`ThemedWindowChrome.cs`) |
+| `window-icon-light.ico` | 16,24,32,48,256 | transparent | light-theme window icon, title bar + taskbar (`ThemedWindowChrome.cs`) |
+| `window-icon-dark.ico` | 16,24,32,48,256 | transparent | dark-theme window icon, title bar + taskbar (`ThemedWindowChrome.cs`) |
 | `Msix/Square44x44Logo.scale-{100,125,150,200,400}.png` | 44,55,66,88,176 | solid tile | MSIX small tile (`Package.appxmanifest`) |
 | `Msix/Square150x150Logo.scale-{100,125,150,200,400}.png` | 150,188,225,300,600 | solid tile | MSIX medium tile |
 | `Msix/StoreLogo.scale-{100,125,150,200,400}.png` | 50,63,75,100,200 | solid tile | MSIX `Properties/Logo` |
@@ -92,8 +92,8 @@ Run after the designer updates `masters/`. Copies exact-size masters verbatim,
 derives only larger sizes:
 
 ```
-window/window-light-256.png ── copy ─────────► Assets/icon-256-light.png
-window/window-dark-256.png  ── copy ─────────► Assets/icon-256-dark.png
+window/window-light-256.png ── resize to 16/24/32/48/256 ──► Assets/window-icon-light.ico
+window/window-dark-256.png  ── resize to 16/24/32/48/256 ──► Assets/window-icon-dark.ico
 icon/icon-{16,24,32,48}.png ── copy (as-is) ─┐
 icon/icon-256.png ── downscale → 64,128 ─────┼─► Assets/app.ico  (7 entries)
 icon/icon-48.png   ── → 44,55,66 ────────────► Assets/Msix/Square44x44Logo.scale-{100,125,150}.png
@@ -173,6 +173,48 @@ scale 100/125/150/200/400%, plus Square44x44Logo's unplated
 targetsize-{16,24,32,48,256} pair (dark/light) for taskbar/Start/Alt+Tab.
 Optional for a richer Store tile set: Square71x71, Square310x310,
 Wide310x150, SplashScreen 620×300 (same per-scale set each).
+
+### Microsoft guideline compliance (checked 2026-07)
+
+Validated against Microsoft's official
+[app-icon-design](https://learn.microsoft.com/en-us/windows/apps/design/iconography/app-icon-design)
+and [app-icon-construction](https://learn.microsoft.com/en-us/windows/apps/design/iconography/app-icon-construction)
+pages. Where we stand:
+
+- ✅ **Bare-minimum size set** (16/24/32/48/256) — met by `app.ico` and the
+  targetsize pair. Microsoft: with a 256px present, Windows only ever scales
+  *down*, never up.
+- ✅ **Unplated + lightunplated variants** — shipped; these are what keep the
+  taskbar/Start icon from getting Windows's auto-backplate.
+- ✅ **Per-size hand-drawn small masters** — matches Microsoft's "maintain
+  legibility at small sizes" guidance.
+- ⚠️ **Partial targetsize coverage.** Microsoft's *required* AppList list is
+  14 sizes: 16, 20, 24, 30, 32, 36, 40, 48, 60, 64, 72, 80, 96, 256 — we ship
+  5 (16/24/32/48/256). The gap bites at fractional display scales: at 125% /
+  150% the taskbar wants **30 / 36 px** and Windows scales our 48 down.
+  Windows picks the next size *above* and downscales, so the result is decent
+  but not pixel-perfect. Fix = extend `make-app-icons.ps1` to emit the
+  intermediate targetsizes (derive 20/30/36/40 from `icon-24/32/48`-class
+  masters, 60–96 from `icon-256`); no new masters strictly needed.
+- ⚠️ **No plain (plated) `targetsize-N.png` files.** Microsoft's list has
+  three variants per size (plain, unplated, lightunplated); we ship only the
+  two unplated ones. In practice Windows falls back to the
+  `Square44x44Logo.scale-*` assets for plated contexts, so nothing visibly
+  breaks — but adding the plain set (solid-tile artwork) would match the
+  letter of the spec.
+- ℹ️ **Solid tile vs transparent.** Microsoft prefers transparent-background
+  icons, but explicitly allows a branded plate ("that's okay too") as long as
+  theme-aware unplated assets exist — which is exactly our split: solid
+  `icon/` tiles for plated surfaces, transparent `window/` masters for the
+  unplated ones.
+- ℹ️ **Win10 tile/splash extras** (SmallTile/WideTile/LargeTile,
+  SplashScreen, badge) — optional; Windows 11 ignores tiles, and only the
+  medium tile (our Square150x150Logo, shipped) is Store-required.
+
+The *design*-side rules (≤2 metaphors, no typography, 48px grid, 2px/1px
+corner radii, flat straight-on layers, 120° gradients, 3.0:1 contrast on half
+the icon) live in [`DESIGNER-BRIEF.md`](DESIGNER-BRIEF.md) → "Windows icon
+rules", so the designer sees them without reading this file.
 
 **Microsoft Store listing images** (Partner Center, upload-only; from
 `make-store-logos.ps1`): box art 2160², tile 300²/150²/71², 9:16 poster
