@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783786741730,
+  "lastUpdate": 1783846520438,
   "repoUrl": "https://github.com/Shman4ik/pgNimbus",
   "entries": {
     "pgNimbus benchmarks": [
@@ -63,6 +63,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "Stream 100000 rows",
             "value": 154,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shman4ik@gmail.com",
+            "name": "Dmitrii Shmanev",
+            "username": "Shman4ik"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "08e8e3f729ab9156cd76fab7a4ae1a5b816bd8b1",
+          "message": "Connect dialog polish, taskbar icon fix, and installer/benchmark cleanup (#96)\n\n* Connect dialog polish, taskbar icon fix, and installer/benchmark cleanup\n\n- Add an app version + copyright/license footer to the Connect dialog,\n  spanning the full width below all action buttons (New, Delete, Save,\n  Connect all on one row).\n- Fix the Windows 11 taskbar showing a generic blank icon for every window\n  (a known Avalonia/Win32 gap: Window.Icon doesn't reliably update the\n  taskbar's HICON). ThemedWindowChrome now also sends WM_SETICON directly\n  via P/Invoke, built from new per-theme multi-size .ico files\n  (window-icon-{light,dark}.ico) instead of the old flat 256px PNGs.\n- Exclude .pdb debug symbols from the MSI payload (Product.wxs) — they\n  added ~101MB of a 216MB publish output with no end-user benefit.\n- Track total publish directory size (not just the AOT exe) in the\n  benchmarks pipeline, since bundled native libs dwarf the exe itself.\n- Update copyright/author metadata to \"Dmitrii Shmanev\" in both csproj\n  files and LICENSE (GitHub URLs/handles are left untouched).\n\nCo-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>\n\n* Address PR review: fail-safe native icon path, clarify icon-script comment\n\n- ThemedWindowChrome: skip WM_SETICON when the cached HICON is zero\n  (sending NULL would remove the icon instead of leaving Window.Icon's),\n  and return null from ExtractIcoEntry instead of throwing so a size\n  mismatch degrades to plain Window.Icon behavior rather than crashing\n  window construction.\n- make-app-icons.ps1: scope the BMP-entry comment to app.ico (shell-read)\n  so it no longer contradicts the all-PNG window-icon .ico block.\n\nCo-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n* Update Windows icon guidelines and compliance docs\n\nClarified window icon usage for Store/taskbar, added Microsoft's official Windows icon design rules to DESIGNER-BRIEF.md, and updated LOGO-ASSETS.md with a compliance checklist and notes on current asset coverage and recommendations.\n\n---------\n\nCo-authored-by: Claude Sonnet 5 <noreply@anthropic.com>",
+          "timestamp": "2026-07-12T10:50:20+02:00",
+          "tree_id": "5a98b4f5f5f62b1a5aa2ae9c5fad61f5e831affa",
+          "url": "https://github.com/Shman4ik/pgNimbus/commit/08e8e3f729ab9156cd76fab7a4ae1a5b816bd8b1"
+        },
+        "date": 1783846519671,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Startup, launch to first frame (NativeAOT)",
+            "value": 160,
+            "unit": "ms"
+          },
+          {
+            "name": "Memory at first frame (NativeAOT)",
+            "value": 149.5,
+            "unit": "MB"
+          },
+          {
+            "name": "Binary size (NativeAOT)",
+            "value": 40.3,
+            "unit": "MB"
+          },
+          {
+            "name": "Publish size (NativeAOT, all files)",
+            "value": 139.4,
+            "unit": "MB"
+          },
+          {
+            "name": "Startup, launch to first frame (JIT)",
+            "value": 1681,
+            "unit": "ms"
+          },
+          {
+            "name": "Connect, cold pool",
+            "value": 146.5,
+            "unit": "ms"
+          },
+          {
+            "name": "Round-trip, SELECT 1 warm",
+            "value": 0.35,
+            "unit": "ms"
+          },
+          {
+            "name": "First row batch of a 100000-row SELECT",
+            "value": 11.5,
+            "unit": "ms"
+          },
+          {
+            "name": "Stream 100000 rows",
+            "value": 148.4,
             "unit": "ms"
           }
         ]
