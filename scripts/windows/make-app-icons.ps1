@@ -79,8 +79,12 @@ function Get-PngBytes([System.Drawing.Bitmap]$bmp) {
 }
 
 # Classic uncompressed ICO entry: BITMAPINFOHEADER + bottom-up BGRA + AND mask.
-# PNG compression inside .ico is only spec-blessed for the 256px entry, so the
-# smaller sizes go in as plain BMP for maximum shell compatibility.
+# Only app.ico needs this: the Windows shell itself reads that file (Explorer,
+# MSI/ARP), and there PNG compression is only spec-blessed for the 256px entry —
+# smaller sizes go in as plain BMP for maximum shell compatibility. The
+# window-icon .ico files below are all-PNG instead: they're decoded only
+# in-app (Avalonia + CreateIconFromResourceEx, both PNG-capable at any size),
+# never handed to the shell as a file.
 function Get-BmpEntryBytes([System.Drawing.Bitmap]$bmp) {
     $s = $bmp.Width
     $ms = New-Object System.IO.MemoryStream

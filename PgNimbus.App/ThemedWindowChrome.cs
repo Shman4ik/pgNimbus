@@ -79,9 +79,19 @@ public static class ThemedWindowChrome
             return; // not opened yet; the Opened hook re-applies
         }
 
+        // A zero HICON here means the .ico was missing that size or Win32
+        // refused it — sending WM_SETICON with NULL would *remove* the icon,
+        // so skip and leave whatever Window.Icon already put there.
         var icons = dark ? DarkNativeIcons.Value : LightNativeIcons.Value;
-        SendMessage(handle.Handle, WmSeticon, (IntPtr)IconSmall, icons.Small);
-        SendMessage(handle.Handle, WmSeticon, (IntPtr)IconBig, icons.Big);
+        if (icons.Small != IntPtr.Zero)
+        {
+            SendMessage(handle.Handle, WmSeticon, (IntPtr)IconSmall, icons.Small);
+        }
+
+        if (icons.Big != IntPtr.Zero)
+        {
+            SendMessage(handle.Handle, WmSeticon, (IntPtr)IconBig, icons.Big);
+        }
     }
 
     private static (IntPtr Small, IntPtr Big) CreateNativeIcons(byte[] icoBytes) =>
@@ -89,12 +99,19 @@ public static class ThemedWindowChrome
 
     private static IntPtr CreateIcon(byte[] icoBytes, int size)
     {
-        var entry = ExtractIcoEntry(icoBytes, size);
-        return CreateIconFromResourceEx(entry, (uint)entry.Length, true, 0x00030000, size, size, 0);
+        return ExtractIcoEntry(icoBytes, size) is { } entry
+            ? CreateIconFromResourceEx(entry, (uint)entry.Length, true, 0x00030000, size, size, 0)
+            : IntPtr.Zero;
     }
 
-    /// <summary>Pulls one image's raw bytes (always a PNG blob here) out of an in-memory .ico by exact pixel size.</summary>
-    private static byte[] ExtractIcoEntry(byte[] ico, int size)
+    /// <summary>
+    /// Pulls one image's raw bytes (always a PNG blob here) out of an
+    /// in-memory .ico by exact pixel size. Returns null when the size is
+    /// missing (e.g. make-app-icons.ps1 drifted from the sizes expected
+    /// here): this whole path is cosmetic, so it must degrade to Avalonia's
+    /// plain Window.Icon behavior rather than crash window construction.
+    /// </summary>
+    private static byte[]? ExtractIcoEntry(byte[] ico, int size)
     {
         var count = BitConverter.ToUInt16(ico, 4);
         for (var i = 0; i < count; i++)
@@ -111,7 +128,7 @@ public static class ThemedWindowChrome
             return ico[(int)dataOffset..(int)(dataOffset + byteCount)];
         }
 
-        throw new InvalidOperationException($"Icon has no {size}x{size} entry.");
+        return null;
     }
 
     private const int DwmwaCaptionColor = 35; // DWMWA_CAPTION_COLOR, Windows 11+
