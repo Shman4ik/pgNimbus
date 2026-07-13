@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="design/masters/logo/logo-dark.png">
-    <img src="design/masters/logo/logo-light.png" alt="pgNimbus logo — an elephant riding a broom" width="180">
+    <source media="(prefers-color-scheme: dark)" srcset="design/masters/logo/wordmark-dark.png">
+    <img src="design/masters/logo/wordmark-light.png" alt="pgNimbus logo — an elephant riding a broom" width="300">
   </picture>
 </p>
 

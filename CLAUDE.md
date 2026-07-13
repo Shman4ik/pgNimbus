@@ -94,18 +94,23 @@ Everything in `PgNimbus.App/Assets/` is **generated** by
 regenerate via that script, don't hand-edit. Output filenames are stable so
 csproj / WiX / MSIX manifest reference them unchanged:
 
-- `window-icon-light.ico` / `window-icon-dark.ico` — window (title-bar/
-  taskbar) icons: multi-size (16/24/32/48/256), all PNG-compressed entries,
-  built from the transparent `window/` masters. A single flat PNG here
-  isn't enough — Avalonia's `Window.Icon` reliably updates the title bar
-  from one, but not the Windows 11 taskbar button (a known Avalonia/Win32
-  gap, see below). Windows don't set `Icon` in XAML; each window calls
-  `ThemedWindowChrome.Attach(this)` in its constructor, which sets
-  `Window.Icon` for the live theme *and* sends `WM_SETICON` directly via
-  P/Invoke (built from the same `.ico` bytes) so the taskbar icon actually
-  updates too — re-applied on live theme switches.
-- `app.ico` — 16–256px multi-size tile; the exe (`ApplicationIcon`) and MSI
-  icon.
+- `app.ico` — 16–256px multi-size tile; the exe (`ApplicationIcon`), the MSI
+  icon, *and* the runtime window icon. Windows don't set `Icon` in XAML;
+  each window calls `ThemedWindowChrome.Attach(this)` in its constructor,
+  which sets `Window.Icon` to this plated tile *and* sends `WM_SETICON`
+  directly via P/Invoke (built from the same `.ico` bytes) because
+  Avalonia's `Window.Icon` reliably updates the title bar but not the
+  Windows 11 taskbar button (a known Avalonia/Win32 gap). One plated icon
+  for every surface on purpose: the title bar, taskbar and Alt+Tab all read
+  the same `WM_SETICON` slots (they cannot diverge), Avalonia re-asserts
+  `Window.Icon` on its own schedule (racing any divergent native icon back),
+  and theme-swapped transparent line art was unreadable on the
+  (almost always dark) taskbar whenever the app ran the light theme.
+- `window-icon-light.ico` / `window-icon-dark.ico` — theme-tinted
+  transparent line-art icons (16/24/32/48/256, all PNG entries) built from
+  the `window/` masters. **Not consumed in-app anymore** — superseded by the
+  plated `app.ico` window icon above (2026-07); still generated in case
+  transparent themed line art is wanted later.
 - `Assets/Msix/*` — MSIX tiles, packaging-time-only. Each of
   `Square44x44Logo`/`Square150x150Logo`/`StoreLogo` ships as
   `.scale-{100,125,150,200,400}.png` (not one flat file — Windows will

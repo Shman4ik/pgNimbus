@@ -1,25 +1,26 @@
-using System;
-using System.IO;
-using System.Runtime.InteropServices;
 using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Platform;
 using Avalonia.Styling;
+using System.Runtime.InteropServices;
 
 namespace PgNimbus.App;
 
 /// <summary>
 /// Keeps a window's OS chrome in step with the active theme:
 /// <list type="bullet">
-/// <item>Title-bar icon — black line art on the light theme, light line art
-/// on the dark theme. The taskbar icon always uses the light line art (see
-/// <see cref="ApplyNativeIcon"/>) since the taskbar itself is almost always
-/// dark, independent of the app's theme.</item>
+/// <item>Window icon — the plated tile icon (navy square, light glyph,
+/// same as the exe's app.ico). One icon for the title bar, taskbar and
+/// Alt+Tab: Windows feeds all three from the same WM_SETICON slots, so they
+/// cannot diverge, and the taskbar keeps its own (usually dark) color no
+/// matter which theme the app is in — theme-swapped line art was invisible
+/// there half the time. The plate carries its own background, so it reads
+/// on any surface.</item>
 /// <item>Windows caption color — pinned to the shell's top-bar tone so the
 /// title bar and the command bar read as one surface. Without this, Windows
 /// paints the caption from the OS accent/dark-mode settings, which can turn
-/// it black while the app is in the light theme (making the black line-art
-/// icon invisible) and flip color with focus.</item>
+/// it black while the app is in the light theme and flip color with
+/// focus.</item>
 /// </list>
 /// Call <see cref="Attach"/> once from the window's constructor.
 /// </summary>
@@ -30,11 +31,21 @@ public static class ThemedWindowChrome
     private static readonly Lazy<WindowIcon> LightThemeIcon = new(() => new WindowIcon(new MemoryStream(LightIcoBytes.Value)));
     private static readonly Lazy<WindowIcon> DarkThemeIcon = new(() => new WindowIcon(new MemoryStream(DarkIcoBytes.Value)));
 
+    private static readonly Lazy<byte[]> AppIcoBytes = new(() => LoadBytes("window-icon-dark.ico"));
+    private static readonly Lazy<WindowIcon> AppIcon = new(() => new WindowIcon(new MemoryStream(AppIcoBytes.Value)));
+
+    // Raw HICONs handed to Win32 directly (see ApplyNativeIcon) — built once
+    // and reused across every window for the app's lifetime, same as
+    // Avalonia's own internal icon caching; never explicitly destroyed.
+    private static readonly Lazy<(IntPtr Small, IntPtr Big)> NativeIcons = new(() => CreateNativeIcons(LightIcoBytes.Value));
+    // Raw HICONs handed to Win32 directly (see ApplyNativeIcon) — built once
+    // per theme and reused across every window for the app's lifetime, same
+    // as Avalonia's own internal icon caching; never explicitly destroyed.
+    private static readonly Lazy<(IntPtr Small, IntPtr Big)> LightNativeIcons = new(() => CreateNativeIcons(LightIcoBytes.Value));
     // Raw HICON handed to Win32 directly for the taskbar (see ApplyNativeIcon)
     // — built once and reused across every window for the app's lifetime,
     // same as Avalonia's own internal icon caching; never explicitly destroyed.
     private static readonly Lazy<(IntPtr Small, IntPtr Big)> DarkNativeIcons = new(() => CreateNativeIcons(DarkIcoBytes.Value));
-
     public static void Attach(Window window)
     {
         Apply(window);
@@ -48,9 +59,9 @@ public static class ThemedWindowChrome
     private static void Apply(Window window)
     {
         var dark = window.ActualThemeVariant == ThemeVariant.Dark;
-        window.Icon = dark ? DarkThemeIcon.Value : LightThemeIcon.Value;
+        window.Icon = AppIcon.Value;
         ApplyCaptionColor(window, dark);
-        ApplyNativeIcon(window);
+        ApplyNativeIcon(window, dark);
     }
 
     private static byte[] LoadBytes(string name)
@@ -66,17 +77,13 @@ public static class ThemedWindowChrome
     /// 11 builds, not the taskbar button — a known Avalonia/Win32 gap
     /// (AvaloniaUI/Avalonia#12343, #11569: Avalonia's WM_SETICON doesn't
     /// always land for the taskbar's HICON). Send WM_SETICON directly with
-    /// icons built from the same .ico bytes so both surfaces agree.
-    /// <para>
-    /// Unlike the title bar (whose background <see cref="ApplyCaptionColor"/>
-    /// pins to match the icon), the taskbar itself is chrome the app doesn't
-    /// control — it's dark on the overwhelming majority of Windows installs
-    /// regardless of the app's own theme. So the taskbar HICON always uses
-    /// the dark-theme (light-ink) icon; only the title bar follows the app
-    /// theme.
-    /// </para>
+    /// icons built from the same .ico bytes so both surfaces agree. This
+    /// only works because Window.Icon and these HICONs are the same artwork:
+    /// Avalonia re-asserts Window.Icon on its own schedule (and answers the
+    /// shell's WM_GETICON queries from it), so any icon that differs from
+    /// Window.Icon would be raced back to it.
     /// </summary>
-    private static void ApplyNativeIcon(Window window)
+    private static void ApplyNativeIcon(Window window, bool dark)
     {
         if (!OperatingSystem.IsWindows())
         {
@@ -91,7 +98,7 @@ public static class ThemedWindowChrome
         // A zero HICON here means the .ico was missing that size or Win32
         // refused it — sending WM_SETICON with NULL would *remove* the icon,
         // so skip and leave whatever Window.Icon already put there.
-        var icons = DarkNativeIcons.Value;
+        var icons = dark ? DarkNativeIcons.Value : LightNativeIcons.Value;
         if (icons.Small != IntPtr.Zero)
         {
             SendMessage(handle.Handle, WmSeticon, (IntPtr)IconSmall, icons.Small);
@@ -114,11 +121,13 @@ public static class ThemedWindowChrome
     }
 
     /// <summary>
-    /// Pulls one image's raw bytes (always a PNG blob here) out of an
-    /// in-memory .ico by exact pixel size. Returns null when the size is
-    /// missing (e.g. make-app-icons.ps1 drifted from the sizes expected
-    /// here): this whole path is cosmetic, so it must degrade to Avalonia's
-    /// plain Window.Icon behavior rather than crash window construction.
+    /// Pulls one image's raw bytes out of an in-memory .ico by exact pixel
+    /// size — app.ico's small entries are classic BMP data, the 256px one is
+    /// PNG; CreateIconFromResourceEx accepts either. Returns null when the
+    /// size is missing (e.g. make-app-icons.ps1 drifted from the sizes
+    /// expected here): this whole path is cosmetic, so it must degrade to
+    /// Avalonia's plain Window.Icon behavior rather than crash window
+    /// construction.
     /// </summary>
     private static byte[]? ExtractIcoEntry(byte[] ico, int size)
     {
