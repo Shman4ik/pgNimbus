@@ -642,9 +642,11 @@ public static partial class SqlCompletionContext
     private static partial Regex UpdateIntoTargetRegex();
 
     // A CTE header: the name right after WITH [RECURSIVE] — or after the ") ,"
-    // that closes the previous CTE — with an optional column list, then AS (.
+    // that closes the previous CTE — with an optional declared column list
+    // (captured: it's the CTE's output shape, see ExtractCteDefinitions), then
+    // AS (. The match ends at the body's opening paren.
     [GeneratedRegex(
-        """(?:\bwith\s+(?:recursive\s+)?|\)\s*,\s*)(?<name>"[^"]+"|[\w$]+)\s*(?:\([^)]*\))?\s+as\s*(?:not\s+)?(?:materialized\s+)?\(""",
+        """(?:\bwith\s+(?:recursive\s+)?|\)\s*,\s*)(?<name>"[^"]+"|[\w$]+)\s*(?<cols>\([^)]*\))?\s+as\s*(?:not\s+)?(?:materialized\s+)?\(""",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex CteNameRegex();
 }

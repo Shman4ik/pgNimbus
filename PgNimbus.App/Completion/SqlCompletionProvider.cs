@@ -208,18 +208,36 @@ public sealed class SqlCompletionProvider
         };
     }
 
-    // After "qualifier.": the columns of the table the qualifier names (directly
-    // or via a FROM-clause alias), or — when the qualifier is a schema — that
-    // schema's tables. Empty when nothing resolves (so no stray list pops up).
+    // After "qualifier.": the columns of the CTE or table the qualifier names
+    // (directly or via a FROM-clause alias), or — when the qualifier is a
+    // schema — that schema's tables. A CTE shadows a same-named catalog table,
+    // matching how Postgres resolves the reference. Empty when nothing
+    // resolves (so no stray list pops up).
     private IReadOnlyList<SqlCompletionData> GetMemberCompletions(string qualifier, string sql)
     {
+        var ctes = SqlCompletionContext.ExtractCteDefinitions(sql);
+
         foreach (var table in SqlCompletionContext.ExtractTables(sql))
         {
-            if (table.Alias is not null && string.Equals(table.Alias, qualifier, StringComparison.OrdinalIgnoreCase)
-                && ColumnsFor(table.Schema, table.Table) is { } aliased)
+            if (table.Alias is null || !string.Equals(table.Alias, qualifier, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (table.Schema.Length == 0 && CteColumnItems(table.Table, ctes) is { Count: > 0 } viaAlias)
+            {
+                return viaAlias;
+            }
+
+            if (ColumnsFor(table.Schema, table.Table) is { } aliased)
             {
                 return ColumnItems(aliased);
             }
+        }
+
+        if (CteColumnItems(qualifier, ctes) is { Count: > 0 } cteColumns)
+        {
+            return cteColumns;
         }
 
         if (ColumnsFor(schema: "", qualifier) is { } direct)
@@ -345,13 +363,16 @@ public sealed class SqlCompletionProvider
     }
 
     // The current statement's own contributions — every FROM/UPDATE/INTO table's
-    // columns (top priority) and aliases, plus CTE names. Sets
+    // columns (top priority) and aliases, plus CTE names. A FROM table that is
+    // really one of the statement's CTEs contributes the CTE's derived output
+    // columns instead of (shadowed) catalog ones. Sets
     // <paramref name="resolvedColumns"/> when at least one table resolved to real
-    // catalog columns, so a predicate caret knows whether it can safely narrow.
+    // columns, so a predicate caret knows whether it can safely narrow.
     private List<SqlCompletionData> CollectStatementItems(string sql, out bool resolvedColumns)
     {
         var items = new List<SqlCompletionData>();
         var added = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var ctes = SqlCompletionContext.ExtractCteDefinitions(sql);
         resolvedColumns = false;
 
         foreach (var table in SqlCompletionContext.ExtractTables(sql))
@@ -365,7 +386,19 @@ public sealed class SqlCompletionProvider
                 });
             }
 
-            if (!added.Add($"{table.Schema}.{table.Table}") || ColumnsFor(table.Schema, table.Table) is not { } columns)
+            if (!added.Add($"{table.Schema}.{table.Table}"))
+            {
+                continue;
+            }
+
+            if (table.Schema.Length == 0 && CteColumnItems(table.Table, ctes) is { Count: > 0 } cteColumns)
+            {
+                resolvedColumns = true;
+                items.AddRange(cteColumns);
+                continue;
+            }
+
+            if (ColumnsFor(table.Schema, table.Table) is not { } columns)
             {
                 continue;
             }
@@ -377,12 +410,92 @@ public sealed class SqlCompletionProvider
             }
         }
 
-        foreach (var cte in SqlCompletionContext.ExtractCteNames(sql))
+        foreach (var cte in ctes)
         {
-            items.Add(new SqlCompletionData(cte, SqlCompletionKind.Cte, SqlIdentifier.QuoteIfNeeded(cte), CtePriority));
+            items.Add(new SqlCompletionData(cte.Name, SqlCompletionKind.Cte, SqlIdentifier.QuoteIfNeeded(cte.Name), CtePriority));
         }
 
         return items;
+    }
+
+    // The columns `name` exposes when it names one of the statement's CTEs:
+    // the derived output columns, plus — when the CTE SELECTs * — the columns
+    // of its source tables, each itself a CTE (recursively; a self-reference
+    // in a RECURSIVE body is cut by the visited set) or a catalog table. Null
+    // when `name` names no CTE at all.
+    private List<SqlCompletionData>? CteColumnItems(string name, IReadOnlyList<SqlCompletionContext.CteDefinition> ctes)
+    {
+        var items = new List<SqlCompletionData>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        return AddCteColumns(name, ctes, items, seen, visited) ? items : null;
+    }
+
+    private bool AddCteColumns(
+        string name,
+        IReadOnlyList<SqlCompletionContext.CteDefinition> ctes,
+        List<SqlCompletionData> items,
+        HashSet<string> seen,
+        HashSet<string> visited)
+    {
+        if (!visited.Add(name))
+        {
+            return false;
+        }
+
+        SqlCompletionContext.CteDefinition? found = null;
+        foreach (var candidate in ctes)
+        {
+            if (string.Equals(candidate.Name, name, StringComparison.OrdinalIgnoreCase))
+            {
+                found = candidate;
+                break;
+            }
+        }
+
+        if (found is not { } cte)
+        {
+            return false;
+        }
+
+        foreach (var column in cte.Columns)
+        {
+            if (seen.Add(column))
+            {
+                items.Add(new SqlCompletionData(column, SqlCompletionKind.Column, SqlIdentifier.QuoteIfNeeded(column), CurrentColumnPriority)
+                {
+                    DescriptionText = $"column · {cte.Name}",
+                });
+            }
+        }
+
+        if (!cte.SelectsStar)
+        {
+            return true;
+        }
+
+        foreach (var source in cte.SourceTables)
+        {
+            if (source.Schema.Length == 0 && AddCteColumns(source.Table, ctes, items, seen, visited))
+            {
+                continue;
+            }
+
+            if (ColumnsFor(source.Schema, source.Table) is not { } columns)
+            {
+                continue;
+            }
+
+            foreach (var column in columns)
+            {
+                if (seen.Add(column.Column))
+                {
+                    items.Add(ColumnItem(column, CurrentColumnPriority));
+                }
+            }
+        }
+
+        return true;
     }
 
     private IReadOnlyList<TableColumn>? ColumnsFor(string schema, string table)
