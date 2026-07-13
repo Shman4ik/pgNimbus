@@ -444,9 +444,12 @@ impact order:
   column list or SELECT-list aliases complete like a table's columns
   (`SELECT *` bodies resolve through the source tables' catalog columns,
   chained/recursive CTEs included), and WHERE over a CTE narrows to them.
-- [ ] **`SELECT *` expansion** — a completion item (and/or command-palette
-  action) that replaces `*` with the explicit column list of the statement's
-  FROM tables.
+- [x] **`SELECT *` expansion** — "Expand SELECT * into columns" in the
+  command palette replaces the statement's `*` / `alias.*` with the explicit
+  column list of its FROM tables (qualified by alias when the statement joins
+  more than one; CTEs resolve through their derived output columns).
+  All-or-nothing: an unresolvable table means no rewrite, never a wrong one.
+  Deliberately palette-only — no popup item on every typed `*`.
 
 ### Next — the gaps users of competing tools keep hitting
 

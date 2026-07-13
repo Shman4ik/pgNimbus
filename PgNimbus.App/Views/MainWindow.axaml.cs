@@ -359,6 +359,7 @@ public partial class MainWindow : Window
             _viewModel.ShortcutsRequested -= ShowShortcutsWindow;
             _viewModel.SwitchConnectionRequested -= SwitchConnection;
             _viewModel.FormatSqlRequested -= FormatCurrentStatement;
+            _viewModel.ExpandStarRequested -= ExpandSelectStar;
             _viewModel.ActivityRequested -= ShowActivityWindow;
             _viewModel.SidebarToggleRequested -= ToggleSidebar;
             _viewModel.PreferencesRequested -= ShowPreferencesWindow;
@@ -371,6 +372,7 @@ public partial class MainWindow : Window
         _viewModel.ShortcutsRequested += ShowShortcutsWindow;
         _viewModel.SwitchConnectionRequested += SwitchConnection;
         _viewModel.FormatSqlRequested += FormatCurrentStatement;
+        _viewModel.ExpandStarRequested += ExpandSelectStar;
         _viewModel.ActivityRequested += ShowActivityWindow;
         _viewModel.SidebarToggleRequested += ToggleSidebar;
         _viewModel.PreferencesRequested += ShowPreferencesWindow;
@@ -1355,6 +1357,21 @@ public partial class MainWindow : Window
 
         SqlEditor.Document.Replace(start, end - start, formatted);
         SqlEditor.CaretOffset = start + formatted.Length;
+    }
+
+    // Palette "Expand SELECT *": replace the star(s) in the statement under
+    // the caret with the explicit column list — CTEs and catalog tables both
+    // resolve (see SqlCompletionProvider.ExpandSelectStar). A no-op when
+    // there's no star or a table is unknown: better nothing than a wrong list.
+    private void ExpandSelectStar()
+    {
+        if (_viewModel?.CompletionProvider.ExpandSelectStar(SqlEditor.Text, SqlEditor.CaretOffset) is not { } expansion)
+        {
+            return;
+        }
+
+        SqlEditor.Document.Replace(expansion.Start, expansion.Length, expansion.Replacement);
+        SqlEditor.CaretOffset = expansion.Start + expansion.Replacement.Length;
     }
 
     // Ctrl+C copies the selection as TSV (spreadsheet-friendly). ClipboardCopyMode

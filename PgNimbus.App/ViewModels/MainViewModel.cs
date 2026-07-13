@@ -46,6 +46,9 @@ public sealed partial class MainViewModel : ObservableObject
     // Raised to pretty-print the statement under the caret; MainWindow owns the
     // editor text (AvaloniaEdit's Text isn't bindable) so it does the rewrite.
     public event Action? FormatSqlRequested;
+    // Raised to replace the statement's SELECT * with the explicit column
+    // list; MainWindow applies the rewrite, same split as Format SQL.
+    public event Action? ExpandStarRequested;
     // Raised to open (or focus) the Server Activity window, which the view owns.
     public event Action? ActivityRequested;
     // Raised to collapse/restore the sidebar (the view owns the grid column).
@@ -452,6 +455,7 @@ public sealed partial class MainViewModel : ObservableObject
         yield return new PaletteItem("Next tab", "Action", "›", Invoke(() => NextTabCommand), Hotkeys.Label("PgDn"));
         yield return new PaletteItem("Previous tab", "Action", "‹", Invoke(() => PreviousTabCommand), Hotkeys.Label("PgUp"));
         yield return new PaletteItem("Format SQL", "Action", "❖", () => { FormatSqlRequested?.Invoke(); return Task.CompletedTask; }, Hotkeys.Label("Shift+F"));
+        yield return new PaletteItem("Expand SELECT * into columns", "Action", "✳", () => { ExpandStarRequested?.Invoke(); return Task.CompletedTask; });
         yield return new PaletteItem("Toggle sidebar", "Action", "◫", () => { SidebarToggleRequested?.Invoke(); return Task.CompletedTask; }, Hotkeys.Label("B"));
         yield return new PaletteItem("Toggle auto-alias tables (orders → orders o)", "Action", "a", Invoke(() => ToggleAutoAliasCommand), Hotkeys.Label("Shift+A"));
         yield return new PaletteItem("Switch connection…", "Action", "⇄", () => { SwitchConnectionRequested?.Invoke(); return Task.CompletedTask; });
