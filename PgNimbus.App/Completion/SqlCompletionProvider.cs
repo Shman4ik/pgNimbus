@@ -418,6 +418,26 @@ public sealed class SqlCompletionProvider
         return items;
     }
 
+    /// <summary>
+    /// Expands the <c>*</c> / <c>alias.*</c> in the select list of the
+    /// statement under the caret into explicit columns — CTEs resolve through
+    /// their derived output columns, everything else through the catalog.
+    /// Null when there's no star to expand or a table can't be resolved.
+    /// </summary>
+    public SqlCompletionContext.StarExpansion? ExpandSelectStar(string sql, int caret)
+    {
+        var ctes = SqlCompletionContext.ExtractCteDefinitions(sql);
+        return SqlCompletionContext.ExpandSelectStar(sql, caret, (schema, table) =>
+        {
+            if (schema.Length == 0 && CteColumnItems(table, ctes) is { Count: > 0 } cteColumns)
+            {
+                return cteColumns.Select(c => c.Text).ToList();
+            }
+
+            return ColumnsFor(schema, table)?.Select(c => c.Column).ToList();
+        });
+    }
+
     // The columns `name` exposes when it names one of the statement's CTEs:
     // the derived output columns, plus — when the CTE SELECTs * — the columns
     // of its source tables, each itself a CTE (recursively; a self-reference
