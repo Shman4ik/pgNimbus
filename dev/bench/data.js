@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783846520438,
+  "lastUpdate": 1783969694723,
   "repoUrl": "https://github.com/Shman4ik/pgNimbus",
   "entries": {
     "pgNimbus benchmarks": [
@@ -132,6 +132,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "Stream 100000 rows",
             "value": 148.4,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shman4ik@gmail.com",
+            "name": "Dmitrii Shmanev",
+            "username": "Shman4ik"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9f2f98f905dbd45a2964c4f77b9e4824d5d2cc2d",
+          "message": "Redraw pgNimbus logo/icon set + function-signature completion (#101)\n\n* Redraw pgNimbus logo/icon set; add function-signature completion\n\n- Vectorize the elephant-on-broom mark from the concept PNG and regenerate\n  the full design/masters/{icon,window,logo} pipeline (icon tiles 16-1024,\n  window title-bar icons, transparent logo, wordmark, social-preview.png).\n- Add PgNimbus.Core function-signature completion (FunctionSignatureFormatter\n  + tests) and related README/completion-provider updates.\n\n* Fix small icon legibility and taskbar icon contrast\n\n- Simplify icon-16/24/32 masters (drop hairline detail that turned to mush\n  at small sizes) while keeping them full-bleed, matching icon-48/256/1024.\n- ThemedWindowChrome: always use the light-ink icon for the taskbar's native\n  WM_SETICON, since the Windows taskbar is almost always dark regardless of\n  the app's own theme; the title bar keeps following the app theme.\n\n* Revert small icons to full-bleed (transparent badge was unreadable)\n\nThe transparent circular badge tried for icon-16/24/32 assumed an OS-drawn\nplate behind it, but app.ico feeds contexts (Explorer, taskbar, pinned\nshortcut) that render it directly with no plate — the navy ring just\ndisappeared into a dark taskbar. Back to full-bleed navy tiles, matching\nicon-48/256/1024, keeping the simplified (hairline-free) linework.\n\n* logo fix\n\n* refactoring",
+          "timestamp": "2026-07-13T20:54:01+02:00",
+          "tree_id": "d2d8ed749777f0266140d56876d9a710e783c154",
+          "url": "https://github.com/Shman4ik/pgNimbus/commit/9f2f98f905dbd45a2964c4f77b9e4824d5d2cc2d"
+        },
+        "date": 1783969694332,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Startup, launch to first frame (NativeAOT)",
+            "value": 167,
+            "unit": "ms"
+          },
+          {
+            "name": "Memory at first frame (NativeAOT)",
+            "value": 149.4,
+            "unit": "MB"
+          },
+          {
+            "name": "Binary size (NativeAOT)",
+            "value": 40.3,
+            "unit": "MB"
+          },
+          {
+            "name": "Publish size (NativeAOT, all files)",
+            "value": 139.5,
+            "unit": "MB"
+          },
+          {
+            "name": "Startup, launch to first frame (JIT)",
+            "value": 1651,
+            "unit": "ms"
+          },
+          {
+            "name": "Connect, cold pool",
+            "value": 148.1,
+            "unit": "ms"
+          },
+          {
+            "name": "Round-trip, SELECT 1 warm",
+            "value": 0.29,
+            "unit": "ms"
+          },
+          {
+            "name": "First row batch of a 100000-row SELECT",
+            "value": 10.2,
+            "unit": "ms"
+          },
+          {
+            "name": "Stream 100000 rows",
+            "value": 123.9,
             "unit": "ms"
           }
         ]
