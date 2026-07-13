@@ -174,7 +174,10 @@ Every tag push (`vX.Y.Z`) builds all of the above via
   columns with their data types elsewhere, `alias.` member access, CTE names
   *and their output columns* — `cte.` completes what the CTE's SELECT list
   yields, with `SELECT *` bodies resolved through the catalog,
-  common functions inserted as calls), saved queries,
+  common built-in functions *and the schema's own user-defined
+  functions/procedures/aggregates*, inserted as calls with the argument list
+  and return type shown as a tooltip in place of a separate parameter-hints
+  popup), saved queries,
   run history, current-line and matching-bracket highlighting, and font-size
   zoom (<kbd>Ctrl</kbd>+wheel / <kbd>Ctrl</kbd>+<kbd>±</kbd>).
 - **SQL formatting** — <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> (or "Format
