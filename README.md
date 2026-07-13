@@ -37,6 +37,12 @@ from the ground up.
 4. **Streaming results** — the first screenful renders before the full result
    set arrives, backed by a virtualized grid for large results.
 
+## See it in action
+
+| Instant launch (NativeAOT) | SQL completion that predicts the next move |
+| --- | --- |
+| ![pgNimbus launching from a cold NativeAOT process to a fully rendered main window in well under a second](docs/screenshots/cold-start.gif) | ![Typing FROM + a partial table name, JOIN with an FK-ranked table suggestion, then ON auto-completing the full join condition](docs/screenshots/completion-demo.gif) |
+
 ## Screenshots
 
 | Query editor + results (light) | Query editor + results (dark) |
