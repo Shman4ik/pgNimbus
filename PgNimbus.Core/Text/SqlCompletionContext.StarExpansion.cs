@@ -139,7 +139,8 @@ public static partial class SqlCompletionContext
         return true;
     }
 
-    // "q.*" covers the one table q names — a FROM alias or a table name —
+    // "q.*" covers the one table q names — a FROM alias, a bare table name,
+    // or (when the table has no alias) a schema-qualified "schema.table" —
     // and keeps q as the qualifier so the expansion resolves exactly like
     // the star did.
     private static bool TryExpandQualifiedStar(
@@ -148,11 +149,13 @@ public static partial class SqlCompletionContext
         Func<string, string, IReadOnlyList<string>?> columnsFor,
         List<string> items)
     {
-        var qualifier = Unquote(qualifierAsTyped);
+        var (qSchema, qTable) = SplitQualified(qualifierAsTyped);
         foreach (var table in tables)
         {
-            var matches = (table.Alias is not null && string.Equals(table.Alias, qualifier, StringComparison.OrdinalIgnoreCase))
-                || (table.Alias is null && string.Equals(table.Table, qualifier, StringComparison.OrdinalIgnoreCase));
+            var matches = table.Alias is not null
+                ? qSchema.Length == 0 && string.Equals(table.Alias, qTable, StringComparison.OrdinalIgnoreCase)
+                : string.Equals(table.Table, qTable, StringComparison.OrdinalIgnoreCase)
+                    && (qSchema.Length == 0 || string.Equals(table.Schema, qSchema, StringComparison.OrdinalIgnoreCase));
             if (!matches)
             {
                 continue;

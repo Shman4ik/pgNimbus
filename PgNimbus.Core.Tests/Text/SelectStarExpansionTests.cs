@@ -154,6 +154,22 @@ public class SelectStarExpansionTests
     }
 
     [Test]
+    public async Task SchemaQualifiedStar_Resolves()
+    {
+        await Assert.That(Apply("SELECT public.orders.* FROM public.orders"))
+            .IsEqualTo("SELECT public.orders.id, public.orders.customer_id, public.orders.total FROM public.orders");
+    }
+
+    [Test]
+    public async Task SchemaQualifiedStar_DoesNotMatchAnAliasedTable()
+    {
+        // An alias makes the schema-qualified spelling illegal SQL for this
+        // table ("orders o" can only be referenced as o. or orders.), so
+        // "public.orders.*" must not resolve through it.
+        await Assert.That(Apply("SELECT public.orders.* FROM public.orders o")).IsNull();
+    }
+
+    [Test]
     public async Task StarInsideAStringLiteral_IsNotAStar()
     {
         await Assert.That(Apply("SELECT '*' AS star FROM orders")).IsNull();
