@@ -11,8 +11,10 @@ namespace PgNimbus.App;
 /// <summary>
 /// Keeps a window's OS chrome in step with the active theme:
 /// <list type="bullet">
-/// <item>Title-bar/taskbar icon — black line art on the light theme, light
-/// line art on the dark theme.</item>
+/// <item>Title-bar icon — black line art on the light theme, light line art
+/// on the dark theme. The taskbar icon always uses the light line art (see
+/// <see cref="ApplyNativeIcon"/>) since the taskbar itself is almost always
+/// dark, independent of the app's theme.</item>
 /// <item>Windows caption color — pinned to the shell's top-bar tone so the
 /// title bar and the command bar read as one surface. Without this, Windows
 /// paints the caption from the OS accent/dark-mode settings, which can turn
@@ -28,10 +30,9 @@ public static class ThemedWindowChrome
     private static readonly Lazy<WindowIcon> LightThemeIcon = new(() => new WindowIcon(new MemoryStream(LightIcoBytes.Value)));
     private static readonly Lazy<WindowIcon> DarkThemeIcon = new(() => new WindowIcon(new MemoryStream(DarkIcoBytes.Value)));
 
-    // Raw HICONs handed to Win32 directly (see ApplyNativeIcon) — built once
-    // per theme and reused across every window for the app's lifetime, same
-    // as Avalonia's own internal icon caching; never explicitly destroyed.
-    private static readonly Lazy<(IntPtr Small, IntPtr Big)> LightNativeIcons = new(() => CreateNativeIcons(LightIcoBytes.Value));
+    // Raw HICON handed to Win32 directly for the taskbar (see ApplyNativeIcon)
+    // — built once and reused across every window for the app's lifetime,
+    // same as Avalonia's own internal icon caching; never explicitly destroyed.
     private static readonly Lazy<(IntPtr Small, IntPtr Big)> DarkNativeIcons = new(() => CreateNativeIcons(DarkIcoBytes.Value));
 
     public static void Attach(Window window)
@@ -49,7 +50,7 @@ public static class ThemedWindowChrome
         var dark = window.ActualThemeVariant == ThemeVariant.Dark;
         window.Icon = dark ? DarkThemeIcon.Value : LightThemeIcon.Value;
         ApplyCaptionColor(window, dark);
-        ApplyNativeIcon(window, dark);
+        ApplyNativeIcon(window);
     }
 
     private static byte[] LoadBytes(string name)
@@ -66,8 +67,16 @@ public static class ThemedWindowChrome
     /// (AvaloniaUI/Avalonia#12343, #11569: Avalonia's WM_SETICON doesn't
     /// always land for the taskbar's HICON). Send WM_SETICON directly with
     /// icons built from the same .ico bytes so both surfaces agree.
+    /// <para>
+    /// Unlike the title bar (whose background <see cref="ApplyCaptionColor"/>
+    /// pins to match the icon), the taskbar itself is chrome the app doesn't
+    /// control — it's dark on the overwhelming majority of Windows installs
+    /// regardless of the app's own theme. So the taskbar HICON always uses
+    /// the dark-theme (light-ink) icon; only the title bar follows the app
+    /// theme.
+    /// </para>
     /// </summary>
-    private static void ApplyNativeIcon(Window window, bool dark)
+    private static void ApplyNativeIcon(Window window)
     {
         if (!OperatingSystem.IsWindows())
         {
@@ -82,7 +91,7 @@ public static class ThemedWindowChrome
         // A zero HICON here means the .ico was missing that size or Win32
         // refused it — sending WM_SETICON with NULL would *remove* the icon,
         // so skip and leave whatever Window.Icon already put there.
-        var icons = dark ? DarkNativeIcons.Value : LightNativeIcons.Value;
+        var icons = DarkNativeIcons.Value;
         if (icons.Small != IntPtr.Zero)
         {
             SendMessage(handle.Handle, WmSeticon, (IntPtr)IconSmall, icons.Small);
