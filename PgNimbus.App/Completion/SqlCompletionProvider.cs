@@ -131,6 +131,10 @@ public sealed class SqlCompletionProvider
         // renders in insertion order, and right after FROM/JOIN the point is the
         // tables, not SELECT/WHERE.
         var tableRefItems = new List<SqlCompletionData>();
+        // User-defined functions/procedures/aggregates the catalog actually
+        // owns — kept separate from the curated built-ins so predicate
+        // completion can offer both without a second catalog walk.
+        var catalogFunctionItems = new List<SqlCompletionData>();
 
         var schemas = await _schemaService.GetSchemasAsync(ct);
         foreach (var schema in schemas)
@@ -160,9 +164,19 @@ public sealed class SqlCompletionProvider
                 Index(columnsByTable, $"{schema.Name}.{column.Table}", column);
                 baseItems.Add(ColumnItem(column, ColumnPriority));
             }
+
+            var functions = await _schemaService.GetFunctionsAsync(schema.Name, ct);
+            foreach (var function in functions)
+            {
+                catalogFunctionItems.Add(FunctionItem(function, schema.Name));
+            }
         }
 
         tableRefItems.AddRange(keywordItems);
+        // Curated built-ins first: their plain "function" tooltip beats a
+        // rarer same-named catalog callable in the case-insensitive dedup
+        // below, keeping the well-known names' description text unchanged.
+        baseItems.AddRange(catalogFunctionItems);
 
         var foreignKeys = await _schemaService.GetForeignKeysAsync(ct);
 
@@ -172,9 +186,21 @@ public sealed class SqlCompletionProvider
         _tableRefItems = Dedupe(tableRefItems);
         // A predicate caret gets keywords + functions but no catalog columns/tables;
         // GetPredicateCompletions prepends just the FROM tables' own columns.
-        _predicateBaseItems = Dedupe(keywordItems.Concat(functionItems));
+        _predicateBaseItems = Dedupe(keywordItems.Concat(functionItems).Concat(catalogFunctionItems));
         _foreignKeys = foreignKeys;
     }
+
+    // A user-defined function/procedure/aggregate/window function: inserts as
+    // "name()" (the caret lands between the parens, same as a curated
+    // built-in — see SqlCompletionData.Complete), schema-tagged in Detail,
+    // and its argument list + return type in the tooltip so the description
+    // panel doubles as a lightweight parameter hint.
+    private static SqlCompletionData FunctionItem(FunctionInfo function, string schema) =>
+        new(function.Name, SqlCompletionKind.Function, $"{function.Name}()", FunctionPriority)
+        {
+            Detail = schema,
+            DescriptionText = $"{FunctionSignatureFormatter.KindLabel(function)} · {FunctionSignatureFormatter.Format(function)}",
+        };
 
     /// <summary>
     /// The candidates to show for the caret at <paramref name="caretOffset"/> in
