@@ -198,6 +198,17 @@ Every tag push (`vX.Y.Z`) builds all of the above via
   one-click copy.
 - **EXPLAIN visualization** — a graphical plan tree for `EXPLAIN` and
   `EXPLAIN ANALYZE`, not just raw text output.
+- **Server activity dashboard** — a live `pg_stat_activity` view (state, wait
+  events, running statement) with per-backend **cancel statement** and
+  **terminate session** actions, so a runaway query is one click to stop.
+- **CSV/JSON import** — load a file into a new or existing table with
+  delimiter/header detection and per-column type inference, streamed via
+  `COPY`.
+- **Query history search & pinning** — history is searchable, pinnable, and
+  scoped per connection; entries open in a new tab.
+- **Copy results as…** — <kbd>Ctrl</kbd>+<kbd>C</kbd> copies selected rows as
+  TSV; the grid context menu adds CSV, JSON, Markdown table, and
+  `INSERT`-statement formats.
 - **LISTEN/NOTIFY monitor** — subscribe to channels and watch notifications
   arrive live.
 
@@ -377,6 +388,11 @@ individually shippable pieces. Shipped items graduate from this list into
   (Preferences → Keyboard, `Hotkeys.cs`) is the foundation; the next step is
   letting users rebind individual actions, persisted in `AppSettings`, with
   conflict detection and a reset-to-defaults.
+- [ ] **State the privacy guarantee** — a short README/docs section pledging
+  zero telemetry and zero network traffic beyond the database and SSH hosts
+  you configure. Costs nothing (it's already true) and is something users
+  explicitly probe new clients for
+  ([Show HN: DB Pro](https://news.ycombinator.com/item?id=46078571)).
 
 ### SQL editor — completion that predicts the next move
 
@@ -425,6 +441,81 @@ impact order:
   action) that replaces `*` with the explicit column list of the statement's
   FROM tables.
 
+### Next — the gaps users of competing tools keep hitting
+
+Sourced from a research pass (2026-07) over what people praise, request, and
+abandon tools over: Hacker News client threads
+([Good UI for PostgreSQL?](https://news.ycombinator.com/item?id=33776831),
+[What PostgreSQL client do you use?](https://news.ycombinator.com/item?id=23208181),
+[Show HN: DB Pro](https://news.ycombinator.com/item?id=46078571)), the
+top-👍 issues on the TablePlus and Beekeeper Studio trackers, and what
+Postico/DataGrip users single out. Multi-database support dominates those
+trackers and is deliberately out of scope — PostgreSQL-first *is* the thesis.
+Everything below is what survives that filter, roughly in impact order:
+
+- [ ] **Pending-changes review ("safe mode")** — stage grid edits, inserts,
+  and deletes locally, highlight the dirty cells/rows, show the generated SQL
+  for review, then commit everything as one transaction (or discard). Today
+  each inline edit fires immediately, which is scary on production; a staged
+  mode is TablePlus's single most-praised trust feature. The transaction
+  machinery (held session connection, auto-rollback) is most of the plumbing
+  already.
+- [ ] **Follow a foreign key from the grid** — a result/browse cell whose
+  column has an FK gets a click-through (context menu or Ctrl+click) that
+  jumps to the referenced row in browse mode, plus the reverse ("rows
+  referencing this one") from a key cell. The most-praised "little feature"
+  in DBeaver's HN comments, and the heart of Postico's row editing (FK
+  picker). The FK edges are already loaded for JOIN completion — reuse them.
+- [ ] **Workspace restore** — reopen the last session's tabs, including
+  never-saved SQL, exactly as they were — no save prompts on exit
+  (Notepad++-style, called out on HN as what makes DBeaver safe to close).
+  Persist per-connection alongside history in `AppSettings`-style JSON.
+- [ ] **Open/save `.sql` files** — Ctrl+O / Ctrl+S on a tab, a recent-files
+  list in the palette, and a dirty marker that distinguishes "unsaved
+  scratch" from "file changed on disk". A top-voted Beekeeper Studio ask
+  (it appears twice in their top 20).
+- [ ] **Multiple simultaneous connections** — today the ⇄ switch *replaces*
+  the connection; users working against dev + prod side by side want both at
+  once (top-10 Beekeeper ask). Cleanest fit for the one-window shell:
+  connection-per-window, with the palette able to open a profile in a new
+  window. Per-connection accent colors already exist to keep them apart.
+- [ ] **Auto-reconnect** — after laptop sleep or an SSH-tunnel drop, the next
+  run should quietly reopen the connection instead of surfacing a broken-pipe
+  error (or hanging — an HN complaint about other clients). Needs care with
+  the held transaction connection: an open transaction can't be silently
+  re-established, so that path surfaces a clear "transaction lost" state.
+- [ ] **Postgres-native value editing** — the grid and Add-row dialog treat
+  every column as text today. Make the editors type-aware: `enum` columns get
+  a dropdown of `pg_enum` labels, `boolean` a checkbox, `date/timestamp` a
+  picker, arrays and composites get validation, domains resolve to their base
+  type. DataGrip's missing array support was a stated deal-breaker on HN, and
+  ENUM dropdowns / user-defined types are open TablePlus asks — exactly the
+  "PostgreSQL-first, not lowest-common-denominator" differentiator.
+- [ ] **Table & index sizes and usage** — sizes in the schema tree (tooltip or
+  detail column) and a per-database overview: largest tables/indexes
+  (`pg_total_relation_size`), seq-vs-index scan counts, unused indexes, cache
+  hit rate (`pg_stat_user_tables`/`_indexes`, `pg_statio_*`). "No list of
+  tables or indexes with their sizes and usage" is a direct HN complaint
+  about DataGrip; pgAdmin buries it. Read-only `pg_catalog` queries — squarely
+  in `SchemaService`/`ActivityService` territory.
+- [ ] **Locks & blocking tree** — extend the server-activity window with a
+  who-blocks-whom view (`pg_locks` joined to `pg_stat_activity`, or
+  `pg_blocking_pids()`), so a stuck migration is a one-click
+  cancel/terminate of the *blocker*. The signal plumbing
+  (`CancelBackendAsync`/`TerminateBackendAsync`) already exists.
+- [ ] **Row detail sidebar** — a vertical name/value view of the selected row
+  (Postico's much-loved "row sidebar"), for tables too wide to read as a grid
+  row; doubles as a form-style editor and complements the cell inspector.
+- [ ] **Find & replace in the editor** — AvaloniaEdit ships a `SearchPanel`;
+  wire it up (Ctrl+F / Ctrl+H via `Hotkeys.cs`) and restyle it to match the
+  shell. A standing Beekeeper ask; table-stakes for an editor.
+- [ ] **Linux builds** — the linux-x64 NativeAOT publish already works (it's
+  how the app is exercised in CI sandboxes and benchmarks); what's missing is
+  a release-pipeline leg and packaging. Flatpak is the #2 top-voted Beekeeper
+  Studio request, and HeidiSQL adding native Linux builds in late 2025 shows
+  the demand; start with an AppImage or tarball from `release.yml`, Flatpak
+  after.
+
 ### Later — bigger bets
 
 - [ ] **ER diagram** — auto-laid-out foreign-key graph of a schema, exportable
@@ -433,6 +524,26 @@ impact order:
   index) and diff the plan trees node-by-node.
 - [ ] **Backup/restore UI** — `pg_dump`/`pg_restore` orchestration with
   progress streaming.
+- [ ] **AI, privacy-first** — the 2026 table stakes in every competitor is a
+  schema-aware assistant; the differentiator for an OSS client is doing it
+  without a data-leak worry: bring-your-own-key (or local model), explicit
+  opt-in, nothing leaves the machine otherwise. Two shapes, possibly both:
+  an in-app "explain this query / write this query" assistant fed the same
+  completion catalog, and/or a built-in MCP server exposing the current
+  connection so Claude Code / Cursor / VS Code can query it (TablePlus has an
+  open ask for exactly this).
+- [ ] **Vim keybindings in the editor** — the single most-upvoted
+  editor-related request on TablePlus's tracker (180+ 👍); a modal-editing
+  layer over AvaloniaEdit, opt-in from Preferences.
+- [ ] **Parameterized queries** — recognize `:name` / `$1` placeholders and
+  prompt for values on run (remembering the last ones), so shared saved
+  queries stop being edit-before-every-run.
+- [ ] **Quick chart of a result set** — one click from a result grid to a
+  bar/line/scatter view of two chosen columns; DataGrip's inline charts get
+  cited as the reason analysts stay there.
+- [ ] **PostGIS geometry viewer** — render `geometry`/`geography` cells on a
+  map/canvas the way the cell inspector renders JSON; the one PostGIS
+  feature HN users single out pgAdmin and DBeaver for having.
 - [ ] **Notebook mode** — mixed SQL + Markdown documents with inline result
   snapshots, saved as shareable files.
 - [ ] **Plugin/extension API** — a stable surface for community panels
