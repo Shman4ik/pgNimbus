@@ -28,16 +28,10 @@ public static class ThemedWindowChrome
 {
     private static readonly Lazy<byte[]> LightIcoBytes = new(() => LoadBytes("window-icon-light.ico"));
     private static readonly Lazy<byte[]> DarkIcoBytes = new(() => LoadBytes("window-icon-dark.ico"));
-    private static readonly Lazy<WindowIcon> LightThemeIcon = new(() => new WindowIcon(new MemoryStream(LightIcoBytes.Value)));
-    private static readonly Lazy<WindowIcon> DarkThemeIcon = new(() => new WindowIcon(new MemoryStream(DarkIcoBytes.Value)));
-
     private static readonly Lazy<byte[]> AppIcoBytes = new(() => LoadBytes("window-icon-dark.ico"));
     private static readonly Lazy<WindowIcon> AppIcon = new(() => new WindowIcon(new MemoryStream(AppIcoBytes.Value)));
 
-    // Raw HICONs handed to Win32 directly (see ApplyNativeIcon) — built once
-    // and reused across every window for the app's lifetime, same as
-    // Avalonia's own internal icon caching; never explicitly destroyed.
-    private static readonly Lazy<(IntPtr Small, IntPtr Big)> NativeIcons = new(() => CreateNativeIcons(LightIcoBytes.Value));
+
     // Raw HICONs handed to Win32 directly (see ApplyNativeIcon) — built once
     // per theme and reused across every window for the app's lifetime, same
     // as Avalonia's own internal icon caching; never explicitly destroyed.
