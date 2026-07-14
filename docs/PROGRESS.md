@@ -239,6 +239,9 @@ iteration.
 
 Top feasible items from the README backlog, each verified live under Xvfb
 against a seeded customers/orders/order_items Postgres before landing.
+AOT re-checked: the linux-x64 NativeAOT publish stays clean (known
+DataGrid/JSON warnings only) and the published binary runs both the find
+panel and the FK-follow menu.
 
 | Item | Outcome | Commit |
 | --- | --- | --- |
