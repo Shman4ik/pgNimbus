@@ -71,6 +71,24 @@ public partial class App : Application
 
     private static string ThemeToString(ThemeVariant variant) =>
         variant == ThemeVariant.Dark ? "dark" : variant == ThemeVariant.Light ? "light" : "system";
+
+    /// <summary>
+    /// "About pgNimbus" in the macOS app menu (see App.axaml). Opens the
+    /// project page - version/license already live in the connection dialog's
+    /// footer, so a dedicated About window would just duplicate them.
+    /// </summary>
+    private void OnAboutMenuItemClicked(object? sender, EventArgs e)
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://github.com/Shman4ik/pgNimbus") { UseShellExecute = true });
+        }
+        catch
+        {
+            // No browser to hand off to is not worth crashing the app menu.
+        }
+    }
+
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);

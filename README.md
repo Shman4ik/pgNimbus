@@ -146,9 +146,12 @@ Every tag push (`vX.Y.Z`) builds all of the above via
   paging — all pushed down to Postgres (`WHERE`/`ORDER BY`/`LIMIT`/`OFFSET`),
   so browsing a huge table stays as cheap as one page.
 - **Connection manager** — saved profiles with a per-connection accent color
-  (so production doesn't look like staging), SSH tunnel support, and
-  passwords held by the OS credential store (DPAPI on Windows) instead of
-  being written to disk with the profile.
+  (so production doesn't look like staging), drag-to-reorder of the saved
+  list, SSH tunnel support, and passwords held by the OS credential store
+  (DPAPI on Windows) instead of being written to disk with the profile. The
+  password field has a show/hide toggle, and the connection-string preview
+  masks the password by default (the copy button still yields the full,
+  usable string).
 - **Switch connection without restarting** — the ⇄ button next to the
   title-bar breadcrumb (or "Switch connection…" in the command palette)
   reopens the connection dialog; the current window stays fully usable until

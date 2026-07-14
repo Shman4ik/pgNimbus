@@ -20,7 +20,9 @@
             <TextBlock Grid.Row="0" Text="Saved Connections" FontWeight="SemiBold" Margin="0,0,0,8" />
             <Border Grid.Row="1" Classes="card">
                 <Grid>
-                    <ListBox ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}"
+                    <!-- Rows reorder by drag (pointer handlers in code-behind);
+                         the new order persists to connections.json on release. -->
+                    <ListBox Name="ProfilesList" ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}"
                              DoubleTapped="OnProfileDoubleTapped">
                         <ListBox.ItemTemplate>
                             <DataTemplate DataType="conn:ConnectionProfile">
@@ -57,7 +59,7 @@
                 </TextBox.KeyBindings>
             </TextBox>
             <Button Grid.Column="1" Classes="chip" Padding="7" Click="OnCopyConnectionStringClick"
-                    ToolTip.Tip="Copy connection string to clipboard">
+                    ToolTip.Tip="Copy connection string to clipboard (includes the password)">
                 <PathIcon Data="{StaticResource ClipboardIconGeometry}" Width="14" Height="14" />
             </Button>
         </Grid>
@@ -91,7 +93,8 @@
 
             <StackPanel Grid.Row="7" Margin="0,0,0,8">
                 <TextBlock Text="Password" />
-                <TextBox Text="{Binding Password}" PasswordChar="•" />
+                <!-- revealPasswordButton = Fluent's built-in eye toggle -->
+                <TextBox Text="{Binding Password}" PasswordChar="•" Classes="revealPasswordButton" />
             </StackPanel>
 
             <StackPanel Grid.Row="8" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
@@ -128,7 +131,7 @@
 
                     <StackPanel Grid.Row="4">
                         <TextBlock Text="SSH Password / Passphrase" />
-                        <TextBox Text="{Binding SshPassword}" PasswordChar="•" />
+                        <TextBox Text="{Binding SshPassword}" PasswordChar="•" Classes="revealPasswordButton" />
                     </StackPanel>
                 </Grid>
             </Border>

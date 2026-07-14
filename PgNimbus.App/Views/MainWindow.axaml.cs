@@ -66,6 +66,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         ThemedWindowChrome.Attach(this);
+        SetUpMacTitleBar();
 
         // Gestures use the platform/preference command modifier (Ctrl or Cmd),
         // so they're built in code, and rebuilt live when the scheme changes.
@@ -189,12 +190,6 @@ public partial class MainWindow : Window
         HistoryList.DoubleTapped += (_, e) => OnQueryListDoubleTapped(e,
             item => _viewModel?.SavedQueries.LoadHistoryEntryCommand.Execute(item as QueryHistoryEntry));
 
-        // Trackpads and tilt-wheels scroll the results grid horizontally on
-        // hover: the DataGrid's own wheel handling only consumes the vertical
-        // axis, so a mostly-horizontal delta is fed to its horizontal
-        // scrollbar here (tunneled - the grid marks wheel events handled).
-        ResultsGrid.AddHandler(PointerWheelChangedEvent, OnResultsGridPointerWheel, RoutingStrategies.Tunnel);
-
         // Column autocomplete inside the browse WHERE box (see the popup in XAML).
         BrowseFilterBox.TextChanged += OnBrowseFilterTextChanged;
         BrowseFilterBox.LostFocus += (_, _) => CloseFilterCompletion();
@@ -214,6 +209,37 @@ public partial class MainWindow : Window
             if (DataContext is MainViewModel vm)
             {
                 Attach(vm);
+            }
+        };
+    }
+
+    /// <summary>
+    /// macOS-only: merges the command bar with the title bar, TablePlus-style.
+    /// The system title bar collapses to just the traffic lights (drawn over
+    /// our 40px bar, which matches the standard macOS title bar height), the
+    /// bar's left padding keeps the sidebar toggle clear of them, and pressing
+    /// the bar's empty space drags the window - buttons mark their presses
+    /// handled, so this never swallows a click. No-op everywhere else; on
+    /// Windows the title bar is themed by <see cref="ThemedWindowChrome"/>.
+    /// </summary>
+    private void SetUpMacTitleBar()
+    {
+        if (!OperatingSystem.IsMacOS())
+        {
+            return;
+        }
+
+        // Avalonia 12 keeps the native traffic lights when extending on macOS
+        // (the old ExtendClientAreaChromeHints enum is gone).
+        ExtendClientAreaToDecorationsHint = true;
+        ExtendClientAreaTitleBarHeightHint = 40;
+        // 16px original left padding + room for the traffic-light cluster.
+        CommandBar.Padding = new Thickness(84, 0, 16, 0);
+        CommandBar.PointerPressed += (_, e) =>
+        {
+            if (e.GetCurrentPoint(CommandBar).Properties.IsLeftButtonPressed)
+            {
+                BeginMoveDrag(e);
             }
         };
     }
@@ -897,31 +923,6 @@ public partial class MainWindow : Window
         {
             load(item);
         }
-    }
-
-    // Cached template part of the results grid; the template never re-applies
-    // for the window's lifetime, so one lookup is enough.
-    private Avalonia.Controls.Primitives.ScrollBar? _resultsHorizontalScrollBar;
-
-    private void OnResultsGridPointerWheel(object? sender, PointerWheelEventArgs e)
-    {
-        // Mostly-vertical deltas stay with the DataGrid's own wheel handling.
-        if (Math.Abs(e.Delta.X) <= Math.Abs(e.Delta.Y))
-        {
-            return;
-        }
-
-        _resultsHorizontalScrollBar ??= ResultsGrid.GetVisualDescendants()
-            .OfType<Avalonia.Controls.Primitives.ScrollBar>()
-            .FirstOrDefault(s => s.Orientation == Avalonia.Layout.Orientation.Horizontal);
-        if (_resultsHorizontalScrollBar is not { } bar)
-        {
-            return;
-        }
-
-        // Same direction convention as ScrollViewer: offset moves against the delta.
-        bar.Value = Math.Clamp(bar.Value - e.Delta.X * 48, bar.Minimum, bar.Maximum);
-        e.Handled = true;
     }
 
     private void OnPreparingCellForEdit(object? sender, DataGridPreparingCellForEditEventArgs e)

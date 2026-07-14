@@ -1,7 +1,18 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="PgNimbus.App.App"
+             Name="pgNimbus"
              RequestedThemeVariant="Default">
+
+    <!-- macOS app menu (ignored elsewhere). Name above is what the menu bar
+         and the "Hide ..." item display - without it, Avalonia's exporter
+         falls back to "Avalonia Application". The standard Services / Hide /
+         Quit block is appended automatically by Avalonia. -->
+    <NativeMenu.Menu>
+        <NativeMenu>
+            <NativeMenuItem Header="About pgNimbus" Click="OnAboutMenuItemClicked" />
+        </NativeMenu>
+    </NativeMenu.Menu>
 
     <Application.Styles>
         <FluentTheme />
