@@ -70,6 +70,27 @@ and wrong project memory is worse than none.
    (`PreferencesWindow`, opened from the palette), persisted in
    `AppSettings`.
 
+## Platform window chrome
+
+- **Windows** — every window calls `ThemedWindowChrome.Attach(this)` (icon +
+  caption color; details in the icon section below).
+- **macOS** — `MainWindow.SetUpMacTitleBar()` merges the 40px command bar
+  with the title bar (`ExtendClientAreaToDecorationsHint` +
+  `ExtendClientAreaTitleBarHeightHint = 40`; Avalonia 12 dropped the old
+  `ExtendClientAreaChromeHints` enum — native traffic lights stay by
+  default). The bar gets 84px left padding to clear the traffic lights and
+  drags the window from its empty space (`BeginMoveDrag`). The macOS app
+  menu name and "About pgNimbus" item come from `Name="pgNimbus"` +
+  `NativeMenu.Menu` in `App.axaml` — without them Avalonia shows
+  "Avalonia Application"/"About Avalonia". The sidebar toggle icon is
+  platform-picked via `{OnPlatform}` (SF-style geometry on macOS).
+- **Results-grid scrolling is the DataGrid's own.** Avalonia 12's DataGrid
+  handles both wheel axes natively (`UpdateScroll`). Don't reintroduce a
+  tunneled wheel handler that writes `ScrollBar.Value` directly — the
+  DataGrid only reacts to user `Scroll` events, so that moves the bar
+  without the content (the 2026-07 macOS "scrollbar moves, results don't"
+  bug, since removed).
+
 ## App icon / logo assets
 
 Full reference: [`design/LOGO-ASSETS.md`](design/LOGO-ASSETS.md); the

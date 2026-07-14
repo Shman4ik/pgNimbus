@@ -11,10 +11,81 @@ namespace PgNimbus.App.Views;
 
 public partial class ConnectionDialog : Window
 {
+    // Drag-to-reorder state for the saved-connections list: the row the
+    // pointer went down on, where, and whether it has moved far enough to
+    // count as a reorder rather than a click.
+    private ConnectionProfile? _dragProfile;
+    private Avalonia.Point _dragStartPoint;
+    private bool _isReordering;
+
     public ConnectionDialog()
     {
         InitializeComponent();
         ThemedWindowChrome.Attach(this);
+
+        // Reorder saved connections by dragging rows. Live-moves the row while
+        // the pointer travels (the list itself is the drop preview), then
+        // persists the order on release. Tunneled press so the row is known
+        // even if a child ever marks the event handled.
+        ProfilesList.AddHandler(PointerPressedEvent, OnProfilesPointerPressed, Avalonia.Interactivity.RoutingStrategies.Tunnel);
+        ProfilesList.PointerMoved += OnProfilesPointerMoved;
+        ProfilesList.PointerReleased += OnProfilesPointerReleased;
+    }
+
+    private void OnProfilesPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (!e.GetCurrentPoint(ProfilesList).Properties.IsLeftButtonPressed)
+        {
+            return;
+        }
+
+        _dragProfile = (e.Source as Visual)?.FindAncestorOfType<ListBoxItem>(includeSelf: true)?.DataContext as ConnectionProfile;
+        _dragStartPoint = e.GetPosition(ProfilesList);
+        _isReordering = false;
+    }
+
+    private void OnProfilesPointerMoved(object? sender, PointerEventArgs e)
+    {
+        if (_dragProfile is not { } dragged || DataContext is not ConnectionDialogViewModel vm
+            || !e.GetCurrentPoint(ProfilesList).Properties.IsLeftButtonPressed)
+        {
+            return;
+        }
+
+        var position = e.GetPosition(ProfilesList);
+        if (!_isReordering && Math.Abs(position.Y - _dragStartPoint.Y) < 6)
+        {
+            return; // still a click, not a drag
+        }
+
+        _isReordering = true;
+
+        // The pressed row holds the pointer capture, so e.Source is useless
+        // here - hit-test the list by position to find the row underneath.
+        var target = ProfilesList.GetVisualAt(position)?.FindAncestorOfType<ListBoxItem>(includeSelf: true)?.DataContext as ConnectionProfile;
+        if (target is null || ReferenceEquals(target, dragged))
+        {
+            return;
+        }
+
+        var from = vm.Profiles.IndexOf(dragged);
+        var to = vm.Profiles.IndexOf(target);
+        if (from >= 0 && to >= 0 && from != to)
+        {
+            vm.Profiles.Move(from, to);
+        }
+    }
+
+    private void OnProfilesPointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        if (_isReordering && _dragProfile is { } dragged && DataContext is ConnectionDialogViewModel vm)
+        {
+            vm.SelectedProfile = dragged;
+            vm.PersistProfileOrder();
+        }
+
+        _dragProfile = null;
+        _isReordering = false;
     }
 
     // Reads the profile off the tapped ListBoxItem's DataContext rather than
@@ -40,7 +111,9 @@ public partial class ConnectionDialog : Window
 
         try
         {
-            await clipboard.SetTextAsync(vm.ImportText);
+            // The visible preview masks the password - the clipboard gets the
+            // real, usable connection string.
+            await clipboard.SetTextAsync(vm.BuildClipboardConnectionString());
         }
         catch
         {

@@ -129,13 +129,17 @@
         leaves it opaque otherwise so the base is never a see-through hole.
     -->
     <DockPanel Name="ShellBase" Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}">
-        <Border DockPanel.Dock="Top" Height="40" Padding="16,0"
+        <!-- On macOS this bar doubles as the title bar: SetUpMacTitleBar
+             (code-behind) extends the client area under the system one, pads
+             the left edge clear of the traffic lights, and makes the bar's
+             empty space drag the window. -->
+        <Border Name="CommandBar" DockPanel.Dock="Top" Height="40" Padding="16,0"
                 BorderThickness="0,0,0,1" BorderBrush="{StaticResource CardBorderBrush}">
             <DockPanel>
                 <Button Name="SidebarToggleButton" DockPanel.Dock="Left" Classes="chip" Padding="5"
                         Margin="0,0,10,0" VerticalAlignment="Center"
                         Click="OnToggleSidebarClick" ToolTip.Tip="Toggle sidebar (Ctrl+B)">
-                    <PathIcon Data="{StaticResource SidebarToggleIconGeometry}" Width="14" Height="14" />
+                    <PathIcon Data="{OnPlatform Default={StaticResource SidebarToggleIconGeometry}, macOS={StaticResource SidebarToggleMacIconGeometry}}" Width="14" Height="14" />
                 </Button>
                 <Border DockPanel.Dock="Left" Width="10" Height="10" CornerRadius="5" Margin="0,0,10,0"
                         VerticalAlignment="Center"

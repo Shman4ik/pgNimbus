@@ -207,6 +207,9 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
     [RelayCommand]
     private void SelectAccentColor(string? color) => AccentColor = color;
 
+    /// <summary>Persists the list's current order after a drag-reorder in the dialog (the store writes profiles in enumeration order).</summary>
+    public void PersistProfileOrder() => _store.Save(Profiles);
+
     /// <summary>
     /// Re-parses whatever connection string is in the import box — postgres://
     /// URI, JDBC URL, Key=Value;, libpq keywords, or a full psql command line —
@@ -274,7 +277,13 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
                 Username = parsed.Username;
             }
 
-            if (parsed.Password is not null)
+            // The preview renders the password as the fixed mask string (see
+            // BuildPreviewConnectionString) - when the user hand-edits some
+            // other part of the preview, the re-parse hands that mask back
+            // here, and it must not overwrite the real password. Only the
+            // exact mask is skipped, so a genuine pasted password that merely
+            // contains a bullet still imports.
+            if (parsed.Password is not null && parsed.Password != PasswordMask)
             {
                 Password = parsed.Password;
             }
@@ -317,8 +326,15 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         }
     }
 
-    /// <summary>Renders the current fields as a postgres:// URI — the most widely recognized connection string format.</summary>
-    private string BuildPreviewConnectionString()
+    private const string PasswordMask = "••••••";
+
+    /// <summary>Renders the current fields as a postgres:// URI — the most widely recognized connection string format. The password shows as mask bullets; <see cref="BuildClipboardConnectionString"/> carries the real one.</summary>
+    private string BuildPreviewConnectionString() => BuildConnectionStringUri(maskPassword: true);
+
+    /// <summary>The full postgres:// URI with the real password, for the explicit copy-to-clipboard action only — never shown on screen.</summary>
+    public string BuildClipboardConnectionString() => BuildConnectionStringUri(maskPassword: false);
+
+    private string BuildConnectionStringUri(bool maskPassword)
     {
         var builder = new StringBuilder("postgres://");
 
@@ -327,7 +343,9 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
             builder.Append(Uri.EscapeDataString(Username));
             if (!string.IsNullOrEmpty(Password))
             {
-                builder.Append(':').Append(Uri.EscapeDataString(Password));
+                builder.Append(':').Append(maskPassword
+                    ? PasswordMask
+                    : Uri.EscapeDataString(Password));
             }
 
             builder.Append('@');
