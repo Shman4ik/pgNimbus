@@ -226,6 +226,17 @@ Every tag push (`vX.Y.Z`) builds all of the above via
 - **LISTEN/NOTIFY monitor** — subscribe to channels and watch notifications
   arrive live.
 
+## Privacy
+
+pgNimbus sends **zero telemetry**. No usage analytics, no crash reporting,
+no update pings, no "anonymous statistics" — nothing. The only network
+connections the app ever opens are the ones you configure: your PostgreSQL
+servers and, if you use them, your SSH tunnel hosts. Queries, schemas,
+credentials, and history never leave your machine (passwords live in the OS
+credential store, everything else in local JSON files under your user
+profile). The code is MIT-licensed and open — you can verify all of this
+rather than take it on faith.
+
 ## Keyboard shortcuts
 
 Press <kbd>F1</kbd> in the app for the full cheat sheet. On macOS,
@@ -402,10 +413,10 @@ individually shippable pieces. Shipped items graduate from this list into
   (Preferences → Keyboard, `Hotkeys.cs`) is the foundation; the next step is
   letting users rebind individual actions, persisted in `AppSettings`, with
   conflict detection and a reset-to-defaults.
-- [ ] **State the privacy guarantee** — a short README/docs section pledging
-  zero telemetry and zero network traffic beyond the database and SSH hosts
-  you configure. Costs nothing (it's already true) and is something users
-  explicitly probe new clients for
+- [x] **State the privacy guarantee** — the [Privacy](#privacy) section
+  above pledges zero telemetry and zero network traffic beyond the database
+  and SSH hosts you configure. It was already true; now it's stated where
+  users look for it
   ([Show HN: DB Pro](https://news.ycombinator.com/item?id=46078571)).
 
 ### SQL editor — completion that predicts the next move
