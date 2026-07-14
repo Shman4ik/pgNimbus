@@ -80,7 +80,7 @@ public sealed partial class QueryViewModel : ObservableObject
     [ObservableProperty]
     private EditableTableContext? _editContext;
 
-    /// <summary>Non-null when this tab is in no-SQL "browse a table" mode (filter/sort/paging bar shown).</summary>
+    /// <summary>Non-null when this tab is in no-SQL "browse a table" mode (status-bar paging shown, header clicks sort server-side).</summary>
     [ObservableProperty]
     private TableBrowseViewModel? _browse;
 
@@ -92,8 +92,17 @@ public sealed partial class QueryViewModel : ObservableObject
     // that programmatic write as a manual edit and tear browse mode down.
     private bool _applyingBrowseSql;
 
-    /// <summary>Drives visibility of the browse (filter/sort/paging) bar.</summary>
+    /// <summary>Drives visibility of the status bar's paging segment.</summary>
     public bool IsBrowsing => Browse is not null;
+
+    /// <summary>
+    /// The status bar's row-count segment, suppressed in browse mode where the
+    /// paging range ("Rows 1–100") already carries the same information — one
+    /// fewer segment competing for the bar's width.
+    /// </summary>
+    public string? RowCountStatusText => IsBrowsing ? null : RowCountText;
+
+    partial void OnRowCountTextChanged(string? value) => OnPropertyChanged(nameof(RowCountStatusText));
 
     [ObservableProperty]
     private string _tabTitle = "Query";
@@ -725,12 +734,17 @@ public sealed partial class QueryViewModel : ObservableObject
         UpdateTabTitle();
     }
 
-    partial void OnBrowseChanged(TableBrowseViewModel? value) => OnPropertyChanged(nameof(IsBrowsing));
+    partial void OnBrowseChanged(TableBrowseViewModel? value)
+    {
+        OnPropertyChanged(nameof(IsBrowsing));
+        OnPropertyChanged(nameof(RowCountStatusText));
+    }
 
     /// <summary>
-    /// Enters no-SQL browse mode for a table and loads its first page. The
-    /// filter/sort/paging bar (bound to <see cref="Browse"/>) takes over from
-    /// there, re-querying the server on every change.
+    /// Enters no-SQL browse mode for a table and loads its first page. Paging
+    /// (status bar) and header-click sorting re-query the server from there;
+    /// the composed SQL is visible in the editor, and editing it turns the tab
+    /// into a plain query.
     /// </summary>
     public Task StartBrowseAsync(string schema, string name, IReadOnlyList<string> primaryKeyColumns, string? initialFilter = null)
     {
@@ -739,7 +753,7 @@ public sealed partial class QueryViewModel : ObservableObject
         if (!string.IsNullOrEmpty(initialFilter))
         {
             // A pre-seeded WHERE (e.g. following a foreign key to the referenced
-            // row) — shown in the filter box so it's visible and clearable.
+            // row) — visible in the composed SQL the editor shows.
             Browse.FilterText = initialFilter;
         }
 
@@ -1287,8 +1301,10 @@ public sealed partial class QueryViewModel : ObservableObject
     // highlights) and the commit/discard availability.
     private void NotifyPendingChangesChanged()
     {
+        // Deliberately terse — this shares one status-bar line with the
+        // metrics and paging segments; the review dialog carries the long form.
         PendingChangesText = PendingChanges is { IsEmpty: false } pending
-            ? $"{pending.Count} staged change{(pending.Count == 1 ? "" : "s")} · {pending.Schema}.{pending.Table}"
+            ? $"{pending.Count} staged · {pending.Schema}.{pending.Table}"
             : null;
         // A mutation can leave the summary text equal (e.g. staging one delete
         // while unstaging another), which the property setter would swallow —

@@ -141,10 +141,13 @@ Every tag push (`vX.Y.Z`) builds all of the above via
   <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd>) reloads the schema tree,
   autocomplete cache, and command-palette table list from the server, so
   objects created or altered elsewhere appear without reconnecting.
-- **No-SQL table browsing** — previewing a table opens a browse bar with a
-  `WHERE` filter, `ORDER BY` from clicking a column header, and prev/next
-  paging — all pushed down to Postgres (`WHERE`/`ORDER BY`/`LIMIT`/`OFFSET`),
-  so browsing a huge table stays as cheap as one page.
+- **No-SQL table browsing** — previewing a table opens it paged, with
+  `ORDER BY` from clicking a column header and prev/next paging in the
+  status bar — all pushed down to Postgres (`ORDER BY`/`LIMIT`/`OFFSET`),
+  so browsing a huge table stays as cheap as one page. The composed SQL
+  sits right in the editor, which doubles as the filter: add a `WHERE`
+  there and run (there's deliberately no separate filter box — you already
+  have a SQL editor).
 - **Follow foreign keys from the grid** — right-click an FK cell while
   browsing to jump to the row it references ("Follow customer_id →
   public.customers"), or a key cell to list the rows referencing it

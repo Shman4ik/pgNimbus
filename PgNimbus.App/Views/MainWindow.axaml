@@ -617,78 +617,9 @@
 
             <Border Grid.Row="3" Classes="card" Margin="0,12,0,12">
                 <DockPanel>
-                    <!-- Browse bar: server-side WHERE filter, ORDER BY (via header click), LIMIT/OFFSET paging.
-                         Disabled while a query is in flight so Apply/paging can't kick off a second concurrent run. -->
-                    <Border DockPanel.Dock="Top" IsVisible="{Binding ActiveTab.IsBrowsing}"
-                            IsEnabled="{Binding !ActiveTab.IsRunning}"
-                            BorderThickness="0,0,0,1" BorderBrush="{StaticResource CardBorderBrush}"
-                            Padding="8,7" Margin="0,0,0,4">
-                        <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto,Auto"
-                              x:DataType="vm:TableBrowseViewModel" DataContext="{Binding ActiveTab.Browse}">
-                            <TextBlock Grid.Column="0" Text="WHERE" FontFamily="Cascadia Code,Consolas,monospace"
-                                       FontSize="12" Opacity="0.55" VerticalAlignment="Center" Margin="2,0,8,0" />
-                            <TextBox Grid.Column="1" Name="BrowseFilterBox" FontSize="12"
-                                     VerticalAlignment="Center"
-                                     Text="{Binding FilterText, Mode=TwoWay}"
-                                     KeyDown="OnBrowseFilterKeyDown"
-                                     PlaceholderText="filter predicate — e.g. total &gt; 50 (Enter to apply)">
-                                <TextBox.InnerRightContent>
-                                    <Button Command="{Binding ClearFilterCommand}" Classes="chip" Margin="0,0,4,0"
-                                            VerticalAlignment="Center" ToolTip.Tip="Clear filter"
-                                            IsVisible="{Binding FilterText, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}">
-                                        <PathIcon Data="{StaticResource CloseIconGeometry}" Width="11" Height="11" />
-                                    </Button>
-                                </TextBox.InnerRightContent>
-                            </TextBox>
-                            <!-- Column autocomplete for the WHERE predicate: only this dataset's
-                                 columns (no keywords/functions/other tables). Driven from code-behind. -->
-                            <Popup Grid.Column="1" Name="FilterCompletionPopup"
-                                   PlacementTarget="{Binding #BrowseFilterBox}"
-                                   Placement="BottomEdgeAlignedLeft"
-                                   IsLightDismissEnabled="False"
-                                   WindowManagerAddShadowHint="False">
-                                <Border Background="{DynamicResource SystemControlPageBackgroundAltHighBrush}"
-                                        BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
-                                        CornerRadius="6" BoxShadow="0 6 16 0 #40000000" Padding="2">
-                                    <!-- Non-focusable so keyboard focus stays in the filter box: arrow/Enter
-                                         keys are handled there, and clicking an item doesn't blur (and thus
-                                         auto-close) the popup before the tap is handled. -->
-                                    <ListBox Name="FilterCompletionList" MinWidth="220" MaxHeight="220"
-                                             Background="Transparent" Focusable="False"
-                                             Tapped="OnFilterCompletionTapped">
-                                        <ListBox.Styles>
-                                            <Style Selector="ListBoxItem">
-                                                <Setter Property="Focusable" Value="False" />
-                                            </Style>
-                                        </ListBox.Styles>
-                                        <ListBox.ItemTemplate>
-                                            <DataTemplate x:DataType="sys:String">
-                                                <TextBlock Text="{Binding}" FontSize="12"
-                                                           FontFamily="Cascadia Code,Consolas,monospace" />
-                                            </DataTemplate>
-                                        </ListBox.ItemTemplate>
-                                    </ListBox>
-                                </Border>
-                            </Popup>
-                            <Button Grid.Column="2" Content="Apply" Classes="toolbar" Command="{Binding ApplyFilterCommand}"
-                                    Margin="6,0,0,0" VerticalAlignment="Center" />
-                            <TextBlock Grid.Column="3" Text="{Binding SortLabel}"
-                                       IsVisible="{Binding SortLabel, Converter={x:Static conv:ObjectConverters.IsNotNull}}"
-                                       FontSize="12" Opacity="0.6" VerticalAlignment="Center" Margin="14,0,0,0" />
-                            <TextBlock Grid.Column="4" Text="{Binding PageLabel}" FontSize="12" Opacity="0.6"
-                                       VerticalAlignment="Center" Margin="14,0,6,0" />
-                            <Button Grid.Column="5" Classes="chip" Padding="5"
-                                    Command="{Binding PreviousPageCommand}" ToolTip.Tip="Previous page"
-                                    VerticalAlignment="Center">
-                                <PathIcon Data="{StaticResource ChevronLeftIconGeometry}" Width="12" Height="12" />
-                            </Button>
-                            <Button Grid.Column="6" Classes="chip" Padding="5"
-                                    Command="{Binding NextPageCommand}" ToolTip.Tip="Next page"
-                                    Margin="2,0,0,0" VerticalAlignment="Center">
-                                <PathIcon Data="{StaticResource ChevronRightIconGeometry}" Width="12" Height="12" />
-                            </Button>
-                        </Grid>
-                    </Border>
+                    <!-- No browse bar here on purpose: browse mode's WHERE/ORDER BY live in the
+                         composed SQL (visible in the editor), and its paging sits in the status
+                         bar — the results pane is the grid, nothing else (2026-07 rework). -->
 
                     <!-- Script sections: one selectable chip per statement of a multi-statement run -->
                     <Border DockPanel.Dock="Top" IsVisible="{Binding ActiveTab.IsScriptResult}"
@@ -802,13 +733,20 @@
         </Grid>
 
             <!-- Files-style segmented status bar: message · rows · timing · cap warning -->
+            <!-- The bar is a Grid, not a StackPanel, so it can never overflow the
+                 window: the message sits in the lone star column and truncates
+                 (full text on hover), while every other segment is compact and
+                 keeps its width. Long cap text truncates the same way. -->
             <Border Grid.Row="1" Classes="statusBar">
-                <StackPanel Orientation="Horizontal" Spacing="10">
-                    <TextBlock Text="{Binding ActiveTab.Status}"
+                <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+                    <TextBlock Grid.Column="0" Text="{Binding ActiveTab.Status}"
                                Classes="statusText" Classes.error="{Binding ActiveTab.HasError}"
-                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                               HorizontalAlignment="Left"
+                               ToolTip.Tip="{Binding ActiveTab.Status}" />
                     <!-- Running indicator: indeterminate bar + live elapsed tick while a query is in flight -->
-                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center"
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center"
+                                Margin="10,0,0,0"
                                 IsVisible="{Binding ActiveTab.IsRunning}">
                         <Rectangle Classes="statusSeparator" />
                         <ProgressBar IsIndeterminate="True" Width="90" Height="4"
@@ -816,7 +754,8 @@
                         <TextBlock Classes="statusText dim" Text="{Binding ActiveTab.RunningElapsedText}" VerticalAlignment="Center" />
                     </StackPanel>
                     <!-- Persistent "in transaction" indicator: an explicit BEGIN block is open -->
-                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
+                                Margin="10,0,0,0"
                                 IsVisible="{Binding IsInTransaction}"
                                 ToolTip.Tip="A transaction is open — statements run inside it until you commit or roll back">
                         <Rectangle Classes="statusSeparator" />
@@ -827,14 +766,15 @@
                     <!-- Safe mode's staged-changes segment: count + review/commit + discard.
                          Contextual like the fix affordance below — only present while
                          something is staged, so the bar stays clean otherwise. -->
-                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center"
+                    <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center"
+                                Margin="10,0,0,0"
                                 IsVisible="{Binding ActiveTab.HasPendingChanges}"
                                 ToolTip.Tip="Safe mode: these changes are staged locally — nothing has been sent to the database yet">
                         <Rectangle Classes="statusSeparator" />
                         <Ellipse Width="8" Height="8" Fill="{DynamicResource AppAccentBrush}" VerticalAlignment="Center" />
                         <TextBlock Classes="statusText" FontWeight="SemiBold"
                                    Text="{Binding ActiveTab.PendingChangesText}" VerticalAlignment="Center" />
-                        <Button Classes="accent" FontSize="11" Padding="10,3" Content="Review &amp; commit…"
+                        <Button Classes="accent" FontSize="11" Padding="10,3" Content="Review…"
                                 Click="OnReviewPendingClick"
                                 ToolTip.Tip="Show the generated SQL, then commit everything as one transaction" />
                         <Button FontSize="11" Padding="10,3" Content="Discard"
@@ -842,7 +782,8 @@
                                 ToolTip.Tip="Drop all staged changes and reload from the server" />
                     </StackPanel>
                     <!-- "Did you mean the quoted form?" fix, offered after a failed unquoted-identifier run -->
-                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center"
+                    <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center"
+                                Margin="10,0,0,0"
                                 IsVisible="{Binding ActiveTab.FixSuggestionSql, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
                         <Rectangle Classes="statusSeparator" />
                         <TextBlock Classes="statusText" Text="{Binding ActiveTab.FixSuggestionText}" VerticalAlignment="Center" />
@@ -850,22 +791,42 @@
                                 Command="{Binding ActiveTab.ApplyFixCommand}"
                                 ToolTip.Tip="Rewrite the unquoted identifiers to match the database and run again" />
                     </StackPanel>
-                    <StackPanel Orientation="Horizontal" Spacing="10"
-                                IsVisible="{Binding ActiveTab.RowCountText, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
+                    <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="10" Margin="10,0,0,0"
+                                IsVisible="{Binding ActiveTab.RowCountStatusText, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
                         <Rectangle Classes="statusSeparator" />
-                        <TextBlock Classes="statusText dim" Text="{Binding ActiveTab.RowCountText}" VerticalAlignment="Center" />
+                        <TextBlock Classes="statusText dim" Text="{Binding ActiveTab.RowCountStatusText}" VerticalAlignment="Center" />
                     </StackPanel>
-                    <StackPanel Orientation="Horizontal" Spacing="10"
+                    <StackPanel Grid.Column="6" Orientation="Horizontal" Spacing="10" Margin="10,0,0,0"
                                 IsVisible="{Binding ActiveTab.TimingText, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
                         <Rectangle Classes="statusSeparator" />
                         <TextBlock Classes="statusText dim" Text="{Binding ActiveTab.TimingText}" VerticalAlignment="Center" />
                     </StackPanel>
-                    <StackPanel Orientation="Horizontal" Spacing="10"
+                    <StackPanel Grid.Column="7" Orientation="Horizontal" Spacing="10" Margin="10,0,0,0"
                                 IsVisible="{Binding ActiveTab.CapText, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
                         <Rectangle Classes="statusSeparator" />
-                        <TextBlock Classes="statusText warn" Text="{Binding ActiveTab.CapText}" VerticalAlignment="Center" />
+                        <TextBlock Classes="statusText warn" Text="{Binding ActiveTab.CapText}" VerticalAlignment="Center"
+                                   MaxWidth="320" TextTrimming="CharacterEllipsis"
+                                   ToolTip.Tip="{Binding ActiveTab.CapText}" />
                     </StackPanel>
-                </StackPanel>
+                    <!-- Browse-mode paging: the one piece of the old browse bar that
+                         couldn't move into the SQL editor. Disabled while a query is
+                         in flight so a page turn can't start a second concurrent run. -->
+                    <StackPanel Grid.Column="8" Orientation="Horizontal" Spacing="8" Margin="10,0,0,0"
+                                VerticalAlignment="Center"
+                                IsVisible="{Binding ActiveTab.IsBrowsing}"
+                                IsEnabled="{Binding !ActiveTab.IsRunning}">
+                        <Rectangle Classes="statusSeparator" />
+                        <TextBlock Classes="statusText dim" Text="{Binding ActiveTab.Browse.PageLabel}" VerticalAlignment="Center" />
+                        <Button Classes="chip" Padding="4" VerticalAlignment="Center"
+                                Command="{Binding ActiveTab.Browse.PreviousPageCommand}" ToolTip.Tip="Previous page">
+                            <PathIcon Data="{StaticResource ChevronLeftIconGeometry}" Width="11" Height="11" />
+                        </Button>
+                        <Button Classes="chip" Padding="4" VerticalAlignment="Center"
+                                Command="{Binding ActiveTab.Browse.NextPageCommand}" ToolTip.Tip="Next page">
+                            <PathIcon Data="{StaticResource ChevronRightIconGeometry}" Width="11" Height="11" />
+                        </Button>
+                    </StackPanel>
+                </Grid>
             </Border>
 
         </Grid>

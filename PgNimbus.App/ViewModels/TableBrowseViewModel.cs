@@ -6,9 +6,12 @@ using PgNimbus.Core.Query;
 namespace PgNimbus.App.ViewModels;
 
 /// <summary>
-/// Drives no-SQL "browse a table" mode: a server-side <c>WHERE</c> filter,
-/// <c>ORDER BY</c> from clicking a column header, and <c>LIMIT</c>/<c>OFFSET</c>
-/// paging. Everything is pushed down to Postgres — no client-side slicing — so
+/// Drives no-SQL "browse a table" mode: <c>ORDER BY</c> from clicking a column
+/// header and <c>LIMIT</c>/<c>OFFSET</c> paging (the status bar's page
+/// controls), plus an optional <c>WHERE</c> predicate seeded by foreign-key
+/// navigation. There is no filter UI — the composed SQL lands in the editor,
+/// which *is* the filter box: edit it and run, and the tab becomes a plain
+/// query. Everything is pushed down to Postgres — no client-side slicing — so
 /// browsing a billion-row table stays as cheap as one page. The owning
 /// <see cref="QueryViewModel"/> supplies <see cref="_execute"/>, which composes
 /// nothing itself: it just runs the SQL this view-model builds and reports how
@@ -27,10 +30,7 @@ public sealed partial class TableBrowseViewModel : ObservableObject
 
     public string Name { get; }
 
-    /// <summary>The table being browsed, schema-qualified — shown in the browse bar.</summary>
-    public string QualifiedName => $"{Schema}.{Name}";
-
-    /// <summary>Raw SQL predicate typed into the filter box (the text after <c>WHERE</c>). Empty means no filter.</summary>
+    /// <summary>Raw SQL predicate (the text after <c>WHERE</c>), seeded by FK navigation. Empty means no filter.</summary>
     [ObservableProperty]
     private string _filterText = string.Empty;
 
@@ -46,10 +46,6 @@ public sealed partial class TableBrowseViewModel : ObservableObject
     /// <summary>"Rows 101–200" style range label for the current page.</summary>
     [ObservableProperty]
     private string _pageLabel = string.Empty;
-
-    /// <summary>"ORDER BY total ▼" style label, or null when unsorted.</summary>
-    [ObservableProperty]
-    private string? _sortLabel;
 
     [ObservableProperty]
     private bool _canGoPrevious;
@@ -103,23 +99,6 @@ public sealed partial class TableBrowseViewModel : ObservableObject
         PageLabel = count == 0
             ? (Offset > 0 ? "No more rows" : "No rows")
             : $"Rows {Offset + 1:N0}–{Offset + count:N0}";
-
-        SortLabel = SortColumn is { } col ? $"ORDER BY {col} {(SortDescending ? "▼" : "▲")}" : null;
-    }
-
-    [RelayCommand]
-    private Task ApplyFilter()
-    {
-        Offset = 0;
-        return LoadAsync();
-    }
-
-    [RelayCommand]
-    private Task ClearFilter()
-    {
-        FilterText = string.Empty;
-        Offset = 0;
-        return LoadAsync();
     }
 
     [RelayCommand(CanExecute = nameof(CanGoNext))]

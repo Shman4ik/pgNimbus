@@ -42,10 +42,6 @@ public partial class MainWindow : Window
     // Closer promised by OnSqlTextEntering's InsertPair verdict, written by
     // OnSqlTextEntered once the opener is in the document. '\0' = none pending.
     private char _pendingAutoCloser;
-    // Set while an accepted filter-completion writes back into the box, so the
-    // resulting TextChanged doesn't immediately re-open the popup on the word we
-    // just inserted.
-    private bool _suppressFilterCompletion;
     private ShortcutsWindow? _shortcutsWindow;
     private IHighlightingDefinition? _sqlHighlighting;
     // AvaloniaEdit's stock find/replace panel, installed on the SQL editor;
@@ -212,19 +208,11 @@ public partial class MainWindow : Window
         HistoryList.DoubleTapped += (_, e) => OnQueryListDoubleTapped(e,
             item => _viewModel?.SavedQueries.LoadHistoryEntryCommand.Execute(item as QueryHistoryEntry));
 
-        // Column autocomplete inside the browse WHERE box (see the popup in XAML).
-        BrowseFilterBox.TextChanged += OnBrowseFilterTextChanged;
-        BrowseFilterBox.LostFocus += (_, _) => CloseFilterCompletion();
-
         // On Windows, popups are native always-on-top windows, and one left
         // open while the user Alt+Tabs (or clicks) into another program keeps
         // floating above that program. Close every popup we own the moment
         // this window stops being the foreground one.
-        Deactivated += (_, _) =>
-        {
-            _completionWindow?.Close();
-            CloseFilterCompletion();
-        };
+        Deactivated += (_, _) => _completionWindow?.Close();
 
         DataContextChanged += (_, _) =>
         {
@@ -1737,135 +1725,6 @@ public partial class MainWindow : Window
         }
     }
 
-    // Keys in the browse filter box: while the column-completion popup is open it
-    // owns arrow/Enter/Tab/Esc; otherwise Enter applies the WHERE predicate
-    // (re-query from page 1).
-    private void OnBrowseFilterKeyDown(object? sender, KeyEventArgs e)
-    {
-        if (FilterCompletionPopup.IsOpen)
-        {
-            switch (e.Key)
-            {
-                case Key.Down:
-                    MoveFilterCompletionSelection(+1);
-                    e.Handled = true;
-                    return;
-                case Key.Up:
-                    MoveFilterCompletionSelection(-1);
-                    e.Handled = true;
-                    return;
-                case Key.Enter:
-                case Key.Tab:
-                    AcceptFilterCompletion();
-                    e.Handled = true;
-                    return;
-                case Key.Escape:
-                    CloseFilterCompletion();
-                    e.Handled = true;
-                    return;
-            }
-        }
-
-        if (e.Key == Key.Enter && _queryViewModel?.Browse is { } browse)
-        {
-            browse.ApplyFilterCommand.Execute(null);
-            e.Handled = true;
-        }
-    }
-
-    // Offers the current dataset's columns as the user types an identifier in the
-    // WHERE box — and nothing else (no keywords, functions, or other tables), so
-    // the suggestions are exactly the columns a predicate here can reference.
-    private void OnBrowseFilterTextChanged(object? sender, TextChangedEventArgs e)
-    {
-        if (_suppressFilterCompletion || _queryViewModel is null)
-        {
-            return;
-        }
-
-        var text = BrowseFilterBox.Text ?? string.Empty;
-        var (start, end) = CurrentWordBounds(text, BrowseFilterBox.CaretIndex);
-        var word = text[start..end];
-        if (word.Length == 0)
-        {
-            CloseFilterCompletion();
-            return;
-        }
-
-        var matches = _queryViewModel.ColumnNames
-            .Where(c => c.Contains(word, StringComparison.OrdinalIgnoreCase))
-            .OrderByDescending(c => c.StartsWith(word, StringComparison.OrdinalIgnoreCase))
-            .ToList();
-
-        // Nothing worth showing: no match, or the only match is already fully typed.
-        if (matches.Count == 0 || (matches.Count == 1 && string.Equals(matches[0], word, StringComparison.OrdinalIgnoreCase)))
-        {
-            CloseFilterCompletion();
-            return;
-        }
-
-        FilterCompletionList.ItemsSource = matches;
-        FilterCompletionList.SelectedIndex = 0;
-        FilterCompletionPopup.IsOpen = true;
-    }
-
-    private void OnFilterCompletionTapped(object? sender, TappedEventArgs e) => AcceptFilterCompletion();
-
-    private void MoveFilterCompletionSelection(int delta)
-    {
-        var count = FilterCompletionList.ItemCount;
-        if (count == 0)
-        {
-            return;
-        }
-
-        var index = FilterCompletionList.SelectedIndex + delta;
-        FilterCompletionList.SelectedIndex = (index % count + count) % count;
-        if (FilterCompletionList.SelectedItem is { } selected)
-        {
-            FilterCompletionList.ScrollIntoView(selected);
-        }
-    }
-
-    // Replaces the identifier under the caret with the chosen column (quoted only
-    // if Postgres needs it) and drops the popup.
-    private void AcceptFilterCompletion()
-    {
-        if (!FilterCompletionPopup.IsOpen || FilterCompletionList.SelectedItem is not string column)
-        {
-            return;
-        }
-
-        var text = BrowseFilterBox.Text ?? string.Empty;
-        var (start, end) = CurrentWordBounds(text, BrowseFilterBox.CaretIndex);
-        var insert = SqlIdentifier.QuoteIfNeeded(column);
-        var newText = string.Concat(text.AsSpan(0, start), insert, text.AsSpan(end));
-
-        _suppressFilterCompletion = true;
-        BrowseFilterBox.Text = newText;
-        BrowseFilterBox.CaretIndex = start + insert.Length;
-        _suppressFilterCompletion = false;
-
-        CloseFilterCompletion();
-    }
-
-    private void CloseFilterCompletion() => FilterCompletionPopup.IsOpen = false;
-
-    // Bounds of the identifier the caret sits in (empty span when not on one).
-    private static (int Start, int End) CurrentWordBounds(string text, int caret)
-    {
-        var end = Math.Clamp(caret, 0, text.Length);
-        var start = end;
-        while (start > 0 && IsIdentChar(text[start - 1]))
-        {
-            start--;
-        }
-
-        return (start, end);
-
-        static bool IsIdentChar(char c) => char.IsLetterOrDigit(c) || c == '_' || c == '$';
-    }
-
     // "Add row…" - opens the insert dialog for the mapped table; on a successful
     // insert the grid refreshes (browse page reload, or a re-run of the query).
     // In safe mode the dialog stages the INSERT into the tab's pending set
@@ -1929,7 +1788,9 @@ public partial class MainWindow : Window
             return;
         }
 
-        var dialog = new PendingChangesDialog(query.PendingChangesText ?? "Staged changes", pending.BuildScript(), pending.Count);
+        // Long-form summary here; the status bar's text is deliberately terse.
+        var summary = $"{pending.Count} staged change{(pending.Count == 1 ? "" : "s")} · {pending.Schema}.{pending.Table}";
+        var dialog = new PendingChangesDialog(summary, pending.BuildScript(), pending.Count);
         var result = await dialog.ShowDialog<PendingChangesDialog.Result>(this);
         switch (result)
         {
