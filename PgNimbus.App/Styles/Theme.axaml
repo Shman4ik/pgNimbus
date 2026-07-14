@@ -330,6 +330,12 @@
         <Setter Property="Background" Value="{StaticResource HoverBackgroundBrush}" />
         <Setter Property="Opacity" Value="1" />
     </Style>
+    <!-- Same look for plain chip Buttons acting as a segmented pair (plan Text/Tree switch),
+         where a bound "active" class marks the selected segment instead of :checked -->
+    <Style Selector="Button.chip.active">
+        <Setter Property="Background" Value="{StaticResource HoverBackgroundBrush}" />
+        <Setter Property="Opacity" Value="1" />
+    </Style>
 
     <!-- Left-nav style TabItem: pill highlight instead of the classic underline tab strip -->
     <Style Selector="TabControl">

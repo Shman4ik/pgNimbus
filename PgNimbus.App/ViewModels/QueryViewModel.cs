@@ -132,6 +132,14 @@ public sealed partial class QueryViewModel : ObservableObject
     [ObservableProperty]
     private string? _explainSummary;
 
+    /// <summary>The plan rendered in `EXPLAIN (FORMAT TEXT)` layout — the plan pane's default view.</summary>
+    [ObservableProperty]
+    private string? _explainText;
+
+    /// <summary>Plan pane mode: true = text layout (default), false = the graphical tree.</summary>
+    [ObservableProperty]
+    private bool _isPlanTextView = true;
+
     [ObservableProperty]
     private bool _isShowingPlan;
 
@@ -614,6 +622,12 @@ public sealed partial class QueryViewModel : ObservableObject
     [RelayCommand]
     private void ShowResults() => IsShowingPlan = false;
 
+    [RelayCommand]
+    private void ShowPlanAsText() => IsPlanTextView = true;
+
+    [RelayCommand]
+    private void ShowPlanAsTree() => IsPlanTextView = false;
+
     private async Task RunExplainAsync(bool analyze)
     {
         // Own a CTS so the Cancel button (enabled by IsRunning) actually cancels
@@ -632,6 +646,7 @@ public sealed partial class QueryViewModel : ObservableObject
         {
             var result = await _explainService.ExplainAsync(Sql, analyze, ct);
             ExplainRoot = new ExplainNodeViewModel(result.Root, result.Root.TotalCost);
+            ExplainText = ExplainTextFormatter.Format(result);
             var planningFragment = result.PlanningTimeMs is { } planMs ? $"Planning: {planMs:F3} ms" : null;
             var executionFragment = result.ExecutionTimeMs is { } execMs ? $"Execution: {execMs:F3} ms" : null;
             ExplainSummary = string.Join("   ", new[] { planningFragment, executionFragment }.Where(f => f is not null));

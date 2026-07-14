@@ -1853,6 +1853,24 @@ public partial class MainWindow : Window
         }
     }
 
+    // The Explain toolbar button is a single slot with a flyout (minimalist rule);
+    // menu items route to the active tab's commands the same way Export's do.
+    private void OnExplainClick(object? sender, RoutedEventArgs e)
+    {
+        if (_queryViewModel is { } query && query.ExplainCommand.CanExecute(null))
+        {
+            query.ExplainCommand.Execute(null);
+        }
+    }
+
+    private void OnExplainAnalyzeClick(object? sender, RoutedEventArgs e)
+    {
+        if (_queryViewModel is { } query && query.ExplainAnalyzeCommand.CanExecute(null))
+        {
+            query.ExplainAnalyzeCommand.Execute(null);
+        }
+    }
+
     private async void OnExportCsvClick(object? sender, RoutedEventArgs e)
     {
         var query = _queryViewModel;

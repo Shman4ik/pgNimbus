@@ -563,26 +563,21 @@
                         </StackPanel>
                     </Button>
 
-                    <!-- Group 3 — analysis: plan inspection (secondary to running) -->
+                    <!-- Group 3 — analysis: one toolbar slot for plan inspection (minimalist rule);
+                         the flyout distinguishes estimate-only from actually-executing, closing the
+                         plan lives on the plan pane itself, and both commands are in the palette too -->
                     <Rectangle Classes="statusSeparator" Margin="7,0" />
-                    <Button Classes="toolbar" Command="{Binding ActiveTab.ExplainCommand}" ToolTip.Tip="Show the query plan (EXPLAIN)">
+                    <Button Classes="toolbar" ToolTip.Tip="Query plan (EXPLAIN / EXPLAIN ANALYZE)">
                         <StackPanel Orientation="Horizontal" Spacing="7">
                             <PathIcon Data="{StaticResource FlashIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
                             <TextBlock Text="Explain" VerticalAlignment="Center" Classes="collapsible" />
                         </StackPanel>
-                    </Button>
-                    <Button Classes="toolbar" Command="{Binding ActiveTab.ExplainAnalyzeCommand}" ToolTip.Tip="Run and show the actual plan (EXPLAIN ANALYZE)">
-                        <StackPanel Orientation="Horizontal" Spacing="7">
-                            <PathIcon Data="{StaticResource GaugeIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
-                            <TextBlock Text="Explain Analyze" VerticalAlignment="Center" Classes="collapsible" />
-                        </StackPanel>
-                    </Button>
-                    <Button Classes="toolbar" Command="{Binding ActiveTab.ShowResultsCommand}"
-                            IsVisible="{Binding ActiveTab.IsShowingPlan}">
-                        <StackPanel Orientation="Horizontal" Spacing="7">
-                            <PathIcon Data="{StaticResource TableIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
-                            <TextBlock Text="Show results" VerticalAlignment="Center" Classes="collapsible" />
-                        </StackPanel>
+                        <Button.Flyout>
+                            <MenuFlyout>
+                                <MenuItem Header="Explain — estimated plan" Click="OnExplainClick" />
+                                <MenuItem Header="Explain Analyze — runs the query" Click="OnExplainAnalyzeClick" />
+                            </MenuFlyout>
+                        </Button.Flyout>
                     </Button>
 
                     <!-- Group 4 — data out: export -->
@@ -706,8 +701,31 @@
                         </TextBlock>
                     </StackPanel>
                     <Grid RowDefinitions="Auto,*" IsVisible="{Binding ActiveTab.IsShowingPlan}">
-                        <TextBlock Grid.Row="0" Text="{Binding ActiveTab.ExplainSummary}" Margin="4" FontSize="12" Opacity="0.8" />
-                        <ScrollViewer Grid.Row="1">
+                        <DockPanel Grid.Row="0" Margin="4">
+                            <!-- pgAdmin-style plan view switch: raw text (default) vs graphical tree -->
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="2">
+                                <Button Classes="chip" Classes.active="{Binding ActiveTab.IsPlanTextView}"
+                                        Command="{Binding ActiveTab.ShowPlanAsTextCommand}"
+                                        Content="Text" FontSize="11" Padding="8,2" />
+                                <Button Classes="chip" Classes.active="{Binding !ActiveTab.IsPlanTextView}"
+                                        Command="{Binding ActiveTab.ShowPlanAsTreeCommand}"
+                                        Content="Tree" FontSize="11" Padding="8,2" />
+                                <!-- Fixed 18x18: in this StackPanel the taller Text/Tree chips would
+                                     otherwise stretch the ✕ chip and push its glyph off-center -->
+                                <Button Classes="chip" Command="{Binding ActiveTab.ShowResultsCommand}"
+                                        Content="✕" FontSize="10" Width="18" Height="18" Padding="0"
+                                        Margin="6,0,0,0" VerticalAlignment="Center"
+                                        ToolTip.Tip="Close the plan and show results" />
+                            </StackPanel>
+                            <TextBlock Text="{Binding ActiveTab.ExplainSummary}" FontSize="12" Opacity="0.8"
+                                       VerticalAlignment="Center" />
+                        </DockPanel>
+                        <ScrollViewer Grid.Row="1" IsVisible="{Binding ActiveTab.IsPlanTextView}"
+                                      HorizontalScrollBarVisibility="Auto">
+                            <SelectableTextBlock Text="{Binding ActiveTab.ExplainText}" Margin="8,4"
+                                                 FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="12.5" />
+                        </ScrollViewer>
+                        <ScrollViewer Grid.Row="1" IsVisible="{Binding !ActiveTab.IsPlanTextView}">
                             <TreeView ItemsSource="{Binding ActiveTab.ExplainRoots}" Margin="4">
                                 <TreeView.ItemTemplate>
                                     <TreeDataTemplate DataType="vm:ExplainNodeViewModel" ItemsSource="{Binding Children}">
