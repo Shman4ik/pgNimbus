@@ -748,6 +748,12 @@
                                 <MenuItem Header="Inspect cell…" Click="OnInspectCellClick" />
                                 <MenuItem Header="Set cell to NULL" Click="OnSetCellNullClick"
                                           IsEnabled="{Binding ActiveTab.IsEditable}" />
+                                <!-- FK navigation: headers/sub-items are composed per-cell in
+                                     OnResultsGridMenuOpening; hidden when the cell has no key. -->
+                                <MenuItem x:Name="FollowFkMenuItem" Header="Follow foreign key"
+                                          IsVisible="False" Click="OnFollowFkClick" />
+                                <MenuItem x:Name="ReferencingRowsMenuItem" Header="Referencing rows"
+                                          IsVisible="False" />
                                 <Separator />
                                 <MenuItem Header="Add row…" Click="OnAddRowClick"
                                           IsEnabled="{Binding ActiveTab.IsEditable}" />

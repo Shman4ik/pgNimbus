@@ -23,6 +23,7 @@ using PgNimbus.App.Completion;
 using PgNimbus.App.ViewModels;
 using PgNimbus.Core.Import;
 using PgNimbus.Core.Query;
+using PgNimbus.Core.Schema;
 using PgNimbus.Core.Text;
 
 namespace PgNimbus.App.Views;
@@ -149,6 +150,13 @@ public partial class MainWindow : Window
         ResultsGrid.PreparingCellForEdit += OnPreparingCellForEdit;
         ResultsGrid.KeyDown += OnResultsGridKeyDown;
         ResultsGrid.Sorting += OnResultsGridSorting;
+
+        // The FK-navigation items are composed per-cell just before the grid
+        // context menu shows (their targets depend on which cell was pressed).
+        if (ResultsGrid.ContextMenu is { } gridMenu)
+        {
+            gridMenu.Opening += (_, _) => OnResultsGridMenuOpening();
+        }
 
         SqlEditor.TextArea.TextEntering += OnSqlTextEntering;
         SqlEditor.TextArea.TextEntered += OnSqlTextEntered;
@@ -472,6 +480,10 @@ public partial class MainWindow : Window
         _viewModel.ActivityRequested += ShowActivityWindow;
         _viewModel.SidebarToggleRequested += ToggleSidebar;
         _viewModel.PreferencesRequested += ShowPreferencesWindow;
+
+        // Warm the FK cache in the background so the grid's FK-navigation menu
+        // items (which can't await) have edges to read by the time it's opened.
+        _ = vm.EnsureForeignKeysAsync();
 
         AttachQuery(vm.ActiveTab);
     }
@@ -1505,6 +1517,132 @@ public partial class MainWindow : Window
         {
             _ = vm.SetCellNullAsync(row, _lastPressedColumnIndex);
         }
+    }
+
+    // --- Follow a foreign key from the grid --------------------------------
+
+    // The forward hop staged by the last menu-opening pass, consumed by
+    // OnFollowFkClick. (Reverse hops are captured per sub-item closure.)
+    private ForeignKeyHop? _followHop;
+    // Resolved lazily from the menu's items: named elements inside a
+    // ContextMenu aren't reliably reachable through the window's name scope.
+    private MenuItem? _followFkItem;
+    private MenuItem? _referencingRowsItem;
+
+    // Composes the FK-navigation items for the pressed cell each time the grid
+    // menu opens: "Follow <col> → parent" when the cell's column is the child
+    // side of an FK, and a "Referencing rows" submenu (one entry per child
+    // table) when other tables' FKs point at it. Both hidden otherwise. Reads
+    // only the FK cache — a menu can't await a catalog query.
+    private void OnResultsGridMenuOpening()
+    {
+        if (ResultsGrid.ContextMenu is not { } menu)
+        {
+            return;
+        }
+
+        _followFkItem ??= menu.Items.OfType<MenuItem>().FirstOrDefault(m => m.Name == "FollowFkMenuItem");
+        _referencingRowsItem ??= menu.Items.OfType<MenuItem>().FirstOrDefault(m => m.Name == "ReferencingRowsMenuItem");
+        if (_followFkItem is null || _referencingRowsItem is null)
+        {
+            return;
+        }
+
+        _followHop = null;
+        _followFkItem.IsVisible = false;
+        _referencingRowsItem.IsVisible = false;
+        _referencingRowsItem.ItemsSource = null;
+
+        if (_viewModel is not { } vm || _queryViewModel is not { } query || _lastPressedRow is null)
+        {
+            return;
+        }
+
+        // The table this result set shows: browse mode always knows it; a
+        // non-browse result only when it's edit-mapped. Anything else (an
+        // arbitrary join, a bare SELECT) has no table identity to hop from.
+        var (schema, table) = query.Browse is { } browse
+            ? (browse.Schema, browse.Name)
+            : query.EditContext is { } ctx ? (ctx.Schema, ctx.Table) : (null!, null!);
+        if (schema is null || table is null)
+        {
+            return;
+        }
+
+        if (_lastPressedColumnIndex < 0 || _lastPressedColumnIndex >= query.ColumnNames.Count)
+        {
+            return;
+        }
+
+        var column = query.ColumnNames[_lastPressedColumnIndex];
+        var foreignKeys = vm.ForeignKeys;
+        if (foreignKeys.Count == 0)
+        {
+            return;
+        }
+
+        if (ForeignKeyNavigator.FindReferencedRow(schema, table, column, foreignKeys) is { } forward)
+        {
+            _followHop = forward;
+            _followFkItem.Header = EscapeMenuHeader($"Follow {column} → {forward.QualifiedTarget}");
+            _followFkItem.IsVisible = true;
+        }
+
+        var reverse = ForeignKeyNavigator.FindReferencingTables(schema, table, column, foreignKeys);
+        if (reverse.Count > 0)
+        {
+            _referencingRowsItem.ItemsSource = reverse.Select(hop =>
+            {
+                var item = new MenuItem { Header = EscapeMenuHeader($"{hop.QualifiedTarget} · {string.Join(", ", hop.TargetColumns)}") };
+                item.Click += (_, _) => FollowHop(hop);
+                return item;
+            }).ToList();
+            _referencingRowsItem.IsVisible = true;
+        }
+    }
+
+    // A string MenuItem.Header treats "_" as the access-key marker and eats it
+    // ("customer_id" renders as "customerid") — double it so identifiers with
+    // underscores display verbatim.
+    private static string EscapeMenuHeader(string text) => text.Replace("_", "__");
+
+    private void OnFollowFkClick(object? sender, RoutedEventArgs e)
+    {
+        if (_followHop is { } hop)
+        {
+            FollowHop(hop);
+        }
+    }
+
+    // Jumps to the hop's target table in browse mode, filtered to the rows the
+    // pressed row's key values select — a new tab, like every table preview.
+    private void FollowHop(ForeignKeyHop hop)
+    {
+        if (_viewModel is not { } vm || _queryViewModel is not { } query || _lastPressedRow is not { } row)
+        {
+            return;
+        }
+
+        var values = new object?[hop.SourceColumns.Count];
+        for (var i = 0; i < hop.SourceColumns.Count; i++)
+        {
+            var index = query.ColumnNames.IndexOf(hop.SourceColumns[i]);
+            if (index < 0 || index >= row.Length)
+            {
+                query.Status = $"Can't follow: column {hop.SourceColumns[i]} isn't in this result set.";
+                return;
+            }
+
+            values[i] = row[index];
+        }
+
+        if (ForeignKeyNavigator.BuildFilter(hop.TargetColumns, values) is not { } filter)
+        {
+            query.Status = "Can't follow a NULL key — it references no row.";
+            return;
+        }
+
+        _ = vm.PreviewTableAsync(hop.TargetSchema, hop.TargetTable, filter);
     }
 
     private void OpenCellInspector(object?[] row, int columnIndex)

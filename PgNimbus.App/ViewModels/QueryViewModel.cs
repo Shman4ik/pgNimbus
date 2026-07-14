@@ -699,10 +699,17 @@ public sealed partial class QueryViewModel : ObservableObject
     /// filter/sort/paging bar (bound to <see cref="Browse"/>) takes over from
     /// there, re-querying the server on every change.
     /// </summary>
-    public Task StartBrowseAsync(string schema, string name, IReadOnlyList<string> primaryKeyColumns)
+    public Task StartBrowseAsync(string schema, string name, IReadOnlyList<string> primaryKeyColumns, string? initialFilter = null)
     {
         _browsePkColumns = primaryKeyColumns;
         Browse = new TableBrowseViewModel(schema, name, RunBrowseSqlAsync);
+        if (!string.IsNullOrEmpty(initialFilter))
+        {
+            // A pre-seeded WHERE (e.g. following a foreign key to the referenced
+            // row) — shown in the filter box so it's visible and clearable.
+            Browse.FilterText = initialFilter;
+        }
+
         return Browse.LoadAsync();
     }
 

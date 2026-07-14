@@ -140,7 +140,12 @@ public static class ResultExporter
             ? name
             : $"\"{name.Replace("\"", "\"\"")}\"";
 
-    private static string FormatSqlLiteral(object? value) => value switch
+    /// <summary>
+    /// Render a CLR value as a SQL literal: NULL, unquoted numbers/booleans,
+    /// single-quoted and <c>''</c>-escaped text, <c>\x…</c> bytea. Shared by the
+    /// INSERT exporter and FK-follow filter composition.
+    /// </summary>
+    public static string FormatSqlLiteral(object? value) => value switch
     {
         null or DBNull => "NULL",
         bool b => b ? "TRUE" : "FALSE",

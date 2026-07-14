@@ -145,6 +145,11 @@ Every tag push (`vX.Y.Z`) builds all of the above via
   `WHERE` filter, `ORDER BY` from clicking a column header, and prev/next
   paging — all pushed down to Postgres (`WHERE`/`ORDER BY`/`LIMIT`/`OFFSET`),
   so browsing a huge table stays as cheap as one page.
+- **Follow foreign keys from the grid** — right-click an FK cell while
+  browsing to jump to the row it references ("Follow customer_id →
+  public.customers"), or a key cell to list the rows referencing it
+  ("Referencing rows"), each hop opening the target table in a new
+  pre-filtered browse tab.
 - **Connection manager** — saved profiles with a per-connection accent color
   (so production doesn't look like staging), drag-to-reorder of the saved
   list, SSH tunnel support, and passwords held by the OS credential store
@@ -496,12 +501,12 @@ Everything below is what survives that filter, roughly in impact order:
   mode is TablePlus's single most-praised trust feature. The transaction
   machinery (held session connection, auto-rollback) is most of the plumbing
   already.
-- [ ] **Follow a foreign key from the grid** — a result/browse cell whose
-  column has an FK gets a click-through (context menu or Ctrl+click) that
-  jumps to the referenced row in browse mode, plus the reverse ("rows
-  referencing this one") from a key cell. The most-praised "little feature"
-  in DBeaver's HN comments, and the heart of Postico's row editing (FK
-  picker). The FK edges are already loaded for JOIN completion — reuse them.
+- [x] **Follow a foreign key from the grid** — right-clicking a browse-mode
+  cell whose column is an FK offers "Follow *col* → *parent table*" (jumps to
+  the referenced row in a new filtered browse tab), and a key cell offers
+  "Referencing rows" (one entry per table whose FK points here). Reuses the
+  FK edges already loaded for JOIN completion; composite keys AND-join their
+  filter. The most-praised "little feature" in DBeaver's HN comments.
 - [ ] **Workspace restore** — reopen the last session's tabs, including
   never-saved SQL, exactly as they were — no save prompts on exit
   (Notepad++-style, called out on HN as what makes DBeaver safe to close).
