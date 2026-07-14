@@ -181,8 +181,10 @@ Every tag push (`vX.Y.Z`) builds all of the above via
   functions/procedures/aggregates*, inserted as calls with the argument list
   and return type shown as a tooltip in place of a separate parameter-hints
   popup), saved queries,
-  run history, current-line and matching-bracket highlighting, and font-size
-  zoom (<kbd>Ctrl</kbd>+wheel / <kbd>Ctrl</kbd>+<kbd>±</kbd>).
+  run history, current-line and matching-bracket highlighting, find & replace
+  (<kbd>Ctrl</kbd>+<kbd>F</kbd> / <kbd>Ctrl</kbd>+<kbd>H</kbd>, F3 steps
+  matches), and font-size zoom (<kbd>Ctrl</kbd>+wheel /
+  <kbd>Ctrl</kbd>+<kbd>±</kbd>).
 - **SQL formatting** — <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> (or "Format
   SQL" in the command palette) pretty-prints the statement under the cursor in a
   readable block style — clauses on their own lines, list items and JOINs one per
@@ -253,6 +255,7 @@ The highlights:
 | Run query | <kbd>Ctrl</kbd>+<kbd>Enter</kbd> or <kbd>F5</kbd> |
 | Run just the statement under the cursor | <kbd>Shift</kbd>+<kbd>Enter</kbd> |
 | Format the statement under the cursor | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> |
+| Find / find & replace in the editor | <kbd>Ctrl</kbd>+<kbd>F</kbd> / <kbd>Ctrl</kbd>+<kbd>H</kbd> |
 | Cancel running query | <kbd>Esc</kbd> |
 | New / close query tab | <kbd>Ctrl</kbd>+<kbd>T</kbd> / <kbd>Ctrl</kbd>+<kbd>W</kbd> |
 | Next / previous tab | <kbd>Ctrl</kbd>+<kbd>PageDown</kbd> / <kbd>Ctrl</kbd>+<kbd>PageUp</kbd> |
@@ -539,9 +542,11 @@ Everything below is what survives that filter, roughly in impact order:
 - [ ] **Row detail sidebar** — a vertical name/value view of the selected row
   (Postico's much-loved "row sidebar"), for tables too wide to read as a grid
   row; doubles as a form-style editor and complements the cell inspector.
-- [ ] **Find & replace in the editor** — AvaloniaEdit ships a `SearchPanel`;
-  wire it up (Ctrl+F / Ctrl+H via `Hotkeys.cs`) and restyle it to match the
-  shell. A standing Beekeeper ask; table-stakes for an editor.
+- [x] **Find & replace in the editor** — <kbd>Ctrl</kbd>+<kbd>F</kbd> /
+  <kbd>Ctrl</kbd>+<kbd>H</kbd> (via `Hotkeys.cs`, so Cmd on macOS) open
+  AvaloniaEdit's SearchPanel over the SQL editor, seeded with the current
+  selection; F3/Shift+F3 step matches, match highlights are theme-tinted, and
+  both actions are in the command palette.
 - [ ] **Linux builds** — the linux-x64 NativeAOT publish already works (it's
   how the app is exercised in CI sandboxes and benchmarks); what's missing is
   a release-pipeline leg and packaging. Flatpak is the #2 top-voted Beekeeper

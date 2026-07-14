@@ -18,6 +18,7 @@ using Avalonia.VisualTree;
 using AvaloniaEdit.CodeCompletion;
 using AvaloniaEdit.Highlighting;
 using AvaloniaEdit.Highlighting.Xshd;
+using AvaloniaEdit.Search;
 using PgNimbus.App.Completion;
 using PgNimbus.App.ViewModels;
 using PgNimbus.Core.Import;
@@ -46,6 +47,9 @@ public partial class MainWindow : Window
     private bool _suppressFilterCompletion;
     private ShortcutsWindow? _shortcutsWindow;
     private IHighlightingDefinition? _sqlHighlighting;
+    // AvaloniaEdit's stock find/replace panel, installed on the SQL editor;
+    // opened via Ctrl+F / Ctrl+H (see OnKeyDown) or the command palette.
+    private SearchPanel? _searchPanel;
     // The row/column the pointer last pressed in the results grid, so "Inspect
     // cell…" on the context menu (which carries no cell of its own) knows what
     // to open - kept in sync by every press, not just the one that opens it.
@@ -161,6 +165,12 @@ public partial class MainWindow : Window
         SqlEditor.Options.HighlightCurrentLine = true;
         SqlEditor.TextArea.Caret.PositionChanged += (_, _) => UpdateBracketHighlight();
         SqlEditor.AddHandler(PointerWheelChangedEvent, OnSqlEditorPointerWheel, RoutingStrategies.Tunnel);
+
+        // Find & replace: AvaloniaEdit's SearchPanel handles matching,
+        // highlighting, and its own F3/Shift+F3/Esc bindings; only opening it
+        // (Ctrl/Cmd+F, Ctrl/Cmd+H — see OnKeyDown) goes through Hotkeys. Its
+        // match-highlight brush is theme-resolved in ApplySqlHighlightingTheme.
+        _searchPanel = SearchPanel.Install(SqlEditor);
 
         // Tab-strip navigation extras: the ‹/› arrows only appear when the
         // strip overflows, and the ▾ dropdown lists every open tab with
@@ -322,11 +332,40 @@ public partial class MainWindow : Window
         textView.CurrentLineBackground = new SolidColorBrush(Color.Parse(dark ? "#0DFFFFFF" : "#0D000000"));
         textView.CurrentLineBorder = new Pen(Brushes.Transparent);
         _bracketRenderer.Brush = new SolidColorBrush(Color.Parse(dark ? "#40569CD6" : "#332B5FBF"));
+        // Find-match highlight: same accent-tinted wash family as the bracket pair.
+        _searchPanel?.SetSearchResultsBrush(new SolidColorBrush(Color.Parse(dark ? "#40569CD6" : "#332B5FBF")));
 
         // Reassigning is what makes the TextView drop its cached line
         // visuals and re-run the highlighter with the new brushes.
         SqlEditor.SyntaxHighlighting = null;
         SqlEditor.SyntaxHighlighting = _sqlHighlighting;
+    }
+
+    /// <summary>
+    /// Opens the editor's find (or find &amp; replace) panel, seeding the
+    /// search box with the current single-line selection the way most editors
+    /// do. Reactivate focuses and selects the search box, so a second Ctrl+F
+    /// while the panel is already open just puts the cursor back in it.
+    /// </summary>
+    private void OpenSearchPanel(bool replaceMode)
+    {
+        if (_searchPanel is null)
+        {
+            return;
+        }
+
+        _searchPanel.IsReplaceMode = replaceMode;
+
+        var selection = SqlEditor.SelectedText;
+        if (!string.IsNullOrEmpty(selection) && !selection.Contains('\n'))
+        {
+            _searchPanel.SearchPattern = selection;
+        }
+
+        _searchPanel.Open();
+        // Focus after the open has been laid out — Reactivate needs the panel's
+        // TextBox realized, which isn't guaranteed synchronously on first open.
+        Dispatcher.UIThread.Post(() => _searchPanel.Reactivate());
     }
 
     private void SetHighlightColor(string name, string hex)
@@ -370,6 +409,23 @@ public partial class MainWindow : Window
             return;
         }
 
+        // Find / find & replace in the SQL editor. Handled here rather than a
+        // KeyBinding so the Cmd scheme works even though SearchPanel.Install
+        // also binds the physical Ctrl+F internally.
+        if (e.Key == Key.F && e.KeyModifiers == Hotkeys.Command)
+        {
+            OpenSearchPanel(replaceMode: false);
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Key == Key.H && e.KeyModifiers == Hotkeys.Command)
+        {
+            OpenSearchPanel(replaceMode: true);
+            e.Handled = true;
+            return;
+        }
+
         if (e.Key == Key.F6 && e.KeyModifiers == KeyModifiers.None)
         {
             if (SqlEditor.IsKeyboardFocusWithin)
@@ -398,6 +454,7 @@ public partial class MainWindow : Window
             _viewModel.SwitchConnectionRequested -= SwitchConnection;
             _viewModel.FormatSqlRequested -= FormatCurrentStatement;
             _viewModel.ExpandStarRequested -= ExpandSelectStar;
+            _viewModel.FindRequested -= OpenSearchPanel;
             _viewModel.ActivityRequested -= ShowActivityWindow;
             _viewModel.SidebarToggleRequested -= ToggleSidebar;
             _viewModel.PreferencesRequested -= ShowPreferencesWindow;
@@ -411,6 +468,7 @@ public partial class MainWindow : Window
         _viewModel.SwitchConnectionRequested += SwitchConnection;
         _viewModel.FormatSqlRequested += FormatCurrentStatement;
         _viewModel.ExpandStarRequested += ExpandSelectStar;
+        _viewModel.FindRequested += OpenSearchPanel;
         _viewModel.ActivityRequested += ShowActivityWindow;
         _viewModel.SidebarToggleRequested += ToggleSidebar;
         _viewModel.PreferencesRequested += ShowPreferencesWindow;
