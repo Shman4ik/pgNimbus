@@ -706,8 +706,25 @@
                         </TextBlock>
                     </StackPanel>
                     <Grid RowDefinitions="Auto,*" IsVisible="{Binding ActiveTab.IsShowingPlan}">
-                        <TextBlock Grid.Row="0" Text="{Binding ActiveTab.ExplainSummary}" Margin="4" FontSize="12" Opacity="0.8" />
-                        <ScrollViewer Grid.Row="1">
+                        <DockPanel Grid.Row="0" Margin="4">
+                            <!-- pgAdmin-style plan view switch: raw text (default) vs graphical tree -->
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="2">
+                                <Button Classes="chip" Classes.active="{Binding ActiveTab.IsPlanTextView}"
+                                        Command="{Binding ActiveTab.ShowPlanAsTextCommand}"
+                                        Content="Text" FontSize="11" Padding="8,2" />
+                                <Button Classes="chip" Classes.active="{Binding !ActiveTab.IsPlanTextView}"
+                                        Command="{Binding ActiveTab.ShowPlanAsTreeCommand}"
+                                        Content="Tree" FontSize="11" Padding="8,2" />
+                            </StackPanel>
+                            <TextBlock Text="{Binding ActiveTab.ExplainSummary}" FontSize="12" Opacity="0.8"
+                                       VerticalAlignment="Center" />
+                        </DockPanel>
+                        <ScrollViewer Grid.Row="1" IsVisible="{Binding ActiveTab.IsPlanTextView}"
+                                      HorizontalScrollBarVisibility="Auto">
+                            <SelectableTextBlock Text="{Binding ActiveTab.ExplainText}" Margin="8,4"
+                                                 FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="12.5" />
+                        </ScrollViewer>
+                        <ScrollViewer Grid.Row="1" IsVisible="{Binding !ActiveTab.IsPlanTextView}">
                             <TreeView ItemsSource="{Binding ActiveTab.ExplainRoots}" Margin="4">
                                 <TreeView.ItemTemplate>
                                     <TreeDataTemplate DataType="vm:ExplainNodeViewModel" ItemsSource="{Binding Children}">

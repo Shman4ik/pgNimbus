@@ -25,11 +25,11 @@ public sealed class ExplainNodeViewModel
 
     public double BarWidth { get; }
 
-    public string Title => Node.RelationName is { Length: > 0 } rel ? $"{Node.NodeType} on {rel}" : Node.NodeType;
+    public string Title => ExplainTextFormatter.HeaderFor(Node);
 
     public string CostLabel => $"cost={Node.StartupCost:F2}..{Node.TotalCost:F2} rows={Node.PlanRows} width={Node.PlanWidth}";
 
     public string? ActualLabel => Node.ActualTotalTimeMs is { } total
-        ? $"actual time={Node.ActualStartupTimeMs:F3}..{total:F3} ms rows={Node.ActualRows} loops={Node.ActualLoops}"
+        ? $"actual time={Node.ActualStartupTimeMs:F3}..{total:F3} ms rows={Node.ActualRows:0.##} loops={Node.ActualLoops}"
         : null;
 }
