@@ -49,6 +49,9 @@ public sealed partial class MainViewModel : ObservableObject
     // Raised to replace the statement's SELECT * with the explicit column
     // list; MainWindow applies the rewrite, same split as Format SQL.
     public event Action? ExpandStarRequested;
+    // Raised to open the editor's find / find & replace panel (the view owns
+    // the AvaloniaEdit SearchPanel). The bool is "replace mode".
+    public event Action<bool>? FindRequested;
     // Raised to open (or focus) the Server Activity window, which the view owns.
     public event Action? ActivityRequested;
     // Raised to collapse/restore the sidebar (the view owns the grid column).
@@ -267,14 +270,16 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     private async Task RefreshSchemaAsync()
     {
-        // Force the palette to re-fetch relations, and the fix reconciler to
-        // rebuild its name snapshot, on next use.
+        // Force the palette to re-fetch relations, the fix reconciler to
+        // rebuild its name snapshot, and the FK edges to reload, on next use.
         _relationCache = null;
         _reconciler = null;
+        _foreignKeyCache = null;
 
         await Task.WhenAll(
             SchemaTree.RefreshCommand.ExecuteAsync(null),
-            CompletionProvider.RefreshAsync(CancellationToken.None));
+            CompletionProvider.RefreshAsync(CancellationToken.None),
+            EnsureForeignKeysAsync());
     }
 
     private bool CanCloseTab() => Tabs.Count > 1;
@@ -395,7 +400,7 @@ public sealed partial class MainViewModel : ObservableObject
 
     public Task PreviewTableAsync(TableNode table) => PreviewTableAsync(table.Schema, table.Name);
 
-    public async Task PreviewTableAsync(string schema, string name)
+    public async Task PreviewTableAsync(string schema, string name, string? initialFilter = null)
     {
         // Opens in a new tab rather than the active one - see the "loading a
         // query never overwrites the active tab" rule (CLAUDE.md).
@@ -407,7 +412,34 @@ public sealed partial class MainViewModel : ObservableObject
 
         // Open the table in no-SQL browse mode: server-side filter/sort/paging,
         // with inline editing when the table has a primary key.
-        await tab.StartBrowseAsync(schema, name, primaryKeyColumns);
+        await tab.StartBrowseAsync(schema, name, primaryKeyColumns, initialFilter);
+    }
+
+    // FK edges for grid navigation ("Follow foreign key" / "Referencing rows"
+    // on the results-grid context menu). Fetched once in the background at
+    // attach time (the menu reads whatever is cached — it can't await), and
+    // invalidated with the other catalog caches by RefreshSchemaAsync.
+    private IReadOnlyList<ForeignKeyInfo>? _foreignKeyCache;
+
+    /// <summary>The cached FK edge list; empty until <see cref="EnsureForeignKeysAsync"/> has completed once.</summary>
+    public IReadOnlyList<ForeignKeyInfo> ForeignKeys => _foreignKeyCache ?? [];
+
+    /// <summary>Loads the FK edges if not cached yet. Best-effort: a failure just leaves grid FK navigation unavailable.</summary>
+    public async Task EnsureForeignKeysAsync()
+    {
+        if (_foreignKeyCache is not null)
+        {
+            return;
+        }
+
+        try
+        {
+            _foreignKeyCache = await _schemaService.GetForeignKeysAsync(CancellationToken.None);
+        }
+        catch
+        {
+            // No connection / query failure: the context-menu items simply stay hidden.
+        }
     }
 
     /// <summary>
@@ -455,6 +487,8 @@ public sealed partial class MainViewModel : ObservableObject
         yield return new PaletteItem("Next tab", "Action", "›", Invoke(() => NextTabCommand), Hotkeys.Label("PgDn"));
         yield return new PaletteItem("Previous tab", "Action", "‹", Invoke(() => PreviousTabCommand), Hotkeys.Label("PgUp"));
         yield return new PaletteItem("Format SQL", "Action", "❖", () => { FormatSqlRequested?.Invoke(); return Task.CompletedTask; }, Hotkeys.Label("Shift+F"));
+        yield return new PaletteItem("Find in editor", "Action", "⌕", () => { FindRequested?.Invoke(false); return Task.CompletedTask; }, Hotkeys.Label("F"));
+        yield return new PaletteItem("Find & replace in editor", "Action", "⌕", () => { FindRequested?.Invoke(true); return Task.CompletedTask; }, Hotkeys.Label("H"));
         yield return new PaletteItem("Expand SELECT * into columns", "Action", "✳", () => { ExpandStarRequested?.Invoke(); return Task.CompletedTask; });
         yield return new PaletteItem("Toggle sidebar", "Action", "◫", () => { SidebarToggleRequested?.Invoke(); return Task.CompletedTask; }, Hotkeys.Label("B"));
         yield return new PaletteItem("Toggle auto-alias tables (orders → orders o)", "Action", "a", Invoke(() => ToggleAutoAliasCommand), Hotkeys.Label("Shift+A"));

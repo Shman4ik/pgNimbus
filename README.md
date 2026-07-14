@@ -145,6 +145,11 @@ Every tag push (`vX.Y.Z`) builds all of the above via
   `WHERE` filter, `ORDER BY` from clicking a column header, and prev/next
   paging — all pushed down to Postgres (`WHERE`/`ORDER BY`/`LIMIT`/`OFFSET`),
   so browsing a huge table stays as cheap as one page.
+- **Follow foreign keys from the grid** — right-click an FK cell while
+  browsing to jump to the row it references ("Follow customer_id →
+  public.customers"), or a key cell to list the rows referencing it
+  ("Referencing rows"), each hop opening the target table in a new
+  pre-filtered browse tab.
 - **Connection manager** — saved profiles with a per-connection accent color
   (so production doesn't look like staging), drag-to-reorder of the saved
   list, SSH tunnel support, and passwords held by the OS credential store
@@ -181,8 +186,10 @@ Every tag push (`vX.Y.Z`) builds all of the above via
   functions/procedures/aggregates*, inserted as calls with the argument list
   and return type shown as a tooltip in place of a separate parameter-hints
   popup), saved queries,
-  run history, current-line and matching-bracket highlighting, and font-size
-  zoom (<kbd>Ctrl</kbd>+wheel / <kbd>Ctrl</kbd>+<kbd>±</kbd>).
+  run history, current-line and matching-bracket highlighting, find & replace
+  (<kbd>Ctrl</kbd>+<kbd>F</kbd> / <kbd>Ctrl</kbd>+<kbd>H</kbd>, F3 steps
+  matches), and font-size zoom (<kbd>Ctrl</kbd>+wheel /
+  <kbd>Ctrl</kbd>+<kbd>±</kbd>).
 - **SQL formatting** — <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> (or "Format
   SQL" in the command palette) pretty-prints the statement under the cursor in a
   readable block style — clauses on their own lines, list items and JOINs one per
@@ -226,6 +233,17 @@ Every tag push (`vX.Y.Z`) builds all of the above via
 - **LISTEN/NOTIFY monitor** — subscribe to channels and watch notifications
   arrive live.
 
+## Privacy
+
+pgNimbus sends **zero telemetry**. No usage analytics, no crash reporting,
+no update pings, no "anonymous statistics" — nothing. The only network
+connections the app ever opens are the ones you configure: your PostgreSQL
+servers and, if you use them, your SSH tunnel hosts. Queries, schemas,
+credentials, and history never leave your machine (passwords live in the OS
+credential store, everything else in local JSON files under your user
+profile). The code is MIT-licensed and open — you can verify all of this
+rather than take it on faith.
+
 ## Keyboard shortcuts
 
 Press <kbd>F1</kbd> in the app for the full cheat sheet. On macOS,
@@ -242,6 +260,7 @@ The highlights:
 | Run query | <kbd>Ctrl</kbd>+<kbd>Enter</kbd> or <kbd>F5</kbd> |
 | Run just the statement under the cursor | <kbd>Shift</kbd>+<kbd>Enter</kbd> |
 | Format the statement under the cursor | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> |
+| Find / find & replace in the editor | <kbd>Ctrl</kbd>+<kbd>F</kbd> / <kbd>Ctrl</kbd>+<kbd>H</kbd> |
 | Cancel running query | <kbd>Esc</kbd> |
 | New / close query tab | <kbd>Ctrl</kbd>+<kbd>T</kbd> / <kbd>Ctrl</kbd>+<kbd>W</kbd> |
 | Next / previous tab | <kbd>Ctrl</kbd>+<kbd>PageDown</kbd> / <kbd>Ctrl</kbd>+<kbd>PageUp</kbd> |
@@ -402,10 +421,10 @@ individually shippable pieces. Shipped items graduate from this list into
   (Preferences → Keyboard, `Hotkeys.cs`) is the foundation; the next step is
   letting users rebind individual actions, persisted in `AppSettings`, with
   conflict detection and a reset-to-defaults.
-- [ ] **State the privacy guarantee** — a short README/docs section pledging
-  zero telemetry and zero network traffic beyond the database and SSH hosts
-  you configure. Costs nothing (it's already true) and is something users
-  explicitly probe new clients for
+- [x] **State the privacy guarantee** — the [Privacy](#privacy) section
+  above pledges zero telemetry and zero network traffic beyond the database
+  and SSH hosts you configure. It was already true; now it's stated where
+  users look for it
   ([Show HN: DB Pro](https://news.ycombinator.com/item?id=46078571)).
 
 ### SQL editor — completion that predicts the next move
@@ -482,12 +501,12 @@ Everything below is what survives that filter, roughly in impact order:
   mode is TablePlus's single most-praised trust feature. The transaction
   machinery (held session connection, auto-rollback) is most of the plumbing
   already.
-- [ ] **Follow a foreign key from the grid** — a result/browse cell whose
-  column has an FK gets a click-through (context menu or Ctrl+click) that
-  jumps to the referenced row in browse mode, plus the reverse ("rows
-  referencing this one") from a key cell. The most-praised "little feature"
-  in DBeaver's HN comments, and the heart of Postico's row editing (FK
-  picker). The FK edges are already loaded for JOIN completion — reuse them.
+- [x] **Follow a foreign key from the grid** — right-clicking a browse-mode
+  cell whose column is an FK offers "Follow *col* → *parent table*" (jumps to
+  the referenced row in a new filtered browse tab), and a key cell offers
+  "Referencing rows" (one entry per table whose FK points here). Reuses the
+  FK edges already loaded for JOIN completion; composite keys AND-join their
+  filter. The most-praised "little feature" in DBeaver's HN comments.
 - [ ] **Workspace restore** — reopen the last session's tabs, including
   never-saved SQL, exactly as they were — no save prompts on exit
   (Notepad++-style, called out on HN as what makes DBeaver safe to close).
@@ -528,9 +547,11 @@ Everything below is what survives that filter, roughly in impact order:
 - [ ] **Row detail sidebar** — a vertical name/value view of the selected row
   (Postico's much-loved "row sidebar"), for tables too wide to read as a grid
   row; doubles as a form-style editor and complements the cell inspector.
-- [ ] **Find & replace in the editor** — AvaloniaEdit ships a `SearchPanel`;
-  wire it up (Ctrl+F / Ctrl+H via `Hotkeys.cs`) and restyle it to match the
-  shell. A standing Beekeeper ask; table-stakes for an editor.
+- [x] **Find & replace in the editor** — <kbd>Ctrl</kbd>+<kbd>F</kbd> /
+  <kbd>Ctrl</kbd>+<kbd>H</kbd> (via `Hotkeys.cs`, so Cmd on macOS) open
+  AvaloniaEdit's SearchPanel over the SQL editor, seeded with the current
+  selection; F3/Shift+F3 step matches, match highlights are theme-tinted, and
+  both actions are in the command palette.
 - [ ] **Linux builds** — the linux-x64 NativeAOT publish already works (it's
   how the app is exercised in CI sandboxes and benchmarks); what's missing is
   a release-pipeline leg and packaging. Flatpak is the #2 top-voted Beekeeper

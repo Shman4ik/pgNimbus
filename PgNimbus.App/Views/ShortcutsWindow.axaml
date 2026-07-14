@@ -127,6 +127,25 @@
                         </StackPanel>
                     </Grid>
                     <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
+                        <TextBlock Classes="what" Text="Find / find &amp; replace" />
+                        <StackPanel Grid.Column="1" Classes="keys">
+                            <Border Classes="kbd"><TextBlock Classes="cmdKey" Text="Ctrl" /></Border>
+                            <Border Classes="kbd"><TextBlock Text="F" /></Border>
+                            <TextBlock Classes="combo" Text="/" />
+                            <Border Classes="kbd"><TextBlock Classes="cmdKey" Text="Ctrl" /></Border>
+                            <Border Classes="kbd"><TextBlock Text="H" /></Border>
+                        </StackPanel>
+                    </Grid>
+                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
+                        <TextBlock Classes="what" Text="Next / previous match" />
+                        <StackPanel Grid.Column="1" Classes="keys">
+                            <Border Classes="kbd"><TextBlock Text="F3" /></Border>
+                            <TextBlock Classes="combo" Text="/" />
+                            <Border Classes="kbd"><TextBlock Text="Shift" /></Border>
+                            <Border Classes="kbd"><TextBlock Text="F3" /></Border>
+                        </StackPanel>
+                    </Grid>
+                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
                         <TextBlock Classes="what" Text="Undo / Redo" />
                         <StackPanel Grid.Column="1" Classes="keys">
                             <Border Classes="kbd"><TextBlock Classes="cmdKey" Text="Ctrl" /></Border>
