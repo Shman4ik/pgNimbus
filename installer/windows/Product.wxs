@@ -4,11 +4,20 @@
                -d PublishDir=<absolute path to dotnet publish output dir>
                -d Version=<x.y.z, no leading v>
                -d IconFile=<absolute path to app.ico>
+               -d StartMenuIconFile=<absolute path to window-icon-dark.ico>
                -arch x64
                -o pgNimbus-<version>-win-x64.msi
 
-  PublishDir/IconFile must be absolute paths: WiX resolves relative -d
-  values against this .wxs file's own directory, not the caller's cwd.
+  PublishDir/IconFile/StartMenuIconFile must be absolute paths: WiX resolves
+  relative -d values against this .wxs file's own directory, not the
+  caller's cwd.
+
+  IconFile (the plated app.ico) drives the exe/MSI/ARP icon; the Start Menu
+  shortcut instead uses StartMenuIconFile, the transparent unplated line-art
+  icon, so the pinned tile matches every other app's transparent Start tile
+  (see CLAUDE.md "App icon / logo assets"). This is independent of the
+  runtime window/taskbar icon (set via WM_SETICON, always plated) — a
+  shortcut's icon is static metadata read only while the app isn't running.
 
   Per-user install (no elevation) into %LocalAppData%\pgNimbus — deliberate,
   since this MSI is unsigned for now and per-machine + unsigned is a much
@@ -27,6 +36,7 @@
     <MediaTemplate EmbedCab="yes" />
 
     <Icon Id="AppIcon.ico" SourceFile="$(var.IconFile)" />
+    <Icon Id="StartMenuIcon.ico" SourceFile="$(var.StartMenuIconFile)" />
     <Property Id="ARPPRODUCTICON" Value="AppIcon.ico" />
     <Property Id="ARPURLINFOABOUT" Value="https://github.com/Shman4ik/pgNimbus" />
     <Property Id="ARPNOMODIFY" Value="1" />
@@ -43,7 +53,7 @@
                     Description="A fast, open-source PostgreSQL GUI client"
                     Target="[INSTALLFOLDER]PgNimbus.App.exe"
                     WorkingDirectory="INSTALLFOLDER"
-                    Icon="AppIcon.ico" />
+                    Icon="StartMenuIcon.ico" />
           <RemoveFolder Id="RemoveProgramMenuDir" Directory="ProgramMenuDir" On="uninstall" />
           <RegistryValue Root="HKCU"
                           Key="Software\pgNimbus\pgNimbus"

@@ -108,9 +108,15 @@ csproj / WiX / MSIX manifest reference them unchanged:
   (almost always dark) taskbar whenever the app ran the light theme.
 - `window-icon-light.ico` / `window-icon-dark.ico` — theme-tinted
   transparent line-art icons (16/24/32/48/256, all PNG entries) built from
-  the `window/` masters. **Not consumed in-app anymore** — superseded by the
-  plated `app.ico` window icon above (2026-07); still generated in case
-  transparent themed line art is wanted later.
+  the `window/` masters. Superseded as the runtime window icon by the plated
+  `app.ico` (2026-07 — see above). `window-icon-dark.ico` *is* consumed
+  though: `Product.wxs`'s Start Menu shortcut uses it (via the
+  `StartMenuIconFile` WiX define, see "Release pipeline" below) so the
+  pinned tile matches every other app's transparent Start tile instead of
+  showing a plated square — a shortcut's icon is static metadata read only
+  while the app isn't running, so it doesn't hit the WM_SETICON
+  can't-diverge constraint above. `window-icon-light.ico` still has no
+  consumer (kept in case a light-Start-background variant is wanted later).
 - `Assets/Msix/*` — MSIX tiles, packaging-time-only. Each of
   `Square44x44Logo`/`Square150x150Logo`/`StoreLogo` ships as
   `.scale-{100,125,150,200,400}.png` (not one flat file — Windows will
@@ -305,7 +311,10 @@ job so it never publishes). It produces, per tag:
 - **Windows** — `dotnet publish -r win-x64 -p:PublishAot=true`, then a
   per-user WiX v5 MSI built from [`installer/windows/Product.wxs`](installer/windows/Product.wxs)
   via the `wix` .NET global tool (`wix build ... -d PublishDir=... -d
-  Version=...`). Per-user (installs to `%LocalAppData%`, no elevation) is
+  Version=... -d IconFile=... -d StartMenuIconFile=...`). The Start Menu
+  shortcut is deliberately pointed at the transparent `window-icon-dark.ico`
+  rather than the plated `IconFile`/`app.ico` — see "App icon / logo assets"
+  above. Per-user (installs to `%LocalAppData%`, no elevation) is
   deliberate: the MSI is currently **unsigned** (no code-signing cert yet),
   and per-machine + unsigned is a much worse UAC/SmartScreen experience.
   The `UpgradeCode` GUID in `Product.wxs` is fixed forever — never

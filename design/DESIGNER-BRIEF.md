@@ -37,8 +37,8 @@ design/masters/
 
 | Type | Background | Used as… |
 |---|---|---|
-| **App icon "tile"** (`icon/`) | **Solid color, fills the whole square** | The app's icon on the desktop, taskbar, Start menu, Dock, and in the app stores. It's a little colored square. |
-| **Window / line-art** (`window/`, `logo/`) | **Transparent** | Drawn *on top of* the app's UI and the website. No background — it must look right on both white and near-black. |
+| **App icon "tile"** (`icon/`) | **Solid color, fills the whole square** | The app's icon on the desktop, taskbar, window title bar, Dock, and in the app stores. It's a little colored square. |
+| **Window / line-art** (`window/`, `logo/`) | **Transparent** | Drawn *on top of* the app's UI and the website, plus the Windows Start Menu pinned tile (so it matches every other app's transparent tile there). No background — it must look right on both white and near-black. |
 
 **2. Small icons must be redrawn simpler, not just shrunk.**
 The whole reason for this brief: today the small icons are just the big one

@@ -76,13 +76,15 @@ jobs:
         run: dotnet tool install --global wix --version 5.*
 
       - name: Build MSI
-        # PublishDir/IconFile must be absolute: WiX resolves relative -d
-        # paths against the .wxs file's own directory, not the cwd.
+        # PublishDir/IconFile/StartMenuIconFile must be absolute: WiX
+        # resolves relative -d paths against the .wxs file's own directory,
+        # not the cwd.
         run: >
           wix build installer/windows/Product.wxs
           -d PublishDir=${{ github.workspace }}\publish\win-x64
           -d Version=${{ env.VERSION }}
           -d IconFile=${{ github.workspace }}\PgNimbus.App\Assets\app.ico
+          -d StartMenuIconFile=${{ github.workspace }}\PgNimbus.App\Assets\window-icon-dark.ico
           -arch x64
           -o pgNimbus-${{ env.VERSION }}-win-x64.msi
 

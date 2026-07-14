@@ -65,9 +65,9 @@ MSIX manifest / CI reference them unchanged.
 
 | File | Size(s) | Bg | Consumed by |
 |---|---|---|---|
-| `app.ico` | 16,24,32,48,64,128,256 | solid tile | exe icon (`ApplicationIcon` in csproj) + MSI (`Product.wxs` → `ARPPRODUCTICON`, shortcut) + runtime window icon, title bar + taskbar (`ThemedWindowChrome.cs`) |
+| `app.ico` | 16,24,32,48,64,128,256 | solid tile | exe icon (`ApplicationIcon` in csproj) + MSI (`Product.wxs` → `ARPPRODUCTICON`) + runtime window icon, title bar + taskbar (`ThemedWindowChrome.cs`) |
 | `window-icon-light.ico` | 16,24,32,48,256 | transparent | **nothing right now** — was the light-theme window icon until 2026-07, superseded by the plated `app.ico` (title bar/taskbar/Alt+Tab share one `WM_SETICON` slot, and theme-swapped line art was unreadable on the dark taskbar in light theme); still generated |
-| `window-icon-dark.ico` | 16,24,32,48,256 | transparent | **nothing right now** — same as above (was the dark-theme window icon) |
+| `window-icon-dark.ico` | 16,24,32,48,256 | transparent | MSI Start Menu shortcut icon (`Product.wxs` → `StartMenuIconFile`), so the pinned tile is transparent like every other app's instead of a plated square. A shortcut icon is static (read only while not running), so it doesn't hit the `WM_SETICON` constraint above |
 | `Msix/Square44x44Logo.scale-{100,125,150,200,400}.png` | 44,55,66,88,176 | solid tile | MSIX small tile (`Package.appxmanifest`) |
 | `Msix/Square150x150Logo.scale-{100,125,150,200,400}.png` | 150,188,225,300,600 | solid tile | MSIX medium tile |
 | `Msix/StoreLogo.scale-{100,125,150,200,400}.png` | 50,63,75,100,200 | solid tile | MSIX `Properties/Logo` |
@@ -93,7 +93,7 @@ derives only larger sizes:
 
 ```
 window/window-light-256.png ── resize to 16/24/32/48/256 ──► Assets/window-icon-light.ico
-window/window-dark-256.png  ── resize to 16/24/32/48/256 ──► Assets/window-icon-dark.ico
+window/window-dark-256.png  ── resize to 16/24/32/48/256 ──► Assets/window-icon-dark.ico  (→ MSI Start Menu shortcut)
 icon/icon-{16,24,32,48}.png ── copy (as-is) ─┐
 icon/icon-256.png ── downscale → 64,128 ─────┼─► Assets/app.ico  (7 entries)
 icon/icon-48.png   ── → 44,55,66 ────────────► Assets/Msix/Square44x44Logo.scale-{100,125,150}.png
