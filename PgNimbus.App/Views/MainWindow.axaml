@@ -493,7 +493,8 @@
             </DockPanel>
 
             <!-- Files-style command bar: accent primary action, quiet icon+label secondaries -->
-            <Border Grid.Row="1" Classes="card" Padding="4" Margin="0,0,0,12" HorizontalAlignment="Left">
+            <Border Grid.Row="1" Classes="card" Classes.planOpen="{Binding ActiveTab.IsShowingPlan}"
+                    Padding="4" Margin="0,0,0,12" HorizontalAlignment="Left">
                 <Border.Resources>
                     <!--
                         Disabled buttons inside the command bar stay transparent
@@ -513,6 +514,12 @@
                          actually has to fit into. -->
                     <Style Selector="TextBlock.collapsible">
                         <Setter Property="IsVisible" Value="{Binding $parent[Grid].Bounds.Width, Converter={x:Static conv2:MinWidthVisibilityConverter.Instance}, ConverterParameter=660}" />
+                    </Style>
+                    <!-- While a plan is on screen the bar carries one extra button
+                         ("Show results"), so labels need more room before they fit —
+                         collapse them earlier or Export/Import get pushed off-pane. -->
+                    <Style Selector="Border.planOpen TextBlock.collapsible">
+                        <Setter Property="IsVisible" Value="{Binding $parent[Grid].Bounds.Width, Converter={x:Static conv2:MinWidthVisibilityConverter.Instance}, ConverterParameter=790}" />
                     </Style>
                 </Border.Styles>
                 <StackPanel Orientation="Horizontal" Spacing="2">
