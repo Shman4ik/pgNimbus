@@ -277,11 +277,13 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
                 Username = parsed.Username;
             }
 
-            // The preview renders the password as mask bullets (see
+            // The preview renders the password as the fixed mask string (see
             // BuildPreviewConnectionString) - when the user hand-edits some
-            // other part of the preview, the re-parse hands those bullets
-            // back here, and they must not overwrite the real password.
-            if (parsed.Password is not null && !parsed.Password.Contains(PasswordMaskChar))
+            // other part of the preview, the re-parse hands that mask back
+            // here, and it must not overwrite the real password. Only the
+            // exact mask is skipped, so a genuine pasted password that merely
+            // contains a bullet still imports.
+            if (parsed.Password is not null && parsed.Password != PasswordMask)
             {
                 Password = parsed.Password;
             }
@@ -324,7 +326,7 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         }
     }
 
-    private const char PasswordMaskChar = '•';
+    private const string PasswordMask = "••••••";
 
     /// <summary>Renders the current fields as a postgres:// URI — the most widely recognized connection string format. The password shows as mask bullets; <see cref="BuildClipboardConnectionString"/> carries the real one.</summary>
     private string BuildPreviewConnectionString() => BuildConnectionStringUri(maskPassword: true);
@@ -342,7 +344,7 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
             if (!string.IsNullOrEmpty(Password))
             {
                 builder.Append(':').Append(maskPassword
-                    ? new string(PasswordMaskChar, 6)
+                    ? PasswordMask
                     : Uri.EscapeDataString(Password));
             }
 

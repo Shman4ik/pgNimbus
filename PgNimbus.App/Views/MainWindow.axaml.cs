@@ -237,7 +237,19 @@ public partial class MainWindow : Window
         CommandBar.Padding = new Thickness(84, 0, 16, 0);
         CommandBar.PointerPressed += (_, e) =>
         {
-            if (e.GetCurrentPoint(CommandBar).Properties.IsLeftButtonPressed)
+            if (!e.GetCurrentPoint(CommandBar).Properties.IsLeftButtonPressed)
+            {
+                return;
+            }
+
+            // Match the native macOS title bar: single press drags, double
+            // click zooms. BeginMoveDrag swallows the second press, so the
+            // zoom has to be handled here rather than via DoubleTapped.
+            if (e.ClickCount == 2)
+            {
+                WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+            }
+            else
             {
                 BeginMoveDrag(e);
             }
