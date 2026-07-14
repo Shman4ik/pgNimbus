@@ -213,6 +213,14 @@ Every tag push (`vX.Y.Z`) builds all of the above via
   cast to its real type server-side, blanks fall back to defaults),
   "Delete selected row(s)" with a confirmation, and "Set cell to NULL" (the
   gesture inline editing can't express), all keyed on the primary key.
+- **Safe mode (pending-changes review)** — a toggle (command palette or
+  preferences) that stages grid edits, deletes, and Add-row inserts locally
+  instead of firing them at the server: dirty rows are highlighted (amber =
+  edited, red = marked for deletion, and <kbd>Delete</kbd> toggles the mark),
+  a status-bar segment counts what's staged, "Review & commit…" shows the
+  exact generated SQL, and committing applies everything as **one
+  transaction** — or discard it all and nothing was ever sent. Built for the
+  "inline edit on production" nerves.
 - **Cell inspector** — double-click a cell (or "Inspect cell…" on the grid
   context menu) to read the full value of a long `text`/`jsonb` cell in an
   overlay: JSON pretty-printed, word wrap on by default with a toggle, and a
@@ -494,13 +502,18 @@ Postico/DataGrip users single out. Multi-database support dominates those
 trackers and is deliberately out of scope — PostgreSQL-first *is* the thesis.
 Everything below is what survives that filter, roughly in impact order:
 
-- [ ] **Pending-changes review ("safe mode")** — stage grid edits, inserts,
+- [x] **Pending-changes review ("safe mode")** — stage grid edits, inserts,
   and deletes locally, highlight the dirty cells/rows, show the generated SQL
   for review, then commit everything as one transaction (or discard). Today
   each inline edit fires immediately, which is scary on production; a staged
-  mode is TablePlus's single most-praised trust feature. The transaction
-  machinery (held session connection, auto-rollback) is most of the plumbing
-  already.
+  mode is TablePlus's single most-praised trust feature. Shipped as an
+  opt-in toggle (palette/preferences, persisted): staged rows get amber/red
+  washes, Delete toggles a row's staged-delete mark, a delete supersedes the
+  row's staged edits until unstaged, and the review dialog shows literal SQL
+  while execution stays parameterized through one `BEGIN…COMMIT` batch
+  (joining the explicit transaction instead when one is open). Once anything
+  is staged, later changes keep staging even if the toggle flips off —
+  mixing immediate and staged writes would apply changes out of order.
 - [x] **Follow a foreign key from the grid** — right-clicking a browse-mode
   cell whose column is an FK offers "Follow *col* → *parent table*" (jumps to
   the referenced row in a new filtered browse tab), and a key cell offers

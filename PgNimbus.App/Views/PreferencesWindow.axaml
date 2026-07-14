@@ -53,6 +53,19 @@
                 </Grid>
             </Border>
 
+            <TextBlock Classes="sectionHeader" Text="DATA EDITING" Margin="4,10,4,4" />
+            <Border Classes="card" Padding="14,12">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Spacing="2" Margin="0,0,16,0">
+                        <TextBlock Classes="label" Text="Safe mode (stage &amp; review changes)" />
+                        <TextBlock Classes="hint" Text="Grid edits, deletes, and Add-row inserts are staged locally and highlighted; review the generated SQL, then commit everything as one transaction — or discard" />
+                    </StackPanel>
+                    <ToggleSwitch Grid.Column="1" VerticalAlignment="Center"
+                                  OnContent="" OffContent=""
+                                  IsChecked="{Binding SafeModeEdits}" />
+                </Grid>
+            </Border>
+
             <TextBlock Classes="sectionHeader" Text="KEYBOARD" Margin="4,10,4,4" />
             <Border Classes="card" Padding="14,12">
                 <Grid ColumnDefinitions="*,Auto">

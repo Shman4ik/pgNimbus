@@ -824,6 +824,23 @@
                         <TextBlock Text="In transaction" Classes="statusText" Foreground="#D9822B"
                                    FontWeight="SemiBold" VerticalAlignment="Center" />
                     </StackPanel>
+                    <!-- Safe mode's staged-changes segment: count + review/commit + discard.
+                         Contextual like the fix affordance below — only present while
+                         something is staged, so the bar stays clean otherwise. -->
+                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center"
+                                IsVisible="{Binding ActiveTab.HasPendingChanges}"
+                                ToolTip.Tip="Safe mode: these changes are staged locally — nothing has been sent to the database yet">
+                        <Rectangle Classes="statusSeparator" />
+                        <Ellipse Width="8" Height="8" Fill="{DynamicResource AppAccentBrush}" VerticalAlignment="Center" />
+                        <TextBlock Classes="statusText" FontWeight="SemiBold"
+                                   Text="{Binding ActiveTab.PendingChangesText}" VerticalAlignment="Center" />
+                        <Button Classes="accent" FontSize="11" Padding="10,3" Content="Review &amp; commit…"
+                                Click="OnReviewPendingClick"
+                                ToolTip.Tip="Show the generated SQL, then commit everything as one transaction" />
+                        <Button FontSize="11" Padding="10,3" Content="Discard"
+                                Click="OnDiscardPendingClick"
+                                ToolTip.Tip="Drop all staged changes and reload from the server" />
+                    </StackPanel>
                     <!-- "Did you mean the quoted form?" fix, offered after a failed unquoted-identifier run -->
                     <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center"
                                 IsVisible="{Binding ActiveTab.FixSuggestionSql, Converter={x:Static conv:ObjectConverters.IsNotNull}}">

@@ -150,6 +150,10 @@ public partial class MainWindow : Window
         ResultsGrid.PreparingCellForEdit += OnPreparingCellForEdit;
         ResultsGrid.KeyDown += OnResultsGridKeyDown;
         ResultsGrid.Sorting += OnResultsGridSorting;
+        // Safe mode's dirty-row wash: rows are tinted as the grid realizes
+        // them; already-realized rows are re-tinted whenever the staged set
+        // changes (see RefreshPendingRowHighlights).
+        ResultsGrid.LoadingRow += (_, e) => ApplyRowStaging(e.Row);
 
         // The FK-navigation items are composed per-cell just before the grid
         // context menu shows (their targets depend on which cell was pressed).
@@ -519,6 +523,9 @@ public partial class MainWindow : Window
 
         ResultsGrid.ItemsSource = query.Rows;
         RebuildColumns(query);
+        // The new tab's staged set (if any) tints different rows than the old
+        // tab's — repaint once its rows have realized.
+        Dispatcher.UIThread.Post(RefreshPendingRowHighlights, DispatcherPriority.Background);
     }
 
     private void OnColumnNamesChanged(object? sender, NotifyCollectionChangedEventArgs e) => RebuildColumns(_queryViewModel!);
@@ -1047,6 +1054,39 @@ public partial class MainWindow : Window
         }
 
         await _queryViewModel.CommitCellEditAsync(row, columnIndex, text);
+    }
+
+    // --- Safe mode: dirty-row highlighting ---------------------------------
+
+    // Translucent washes so grid lines and the selection state stay readable
+    // in both themes: amber = staged edit, red = staged delete.
+    private static readonly IBrush StagedEditRowBrush = new SolidColorBrush(Color.Parse("#38D9822B"));
+    private static readonly IBrush StagedDeleteRowBrush = new SolidColorBrush(Color.Parse("#38E03131"));
+
+    private void ApplyRowStaging(DataGridRow row)
+    {
+        var staging = _queryViewModel is { } query && row.DataContext is object?[] values
+            ? query.GetRowStaging(values)
+            : QueryViewModel.RowStagingState.None;
+
+        // Always assign: rows are recycled, so a formerly staged row must be
+        // washed back to the theme's transparent default.
+        row.Background = staging switch
+        {
+            QueryViewModel.RowStagingState.Edited => StagedEditRowBrush,
+            QueryViewModel.RowStagingState.Deleted => StagedDeleteRowBrush,
+            _ => Brushes.Transparent,
+        };
+    }
+
+    // Re-tints every realized row; newly realized ones are handled by the
+    // grid's LoadingRow hook. Called whenever the staged set changes.
+    private void RefreshPendingRowHighlights()
+    {
+        foreach (var row in ResultsGrid.GetVisualDescendants().OfType<DataGridRow>())
+        {
+            ApplyRowStaging(row);
+        }
     }
 
     // Auto-close pairs. Decided here — before the character lands — because a
@@ -1828,15 +1868,20 @@ public partial class MainWindow : Window
 
     // "Add row…" - opens the insert dialog for the mapped table; on a successful
     // insert the grid refreshes (browse page reload, or a re-run of the query).
+    // In safe mode the dialog stages the INSERT into the tab's pending set
+    // instead of executing it.
     private async void OnAddRowClick(object? sender, RoutedEventArgs e)
     {
-        if (_viewModel is null || _queryViewModel?.EditContext is not { } context)
+        if (_viewModel is null || _queryViewModel is not { EditContext: { } context } query)
         {
             return;
         }
 
-        var addRowViewModel = _viewModel.CreateAddRowViewModel(context.Schema, context.Table);
-        addRowViewModel.Inserted += () => _ = _queryViewModel.RefreshCurrentAsync();
+        var addRowViewModel = _viewModel.CreateAddRowViewModel(
+            context.Schema,
+            context.Table,
+            query.ShouldStageChanges ? query.TryStageInsert : null);
+        addRowViewModel.Inserted += () => _ = query.RefreshCurrentAsync();
 
         var dialog = new AddRowDialog { DataContext = addRowViewModel };
         await dialog.ShowDialog(this);
@@ -1845,9 +1890,12 @@ public partial class MainWindow : Window
     private async void OnDeleteRowsClick(object? sender, RoutedEventArgs e) => await DeleteSelectedRowsAsync();
 
     // Confirms, then deletes the selected rows via primary-key-keyed DELETEs.
+    // In safe mode there's nothing to confirm — the delete is only staged
+    // (and Delete on an already-staged row unstages it), reversible until
+    // the set is committed.
     private async Task DeleteSelectedRowsAsync()
     {
-        if (_queryViewModel is not { IsEditable: true })
+        if (_queryViewModel is not { IsEditable: true } query)
         {
             return;
         }
@@ -1858,11 +1906,57 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (query.ShouldStageChanges)
+        {
+            await query.DeleteRowsAsync(rows);
+            return;
+        }
+
         var noun = rows.Count == 1 ? "this row" : $"these {rows.Count} rows";
         var confirm = new ConfirmDialog($"Delete {noun}? This can't be undone.", "Delete");
         if (await confirm.ShowDialog<bool>(this))
         {
-            await _queryViewModel.DeleteRowsAsync(rows);
+            await query.DeleteRowsAsync(rows);
+        }
+    }
+
+    // "Review & commit…" on the staged-changes status segment: show the
+    // generated SQL, then commit it all as one transaction or discard it all.
+    private async void OnReviewPendingClick(object? sender, RoutedEventArgs e)
+    {
+        if (_queryViewModel is not { } query || query.PendingChanges is not { IsEmpty: false } pending)
+        {
+            return;
+        }
+
+        var dialog = new PendingChangesDialog(query.PendingChangesText ?? "Staged changes", pending.BuildScript(), pending.Count);
+        var result = await dialog.ShowDialog<PendingChangesDialog.Result>(this);
+        switch (result)
+        {
+            case PendingChangesDialog.Result.Commit:
+                await query.CommitPendingCommand.ExecuteAsync(null);
+                break;
+            case PendingChangesDialog.Result.Discard:
+                await query.DiscardPendingCommand.ExecuteAsync(null);
+                break;
+        }
+    }
+
+    // Status-bar "Discard": one confirm (it drops real staged work), then
+    // clears the set and reloads server values.
+    private async void OnDiscardPendingClick(object? sender, RoutedEventArgs e)
+    {
+        if (_queryViewModel is not { HasPendingChanges: true } query)
+        {
+            return;
+        }
+
+        var count = query.PendingChanges!.Count;
+        var noun = count == 1 ? "1 staged change" : $"{count} staged changes";
+        var confirm = new ConfirmDialog($"Discard {noun}? The database hasn't been touched.", "Discard");
+        if (await confirm.ShowDialog<bool>(this))
+        {
+            await query.DiscardPendingCommand.ExecuteAsync(null);
         }
     }
 
@@ -2049,6 +2143,17 @@ public partial class MainWindow : Window
         if (e.PropertyName == nameof(QueryViewModel.Rows))
         {
             ResultsGrid.ItemsSource = _queryViewModel.Rows;
+            // Rows realize after this returns; re-tint once they exist so a
+            // reloaded page keeps its staged-row washes.
+            Dispatcher.UIThread.Post(RefreshPendingRowHighlights, DispatcherPriority.Background);
+            return;
+        }
+
+        // Every staged-set mutation re-raises this (even when the summary text
+        // is unchanged), making it the one repaint cue for row washes.
+        if (e.PropertyName == nameof(QueryViewModel.PendingChangesText))
+        {
+            RefreshPendingRowHighlights();
             return;
         }
 

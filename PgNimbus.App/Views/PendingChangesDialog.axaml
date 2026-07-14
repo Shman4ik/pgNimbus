@@ -1,0 +1,33 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="PgNimbus.App.Views.PendingChangesDialog"
+        Title="pgNimbus — Staged changes"
+        Width="620" Height="460"
+        MinWidth="460" MinHeight="280"
+        WindowStartupLocation="CenterOwner"
+        FontFamily="{StaticResource InterFont}">
+
+    <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="16">
+
+        <TextBlock Grid.Row="0" Name="SummaryText" FontWeight="SemiBold" FontSize="14" Margin="0,0,0,4" />
+
+        <TextBlock Grid.Row="1" FontSize="11" Opacity="0.55" TextWrapping="Wrap" Margin="0,0,0,10"
+                   Text="This SQL runs as one transaction when you commit — everything applies, or nothing does. Values are shown inline for review; execution is parameterized." />
+
+        <Border Grid.Row="2" Classes="card" Padding="8">
+            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                <SelectableTextBlock Name="SqlText"
+                                     FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                     FontSize="12" />
+            </ScrollViewer>
+        </Border>
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" Margin="0,12,0,0">
+            <Button Name="CommitButton" Classes="accent" Content="Commit" Click="OnCommitClick" />
+            <Button Content="Discard all" Foreground="#E03131" Click="OnDiscardClick" />
+            <Button Content="Cancel" Click="OnCancelClick" />
+        </StackPanel>
+
+    </Grid>
+
+</Window>
