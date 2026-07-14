@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784009678662,
+  "lastUpdate": 1784056504609,
   "repoUrl": "https://github.com/Shman4ik/pgNimbus",
   "entries": {
     "pgNimbus benchmarks": [
@@ -270,6 +270,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "Stream 100000 rows",
             "value": 149.9,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shman4ik@gmail.com",
+            "name": "Shman4ik",
+            "username": "Shman4ik"
+          },
+          "committer": {
+            "email": "shman4ik@gmail.com",
+            "name": "Shman4ik",
+            "username": "Shman4ik"
+          },
+          "distinct": true,
+          "id": "7396d3d0c783fdaa93c8069190c60ff8811e369f",
+          "message": "Explain: survive PG 18 fractional row counts; text plan view with Tree toggle\n\nPostgreSQL 18 reports EXPLAIN ANALYZE actual row counts averaged over\nloops with two decimals (\"Actual Rows\": 7.00 in FORMAT JSON). ExplainService\nparsed them with JsonElement.GetInt64(), which throws FormatException on any\nfractional number — so every EXPLAIN ANALYZE against a PG 18 server (e.g.\ncurrent Neon) failed with the opaque status \"Explain failed: One of the\nidentified items was in an invalid format.\" Row counts now parse as double\n(kept fractional for actual rows, truncated for plan rows), verified against\nreal postgres:17 and postgres:18 output.\n\nWhile in there, the plan pane gains the pgAdmin-style presentation split:\nthe default view is now the classic EXPLAIN (FORMAT TEXT) layout — node\nheaders with cost/actual figures, indented detail lines (Filter, Sort Key,\nHash Cond, ...), \"->\" arrows — rendered client-side from the same FORMAT\nJSON payload (no second round-trip: an EXPLAIN ANALYZE re-run would execute\nthe query again), with a chip toggle to the existing graphical tree. To feed\nit, ExplainNode now keeps the node detail properties it used to drop, plus\nthe header qualifiers (join type, alias, scan direction, aggregate\nstrategy), and the tree view titles nodes with the same header logic\n(\"Index Scan using idx on t\", \"Hash Left Join\").\n\nCo-Authored-By: Claude Fable 5 <noreply@anthropic.com>",
+          "timestamp": "2026-07-14T20:59:42+02:00",
+          "tree_id": "afee2bb6ac1c1b839ed7b940fbbc40586df4ff2d",
+          "url": "https://github.com/Shman4ik/pgNimbus/commit/7396d3d0c783fdaa93c8069190c60ff8811e369f"
+        },
+        "date": 1784056504319,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Startup, launch to first frame (NativeAOT)",
+            "value": 157,
+            "unit": "ms"
+          },
+          {
+            "name": "Memory at first frame (NativeAOT)",
+            "value": 150,
+            "unit": "MB"
+          },
+          {
+            "name": "Binary size (NativeAOT)",
+            "value": 40.5,
+            "unit": "MB"
+          },
+          {
+            "name": "Publish size (NativeAOT, all files)",
+            "value": 140.1,
+            "unit": "MB"
+          },
+          {
+            "name": "Startup, launch to first frame (JIT)",
+            "value": 1727,
+            "unit": "ms"
+          },
+          {
+            "name": "Connect, cold pool",
+            "value": 150.6,
+            "unit": "ms"
+          },
+          {
+            "name": "Round-trip, SELECT 1 warm",
+            "value": 0.29,
+            "unit": "ms"
+          },
+          {
+            "name": "First row batch of a 100000-row SELECT",
+            "value": 12,
+            "unit": "ms"
+          },
+          {
+            "name": "Stream 100000 rows",
+            "value": 143.5,
             "unit": "ms"
           }
         ]
