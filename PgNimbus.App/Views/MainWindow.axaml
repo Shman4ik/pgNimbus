@@ -493,8 +493,7 @@
             </DockPanel>
 
             <!-- Files-style command bar: accent primary action, quiet icon+label secondaries -->
-            <Border Grid.Row="1" Classes="card" Classes.planOpen="{Binding ActiveTab.IsShowingPlan}"
-                    Padding="4" Margin="0,0,0,12" HorizontalAlignment="Left">
+            <Border Grid.Row="1" Classes="card" Padding="4" Margin="0,0,0,12" HorizontalAlignment="Left">
                 <Border.Resources>
                     <!--
                         Disabled buttons inside the command bar stay transparent
@@ -514,12 +513,6 @@
                          actually has to fit into. -->
                     <Style Selector="TextBlock.collapsible">
                         <Setter Property="IsVisible" Value="{Binding $parent[Grid].Bounds.Width, Converter={x:Static conv2:MinWidthVisibilityConverter.Instance}, ConverterParameter=660}" />
-                    </Style>
-                    <!-- While a plan is on screen the bar carries one extra button
-                         ("Show results"), so labels need more room before they fit —
-                         collapse them earlier or Export/Import get pushed off-pane. -->
-                    <Style Selector="Border.planOpen TextBlock.collapsible">
-                        <Setter Property="IsVisible" Value="{Binding $parent[Grid].Bounds.Width, Converter={x:Static conv2:MinWidthVisibilityConverter.Instance}, ConverterParameter=790}" />
                     </Style>
                 </Border.Styles>
                 <StackPanel Orientation="Horizontal" Spacing="2">
@@ -570,26 +563,21 @@
                         </StackPanel>
                     </Button>
 
-                    <!-- Group 3 — analysis: plan inspection (secondary to running) -->
+                    <!-- Group 3 — analysis: one toolbar slot for plan inspection (minimalist rule);
+                         the flyout distinguishes estimate-only from actually-executing, closing the
+                         plan lives on the plan pane itself, and both commands are in the palette too -->
                     <Rectangle Classes="statusSeparator" Margin="7,0" />
-                    <Button Classes="toolbar" Command="{Binding ActiveTab.ExplainCommand}" ToolTip.Tip="Show the query plan (EXPLAIN)">
+                    <Button Classes="toolbar" ToolTip.Tip="Query plan (EXPLAIN / EXPLAIN ANALYZE)">
                         <StackPanel Orientation="Horizontal" Spacing="7">
                             <PathIcon Data="{StaticResource FlashIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
                             <TextBlock Text="Explain" VerticalAlignment="Center" Classes="collapsible" />
                         </StackPanel>
-                    </Button>
-                    <Button Classes="toolbar" Command="{Binding ActiveTab.ExplainAnalyzeCommand}" ToolTip.Tip="Run and show the actual plan (EXPLAIN ANALYZE)">
-                        <StackPanel Orientation="Horizontal" Spacing="7">
-                            <PathIcon Data="{StaticResource GaugeIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
-                            <TextBlock Text="Explain Analyze" VerticalAlignment="Center" Classes="collapsible" />
-                        </StackPanel>
-                    </Button>
-                    <Button Classes="toolbar" Command="{Binding ActiveTab.ShowResultsCommand}"
-                            IsVisible="{Binding ActiveTab.IsShowingPlan}">
-                        <StackPanel Orientation="Horizontal" Spacing="7">
-                            <PathIcon Data="{StaticResource TableIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
-                            <TextBlock Text="Show results" VerticalAlignment="Center" Classes="collapsible" />
-                        </StackPanel>
+                        <Button.Flyout>
+                            <MenuFlyout>
+                                <MenuItem Header="Explain — estimated plan" Click="OnExplainClick" />
+                                <MenuItem Header="Explain Analyze — runs the query" Click="OnExplainAnalyzeClick" />
+                            </MenuFlyout>
+                        </Button.Flyout>
                     </Button>
 
                     <!-- Group 4 — data out: export -->
@@ -722,6 +710,12 @@
                                 <Button Classes="chip" Classes.active="{Binding !ActiveTab.IsPlanTextView}"
                                         Command="{Binding ActiveTab.ShowPlanAsTreeCommand}"
                                         Content="Tree" FontSize="11" Padding="8,2" />
+                                <!-- Fixed 18x18: in this StackPanel the taller Text/Tree chips would
+                                     otherwise stretch the ✕ chip and push its glyph off-center -->
+                                <Button Classes="chip" Command="{Binding ActiveTab.ShowResultsCommand}"
+                                        Content="✕" FontSize="10" Width="18" Height="18" Padding="0"
+                                        Margin="6,0,0,0" VerticalAlignment="Center"
+                                        ToolTip.Tip="Close the plan and show results" />
                             </StackPanel>
                             <TextBlock Text="{Binding ActiveTab.ExplainSummary}" FontSize="12" Opacity="0.8"
                                        VerticalAlignment="Center" />
