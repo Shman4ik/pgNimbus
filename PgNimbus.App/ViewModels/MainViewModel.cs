@@ -170,7 +170,7 @@ public sealed partial class MainViewModel : ObservableObject
         string connectionDatabase = "",
         bool autoAliasTables = true,
         Action<bool>? persistAutoAliasTables = null,
-        bool safeModeEdits = false,
+        bool safeModeEdits = true,
         Action<bool>? persistSafeModeEdits = null)
     {
         ConnectionHost = connectionHost;

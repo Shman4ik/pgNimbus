@@ -4,8 +4,8 @@
         x:Class="PgNimbus.App.Views.PreferencesWindow"
         x:DataType="vm:PreferencesViewModel"
         Title="pgNimbus — Preferences"
-        Width="520" Height="430"
-        MinWidth="440" MinHeight="360"
+        Width="560" Height="560"
+        MinWidth="440" MinHeight="520"
         WindowStartupLocation="CenterOwner"
         FontFamily="{StaticResource InterFont}">
 
