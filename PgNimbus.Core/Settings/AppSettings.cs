@@ -28,19 +28,19 @@ public sealed record AppSettings
     /// <summary>
     /// Whether accepting a table from completion after FROM/JOIN also appends a
     /// short alias (<c>public.orders</c> → <c>public.orders o</c>), so the
-    /// <c>o.</c> member-access flow is available immediately. Off by default;
-    /// opt in from the completion preferences toggle.
+    /// <c>o.</c> member-access flow is available immediately. On by default;
+    /// opt out from the completion preferences toggle.
     /// </summary>
-    public bool AutoAliasTables { get; set; }
+    public bool AutoAliasTables { get; set; } = true;
 
     /// <summary>
     /// Safe mode: grid cell edits, row deletes, and Add-row inserts are staged
     /// locally (dirty rows highlighted in the grid) instead of executing
     /// immediately; the generated SQL is reviewed and committed as one
-    /// transaction — or discarded. Off by default; toggled from the command
+    /// transaction — or discarded. On by default; toggled from the command
     /// palette or the preferences page.
     /// </summary>
-    public bool SafeModeEdits { get; set; }
+    public bool SafeModeEdits { get; set; } = true;
 
     /// <summary>
     /// Which modifier the app's command shortcuts use: <c>"auto"</c> (Cmd on

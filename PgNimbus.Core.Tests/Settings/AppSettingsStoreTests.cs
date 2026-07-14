@@ -12,7 +12,7 @@ public class AppSettingsStoreTests
         var settings = store.Load();
 
         await Assert.That(settings.Theme).IsEqualTo("system");
-        await Assert.That(settings.AutoAliasTables).IsFalse();
+        await Assert.That(settings.AutoAliasTables).IsTrue();
     }
 
     [Test]
@@ -23,8 +23,9 @@ public class AppSettingsStoreTests
         // added after this file was written would silently load as null/false if
         // AppSettings ever regressed from set to init accessors. Theme carries
         // that guard — a file omitting it must still fall back to "system", not
-        // null. ShowAdvancedSchemaObjects and AutoAliasTables default to false,
-        // so they can't detect the regression; they're checked for completeness.
+        // null. AutoAliasTables also defaults to true, so it doubles as a guard;
+        // ShowAdvancedSchemaObjects defaults to false and is checked for
+        // completeness only.
         var path = Path.Combine(Path.GetTempPath(), $"pgnimbus-{Guid.NewGuid():N}.json");
         await File.WriteAllTextAsync(path, """{ "ShowAdvancedSchemaObjects": true }""");
 
@@ -34,7 +35,7 @@ public class AppSettingsStoreTests
 
             await Assert.That(settings.Theme).IsEqualTo("system");
             await Assert.That(settings.ShowAdvancedSchemaObjects).IsTrue();
-            await Assert.That(settings.AutoAliasTables).IsFalse();
+            await Assert.That(settings.AutoAliasTables).IsTrue();
         }
         finally
         {
