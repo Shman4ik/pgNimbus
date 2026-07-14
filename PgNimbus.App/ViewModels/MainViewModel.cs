@@ -79,6 +79,21 @@ public sealed partial class MainViewModel : ObservableObject
             : "Auto-alias tables: off";
     }
 
+    /// <summary>
+    /// Flips safe mode and reports the new state in the status bar (same
+    /// visible-confirmation rationale as <see cref="ToggleAutoAlias"/>).
+    /// Changes already staged stay staged either way — they only leave via
+    /// commit or discard.
+    /// </summary>
+    [RelayCommand]
+    private void ToggleSafeMode()
+    {
+        SafeModeEdits = !SafeModeEdits;
+        ActiveTab.Status = SafeModeEdits
+            ? "Safe mode: on — grid edits, deletes, and inserts are staged for review"
+            : "Safe mode: off — grid changes apply immediately";
+    }
+
     [RelayCommand]
     private void ShowActivity() => ActivityRequested?.Invoke();
 
@@ -126,6 +141,19 @@ public sealed partial class MainViewModel : ObservableObject
 
     partial void OnAutoAliasTablesChanged(bool value) => _persistAutoAliasTables?.Invoke(value);
 
+    /// <summary>
+    /// Safe mode: grid edits, deletes, and Add-row inserts are staged locally
+    /// for review instead of executing immediately (see
+    /// <see cref="QueryViewModel.PendingChanges"/>). Toggled from the command
+    /// palette or preferences; persisted like <see cref="AutoAliasTables"/>.
+    /// </summary>
+    [ObservableProperty]
+    private bool _safeModeEdits;
+
+    private readonly Action<bool>? _persistSafeModeEdits;
+
+    partial void OnSafeModeEditsChanged(bool value) => _persistSafeModeEdits?.Invoke(value);
+
     public MainViewModel(
         QueryEngine engine,
         ExplainService explainService,
@@ -141,12 +169,16 @@ public sealed partial class MainViewModel : ObservableObject
         string connectionHost = "",
         string connectionDatabase = "",
         bool autoAliasTables = true,
-        Action<bool>? persistAutoAliasTables = null)
+        Action<bool>? persistAutoAliasTables = null,
+        bool safeModeEdits = false,
+        Action<bool>? persistSafeModeEdits = null)
     {
         ConnectionHost = connectionHost;
         ConnectionDatabase = connectionDatabase;
         _autoAliasTables = autoAliasTables;
         _persistAutoAliasTables = persistAutoAliasTables;
+        _safeModeEdits = safeModeEdits;
+        _persistSafeModeEdits = persistSafeModeEdits;
         _engine = engine;
         _explainService = explainService;
         SchemaTree = schemaTree;
@@ -258,8 +290,8 @@ public sealed partial class MainViewModel : ObservableObject
     public AlterTableViewModel CreateAlterTableViewModel(TableNode table) =>
         new(_schemaEditor, _schemaService, table.Schema, table.Name);
 
-    public AddRowViewModel CreateAddRowViewModel(string schema, string table) =>
-        new(_engine, _schemaService, schema, table);
+    public AddRowViewModel CreateAddRowViewModel(string schema, string table, Func<IReadOnlyList<PendingInsertValue>, string?>? stageInsert = null) =>
+        new(_engine, _schemaService, schema, table, stageInsert);
 
     /// <summary>
     /// Reloads everything derived from the live catalog — the schema tree, the
@@ -290,7 +322,7 @@ public sealed partial class MainViewModel : ObservableObject
     // Creates a query tab, wires its history hook, and makes it active.
     private QueryViewModel NewTab()
     {
-        var tab = new QueryViewModel(_engine, _explainService, GetReconcilerAsync) { DefaultTitle = $"Query {Tabs.Count + 1}" };
+        var tab = new QueryViewModel(_engine, _explainService, GetReconcilerAsync, () => SafeModeEdits) { DefaultTitle = $"Query {Tabs.Count + 1}" };
         tab.Executed += SavedQueries.RecordExecution;
         Tabs.Add(tab);
         ActiveTab = tab;
@@ -492,6 +524,7 @@ public sealed partial class MainViewModel : ObservableObject
         yield return new PaletteItem("Expand SELECT * into columns", "Action", "✳", () => { ExpandStarRequested?.Invoke(); return Task.CompletedTask; });
         yield return new PaletteItem("Toggle sidebar", "Action", "◫", () => { SidebarToggleRequested?.Invoke(); return Task.CompletedTask; }, Hotkeys.Label("B"));
         yield return new PaletteItem("Toggle auto-alias tables (orders → orders o)", "Action", "a", Invoke(() => ToggleAutoAliasCommand), Hotkeys.Label("Shift+A"));
+        yield return new PaletteItem("Toggle safe mode (stage grid changes, review & commit)", "Action", "⛨", Invoke(() => ToggleSafeModeCommand));
         yield return new PaletteItem("Switch connection…", "Action", "⇄", () => { SwitchConnectionRequested?.Invoke(); return Task.CompletedTask; });
         yield return new PaletteItem("Toggle light/dark theme", "Action", "◐", () => { ThemeToggleRequested?.Invoke(); return Task.CompletedTask; });
         yield return new PaletteItem("Preferences…", "Action", "⚙", Invoke(() => ShowPreferencesCommand), Hotkeys.Label(","));

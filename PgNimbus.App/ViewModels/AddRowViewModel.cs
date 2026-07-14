@@ -19,11 +19,21 @@ public sealed partial class AddRowViewModel : ObservableObject
     private readonly QueryEngine _engine;
     private readonly SchemaService _schemaService;
 
+    // Safe mode's staging hook: non-null means Insert stages the row into the
+    // owning tab's pending change set (returning an error message, or null on
+    // success) instead of executing. Supplied by the view at dialog-open time.
+    private readonly Func<IReadOnlyList<PendingInsertValue>, string?>? _stageInsert;
+
     public string Schema { get; }
 
     public string Table { get; }
 
     public string QualifiedName => $"{Schema}.{Table}";
+
+    /// <summary>True when Insert stages the row for later commit instead of executing it — relabels the dialog's primary button.</summary>
+    public bool IsStaging => _stageInsert is not null;
+
+    public string InsertButtonText => IsStaging ? "Stage Row" : "Insert Row";
 
     public ObservableCollection<NewRowField> Fields { get; } = [];
 
@@ -36,12 +46,18 @@ public sealed partial class AddRowViewModel : ObservableObject
     /// <summary>Raised after a successful INSERT so the grid can refresh and the dialog can close.</summary>
     public event Action? Inserted;
 
-    public AddRowViewModel(QueryEngine engine, SchemaService schemaService, string schema, string table)
+    public AddRowViewModel(
+        QueryEngine engine,
+        SchemaService schemaService,
+        string schema,
+        string table,
+        Func<IReadOnlyList<PendingInsertValue>, string?>? stageInsert = null)
     {
         _engine = engine;
         _schemaService = schemaService;
         Schema = schema;
         Table = table;
+        _stageInsert = stageInsert;
     }
 
     public async Task LoadAsync()
@@ -78,28 +94,40 @@ public sealed partial class AddRowViewModel : ObservableObject
         IsBusy = true;
         StatusMessage = null;
 
+        // The columns that participate in the INSERT: an explicit NULL, or a
+        // typed value. Blank + not-NULL fields are omitted entirely so their
+        // defaults apply. Same shape safe mode stages, so both paths agree.
+        var values = Fields
+            .Where(f => f.IsNull || !string.IsNullOrEmpty(f.Value))
+            .Select(f => new PendingInsertValue(f.Name, f.DataType, f.IsNull ? null : f.Value))
+            .ToList();
+
+        if (_stageInsert is { } stage)
+        {
+            StatusMessage = stage(values) ?? "Row staged — commit or discard it from the status bar.";
+            IsBusy = false;
+            return;
+        }
+
         var columns = new List<string>();
         var valueExpressions = new List<string>();
         var parameters = new Dictionary<string, object?>();
-        var index = 0;
 
-        foreach (var field in Fields)
+        foreach (var value in values)
         {
-            if (field.IsNull)
+            columns.Add(SqlIdentifier.Quote(value.Column));
+            if (value.ValueText is null)
             {
-                columns.Add(SqlIdentifier.Quote(field.Name));
                 valueExpressions.Add("NULL");
             }
-            else if (!string.IsNullOrEmpty(field.Value))
+            else
             {
-                columns.Add(SqlIdentifier.Quote(field.Name));
-                var name = $"p{index++}";
+                var name = $"p{parameters.Count}";
                 // Cast the text parameter to the column's declared type so
                 // Postgres parses "42"/"2024-01-01"/... into the real type.
-                valueExpressions.Add($"CAST(@{name} AS {field.DataType})");
-                parameters[name] = field.Value;
+                valueExpressions.Add($"CAST(@{name} AS {value.DataType})");
+                parameters[name] = value.ValueText;
             }
-            // Blank + not-NULL: omit the column entirely so its default applies.
         }
 
         var target = $"{SqlIdentifier.Quote(Schema)}.{SqlIdentifier.Quote(Table)}";

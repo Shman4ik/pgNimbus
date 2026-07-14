@@ -80,7 +80,7 @@ public sealed partial class QueryViewModel : ObservableObject
     [ObservableProperty]
     private EditableTableContext? _editContext;
 
-    /// <summary>Non-null when this tab is in no-SQL "browse a table" mode (filter/sort/paging bar shown).</summary>
+    /// <summary>Non-null when this tab is in no-SQL "browse a table" mode (status-bar paging shown, header clicks sort server-side).</summary>
     [ObservableProperty]
     private TableBrowseViewModel? _browse;
 
@@ -92,8 +92,17 @@ public sealed partial class QueryViewModel : ObservableObject
     // that programmatic write as a manual edit and tear browse mode down.
     private bool _applyingBrowseSql;
 
-    /// <summary>Drives visibility of the browse (filter/sort/paging) bar.</summary>
+    /// <summary>Drives visibility of the status bar's paging segment.</summary>
     public bool IsBrowsing => Browse is not null;
+
+    /// <summary>
+    /// The status bar's row-count segment, suppressed in browse mode where the
+    /// paging range ("Rows 1–100") already carries the same information — one
+    /// fewer segment competing for the bar's width.
+    /// </summary>
+    public string? RowCountStatusText => IsBrowsing ? null : RowCountText;
+
+    partial void OnRowCountTextChanged(string? value) => OnPropertyChanged(nameof(RowCountStatusText));
 
     [ObservableProperty]
     private string _tabTitle = "Query";
@@ -184,14 +193,43 @@ public sealed partial class QueryViewModel : ObservableObject
     /// <summary>Raised once per <see cref="RunAsync"/> completion (success, command, error, or cancellation) so a history tracker can record it without RunAsync knowing about persistence.</summary>
     public event Action<QueryHistoryEntry>? Executed;
 
+    /// <summary>
+    /// Safe mode's staging area for this tab: grid edits, deletes, and Add-row
+    /// inserts held locally until committed as one transaction or discarded.
+    /// Null until the first change is staged; always bound to a single table
+    /// (the edit context it was created from).
+    /// </summary>
+    [ObservableProperty]
+    private PendingChangeSet? _pendingChanges;
+
+    /// <summary>Status-bar summary of the staged set ("3 staged changes · public.orders"); null when nothing is staged.</summary>
+    [ObservableProperty]
+    private string? _pendingChangesText;
+
+    public bool HasPendingChanges => PendingChanges is { IsEmpty: false };
+
+    /// <summary>
+    /// True when grid changes should be staged rather than executed: safe mode
+    /// is on, or staged changes already exist — once a set is open, later
+    /// changes keep staging even if the toggle flips, since mixing immediate
+    /// and staged writes would apply the user's changes out of order.
+    /// </summary>
+    public bool ShouldStageChanges => (_safeMode?.Invoke() ?? false) || HasPendingChanges;
+
+    // Live "is safe mode on?" probe supplied by the owner (MainViewModel), so
+    // every tab follows the one app-wide toggle without per-tab plumbing.
+    private readonly Func<bool>? _safeMode;
+
     public QueryViewModel(
         QueryEngine engine,
         ExplainService explainService,
-        Func<CancellationToken, Task<IdentifierReconciler?>>? reconcilerFactory = null)
+        Func<CancellationToken, Task<IdentifierReconciler?>>? reconcilerFactory = null,
+        Func<bool>? safeMode = null)
     {
         _engine = engine;
         _explainService = explainService;
         _reconcilerFactory = reconcilerFactory;
+        _safeMode = safeMode;
         _lastRunSql = Sql;
         UpdateTabTitle();
     }
@@ -363,6 +401,7 @@ public sealed partial class QueryViewModel : ObservableObject
                     CapText = truncated
                         ? $"capped at {MaxDisplayRows:N0} rows — refine the query for the full set"
                         : null;
+                    ReapplyPendingEditsToGrid();
                     break;
 
                 case MaterializedResultSet materialized:
@@ -387,6 +426,7 @@ public sealed partial class QueryViewModel : ObservableObject
                     CapText = overCap
                         ? $"capped at {MaxDisplayRows:N0} rows — refine the query for the full set"
                         : null;
+                    ReapplyPendingEditsToGrid();
                     break;
 
                 case CommandResult commandResult:
@@ -627,6 +667,8 @@ public sealed partial class QueryViewModel : ObservableObject
         ExplainCommand.NotifyCanExecuteChanged();
         ExplainAnalyzeCommand.NotifyCanExecuteChanged();
         ApplyFixCommand.NotifyCanExecuteChanged();
+        CommitPendingCommand.NotifyCanExecuteChanged();
+        DiscardPendingCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(HasNoResults));
 
         if (value)
@@ -692,12 +734,17 @@ public sealed partial class QueryViewModel : ObservableObject
         UpdateTabTitle();
     }
 
-    partial void OnBrowseChanged(TableBrowseViewModel? value) => OnPropertyChanged(nameof(IsBrowsing));
+    partial void OnBrowseChanged(TableBrowseViewModel? value)
+    {
+        OnPropertyChanged(nameof(IsBrowsing));
+        OnPropertyChanged(nameof(RowCountStatusText));
+    }
 
     /// <summary>
-    /// Enters no-SQL browse mode for a table and loads its first page. The
-    /// filter/sort/paging bar (bound to <see cref="Browse"/>) takes over from
-    /// there, re-querying the server on every change.
+    /// Enters no-SQL browse mode for a table and loads its first page. Paging
+    /// (status bar) and header-click sorting re-query the server from there;
+    /// the composed SQL is visible in the editor, and editing it turns the tab
+    /// into a plain query.
     /// </summary>
     public Task StartBrowseAsync(string schema, string name, IReadOnlyList<string> primaryKeyColumns, string? initialFilter = null)
     {
@@ -706,7 +753,7 @@ public sealed partial class QueryViewModel : ObservableObject
         if (!string.IsNullOrEmpty(initialFilter))
         {
             // A pre-seeded WHERE (e.g. following a foreign key to the referenced
-            // row) — shown in the filter box so it's visible and clearable.
+            // row) — visible in the composed SQL the editor shows.
             Browse.FilterText = initialFilter;
         }
 
@@ -795,16 +842,6 @@ public sealed partial class QueryViewModel : ObservableObject
             return;
         }
 
-        var whereClause = string.Join(
-            " AND ",
-            context.PrimaryKeyColumns.Select((pk, n) => $"{SqlIdentifier.Quote(pk)} = @pk{n}"));
-
-        var sql = $"""
-            UPDATE {SqlIdentifier.Quote(context.Schema)}.{SqlIdentifier.Quote(context.Table)}
-            SET {SqlIdentifier.Quote(columnName)} = @value
-            WHERE {whereClause}
-            """;
-
         object? newValue;
         try
         {
@@ -817,6 +854,22 @@ public sealed partial class QueryViewModel : ObservableObject
             return;
         }
 
+        if (ShouldStageChanges)
+        {
+            StageCellValue(context, row, pkIndexes, columnIndex, columnName, newValue);
+            return;
+        }
+
+        var whereClause = string.Join(
+            " AND ",
+            context.PrimaryKeyColumns.Select((pk, n) => $"{SqlIdentifier.Quote(pk)} = @pk{n}"));
+
+        var sql = $"""
+            UPDATE {SqlIdentifier.Quote(context.Schema)}.{SqlIdentifier.Quote(context.Table)}
+            SET {SqlIdentifier.Quote(columnName)} = @value
+            WHERE {whereClause}
+            """;
+
         var parameters = new Dictionary<string, object?> { ["value"] = newValue };
         for (var n = 0; n < pkIndexes.Count; n++)
         {
@@ -826,15 +879,7 @@ public sealed partial class QueryViewModel : ObservableObject
         try
         {
             await _engine.ExecuteNonQueryAsync(sql, parameters, CancellationToken.None);
-
-            var rowIndex = Rows.IndexOf(row);
-            if (rowIndex >= 0)
-            {
-                var updated = (object?[])row.Clone();
-                updated[columnIndex] = newValue;
-                Rows[rowIndex] = updated;
-            }
-
+            ReplaceRowCell(row, columnIndex, newValue);
             Status = $"Saved {context.Schema}.{context.Table}.{columnName}";
         }
         catch (Exception ex)
@@ -883,6 +928,12 @@ public sealed partial class QueryViewModel : ObservableObject
             return;
         }
 
+        if (ShouldStageChanges)
+        {
+            StageCellValue(context, row, pkIndexes, columnIndex, columnName, null);
+            return;
+        }
+
         var whereClause = string.Join(
             " AND ",
             context.PrimaryKeyColumns.Select((pk, n) => $"{SqlIdentifier.Quote(pk)} = @pk{n}"));
@@ -902,15 +953,7 @@ public sealed partial class QueryViewModel : ObservableObject
         try
         {
             await _engine.ExecuteNonQueryAsync(sql, parameters, CancellationToken.None);
-
-            var rowIndex = Rows.IndexOf(row);
-            if (rowIndex >= 0)
-            {
-                var updated = (object?[])row.Clone();
-                updated[columnIndex] = null;
-                Rows[rowIndex] = updated;
-            }
-
+            ReplaceRowCell(row, columnIndex, null);
             Status = $"Set {context.Schema}.{context.Table}.{columnName} to NULL";
         }
         catch (Exception ex)
@@ -1000,6 +1043,12 @@ public sealed partial class QueryViewModel : ObservableObject
             return 0;
         }
 
+        if (ShouldStageChanges)
+        {
+            StageDeletes(context, pkIndexes, rows);
+            return 0;
+        }
+
         var whereClause = string.Join(
             " AND ",
             context.PrimaryKeyColumns.Select((pk, n) => $"{SqlIdentifier.Quote(pk)} = @pk{n}"));
@@ -1054,6 +1103,299 @@ public sealed partial class QueryViewModel : ObservableObject
         // out-of-band change re-runs what's on screen, independent of any live
         // highlight (unlike the user-driven RunCommand).
         Browse is { } browse ? browse.LoadAsync() : RunCoreAsync(Sql, trackAsFullRun: true);
+
+    // --- Safe mode: staged changes ------------------------------------------
+
+    /// <summary>A grid row's relationship to the staged change set, for dirty-row highlighting.</summary>
+    public enum RowStagingState
+    {
+        None,
+        Edited,
+        Deleted,
+    }
+
+    // Stages one cell's converted value and shows it in the grid without
+    // touching the database. Shared by inline edits and "Set cell to NULL".
+    private void StageCellValue(EditableTableContext context, object?[] row, IReadOnlyList<int> pkIndexes, int columnIndex, string columnName, object? newValue)
+    {
+        if (EnsurePendingSet(context, out var error) is not { } pending)
+        {
+            Status = error!;
+            HasError = true;
+            return;
+        }
+
+        try
+        {
+            pending.StageEdit(PkValuesOf(row, pkIndexes), columnName, newValue);
+        }
+        catch (InvalidOperationException ex)
+        {
+            Status = ex.Message;
+            HasError = true;
+            return;
+        }
+
+        ReplaceRowCell(row, columnIndex, newValue);
+        NotifyPendingChangesChanged();
+        Status = $"Staged {context.Schema}.{context.Table}.{columnName} — nothing applied until you commit";
+    }
+
+    // Stages deletes for the given rows; a row already staged for deletion is
+    // unstaged instead, so Delete toggles the mark.
+    private void StageDeletes(EditableTableContext context, IReadOnlyList<int> pkIndexes, IReadOnlyList<object?[]> rows)
+    {
+        if (EnsurePendingSet(context, out var error) is not { } pending)
+        {
+            Status = error!;
+            HasError = true;
+            return;
+        }
+
+        var staged = 0;
+        var unstaged = 0;
+        foreach (var row in rows)
+        {
+            var pkValues = PkValuesOf(row, pkIndexes);
+            if (pending.IsRowDeleted(pkValues))
+            {
+                pending.UnstageDelete(pkValues);
+                unstaged++;
+            }
+            else
+            {
+                pending.StageDelete(pkValues);
+                staged++;
+            }
+        }
+
+        NotifyPendingChangesChanged();
+        Status = (staged, unstaged) switch
+        {
+            (> 0, 0) => $"Staged {staged} delete{(staged == 1 ? "" : "s")} — nothing applied until you commit",
+            (0, > 0) => $"Unstaged {unstaged} delete{(unstaged == 1 ? "" : "s")}",
+            _ => $"Staged {staged} delete{(staged == 1 ? "" : "s")}, unstaged {unstaged}",
+        };
+    }
+
+    /// <summary>
+    /// Stages an INSERT (safe mode's Add-row path). Returns an error message to
+    /// show in the dialog, or null on success.
+    /// </summary>
+    public string? TryStageInsert(IReadOnlyList<PendingInsertValue> values)
+    {
+        if (EditContext is not { } context)
+        {
+            return "Staging isn't available for this result set.";
+        }
+
+        if (EnsurePendingSet(context, out var error) is not { } pending)
+        {
+            return error;
+        }
+
+        pending.StageInsert(values);
+        NotifyPendingChangesChanged();
+        Status = "Staged 1 insert — nothing applied until you commit";
+        HasError = false;
+        return null;
+    }
+
+    private bool CanCommitPending() => HasPendingChanges && !IsRunning;
+
+    /// <summary>
+    /// Applies every staged change as one transaction, then reloads the grid
+    /// from the server. A failure applies nothing and keeps the set staged, so
+    /// the user can fix the offending change or discard.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanCommitPending))]
+    private async Task CommitPendingAsync()
+    {
+        if (PendingChanges is not { IsEmpty: false } pending)
+        {
+            return;
+        }
+
+        HasError = false;
+        var count = pending.Count;
+
+        try
+        {
+            var affected = await _engine.ApplyBatchAsync(pending.BuildStatements(), CancellationToken.None);
+            ClearPendingSet();
+            await RefreshCurrentAsync();
+            Status = $"Committed {count} staged change{(count == 1 ? "" : "s")} in one transaction — {RowLabel(affected)} affected";
+            HasError = false;
+        }
+        catch (Exception ex)
+        {
+            Status = $"Commit failed — no staged changes were applied: {ex.Message}";
+            HasError = true;
+        }
+    }
+
+    /// <summary>Drops every staged change and reloads the grid so it shows server values again.</summary>
+    [RelayCommand(CanExecute = nameof(CanCommitPending))]
+    private async Task DiscardPendingAsync()
+    {
+        if (PendingChanges is not { IsEmpty: false } pending)
+        {
+            return;
+        }
+
+        var count = pending.Count;
+        ClearPendingSet();
+        await RefreshCurrentAsync();
+        Status = $"Discarded {count} staged change{(count == 1 ? "" : "s")}";
+        HasError = false;
+    }
+
+    /// <summary>How the given grid row relates to the staged set — drives the view's dirty-row highlighting.</summary>
+    public RowStagingState GetRowStaging(object?[] row)
+    {
+        if (PendingChanges is not { IsEmpty: false } pending
+            || PendingPkIndexes(pending) is not { } pkIndexes)
+        {
+            return RowStagingState.None;
+        }
+
+        var pkValues = PkValuesOf(row, pkIndexes);
+        if (pending.IsRowDeleted(pkValues))
+        {
+            return RowStagingState.Deleted;
+        }
+
+        return pending.IsRowEdited(pkValues) ? RowStagingState.Edited : RowStagingState.None;
+    }
+
+    // Returns a per-table change set matching the edit context, creating it on
+    // first use. Staging against a different table than an existing set is
+    // refused — one set, one table, one commit.
+    private PendingChangeSet? EnsurePendingSet(EditableTableContext context, out string? error)
+    {
+        if (PendingChanges is { } existing)
+        {
+            if (!string.Equals(existing.Schema, context.Schema, StringComparison.Ordinal)
+                || !string.Equals(existing.Table, context.Table, StringComparison.Ordinal))
+            {
+                error = $"Commit or discard the staged changes for {existing.Schema}.{existing.Table} first.";
+                return null;
+            }
+
+            error = null;
+            return existing;
+        }
+
+        error = null;
+        return PendingChanges = new PendingChangeSet(context.Schema, context.Table, context.PrimaryKeyColumns);
+    }
+
+    private void ClearPendingSet()
+    {
+        PendingChanges = null;
+        NotifyPendingChangesChanged();
+    }
+
+    // Refreshes everything derived from the staged set: the status-bar summary
+    // text (whose change notification is also the view's cue to repaint row
+    // highlights) and the commit/discard availability.
+    private void NotifyPendingChangesChanged()
+    {
+        // Deliberately terse — this shares one status-bar line with the
+        // metrics and paging segments; the review dialog carries the long form.
+        PendingChangesText = PendingChanges is { IsEmpty: false } pending
+            ? $"{pending.Count} staged · {pending.Schema}.{pending.Table}"
+            : null;
+        // A mutation can leave the summary text equal (e.g. staging one delete
+        // while unstaging another), which the property setter would swallow —
+        // re-raise unconditionally so the view always repaints row washes.
+        OnPropertyChanged(nameof(PendingChangesText));
+        OnPropertyChanged(nameof(HasPendingChanges));
+        CommitPendingCommand.NotifyCanExecuteChanged();
+        DiscardPendingCommand.NotifyCanExecuteChanged();
+    }
+
+    // The staged set's primary-key columns as indexes into the current result's
+    // columns, or null when the result doesn't carry them all (different query
+    // on screen: no highlighting, no re-apply).
+    private List<int>? PendingPkIndexes(PendingChangeSet pending)
+    {
+        var indexes = new List<int>(pending.PrimaryKeyColumns.Count);
+        foreach (var pk in pending.PrimaryKeyColumns)
+        {
+            var index = ColumnNames.IndexOf(pk);
+            if (index < 0)
+            {
+                return null;
+            }
+
+            indexes.Add(index);
+        }
+
+        return indexes;
+    }
+
+    private static object?[] PkValuesOf(object?[] row, IReadOnlyList<int> pkIndexes)
+    {
+        var values = new object?[pkIndexes.Count];
+        for (var i = 0; i < pkIndexes.Count; i++)
+        {
+            values[i] = pkIndexes[i] < row.Length ? row[pkIndexes[i]] : null;
+        }
+
+        return values;
+    }
+
+    // After the grid reloads from the server (re-run, browse page load), the
+    // fresh rows show server values — put the staged values back on matching
+    // rows so what's on screen stays what a commit would produce.
+    private void ReapplyPendingEditsToGrid()
+    {
+        if (PendingChanges is not { IsEmpty: false } pending
+            || PendingPkIndexes(pending) is not { } pkIndexes)
+        {
+            return;
+        }
+
+        for (var r = 0; r < Rows.Count; r++)
+        {
+            var row = Rows[r];
+            if (pending.GetRowEdits(PkValuesOf(row, pkIndexes)) is not { } edits)
+            {
+                continue;
+            }
+
+            var updated = (object?[])row.Clone();
+            var changed = false;
+            foreach (var (column, value) in edits)
+            {
+                var index = ColumnNames.IndexOf(column);
+                if (index >= 0 && index < updated.Length && !Equals(updated[index], value))
+                {
+                    updated[index] = value;
+                    changed = true;
+                }
+            }
+
+            if (changed)
+            {
+                Rows[r] = updated;
+            }
+        }
+    }
+
+    // Replaces the row wholesale (mutating an array element in place doesn't
+    // raise a UI change notification) with one cell's new value.
+    private void ReplaceRowCell(object?[] row, int columnIndex, object? value)
+    {
+        var rowIndex = Rows.IndexOf(row);
+        if (rowIndex >= 0)
+        {
+            var updated = (object?[])row.Clone();
+            updated[columnIndex] = value;
+            Rows[rowIndex] = updated;
+        }
+    }
 
     /// <summary>
     /// Snapshots the current result (columns + rows) and returns a writer that

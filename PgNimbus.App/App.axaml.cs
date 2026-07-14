@@ -41,6 +41,10 @@ public partial class App : Application
     private static void PersistAutoAliasTables(bool value) =>
         SettingsStore.Save(SettingsStore.Load() with { AutoAliasTables = value });
 
+    /// <summary>Remembers the safe-mode (stage &amp; review grid changes) toggle so it survives a restart.</summary>
+    private static void PersistSafeModeEdits(bool value) =>
+        SettingsStore.Save(SettingsStore.Load() with { SafeModeEdits = value });
+
     /// <summary>The saved settings snapshot, for the preferences page to initialize from.</summary>
     internal static AppSettings LoadSettings() => SettingsStore.Load();
 
@@ -181,7 +185,9 @@ public partial class App : Application
                 connectionHost: csb.Host ?? "",
                 connectionDatabase: csb.Database ?? "",
                 autoAliasTables: SettingsStore.Load().AutoAliasTables,
-                persistAutoAliasTables: PersistAutoAliasTables),
+                persistAutoAliasTables: PersistAutoAliasTables,
+                safeModeEdits: SettingsStore.Load().SafeModeEdits,
+                persistSafeModeEdits: PersistSafeModeEdits),
         };
 
         window.Closed += async (_, _) =>

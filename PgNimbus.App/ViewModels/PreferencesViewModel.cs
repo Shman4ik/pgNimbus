@@ -40,6 +40,13 @@ public sealed partial class PreferencesViewModel : ObservableObject
         set => _main.AutoAliasTables = value;
     }
 
+    /// <summary>Safe mode: stage grid changes for review instead of executing them immediately. Same proxy pattern as <see cref="AutoAliasTables"/>.</summary>
+    public bool SafeModeEdits
+    {
+        get => _main.SafeModeEdits;
+        set => _main.SafeModeEdits = value;
+    }
+
     /// <summary>Unhooks from the main view-model when the window closes.</summary>
     public void Detach() => _main.PropertyChanged -= OnMainPropertyChanged;
 
@@ -48,6 +55,10 @@ public sealed partial class PreferencesViewModel : ObservableObject
         if (e.PropertyName == nameof(MainViewModel.AutoAliasTables))
         {
             OnPropertyChanged(nameof(AutoAliasTables));
+        }
+        else if (e.PropertyName == nameof(MainViewModel.SafeModeEdits))
+        {
+            OnPropertyChanged(nameof(SafeModeEdits));
         }
     }
 

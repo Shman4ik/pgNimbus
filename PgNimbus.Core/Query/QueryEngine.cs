@@ -171,6 +171,65 @@ public sealed class QueryEngine
         await command.ExecuteNonQueryAsync(ct);
     }
 
+    /// <summary>
+    /// Executes a batch of parameterized statements atomically — safe mode's
+    /// "commit everything as one transaction". On its own dedicated connection
+    /// the batch runs inside <c>BEGIN…COMMIT</c>; any failure rolls the whole
+    /// batch back (nothing is applied) and the exception propagates to the
+    /// caller. Inside an explicit user transaction the statements run on the
+    /// held session connection instead, joining the open block — atomicity
+    /// then comes from that block, and a failure auto-rolls it back like any
+    /// other in-transaction statement. Returns the total rows affected.
+    /// </summary>
+    public async Task<int> ApplyBatchAsync(IReadOnlyList<ParameterizedStatement> statements, CancellationToken ct)
+    {
+        if (_transactionConnection is { } tx)
+        {
+            var affected = 0;
+            foreach (var statement in statements)
+            {
+                await using var txCommand = CreateCommand(statement, tx, transaction: null);
+                try
+                {
+                    affected += await txCommand.ExecuteNonQueryAsync(ct);
+                }
+                catch (PostgresException)
+                {
+                    await AutoRollbackAsync();
+                    throw;
+                }
+            }
+
+            return affected;
+        }
+
+        await using var connection = await _dataSource.OpenConnectionAsync(ct);
+        // Disposing an uncommitted NpgsqlTransaction rolls it back, so any
+        // failure below undoes every statement already executed.
+        await using var batchTransaction = await connection.BeginTransactionAsync(ct);
+
+        var total = 0;
+        foreach (var statement in statements)
+        {
+            await using var command = CreateCommand(statement, connection, batchTransaction);
+            total += await command.ExecuteNonQueryAsync(ct);
+        }
+
+        await batchTransaction.CommitAsync(ct);
+        return total;
+    }
+
+    private static NpgsqlCommand CreateCommand(ParameterizedStatement statement, NpgsqlConnection connection, NpgsqlTransaction? transaction)
+    {
+        var command = new NpgsqlCommand(statement.Sql, connection, transaction);
+        foreach (var (name, value) in statement.Parameters)
+        {
+            command.Parameters.AddWithValue(name, value ?? DBNull.Value);
+        }
+
+        return command;
+    }
+
     /// <param name="sql">The statement to execute.</param>
     /// <param name="ct">Cancels the execution mid-flight.</param>
     /// <param name="maxRows">

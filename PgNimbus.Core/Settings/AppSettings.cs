@@ -34,6 +34,15 @@ public sealed record AppSettings
     public bool AutoAliasTables { get; set; }
 
     /// <summary>
+    /// Safe mode: grid cell edits, row deletes, and Add-row inserts are staged
+    /// locally (dirty rows highlighted in the grid) instead of executing
+    /// immediately; the generated SQL is reviewed and committed as one
+    /// transaction — or discarded. Off by default; toggled from the command
+    /// palette or the preferences page.
+    /// </summary>
+    public bool SafeModeEdits { get; set; }
+
+    /// <summary>
     /// Which modifier the app's command shortcuts use: <c>"auto"</c> (Cmd on
     /// macOS, Ctrl elsewhere — the default), <c>"windows"</c> (always Ctrl), or
     /// <c>"mac"</c> (always Cmd). A plain string for the same reason as
