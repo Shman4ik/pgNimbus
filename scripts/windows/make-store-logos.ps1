@@ -2,22 +2,33 @@
 # logos" section asks for (Product release > Store listings > Store logos).
 # These are upload-only display assets for the Store page itself — not part
 # of the shipped app or the MSIX package (see scripts/windows/build-msix.ps1
-# and scripts/windows/make-app-icons.ps1 for those) — so this writes to
-# -OutDir rather than PgNimbus.App/Assets, and isn't wired into any build.
+# and scripts/windows/make-app-icons.ps1 for those), and not wired into any
+# build. The output is checked into design/store/ (regenerate + commit after
+# updating design/masters/icon/icon-1024.png) so Partner Center re-uploads are
+# a copy-paste, not a re-derivation from a script no one remembers to run.
 #
 # Usage:
-#   pwsh scripts/windows/make-store-logos.ps1 -OutDir path\to\output
+#   pwsh scripts/windows/make-store-logos.ps1
+#   pwsh scripts/windows/make-store-logos.ps1 -OutDir path\to\other\output
 #
 # Windows-only (System.Drawing/GDI+).
 param(
-    [Parameter(Mandatory)] [string]$OutDir
+    [string]$OutDir
 )
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
 
 $repo = Resolve-Path (Join-Path $PSScriptRoot '..\..')
+if (-not $OutDir) {
+    $OutDir = Join-Path $repo 'design\store'
+}
 $src  = New-Object System.Drawing.Bitmap((Join-Path $repo 'design\masters\icon\icon-1024.png'))
-$bg   = [System.Drawing.Color]::FromArgb(255, 59, 68, 77)  # dark tile background (poster fill)
+# Poster fill: must match the badge ring's navy (#242b36) so the circular tile
+# blends into the poster instead of showing as a mismatched dark-on-dark blob.
+# icon-1024 is a circular badge with transparent corners (2026-07), not
+# full-bleed, so this can't be sampled from a corner pixel (transparent) —
+# keep it hardcoded in sync with design/masters/icon's ink-dark color.
+$bg   = [System.Drawing.Color]::FromArgb(255, 0x24, 0x2b, 0x36)
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 
 # Square full-bleed tile at a given size, rendered from the 1024 master.

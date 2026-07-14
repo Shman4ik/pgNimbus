@@ -50,11 +50,16 @@ from them by the scripts in Part 3.
 | `wordmark-{light,dark}.svg` (+ `.png` @2×) | ≈3.5:1 | *planned* README wordmark (see Part 4) |
 | `social-preview.png` | 1280×640 | *planned* GitHub repo social preview (has a bg) |
 
-> The current files in `masters/` are **placeholders** seeded from the old art
-> so the build keeps working. The designer overwrites them (see the brief).
-> `wordmark-*` and `social-preview.png` have **no placeholder yet** — nothing
-> consumes them, the designer adds them as new files.
 > Superseded/old concepts live in `design/archive/`.
+
+### `design/store/` — Microsoft Partner Center listing images (**generated**)
+
+Not a source — **generated** by `scripts/windows/make-store-logos.ps1` from
+`icon/icon-1024.png` and checked in so a Partner Center re-upload is a
+copy-paste, not a script run someone forgot about. Regenerate and commit
+whenever `icon-1024.png` changes: `BoxArt-1x1-2160x2160.png`,
+`AppTileIcon-1x1-300x300.png`, `Square-1x1-{150,71}x{150,71}.png`,
+`Poster-9x16-1440x2160.png` — see Part 3.
 
 ---
 
@@ -122,8 +127,10 @@ icon/icon-1024.png ── sips → 64,128,512,1024 ┼─► app.iconset → app
 
 ### `scripts/windows/make-store-logos.ps1` (manual, upload-only)
 Partner Center **Store-listing** images from `icon/icon-1024.png` (square):
-BoxArt 2160, tile 300/150/71, 9:16 poster 1440×2160. Writes to `-OutDir`, not
-wired into any build.
+BoxArt 2160, tile 300/150/71, 9:16 poster 1440×2160. Writes to `design/store/`
+by default (checked into the repo — re-run and commit after `icon-1024.png`
+changes) or `-OutDir` for a one-off elsewhere. Not wired into any build;
+uploading the files to Partner Center is still a manual step.
 
 > Nothing consumes `masters/logo/*` via a script — the README references those
 > files directly by path.

@@ -78,15 +78,24 @@ designer hand-off brief is [`design/DESIGNER-BRIEF.md`](design/DESIGNER-BRIEF.md
 
 Sources live in `design/masters/` and are **hand-drawn per size** — the
 scripts *copy/assemble* them, they do **not** downscale one master into every
-tiny icon (that produced muddy 16–32px icons; fixed 2026-07). Icon tiles are
-**square full-bleed** (no baked rounding); the OS/store rounds them. Layout:
+tiny icon (that produced muddy 16–32px icons; fixed 2026-07). Layout:
 
-- `design/masters/icon/icon-{16,24,32,48,256,1024}.png` — the app tile,
-  square solid-bg, hand-tuned/simplified at small sizes.
+- `design/masters/icon/icon-{16,24,32,48,256,1024}.png` — the app tile.
+  16/24/32/48 are square full-bleed (no transparency — these feed the
+  taskbar/Explorer directly with no OS-drawn plate behind them, so a
+  transparent icon disappears there) and simplified for legibility. 256/1024
+  are a circular navy badge with transparent corners (2026-07) — those only
+  feed contexts that supply their own backdrop (macOS icon mask, Store
+  listing pages), so transparency is safe and reads better at that size.
 - `design/masters/window/window-{light,dark}-256.png` — transparent line-art
-  window icons.
-- `design/masters/logo/` — README logo (`logo.svg`, `logo-{light,dark}.png`),
-  plus planned `wordmark-*` lockup and `social-preview.png` (1280×640).
+  window icons (currently unused in-app, see Part 2 of LOGO-ASSETS.md).
+- `design/masters/logo/` — README/website assets: `logo.svg`,
+  `logo-{light,dark}.png`, `wordmark-{light,dark}.{svg,png}`,
+  `social-preview.png` (1280×640).
+- `design/store/` — **generated**, not hand-edited: Microsoft Partner Center
+  listing images from `icon-1024.png`, via
+  `scripts/windows/make-store-logos.ps1`. Checked into git so a Partner
+  Center re-upload doesn't depend on someone remembering to run the script.
 - `design/archive/` — superseded concepts (old `icon-tile.png`, `simple/`, …).
 
 Everything in `PgNimbus.App/Assets/` is **generated** by
