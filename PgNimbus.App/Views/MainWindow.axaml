@@ -635,7 +635,7 @@
                          Notepad++-style word-wrap toggle. Icon-only to stay within
                          the minimalist toolbar rule; both are in the palette too. -->
                     <Rectangle Classes="statusSeparator" Margin="7,0" />
-                    <Button Classes="toolbar" Command="{Binding FormatSqlCommand}" ToolTip.Tip="Format SQL (Alt+Shift+F)">
+                    <Button Classes="toolbar" Command="{Binding FormatSqlCommand}" ToolTip.Tip="Format SQL (Ctrl+Shift+F or Alt+Shift+F)">
                         <PathIcon Data="{StaticResource AutoFixIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
                     </Button>
                     <ToggleButton Classes="toolbar" IsChecked="{Binding WordWrapEditor, Mode=TwoWay}" ToolTip.Tip="Word wrap (Notepad++ style)">

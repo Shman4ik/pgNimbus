@@ -1326,12 +1326,17 @@ public partial class MainWindow : Window
             return;
         }
 
-        // Alt+Shift+F (the IntelliJ/VS Code convention the feedback asked for),
-        // or the legacy Ctrl/Cmd+Shift+F: pretty-print the statement the caret
-        // sits in, in place.
+        // Format the statement under the caret. All three shift-F combos fire it,
+        // regardless of the active hotkey scheme: Ctrl+Shift+F and Cmd+Shift+F
+        // (the two platform combos, as before) plus Alt+Shift+F (the
+        // IntelliJ/VS Code convention). A deliberate exception to the
+        // Hotkeys.Command routing — accepting every modifier is harmless here
+        // (nothing else binds them) and means the muscle-memory combo works
+        // whatever platform the user came from.
         if (e.Key == Key.F
-            && (e.KeyModifiers == (KeyModifiers.Alt | KeyModifiers.Shift)
-                || e.KeyModifiers == (Hotkeys.Command | KeyModifiers.Shift)))
+            && (e.KeyModifiers == (KeyModifiers.Control | KeyModifiers.Shift)
+                || e.KeyModifiers == (KeyModifiers.Meta | KeyModifiers.Shift)
+                || e.KeyModifiers == (KeyModifiers.Alt | KeyModifiers.Shift)))
         {
             FormatCurrentStatement();
             e.Handled = true;

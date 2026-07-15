@@ -551,7 +551,7 @@ public sealed partial class MainViewModel : ObservableObject
         yield return new PaletteItem("Close tab", "Action", "✕", Invoke(() => CloseTabCommand), Hotkeys.Label("W"));
         yield return new PaletteItem("Next tab", "Action", "›", Invoke(() => NextTabCommand), Hotkeys.Label("PgDn"));
         yield return new PaletteItem("Previous tab", "Action", "‹", Invoke(() => PreviousTabCommand), Hotkeys.Label("PgUp"));
-        yield return new PaletteItem("Format SQL", "Action", "❖", Invoke(() => FormatSqlCommand), "Alt+Shift+F");
+        yield return new PaletteItem("Format SQL", "Action", "❖", Invoke(() => FormatSqlCommand), $"{Hotkeys.Label("Shift+F")} / Alt+Shift+F");
         yield return new PaletteItem("Toggle word wrap (Notepad++ style)", "Action", "↩", Invoke(() => ToggleWordWrapCommand));
         yield return new PaletteItem("Find in editor", "Action", "⌕", () => { FindRequested?.Invoke(false); return Task.CompletedTask; }, Hotkeys.Label("F"));
         yield return new PaletteItem("Find & replace in editor", "Action", "⌕", () => { FindRequested?.Invoke(true); return Task.CompletedTask; }, Hotkeys.Label("H"));
