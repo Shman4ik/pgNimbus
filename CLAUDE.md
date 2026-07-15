@@ -391,7 +391,9 @@ you upload it to Partner Center.
   is a template (`$VERSION$` placeholder) with `Identity/Publisher` hardcoded
   to this repo's reserved Partner Center product identity
   (`DmitriiShmanev.pgNimbus` / `CN=04FDF7B0-6D86-4EB7-B798-21CD434897BC`,
-  Store ID `9N6SZT42XJ24`) — plain Win32/Desktop Bridge (`runFullTrust`
+  Store ID `9N6SZT42XJ24` — the listing is **live** as of 2026-07:
+  <https://apps.microsoft.com/detail/9N6SZT42XJ24>) — plain
+  Win32/Desktop Bridge (`runFullTrust`
   capability, `EntryPoint="Windows.FullTrustApplication"`), not Windows App
   SDK, since the app is a native AOT exe with no WinUI dependency.
 - **Tile assets**: `PgNimbus.App/Assets/Msix/*.png` (Square44x44Logo,
@@ -426,9 +428,24 @@ you upload it to Partner Center.
   with the last field forced to `0` (Store convention) —
   `ConvertTo-MsixVersion` strips any prerelease suffix like `-ci.42` from
   `VERSION` before padding.
-- **Submission** (manual, not automated yet): download the `windows-msix`
-  artifact from the release workflow run and upload it through Partner
-  Center → this product → Packages, then fill in Store listing / age ratings
-  / submit for certification. Could move to the Microsoft Store submission
-  API later (needs its own Entra ID app registration under the Partner
-  Center account — free, unrelated to Azure Artifact Signing).
+- **Submission** (manual, not automated yet): the first submission passed
+  certification and the listing is live. For updates: download the
+  `windows-msix` artifact from the release workflow run and upload it through
+  Partner Center → this product → Packages, then submit for certification.
+  Could move to the Microsoft Store submission API later (needs its own
+  Entra ID app registration under the Partner Center account — free,
+  unrelated to Azure Artifact Signing).
+
+## Project website (GitHub Pages)
+
+<https://shman4ik.github.io/pgNimbus/> is a hand-written static landing page.
+Source of truth is [`website/index.html`](website/index.html) (self-contained
+HTML+CSS, light/dark via `prefers-color-scheme`, no external requests);
+[`scripts/website/publish-site.sh`](scripts/website/publish-site.sh) assembles
+it with assets copied from `design/masters/` and `docs/screenshots/` into the
+**root of the `gh-pages` branch** and pushes. The same branch hosts the
+benchmark history under `dev/bench/` (written by benchmark-action from the
+release pipeline) — the publish script must never touch that directory.
+Publishing is manual: edit `website/index.html`, run the script. If the
+screenshots or download links change (e.g. a new install channel), update the
+page in the same PR.

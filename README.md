@@ -7,6 +7,8 @@
 
 # pgNimbus
 
+**Project page: <https://shman4ik.github.io/pgNimbus/>**
+
 A fast, native-feeling, open-source **PostgreSQL** GUI client, built with **.NET
 10 + Avalonia 12**. MIT licensed. Windows is the primary target, but the
 codebase stays cross-platform-capable — no Windows-only APIs live in the core
@@ -70,13 +72,11 @@ signs the package with its own trusted certificate (no SmartScreen warnings)
 and keeps it updated automatically.
 
 - **Microsoft Store** — [pgNimbus on the Microsoft Store](https://apps.microsoft.com/detail/9N6SZT42XJ24).
-  *The app has been submitted and is currently in Store certification — the
-  listing goes live as soon as that completes.*
 - **winget** — Store apps are installable through winget's built-in
-  `msstore` source, so once the listing is live:
+  `msstore` source:
 
   ```text
-  winget install --id 9N6SZT42XJ24 --source msstore
+  winget install pgNimbus --source msstore
   ```
 
 - **Direct download** — `pgNimbus-<version>-win-x64.msi` from
@@ -401,17 +401,17 @@ individually shippable pieces. Shipped items graduate from this list into
 
 ### Now — release blockers
 
-- [ ] **Microsoft Store certification** — the MSIX has been submitted to
-  the Store and is in certification. Once live, the Store listing becomes
-  the trusted, SmartScreen-clean install path on Windows (the Store re-signs
-  the package with its own certificate), and `winget install` works through
-  the built-in `msstore` source. Buying an Authenticode cert for the direct
-  MSI is deliberately *not* planned — the Store covers the trust story for
-  $0; the direct MSI stays as an unsigned convenience download.
+- [x] **Microsoft Store certification** — done: the listing is
+  [live on the Microsoft Store](https://apps.microsoft.com/detail/9N6SZT42XJ24)
+  and is the trusted, SmartScreen-clean install path on Windows (the Store
+  re-signs the package with its own certificate); `winget install` works
+  through the built-in `msstore` source. Buying an Authenticode cert for the
+  direct MSI is deliberately *not* planned — the Store covers the trust story
+  for $0; the direct MSI stays as an unsigned convenience download.
 - [ ] **winget-pkgs submission** — manifests are generated and validated per
   release, but the first manual `winget-pkgs` PR (which registers the
   `pgNimbus.pgNimbus` identifier for the classic community source) hasn't
-  been made yet. Lower priority now that the `msstore` source will cover
+  been made yet. Lower priority now that the `msstore` source already covers
   `winget install`.
 - [ ] **Full macOS support** — the current `.dmg` is a very early beta:
   arm64-only, unsigned/unnotarized, lightly tested. Proper support (Apple

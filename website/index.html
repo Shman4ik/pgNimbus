@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pgNimbus — a fast, open-source PostgreSQL GUI client</title>
+<meta name="description" content="pgNimbus is a fast, open-source PostgreSQL GUI client for Windows (and macOS beta). Native AOT startup in ~100 ms, PostgreSQL-first introspection, zero telemetry. MIT licensed.">
+<link rel="icon" type="image/png" href="assets/icon-256.png">
+<link rel="canonical" href="https://shman4ik.github.io/pgNimbus/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="pgNimbus — a fast, open-source PostgreSQL GUI client">
+<meta property="og:description" content="HeidiSQL's speed with TablePlus's polish, PostgreSQL-first. Native AOT startup in ~100 ms, zero telemetry, MIT licensed.">
+<meta property="og:url" content="https://shman4ik.github.io/pgNimbus/">
+<meta property="og:image" content="https://shman4ik.github.io/pgNimbus/assets/social-preview.png">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+  :root {
+    --ink: #242b36;
+    --ink-soft: #4b5563;
+    --bg: #f7f8fa;
+    --surface: #ffffff;
+    --border: #e3e6ea;
+    --accent: #2f6feb;
+    --accent-ink: #ffffff;
+    --code-bg: #eef0f3;
+    --shadow: 0 1px 2px rgba(36, 43, 54, .06), 0 8px 24px rgba(36, 43, 54, .09);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ink: #e7eaee;
+      --ink-soft: #9aa4b2;
+      --bg: #1a2029;
+      --surface: #242b36;
+      --border: #333c49;
+      --accent: #5b8ff0;
+      --accent-ink: #10141a;
+      --code-bg: #2d3542;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .35);
+    }
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  img { max-width: 100%; height: auto; }
+  code, .cmd {
+    font-family: "Cascadia Code", "SF Mono", Consolas, "Liberation Mono", monospace;
+    font-size: .9em;
+    background: var(--code-bg);
+    border-radius: 6px;
+    padding: .15em .45em;
+  }
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 0 24px; }
+
+  /* ---- header ---- */
+  header {
+    padding: 18px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  header .wrap { display: flex; align-items: center; gap: 12px; }
+  header img { height: 30px; width: auto; }
+  header nav { margin-left: auto; display: flex; gap: 22px; font-size: .95rem; }
+  header nav a { color: var(--ink-soft); }
+  header nav a:hover { color: var(--ink); text-decoration: none; }
+
+  /* ---- hero ---- */
+  .hero { text-align: center; padding: 72px 0 40px; }
+  .hero img.wordmark { height: 84px; width: auto; margin-bottom: 28px; }
+  .hero h1 {
+    font-size: clamp(1.7rem, 4.5vw, 2.6rem);
+    font-weight: 700;
+    letter-spacing: -.02em;
+    line-height: 1.2;
+    max-width: 760px;
+    margin: 0 auto 16px;
+  }
+  .hero p.sub {
+    color: var(--ink-soft);
+    font-size: 1.1rem;
+    max-width: 640px;
+    margin: 0 auto 32px;
+  }
+  .cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 14px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 9px;
+    padding: 11px 22px;
+    border-radius: 9px;
+    font-weight: 600;
+    font-size: .98rem;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--ink);
+    transition: transform .08s ease, box-shadow .08s ease;
+  }
+  .btn:hover { text-decoration: none; transform: translateY(-1px); box-shadow: var(--shadow); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .btn svg { width: 17px; height: 17px; flex: none; }
+  .winget {
+    color: var(--ink-soft);
+    font-size: .9rem;
+    margin-bottom: 40px;
+  }
+  .shot-hero {
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    display: block;
+    margin: 0 auto;
+  }
+
+  /* ---- sections ---- */
+  section { padding: 64px 0; }
+  section + section { border-top: 1px solid var(--border); }
+  h2 {
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: -.01em;
+    text-align: center;
+    margin-bottom: 10px;
+  }
+  .section-sub { text-align: center; color: var(--ink-soft); max-width: 620px; margin: 0 auto 42px; }
+
+  /* ---- highlight cards ---- */
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 18px; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px 22px;
+  }
+  .card h3 { font-size: 1.05rem; margin-bottom: 8px; display: flex; align-items: center; gap: 9px; }
+  .card h3 svg { width: 19px; height: 19px; color: var(--accent); flex: none; }
+  .card p { color: var(--ink-soft); font-size: .93rem; }
+
+  /* ---- gallery ---- */
+  .gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 26px; }
+  .gallery figure { margin: 0; }
+  .gallery img {
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    width: 100%;
+  }
+  .gallery figcaption { color: var(--ink-soft); font-size: .88rem; margin-top: 10px; text-align: center; }
+
+  /* ---- feature list ---- */
+  .features { columns: 2; column-gap: 44px; max-width: 900px; margin: 0 auto; }
+  .features li {
+    break-inside: avoid;
+    list-style: none;
+    padding-left: 26px;
+    position: relative;
+    margin-bottom: 13px;
+    color: var(--ink-soft);
+    font-size: .94rem;
+  }
+  .features li::before {
+    content: "";
+    position: absolute; left: 2px; top: 7px;
+    width: 8px; height: 8px; border-radius: 3px;
+    background: var(--accent);
+    opacity: .75;
+  }
+  .features li strong { color: var(--ink); font-weight: 600; }
+  @media (max-width: 700px) { .features { columns: 1; } }
+
+  /* ---- benchmarks ---- */
+  .bench-stats { display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; margin-bottom: 30px; }
+  .stat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 30px;
+    text-align: center;
+    min-width: 180px;
+  }
+  .stat .num { font-size: 1.9rem; font-weight: 700; letter-spacing: -.02em; }
+  .stat .lbl { color: var(--ink-soft); font-size: .86rem; }
+  .center { text-align: center; }
+
+  /* ---- downloads ---- */
+  .dl-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; max-width: 760px; margin: 0 auto; }
+  .dl {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 26px 24px;
+  }
+  .dl h3 { font-size: 1.1rem; margin-bottom: 12px; }
+  .dl p { color: var(--ink-soft); font-size: .92rem; margin-bottom: 12px; }
+  .dl .btn { margin-bottom: 10px; }
+  .dl .note { font-size: .82rem; color: var(--ink-soft); }
+
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 34px 0 44px;
+    color: var(--ink-soft);
+    font-size: .9rem;
+    text-align: center;
+  }
+  footer .links { display: flex; gap: 22px; justify-content: center; margin-bottom: 12px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="assets/wordmark-dark.png">
+      <img src="assets/wordmark-light.png" alt="pgNimbus">
+    </picture>
+    <nav>
+      <a href="#features">Features</a>
+      <a href="#benchmarks">Benchmarks</a>
+      <a href="#download">Download</a>
+      <a href="https://github.com/Shman4ik/pgNimbus">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap">
+    <h1>A fast, open-source PostgreSQL&nbsp;GUI client</h1>
+    <p class="sub">
+      HeidiSQL's speed with TablePlus's polish — PostgreSQL-first, from the ground up.
+      Native AOT startup in the ~100&nbsp;ms range, streaming results, zero telemetry.
+      Built with .NET&nbsp;10 + Avalonia. MIT licensed.
+    </p>
+    <div class="cta">
+      <a class="btn primary" href="https://apps.microsoft.com/detail/9N6SZT42XJ24">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.5 10.5 4.4v7.1H3V5.5zm0 13 7.5 1.1v-7H3v5.9zM11.5 4.25 21 3v8.5h-9.5v-7.25zm0 15.5L21 21v-8.5h-9.5v7.25z"/></svg>
+        Get it from Microsoft Store
+      </a>
+      <a class="btn" href="https://github.com/Shman4ik/pgNimbus/releases/latest">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download from Releases
+      </a>
+      <a class="btn" href="https://github.com/Shman4ik/pgNimbus">
+        <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+        View on GitHub
+      </a>
+    </div>
+    <p class="winget">or <code>winget install pgNimbus --source msstore</code></p>
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="assets/main-dark.png">
+      <img class="shot-hero" src="assets/main-light.png" alt="pgNimbus main window: schema tree sidebar, SQL editor with completion, streaming results grid" width="960">
+    </picture>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Why pgNimbus</h2>
+    <p class="section-sub">
+      The gap in the Postgres client market: truly fast + open source + modern UI.
+      pgAdmin and DBeaver are heavy; TablePlus is closed and paid; HeidiSQL is dated and MySQL-first.
+    </p>
+    <div class="cards">
+      <div class="card">
+        <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Instantly fast</h3>
+        <p>A NativeAOT binary that's on screen in the ~100&nbsp;ms range — not an Electron shell. Startup, memory, and query-engine numbers are measured on every release.</p>
+      </div>
+      <div class="card">
+        <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>PostgreSQL-first</h3>
+        <p>Deep <code>pg_catalog</code> introspection, graphical EXPLAIN, FK-aware JOIN completion, LISTEN/NOTIFY, server activity — never the lowest-common-denominator dialect.</p>
+      </div>
+      <div class="card">
+        <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M7 16h10"/></svg>Keyboard-first</h3>
+        <p>A Ctrl+K command palette that fuzzy-jumps to any table, query, or action; run, cancel, and navigate without touching the mouse. F1 shows every binding.</p>
+      </div>
+      <div class="card">
+        <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Private &amp; open</h3>
+        <p>Zero telemetry — no analytics, no crash reporting, no update pings. Passwords live in the OS credential store. MIT-licensed, so you can verify it, not trust it.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="wrap">
+    <h2>See it in action</h2>
+    <p class="section-sub">Cold start to first frame, completion that predicts the next move, and the tools around the query.</p>
+    <div class="gallery">
+      <figure>
+        <img src="assets/cold-start.gif" alt="pgNimbus launching from a cold NativeAOT process to a fully rendered main window in well under a second" loading="lazy">
+        <figcaption>Instant launch — cold NativeAOT process to rendered window</figcaption>
+      </figure>
+      <figure>
+        <img src="assets/completion-demo.gif" alt="SQL completion: FROM with a partial table name, JOIN with an FK-ranked suggestion, ON auto-completing the full join condition" loading="lazy">
+        <figcaption>FK-aware completion — <code>JOIN</code> ranks related tables, <code>ON</code> completes the whole condition</figcaption>
+      </figure>
+      <figure>
+        <img src="assets/explain-visualization.png" alt="Graphical EXPLAIN ANALYZE plan tree with per-node cost and timing" loading="lazy">
+        <figcaption>EXPLAIN ANALYZE as a plan tree, with per-node cost and timing</figcaption>
+      </figure>
+      <figure>
+        <img src="assets/command-palette.png" alt="Command palette fuzzy-jumping to a table" loading="lazy">
+        <figcaption>Command palette — every table, saved query, and action behind Ctrl+K</figcaption>
+      </figure>
+      <figure>
+        <img src="assets/server-activity.png" alt="Server activity window showing a live backend and its wait event" loading="lazy">
+        <figcaption>Live <code>pg_stat_activity</code> — cancel or terminate a runaway backend in one click</figcaption>
+      </figure>
+      <figure>
+        <img src="assets/connection-dialog.png" alt="Connection dialog with saved profiles and paste-anything import" loading="lazy">
+        <figcaption>Paste-anything connections — URI, JDBC, libpq, even a full psql command line</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Everything you need, nothing you don't</h2>
+    <p class="section-sub">A minimalist shell over a serious engine — secondary actions live in the palette, not on a toolbar.</p>
+    <ul class="features">
+      <li><strong>Streaming, cancellable results</strong> — the first screenful renders before the full result set arrives, in a virtualized grid.</li>
+      <li><strong>Safe mode</strong> — stage grid edits, inserts, and deletes locally, review the exact SQL, commit as one transaction — or discard it all.</li>
+      <li><strong>Schema-aware SQL completion</strong> — tables after FROM/JOIN, scoped columns, aliases, CTE output columns, user-defined functions.</li>
+      <li><strong>Follow foreign keys from the grid</strong> — jump to the referenced row, or list every row referencing this one.</li>
+      <li><strong>No-SQL table browsing</strong> — paged, sortable browsing pushed down to Postgres; the composed SQL doubles as your filter.</li>
+      <li><strong>Transaction control</strong> — explicit Begin/Commit/Rollback on one held connection, with auto-rollback on failure.</li>
+      <li><strong>Multi-tab editor</strong> — SQL formatting, find &amp; replace, run history, saved queries, whole-script execution.</li>
+      <li><strong>Grid CRUD</strong> — inline edits, add-row dialog, delete with confirmation, set-to-NULL — keyed on the primary key.</li>
+      <li><strong>Cell inspector</strong> — double-click any cell to read a long <code>text</code>/<code>jsonb</code> value, JSON pretty-printed.</li>
+      <li><strong>CSV/JSON import &amp; export</strong> — type-inferred imports streamed via <code>COPY</code>; copy results as CSV, JSON, Markdown, or INSERTs.</li>
+      <li><strong>Connection manager</strong> — per-connection accent colors, SSH tunnels, passwords in the OS credential store only.</li>
+      <li><strong>LISTEN/NOTIFY monitor</strong> — subscribe to channels and watch notifications arrive live.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="benchmarks">
+  <div class="wrap">
+    <h2>Fast is measured, not asserted</h2>
+    <p class="section-sub">
+      Every tagged release runs the benchmark suite: startup to first frame, memory at first frame,
+      connect and round-trip latency, time to first row batch, and full-stream throughput of a
+      100,000-row query.
+    </p>
+    <div class="bench-stats">
+      <div class="stat"><div class="num">~100&nbsp;ms</div><div class="lbl">launch to first frame (NativeAOT)</div></div>
+      <div class="stat"><div class="num">100k rows</div><div class="lbl">streamed while the first screenful is already visible</div></div>
+      <div class="stat"><div class="num">0</div><div class="lbl">telemetry calls, ever</div></div>
+    </div>
+    <p class="center"><a class="btn" href="dev/bench/">View the benchmark history →</a></p>
+  </div>
+</section>
+
+<section id="download">
+  <div class="wrap">
+    <h2>Download</h2>
+    <p class="section-sub">Windows is the primary target; a macOS build ships as a very early beta.</p>
+    <div class="dl-grid">
+      <div class="dl">
+        <h3>Windows</h3>
+        <p>The Microsoft Store build is signed by the Store — no SmartScreen warnings, automatic updates.</p>
+        <a class="btn primary" href="https://apps.microsoft.com/detail/9N6SZT42XJ24">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.5 10.5 4.4v7.1H3V5.5zm0 13 7.5 1.1v-7H3v5.9zM11.5 4.25 21 3v8.5h-9.5v-7.25zm0 15.5L21 21v-8.5h-9.5v7.25z"/></svg>
+          Microsoft Store
+        </a>
+        <p><code>winget install pgNimbus --source msstore</code></p>
+        <p class="note">Prefer a plain installer? Grab the per-user <a href="https://github.com/Shman4ik/pgNimbus/releases/latest">MSI from Releases</a> (unsigned — SmartScreen will warn once).</p>
+      </div>
+      <div class="dl">
+        <h3>macOS <span style="font-weight:400;color:var(--ink-soft)">(early beta)</span></h3>
+        <p>Apple Silicon <code>.dmg</code> from GitHub Releases. Unsigned for now, so Gatekeeper needs one command:</p>
+        <p><code>xattr -cr /Applications/pgNimbus.app</code></p>
+        <a class="btn" href="https://github.com/Shman4ik/pgNimbus/releases/latest">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download .dmg
+        </a>
+        <p class="note">Full macOS support (signing, notarization) is planned. <a href="https://github.com/Shman4ik/pgNimbus#fixing-the-gatekeeper-app-is-damaged-error">Details in the README.</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="links">
+      <a href="https://github.com/Shman4ik/pgNimbus">GitHub</a>
+      <a href="https://github.com/Shman4ik/pgNimbus/releases">Releases</a>
+      <a href="dev/bench/">Benchmarks</a>
+      <a href="https://github.com/Shman4ik/pgNimbus/blob/main/LICENSE">MIT License</a>
+    </div>
+    <div>pgNimbus — open source, PostgreSQL-first, and fast enough to prove it.</div>
+  </div>
+</footer>
+
+</body>
+</html>
