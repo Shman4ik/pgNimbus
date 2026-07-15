@@ -23,7 +23,19 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
     /// </summary>
     public bool ShowInitialLoadingCue => IsLoading && Schemas.Count == 0;
 
-    partial void OnIsLoadingChanged(bool value) => OnPropertyChanged(nameof(ShowInitialLoadingCue));
+    /// <summary>
+    /// The thin top progress bar, shown only while *re*loading an already-populated
+    /// tree (a refresh) — the mutually-exclusive counterpart to
+    /// <see cref="ShowInitialLoadingCue"/>. On the first, empty load the centered
+    /// cue carries the loading state alone, so the two never render at once.
+    /// </summary>
+    public bool ShowRefreshLoadingBar => IsLoading && Schemas.Count > 0;
+
+    partial void OnIsLoadingChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ShowInitialLoadingCue));
+        OnPropertyChanged(nameof(ShowRefreshLoadingBar));
+    }
 
     [ObservableProperty]
     private string? _errorMessage;
