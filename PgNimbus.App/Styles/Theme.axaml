@@ -48,15 +48,19 @@
             <!-- Low-alpha accent for row/pill selection washes; reads on both themes -->
             <SolidColorBrush x:Key="AppSelectionBrush" Color="#282D7FF9" />
             <!--
-                SQL editor text-selection wash. Same fixed brand hue as the rest
-                of the app's selection surfaces (NOT AvaloniaEdit's default, which
-                is theme/OS-derived and drifted off our palette). A bit more alpha
-                than AppSelectionBrush (0x40 vs 0x28): a text run under the cursor
+                App-wide text-selection wash: the SQL editor (set on
+                TextArea.SelectionBrush in MainWindow.axaml.cs) AND every plain
+                TextBox (Style below) share this one token, so a selected
+                connection-dialog field reads the same as a selected query. Same
+                fixed brand hue as the rest of the app's selection surfaces (NOT
+                FluentTheme's/AvaloniaEdit's defaults, which are theme/OS-accent-
+                derived and drift off our palette). A bit more alpha than
+                AppSelectionBrush (0x40 vs 0x28): a text run under the cursor
                 needs to read as clearly selected even one char wide, and the
-                translucency lets the syntax-highlight colors show through. Tune
-                the alpha here to make selection stronger/weaker app-wide.
+                translucency lets underlying text colors show through. Tune the
+                alpha here to make selection stronger/weaker app-wide.
             -->
-            <SolidColorBrush x:Key="AppEditorSelectionBrush" Color="#402D7FF9" />
+            <SolidColorBrush x:Key="AppTextSelectionBrush" Color="#402D7FF9" />
 
         <CornerRadius x:Key="CardCornerRadius">8</CornerRadius>
         <CornerRadius x:Key="ControlCornerRadius">6</CornerRadius>
@@ -569,6 +573,14 @@
     <!-- Inputs: rounded to match the rest of the surface -->
     <Style Selector="TextBox, ComboBox, NumericUpDown">
         <Setter Property="CornerRadius" Value="{StaticResource ControlCornerRadius}" />
+    </Style>
+    <!-- Selected text in every plain TextBox (connection dialog fields, search
+         boxes, etc.) uses the same brand-blue wash as the SQL editor instead of
+         FluentTheme's OS-accent-derived default - SelectionBrush is a TextBox-only
+         property (not exposed on ComboBox/NumericUpDown), hence its own selector;
+         it still reaches the editable TextBox inside a NumericUpDown's template. -->
+    <Style Selector="TextBox">
+        <Setter Property="SelectionBrush" Value="{StaticResource AppTextSelectionBrush}" />
     </Style>
 
     <!-- Results grid: soft horizontal rules instead of a full grid -->
