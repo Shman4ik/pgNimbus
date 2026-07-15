@@ -584,5 +584,14 @@ public sealed class SqlCompletionProvider
     // Collapse duplicate labels, keeping the first — which, because callers
     // prepend the higher-priority items, is the better-ranked one.
     private static IReadOnlyList<SqlCompletionData> Dedupe(IEnumerable<SqlCompletionData> items) =>
-        items.GroupBy(i => i.Text, StringComparer.OrdinalIgnoreCase).Select(g => g.First()).ToList();
+        items.GroupBy(DedupeKey, StringComparer.OrdinalIgnoreCase).Select(g => g.First()).ToList();
+
+    // Tables that share a bare name across different schemas (a big DB routinely
+    // has public.users and audit.users) are distinct candidates, so they key on
+    // their schema too and both survive the collapse — otherwise only one of the
+    // two would ever be offered. In table position each still inserts its own
+    // schema-qualified form, so picking the right one resolves unambiguously.
+    // Everything else dedupes on its label alone.
+    private static string DedupeKey(SqlCompletionData item) =>
+        item.Kind == SqlCompletionKind.Table ? $"{item.Text}\u0001{item.Detail}" : item.Text;
 }

@@ -1326,8 +1326,12 @@ public partial class MainWindow : Window
             return;
         }
 
-        // Ctrl/Cmd+Shift+F: pretty-print the statement the caret sits in, in place.
-        if (e.Key == Key.F && e.KeyModifiers == (Hotkeys.Command | KeyModifiers.Shift))
+        // Alt+Shift+F (the IntelliJ/VS Code convention the feedback asked for),
+        // or the legacy Ctrl/Cmd+Shift+F: pretty-print the statement the caret
+        // sits in, in place.
+        if (e.Key == Key.F
+            && (e.KeyModifiers == (KeyModifiers.Alt | KeyModifiers.Shift)
+                || e.KeyModifiers == (Hotkeys.Command | KeyModifiers.Shift)))
         {
             FormatCurrentStatement();
             e.Handled = true;
