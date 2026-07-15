@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784056504609,
+  "lastUpdate": 1784095520939,
   "repoUrl": "https://github.com/Shman4ik/pgNimbus",
   "entries": {
     "pgNimbus benchmarks": [
@@ -339,6 +339,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "Stream 100000 rows",
             "value": 143.5,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shman4ik@gmail.com",
+            "name": "Dmitrii Shmanev",
+            "username": "Shman4ik"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f5dcef34c0422e99cdd44d0e16ca0ed7eb583d2e",
+          "message": "Add project landing page and publish script (#112)\n\n* Add project landing page for GitHub Pages; mark Microsoft Store listing live\n\n- website/index.html: hand-written, self-contained landing page (light/dark\n  via prefers-color-scheme) with Store/Releases download links, feature\n  gallery from docs/screenshots, and a link to the benchmark history\n- scripts/website/publish-site.sh: assembles the page + assets into the\n  root of gh-pages (never touching dev/bench) and pushes\n- README/CLAUDE.md: the Microsoft Store listing passed certification and\n  is live — drop the 'in certification' notes, link the project page\n\nCo-Authored-By: Claude Fable 5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01PYtsDovoMzB5uBCwJBk2fa\n\n* winget: install by name instead of Store ID\n\n'winget install pgNimbus --source msstore' reads better than the opaque\nStore ID; --source stays pinned so the command remains unambiguous once\nthe winget-pkgs community manifest registers the same name.\n\nCo-Authored-By: Claude Fable 5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_01PYtsDovoMzB5uBCwJBk2fa\n\n---------\n\nCo-authored-by: Claude <noreply@anthropic.com>",
+          "timestamp": "2026-07-15T07:54:57+02:00",
+          "tree_id": "fca5e533c67d3d02ebb6d24dccd43f464ac39496",
+          "url": "https://github.com/Shman4ik/pgNimbus/commit/f5dcef34c0422e99cdd44d0e16ca0ed7eb583d2e"
+        },
+        "date": 1784095520058,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Startup, launch to first frame (NativeAOT)",
+            "value": 129,
+            "unit": "ms"
+          },
+          {
+            "name": "Memory at first frame (NativeAOT)",
+            "value": 154.7,
+            "unit": "MB"
+          },
+          {
+            "name": "Binary size (NativeAOT)",
+            "value": 40.6,
+            "unit": "MB"
+          },
+          {
+            "name": "Publish size (NativeAOT, all files)",
+            "value": 140.2,
+            "unit": "MB"
+          },
+          {
+            "name": "Startup, launch to first frame (JIT)",
+            "value": 1301,
+            "unit": "ms"
+          },
+          {
+            "name": "Connect, cold pool",
+            "value": 116.1,
+            "unit": "ms"
+          },
+          {
+            "name": "Round-trip, SELECT 1 warm",
+            "value": 0.2,
+            "unit": "ms"
+          },
+          {
+            "name": "First row batch of a 100000-row SELECT",
+            "value": 7.9,
+            "unit": "ms"
+          },
+          {
+            "name": "Stream 100000 rows",
+            "value": 99.8,
             "unit": "ms"
           }
         ]
