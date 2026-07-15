@@ -440,11 +440,11 @@ public sealed partial class MainViewModel : ObservableObject
         tab.TitleOverride = name;
 
         var columns = await _schemaService.GetColumnsAsync(schema, name, CancellationToken.None);
-        var primaryKeyColumns = columns.Where(c => c.IsPrimaryKey).Select(c => c.Name).ToList();
 
         // Open the table in no-SQL browse mode: server-side filter/sort/paging,
-        // with inline editing when the table has a primary key.
-        await tab.StartBrowseAsync(schema, name, primaryKeyColumns, initialFilter);
+        // with inline editing when the table has a primary key. The column
+        // metadata rides along so the grid can offer type-aware cell editors.
+        await tab.StartBrowseAsync(schema, name, columns, initialFilter);
     }
 
     // FK edges for grid navigation ("Follow foreign key" / "Referencing rows"

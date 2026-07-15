@@ -1,6 +1,7 @@
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Xml;
 using Avalonia;
 using Avalonia.Controls;
@@ -1052,12 +1053,43 @@ public partial class MainWindow : Window
     private void OnCellEditEnding(object? sender, DataGridCellEditEndingEventArgs e)
     {
         // Column bindings are one-way (see RebuildColumns), so the grid never
-        // mutates Row's array elements itself - the edited text has to be
-        // read directly off the editing TextBox here, before it's torn down.
+        // mutates Row's array elements itself - the edited value has to be
+        // read directly off the editing element here, before it's torn down.
         // (DataGridCellEditEndedEventArgs doesn't expose EditingElement.)
         _pendingEditRow = e.Row.DataContext as object?[];
         _pendingEditColumnIndex = e.Column.DisplayIndex;
-        _pendingEditText = (e.EditingElement as TextBox)?.Text;
+        _pendingEditText = ReadEditedValueText(e.EditingElement);
+    }
+
+    /// <summary>
+    /// The committed value of a cell editor as the canonical text the edit
+    /// pipeline expects — the typed editors ResultTextColumn generates for
+    /// enum/boolean/date/timestamp columns all reduce to text here, so
+    /// CommitCellEditAsync stays a single text-in path. Null means "no value
+    /// chosen" (an untouched picker/dropdown), which skips the commit.
+    /// </summary>
+    private static string? ReadEditedValueText(Control? editingElement) => editingElement switch
+    {
+        TextBox textBox => textBox.Text,
+        CheckBox checkBox => checkBox.IsChecked switch { true => "true", false => "false", null => null },
+        ComboBox comboBox => comboBox.SelectedItem as string,
+        CalendarDatePicker datePicker =>
+            datePicker.SelectedDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+        StackPanel timestampEditor => ReadTimestampEditorText(timestampEditor),
+        _ => null,
+    };
+
+    // The timestamp editor is a date picker + time TextBox; no date picked
+    // means no value, a blank time means midnight.
+    private static string? ReadTimestampEditorText(StackPanel editor)
+    {
+        if (editor.Children.OfType<CalendarDatePicker>().FirstOrDefault()?.SelectedDate is not { } date)
+        {
+            return null;
+        }
+
+        var time = editor.Children.OfType<TextBox>().FirstOrDefault()?.Text?.Trim();
+        return $"{date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)} {(string.IsNullOrEmpty(time) ? "00:00:00" : time)}";
     }
 
     private async void OnCellEditEnded(object? sender, DataGridCellEditEndedEventArgs e)
@@ -2076,6 +2108,15 @@ public partial class MainWindow : Window
             return;
         }
 
+        // The edit context lands after the rows do (a browse page sets it once
+        // the run completes), and it carries the per-column type metadata the
+        // type-aware cell editors need — so the columns must be rebuilt again.
+        if (e.PropertyName == nameof(QueryViewModel.EditContext))
+        {
+            RebuildColumns(_queryViewModel);
+            return;
+        }
+
         if (e.PropertyName != nameof(QueryViewModel.Sql))
         {
             return;
@@ -2180,9 +2221,22 @@ public partial class MainWindow : Window
 
         for (var i = 0; i < query.ColumnNames.Count; i++)
         {
-            ResultsGrid.Columns.Add(new ResultTextColumn(i)
+            // In browse mode the edit context knows each column's Postgres
+            // type — the column uses it to generate a type-aware cell editor
+            // (enum dropdown, checkbox, date picker) instead of a TextBox.
+            var editorMeta = query.EditContext?.Column(query.ColumnNames[i]);
+
+            ResultsGrid.Columns.Add(new ResultTextColumn(i, editorMeta)
             {
                 Header = query.ColumnNames[i],
+                // Avalonia 12's DataGrid infers "read-only" from a column's
+                // binding path — and a pathless converter binding (the
+                // AOT-safe pattern used here) has none, which silently made
+                // every column uneditable after the 11→12 upgrade. An explicit
+                // false skips that inference; the getter still ORs in the
+                // grid-level IsReadOnly, so non-editable result sets stay
+                // locked via the grid binding.
+                IsReadOnly = false,
                 // Empty path + converter instead of "[i]": indexer paths
                 // resolve via reflection, which trips NativeAOT/trimming.
                 Binding = new Binding

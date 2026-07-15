@@ -216,6 +216,14 @@ Every tag push (`vX.Y.Z`) builds all of the above via
   cast to its real type server-side, blanks fall back to defaults),
   "Delete selected row(s)" with a confirmation, and "Set cell to NULL" (the
   gesture inline editing can't express), all keyed on the primary key.
+- **Postgres-native value editing** — cell editors (grid and Add-row dialog)
+  follow the column's type: `enum` columns get a dropdown of their `pg_enum`
+  labels, `boolean` a checkbox, `date`/`timestamp` a calendar picker, arrays
+  and composites are syntax-checked client-side before anything is sent, and
+  domains resolve to their base type (a domain over an enum still gets the
+  dropdown). Array cells display as Postgres literals (`{a,b}`), and tables
+  with composite-typed columns browse fine — those columns are fetched in
+  text format, since Npgsql can't materialize an unmapped composite.
 - **Safe mode (pending-changes review)** — a toggle (command palette or
   preferences) that stages grid edits, deletes, and Add-row inserts locally
   instead of firing them at the server: dirty rows are highlighted (amber =
@@ -541,13 +549,23 @@ Everything below is what survives that filter, roughly in impact order:
   error (or hanging — an HN complaint about other clients). Needs care with
   the held transaction connection: an open transaction can't be silently
   re-established, so that path surfaces a clear "transaction lost" state.
-- [ ] **Postgres-native value editing** — the grid and Add-row dialog treat
+- [x] **Postgres-native value editing** — the grid and Add-row dialog treat
   every column as text today. Make the editors type-aware: `enum` columns get
   a dropdown of `pg_enum` labels, `boolean` a checkbox, `date/timestamp` a
   picker, arrays and composites get validation, domains resolve to their base
   type. DataGrip's missing array support was a stated deal-breaker on HN, and
   ENUM dropdowns / user-defined types are open TablePlus asks — exactly the
-  "PostgreSQL-first, not lowest-common-denominator" differentiator.
+  "PostgreSQL-first, not lowest-common-denominator" differentiator. Shipped:
+  `SchemaService` classifies each column from its base `pg_type` (domains
+  walked through `typbasetype`, so a domain over an enum still gets the
+  dropdown), enum/boolean/date/timestamp cells get typed editors in both the
+  grid (F2) and the dialog, array/composite literals are structure-checked
+  client-side and cast to the declared type server-side (staged edits
+  included — the safe-mode review shows the `CAST`), arrays render as `{a,b}`
+  literals, and composite columns fall back to text-format fetch so such
+  tables browse at all. Also un-broke inline editing itself: Avalonia 12
+  treats pathless-binding columns as read-only, which had silently disabled
+  every cell editor since the 11→12 upgrade.
 - [ ] **Table & index sizes and usage** — sizes in the schema tree (tooltip or
   detail column) and a per-database overview: largest tables/indexes
   (`pg_total_relation_size`), seq-vs-index scan counts, unused indexes, cache

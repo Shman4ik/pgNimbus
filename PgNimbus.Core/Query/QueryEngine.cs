@@ -1,6 +1,7 @@
 using System.Data;
 using System.Diagnostics;
 using Npgsql;
+using Npgsql.PostgresTypes;
 
 namespace PgNimbus.Core.Query;
 
@@ -280,6 +281,17 @@ public sealed class QueryEngine
                 };
             }
 
+            // Columns Npgsql can't materialize as objects (unmapped composites
+            // and containers of them) are re-requested in text format — one
+            // extra round trip, and only for result sets that contain such a
+            // column.
+            if (BuildTextFallbackMask(reader) is { } textFallback)
+            {
+                await reader.DisposeAsync();
+                command.UnknownResultTypeList = textFallback;
+                reader = await command.ExecuteReaderAsync(CommandBehavior.Default, ct);
+            }
+
             var columns = BuildColumns(reader);
 
             // Ownership of connection/command/reader passes to the streaming
@@ -456,6 +468,14 @@ public sealed class QueryEngine
                 };
             }
 
+            // Same unmapped-composite text fallback as ExecuteAsync.
+            if (BuildTextFallbackMask(reader) is { } textFallback)
+            {
+                await reader.DisposeAsync();
+                command.UnknownResultTypeList = textFallback;
+                reader = await command.ExecuteReaderAsync(CommandBehavior.Default, ct);
+            }
+
             var columns = BuildColumns(reader);
             var fieldCount = reader.FieldCount;
             var rows = new List<object?[]>();
@@ -529,6 +549,42 @@ public sealed class QueryEngine
                 }
             }
         }
+    }
+
+    // Npgsql can't read an unmapped composite type (or an array/domain/range
+    // over one) as a plain object — GetValue throws "Reading as 'System.Object'
+    // is not supported…". Without a fallback, one composite column makes the
+    // whole table unbrowsable. Such columns are re-requested in the text wire
+    // format instead, so their values arrive as Postgres literals ("(10,20,cm)")
+    // — exactly the shape the grid displays and the composite editor
+    // validates and casts back on edit.
+    private static bool NeedsTextFormat(PostgresType type) => type switch
+    {
+        PostgresCompositeType => true,
+        PostgresArrayType array => NeedsTextFormat(array.Element),
+        PostgresDomainType domain => NeedsTextFormat(domain.BaseType),
+        PostgresRangeType range => NeedsTextFormat(range.Subtype),
+        PostgresMultirangeType multirange => NeedsTextFormat(multirange.Subrange),
+        _ => false,
+    };
+
+    /// <summary>
+    /// A per-column "request as text" mask for <see cref="NpgsqlCommand.UnknownResultTypeList"/>,
+    /// or null when every column materializes fine as-is (the common case — no
+    /// re-execution then).
+    /// </summary>
+    private static bool[]? BuildTextFallbackMask(NpgsqlDataReader reader)
+    {
+        bool[]? mask = null;
+        for (var i = 0; i < reader.FieldCount; i++)
+        {
+            if (NeedsTextFormat(reader.GetPostgresType(i)))
+            {
+                (mask ??= new bool[reader.FieldCount])[i] = true;
+            }
+        }
+
+        return mask;
     }
 
     private static IReadOnlyList<ColumnInfo> BuildColumns(NpgsqlDataReader reader)

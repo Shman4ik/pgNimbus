@@ -56,6 +56,8 @@ public sealed partial class CellInspectorViewModel : ObservableObject
         {
             null => "NULL",
             byte[] bytes => $"\\x{Convert.ToHexString(bytes)}",
+            // Same Postgres-literal rendering the grid uses — never "System.String[]".
+            Array array => PgNimbus.Core.Schema.PgValueSyntax.FormatArray(array),
             _ => value.ToString() ?? string.Empty,
         };
 

@@ -1,5 +1,6 @@
 using System.Globalization;
 using Avalonia.Data.Converters;
+using PgNimbus.Core.Schema;
 
 namespace PgNimbus.App.Converters;
 
@@ -23,7 +24,20 @@ public sealed class RowIndexConverter : IValueConverter
     public RowIndexConverter(int index) => _index = index;
 
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
-        value is object?[] row && _index < row.Length ? row[_index] ?? NullPlaceholder : null;
+        value is object?[] row && _index < row.Length
+            ? row[_index] switch
+            {
+                null => NullPlaceholder,
+                // Array columns render in Postgres's literal syntax ("{a,b}")
+                // instead of the CLR default ("System.String[]") — readable,
+                // and editable in place since the cell editor pre-fills from
+                // this text and the edit pipeline casts it back server-side.
+                // bytea (byte[]) is deliberately left alone.
+                byte[] bytes => bytes,
+                Array array => PgValueSyntax.FormatArray(array),
+                var cell => cell,
+            }
+            : null;
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
         throw new NotSupportedException();

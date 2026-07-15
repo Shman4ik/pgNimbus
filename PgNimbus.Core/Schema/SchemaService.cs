@@ -16,7 +16,22 @@ public sealed record TableInfo(string Name, RelationKind Kind);
 
 public sealed record RelationInfo(string Schema, string Name, RelationKind Kind);
 
-public sealed record ColumnDetail(string Name, string DataType, bool NotNull, bool IsPrimaryKey);
+public sealed record ColumnDetail(string Name, string DataType, bool NotNull, bool IsPrimaryKey)
+{
+    /// <summary>
+    /// The input affordance the column's values call for (enum dropdown,
+    /// checkbox, date picker, …), classified from the column's base type with
+    /// domains resolved. <see cref="ColumnValueEditor.Text"/> when nothing
+    /// more specific applies.
+    /// </summary>
+    public ColumnValueEditor Editor { get; init; } = ColumnValueEditor.Text;
+
+    /// <summary>The enum type's labels in declared order when <see cref="Editor"/> is <see cref="ColumnValueEditor.Enum"/>; empty otherwise.</summary>
+    public IReadOnlyList<string> EnumLabels { get; init; } = [];
+
+    /// <summary>The base type a domain column resolves to (e.g. "integer" for a domain over integer); null when the declared type isn't a domain.</summary>
+    public string? DomainBaseType { get; init; }
+}
 
 public sealed record TableColumn(string Table, string Column, string DataType);
 
@@ -153,25 +168,64 @@ public sealed class SchemaService
 
     public async Task<IReadOnlyList<ColumnDetail>> GetColumnsAsync(string schema, string table, CancellationToken ct)
     {
+        // Besides name/type/nullability/PK, each column carries what its
+        // values need for type-aware editing: the base type's pg_type identity
+        // (domains walked to their base via typbasetype, so a domain over an
+        // enum still classifies as an enum) and, for enums, the pg_enum labels.
         const string sql = """
+            WITH RECURSIVE cols AS (
+                SELECT
+                    a.attnum,
+                    a.attname,
+                    format_type(a.atttypid, a.atttypmod) AS data_type,
+                    a.attnotnull,
+                    COALESCE(pk.is_primary_key, false) AS is_primary_key,
+                    a.atttypid
+                FROM pg_catalog.pg_attribute a
+                JOIN pg_catalog.pg_class c ON c.oid = a.attrelid
+                JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+                LEFT JOIN (
+                    SELECT con.conrelid, unnest(con.conkey) AS attnum, true AS is_primary_key
+                    FROM pg_catalog.pg_constraint con
+                    WHERE con.contype = 'p'
+                ) pk ON pk.conrelid = a.attrelid AND pk.attnum = a.attnum
+                WHERE n.nspname = @schema
+                  AND c.relname = @table
+                  AND a.attnum > 0
+                  AND NOT a.attisdropped
+            ),
+            walk AS (
+                SELECT c.attnum, c.atttypid AS type_oid, 0 AS depth
+                FROM cols c
+                UNION ALL
+                SELECT w.attnum, t.typbasetype, w.depth + 1
+                FROM walk w
+                JOIN pg_catalog.pg_type t ON t.oid = w.type_oid
+                WHERE t.typbasetype <> 0
+            ),
+            base AS (
+                SELECT DISTINCT ON (attnum) attnum, type_oid
+                FROM walk
+                ORDER BY attnum, depth DESC
+            )
             SELECT
-                a.attname,
-                format_type(a.atttypid, a.atttypmod) AS data_type,
-                a.attnotnull,
-                COALESCE(pk.is_primary_key, false) AS is_primary_key
-            FROM pg_catalog.pg_attribute a
-            JOIN pg_catalog.pg_class c ON c.oid = a.attrelid
-            JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
-            LEFT JOIN (
-                SELECT con.conrelid, unnest(con.conkey) AS attnum, true AS is_primary_key
-                FROM pg_catalog.pg_constraint con
-                WHERE con.contype = 'p'
-            ) pk ON pk.conrelid = a.attrelid AND pk.attnum = a.attnum
-            WHERE n.nspname = @schema
-              AND c.relname = @table
-              AND a.attnum > 0
-              AND NOT a.attisdropped
-            ORDER BY a.attnum
+                c.attname,
+                c.data_type,
+                c.attnotnull,
+                c.is_primary_key,
+                bt.typname,
+                bt.typtype::text,
+                bt.typcategory::text,
+                CASE WHEN c.atttypid <> bt.oid THEN format_type(bt.oid, NULL) END AS domain_base_type,
+                CASE WHEN bt.typtype = 'e' THEN
+                    (SELECT array_agg(e.enumlabel ORDER BY e.enumsortorder)
+                     FROM pg_catalog.pg_enum e
+                     WHERE e.enumtypid = bt.oid)
+                END AS enum_labels
+            FROM cols c
+            JOIN base b ON b.attnum = c.attnum
+            JOIN pg_catalog.pg_type bt ON bt.oid = b.type_oid
+            ORDER BY c.attnum
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
@@ -187,7 +241,15 @@ public sealed class SchemaService
                 reader.GetString(0),
                 reader.GetString(1),
                 reader.GetBoolean(2),
-                reader.GetBoolean(3)));
+                reader.GetBoolean(3))
+            {
+                Editor = ColumnValueEditorClassifier.Classify(
+                    reader.GetString(5)[0],
+                    reader.GetString(6)[0],
+                    reader.GetString(4)),
+                DomainBaseType = reader.IsDBNull(7) ? null : reader.GetString(7),
+                EnumLabels = reader.IsDBNull(8) ? [] : reader.GetFieldValue<string[]>(8),
+            });
         }
 
         return results;

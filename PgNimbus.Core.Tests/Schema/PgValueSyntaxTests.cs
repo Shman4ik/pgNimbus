@@ -1,0 +1,95 @@
+using PgNimbus.Core.Schema;
+
+namespace PgNimbus.Core.Tests.Schema;
+
+public class PgValueSyntaxTests
+{
+    [Test]
+    [Arguments("{}")]
+    [Arguments("{1,2,3}")]
+    [Arguments(" {1,2,3} ")]
+    [Arguments("{{1,2},{3,4}}")]
+    [Arguments("""{"a b","c,d"}""")]
+    [Arguments("""{"say \"hi\""}""")]
+    [Arguments("""{"do""ble"}""")]
+    [Arguments("""{"(1,x)","(2,y)"}""")]
+    [Arguments("[1:3]={1,2,3}")]
+    public async Task AcceptsWellFormedArrays(string text)
+    {
+        await Assert.That(PgValueSyntax.ValidateArray(text)).IsNull();
+    }
+
+    [Test]
+    [Arguments("")]
+    [Arguments("1,2,3")]
+    [Arguments("{1,2,3")]
+    [Arguments("{1,2}}")]
+    [Arguments("{1,2} extra")]
+    [Arguments("""{"unterminated}""")]
+    [Arguments("[1:3]{1,2,3}")]
+    public async Task RejectsMalformedArrays(string text)
+    {
+        await Assert.That(PgValueSyntax.ValidateArray(text)).IsNotNull();
+    }
+
+    [Test]
+    [Arguments("()")]
+    [Arguments("(1,abc)")]
+    [Arguments("(1,,3)")]
+    [Arguments("""(1,"a,b")""")]
+    [Arguments("""("{1,2}",x)""")]
+    [Arguments("((1,2),3)")]
+    public async Task AcceptsWellFormedComposites(string text)
+    {
+        await Assert.That(PgValueSyntax.ValidateComposite(text)).IsNull();
+    }
+
+    [Test]
+    [Arguments("")]
+    [Arguments("1,abc")]
+    [Arguments("(1,abc")]
+    [Arguments("(1))")]
+    [Arguments("(1) tail")]
+    [Arguments("""("open)""")]
+    public async Task RejectsMalformedComposites(string text)
+    {
+        await Assert.That(PgValueSyntax.ValidateComposite(text)).IsNotNull();
+    }
+
+    [Test]
+    public async Task FormatsClrArraysAsPostgresLiterals()
+    {
+        await Assert.That(PgValueSyntax.FormatArray(new[] { 1, 2, 3 })).IsEqualTo("{1,2,3}");
+        await Assert.That(PgValueSyntax.FormatArray(new[] { "new", "sale" })).IsEqualTo("{new,sale}");
+        await Assert.That(PgValueSyntax.FormatArray(new[] { true, false })).IsEqualTo("{t,f}");
+        await Assert.That(PgValueSyntax.FormatArray(new[] { new[] { 1 }, new[] { 2 } })).IsEqualTo("{{1},{2}}");
+        await Assert.That(PgValueSyntax.FormatArray(new string?[] { "a", null })).IsEqualTo("{a,NULL}");
+    }
+
+    [Test]
+    public async Task QuotesArrayElementsTheWayPostgresWould()
+    {
+        await Assert.That(PgValueSyntax.FormatArray(new[] { "a b", "c,d" })).IsEqualTo("""{"a b","c,d"}""");
+        await Assert.That(PgValueSyntax.FormatArray(new[] { "" })).IsEqualTo("""{""}""");
+        await Assert.That(PgValueSyntax.FormatArray(new[] { "null" })).IsEqualTo("""{"null"}""");
+        await Assert.That(PgValueSyntax.FormatArray(new[] { "say \"hi\"" })).IsEqualTo("""{"say \"hi\""}""");
+        await Assert.That(PgValueSyntax.FormatArray(new[] { @"back\slash" })).IsEqualTo("""{"back\\slash"}""");
+    }
+
+    [Test]
+    public async Task FormattedArraysPassTheirOwnValidation()
+    {
+        var formatted = PgValueSyntax.FormatArray(new[] { "plain", "with space", "with,comma", "with\"quote" });
+
+        await Assert.That(PgValueSyntax.ValidateArray(formatted)).IsNull();
+    }
+
+    [Test]
+    public async Task BracesInsideCompositesAndParensInsideArraysAreOrdinaryCharacters()
+    {
+        // Only the literal's own delimiter pair is structural — Postgres
+        // treats the other pair as plain data when unquoted.
+        await Assert.That(PgValueSyntax.ValidateComposite("({1,x)")).IsNull();
+        await Assert.That(PgValueSyntax.ValidateArray("{(1,x}")).IsNull();
+    }
+}
