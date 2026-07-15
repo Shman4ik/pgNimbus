@@ -241,7 +241,14 @@ public sealed class QueryEngine
     /// unbounded SELECT would still pull every row over the wire. An explicit
     /// backend cancel makes the drain a no-op.
     /// </param>
-    public async Task<StatementResult> ExecuteAsync(string sql, CancellationToken ct, int? maxRows = null)
+    /// <param name="allowTextFallback">
+    /// Permits re-executing the statement with unreadable columns (unmapped
+    /// composites) re-requested in text format. Only safe for statements known
+    /// to be side-effect-free — the app-composed browse-mode SELECTs — never
+    /// for arbitrary user SQL, where a second execution would apply an
+    /// <c>INSERT … RETURNING</c> (or any volatile call) twice.
+    /// </param>
+    public async Task<StatementResult> ExecuteAsync(string sql, CancellationToken ct, int? maxRows = null, bool allowTextFallback = false)
     {
         // Inside a transaction the statement runs on the shared session
         // connection and its result is fully materialized: a lazily-streaming
@@ -249,7 +256,7 @@ public sealed class QueryEngine
         // in the transaction until the grid finished consuming it.
         if (_transactionConnection is not null)
         {
-            return await ExecuteInTransactionAsync(sql, maxRows, ct);
+            return await ExecuteInTransactionAsync(sql, maxRows, allowTextFallback, ct);
         }
 
         var stopwatch = Stopwatch.StartNew();
@@ -284,8 +291,9 @@ public sealed class QueryEngine
             // Columns Npgsql can't materialize as objects (unmapped composites
             // and containers of them) are re-requested in text format — one
             // extra round trip, and only for result sets that contain such a
-            // column.
-            if (BuildTextFallbackMask(reader) is { } textFallback)
+            // column. The re-execution is why callers must opt in: it would
+            // run an arbitrary statement's side effects twice.
+            if (allowTextFallback && BuildTextFallbackMask(reader) is { } textFallback)
             {
                 await reader.DisposeAsync();
                 command.UnknownResultTypeList = textFallback;
@@ -366,7 +374,7 @@ public sealed class QueryEngine
             {
                 ct.ThrowIfCancellationRequested();
 
-                var result = await ExecuteOnConnectionAsync(connection, statement, maxRowsPerStatement, ct);
+                var result = await ExecuteOnConnectionAsync(connection, statement, maxRowsPerStatement, allowTextFallback: false, ct);
 
                 if (result is QueryError error)
                 {
@@ -404,7 +412,7 @@ public sealed class QueryEngine
     // its result (see ExecuteAsync for why streaming is avoided here). A failure
     // auto-rolls-back the transaction and comes back flagged so the UI can note
     // that the block is gone.
-    private async Task<StatementResult> ExecuteInTransactionAsync(string sql, int? maxRows, CancellationToken ct)
+    private async Task<StatementResult> ExecuteInTransactionAsync(string sql, int? maxRows, bool allowTextFallback, CancellationToken ct)
     {
         var connection = _transactionConnection!;
         var stopwatch = Stopwatch.StartNew();
@@ -415,7 +423,7 @@ public sealed class QueryEngine
             // ExecuteOnConnectionAsync converts PostgresExceptions to QueryError
             // but lets other failures (e.g. a dropped connection) escape; ExecuteAsync
             // promises never to throw those, so translate them here too.
-            result = await ExecuteOnConnectionAsync(connection, sql, maxRows, ct);
+            result = await ExecuteOnConnectionAsync(connection, sql, maxRows, allowTextFallback, ct);
         }
         catch (OperationCanceledException)
         {
@@ -446,6 +454,7 @@ public sealed class QueryEngine
         NpgsqlConnection connection,
         string sql,
         int? maxRows,
+        bool allowTextFallback,
         CancellationToken ct)
     {
         var stopwatch = Stopwatch.StartNew();
@@ -468,8 +477,9 @@ public sealed class QueryEngine
                 };
             }
 
-            // Same unmapped-composite text fallback as ExecuteAsync.
-            if (BuildTextFallbackMask(reader) is { } textFallback)
+            // Same opt-in unmapped-composite text fallback as ExecuteAsync
+            // (script statements always pass false — they're arbitrary SQL).
+            if (allowTextFallback && BuildTextFallbackMask(reader) is { } textFallback)
             {
                 await reader.DisposeAsync();
                 command.UnknownResultTypeList = textFallback;

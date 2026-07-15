@@ -323,8 +323,12 @@ public sealed partial class QueryViewModel : ObservableObject
 
             // Ask for one row past the cap: receiving it proves the result was
             // actually cut short, so an exactly-at-the-cap result isn't
-            // mislabeled as truncated.
-            var result = await _engine.ExecuteAsync(executedSql, ct, MaxDisplayRows + 1);
+            // mislabeled as truncated. The composite-column text fallback
+            // re-executes the statement, so it's only enabled for browse-mode
+            // pages (app-composed SELECTs, side-effect-free by construction) —
+            // never for hand-written SQL, where a second execution would apply
+            // an INSERT … RETURNING (or any volatile call) twice.
+            var result = await _engine.ExecuteAsync(executedSql, ct, MaxDisplayRows + 1, allowTextFallback: IsBrowsing);
 
             switch (result)
             {
