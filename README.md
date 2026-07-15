@@ -76,7 +76,7 @@ and keeps it updated automatically.
   `msstore` source:
 
   ```text
-  winget install --id 9N6SZT42XJ24 --source msstore
+  winget install pgNimbus --source msstore
   ```
 
 - **Direct download** — `pgNimbus-<version>-win-x64.msi` from
