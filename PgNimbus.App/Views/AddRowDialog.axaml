@@ -31,9 +31,38 @@
                                     <TextBlock Text="{Binding TypeLabel}" Opacity="0.55" FontSize="10"
                                                TextTrimming="CharacterEllipsis" />
                                 </StackPanel>
-                                <TextBox Grid.Column="1" Text="{Binding Value, Mode=TwoWay}"
-                                         IsEnabled="{Binding !IsNull}" FontSize="12"
-                                         VerticalAlignment="Center" PlaceholderText="default" />
+                                <!-- One editor per Postgres type family; each writes canonical
+                                     text into Value, so the INSERT path is identical no matter
+                                     which control produced it. -->
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center"
+                                            IsEnabled="{Binding !IsNull}">
+                                    <TextBox Text="{Binding Value, Mode=TwoWay}" FontSize="12"
+                                             PlaceholderText="default"
+                                             IsVisible="{Binding IsTextEditor}" />
+                                    <CheckBox IsChecked="{Binding BoolValue, Mode=TwoWay}"
+                                              IsThreeState="True" Content="{Binding Value}" FontSize="12"
+                                              IsVisible="{Binding IsBooleanEditor}" />
+                                    <ComboBox ItemsSource="{Binding EnumLabels}"
+                                              SelectedItem="{Binding EnumChoice, Mode=TwoWay}"
+                                              PlaceholderText="default" FontSize="12"
+                                              HorizontalAlignment="Stretch"
+                                              IsVisible="{Binding IsEnumEditor}" />
+                                    <CalendarDatePicker SelectedDate="{Binding DateValue, Mode=TwoWay}"
+                                                        PlaceholderText="default" FontSize="12"
+                                                        HorizontalAlignment="Stretch"
+                                                        IsVisible="{Binding IsDateEditor}" />
+                                    <Grid ColumnDefinitions="*,6,88" IsVisible="{Binding IsTimestampEditor}">
+                                        <CalendarDatePicker Grid.Column="0"
+                                                            SelectedDate="{Binding DateValue, Mode=TwoWay}"
+                                                            PlaceholderText="default" FontSize="12"
+                                                            HorizontalAlignment="Stretch" />
+                                        <TextBox Grid.Column="2" Text="{Binding TimeText, Mode=TwoWay}"
+                                                 PlaceholderText="HH:MM:SS" FontSize="12" />
+                                    </Grid>
+                                    <TextBlock Text="{Binding ValidationError}" FontSize="10"
+                                               Foreground="#E03131" TextWrapping="Wrap" Margin="2,2,0,0"
+                                               IsVisible="{Binding HasValidationError}" />
+                                </StackPanel>
                                 <CheckBox Grid.Column="2" IsChecked="{Binding IsNull, Mode=TwoWay}"
                                           Content="NULL" FontSize="11" Margin="8,0,0,0" VerticalAlignment="Center" />
                             </Grid>

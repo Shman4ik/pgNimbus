@@ -75,6 +75,9 @@ public sealed partial class AddRowViewModel : ObservableObject
                     DataType = column.DataType,
                     NotNull = column.NotNull,
                     IsPrimaryKey = column.IsPrimaryKey,
+                    Editor = column.Editor,
+                    EnumLabels = column.EnumLabels,
+                    DomainBaseType = column.DomainBaseType,
                 });
             }
         }
@@ -93,6 +96,15 @@ public sealed partial class AddRowViewModel : ObservableObject
     {
         IsBusy = true;
         StatusMessage = null;
+
+        // Array/composite literals get their structure checked client-side
+        // before anything is sent (Postgres still parses the elements).
+        if (Fields.FirstOrDefault(f => !f.IsNull && f.HasValidationError) is { } invalid)
+        {
+            StatusMessage = $"{invalid.Name}: {invalid.ValidationError}";
+            IsBusy = false;
+            return;
+        }
 
         // The columns that participate in the INSERT: an explicit NULL, or a
         // typed value. Blank + not-NULL fields are omitted entirely so their

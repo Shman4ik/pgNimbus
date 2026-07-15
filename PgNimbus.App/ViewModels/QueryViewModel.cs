@@ -9,6 +9,7 @@ using CommunityToolkit.Mvvm.Input;
 using Npgsql;
 using PgNimbus.Core.Export;
 using PgNimbus.Core.Query;
+using PgNimbus.Core.Schema;
 
 namespace PgNimbus.App.ViewModels;
 
@@ -87,6 +88,10 @@ public sealed partial class QueryViewModel : ObservableObject
     // Primary-key columns of the browsed table, re-applied as the edit context
     // after each page load (composing the page SQL clears it via OnSqlChanged).
     private IReadOnlyList<string> _browsePkColumns = [];
+
+    // The browsed table's full column metadata (types, enum labels), carried
+    // into each page's edit context so the grid can offer type-aware editors.
+    private IReadOnlyList<ColumnDetail> _browseColumns = [];
 
     // Set while browse mode composes the page SQL, so OnSqlChanged doesn't treat
     // that programmatic write as a manual edit and tear browse mode down.
@@ -318,8 +323,12 @@ public sealed partial class QueryViewModel : ObservableObject
 
             // Ask for one row past the cap: receiving it proves the result was
             // actually cut short, so an exactly-at-the-cap result isn't
-            // mislabeled as truncated.
-            var result = await _engine.ExecuteAsync(executedSql, ct, MaxDisplayRows + 1);
+            // mislabeled as truncated. The composite-column text fallback
+            // re-executes the statement, so it's only enabled for browse-mode
+            // pages (app-composed SELECTs, side-effect-free by construction) —
+            // never for hand-written SQL, where a second execution would apply
+            // an INSERT … RETURNING (or any volatile call) twice.
+            var result = await _engine.ExecuteAsync(executedSql, ct, MaxDisplayRows + 1, allowTextFallback: IsBrowsing);
 
             switch (result)
             {
@@ -761,9 +770,10 @@ public sealed partial class QueryViewModel : ObservableObject
     /// the composed SQL is visible in the editor, and editing it turns the tab
     /// into a plain query.
     /// </summary>
-    public Task StartBrowseAsync(string schema, string name, IReadOnlyList<string> primaryKeyColumns, string? initialFilter = null)
+    public Task StartBrowseAsync(string schema, string name, IReadOnlyList<ColumnDetail> columns, string? initialFilter = null)
     {
-        _browsePkColumns = primaryKeyColumns;
+        _browseColumns = columns;
+        _browsePkColumns = columns.Where(c => c.IsPrimaryKey).Select(c => c.Name).ToList();
         Browse = new TableBrowseViewModel(schema, name, RunBrowseSqlAsync);
         if (!string.IsNullOrEmpty(initialFilter))
         {
@@ -788,7 +798,7 @@ public sealed partial class QueryViewModel : ObservableObject
 
         if (_browsePkColumns is { Count: > 0 } pk && Browse is { } browse)
         {
-            EditContext = new EditableTableContext(browse.Schema, browse.Name, pk);
+            EditContext = new EditableTableContext(browse.Schema, browse.Name, pk, _browseColumns);
         }
 
         return Rows.Count;
@@ -857,21 +867,54 @@ public sealed partial class QueryViewModel : ObservableObject
             return;
         }
 
+        // Postgres-native values a CLR conversion can't express — enum labels,
+        // array/composite literals (and domains over them) — travel as raw
+        // text and get parsed server-side via a cast to the declared type,
+        // the same mechanism the Add-row dialog uses for every value. A cheap
+        // client-side structure check catches malformed hand-typed literals
+        // before anything is sent.
+        var columnMeta = context.Column(columnName);
+        var castType = columnMeta?.Editor
+            is ColumnValueEditor.Enum or ColumnValueEditor.Array or ColumnValueEditor.Composite
+            ? columnMeta.DataType
+            : null;
+
         object? newValue;
-        try
+        if (castType is not null)
         {
-            newValue = ConvertEditedValue(newValueText, columnIndex);
+            var syntaxError = columnMeta!.Editor switch
+            {
+                ColumnValueEditor.Array => PgValueSyntax.ValidateArray(newValueText),
+                ColumnValueEditor.Composite => PgValueSyntax.ValidateComposite(newValueText),
+                _ => null,
+            };
+
+            if (syntaxError is not null)
+            {
+                Status = $"Invalid value for {columnName}: {syntaxError}";
+                HasError = true;
+                return;
+            }
+
+            newValue = newValueText;
         }
-        catch (Exception ex)
+        else
         {
-            Status = $"Invalid value for {columnName}: {ex.Message}";
-            HasError = true;
-            return;
+            try
+            {
+                newValue = ConvertEditedValue(newValueText, columnIndex);
+            }
+            catch (Exception ex)
+            {
+                Status = $"Invalid value for {columnName}: {ex.Message}";
+                HasError = true;
+                return;
+            }
         }
 
         if (ShouldStageChanges)
         {
-            StageCellValue(context, row, pkIndexes, columnIndex, columnName, newValue);
+            StageCellValue(context, row, pkIndexes, columnIndex, columnName, newValue, castType);
             return;
         }
 
@@ -879,9 +922,10 @@ public sealed partial class QueryViewModel : ObservableObject
             " AND ",
             context.PrimaryKeyColumns.Select((pk, n) => $"{SqlIdentifier.Quote(pk)} = @pk{n}"));
 
+        var valueExpression = castType is null ? "@value" : $"CAST(@value AS {castType})";
         var sql = $"""
             UPDATE {SqlIdentifier.Quote(context.Schema)}.{SqlIdentifier.Quote(context.Table)}
-            SET {SqlIdentifier.Quote(columnName)} = @value
+            SET {SqlIdentifier.Quote(columnName)} = {valueExpression}
             WHERE {whereClause}
             """;
 
@@ -1024,6 +1068,26 @@ public sealed partial class QueryViewModel : ObservableObject
             return TimeSpan.Parse(text, CultureInfo.InvariantCulture);
         }
 
+        // Npgsql is strict about DateTime.Kind: timestamptz only accepts Utc,
+        // timestamp (without time zone) only accepts non-Utc. The two column
+        // flavors also interpret the text differently, so handle them apart.
+        if (underlying == typeof(DateTime))
+        {
+            var isTimestampTz = _columns[columnIndex].DataTypeName.Contains("with time zone", StringComparison.OrdinalIgnoreCase);
+            if (isTimestampTz)
+            {
+                // timestamptz: an offset-less value is taken as UTC (what the
+                // grid displays), an offset-bearing one as its real instant.
+                return DateTime.Parse(text, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
+            }
+
+            // timestamp without time zone: Postgres stores the wall-clock time
+            // as written and ignores any offset. DateTimeOffset.DateTime yields
+            // exactly that typed wall clock — timezone-independent — which we
+            // then mark Unspecified for Npgsql.
+            return DateTime.SpecifyKind(DateTimeOffset.Parse(text, CultureInfo.InvariantCulture).DateTime, DateTimeKind.Unspecified);
+        }
+
         if (typeof(IConvertible).IsAssignableFrom(underlying))
         {
             return Convert.ChangeType(text, underlying, CultureInfo.InvariantCulture);
@@ -1131,7 +1195,7 @@ public sealed partial class QueryViewModel : ObservableObject
 
     // Stages one cell's converted value and shows it in the grid without
     // touching the database. Shared by inline edits and "Set cell to NULL".
-    private void StageCellValue(EditableTableContext context, object?[] row, IReadOnlyList<int> pkIndexes, int columnIndex, string columnName, object? newValue)
+    private void StageCellValue(EditableTableContext context, object?[] row, IReadOnlyList<int> pkIndexes, int columnIndex, string columnName, object? newValue, string? castType = null)
     {
         if (EnsurePendingSet(context, out var error) is not { } pending)
         {
@@ -1142,7 +1206,7 @@ public sealed partial class QueryViewModel : ObservableObject
 
         try
         {
-            pending.StageEdit(PkValuesOf(row, pkIndexes), columnName, newValue);
+            pending.StageEdit(PkValuesOf(row, pkIndexes), columnName, newValue, castType);
         }
         catch (InvalidOperationException ex)
         {

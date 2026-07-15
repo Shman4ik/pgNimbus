@@ -1,6 +1,7 @@
 using System.Data;
 using System.Diagnostics;
 using Npgsql;
+using Npgsql.PostgresTypes;
 
 namespace PgNimbus.Core.Query;
 
@@ -240,7 +241,14 @@ public sealed class QueryEngine
     /// unbounded SELECT would still pull every row over the wire. An explicit
     /// backend cancel makes the drain a no-op.
     /// </param>
-    public async Task<StatementResult> ExecuteAsync(string sql, CancellationToken ct, int? maxRows = null)
+    /// <param name="allowTextFallback">
+    /// Permits re-executing the statement with unreadable columns (unmapped
+    /// composites) re-requested in text format. Only safe for statements known
+    /// to be side-effect-free — the app-composed browse-mode SELECTs — never
+    /// for arbitrary user SQL, where a second execution would apply an
+    /// <c>INSERT … RETURNING</c> (or any volatile call) twice.
+    /// </param>
+    public async Task<StatementResult> ExecuteAsync(string sql, CancellationToken ct, int? maxRows = null, bool allowTextFallback = false)
     {
         // Inside a transaction the statement runs on the shared session
         // connection and its result is fully materialized: a lazily-streaming
@@ -248,7 +256,7 @@ public sealed class QueryEngine
         // in the transaction until the grid finished consuming it.
         if (_transactionConnection is not null)
         {
-            return await ExecuteInTransactionAsync(sql, maxRows, ct);
+            return await ExecuteInTransactionAsync(sql, maxRows, allowTextFallback, ct);
         }
 
         var stopwatch = Stopwatch.StartNew();
@@ -278,6 +286,18 @@ public sealed class QueryEngine
                     RowsAffected = rowsAffected < 0 ? 0 : rowsAffected,
                     CommandTag = tag,
                 };
+            }
+
+            // Columns Npgsql can't materialize as objects (unmapped composites
+            // and containers of them) are re-requested in text format — one
+            // extra round trip, and only for result sets that contain such a
+            // column. The re-execution is why callers must opt in: it would
+            // run an arbitrary statement's side effects twice.
+            if (allowTextFallback && BuildTextFallbackMask(reader) is { } textFallback)
+            {
+                await reader.DisposeAsync();
+                command.UnknownResultTypeList = textFallback;
+                reader = await command.ExecuteReaderAsync(CommandBehavior.Default, ct);
             }
 
             var columns = BuildColumns(reader);
@@ -354,7 +374,7 @@ public sealed class QueryEngine
             {
                 ct.ThrowIfCancellationRequested();
 
-                var result = await ExecuteOnConnectionAsync(connection, statement, maxRowsPerStatement, ct);
+                var result = await ExecuteOnConnectionAsync(connection, statement, maxRowsPerStatement, allowTextFallback: false, ct);
 
                 if (result is QueryError error)
                 {
@@ -392,7 +412,7 @@ public sealed class QueryEngine
     // its result (see ExecuteAsync for why streaming is avoided here). A failure
     // auto-rolls-back the transaction and comes back flagged so the UI can note
     // that the block is gone.
-    private async Task<StatementResult> ExecuteInTransactionAsync(string sql, int? maxRows, CancellationToken ct)
+    private async Task<StatementResult> ExecuteInTransactionAsync(string sql, int? maxRows, bool allowTextFallback, CancellationToken ct)
     {
         var connection = _transactionConnection!;
         var stopwatch = Stopwatch.StartNew();
@@ -403,7 +423,7 @@ public sealed class QueryEngine
             // ExecuteOnConnectionAsync converts PostgresExceptions to QueryError
             // but lets other failures (e.g. a dropped connection) escape; ExecuteAsync
             // promises never to throw those, so translate them here too.
-            result = await ExecuteOnConnectionAsync(connection, sql, maxRows, ct);
+            result = await ExecuteOnConnectionAsync(connection, sql, maxRows, allowTextFallback, ct);
         }
         catch (OperationCanceledException)
         {
@@ -434,6 +454,7 @@ public sealed class QueryEngine
         NpgsqlConnection connection,
         string sql,
         int? maxRows,
+        bool allowTextFallback,
         CancellationToken ct)
     {
         var stopwatch = Stopwatch.StartNew();
@@ -454,6 +475,15 @@ public sealed class QueryEngine
                     RowsAffected = rowsAffected < 0 ? 0 : rowsAffected,
                     CommandTag = BuildCommandTag(sql),
                 };
+            }
+
+            // Same opt-in unmapped-composite text fallback as ExecuteAsync
+            // (script statements always pass false — they're arbitrary SQL).
+            if (allowTextFallback && BuildTextFallbackMask(reader) is { } textFallback)
+            {
+                await reader.DisposeAsync();
+                command.UnknownResultTypeList = textFallback;
+                reader = await command.ExecuteReaderAsync(CommandBehavior.Default, ct);
             }
 
             var columns = BuildColumns(reader);
@@ -529,6 +559,42 @@ public sealed class QueryEngine
                 }
             }
         }
+    }
+
+    // Npgsql can't read an unmapped composite type (or an array/domain/range
+    // over one) as a plain object — GetValue throws "Reading as 'System.Object'
+    // is not supported…". Without a fallback, one composite column makes the
+    // whole table unbrowsable. Such columns are re-requested in the text wire
+    // format instead, so their values arrive as Postgres literals ("(10,20,cm)")
+    // — exactly the shape the grid displays and the composite editor
+    // validates and casts back on edit.
+    private static bool NeedsTextFormat(PostgresType type) => type switch
+    {
+        PostgresCompositeType => true,
+        PostgresArrayType array => NeedsTextFormat(array.Element),
+        PostgresDomainType domain => NeedsTextFormat(domain.BaseType),
+        PostgresRangeType range => NeedsTextFormat(range.Subtype),
+        PostgresMultirangeType multirange => NeedsTextFormat(multirange.Subrange),
+        _ => false,
+    };
+
+    /// <summary>
+    /// A per-column "request as text" mask for <see cref="NpgsqlCommand.UnknownResultTypeList"/>,
+    /// or null when every column materializes fine as-is (the common case — no
+    /// re-execution then).
+    /// </summary>
+    private static bool[]? BuildTextFallbackMask(NpgsqlDataReader reader)
+    {
+        bool[]? mask = null;
+        for (var i = 0; i < reader.FieldCount; i++)
+        {
+            if (NeedsTextFormat(reader.GetPostgresType(i)))
+            {
+                (mask ??= new bool[reader.FieldCount])[i] = true;
+            }
+        }
+
+        return mask;
     }
 
     private static IReadOnlyList<ColumnInfo> BuildColumns(NpgsqlDataReader reader)

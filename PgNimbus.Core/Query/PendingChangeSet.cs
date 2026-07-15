@@ -68,8 +68,12 @@ public sealed class PendingChangeSet
     /// Stages one cell's new value, replacing any earlier staged value for the
     /// same cell. Rejects primary-key columns (the key is what targets the
     /// UPDATE) and rows already staged for deletion.
+    /// <paramref name="castType"/> is the column's declared type for values
+    /// that must be parsed server-side (enum labels, array/composite literals
+    /// staged as raw text) — the built UPDATE wraps the parameter in
+    /// <c>CAST(@p AS type)</c>, matching how staged INSERT values execute.
     /// </summary>
-    public void StageEdit(object?[] pkValues, string column, object? value)
+    public void StageEdit(object?[] pkValues, string column, object? value, string? castType = null)
     {
         var key = MakeKey(pkValues);
 
@@ -92,11 +96,11 @@ public sealed class PendingChangeSet
         var index = row.Cells.FindIndex(c => c.Column == column);
         if (index >= 0)
         {
-            row.Cells[index] = (column, value);
+            row.Cells[index] = (column, value, castType);
         }
         else
         {
-            row.Cells.Add((column, value));
+            row.Cells.Add((column, value, castType));
         }
     }
 
@@ -132,7 +136,9 @@ public sealed class PendingChangeSet
     public IReadOnlyList<(string Column, object? Value)>? GetRowEdits(object?[] pkValues)
     {
         var key = MakeKey(pkValues);
-        return _edits.FirstOrDefault(e => e.Key.Equals(key))?.Cells;
+        return _edits.FirstOrDefault(e => e.Key.Equals(key))?.Cells
+            .Select(c => (c.Column, c.Value))
+            .ToList();
     }
 
     public void Clear()
@@ -158,7 +164,8 @@ public sealed class PendingChangeSet
             var sets = new List<string>(row.Cells.Count);
             for (var i = 0; i < row.Cells.Count; i++)
             {
-                sets.Add($"{SqlIdentifier.Quote(row.Cells[i].Column)} = @v{i}");
+                var expression = row.Cells[i].CastType is { } cast ? $"CAST(@v{i} AS {cast})" : $"@v{i}";
+                sets.Add($"{SqlIdentifier.Quote(row.Cells[i].Column)} = {expression}");
                 parameters[$"v{i}"] = row.Cells[i].Value;
             }
 
@@ -194,7 +201,11 @@ public sealed class PendingChangeSet
 
         foreach (var row in ActiveEdits)
         {
-            var sets = row.Cells.Select(c => $"{SqlIdentifier.Quote(c.Column)} = {SqlLiteral.Format(c.Value)}");
+            var sets = row.Cells.Select(c =>
+            {
+                var literal = c.CastType is { } cast ? $"CAST({SqlLiteral.Format(c.Value)} AS {cast})" : SqlLiteral.Format(c.Value);
+                return $"{SqlIdentifier.Quote(c.Column)} = {literal}";
+            });
             script.Append("UPDATE ").Append(QualifiedTable)
                   .Append(" SET ").Append(string.Join(", ", sets))
                   .Append(" WHERE ").Append(WherePkScript(row.Key)).AppendLine(";");
@@ -293,7 +304,7 @@ public sealed class PendingChangeSet
     {
         public RowKey Key { get; } = key;
 
-        public List<(string Column, object? Value)> Cells { get; } = [];
+        public List<(string Column, object? Value, string? CastType)> Cells { get; } = [];
     }
 
     // Structural equality over the primary-key values, so a row keeps its

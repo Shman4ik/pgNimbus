@@ -48,6 +48,43 @@ public class PendingChangeSetTests
     }
 
     [Test]
+    public async Task EditWithCastTypeWrapsTheParameterServerSide()
+    {
+        var set = NewSet();
+        set.StageEdit([42], "mood", "happy", "mood");
+        set.StageEdit([42], "tags", "{a,b}", "text[]");
+
+        var statement = set.BuildStatements()[0];
+
+        await Assert.That(statement.Sql).IsEqualTo(
+            """UPDATE "public"."orders" SET "mood" = CAST(@v0 AS mood), "tags" = CAST(@v1 AS text[]) WHERE "id" = @pk0""");
+        await Assert.That(statement.Parameters["v0"]).IsEqualTo("happy");
+    }
+
+    [Test]
+    public async Task ScriptRendersCastEditsAsCastLiterals()
+    {
+        var set = NewSet();
+        set.StageEdit([1], "mood", "happy", "mood");
+
+        await Assert.That(set.BuildScript()).Contains(
+            """UPDATE "public"."orders" SET "mood" = CAST('happy' AS mood) WHERE "id" = 1;""");
+    }
+
+    [Test]
+    public async Task RecastingACellReplacesItsEarlierCastType()
+    {
+        var set = NewSet();
+        set.StageEdit([1], "mood", "happy", "mood");
+        set.StageEdit([1], "mood", null);
+
+        // The re-staged plain value (e.g. an explicit NULL) must not keep the
+        // superseded edit's cast.
+        await Assert.That(set.BuildStatements()[0].Sql).Contains("\"mood\" = @v0");
+        await Assert.That(set.BuildStatements()[0].Parameters["v0"]).IsNull();
+    }
+
+    [Test]
     public async Task EditsToDifferentColumnsOfOneRowShareOneUpdate()
     {
         var set = NewSet();
