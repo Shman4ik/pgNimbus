@@ -96,8 +96,23 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
     [ObservableProperty]
     private string? _errorMessage;
 
+    /// <summary>Green success line (currently only "connection test succeeded"); mutually exclusive with <see cref="ErrorMessage"/>.</summary>
+    [ObservableProperty]
+    private string? _statusMessage;
+
     [ObservableProperty]
     private bool _isConnecting;
+
+    [ObservableProperty]
+    private bool _isTesting;
+
+    partial void OnErrorMessageChanged(string? value)
+    {
+        if (value is not null)
+        {
+            StatusMessage = null;
+        }
+    }
 
     /// <summary>
     /// Guards against feedback loops between the import box and the form
@@ -168,6 +183,7 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         SshPrivateKeyPath = string.Empty;
         SshPassword = string.Empty;
         ErrorMessage = null;
+        StatusMessage = null;
     }
 
     [RelayCommand]
@@ -399,6 +415,61 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         New();
     }
 
+    /// <summary>
+    /// Opens (and immediately closes) a real connection with the form's
+    /// current values — including the SSH tunnel when enabled — without
+    /// handing anything off to the main window, so credentials can be
+    /// verified before saving or connecting.
+    /// </summary>
+    [RelayCommand]
+    private async Task TestConnectionAsync()
+    {
+        if (IsTesting || IsConnecting)
+        {
+            return;
+        }
+
+        if (!TryBuildProfile(out var profile, out var error))
+        {
+            ErrorMessage = error;
+            return;
+        }
+
+        ErrorMessage = null;
+        StatusMessage = null;
+        IsTesting = true;
+
+        SshTunnel? tunnel = null;
+        try
+        {
+            string connectionString;
+            if (profile.SshTunnel is { } sshOptions)
+            {
+                tunnel = await Task.Run(() => SshTunnel.Connect(sshOptions, SshPassword, profile.Host, profile.Port));
+                connectionString = profile.BuildConnectionString(
+                    string.IsNullOrEmpty(Password) ? null : Password,
+                    (tunnel.LocalHost, tunnel.LocalPort));
+            }
+            else
+            {
+                connectionString = profile.BuildConnectionString(string.IsNullOrEmpty(Password) ? null : Password);
+            }
+
+            var serverVersion = await ConnectionTester.TestAsync(connectionString);
+            StatusMessage = $"Connection successful — PostgreSQL {serverVersion}";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Connection test failed: {ex.Message}";
+        }
+        finally
+        {
+            // Unlike Connect, the test never hands the tunnel off — always tear it down.
+            tunnel?.Dispose();
+            IsTesting = false;
+        }
+    }
+
     [RelayCommand]
     private async Task ConnectAsync()
     {
@@ -417,6 +488,7 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         }
 
         ErrorMessage = null;
+        StatusMessage = null;
         IsConnecting = true;
 
         SshTunnel? tunnel = null;
