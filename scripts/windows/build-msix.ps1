@@ -51,7 +51,11 @@ $publisher = $Matches[1]
 $stage = Join-Path ([System.IO.Path]::GetTempPath()) ("pgnimbus-msix-" + [guid]::NewGuid())
 try {
     New-Item -ItemType Directory -Force -Path "$stage\Assets" | Out-Null
-    Copy-Item "$PublishDir\*" -Destination $stage -Recurse -Force
+    # .pdb debug symbols are dev-only (crash-dump/symbol-server use) and add
+    # tens of MB (e.g. libSkiaSharp.pdb) with no end-user benefit — same
+    # exclusion the MSI installer applies in Product.wxs.
+    Copy-Item "$PublishDir\*" -Destination $stage -Recurse -Force -Exclude '*.pdb'
+    Get-ChildItem -Path $stage -Filter '*.pdb' -Recurse | Remove-Item -Force
     Copy-Item "$AssetsDir\*.png" -Destination "$stage\Assets" -Force
     ($manifestXml -replace '\$VERSION\$', $msixVersion) | Set-Content -Path "$stage\AppxManifest.xml" -Encoding utf8NoBOM
 
