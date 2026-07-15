@@ -47,6 +47,16 @@
             <SolidColorBrush x:Key="AppAccentPressedBrush" Color="#1E63D6" />
             <!-- Low-alpha accent for row/pill selection washes; reads on both themes -->
             <SolidColorBrush x:Key="AppSelectionBrush" Color="#282D7FF9" />
+            <!--
+                SQL editor text-selection wash. Same fixed brand hue as the rest
+                of the app's selection surfaces (NOT AvaloniaEdit's default, which
+                is theme/OS-derived and drifted off our palette). A bit more alpha
+                than AppSelectionBrush (0x40 vs 0x28): a text run under the cursor
+                needs to read as clearly selected even one char wide, and the
+                translucency lets the syntax-highlight colors show through. Tune
+                the alpha here to make selection stronger/weaker app-wide.
+            -->
+            <SolidColorBrush x:Key="AppEditorSelectionBrush" Color="#402D7FF9" />
 
         <CornerRadius x:Key="CardCornerRadius">8</CornerRadius>
         <CornerRadius x:Key="ControlCornerRadius">6</CornerRadius>
@@ -435,9 +445,27 @@
         <Setter Property="Padding" Value="10,7" />
     </Style>
     <!-- A checked toolbar toggle (e.g. word wrap) tints its glyph with the accent
-         and keeps the subtle hover wash, so "on" reads at a glance without a fill. -->
-    <Style Selector="ToggleButton.toolbar:checked">
-        <Setter Property="Background" Value="{StaticResource HoverBackgroundBrush}" />
+         and sits on the app's fixed brand-blue selection wash (same token as
+         tabs/rows), so the "on" state matches the rest of the app rather than a
+         neutral grey. -->
+    <!--
+        FluentTheme paints the checked fill on the inner PART_ContentPresenter
+        via its own ControlTheme /template/ rules (ToggleButtonBackgroundChecked
+        and the :pointerover/:pressed variants — a dark grey #3f3f3f family), and
+        that setter outranks a plain Background/TemplateBinding on the button, so
+        it can only be overridden at the same template part. The .toolbar class
+        gives these higher specificity than Fluent's ToggleButton:checked/... rules
+        so they win; all three checked states are pinned to the one brand-blue wash
+        so hovering the "on" toggle doesn't shift it grey.
+    -->
+    <Style Selector="ToggleButton.toolbar:checked /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
+    </Style>
+    <Style Selector="ToggleButton.toolbar:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
+    </Style>
+    <Style Selector="ToggleButton.toolbar:checked:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
     </Style>
     <Style Selector="ToggleButton.toolbar:checked PathIcon">
         <Setter Property="Foreground" Value="{StaticResource AppAccentBrush}" />
@@ -465,16 +493,35 @@
         <Setter Property="Background" Value="{StaticResource HoverBackgroundBrush}" />
         <Setter Property="Opacity" Value="1" />
     </Style>
-    <!-- Checked state for chip-styled ToggleButtons (e.g. cell inspector's Wrap toggle) -->
+    <!-- Checked state for chip-styled ToggleButtons (e.g. cell inspector's Wrap
+         toggle): the app's brand-blue selection wash, same as the toolbar toggle.
+         Fluent paints the checked fill on PART_ContentPresenter via its ControlTheme,
+         which outranks a plain Background setter, so the wash overrides that template
+         part; idle/hover/pressed are all pinned so the "on" chip stays blue rather
+         than flipping to Fluent's grey on hover. -->
     <Style Selector="ToggleButton.chip:checked">
-        <Setter Property="Background" Value="{StaticResource HoverBackgroundBrush}" />
         <Setter Property="Opacity" Value="1" />
     </Style>
-    <!-- Same look for plain chip Buttons acting as a segmented pair (plan Text/Tree switch),
-         where a bound "active" class marks the selected segment instead of :checked -->
+    <Style Selector="ToggleButton.chip:checked /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
+    </Style>
+    <Style Selector="ToggleButton.chip:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
+    </Style>
+    <Style Selector="ToggleButton.chip:checked:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
+    </Style>
+    <!-- Same wash for plain chip Buttons acting as a segmented pair (plan Text/Tree
+         switch), where a bound "active" class marks the selected segment instead of
+         :checked. A plain Button has no Fluent checked-state /template/ override, so
+         the rest state renders via TemplateBinding Background; :pointerover is pinned
+         at the template part so the active segment keeps the wash while hovered. -->
     <Style Selector="Button.chip.active">
-        <Setter Property="Background" Value="{StaticResource HoverBackgroundBrush}" />
+        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
         <Setter Property="Opacity" Value="1" />
+    </Style>
+    <Style Selector="Button.chip.active:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
     </Style>
 
     <!-- Left-nav style TabItem: pill highlight instead of the classic underline tab strip -->

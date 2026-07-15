@@ -173,6 +173,16 @@ public partial class MainWindow : Window
         // Ctrl+wheel font zoom. The wheel handler tunnels because the
         // TextView claims wheel events for scrolling before they'd bubble.
         SqlEditor.Options.HighlightCurrentLine = true;
+        // Lock the text-selection wash to the fixed brand-blue token
+        // (AppEditorSelectionBrush in Theme.axaml) instead of AvaloniaEdit's
+        // theme/OS-derived default, so it matches the app's other selection
+        // surfaces and reads the same on both themes. SelectionBrush lives on
+        // TextArea, not TextEditor, so it can't be a XAML attribute on SqlEditor.
+        if (this.TryFindResource("AppEditorSelectionBrush", out var selectionBrush)
+            && selectionBrush is IBrush brush)
+        {
+            SqlEditor.TextArea.SelectionBrush = brush;
+        }
         SqlEditor.TextArea.Caret.PositionChanged += (_, _) => UpdateBracketHighlight();
         SqlEditor.AddHandler(PointerWheelChangedEvent, OnSqlEditorPointerWheel, RoutingStrategies.Tunnel);
 
