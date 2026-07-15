@@ -1069,14 +1069,23 @@ public sealed partial class QueryViewModel : ObservableObject
         }
 
         // Npgsql is strict about DateTime.Kind: timestamptz only accepts Utc,
-        // timestamp only accepts non-Utc. A parsed string is Unspecified, so
-        // stamp the kind the column expects (a bare "2026-07-15 12:00" edited
-        // into a timestamptz cell is taken as UTC — what the grid displays).
+        // timestamp (without time zone) only accepts non-Utc. The two column
+        // flavors also interpret the text differently, so handle them apart.
         if (underlying == typeof(DateTime))
         {
-            var parsed = DateTime.Parse(text, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal);
             var isTimestampTz = _columns[columnIndex].DataTypeName.Contains("with time zone", StringComparison.OrdinalIgnoreCase);
-            return DateTime.SpecifyKind(parsed, isTimestampTz ? DateTimeKind.Utc : DateTimeKind.Unspecified);
+            if (isTimestampTz)
+            {
+                // timestamptz: an offset-less value is taken as UTC (what the
+                // grid displays), an offset-bearing one as its real instant.
+                return DateTime.Parse(text, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
+            }
+
+            // timestamp without time zone: Postgres stores the wall-clock time
+            // as written and ignores any offset. DateTimeOffset.DateTime yields
+            // exactly that typed wall clock — timezone-independent — which we
+            // then mark Unspecified for Npgsql.
+            return DateTime.SpecifyKind(DateTimeOffset.Parse(text, CultureInfo.InvariantCulture).DateTime, DateTimeKind.Unspecified);
         }
 
         if (typeof(IConvertible).IsAssignableFrom(underlying))
