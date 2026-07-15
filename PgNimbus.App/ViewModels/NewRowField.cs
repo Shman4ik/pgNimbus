@@ -102,15 +102,19 @@ public sealed partial class NewRowField : ObservableObject
     }
 
     /// <summary>
-    /// Client-side syntax error for a hand-typed array/composite literal; null
-    /// when the structure is fine or the field is blank (= use the default).
-    /// Only the delimiter/quote structure is checked — element parsing stays
-    /// with Postgres via the INSERT's CAST.
+    /// Client-side error for a hand-typed value; null when it's fine or the
+    /// field is blank (= use the default). Array/composite literals get a
+    /// delimiter/quote structure check; plain scalars get a type check for the
+    /// numeric and uuid families. Everything else defers to Postgres, which
+    /// stays the real parser via the INSERT's CAST — the checks only front-run
+    /// the obvious mistakes so they surface in the editor, not as a failed
+    /// statement. A domain column is validated against its resolved base type.
     /// </summary>
     public string? ValidationError => string.IsNullOrEmpty(Value) ? null : Editor switch
     {
         ColumnValueEditor.Array => PgValueSyntax.ValidateArray(Value),
         ColumnValueEditor.Composite => PgValueSyntax.ValidateComposite(Value),
+        ColumnValueEditor.Text => PgValueSyntax.ValidateScalar(DomainBaseType ?? DataType, Value),
         _ => null,
     };
 

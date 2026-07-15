@@ -38,6 +38,10 @@ public partial class MainWindow : Window
     private object?[]? _pendingEditRow;
     private int _pendingEditColumnIndex;
     private string? _pendingEditText;
+    // The editor's text at the moment editing began, so a commit that ends up
+    // equal to it is recognized as "no real change" and skipped (see
+    // OnCellEditEnded). Null means the baseline is unknown (skip the guard).
+    private string? _pendingEditBaselineText;
     private CompletionWindow? _completionWindow;
     // "Accepted a moment ago" tie-breaker for the completion ranking; session-scoped.
     private readonly CompletionRecency _completionRecency = new();
@@ -1058,6 +1062,12 @@ public partial class MainWindow : Window
         {
             textBox.Text = string.Empty;
         }
+
+        // Remember what the editor showed when editing began (after the NULL
+        // clear above, so an untouched NULL cell baselines as empty). A commit
+        // that matches this is just a cell that was entered and left without a
+        // real change, and OnCellEditEnded skips it.
+        _pendingEditBaselineText = ReadEditedValueText(e.EditingElement);
     }
 
     private void OnCellEditEnding(object? sender, DataGridCellEditEndingEventArgs e)
@@ -1107,10 +1117,20 @@ public partial class MainWindow : Window
         var row = _pendingEditRow;
         var columnIndex = _pendingEditColumnIndex;
         var text = _pendingEditText;
+        var baseline = _pendingEditBaselineText;
         _pendingEditRow = null;
         _pendingEditText = null;
+        _pendingEditBaselineText = null;
 
         if (_queryViewModel is null || row is null || text is null || e.EditAction != DataGridEditAction.Commit)
+        {
+            return;
+        }
+
+        // No real change: the committed text is identical to what the editor
+        // started with (a cell entered and left, or tabbed through). Skip it so
+        // it never runs a no-op UPDATE or stages a spurious "edit".
+        if (string.Equals(text, baseline, StringComparison.Ordinal))
         {
             return;
         }
