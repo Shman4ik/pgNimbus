@@ -136,8 +136,12 @@
                 </Grid>
             </Border>
 
-            <TextBlock Grid.Row="10" Text="{Binding ErrorMessage}" Foreground="IndianRed" TextWrapping="Wrap"
-                       IsVisible="{Binding ErrorMessage, Converter={x:Static conv:ObjectConverters.IsNotNull}}" Margin="0,0,0,8" />
+            <StackPanel Grid.Row="10">
+                <TextBlock Text="{Binding ErrorMessage}" Foreground="IndianRed" TextWrapping="Wrap"
+                           IsVisible="{Binding ErrorMessage, Converter={x:Static conv:ObjectConverters.IsNotNull}}" Margin="0,0,0,8" />
+                <TextBlock Text="{Binding StatusMessage}" Foreground="MediumSeaGreen" TextWrapping="Wrap"
+                           IsVisible="{Binding StatusMessage, Converter={x:Static conv:ObjectConverters.IsNotNull}}" Margin="0,0,0,8" />
+            </StackPanel>
 
             <StackPanel Grid.Row="11" Margin="0,0,0,8">
                 <TextBlock Text="Accent Color" />
@@ -178,6 +182,8 @@
         <Button Grid.Column="0" Content="New" Command="{Binding NewCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" Margin="20,0,0,0">
             <Button Content="Delete" Command="{Binding DeleteCommand}" />
+            <Button Content="Test" Command="{Binding TestConnectionCommand}" IsEnabled="{Binding !IsTesting}"
+                    ToolTip.Tip="Verify the connection (and SSH tunnel, if enabled) without opening it" />
             <Button Content="Save" Command="{Binding SaveCommand}" />
             <Button Classes="accent" Content="Connect" Command="{Binding ConnectCommand}" IsEnabled="{Binding !IsConnecting}" />
         </StackPanel>
