@@ -49,4 +49,12 @@ public sealed record AppSettings
     /// <see cref="Theme"/>; the App maps it to key modifiers.
     /// </summary>
     public string HotkeyScheme { get; set; } = "auto";
+
+    /// <summary>
+    /// Notepad++-style word wrap in the SQL editor: long lines wrap to the pane
+    /// width instead of scrolling horizontally. Off by default (the classic
+    /// no-wrap editor); toggled from the editor command bar or the command
+    /// palette, persisted here so the choice survives a restart.
+    /// </summary>
+    public bool WordWrapEditor { get; set; }
 }

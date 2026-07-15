@@ -45,6 +45,10 @@ public partial class App : Application
     private static void PersistSafeModeEdits(bool value) =>
         SettingsStore.Save(SettingsStore.Load() with { SafeModeEdits = value });
 
+    /// <summary>Remembers the editor's word-wrap toggle so it survives a restart.</summary>
+    private static void PersistWordWrapEditor(bool value) =>
+        SettingsStore.Save(SettingsStore.Load() with { WordWrapEditor = value });
+
     /// <summary>The saved settings snapshot, for the preferences page to initialize from.</summary>
     internal static AppSettings LoadSettings() => SettingsStore.Load();
 
@@ -187,7 +191,9 @@ public partial class App : Application
                 autoAliasTables: SettingsStore.Load().AutoAliasTables,
                 persistAutoAliasTables: PersistAutoAliasTables,
                 safeModeEdits: SettingsStore.Load().SafeModeEdits,
-                persistSafeModeEdits: PersistSafeModeEdits),
+                persistSafeModeEdits: PersistSafeModeEdits,
+                wordWrapEditor: SettingsStore.Load().WordWrapEditor,
+                persistWordWrapEditor: PersistWordWrapEditor),
         };
 
         window.Closed += async (_, _) =>

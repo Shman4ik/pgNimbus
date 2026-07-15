@@ -145,6 +145,9 @@
         <StreamGeometry x:Key="AccountMultipleIconGeometry">M16,13C15.71,13 15.38,13 15.03,13.05C16.19,13.89 17,15 17,16.5V19H23V16.5C23,14.17 18.33,13 16,13M8,13C5.67,13 1,14.17 1,16.5V19H15V16.5C15,14.17 10.33,13 8,13M8,11A3,3 0 0,0 11,8A3,3 0 0,0 8,5A3,3 0 0,0 5,8A3,3 0 0,0 8,11M16,11A3,3 0 0,0 19,8A3,3 0 0,0 16,5A3,3 0 0,0 13,8A3,3 0 0,0 16,11Z</StreamGeometry>
         <StreamGeometry x:Key="TuneIconGeometry">M3,17V19H9V17H3M3,5V7H13V5H3M13,21V19H21V17H13V15H11V21H13M7,9V11H3V13H7V15H9V9H7M21,13V11H11V13H21M15,9H17V7H21V5H17V3H15V9Z</StreamGeometry>
         <StreamGeometry x:Key="SwapHorizontalIconGeometry">M21,9L17,5V8H10V10H17V13M7,11L3,15L7,19V16H14V14H7V11Z</StreamGeometry>
+        <!-- Editor actions: auto-fix (magic wand) for Format SQL, text-wrap for the word-wrap toggle (MDI). -->
+        <StreamGeometry x:Key="AutoFixIconGeometry">M7.5,5.6L10,7L8.6,4.5L10,2L7.5,3.4L5,2L6.4,4.5L5,7L7.5,5.6M19.5,15.4L22,14L20.6,16.5L22,19L19.5,17.6L17,19L18.4,16.5L17,14L19.5,15.4M22,2L20.6,4.5L22,7L19.5,5.6L17,7L18.4,4.5L17,2L19.5,3.4L22,2M13.34,12.78L15.78,10.34L13.66,8.22L11.22,10.66L13.34,12.78M14.37,7.29L16.71,9.63C17.1,10 17.1,10.65 16.71,11.04L5.04,22.71C4.65,23.1 4,23.1 3.63,22.71L1.29,20.37C0.9,20 0.9,19.35 1.29,18.96L12.96,7.29C13.35,6.9 14,6.9 14.37,7.29Z</StreamGeometry>
+        <StreamGeometry x:Key="WrapIconGeometry">M16.5,11H3V13H16.5A2.5,2.5 0 0,1 19,15.5A2.5,2.5 0 0,1 16.5,18H13V16L9,19L13,22V20H16.5A4.5,4.5 0 0,0 21,15.5A4.5,4.5 0 0,0 16.5,11M3,7H21V5H3V7M3,17H9V15H3V17Z</StreamGeometry>
         <StreamGeometry x:Key="CogIconGeometry">M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.67 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z</StreamGeometry>
         <!-- Custom (VS Code-style "layout sidebar left"): window frame with the
              left pane filled - reads as collapse/expand sidebar, not a menu. -->
@@ -426,10 +429,18 @@
         the ControlTheme repaints the ContentPresenter on hover anyway, and
         its default is exactly the subtle grey a quiet toolbar wants.
     -->
-    <Style Selector="Button.toolbar">
+    <Style Selector="Button.toolbar, ToggleButton.toolbar">
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="Padding" Value="10,7" />
+    </Style>
+    <!-- A checked toolbar toggle (e.g. word wrap) tints its glyph with the accent
+         and keeps the subtle hover wash, so "on" reads at a glance without a fill. -->
+    <Style Selector="ToggleButton.toolbar:checked">
+        <Setter Property="Background" Value="{StaticResource HoverBackgroundBrush}" />
+    </Style>
+    <Style Selector="ToggleButton.toolbar:checked PathIcon">
+        <Setter Property="Foreground" Value="{StaticResource AppAccentBrush}" />
     </Style>
 
     <!-- Round "close chip" buttons used for tab/channel close (✕). Selectors

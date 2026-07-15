@@ -230,6 +230,7 @@
                     </DockPanel>
                     <!-- Sidebar content sits directly on the shell tone, Files-style - no card chrome -->
                     <Border Grid.Row="1">
+                        <Grid>
                         <TreeView Name="SchemaTreeView" ItemsSource="{Binding SchemaTree.Schemas}">
                             <TreeView.Styles>
                                 <Style Selector="TreeViewItem">
@@ -250,6 +251,27 @@
                                 </TreeDataTemplate>
                             </TreeView.ItemTemplate>
                         </TreeView>
+
+                        <!-- Loading animation: an indeterminate bar pinned to the
+                             top while the catalog loads (visible even when the
+                             tree already has content, e.g. a refresh), plus a
+                             centered "Loading schema…" cue shown only for the
+                             first, empty load (ShowInitialLoadingCue) so it never
+                             overlays existing tree items on a refresh. Both driven
+                             by SchemaTree.IsLoading, set by RefreshAsync. -->
+                        <ProgressBar VerticalAlignment="Top" Height="2" Margin="0,-2,0,0"
+                                     IsIndeterminate="True"
+                                     Foreground="{DynamicResource AppAccentBrush}"
+                                     IsVisible="{Binding SchemaTree.IsLoading}" />
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    Spacing="10" IsHitTestVisible="False"
+                                    IsVisible="{Binding SchemaTree.ShowInitialLoadingCue}">
+                            <ProgressBar IsIndeterminate="True" Width="120" Height="4"
+                                         Foreground="{DynamicResource AppAccentBrush}" />
+                            <TextBlock Text="Loading schema…" FontSize="12" Opacity="0.6"
+                                       HorizontalAlignment="Center" />
+                        </StackPanel>
+                        </Grid>
                     </Border>
                     <TextBlock Grid.Row="2" Text="{Binding SchemaTree.ErrorMessage}"
                                IsVisible="{Binding SchemaTree.ErrorMessage, Converter={x:Static conv:ObjectConverters.IsNotNull}}"
@@ -427,7 +449,17 @@
         <!-- Padding moves to the inner grid so the status bar can run flush along the layer's bottom edge -->
         <Border Grid.Column="2" Classes="layer" Padding="0">
         <Grid RowDefinitions="*,Auto">
-        <Grid Grid.Row="0" Margin="12,12,12,0" RowDefinitions="Auto,Auto,*,*">
+        <!-- Rows 3/4 (editor / results) are a resizable pair: the GridSplitter on
+             Row 3 drags the divider so the results grid can grow or shrink
+             vertically. Both panes keep a MinHeight so neither collapses. -->
+        <Grid Grid.Row="0" Margin="12,12,12,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="2*" MinHeight="80" />
+                <RowDefinition Height="12" />
+                <RowDefinition Height="3*" MinHeight="80" />
+            </Grid.RowDefinitions>
 
             <DockPanel Grid.Row="0" Margin="0,0,0,8">
                 <Button DockPanel.Dock="Right" Classes="chip" Content="+" FontSize="14" Command="{Binding AddTabCommand}" ToolTip.Tip="New query tab" />
@@ -600,17 +632,47 @@
                             <TextBlock Text="Import" VerticalAlignment="Center" Classes="collapsible" />
                         </StackPanel>
                     </Button>
+
+                    <!-- Group 5 — editor: pretty-print (also Alt+Shift+F) and the
+                         Notepad++-style word-wrap toggle. Icon-only to stay within
+                         the minimalist toolbar rule; both are in the palette too. -->
+                    <Rectangle Classes="statusSeparator" Margin="7,0" />
+                    <Button Classes="toolbar" Command="{Binding FormatSqlCommand}" ToolTip.Tip="Format SQL (Ctrl+Shift+F or Alt+Shift+F)">
+                        <PathIcon Data="{StaticResource AutoFixIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
+                    </Button>
+                    <ToggleButton Classes="toolbar" IsChecked="{Binding WordWrapEditor, Mode=TwoWay}" ToolTip.Tip="Word wrap (Notepad++ style)">
+                        <PathIcon Data="{StaticResource WrapIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
+                    </ToggleButton>
                 </StackPanel>
             </Border>
 
             <Border Grid.Row="2" Classes="card">
                 <ae:TextEditor Name="SqlEditor"
                                ShowLineNumbers="True"
+                               WordWrap="{Binding WordWrapEditor}"
                                FontFamily="Cascadia Code,Consolas,Menlo,monospace"
                                FontSize="14" />
             </Border>
 
-            <Border Grid.Row="3" Classes="card" Margin="0,12,0,12">
+            <!-- Drag to resize the editor/results split. Stretches to fill its
+                 12px row so the whole strip is a grab target; a faint centered
+                 hairline makes the divider discoverable without shouting. -->
+            <GridSplitter Grid.Row="3"
+                          HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                          ResizeDirection="Rows" ResizeBehavior="PreviousAndNext"
+                          Background="Transparent">
+                <GridSplitter.Template>
+                    <ControlTemplate>
+                        <Border Background="{TemplateBinding Background}">
+                            <Rectangle Height="2" Width="36" RadiusX="1" RadiusY="1"
+                                       VerticalAlignment="Center" HorizontalAlignment="Center"
+                                       Fill="{DynamicResource CardBorderBrush}" />
+                        </Border>
+                    </ControlTemplate>
+                </GridSplitter.Template>
+            </GridSplitter>
+
+            <Border Grid.Row="4" Classes="card" Margin="0,0,0,12">
                 <DockPanel>
                     <!-- No browse bar here on purpose: browse mode's WHERE/ORDER BY live in the
                          composed SQL (visible in the editor), and its paging sits in the status

@@ -75,6 +75,10 @@
                             <Border Classes="kbd"><TextBlock Classes="cmdKey" Text="Ctrl" /></Border>
                             <Border Classes="kbd"><TextBlock Text="Shift" /></Border>
                             <Border Classes="kbd"><TextBlock Text="F" /></Border>
+                            <TextBlock Classes="combo" Text="or" />
+                            <Border Classes="kbd"><TextBlock Text="Alt" /></Border>
+                            <Border Classes="kbd"><TextBlock Text="Shift" /></Border>
+                            <Border Classes="kbd"><TextBlock Text="F" /></Border>
                         </StackPanel>
                     </Grid>
                 </StackPanel>

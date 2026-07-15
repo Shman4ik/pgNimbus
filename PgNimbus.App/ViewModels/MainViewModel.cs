@@ -154,6 +154,47 @@ public sealed partial class MainViewModel : ObservableObject
 
     partial void OnSafeModeEditsChanged(bool value) => _persistSafeModeEdits?.Invoke(value);
 
+    /// <summary>
+    /// Notepad++-style word wrap in the SQL editor. Bound two-way to the editor's
+    /// <c>WordWrap</c> and to the command-bar toggle; persisted like the other
+    /// editor toggles so the choice survives a restart.
+    /// </summary>
+    [ObservableProperty]
+    private bool _wordWrapEditor;
+
+    private readonly Action<bool>? _persistWordWrapEditor;
+
+    // Persist and report the new state here rather than in ToggleWordWrap, so
+    // the status line updates the same way whether wrap was flipped from the
+    // palette command or by the toolbar toggle's direct two-way binding.
+    // ActiveTab is set in the constructor, but guard anyway for a transient null
+    // during tab transitions.
+    partial void OnWordWrapEditorChanged(bool value)
+    {
+        _persistWordWrapEditor?.Invoke(value);
+        if (ActiveTab is not null)
+        {
+            ActiveTab.Status = value ? "Word wrap: on" : "Word wrap: off";
+        }
+    }
+
+    /// <summary>
+    /// Pretty-prints the statement under the caret. The rewrite itself lives in
+    /// the view (AvaloniaEdit's Text isn't bindable), so this just raises the
+    /// event — same target as the palette's "Format SQL" and the editor's
+    /// Alt+Shift+F shortcut.
+    /// </summary>
+    [RelayCommand]
+    private void FormatSql() => FormatSqlRequested?.Invoke();
+
+    /// <summary>
+    /// Flips word wrap. The status-line update + persistence ride on the
+    /// <see cref="OnWordWrapEditorChanged"/> hook, so the toolbar toggle (which
+    /// binds the property directly) stays consistent with this command.
+    /// </summary>
+    [RelayCommand]
+    private void ToggleWordWrap() => WordWrapEditor = !WordWrapEditor;
+
     public MainViewModel(
         QueryEngine engine,
         ExplainService explainService,
@@ -171,7 +212,9 @@ public sealed partial class MainViewModel : ObservableObject
         bool autoAliasTables = true,
         Action<bool>? persistAutoAliasTables = null,
         bool safeModeEdits = true,
-        Action<bool>? persistSafeModeEdits = null)
+        Action<bool>? persistSafeModeEdits = null,
+        bool wordWrapEditor = false,
+        Action<bool>? persistWordWrapEditor = null)
     {
         ConnectionHost = connectionHost;
         ConnectionDatabase = connectionDatabase;
@@ -179,6 +222,8 @@ public sealed partial class MainViewModel : ObservableObject
         _persistAutoAliasTables = persistAutoAliasTables;
         _safeModeEdits = safeModeEdits;
         _persistSafeModeEdits = persistSafeModeEdits;
+        _wordWrapEditor = wordWrapEditor;
+        _persistWordWrapEditor = persistWordWrapEditor;
         _engine = engine;
         _explainService = explainService;
         SchemaTree = schemaTree;
@@ -518,7 +563,8 @@ public sealed partial class MainViewModel : ObservableObject
         yield return new PaletteItem("Close tab", "Action", "✕", Invoke(() => CloseTabCommand), Hotkeys.Label("W"));
         yield return new PaletteItem("Next tab", "Action", "›", Invoke(() => NextTabCommand), Hotkeys.Label("PgDn"));
         yield return new PaletteItem("Previous tab", "Action", "‹", Invoke(() => PreviousTabCommand), Hotkeys.Label("PgUp"));
-        yield return new PaletteItem("Format SQL", "Action", "❖", () => { FormatSqlRequested?.Invoke(); return Task.CompletedTask; }, Hotkeys.Label("Shift+F"));
+        yield return new PaletteItem("Format SQL", "Action", "❖", Invoke(() => FormatSqlCommand), $"{Hotkeys.Label("Shift+F")} / Alt+Shift+F");
+        yield return new PaletteItem("Toggle word wrap (Notepad++ style)", "Action", "↩", Invoke(() => ToggleWordWrapCommand));
         yield return new PaletteItem("Find in editor", "Action", "⌕", () => { FindRequested?.Invoke(false); return Task.CompletedTask; }, Hotkeys.Label("F"));
         yield return new PaletteItem("Find & replace in editor", "Action", "⌕", () => { FindRequested?.Invoke(true); return Task.CompletedTask; }, Hotkeys.Label("H"));
         yield return new PaletteItem("Expand SELECT * into columns", "Action", "✳", () => { ExpandStarRequested?.Invoke(); return Task.CompletedTask; });
