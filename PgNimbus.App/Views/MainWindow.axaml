@@ -252,17 +252,20 @@
                             </TreeView.ItemTemplate>
                         </TreeView>
 
-                        <!-- Loading animation: an indeterminate bar pinned to the
-                             top while the catalog loads (visible even when the
-                             tree already has content, e.g. a refresh), plus a
-                             centered "Loading schema…" cue shown only for the
-                             first, empty load (ShowInitialLoadingCue) so it never
-                             overlays existing tree items on a refresh. Both driven
-                             by SchemaTree.IsLoading, set by RefreshAsync. -->
+                        <!-- Loading animation, two mutually-exclusive cues driven by
+                             SchemaTree.IsLoading (set by RefreshAsync): a thin
+                             indeterminate bar pinned to the top only while
+                             *re*loading an already-populated tree
+                             (ShowRefreshLoadingBar), and a centered "Loading schema…"
+                             cue shown only for the first, empty load
+                             (ShowInitialLoadingCue). Splitting them this way keeps
+                             the top bar from doubling up with the centered cue on the
+                             initial load, while still never overlaying existing tree
+                             items on a refresh. -->
                         <ProgressBar VerticalAlignment="Top" Height="2" Margin="0,-2,0,0"
                                      IsIndeterminate="True"
                                      Foreground="{DynamicResource AppAccentBrush}"
-                                     IsVisible="{Binding SchemaTree.IsLoading}" />
+                                     IsVisible="{Binding SchemaTree.ShowRefreshLoadingBar}" />
                         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
                                     Spacing="10" IsHitTestVisible="False"
                                     IsVisible="{Binding SchemaTree.ShowInitialLoadingCue}">
