@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784138896836,
+  "lastUpdate": 1784140573644,
   "repoUrl": "https://github.com/Shman4ik/pgNimbus",
   "entries": {
     "pgNimbus benchmarks": [
@@ -546,6 +546,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "Stream 100000 rows",
             "value": 149.2,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shman4ik@gmail.com",
+            "name": "Dmitrii Shmanev",
+            "username": "Shman4ik"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7b8f163e6bed25eccc4be03de1583bdb90fe7cac",
+          "message": "Match TextBox selection color to the SQL editor's brand-blue wash (#119)\n\nConnection-dialog fields (and every other plain TextBox) previously\nused FluentTheme's default OS/theme-accent selection highlight, which\ndidn't match the SQL editor's fixed brand-blue selection wash. Renamed\nAppEditorSelectionBrush to AppTextSelectionBrush and applied it via a\nglobal TextBox style so selection reads the same everywhere.\n\nCo-authored-by: Claude <noreply@anthropic.com>",
+          "timestamp": "2026-07-15T20:31:17+02:00",
+          "tree_id": "cfada2f2c1e9fab827ae377ff94eed08878fcc4b",
+          "url": "https://github.com/Shman4ik/pgNimbus/commit/7b8f163e6bed25eccc4be03de1583bdb90fe7cac"
+        },
+        "date": 1784140573348,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Startup, launch to first frame (NativeAOT)",
+            "value": 166,
+            "unit": "ms"
+          },
+          {
+            "name": "Memory at first frame (NativeAOT)",
+            "value": 150.3,
+            "unit": "MB"
+          },
+          {
+            "name": "Binary size (NativeAOT)",
+            "value": 40.7,
+            "unit": "MB"
+          },
+          {
+            "name": "Publish size (NativeAOT, all files)",
+            "value": 140.4,
+            "unit": "MB"
+          },
+          {
+            "name": "Startup, launch to first frame (JIT)",
+            "value": 1679,
+            "unit": "ms"
+          },
+          {
+            "name": "Connect, cold pool",
+            "value": 145,
+            "unit": "ms"
+          },
+          {
+            "name": "Round-trip, SELECT 1 warm",
+            "value": 0.29,
+            "unit": "ms"
+          },
+          {
+            "name": "First row batch of a 100000-row SELECT",
+            "value": 10.2,
+            "unit": "ms"
+          },
+          {
+            "name": "Stream 100000 rows",
+            "value": 115.1,
             "unit": "ms"
           }
         ]
