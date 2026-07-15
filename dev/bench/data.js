@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784095520939,
+  "lastUpdate": 1784097289941,
   "repoUrl": "https://github.com/Shman4ik/pgNimbus",
   "entries": {
     "pgNimbus benchmarks": [
@@ -408,6 +408,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "Stream 100000 rows",
             "value": 99.8,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shman4ik@gmail.com",
+            "name": "Dmitrii Shmanev",
+            "username": "Shman4ik"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "85a0856d441abc09a5dae3199894664fdccb119f",
+          "message": "Exclude .pdb debug symbols from the MSIX package (#113)\n\nThe Microsoft Store MSIX build copied the whole publish directory\nverbatim, including native debug symbols like libSkiaSharp.pdb (~80MB)\nand libHarfBuzzSharp.pdb (~20MB) — over 100MB of dev-only files with\nno end-user benefit. The MSI installer already excludes *.pdb for this\nexact reason (see Product.wxs); apply the same exclusion here so the\nStore package isn't ~15x larger than the direct-download MSI.",
+          "timestamp": "2026-07-15T08:30:47+02:00",
+          "tree_id": "8a9f768f9101d32c028f3727a9d8e09d543084a9",
+          "url": "https://github.com/Shman4ik/pgNimbus/commit/85a0856d441abc09a5dae3199894664fdccb119f"
+        },
+        "date": 1784097289463,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Startup, launch to first frame (NativeAOT)",
+            "value": 119,
+            "unit": "ms"
+          },
+          {
+            "name": "Memory at first frame (NativeAOT)",
+            "value": 154.7,
+            "unit": "MB"
+          },
+          {
+            "name": "Binary size (NativeAOT)",
+            "value": 40.6,
+            "unit": "MB"
+          },
+          {
+            "name": "Publish size (NativeAOT, all files)",
+            "value": 140.2,
+            "unit": "MB"
+          },
+          {
+            "name": "Startup, launch to first frame (JIT)",
+            "value": 1049,
+            "unit": "ms"
+          },
+          {
+            "name": "Connect, cold pool",
+            "value": 95.2,
+            "unit": "ms"
+          },
+          {
+            "name": "Round-trip, SELECT 1 warm",
+            "value": 0.23,
+            "unit": "ms"
+          },
+          {
+            "name": "First row batch of a 100000-row SELECT",
+            "value": 6.1,
+            "unit": "ms"
+          },
+          {
+            "name": "Stream 100000 rows",
+            "value": 84.6,
             "unit": "ms"
           }
         ]
