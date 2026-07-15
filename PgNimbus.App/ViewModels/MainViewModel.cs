@@ -164,7 +164,19 @@ public sealed partial class MainViewModel : ObservableObject
 
     private readonly Action<bool>? _persistWordWrapEditor;
 
-    partial void OnWordWrapEditorChanged(bool value) => _persistWordWrapEditor?.Invoke(value);
+    // Persist and report the new state here rather than in ToggleWordWrap, so
+    // the status line updates the same way whether wrap was flipped from the
+    // palette command or by the toolbar toggle's direct two-way binding.
+    // ActiveTab is set in the constructor, but guard anyway for a transient null
+    // during tab transitions.
+    partial void OnWordWrapEditorChanged(bool value)
+    {
+        _persistWordWrapEditor?.Invoke(value);
+        if (ActiveTab is not null)
+        {
+            ActiveTab.Status = value ? "Word wrap: on" : "Word wrap: off";
+        }
+    }
 
     /// <summary>
     /// Pretty-prints the statement under the caret. The rewrite itself lives in
@@ -175,13 +187,13 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void FormatSql() => FormatSqlRequested?.Invoke();
 
-    /// <summary>Flips word wrap and reports the new state in the status bar.</summary>
+    /// <summary>
+    /// Flips word wrap. The status-line update + persistence ride on the
+    /// <see cref="OnWordWrapEditorChanged"/> hook, so the toolbar toggle (which
+    /// binds the property directly) stays consistent with this command.
+    /// </summary>
     [RelayCommand]
-    private void ToggleWordWrap()
-    {
-        WordWrapEditor = !WordWrapEditor;
-        ActiveTab.Status = WordWrapEditor ? "Word wrap: on" : "Word wrap: off";
-    }
+    private void ToggleWordWrap() => WordWrapEditor = !WordWrapEditor;
 
     public MainViewModel(
         QueryEngine engine,

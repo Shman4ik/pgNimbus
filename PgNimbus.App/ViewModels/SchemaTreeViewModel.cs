@@ -13,6 +13,18 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
     [ObservableProperty]
     private bool _isLoading;
 
+    /// <summary>
+    /// True only during the first, empty load (no schemas yet) — drives the
+    /// centered "Loading schema…" cue. A refresh with content already loaded
+    /// keeps the tree visible and shows just the top progress bar instead, so
+    /// the cue never renders on top of existing tree items. (During a refresh
+    /// the old schemas stay in <see cref="Schemas"/> until the fetch returns,
+    /// so the count is non-zero the whole time <see cref="IsLoading"/> is set.)
+    /// </summary>
+    public bool ShowInitialLoadingCue => IsLoading && Schemas.Count == 0;
+
+    partial void OnIsLoadingChanged(bool value) => OnPropertyChanged(nameof(ShowInitialLoadingCue));
+
     [ObservableProperty]
     private string? _errorMessage;
 
