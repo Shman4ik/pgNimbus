@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784097289941,
+  "lastUpdate": 1784138896836,
   "repoUrl": "https://github.com/Shman4ik/pgNimbus",
   "entries": {
     "pgNimbus benchmarks": [
@@ -477,6 +477,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "Stream 100000 rows",
             "value": 84.6,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shman4ik@gmail.com",
+            "name": "Dmitrii Shmanev",
+            "username": "Shman4ik"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a8418be99d527622f831e1636b4f75089b46956a",
+          "message": "Split schema loading cue so top bar and centered cue never double up (#117)\n\nThe initial (empty) schema load showed two indeterminate progress\nindicators at once — the thin top bar (bound to IsLoading) and the\ncentered \"Loading schema…\" cue (ShowInitialLoadingCue) — since both\nconditions were true. That reads as redundant.\n\nMake them mutually exclusive: add ShowRefreshLoadingBar\n(IsLoading && Schemas.Count > 0) and bind the top bar to it. Now the\nfirst, empty load shows only the centered cue, while a refresh of an\nalready-populated tree shows only the thin top bar (still never\noverlaying existing tree items).\n\nCo-authored-by: Claude Opus 4.8 <noreply@anthropic.com>",
+          "timestamp": "2026-07-15T20:02:15+02:00",
+          "tree_id": "0e484fb63943da47219c27452b4d984951ccb68e",
+          "url": "https://github.com/Shman4ik/pgNimbus/commit/a8418be99d527622f831e1636b4f75089b46956a"
+        },
+        "date": 1784138895958,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Startup, launch to first frame (NativeAOT)",
+            "value": 158,
+            "unit": "ms"
+          },
+          {
+            "name": "Memory at first frame (NativeAOT)",
+            "value": 150.5,
+            "unit": "MB"
+          },
+          {
+            "name": "Binary size (NativeAOT)",
+            "value": 40.6,
+            "unit": "MB"
+          },
+          {
+            "name": "Publish size (NativeAOT, all files)",
+            "value": 140.3,
+            "unit": "MB"
+          },
+          {
+            "name": "Startup, launch to first frame (JIT)",
+            "value": 1747,
+            "unit": "ms"
+          },
+          {
+            "name": "Connect, cold pool",
+            "value": 146.1,
+            "unit": "ms"
+          },
+          {
+            "name": "Round-trip, SELECT 1 warm",
+            "value": 0.31,
+            "unit": "ms"
+          },
+          {
+            "name": "First row batch of a 100000-row SELECT",
+            "value": 13.7,
+            "unit": "ms"
+          },
+          {
+            "name": "Stream 100000 rows",
+            "value": 149.2,
             "unit": "ms"
           }
         ]
