@@ -5,6 +5,7 @@ using System.Xml;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Controls.Primitives;
 using Avalonia.Data;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
@@ -175,10 +176,23 @@ public partial class MainWindow : Window
         SqlEditor.AddHandler(PointerWheelChangedEvent, OnSqlEditorPointerWheel, RoutingStrategies.Tunnel);
 
         // Find & replace: AvaloniaEdit's SearchPanel handles matching,
-        // highlighting, and its own F3/Shift+F3/Esc bindings; only opening it
-        // (Ctrl/Cmd+F, Ctrl/Cmd+H — see OnKeyDown) goes through Hotkeys. Its
-        // match-highlight brush is theme-resolved in ApplySqlHighlightingTheme.
+        // highlighting, and its own Enter/Shift+Enter/Esc bindings; only
+        // opening it (Ctrl/Cmd+F, Ctrl/Cmd+H — see OnKeyDown) goes through
+        // Hotkeys. Its match-highlight brush is theme-resolved in
+        // ApplySqlHighlightingTheme. The panel wears the compact template from
+        // Theme.axaml, whose buttons are wired below by name: the stock
+        // template's RoutedCommand buttons raise their command from a static
+        // "last focused element" and silently no-op when that routing misses
+        // the panel, so the buttons call the panel's methods directly instead.
         _searchPanel = SearchPanel.Install(SqlEditor);
+        _searchPanel.TemplateApplied += (_, e) =>
+        {
+            WireSearchPanelButton(e, "PART_FindPreviousButton", p => p.FindPrevious());
+            WireSearchPanelButton(e, "PART_FindNextButton", p => p.FindNext());
+            WireSearchPanelButton(e, "PART_CloseButton", p => p.Close());
+            WireSearchPanelButton(e, "PART_ReplaceNextButton", p => p.ReplaceNext());
+            WireSearchPanelButton(e, "PART_ReplaceAllButton", p => p.ReplaceAll());
+        };
 
         // Tab-strip navigation extras: the ‹/› arrows only appear when the
         // strip overflows, and the ▾ dropdown lists every open tab with
@@ -366,6 +380,24 @@ public partial class MainWindow : Window
         // Focus after the open has been laid out — Reactivate needs the panel's
         // TextBox realized, which isn't guaranteed synchronously on first open.
         Dispatcher.UIThread.Post(() => _searchPanel.Reactivate());
+    }
+
+    // Attaches a click handler to one of the compact search-panel template's
+    // named buttons (see the SearchPanel ControlTheme in Theme.axaml).
+    // TemplateApplied can rerun (it instantiates fresh buttons each time), so
+    // attaching here never double-subscribes.
+    private void WireSearchPanelButton(TemplateAppliedEventArgs e, string name, Action<SearchPanel> action)
+    {
+        if (e.NameScope.Find<Button>(name) is { } button)
+        {
+            button.Click += (_, _) =>
+            {
+                if (_searchPanel is { } panel)
+                {
+                    action(panel);
+                }
+            };
+        }
     }
 
     private void SetHighlightColor(string name, string hex)
@@ -1232,6 +1264,14 @@ public partial class MainWindow : Window
 
     private void OnSqlEditorKeyDown(object? sender, KeyEventArgs e)
     {
+        // The find/replace panel lives inside the TextArea, so this tunneled
+        // handler also sees keys typed into its text boxes - without this
+        // guard, Shift+Enter there runs the query instead of find-previous.
+        if (e.Source is Visual source && source.FindAncestorOfType<SearchPanel>() is not null)
+        {
+            return;
+        }
+
         if (e.Key == Key.Space && e.KeyModifiers == KeyModifiers.Control)
         {
             ShowCompletion(includeTypedChar: false);
