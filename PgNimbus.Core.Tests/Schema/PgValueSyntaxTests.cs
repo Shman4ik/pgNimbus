@@ -92,4 +92,49 @@ public class PgValueSyntaxTests
         await Assert.That(PgValueSyntax.ValidateComposite("({1,x)")).IsNull();
         await Assert.That(PgValueSyntax.ValidateArray("{(1,x}")).IsNull();
     }
+
+    [Test]
+    [Arguments("integer", "42")]
+    [Arguments("integer", "-42")]
+    [Arguments("integer", "  7  ")]
+    [Arguments("smallint", "32767")]
+    [Arguments("smallint", "-32768")]
+    [Arguments("bigint", "9223372036854775807")]
+    [Arguments("numeric(10,2)", "12.34")]
+    [Arguments("numeric", "-0.5")]
+    [Arguments("numeric", "1e6")]
+    [Arguments("numeric", "NaN")]
+    [Arguments("double precision", "3.14159")]
+    [Arguments("double precision", "-Infinity")]
+    [Arguments("real", "1.5")]
+    [Arguments("uuid", "00000000-0000-0000-0000-000000000000")]
+    [Arguments("uuid", "0b7cd5c8-6b1e-4f2a-9c3d-1e2f3a4b5c6d")]
+    // Types with no client-side check defer to Postgres.
+    [Arguments("text", "anything at all")]
+    [Arguments("jsonb", "{not really validated}")]
+    [Arguments("inet", "10.0.0.1")]
+    // A domain over integer is validated against its resolved base type.
+    [Arguments("integer", "")]
+    public async Task AcceptsWellFormedScalars(string dataType, string value)
+    {
+        await Assert.That(PgValueSyntax.ValidateScalar(dataType, value)).IsNull();
+    }
+
+    [Test]
+    [Arguments("integer", "abc")]
+    [Arguments("integer", "1.0")]
+    [Arguments("integer", "1,000")]
+    [Arguments("integer", "2147483648")]      // one past int max
+    [Arguments("integer", "-2147483649")]     // one past int min
+    [Arguments("smallint", "40000")]
+    [Arguments("bigint", "9223372036854775808")]
+    [Arguments("numeric(10,2)", "1.2.3")]
+    [Arguments("double precision", "not-a-number")]
+    [Arguments("real", "12x")]
+    [Arguments("uuid", "not-a-uuid")]
+    [Arguments("uuid", "12345")]
+    public async Task RejectsMalformedScalars(string dataType, string value)
+    {
+        await Assert.That(PgValueSyntax.ValidateScalar(dataType, value)).IsNotNull();
+    }
 }

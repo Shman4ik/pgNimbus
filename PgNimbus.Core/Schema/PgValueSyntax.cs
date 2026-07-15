@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Numerics;
 using System.Text;
 
 namespace PgNimbus.Core.Schema;
@@ -35,6 +36,99 @@ public static class PgValueSyntax
 
     /// <summary>Error message for a malformed composite (row) literal, or null when the structure is fine.</summary>
     public static string? ValidateComposite(string text) => Validate(text.Trim(), '(', ')', "A composite");
+
+    /// <summary>
+    /// Cheap client-side type check for a hand-typed scalar value against its
+    /// column's declared Postgres type — the numeric and uuid families where an
+    /// obviously wrong value (letters in an integer, a malformed UUID) is worth
+    /// catching in the editor instead of as a server error after INSERT. Returns
+    /// an error message, or null when the value is fine, blank, or the type has
+    /// no client-side check (text, json, ranges, inet, … — Postgres stays the
+    /// real parser via the statement's CAST). <paramref name="dataType"/> is the
+    /// column's declared type as <c>format_type</c> renders it (e.g. "integer",
+    /// "numeric(10,2)", "uuid"); for a domain column, pass its resolved base type.
+    /// </summary>
+    public static string? ValidateScalar(string dataType, string text)
+    {
+        var value = text.Trim();
+        if (value.Length == 0)
+        {
+            return null;
+        }
+
+        // Strip a length/precision modifier ("numeric(10,2)" → "numeric") and
+        // any schema qualifier, then normalize. Array types ("integer[]") reach
+        // this only through a broken classification — they have their own
+        // editor/validator — so defer rather than validate the element type.
+        if (dataType.Contains('['))
+        {
+            return null;
+        }
+
+        var type = dataType;
+        var paren = type.IndexOf('(');
+        if (paren >= 0)
+        {
+            type = type[..paren];
+        }
+
+        var dot = type.LastIndexOf('.');
+        if (dot >= 0)
+        {
+            type = type[(dot + 1)..];
+        }
+
+        type = type.Trim().ToLowerInvariant();
+
+        return type switch
+        {
+            "smallint" or "int2" => ValidateInteger(value, short.MinValue, short.MaxValue, "smallint"),
+            "integer" or "int" or "int4" => ValidateInteger(value, int.MinValue, int.MaxValue, "integer"),
+            "bigint" or "int8" => ValidateInteger(value, long.MinValue, long.MaxValue, "bigint"),
+            "real" or "float4" => ValidateFloatingPoint(value, "real"),
+            "double precision" or "float8" => ValidateFloatingPoint(value, "double precision"),
+            "numeric" or "decimal" => ValidateFloatingPoint(value, "numeric"),
+            "uuid" => Guid.TryParse(value, out _) ? null : $"'{value}' is not a valid UUID.",
+            _ => null,
+        };
+    }
+
+    private static string? ValidateInteger(string value, long min, long max, string label)
+    {
+        if (!BigInteger.TryParse(value, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var parsed))
+        {
+            return $"'{value}' is not a valid {label} — a whole number is expected.";
+        }
+
+        if (parsed < min || parsed > max)
+        {
+            return $"{value} is out of range for {label} ({min} to {max}).";
+        }
+
+        return null;
+    }
+
+    // Special numeric inputs Postgres accepts across the float/numeric family.
+    private static readonly string[] SpecialNumericValues =
+        ["nan", "inf", "-inf", "+inf", "infinity", "-infinity", "+infinity"];
+
+    private static string? ValidateFloatingPoint(string value, string label)
+    {
+        if (Array.Exists(SpecialNumericValues, s => s.Equals(value, StringComparison.OrdinalIgnoreCase)))
+        {
+            return null;
+        }
+
+        // double.TryParse validates the *syntax* (sign, decimal point, exponent);
+        // it may round a high-precision numeric, but that never matters here —
+        // the actual value is still parsed exactly by Postgres via the CAST.
+        if (!double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out _))
+        {
+            return $"'{value}' is not a valid {label} number.";
+        }
+
+        return null;
+    }
 
     /// <summary>
     /// Renders a CLR array (what Npgsql materializes an array column as) in
