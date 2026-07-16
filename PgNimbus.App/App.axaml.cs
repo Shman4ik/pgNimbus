@@ -49,6 +49,10 @@ public partial class App : Application
     private static void PersistWordWrapEditor(bool value) =>
         SettingsStore.Save(SettingsStore.Load() with { WordWrapEditor = value });
 
+    /// <summary>Remembers the command palette's recent-.sql-files list so it survives a restart.</summary>
+    private static void PersistRecentSqlFiles(IReadOnlyList<string> value) =>
+        SettingsStore.Save(SettingsStore.Load() with { RecentSqlFiles = value.ToList() });
+
     /// <summary>The saved settings snapshot, for the preferences page to initialize from.</summary>
     internal static AppSettings LoadSettings() => SettingsStore.Load();
 
@@ -137,15 +141,29 @@ public partial class App : Application
     }
 
     /// <summary>
-    /// Builds the connection-profile picker. Used both at startup (as
-    /// <see cref="IClassicDesktopStyleApplicationLifetime.MainWindow"/>, no
-    /// <paramref name="previousWindow"/>) and for "switch connection" from an
-    /// already-open <see cref="MainWindow"/> — in that case, connecting closes
-    /// <paramref name="previousWindow"/> after the new one is up, so its
-    /// resources (notify-listen connection, SSH tunnel) tear down via its own
-    /// <c>Closed</c> handler exactly as they would on a normal window close.
+    /// Builds the connection-profile picker. Used for three flows:
+    /// startup (as <see cref="IClassicDesktopStyleApplicationLifetime.MainWindow"/>,
+    /// no <paramref name="previousWindow"/>, default <paramref name="replaceMainWindow"/>),
+    /// "switch connection" from an already-open <see cref="MainWindow"/> (which
+    /// passes itself as <paramref name="previousWindow"/> and keeps the default
+    /// <paramref name="replaceMainWindow"/> so connecting closes it after the new
+    /// window is up, tearing its resources down via its own <c>Closed</c> handler
+    /// exactly as a normal window close would), and "open connection in new
+    /// window" (<paramref name="replaceMainWindow"/> = false, no
+    /// <paramref name="previousWindow"/>) which leaves every existing window —
+    /// and <see cref="IClassicDesktopStyleApplicationLifetime.MainWindow"/> itself
+    /// — untouched; the new window simply joins them. There is no explicit
+    /// <c>ShutdownMode</c> set, so Avalonia's default <c>OnLastWindowClose</c>
+    /// applies: the app keeps running until every window (whichever one that is)
+    /// has closed.
+    ///
+    /// Note: two windows connected to the same host/database each own a
+    /// separate in-memory workspace snapshot but save under the same
+    /// per-connection key on close (see <see cref="BuildMainWindow"/>) — the
+    /// one that closes last wins and overwrites the other's save. Acceptable
+    /// by design; not worth merging snapshots across windows for.
     /// </summary>
-    internal static ConnectionDialog BuildConnectionDialog(IClassicDesktopStyleApplicationLifetime desktop, Window? previousWindow = null)
+    internal static ConnectionDialog BuildConnectionDialog(IClassicDesktopStyleApplicationLifetime desktop, Window? previousWindow = null, bool replaceMainWindow = true)
     {
         var viewModel = new ConnectionDialogViewModel(new ConnectionProfileStore(), CredentialStore.Create());
         var dialog = new ConnectionDialog { DataContext = viewModel };
@@ -153,10 +171,14 @@ public partial class App : Application
         viewModel.Connected += (connectionString, accentColor, tunnel) =>
         {
             var mainWindow = BuildMainWindow(connectionString, accentColor, tunnel);
-            desktop.MainWindow = mainWindow;
             mainWindow.Show();
             dialog.Close();
-            previousWindow?.Close();
+
+            if (replaceMainWindow)
+            {
+                desktop.MainWindow = mainWindow;
+                previousWindow?.Close();
+            }
         };
 
         return dialog;
@@ -181,23 +203,55 @@ public partial class App : Application
 
         var csb = new NpgsqlConnectionStringBuilder(connectionString);
 
+        // Per-connection workspace key must match the label MainViewModel stamps
+        // history with, so a workspace saved under one connection only ever
+        // restores for that same host/database.
+        var workspaceStore = new WorkspaceStore();
+        var connectionHost = csb.Host ?? "";
+        var connectionDatabase = csb.Database ?? "";
+        var workspaceKey = string.IsNullOrEmpty(connectionHost) ? null : $"{connectionHost}/{connectionDatabase}";
+
+        var viewModel = new MainViewModel(
+            engine, explainService, schemaTree, schemaService, schemaEditor, ddlService, completionProvider, notifyMonitor, activityService, importService,
+            accentColor,
+            connectionHost: connectionHost,
+            connectionDatabase: connectionDatabase,
+            autoAliasTables: SettingsStore.Load().AutoAliasTables,
+            persistAutoAliasTables: PersistAutoAliasTables,
+            safeModeEdits: SettingsStore.Load().SafeModeEdits,
+            persistSafeModeEdits: PersistSafeModeEdits,
+            wordWrapEditor: SettingsStore.Load().WordWrapEditor,
+            persistWordWrapEditor: PersistWordWrapEditor,
+            workspace: workspaceKey is null ? null : workspaceStore.GetEntry(workspaceKey),
+            recentSqlFiles: SettingsStore.Load().RecentSqlFiles,
+            persistRecentSqlFiles: PersistRecentSqlFiles);
+
         var window = new MainWindow
         {
-            DataContext = new MainViewModel(
-                engine, explainService, schemaTree, schemaService, schemaEditor, ddlService, completionProvider, notifyMonitor, activityService, importService,
-                accentColor,
-                connectionHost: csb.Host ?? "",
-                connectionDatabase: csb.Database ?? "",
-                autoAliasTables: SettingsStore.Load().AutoAliasTables,
-                persistAutoAliasTables: PersistAutoAliasTables,
-                safeModeEdits: SettingsStore.Load().SafeModeEdits,
-                persistSafeModeEdits: PersistSafeModeEdits,
-                wordWrapEditor: SettingsStore.Load().WordWrapEditor,
-                persistWordWrapEditor: PersistWordWrapEditor),
+            DataContext = viewModel,
         };
 
         window.Closed += async (_, _) =>
         {
+            // Save the workspace before anything else tears down - a failed save
+            // must never block window close / resource teardown. This fires on
+            // both a normal app exit and a "switch connection" (which closes the
+            // previous window), so the snapshot always files under the OLD
+            // connection's key - exactly what per-connection scoping wants.
+            try
+            {
+                if (workspaceKey is not null)
+                {
+                    var tabs = viewModel.Tabs.Select(t => new WorkspaceTab(t.Sql, t.TitleOverride, t.FilePath)).ToList();
+                    var activeIndex = Math.Max(viewModel.Tabs.IndexOf(viewModel.ActiveTab), 0);
+                    workspaceStore.Save(workspaceKey, tabs, activeIndex);
+                }
+            }
+            catch
+            {
+                // Losing the workspace snapshot is not worth blocking shutdown over.
+            }
+
             // Order matters: drain the notify listener's connection back to the
             // pool first, then dispose the data source (the pool itself, which
             // otherwise leaks on every "switch connection"), then the SSH tunnel

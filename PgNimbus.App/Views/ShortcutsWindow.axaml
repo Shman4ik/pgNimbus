@@ -115,6 +115,28 @@
                             <Border Classes="kbd"><TextBlock Text="PageUp" /></Border>
                         </StackPanel>
                     </Grid>
+                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
+                        <TextBlock Classes="what" Text="Open a .sql file" />
+                        <StackPanel Grid.Column="1" Classes="keys">
+                            <Border Classes="kbd"><TextBlock Classes="cmdKey" Text="Ctrl" /></Border>
+                            <Border Classes="kbd"><TextBlock Text="O" /></Border>
+                        </StackPanel>
+                    </Grid>
+                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
+                        <TextBlock Classes="what" Text="Save the active tab to a .sql file" />
+                        <StackPanel Grid.Column="1" Classes="keys">
+                            <Border Classes="kbd"><TextBlock Classes="cmdKey" Text="Ctrl" /></Border>
+                            <Border Classes="kbd"><TextBlock Text="S" /></Border>
+                        </StackPanel>
+                    </Grid>
+                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
+                        <TextBlock Classes="what" Text="Save the active tab as…" />
+                        <StackPanel Grid.Column="1" Classes="keys">
+                            <Border Classes="kbd"><TextBlock Classes="cmdKey" Text="Ctrl" /></Border>
+                            <Border Classes="kbd"><TextBlock Text="Shift" /></Border>
+                            <Border Classes="kbd"><TextBlock Text="S" /></Border>
+                        </StackPanel>
+                    </Grid>
                 </StackPanel>
             </Border>
 
