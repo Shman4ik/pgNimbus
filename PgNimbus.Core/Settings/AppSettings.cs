@@ -57,4 +57,15 @@ public sealed record AppSettings
     /// palette, persisted here so the choice survives a restart.
     /// </summary>
     public bool WordWrapEditor { get; set; }
+
+    /// <summary>
+    /// The most recently opened/saved <c>.sql</c> file paths, most recent
+    /// first, capped at 10 by the caller. Backs the command palette's
+    /// "Recent file" entries. <c>set</c>, not <c>init</c>, for the same
+    /// reason as every other property here — an <c>init</c> collection would
+    /// silently come back <c>null</c> (not the empty-list default) from a
+    /// settings file predating this field, since the source-generated
+    /// deserializer bypasses property initializers for init-only setters.
+    /// </summary>
+    public List<string> RecentSqlFiles { get; set; } = [];
 }

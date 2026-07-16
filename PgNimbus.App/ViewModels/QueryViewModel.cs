@@ -124,12 +124,30 @@ public sealed partial class QueryViewModel : ObservableObject
     [ObservableProperty]
     private string? _titleOverride;
 
-    /// <summary>True when the SQL has been edited since it was last run — surfaced as a dot on the tab.</summary>
+    /// <summary>
+    /// True when the tab's content diverges from its dirty baseline —
+    /// surfaced as a dot on the tab. The baseline differs by tab kind (see
+    /// <see cref="OnSqlChanged"/>): for a scratch tab (<see cref="FilePath"/>
+    /// null) it's "edited since last run"; for a file-backed tab it's
+    /// "diverges from what's on disk", independent of whether it's been run.
+    /// </summary>
     [ObservableProperty]
     private bool _isDirty;
 
-    // The SQL as of the last run; edits away from it mark the tab dirty.
+    // The SQL as of the last run; edits away from it mark a scratch tab dirty.
     private string _lastRunSql;
+
+    /// <summary>
+    /// Full local path of the file this tab is backed by, or null for a
+    /// scratch (never saved/opened-from-disk) tab. Set by <see cref="AttachFile"/>
+    /// (open, workspace restore) and <see cref="MarkSaved"/> (save/save-as).
+    /// </summary>
+    [ObservableProperty]
+    private string? _filePath;
+
+    // The buffer content as of the last load-from/save-to disk for a
+    // file-backed tab; the dirty comparison baseline while FilePath is set.
+    private string? _lastSavedSql;
 
     [ObservableProperty]
     private ExplainNodeViewModel? _explainRoot;
@@ -277,9 +295,20 @@ public sealed partial class QueryViewModel : ObservableObject
 
         if (trackAsFullRun)
         {
-            // Running clears the dirty flag: the on-screen SQL is now what produced the result.
+            // The "last run" baseline always advances, whether or not this tab
+            // is file-backed — OnSqlChanged only consults it for scratch tabs,
+            // but keeping it current means a file tab that later loses its
+            // file association (rare) still gets a sane baseline.
             _lastRunSql = executedSql;
-            IsDirty = false;
+
+            // Running a scratch tab clears its dirty flag: the on-screen SQL is
+            // now what produced the result. Running a FILE-BACKED tab does NOT
+            // save it to disk, so its dirty dot (disk-divergence) must survive
+            // the run — only Save/MarkSaved clears it.
+            if (FilePath is null)
+            {
+                IsDirty = false;
+            }
         }
 
         IsRunning = true;
@@ -754,8 +783,45 @@ public sealed partial class QueryViewModel : ObservableObject
         SelectedSql = null;
 
         IsShowingPlan = false;
-        IsDirty = !string.Equals(value, _lastRunSql, StringComparison.Ordinal);
+        // Two different dirty meanings share one flag/dot: a scratch tab (no
+        // file) is dirty when edited since its last run; a file-backed tab is
+        // dirty when it diverges from what's on disk, regardless of runs.
+        IsDirty = FilePath is null
+            ? !string.Equals(value, _lastRunSql, StringComparison.Ordinal)
+            : !string.Equals(value, _lastSavedSql, StringComparison.Ordinal);
         UpdateTabTitle();
+    }
+
+    /// <summary>
+    /// Associates this tab with a local <c>.sql</c> file whose content is
+    /// <paramref name="diskContent"/> — used both when opening a file into a
+    /// new tab and when reattaching a workspace-restored tab to its saved
+    /// file association. Sets the dirty baseline to <paramref name="diskContent"/>
+    /// but deliberately does NOT touch <see cref="Sql"/>: the caller decides
+    /// what the buffer holds (freshly read disk content on open, or the
+    /// restored workspace buffer on restore, whose divergence from disk this
+    /// then honestly reflects via <see cref="IsDirty"/>).
+    /// </summary>
+    public void AttachFile(string path, string diskContent)
+    {
+        FilePath = path;
+        _lastSavedSql = diskContent;
+        TitleOverride = Path.GetFileName(path);
+        IsDirty = !string.Equals(Sql, _lastSavedSql, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Records a successful write of the current buffer to <paramref name="path"/>
+    /// — called by save/save-as after the file write succeeds. Clears the
+    /// dirty flag (the buffer now matches disk) and renames the tab after the
+    /// file, same as a fresh open.
+    /// </summary>
+    public void MarkSaved(string path)
+    {
+        FilePath = path;
+        _lastSavedSql = Sql;
+        IsDirty = false;
+        TitleOverride = Path.GetFileName(path);
     }
 
     partial void OnBrowseChanged(TableBrowseViewModel? value)

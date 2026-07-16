@@ -49,6 +49,10 @@ public partial class App : Application
     private static void PersistWordWrapEditor(bool value) =>
         SettingsStore.Save(SettingsStore.Load() with { WordWrapEditor = value });
 
+    /// <summary>Remembers the command palette's recent-.sql-files list so it survives a restart.</summary>
+    private static void PersistRecentSqlFiles(IReadOnlyList<string> value) =>
+        SettingsStore.Save(SettingsStore.Load() with { RecentSqlFiles = value.ToList() });
+
     /// <summary>The saved settings snapshot, for the preferences page to initialize from.</summary>
     internal static AppSettings LoadSettings() => SettingsStore.Load();
 
@@ -200,7 +204,9 @@ public partial class App : Application
             persistSafeModeEdits: PersistSafeModeEdits,
             wordWrapEditor: SettingsStore.Load().WordWrapEditor,
             persistWordWrapEditor: PersistWordWrapEditor,
-            workspace: workspaceKey is null ? null : workspaceStore.GetEntry(workspaceKey));
+            workspace: workspaceKey is null ? null : workspaceStore.GetEntry(workspaceKey),
+            recentSqlFiles: SettingsStore.Load().RecentSqlFiles,
+            persistRecentSqlFiles: PersistRecentSqlFiles);
 
         var window = new MainWindow
         {
@@ -218,7 +224,7 @@ public partial class App : Application
             {
                 if (workspaceKey is not null)
                 {
-                    var tabs = viewModel.Tabs.Select(t => new WorkspaceTab(t.Sql, t.TitleOverride)).ToList();
+                    var tabs = viewModel.Tabs.Select(t => new WorkspaceTab(t.Sql, t.TitleOverride, t.FilePath)).ToList();
                     var activeIndex = Math.Max(viewModel.Tabs.IndexOf(viewModel.ActiveTab), 0);
                     workspaceStore.Save(workspaceKey, tabs, activeIndex);
                 }

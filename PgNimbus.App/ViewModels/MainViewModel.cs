@@ -59,6 +59,23 @@ public sealed partial class MainViewModel : ObservableObject
     public event Action? SidebarToggleRequested;
     // Raised to open (or focus) the preferences window, which the view owns.
     public event Action? PreferencesRequested;
+    // Raised to open the "Open SQL file" picker; MainWindow owns the
+    // StorageProvider dialog and file I/O.
+    public event Action? OpenFileRequested;
+    // Raised to save the active tab's SQL to disk; true = "save as" (always
+    // prompt), false = save-in-place (prompt only when the tab has no file yet).
+    public event Action<bool>? SaveFileRequested;
+    // Raised to open a specific recent file (from the palette's "Recent file" entries).
+    public event Action<string>? OpenRecentFileRequested;
+
+    [RelayCommand]
+    private void OpenFile() => OpenFileRequested?.Invoke();
+
+    [RelayCommand]
+    private void SaveFile() => SaveFileRequested?.Invoke(false);
+
+    [RelayCommand]
+    private void SaveFileAs() => SaveFileRequested?.Invoke(true);
 
     [RelayCommand]
     private void SwitchConnection() => SwitchConnectionRequested?.Invoke();
@@ -165,6 +182,14 @@ public sealed partial class MainViewModel : ObservableObject
 
     private readonly Action<bool>? _persistWordWrapEditor;
 
+    // Most-recently-opened/saved .sql file paths, most recent first, capped at
+    // 10 — backs the palette's "Recent file" entries. Kept as a plain list
+    // (not observable) since the palette only reads it when it (re)builds its
+    // candidate set, not live.
+    private readonly List<string> _recentSqlFiles;
+
+    private readonly Action<IReadOnlyList<string>>? _persistRecentSqlFiles;
+
     // Persist and report the new state here rather than in ToggleWordWrap, so
     // the status line updates the same way whether wrap was flipped from the
     // palette command or by the toolbar toggle's direct two-way binding.
@@ -216,7 +241,9 @@ public sealed partial class MainViewModel : ObservableObject
         Action<bool>? persistSafeModeEdits = null,
         bool wordWrapEditor = false,
         Action<bool>? persistWordWrapEditor = null,
-        WorkspaceEntry? workspace = null)
+        WorkspaceEntry? workspace = null,
+        IReadOnlyList<string>? recentSqlFiles = null,
+        Action<IReadOnlyList<string>>? persistRecentSqlFiles = null)
     {
         ConnectionHost = connectionHost;
         ConnectionDatabase = connectionDatabase;
@@ -226,6 +253,8 @@ public sealed partial class MainViewModel : ObservableObject
         _persistSafeModeEdits = persistSafeModeEdits;
         _wordWrapEditor = wordWrapEditor;
         _persistWordWrapEditor = persistWordWrapEditor;
+        _recentSqlFiles = recentSqlFiles is null ? [] : recentSqlFiles.ToList();
+        _persistRecentSqlFiles = persistRecentSqlFiles;
         _engine = engine;
         _explainService = explainService;
         SchemaTree = schemaTree;
@@ -267,6 +296,27 @@ public sealed partial class MainViewModel : ObservableObject
                 var tab = NewTab();
                 tab.Sql = saved.Sql;
                 tab.TitleOverride = saved.Title;
+
+                // Best-effort reattach to the tab's saved file association. The
+                // restored buffer (saved.Sql, just set above) is kept as-is —
+                // AttachFile only sets the disk-comparison baseline, not Sql —
+                // so if the buffer and the file have since diverged (edited here
+                // but not saved, or the file changed elsewhere), the dirty dot
+                // honestly reflects that the moment the tab reopens. If the file
+                // is gone or unreadable, this just leaves the tab as a titled
+                // scratch tab — restore must never fail the whole session over it.
+                if (saved.FilePath is { } filePath)
+                {
+                    try
+                    {
+                        var diskContent = File.ReadAllText(filePath);
+                        tab.AttachFile(filePath, diskContent);
+                    }
+                    catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+                    {
+                        // Leave as a titled scratch tab (TitleOverride from above still applies).
+                    }
+                }
             }
 
             var activeIndex = Math.Clamp(workspace.ActiveTabIndex, 0, Tabs.Count - 1);
@@ -395,6 +445,48 @@ public sealed partial class MainViewModel : ObservableObject
         ActiveTab = tab;
         CloseTabCommand.NotifyCanExecuteChanged();
         return tab;
+    }
+
+    /// <summary>
+    /// Opens <paramref name="path"/> (already read as <paramref name="content"/>
+    /// by the caller — MainWindow owns the file I/O) into a query tab. If the
+    /// file is already open in some tab (matched by <see cref="QueryViewModel.FilePath"/>,
+    /// ordinal), that tab is made active instead of opening a duplicate.
+    /// Otherwise a brand-new tab is created — never the active one, per the
+    /// "loading a query never overwrites the active tab" rule — and recorded
+    /// as the most recent file.
+    /// </summary>
+    public QueryViewModel OpenFileTab(string path, string content)
+    {
+        var existing = Tabs.FirstOrDefault(t => string.Equals(t.FilePath, path, StringComparison.Ordinal));
+        if (existing is not null)
+        {
+            ActiveTab = existing;
+            return existing;
+        }
+
+        var tab = NewTab();
+        tab.Sql = content;
+        tab.AttachFile(path, content);
+        RecordRecentFile(path);
+        return tab;
+    }
+
+    /// <summary>
+    /// Moves <paramref name="path"/> to the front of the recent-files list
+    /// (removing any existing occurrence first), trims to the 10 most recent,
+    /// and persists the result. Called on a successful open or save.
+    /// </summary>
+    public void RecordRecentFile(string path)
+    {
+        _recentSqlFiles.RemoveAll(p => string.Equals(p, path, StringComparison.Ordinal));
+        _recentSqlFiles.Insert(0, path);
+        if (_recentSqlFiles.Count > 10)
+        {
+            _recentSqlFiles.RemoveRange(10, _recentSqlFiles.Count - 10);
+        }
+
+        _persistRecentSqlFiles?.Invoke(_recentSqlFiles);
     }
 
     /// <summary>
@@ -548,7 +640,7 @@ public sealed partial class MainViewModel : ObservableObject
     /// </summary>
     public async Task OpenCommandPaletteAsync()
     {
-        var baseItems = BuildActionItems().Concat(BuildSavedQueryItems()).ToList();
+        var baseItems = BuildActionItems().Concat(BuildRecentFileItems()).Concat(BuildSavedQueryItems()).ToList();
         CommandPalette.Open(baseItems);
 
         try
@@ -597,6 +689,9 @@ public sealed partial class MainViewModel : ObservableObject
         yield return new PaletteItem("Toggle light/dark theme", "Action", "◐", () => { ThemeToggleRequested?.Invoke(); return Task.CompletedTask; });
         yield return new PaletteItem("Preferences…", "Action", "⚙", Invoke(() => ShowPreferencesCommand), Hotkeys.Label(","));
         yield return new PaletteItem("Keyboard shortcuts", "Action", "?", () => { ShortcutsRequested?.Invoke(); return Task.CompletedTask; }, "F1");
+        yield return new PaletteItem("Open .sql file…", "Action", "↥", Invoke(() => OpenFileCommand), Hotkeys.Label("O"));
+        yield return new PaletteItem("Save tab to file", "Action", "↧", Invoke(() => SaveFileCommand), Hotkeys.Label("S"));
+        yield return new PaletteItem("Save tab as…", "Action", "↧", Invoke(() => SaveFileAsCommand), Hotkeys.Label("Shift+S"));
     }
 
     private IEnumerable<PaletteItem> BuildSavedQueryItems() =>
@@ -605,6 +700,18 @@ public sealed partial class MainViewModel : ObservableObject
             "Saved query",
             "★",
             () => { SavedQueries.LoadSavedQueryCommand.Execute(q); return Task.CompletedTask; }));
+
+    // One entry per recent .sql file, most-recent-first (the order they're
+    // already kept in). The directory rides in the Shortcut slot (rendered as
+    // quiet trailing text in the palette row) since the title alone is just
+    // the file name and the full path is otherwise invisible.
+    private IEnumerable<PaletteItem> BuildRecentFileItems() =>
+        _recentSqlFiles.Select(path => new PaletteItem(
+            Path.GetFileName(path),
+            "Recent file",
+            "▢",
+            () => { OpenRecentFileRequested?.Invoke(path); return Task.CompletedTask; },
+            Path.GetDirectoryName(path)));
 
     private IEnumerable<PaletteItem> BuildTableItems(IReadOnlyList<RelationInfo> relations) =>
         relations.Select(r => new PaletteItem(

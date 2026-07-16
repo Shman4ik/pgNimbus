@@ -196,6 +196,13 @@ Every tag push (`vX.Y.Z`) builds all of the above via
 - **Workspace restore** — closing the app never prompts; the next session on
   the same connection reopens your tabs, including never-saved scratch SQL,
   exactly as you left them.
+- **Open/save `.sql` files** — <kbd>Ctrl</kbd>+<kbd>O</kbd> opens a `.sql`
+  file into a new tab (or focuses it if already open),
+  <kbd>Ctrl</kbd>+<kbd>S</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd>
+  save/save-as, and the command palette lists your 10 most recent files. A
+  file-backed tab's dirty dot means "diverges from disk" (survives a run,
+  unlike a scratch tab's "edited since run") and its file association
+  survives workspace restore.
 - **SQL formatting** — <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> (or "Format
   SQL" in the command palette) pretty-prints the statement under the cursor in a
   readable block style — clauses on their own lines, list items and JOINs one per
@@ -286,6 +293,8 @@ The highlights:
 | Cancel running query | <kbd>Esc</kbd> |
 | New / close query tab | <kbd>Ctrl</kbd>+<kbd>T</kbd> / <kbd>Ctrl</kbd>+<kbd>W</kbd> |
 | Next / previous tab | <kbd>Ctrl</kbd>+<kbd>PageDown</kbd> / <kbd>Ctrl</kbd>+<kbd>PageUp</kbd> |
+| Open a `.sql` file | <kbd>Ctrl</kbd>+<kbd>O</kbd> |
+| Save the active tab to a `.sql` file / save as | <kbd>Ctrl</kbd>+<kbd>S</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> |
 | SQL autocomplete | <kbd>Ctrl</kbd>+<kbd>Space</kbd> (also triggers while typing) |
 | Switch focus: editor ↔ results grid | <kbd>F6</kbd> |
 | Preferences | <kbd>Ctrl</kbd>+<kbd>,</kbd> |
@@ -546,10 +555,23 @@ Everything below is what survives that filter, roughly in impact order:
   tabs (table/function "source" views) restore as their composed query SQL,
   not a live browse session; there is nothing to save/prompt for, so exit is
   always silent.
-- [ ] **Open/save `.sql` files** — Ctrl+O / Ctrl+S on a tab, a recent-files
+- [x] **Open/save `.sql` files** — Ctrl+O / Ctrl+S on a tab, a recent-files
   list in the palette, and a dirty marker that distinguishes "unsaved
   scratch" from "file changed on disk". A top-voted Beekeeper Studio ask
-  (it appears twice in their top 20).
+  (it appears twice in their top 20). Shipped: `Ctrl+O` opens a `.sql` file
+  into a new tab (never the active one — same rule as saved queries/history),
+  reusing an already-open tab for the same path instead of duplicating it;
+  `Ctrl+S` / `Ctrl+Shift+S` save/save-as (via `Hotkeys.cs`, so `Cmd` on
+  macOS); the palette lists the 10 most recent files (persisted in
+  `AppSettings.RecentSqlFiles`) alongside new "Open .sql file…" / "Save tab
+  to file" / "Save tab as…" actions. The tab's dirty dot carries two
+  different meanings depending on whether it's file-backed: a scratch tab's
+  dot means "edited since last run" (cleared by running it), a file tab's dot
+  means "diverges from what's on disk" (survives a run — only a save clears
+  it). File tabs also survive workspace restore with their file association:
+  the saved buffer is kept as-is and the dot honestly reflects any
+  divergence from disk at reopen, rather than silently re-reading the file
+  over unsaved edits.
 - [ ] **Multiple simultaneous connections** — today the ⇄ switch *replaces*
   the connection; users working against dev + prod side by side want both at
   once (top-10 Beekeeper ask). Cleanest fit for the one-window shell:

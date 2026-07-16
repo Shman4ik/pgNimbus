@@ -4,8 +4,14 @@ using PgNimbus.Core.Connections;
 
 namespace PgNimbus.Core.Settings;
 
-/// <summary>A single saved tab: its SQL text and, for a titled tab (e.g. a table/function "source" tab), the title override.</summary>
-public sealed record WorkspaceTab(string Sql, string? Title = null);
+/// <summary>
+/// A single saved tab: its SQL text, for a titled tab (e.g. a table/function
+/// "source" tab) the title override, and, for a file-backed tab, the local
+/// path it's associated with. <paramref name="FilePath"/> is null for a
+/// scratch tab; a workspace.json written before this field existed still
+/// deserializes with it defaulting to null.
+/// </summary>
+public sealed record WorkspaceTab(string Sql, string? Title = null, string? FilePath = null);
 
 /// <summary>A saved snapshot of one connection's open tabs, most-recently-saved entries kept first in the store.</summary>
 public sealed record WorkspaceEntry(string Connection, DateTimeOffset SavedAt, List<WorkspaceTab> Tabs, int ActiveTabIndex = 0);

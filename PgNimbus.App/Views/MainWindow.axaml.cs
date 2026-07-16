@@ -320,6 +320,9 @@ public partial class MainWindow : Window
         // Ctrl/Cmd+, — the near-universal preferences shortcut.
         Add(new KeyGesture(Key.OemComma, Hotkeys.Command), () => _viewModel?.ShowPreferencesCommand);
         Add(new KeyGesture(Key.A, Hotkeys.Command | KeyModifiers.Shift), () => _viewModel?.ToggleAutoAliasCommand);
+        Add(new KeyGesture(Key.O, Hotkeys.Command), () => _viewModel?.OpenFileCommand);
+        Add(new KeyGesture(Key.S, Hotkeys.Command), () => _viewModel?.SaveFileCommand);
+        Add(new KeyGesture(Key.S, Hotkeys.Command | KeyModifiers.Shift), () => _viewModel?.SaveFileAsCommand);
 
         // The gear button's tooltip carries the shortcut, so it's set here
         // (not in XAML) to track the live Ctrl/Cmd scheme.
@@ -506,6 +509,9 @@ public partial class MainWindow : Window
             _viewModel.ActivityRequested -= ShowActivityWindow;
             _viewModel.SidebarToggleRequested -= ToggleSidebar;
             _viewModel.PreferencesRequested -= ShowPreferencesWindow;
+            _viewModel.OpenFileRequested -= OnOpenFileRequested;
+            _viewModel.SaveFileRequested -= OnSaveFileRequested;
+            _viewModel.OpenRecentFileRequested -= OnOpenRecentFileRequested;
         }
 
         _viewModel = vm;
@@ -520,6 +526,9 @@ public partial class MainWindow : Window
         _viewModel.ActivityRequested += ShowActivityWindow;
         _viewModel.SidebarToggleRequested += ToggleSidebar;
         _viewModel.PreferencesRequested += ShowPreferencesWindow;
+        _viewModel.OpenFileRequested += OnOpenFileRequested;
+        _viewModel.SaveFileRequested += OnSaveFileRequested;
+        _viewModel.OpenRecentFileRequested += OnOpenRecentFileRequested;
 
         // Warm the FK cache in the background so the grid's FK-navigation menu
         // items (which can't await) have edges to read by the time it's opened.
@@ -2119,6 +2128,164 @@ public partial class MainWindow : Window
         // The writer was snapshotted on the UI thread; do the (potentially large)
         // formatting + file write off it so the interface stays responsive.
         await Task.Run(() => write(stream));
+    }
+
+    // --- Open/save .sql files -----------------------------------------------
+    // MainViewModel raises the three events below (palette + Ctrl+O/S/Shift+S
+    // key bindings all resolve to its commands); this window owns the
+    // StorageProvider dialogs and the actual file I/O, same split as
+    // Import/Export above.
+
+    private void OnOpenFileRequested() => _ = OpenSqlFileAsync();
+
+    private void OnSaveFileRequested(bool saveAs) => _ = SaveSqlFileAsync(saveAs);
+
+    private void OnOpenRecentFileRequested(string path) => _ = OpenRecentFileAsync(path);
+
+    /// <summary>Ctrl+O / palette "Open .sql file…": pick a file and load it into a new tab (or focus it if already open).</summary>
+    private async Task OpenSqlFileAsync()
+    {
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
+        if (storageProvider is null)
+        {
+            return;
+        }
+
+        var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Open SQL file",
+            AllowMultiple = false,
+            FileTypeFilter =
+            [
+                new FilePickerFileType("SQL") { Patterns = ["*.sql"] },
+                new FilePickerFileType("All files") { Patterns = ["*"] },
+            ],
+        });
+
+        if (files.Count == 0)
+        {
+            return;
+        }
+
+        var path = files[0].TryGetLocalPath();
+        if (path is null)
+        {
+            _viewModel.ActiveTab.Status = "Can't open a non-local file";
+            _viewModel.ActiveTab.HasError = true;
+            return;
+        }
+
+        try
+        {
+            var text = await File.ReadAllTextAsync(path);
+            _viewModel.OpenFileTab(path, text);
+        }
+        catch (Exception ex)
+        {
+            _viewModel.ActiveTab.Status = $"Open failed: {ex.Message}";
+            _viewModel.ActiveTab.HasError = true;
+        }
+    }
+
+    /// <summary>Palette "Recent file" entry: reload a previously opened path, leaving it in the recent list even if it's now missing.</summary>
+    private async Task OpenRecentFileAsync(string path)
+    {
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        if (!File.Exists(path))
+        {
+            _viewModel.ActiveTab.Status = $"File not found: {path}";
+            _viewModel.ActiveTab.HasError = true;
+            return;
+        }
+
+        try
+        {
+            var text = await File.ReadAllTextAsync(path);
+            _viewModel.OpenFileTab(path, text);
+        }
+        catch (Exception ex)
+        {
+            _viewModel.ActiveTab.Status = $"Open failed: {ex.Message}";
+            _viewModel.ActiveTab.HasError = true;
+        }
+    }
+
+    /// <summary>
+    /// Ctrl+S / Ctrl+Shift+S / palette "Save tab to file" / "Save tab as…":
+    /// writes the active tab's SQL to its associated file, prompting for a
+    /// location when it has none yet or <paramref name="saveAs"/> is true.
+    /// </summary>
+    private async Task SaveSqlFileAsync(bool saveAs)
+    {
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        var tab = _viewModel.ActiveTab;
+        var path = tab.FilePath;
+
+        if (path is null || saveAs)
+        {
+            var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
+            if (storageProvider is null)
+            {
+                return;
+            }
+
+            var suggestedName = SanitizeFileName(tab.TabTitle) + ".sql";
+            var file = await storageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = "Save SQL file",
+                SuggestedFileName = suggestedName,
+                DefaultExtension = "sql",
+                FileTypeChoices = [new FilePickerFileType("SQL") { Patterns = ["*.sql"] }],
+            });
+
+            if (file is null)
+            {
+                return;
+            }
+
+            path = file.TryGetLocalPath();
+            if (path is null)
+            {
+                tab.Status = "Can't save to a non-local file";
+                tab.HasError = true;
+                return;
+            }
+        }
+
+        try
+        {
+            await File.WriteAllTextAsync(path, tab.Sql);
+            tab.MarkSaved(path);
+            _viewModel.RecordRecentFile(path);
+            tab.Status = $"Saved {Path.GetFileName(path)}";
+            tab.HasError = false;
+        }
+        catch (Exception ex)
+        {
+            tab.Status = $"Save failed: {ex.Message}";
+            tab.HasError = true;
+        }
+    }
+
+    /// <summary>A usable file-name stem from a tab title: strips characters the filesystem would reject.</summary>
+    private static string SanitizeFileName(string title)
+    {
+        var invalid = Path.GetInvalidFileNameChars();
+        var cleaned = new string(title.Select(c => invalid.Contains(c) ? '_' : c).ToArray()).Trim();
+        return cleaned.Length == 0 ? "query" : cleaned;
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)

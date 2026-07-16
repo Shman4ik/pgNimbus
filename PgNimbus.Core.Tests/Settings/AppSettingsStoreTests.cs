@@ -63,4 +63,46 @@ public class AppSettingsStoreTests
             File.Delete(path);
         }
     }
+
+    [Test]
+    public async Task SaveThenLoad_RoundTripsRecentSqlFiles()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"pgnimbus-{Guid.NewGuid():N}.json");
+
+        try
+        {
+            var store = new AppSettingsStore(path);
+            store.Save(new AppSettings { RecentSqlFiles = ["/home/user/a.sql", "/home/user/b.sql"] });
+
+            var settings = store.Load();
+
+            await Assert.That(settings.RecentSqlFiles.Count).IsEqualTo(2);
+            await Assert.That(settings.RecentSqlFiles[0]).IsEqualTo("/home/user/a.sql");
+            await Assert.That(settings.RecentSqlFiles[1]).IsEqualTo("/home/user/b.sql");
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
+    public async Task Load_FileWithoutRecentSqlFilesProperty_LoadsAsEmptyList()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"pgnimbus-{Guid.NewGuid():N}.json");
+        await File.WriteAllTextAsync(path, """{ "Theme": "dark" }""");
+
+        try
+        {
+            var settings = new AppSettingsStore(path).Load();
+
+            await Assert.That(settings.Theme).IsEqualTo("dark");
+            await Assert.That(settings.RecentSqlFiles).IsNotNull();
+            await Assert.That(settings.RecentSqlFiles.Count).IsEqualTo(0);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
 }

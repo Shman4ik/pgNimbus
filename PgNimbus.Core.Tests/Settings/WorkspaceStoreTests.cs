@@ -94,6 +94,55 @@ public class WorkspaceStoreTests
     }
 
     [Test]
+    public async Task SaveThenGetEntry_RoundTripsFilePath()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"pgnimbus-{Guid.NewGuid():N}.json");
+
+        try
+        {
+            var store = new WorkspaceStore(path);
+            var tabs = new List<WorkspaceTab> { new("SELECT 1;", "query.sql", "/home/user/query.sql") };
+
+            store.Save("localhost/demo", tabs, activeTabIndex: 0);
+
+            var entry = store.GetEntry("localhost/demo");
+
+            await Assert.That(entry).IsNotNull();
+            await Assert.That(entry!.Tabs[0].FilePath).IsEqualTo("/home/user/query.sql");
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
+    public async Task GetEntry_JsonWithoutFilePathProperty_LoadsWithNullFilePath()
+    {
+        // A workspace.json written before FilePath existed on WorkspaceTab must
+        // still deserialize — the new field falls back to its default (null)
+        // rather than failing the whole load.
+        var path = Path.Combine(Path.GetTempPath(), $"pgnimbus-{Guid.NewGuid():N}.json");
+        await File.WriteAllTextAsync(
+            path,
+            """[{"Connection":"localhost/demo","SavedAt":"2026-01-01T00:00:00Z","Tabs":[{"Sql":"SELECT 1;","Title":null}],"ActiveTabIndex":0}]""");
+
+        try
+        {
+            var entry = new WorkspaceStore(path).GetEntry("localhost/demo");
+
+            await Assert.That(entry).IsNotNull();
+            await Assert.That(entry!.Tabs.Count).IsEqualTo(1);
+            await Assert.That(entry.Tabs[0].Sql).IsEqualTo("SELECT 1;");
+            await Assert.That(entry.Tabs[0].FilePath).IsNull();
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
     public async Task Save_MoreThan20Connections_EvictsOldest()
     {
         var path = Path.Combine(Path.GetTempPath(), $"pgnimbus-{Guid.NewGuid():N}.json");
