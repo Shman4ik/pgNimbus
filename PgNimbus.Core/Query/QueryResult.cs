@@ -1,6 +1,19 @@
 namespace PgNimbus.Core.Query;
 
-public sealed record ColumnInfo(string Name, string DataTypeName, Type ClrType);
+/// <summary>
+/// One result-set column. <paramref name="TableOid"/> and
+/// <paramref name="TableAttributeNumber"/> identify the base-table attribute the
+/// column reads straight through (from the wire-protocol RowDescription — no
+/// extra round trip); both are 0 for expressions, literals, and anything else
+/// that isn't a plain table column. That's what lets the app decide whether an
+/// arbitrary SELECT's rows map cleanly onto one editable table.
+/// </summary>
+public sealed record ColumnInfo(
+    string Name,
+    string DataTypeName,
+    Type ClrType,
+    uint TableOid = 0,
+    short TableAttributeNumber = 0);
 
 public sealed record RowBatch(IReadOnlyList<object?[]> Rows);
 

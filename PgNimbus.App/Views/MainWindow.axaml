@@ -821,7 +821,7 @@
                  (full text on hover), while every other segment is compact and
                  keeps its width. Long cap text truncates the same way. -->
             <Border Grid.Row="1" Classes="statusBar">
-                <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+                <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
                     <TextBlock Grid.Column="0" Text="{Binding ActiveTab.Status}"
                                Classes="statusText" Classes.error="{Binding ActiveTab.HasError}"
                                TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
@@ -874,17 +874,29 @@
                                 Command="{Binding ActiveTab.ApplyFixCommand}"
                                 ToolTip.Tip="Rewrite the unquoted identifiers to match the database and run again" />
                     </StackPanel>
-                    <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="10" Margin="10,0,0,0"
+                    <!-- Why this result set can't be edited inline. A dim lock +
+                         "read-only", full reason in the tooltip — present only when
+                         there's a grid a user might try to edit and editing is off. -->
+                    <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="6" Margin="10,0,0,0"
+                                VerticalAlignment="Center"
+                                IsVisible="{Binding ActiveTab.ReadOnlyHint, Converter={x:Static conv:ObjectConverters.IsNotNull}}"
+                                ToolTip.Tip="{Binding ActiveTab.ReadOnlyHint, StringFormat='Results are read-only: {0}'}">
+                        <Rectangle Classes="statusSeparator" Margin="0,0,4,0" />
+                        <PathIcon Data="{StaticResource LockIconGeometry}" Width="10" Height="10"
+                                  Opacity="0.55" VerticalAlignment="Center" />
+                        <TextBlock Classes="statusText dim" Text="read-only" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="6" Orientation="Horizontal" Spacing="10" Margin="10,0,0,0"
                                 IsVisible="{Binding ActiveTab.RowCountStatusText, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
                         <Rectangle Classes="statusSeparator" />
                         <TextBlock Classes="statusText dim" Text="{Binding ActiveTab.RowCountStatusText}" VerticalAlignment="Center" />
                     </StackPanel>
-                    <StackPanel Grid.Column="6" Orientation="Horizontal" Spacing="10" Margin="10,0,0,0"
+                    <StackPanel Grid.Column="7" Orientation="Horizontal" Spacing="10" Margin="10,0,0,0"
                                 IsVisible="{Binding ActiveTab.TimingText, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
                         <Rectangle Classes="statusSeparator" />
                         <TextBlock Classes="statusText dim" Text="{Binding ActiveTab.TimingText}" VerticalAlignment="Center" />
                     </StackPanel>
-                    <StackPanel Grid.Column="7" Orientation="Horizontal" Spacing="10" Margin="10,0,0,0"
+                    <StackPanel Grid.Column="8" Orientation="Horizontal" Spacing="10" Margin="10,0,0,0"
                                 IsVisible="{Binding ActiveTab.CapText, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
                         <Rectangle Classes="statusSeparator" />
                         <TextBlock Classes="statusText warn" Text="{Binding ActiveTab.CapText}" VerticalAlignment="Center"
@@ -894,7 +906,7 @@
                     <!-- Browse-mode paging: the one piece of the old browse bar that
                          couldn't move into the SQL editor. Disabled while a query is
                          in flight so a page turn can't start a second concurrent run. -->
-                    <StackPanel Grid.Column="8" Orientation="Horizontal" Spacing="8" Margin="10,0,0,0"
+                    <StackPanel Grid.Column="9" Orientation="Horizontal" Spacing="8" Margin="10,0,0,0"
                                 VerticalAlignment="Center"
                                 IsVisible="{Binding ActiveTab.IsBrowsing}"
                                 IsEnabled="{Binding !ActiveTab.IsRunning}">
