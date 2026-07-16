@@ -251,16 +251,23 @@ public sealed partial class QueryViewModel : ObservableObject
     // every tab follows the one app-wide toggle without per-tab plumbing.
     private readonly Func<bool>? _safeMode;
 
+    // Resolves a result set's source-table metadata after a run, so hand-typed
+    // SELECTs get inline editing too (see TryEnableEditingForQueryAsync). Null
+    // in contexts that don't wire it up — editing then only exists in browse mode.
+    private readonly SchemaService? _schemaService;
+
     public QueryViewModel(
         QueryEngine engine,
         ExplainService explainService,
         Func<CancellationToken, Task<IdentifierReconciler?>>? reconcilerFactory = null,
-        Func<bool>? safeMode = null)
+        Func<bool>? safeMode = null,
+        SchemaService? schemaService = null)
     {
         _engine = engine;
         _explainService = explainService;
         _reconcilerFactory = reconcilerFactory;
         _safeMode = safeMode;
+        _schemaService = schemaService;
         _lastRunSql = Sql;
         UpdateTabTitle();
     }
@@ -326,6 +333,13 @@ public sealed partial class QueryViewModel : ObservableObject
         SelectedSection = null;
         ResultSections.Clear();
         NotifyScriptResultChanged();
+
+        // The incoming result replaces the grid, so any edit mapping from the
+        // previous result is stale (a selection/caret-statement run reaches here
+        // with Sql untouched, so OnSqlChanged alone doesn't cover this). The
+        // single-statement path re-establishes it below when the new result maps
+        // onto a table; browse re-establishes it itself after the page loads.
+        EditContext = null;
 
         var stopwatch = Stopwatch.StartNew();
 
@@ -488,6 +502,15 @@ public sealed partial class QueryViewModel : ObservableObject
                     HasError = true;
                     await TryOfferFixAsync(executedSql);
                     break;
+            }
+
+            // A hand-typed statement whose columns map cleanly onto one table
+            // gets the same inline editing browse mode has. Browse pages skip
+            // this — RunBrowseSqlAsync re-establishes their context itself, from
+            // metadata it already holds.
+            if (result is ResultSet or MaterializedResultSet && Browse is null)
+            {
+                await TryEnableEditingForQueryAsync(ct);
             }
 
             Executed?.Invoke(new QueryHistoryEntry(executedSql, DateTimeOffset.UtcNow, stopwatch.Elapsed.TotalMilliseconds, StatusSummary()));
@@ -898,6 +921,42 @@ public sealed partial class QueryViewModel : ObservableObject
     private static partial Regex TableReferenceRegex();
 
     partial void OnEditContextChanged(EditableTableContext? value) => OnPropertyChanged(nameof(IsEditable));
+
+    /// <summary>
+    /// Establishes the edit context for a hand-typed query when its result maps
+    /// cleanly onto one table: the wire metadata says every column reads a real
+    /// attribute of the same table under its real name (no expressions, aliases,
+    /// or joins mixing tables) and the full primary key is among the columns.
+    /// One catalog lookup after the rows have already rendered; best-effort —
+    /// any failure just leaves the grid read-only, exactly as before.
+    /// </summary>
+    private async Task TryEnableEditingForQueryAsync(CancellationToken ct)
+    {
+        if (_schemaService is null || EditableResultDetector.SingleSourceTableOid(_columns) is not { } tableOid)
+        {
+            return;
+        }
+
+        try
+        {
+            if (await _schemaService.GetEditableTableByOidAsync(tableOid, ct) is not { } table)
+            {
+                return;
+            }
+
+            var tableColumns = await _schemaService.GetColumnsAsync(table.Schema, table.Name, ct);
+            if (EditableResultDetector.MatchPrimaryKey(_columns, tableColumns) is { } primaryKey)
+            {
+                EditContext = new EditableTableContext(table.Schema, table.Name, primaryKey, tableColumns);
+            }
+        }
+        catch
+        {
+            // Includes cancellation: the query itself already completed and its
+            // rows are on screen, so a failed/cancelled catalog lookup must not
+            // repaint the run as failed — editing simply stays off.
+        }
+    }
 
     /// <summary>
     /// Commits an inline grid edit (the raw text typed into the cell editor)

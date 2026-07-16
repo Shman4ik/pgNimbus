@@ -31,6 +31,14 @@ public sealed record ColumnDetail(string Name, string DataType, bool NotNull, bo
 
     /// <summary>The base type a domain column resolves to (e.g. "integer" for a domain over integer); null when the declared type isn't a domain.</summary>
     public string? DomainBaseType { get; init; }
+
+    /// <summary>
+    /// pg_attribute.attnum — the column's stable positional identity within its
+    /// table (gaps where columns were dropped). Matches the attribute number the
+    /// wire protocol reports per result column, which is what lets a result set
+    /// be checked against the table's real columns without trusting names.
+    /// </summary>
+    public short AttNum { get; init; }
 }
 
 public sealed record TableColumn(string Table, string Column, string DataType);
@@ -221,7 +229,8 @@ public sealed class SchemaService
                     (SELECT array_agg(e.enumlabel ORDER BY e.enumsortorder)
                      FROM pg_catalog.pg_enum e
                      WHERE e.enumtypid = bt.oid)
-                END AS enum_labels
+                END AS enum_labels,
+                c.attnum
             FROM cols c
             JOIN base b ON b.attnum = c.attnum
             JOIN pg_catalog.pg_type bt ON bt.oid = b.type_oid
@@ -249,10 +258,43 @@ public sealed class SchemaService
                     reader.GetString(4)),
                 DomainBaseType = reader.IsDBNull(7) ? null : reader.GetString(7),
                 EnumLabels = reader.IsDBNull(8) ? [] : reader.GetFieldValue<string[]>(8),
+                AttNum = reader.GetInt16(9),
             });
         }
 
         return results;
+    }
+
+    /// <summary>
+    /// Resolves a pg_class OID (as the wire protocol reports per result column)
+    /// to its schema-qualified name — but only for relations whose rows can be
+    /// UPDATEd by primary key directly: ordinary and partitioned tables. Views,
+    /// materialized views, and anything else return null, so a result set that
+    /// reads through them never gets offered inline editing.
+    /// </summary>
+    public async Task<RelationInfo?> GetEditableTableByOidAsync(uint tableOid, CancellationToken ct)
+    {
+        const string sql = """
+            SELECT n.nspname, c.relname, c.relkind::text
+            FROM pg_catalog.pg_class c
+            JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+            WHERE c.oid = @oid
+              AND c.relkind IN ('r', 'p')
+            """;
+
+        await using var connection = await _dataSource.OpenConnectionAsync(ct);
+        await using var command = new NpgsqlCommand(sql, connection);
+        // uint has no implicit Npgsql parameter mapping — the oid type must be named.
+        command.Parameters.Add(new NpgsqlParameter<uint>("oid", NpgsqlTypes.NpgsqlDbType.Oid) { TypedValue = tableOid });
+        await using var reader = await command.ExecuteReaderAsync(ct);
+
+        if (!await reader.ReadAsync(ct))
+        {
+            return null;
+        }
+
+        var kind = reader.GetString(2) == "p" ? RelationKind.PartitionedTable : RelationKind.Table;
+        return new RelationInfo(reader.GetString(0), reader.GetString(1), kind);
     }
 
     /// <summary>Functions, procedures, aggregates, and window functions in a schema, with identity arguments and result type.</summary>

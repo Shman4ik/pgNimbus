@@ -865,10 +865,21 @@ public sealed class QueryEngine
 
     private static IReadOnlyList<ColumnInfo> BuildColumns(NpgsqlDataReader reader)
     {
+        // Without CommandBehavior.KeyInfo (readers here always use Default),
+        // GetColumnSchema is a pure in-memory read of the wire RowDescription —
+        // no catalog round trip. It's the one public API that exposes each
+        // column's source-table OID and attribute number, which downstream
+        // decide whether a result set maps back onto one editable table.
+        var wireSchema = reader.GetColumnSchema();
         var columns = new ColumnInfo[reader.FieldCount];
         for (var i = 0; i < reader.FieldCount; i++)
         {
-            columns[i] = new ColumnInfo(reader.GetName(i), reader.GetDataTypeName(i), reader.GetFieldType(i));
+            columns[i] = new ColumnInfo(
+                reader.GetName(i),
+                reader.GetDataTypeName(i),
+                reader.GetFieldType(i),
+                wireSchema[i].TableOID,
+                wireSchema[i].ColumnAttributeNumber ?? 0);
         }
 
         return columns;

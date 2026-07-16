@@ -239,6 +239,10 @@ Every tag push (`vX.Y.Z`) builds all of the above via
   cast to its real type server-side, blanks fall back to defaults),
   "Delete selected row(s)" with a confirmation, and "Set cell to NULL" (the
   gesture inline editing can't express), all keyed on the primary key.
+  Editing isn't limited to browse mode: a hand-typed `SELECT` becomes
+  editable too whenever the wire metadata proves every column reads a real
+  column of one table under its own name and the full primary key is in the
+  result — expressions, aliases, joins, and views stay read-only.
 - **Postgres-native value editing** — cell editors (grid and Add-row dialog)
   follow the column's type: `enum` columns get a dropdown of their `pg_enum`
   labels, `boolean` a checkbox, `date`/`timestamp` a calendar picker, arrays
