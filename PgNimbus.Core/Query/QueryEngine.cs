@@ -1,5 +1,6 @@
 using System.Data;
 using System.Diagnostics;
+using System.Net.Sockets;
 using Npgsql;
 using Npgsql.PostgresTypes;
 
@@ -52,20 +53,43 @@ public sealed class QueryEngine
             return;
         }
 
-        var connection = await _dataSource.OpenConnectionAsync(ct);
-        try
+        // Opening the session connection can itself hit a stale pooled socket
+        // (as easily as any other rented connection), so the whole open+BEGIN
+        // is retried once on loss, after flushing the pool, same as the
+        // non-transaction execution paths below.
+        for (var attempt = 0; ; attempt++)
         {
-            await using var command = new NpgsqlCommand("BEGIN", connection);
-            await command.ExecuteNonQueryAsync(ct);
-        }
-        catch
-        {
-            await connection.DisposeAsync();
-            throw;
-        }
+            NpgsqlConnection? connection = null;
+            try
+            {
+                connection = await _dataSource.OpenConnectionAsync(ct);
+                await using var command = new NpgsqlCommand("BEGIN", connection);
+                await command.ExecuteNonQueryAsync(ct);
+            }
+            catch (Exception ex) when (attempt == 0 && IsConnectionLoss(ex))
+            {
+                if (connection is not null)
+                {
+                    await connection.DisposeAsync();
+                }
 
-        _transactionConnection = connection;
-        TransactionStateChanged?.Invoke();
+                ClearPool();
+                continue;
+            }
+            catch
+            {
+                if (connection is not null)
+                {
+                    await connection.DisposeAsync();
+                }
+
+                throw;
+            }
+
+            _transactionConnection = connection;
+            TransactionStateChanged?.Invoke();
+            return;
+        }
     }
 
     /// <summary>Commits the open transaction. A no-op if none is open.</summary>
@@ -104,7 +128,12 @@ public sealed class QueryEngine
     // every further statement errors until the block is rolled back, so rather
     // than strand the user there, undo the whole transaction and release the
     // connection. Best-effort: a rollback that itself fails still clears state.
-    private async Task AutoRollbackAsync()
+    //
+    // connectionLost skips sending the ROLLBACK itself: a dead socket has
+    // nothing listening on the other end, and the server already destroyed the
+    // transaction on its own the moment it dropped the connection, so sending
+    // one would just wait on nothing.
+    private async Task AutoRollbackAsync(bool connectionLost = false)
     {
         var connection = _transactionConnection;
         if (connection is null)
@@ -115,8 +144,11 @@ public sealed class QueryEngine
         _transactionConnection = null;
         try
         {
-            await using var command = new NpgsqlCommand("ROLLBACK", connection);
-            await command.ExecuteNonQueryAsync();
+            if (!connectionLost)
+            {
+                await using var command = new NpgsqlCommand("ROLLBACK", connection);
+                await command.ExecuteNonQueryAsync();
+            }
         }
         catch
         {
@@ -129,6 +161,60 @@ public sealed class QueryEngine
             TransactionStateChanged?.Invoke();
         }
     }
+
+    // The one message shown for every transaction lost to a dropped
+    // connection, wherever it's detected (a statement inside BEGIN…COMMIT, a
+    // script running on the transaction's connection). Deliberately doesn't
+    // repeat the underlying exception text — "the block is gone, reconnect
+    // and start over" is the whole actionable content.
+    private static QueryError TransactionLostError(TimeSpan elapsed) => new()
+    {
+        Elapsed = elapsed,
+        Message = "Connection to the server was lost. The open transaction is gone and nothing in it "
+            + "was committed. The next statement will reconnect automatically.",
+        RolledBack = true,
+        ConnectionLost = true,
+    };
+
+    // After a detected connection loss the pool may still be holding other
+    // dead sockets — every connection that sat idle across the same laptop
+    // sleep or tunnel drop — so a single retry could rent another corpse
+    // instead of a fresh session. Flushing the whole pool makes the retry
+    // deterministic: the next rent is guaranteed to open a new connection.
+    private void ClearPool() => _dataSource.Clear();
+
+    // Classifies a failure as "the server-side connection itself is gone" —
+    // the dead-socket shape a laptop sleep or a dropped SSH tunnel leaves
+    // behind — as opposed to an ordinary statement failure (syntax error,
+    // constraint violation, ...) that happened over a perfectly live
+    // connection. Only losses are safe to silently retry on a fresh
+    // connection; everything else must reach the user as-is.
+    private static bool IsConnectionLoss(Exception ex) => ex switch
+    {
+        OperationCanceledException => false,
+
+        // PostgresException derives from NpgsqlException, so it has to be
+        // matched first, or every ordinary server-side error would fall
+        // through to the NpgsqlException arm below. Class 08 ("connection
+        // exception") plus the two shutdown codes cover both a network-level
+        // drop and the server-announced kind (e.g. pg_terminate_backend on a
+        // pooled idle connection).
+        PostgresException pg => pg.SqlState is { } state &&
+            (state.StartsWith("08", StringComparison.Ordinal) ||
+             state is PostgresErrorCodes.AdminShutdown or PostgresErrorCodes.CrashShutdown),
+
+        // A non-Postgres NpgsqlException wrapping a socket-level failure — the
+        // shape a dead pooled connection takes after the peer vanished without
+        // a clean close, discovered only once a command tries to use it.
+        // TimeoutException is deliberately NOT here: Npgsql also wraps command
+        // timeouts (a merely slow query, possibly a write still executing
+        // server-side) and pool exhaustion in it, and silently re-running
+        // those would double-apply work and pile load onto an already
+        // struggling server.
+        NpgsqlException { InnerException: IOException or SocketException or EndOfStreamException } => true,
+
+        _ => false,
+    };
 
     /// <summary>
     /// Executes a parameterized statement that returns no rows (used for
@@ -152,6 +238,14 @@ public sealed class QueryEngine
             {
                 await txCommand.ExecuteNonQueryAsync(ct);
             }
+            catch (Exception ex) when (IsConnectionLoss(ex))
+            {
+                // No live socket to send ROLLBACK down — the server already
+                // destroyed the transaction itself when it dropped the
+                // connection.
+                await AutoRollbackAsync(connectionLost: true);
+                throw;
+            }
             catch (PostgresException)
             {
                 await AutoRollbackAsync();
@@ -161,15 +255,33 @@ public sealed class QueryEngine
             return;
         }
 
-        await using var connection = await _dataSource.OpenConnectionAsync(ct);
-        await using var command = new NpgsqlCommand(sql, connection);
-
-        foreach (var (name, value) in parameters)
+        // A dead socket from a stale pooled connection almost always fails on
+        // send, before the server ever saw the statement, so retrying once on
+        // a fresh connection (after flushing the pool) is safe for the common
+        // case. The residual risk — the server executed it but the
+        // acknowledgement never made it back — is accepted: callers of this
+        // method are PK-keyed UPDATE/DELETE grid edits, where a duplicate
+        // re-run is a no-op rather than a double-apply.
+        for (var attempt = 0; ; attempt++)
         {
-            command.Parameters.AddWithValue(name, value ?? DBNull.Value);
-        }
+            try
+            {
+                await using var connection = await _dataSource.OpenConnectionAsync(ct);
+                await using var command = new NpgsqlCommand(sql, connection);
 
-        await command.ExecuteNonQueryAsync(ct);
+                foreach (var (name, value) in parameters)
+                {
+                    command.Parameters.AddWithValue(name, value ?? DBNull.Value);
+                }
+
+                await command.ExecuteNonQueryAsync(ct);
+                return;
+            }
+            catch (Exception ex) when (attempt == 0 && IsConnectionLoss(ex))
+            {
+                ClearPool();
+            }
+        }
     }
 
     /// <summary>
@@ -194,6 +306,14 @@ public sealed class QueryEngine
                 {
                     affected += await txCommand.ExecuteNonQueryAsync(ct);
                 }
+                catch (Exception ex) when (IsConnectionLoss(ex))
+                {
+                    // No live socket to send ROLLBACK down — the server already
+                    // destroyed the transaction itself when it dropped the
+                    // connection.
+                    await AutoRollbackAsync(connectionLost: true);
+                    throw;
+                }
                 catch (PostgresException)
                 {
                     await AutoRollbackAsync();
@@ -204,20 +324,62 @@ public sealed class QueryEngine
             return affected;
         }
 
-        await using var connection = await _dataSource.OpenConnectionAsync(ct);
-        // Disposing an uncommitted NpgsqlTransaction rolls it back, so any
-        // failure below undoes every statement already executed.
-        await using var batchTransaction = await connection.BeginTransactionAsync(ct);
-
-        var total = 0;
-        foreach (var statement in statements)
+        // Retried once, whole batch, on a fresh connection after flushing the
+        // pool — but only while `committing` is still false. Once CommitAsync
+        // has been attempted, a loss no longer means "nothing happened": the
+        // commit may have landed server-side before the acknowledgement was
+        // lost, so re-running every statement could double-apply. That case
+        // isn't retried; it surfaces as-is.
+        for (var attempt = 0; ; attempt++)
         {
-            await using var command = CreateCommand(statement, connection, batchTransaction);
-            total += await command.ExecuteNonQueryAsync(ct);
-        }
+            NpgsqlConnection? connection = null;
+            NpgsqlTransaction? batchTransaction = null;
+            var committing = false;
+            try
+            {
+                connection = await _dataSource.OpenConnectionAsync(ct);
+                // Disposing an uncommitted NpgsqlTransaction rolls it back, so
+                // any failure below undoes every statement already executed.
+                batchTransaction = await connection.BeginTransactionAsync(ct);
 
-        await batchTransaction.CommitAsync(ct);
-        return total;
+                var total = 0;
+                foreach (var statement in statements)
+                {
+                    await using var command = CreateCommand(statement, connection, batchTransaction);
+                    total += await command.ExecuteNonQueryAsync(ct);
+                }
+
+                committing = true;
+                await batchTransaction.CommitAsync(ct);
+                return total;
+            }
+            catch (Exception ex) when (attempt == 0 && !committing && IsConnectionLoss(ex))
+            {
+                ClearPool();
+            }
+            finally
+            {
+                if (batchTransaction is not null)
+                {
+                    try
+                    {
+                        await batchTransaction.DisposeAsync();
+                    }
+                    catch
+                    {
+                        // The connection is exactly as likely to be dead as the
+                        // condition this whole method is handling — a rollback
+                        // failure here must not replace whichever exception is
+                        // already propagating out of the try block above.
+                    }
+                }
+
+                if (connection is not null)
+                {
+                    await connection.DisposeAsync();
+                }
+            }
+        }
     }
 
     private static NpgsqlCommand CreateCommand(ParameterizedStatement statement, NpgsqlConnection connection, NpgsqlTransaction? transaction)
@@ -261,81 +423,125 @@ public sealed class QueryEngine
 
         var stopwatch = Stopwatch.StartNew();
 
-        NpgsqlConnection? connection = null;
-        NpgsqlCommand? command = null;
-        NpgsqlDataReader? reader = null;
-
-        try
+        // Retried once, on a fresh connection after flushing the pool, but
+        // only for the initial phase — open, ExecuteReader, column setup.
+        // Once a ResultSet with its streaming Batches enumerable has been
+        // returned, rows may already be in the caller's hands; a failure
+        // inside StreamBatches itself is a different, untouched code path
+        // that never retries.
+        for (var attempt = 0; ; attempt++)
         {
-            connection = await _dataSource.OpenConnectionAsync(ct);
-            command = new NpgsqlCommand(sql, connection);
-            reader = await command.ExecuteReaderAsync(CommandBehavior.Default, ct);
+            NpgsqlConnection? connection = null;
+            NpgsqlCommand? command = null;
+            NpgsqlDataReader? reader = null;
 
-            if (reader.FieldCount == 0)
+            try
             {
-                var rowsAffected = reader.RecordsAffected;
-                var tag = BuildCommandTag(sql);
-
-                await reader.DisposeAsync();
-                await command.DisposeAsync();
-                await connection.DisposeAsync();
-
-                return new CommandResult
-                {
-                    Elapsed = stopwatch.Elapsed,
-                    RowsAffected = rowsAffected < 0 ? 0 : rowsAffected,
-                    CommandTag = tag,
-                };
-            }
-
-            // Columns Npgsql can't materialize as objects (unmapped composites
-            // and containers of them) are re-requested in text format — one
-            // extra round trip, and only for result sets that contain such a
-            // column. The re-execution is why callers must opt in: it would
-            // run an arbitrary statement's side effects twice.
-            if (allowTextFallback && BuildTextFallbackMask(reader) is { } textFallback)
-            {
-                await reader.DisposeAsync();
-                command.UnknownResultTypeList = textFallback;
+                connection = await _dataSource.OpenConnectionAsync(ct);
+                command = new NpgsqlCommand(sql, connection);
                 reader = await command.ExecuteReaderAsync(CommandBehavior.Default, ct);
-            }
 
-            var columns = BuildColumns(reader);
+                if (reader.FieldCount == 0)
+                {
+                    var rowsAffected = reader.RecordsAffected;
+                    var tag = BuildCommandTag(sql);
 
-            // Ownership of connection/command/reader passes to the streaming
-            // enumerable below; it disposes them once enumeration ends.
-            return new ResultSet
-            {
-                Elapsed = stopwatch.Elapsed,
-                Columns = columns,
-                Batches = StreamBatches(connection, command, reader, maxRows, ct),
-            };
-        }
-        catch (Exception ex)
-        {
-            if (reader is not null) await reader.DisposeAsync();
-            if (command is not null) await command.DisposeAsync();
-            if (connection is not null) await connection.DisposeAsync();
+                    await reader.DisposeAsync();
+                    await command.DisposeAsync();
+                    await connection.DisposeAsync();
 
-            if (ex is OperationCanceledException)
-            {
-                throw;
-            }
+                    return new CommandResult
+                    {
+                        Elapsed = stopwatch.Elapsed,
+                        RowsAffected = rowsAffected < 0 ? 0 : rowsAffected,
+                        CommandTag = tag,
+                    };
+                }
 
-            if (ex is PostgresException pg)
-            {
-                return new QueryError
+                // Columns Npgsql can't materialize as objects (unmapped composites
+                // and containers of them) are re-requested in text format — one
+                // extra round trip, and only for result sets that contain such a
+                // column. The re-execution is why callers must opt in: it would
+                // run an arbitrary statement's side effects twice.
+                if (allowTextFallback && BuildTextFallbackMask(reader) is { } textFallback)
+                {
+                    await reader.DisposeAsync();
+                    command.UnknownResultTypeList = textFallback;
+                    reader = await command.ExecuteReaderAsync(CommandBehavior.Default, ct);
+                }
+
+                var columns = BuildColumns(reader);
+
+                // Ownership of connection/command/reader passes to the streaming
+                // enumerable below; it disposes them once enumeration ends.
+                return new ResultSet
                 {
                     Elapsed = stopwatch.Elapsed,
-                    Message = pg.MessageText,
-                    SqlState = pg.SqlState,
-                    Detail = pg.Detail,
-                    Hint = pg.Hint,
-                    Position = ParsePosition(pg.Position),
+                    Columns = columns,
+                    Batches = StreamBatches(connection, command, reader, maxRows, ct),
                 };
             }
+            catch (Exception ex)
+            {
+                try
+                {
+                    if (reader is not null) await reader.DisposeAsync();
+                    if (command is not null) await command.DisposeAsync();
+                    if (connection is not null) await connection.DisposeAsync();
+                }
+                catch
+                {
+                    // The connection is already faulted (that's exactly the
+                    // condition this catch is handling in the loss case); a
+                    // cleanup failure here must not replace the exception
+                    // that's actually being classified and reported below.
+                }
 
-            return new QueryError { Elapsed = stopwatch.Elapsed, Message = ex.Message };
+                if (ex is OperationCanceledException)
+                {
+                    throw;
+                }
+
+                var isLoss = IsConnectionLoss(ex);
+                if (attempt == 0 && isLoss)
+                {
+                    ClearPool();
+                    continue;
+                }
+
+                // A loss can also arrive as a PostgresException (admin/crash
+                // shutdown), so the PostgresException arm comes first: it
+                // keeps the SqlState/Detail/Hint diagnostics either way and
+                // just flags/prefixes the loss instead of flattening it into
+                // a detail-free message.
+                if (ex is PostgresException pg)
+                {
+                    return new QueryError
+                    {
+                        Elapsed = stopwatch.Elapsed,
+                        Message = isLoss
+                            ? $"Connection to the server was lost and could not be re-established: {pg.MessageText}"
+                            : pg.MessageText,
+                        SqlState = pg.SqlState,
+                        Detail = pg.Detail,
+                        Hint = pg.Hint,
+                        Position = ParsePosition(pg.Position),
+                        ConnectionLost = isLoss,
+                    };
+                }
+
+                if (isLoss)
+                {
+                    return new QueryError
+                    {
+                        Elapsed = stopwatch.Elapsed,
+                        Message = $"Connection to the server was lost and could not be re-established: {ex.Message}",
+                        ConnectionLost = true,
+                    };
+                }
+
+                return new QueryError { Elapsed = stopwatch.Elapsed, Message = ex.Message };
+            }
         }
     }
 
@@ -370,20 +576,64 @@ public sealed class QueryEngine
 
         try
         {
-            foreach (var statement in statements)
+            for (var i = 0; i < statements.Count; i++)
             {
                 ct.ThrowIfCancellationRequested();
 
+                var statement = statements[i];
                 var result = await ExecuteOnConnectionAsync(connection, statement, maxRowsPerStatement, allowTextFallback: false, ct);
+
+                // A connection loss on the very first statement means nothing in
+                // the script has run yet — no session state (SET, temp tables)
+                // exists to lose — so it's safe to reconnect and retry just that
+                // one statement on a fresh connection. Any later statement is
+                // left as-is: a quiet mid-script reconnect there would silently
+                // drop whatever session state the earlier statements built up,
+                // which is worse than surfacing the error.
+                if (!inTransaction && i == 0 && result is QueryError { ConnectionLost: true } firstLoss)
+                {
+                    await connection.DisposeAsync();
+                    ClearPool();
+
+                    // The reconnect open can itself fail (server fully down);
+                    // that must become a yielded QueryError like every other
+                    // script failure, not an exception escaping the enumerable.
+                    // yield isn't legal inside a catch, hence the local.
+                    QueryError? reconnectFailure = null;
+                    try
+                    {
+                        connection = await _dataSource.OpenConnectionAsync(ct);
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        reconnectFailure = new QueryError
+                        {
+                            Elapsed = firstLoss.Elapsed,
+                            Message = $"Connection to the server was lost and could not be re-established: {ex.Message}",
+                            ConnectionLost = true,
+                        };
+                    }
+
+                    if (reconnectFailure is not null)
+                    {
+                        yield return reconnectFailure;
+                        yield break;
+                    }
+
+                    result = await ExecuteOnConnectionAsync(connection, statement, maxRowsPerStatement, allowTextFallback: false, ct);
+                }
 
                 if (result is QueryError error)
                 {
                     // A failed statement aborts the transaction; undo it and flag
-                    // the rollback so the last section can say so.
+                    // the rollback so the last section can say so. A connection
+                    // loss is more final than an ordinary failure — there's no
+                    // live socket for ROLLBACK, and the block is gone rather than
+                    // recoverable.
                     if (inTransaction)
                     {
-                        await AutoRollbackAsync();
-                        yield return error with { RolledBack = true };
+                        await AutoRollbackAsync(connectionLost: error.ConnectionLost);
+                        yield return error.ConnectionLost ? TransactionLostError(error.Elapsed) : error with { RolledBack = true };
                     }
                     else
                     {
@@ -433,14 +683,25 @@ public sealed class QueryEngine
         }
         catch (Exception ex)
         {
-            await AutoRollbackAsync();
-            return new QueryError { Elapsed = stopwatch.Elapsed, Message = ex.Message, RolledBack = true };
+            // A connection loss here has no live socket to send ROLLBACK down —
+            // the server already destroyed the transaction itself — so the
+            // whole block, not just this statement, is gone. That's a
+            // different, more final outcome than an ordinary in-transaction
+            // failure (which stays recoverable via the auto-rollback below,
+            // since the connection itself is still fine).
+            var lost = IsConnectionLoss(ex);
+            await AutoRollbackAsync(connectionLost: lost);
+            return lost
+                ? TransactionLostError(stopwatch.Elapsed)
+                : new QueryError { Elapsed = stopwatch.Elapsed, Message = ex.Message, RolledBack = true };
         }
 
         if (result is QueryError error)
         {
-            await AutoRollbackAsync();
-            return error with { RolledBack = true };
+            await AutoRollbackAsync(connectionLost: error.ConnectionLost);
+            return error.ConnectionLost
+                ? TransactionLostError(error.Elapsed)
+                : error with { RolledBack = true };
         }
 
         return result;
@@ -529,6 +790,7 @@ public sealed class QueryEngine
                 Detail = pg.Detail,
                 Hint = pg.Hint,
                 Position = ParsePosition(pg.Position),
+                ConnectionLost = IsConnectionLoss(pg),
             };
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -537,7 +799,11 @@ public sealed class QueryEngine
             // the shared-connection script/transaction paths turn any statement
             // failure into a QueryError rather than letting it escape and crash
             // the app. Cancellation still propagates so it reads as "Cancelled".
-            return new QueryError { Elapsed = stopwatch.Elapsed, Message = ex.Message };
+            // ConnectionLost is set here — not just left to the caller to
+            // re-derive — because it's the one signal ExecuteScriptAsync and
+            // ExecuteInTransactionAsync need to tell "the connection is gone"
+            // apart from "this statement failed".
+            return new QueryError { Elapsed = stopwatch.Elapsed, Message = ex.Message, ConnectionLost = IsConnectionLoss(ex) };
         }
         finally
         {

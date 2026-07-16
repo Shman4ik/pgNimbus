@@ -229,6 +229,12 @@ Every tag push (`vX.Y.Z`) builds all of the above via
 - **Streaming, cancellable results** — the first screenful renders before the
   full result set arrives, backed by a virtualized grid with inline cell
   editing and CSV/JSON export.
+- **Auto-reconnect** — a connection dropped by a laptop sleep or an SSH-tunnel
+  hiccup quietly reopens on the next run instead of throwing a broken-pipe
+  error, with the whole pool flushed first so no other stale socket gets
+  rented next. An open explicit transaction is the one exception: it can't be
+  silently re-established, so that surfaces a clear "connection lost, nothing
+  committed" state instead.
 - **Grid CRUD** — beyond inline cell edits: an "Add row" dialog (each column
   cast to its real type server-side, blanks fall back to defaults),
   "Delete selected row(s)" with a confirmation, and "Set cell to NULL" (the
@@ -592,11 +598,27 @@ Everything below is what survives that filter, roughly in impact order:
   The ⇄ switch still replaces in place (unchanged); the app exits when the
   *last* window closes, whichever that is, and accent colors keep the
   windows visually apart on the taskbar/Alt+Tab.
-- [ ] **Auto-reconnect** — after laptop sleep or an SSH-tunnel drop, the next
+- [x] **Auto-reconnect** — after laptop sleep or an SSH-tunnel drop, the next
   run should quietly reopen the connection instead of surfacing a broken-pipe
   error (or hanging — an HN complaint about other clients). Needs care with
   the held transaction connection: an open transaction can't be silently
   re-established, so that path surfaces a clear "transaction lost" state.
+  Shipped: `QueryEngine` classifies a failure as connection loss (Postgres
+  class-08 `SqlState`s, an admin/crash shutdown, or a socket/IO exception
+  under the hood — deliberately not a command timeout, where the statement
+  may still be executing server-side) versus an ordinary statement error,
+  and on loss flushes the whole connection pool — not just the one dead
+  socket — before silently retrying once on a fresh connection. Runs,
+  single-row edits, and
+  safe-mode batches (retried only if the loss happened before `COMMIT` was
+  attempted) all get this; a multi-statement script retries only its first
+  statement, since a mid-script reconnect can't resurrect `SET`s or temp
+  tables the earlier statements built up. The one path that never retries is
+  an explicit transaction: there's no live socket left to send `ROLLBACK`
+  down, so the engine tears down its client-side state instead and returns a
+  `QueryError` that plainly says the connection (and the transaction on it)
+  is gone and nothing from it was committed — the next statement reconnects
+  on its own.
 - [x] **Postgres-native value editing** — the grid and Add-row dialog treat
   every column as text today. Make the editors type-aware: `enum` columns get
   a dropdown of `pg_enum` labels, `boolean` a checkbox, `date/timestamp` a
