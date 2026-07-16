@@ -7,6 +7,7 @@ using PgNimbus.Core.Import;
 using PgNimbus.Core.Monitoring;
 using PgNimbus.Core.Query;
 using PgNimbus.Core.Schema;
+using PgNimbus.Core.Settings;
 
 namespace PgNimbus.App.ViewModels;
 
@@ -214,7 +215,8 @@ public sealed partial class MainViewModel : ObservableObject
         bool safeModeEdits = true,
         Action<bool>? persistSafeModeEdits = null,
         bool wordWrapEditor = false,
-        Action<bool>? persistWordWrapEditor = null)
+        Action<bool>? persistWordWrapEditor = null,
+        WorkspaceEntry? workspace = null)
     {
         ConnectionHost = connectionHost;
         ConnectionDatabase = connectionDatabase;
@@ -253,7 +255,27 @@ public sealed partial class MainViewModel : ObservableObject
         // auto-rollback that fires from a background query thread.
         _engine.TransactionStateChanged += OnEngineTransactionStateChanged;
 
-        AddTab();
+        // Restore the last session's tabs for this connection, if any. Browse-mode
+        // tabs (table/function "source" views opened via ShowSourceAsync etc.) are
+        // deliberately restored as their composed page SQL - i.e. plain query
+        // tabs - rather than as live browse sessions; there is no saved browse
+        // state to reconstruct from.
+        if (workspace is { Tabs.Count: > 0 })
+        {
+            foreach (var saved in workspace.Tabs)
+            {
+                var tab = NewTab();
+                tab.Sql = saved.Sql;
+                tab.TitleOverride = saved.Title;
+            }
+
+            var activeIndex = Math.Clamp(workspace.ActiveTabIndex, 0, Tabs.Count - 1);
+            ActiveTab = Tabs[activeIndex];
+        }
+        else
+        {
+            AddTab();
+        }
     }
 
     private void OnEngineTransactionStateChanged() =>

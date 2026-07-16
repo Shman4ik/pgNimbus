@@ -181,23 +181,53 @@ public partial class App : Application
 
         var csb = new NpgsqlConnectionStringBuilder(connectionString);
 
+        // Per-connection workspace key must match the label MainViewModel stamps
+        // history with, so a workspace saved under one connection only ever
+        // restores for that same host/database.
+        var workspaceStore = new WorkspaceStore();
+        var connectionHost = csb.Host ?? "";
+        var connectionDatabase = csb.Database ?? "";
+        var workspaceKey = string.IsNullOrEmpty(connectionHost) ? null : $"{connectionHost}/{connectionDatabase}";
+
+        var viewModel = new MainViewModel(
+            engine, explainService, schemaTree, schemaService, schemaEditor, ddlService, completionProvider, notifyMonitor, activityService, importService,
+            accentColor,
+            connectionHost: connectionHost,
+            connectionDatabase: connectionDatabase,
+            autoAliasTables: SettingsStore.Load().AutoAliasTables,
+            persistAutoAliasTables: PersistAutoAliasTables,
+            safeModeEdits: SettingsStore.Load().SafeModeEdits,
+            persistSafeModeEdits: PersistSafeModeEdits,
+            wordWrapEditor: SettingsStore.Load().WordWrapEditor,
+            persistWordWrapEditor: PersistWordWrapEditor,
+            workspace: workspaceKey is null ? null : workspaceStore.GetEntry(workspaceKey));
+
         var window = new MainWindow
         {
-            DataContext = new MainViewModel(
-                engine, explainService, schemaTree, schemaService, schemaEditor, ddlService, completionProvider, notifyMonitor, activityService, importService,
-                accentColor,
-                connectionHost: csb.Host ?? "",
-                connectionDatabase: csb.Database ?? "",
-                autoAliasTables: SettingsStore.Load().AutoAliasTables,
-                persistAutoAliasTables: PersistAutoAliasTables,
-                safeModeEdits: SettingsStore.Load().SafeModeEdits,
-                persistSafeModeEdits: PersistSafeModeEdits,
-                wordWrapEditor: SettingsStore.Load().WordWrapEditor,
-                persistWordWrapEditor: PersistWordWrapEditor),
+            DataContext = viewModel,
         };
 
         window.Closed += async (_, _) =>
         {
+            // Save the workspace before anything else tears down - a failed save
+            // must never block window close / resource teardown. This fires on
+            // both a normal app exit and a "switch connection" (which closes the
+            // previous window), so the snapshot always files under the OLD
+            // connection's key - exactly what per-connection scoping wants.
+            try
+            {
+                if (workspaceKey is not null)
+                {
+                    var tabs = viewModel.Tabs.Select(t => new WorkspaceTab(t.Sql, t.TitleOverride)).ToList();
+                    var activeIndex = Math.Max(viewModel.Tabs.IndexOf(viewModel.ActiveTab), 0);
+                    workspaceStore.Save(workspaceKey, tabs, activeIndex);
+                }
+            }
+            catch
+            {
+                // Losing the workspace snapshot is not worth blocking shutdown over.
+            }
+
             // Order matters: drain the notify listener's connection back to the
             // pool first, then dispose the data source (the pool itself, which
             // otherwise leaks on every "switch connection"), then the SSH tunnel

@@ -193,6 +193,9 @@ Every tag push (`vX.Y.Z`) builds all of the above via
   (<kbd>Ctrl</kbd>+<kbd>F</kbd> / <kbd>Ctrl</kbd>+<kbd>H</kbd>, F3 steps
   matches), and font-size zoom (<kbd>Ctrl</kbd>+wheel /
   <kbd>Ctrl</kbd>+<kbd>±</kbd>).
+- **Workspace restore** — closing the app never prompts; the next session on
+  the same connection reopens your tabs, including never-saved scratch SQL,
+  exactly as you left them.
 - **SQL formatting** — <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> (or "Format
   SQL" in the command palette) pretty-prints the statement under the cursor in a
   readable block style — clauses on their own lines, list items and JOINs one per
@@ -531,10 +534,18 @@ Everything below is what survives that filter, roughly in impact order:
   "Referencing rows" (one entry per table whose FK points here). Reuses the
   FK edges already loaded for JOIN completion; composite keys AND-join their
   filter. The most-praised "little feature" in DBeaver's HN comments.
-- [ ] **Workspace restore** — reopen the last session's tabs, including
+- [x] **Workspace restore** — reopen the last session's tabs, including
   never-saved SQL, exactly as they were — no save prompts on exit
   (Notepad++-style, called out on HN as what makes DBeaver safe to close).
   Persist per-connection alongside history in `AppSettings`-style JSON.
+  Shipped: a per-connection `workspace.json` (`WorkspaceStore`, capped at the
+  20 most-recently-used connections) snapshots every tab's SQL and title on
+  window close — including a normal exit and a "switch connection", both of
+  which fire the same `Closed` handler — and restores them, with the active
+  tab, the next time you connect to that same host/database. Browse-mode
+  tabs (table/function "source" views) restore as their composed query SQL,
+  not a live browse session; there is nothing to save/prompt for, so exit is
+  always silent.
 - [ ] **Open/save `.sql` files** — Ctrl+O / Ctrl+S on a tab, a recent-files
   list in the palette, and a dirty marker that distinguishes "unsaved
   scratch" from "file changed on disk". A top-voted Beekeeper Studio ask
