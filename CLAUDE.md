@@ -36,6 +36,20 @@ and wrong project memory is worse than none.
    auto-rolls-back the block (so the connection never lingers in Postgres's
    aborted-transaction state), and `TransactionStateChanged` is how the App's
    "in transaction" indicator stays in sync no matter which path changed it.
+   Auto-reconnect (2026-07): `QueryEngine` classifies a failure as connection
+   loss (Postgres class-08 `SqlState`s / an admin or crash shutdown, or an
+   `NpgsqlException` wrapping a socket/IO/timeout exception) versus an
+   ordinary statement error, and on loss flushes the whole pool before
+   silently retrying once on a fresh connection — runs, single-statement
+   edits, and pre-commit batches all get this; a script retries only its
+   first statement, since session state from earlier statements can't be
+   resurrected. A failure mid-stream (rows already delivered) or after a
+   batch's `COMMIT` was attempted never retries. An explicit transaction is
+   never silently re-established: a lost connection there clears
+   `_transactionConnection` without sending `ROLLBACK` (no live socket to
+   send it down) and returns a `QueryError` with `ConnectionLost`/`RolledBack`
+   set, stating plainly that the transaction is gone and nothing from it
+   committed.
 3. **PostgreSQL-first, not lowest-common-denominator.** `SchemaService` reads
    `pg_catalog` directly (not `information_schema`) so it can see materialized
    views, partitioned tables, and real Postgres semantics (e.g. primary-key

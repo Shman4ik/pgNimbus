@@ -19,6 +19,24 @@ env:
 jobs:
   build-test:
     runs-on: ubuntu-latest
+
+    # QueryEngineReconnectTests kills real backends (pg_terminate_backend) to
+    # exercise auto-reconnect end to end; PGNIMBUS_TEST_CONN below points them
+    # at this container instead of the mocks/pure-logic tests everything else
+    # uses. Mirrors the services block in benchmark.yml.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
       - uses: actions/checkout@v7
 
@@ -38,4 +56,6 @@ jobs:
       # TUnit on Microsoft.Testing.Platform — "dotnet test --project" works
       # via the test.runner opt-in in the repo-root global.json.
       - name: Test
+        env:
+          PGNIMBUS_TEST_CONN: "Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=postgres"
         run: dotnet test --project PgNimbus.Core.Tests -c Release

@@ -61,4 +61,14 @@ public sealed record QueryError : StatementResult
     /// engine auto-rolled it back — the block is gone, so the UI can say so.
     /// </summary>
     public bool RolledBack { get; init; }
+
+    /// <summary>
+    /// True when this failure is the server-side connection itself going away
+    /// (dead socket after a laptop sleep, a dropped SSH tunnel, or the server
+    /// terminating the backend) rather than an ordinary statement failure. The
+    /// engine already retried once on a fresh connection before surfacing
+    /// this — a second loss means the caller should treat the connection (and,
+    /// if one was open, the transaction on it) as gone rather than retry again.
+    /// </summary>
+    public bool ConnectionLost { get; init; }
 }
