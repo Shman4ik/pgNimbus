@@ -25,76 +25,86 @@ public class EditableResultDetectorTests
     [Test]
     public async Task AllColumnsFromOneTableResolveItsOid()
     {
-        var oid = EditableResultDetector.SingleSourceTableOid(
-            [Col("id", attNum: 1), Col("status", attNum: 3)]);
+        var blocker = EditableResultDetector.CheckSingleTable(
+            [Col("id", attNum: 1), Col("status", attNum: 3)], out var oid);
 
+        await Assert.That(blocker).IsEqualTo(EditBlocker.None);
         await Assert.That(oid).IsEqualTo(OrdersOid);
     }
 
     [Test]
-    public async Task ExpressionColumnDisqualifies()
+    public async Task ExpressionColumnIsComputed()
     {
         // upper(status) has no source table: OID and attnum are both 0.
-        var oid = EditableResultDetector.SingleSourceTableOid(
-            [Col("id", attNum: 1), Col("upper", tableOid: 0, attNum: 0)]);
+        var blocker = EditableResultDetector.CheckSingleTable(
+            [Col("id", attNum: 1), Col("upper", tableOid: 0, attNum: 0)], out _);
 
-        await Assert.That(oid).IsNull();
+        await Assert.That(blocker).IsEqualTo(EditBlocker.ComputedColumns);
     }
 
     [Test]
-    public async Task ColumnsFromTwoTablesDisqualify()
+    public async Task SystemColumnIsComputed()
     {
-        var oid = EditableResultDetector.SingleSourceTableOid(
-            [Col("id", attNum: 1), Col("name", tableOid: OrdersOid + 1, attNum: 1)]);
+        // SELECT ctid, id FROM orders — ctid carries the table OID but a
+        // negative attribute number.
+        var blocker = EditableResultDetector.CheckSingleTable(
+            [Col("ctid", attNum: -1), Col("id", attNum: 1)], out _);
 
-        await Assert.That(oid).IsNull();
+        await Assert.That(blocker).IsEqualTo(EditBlocker.ComputedColumns);
     }
 
     [Test]
-    public async Task RepeatedColumnDisqualifies()
+    public async Task ColumnsFromTwoTablesAreAJoin()
+    {
+        var blocker = EditableResultDetector.CheckSingleTable(
+            [Col("id", attNum: 1), Col("name", tableOid: OrdersOid + 1, attNum: 1)], out _);
+
+        await Assert.That(blocker).IsEqualTo(EditBlocker.MultipleTables);
+    }
+
+    [Test]
+    public async Task RepeatedColumnIsAmbiguous()
     {
         // SELECT id, id FROM orders — name-keyed commits would be ambiguous.
-        var oid = EditableResultDetector.SingleSourceTableOid(
-            [Col("id", attNum: 1), Col("id", attNum: 1)]);
+        var blocker = EditableResultDetector.CheckSingleTable(
+            [Col("id", attNum: 1), Col("id", attNum: 1)], out _);
 
-        await Assert.That(oid).IsNull();
-    }
-
-    [Test]
-    public async Task EmptyResultDisqualifies()
-    {
-        await Assert.That(EditableResultDetector.SingleSourceTableOid([])).IsNull();
+        await Assert.That(blocker).IsEqualTo(EditBlocker.RepeatedColumn);
     }
 
     [Test]
     public async Task FullSelectMatchesPrimaryKey()
     {
-        var pk = EditableResultDetector.MatchPrimaryKey(
+        var blocker = EditableResultDetector.MatchPrimaryKey(
             [Col("id", attNum: 1), Col("status", attNum: 3), Col("amount", attNum: 4)],
-            Orders);
+            Orders,
+            out var pk);
 
-        await Assert.That(pk).IsNotNull();
-        await Assert.That(pk!).IsEquivalentTo(["id"]);
+        await Assert.That(blocker).IsEqualTo(EditBlocker.None);
+        await Assert.That(pk).IsEquivalentTo(["id"]);
     }
 
     [Test]
     public async Task SubsetWithPrimaryKeyMatches()
     {
-        var pk = EditableResultDetector.MatchPrimaryKey(
+        var blocker = EditableResultDetector.MatchPrimaryKey(
             [Col("id", attNum: 1), Col("amount", attNum: 4)],
-            Orders);
+            Orders,
+            out _);
 
-        await Assert.That(pk).IsNotNull();
+        await Assert.That(blocker).IsEqualTo(EditBlocker.None);
     }
 
     [Test]
     public async Task MissingPrimaryKeyColumnDisqualifies()
     {
-        var pk = EditableResultDetector.MatchPrimaryKey(
+        var blocker = EditableResultDetector.MatchPrimaryKey(
             [Col("status", attNum: 3), Col("amount", attNum: 4)],
-            Orders);
+            Orders,
+            out var pk);
 
-        await Assert.That(pk).IsNull();
+        await Assert.That(blocker).IsEqualTo(EditBlocker.PrimaryKeyNotSelected);
+        await Assert.That(pk).IsEmpty();
     }
 
     [Test]
@@ -102,11 +112,12 @@ public class EditableResultDetectorTests
     {
         // SELECT id, status AS s FROM orders — the grid header says "s", but
         // every commit path keys SET clauses and PK lookups by displayed name.
-        var pk = EditableResultDetector.MatchPrimaryKey(
+        var blocker = EditableResultDetector.MatchPrimaryKey(
             [Col("id", attNum: 1), Col("s", attNum: 3)],
-            Orders);
+            Orders,
+            out _);
 
-        await Assert.That(pk).IsNull();
+        await Assert.That(blocker).IsEqualTo(EditBlocker.RenamedColumns);
     }
 
     [Test]
@@ -115,11 +126,12 @@ public class EditableResultDetectorTests
         // SELECT status AS amount, amount AS status FROM orders — names all
         // exist on the table, but each points at the wrong attribute; only the
         // attnum check catches this.
-        var pk = EditableResultDetector.MatchPrimaryKey(
+        var blocker = EditableResultDetector.MatchPrimaryKey(
             [Col("id", attNum: 1), Col("amount", attNum: 3), Col("status", attNum: 4)],
-            Orders);
+            Orders,
+            out _);
 
-        await Assert.That(pk).IsNull();
+        await Assert.That(blocker).IsEqualTo(EditBlocker.RenamedColumns);
     }
 
     [Test]
@@ -127,9 +139,9 @@ public class EditableResultDetectorTests
     {
         IReadOnlyList<ColumnDetail> heap = [TableCol("value", 1)];
 
-        var pk = EditableResultDetector.MatchPrimaryKey([Col("value", attNum: 1)], heap);
+        var blocker = EditableResultDetector.MatchPrimaryKey([Col("value", attNum: 1)], heap, out _);
 
-        await Assert.That(pk).IsNull();
+        await Assert.That(blocker).IsEqualTo(EditBlocker.NoPrimaryKey);
     }
 
     [Test]
@@ -144,13 +156,15 @@ public class EditableResultDetectorTests
 
         var full = EditableResultDetector.MatchPrimaryKey(
             [Col("order_id", attNum: 1), Col("line_no", attNum: 2), Col("sku", attNum: 3)],
-            orderItems);
+            orderItems,
+            out var fullPk);
         var partial = EditableResultDetector.MatchPrimaryKey(
             [Col("order_id", attNum: 1), Col("sku", attNum: 3)],
-            orderItems);
+            orderItems,
+            out _);
 
-        await Assert.That(full).IsNotNull();
-        await Assert.That(full!).IsEquivalentTo(["order_id", "line_no"]);
-        await Assert.That(partial).IsNull();
+        await Assert.That(full).IsEqualTo(EditBlocker.None);
+        await Assert.That(fullPk).IsEquivalentTo(["order_id", "line_no"]);
+        await Assert.That(partial).IsEqualTo(EditBlocker.PrimaryKeyNotSelected);
     }
 }

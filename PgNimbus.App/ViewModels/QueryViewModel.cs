@@ -81,6 +81,16 @@ public sealed partial class QueryViewModel : ObservableObject
     [ObservableProperty]
     private EditableTableContext? _editContext;
 
+    /// <summary>
+    /// Why the current result set is read-only, phrased for the status bar's
+    /// tooltip ("Results are read-only: …"). Null when the grid is editable,
+    /// when there's no grid to edit (errors, command results), or while a run
+    /// is in flight — so the status-bar segment only appears when a user could
+    /// reasonably expect to edit and can't.
+    /// </summary>
+    [ObservableProperty]
+    private string? _readOnlyHint;
+
     /// <summary>Non-null when this tab is in no-SQL "browse a table" mode (status-bar paging shown, header clicks sort server-side).</summary>
     [ObservableProperty]
     private TableBrowseViewModel? _browse;
@@ -340,6 +350,7 @@ public sealed partial class QueryViewModel : ObservableObject
         // single-statement path re-establishes it below when the new result maps
         // onto a table; browse re-establishes it itself after the page loads.
         EditContext = null;
+        ReadOnlyHint = null;
 
         var stopwatch = Stopwatch.StartNew();
 
@@ -652,6 +663,13 @@ public sealed partial class QueryViewModel : ObservableObject
         RowCountText = value.RowCountText;
         TimingText = value.TimingText;
         CapText = value.CapText;
+
+        // Script sections never get an edit context (statements share one
+        // session; results are materialized snapshots) — say so, but only for
+        // sections that actually show a grid someone might try to edit.
+        ReadOnlyHint = value.Columns.Count > 0
+            ? "multi-statement scripts run read-only — run the statement on its own to edit."
+            : null;
     }
 
     private void NotifyScriptResultChanged()
@@ -889,6 +907,13 @@ public sealed partial class QueryViewModel : ObservableObject
         {
             EditContext = new EditableTableContext(browse.Schema, browse.Name, pk, _browseColumns);
         }
+        else if (Browse is { } pkless)
+        {
+            // Browsing a view or a table without a primary key: rows show fine
+            // but can't be targeted for edits — say so instead of silently
+            // ignoring edit gestures.
+            ReadOnlyHint = $"{pkless.Schema}.{pkless.Name} has no primary key, so rows can't be targeted exactly.";
+        }
 
         return Rows.Count;
     }
@@ -928,12 +953,20 @@ public sealed partial class QueryViewModel : ObservableObject
     /// attribute of the same table under its real name (no expressions, aliases,
     /// or joins mixing tables) and the full primary key is among the columns.
     /// One catalog lookup after the rows have already rendered; best-effort —
-    /// any failure just leaves the grid read-only, exactly as before.
+    /// any failure just leaves the grid read-only. A disqualified result gets a
+    /// <see cref="ReadOnlyHint"/> instead, so the status bar can say *why*
+    /// instead of the grid silently ignoring edit gestures.
     /// </summary>
     private async Task TryEnableEditingForQueryAsync(CancellationToken ct)
     {
-        if (_schemaService is null || EditableResultDetector.SingleSourceTableOid(_columns) is not { } tableOid)
+        if (_schemaService is null)
         {
+            return;
+        }
+
+        if (EditableResultDetector.CheckSingleTable(_columns, out var tableOid) is not EditBlocker.None and var columnsBlocker)
+        {
+            ReadOnlyHint = ReadOnlyHintFor(columnsBlocker, table: null);
             return;
         }
 
@@ -941,22 +974,44 @@ public sealed partial class QueryViewModel : ObservableObject
         {
             if (await _schemaService.GetEditableTableByOidAsync(tableOid, ct) is not { } table)
             {
+                ReadOnlyHint = ReadOnlyHintFor(EditBlocker.NotAPlainTable, table: null);
                 return;
             }
 
             var tableColumns = await _schemaService.GetColumnsAsync(table.Schema, table.Name, ct);
-            if (EditableResultDetector.MatchPrimaryKey(_columns, tableColumns) is { } primaryKey)
+            if (EditableResultDetector.MatchPrimaryKey(_columns, tableColumns, out var primaryKey) is not EditBlocker.None and var matchBlocker)
             {
-                EditContext = new EditableTableContext(table.Schema, table.Name, primaryKey, tableColumns);
+                ReadOnlyHint = ReadOnlyHintFor(matchBlocker, table);
+                return;
             }
+
+            EditContext = new EditableTableContext(table.Schema, table.Name, primaryKey, tableColumns);
         }
         catch
         {
             // Includes cancellation: the query itself already completed and its
             // rows are on screen, so a failed/cancelled catalog lookup must not
-            // repaint the run as failed — editing simply stays off.
+            // repaint the run as failed — editing simply stays off, hint-less
+            // (the reason would be a guess).
         }
     }
+
+    // One sentence per disqualifier, completing "Results are read-only: …" —
+    // the status-bar tooltip is the only place these appear, so they say what
+    // to change (include the key, drop the alias) where that's actionable.
+    private static string ReadOnlyHintFor(EditBlocker blocker, RelationInfo? table) => blocker switch
+    {
+        EditBlocker.ComputedColumns => "some columns are expressions or system columns, not table columns.",
+        EditBlocker.MultipleTables => "the result combines columns from more than one table.",
+        EditBlocker.RepeatedColumn => "the same column appears more than once.",
+        EditBlocker.NotAPlainTable => "the source is a view, function, or another relation whose rows can't be updated by key.",
+        EditBlocker.RenamedColumns => "columns are renamed (AS …), so edits can't be mapped back to the table's real columns.",
+        EditBlocker.NoPrimaryKey => $"{TableName(table)} has no primary key, so rows can't be targeted exactly.",
+        EditBlocker.PrimaryKeyNotSelected => $"the primary key of {TableName(table)} isn't in the result — include it to edit.",
+        _ => "this result set can't be mapped back to a table.",
+    };
+
+    private static string TableName(RelationInfo? table) => table is null ? "the table" : $"{table.Schema}.{table.Name}";
 
     /// <summary>
     /// Commits an inline grid edit (the raw text typed into the cell editor)
