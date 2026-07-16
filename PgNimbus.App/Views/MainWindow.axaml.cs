@@ -503,6 +503,7 @@ public partial class MainWindow : Window
             _viewModel.ThemeToggleRequested -= ToggleTheme;
             _viewModel.ShortcutsRequested -= ShowShortcutsWindow;
             _viewModel.SwitchConnectionRequested -= SwitchConnection;
+            _viewModel.NewWindowRequested -= OpenNewWindow;
             _viewModel.FormatSqlRequested -= FormatCurrentStatement;
             _viewModel.ExpandStarRequested -= ExpandSelectStar;
             _viewModel.FindRequested -= OpenSearchPanel;
@@ -520,6 +521,7 @@ public partial class MainWindow : Window
         _viewModel.ThemeToggleRequested += ToggleTheme;
         _viewModel.ShortcutsRequested += ShowShortcutsWindow;
         _viewModel.SwitchConnectionRequested += SwitchConnection;
+        _viewModel.NewWindowRequested += OpenNewWindow;
         _viewModel.FormatSqlRequested += FormatCurrentStatement;
         _viewModel.ExpandStarRequested += ExpandSelectStar;
         _viewModel.FindRequested += OpenSearchPanel;
@@ -897,6 +899,20 @@ public partial class MainWindow : Window
 
         var dialog = App.BuildConnectionDialog(desktop, previousWindow: this);
         dialog.Show(this);
+    }
+
+    // Opens the connection dialog additively: this window stays connected and
+    // open, and a successful connect just adds another window rather than
+    // replacing anything (App.BuildConnectionDialog, replaceMainWindow: false).
+    private void OpenNewWindow()
+    {
+        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            return;
+        }
+
+        var dialog = App.BuildConnectionDialog(desktop, replaceMainWindow: false);
+        dialog.Show();   // free-standing, NOT Show(this) — the dialog must not be owned by / pinned above the current window
     }
 
     private void ShowShortcutsWindow()

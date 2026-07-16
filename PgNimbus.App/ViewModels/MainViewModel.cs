@@ -44,6 +44,9 @@ public sealed partial class MainViewModel : ObservableObject
     // Raised when the user asks to connect to a different server/database;
     // MainWindow reopens the connection dialog (App.BuildConnectionDialog).
     public event Action? SwitchConnectionRequested;
+    // Raised to open another connection side by side; MainWindow opens the
+    // connection dialog additively — the current window stays connected and open.
+    public event Action? NewWindowRequested;
     // Raised to pretty-print the statement under the caret; MainWindow owns the
     // editor text (AvaloniaEdit's Text isn't bindable) so it does the rewrite.
     public event Action? FormatSqlRequested;
@@ -79,6 +82,9 @@ public sealed partial class MainViewModel : ObservableObject
 
     [RelayCommand]
     private void SwitchConnection() => SwitchConnectionRequested?.Invoke();
+
+    [RelayCommand]
+    private void OpenNewWindow() => NewWindowRequested?.Invoke();
 
     [RelayCommand]
     private void ShowPreferences() => PreferencesRequested?.Invoke();
@@ -686,6 +692,7 @@ public sealed partial class MainViewModel : ObservableObject
         yield return new PaletteItem("Toggle auto-alias tables (orders → orders o)", "Action", "a", Invoke(() => ToggleAutoAliasCommand), Hotkeys.Label("Shift+A"));
         yield return new PaletteItem("Toggle safe mode (stage grid changes, review & commit)", "Action", "⛨", Invoke(() => ToggleSafeModeCommand));
         yield return new PaletteItem("Switch connection…", "Action", "⇄", () => { SwitchConnectionRequested?.Invoke(); return Task.CompletedTask; });
+        yield return new PaletteItem("Open connection in new window…", "Action", "⧉", Invoke(() => OpenNewWindowCommand));
         yield return new PaletteItem("Toggle light/dark theme", "Action", "◐", () => { ThemeToggleRequested?.Invoke(); return Task.CompletedTask; });
         yield return new PaletteItem("Preferences…", "Action", "⚙", Invoke(() => ShowPreferencesCommand), Hotkeys.Label(","));
         yield return new PaletteItem("Keyboard shortcuts", "Action", "?", () => { ShortcutsRequested?.Invoke(); return Task.CompletedTask; }, "F1");
