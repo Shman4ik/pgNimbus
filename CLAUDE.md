@@ -38,7 +38,9 @@ and wrong project memory is worse than none.
    "in transaction" indicator stays in sync no matter which path changed it.
    Auto-reconnect (2026-07): `QueryEngine` classifies a failure as connection
    loss (Postgres class-08 `SqlState`s / an admin or crash shutdown, or an
-   `NpgsqlException` wrapping a socket/IO/timeout exception) versus an
+   `NpgsqlException` wrapping a socket/IO exception — deliberately not
+   `TimeoutException`, which Npgsql also uses for command timeouts and pool
+   exhaustion where a silent re-run could double-apply work) versus an
    ordinary statement error, and on loss flushes the whole pool before
    silently retrying once on a fresh connection — runs, single-statement
    edits, and pre-commit batches all get this; a script retries only its

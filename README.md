@@ -604,10 +604,12 @@ Everything below is what survives that filter, roughly in impact order:
   the held transaction connection: an open transaction can't be silently
   re-established, so that path surfaces a clear "transaction lost" state.
   Shipped: `QueryEngine` classifies a failure as connection loss (Postgres
-  class-08 `SqlState`s, an admin/crash shutdown, or a socket/IO/timeout
-  exception under the hood) versus an ordinary statement error, and on loss
-  flushes the whole connection pool — not just the one dead socket — before
-  silently retrying once on a fresh connection. Runs, single-row edits, and
+  class-08 `SqlState`s, an admin/crash shutdown, or a socket/IO exception
+  under the hood — deliberately not a command timeout, where the statement
+  may still be executing server-side) versus an ordinary statement error,
+  and on loss flushes the whole connection pool — not just the one dead
+  socket — before silently retrying once on a fresh connection. Runs,
+  single-row edits, and
   safe-mode batches (retried only if the loss happened before `COMMIT` was
   attempted) all get this; a multi-statement script retries only its first
   statement, since a mid-script reconnect can't resurrect `SET`s or temp

@@ -206,7 +206,12 @@ public sealed class QueryEngine
         // A non-Postgres NpgsqlException wrapping a socket-level failure — the
         // shape a dead pooled connection takes after the peer vanished without
         // a clean close, discovered only once a command tries to use it.
-        NpgsqlException { InnerException: IOException or SocketException or EndOfStreamException or TimeoutException } => true,
+        // TimeoutException is deliberately NOT here: Npgsql also wraps command
+        // timeouts (a merely slow query, possibly a write still executing
+        // server-side) and pool exhaustion in it, and silently re-running
+        // those would double-apply work and pile load onto an already
+        // struggling server.
+        NpgsqlException { InnerException: IOException or SocketException or EndOfStreamException } => true,
 
         _ => false,
     };
@@ -504,6 +509,27 @@ public sealed class QueryEngine
                     continue;
                 }
 
+                // A loss can also arrive as a PostgresException (admin/crash
+                // shutdown), so the PostgresException arm comes first: it
+                // keeps the SqlState/Detail/Hint diagnostics either way and
+                // just flags/prefixes the loss instead of flattening it into
+                // a detail-free message.
+                if (ex is PostgresException pg)
+                {
+                    return new QueryError
+                    {
+                        Elapsed = stopwatch.Elapsed,
+                        Message = isLoss
+                            ? $"Connection to the server was lost and could not be re-established: {pg.MessageText}"
+                            : pg.MessageText,
+                        SqlState = pg.SqlState,
+                        Detail = pg.Detail,
+                        Hint = pg.Hint,
+                        Position = ParsePosition(pg.Position),
+                        ConnectionLost = isLoss,
+                    };
+                }
+
                 if (isLoss)
                 {
                     return new QueryError
@@ -511,19 +537,6 @@ public sealed class QueryEngine
                         Elapsed = stopwatch.Elapsed,
                         Message = $"Connection to the server was lost and could not be re-established: {ex.Message}",
                         ConnectionLost = true,
-                    };
-                }
-
-                if (ex is PostgresException pg)
-                {
-                    return new QueryError
-                    {
-                        Elapsed = stopwatch.Elapsed,
-                        Message = pg.MessageText,
-                        SqlState = pg.SqlState,
-                        Detail = pg.Detail,
-                        Hint = pg.Hint,
-                        Position = ParsePosition(pg.Position),
                     };
                 }
 
@@ -577,11 +590,36 @@ public sealed class QueryEngine
                 // left as-is: a quiet mid-script reconnect there would silently
                 // drop whatever session state the earlier statements built up,
                 // which is worse than surfacing the error.
-                if (!inTransaction && i == 0 && result is QueryError { ConnectionLost: true })
+                if (!inTransaction && i == 0 && result is QueryError { ConnectionLost: true } firstLoss)
                 {
                     await connection.DisposeAsync();
                     ClearPool();
-                    connection = await _dataSource.OpenConnectionAsync(ct);
+
+                    // The reconnect open can itself fail (server fully down);
+                    // that must become a yielded QueryError like every other
+                    // script failure, not an exception escaping the enumerable.
+                    // yield isn't legal inside a catch, hence the local.
+                    QueryError? reconnectFailure = null;
+                    try
+                    {
+                        connection = await _dataSource.OpenConnectionAsync(ct);
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        reconnectFailure = new QueryError
+                        {
+                            Elapsed = firstLoss.Elapsed,
+                            Message = $"Connection to the server was lost and could not be re-established: {ex.Message}",
+                            ConnectionLost = true,
+                        };
+                    }
+
+                    if (reconnectFailure is not null)
+                    {
+                        yield return reconnectFailure;
+                        yield break;
+                    }
+
                     result = await ExecuteOnConnectionAsync(connection, statement, maxRowsPerStatement, allowTextFallback: false, ct);
                 }
 
