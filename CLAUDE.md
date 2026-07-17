@@ -332,10 +332,14 @@ the release pipeline don't pollute the trend history. Three moving parts:
    `customSmallerIsBetter` format — keep every metric smaller-is-better, so
    throughput is reported as stream *time*) plus `summary.md`.
    `PGNIMBUS_BENCH_SKIP_AOT=1` skips the slow AOT publish for local runs. Also
-   tracks size: the AOT exe alone (`binary_size_mb`) and the whole publish
-   dir (`publish_size_mb`, `du -sb` on the publish output) — the latter is
-   the more honest "app size" number since side-car native libs bundled
-   alongside the exe (`libSkiaSharp`, `libHarfBuzzSharp`) dwarf it.
+   tracks size: the AOT exe alone (`binary_size_mb`) and the shipped publish
+   files (`publish_size_mb` — the publish output minus `*.pdb`/`*.dbg` debug
+   symbols, mirroring the exclusion the MSI/MSIX packaging applies, so the
+   metric tracks what installers actually package rather than what publish
+   leaves on disk; the publish dir is wiped before publishing so repeated
+   local runs never count stale leftovers) — the latter is the more honest
+   "app size" number since side-car native libs bundled alongside the exe
+   (`libSkiaSharp`, `libHarfBuzzSharp`) dwarf it.
 
 Numbers are machine-relative (this sandbox: ~160 ms AOT / ~2 s JIT to first
 frame; CI runners differ) — the point is the trend per commit, not the

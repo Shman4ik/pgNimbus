@@ -10,9 +10,11 @@
 #   startup_jit_ms   launch → first rendered frame, JIT Release build
 #   startup_rss_mb   resident memory at first frame (AOT)
 #   binary_size_mb   size of the AOT executable alone
-#   publish_size_mb  total size of the AOT publish dir (exe + native deps
-#                     like libSkiaSharp/libHarfBuzzSharp) — what actually
-#                     ships, since those side-car libs dwarf the exe itself
+#   publish_size_mb  total size of the shipped files in the AOT publish dir
+#                     (exe + native deps like libSkiaSharp/libHarfBuzzSharp),
+#                     excluding *.pdb/*.dbg debug symbols — the same exclusion
+#                     the MSI (Product.wxs) and MSIX (build-msix.ps1) apply,
+#                     so this tracks what installers actually package
 #   connect_ms       first physical connection on a cold pool
 #   roundtrip_ms     SELECT 1 on a warm pooled connection (median)
 #   first_batch_ms   large SELECT: call → first streamed RowBatch (median)
@@ -81,11 +83,20 @@ JIT_BINARY=PgNimbus.App/bin/Release/net10.0/PgNimbus.App
 
 if [[ -z "${PGNIMBUS_BENCH_SKIP_AOT:-}" ]]; then
     echo "== Publishing (NativeAOT linux-x64) — this is the slow part"
-    dotnet publish PgNimbus.App -c Release -r linux-x64 -p:PublishAot=true >/dev/null
     AOT_BINARY=PgNimbus.App/bin/Release/net10.0/linux-x64/publish/PgNimbus.App
-    BINARY_SIZE_MB=$(awk "BEGIN { printf \"%.1f\", $(stat -c%s "$AOT_BINARY") / 1024 / 1024 }")
     PUBLISH_DIR=$(dirname "$AOT_BINARY")
-    PUBLISH_SIZE_BYTES=$(du -sb "$PUBLISH_DIR" | cut -f1)
+    # dotnet publish never cleans its output dir, so a repeated local run
+    # would keep (and count) files a previous build no longer produces.
+    rm -rf "$PUBLISH_DIR"
+    dotnet publish PgNimbus.App -c Release -r linux-x64 -p:PublishAot=true >/dev/null
+    BINARY_SIZE_MB=$(awk "BEGIN { printf \"%.1f\", $(stat -c%s "$AOT_BINARY") / 1024 / 1024 }")
+    # Measure what ships, not what publish leaves on disk: the MSI and MSIX
+    # both exclude debug symbols (*.pdb — see installer/windows/Product.wxs
+    # and scripts/windows/build-msix.ps1); the linux-x64 equivalent is the
+    # *.dbg file NativeAOT strips symbols into. Counting them here would
+    # make the metric miss packaging-size changes entirely.
+    PUBLISH_SIZE_BYTES=$(find "$PUBLISH_DIR" -type f ! -name '*.pdb' ! -name '*.dbg' -printf '%s\n' \
+        | awk '{ s += $1 } END { print s }')
     PUBLISH_SIZE_MB=$(awk "BEGIN { printf \"%.1f\", $PUBLISH_SIZE_BYTES / 1024 / 1024 }")
 fi
 
@@ -119,7 +130,7 @@ ROWS_PER_SEC=$(bench_value rows_per_sec)
   { "name": "Startup, launch to first frame (NativeAOT)", "unit": "ms", "value": $STARTUP_AOT_MS },
   { "name": "Memory at first frame (NativeAOT)", "unit": "MB", "value": $RSS_AOT_MB },
   { "name": "Binary size (NativeAOT)", "unit": "MB", "value": $BINARY_SIZE_MB },
-  { "name": "Publish size (NativeAOT, all files)", "unit": "MB", "value": $PUBLISH_SIZE_MB },
+  { "name": "Publish size (NativeAOT, shipped files)", "unit": "MB", "value": $PUBLISH_SIZE_MB },
 EOF
     cat <<EOF
   { "name": "Startup, launch to first frame (JIT)", "unit": "ms", "value": $STARTUP_JIT_MS },
@@ -140,7 +151,7 @@ EOF
         echo "| Startup, launch → first frame (NativeAOT) | $STARTUP_AOT_MS ms |"
         echo "| Memory at first frame (NativeAOT) | $RSS_AOT_MB MB |"
         echo "| Binary size (NativeAOT) | $BINARY_SIZE_MB MB |"
-        echo "| Publish size (NativeAOT, all files) | $PUBLISH_SIZE_MB MB |"
+        echo "| Publish size (NativeAOT, shipped files) | $PUBLISH_SIZE_MB MB |"
     }
     echo "| Startup, launch → first frame (JIT) | $STARTUP_JIT_MS ms |"
     echo "| Connect (cold pool) | $CONNECT_MS ms |"
