@@ -231,6 +231,10 @@ public partial class App : Application
             DataContext = viewModel,
         };
 
+        // Restore last session's window placement before the window shows, and
+        // save it back on close - session state alongside the workspace restore.
+        WindowPlacementPersistence.Attach(window, new WindowPlacementStore());
+
         window.Closed += async (_, _) =>
         {
             // Save the workspace before anything else tears down - a failed save
