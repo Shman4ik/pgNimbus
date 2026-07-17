@@ -65,6 +65,15 @@ internal static class WindowPlacementPersistence
                 normalHeight = window.ClientSize.Height;
             }
 
+            // A window that never had explicit bounds reports NaN Width/Height
+            // (never MainWindow — its XAML sets both — but this helper takes any
+            // Window, and serializing NaN throws). No real geometry, nothing to
+            // save.
+            if (!double.IsFinite(normalWidth) || !double.IsFinite(normalHeight))
+            {
+                return;
+            }
+
             var maximized = window.WindowState is WindowState.Maximized or WindowState.FullScreen;
 
             // Losing the placement is not worth blocking window close over.
@@ -72,7 +81,7 @@ internal static class WindowPlacementPersistence
             {
                 store.Save(new WindowPlacement(normalPosition.X, normalPosition.Y, normalWidth, normalHeight, maximized));
             }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            catch
             {
             }
         };
