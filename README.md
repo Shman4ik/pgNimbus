@@ -18,7 +18,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT license"></a>
   <img src="https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet" alt=".NET 10">
   <img src="https://img.shields.io/badge/Avalonia-12-8B44AC" alt="Avalonia 12">
-  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20(beta)-lightgrey" alt="Platforms">
+  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey" alt="Platforms">
 </p>
 
 <p align="center">
@@ -90,6 +90,14 @@ xattr -cr ~/Downloads/pgNimbus.app
 Then launch `pgNimbus.app` normally. Proper signing and notarization are planned — see [Roadmap](#-roadmap).
 
 </details>
+
+### Linux (early beta)
+
+x64 and arm64 builds from [Releases](https://github.com/Shman4ik/pgNimbus/releases), in three formats:
+
+- **AppImage** (any distro) — `chmod +x pgNimbus-<version>-linux-<arch>.AppImage`, then run it. Nothing to install.
+- **Debian/Ubuntu** — `sudo apt install ./pgNimbus-<version>-linux-<arch>.deb`, then launch `pgnimbus` (or find pgNimbus in your app menu).
+- **tar.gz** — unpack anywhere and run `./PgNimbus.App`.
 
 Every `vX.Y.Z` tag builds all of the above via [`release.yml`](.github/workflows/release.yml).
 
@@ -259,7 +267,7 @@ Prioritized by how much it advances the thesis (fast + open + modern, PostgreSQL
 **Next up**
 
 - [ ] **Full macOS support** — Developer ID signing, notarization, real-world testing.
-- [ ] **Linux builds** — the linux-x64 NativeAOT publish already works; missing a release leg and packaging (AppImage/tarball first, Flatpak after).
+- [x] **Linux builds** — AppImage, .deb, and tar.gz for x64/arm64 ship from the release pipeline (Flatpak still a maybe-later).
 - [ ] **Table & index sizes and usage** — sizes in the schema tree plus a per-database overview (largest relations, seq-vs-index scans, unused indexes, cache hit rate).
 - [ ] **Locks & blocking tree** — a who-blocks-whom view in the activity window, with one-click cancel/terminate of the *blocker*.
 - [ ] **Row detail sidebar** — a vertical name/value view of the selected row, doubling as a form-style editor.

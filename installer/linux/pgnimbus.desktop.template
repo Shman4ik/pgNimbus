@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=pgNimbus
+GenericName=PostgreSQL Client
+Comment=A fast, open-source PostgreSQL GUI client
+Exec=__EXEC__
+Icon=pgnimbus
+Terminal=false
+Categories=Development;Database;
+Keywords=postgres;postgresql;sql;database;
+StartupWMClass=PgNimbus.App
