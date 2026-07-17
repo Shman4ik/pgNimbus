@@ -188,6 +188,52 @@ jobs:
           name: macos-dmg-arm64
           path: dist/*.dmg
 
+  build-linux:
+    needs: prepare
+    strategy:
+      matrix:
+        include:
+          # arm64 is a native build — GitHub provides free arm64 runners for
+          # public repos — so no cross-compilation toolchain is involved.
+          - runner: ubuntu-latest
+            rid: linux-x64
+          - runner: ubuntu-24.04-arm
+            rid: linux-arm64
+    runs-on: ${{ matrix.runner }}
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Install NativeAOT prerequisites
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y clang zlib1g-dev
+
+      - name: Publish NativeAOT (${{ matrix.rid }})
+        run: >
+          dotnet publish PgNimbus.App -c Release -r ${{ matrix.rid }}
+          --self-contained true
+          -p:PublishAot=true
+          -p:Version=${{ env.VERSION }}
+          -p:FileVersion=${{ env.VERSION }}
+          -p:InformationalVersion=${{ env.VERSION }}
+          -o publish/${{ matrix.rid }}
+
+      - name: Build tar.gz + AppImage + .deb
+        run: |
+          chmod +x scripts/linux/build-packages.sh
+          ./scripts/linux/build-packages.sh publish/${{ matrix.rid }} "$VERSION" ${{ matrix.rid }} dist
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: linux-packages-${{ matrix.rid }}
+          path: dist/*
+
   winget-manifest:
     needs: [prepare, build-windows]
     runs-on: windows-latest
@@ -222,7 +268,7 @@ jobs:
           path: winget-manifests.zip
 
   release:
-    needs: [prepare, build-windows, build-macos, winget-manifest]
+    needs: [prepare, build-windows, build-macos, build-linux, winget-manifest]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     env:
@@ -236,7 +282,7 @@ jobs:
       - name: Generate checksums
         run: |
           cd artifacts
-          sha256sum *.msi *.dmg *.zip > SHA256SUMS.txt
+          sha256sum *.msi *.dmg *.zip *.AppImage *.tar.gz *.deb > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
       - name: Create GitHub Release
@@ -246,6 +292,9 @@ jobs:
             artifacts/*.msi
             artifacts/*.dmg
             artifacts/*.zip
+            artifacts/*.AppImage
+            artifacts/*.tar.gz
+            artifacts/*.deb
             artifacts/SHA256SUMS.txt
           generate_release_notes: true
           # Every build is unsigned until a code-signing cert / Apple

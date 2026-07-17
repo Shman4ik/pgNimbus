@@ -378,6 +378,25 @@ job so it never publishes). It produces, per tag:
   via `sips`/`iconutil` (stock macOS tools, no extra dependency) — each
   iconset slot uses the exact-size master when one exists, else downscales
   from `icon-1024.png`.
+- **Linux** — `linux-x64` + `linux-arm64` (the arm64 leg runs natively on
+  GitHub's free `ubuntu-24.04-arm` runners — no cross-compile toolchain).
+  Each RID is packaged three ways by
+  [`scripts/linux/build-packages.sh`](scripts/linux/build-packages.sh):
+  `.AppImage` (appimagetool downloaded at build time from its `continuous`
+  release, run with `--appimage-extract-and-run` since CI runners lack
+  FUSE; `AppRun` is a plain symlink to the binary — NativeAOT resolves the
+  side-car `libSkiaSharp`/`libHarfBuzzSharp` next to `/proc/self/exe`, so
+  no wrapper script), `.tar.gz` (the publish output under a versioned top
+  dir), and `.deb` (`dpkg-deb`, package id `pgnimbus`, binary at
+  `/usr/lib/pgnimbus/` + `/usr/bin/pgnimbus` symlink; `Depends` lists only
+  the X11/ICE/SM/fontconfig libs Avalonia P/Invokes — Skia/HarfBuzz are
+  bundled; a semver prerelease `-` becomes Debian `~` so CI test versions
+  sort before releases). The desktop entry comes from
+  [`installer/linux/pgnimbus.desktop.template`](installer/linux/pgnimbus.desktop.template)
+  (`__EXEC__` placeholder: the AppImage execs `PgNimbus.App`, the deb
+  `pgnimbus`), icons from the `design/masters/icon/` tiles. The NativeAOT
+  `*.dbg` symbols side-file is excluded from all three packages. Unsigned,
+  like the other direct-download channels.
 - **winget** — the workflow renders (via
   [`scripts/winget/render-manifest.sh`](scripts/winget/render-manifest.sh)
   and the templates in `packaging/winget/`) the three manifest files

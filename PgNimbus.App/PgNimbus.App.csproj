@@ -21,7 +21,7 @@
     -->
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
-    <RuntimeIdentifiers>win-x64;osx-arm64</RuntimeIdentifiers>
+    <RuntimeIdentifiers>win-x64;osx-arm64;linux-x64;linux-arm64</RuntimeIdentifiers>
     <Authors>Dmitrii Shmanev</Authors>
     <Product>pgNimbus</Product>
     <Description>A fast, open-source PostgreSQL GUI client built with .NET and Avalonia.</Description>
