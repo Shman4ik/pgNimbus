@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784235016969,
+  "lastUpdate": 1784272631278,
   "repoUrl": "https://github.com/Shman4ik/pgNimbus",
   "entries": {
     "pgNimbus benchmarks": [
@@ -684,6 +684,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "Stream 100000 rows",
             "value": 129.8,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shman4ik@gmail.com",
+            "name": "Dmitrii Shmanev",
+            "username": "Shman4ik"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2ea33685656248d7dad35a509a7c9cab77d62b6c",
+          "message": "Benchmark publish-size: measure shipped files, not raw publish output (#129)\n\n* Results-grid row selection.\n\n* Benchmark publish-size: measure shipped files, not raw publish output\n\nThe publish_size_mb metric did a du -sb over the whole NativeAOT publish\ndirectory, which counts debug-symbol files (*.dbg on linux-x64, *.pdb on\nWindows) that the MSI (Product.wxs) and MSIX (build-msix.ps1) both\nexclude from the actual packages. Result: the ~100MB packaging-size win\nfrom #113 never showed up in the benchmark - the metric measured what\npublish leaves on disk, not what ships.\n\nNow the size sums only installer-shipped files (excluding *.pdb/*.dbg),\nand the publish dir is wiped before publishing so repeated local runs\nnever count stale leftovers (dotnet publish does not clean its output).\nThe metric is renamed to \"Publish size (NativeAOT, shipped files)\" -\ndeliberately, since its meaning changed; its gh-pages history restarts\nunder the new name.\n\nCo-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n---------\n\nCo-authored-by: Claude Fable 5 <noreply@anthropic.com>",
+          "timestamp": "2026-07-17T08:32:39+02:00",
+          "tree_id": "defc0f98249911d554f272024fbd058398d1d159",
+          "url": "https://github.com/Shman4ik/pgNimbus/commit/2ea33685656248d7dad35a509a7c9cab77d62b6c"
+        },
+        "date": 1784272630392,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Startup, launch to first frame (NativeAOT)",
+            "value": 161,
+            "unit": "ms"
+          },
+          {
+            "name": "Memory at first frame (NativeAOT)",
+            "value": 151.6,
+            "unit": "MB"
+          },
+          {
+            "name": "Binary size (NativeAOT)",
+            "value": 41.1,
+            "unit": "MB"
+          },
+          {
+            "name": "Publish size (NativeAOT, shipped files)",
+            "value": 54.5,
+            "unit": "MB"
+          },
+          {
+            "name": "Startup, launch to first frame (JIT)",
+            "value": 1720,
+            "unit": "ms"
+          },
+          {
+            "name": "Connect, cold pool",
+            "value": 146.9,
+            "unit": "ms"
+          },
+          {
+            "name": "Round-trip, SELECT 1 warm",
+            "value": 0.38,
+            "unit": "ms"
+          },
+          {
+            "name": "First row batch of a 100000-row SELECT",
+            "value": 12.9,
+            "unit": "ms"
+          },
+          {
+            "name": "Stream 100000 rows",
+            "value": 127.7,
             "unit": "ms"
           }
         ]
