@@ -388,9 +388,9 @@ job so it never publishes). It produces, per tag:
   side-car `libSkiaSharp`/`libHarfBuzzSharp` next to `/proc/self/exe`, so
   no wrapper script), `.tar.gz` (the publish output under a versioned top
   dir), and `.deb` (`dpkg-deb`, package id `pgnimbus`, binary at
-  `/usr/lib/pgnimbus/` + `/usr/bin/pgnimbus` symlink; `Depends` lists only
-  the X11/ICE/SM/fontconfig libs Avalonia P/Invokes — Skia/HarfBuzz are
-  bundled; a semver prerelease `-` becomes Debian `~` so CI test versions
+  `/usr/lib/pgnimbus/` + `/usr/bin/pgnimbus` symlink; `Depends` lists the
+  X11-family libs Avalonia's X11 backend uses at runtime plus fontconfig
+  for Skia — Skia/HarfBuzz themselves are bundled; a semver prerelease `-` becomes Debian `~` so CI test versions
   sort before releases). The desktop entry comes from
   [`installer/linux/pgnimbus.desktop.template`](installer/linux/pgnimbus.desktop.template)
   (`__EXEC__` placeholder: the AppImage execs `PgNimbus.App`, the deb

@@ -70,7 +70,7 @@ cp "$MASTER_DIR/icon-256.png" "$APPDIR/.DirIcon"
 ln -s usr/bin/PgNimbus.App "$APPDIR/AppRun"
 
 APPIMAGETOOL="$WORK_DIR/appimagetool"
-curl -fsSL -o "$APPIMAGETOOL" \
+curl -fsSL --retry 3 -o "$APPIMAGETOOL" \
   "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-$APPIMAGE_ARCH.AppImage"
 chmod +x "$APPIMAGETOOL"
 ARCH="$APPIMAGE_ARCH" "$APPIMAGETOOL" --appimage-extract-and-run \
@@ -96,8 +96,11 @@ for px in 16 24 32 48 256; do
 done
 
 INSTALLED_SIZE_KB=$(du -sk "$DEB_ROOT/usr" | cut -f1)
-# Depends: only the X11/session/fontconfig libs Avalonia P/Invokes directly —
-# Skia and HarfBuzz are bundled as side-car .so files, not system deps.
+# Depends: the X11-family libs Avalonia's X11 backend touches at runtime
+# (core X11, session management, XInput2, XRandR, XCursor, XExt, Xinerama)
+# plus fontconfig for Skia's font lookup — so the package runs on minimal
+# installs too. Skia and HarfBuzz themselves are bundled as side-car .so
+# files, not system deps.
 cat > "$DEB_ROOT/DEBIAN/control" <<EOF
 Package: pgnimbus
 Version: $DEB_VERSION
@@ -107,7 +110,7 @@ Architecture: $DEB_ARCH
 Installed-Size: $INSTALLED_SIZE_KB
 Maintainer: Dmitrii Shmanev <shman4ik@gmail.com>
 Homepage: https://github.com/Shman4ik/pgNimbus
-Depends: libx11-6, libice6, libsm6, libfontconfig1
+Depends: libx11-6, libice6, libsm6, libfontconfig1, libfreetype6, libxext6, libxi6, libxcursor1, libxinerama1, libxrandr2
 Description: Fast, open-source PostgreSQL GUI client
  A PostgreSQL-first database client built with .NET and Avalonia, compiled
  to a NativeAOT binary for instant startup. Streams large result sets while
