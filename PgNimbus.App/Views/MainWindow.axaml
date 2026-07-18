@@ -193,7 +193,7 @@
                         Click="OnPaletteSearchButtonClick">
                     <Grid ColumnDefinitions="Auto,*,Auto">
                         <PathIcon Grid.Column="0" Data="{StaticResource MagnifyIconGeometry}" Width="11" Height="11" Opacity="0.55" VerticalAlignment="Center" />
-                        <TextBlock Grid.Column="1" Text="Search" FontSize="12" Opacity="0.55" Margin="7,0,0,0" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1" Text="Search tables, queries, actions…" FontSize="12" Opacity="0.55" Margin="7,0,0,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                         <TextBlock Grid.Column="2" Name="PaletteSearchShortcut" FontSize="11" Opacity="0.4" VerticalAlignment="Center" />
                     </Grid>
                 </Button>
