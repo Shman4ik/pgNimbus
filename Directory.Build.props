@@ -1,0 +1,13 @@
+<Project>
+
+  <!-- NuGet vulnerability audit on every restore: check direct + transitive
+       packages against known advisories and fail the build (not just warn) on
+       moderate/high/critical ones (NU1902-NU1904). Low (NU1901) stays a
+       warning. Complemented by dependency-review-action in ci.yml, which
+       blocks PRs that *add* a vulnerable package. -->
+  <PropertyGroup>
+    <NuGetAuditMode>all</NuGetAuditMode>
+    <WarningsAsErrors>$(WarningsAsErrors);NU1902;NU1903;NU1904</WarningsAsErrors>
+  </PropertyGroup>
+
+</Project>

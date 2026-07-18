@@ -438,6 +438,32 @@ automatically discoverable via winget's built-in `msstore` source with no
 separate winget submission. It's an *additional* channel, not a replacement
 for the direct MSI + `winget-pkgs` path above — the two coexist.
 
+### Supply-chain proofs (2026-07)
+
+Unsigned binaries still get verifiable provenance, three layers:
+
+- **SLSA attestations** — the release job runs
+  `actions/attest-build-provenance` over every published asset (needs the
+  job's `id-token: write` + `attestations: write` permissions). Users
+  verify a download with
+  `gh attestation verify <file> --repo Shman4ik/pgNimbus` — proves it was
+  built by this workflow from a specific commit. This is the $0 substitute
+  for Authenticode on the direct-download channel; it does nothing for
+  SmartScreen (the Store channel covers that).
+- **SBOM** — the build-linux x64 leg generates a CycloneDX JSON SBOM of the
+  App's full NuGet graph (`dotnet-CycloneDX` on `PgNimbus.App.csproj`,
+  `-c Release` so the Debug-only conditional AvaloniaUI.DiagnosticsSupport
+  reference stays out — it's not in shipped binaries and must not appear in
+  the SBOM). Ships as the `pgNimbus-<ver>-sbom.cdx.json` release asset,
+  checksummed and attested like the binaries. Generated once (x64 only) —
+  the NuGet graph is RID-independent.
+- **Vulnerability gates** — the repo-root `Directory.Build.props` sets
+  `NuGetAuditMode=all` (transitive packages too) and promotes
+  moderate/high/critical audit warnings (NU1902–NU1904) to errors, so any
+  `dotnet build`/`restore` — local or CI — fails on a known advisory; ci.yml
+  additionally runs `dependency-review-action` on PRs to block newly-added
+  vulnerable packages at review time.
+
 ### Microsoft Store (MSIX)
 
 `build-windows` also packs `publish/win-x64` into a self-signed `.msix` via
