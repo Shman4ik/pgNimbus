@@ -163,6 +163,8 @@
                                 <Separator />
                                 <MenuItem Header="Switch connection…" Command="{Binding SwitchConnectionCommand}" />
                                 <MenuItem Header="Open connection in new window…" Command="{Binding OpenNewWindowCommand}" />
+                                <Separator />
+                                <MenuItem Name="MenuPreferences" Header="Preferences…" Command="{Binding ShowPreferencesCommand}" />
                             </MenuFlyout>
                         </Button.Flyout>
                     </Button>

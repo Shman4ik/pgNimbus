@@ -355,6 +355,7 @@ public partial class MainWindow : Window
         MenuSaveFile.InputGesture = new KeyGesture(Key.S, Hotkeys.Command);
         MenuSaveFileAs.InputGesture = new KeyGesture(Key.S, Hotkeys.Command | KeyModifiers.Shift);
         MenuCloseTab.InputGesture = new KeyGesture(Key.W, Hotkeys.Command);
+        MenuPreferences.InputGesture = new KeyGesture(Key.OemComma, Hotkeys.Command);
 
         // And the search pill's caption (the palette itself opens from
         // OnKeyDown, which reads Hotkeys.Command live).
