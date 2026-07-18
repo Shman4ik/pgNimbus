@@ -2,6 +2,10 @@ name: Release
 
 # Tag pushes (v1.2.3) cut a real GitHub Release; workflow_dispatch runs the
 # whole pipeline without publishing anything, for testing.
+#
+# Each build job resolves the version itself via .github/actions/version
+# (a composite action) — no dedicated "prepare" job, so no extra runner
+# boot at the head of the critical path.
 on:
   push:
     tags:
@@ -22,26 +26,11 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: "1"
 
 jobs:
-  prepare:
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-    steps:
-      - name: Determine version
-        id: version
-        run: |
-          if [[ "${{ github.event_name }}" == "push" ]]; then
-            VERSION="${GITHUB_REF_NAME#v}"
-          elif [[ -n "${{ inputs.version }}" ]]; then
-            VERSION="${{ inputs.version }}"
-          else
-            VERSION="0.0.0-ci.${{ github.run_number }}"
-          fi
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Building version $VERSION"
-
+  # Chained after build-linux so it reuses that job's linux-x64 NativeAOT
+  # publish instead of doing the same slow publish a second time. This does
+  # not delay the release: the "release" job doesn't depend on benchmark.
   benchmark:
-    needs: prepare
+    needs: build-linux
     uses: ./.github/workflows/benchmark.yml
     permissions:
       contents: write
@@ -49,14 +38,17 @@ jobs:
       # Only append to the gh-pages trend history on a real tag-triggered
       # release, not a workflow_dispatch test run.
       record_history: ${{ startsWith(github.ref, 'refs/tags/v') }}
+      publish_artifact: publish-linux-x64
 
   build-windows:
-    needs: prepare
     runs-on: windows-latest
-    env:
-      VERSION: ${{ needs.prepare.outputs.version }}
     steps:
       - uses: actions/checkout@v7
+
+      - name: Determine version
+        uses: ./.github/actions/version
+        with:
+          version: ${{ inputs.version }}
 
       - uses: actions/setup-dotnet@v6
         with:
@@ -117,8 +109,28 @@ jobs:
           name: windows-msix
           path: pgNimbus-${{ env.VERSION }}-win-x64.msix
 
-    outputs:
-      msi_sha256: ${{ steps.sha.outputs.sha256 }}
+      # winget manifests are rendered right here rather than in a separate
+      # job: the MSI and its SHA256 are already at hand, so this saves a
+      # whole extra Windows runner (and the artifact round-trip) that used
+      # to sit on the critical path before "release".
+      - name: Render winget manifests
+        shell: bash
+        run: |
+          RELEASE_URL="https://github.com/${{ github.repository }}/releases/download/v${VERSION}/pgNimbus-${VERSION}-win-x64.msi"
+          bash scripts/winget/render-manifest.sh "$VERSION" "${{ steps.sha.outputs.sha256 }}" "$RELEASE_URL" manifests
+
+      - name: Validate winget manifests
+        shell: pwsh
+        run: winget validate --manifest manifests
+
+      - name: Zip winget manifests
+        shell: pwsh
+        run: Compress-Archive -Path manifests\* -DestinationPath winget-manifests.zip
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: winget-manifests
+          path: winget-manifests.zip
 
   build-macos:
     # Apple Silicon only: GitHub retired the last Intel macOS runner image
@@ -126,12 +138,14 @@ jobs:
     # entirely after the macos-15 image retires (Fall 2027). There's no
     # GitHub-hosted way to build osx-x64 anymore, and virtually all Macs
     # sold since 2020 are Apple Silicon anyway.
-    needs: prepare
     runs-on: macos-14
-    env:
-      VERSION: ${{ needs.prepare.outputs.version }}
     steps:
       - uses: actions/checkout@v7
+
+      - name: Determine version
+        uses: ./.github/actions/version
+        with:
+          version: ${{ inputs.version }}
 
       - uses: actions/setup-dotnet@v6
         with:
@@ -189,7 +203,6 @@ jobs:
           path: dist/*.dmg
 
   build-linux:
-    needs: prepare
     strategy:
       matrix:
         include:
@@ -200,12 +213,15 @@ jobs:
           - runner: ubuntu-24.04-arm
             rid: linux-arm64
     runs-on: ${{ matrix.runner }}
-    env:
-      VERSION: ${{ needs.prepare.outputs.version }}
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-dotnet@v5
+      - name: Determine version
+        uses: ./.github/actions/version
+        with:
+          version: ${{ inputs.version }}
+
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
@@ -234,50 +250,34 @@ jobs:
           name: linux-packages-${{ matrix.rid }}
           path: dist/*
 
-  winget-manifest:
-    needs: [prepare, build-windows]
-    runs-on: windows-latest
-    env:
-      VERSION: ${{ needs.prepare.outputs.version }}
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/download-artifact@v8
-        with:
-          name: windows-msi
-          path: artifacts
-
-      - name: Render winget manifests
-        shell: bash
-        run: |
-          RELEASE_URL="https://github.com/${{ github.repository }}/releases/download/v${VERSION}/pgNimbus-${VERSION}-win-x64.msi"
-          chmod +x scripts/winget/render-manifest.sh
-          ./scripts/winget/render-manifest.sh "$VERSION" "${{ needs.build-windows.outputs.msi_sha256 }}" "$RELEASE_URL" manifests
-
-      - name: Validate manifests
-        shell: pwsh
-        run: winget validate --manifest manifests
-
-      - name: Zip manifests
-        shell: pwsh
-        run: Compress-Archive -Path manifests\* -DestinationPath winget-manifests.zip
+      # The raw x64 publish output feeds the benchmark job so it doesn't
+      # repeat the slow NativeAOT publish. Tarred because upload-artifact
+      # zips files without their unix permissions — a bare upload would
+      # deliver a non-executable binary to the startup probe.
+      - name: Tar raw publish output (for benchmarks)
+        if: matrix.rid == 'linux-x64'
+        run: tar -C publish -czf publish-linux-x64.tar.gz linux-x64
 
       - uses: actions/upload-artifact@v7
+        if: matrix.rid == 'linux-x64'
         with:
-          name: winget-manifests
-          path: winget-manifests.zip
+          name: publish-linux-x64
+          path: publish-linux-x64.tar.gz
 
   release:
-    needs: [prepare, build-windows, build-macos, build-linux, winget-manifest]
+    needs: [build-windows, build-macos, build-linux]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
-    env:
-      VERSION: ${{ needs.prepare.outputs.version }}
     steps:
+      # Only the artifacts that ship in the Release. Notably excluded:
+      # windows-msix (Store-submission-only, see build-windows),
+      # publish-linux-x64 (benchmark input — its .tar.gz would otherwise
+      # leak into the checksum globs below), bench-results.
       - uses: actions/download-artifact@v8
         with:
           path: artifacts
           merge-multiple: true
+          pattern: "{windows-msi,macos-dmg-arm64,linux-packages-*,winget-manifests}"
 
       - name: Generate checksums
         run: |

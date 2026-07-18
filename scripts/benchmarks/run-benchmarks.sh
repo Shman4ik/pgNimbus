@@ -28,6 +28,10 @@
 #   PGNIMBUS_BENCH_CONN   connection string (default: localhost/postgres/postgres)
 #   PGNIMBUS_BENCH_RUNS   startup samples per mode, median reported (default 7)
 #   PGNIMBUS_BENCH_ROWS   row count for the streaming benchmarks (default 100000)
+#   PGNIMBUS_BENCH_PUBLISH_DIR  an existing linux-x64 NativeAOT publish dir to
+#                     measure instead of publishing one here (the release
+#                     pipeline reuses build-linux's output this way; must
+#                     contain PgNimbus.App and its side-car native libs)
 #   PGNIMBUS_BENCH_SKIP_AOT=1   skip the AOT publish + AOT metrics (quick local runs)
 
 set -euo pipefail
@@ -81,7 +85,15 @@ echo "== Building (JIT Release)"
 dotnet build -c Release >/dev/null
 JIT_BINARY=PgNimbus.App/bin/Release/net10.0/PgNimbus.App
 
-if [[ -z "${PGNIMBUS_BENCH_SKIP_AOT:-}" ]]; then
+if [[ -n "${PGNIMBUS_BENCH_PUBLISH_DIR:-}" ]]; then
+    echo "== Using prebuilt NativeAOT publish at $PGNIMBUS_BENCH_PUBLISH_DIR"
+    PUBLISH_DIR="$PGNIMBUS_BENCH_PUBLISH_DIR"
+    AOT_BINARY="$PUBLISH_DIR/PgNimbus.App"
+    [[ -f "$AOT_BINARY" ]] || { echo "error: no PgNimbus.App in $PUBLISH_DIR" >&2; exit 1; }
+    # CI hands the publish over as an artifact; artifact zips drop the exec
+    # bit (the producer tars to preserve it), so restore it defensively.
+    [[ -x "$AOT_BINARY" ]] || chmod +x "$AOT_BINARY"
+elif [[ -z "${PGNIMBUS_BENCH_SKIP_AOT:-}" ]]; then
     echo "== Publishing (NativeAOT linux-x64) — this is the slow part"
     AOT_BINARY=PgNimbus.App/bin/Release/net10.0/linux-x64/publish/PgNimbus.App
     PUBLISH_DIR=$(dirname "$AOT_BINARY")
@@ -89,6 +101,9 @@ if [[ -z "${PGNIMBUS_BENCH_SKIP_AOT:-}" ]]; then
     # would keep (and count) files a previous build no longer produces.
     rm -rf "$PUBLISH_DIR"
     dotnet publish PgNimbus.App -c Release -r linux-x64 -p:PublishAot=true >/dev/null
+fi
+
+if [[ -n "${AOT_BINARY:-}" ]]; then
     BINARY_SIZE_MB=$(awk "BEGIN { printf \"%.1f\", $(stat -c%s "$AOT_BINARY") / 1024 / 1024 }")
     # Measure what ships, not what publish leaves on disk: the MSI and MSIX
     # both exclude debug symbols (*.pdb — see installer/windows/Product.wxs
