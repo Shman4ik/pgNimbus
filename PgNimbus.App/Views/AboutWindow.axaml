@@ -1,0 +1,20 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="PgNimbus.App.Views.AboutWindow"
+        Title="About pgNimbus"
+        Width="320" SizeToContent="Height"
+        CanResize="False" ShowInTaskbar="False"
+        WindowStartupLocation="CenterScreen">
+    <!-- The macOS-style About box: name, version, license — nothing more.
+         Version/copyright are filled in code-behind from the entry assembly,
+         so the release pipeline's -p:InformationalVersion is the only source. -->
+    <StackPanel Margin="28,32,28,28" Spacing="4">
+        <TextBlock Text="pgNimbus" FontSize="24" FontWeight="SemiBold" HorizontalAlignment="Center" />
+        <TextBlock Name="VersionText" FontSize="12" Opacity="0.6" HorizontalAlignment="Center" />
+        <TextBlock Text="A fast, open-source PostgreSQL client"
+                   FontSize="12" Opacity="0.8" HorizontalAlignment="Center" Margin="0,10,0,0" />
+        <TextBlock Name="CopyrightText" FontSize="11" Opacity="0.5" HorizontalAlignment="Center" Margin="0,2,0,0" />
+        <Button Content="pgNimbus on GitHub" HorizontalAlignment="Center" Margin="0,14,0,0"
+                Click="OnGitHubClick" />
+    </StackPanel>
+</Window>

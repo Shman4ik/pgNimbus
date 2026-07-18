@@ -91,6 +91,11 @@ and wrong project memory is worse than none.
    (discoverability);
    that doesn't loosen rule 1 — new always-visible controls still default
    to no, and new secondary actions go to the palette first, not this menu.
+   **macOS exception (2026-07): the native menu bar is the file-command home
+   there** — ☰ (and the "pgNimbus" wordmark) are hidden on macOS, and every
+   ☰ command lives in the real menu bar instead (see "Platform window
+   chrome"). A command added to the ☰ menu must be added to
+   `BuildMacNativeMenu` in the same change, and vice versa.
 5. **No hardcoded Ctrl gestures.** Every command shortcut resolves through
    `PgNimbus.App/Hotkeys.cs` (Ctrl vs Cmd, per platform or the persisted
    scheme preference): MainWindow builds its `KeyBindings` in code, palette
@@ -109,11 +114,30 @@ and wrong project memory is worse than none.
   `ExtendClientAreaTitleBarHeightHint = 40`; Avalonia 12 dropped the old
   `ExtendClientAreaChromeHints` enum — native traffic lights stay by
   default). The bar gets 84px left padding to clear the traffic lights and
-  drags the window from its empty space (`BeginMoveDrag`). The macOS app
-  menu name and "About pgNimbus" item come from `Name="pgNimbus"` +
-  `NativeMenu.Menu` in `App.axaml` — without them Avalonia shows
-  "Avalonia Application"/"About Avalonia". The sidebar toggle icon is
-  platform-picked via `{OnPlatform}` (SF-style geometry on macOS).
+  drags the window from its empty space (`BeginMoveDrag`); it also hides the
+  ☰ button and the "pgNimbus" wordmark there — the menu bar covers both
+  (2026-07). The sidebar toggle icon is platform-picked via `{OnPlatform}`
+  (SF-style geometry on macOS).
+- **macOS native menu bar (2026-07)** — two layers. App-level (`App.axaml`,
+  needs `Name="pgNimbus"` or Avalonia shows "Avalonia Application"): About
+  pgNimbus (opens `AboutWindow` — name/version/license, version from the
+  same `InformationalVersion` the connection-dialog footer reads), pgNimbus
+  on GitHub, and Settings… (Cmd+, — routes to the active MainWindow's
+  preferences via `OnSettingsMenuItemClicked`). Window-level:
+  `MainWindow.BuildMacNativeMenu()` builds File / Query / View / Window via
+  `NativeMenu.SetMenu`, rebuilt from `BuildKeyBindings` so gestures track
+  the live Ctrl/Cmd scheme. Landmines, all learned the hard way: (a) menu
+  items use `Click` + a CanExecute check, **not** `NativeMenuItem.Command` —
+  the exporter snapshots enabled-state from `CanExecute` at assignment time
+  (before the DataContext exists), and a wrapper that never raises
+  `CanExecuteChanged` leaves every item permanently grayed out; (b) there is
+  deliberately **no Help menu** — AppKit force-inserts a search field into
+  any menu named "Help" (searching a help book the app doesn't have), so
+  Keyboard Shortcuts lives in View and the GitHub link in the app menu;
+  (c) don't add an "Enter Full Screen" item — AppKit appends its own to the
+  menu titled "View"; (d) the File → Open Recent submenu rebuilds on the
+  menu's `NeedsUpdate`, same contract as the ☰ menu's, and View's
+  Show/Hide Sidebar header re-resolves the same way.
 - **Results-grid scrolling is the DataGrid's own.** Avalonia 12's DataGrid
   handles both wheel axes natively (`UpdateScroll`). Don't reintroduce a
   tunneled wheel handler that writes `ScrollBar.Value` directly — the

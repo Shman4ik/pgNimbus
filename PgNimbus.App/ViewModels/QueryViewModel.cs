@@ -881,7 +881,7 @@ public sealed partial class QueryViewModel : ObservableObject
     {
         _browseColumns = columns;
         _browsePkColumns = columns.Where(c => c.IsPrimaryKey).Select(c => c.Name).ToList();
-        Browse = new TableBrowseViewModel(schema, name, RunBrowseSqlAsync);
+        Browse = new TableBrowseViewModel(schema, name, _browsePkColumns, RunBrowseSqlAsync);
         if (!string.IsNullOrEmpty(initialFilter))
         {
             // A pre-seeded WHERE (e.g. following a foreign key to the referenced

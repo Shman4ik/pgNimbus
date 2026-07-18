@@ -146,7 +146,9 @@
                          has them, but only for those who know to look). Shortcut
                          labels are set in BuildKeyBindings so they track the live
                          Ctrl/Cmd scheme; the Open Recent submenu is rebuilt on
-                         every open from the current recent-files list. -->
+                         every open from the current recent-files list.
+                         Hidden on macOS (SetUpMacTitleBar) — the same commands
+                         live in the native menu bar there (BuildMacNativeMenu). -->
                     <Button Name="AppMenuButton" Classes="chip" Padding="5"
                             Margin="0,0,4,0" VerticalAlignment="Center" ToolTip.Tip="Menu">
                         <PathIcon Data="{StaticResource MenuIconGeometry}" Width="14" Height="14" />
@@ -176,9 +178,12 @@
                     <Border Width="10" Height="10" CornerRadius="5" Margin="0,0,10,0"
                             VerticalAlignment="Center"
                             Background="{Binding AccentColor, Converter={x:Static conv2:HexToBrushConverter.Instance}}" />
-                    <TextBlock Text="pgNimbus" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center" />
+                    <!-- Hidden on macOS (SetUpMacTitleBar): the menu bar already
+                         carries the app's name there, so the wordmark is
+                         Windows/Linux chrome only. -->
+                    <TextBlock Name="AppTitleText" Text="pgNimbus" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center" />
                     <!-- Files-style breadcrumb: where am I connected -->
-                    <TextBlock Text="{Binding ConnectionHost}" FontSize="12" Opacity="0.75" VerticalAlignment="Center" Margin="16,0,0,0" />
+                    <TextBlock Name="ConnectionHostText" Text="{Binding ConnectionHost}" FontSize="12" Opacity="0.75" VerticalAlignment="Center" Margin="16,0,0,0" />
                     <TextBlock Text="›" FontSize="12" Opacity="0.45" VerticalAlignment="Center" Margin="6,0" />
                     <TextBlock Text="{Binding ConnectionDatabase}" FontSize="12" Opacity="0.75" VerticalAlignment="Center" />
                     <Button Classes="chip" Padding="5" VerticalAlignment="Center" Margin="10,0,0,0"
@@ -763,9 +768,15 @@
                     </Border>
 
                 <Grid>
+                    <!-- Background must stay set (Transparent is enough): a
+                         null background makes the grid's empty area — below
+                         the last row, right of the last column — miss hit
+                         testing, so wheel events there bypass the DataGrid's
+                         own scroll handling entirely. -->
                     <DataGrid Name="ResultsGrid"
                               IsVisible="{Binding !ActiveTab.IsShowingPlan}"
                               IsReadOnly="{Binding !ActiveTab.IsEditable}"
+                              Background="Transparent"
                               CanUserReorderColumns="False"
                               CanUserSortColumns="True"
                               SelectionMode="Extended"

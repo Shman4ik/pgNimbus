@@ -53,10 +53,14 @@ public sealed partial class TableBrowseViewModel : ObservableObject
     [ObservableProperty]
     private bool _canGoNext;
 
-    public TableBrowseViewModel(string schema, string name, Func<string, Task<int>> execute)
+    // Primary-key column names, in key order; empty for views / PK-less tables.
+    private readonly IReadOnlyList<string> _pkColumns;
+
+    public TableBrowseViewModel(string schema, string name, IReadOnlyList<string> pkColumns, Func<string, Task<int>> execute)
     {
         Schema = schema;
         Name = name;
+        _pkColumns = pkColumns;
         _execute = execute;
     }
 
@@ -80,6 +84,14 @@ public sealed partial class TableBrowseViewModel : ObservableObject
         if (SortColumn is { } column)
         {
             sb.Append("\nORDER BY ").Append(SqlIdentifier.Quote(column)).Append(SortDescending ? " DESC" : " ASC");
+        }
+        else if (_pkColumns.Count > 0)
+        {
+            // Default to primary-key order until a header click chooses one:
+            // heap order surprises (updated rows jump to the end), and
+            // LIMIT/OFFSET paging over an unordered scan may skip or repeat
+            // rows between pages. Cheap — it's the PK index.
+            sb.Append("\nORDER BY ").Append(string.Join(", ", _pkColumns.Select(SqlIdentifier.Quote)));
         }
 
         sb.Append("\nLIMIT ").Append(PageSize).Append(" OFFSET ").Append(Offset);

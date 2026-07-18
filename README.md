@@ -281,6 +281,7 @@ Prioritized by how much it advances the thesis (fast + open + modern, PostgreSQL
 **Next up**
 
 - [ ] **Full macOS support** — Developer ID signing, notarization, real-world testing.
+- [ ] **macOS look & feel polish** — the native menu bar, About box, and Settings… (Cmd+,) shipped 2026-07; still open: title-bar vibrancy/translucency (NSVisualEffectView-style material behind the merged command bar), sheet-style modals instead of separate dialog windows, Cmd+1…9 tab switching, a proper Window menu with the open-windows list, native context-menu styling, and full-height sidebar that tucks under the traffic lights (TablePlus-style).
 - [x] **Linux builds** — AppImage, .deb, and tar.gz for x64/arm64 ship from the release pipeline (Flatpak still a maybe-later).
 - [ ] **Table & index sizes and usage** — sizes in the schema tree plus a per-database overview (largest relations, seq-vs-index scans, unused indexes, cache hit rate).
 - [ ] **Locks & blocking tree** — a who-blocks-whom view in the activity window, with one-click cancel/terminate of the *blocker*.
