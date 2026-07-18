@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784272631278,
+  "lastUpdate": 1784365698794,
   "repoUrl": "https://github.com/Shman4ik/pgNimbus",
   "entries": {
     "pgNimbus benchmarks": [
@@ -753,6 +753,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "Stream 100000 rows",
             "value": 127.7,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shman4ik@gmail.com",
+            "name": "Dmitrii Shmanev",
+            "username": "Shman4ik"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fb57d909f77ccb69d3ce1a5d656ee117ca644a55",
+          "message": "Tab drag-reorder, app menu, and a centered command-palette Search pill (#132)\n\n* Tab strip: drag-to-reorder; add app menu with file/tab commands\n\nTabs on the query strip now reorder by dragging (live, browser-style:\nthe dragged tab lands after every tab whose center the pointer passes,\nwith edge auto-scroll when the strip overflows). A plain click still\njust switches tabs - the drag only arms past the existing 4px\nthreshold. The new order persists via the workspace snapshot, which\nalready serializes Tabs in collection order.\n\nNew top-left app menu button: New query tab, Open .sql file, Open\nrecent (rebuilt from the live recent-files list on every open), Save,\nSave as, Close tab, Switch connection, Open connection in new window.\nOpen/save/recent previously lived only in the command palette -\ninvisible to anyone who doesn't know Ctrl+K. Shortcut captions are set\nin BuildKeyBindings so they track the live Ctrl/Cmd scheme, per the\nno-hardcoded-gestures rule.\n\nCo-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n* Command bar: centered Search pill opens the command palette\n\nVS Code-style: a quiet card-toned capsule centered in the command bar\n(magnify icon + \"Search\" + the live Ctrl/Cmd+K caption) that opens the\nsame palette as Ctrl+K/P - its one visible entry point. The bar's\nDockPanel becomes an Auto|*|Auto grid so the pill truly centers between\nthe left cluster (menu, sidebar, breadcrumb) and the right icon cluster,\nshrinking on narrow windows instead of overlapping.\n\nCo-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n* Search pill: say what it searches\n\n\"Search\" alone reads as editor text search; the palette is a fuzzy\nfinder over tables, saved queries, recent files, and actions - label it\naccordingly (ellipsized on narrow windows).\n\nCo-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n* Add Preferences menu item with Cmd+, shortcut\n\nAdded a \"Preferences…\" item to the MainWindow menu flyout, bound to ShowPreferencesCommand. Assigned Command + ',' as its keyboard shortcut in MainWindow.axaml.cs.\n\n* CLAUDE.md: document Preferences in the app menu list\n\nThe ☰ menu gained a Preferences… item (Cmd/Ctrl+,) in 865bf46; the\nproject-memory list of its contents hadn't caught up.\n\nCo-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>\n\n---------\n\nCo-authored-by: Claude Fable 5 <noreply@anthropic.com>",
+          "timestamp": "2026-07-18T11:02:26+02:00",
+          "tree_id": "225aafad4839d01d84fd3d5bb48aa36715ee5c58",
+          "url": "https://github.com/Shman4ik/pgNimbus/commit/fb57d909f77ccb69d3ce1a5d656ee117ca644a55"
+        },
+        "date": 1784365697901,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Startup, launch to first frame (NativeAOT)",
+            "value": 160,
+            "unit": "ms"
+          },
+          {
+            "name": "Memory at first frame (NativeAOT)",
+            "value": 152,
+            "unit": "MB"
+          },
+          {
+            "name": "Binary size (NativeAOT)",
+            "value": 41.1,
+            "unit": "MB"
+          },
+          {
+            "name": "Publish size (NativeAOT, shipped files)",
+            "value": 54.5,
+            "unit": "MB"
+          },
+          {
+            "name": "Startup, launch to first frame (JIT)",
+            "value": 1765,
+            "unit": "ms"
+          },
+          {
+            "name": "Connect, cold pool",
+            "value": 148.8,
+            "unit": "ms"
+          },
+          {
+            "name": "Round-trip, SELECT 1 warm",
+            "value": 0.35,
+            "unit": "ms"
+          },
+          {
+            "name": "First row batch of a 100000-row SELECT",
+            "value": 10.9,
+            "unit": "ms"
+          },
+          {
+            "name": "Stream 100000 rows",
+            "value": 144.7,
             "unit": "ms"
           }
         ]
