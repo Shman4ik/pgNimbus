@@ -245,6 +245,26 @@ jobs:
           chmod +x scripts/linux/build-packages.sh
           ./scripts/linux/build-packages.sh publish/${{ matrix.rid }} "$VERSION" ${{ matrix.rid }} dist
 
+      # Software bill of materials: every NuGet package (direct + transitive)
+      # baked into the shipped app, as CycloneDX JSON. Generated once on the
+      # x64 leg — the NuGet dependency graph is RID-independent. -c Release
+      # matters: it keeps the Debug-only AvaloniaUI.DiagnosticsSupport
+      # reference (conditional PackageReference) out of the SBOM, matching
+      # what release binaries actually contain.
+      - name: Generate SBOM (CycloneDX)
+        if: matrix.rid == 'linux-x64'
+        run: |
+          dotnet tool install --global CycloneDX
+          dotnet-CycloneDX PgNimbus.App/PgNimbus.App.csproj -c Release -F Json \
+            -o sbom -fn "pgNimbus-${VERSION}-sbom.cdx.json" \
+            -sn pgNimbus -sv "$VERSION" -ed
+
+      - uses: actions/upload-artifact@v7
+        if: matrix.rid == 'linux-x64'
+        with:
+          name: sbom
+          path: sbom/*.cdx.json
+
       - uses: actions/upload-artifact@v7
         with:
           name: linux-packages-${{ matrix.rid }}
@@ -268,6 +288,11 @@ jobs:
     needs: [build-windows, build-macos, build-linux]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      # For actions/attest-build-provenance (Sigstore signing via OIDC).
+      id-token: write
+      attestations: write
     steps:
       # Only the artifacts that ship in the Release. Notably excluded:
       # windows-msix (Store-submission-only, see build-windows),
@@ -277,13 +302,22 @@ jobs:
         with:
           path: artifacts
           merge-multiple: true
-          pattern: "{windows-msi,macos-dmg-arm64,linux-packages-*,winget-manifests}"
+          pattern: "{windows-msi,macos-dmg-arm64,linux-packages-*,winget-manifests,sbom}"
 
       - name: Generate checksums
         run: |
           cd artifacts
-          sha256sum *.msi *.dmg *.zip *.AppImage *.tar.gz *.deb > SHA256SUMS.txt
+          sha256sum *.msi *.dmg *.zip *.AppImage *.tar.gz *.deb *.cdx.json > SHA256SUMS.txt
           cat SHA256SUMS.txt
+
+      # Signed SLSA build provenance (Sigstore) for every shipped file — the
+      # $0 substitute for code signing on the direct-download channel: proves
+      # a download was built by this workflow from this commit. Verify with:
+      #   gh attestation verify <file> --repo ${{ github.repository }}
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: artifacts/*
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
@@ -295,6 +329,7 @@ jobs:
             artifacts/*.AppImage
             artifacts/*.tar.gz
             artifacts/*.deb
+            artifacts/*.cdx.json
             artifacts/SHA256SUMS.txt
           generate_release_notes: true
           # Every build is unsigned until a code-signing cert / Apple
