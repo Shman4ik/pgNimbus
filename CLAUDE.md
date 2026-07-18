@@ -85,9 +85,9 @@ and wrong project memory is worse than none.
    serializes `Tabs` in collection order). The ☰ button (top-left, 2026-07)
    opens the one discoverable menu for file/tab-level commands: New tab,
    Open .sql / Open recent, Save / Save as, Close tab, Switch connection,
-   New window. The command bar's centered "Search" pill (VS Code-style,
-   same date) opens the command palette — the palette's one visible entry
-   point besides Ctrl+K/P. Both deliberately duplicate palette entries
+   New window, Preferences. The command bar's centered "Search" pill
+   (VS Code-style, same date) opens the command palette — the palette's
+   one visible entry point besides Ctrl+K/P. Both deliberately duplicate palette entries
    (discoverability);
    that doesn't loosen rule 1 — new always-visible controls still default
    to no, and new secondary actions go to the palette first, not this menu.
