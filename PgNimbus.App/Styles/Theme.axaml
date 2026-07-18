@@ -170,6 +170,8 @@
         <StreamGeometry x:Key="ChevronLeftIconGeometry">M15.41,16.58L10.83,12L15.41,7.41L14,6L8,12L14,18L15.41,16.58Z</StreamGeometry>
         <StreamGeometry x:Key="ChevronRightIconGeometry">M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z</StreamGeometry>
         <StreamGeometry x:Key="MenuDownIconGeometry">M7,10L12,15L17,10H7Z</StreamGeometry>
+        <!-- App menu (☰): file/tab-level commands live behind this one button (MDI "menu") -->
+        <StreamGeometry x:Key="MenuIconGeometry">M3,6H21V8H3V6M3,11H21V13H3V11M3,16H21V18H3V16Z</StreamGeometry>
         <StreamGeometry x:Key="PinIconGeometry">M16,12V4H17V2H7V4H8V12L6,14V16H11.2V22H12.8V16H18V14L16,12Z</StreamGeometry>
         <StreamGeometry x:Key="ImportIconGeometry">M2,12H4V17H20V12H22V17A2,2 0 0,1 20,19H4A2,2 0 0,1 2,17V12M12,2L6.46,7.46L7.88,8.88L11,5.75V15H13V5.75L16.13,8.88L17.55,7.45L12,2Z</StreamGeometry>
         <StreamGeometry x:Key="ClipboardIconGeometry">M19,20H5V4H7V7H17V4H19M12,2A1,1 0 0,1 13,3A1,1 0 0,1 12,4A1,1 0 0,1 11,3A1,1 0 0,1 12,2M19,2H14.82C14.4,0.84 13.3,0 12,0C10.7,0 9.6,0.84 9.18,2H5A2,2 0 0,0 3,4V20A2,2 0 0,0 5,22H19A2,2 0 0,0 21,20V4A2,2 0 0,0 19,2Z</StreamGeometry>
@@ -519,6 +521,25 @@
         <Setter Property="Background" Value="{StaticResource HoverBackgroundBrush}" />
         <Setter Property="Opacity" Value="1" />
     </Style>
+    <!-- The command bar's centered palette opener (VS Code-style search pill):
+         a quiet card-toned capsule that reads as a search field but is a
+         Button. Hover is pinned at the template part - Fluent repaints
+         PART_ContentPresenter's background on :pointerover otherwise. -->
+    <Style Selector="Button.searchpill">
+        <Setter Property="Background" Value="{StaticResource CardBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource ControlCornerRadius}" />
+        <Setter Property="Padding" Value="10,0" />
+        <Setter Property="MinHeight" Value="24" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.searchpill:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource HoverBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}" />
+    </Style>
+
     <!-- Checked state for chip-styled ToggleButtons (e.g. cell inspector's Wrap
          toggle): the app's brand-blue selection wash, same as the toolbar toggle.
          Fluent paints the checked fill on PART_ContentPresenter via its ControlTheme,

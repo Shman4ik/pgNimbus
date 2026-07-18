@@ -224,6 +224,21 @@ public partial class MainWindow : Window
             tabFlyout.Opened += (_, _) => OpenTabList();
         }
 
+        // Drag a tab along the strip to reorder it. Pressed is tunneled so the
+        // drag candidate is noted before the ListBoxItem handles selection;
+        // moves/releases bubble up from the item that holds the pointer capture.
+        TabsList.AddHandler(PointerPressedEvent, OnTabStripPointerPressed, RoutingStrategies.Tunnel);
+        TabsList.PointerMoved += OnTabStripPointerMoved;
+        TabsList.PointerReleased += (_, _) => EndTabDrag();
+        TabsList.PointerCaptureLost += (_, _) => EndTabDrag();
+
+        // The ☰ app menu's "Open recent" submenu reflects the list as of the
+        // moment the menu opens, not app start.
+        if (AppMenuButton.Flyout is MenuFlyout appMenu)
+        {
+            appMenu.Opened += (_, _) => RebuildRecentFilesMenu();
+        }
+
         TabSearchBox.TextChanged += (_, _) => FilterTabList();
         TabSearchBox.KeyDown += OnTabSearchKeyDown;
         TabSearchList.Tapped += (_, e) =>
@@ -332,6 +347,19 @@ public partial class MainWindow : Window
         // The gear button's tooltip carries the shortcut, so it's set here
         // (not in XAML) to track the live Ctrl/Cmd scheme.
         ToolTip.SetTip(PreferencesButton, $"Preferences ({Hotkeys.Label(",")})");
+
+        // Same for the ☰ menu's shortcut captions: display-only gestures whose
+        // Ctrl/Cmd side must match the bindings built just above.
+        MenuNewTab.InputGesture = new KeyGesture(Key.T, Hotkeys.Command);
+        MenuOpenFile.InputGesture = new KeyGesture(Key.O, Hotkeys.Command);
+        MenuSaveFile.InputGesture = new KeyGesture(Key.S, Hotkeys.Command);
+        MenuSaveFileAs.InputGesture = new KeyGesture(Key.S, Hotkeys.Command | KeyModifiers.Shift);
+        MenuCloseTab.InputGesture = new KeyGesture(Key.W, Hotkeys.Command);
+        MenuPreferences.InputGesture = new KeyGesture(Key.OemComma, Hotkeys.Command);
+
+        // And the search pill's caption (the palette itself opens from
+        // OnKeyDown, which reads Hotkeys.Command live).
+        PaletteSearchShortcut.Text = Hotkeys.Label("K");
 
         void Add(KeyGesture gesture, Func<System.Windows.Input.ICommand?> resolve) =>
             KeyBindings.Add(new KeyBinding { Gesture = gesture, Command = new DelegatedCommand(resolve) });
@@ -587,6 +615,121 @@ public partial class MainWindow : Window
         if (sender is Button { Tag: QueryViewModel tab })
         {
             _viewModel?.CloseTabCommand.Execute(tab);
+        }
+    }
+
+    // --- Tab-strip drag reorder -------------------------------------------
+
+    // The tab a press armed for dragging; the drag activates only once the
+    // pointer travels past DragThreshold with the button down, so a plain
+    // click stays a tab switch.
+    private QueryViewModel? _tabDragCandidate;
+    private Point _tabDragOrigin;
+    private bool _tabDragActive;
+
+    private void OnTabStripPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (!e.GetCurrentPoint(TabsList).Properties.IsLeftButtonPressed)
+        {
+            return;
+        }
+
+        // A press on the tab's ✕ chip is a close click, never a drag.
+        if (e.Source is Visual source && source.FindAncestorOfType<Button>(includeSelf: true) is not null)
+        {
+            return;
+        }
+
+        var item = (e.Source as Visual)?.FindAncestorOfType<ListBoxItem>(includeSelf: true);
+        if (item?.DataContext is QueryViewModel tab)
+        {
+            _tabDragCandidate = tab;
+            _tabDragOrigin = e.GetPosition(TabsList);
+            _tabDragActive = false;
+        }
+    }
+
+    private void OnTabStripPointerMoved(object? sender, PointerEventArgs e)
+    {
+        if (_tabDragCandidate is not { } tab || _viewModel is null)
+        {
+            return;
+        }
+
+        var position = e.GetPosition(TabsList);
+        if (!_tabDragActive)
+        {
+            if (Math.Abs(position.X - _tabDragOrigin.X) < DragThreshold
+                && Math.Abs(position.Y - _tabDragOrigin.Y) < DragThreshold)
+            {
+                return;
+            }
+
+            _tabDragActive = true;
+            SetDraggedTabOpacity(0.55);
+        }
+
+        // Live reorder, browser-style: the dragged tab lands after every tab
+        // whose center the pointer has passed. Centers are measured excluding
+        // the dragged tab itself so a move doesn't immediately re-trigger.
+        var targetIndex = 0;
+        for (var i = 0; i < _viewModel.Tabs.Count; i++)
+        {
+            if (ReferenceEquals(_viewModel.Tabs[i], tab)
+                || TabsList.ContainerFromIndex(i) is not { } container
+                || container.TranslatePoint(default, TabsList) is not { } topLeft)
+            {
+                continue;
+            }
+
+            if (position.X > topLeft.X + container.Bounds.Width / 2)
+            {
+                targetIndex++;
+            }
+        }
+
+        if (targetIndex != _viewModel.Tabs.IndexOf(tab))
+        {
+            _viewModel.MoveTab(tab, targetIndex);
+            SetDraggedTabOpacity(0.55);
+        }
+
+        // Dragging against an overflowed strip's edge scrolls it, so a tab can
+        // travel further than the visible span in one gesture.
+        if (_tabsScrollViewer is { } scroller)
+        {
+            const double edge = 24;
+            if (position.X < edge)
+            {
+                scroller.Offset = scroller.Offset.WithX(Math.Max(0, scroller.Offset.X - 8));
+            }
+            else if (position.X > TabsList.Bounds.Width - edge)
+            {
+                scroller.Offset = scroller.Offset.WithX(scroller.Offset.X + 8);
+            }
+        }
+    }
+
+    private void EndTabDrag()
+    {
+        if (_tabDragActive)
+        {
+            SetDraggedTabOpacity(1);
+        }
+
+        _tabDragCandidate = null;
+        _tabDragActive = false;
+    }
+
+    // The faded "in flight" look rides on the item's container, which can be
+    // re-realized across a collection Move — hence re-applied after each one.
+    private void SetDraggedTabOpacity(double opacity)
+    {
+        if (_tabDragCandidate is { } tab && _viewModel is not null
+            && _viewModel.Tabs.IndexOf(tab) is var index and >= 0
+            && TabsList.ContainerFromIndex(index) is { } container)
+        {
+            container.Opacity = opacity;
         }
     }
 
@@ -2184,6 +2327,34 @@ public partial class MainWindow : Window
     // StorageProvider dialogs and the actual file I/O, same split as
     // Import/Export above.
 
+    /// <summary>
+    /// Rebuilds the ☰ menu's "Open recent" submenu from the live recent-files
+    /// list — called every time the menu opens. Headers are TextBlocks, not
+    /// strings, so an underscore in a file name isn't eaten as an access key;
+    /// the full path rides in the tooltip since the item shows only the name.
+    /// </summary>
+    private void RebuildRecentFilesMenu()
+    {
+        MenuOpenRecent.Items.Clear();
+        if (_viewModel is not { RecentSqlFiles.Count: > 0 } viewModel)
+        {
+            MenuOpenRecent.Items.Add(new MenuItem
+            {
+                Header = new TextBlock { Text = "No recent files" },
+                IsEnabled = false,
+            });
+            return;
+        }
+
+        foreach (var path in viewModel.RecentSqlFiles)
+        {
+            var item = new MenuItem { Header = new TextBlock { Text = Path.GetFileName(path) } };
+            ToolTip.SetTip(item, path);
+            item.Click += (_, _) => _ = OpenRecentFileAsync(path);
+            MenuOpenRecent.Items.Add(item);
+        }
+    }
+
     private void OnOpenFileRequested() => _ = OpenSqlFileAsync();
 
     private void OnSaveFileRequested(bool saveAs) => _ = SaveSqlFileAsync(saveAs);
@@ -2457,6 +2628,9 @@ public partial class MainWindow : Window
     }
 
     // A press on the scrim (but not the card) dismisses the palette.
+    /// <summary>The command bar's centered search pill — same target as Ctrl+K / Ctrl+P.</summary>
+    private void OnPaletteSearchButtonClick(object? sender, RoutedEventArgs e) => OpenCommandPalette();
+
     private void OnPaletteScrimPressed(object? sender, PointerPressedEventArgs e) =>
         _viewModel?.CommandPalette.CloseCommand.Execute(null);
 

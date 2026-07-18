@@ -135,46 +135,93 @@
              empty space drag the window. -->
         <Border Name="CommandBar" DockPanel.Dock="Top" Height="40" Padding="16,0"
                 BorderThickness="0,0,0,1" BorderBrush="{StaticResource CardBorderBrush}">
-            <DockPanel>
-                <Button Name="SidebarToggleButton" DockPanel.Dock="Left" Classes="chip" Padding="5"
-                        Margin="0,0,10,0" VerticalAlignment="Center"
-                        Click="OnToggleSidebarClick" ToolTip.Tip="Toggle sidebar (Ctrl+B)">
-                    <PathIcon Data="{OnPlatform Default={StaticResource SidebarToggleIconGeometry}, macOS={StaticResource SidebarToggleMacIconGeometry}}" Width="14" Height="14" />
-                </Button>
-                <Border DockPanel.Dock="Left" Width="10" Height="10" CornerRadius="5" Margin="0,0,10,0"
-                        VerticalAlignment="Center"
-                        Background="{Binding AccentColor, Converter={x:Static conv2:HexToBrushConverter.Instance}}" />
-                <Button DockPanel.Dock="Right" Classes="chip" Content="?" FontSize="13" VerticalAlignment="Center"
-                        Click="OnShowShortcutsClick" ToolTip.Tip="Keyboard shortcuts (F1)" />
-                <!-- Tooltip is set in code (BuildKeyBindings) so its shortcut
-                     label tracks the live Ctrl/Cmd scheme. -->
-                <Button Name="PreferencesButton" DockPanel.Dock="Right" Classes="chip" Padding="5"
-                        Margin="0,0,4,0" VerticalAlignment="Center"
-                        Click="OnShowPreferencesClick">
-                    <PathIcon Data="{StaticResource CogIconGeometry}" Width="14" Height="14" />
-                </Button>
-                <Button Name="ThemeToggleButton" DockPanel.Dock="Right" Classes="chip" Padding="5"
-                        Margin="0,0,4,0" VerticalAlignment="Center"
-                        Click="OnToggleThemeClick" ToolTip.Tip="Toggle light/dark theme">
-                    <PathIcon Name="ThemeIcon" Data="{StaticResource WeatherNightIconGeometry}" Width="14" Height="14" />
-                </Button>
-                <Button DockPanel.Dock="Right" Classes="chip" Padding="5"
-                        Margin="0,0,4,0" VerticalAlignment="Center"
-                        Click="OnShowActivityClick" ToolTip.Tip="Server activity (pg_stat_activity)">
-                    <PathIcon Data="{StaticResource PulseIconGeometry}" Width="14" Height="14" />
-                </Button>
-                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+            <!-- Auto | * | Auto: left cluster, the centered search pill, right
+                 cluster. The pill stretches up to its MaxWidth and centers in
+                 the middle column, VS Code-style; on a narrow window it
+                 shrinks instead of overlapping the clusters. -->
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <!-- App menu (☰): the discoverable home for file/tab commands
+                         (open/save/recent live nowhere else visible — the palette
+                         has them, but only for those who know to look). Shortcut
+                         labels are set in BuildKeyBindings so they track the live
+                         Ctrl/Cmd scheme; the Open Recent submenu is rebuilt on
+                         every open from the current recent-files list. -->
+                    <Button Name="AppMenuButton" Classes="chip" Padding="5"
+                            Margin="0,0,4,0" VerticalAlignment="Center" ToolTip.Tip="Menu">
+                        <PathIcon Data="{StaticResource MenuIconGeometry}" Width="14" Height="14" />
+                        <Button.Flyout>
+                            <MenuFlyout Placement="BottomEdgeAlignedLeft">
+                                <MenuItem Name="MenuNewTab" Header="New query tab" Command="{Binding AddTabCommand}" />
+                                <MenuItem Name="MenuOpenFile" Header="Open .sql file…" Command="{Binding OpenFileCommand}" />
+                                <MenuItem Name="MenuOpenRecent" Header="Open recent" />
+                                <Separator />
+                                <MenuItem Name="MenuSaveFile" Header="Save" Command="{Binding SaveFileCommand}" />
+                                <MenuItem Name="MenuSaveFileAs" Header="Save as…" Command="{Binding SaveFileAsCommand}" />
+                                <Separator />
+                                <MenuItem Name="MenuCloseTab" Header="Close tab" Command="{Binding CloseTabCommand}" />
+                                <Separator />
+                                <MenuItem Header="Switch connection…" Command="{Binding SwitchConnectionCommand}" />
+                                <MenuItem Header="Open connection in new window…" Command="{Binding OpenNewWindowCommand}" />
+                                <Separator />
+                                <MenuItem Name="MenuPreferences" Header="Preferences…" Command="{Binding ShowPreferencesCommand}" />
+                            </MenuFlyout>
+                        </Button.Flyout>
+                    </Button>
+                    <Button Name="SidebarToggleButton" Classes="chip" Padding="5"
+                            Margin="0,0,10,0" VerticalAlignment="Center"
+                            Click="OnToggleSidebarClick" ToolTip.Tip="Toggle sidebar (Ctrl+B)">
+                        <PathIcon Data="{OnPlatform Default={StaticResource SidebarToggleIconGeometry}, macOS={StaticResource SidebarToggleMacIconGeometry}}" Width="14" Height="14" />
+                    </Button>
+                    <Border Width="10" Height="10" CornerRadius="5" Margin="0,0,10,0"
+                            VerticalAlignment="Center"
+                            Background="{Binding AccentColor, Converter={x:Static conv2:HexToBrushConverter.Instance}}" />
                     <TextBlock Text="pgNimbus" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center" />
                     <!-- Files-style breadcrumb: where am I connected -->
-                    <TextBlock Text="{Binding ConnectionHost}" FontSize="12" Opacity="0.75" VerticalAlignment="Center" Margin="10,0,0,0" />
-                    <TextBlock Text="›" FontSize="12" Opacity="0.45" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding ConnectionHost}" FontSize="12" Opacity="0.75" VerticalAlignment="Center" Margin="16,0,0,0" />
+                    <TextBlock Text="›" FontSize="12" Opacity="0.45" VerticalAlignment="Center" Margin="6,0" />
                     <TextBlock Text="{Binding ConnectionDatabase}" FontSize="12" Opacity="0.75" VerticalAlignment="Center" />
-                    <Button Classes="chip" Padding="5" VerticalAlignment="Center" Margin="4,0,0,0"
+                    <Button Classes="chip" Padding="5" VerticalAlignment="Center" Margin="10,0,0,0"
                             Click="OnSwitchConnectionClick" ToolTip.Tip="Switch connection">
                         <PathIcon Data="{StaticResource SwapHorizontalIconGeometry}" Width="12" Height="12" />
                     </Button>
                 </StackPanel>
-            </DockPanel>
+
+                <!-- Opens the command palette; the shortcut caption is set in
+                     BuildKeyBindings to track the live Ctrl/Cmd scheme. -->
+                <Button Grid.Column="1" Name="PaletteSearchButton" Classes="searchpill"
+                        HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                        MaxWidth="300" Margin="16,0"
+                        Click="OnPaletteSearchButtonClick">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <PathIcon Grid.Column="0" Data="{StaticResource MagnifyIconGeometry}" Width="11" Height="11" Opacity="0.55" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1" Text="Search tables, queries, actions…" FontSize="12" Opacity="0.55" Margin="7,0,0,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Grid.Column="2" Name="PaletteSearchShortcut" FontSize="11" Opacity="0.4" VerticalAlignment="Center" />
+                    </Grid>
+                </Button>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Classes="chip" Padding="5"
+                            Margin="0,0,4,0" VerticalAlignment="Center"
+                            Click="OnShowActivityClick" ToolTip.Tip="Server activity (pg_stat_activity)">
+                        <PathIcon Data="{StaticResource PulseIconGeometry}" Width="14" Height="14" />
+                    </Button>
+                    <Button Name="ThemeToggleButton" Classes="chip" Padding="5"
+                            Margin="0,0,4,0" VerticalAlignment="Center"
+                            Click="OnToggleThemeClick" ToolTip.Tip="Toggle light/dark theme">
+                        <PathIcon Name="ThemeIcon" Data="{StaticResource WeatherNightIconGeometry}" Width="14" Height="14" />
+                    </Button>
+                    <!-- Tooltip is set in code (BuildKeyBindings) so its shortcut
+                         label tracks the live Ctrl/Cmd scheme. -->
+                    <Button Name="PreferencesButton" Classes="chip" Padding="5"
+                            Margin="0,0,4,0" VerticalAlignment="Center"
+                            Click="OnShowPreferencesClick">
+                        <PathIcon Data="{StaticResource CogIconGeometry}" Width="14" Height="14" />
+                    </Button>
+                    <Button Classes="chip" Content="?" FontSize="13" VerticalAlignment="Center"
+                            Click="OnShowShortcutsClick" ToolTip.Tip="Keyboard shortcuts (F1)" />
+                </StackPanel>
+            </Grid>
         </Border>
 
     <Grid Name="ContentGrid" Margin="16">
