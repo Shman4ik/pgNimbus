@@ -136,6 +136,31 @@
         <Border Name="CommandBar" DockPanel.Dock="Top" Height="40" Padding="16,0"
                 BorderThickness="0,0,0,1" BorderBrush="{StaticResource CardBorderBrush}">
             <DockPanel>
+                <!-- App menu (☰): the discoverable home for file/tab commands
+                     (open/save/recent live nowhere else visible — the palette
+                     has them, but only for those who know to look). Shortcut
+                     labels are set in BuildKeyBindings so they track the live
+                     Ctrl/Cmd scheme; the Open Recent submenu is rebuilt on
+                     every open from the current recent-files list. -->
+                <Button Name="AppMenuButton" DockPanel.Dock="Left" Classes="chip" Padding="5"
+                        Margin="0,0,4,0" VerticalAlignment="Center" ToolTip.Tip="Menu">
+                    <PathIcon Data="{StaticResource MenuIconGeometry}" Width="14" Height="14" />
+                    <Button.Flyout>
+                        <MenuFlyout Placement="BottomEdgeAlignedLeft">
+                            <MenuItem Name="MenuNewTab" Header="New query tab" Command="{Binding AddTabCommand}" />
+                            <MenuItem Name="MenuOpenFile" Header="Open .sql file…" Command="{Binding OpenFileCommand}" />
+                            <MenuItem Name="MenuOpenRecent" Header="Open recent" />
+                            <Separator />
+                            <MenuItem Name="MenuSaveFile" Header="Save" Command="{Binding SaveFileCommand}" />
+                            <MenuItem Name="MenuSaveFileAs" Header="Save as…" Command="{Binding SaveFileAsCommand}" />
+                            <Separator />
+                            <MenuItem Name="MenuCloseTab" Header="Close tab" Command="{Binding CloseTabCommand}" />
+                            <Separator />
+                            <MenuItem Header="Switch connection…" Command="{Binding SwitchConnectionCommand}" />
+                            <MenuItem Header="Open connection in new window…" Command="{Binding OpenNewWindowCommand}" />
+                        </MenuFlyout>
+                    </Button.Flyout>
+                </Button>
                 <Button Name="SidebarToggleButton" DockPanel.Dock="Left" Classes="chip" Padding="5"
                         Margin="0,0,10,0" VerticalAlignment="Center"
                         Click="OnToggleSidebarClick" ToolTip.Tip="Toggle sidebar (Ctrl+B)">

@@ -79,7 +79,16 @@ and wrong project memory is worse than none.
    modes, 2026-07). Apply the same rule to any new list-like UI.
 3. **Loading a query never overwrites the active tab.** Saved queries,
    history entries, and generated DDL all open in a *new* tab.
-4. **No hardcoded Ctrl gestures.** Every command shortcut resolves through
+4. **Tabs drag-reorder; the ☰ app menu is the file-command home.** The query
+   tab strip reorders by dragging (live, browser-style — pointer handlers in
+   `MainWindow.axaml.cs`; the order persists via the workspace snapshot, which
+   serializes `Tabs` in collection order). The ☰ button (top-left, 2026-07)
+   opens the one discoverable menu for file/tab-level commands: New tab,
+   Open .sql / Open recent, Save / Save as, Close tab, Switch connection,
+   New window. It deliberately duplicates palette entries (discoverability);
+   that doesn't loosen rule 1 — new always-visible controls still default
+   to no, and new secondary actions go to the palette first, not this menu.
+5. **No hardcoded Ctrl gestures.** Every command shortcut resolves through
    `PgNimbus.App/Hotkeys.cs` (Ctrl vs Cmd, per platform or the persisted
    scheme preference): MainWindow builds its `KeyBindings` in code, palette
    labels use `Hotkeys.Label`, and the F1 cheat sheet relabels its `cmdKey`

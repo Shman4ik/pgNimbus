@@ -196,6 +196,9 @@ public sealed partial class MainViewModel : ObservableObject
 
     private readonly Action<IReadOnlyList<string>>? _persistRecentSqlFiles;
 
+    /// <summary>The recent .sql files, most recent first — read by the app menu's "Open recent" submenu (the palette reads <see cref="_recentSqlFiles"/> directly).</summary>
+    public IReadOnlyList<string> RecentSqlFiles => _recentSqlFiles;
+
     // Persist and report the new state here rather than in ToggleWordWrap, so
     // the status line updates the same way whether wrap was flipped from the
     // palette command or by the toolbar toggle's direct two-way binding.
@@ -451,6 +454,26 @@ public sealed partial class MainViewModel : ObservableObject
         ActiveTab = tab;
         CloseTabCommand.NotifyCanExecuteChanged();
         return tab;
+    }
+
+    /// <summary>
+    /// Moves <paramref name="tab"/> to <paramref name="newIndex"/> (clamped) —
+    /// the tab strip's drag-reorder. The moved tab stays active, and the new
+    /// order persists naturally: the workspace snapshot serializes
+    /// <see cref="Tabs"/> in collection order.
+    /// </summary>
+    public void MoveTab(QueryViewModel tab, int newIndex)
+    {
+        var oldIndex = Tabs.IndexOf(tab);
+        newIndex = Math.Clamp(newIndex, 0, Tabs.Count - 1);
+        if (oldIndex < 0 || newIndex == oldIndex)
+        {
+            return;
+        }
+
+        Tabs.Move(oldIndex, newIndex);
+        // Re-assert: a collection Move can churn the ListBox's selection.
+        ActiveTab = tab;
     }
 
     /// <summary>
