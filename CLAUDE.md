@@ -74,7 +74,9 @@ and wrong project memory is worse than none.
    has an obvious primary action, double-clicking it must perform that
    action: schema-tree table → browse, function → source, saved query /
    history entry → open in a new tab, connection profile → connect, result
-   cell → inspector. Apply the same rule to any new list-like UI.
+   cell → inline edit when the result set is editable, inspector when it's
+   read-only (Space quick-peeks the current cell in the inspector in both
+   modes, 2026-07). Apply the same rule to any new list-like UI.
 3. **Loading a query never overwrites the active tab.** Saved queries,
    history entries, and generated DDL all open in a *new* tab.
 4. **No hardcoded Ctrl gestures.** Every command shortcut resolves through

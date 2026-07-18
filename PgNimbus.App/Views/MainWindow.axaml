@@ -994,10 +994,12 @@
     </Border>
 
     <!--
-        Cell inspector: double-click a results-grid cell (or its context menu)
-        to see the full value - readable and copyable without inline-edit
-        tricks, with jsonb/json pretty-printed. Same centered-overlay-over-scrim
-        shape as the command palette, closed by the scrim, the × button, or Esc.
+        Cell inspector: Space on the current cell, double-click (read-only
+        results - in editable grids double-click starts the inline edit), or
+        the context menu. Shows the full value - readable and copyable without
+        inline-edit tricks, with jsonb/json pretty-printed. Same
+        centered-overlay-over-scrim shape as the command palette, closed by the
+        scrim, the × button, or Esc.
     -->
     <Border Name="CellInspectorOverlay"
             IsVisible="{Binding CellInspector.IsOpen}"

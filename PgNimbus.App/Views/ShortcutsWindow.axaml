@@ -235,6 +235,8 @@
                     <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
                         <TextBlock Classes="what" Text="Edit selected cell" />
                         <StackPanel Grid.Column="1" Classes="keys">
+                            <TextBlock Classes="combo" Text="Double-click" />
+                            <TextBlock Classes="combo" Text="or" />
                             <Border Classes="kbd"><TextBlock Text="F2" /></Border>
                         </StackPanel>
                     </Grid>
@@ -255,8 +257,10 @@
                     <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
                         <TextBlock Classes="what" Text="Inspect cell (full value, pretty-printed JSON)" />
                         <StackPanel Grid.Column="1" Classes="keys">
-                            <TextBlock Classes="combo" Text="Double-click" />
-                            <TextBlock Classes="combo" Text="or" />
+                            <Border Classes="kbd"><TextBlock Text="Space" /></Border>
+                            <TextBlock Classes="combo" Text="/" />
+                            <TextBlock Classes="combo" Text="double-click (read-only)" />
+                            <TextBlock Classes="combo" Text="/" />
                             <TextBlock Classes="combo" Text="context menu" />
                         </StackPanel>
                     </Grid>
