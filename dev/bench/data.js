@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784365698794,
+  "lastUpdate": 1784389791755,
   "repoUrl": "https://github.com/Shman4ik/pgNimbus",
   "entries": {
     "pgNimbus benchmarks": [
@@ -822,6 +822,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "Stream 100000 rows",
             "value": 144.7,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shman4ik@gmail.com",
+            "name": "Dmitrii Shmanev",
+            "username": "Shman4ik"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "93b00162264eb5333a24639282ea1a677bd0cec1",
+          "message": "Supply-chain proofs: SLSA attestations, CycloneDX SBOM, NuGet vulnerability gates (#142)\n\n* Supply-chain proofs: SLSA attestations, CycloneDX SBOM, NuGet vulnerability gates\n\n- release job attests build provenance (Sigstore) for every published\n  asset; verify with `gh attestation verify <file> --repo Shman4ik/pgNimbus`\n- build-linux x64 leg generates a CycloneDX JSON SBOM of the App's NuGet\n  graph (-c Release keeps the Debug-only DiagnosticsSupport ref out),\n  shipped/checksummed/attested alongside the binaries\n- Directory.Build.props: NuGetAuditMode=all + NU1902-NU1904 as errors, so\n  any build fails on known moderate+ advisories (transitive included)\n- ci.yml: dependency-review-action blocks PRs adding vulnerable packages\n\nCo-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n* README: how to verify a download (attestation, checksums, SBOM)\n\nCo-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n\n---------\n\nCo-authored-by: Claude Fable 5 <noreply@anthropic.com>",
+          "timestamp": "2026-07-18T17:43:25+02:00",
+          "tree_id": "3e56624ee7c9e34336a279f1113836445744aa57",
+          "url": "https://github.com/Shman4ik/pgNimbus/commit/93b00162264eb5333a24639282ea1a677bd0cec1"
+        },
+        "date": 1784389790944,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Startup, launch to first frame (NativeAOT)",
+            "value": 159,
+            "unit": "ms"
+          },
+          {
+            "name": "Memory at first frame (NativeAOT)",
+            "value": 157,
+            "unit": "MB"
+          },
+          {
+            "name": "Binary size (NativeAOT)",
+            "value": 41.1,
+            "unit": "MB"
+          },
+          {
+            "name": "Publish size (NativeAOT, shipped files)",
+            "value": 54.5,
+            "unit": "MB"
+          },
+          {
+            "name": "Startup, launch to first frame (JIT)",
+            "value": 1379,
+            "unit": "ms"
+          },
+          {
+            "name": "Connect, cold pool",
+            "value": 119.5,
+            "unit": "ms"
+          },
+          {
+            "name": "Round-trip, SELECT 1 warm",
+            "value": 0.23,
+            "unit": "ms"
+          },
+          {
+            "name": "First row batch of a 100000-row SELECT",
+            "value": 7.4,
+            "unit": "ms"
+          },
+          {
+            "name": "Stream 100000 rows",
+            "value": 100.6,
             "unit": "ms"
           }
         ]
