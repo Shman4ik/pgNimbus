@@ -84,12 +84,29 @@ public partial class App : Application
     private static string ThemeToString(ThemeVariant variant) =>
         variant == ThemeVariant.Dark ? "dark" : variant == ThemeVariant.Light ? "light" : "system";
 
+    // The About box is app-global; one instance at a time, re-activated if
+    // the menu item is clicked while it's already open.
+    private AboutWindow? _aboutWindow;
+
     /// <summary>
-    /// "About pgNimbus" in the macOS app menu (see App.axaml). Opens the
-    /// project page - version/license already live in the connection dialog's
-    /// footer, so a dedicated About window would just duplicate them.
+    /// "About pgNimbus" in the macOS app menu (see App.axaml): the standard
+    /// About box — name, version, license (<see cref="AboutWindow"/>).
     /// </summary>
     private void OnAboutMenuItemClicked(object? sender, EventArgs e)
+    {
+        if (_aboutWindow is not null)
+        {
+            _aboutWindow.Activate();
+            return;
+        }
+
+        _aboutWindow = new AboutWindow();
+        _aboutWindow.Closed += (_, _) => _aboutWindow = null;
+        _aboutWindow.Show();
+    }
+
+    /// <summary>"pgNimbus on GitHub" in the macOS app menu: opens the project page.</summary>
+    private void OnGitHubMenuItemClicked(object? sender, EventArgs e)
     {
         try
         {
@@ -99,6 +116,24 @@ public partial class App : Application
         {
             // No browser to hand off to is not worth crashing the app menu.
         }
+    }
+
+    /// <summary>
+    /// "Settings…" in the macOS app menu: opens preferences for the active
+    /// main window (or the first one — the app menu is global, windows aren't).
+    /// A no-op while only the connection dialog is up; preferences hang off a
+    /// connected window's view model.
+    /// </summary>
+    private void OnSettingsMenuItemClicked(object? sender, EventArgs e)
+    {
+        if (ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            return;
+        }
+
+        var window = desktop.Windows.OfType<MainWindow>().FirstOrDefault(w => w.IsActive)
+            ?? desktop.Windows.OfType<MainWindow>().FirstOrDefault();
+        (window?.DataContext as MainViewModel)?.ShowPreferencesCommand.Execute(null);
     }
 
     public override void Initialize()

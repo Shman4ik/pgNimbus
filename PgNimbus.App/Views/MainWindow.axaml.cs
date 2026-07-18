@@ -295,6 +295,14 @@ public partial class MainWindow : Window
         ExtendClientAreaTitleBarHeightHint = 40;
         // 16px original left padding + room for the traffic-light cluster.
         CommandBar.Padding = new Thickness(84, 0, 16, 0);
+
+        // The native menu bar (BuildMacNativeMenu) is the file-command home on
+        // macOS, so the in-window ☰ menu would be a second copy of the same
+        // commands; the wordmark goes too — the menu bar already says the
+        // app's name, and Mac toolbars (TablePlus, Finder) don't repeat it.
+        AppMenuButton.IsVisible = false;
+        AppTitleText.IsVisible = false;
+        ConnectionHostText.Margin = new Thickness(0);
         CommandBar.PointerPressed += (_, e) =>
         {
             if (!e.GetCurrentPoint(CommandBar).Properties.IsLeftButtonPressed)
@@ -325,8 +333,153 @@ public partial class MainWindow : Window
         public void Execute(object? parameter) => resolve()?.Execute(parameter);
     }
 
+    /// <summary>
+    /// macOS-only: the real menu bar — File / Query / View / Help — wired to
+    /// the same commands as the (hidden there) in-window ☰ menu, palette, and
+    /// key bindings. Rebuilt from BuildKeyBindings so the displayed gestures
+    /// track the live Ctrl/Cmd scheme; a fresh NativeMenu each time, so no
+    /// handler ever double-subscribes. The app-level menu (About / Settings…)
+    /// lives in App.axaml — this covers the window-scoped menus. Commands go
+    /// through DelegatedCommand: macOS re-validates items each time a menu
+    /// opens, which is when CanExecute is read.
+    /// </summary>
+    private void BuildMacNativeMenu()
+    {
+        if (!OperatingSystem.IsMacOS())
+        {
+            return;
+        }
+
+        var cmd = Hotkeys.Command;
+
+        var recentMenu = new NativeMenu();
+        var fileMenu = new NativeMenu
+        {
+            Items =
+            {
+                CommandItem("New Query Tab", () => _viewModel?.AddTabCommand, new KeyGesture(Key.T, cmd)),
+                CommandItem("Open .sql File…", () => _viewModel?.OpenFileCommand, new KeyGesture(Key.O, cmd)),
+                new NativeMenuItem("Open Recent") { Menu = recentMenu },
+                new NativeMenuItemSeparator(),
+                CommandItem("Save", () => _viewModel?.SaveFileCommand, new KeyGesture(Key.S, cmd)),
+                CommandItem("Save As…", () => _viewModel?.SaveFileAsCommand, new KeyGesture(Key.S, cmd | KeyModifiers.Shift)),
+                new NativeMenuItemSeparator(),
+                CommandItem("Close Tab", () => _viewModel?.CloseTabCommand, new KeyGesture(Key.W, cmd)),
+                new NativeMenuItemSeparator(),
+                CommandItem("Switch Connection…", () => _viewModel?.SwitchConnectionCommand),
+                CommandItem("New Connection Window…", () => _viewModel?.OpenNewWindowCommand),
+            },
+        };
+        // Like the ☰ menu's submenu: reflects the list as of menu open.
+        fileMenu.NeedsUpdate += (_, _) => RebuildMacRecentMenu(recentMenu);
+
+        var queryMenu = new NativeMenu
+        {
+            Items =
+            {
+                CommandItem("Run", () => _viewModel?.ActiveTab?.RunCommand, new KeyGesture(Key.Enter, cmd)),
+                CommandItem("Cancel", () => _viewModel?.ActiveTab?.CancelCommand),
+                new NativeMenuItemSeparator(),
+                CommandItem("Format SQL", () => _viewModel?.FormatSqlCommand),
+                new NativeMenuItemSeparator(),
+                CommandItem("Refresh Schema", () => _viewModel?.RefreshSchemaCommand, new KeyGesture(Key.R, cmd | KeyModifiers.Shift)),
+                CommandItem("Server Activity…", () => _viewModel?.ShowActivityCommand),
+            },
+        };
+
+        // Finder-style Show/Hide phrasing, re-resolved every time the menu
+        // opens. AppKit appends its own "Enter Full Screen" item to the menu
+        // titled "View", so full screen isn't added here.
+        var sidebarItem = ActionItem("Hide Sidebar", ToggleSidebar, new KeyGesture(Key.B, cmd));
+        var viewMenu = new NativeMenu
+        {
+            Items =
+            {
+                ActionItem("Command Palette…", OpenCommandPalette, new KeyGesture(Key.K, cmd)),
+                new NativeMenuItemSeparator(),
+                sidebarItem,
+                ActionItem("Toggle Light/Dark Theme", ToggleTheme),
+                new NativeMenuItemSeparator(),
+                ActionItem("Keyboard Shortcuts", ShowShortcutsWindow, new KeyGesture(Key.F1)),
+            },
+        };
+        viewMenu.NeedsUpdate += (_, _) => sidebarItem.Header = _sidebarCollapsed ? "Show Sidebar" : "Hide Sidebar";
+
+        var windowMenu = new NativeMenu
+        {
+            Items =
+            {
+                ActionItem("Minimize", () => WindowState = WindowState.Minimized, new KeyGesture(Key.M, cmd)),
+                ActionItem("Zoom", () => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized),
+            },
+        };
+
+        // No Help menu on purpose: AppKit force-inserts a search field into
+        // any menu named "Help" (it searches a help book this app doesn't
+        // have), so its would-be items live in View (shortcuts) and the app
+        // menu (GitHub link) instead.
+        NativeMenu.SetMenu(this, new NativeMenu
+        {
+            Items =
+            {
+                new NativeMenuItem("File") { Menu = fileMenu },
+                new NativeMenuItem("Query") { Menu = queryMenu },
+                new NativeMenuItem("View") { Menu = viewMenu },
+                new NativeMenuItem("Window") { Menu = windowMenu },
+            },
+        });
+    }
+
+    private static NativeMenuItem CommandItem(string header, Func<System.Windows.Input.ICommand?> resolve, KeyGesture? gesture = null)
+    {
+        var item = new NativeMenuItem(header) { Gesture = gesture };
+        // Deliberately Click, not NativeMenuItem.Command: the native exporter
+        // snapshots IsEnabled from CanExecute when the command is assigned —
+        // here that's in the constructor, before the DataContext arrives, so
+        // every item would export permanently grayed out (a wrapper that never
+        // raises CanExecuteChanged is never re-read). Checking CanExecute at
+        // click time is the same gate, evaluated when it matters.
+        item.Click += (_, _) =>
+        {
+            var command = resolve();
+            if (command?.CanExecute(null) == true)
+            {
+                command.Execute(null);
+            }
+        };
+        return item;
+    }
+
+    private static NativeMenuItem ActionItem(string header, Action action, KeyGesture? gesture = null)
+    {
+        var item = new NativeMenuItem(header) { Gesture = gesture };
+        item.Click += (_, _) => action();
+        return item;
+    }
+
+    /// <summary>File → Open Recent, same contract as <see cref="RebuildRecentFilesMenu"/>.</summary>
+    private void RebuildMacRecentMenu(NativeMenu menu)
+    {
+        menu.Items.Clear();
+        if (_viewModel is not { RecentSqlFiles.Count: > 0 } viewModel)
+        {
+            menu.Items.Add(new NativeMenuItem("No Recent Files") { IsEnabled = false });
+            return;
+        }
+
+        foreach (var path in viewModel.RecentSqlFiles)
+        {
+            var item = new NativeMenuItem(Path.GetFileName(path));
+            item.Click += (_, _) => _ = OpenRecentFileAsync(path);
+            menu.Items.Add(item);
+        }
+    }
+
     private void BuildKeyBindings()
     {
+        // The macOS menu bar shows the same gestures, so it rebuilds with them.
+        BuildMacNativeMenu();
+
         KeyBindings.Clear();
         Add(new KeyGesture(Key.Enter, Hotkeys.Command), () => _viewModel?.ActiveTab?.RunCommand);
         Add(new KeyGesture(Key.F5), () => _viewModel?.ActiveTab?.RunCommand);

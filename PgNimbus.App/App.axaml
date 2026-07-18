@@ -11,6 +11,15 @@
     <NativeMenu.Menu>
         <NativeMenu>
             <NativeMenuItem Header="About pgNimbus" Click="OnAboutMenuItemClicked" />
+            <NativeMenuItem Header="pgNimbus on GitHub" Click="OnGitHubMenuItemClicked" />
+            <NativeMenuItemSeparator />
+            <!-- The macOS-standard home for preferences (Cmd+, / "Settings…"
+                 post-Ventura naming); routes to the front main window's
+                 preferences page. Window-scoped menus (File/Query/View/Window)
+                 are built per-window in MainWindow.BuildMacNativeMenu — no Help
+                 menu on purpose: AppKit force-inserts a search field into any
+                 menu named "Help", which searches a help book we don't have. -->
+            <NativeMenuItem Header="Settings…" Click="OnSettingsMenuItemClicked" Gesture="Cmd+OemComma" />
         </NativeMenu>
     </NativeMenu.Menu>
 
