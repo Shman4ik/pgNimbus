@@ -339,7 +339,12 @@ the release pipeline don't pollute the trend history. Three moving parts:
    throughput of a 100k-row mixed-type SELECT, through `QueryEngine`'s
    streaming path (the same API the UI uses). Prints `PGNIMBUS_BENCH
    name=value` lines; config via `PGNIMBUS_BENCH_CONN/ROWS/ITERS`.
-3. **The script** — builds JIT Release, publishes linux-x64 NativeAOT, runs
+3. **The script** — builds JIT Release, publishes linux-x64 NativeAOT (or
+   measures an existing publish dir given via `PGNIMBUS_BENCH_PUBLISH_DIR` —
+   the release pipeline passes build-linux's x64 output through the
+   `publish_artifact` workflow input this way, as a `.tar.gz` because
+   artifact zips drop the exec bit, so the slow AOT publish isn't done
+   twice), runs
    the startup probe N times per mode under Xvfb (one discarded warm-up run,
    then medians), runs the query benchmarks, and writes
    `bench-results/benchmarks.json` (github-action-benchmark
@@ -411,10 +416,12 @@ job so it never publishes). It produces, per tag:
   `pgnimbus`), icons from the `design/masters/icon/` tiles. The NativeAOT
   `*.dbg` symbols side-file is excluded from all three packages. Unsigned,
   like the other direct-download channels.
-- **winget** — the workflow renders (via
+- **winget** — the `build-windows` job renders (via
   [`scripts/winget/render-manifest.sh`](scripts/winget/render-manifest.sh)
   and the templates in `packaging/winget/`) the three manifest files
-  winget requires and validates them with `winget validate`, but does
+  winget requires and validates them with `winget validate` right after
+  building the MSI (same job — the MSI and its SHA256 are already at
+  hand, no separate runner), but does
   **not** submit them anywhere. `winget-pkgs` needs a manual first PR
   (registers the `pgNimbus.pgNimbus` identifier) before any automated
   submission could work — the generated `winget-manifests.zip` release

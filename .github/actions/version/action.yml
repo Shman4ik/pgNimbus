@@ -1,0 +1,35 @@
+name: Determine version
+description: >-
+  Resolves the build version: the tag name (minus the leading v) on a tag
+  push, the explicit workflow_dispatch input when given, else a dev version
+  from the run number. Exports it as $VERSION via GITHUB_ENV and as a step
+  output. Runs inline in each build job so no dedicated "prepare" runner has
+  to boot ahead of them.
+
+inputs:
+  version:
+    description: "Explicit version (no leading v) from workflow_dispatch; empty on tag pushes."
+    required: false
+    default: ""
+
+outputs:
+  version:
+    description: "The resolved version"
+    value: ${{ steps.version.outputs.version }}
+
+runs:
+  using: composite
+  steps:
+    - id: version
+      shell: bash
+      run: |
+        if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+          VERSION="${GITHUB_REF_NAME#v}"
+        elif [[ -n "${{ inputs.version }}" ]]; then
+          VERSION="${{ inputs.version }}"
+        else
+          VERSION="0.0.0-ci.$GITHUB_RUN_NUMBER"
+        fi
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+        echo "Building version $VERSION"

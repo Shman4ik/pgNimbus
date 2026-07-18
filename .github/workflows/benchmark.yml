@@ -19,6 +19,14 @@ on:
         description: "Push results to the gh-pages benchmark history"
         type: boolean
         default: false
+      publish_artifact:
+        description: >-
+          Name of an artifact (from the calling workflow run) holding a
+          prebuilt linux-x64 NativeAOT publish as a .tar.gz; when set, the
+          benchmark script measures it instead of running its own slow AOT
+          publish. release.yml passes build-linux's publish here.
+        type: string
+        default: ""
   workflow_dispatch:
     inputs:
       record_history:
@@ -65,6 +73,22 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq xvfb clang zlib1g-dev
+
+      # Reuse the caller's already-built AOT publish instead of publishing
+      # again (the single slowest step of this job). Tarred by the producer
+      # because artifact zips drop the executable bit.
+      - name: Download prebuilt AOT publish
+        if: inputs.publish_artifact != ''
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.publish_artifact }}
+
+      - name: Unpack prebuilt AOT publish
+        if: inputs.publish_artifact != ''
+        run: |
+          mkdir -p prebuilt-publish
+          tar -xzf publish-linux-x64.tar.gz -C prebuilt-publish
+          echo "PGNIMBUS_BENCH_PUBLISH_DIR=$PWD/prebuilt-publish/linux-x64" >> "$GITHUB_ENV"
 
       - name: Run benchmarks
         run: scripts/benchmarks/run-benchmarks.sh
