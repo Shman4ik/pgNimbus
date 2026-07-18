@@ -72,7 +72,7 @@ winget install pgNimbus --source msstore
 Grab `pgNimbus-<version>-win-x64.msi` from [Releases](https://github.com/Shman4ik/pgNimbus/releases) — a per-user installer, no admin rights needed.
 
 > [!NOTE]
-> The direct MSI is unsigned, so SmartScreen will warn on first run — click **More info → Run anyway**, or prefer the Store/WinGet path above.
+> The direct MSI is unsigned, so SmartScreen will warn on first run — click **More info → Run anyway**, or prefer the Store/WinGet path above. You can still [verify where the file came from](#verifying-a-download).
 
 ### macOS (early beta)
 
@@ -104,6 +104,16 @@ x64 and arm64 builds from [Releases](https://github.com/Shman4ik/pgNimbus/releas
 - **tar.gz** — unpack anywhere and run `./PgNimbus.App`.
 
 Every `vX.Y.Z` tag builds all of the above via [`release.yml`](.github/workflows/release.yml).
+
+### Verifying a download
+
+The direct-download builds are unsigned, but every release asset carries [signed build provenance](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations) — one command proves a file was built by this repo's release workflow from the tagged commit, not tampered with or rehosted:
+
+```bash
+gh attestation verify pgNimbus-<version>-win-x64.msi --repo Shman4ik/pgNimbus
+```
+
+Each release also ships `SHA256SUMS.txt` and a CycloneDX SBOM (`pgNimbus-<version>-sbom.cdx.json`) listing every bundled dependency.
 
 ## 🚀 Quick Start
 
