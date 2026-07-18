@@ -768,9 +768,15 @@
                     </Border>
 
                 <Grid>
+                    <!-- Background must stay set (Transparent is enough): a
+                         null background makes the grid's empty area — below
+                         the last row, right of the last column — miss hit
+                         testing, so wheel events there bypass the DataGrid's
+                         own scroll handling entirely. -->
                     <DataGrid Name="ResultsGrid"
                               IsVisible="{Binding !ActiveTab.IsShowingPlan}"
                               IsReadOnly="{Binding !ActiveTab.IsEditable}"
+                              Background="Transparent"
                               CanUserReorderColumns="False"
                               CanUserSortColumns="True"
                               SelectionMode="Extended"
