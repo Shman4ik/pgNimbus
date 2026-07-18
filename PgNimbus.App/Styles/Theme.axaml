@@ -521,6 +521,25 @@
         <Setter Property="Background" Value="{StaticResource HoverBackgroundBrush}" />
         <Setter Property="Opacity" Value="1" />
     </Style>
+    <!-- The command bar's centered palette opener (VS Code-style search pill):
+         a quiet card-toned capsule that reads as a search field but is a
+         Button. Hover is pinned at the template part - Fluent repaints
+         PART_ContentPresenter's background on :pointerover otherwise. -->
+    <Style Selector="Button.searchpill">
+        <Setter Property="Background" Value="{StaticResource CardBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource ControlCornerRadius}" />
+        <Setter Property="Padding" Value="10,0" />
+        <Setter Property="MinHeight" Value="24" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.searchpill:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource HoverBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}" />
+    </Style>
+
     <!-- Checked state for chip-styled ToggleButtons (e.g. cell inspector's Wrap
          toggle): the app's brand-blue selection wash, same as the toolbar toggle.
          Fluent paints the checked fill on PART_ContentPresenter via its ControlTheme,

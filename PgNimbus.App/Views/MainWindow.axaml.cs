@@ -356,6 +356,10 @@ public partial class MainWindow : Window
         MenuSaveFileAs.InputGesture = new KeyGesture(Key.S, Hotkeys.Command | KeyModifiers.Shift);
         MenuCloseTab.InputGesture = new KeyGesture(Key.W, Hotkeys.Command);
 
+        // And the search pill's caption (the palette itself opens from
+        // OnKeyDown, which reads Hotkeys.Command live).
+        PaletteSearchShortcut.Text = Hotkeys.Label("K");
+
         void Add(KeyGesture gesture, Func<System.Windows.Input.ICommand?> resolve) =>
             KeyBindings.Add(new KeyBinding { Gesture = gesture, Command = new DelegatedCommand(resolve) });
     }
@@ -2623,6 +2627,9 @@ public partial class MainWindow : Window
     }
 
     // A press on the scrim (but not the card) dismisses the palette.
+    /// <summary>The command bar's centered search pill — same target as Ctrl+K / Ctrl+P.</summary>
+    private void OnPaletteSearchButtonClick(object? sender, RoutedEventArgs e) => OpenCommandPalette();
+
     private void OnPaletteScrimPressed(object? sender, PointerPressedEventArgs e) =>
         _viewModel?.CommandPalette.CloseCommand.Execute(null);
 
