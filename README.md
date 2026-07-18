@@ -49,6 +49,10 @@ pgNimbus delivers HeidiSQL's speed with TablePlus's polish — **PostgreSQL-firs
 | --- | --- |
 | ![pgNimbus launching from a cold NativeAOT process to a fully rendered main window in well under a second](docs/screenshots/cold-start.gif) | ![Typing FROM + a partial table name, JOIN with an FK-ranked table suggestion, then ON auto-completing the full join condition](docs/screenshots/completion-demo.gif) |
 
+| Startup race: pgNimbus vs. pgAdmin | Safe mode: stage edits, commit as one transaction |
+| --- | --- |
+| ![Side-by-side race from a cold start: pgNimbus is already showing query results while pgAdmin's splash screen is still waiting to launch](docs/screenshots/startup-race-reel.gif) | ![Editing cells across two tabs in safe mode, then committing both staged changes together in a single transaction](docs/screenshots/safe-mode-commit-demo.gif) |
+
 ## 📦 Installation
 
 ### Microsoft Store (recommended)
@@ -166,7 +170,7 @@ dotnet run --project PgNimbus.App
 
 | EXPLAIN ANALYZE visualization | Command palette (Ctrl+K) |
 | --- | --- |
-| ![Graphical EXPLAIN ANALYZE plan tree with per-node cost and timing](docs/screenshots/explain-visualization.png) | ![Command palette fuzzy-jumping to a table](docs/screenshots/command-palette.png) |
+| ![Raw EXPLAIN ANALYZE text next to the graphical plan tree pgNimbus renders from it, with per-node cost and actual timing](docs/screenshots/explain-tree-demo.gif) | ![Command palette fuzzy-jumping to a table](docs/screenshots/command-palette.png) |
 
 | Server activity (pg_stat_activity) | Connection manager |
 | --- | --- |

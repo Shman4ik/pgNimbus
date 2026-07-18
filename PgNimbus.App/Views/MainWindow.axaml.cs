@@ -58,6 +58,11 @@ public partial class MainWindow : Window
     // to open - kept in sync by every press, not just the one that opens it.
     private object?[]? _lastPressedRow;
     private int _lastPressedColumnIndex;
+    // True while a cell editor is open in the results grid, so the Space
+    // quick-peek (OnResultsGridKeyDown) never fires while the editor owns the
+    // space bar - a TextBox doesn't mark Space's KeyDown handled, it inserts
+    // the space on TextInput, so the key would otherwise bubble up here.
+    private bool _isCellEditing;
     private readonly BracketHighlightRenderer _bracketRenderer;
 
     private const double MinEditorFontSize = 8;
@@ -1077,6 +1082,8 @@ public partial class MainWindow : Window
 
     private void OnPreparingCellForEdit(object? sender, DataGridPreparingCellForEditEventArgs e)
     {
+        _isCellEditing = true;
+
         // NULL cells display a "NULL" placeholder through the column's
         // converter - which also pre-fills the cell editor. Clear it so
         // committing an untouched editor can't turn SQL NULL into the
@@ -1140,6 +1147,8 @@ public partial class MainWindow : Window
 
     private async void OnCellEditEnded(object? sender, DataGridCellEditEndedEventArgs e)
     {
+        _isCellEditing = false;
+
         var row = _pendingEditRow;
         var columnIndex = _pendingEditColumnIndex;
         var text = _pendingEditText;
@@ -1634,6 +1643,21 @@ public partial class MainWindow : Window
             return;
         }
 
+        // Space quick-peeks the current cell in the inspector (TablePlus-style
+        // Quick Look): the fast no-menu path that also works in editable grids,
+        // where double-click means "edit" instead. Guarded off while a cell
+        // editor is open - the editor owns the space bar there.
+        if (e.Key == Key.Space && e.KeyModifiers == KeyModifiers.None && !_isCellEditing)
+        {
+            if (ResultsGrid.SelectedItem is object?[] currentRow && ResultsGrid.CurrentColumn is { } currentColumn)
+            {
+                OpenCellInspector(currentRow, currentColumn.DisplayIndex);
+                e.Handled = true;
+            }
+
+            return;
+        }
+
         // Delete key removes selected rows, but only for an editable result set
         // and never while a cell is being edited (let the editor keep the key).
         if (e.Key == Key.Delete && _queryViewModel is { IsEditable: true } && !ResultsGrid.IsReadOnly)
@@ -1647,11 +1671,19 @@ public partial class MainWindow : Window
     }
 
     // Tracks the last-pressed cell for "Inspect cell…" (the context menu click
-    // carries no cell of its own), and opens the inspector immediately on a
-    // double-click - the discoverable, no-menu path to the same place.
+    // carries no cell of its own). Double-click is the cell's default action,
+    // and it depends on the grid's mode: an editable (browse) grid lets the
+    // DataGrid's own gesture begin the inline edit - opening the inspector too
+    // used to race it and land on either one unpredictably - while a read-only
+    // result set (nothing to edit) opens the inspector, the discoverable
+    // no-menu path to the full value. Space quick-peeks in both modes (see
+    // OnResultsGridKeyDown).
     private void OnResultsGridCellPointerPressed(object? sender, DataGridCellPointerPressedEventArgs e)
     {
-        if (e.Row.DataContext is not object?[] row)
+        // e.Column is null when the press lands off a real cell (the filler
+        // column past the last one, or the empty area below the rows) - nothing
+        // to inspect there, so bail before dereferencing it.
+        if (e.Row.DataContext is not object?[] row || e.Column is null)
         {
             return;
         }
@@ -1659,7 +1691,7 @@ public partial class MainWindow : Window
         _lastPressedRow = row;
         _lastPressedColumnIndex = e.Column.DisplayIndex;
 
-        if (e.PointerPressedEventArgs.ClickCount == 2)
+        if (e.PointerPressedEventArgs.ClickCount == 2 && ResultsGrid.IsReadOnly)
         {
             OpenCellInspector(row, e.Column.DisplayIndex);
         }
