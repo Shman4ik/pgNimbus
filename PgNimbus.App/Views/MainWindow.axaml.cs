@@ -2829,7 +2829,7 @@ public partial class MainWindow : Window
 
             ResultsGrid.Columns.Add(new ResultTextColumn(i, editorMeta)
             {
-                Header = query.ColumnNames[i],
+                Header = CreateColumnHeader(query.ColumnNames[i], query.ColumnTypeName(i), editorMeta),
                 // Avalonia 12's DataGrid infers "read-only" from a column's
                 // binding path — and a pathless converter binding (the
                 // AOT-safe pattern used here) has none, which silently made
@@ -2856,5 +2856,82 @@ public partial class MainWindow : Window
                 MaxWidth = 560,
             });
         }
+    }
+
+    // A results-grid column header: the type-family icon (when the type has one)
+    // plus the column name, with a tooltip carrying the full type, its family,
+    // and — in browse mode, where the table's real columns are known — its
+    // primary-key / not-null flags. The type name comes from the wire protocol so
+    // every result set gets the icon, not just editable ones.
+    private static Control CreateColumnHeader(string name, string? typeName, ColumnDetail? meta)
+    {
+        // Prefer the browse-mode format_type spelling ("numeric(12,2)") when known;
+        // fall back to the wire name ("numeric") for arbitrary queries.
+        var richType = meta?.DataType ?? typeName;
+
+        var panel = new StackPanel
+        {
+            Orientation = Avalonia.Layout.Orientation.Horizontal,
+            Spacing = 5,
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+        };
+
+        if (Converters.PgTypeVisuals.Icon(richType) is { } icon)
+        {
+            panel.Children.Add(new PathIcon
+            {
+                Data = icon,
+                Width = 11,
+                Height = 11,
+                Opacity = 0.5,
+                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+            });
+        }
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = name,
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+        });
+
+        if (BuildHeaderTooltip(richType, meta) is { } tip)
+        {
+            ToolTip.SetTip(panel, tip);
+            ToolTip.SetShowDelay(panel, 300);
+        }
+
+        return panel;
+    }
+
+    private static string? BuildHeaderTooltip(string? typeName, ColumnDetail? meta)
+    {
+        if (string.IsNullOrEmpty(typeName))
+        {
+            return null;
+        }
+
+        var family = Converters.PgTypeVisuals.Label(typeName);
+        var text = string.IsNullOrEmpty(family) ? typeName : $"{typeName}  ·  {family}";
+
+        if (meta is not null)
+        {
+            var flags = new System.Collections.Generic.List<string>(2);
+            if (meta.IsPrimaryKey)
+            {
+                flags.Add("primary key");
+            }
+
+            if (meta.NotNull)
+            {
+                flags.Add("not null");
+            }
+
+            if (flags.Count > 0)
+            {
+                text += "\n" + string.Join("  ·  ", flags);
+            }
+        }
+
+        return text;
     }
 }

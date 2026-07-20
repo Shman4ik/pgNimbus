@@ -206,6 +206,15 @@ public sealed partial class QueryViewModel : ObservableObject
     public ObservableCollection<string> ColumnNames { get; } = [];
 
     /// <summary>
+    /// The Postgres type name of result column <paramref name="index"/> (as the
+    /// wire protocol reports it — "jsonb", "integer[]", "timestamp with time
+    /// zone", …), or null when out of range. Available for every result set, not
+    /// just editable ones, so the grid can show a type-family icon per column.
+    /// </summary>
+    public string? ColumnTypeName(int index) =>
+        index >= 0 && index < _columns.Count ? _columns[index].DataTypeName : null;
+
+    /// <summary>
     /// The grid's rows. Replaced wholesale (a fresh list instance) rather than
     /// mutated in bulk: the DataGrid's CollectionChanged handling costs
     /// ~200 µs per row whether the change arrives as per-item Adds, a range
