@@ -38,6 +38,8 @@
                 </StackPanel.ContextMenu>
                 <TextBlock Text="{Binding Glyph}" />
                 <TextBlock Text="{Binding Name}" />
+                <!-- Dim on-disk size hint (heap + indexes + TOAST); blank for views/partitioned parents -->
+                <TextBlock Text="{Binding SizeText}" Opacity="0.5" FontSize="11" VerticalAlignment="Center" />
             </StackPanel>
         </DataTemplate>
         <DataTemplate DataType="vm:ColumnNode">

@@ -1,0 +1,116 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:PgNimbus.App.ViewModels"
+        x:Class="PgNimbus.App.Views.DatabaseOverviewWindow"
+        x:DataType="vm:DatabaseOverviewViewModel"
+        Title="pgNimbus — Database Overview"
+        Width="960" Height="600"
+        MinWidth="720" MinHeight="360"
+        WindowStartupLocation="CenterOwner"
+        FontFamily="{StaticResource InterFont}">
+
+    <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="12">
+
+        <!-- Toolbar -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="6" Margin="0,0,0,10">
+            <Button Classes="toolbar" Command="{Binding RefreshCommand}" ToolTip.Tip="Re-snapshot the statistics">
+                <StackPanel Orientation="Horizontal" Spacing="7">
+                    <PathIcon Data="{StaticResource RefreshIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
+                    <TextBlock Text="Refresh" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+        </StackPanel>
+
+        <!-- Summary stats -->
+        <Border Grid.Row="1" Background="{StaticResource CardBackgroundBrush}"
+                BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
+                CornerRadius="{StaticResource CardCornerRadius}" Padding="16,12" Margin="0,0,0,10">
+            <StackPanel Orientation="Horizontal" Spacing="36">
+                <StackPanel Spacing="2">
+                    <TextBlock Text="DATABASE" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding DatabaseName}" FontSize="16" FontWeight="SemiBold" />
+                </StackPanel>
+                <StackPanel Spacing="2">
+                    <TextBlock Text="SIZE ON DISK" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding DatabaseSizeText}" FontSize="16" FontWeight="SemiBold" />
+                </StackPanel>
+                <StackPanel Spacing="2" ToolTip.Tip="Fraction of table block reads served from shared_buffers rather than disk">
+                    <TextBlock Text="TABLE CACHE HIT" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding TableCacheHitText}" FontSize="16" FontWeight="SemiBold" />
+                </StackPanel>
+                <StackPanel Spacing="2" ToolTip.Tip="Fraction of index block reads served from shared_buffers rather than disk">
+                    <TextBlock Text="INDEX CACHE HIT" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding IndexCacheHitText}" FontSize="16" FontWeight="SemiBold" />
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <TabControl Grid.Row="2">
+            <TabItem Header="Largest relations">
+                <DataGrid ItemsSource="{Binding LargestRelations}" IsReadOnly="True" SelectionMode="Single"
+                          CanUserResizeColumns="True" CanUserSortColumns="False"
+                          GridLinesVisibility="Horizontal" HeadersVisibility="Column">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Schema" Binding="{Binding Schema}" Width="120" />
+                        <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*" />
+                        <DataGridTextColumn Header="Kind" Binding="{Binding Kind}" Width="100" />
+                        <DataGridTextColumn Header="Rows (est.)" Binding="{Binding Rows}" Width="110" />
+                        <DataGridTextColumn Header="Table" Binding="{Binding TableSize}" Width="100" />
+                        <DataGridTextColumn Header="Indexes" Binding="{Binding IndexSize}" Width="100" />
+                        <DataGridTextColumn Header="Total" Binding="{Binding Total}" Width="110" />
+                    </DataGrid.Columns>
+                </DataGrid>
+            </TabItem>
+
+            <TabItem Header="Scans (seq vs index)">
+                <DataGrid ItemsSource="{Binding TableScans}" IsReadOnly="True" SelectionMode="Single"
+                          CanUserResizeColumns="True" CanUserSortColumns="False"
+                          GridLinesVisibility="Horizontal" HeadersVisibility="Column">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Schema" Binding="{Binding Schema}" Width="120" />
+                        <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*" />
+                        <DataGridTextColumn Header="Seq scans" Binding="{Binding SeqScan}" Width="110" />
+                        <DataGridTextColumn Header="Index scans" Binding="{Binding IdxScan}" Width="110" />
+                        <DataGridTemplateColumn Header="Index %" Width="90">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate x:DataType="vm:TableScanRow">
+                                    <Panel Margin="12,0">
+                                        <!-- A big table read mostly sequentially is worth spotting - amber + bold -->
+                                        <TextBlock Text="{Binding IndexScanPercent}" VerticalAlignment="Center"
+                                                   Foreground="#E5A50A" FontWeight="SemiBold"
+                                                   IsVisible="{Binding IsSeqScanHeavy}" />
+                                        <TextBlock Text="{Binding IndexScanPercent}" VerticalAlignment="Center"
+                                                   IsVisible="{Binding !IsSeqScanHeavy}" />
+                                    </Panel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="Live rows" Binding="{Binding LiveRows}" Width="110" />
+                        <DataGridTextColumn Header="Dead rows" Binding="{Binding DeadRows}" Width="110" />
+                    </DataGrid.Columns>
+                </DataGrid>
+            </TabItem>
+
+            <TabItem Header="Unused indexes">
+                <Grid RowDefinitions="*,Auto">
+                    <DataGrid Grid.Row="0" ItemsSource="{Binding UnusedIndexes}" IsReadOnly="True" SelectionMode="Single"
+                              CanUserResizeColumns="True" CanUserSortColumns="False"
+                              GridLinesVisibility="Horizontal" HeadersVisibility="Column">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Schema" Binding="{Binding Schema}" Width="120" />
+                            <DataGridTextColumn Header="Table" Binding="{Binding Table}" Width="200" />
+                            <DataGridTextColumn Header="Index" Binding="{Binding Name}" Width="*" />
+                            <DataGridTextColumn Header="Size" Binding="{Binding Size}" Width="110" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <TextBlock Grid.Row="1" Margin="4,8,4,0" FontSize="11" Opacity="0.6"
+                               Text="Never scanned since the last stats reset. Unique and primary-key indexes are excluded — they enforce constraints regardless of scans." />
+                </Grid>
+            </TabItem>
+        </TabControl>
+
+        <TextBlock Grid.Row="3" Text="{Binding Status}" FontSize="11" Opacity="0.7" Margin="2,8,2,0" />
+
+    </Grid>
+
+</Window>

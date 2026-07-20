@@ -12,7 +12,13 @@ public enum RelationKind
     PartitionedTable,
 }
 
-public sealed record TableInfo(string Name, RelationKind Kind);
+/// <summary>
+/// A relation in a schema. <paramref name="TotalBytes"/> is
+/// <c>pg_total_relation_size</c> (heap + indexes + TOAST) for stored relations
+/// (ordinary tables and materialized views); null for views and partitioned
+/// parents, which have no meaningful own-storage size to show in the tree.
+/// </summary>
+public sealed record TableInfo(string Name, RelationKind Kind, long? TotalBytes = null);
 
 public sealed record RelationInfo(string Schema, string Name, RelationKind Kind);
 
@@ -103,8 +109,14 @@ public sealed class SchemaService
 
     public async Task<IReadOnlyList<TableInfo>> GetTablesAsync(string schema, CancellationToken ct)
     {
+        // Size only for relations with their own storage (ordinary tables and
+        // matviews). Views have none; a partitioned parent's own size is 0 and
+        // pg_total_relation_size doesn't sum its partitions, so showing it would
+        // mislead — leave both null and render no size in the tree.
         const string sql = """
-            SELECT c.relname, c.relkind::text
+            SELECT c.relname, c.relkind::text,
+                   CASE WHEN c.relkind IN ('r', 'm')
+                        THEN pg_catalog.pg_total_relation_size(c.oid) END
             FROM pg_catalog.pg_class c
             JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
             WHERE n.nspname = @schema
@@ -129,7 +141,10 @@ public sealed class SchemaService
                 _ => RelationKind.Table,
             };
 
-            results.Add(new TableInfo(reader.GetString(0), kind));
+            results.Add(new TableInfo(
+                reader.GetString(0),
+                kind,
+                reader.IsDBNull(2) ? null : reader.GetInt64(2)));
         }
 
         return results;

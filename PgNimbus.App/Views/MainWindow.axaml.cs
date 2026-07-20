@@ -384,6 +384,7 @@ public partial class MainWindow : Window
                 new NativeMenuItemSeparator(),
                 CommandItem("Refresh Schema", () => _viewModel?.RefreshSchemaCommand, new KeyGesture(Key.R, cmd | KeyModifiers.Shift)),
                 CommandItem("Server Activity…", () => _viewModel?.ShowActivityCommand),
+                CommandItem("Database Overview…", () => _viewModel?.ShowDatabaseOverviewCommand),
             },
         };
 
@@ -694,6 +695,7 @@ public partial class MainWindow : Window
             _viewModel.ExpandStarRequested -= ExpandSelectStar;
             _viewModel.FindRequested -= OpenSearchPanel;
             _viewModel.ActivityRequested -= ShowActivityWindow;
+            _viewModel.DatabaseOverviewRequested -= ShowDatabaseOverviewWindow;
             _viewModel.SidebarToggleRequested -= ToggleSidebar;
             _viewModel.PreferencesRequested -= ShowPreferencesWindow;
             _viewModel.OpenFileRequested -= OnOpenFileRequested;
@@ -712,6 +714,7 @@ public partial class MainWindow : Window
         _viewModel.ExpandStarRequested += ExpandSelectStar;
         _viewModel.FindRequested += OpenSearchPanel;
         _viewModel.ActivityRequested += ShowActivityWindow;
+        _viewModel.DatabaseOverviewRequested += ShowDatabaseOverviewWindow;
         _viewModel.SidebarToggleRequested += ToggleSidebar;
         _viewModel.PreferencesRequested += ShowPreferencesWindow;
         _viewModel.OpenFileRequested += OnOpenFileRequested;
@@ -1270,6 +1273,22 @@ public partial class MainWindow : Window
         _activityWindow = new ActivityWindow { DataContext = _viewModel?.Activity };
         _activityWindow.Closed += (_, _) => _activityWindow = null;
         _activityWindow.Show(this);
+    }
+
+    private DatabaseOverviewWindow? _databaseOverviewWindow;
+
+    // One live instance, like the activity window: reopening focuses it.
+    private void ShowDatabaseOverviewWindow()
+    {
+        if (_databaseOverviewWindow is not null)
+        {
+            _databaseOverviewWindow.Activate();
+            return;
+        }
+
+        _databaseOverviewWindow = new DatabaseOverviewWindow { DataContext = _viewModel?.DatabaseOverview };
+        _databaseOverviewWindow.Closed += (_, _) => _databaseOverviewWindow = null;
+        _databaseOverviewWindow.Show(this);
     }
 
     private void OnRemoveChannelClick(object? sender, RoutedEventArgs e)

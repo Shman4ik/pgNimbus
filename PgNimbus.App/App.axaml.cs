@@ -228,6 +228,7 @@ public partial class App : Application
         var schemaEditor = new SchemaEditor(dataSource);
         var ddlService = new DdlService(dataSource);
         var activityService = new ActivityService(dataSource);
+        var databaseStatsService = new DatabaseStatsService(dataSource);
         var importService = new ImportService(dataSource);
         var schemaTree = new SchemaTreeViewModel(
             schemaService,
@@ -247,7 +248,7 @@ public partial class App : Application
         var workspaceKey = string.IsNullOrEmpty(connectionHost) ? null : $"{connectionHost}/{connectionDatabase}";
 
         var viewModel = new MainViewModel(
-            engine, explainService, schemaTree, schemaService, schemaEditor, ddlService, completionProvider, notifyMonitor, activityService, importService,
+            engine, explainService, schemaTree, schemaService, schemaEditor, ddlService, completionProvider, notifyMonitor, activityService, databaseStatsService, importService,
             accentColor,
             connectionHost: connectionHost,
             connectionDatabase: connectionDatabase,

@@ -30,6 +30,9 @@ public sealed partial class MainViewModel : ObservableObject
     /// <summary>Backs the Server Activity window (pg_stat_activity live view).</summary>
     public ActivityViewModel Activity { get; }
 
+    /// <summary>Backs the Database Overview window (sizes, cache-hit, scan usage, unused indexes).</summary>
+    public DatabaseOverviewViewModel DatabaseOverview { get; }
+
     /// <summary>COPY-based CSV/JSON loader behind the Import dialog (the view constructs the dialog's ViewModel from it).</summary>
     public ImportService Importer { get; }
 
@@ -58,6 +61,8 @@ public sealed partial class MainViewModel : ObservableObject
     public event Action<bool>? FindRequested;
     // Raised to open (or focus) the Server Activity window, which the view owns.
     public event Action? ActivityRequested;
+    // Raised to open (or focus) the Database Overview window, which the view owns.
+    public event Action? DatabaseOverviewRequested;
     // Raised to collapse/restore the sidebar (the view owns the grid column).
     public event Action? SidebarToggleRequested;
     // Raised to open (or focus) the preferences window, which the view owns.
@@ -120,6 +125,9 @@ public sealed partial class MainViewModel : ObservableObject
 
     [RelayCommand]
     private void ShowActivity() => ActivityRequested?.Invoke();
+
+    [RelayCommand]
+    private void ShowDatabaseOverview() => DatabaseOverviewRequested?.Invoke();
 
     // Relations rarely change mid-session, so the palette's "jump to a table"
     // list is fetched once and reused across opens.
@@ -240,6 +248,7 @@ public sealed partial class MainViewModel : ObservableObject
         SqlCompletionProvider completionProvider,
         NotifyMonitorViewModel notifyMonitor,
         ActivityService activityService,
+        DatabaseStatsService databaseStatsService,
         ImportService importService,
         string? accentColor = null,
         string connectionHost = "",
@@ -285,6 +294,7 @@ public sealed partial class MainViewModel : ObservableObject
             () => string.IsNullOrEmpty(ConnectionHost) ? null : $"{ConnectionHost}/{ConnectionDatabase}");
         NotifyMonitor = notifyMonitor;
         Activity = new ActivityViewModel(activityService);
+        DatabaseOverview = new DatabaseOverviewViewModel(databaseStatsService);
         Importer = importService;
         AccentColor = accentColor;
 
@@ -702,6 +712,7 @@ public sealed partial class MainViewModel : ObservableObject
         yield return new PaletteItem("Rollback transaction", "Action", "↺", Invoke(() => RollbackTransactionCommand));
         yield return new PaletteItem("Refresh database & schema", "Action", "⟳", Invoke(() => RefreshSchemaCommand), Hotkeys.Label("Shift+R"));
         yield return new PaletteItem("Server activity", "Action", "∿", () => { ActivityRequested?.Invoke(); return Task.CompletedTask; });
+        yield return new PaletteItem("Database overview (sizes, cache hit, unused indexes)", "Action", "▦", () => { DatabaseOverviewRequested?.Invoke(); return Task.CompletedTask; });
         yield return new PaletteItem("New query tab", "Action", "＋", Invoke(() => AddTabCommand), Hotkeys.Label("T"));
         yield return new PaletteItem("Close tab", "Action", "✕", Invoke(() => CloseTabCommand), Hotkeys.Label("W"));
         yield return new PaletteItem("Next tab", "Action", "›", Invoke(() => NextTabCommand), Hotkeys.Label("PgDn"));
