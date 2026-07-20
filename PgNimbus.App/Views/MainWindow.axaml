@@ -48,6 +48,11 @@
                     <PathIcon Data="{StaticResource KeyIconGeometry}" Width="12" Height="12" IsVisible="{Binding IsPrimaryKey}" />
                 </Panel>
                 <TextBlock Text="{Binding Name}" />
+                <!-- Category icon (numeric/text/date/json…) — one glyph per type family -->
+                <PathIcon Data="{Binding DataType, Converter={x:Static conv2:PgTypeIconConverter.Instance}}"
+                          Width="11" Height="11" Opacity="0.5" VerticalAlignment="Center"
+                          ToolTip.Tip="{Binding DataType, Converter={x:Static conv2:PgTypeLabelConverter.Instance}}"
+                          ToolTip.ShowDelay="300" />
                 <!-- Abbreviated type (timestamptz, varchar…) with the full name on a brief hover -->
                 <TextBlock Text="{Binding DataTypeShort}" Opacity="0.6" FontSize="11" VerticalAlignment="Center"
                            ToolTip.Tip="{Binding FullTypeTip}" ToolTip.ShowDelay="150" />
