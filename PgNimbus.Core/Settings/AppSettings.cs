@@ -26,6 +26,13 @@ public sealed record AppSettings
     public bool ShowAdvancedSchemaObjects { get; set; }
 
     /// <summary>
+    /// Whether the schema sidebar shows each relation's on-disk size as a dim
+    /// hint next to its name. Off by default — it's an occasional need, not
+    /// something worth cluttering every row with all the time.
+    /// </summary>
+    public bool ShowSchemaSizes { get; set; }
+
+    /// <summary>
     /// Whether accepting a table from completion after FROM/JOIN also appends a
     /// short alias (<c>public.orders</c> → <c>public.orders o</c>), so the
     /// <c>o.</c> member-access flow is available immediately. On by default;

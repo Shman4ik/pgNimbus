@@ -6,11 +6,13 @@ public sealed class SchemaNode : SchemaTreeNode
 {
     private readonly SchemaService _schemaService;
     private readonly Func<bool> _showFunctions;
+    private readonly Func<bool> _showSizes;
 
-    public SchemaNode(SchemaService schemaService, string name, Func<bool> showFunctions)
+    public SchemaNode(SchemaService schemaService, string name, Func<bool> showFunctions, Func<bool> showSizes)
     {
         _schemaService = schemaService;
         _showFunctions = showFunctions;
+        _showSizes = showSizes;
         Name = name;
         MarkExpandable();
     }
@@ -18,7 +20,7 @@ public sealed class SchemaNode : SchemaTreeNode
     protected override async Task<IReadOnlyList<SchemaTreeNode>> FetchChildrenAsync()
     {
         var tables = await _schemaService.GetTablesAsync(Name, CancellationToken.None);
-        var children = tables.Select(t => (SchemaTreeNode)new TableNode(_schemaService, Name, t.Name, t.Kind, t.TotalBytes)).ToList();
+        var children = tables.Select(t => (SchemaTreeNode)new TableNode(_schemaService, Name, t.Name, t.Kind, t.TotalBytes, _showSizes)).ToList();
         if (_showFunctions())
         {
             // Functions live in a sub-group so a schema with many of them doesn't drown its tables.

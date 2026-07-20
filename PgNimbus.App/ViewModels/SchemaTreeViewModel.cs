@@ -9,6 +9,7 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
 {
     private readonly SchemaService _schemaService;
     private readonly Action<bool>? _persistShowAdvanced;
+    private readonly Action<bool>? _persistShowSizes;
 
     [ObservableProperty]
     private bool _isLoading;
@@ -54,13 +55,44 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
     [ObservableProperty]
     private bool _showAdvancedObjects;
 
+    /// <summary>
+    /// The sidebar's "show sizes" toggle. Off by default — when on, each table
+    /// and matview row carries a dim on-disk size hint. Purely a display switch:
+    /// the sizes are already fetched with the tree, so flipping it never costs a
+    /// catalog query, just re-renders the loaded rows.
+    /// </summary>
+    [ObservableProperty]
+    private bool _showSizes;
+
     public ObservableCollection<SchemaTreeNode> Schemas { get; } = [];
 
-    public SchemaTreeViewModel(SchemaService schemaService, bool showAdvancedObjects = false, Action<bool>? persistShowAdvanced = null)
+    public SchemaTreeViewModel(
+        SchemaService schemaService,
+        bool showAdvancedObjects = false,
+        Action<bool>? persistShowAdvanced = null,
+        bool showSizes = false,
+        Action<bool>? persistShowSizes = null)
     {
         _schemaService = schemaService;
         _showAdvancedObjects = showAdvancedObjects;
         _persistShowAdvanced = persistShowAdvanced;
+        _showSizes = showSizes;
+        _persistShowSizes = persistShowSizes;
+    }
+
+    partial void OnShowSizesChanged(bool value)
+    {
+        _persistShowSizes?.Invoke(value);
+
+        // Sizes ride along with the tree already, so flipping the toggle just
+        // re-renders the loaded rows in place — no refetch.
+        foreach (var schema in Schemas.OfType<SchemaNode>())
+        {
+            foreach (var table in schema.Children.OfType<TableNode>())
+            {
+                table.NotifySizeVisibilityChanged();
+            }
+        }
     }
 
     partial void OnShowAdvancedObjectsChanged(bool value)
@@ -174,7 +206,7 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
             Schemas.Clear();
             foreach (var schema in schemas)
             {
-                Schemas.Add(new SchemaNode(_schemaService, schema.Name, () => ShowAdvancedObjects));
+                Schemas.Add(new SchemaNode(_schemaService, schema.Name, () => ShowAdvancedObjects, () => ShowSizes));
             }
 
             // Server-wide groups after the schemas, both lazily loaded.
