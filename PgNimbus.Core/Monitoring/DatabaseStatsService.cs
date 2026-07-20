@@ -103,9 +103,13 @@ public sealed class DatabaseStatsService
             reader.IsDBNull(3) ? null : reader.GetDouble(3));
     }
 
-    /// <summary>The <paramref name="limit"/> largest tables/matviews/partitioned tables by total size, biggest first.</summary>
+    /// <summary>The <paramref name="limit"/> largest tables/matviews by total size, biggest first.</summary>
     public async Task<IReadOnlyList<RelationSize>> GetLargestRelationsAsync(int limit, CancellationToken ct)
     {
+        // Ordinary tables and matviews only — a partitioned parent's own
+        // pg_total_relation_size is ~0 (it doesn't sum its partitions), so
+        // listing it would mislead. Its data-holding partitions are ordinary
+        // 'r' tables and show up individually. Mirrors SchemaService.GetTablesAsync.
         const string sql = """
             SELECT n.nspname, c.relname, c.relkind::text,
                    pg_catalog.pg_total_relation_size(c.oid),
@@ -115,7 +119,7 @@ public sealed class DatabaseStatsService
             FROM pg_catalog.pg_class c
             JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
             LEFT JOIN pg_catalog.pg_stat_user_tables s ON s.relid = c.oid
-            WHERE c.relkind IN ('r', 'm', 'p')
+            WHERE c.relkind IN ('r', 'm')
               AND n.nspname NOT LIKE 'pg\_%'
               AND n.nspname <> 'information_schema'
             ORDER BY pg_catalog.pg_total_relation_size(c.oid) DESC, n.nspname, c.relname
@@ -130,12 +134,7 @@ public sealed class DatabaseStatsService
         var results = new List<RelationSize>();
         while (await reader.ReadAsync(ct))
         {
-            var kind = reader.GetString(2) switch
-            {
-                "m" => RelationKind.MaterializedView,
-                "p" => RelationKind.PartitionedTable,
-                _ => RelationKind.Table,
-            };
+            var kind = reader.GetString(2) == "m" ? RelationKind.MaterializedView : RelationKind.Table;
 
             results.Add(new RelationSize(
                 reader.GetString(0),
@@ -185,8 +184,9 @@ public sealed class DatabaseStatsService
 
     /// <summary>
     /// Non-constraint indexes that have never been used since the last stats
-    /// reset, largest first — the ones worth dropping. Unique and primary-key
-    /// indexes are excluded: they exist to enforce constraints, not to be scanned.
+    /// reset, largest first — the ones worth dropping. Unique, primary-key, and
+    /// exclusion-constraint indexes are excluded: they exist to enforce a
+    /// constraint, not to be scanned, so a zero scan count doesn't make them dead.
     /// </summary>
     public async Task<IReadOnlyList<UnusedIndex>> GetUnusedIndexesAsync(CancellationToken ct)
     {
@@ -198,6 +198,7 @@ public sealed class DatabaseStatsService
             WHERE COALESCE(s.idx_scan, 0) = 0
               AND NOT i.indisunique
               AND NOT i.indisprimary
+              AND NOT i.indisexclusion
             ORDER BY pg_catalog.pg_relation_size(s.indexrelid) DESC, s.indexrelname
             """;
 

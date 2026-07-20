@@ -107,32 +107,44 @@ public sealed partial class DatabaseOverviewViewModel : ObservableObject
         _service = service;
     }
 
-    [RelayCommand]
-    private async Task RefreshAsync()
+    // AllowConcurrentExecutions = false disables the Refresh button while a
+    // snapshot is in flight, so repeated clicks can't race the ObservableCollection
+    // mutations below. The four reads are independent, so they fan out in parallel
+    // rather than serially — one round-trip's worth of latency instead of four,
+    // which matters over an SSH tunnel. The CancellationToken lets an in-flight
+    // snapshot be abandoned (e.g. a re-invoke) instead of running to completion.
+    [RelayCommand(AllowConcurrentExecutions = false)]
+    private async Task RefreshAsync(CancellationToken ct)
     {
         try
         {
-            var overview = await _service.GetOverviewAsync(CancellationToken.None);
+            var overviewTask = _service.GetOverviewAsync(ct);
+            var largestTask = _service.GetLargestRelationsAsync(LargestRelationsLimit, ct);
+            var scansTask = _service.GetTableScanUsageAsync(ct);
+            var unusedTask = _service.GetUnusedIndexesAsync(ct);
+            await Task.WhenAll(overviewTask, largestTask, scansTask, unusedTask);
+
+            var overview = await overviewTask;
             DatabaseName = overview.DatabaseName;
             DatabaseSizeText = ByteSize.Format(overview.SizeBytes);
             TableCacheHitText = FormatRatio(overview.TableCacheHitRatio);
             IndexCacheHitText = FormatRatio(overview.IndexCacheHitRatio);
 
-            var largest = await _service.GetLargestRelationsAsync(LargestRelationsLimit, CancellationToken.None);
+            var largest = await largestTask;
             LargestRelations.Clear();
             foreach (var relation in largest)
             {
                 LargestRelations.Add(new RelationSizeRow(relation));
             }
 
-            var scans = await _service.GetTableScanUsageAsync(CancellationToken.None);
+            var scans = await scansTask;
             TableScans.Clear();
             foreach (var scan in scans)
             {
                 TableScans.Add(new TableScanRow(scan));
             }
 
-            var unused = await _service.GetUnusedIndexesAsync(CancellationToken.None);
+            var unused = await unusedTask;
             UnusedIndexes.Clear();
             foreach (var index in unused)
             {
@@ -144,6 +156,10 @@ public sealed partial class DatabaseOverviewViewModel : ObservableObject
                 + $"{UnusedIndexes.Count} unused index{(UnusedIndexes.Count == 1 ? "" : "es")}"
                 + (unusedBytes > 0 ? $" wasting {ByteSize.Format(unusedBytes)}" : "")
                 + $" · {DateTime.Now:HH:mm:ss}";
+        }
+        catch (OperationCanceledException)
+        {
+            // A superseded/abandoned snapshot — not an error worth surfacing.
         }
         catch (Exception ex)
         {
