@@ -126,6 +126,19 @@ public static class PgTypeCategorizer
         };
     }
 
+    /// <summary>
+    /// The type name a possibly-domain column should be classified by: the
+    /// domain's resolved base type when the declared type has no category of its
+    /// own (a user domain name is <see cref="PgTypeCategory.Other"/> by name), so
+    /// a domain over citext still reads as Text and a domain over inet as Network.
+    /// Returns <paramref name="declaredType"/> unchanged when it already classifies
+    /// or there's no base type to fall back to.
+    /// </summary>
+    public static string? ClassifierType(string? declaredType, string? domainBaseType) =>
+        !string.IsNullOrWhiteSpace(domainBaseType) && Categorize(declaredType) == PgTypeCategory.Other
+            ? domainBaseType
+            : declaredType;
+
     // The only ranges we treat as ranges by name — user ranges (typtype 'r' with
     // a bespoke name) can't be recognized from the string and stay Other.
     private static bool IsKnownRange(string name) => name is

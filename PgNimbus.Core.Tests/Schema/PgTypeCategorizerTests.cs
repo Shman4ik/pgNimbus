@@ -96,4 +96,21 @@ public class PgTypeCategorizerTests
     {
         await Assert.That(PgTypeCategorizer.Categorize(typeName)).IsEqualTo(PgTypeCategory.Other);
     }
+
+    [Test]
+    // A domain (declared name classifies as Other) falls back to its base type.
+    [Arguments("email_addr", "citext", PgTypeCategory.Text)]
+    [Arguments("commerce.email_addr", "citext", PgTypeCategory.Text)]
+    [Arguments("us_postal", "text", PgTypeCategory.Text)]
+    [Arguments("positive_int", "integer", PgTypeCategory.Numeric)]
+    // A declared type that already classifies keeps its own family, base ignored.
+    [Arguments("integer", "text", PgTypeCategory.Numeric)]
+    [Arguments("jsonb", null, PgTypeCategory.Json)]
+    // No base type to fall back to → stays Other.
+    [Arguments("mood", null, PgTypeCategory.Other)]
+    public async Task DomainColumnsClassifyByBaseType(string declared, string? baseType, PgTypeCategory expected)
+    {
+        await Assert.That(PgTypeCategorizer.Categorize(PgTypeCategorizer.ClassifierType(declared, baseType)))
+            .IsEqualTo(expected);
+    }
 }

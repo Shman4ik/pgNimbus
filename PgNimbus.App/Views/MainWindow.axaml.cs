@@ -2868,6 +2868,10 @@ public partial class MainWindow : Window
         // Prefer the browse-mode format_type spelling ("numeric(12,2)") when known;
         // fall back to the wire name ("numeric") for arbitrary queries.
         var richType = meta?.DataType ?? typeName;
+        // A domain column carries no icon of its own — classify by its base type so
+        // e.g. a domain over citext still shows the text glyph. The tooltip keeps
+        // the declared (domain) type name.
+        var iconType = PgTypeCategorizer.ClassifierType(richType, meta?.DomainBaseType);
 
         var panel = new StackPanel
         {
@@ -2876,7 +2880,7 @@ public partial class MainWindow : Window
             VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
         };
 
-        if (Converters.PgTypeVisuals.Icon(richType) is { } icon)
+        if (Converters.PgTypeVisuals.Icon(iconType) is { } icon)
         {
             panel.Children.Add(new PathIcon
             {
@@ -2894,7 +2898,7 @@ public partial class MainWindow : Window
             VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
         });
 
-        if (BuildHeaderTooltip(richType, meta) is { } tip)
+        if (BuildHeaderTooltip(richType, iconType, meta) is { } tip)
         {
             ToolTip.SetTip(panel, tip);
             ToolTip.SetShowDelay(panel, 300);
@@ -2903,15 +2907,18 @@ public partial class MainWindow : Window
         return panel;
     }
 
-    private static string? BuildHeaderTooltip(string? typeName, ColumnDetail? meta)
+    // displayType is the declared type shown to the user (a domain keeps its own
+    // name); classifyType is what the family label is derived from (the domain's
+    // base type), so a domain over citext still reads "· Text".
+    private static string? BuildHeaderTooltip(string? displayType, string? classifyType, ColumnDetail? meta)
     {
-        if (string.IsNullOrEmpty(typeName))
+        if (string.IsNullOrEmpty(displayType))
         {
             return null;
         }
 
-        var family = Converters.PgTypeVisuals.Label(typeName);
-        var text = string.IsNullOrEmpty(family) ? typeName : $"{typeName}  ·  {family}";
+        var family = Converters.PgTypeVisuals.Label(classifyType);
+        var text = string.IsNullOrEmpty(family) ? displayType : $"{displayType}  ·  {family}";
 
         if (meta is not null)
         {
