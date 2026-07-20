@@ -37,6 +37,10 @@ public partial class App : Application
     private static void PersistShowAdvancedSchemaObjects(bool value) =>
         SettingsStore.Save(SettingsStore.Load() with { ShowAdvancedSchemaObjects = value });
 
+    /// <summary>Remembers the sidebar's show-sizes toggle so it survives a restart.</summary>
+    private static void PersistShowSchemaSizes(bool value) =>
+        SettingsStore.Save(SettingsStore.Load() with { ShowSchemaSizes = value });
+
     /// <summary>Remembers the editor's auto-alias-tables toggle so it survives a restart.</summary>
     private static void PersistAutoAliasTables(bool value) =>
         SettingsStore.Save(SettingsStore.Load() with { AutoAliasTables = value });
@@ -228,11 +232,14 @@ public partial class App : Application
         var schemaEditor = new SchemaEditor(dataSource);
         var ddlService = new DdlService(dataSource);
         var activityService = new ActivityService(dataSource);
+        var databaseStatsService = new DatabaseStatsService(dataSource);
         var importService = new ImportService(dataSource);
         var schemaTree = new SchemaTreeViewModel(
             schemaService,
             SettingsStore.Load().ShowAdvancedSchemaObjects,
-            PersistShowAdvancedSchemaObjects);
+            PersistShowAdvancedSchemaObjects,
+            SettingsStore.Load().ShowSchemaSizes,
+            PersistShowSchemaSizes);
         var completionProvider = new SqlCompletionProvider(schemaService);
         var notifyMonitor = new NotifyMonitorViewModel(new NotificationListener(dataSource));
 
@@ -247,7 +254,7 @@ public partial class App : Application
         var workspaceKey = string.IsNullOrEmpty(connectionHost) ? null : $"{connectionHost}/{connectionDatabase}";
 
         var viewModel = new MainViewModel(
-            engine, explainService, schemaTree, schemaService, schemaEditor, ddlService, completionProvider, notifyMonitor, activityService, importService,
+            engine, explainService, schemaTree, schemaService, schemaEditor, ddlService, completionProvider, notifyMonitor, activityService, databaseStatsService, importService,
             accentColor,
             connectionHost: connectionHost,
             connectionDatabase: connectionDatabase,

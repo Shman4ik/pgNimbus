@@ -55,7 +55,21 @@ and wrong project memory is worse than none.
 3. **PostgreSQL-first, not lowest-common-denominator.** `SchemaService` reads
    `pg_catalog` directly (not `information_schema`) so it can see materialized
    views, partitioned tables, and real Postgres semantics (e.g. primary-key
-   flags via `pg_constraint`).
+   flags via `pg_constraint`). Relation sizes ride the same path:
+   `GetTablesAsync` carries `pg_total_relation_size` per relation for the
+   schema tree's dim size hint (null for views and partitioned parents — no
+   own-storage size worth showing), shown only when the "Show relation sizes"
+   preference is on — off by default, on the Preferences page's Appearance
+   section, persisted as `AppSettings.ShowSchemaSizes`. The **Database Overview** panel is backed
+   by `Monitoring/DatabaseStatsService` (a read-only sibling of
+   `ActivityService`), which reads the `pg_stat_*`/`pg_statio_*` views and the
+   `pg_*_size` functions for db size, cache-hit ratios, largest relations
+   (heap/index split), per-table seq-vs-index scan usage, and unused
+   non-constraint indexes. Human-readable byte counts go through
+   `PgNimbus.Core.ByteSize` (base-1024, unit-tested, shared by both) rather
+   than being formatted ad hoc in the App. Both monitoring windows follow the
+   same shape: one-live-instance, opened from the command palette (and the
+   macOS Query native menu), no new toolbar button.
 4. **No passwords on `ConnectionProfile`.** Passwords come from
    `ICredentialStore` (DPAPI on Windows via `WindowsDpapiCredentialStore`, a
    permission-restricted file fallback elsewhere via

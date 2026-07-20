@@ -40,6 +40,18 @@
                 </Grid>
             </Border>
 
+            <Border Classes="card" Padding="14,12" Margin="0,6,0,0">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Spacing="2" Margin="0,0,16,0">
+                        <TextBlock Classes="label" Text="Show relation sizes in the schema tree" />
+                        <TextBlock Classes="hint" Text="Adds each table and materialized view's on-disk size (heap + indexes + TOAST) as a dim hint next to its name" />
+                    </StackPanel>
+                    <ToggleSwitch Grid.Column="1" VerticalAlignment="Center"
+                                  OnContent="" OffContent=""
+                                  IsChecked="{Binding ShowSchemaSizes}" />
+                </Grid>
+            </Border>
+
             <TextBlock Classes="sectionHeader" Text="EDITOR" Margin="4,10,4,4" />
             <Border Classes="card" Padding="14,12">
                 <Grid ColumnDefinitions="*,Auto">

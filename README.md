@@ -176,6 +176,7 @@ dotnet run --project PgNimbus.App
 - **DDL reconstruction** — a "Source (DDL)" action rebuilds an object's `CREATE TABLE`/`CREATE VIEW` — columns, defaults, identity, constraints, partition key, indexes — into a new tab; an "Alter Table" UI covers no-SQL column changes.
 - **EXPLAIN visualization** — a graphical plan tree for `EXPLAIN` and `EXPLAIN ANALYZE` with per-node cost and timing, not just raw text.
 - **Server activity dashboard** — a live `pg_stat_activity` view with per-backend **cancel statement** and **terminate session**, so a runaway query is one click to stop.
+- **Table & index sizes and usage** — relation sizes right in the schema tree, plus a **Database Overview** panel: largest relations (heap/index split), seq-vs-index scan counts (missing-index suspects flagged), unused non-constraint indexes with the disk they waste, and buffer cache-hit ratios.
 - **LISTEN/NOTIFY monitor** — subscribe to channels and watch notifications arrive live.
 - **Connection manager** — saved profiles with per-connection accent colors (so production never looks like staging), SSH tunnels, and passwords held by the OS credential store — never written to disk.
 - **Multiple simultaneous connections** — open profiles in separate self-contained windows (own pool, listener, tunnel, workspace), so dev and prod sit side by side; or switch the current window's connection without restarting.
@@ -283,7 +284,7 @@ Prioritized by how much it advances the thesis (fast + open + modern, PostgreSQL
 - [ ] **Full macOS support** — Developer ID signing, notarization, real-world testing.
 - [ ] **macOS look & feel polish** — the native menu bar, About box, and Settings… (Cmd+,) shipped 2026-07; still open: title-bar vibrancy/translucency (NSVisualEffectView-style material behind the merged command bar), sheet-style modals instead of separate dialog windows, Cmd+1…9 tab switching, a proper Window menu with the open-windows list, native context-menu styling, and full-height sidebar that tucks under the traffic lights (TablePlus-style).
 - [x] **Linux builds** — AppImage, .deb, and tar.gz for x64/arm64 ship from the release pipeline (Flatpak still a maybe-later).
-- [ ] **Table & index sizes and usage** — sizes in the schema tree plus a per-database overview (largest relations, seq-vs-index scans, unused indexes, cache hit rate).
+- [x] **Table & index sizes and usage** — relation sizes in the schema tree plus a Database Overview panel (largest relations with heap/index split, seq-vs-index scans, unused indexes, cache hit ratios).
 - [ ] **Locks & blocking tree** — a who-blocks-whom view in the activity window, with one-click cancel/terminate of the *blocker*.
 - [ ] **Row detail sidebar** — a vertical name/value view of the selected row, doubling as a form-style editor.
 - [ ] **winget-pkgs submission** — manifests are generated and validated per release; the first manual community-source PR is pending (the `msstore` source already covers `winget install`).

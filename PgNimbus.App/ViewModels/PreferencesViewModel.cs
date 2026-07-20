@@ -27,6 +27,7 @@ public sealed partial class PreferencesViewModel : ObservableObject
         _themeIndex = settings.Theme switch { "light" => 1, "dark" => 2, _ => 0 };
         _hotkeySchemeIndex = settings.HotkeyScheme switch { "windows" => 1, "mac" => 2, _ => 0 };
         _main.PropertyChanged += OnMainPropertyChanged;
+        _main.SchemaTree.PropertyChanged += OnSchemaTreePropertyChanged;
     }
 
     /// <summary>
@@ -47,8 +48,23 @@ public sealed partial class PreferencesViewModel : ObservableObject
         set => _main.SafeModeEdits = value;
     }
 
+    /// <summary>
+    /// Whether the schema tree shows each relation's on-disk size. Proxies the
+    /// schema tree's own flag (which persists and re-renders the loaded rows),
+    /// same pattern as <see cref="AutoAliasTables"/>.
+    /// </summary>
+    public bool ShowSchemaSizes
+    {
+        get => _main.SchemaTree.ShowSizes;
+        set => _main.SchemaTree.ShowSizes = value;
+    }
+
     /// <summary>Unhooks from the main view-model when the window closes.</summary>
-    public void Detach() => _main.PropertyChanged -= OnMainPropertyChanged;
+    public void Detach()
+    {
+        _main.PropertyChanged -= OnMainPropertyChanged;
+        _main.SchemaTree.PropertyChanged -= OnSchemaTreePropertyChanged;
+    }
 
     private void OnMainPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
@@ -59,6 +75,14 @@ public sealed partial class PreferencesViewModel : ObservableObject
         else if (e.PropertyName == nameof(MainViewModel.SafeModeEdits))
         {
             OnPropertyChanged(nameof(SafeModeEdits));
+        }
+    }
+
+    private void OnSchemaTreePropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(SchemaTreeViewModel.ShowSizes))
+        {
+            OnPropertyChanged(nameof(ShowSchemaSizes));
         }
     }
 
