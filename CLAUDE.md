@@ -58,8 +58,9 @@ and wrong project memory is worse than none.
    flags via `pg_constraint`). Relation sizes ride the same path:
    `GetTablesAsync` carries `pg_total_relation_size` per relation for the
    schema tree's dim size hint (null for views and partitioned parents — no
-   own-storage size worth showing), shown only when the sidebar's "show sizes"
-   toggle is on — off by default, persisted as `AppSettings.ShowSchemaSizes`. The **Database Overview** panel is backed
+   own-storage size worth showing), shown only when the "Show relation sizes"
+   preference is on — off by default, on the Preferences page's Appearance
+   section, persisted as `AppSettings.ShowSchemaSizes`. The **Database Overview** panel is backed
    by `Monitoring/DatabaseStatsService` (a read-only sibling of
    `ActivityService`), which reads the `pg_stat_*`/`pg_statio_*` views and the
    `pg_*_size` functions for db size, cache-hit ratios, largest relations

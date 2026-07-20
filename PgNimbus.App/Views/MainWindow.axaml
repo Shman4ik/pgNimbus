@@ -263,12 +263,6 @@
                                   ToolTip.Tip="Show advanced objects (functions &amp; extensions)">
                         <PathIcon Data="{StaticResource TuneIconGeometry}" Width="14" Height="14" />
                     </ToggleButton>
-                    <!-- Show-sizes toggle: off by default; on adds each table/matview's on-disk size as a dim hint -->
-                    <ToggleButton DockPanel.Dock="Right" Classes="chip" Padding="5" Margin="6,0,0,0"
-                                  VerticalAlignment="Center" IsChecked="{Binding SchemaTree.ShowSizes}"
-                                  ToolTip.Tip="Show relation sizes">
-                        <PathIcon Data="{StaticResource GaugeIconGeometry}" Width="14" Height="14" />
-                    </ToggleButton>
                     <!-- Type-to-filter box: matches schema and loaded-table names, case-insensitive substring -->
                     <TextBox FontSize="12"
                              PlaceholderText="Filter schemas &amp; tables…"
