@@ -271,13 +271,6 @@ public partial class MainWindow : Window
             }
         };
 
-        // Double-click on a saved query or history entry opens it in a new tab
-        // (the same action as its Load button - see SavedQueriesViewModel).
-        SavedQueriesList.DoubleTapped += (_, e) => OnQueryListDoubleTapped(e,
-            item => _viewModel?.SavedQueries.LoadSavedQueryCommand.Execute(item as SavedQuery));
-        HistoryList.DoubleTapped += (_, e) => OnQueryListDoubleTapped(e,
-            item => _viewModel?.SavedQueries.LoadHistoryEntryCommand.Execute(item as QueryHistoryEntry));
-
         // On Windows, popups are native always-on-top windows, and one left
         // open while the user Alt+Tabs (or clicks) into another program keeps
         // floating above that program. Close every popup we own the moment
@@ -1446,19 +1439,6 @@ public partial class MainWindow : Window
     // Shared double-click handling for the saved-query and history lists:
     // resolve the double-clicked row's item and load it, ignoring taps that
     // land on an inline button (e.g. the history pin) - those own their clicks.
-    private void OnQueryListDoubleTapped(TappedEventArgs e, Action<object?> load)
-    {
-        var source = e.Source as Visual;
-        if (source?.FindAncestorOfType<Button>(includeSelf: true) is not null)
-        {
-            return;
-        }
-
-        if (source?.FindAncestorOfType<ListBoxItem>(includeSelf: true) is { DataContext: { } item })
-        {
-            load(item);
-        }
-    }
 
     private void OnPreparingCellForEdit(object? sender, DataGridPreparingCellForEditEventArgs e)
     {

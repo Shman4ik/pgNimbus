@@ -4,7 +4,6 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:ae="using:AvaloniaEdit"
         xmlns:vm="using:PgNimbus.App.ViewModels"
-        xmlns:query="using:PgNimbus.Core.Query"
         xmlns:conv="using:Avalonia.Data.Converters"
         xmlns:conv2="using:PgNimbus.App.Converters"
         xmlns:json="using:PgNimbus.Core.Json"
@@ -415,99 +414,7 @@
                                    IsVisible="{Binding $parent[TabControl].Bounds.Width, Converter={x:Static conv2:MinWidthVisibilityConverter.Instance}, ConverterParameter=300}" />
                     </StackPanel>
                 </TabItem.Header>
-                <Grid RowDefinitions="Auto,*,Auto,Auto,Auto,Auto,*,Auto" Margin="0,8,0,0" x:DataType="vm:SavedQueriesViewModel" DataContext="{Binding SavedQueries}">
-                    <TextBlock Grid.Row="0" Classes="sectionHeader" Text="SAVED QUERIES" Margin="4,0,4,6" />
-                    <Border Grid.Row="1" Classes="card" MinHeight="80">
-                        <Grid>
-                            <ListBox Name="SavedQueriesList" ItemsSource="{Binding SavedQueries}">
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate x:DataType="query:SavedQuery">
-                                        <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Sql}" />
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
-                            </ListBox>
-                            <TextBlock IsVisible="{Binding HasNoSavedQueries}" IsHitTestVisible="False"
-                                       Text="Name a query above and Save to keep it here"
-                                       TextWrapping="Wrap" TextAlignment="Center" Opacity="0.4" FontSize="12"
-                                       Margin="12" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Grid>
-                    </Border>
-                    <TextBox Grid.Row="2" Name="NewQueryNameBox" Text="{Binding NewQueryName}" PlaceholderText="Query name" Margin="0,8,0,0" />
-                    <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="6" Margin="0,8,0,0">
-                        <Button Content="Save" Command="{Binding SaveCurrentQueryCommand}" />
-                        <Button Content="Load" Command="{Binding LoadSavedQueryCommand}" CommandParameter="{Binding #SavedQueriesList.SelectedItem}"
-                                ToolTip.Tip="Open the selected query in a new tab (or double-click it)" />
-                        <Button Content="Delete" Command="{Binding DeleteSavedQueryCommand}" CommandParameter="{Binding #SavedQueriesList.SelectedItem}" />
-                    </StackPanel>
-                    <TextBlock Grid.Row="4" Classes="sectionHeader" Text="HISTORY" Margin="4,16,4,6" />
-                    <!-- Search + per-connection scope toggle -->
-                    <DockPanel Grid.Row="5" Margin="0,0,0,6">
-                        <ToggleButton DockPanel.Dock="Right" Classes="chip" Padding="5" Margin="6,0,0,0"
-                                      VerticalAlignment="Center" IsChecked="{Binding ScopeHistoryToConnection}"
-                                      ToolTip.Tip="Only queries run against the current connection">
-                            <PathIcon Data="{StaticResource DatabaseIconGeometry}" Width="12" Height="12" />
-                        </ToggleButton>
-                        <TextBox FontSize="12" Text="{Binding HistoryFilter, Mode=TwoWay}"
-                                 PlaceholderText="Search history…">
-                            <TextBox.InnerLeftContent>
-                                <PathIcon Data="{StaticResource MagnifyIconGeometry}" Width="13" Height="13"
-                                          Opacity="0.5" Margin="8,0,0,0" VerticalAlignment="Center" />
-                            </TextBox.InnerLeftContent>
-                            <TextBox.InnerRightContent>
-                                <Button Classes="chip" Margin="0,0,4,0" VerticalAlignment="Center"
-                                        Command="{Binding ClearHistoryFilterCommand}"
-                                        ToolTip.Tip="Clear search"
-                                        IsVisible="{Binding HistoryFilter, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}">
-                                    <PathIcon Data="{StaticResource CloseIconGeometry}" Width="11" Height="11" />
-                                </Button>
-                            </TextBox.InnerRightContent>
-                        </TextBox>
-                    </DockPanel>
-                    <Border Grid.Row="6" Classes="card" MinHeight="80">
-                        <Grid>
-                            <ListBox Name="HistoryList" ItemsSource="{Binding FilteredHistory}">
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate x:DataType="query:QueryHistoryEntry">
-                                        <DockPanel>
-                                            <Button DockPanel.Dock="Right" Classes="chip" Padding="4" VerticalAlignment="Center"
-                                                    Command="{Binding $parent[ListBox].((vm:SavedQueriesViewModel)DataContext).TogglePinCommand}"
-                                                    CommandParameter="{Binding}"
-                                                    ToolTip.Tip="Pin — pinned entries stay on top and survive Clear">
-                                                <Panel>
-                                                    <PathIcon Data="{StaticResource PinIconGeometry}" Width="11" Height="11"
-                                                              Foreground="{DynamicResource AppAccentBrush}" IsVisible="{Binding Pinned}" />
-                                                    <PathIcon Data="{StaticResource PinIconGeometry}" Width="11" Height="11"
-                                                              Opacity="0.35" IsVisible="{Binding !Pinned}" />
-                                                </Panel>
-                                            </Button>
-                                            <StackPanel>
-                                                <TextBlock Text="{Binding Sql}" TextTrimming="CharacterEllipsis" MaxLines="2" TextWrapping="Wrap" FontSize="12" />
-                                                <StackPanel Orientation="Horizontal" Spacing="6">
-                                                    <TextBlock Text="{Binding ExecutedAt}" Opacity="0.6" FontSize="10" />
-                                                    <TextBlock Text="{Binding Connection}" Opacity="0.45" FontSize="10"
-                                                               IsVisible="{Binding Connection, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-                                                </StackPanel>
-                                            </StackPanel>
-                                        </DockPanel>
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
-                            </ListBox>
-                            <TextBlock IsVisible="{Binding HasNoHistory}" IsHitTestVisible="False"
-                                       Text="Queries you run will appear here"
-                                       TextWrapping="Wrap" TextAlignment="Center" Opacity="0.4" FontSize="12"
-                                       Margin="12" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                            <TextBlock IsVisible="{Binding HasNoHistoryMatches}" IsHitTestVisible="False"
-                                       Text="Nothing in history matches"
-                                       TextWrapping="Wrap" TextAlignment="Center" Opacity="0.4" FontSize="12"
-                                       Margin="12" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Grid>
-                    </Border>
-                    <StackPanel Grid.Row="7" Orientation="Horizontal" Spacing="6" Margin="0,8,0,0">
-                        <Button Content="Load selected" Command="{Binding LoadHistoryEntryCommand}" CommandParameter="{Binding #HistoryList.SelectedItem}"
-                                ToolTip.Tip="Open the selected entry in a new tab (or double-click it)" />
-                        <Button Content="Clear history" Command="{Binding ClearHistoryCommand}" />
-                    </StackPanel>
-                </Grid>
+                <views:SavedQueriesPanel DataContext="{Binding SavedQueries}" />
             </TabItem>
             <TabItem ToolTip.Tip="Notify">
                 <TabItem.Header>
