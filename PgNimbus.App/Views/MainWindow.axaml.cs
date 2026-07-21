@@ -2831,8 +2831,12 @@ public partial class MainWindow : Window
             // known; fall back to the wire name for arbitrary queries. Domains
             // resolve to their base type's family (see ClassifierType).
             var declaredType = editorMeta?.DataType ?? query.ColumnTypeName(i);
-            var category = PgTypeCategorizer.Categorize(
-                PgTypeCategorizer.ClassifierType(declaredType, editorMeta?.DomainBaseType));
+            // In browse mode the catalog kind is known, so enum/composite columns
+            // get their own icon; an arbitrary query only has the wire type name,
+            // where an enum is indistinguishable from Other.
+            var category = editorMeta is { } meta
+                ? PgTypeCategorizer.CategorizeColumn(declaredType, meta.DomainBaseType, meta.Editor)
+                : PgTypeCategorizer.Categorize(PgTypeCategorizer.ClassifierType(declaredType, null));
 
             ResultsGrid.Columns.Add(new ResultTextColumn(i, editorMeta, category)
             {

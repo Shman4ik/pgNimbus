@@ -34,6 +34,10 @@ public static class PgTypeVisuals
         [PgTypeCategory.Vector] = "M5,17.59L15.59,7H9V5H19V15H17V8.41L6.41,19L5,17.59Z",
         [PgTypeCategory.FullText] = "M19.31,18.9L22.39,22L21,23.39L17.88,20.32C17.19,20.75 16.37,21 15.5,21C13,21 11,19 11,16.5C11,14 13,12 15.5,12C18,12 20,14 20,16.5C20,17.38 19.75,18.21 19.31,18.9M15.5,14A2.5,2.5 0 0,0 13,16.5A2.5,2.5 0 0,0 15.5,19A2.5,2.5 0 0,0 18,16.5A2.5,2.5 0 0,0 15.5,14M3,5H21V7H3V5M3,9H9V11H3V9M3,13H9V15H3V13M3,17H9V19H3V17Z",
         [PgTypeCategory.Array] = "M15,4V6H18V18H15V20H20V4M4,4V20H9V18H6V6H9V4H4Z",
+        // Enum — a bulleted list (one of a fixed set of labels).
+        [PgTypeCategory.Enum] = "M7,5H21V7H7V5M7,13V11H21V13H7M4,4.5A1.5,1.5 0 0,1 5.5,6A1.5,1.5 0 0,1 4,7.5A1.5,1.5 0 0,1 2.5,6A1.5,1.5 0 0,1 4,4.5M4,10.5A1.5,1.5 0 0,1 5.5,12A1.5,1.5 0 0,1 4,13.5A1.5,1.5 0 0,1 2.5,12A1.5,1.5 0 0,1 4,10.5M7,19V17H21V19H7M4,16.5A1.5,1.5 0 0,1 5.5,18A1.5,1.5 0 0,1 4,19.5A1.5,1.5 0 0,1 2.5,18A1.5,1.5 0 0,1 4,16.5Z",
+        // Composite — a record of named columns/fields.
+        [PgTypeCategory.Composite] = "M10,10.02H15V21H10V10.02M17,21H20C21.1,21 22,20.1 22,19V10H17V21M20,3H5C3.9,3 3,3.9 3,5V8H22V5C22,3.9 21.1,3 20,3M3,19C3,20.1 3.9,21 5,21H8V10H3V19Z",
     };
 
     private static readonly Dictionary<PgTypeCategory, string> Labels = new()
@@ -52,15 +56,11 @@ public static class PgTypeVisuals
         [PgTypeCategory.Vector] = "Vector",
         [PgTypeCategory.FullText] = "Full-text search",
         [PgTypeCategory.Array] = "Array",
+        [PgTypeCategory.Enum] = "Enum",
+        [PgTypeCategory.Composite] = "Composite",
     };
 
     private static readonly Dictionary<PgTypeCategory, Geometry?> GeometryCache = new();
-
-    /// <summary>The icon for a type name's category, or null when the family has no glyph (Other) or the path failed to parse.</summary>
-    public static Geometry? Icon(string? typeName) => IconFor(PgTypeCategorizer.Categorize(typeName));
-
-    /// <summary>The friendly family label for a type name's category, or empty for Other.</summary>
-    public static string Label(string? typeName) => LabelFor(PgTypeCategorizer.Categorize(typeName));
 
     /// <summary>The friendly family label for an already-resolved category, or empty for Other.</summary>
     public static string LabelFor(PgTypeCategory category) =>
@@ -92,25 +92,25 @@ public static class PgTypeVisuals
     }
 }
 
-/// <summary>Binds a Postgres type-name string to its category icon (a <see cref="Geometry"/>).</summary>
+/// <summary>Binds a <see cref="PgTypeCategory"/> to its family icon (a <see cref="Geometry"/>).</summary>
 public sealed class PgTypeIconConverter : IValueConverter
 {
     public static readonly PgTypeIconConverter Instance = new();
 
     public object? Convert(object? value, System.Type targetType, object? parameter, CultureInfo culture) =>
-        PgTypeVisuals.Icon(value as string);
+        value is PgTypeCategory category ? PgTypeVisuals.IconFor(category) : null;
 
     public object? ConvertBack(object? value, System.Type targetType, object? parameter, CultureInfo culture) =>
         throw new System.NotSupportedException();
 }
 
-/// <summary>Binds a Postgres type-name string to its friendly family label (for a tooltip).</summary>
+/// <summary>Binds a <see cref="PgTypeCategory"/> to its friendly family label (for a tooltip).</summary>
 public sealed class PgTypeLabelConverter : IValueConverter
 {
     public static readonly PgTypeLabelConverter Instance = new();
 
     public object? Convert(object? value, System.Type targetType, object? parameter, CultureInfo culture) =>
-        PgTypeVisuals.Label(value as string);
+        value is PgTypeCategory category ? PgTypeVisuals.LabelFor(category) : string.Empty;
 
     public object? ConvertBack(object? value, System.Type targetType, object? parameter, CultureInfo culture) =>
         throw new System.NotSupportedException();

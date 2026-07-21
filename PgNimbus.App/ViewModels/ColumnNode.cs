@@ -11,6 +11,9 @@ public sealed class ColumnNode : SchemaTreeNode
         DomainBaseType = detail.DomainBaseType;
         NotNull = detail.NotNull;
         IsPrimaryKey = detail.IsPrimaryKey;
+        // Resolve the icon family once: enum/composite come from the catalog kind
+        // (via Editor), domains from their base type, everything else by name.
+        Category = PgTypeCategorizer.CategorizeColumn(detail.DataType, detail.DomainBaseType, detail.Editor);
     }
 
     public string DataType { get; }
@@ -21,12 +24,8 @@ public sealed class ColumnNode : SchemaTreeNode
     /// <summary>The compact form shown in the tree (see <see cref="PgTypeAbbreviations"/>).</summary>
     public string DataTypeShort => PgTypeAbbreviations.Abbreviate(DataType);
 
-    /// <summary>
-    /// The type name the category icon is derived from — the declared type, or,
-    /// when that's a domain with no icon of its own, the base type it resolves to
-    /// (so a domain over citext still shows the text glyph).
-    /// </summary>
-    public string? TypeClassifier => PgTypeCategorizer.ClassifierType(DataType, DomainBaseType);
+    /// <summary>The type family driving the category icon shown next to the type text.</summary>
+    public PgTypeCategory Category { get; }
 
     /// <summary>
     /// The full type name for a hover tooltip — but only when it differs from the

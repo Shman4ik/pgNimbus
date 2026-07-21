@@ -54,6 +54,12 @@ public enum PgTypeCategory
 
     /// <summary>Any array type (integer[], text[], …).</summary>
     Array,
+
+    /// <summary>An enum type — one of a fixed set of labels. Not detectable from a bare name; needs the pg_type kind.</summary>
+    Enum,
+
+    /// <summary>A composite (row) type — a record of named fields. Not detectable from a bare name.</summary>
+    Composite,
 }
 
 /// <summary>
@@ -125,6 +131,21 @@ public static class PgTypeCategorizer
             _ => PgTypeCategory.Other,
         };
     }
+
+    /// <summary>
+    /// Classifies a column using both its type name and the pg_type kind the
+    /// catalog already resolved into a <see cref="ColumnValueEditor"/>. Enum and
+    /// composite types have no category of their own by name (they'd be
+    /// <see cref="PgTypeCategory.Other"/>); the editor is the one signal that tells
+    /// them apart, so it wins. Everything else falls through to the name-based
+    /// <see cref="Categorize(string?)"/> with domains resolved to their base type.
+    /// </summary>
+    public static PgTypeCategory CategorizeColumn(string? declaredType, string? domainBaseType, ColumnValueEditor editor) => editor switch
+    {
+        ColumnValueEditor.Enum => PgTypeCategory.Enum,
+        ColumnValueEditor.Composite => PgTypeCategory.Composite,
+        _ => Categorize(ClassifierType(declaredType, domainBaseType)),
+    };
 
     /// <summary>
     /// The type name a possibly-domain column should be classified by: the

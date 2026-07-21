@@ -98,6 +98,19 @@ public class PgTypeCategorizerTests
     }
 
     [Test]
+    // The editor identifies enum/composite, which a bare name can't.
+    [Arguments("device_status", ColumnValueEditor.Enum, PgTypeCategory.Enum)]
+    [Arguments("address", ColumnValueEditor.Composite, PgTypeCategory.Composite)]
+    // Other editors don't override the name-based family.
+    [Arguments("integer", ColumnValueEditor.Text, PgTypeCategory.Numeric)]
+    [Arguments("boolean", ColumnValueEditor.Boolean, PgTypeCategory.Boolean)]
+    [Arguments("jsonb", ColumnValueEditor.Text, PgTypeCategory.Json)]
+    public async Task CategorizeColumnUsesEditorForEnumAndComposite(string declared, ColumnValueEditor editor, PgTypeCategory expected)
+    {
+        await Assert.That(PgTypeCategorizer.CategorizeColumn(declared, null, editor)).IsEqualTo(expected);
+    }
+
+    [Test]
     // A domain (declared name classifies as Other) falls back to its base type.
     [Arguments("email_addr", "citext", PgTypeCategory.Text)]
     [Arguments("commerce.email_addr", "citext", PgTypeCategory.Text)]

@@ -48,11 +48,12 @@
                     <PathIcon Data="{StaticResource KeyIconGeometry}" Width="12" Height="12" IsVisible="{Binding IsPrimaryKey}" />
                 </Panel>
                 <TextBlock Text="{Binding Name}" />
-                <!-- Category icon (numeric/text/date/json…) — one glyph per type family;
-                     domains resolve to their base type's icon via TypeClassifier -->
-                <PathIcon Data="{Binding TypeClassifier, Converter={x:Static conv2:PgTypeIconConverter.Instance}}"
+                <!-- Category icon (numeric/text/date/json/enum…) — one glyph per type
+                     family; enum/composite resolved from the catalog kind, domains
+                     from their base type (see ColumnNode.Category) -->
+                <PathIcon Data="{Binding Category, Converter={x:Static conv2:PgTypeIconConverter.Instance}}"
                           Width="11" Height="11" Opacity="0.5" VerticalAlignment="Center"
-                          ToolTip.Tip="{Binding TypeClassifier, Converter={x:Static conv2:PgTypeLabelConverter.Instance}}"
+                          ToolTip.Tip="{Binding Category, Converter={x:Static conv2:PgTypeLabelConverter.Instance}}"
                           ToolTip.ShowDelay="300" />
                 <!-- Abbreviated type (timestamptz, varchar…) with the full name on a brief hover -->
                 <TextBlock Text="{Binding DataTypeShort}" Opacity="0.6" FontSize="11" VerticalAlignment="Center"

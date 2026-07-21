@@ -854,10 +854,14 @@ public sealed class QueryEngine
     // that would have read fine arrives as its Postgres literal, which the grid
     // already renders.
     //
-    // bit / bit varying are also requested as text: Npgsql maps them to a
-    // BitArray whose default ToString is just the class name ("System.Collections.
-    // BitArray"), useless in a cell. Its text form is the bit literal ("10110000"),
-    // which is exactly what a user expects to see and edit.
+    // bit / bit varying and hstore are also requested as text: Npgsql maps them to
+    // a BitArray / Dictionary<string,string> whose default ToString is just the
+    // class name ("System.Collections.BitArray", "System.Collections.Generic.
+    // Dictionary`2[…]"), useless in a cell. Their text form is the value itself
+    // (the bit literal "10110000", the hstore literal "\"k\"=>\"v\"") — what a user
+    // expects to see and edit. Both are small, so the extra round trip is cheap.
+    private static readonly Type HstoreType = typeof(System.Collections.Generic.Dictionary<string, string>);
+
     private static bool NeedsTextFormat(NpgsqlDataReader reader, int column)
     {
         if (NeedsTextFormat(reader.GetPostgresType(column)))
@@ -868,7 +872,9 @@ public sealed class QueryEngine
         try
         {
             var clrType = reader.GetFieldType(column);
-            return clrType == typeof(object) || clrType == typeof(System.Collections.BitArray);
+            return clrType == typeof(object)
+                || clrType == typeof(System.Collections.BitArray)
+                || clrType == HstoreType;
         }
         catch
         {
