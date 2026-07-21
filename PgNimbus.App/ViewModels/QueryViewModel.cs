@@ -1057,14 +1057,18 @@ public sealed partial class QueryViewModel : ObservableObject
         }
 
         // Postgres-native values a CLR conversion can't express — enum labels,
-        // array/composite literals (and domains over them) — travel as raw
-        // text and get parsed server-side via a cast to the declared type,
-        // the same mechanism the Add-row dialog uses for every value. A cheap
-        // client-side structure check catches malformed hand-typed literals
-        // before anything is sent.
+        // array/composite/json literals, and the CastText family (network,
+        // geometric, range, bit-string, xml, tsvector/tsquery, jsonpath, bytea,
+        // …, all of which Postgres won't implicitly assign from text) — travel
+        // as raw text and get parsed server-side via a cast to the declared
+        // type, the same mechanism the Add-row dialog uses for every value.
+        // A cheap client-side structure check catches malformed hand-typed
+        // array/composite/json literals before anything is sent; the CastText
+        // types have no cheap check and defer to Postgres (the cast's error).
         var columnMeta = context.Column(columnName);
         var castType = columnMeta?.Editor
-            is ColumnValueEditor.Enum or ColumnValueEditor.Array or ColumnValueEditor.Composite or ColumnValueEditor.Json
+            is ColumnValueEditor.Enum or ColumnValueEditor.Array or ColumnValueEditor.Composite
+               or ColumnValueEditor.Json or ColumnValueEditor.CastText
             ? columnMeta.DataType
             : null;
 

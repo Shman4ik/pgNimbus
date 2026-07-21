@@ -105,6 +105,10 @@ public class PgTypeCategorizerTests
     [Arguments("integer", ColumnValueEditor.Text, PgTypeCategory.Numeric)]
     [Arguments("boolean", ColumnValueEditor.Boolean, PgTypeCategory.Boolean)]
     [Arguments("jsonb", ColumnValueEditor.Json, PgTypeCategory.Json)]
+    // CastText (server-side-cast types) keeps the name-based family for its icon.
+    [Arguments("inet", ColumnValueEditor.CastText, PgTypeCategory.Network)]
+    [Arguments("int4range", ColumnValueEditor.CastText, PgTypeCategory.Range)]
+    [Arguments("bit(8)", ColumnValueEditor.CastText, PgTypeCategory.BitString)]
     public async Task CategorizeColumnUsesEditorForEnumAndComposite(string declared, ColumnValueEditor editor, PgTypeCategory expected)
     {
         await Assert.That(PgTypeCategorizer.CategorizeColumn(declared, null, editor)).IsEqualTo(expected);

@@ -23,15 +23,43 @@ public class ColumnValueEditorClassifierTests
     [Arguments('b', 'S', "text")]
     [Arguments('b', 'N', "int4")]
     [Arguments('b', 'N', "numeric")]
-    [Arguments('b', 'U', "uuid")]
-    [Arguments('b', 'U', "jsonpath")] // a jsonpath expression isn't JSON-shaped — stays text
-    [Arguments('b', 'U', "hstore")]   // hstore's "k"=>"v" literal isn't JSON — stays text
+    [Arguments('b', 'N', "money")]    // round-trips through its CLR decimal — no cast needed
+    [Arguments('b', 'U', "uuid")]     // round-trips through Guid — no cast needed
+    [Arguments('b', 'U', "hstore")]   // display needs an extension mapping — stays text, not CastText
     [Arguments('b', 'D', "time")]     // no seconds-capable picker — stays text
     [Arguments('b', 'T', "interval")]
-    [Arguments('r', 'R', "int4range")]
     public async Task EverythingElseStaysText(char typtype, char typcategory, string typname)
     {
         await Assert.That(ColumnValueEditorClassifier.Classify(typtype, typcategory, typname)).IsEqualTo(ColumnValueEditor.Text);
+    }
+
+    [Test]
+    // Types Postgres won't implicitly assign from text (no text→type assignment
+    // cast) round-trip an inline edit through CAST(text AS type). Whole
+    // categories qualify — network ('I'), geometric ('G'), range/multirange
+    // ('R'), bit-string ('V') — including user-defined ranges; a handful of
+    // category-'U' types are named individually.
+    [Arguments('b', 'I', "inet")]
+    [Arguments('b', 'I', "cidr")]
+    [Arguments('b', 'G', "point")]
+    [Arguments('b', 'G', "box")]
+    [Arguments('b', 'G', "polygon")]
+    [Arguments('r', 'R', "int4range")]
+    [Arguments('m', 'R', "int4multirange")]
+    [Arguments('r', 'R', "myrange")]   // a user-defined range, caught by category not name
+    [Arguments('b', 'V', "bit")]
+    [Arguments('b', 'V', "varbit")]
+    [Arguments('b', 'U', "xml")]
+    [Arguments('b', 'U', "tsvector")]
+    [Arguments('b', 'U', "tsquery")]
+    [Arguments('b', 'U', "jsonpath")]  // not JSON-shaped, but still needs a server-side cast
+    [Arguments('b', 'U', "macaddr")]
+    [Arguments('b', 'U', "macaddr8")]
+    [Arguments('b', 'U', "pg_lsn")]
+    [Arguments('b', 'U', "bytea")]
+    public async Task NoAssignmentCastTypesUseCastText(char typtype, char typcategory, string typname)
+    {
+        await Assert.That(ColumnValueEditorClassifier.Classify(typtype, typcategory, typname)).IsEqualTo(ColumnValueEditor.CastText);
     }
 
     [Test]
