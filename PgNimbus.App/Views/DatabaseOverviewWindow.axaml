@@ -13,7 +13,7 @@
 
         <!-- Toolbar -->
         <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="6" Margin="0,0,0,10">
-            <Button Classes="toolbar" Command="{Binding RefreshCommand}" ToolTip.Tip="Re-snapshot the statistics">
+            <Button Classes="soft" Command="{Binding RefreshCommand}" ToolTip.Tip="Re-snapshot the statistics">
                 <StackPanel Orientation="Horizontal" Spacing="7">
                     <PathIcon Data="{StaticResource RefreshIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
                     <TextBlock Text="Refresh" VerticalAlignment="Center" />
@@ -45,7 +45,7 @@
             </StackPanel>
         </Border>
 
-        <TabControl Grid.Row="2">
+        <TabControl Grid.Row="2" Classes="segmented">
             <TabItem Header="Largest relations">
                 <DataGrid ItemsSource="{Binding LargestRelations}" IsReadOnly="True" SelectionMode="Single"
                           CanUserResizeColumns="True" CanUserSortColumns="False"

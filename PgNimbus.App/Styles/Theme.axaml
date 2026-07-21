@@ -62,9 +62,14 @@
             -->
             <SolidColorBrush x:Key="AppTextSelectionBrush" Color="#402D7FF9" />
 
-            <!-- Destructive action (terminate a session). A fixed red we control,
-                 legible on both themes, with a low-alpha wash for hover/fill. -->
+            <!-- Destructive action (terminate a session, drop/delete/discard). A
+                 fixed red we control, legible on both themes: the solid brush for
+                 a filled primary-destructive button (Button.danger, mirrors
+                 .accent), hover/pressed shades for it, and a low-alpha wash +
+                 border for the soft/outline destructive variant (Button.soft.danger). -->
             <SolidColorBrush x:Key="AppDangerBrush" Color="#E5484D" />
+            <SolidColorBrush x:Key="AppDangerHoverBrush" Color="#EC5B60" />
+            <SolidColorBrush x:Key="AppDangerPressedBrush" Color="#CE3B40" />
             <SolidColorBrush x:Key="AppDangerWashBrush" Color="#22E5484D" />
             <SolidColorBrush x:Key="AppDangerBorderBrush" Color="#66E5484D" />
 
@@ -468,6 +473,25 @@
         <Setter Property="Background" Value="{StaticResource AppAccentPressedBrush}" />
     </Style>
     <Style Selector="Button.accent:disabled">
+        <Setter Property="Background" Value="{DynamicResource SystemControlDisabledBaseLowBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlDisabledBaseMediumLowBrush}" />
+    </Style>
+
+    <!-- Filled destructive primary button — the affirmative of a destructive
+         confirm (Terminate / Drop / Delete / Discard). Mirrors .accent, in red. -->
+    <Style Selector="Button.danger">
+        <Setter Property="Background" Value="{StaticResource AppDangerBrush}" />
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="Button.danger:pointerover">
+        <Setter Property="Background" Value="{StaticResource AppDangerHoverBrush}" />
+    </Style>
+    <Style Selector="Button.danger:pressed">
+        <Setter Property="Background" Value="{StaticResource AppDangerPressedBrush}" />
+    </Style>
+    <Style Selector="Button.danger:disabled">
         <Setter Property="Background" Value="{DynamicResource SystemControlDisabledBaseLowBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource SystemControlDisabledBaseMediumLowBrush}" />
     </Style>

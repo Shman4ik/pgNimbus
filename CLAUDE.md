@@ -158,6 +158,25 @@ and wrong project memory is worse than none.
    is Spotlight). User-facing settings live on the preferences page
    (`PreferencesWindow`, opened from the palette), persisted in
    `AppSettings`.
+6. **Shared control vocabulary — don't hand-roll button/tab looks.** Every
+   button uses one of the style classes in `Styles/Theme.axaml`, never an
+   ad-hoc `Background`/`Foreground`: `accent` (filled brand-blue, the one
+   primary affirmative per dialog — Connect/Import/Commit/Add), `danger`
+   (filled red, the affirmative of a *destructive* confirm — the shared
+   `ConfirmDialog`'s confirm button, always destructive), `soft` (neutral
+   card-toned outline pill with an accent-tint hover — every secondary
+   action: Cancel/Close/Save-as-secondary/Test/New/Refresh), `soft danger`
+   (outline red — a secondary destructive action sitting next to a
+   non-destructive primary: Delete a profile, Drop a column, Discard all,
+   the activity window's Terminate), and `chip` (small toggle/close pills).
+   Horizontal tab strips use `TabControl.segmented` — a retemplated
+   macOS-style segmented capsule (the monitoring windows' Backends/Blocking
+   and Database Overview's tabs); the bare global `TabItem` style is the
+   *vertical* left-nav look and must stay untouched. Destructive colors come
+   from the `AppDanger*` tokens (theme-independent fixed red). This
+   vocabulary is app-wide across the secondary windows and dialogs; the main
+   window's command bar deliberately keeps its flat minimalist `toolbar`
+   buttons (rule 1) and is the one surface exempt.
 
 ## Platform window chrome
 
