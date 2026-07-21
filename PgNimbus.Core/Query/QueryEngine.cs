@@ -853,6 +853,11 @@ public sealed class QueryEngine
     // current. Requesting the column as text is always safe: worst case a value
     // that would have read fine arrives as its Postgres literal, which the grid
     // already renders.
+    //
+    // bit / bit varying are also requested as text: Npgsql maps them to a
+    // BitArray whose default ToString is just the class name ("System.Collections.
+    // BitArray"), useless in a cell. Its text form is the bit literal ("10110000"),
+    // which is exactly what a user expects to see and edit.
     private static bool NeedsTextFormat(NpgsqlDataReader reader, int column)
     {
         if (NeedsTextFormat(reader.GetPostgresType(column)))
@@ -862,7 +867,8 @@ public sealed class QueryEngine
 
         try
         {
-            return reader.GetFieldType(column) == typeof(object);
+            var clrType = reader.GetFieldType(column);
+            return clrType == typeof(object) || clrType == typeof(System.Collections.BitArray);
         }
         catch
         {
