@@ -324,9 +324,25 @@ csproj / WiX / MSIX manifest reference them unchanged:
   cast, so an uncast `UPDATE`/`INSERT` of a json column fails with a type error.
   The cell inspector (`CellInspectorViewModel`) pretty-prints JSON, offers a
   read-only collapsible tree (`PgNimbus.Core.Json.JsonTree` builds the node
-  model — pure Core, unit-tested), and for an editable json cell edits in place
-  (Format / Minify / client-side validation / Save through the same cast path,
-  highlighted by `Assets/Json.xshd`). Completion carries the jsonb function
+  model — pure Core, unit-tested), and edits an editable cell in place via a
+  **View / Edit** segmented-tab header (one click each way; the in-progress edit
+  buffer survives a hop to View and back — the `_editSeeded` flag reseeds only on
+  first entry or a Cancel/Save). Editing is offered for the **free-text editor
+  kinds** (`MainWindow.IsFreeTextEditor`: `Text`/`Array`/`Composite`/`Json`/
+  `CastText`) — everything the commit path can take as typed text — but **not**
+  the typed-widget kinds (`Boolean`/`Enum`/`Date`/`Timestamp`), which stay
+  inline-only (a text box is a downgrade from their checkbox/dropdown/picker).
+  JSON keeps its extras: Format / Minify / client-side validation / `Json.xshd`
+  highlighting / the tree toggle, all gated on *json-ness*. Crucially, validation
+  is **type-derived** (`validatesAsJson`, set from the column's `Json` editor),
+  not content-derived (`IsJson`, which merely reflects whether the value parses)
+  — so a plain `text` column holding a JSON-looking string still accepts any
+  string. A double-click on an editable json/jsonb cell opens the inspector
+  straight on the Edit tab (`OpenCellInspector(..., startEditing: true)`), since
+  json is unusable in a one-line inline editor; `MainWindow.OnResultsGridBeginningEdit`
+  cancels the grid's own inline edit for that gesture. Other editable types keep
+  their fast inline double-click; the inspector's Edit tab is reached via Space /
+  "Inspect cell…". Completion carries the jsonb function
   family (`SqlCompletionProvider.Functions`); JSON operators (`->`, `@>`, `?`,
   `@?`, …) are punctuation, out of the identifier-triggered completion model.
 - **Cell edits round-trip through a server-side cast, not a CLR conversion, for

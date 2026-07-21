@@ -1151,6 +1151,15 @@
                     <TextBlock Grid.Column="0" Text="{Binding ColumnName}" FontWeight="SemiBold" FontSize="14"
                                VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                     <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <!-- View / Edit segmented tabs for an editable JSON cell: one
+                             click switches either way, and the edit buffer survives a
+                             hop to View and back (see CellInspectorViewModel). -->
+                        <Button Content="View" Classes="chip" Classes.active="{Binding !IsEditing}"
+                                IsVisible="{Binding CanEdit}"
+                                Command="{Binding ViewTextCommand}" ToolTip.Tip="View the value" />
+                        <Button Content="Edit" Classes="chip" Margin="6,0,0,0" Classes.active="{Binding IsEditing}"
+                                IsVisible="{Binding CanEdit}"
+                                Command="{Binding EditCommand}" ToolTip.Tip="Edit this JSON value" />
                         <ToggleButton Content="Tree" Classes="chip" Margin="6,0,0,0"
                                       IsVisible="{Binding CanShowTreeToggle}"
                                       IsChecked="{Binding IsTreeView}"
@@ -1158,9 +1167,6 @@
                         <ToggleButton Content="Wrap" Classes="chip" Margin="6,0,0,0"
                                       IsVisible="{Binding ShowText}"
                                       IsChecked="{Binding WordWrap}" ToolTip.Tip="Toggle word wrap" />
-                        <Button Content="Edit" Classes="chip" Margin="6,0,0,0"
-                                IsVisible="{Binding CanShowEdit}"
-                                Command="{Binding EditCommand}" ToolTip.Tip="Edit this JSON value" />
                         <Button Content="Copy" Classes="chip" Margin="6,0,0,0"
                                 IsVisible="{Binding !IsEditing}"
                                 Click="OnCellInspectorCopyClick" />
@@ -1213,9 +1219,9 @@
                                TextWrapping="Wrap" FontSize="12" />
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="6">
                         <Button Content="Format" Classes="chip" Command="{Binding FormatCommand}"
-                                ToolTip.Tip="Pretty-print" />
+                                IsVisible="{Binding IsJson}" ToolTip.Tip="Pretty-print" />
                         <Button Content="Minify" Classes="chip" Command="{Binding MinifyCommand}"
-                                ToolTip.Tip="Collapse to one line" />
+                                IsVisible="{Binding IsJson}" ToolTip.Tip="Collapse to one line" />
                         <Button Content="Cancel" Classes="chip" Command="{Binding CancelEditCommand}" />
                         <Button Content="Save" Classes="chip" Command="{Binding SaveCommand}"
                                 IsEnabled="{Binding !HasValidationError}" />

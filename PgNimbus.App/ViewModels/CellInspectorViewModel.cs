@@ -38,14 +38,12 @@ public sealed partial class CellInspectorViewModel : ObservableObject
 
     /// <summary>True when this cell can be edited (an editable, JSON-typed cell in a keyed result set).</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanShowEdit))]
     private bool _canEdit;
 
     /// <summary>True while the inline JSON editor is showing instead of the read-only value.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowText))]
     [NotifyPropertyChangedFor(nameof(ShowTree))]
-    [NotifyPropertyChangedFor(nameof(CanShowEdit))]
     [NotifyPropertyChangedFor(nameof(CanShowTreeToggle))]
     [NotifyPropertyChangedFor(nameof(ValidationError))]
     [NotifyPropertyChangedFor(nameof(HasValidationError))]
@@ -82,10 +80,7 @@ public sealed partial class CellInspectorViewModel : ObservableObject
     /// <summary>The Text/Tree toggle only makes sense for a JSON value in read mode.</summary>
     public bool CanShowTreeToggle => IsJson && !IsEditing;
 
-    /// <summary>The Edit chip shows only for an editable cell that isn't already being edited.</summary>
-    public bool CanShowEdit => CanEdit && !IsEditing;
-
-    // Parse the tree lazily the first time it's shown (and only for JSON), then cache it.
+// Parse the tree lazily the first time it's shown (and only for JSON), then cache it.
     partial void OnIsTreeViewChanged(bool value)
     {
         if (value && IsJson && TreeRoots.Count == 0 && JsonTree.Parse(DisplayText) is { } root)
@@ -94,8 +89,10 @@ public sealed partial class CellInspectorViewModel : ObservableObject
         }
     }
 
-    /// <summary>Client-side JSON validation of the in-progress edit — null when it parses or is blank.</summary>
-    public string? ValidationError => IsEditing ? PgValueSyntax.ValidateJson(EditText) : null;
+    /// <summary>Client-side JSON validation of the in-progress edit — null when it parses
+    /// or is blank. Only JSON cells are pre-validated; other free-text types (plain text,
+    /// arrays, xml, …) are parsed server-side on save (the cast surfaces a precise error).</summary>
+    public string? ValidationError => IsEditing && _validatesAsJson ? PgValueSyntax.ValidateJson(EditText) : null;
 
     public bool HasValidationError => ValidationError is not null;
 
@@ -103,6 +100,17 @@ public sealed partial class CellInspectorViewModel : ObservableObject
     // success, or an error message to show inline) and which grid column it is.
     private Func<int, string, Task<string?>>? _commit;
     private int _columnIndex = -1;
+
+    // Whether the edit buffer has been seeded from the displayed value since the
+    // inspector opened. Lets the View/Edit tabs switch back and forth without
+    // discarding an in-progress edit — only the first entry into edit mode (or a
+    // Cancel/Save reset) reseeds EditText from DisplayText.
+    private bool _editSeeded;
+
+    // Whether the column's declared type is json/jsonb (type-derived, unlike the
+    // content-derived IsJson). Only then is the edit client-side JSON-validated -
+    // a plain text column holding a JSON-looking string must accept any string.
+    private bool _validatesAsJson;
 
     private static readonly JsonSerializerOptions PrettyPrintOptions = new()
     {
@@ -127,27 +135,39 @@ public sealed partial class CellInspectorViewModel : ObservableObject
     /// Opens the inspector for one cell. When <paramref name="canEdit"/> is true a
     /// <paramref name="commit"/> delegate persists edits (returning null on success
     /// or an error message); <paramref name="columnIndex"/> identifies the grid
-    /// column that delegate targets.
+    /// column that delegate targets. <paramref name="validatesAsJson"/> is set when the
+    /// column's declared type is json/jsonb, gating client-side JSON validation.
     /// </summary>
-    public void Open(string columnName, object? value, int columnIndex, bool canEdit, Func<int, string, Task<string?>>? commit)
+    public void Open(string columnName, object? value, int columnIndex, bool canEdit, Func<int, string, Task<string?>>? commit, bool validatesAsJson = false, bool startEditing = false)
     {
         ColumnName = columnName;
         _columnIndex = columnIndex;
         _commit = commit;
         CanEdit = canEdit && commit is not null;
+        _validatesAsJson = validatesAsJson;
 
         IsEditing = false;
         IsTreeView = false;
         SaveError = null;
+        _editSeeded = false;
 
         (DisplayText, IsJson) = Format(value);
         TreeRoots = [];
         IsOpen = true;
+
+        // A double-click on an editable json cell means "let me edit this" -
+        // drop straight into the editor rather than the read view.
+        if (startEditing)
+        {
+            Edit();
+        }
     }
 
     [RelayCommand]
     private void Close() => IsOpen = false;
 
+    /// <summary>Switch to the Edit tab. Seeds the editor from the current value only
+    /// on first entry, so toggling back to View and returning keeps in-progress edits.</summary>
     [RelayCommand]
     private void Edit()
     {
@@ -158,14 +178,29 @@ public sealed partial class CellInspectorViewModel : ObservableObject
 
         SaveError = null;
         IsTreeView = false;
-        EditText = DisplayText;
+        if (!_editSeeded)
+        {
+            EditText = DisplayText;
+            _editSeeded = true;
+        }
         IsEditing = true;
+    }
+
+    /// <summary>Switch to the View tab. Leaves the edit buffer intact so the Edit tab
+    /// can be re-selected without losing changes (Cancel is the explicit discard).</summary>
+    [RelayCommand]
+    private void ViewText()
+    {
+        IsEditing = false;
+        IsTreeView = false;
+        SaveError = null;
     }
 
     [RelayCommand]
     private void CancelEdit()
     {
         IsEditing = false;
+        _editSeeded = false;
         SaveError = null;
     }
 
@@ -216,6 +251,7 @@ public sealed partial class CellInspectorViewModel : ObservableObject
         TreeRoots = [];
         SaveError = null;
         IsEditing = false;
+        _editSeeded = false;
     }
 
     private static bool TryReformat(string text, JsonSerializerOptions options, out string result)

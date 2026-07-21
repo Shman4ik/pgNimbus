@@ -69,6 +69,11 @@ public partial class MainWindow : Window
     // space bar - a TextBox doesn't mark Space's KeyDown handled, it inserts
     // the space on TextInput, so the key would otherwise bubble up here.
     private bool _isCellEditing;
+    // One-shot: set when a double-click lands on an editable json/jsonb cell,
+    // consumed by OnResultsGridBeginningEdit to cancel the grid's inline edit so
+    // the click opens the cell inspector's JSON editor instead (see
+    // OnResultsGridCellPointerPressed).
+    private bool _suppressJsonInlineEdit;
     private readonly BracketHighlightRenderer _bracketRenderer;
 
     private const double MinEditorFontSize = 8;
@@ -174,6 +179,7 @@ public partial class MainWindow : Window
         SqlEditor.AddHandler(DragDrop.DropEvent, OnEditorDrop);
         ResultsGrid.CellEditEnding += OnCellEditEnding;
         ResultsGrid.CellEditEnded += OnCellEditEnded;
+        ResultsGrid.BeginningEdit += OnResultsGridBeginningEdit;
         ResultsGrid.PreparingCellForEdit += OnPreparingCellForEdit;
         ResultsGrid.KeyDown += OnResultsGridKeyDown;
         ResultsGrid.Sorting += OnResultsGridSorting;
@@ -570,9 +576,18 @@ public partial class MainWindow : Window
         SetHighlightColor(_jsonHighlighting, "Number", dark ? "#B5CEA8" : "#098658");
         SetHighlightColor(_jsonHighlighting, "Keyword", dark ? "#569CD6" : "#0000E0");
 
-        // Reassigning drops the TextView's cached line visuals so the new brushes take.
+        UpdateInspectorHighlighting();
+    }
+
+    // JSON highlighting only applies to a json/jsonb cell — the inspector now
+    // edits any free-text type (plain text, arrays, xml, …) where colored JSON
+    // tokens would be noise, so a non-JSON cell gets the bare editor. Reassigning
+    // (null then set) drops the TextView's cached line visuals so the change takes.
+    private void UpdateInspectorHighlighting()
+    {
+        var json = _viewModel?.CellInspector.IsJson == true ? _jsonHighlighting : null;
         JsonInspectorEditor.SyntaxHighlighting = null;
-        JsonInspectorEditor.SyntaxHighlighting = _jsonHighlighting;
+        JsonInspectorEditor.SyntaxHighlighting = json;
     }
 
     // ViewModel → editor half of the inspector's manual two-way sync: when the
@@ -580,6 +595,13 @@ public partial class MainWindow : Window
     // into AvaloniaEdit under the re-entrancy guard so the echo back doesn't loop.
     private void OnCellInspectorPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        // IsJson flips per opened cell; the editor's highlighting follows it.
+        if (e.PropertyName == nameof(CellInspectorViewModel.IsJson))
+        {
+            UpdateInspectorHighlighting();
+            return;
+        }
+
         if (e.PropertyName != nameof(CellInspectorViewModel.EditText) || _viewModel is null)
         {
             return;
@@ -2079,9 +2101,56 @@ public partial class MainWindow : Window
         _lastPressedRow = row;
         _lastPressedColumnIndex = e.Column.DisplayIndex;
 
-        if (e.PointerPressedEventArgs.ClickCount == 2 && ResultsGrid.IsReadOnly)
+        if (e.PointerPressedEventArgs.ClickCount == 2)
         {
-            OpenCellInspector(row, e.Column.DisplayIndex);
+            if (ResultsGrid.IsReadOnly)
+            {
+                OpenCellInspector(row, e.Column.DisplayIndex);
+            }
+            else if (IsJsonColumn(e.Column.DisplayIndex))
+            {
+                // json/jsonb is unusable in a one-line inline editor, so a
+                // double-click opens the cell inspector's JSON editor instead.
+                // The DataGrid begins its own inline edit from this same
+                // gesture (marking the pointer event handled doesn't stop it),
+                // so flag the imminent BeginningEdit to cancel it.
+                _suppressJsonInlineEdit = true;
+                OpenCellInspector(row, e.Column.DisplayIndex, startEditing: true);
+            }
+        }
+    }
+
+    // json/jsonb cells route double-click to the inspector rather than inline
+    // editing - the editor metadata is the same Json classification the
+    // inspector's own edit path keys off (see OpenCellInspector).
+    private bool IsJsonColumn(int columnIndex)
+    {
+        if (_queryViewModel is not { } query || columnIndex >= query.ColumnNames.Count)
+        {
+            return false;
+        }
+
+        var name = query.ColumnNames[columnIndex];
+        return query.EditContext?.Column(name)?.Editor == ColumnValueEditor.Json;
+    }
+
+    // Which editor kinds the cell inspector can edit: the free-text ones, all of
+    // which reduce to typing a value the commit path converts/casts. The
+    // typed-widget kinds (boolean/enum/date/timestamp) are excluded - a plain
+    // text box would be a downgrade from their inline checkbox/dropdown/picker.
+    private static bool IsFreeTextEditor(ColumnValueEditor editor) => editor is
+        ColumnValueEditor.Text or ColumnValueEditor.Array or ColumnValueEditor.Composite
+        or ColumnValueEditor.Json or ColumnValueEditor.CastText;
+
+    // Cancels the inline edit the DataGrid tries to start after a double-click
+    // on a json/jsonb cell - OnResultsGridCellPointerPressed has already opened
+    // the inspector for it.
+    private void OnResultsGridBeginningEdit(object? sender, DataGridBeginningEditEventArgs e)
+    {
+        if (_suppressJsonInlineEdit)
+        {
+            _suppressJsonInlineEdit = false;
+            e.Cancel = true;
         }
     }
 
@@ -2230,7 +2299,7 @@ public partial class MainWindow : Window
         _ = vm.PreviewTableAsync(hop.TargetSchema, hop.TargetTable, filter);
     }
 
-    private void OpenCellInspector(object?[] row, int columnIndex)
+    private void OpenCellInspector(object?[] row, int columnIndex, bool startEditing = false)
     {
         if (_viewModel is null || _queryViewModel is null || columnIndex >= row.Length
             || columnIndex >= _queryViewModel.ColumnNames.Count)
@@ -2241,14 +2310,17 @@ public partial class MainWindow : Window
         var query = _queryViewModel;
         var name = query.ColumnNames[columnIndex];
 
-        // A json/jsonb cell is editable in the inspector under the same
-        // conditions an inline grid edit is: a keyed, editable result set, a
-        // non-PK column whose type gets the Json editor, and the table's whole
-        // primary key present in the result so the UPDATE can target the row.
+        // A cell is editable in the inspector under the same conditions an inline
+        // grid edit is: a keyed, editable result set, a non-PK column, and the
+        // table's whole primary key present in the result so the UPDATE can
+        // target the row. Only free-text editor types get the inspector's roomy
+        // multi-line box - the typed-widget types (boolean/enum/date/timestamp)
+        // are strictly better edited inline with their checkbox/dropdown/picker,
+        // so they stay inline-only here.
         var editorMeta = query.EditContext?.Column(name);
         var canEdit = query.IsEditable
             && query.EditContext is { } ctx
-            && editorMeta?.Editor == ColumnValueEditor.Json
+            && editorMeta is { } meta && IsFreeTextEditor(meta.Editor)
             && !ctx.PrimaryKeyColumns.Contains(name)
             && ctx.PrimaryKeyColumns.All(pk => query.ColumnNames.Contains(pk));
 
@@ -2258,7 +2330,8 @@ public partial class MainWindow : Window
             ? async (col, text) => await query.CommitCellEditAsync(row, col, text) ? null : query.Status
             : null;
 
-        _viewModel.CellInspector.Open(name, row[columnIndex], columnIndex, canEdit, commit);
+        var validatesAsJson = editorMeta?.Editor == ColumnValueEditor.Json;
+        _viewModel.CellInspector.Open(name, row[columnIndex], columnIndex, canEdit, commit, validatesAsJson, startEditing && canEdit);
     }
 
     private async void OnCellInspectorCopyClick(object? sender, RoutedEventArgs e)
