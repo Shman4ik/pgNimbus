@@ -71,3 +71,6 @@ Thumbs.db
 
 # Benchmark output (scripts/benchmarks/run-benchmarks.sh)
 bench-results/
+
+# Marketing drafts — kept local until published (avoid pre-publication indexing)
+docs/marketing/
