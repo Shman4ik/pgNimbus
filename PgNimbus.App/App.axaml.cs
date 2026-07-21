@@ -151,6 +151,11 @@ public partial class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
+        // Catch exceptions thrown on the UI thread once the loop is running
+        // (event handlers, async-void continuations, posted jobs) so they
+        // surface in the crash window instead of taking the app down silently.
+        Diagnostics.CrashReporter.AttachToDispatcher();
+
         // Restore the saved light/dark choice before any window resolves its
         // ActualThemeVariant, so the first frame already paints in the right theme.
         ApplyPersistedTheme();
