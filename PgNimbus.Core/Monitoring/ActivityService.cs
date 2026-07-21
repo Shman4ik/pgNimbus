@@ -75,6 +75,78 @@ public sealed class ActivityService
         return results;
     }
 
+    /// <summary>
+    /// Backends caught in a lock wait right now, as blocker/blocked edges. Every
+    /// waiting backend carries the pids blocking it (<c>pg_blocking_pids</c>) plus the
+    /// not-yet-granted lock it wants; a backend that only holds a contended lock is
+    /// included too (empty <c>BlockedByPids</c>). <see cref="BlockingTree.Build"/> shapes
+    /// these into the who-blocks-whom forest. Empty when nothing is blocked.
+    /// </summary>
+    public async Task<IReadOnlyList<BlockingBackend>> GetBlockingAsync(CancellationToken ct)
+    {
+        // Every backend that is either waiting on a lock, or is blocking a waiter.
+        // pg_blocking_pids(pid) is the authoritative "who holds the lock I want"
+        // (it understands lock groups / parallel workers, unlike a hand-rolled
+        // pg_locks self-join). The lateral picks one ungranted lock the waiter is
+        // stuck on, resolving a relation oid to its name for a readable label.
+        const string sql = """
+            SELECT a.pid,
+                   a.usename,
+                   a.datname,
+                   a.application_name,
+                   COALESCE(a.state, ''),
+                   a.wait_event_type,
+                   a.wait_event,
+                   COALESCE(EXTRACT(EPOCH FROM (now() - a.query_start))::float8, 0),
+                   COALESCE(a.query, ''),
+                   pg_catalog.pg_blocking_pids(a.pid) AS blocked_by,
+                   w.obj,
+                   w.mode
+            FROM pg_catalog.pg_stat_activity a
+            LEFT JOIN LATERAL (
+                SELECT COALESCE(c.relname, l.locktype) AS obj, l.mode
+                FROM pg_catalog.pg_locks l
+                LEFT JOIN pg_catalog.pg_class c ON c.oid = l.relation
+                WHERE l.pid = a.pid AND NOT l.granted
+                ORDER BY l.relation NULLS LAST
+                LIMIT 1
+            ) w ON true
+            WHERE a.backend_type = 'client backend'
+              AND (
+                    cardinality(pg_catalog.pg_blocking_pids(a.pid)) > 0
+                 OR a.pid = ANY (
+                        SELECT unnest(pg_catalog.pg_blocking_pids(b.pid))
+                        FROM pg_catalog.pg_stat_activity b
+                    )
+              )
+            ORDER BY a.pid
+            """;
+
+        await using var connection = await _dataSource.OpenConnectionAsync(ct);
+        await using var command = new NpgsqlCommand(sql, connection);
+        await using var reader = await command.ExecuteReaderAsync(ct);
+
+        var results = new List<BlockingBackend>();
+        while (await reader.ReadAsync(ct))
+        {
+            results.Add(new BlockingBackend(
+                reader.GetInt32(0),
+                reader.IsDBNull(1) ? null : reader.GetString(1),
+                reader.IsDBNull(2) ? null : reader.GetString(2),
+                reader.IsDBNull(3) ? null : reader.GetString(3),
+                reader.GetString(4),
+                reader.IsDBNull(5) ? null : reader.GetString(5),
+                reader.IsDBNull(6) ? null : reader.GetString(6),
+                reader.GetDouble(7),
+                reader.GetString(8),
+                reader.IsDBNull(9) ? [] : reader.GetFieldValue<int[]>(9),
+                reader.IsDBNull(10) ? null : reader.GetString(10),
+                reader.IsDBNull(11) ? null : reader.GetString(11)));
+        }
+
+        return results;
+    }
+
     /// <summary>pg_cancel_backend — stops the running statement, keeps the session. False if the pid was already gone.</summary>
     public Task<bool> CancelBackendAsync(int pid, CancellationToken ct) =>
         SignalBackendAsync("SELECT pg_catalog.pg_cancel_backend(@pid)", pid, ct);

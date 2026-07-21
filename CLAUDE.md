@@ -69,7 +69,21 @@ and wrong project memory is worse than none.
    `PgNimbus.Core.ByteSize` (base-1024, unit-tested, shared by both) rather
    than being formatted ad hoc in the App. Both monitoring windows follow the
    same shape: one-live-instance, opened from the command palette (and the
-   macOS Query native menu), no new toolbar button.
+   macOS Query native menu), no new toolbar button. The **Server Activity**
+   window (backed by `ActivityService`) is two tabs: the flat
+   `pg_stat_activity` grid, and a **Blocking** who-blocks-whom lock tree.
+   `ActivityService.GetBlockingAsync` reads `pg_blocking_pids(pid)` (the
+   authoritative "who holds the lock I want" — it understands lock groups /
+   parallel workers, unlike a hand-rolled `pg_locks` self-join) plus one
+   ungranted `pg_locks` row per waiter for the lock label; the pure,
+   unit-tested `Monitoring/BlockingTree.Build` (a read-only sibling of
+   `Json/JsonTree`) shapes those flat rows into a blocker→blocked forest,
+   robust to chains, multi-blocker waiters, invisible (out-of-snapshot)
+   blockers, and transient deadlock cycles (guarded against infinite
+   recursion). The tree's nodes auto-expand so the whole wait chain shows at a
+   glance and survives the 2s auto-refresh rebuild; cancel/terminate on the
+   Blocking tab target the *selected* node's pid (aim at the root holder to
+   release everyone beneath it).
 4. **No passwords on `ConnectionProfile`.** Passwords come from
    `ICredentialStore` (DPAPI on Windows via `WindowsDpapiCredentialStore`, a
    permission-restricted file fallback elsewhere via

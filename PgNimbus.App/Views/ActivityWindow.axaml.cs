@@ -49,4 +49,18 @@ public partial class ActivityWindow : Window
             await vm.TerminateBackendCommand.ExecuteAsync(null);
         }
     }
+
+    private async void OnTerminateBlockerClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not ActivityViewModel { SelectedBlockingNode: { } node } vm)
+        {
+            return;
+        }
+
+        var confirm = new ConfirmDialog($"Terminate backend {node.Pid} ({node.Identity})? Its session and any open transaction die with it.", "Terminate");
+        if (await confirm.ShowDialog<bool>(this))
+        {
+            await vm.TerminateBlockerCommand.ExecuteAsync(null);
+        }
+    }
 }
