@@ -35,6 +35,10 @@ public partial class MainWindow : Window
     private MainViewModel? _viewModel;
     private QueryViewModel? _queryViewModel;
     private bool _suppressEditorSync;
+    // Re-entrancy guard for the cell inspector's JSON editor, same shape as
+    // _suppressEditorSync: the ViewModel↔AvaloniaEdit two-way sync is manual
+    // (AvaloniaEdit's Text isn't a bindable AvaloniaProperty).
+    private bool _suppressInspectorSync;
     private object?[]? _pendingEditRow;
     private int _pendingEditColumnIndex;
     private string? _pendingEditText;
@@ -50,6 +54,8 @@ public partial class MainWindow : Window
     private char _pendingAutoCloser;
     private ShortcutsWindow? _shortcutsWindow;
     private IHighlightingDefinition? _sqlHighlighting;
+    // JSON highlighting for the cell inspector's edit mode (theme-neutral palette).
+    private IHighlightingDefinition? _jsonHighlighting;
     // AvaloniaEdit's stock find/replace panel, installed on the SQL editor;
     // opened via Ctrl+F / Ctrl+H (see OnKeyDown) or the command palette.
     private SearchPanel? _searchPanel;
@@ -103,6 +109,7 @@ public partial class MainWindow : Window
         ActualThemeVariantChanged += (_, _) =>
         {
             ApplySqlHighlightingTheme();
+            ApplyJsonHighlightingTheme();
             UpdateThemeIcon();
             // ShellBackdropBrush is theme-split, so re-resolve on a theme flip.
             ApplyBackdrop();
@@ -121,6 +128,19 @@ public partial class MainWindow : Window
 
             _queryViewModel.Sql = SqlEditor.Text;
         };
+
+        // Cell-inspector JSON editor: same manual two-way sync as the SQL editor.
+        // Editor → ViewModel here; ViewModel → editor in OnCellInspectorPropertyChanged.
+        JsonInspectorEditor.TextChanged += (_, _) =>
+        {
+            if (_viewModel is null || _suppressInspectorSync)
+            {
+                return;
+            }
+
+            _viewModel.CellInspector.EditText = JsonInspectorEditor.Text;
+        };
+        LoadJsonHighlighting();
 
         // Feed the editor's live selection to the active tab so "Run" executes
         // just the highlighted SQL when there is a selection (see RunAsync).
@@ -527,6 +547,55 @@ public partial class MainWindow : Window
         ApplySqlHighlightingTheme();
     }
 
+    // The cell inspector's JSON editor gets its own highlighting, theme-rewritten
+    // the same way the SQL editor's is (the XSHD bakes in the dark palette).
+    private void LoadJsonHighlighting()
+    {
+        using var stream = AssetLoader.Open(new Uri("avares://PgNimbus.App/Assets/Json.xshd"));
+        using var reader = XmlReader.Create(stream);
+        _jsonHighlighting = HighlightingLoader.Load(reader, HighlightingManager.Instance);
+        ApplyJsonHighlightingTheme();
+    }
+
+    private void ApplyJsonHighlightingTheme()
+    {
+        if (_jsonHighlighting is null)
+        {
+            return;
+        }
+
+        var dark = ActualThemeVariant == ThemeVariant.Dark;
+        SetHighlightColor(_jsonHighlighting, "Property", dark ? "#9CDCFE" : "#0451A5");
+        SetHighlightColor(_jsonHighlighting, "String", dark ? "#CE9178" : "#A31515");
+        SetHighlightColor(_jsonHighlighting, "Number", dark ? "#B5CEA8" : "#098658");
+        SetHighlightColor(_jsonHighlighting, "Keyword", dark ? "#569CD6" : "#0000E0");
+
+        // Reassigning drops the TextView's cached line visuals so the new brushes take.
+        JsonInspectorEditor.SyntaxHighlighting = null;
+        JsonInspectorEditor.SyntaxHighlighting = _jsonHighlighting;
+    }
+
+    // ViewModel → editor half of the inspector's manual two-way sync: when the
+    // ViewModel changes EditText (entering edit mode, Format, Minify), push it
+    // into AvaloniaEdit under the re-entrancy guard so the echo back doesn't loop.
+    private void OnCellInspectorPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(CellInspectorViewModel.EditText) || _viewModel is null)
+        {
+            return;
+        }
+
+        var text = _viewModel.CellInspector.EditText;
+        if (JsonInspectorEditor.Text == text)
+        {
+            return;
+        }
+
+        _suppressInspectorSync = true;
+        JsonInspectorEditor.Text = text;
+        _suppressInspectorSync = false;
+    }
+
     // The XSHD bakes in the dark palette; the highlighter has no theme
     // awareness of its own, so the named colors are rewritten whenever the
     // actual theme variant resolves or changes.
@@ -606,9 +675,11 @@ public partial class MainWindow : Window
         }
     }
 
-    private void SetHighlightColor(string name, string hex)
+    private void SetHighlightColor(string name, string hex) => SetHighlightColor(_sqlHighlighting, name, hex);
+
+    private static void SetHighlightColor(IHighlightingDefinition? highlighting, string name, string hex)
     {
-        if (_sqlHighlighting!.GetNamedColor(name) is { } color)
+        if (highlighting?.GetNamedColor(name) is { } color)
         {
             color.Foreground = new SimpleHighlightingBrush(Color.Parse(hex));
         }
@@ -687,6 +758,7 @@ public partial class MainWindow : Window
         if (_viewModel is not null)
         {
             _viewModel.PropertyChanged -= OnMainViewModelPropertyChanged;
+            _viewModel.CellInspector.PropertyChanged -= OnCellInspectorPropertyChanged;
             _viewModel.ThemeToggleRequested -= ToggleTheme;
             _viewModel.ShortcutsRequested -= ShowShortcutsWindow;
             _viewModel.SwitchConnectionRequested -= SwitchConnection;
@@ -705,6 +777,7 @@ public partial class MainWindow : Window
 
         _viewModel = vm;
         _viewModel.PropertyChanged += OnMainViewModelPropertyChanged;
+        _viewModel.CellInspector.PropertyChanged += OnCellInspectorPropertyChanged;
         // Palette actions that touch the window are handled here.
         _viewModel.ThemeToggleRequested += ToggleTheme;
         _viewModel.ShortcutsRequested += ShowShortcutsWindow;
@@ -2165,7 +2238,27 @@ public partial class MainWindow : Window
             return;
         }
 
-        _viewModel.CellInspector.Open(_queryViewModel.ColumnNames[columnIndex], row[columnIndex]);
+        var query = _queryViewModel;
+        var name = query.ColumnNames[columnIndex];
+
+        // A json/jsonb cell is editable in the inspector under the same
+        // conditions an inline grid edit is: a keyed, editable result set, a
+        // non-PK column whose type gets the Json editor, and the table's whole
+        // primary key present in the result so the UPDATE can target the row.
+        var editorMeta = query.EditContext?.Column(name);
+        var canEdit = query.IsEditable
+            && query.EditContext is { } ctx
+            && editorMeta?.Editor == ColumnValueEditor.Json
+            && !ctx.PrimaryKeyColumns.Contains(name)
+            && ctx.PrimaryKeyColumns.All(pk => query.ColumnNames.Contains(pk));
+
+        // Commit through the same path an inline edit uses; return null on
+        // success or the resulting status text so the inspector can show it.
+        Func<int, string, Task<string?>>? commit = canEdit
+            ? async (col, text) => await query.CommitCellEditAsync(row, col, text) ? null : query.Status
+            : null;
+
+        _viewModel.CellInspector.Open(name, row[columnIndex], columnIndex, canEdit, commit);
     }
 
     private async void OnCellInspectorCopyClick(object? sender, RoutedEventArgs e)

@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Numerics;
 using System.Text;
+using System.Text.Json;
 
 namespace PgNimbus.Core.Schema;
 
@@ -36,6 +37,40 @@ public static class PgValueSyntax
 
     /// <summary>Error message for a malformed composite (row) literal, or null when the structure is fine.</summary>
     public static string? ValidateComposite(string text) => Validate(text.Trim(), '(', ')', "A composite");
+
+    /// <summary>
+    /// Error message for a value that isn't well-formed JSON, or null when it
+    /// parses (or is blank — a blank cell defers to the server / column default).
+    /// Postgres remains the real parser via the statement's <c>CAST(… AS jsonb)</c>;
+    /// this only front-runs the obvious mistakes (a stray comma, an unclosed
+    /// brace) so they surface in the editor instead of as a failed statement.
+    /// json/jsonb both accept a bare scalar (<c>42</c>, <c>"hi"</c>, <c>true</c>,
+    /// <c>null</c>), so this validates any JSON value, not just objects/arrays.
+    /// </summary>
+    public static string? ValidateJson(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return null;
+        }
+
+        try
+        {
+            // AllowTrailingCommas stays off on purpose: Postgres rejects them too,
+            // so catching them here keeps the client check honest.
+            using var _ = JsonDocument.Parse(text);
+            return null;
+        }
+        catch (JsonException ex)
+        {
+            // JsonException carries 0-based line/byte positions; present 1-based
+            // and only when known (they're null for some low-level failures).
+            var where = ex.LineNumber is { } line && ex.BytePositionInLine is { } pos
+                ? $" (line {line + 1}, position {pos + 1})"
+                : string.Empty;
+            return $"Not valid JSON{where}.";
+        }
+    }
 
     /// <summary>
     /// Cheap client-side type check for a hand-typed scalar value against its

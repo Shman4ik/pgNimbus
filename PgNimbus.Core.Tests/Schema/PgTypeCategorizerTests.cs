@@ -104,7 +104,7 @@ public class PgTypeCategorizerTests
     // Other editors don't override the name-based family.
     [Arguments("integer", ColumnValueEditor.Text, PgTypeCategory.Numeric)]
     [Arguments("boolean", ColumnValueEditor.Boolean, PgTypeCategory.Boolean)]
-    [Arguments("jsonb", ColumnValueEditor.Text, PgTypeCategory.Json)]
+    [Arguments("jsonb", ColumnValueEditor.Json, PgTypeCategory.Json)]
     public async Task CategorizeColumnUsesEditorForEnumAndComposite(string declared, ColumnValueEditor editor, PgTypeCategory expected)
     {
         await Assert.That(PgTypeCategorizer.CategorizeColumn(declared, null, editor)).IsEqualTo(expected);

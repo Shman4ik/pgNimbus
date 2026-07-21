@@ -9,6 +9,7 @@
         xmlns:sys="using:System"
         xmlns:conv="using:Avalonia.Data.Converters"
         xmlns:conv2="using:PgNimbus.App.Converters"
+        xmlns:json="using:PgNimbus.Core.Json"
         mc:Ignorable="d"
         d:DesignWidth="1000" d:DesignHeight="650"
         x:Class="PgNimbus.App.Views.MainWindow"
@@ -1064,36 +1065,97 @@
         Cell inspector: Space on the current cell, double-click (read-only
         results - in editable grids double-click starts the inline edit), or
         the context menu. Shows the full value - readable and copyable without
-        inline-edit tricks, with jsonb/json pretty-printed. Same
-        centered-overlay-over-scrim shape as the command palette, closed by the
-        scrim, the × button, or Esc.
+        inline-edit tricks, with jsonb/json pretty-printed, browsable as a tree,
+        and (for an editable jsonb/json cell) editable in place: Format, Minify,
+        client-side validation, and Save through the same cast-to-jsonb path an
+        inline grid edit uses. Same centered-overlay-over-scrim shape as the
+        command palette, closed by the scrim, the × button, or Esc.
     -->
     <Border Name="CellInspectorOverlay"
             IsVisible="{Binding CellInspector.IsOpen}"
             Background="#66000000"
             PointerPressed="OnCellInspectorScrimPressed">
-        <Border Width="640" MaxHeight="520" MinHeight="120" VerticalAlignment="Center"
+        <Border Width="660" MaxHeight="580" MinHeight="120" VerticalAlignment="Center"
                 Background="{DynamicResource SystemControlPageBackgroundAltHighBrush}"
                 BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
                 CornerRadius="10" BoxShadow="0 12 32 0 #40000000"
                 PointerPressed="OnCellInspectorCardPressed"
                 x:DataType="vm:CellInspectorViewModel" DataContext="{Binding CellInspector}">
-            <Grid RowDefinitions="Auto,*" Margin="14">
-                <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto,Auto" Margin="0,0,0,10">
+            <Grid RowDefinitions="Auto,*,Auto" Margin="14">
+                <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,10">
                     <TextBlock Grid.Column="0" Text="{Binding ColumnName}" FontWeight="SemiBold" FontSize="14"
                                VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                    <ToggleButton Grid.Column="1" Content="Wrap" Classes="chip" Margin="6,0,0,0"
-                                  IsChecked="{Binding WordWrap}" ToolTip.Tip="Toggle word wrap" />
-                    <Button Grid.Column="2" Content="Copy" Classes="chip" Margin="6,0,0,0"
-                            Click="OnCellInspectorCopyClick" />
-                    <Button Grid.Column="3" Content="✕" Classes="chip" Margin="6,0,0,0"
-                            Command="{Binding CloseCommand}" />
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <ToggleButton Content="Tree" Classes="chip" Margin="6,0,0,0"
+                                      IsVisible="{Binding CanShowTreeToggle}"
+                                      IsChecked="{Binding IsTreeView}"
+                                      ToolTip.Tip="Toggle tree / text view" />
+                        <ToggleButton Content="Wrap" Classes="chip" Margin="6,0,0,0"
+                                      IsVisible="{Binding ShowText}"
+                                      IsChecked="{Binding WordWrap}" ToolTip.Tip="Toggle word wrap" />
+                        <Button Content="Edit" Classes="chip" Margin="6,0,0,0"
+                                IsVisible="{Binding CanShowEdit}"
+                                Command="{Binding EditCommand}" ToolTip.Tip="Edit this JSON value" />
+                        <Button Content="Copy" Classes="chip" Margin="6,0,0,0"
+                                IsVisible="{Binding !IsEditing}"
+                                Click="OnCellInspectorCopyClick" />
+                        <Button Content="✕" Classes="chip" Margin="6,0,0,0"
+                                Command="{Binding CloseCommand}" />
+                    </StackPanel>
                 </Grid>
-                <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+
+                <!-- Read: pretty/raw text -->
+                <ScrollViewer Grid.Row="1" IsVisible="{Binding ShowText}"
+                              HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                     <SelectableTextBlock Text="{Binding DisplayText}"
                                           TextWrapping="{Binding WordWrap, Converter={x:Static conv2:BoolToTextWrappingConverter.Instance}}"
                                           FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="13" />
                 </ScrollViewer>
+
+                <!-- Read: collapsible document tree (JSON only) -->
+                <TreeView Grid.Row="1" IsVisible="{Binding ShowTree}"
+                          ItemsSource="{Binding TreeRoots}"
+                          Background="Transparent" BorderThickness="0">
+                    <TreeView.ItemTemplate>
+                        <TreeDataTemplate ItemsSource="{Binding Children}" x:DataType="json:JsonTreeNode">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
+                                           FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="12" />
+                                <TextBlock Text="{Binding ValuePreview}" Opacity="0.75"
+                                           FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="12"
+                                           TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+                        </TreeDataTemplate>
+                    </TreeView.ItemTemplate>
+                </TreeView>
+
+                <!-- Edit: AvaloniaEdit JSON editor (two-way synced in code-behind) -->
+                <Border Grid.Row="1" IsVisible="{Binding IsEditing}"
+                        BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" CornerRadius="6">
+                    <ae:TextEditor Name="JsonInspectorEditor"
+                                   ShowLineNumbers="True" WordWrap="True"
+                                   FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="13" />
+                </Border>
+
+                <!-- Edit action bar + inline validation/save messages -->
+                <StackPanel Grid.Row="2" IsVisible="{Binding IsEditing}" Spacing="6" Margin="0,10,0,0">
+                    <TextBlock Text="{Binding ValidationError}" IsVisible="{Binding HasValidationError}"
+                               Foreground="{DynamicResource SystemControlErrorTextForegroundBrush}"
+                               TextWrapping="Wrap" FontSize="12" />
+                    <TextBlock Text="{Binding SaveError}"
+                               IsVisible="{Binding SaveError, Converter={x:Static conv:ObjectConverters.IsNotNull}}"
+                               Foreground="{DynamicResource SystemControlErrorTextForegroundBrush}"
+                               TextWrapping="Wrap" FontSize="12" />
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="6">
+                        <Button Content="Format" Classes="chip" Command="{Binding FormatCommand}"
+                                ToolTip.Tip="Pretty-print" />
+                        <Button Content="Minify" Classes="chip" Command="{Binding MinifyCommand}"
+                                ToolTip.Tip="Collapse to one line" />
+                        <Button Content="Cancel" Classes="chip" Command="{Binding CancelEditCommand}" />
+                        <Button Content="Save" Classes="chip" Command="{Binding SaveCommand}"
+                                IsEnabled="{Binding !HasValidationError}" />
+                    </StackPanel>
+                </StackPanel>
             </Grid>
         </Border>
     </Border>

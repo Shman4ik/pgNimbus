@@ -137,4 +137,37 @@ public class PgValueSyntaxTests
     {
         await Assert.That(PgValueSyntax.ValidateScalar(dataType, value)).IsNotNull();
     }
+
+    [Test]
+    [Arguments("{}")]
+    [Arguments("[]")]
+    [Arguments("""{"a": 1, "b": [true, null, "x"]}""")]
+    [Arguments("[1, 2, 3]")]
+    [Arguments("  { \"nested\": { \"deep\": 42 } }  ")] // leading/trailing space is fine
+    // json/jsonb both accept a bare scalar, so ValidateJson must too.
+    [Arguments("42")]
+    [Arguments("-3.14")]
+    [Arguments("\"just a string\"")]
+    [Arguments("true")]
+    [Arguments("null")]
+    // Blank defers to the server / column default.
+    [Arguments("")]
+    [Arguments("   ")]
+    public async Task AcceptsWellFormedJson(string value)
+    {
+        await Assert.That(PgValueSyntax.ValidateJson(value)).IsNull();
+    }
+
+    [Test]
+    [Arguments("{not really validated}")]
+    [Arguments("""{"a": 1,}""")]          // trailing comma — Postgres rejects it too
+    [Arguments("""{"a": 1""")]            // unclosed brace
+    [Arguments("[1, 2,]")]                 // trailing comma in array
+    [Arguments("'single quotes'")]         // JSON requires double quotes
+    [Arguments("undefined")]
+    [Arguments("{ bare: 1 }")]             // unquoted key
+    public async Task RejectsMalformedJson(string value)
+    {
+        await Assert.That(PgValueSyntax.ValidateJson(value)).IsNotNull();
+    }
 }

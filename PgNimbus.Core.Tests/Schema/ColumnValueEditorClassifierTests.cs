@@ -12,6 +12,8 @@ public class ColumnValueEditorClassifierTests
     [Arguments('b', 'D', "date", ColumnValueEditor.Date)]
     [Arguments('b', 'D', "timestamp", ColumnValueEditor.Timestamp)]
     [Arguments('b', 'D', "timestamptz", ColumnValueEditor.Timestamp)]
+    [Arguments('b', 'U', "json", ColumnValueEditor.Json)]
+    [Arguments('b', 'U', "jsonb", ColumnValueEditor.Json)]
     public async Task ClassifiesDedicatedEditors(char typtype, char typcategory, string typname, ColumnValueEditor expected)
     {
         await Assert.That(ColumnValueEditorClassifier.Classify(typtype, typcategory, typname)).IsEqualTo(expected);
@@ -22,7 +24,8 @@ public class ColumnValueEditorClassifierTests
     [Arguments('b', 'N', "int4")]
     [Arguments('b', 'N', "numeric")]
     [Arguments('b', 'U', "uuid")]
-    [Arguments('b', 'U', "jsonb")]
+    [Arguments('b', 'U', "jsonpath")] // a jsonpath expression isn't JSON-shaped — stays text
+    [Arguments('b', 'U', "hstore")]   // hstore's "k"=>"v" literal isn't JSON — stays text
     [Arguments('b', 'D', "time")]     // no seconds-capable picker — stays text
     [Arguments('b', 'T', "interval")]
     [Arguments('r', 'R', "int4range")]
