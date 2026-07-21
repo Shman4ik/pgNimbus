@@ -1364,14 +1364,6 @@ public partial class MainWindow : Window
         _databaseOverviewWindow.Show(this);
     }
 
-    private void OnRemoveChannelClick(object? sender, RoutedEventArgs e)
-    {
-        if (sender is Button { Tag: string channel })
-        {
-            _viewModel?.NotifyMonitor.RemoveChannelCommand.Execute(channel);
-        }
-    }
-
     private void OnAlterTableClick(object? sender, RoutedEventArgs e)
     {
         if (sender is not MenuItem { Tag: TableNode table } || _viewModel is null)
