@@ -277,7 +277,24 @@ csproj / WiX / MSIX manifest reference them unchanged:
   `AvaloniaProperty` — it's a plain CLR property backed by a `TextDocument`.
   Two-way sync with the ViewModel is done manually in `MainWindow.axaml.cs`
   (via `TextChanged` + `PropertyChanged`, with a re-entrancy guard), not via
-  XAML `Binding`.
+  XAML `Binding`. Both the main SQL editor (`_suppressEditorSync`) and the
+  cell inspector's JSON editor (`_suppressInspectorSync`) follow this pattern.
+- **json/jsonb are a first-class editable type.** `ColumnValueEditorClassifier`
+  maps them to `ColumnValueEditor.Json` (jsonpath/hstore stay `Text` — not
+  JSON-shaped), which does two things every edit path (inline F2, staged edits,
+  the Add-row dialog) honors: the value is validated client-side by
+  `PgValueSyntax.ValidateJson` (a `JsonDocument.Parse` structure check — a bare
+  scalar is valid json, so it accepts any JSON value) and stored via
+  `CAST(@value AS jsonb)`. The cast is **load-bearing**: Npgsql surfaces
+  json/jsonb as `string`, and Postgres has no implicit text→json[b] assignment
+  cast, so an uncast `UPDATE`/`INSERT` of a json column fails with a type error.
+  The cell inspector (`CellInspectorViewModel`) pretty-prints JSON, offers a
+  read-only collapsible tree (`PgNimbus.Core.Json.JsonTree` builds the node
+  model — pure Core, unit-tested), and for an editable json cell edits in place
+  (Format / Minify / client-side validation / Save through the same cast path,
+  highlighted by `Assets/Json.xshd`). Completion carries the jsonb function
+  family (`SqlCompletionProvider.Functions`); JSON operators (`->`, `@>`, `?`,
+  `@?`, …) are punctuation, out of the identifier-triggered completion model.
 - `SqlFormatter` follows <https://www.sqlstyle.guide/> ("river" layout: root
   keywords right-aligned to a common column, content to its right). The tests
   in `PgNimbus.Core.Tests` assert exact spacing — a deliberate layout change

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    JSON syntax highlighting for the cell inspector's edit mode. The foreground
+    values baked in here are the dark-theme palette; MainWindow recolors the
+    named colors at runtime for the light theme (and back), so keep the color
+    names in sync with ApplyJsonHighlightingTheme.
+-->
+<SyntaxDefinition name="JSON" extensions=".json" xmlns="http://icsharpcode.net/sharpdevelop/syntaxdefinition/2008">
+    <Color name="Property" foreground="#9CDCFE" />
+    <Color name="String" foreground="#CE9178" />
+    <Color name="Number" foreground="#B5CEA8" />
+    <Color name="Keyword" foreground="#569CD6" fontWeight="bold" />
+
+    <RuleSet>
+        <!-- A quoted string immediately followed by a colon is an object key.
+             Defined before the value-string span so keys win at the same offset. -->
+        <Rule color="Property">
+            "(\\.|[^"\\])*"(?=\s*:)
+        </Rule>
+
+        <!-- Value strings; a backslash escape keeps the closing quote from ending early. -->
+        <Span color="String">
+            <Begin>"</Begin>
+            <End>"</End>
+            <RuleSet>
+                <Span begin="\\" end="." />
+            </RuleSet>
+        </Span>
+
+        <Keywords color="Keyword">
+            <Word>true</Word>
+            <Word>false</Word>
+            <Word>null</Word>
+        </Keywords>
+
+        <Rule color="Number">
+            -?\b\d+(\.\d+)?([eE][-+]?\d+)?\b
+        </Rule>
+    </RuleSet>
+</SyntaxDefinition>

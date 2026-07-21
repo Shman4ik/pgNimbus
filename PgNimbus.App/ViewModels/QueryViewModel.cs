@@ -1031,14 +1031,14 @@ public sealed partial class QueryViewModel : ObservableObject
     /// place doesn't raise a UI change notification); on failure it simply
     /// does nothing, since the row was never touched.
     /// </summary>
-    public async Task CommitCellEditAsync(object?[] row, int columnIndex, string newValueText)
+    public async Task<bool> CommitCellEditAsync(object?[] row, int columnIndex, string newValueText)
     {
         HasError = false;
 
         if (EditContext is not { } context)
         {
             Status = "Editing isn't available for this result set.";
-            return;
+            return false;
         }
 
         var columnName = ColumnNames[columnIndex];
@@ -1046,14 +1046,14 @@ public sealed partial class QueryViewModel : ObservableObject
         if (context.PrimaryKeyColumns.Contains(columnName))
         {
             Status = "Editing primary key columns isn't supported yet.";
-            return;
+            return false;
         }
 
         var pkIndexes = context.PrimaryKeyColumns.Select(pk => ColumnNames.IndexOf(pk)).ToList();
         if (pkIndexes.Any(i => i < 0))
         {
             Status = "Cannot edit: primary key column isn't present in this result set.";
-            return;
+            return false;
         }
 
         // Postgres-native values a CLR conversion can't express — enum labels,
@@ -1064,7 +1064,7 @@ public sealed partial class QueryViewModel : ObservableObject
         // before anything is sent.
         var columnMeta = context.Column(columnName);
         var castType = columnMeta?.Editor
-            is ColumnValueEditor.Enum or ColumnValueEditor.Array or ColumnValueEditor.Composite
+            is ColumnValueEditor.Enum or ColumnValueEditor.Array or ColumnValueEditor.Composite or ColumnValueEditor.Json
             ? columnMeta.DataType
             : null;
 
@@ -1075,6 +1075,7 @@ public sealed partial class QueryViewModel : ObservableObject
             {
                 ColumnValueEditor.Array => PgValueSyntax.ValidateArray(newValueText),
                 ColumnValueEditor.Composite => PgValueSyntax.ValidateComposite(newValueText),
+                ColumnValueEditor.Json => PgValueSyntax.ValidateJson(newValueText),
                 _ => null,
             };
 
@@ -1082,7 +1083,7 @@ public sealed partial class QueryViewModel : ObservableObject
             {
                 Status = $"Invalid value for {columnName}: {syntaxError}";
                 HasError = true;
-                return;
+                return false;
             }
 
             newValue = newValueText;
@@ -1097,14 +1098,14 @@ public sealed partial class QueryViewModel : ObservableObject
             {
                 Status = $"Invalid value for {columnName}: {ex.Message}";
                 HasError = true;
-                return;
+                return false;
             }
         }
 
         if (ShouldStageChanges)
         {
             StageCellValue(context, row, pkIndexes, columnIndex, columnName, newValue, castType);
-            return;
+            return true;
         }
 
         var whereClause = string.Join(
@@ -1129,11 +1130,13 @@ public sealed partial class QueryViewModel : ObservableObject
             await _engine.ExecuteNonQueryAsync(sql, parameters, CancellationToken.None);
             ReplaceRowCell(row, columnIndex, newValue);
             Status = $"Saved {context.Schema}.{context.Table}.{columnName}";
+            return true;
         }
         catch (Exception ex)
         {
             Status = $"Update failed: {ex.Message}";
             HasError = true;
+            return false;
         }
     }
 

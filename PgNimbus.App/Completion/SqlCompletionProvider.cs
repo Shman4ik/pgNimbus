@@ -71,10 +71,23 @@ public sealed class SqlCompletionProvider
         // date/time
         "now", "age", "date_trunc", "date_part", "extract", "to_char",
         "to_date", "to_timestamp", "make_date", "justify_interval",
-        // arrays / sets / json
+        // arrays / sets
         "unnest", "generate_series", "array_length", "cardinality",
-        "array_to_string", "string_to_array", "to_json", "to_jsonb",
-        "jsonb_build_object", "jsonb_array_elements",
+        "array_to_string", "string_to_array",
+        // json / jsonb: construction, inspection, mutation, and expansion
+        "to_json", "to_jsonb", "json_build_object", "jsonb_build_object",
+        "json_build_array", "jsonb_build_array", "json_object", "jsonb_object",
+        "row_to_json", "array_to_json",
+        "jsonb_array_elements", "json_array_elements",
+        "jsonb_array_elements_text", "jsonb_array_length", "json_array_length",
+        "jsonb_each", "jsonb_each_text", "jsonb_object_keys",
+        "jsonb_extract_path", "jsonb_extract_path_text", "jsonb_typeof",
+        "jsonb_set", "jsonb_set_lax", "jsonb_insert", "jsonb_pretty",
+        "jsonb_strip_nulls", "jsonb_populate_record", "json_populate_record",
+        "jsonb_to_record", "jsonb_to_recordset",
+        // jsonpath (SQL/JSON path queries)
+        "jsonb_path_query", "jsonb_path_query_array", "jsonb_path_query_first",
+        "jsonb_path_exists", "jsonb_path_match",
         // misc
         "md5", "gen_random_uuid", "pg_typeof",
     ];

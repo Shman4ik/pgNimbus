@@ -36,7 +36,7 @@ public sealed partial class NewRowField : ObservableObject
     /// <summary>The resolved base type when the declared type is a domain; null otherwise.</summary>
     public string? DomainBaseType { get; init; }
 
-    public bool IsTextEditor => Editor is ColumnValueEditor.Text or ColumnValueEditor.Array or ColumnValueEditor.Composite;
+    public bool IsTextEditor => Editor is ColumnValueEditor.Text or ColumnValueEditor.Array or ColumnValueEditor.Composite or ColumnValueEditor.Json;
 
     public bool IsBooleanEditor => Editor == ColumnValueEditor.Boolean;
 
@@ -114,6 +114,7 @@ public sealed partial class NewRowField : ObservableObject
     {
         ColumnValueEditor.Array => PgValueSyntax.ValidateArray(Value),
         ColumnValueEditor.Composite => PgValueSyntax.ValidateComposite(Value),
+        ColumnValueEditor.Json => PgValueSyntax.ValidateJson(Value),
         ColumnValueEditor.Text => PgValueSyntax.ValidateScalar(DomainBaseType ?? DataType, Value),
         _ => null,
     };
