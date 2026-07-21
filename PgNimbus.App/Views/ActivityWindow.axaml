@@ -12,26 +12,26 @@
     <Grid RowDefinitions="Auto,*" Margin="12">
 
         <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="6" Margin="0,0,0,10">
-            <Button Classes="toolbar" Command="{Binding RefreshCommand}" ToolTip.Tip="Refresh now">
+            <Button Classes="soft" Command="{Binding RefreshCommand}" ToolTip.Tip="Refresh now">
                 <StackPanel Orientation="Horizontal" Spacing="7">
                     <PathIcon Data="{StaticResource RefreshIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
                     <TextBlock Text="Refresh" VerticalAlignment="Center" />
                 </StackPanel>
             </Button>
-            <ToggleButton Classes="chip" IsChecked="{Binding AutoRefresh}" Padding="8,4"
+            <ToggleButton Classes="chip" IsChecked="{Binding AutoRefresh}" Padding="10,6"
                           ToolTip.Tip="Refresh every 2 seconds while this window is open">
                 <TextBlock Text="Auto" FontSize="12" />
             </ToggleButton>
         </StackPanel>
 
-        <TabControl Grid.Row="1">
+        <TabControl Grid.Row="1" Classes="segmented">
 
             <!-- Every client backend, live -->
             <TabItem Header="Backends">
                 <Grid RowDefinitions="Auto,*,Auto" Margin="0,8,0,0">
 
                     <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="6" Margin="0,0,0,10">
-                        <Button Classes="toolbar" Command="{Binding CancelBackendCommand}"
+                        <Button Classes="soft" Command="{Binding CancelBackendCommand}"
                                 IsEnabled="{Binding SelectedRow, Converter={x:Static ObjectConverters.IsNotNull}}"
                                 ToolTip.Tip="pg_cancel_backend — stop the running statement, keep the session">
                             <StackPanel Orientation="Horizontal" Spacing="7">
@@ -39,7 +39,7 @@
                                 <TextBlock Text="Cancel query" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
-                        <Button Classes="toolbar" Click="OnTerminateClick"
+                        <Button Classes="soft danger" Click="OnTerminateClick"
                                 IsEnabled="{Binding SelectedRow, Converter={x:Static ObjectConverters.IsNotNull}}"
                                 ToolTip.Tip="pg_terminate_backend — kill the whole session">
                             <StackPanel Orientation="Horizontal" Spacing="7">
@@ -94,7 +94,7 @@
                 <Grid RowDefinitions="Auto,*,Auto" Margin="0,8,0,0">
 
                     <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="6" Margin="0,0,0,10">
-                        <Button Classes="toolbar" Command="{Binding CancelBlockerCommand}"
+                        <Button Classes="soft" Command="{Binding CancelBlockerCommand}"
                                 IsEnabled="{Binding SelectedBlockingNode, Converter={x:Static ObjectConverters.IsNotNull}}"
                                 ToolTip.Tip="pg_cancel_backend on the selected backend — cancel the lock holder to release everyone waiting on it">
                             <StackPanel Orientation="Horizontal" Spacing="7">
@@ -102,7 +102,7 @@
                                 <TextBlock Text="Cancel blocker" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
-                        <Button Classes="toolbar" Click="OnTerminateBlockerClick"
+                        <Button Classes="soft danger" Click="OnTerminateBlockerClick"
                                 IsEnabled="{Binding SelectedBlockingNode, Converter={x:Static ObjectConverters.IsNotNull}}"
                                 ToolTip.Tip="pg_terminate_backend on the selected backend — kill the whole session">
                             <StackPanel Orientation="Horizontal" Spacing="7">
