@@ -106,7 +106,16 @@ public sealed class ActivityService
             LEFT JOIN LATERAL (
                 SELECT COALESCE(c.relname, l.locktype) AS obj, l.mode
                 FROM pg_catalog.pg_locks l
-                LEFT JOIN pg_catalog.pg_class c ON c.oid = l.relation
+                -- pg_locks is cluster-wide but pg_class is database-local and oids
+                -- aren't unique across databases, so only resolve a relation name
+                -- for a lock in THIS database (or a shared catalog, database = 0) —
+                -- otherwise the join could paste a same-oid relation's name from
+                -- the current db onto a lock held in another one.
+                LEFT JOIN pg_catalog.pg_class c
+                    ON c.oid = l.relation
+                   AND (l.database = 0
+                        OR l.database = (SELECT d.oid FROM pg_catalog.pg_database d
+                                         WHERE d.datname = current_database()))
                 WHERE l.pid = a.pid AND NOT l.granted
                 ORDER BY l.relation NULLS LAST
                 LIMIT 1

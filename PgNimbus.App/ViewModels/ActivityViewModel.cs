@@ -153,8 +153,11 @@ public sealed partial class ActivityViewModel : ObservableObject
     [RelayCommand]
     private async Task RefreshAsync()
     {
-        await RefreshActivityAsync();
-        await RefreshBlockingAsync();
+        // Two independent queries (separate pooled connections) — overlap the
+        // round-trips so a refresh tick isn't the sum of both latencies. Each
+        // method owns its try/catch, so WhenAll never surfaces an exception; the
+        // ObservableCollection mutations still run on the captured UI context.
+        await Task.WhenAll(RefreshActivityAsync(), RefreshBlockingAsync());
     }
 
     private async Task RefreshActivityAsync()
