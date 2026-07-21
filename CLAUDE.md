@@ -75,6 +75,32 @@ and wrong project memory is worse than none.
    permission-restricted file fallback elsewhere via
    `PlainFileCredentialStore`) at connect time, never persisted on the
    profile record itself.
+5. **Crashes are logged and shown, never silent.** Critical/unhandled errors
+   append to a plain-text log at `<appdata>/pgNimbus/logs/pgnimbus.log`
+   (`PgNimbus.Core.Diagnostics.CrashLog` does the file I/O — directory-injectable
+   and unit-tested — with the process-wide `CrashLogger` static as the facade;
+   1 MiB rolling to `pgnimbus.log.old`, every write swallows its own failure so
+   logging a crash can never itself throw). The App wires three global hooks in
+   `PgNimbus.App/Diagnostics/CrashReporter.cs`: `AppDomain.UnhandledException`
+   and `TaskScheduler.UnobservedTaskException` (log only — off the UI thread,
+   the process is usually already terminating), plus
+   `Dispatcher.UIThread.UnhandledException` (`AttachToDispatcher`, called from
+   `App.OnFrameworkInitializationCompleted`) which is the real UI-thread net —
+   it sets `e.Handled` and shows the crash window, then shuts the app down when
+   it's dismissed. A startup/setup crash that escapes the message loop entirely
+   is caught in `Program.Main`'s try/catch → `HandleFatal`, which shows the same
+   `CrashWindow` by pumping a nested `DispatcherFrame` (the primary loop is gone
+   by then). Landmines learned the hard way: a second `AppBuilder.Configure`
+   throws "Setup was already called", so the crash window must reuse the
+   already-initialized platform, never stand up a fresh Avalonia app; and
+   `DispatcherTimer.Tick` exceptions are swallowed by Avalonia and never reach
+   `Dispatcher.UnhandledException` (async-void handlers / posted continuations
+   do), so don't rely on a timer to smoke-test the reporter. `CrashWindow`
+   (`Views/CrashWindow.axaml`) is deliberately self-contained (no view model,
+   touches no app services — it must render with the rest of the app broken):
+   it shows the error, the on-disk log path, and a "Report on GitHub" button
+   that opens a pre-filled new-issue URL (title/body/labels query params,
+   including version + OS).
 
 ## UI design rules
 

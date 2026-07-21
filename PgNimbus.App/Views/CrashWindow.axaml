@@ -1,0 +1,42 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="PgNimbus.App.Views.CrashWindow"
+        Title="pgNimbus — Unexpected Error"
+        Width="520" SizeToContent="Height" MinHeight="300"
+        CanResize="False"
+        WindowStartupLocation="CenterScreen">
+    <!-- Shown when an unhandled exception has already taken the app down (see
+         CrashReporter). Tells the user what happened, points at the saved log,
+         and offers a one-click, pre-filled GitHub issue. Deliberately
+         self-contained: no DataContext / view model, since it has to render
+         even when the rest of the app is in an unknown state. -->
+    <StackPanel Margin="28" Spacing="14">
+        <TextBlock Text="pgNimbus ran into an unexpected error"
+                   FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" />
+        <TextBlock Text="The application hit a critical error and has to close. Nothing you were doing was necessarily lost — reopen pgNimbus to carry on."
+                   FontSize="13" Opacity="0.8" TextWrapping="Wrap" />
+
+        <Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                CornerRadius="4" Padding="12,10">
+            <TextBox Name="ErrorText" IsReadOnly="True" BorderThickness="0"
+                     Background="Transparent" TextWrapping="Wrap"
+                     FontFamily="Consolas, Menlo, monospace" FontSize="12"
+                     MaxHeight="140" />
+        </Border>
+
+        <StackPanel Spacing="4">
+            <TextBlock Text="A detailed log was saved to:" FontSize="12" Opacity="0.7" />
+            <TextBox Name="LogPathText" IsReadOnly="True" BorderThickness="0"
+                     Background="Transparent" FontSize="12" TextWrapping="Wrap" Padding="0" />
+        </StackPanel>
+
+        <TextBlock Text="Please report this so it can be fixed — the button below opens a pre-filled GitHub issue. Attaching the log file above helps a lot."
+                   FontSize="12" Opacity="0.8" TextWrapping="Wrap" />
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <Button Content="Open Log File" Click="OnOpenLogClick" />
+            <Button Content="Report on GitHub" Click="OnReportClick" Classes="accent" />
+            <Button Content="Close" Click="OnCloseClick" IsDefault="True" />
+        </StackPanel>
+    </StackPanel>
+</Window>
