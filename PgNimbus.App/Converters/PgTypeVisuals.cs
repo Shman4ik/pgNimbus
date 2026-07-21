@@ -60,10 +60,14 @@ public static class PgTypeVisuals
     public static Geometry? Icon(string? typeName) => IconFor(PgTypeCategorizer.Categorize(typeName));
 
     /// <summary>The friendly family label for a type name's category, or empty for Other.</summary>
-    public static string Label(string? typeName) =>
-        Labels.TryGetValue(PgTypeCategorizer.Categorize(typeName), out var label) ? label : string.Empty;
+    public static string Label(string? typeName) => LabelFor(PgTypeCategorizer.Categorize(typeName));
 
-    private static Geometry? IconFor(PgTypeCategory category)
+    /// <summary>The friendly family label for an already-resolved category, or empty for Other.</summary>
+    public static string LabelFor(PgTypeCategory category) =>
+        Labels.TryGetValue(category, out var label) ? label : string.Empty;
+
+    /// <summary>The icon for an already-resolved category, or null when the family has no glyph (Other) or the path failed to parse.</summary>
+    public static Geometry? IconFor(PgTypeCategory category)
     {
         if (GeometryCache.TryGetValue(category, out var cached))
         {

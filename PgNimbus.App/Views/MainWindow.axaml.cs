@@ -2825,11 +2825,18 @@ public partial class MainWindow : Window
             // In browse mode the edit context knows each column's Postgres
             // type — the column uses it to generate a type-aware cell editor
             // (enum dropdown, checkbox, date picker) instead of a TextBox.
-            var editorMeta = query.EditContext?.Column(query.ColumnNames[i]);
+            var name = query.ColumnNames[i];
+            var editorMeta = query.EditContext?.Column(name);
+            // Prefer the browse-mode format_type spelling ("numeric(12,2)") when
+            // known; fall back to the wire name for arbitrary queries. Domains
+            // resolve to their base type's family (see ClassifierType).
+            var declaredType = editorMeta?.DataType ?? query.ColumnTypeName(i);
+            var category = PgTypeCategorizer.Categorize(
+                PgTypeCategorizer.ClassifierType(declaredType, editorMeta?.DomainBaseType));
 
-            ResultsGrid.Columns.Add(new ResultTextColumn(i, editorMeta)
+            ResultsGrid.Columns.Add(new ResultTextColumn(i, editorMeta, category)
             {
-                Header = CreateColumnHeader(query.ColumnNames[i], query.ColumnTypeName(i), editorMeta),
+                Header = CreateColumnHeader(name, declaredType, category, editorMeta),
                 // Avalonia 12's DataGrid infers "read-only" from a column's
                 // binding path — and a pathless converter binding (the
                 // AOT-safe pattern used here) has none, which silently made
@@ -2863,24 +2870,21 @@ public partial class MainWindow : Window
     // and — in browse mode, where the table's real columns are known — its
     // primary-key / not-null flags. The type name comes from the wire protocol so
     // every result set gets the icon, not just editable ones.
-    private static Control CreateColumnHeader(string name, string? typeName, ColumnDetail? meta)
+    private static Control CreateColumnHeader(string name, string? displayType, PgTypeCategory category, ColumnDetail? meta)
     {
-        // Prefer the browse-mode format_type spelling ("numeric(12,2)") when known;
-        // fall back to the wire name ("numeric") for arbitrary queries.
-        var richType = meta?.DataType ?? typeName;
-        // A domain column carries no icon of its own — classify by its base type so
-        // e.g. a domain over citext still shows the text glyph. The tooltip keeps
-        // the declared (domain) type name.
-        var iconType = PgTypeCategorizer.ClassifierType(richType, meta?.DomainBaseType);
-
         var panel = new StackPanel
         {
             Orientation = Avalonia.Layout.Orientation.Horizontal,
             Spacing = 5,
             VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+            // Numeric cells right-align — sit the header over them so name and
+            // digits share an edge.
+            HorizontalAlignment = category == PgTypeCategory.Numeric
+                ? Avalonia.Layout.HorizontalAlignment.Right
+                : Avalonia.Layout.HorizontalAlignment.Left,
         };
 
-        if (Converters.PgTypeVisuals.Icon(iconType) is { } icon)
+        if (Converters.PgTypeVisuals.IconFor(category) is { } icon)
         {
             panel.Children.Add(new PathIcon
             {
@@ -2898,7 +2902,7 @@ public partial class MainWindow : Window
             VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
         });
 
-        if (BuildHeaderTooltip(richType, iconType, meta) is { } tip)
+        if (BuildHeaderTooltip(displayType, category, meta) is { } tip)
         {
             ToolTip.SetTip(panel, tip);
             ToolTip.SetShowDelay(panel, 300);
@@ -2908,16 +2912,16 @@ public partial class MainWindow : Window
     }
 
     // displayType is the declared type shown to the user (a domain keeps its own
-    // name); classifyType is what the family label is derived from (the domain's
-    // base type), so a domain over citext still reads "· Text".
-    private static string? BuildHeaderTooltip(string? displayType, string? classifyType, ColumnDetail? meta)
+    // name); the family label comes from the resolved category, so a domain over
+    // citext still reads "· Text".
+    private static string? BuildHeaderTooltip(string? displayType, PgTypeCategory category, ColumnDetail? meta)
     {
         if (string.IsNullOrEmpty(displayType))
         {
             return null;
         }
 
-        var family = Converters.PgTypeVisuals.Label(classifyType);
+        var family = Converters.PgTypeVisuals.LabelFor(category);
         var text = string.IsNullOrEmpty(family) ? displayType : $"{displayType}  ·  {family}";
 
         if (meta is not null)

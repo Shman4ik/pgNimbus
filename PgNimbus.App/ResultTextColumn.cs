@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Data;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
+using Avalonia.Media;
 using PgNimbus.App.Converters;
 using PgNimbus.Core.Schema;
 
@@ -15,6 +16,10 @@ namespace PgNimbus.App;
 /// reads as a marker rather than data. The display element's DataContext is
 /// the row array, so a plain style can't see the cell value - the opacity
 /// binding has to be attached per generated element.
+/// The column also renders type-aware: given its resolved
+/// <see cref="PgTypeCategory"/> it right-aligns and mono-fonts numeric cells
+/// (so digits line up) and shows a ✓/✗ glyph for booleans instead of the
+/// literal "true"/"false" — for every result set, not just editable ones.
 /// When the result maps to an editable table, the column also knows its
 /// Postgres type (via <paramref name="editorMeta"/>) and generates a
 /// type-appropriate cell editor: a dropdown of pg_enum labels for enum
@@ -25,13 +30,19 @@ namespace PgNimbus.App;
 /// </summary>
 public sealed class ResultTextColumn : DataGridTextColumn
 {
+    // Shared numeric font — the same mono stack the SQL editor/inspector use, so
+    // digits line up column-to-column under the right-aligned numeric cells.
+    private static readonly FontFamily MonoFont = new("Cascadia Code,Consolas,Menlo,monospace");
+
     private readonly int _index;
     private readonly ColumnDetail? _editorMeta;
+    private readonly PgTypeCategory _category;
 
-    public ResultTextColumn(int index, ColumnDetail? editorMeta = null)
+    public ResultTextColumn(int index, ColumnDetail? editorMeta = null, PgTypeCategory category = PgTypeCategory.Other)
     {
         _index = index;
         _editorMeta = editorMeta;
+        _category = category;
 
         if (editorMeta?.Editor is ColumnValueEditor.Boolean or ColumnValueEditor.Enum
             or ColumnValueEditor.Date or ColumnValueEditor.Timestamp)
@@ -54,11 +65,33 @@ public sealed class ResultTextColumn : DataGridTextColumn
         Justification = "Pathless binding uses a converter only; no dynamic code.")]
     protected override Control GenerateElement(DataGridCell cell, object dataItem)
     {
+        // Boolean cells read as a ✓/✗ glyph rather than "true"/"false" — its own
+        // TextBlock (bound through the glyph converter), centered.
+        if (_category == PgTypeCategory.Boolean)
+        {
+            var glyph = new TextBlock
+            {
+                TextAlignment = TextAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+            };
+            glyph.Bind(TextBlock.TextProperty, new Binding { Converter = new BoolCellGlyphConverter(_index) });
+            glyph.Bind(Visual.OpacityProperty, new Binding { Converter = new NullCellOpacityConverter(_index) });
+            return glyph;
+        }
+
         var element = base.GenerateElement(cell, dataItem);
         element.Bind(Visual.OpacityProperty, new Binding
         {
             Converter = new NullCellOpacityConverter(_index),
         });
+
+        // Numeric cells right-align and use the mono font so digits line up and
+        // magnitudes are comparable down the column.
+        if (_category == PgTypeCategory.Numeric && element is TextBlock text)
+        {
+            text.TextAlignment = TextAlignment.Right;
+            text.FontFamily = MonoFont;
+        }
 
         return element;
     }

@@ -43,6 +43,36 @@ public sealed class RowIndexConverter : IValueConverter
         throw new NotSupportedException();
 }
 
+/// <summary>
+/// Renders a boolean cell as a ✓/✗ glyph instead of the literal "true"/"false"
+/// text, so a boolean column reads at a glance. SQL NULL keeps the same "NULL"
+/// placeholder every other column uses (dimmed via <see cref="NullCellOpacityConverter"/>).
+/// </summary>
+public sealed class BoolCellGlyphConverter : IValueConverter
+{
+    public const string True = "✓";  // ✓
+    public const string False = "✗";  // ✗
+
+    private readonly int _index;
+
+    public BoolCellGlyphConverter(int index) => _index = index;
+
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        value is object?[] row && _index < row.Length
+            ? row[_index] switch
+            {
+                null => RowIndexConverter.NullPlaceholder,
+                bool b => b ? True : False,
+                // A boolean column should only ever hold bool/null, but never
+                // throw on a surprise value — show its text form.
+                var other => other.ToString(),
+            }
+            : null;
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        throw new NotSupportedException();
+}
+
 /// <summary>Dims cells whose underlying value is SQL NULL, so the "NULL" placeholder reads as a marker, not data.</summary>
 public sealed class NullCellOpacityConverter : IValueConverter
 {
