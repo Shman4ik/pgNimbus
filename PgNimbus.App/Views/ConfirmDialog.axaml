@@ -10,8 +10,8 @@
     <StackPanel Margin="20" Spacing="16">
         <TextBlock Name="MessageText" TextWrapping="Wrap" FontSize="13" />
         <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-            <Button Name="ConfirmButton" Classes="accent" Content="Delete" Click="OnConfirmClick" />
-            <Button Content="Cancel" Click="OnCancelClick" />
+            <Button Name="ConfirmButton" Classes="danger" Content="Delete" Click="OnConfirmClick" />
+            <Button Classes="soft" Content="Cancel" Click="OnCancelClick" />
         </StackPanel>
     </StackPanel>
 

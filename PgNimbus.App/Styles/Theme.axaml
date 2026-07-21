@@ -62,6 +62,17 @@
             -->
             <SolidColorBrush x:Key="AppTextSelectionBrush" Color="#402D7FF9" />
 
+            <!-- Destructive action (terminate a session, drop/delete/discard). A
+                 fixed red we control, legible on both themes: the solid brush for
+                 a filled primary-destructive button (Button.danger, mirrors
+                 .accent), hover/pressed shades for it, and a low-alpha wash +
+                 border for the soft/outline destructive variant (Button.soft.danger). -->
+            <SolidColorBrush x:Key="AppDangerBrush" Color="#E5484D" />
+            <SolidColorBrush x:Key="AppDangerHoverBrush" Color="#EC5B60" />
+            <SolidColorBrush x:Key="AppDangerPressedBrush" Color="#CE3B40" />
+            <SolidColorBrush x:Key="AppDangerWashBrush" Color="#22E5484D" />
+            <SolidColorBrush x:Key="AppDangerBorderBrush" Color="#66E5484D" />
+
         <CornerRadius x:Key="CardCornerRadius">8</CornerRadius>
         <CornerRadius x:Key="ControlCornerRadius">6</CornerRadius>
         <CornerRadius x:Key="PillCornerRadius">16</CornerRadius>
@@ -466,6 +477,25 @@
         <Setter Property="Foreground" Value="{DynamicResource SystemControlDisabledBaseMediumLowBrush}" />
     </Style>
 
+    <!-- Filled destructive primary button — the affirmative of a destructive
+         confirm (Terminate / Drop / Delete / Discard). Mirrors .accent, in red. -->
+    <Style Selector="Button.danger">
+        <Setter Property="Background" Value="{StaticResource AppDangerBrush}" />
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="Button.danger:pointerover">
+        <Setter Property="Background" Value="{StaticResource AppDangerHoverBrush}" />
+    </Style>
+    <Style Selector="Button.danger:pressed">
+        <Setter Property="Background" Value="{StaticResource AppDangerPressedBrush}" />
+    </Style>
+    <Style Selector="Button.danger:disabled">
+        <Setter Property="Background" Value="{DynamicResource SystemControlDisabledBaseLowBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlDisabledBaseMediumLowBrush}" />
+    </Style>
+
     <!--
         Quiet command-bar buttons (Files-style toolbar): transparent at rest,
         FluentTheme's own pointerover/pressed washes provide the hover state -
@@ -592,6 +622,131 @@
     <Style Selector="TabItem:selected">
         <Setter Property="Foreground" Value="{StaticResource AppAccentBrush}" />
         <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <!-- Segmented control: an elegant horizontal tab strip (macOS-style) for
+         the monitoring windows, scoped by class so the left-nav TabItem above
+         is untouched. The header strip is a subtle capsule; each segment is a
+         centered pill that fades to the brand-blue wash when selected. Fully
+         retemplated so it doesn't inherit the left-nav geometry or Fluent's
+         underline pipe. -->
+    <Style Selector="TabControl.segmented">
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <DockPanel>
+                    <!-- The header strip: a subtle capsule that hugs its segments -->
+                    <Border DockPanel.Dock="Top"
+                            Background="{StaticResource CardBackgroundBrush}"
+                            BorderBrush="{StaticResource CardBorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="9"
+                            Padding="3"
+                            Margin="0,0,0,2"
+                            HorizontalAlignment="Left">
+                        <ItemsPresenter Name="PART_ItemsPresenter"
+                                        ItemsPanel="{TemplateBinding ItemsPanel}" />
+                    </Border>
+                    <ContentPresenter Name="PART_SelectedContentHost"
+                                      Content="{TemplateBinding SelectedContent}"
+                                      ContentTemplate="{TemplateBinding SelectedContentTemplate}"
+                                      Padding="{TemplateBinding Padding}" />
+                </DockPanel>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="TabControl.segmented > TabItem">
+        <Setter Property="Padding" Value="16,6" />
+        <Setter Property="Margin" Value="1,0" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+        <Setter Property="Opacity" Value="0.6" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Name="PART_LayoutRoot"
+                        Background="{TemplateBinding Background}"
+                        CornerRadius="{TemplateBinding CornerRadius}"
+                        Padding="{TemplateBinding Padding}">
+                    <Border.Transitions>
+                        <Transitions>
+                            <BrushTransition Property="Background" Duration="0:0:0.14" />
+                        </Transitions>
+                    </Border.Transitions>
+                    <ContentPresenter Name="PART_ContentPresenter"
+                                      Content="{TemplateBinding Header}"
+                                      ContentTemplate="{TemplateBinding HeaderTemplate}"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center" />
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="TabControl.segmented > TabItem:pointerover /template/ Border#PART_LayoutRoot">
+        <Setter Property="Background" Value="{StaticResource HoverBackgroundBrush}" />
+    </Style>
+    <Style Selector="TabControl.segmented > TabItem:selected">
+        <Setter Property="Opacity" Value="1" />
+        <Setter Property="Foreground" Value="{StaticResource AppAccentBrush}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="TabControl.segmented > TabItem:selected /template/ Border#PART_LayoutRoot">
+        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
+    </Style>
+    <Style Selector="TabControl.segmented > TabItem:selected:pointerover /template/ Border#PART_LayoutRoot">
+        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
+    </Style>
+
+    <!-- Soft action button: a refined, tactile pill (card-toned fill + hairline
+         border) that reads as a real button, unlike the flat transparent
+         .toolbar variant. Hover lifts to the accent tint. Fluent repaints
+         PART_ContentPresenter on hover, so the states are pinned at the template
+         part (same trick as .searchpill). Add .danger for destructive actions. -->
+    <Style Selector="Button.soft">
+        <Setter Property="Background" Value="{StaticResource CardBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource ControlCornerRadius}" />
+        <Setter Property="Padding" Value="11,6" />
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+    </Style>
+    <Style Selector="Button.soft /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="Background" Duration="0:0:0.12" />
+                <BrushTransition Property="BorderBrush" Duration="0:0:0.12" />
+            </Transitions>
+        </Setter>
+    </Style>
+    <Style Selector="Button.soft:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource AppAccentBrush}" />
+    </Style>
+    <Style Selector="Button.soft:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource AppAccentBrush}" />
+    </Style>
+    <!-- Disabled soft button: quiet, no border glow -->
+    <Style Selector="Button.soft:disabled">
+        <Setter Property="Opacity" Value="0.4" />
+    </Style>
+    <!-- Destructive variant (terminate a session): red glyph/text, red hover wash. -->
+    <Style Selector="Button.soft.danger">
+        <Setter Property="Foreground" Value="{StaticResource AppDangerBrush}" />
+    </Style>
+    <Style Selector="Button.soft.danger PathIcon">
+        <Setter Property="Foreground" Value="{StaticResource AppDangerBrush}" />
+    </Style>
+    <Style Selector="Button.soft.danger:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource AppDangerWashBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource AppDangerBorderBrush}" />
+    </Style>
+    <Style Selector="Button.soft.danger:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource AppDangerWashBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource AppDangerBorderBrush}" />
     </Style>
 
     <!-- Lists / trees: rounded row selection instead of edge-to-edge highlight bars -->

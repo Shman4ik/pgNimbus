@@ -69,7 +69,21 @@ and wrong project memory is worse than none.
    `PgNimbus.Core.ByteSize` (base-1024, unit-tested, shared by both) rather
    than being formatted ad hoc in the App. Both monitoring windows follow the
    same shape: one-live-instance, opened from the command palette (and the
-   macOS Query native menu), no new toolbar button.
+   macOS Query native menu), no new toolbar button. The **Server Activity**
+   window (backed by `ActivityService`) is two tabs: the flat
+   `pg_stat_activity` grid, and a **Blocking** who-blocks-whom lock tree.
+   `ActivityService.GetBlockingAsync` reads `pg_blocking_pids(pid)` (the
+   authoritative "who holds the lock I want" — it understands lock groups /
+   parallel workers, unlike a hand-rolled `pg_locks` self-join) plus one
+   ungranted `pg_locks` row per waiter for the lock label; the pure,
+   unit-tested `Monitoring/BlockingTree.Build` (a read-only sibling of
+   `Json/JsonTree`) shapes those flat rows into a blocker→blocked forest,
+   robust to chains, multi-blocker waiters, invisible (out-of-snapshot)
+   blockers, and transient deadlock cycles (guarded against infinite
+   recursion). The tree's nodes auto-expand so the whole wait chain shows at a
+   glance and survives the 2s auto-refresh rebuild; cancel/terminate on the
+   Blocking tab target the *selected* node's pid (aim at the root holder to
+   release everyone beneath it).
 4. **No passwords on `ConnectionProfile`.** Passwords come from
    `ICredentialStore` (DPAPI on Windows via `WindowsDpapiCredentialStore`, a
    permission-restricted file fallback elsewhere via
@@ -144,6 +158,25 @@ and wrong project memory is worse than none.
    is Spotlight). User-facing settings live on the preferences page
    (`PreferencesWindow`, opened from the palette), persisted in
    `AppSettings`.
+6. **Shared control vocabulary — don't hand-roll button/tab looks.** Every
+   button uses one of the style classes in `Styles/Theme.axaml`, never an
+   ad-hoc `Background`/`Foreground`: `accent` (filled brand-blue, the one
+   primary affirmative per dialog — Connect/Import/Commit/Add), `danger`
+   (filled red, the affirmative of a *destructive* confirm — the shared
+   `ConfirmDialog`'s confirm button, always destructive), `soft` (neutral
+   card-toned outline pill with an accent-tint hover — every secondary
+   action: Cancel/Close/Save-as-secondary/Test/New/Refresh), `soft danger`
+   (outline red — a secondary destructive action sitting next to a
+   non-destructive primary: Delete a profile, Drop a column, Discard all,
+   the activity window's Terminate), and `chip` (small toggle/close pills).
+   Horizontal tab strips use `TabControl.segmented` — a retemplated
+   macOS-style segmented capsule (the monitoring windows' Backends/Blocking
+   and Database Overview's tabs); the bare global `TabItem` style is the
+   *vertical* left-nav look and must stay untouched. Destructive colors come
+   from the `AppDanger*` tokens (theme-independent fixed red). This
+   vocabulary is app-wide across the secondary windows and dialogs; the main
+   window's command bar deliberately keeps its flat minimalist `toolbar`
+   buttons (rule 1) and is the one surface exempt.
 
 ## Platform window chrome
 
