@@ -111,10 +111,18 @@ public partial class CrashWindow : Window
             ?.InformationalVersion.Split('+')[0] ?? "unknown";
 
         var title = $"Crash: {_errorSummary.Split('\n')[0]}";
+
+        // Keep the URL well under the ~2000-char limit browsers/the Windows shell
+        // impose on Process.Start, or a long message would make the button a
+        // silent no-op. The full detail is in the attached log anyway.
+        var errorDetails = _errorSummary.Length > 1000
+            ? _errorSummary[..1000] + "\n… (truncated — see the attached log)"
+            : _errorSummary;
+
         var body =
             "**What happened**\n\n" +
             "pgNimbus crashed with an unhandled error.\n\n" +
-            "**Error**\n\n```\n" + _errorSummary + "\n```\n\n" +
+            "**Error**\n\n```\n" + errorDetails + "\n```\n\n" +
             $"**Version:** {version}\n" +
             $"**OS:** {Environment.OSVersion}\n\n" +
             "**Steps to reproduce**\n\n" +

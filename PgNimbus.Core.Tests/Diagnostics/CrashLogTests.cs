@@ -83,6 +83,31 @@ public class CrashLogTests
     }
 
     [Test]
+    public async Task UnwindsEveryBranchOfAnAggregateException()
+    {
+        var dir = NewTempDir();
+        try
+        {
+            var log = new CrashLog(dir);
+            var aggregate = new AggregateException(
+                new InvalidOperationException("first branch"),
+                new FormatException("second branch"),
+                new TimeoutException("third branch"));
+
+            log.LogCritical("faulted tasks", aggregate);
+
+            var contents = await File.ReadAllTextAsync(log.FilePath);
+            await Assert.That(contents).Contains("first branch");
+            await Assert.That(contents).Contains("second branch");
+            await Assert.That(contents).Contains("third branch");
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Test]
     public async Task UnwindsInnerExceptions()
     {
         var dir = NewTempDir();

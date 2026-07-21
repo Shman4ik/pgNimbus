@@ -50,17 +50,41 @@ public sealed class CrashLog
         entry.Append('[').Append(DateTimeOffset.Now.ToString("yyyy-MM-dd HH:mm:ss.fff zzz")).Append("]  ");
         entry.Append("CRITICAL  ").AppendLine(context);
 
-        for (var current = exception; current is not null; current = current.InnerException)
+        if (exception is not null)
         {
-            entry.Append("    ").Append(current.GetType().FullName).Append(": ").AppendLine(current.Message);
-            if (!string.IsNullOrEmpty(current.StackTrace))
-            {
-                entry.AppendLine(current.StackTrace);
-            }
+            AppendException(entry, exception, "    ");
         }
 
         entry.AppendLine(new string('-', 72));
         return entry.ToString();
+    }
+
+    /// <summary>
+    /// Writes one exception and recurses into its cause(s). Handles
+    /// <see cref="AggregateException"/> by unwinding every entry in
+    /// <see cref="AggregateException.InnerExceptions"/> — the faulted-task and
+    /// unobserved-task paths surface as aggregates, and following only
+    /// <see cref="Exception.InnerException"/> would drop every branch but the first.
+    /// </summary>
+    private static void AppendException(StringBuilder entry, Exception exception, string indent)
+    {
+        entry.Append(indent).Append(exception.GetType().FullName).Append(": ").AppendLine(exception.Message);
+        if (!string.IsNullOrEmpty(exception.StackTrace))
+        {
+            entry.AppendLine(exception.StackTrace);
+        }
+
+        if (exception is AggregateException aggregate)
+        {
+            foreach (var inner in aggregate.InnerExceptions)
+            {
+                AppendException(entry, inner, indent + "  ");
+            }
+        }
+        else if (exception.InnerException is { } cause)
+        {
+            AppendException(entry, cause, indent);
+        }
     }
 
     private string? Write(string text)
@@ -114,8 +138,24 @@ public sealed class CrashLog
 /// </summary>
 public static class CrashLogger
 {
-    private static readonly CrashLog Instance =
-        new(Path.Combine(AppDataPaths.GetRootDirectory(), "logs"));
+    private static readonly CrashLog Instance = CreateInstance();
+
+    // CrashLogger is touched from the global crash handlers, so a throw during
+    // static initialization would surface as a TypeInitializationException
+    // inside the very code meant to report the crash — silently killing it.
+    // Resolving the app-data root already falls back to $HOME/temp, but guard
+    // it anyway and drop to the OS temp directory as a last resort.
+    private static CrashLog CreateInstance()
+    {
+        try
+        {
+            return new CrashLog(Path.Combine(AppDataPaths.GetRootDirectory(), "logs"));
+        }
+        catch
+        {
+            return new CrashLog(Path.Combine(Path.GetTempPath(), "pgNimbus", "logs"));
+        }
+    }
 
     /// <summary>Directory that holds the log file(s).</summary>
     public static string LogDirectory => Instance.Directory;
