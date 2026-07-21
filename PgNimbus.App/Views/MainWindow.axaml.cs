@@ -2825,11 +2825,22 @@ public partial class MainWindow : Window
             // In browse mode the edit context knows each column's Postgres
             // type — the column uses it to generate a type-aware cell editor
             // (enum dropdown, checkbox, date picker) instead of a TextBox.
-            var editorMeta = query.EditContext?.Column(query.ColumnNames[i]);
+            var name = query.ColumnNames[i];
+            var editorMeta = query.EditContext?.Column(name);
+            // Prefer the browse-mode format_type spelling ("numeric(12,2)") when
+            // known; fall back to the wire name for arbitrary queries. Domains
+            // resolve to their base type's family (see ClassifierType).
+            var declaredType = editorMeta?.DataType ?? query.ColumnTypeName(i);
+            // In browse mode the catalog kind is known, so enum/composite columns
+            // get their own icon; an arbitrary query only has the wire type name,
+            // where an enum is indistinguishable from Other.
+            var category = editorMeta is { } meta
+                ? PgTypeCategorizer.CategorizeColumn(declaredType, meta.DomainBaseType, meta.Editor)
+                : PgTypeCategorizer.Categorize(PgTypeCategorizer.ClassifierType(declaredType, null));
 
-            ResultsGrid.Columns.Add(new ResultTextColumn(i, editorMeta)
+            ResultsGrid.Columns.Add(new ResultTextColumn(i, editorMeta, category)
             {
-                Header = query.ColumnNames[i],
+                Header = CreateColumnHeader(name, declaredType, category, editorMeta),
                 // Avalonia 12's DataGrid infers "read-only" from a column's
                 // binding path — and a pathless converter binding (the
                 // AOT-safe pattern used here) has none, which silently made
@@ -2856,5 +2867,86 @@ public partial class MainWindow : Window
                 MaxWidth = 560,
             });
         }
+    }
+
+    // A results-grid column header: the type-family icon (when the type has one)
+    // plus the column name, with a tooltip carrying the full type, its family,
+    // and — in browse mode, where the table's real columns are known — its
+    // primary-key / not-null flags. The type name comes from the wire protocol so
+    // every result set gets the icon, not just editable ones.
+    private static Control CreateColumnHeader(string name, string? displayType, PgTypeCategory category, ColumnDetail? meta)
+    {
+        var panel = new StackPanel
+        {
+            Orientation = Avalonia.Layout.Orientation.Horizontal,
+            Spacing = 5,
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+            // Numeric cells right-align — sit the header over them so name and
+            // digits share an edge.
+            HorizontalAlignment = category == PgTypeCategory.Numeric
+                ? Avalonia.Layout.HorizontalAlignment.Right
+                : Avalonia.Layout.HorizontalAlignment.Left,
+        };
+
+        if (Converters.PgTypeVisuals.IconFor(category) is { } icon)
+        {
+            panel.Children.Add(new PathIcon
+            {
+                Data = icon,
+                Width = 11,
+                Height = 11,
+                Opacity = 0.5,
+                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+            });
+        }
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = name,
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+        });
+
+        if (BuildHeaderTooltip(displayType, category, meta) is { } tip)
+        {
+            ToolTip.SetTip(panel, tip);
+            ToolTip.SetShowDelay(panel, 300);
+        }
+
+        return panel;
+    }
+
+    // displayType is the declared type shown to the user (a domain keeps its own
+    // name); the family label comes from the resolved category, so a domain over
+    // citext still reads "· Text".
+    private static string? BuildHeaderTooltip(string? displayType, PgTypeCategory category, ColumnDetail? meta)
+    {
+        if (string.IsNullOrEmpty(displayType))
+        {
+            return null;
+        }
+
+        var family = Converters.PgTypeVisuals.LabelFor(category);
+        var text = string.IsNullOrEmpty(family) ? displayType : $"{displayType}  ·  {family}";
+
+        if (meta is not null)
+        {
+            var flags = new System.Collections.Generic.List<string>(2);
+            if (meta.IsPrimaryKey)
+            {
+                flags.Add("primary key");
+            }
+
+            if (meta.NotNull)
+            {
+                flags.Add("not null");
+            }
+
+            if (flags.Count > 0)
+            {
+                text += "\n" + string.Join("  ·  ", flags);
+            }
+        }
+
+        return text;
     }
 }

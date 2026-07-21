@@ -28,14 +28,55 @@ public sealed class RowIndexConverter : IValueConverter
             ? row[_index] switch
             {
                 null => NullPlaceholder,
+                // bytea arrives as byte[]; its default ToString is the useless
+                // "System.Byte[]". Show a capped \x-hex preview (the same shape
+                // the cell inspector uses, which carries the full value) rather
+                // than materializing megabytes of hex for a large blob inline.
+                byte[] bytes => FormatByteaPreview(bytes),
                 // Array columns render in Postgres's literal syntax ("{a,b}")
                 // instead of the CLR default ("System.String[]") — readable,
                 // and editable in place since the cell editor pre-fills from
                 // this text and the edit pipeline casts it back server-side.
-                // bytea (byte[]) is deliberately left alone.
-                byte[] bytes => bytes,
                 Array array => PgValueSyntax.FormatArray(array),
                 var cell => cell,
+            }
+            : null;
+
+    /// <summary>Bytes shown before a bytea preview is truncated — enough to read a magic number, not a whole blob.</summary>
+    private const int ByteaPreviewBytes = 24;
+
+    private static string FormatByteaPreview(byte[] bytes) =>
+        bytes.Length <= ByteaPreviewBytes
+            ? "\\x" + System.Convert.ToHexString(bytes)
+            : "\\x" + System.Convert.ToHexString(bytes.AsSpan(0, ByteaPreviewBytes)) + "…";
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        throw new NotSupportedException();
+}
+
+/// <summary>
+/// Renders a boolean cell as a ✓/✗ glyph instead of the literal "true"/"false"
+/// text, so a boolean column reads at a glance. SQL NULL keeps the same "NULL"
+/// placeholder every other column uses (dimmed via <see cref="NullCellOpacityConverter"/>).
+/// </summary>
+public sealed class BoolCellGlyphConverter : IValueConverter
+{
+    public const string True = "✓";  // ✓
+    public const string False = "✗";  // ✗
+
+    private readonly int _index;
+
+    public BoolCellGlyphConverter(int index) => _index = index;
+
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        value is object?[] row && _index < row.Length
+            ? row[_index] switch
+            {
+                null => RowIndexConverter.NullPlaceholder,
+                bool b => b ? True : False,
+                // A boolean column should only ever hold bool/null, but never
+                // throw on a surprise value — show its text form.
+                var other => other.ToString(),
             }
             : null;
 
