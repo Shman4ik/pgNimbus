@@ -5,13 +5,13 @@ namespace PgNimbus.App.ViewModels;
 public sealed class SchemaNode : SchemaTreeNode
 {
     private readonly SchemaService _schemaService;
-    private readonly Func<bool> _showFunctions;
+    private readonly Func<bool> _showAdvanced;
     private readonly Func<bool> _showSizes;
 
-    public SchemaNode(SchemaService schemaService, string name, Func<bool> showFunctions, Func<bool> showSizes)
+    public SchemaNode(SchemaService schemaService, string name, Func<bool> showAdvanced, Func<bool> showSizes)
     {
         _schemaService = schemaService;
-        _showFunctions = showFunctions;
+        _showAdvanced = showAdvanced;
         _showSizes = showSizes;
         Name = name;
         MarkExpandable();
@@ -20,36 +20,62 @@ public sealed class SchemaNode : SchemaTreeNode
     protected override async Task<IReadOnlyList<SchemaTreeNode>> FetchChildrenAsync()
     {
         var tables = await _schemaService.GetTablesAsync(Name, CancellationToken.None);
-        var children = tables.Select(t => (SchemaTreeNode)new TableNode(_schemaService, Name, t.Name, t.Kind, t.TotalBytes, _showSizes)).ToList();
-        if (_showFunctions())
+        var children = tables
+            .Select(t => (SchemaTreeNode)new TableNode(_schemaService, Name, t.Name, t.Kind, t.TotalBytes, _showSizes, _showAdvanced))
+            .ToList();
+        if (_showAdvanced())
         {
-            // Functions live in a sub-group so a schema with many of them doesn't drown its tables.
-            children.Add(new FunctionsGroupNode(_schemaService, Name));
+            // The advanced schema objects live in their own sub-groups so a schema
+            // with many of them doesn't drown its tables.
+            children.AddRange(AdvancedGroups());
         }
 
         return children;
     }
 
-    /// <summary>
-    /// Adds/removes the "Functions" sub-group in place when the advanced-objects
-    /// toggle flips. Only touches an already-loaded child list — an unloaded
-    /// schema picks the current toggle state up on first expand.
-    /// </summary>
-    public void SetFunctionsGroupVisible(bool visible)
+    private IEnumerable<SchemaTreeNode> AdvancedGroups()
     {
-        var existing = Children.OfType<FunctionsGroupNode>().FirstOrDefault();
-        if (visible == (existing is not null))
+        yield return new FunctionsGroupNode(_schemaService, Name);
+        yield return new SequencesGroupNode(_schemaService, Name);
+        yield return new TypesGroupNode(_schemaService, Name);
+    }
+
+    /// <summary>
+    /// Adds/removes the advanced sub-groups (Functions, Sequences, Types) in place
+    /// when the advanced-objects toggle flips, and cascades the same flip to each
+    /// loaded table's own Indexes/Triggers sub-groups. Only touches an already-loaded
+    /// child list — an unloaded schema picks the current toggle state up on first expand.
+    /// </summary>
+    public void SetAdvancedGroupsVisible(bool visible)
+    {
+        // A not-yet-loaded (placeholder) or errored schema has no real children to flip.
+        if (Children.Any(c => c is PlaceholderNode or ErrorNode))
         {
             return;
         }
 
-        if (!visible)
+        var hasGroups = Children.Any(c => c is FunctionsGroupNode);
+        if (visible && !hasGroups)
         {
-            Children.Remove(existing!);
+            foreach (var group in AdvancedGroups())
+            {
+                Children.Add(group);
+            }
         }
-        else if (!Children.Any(c => c is PlaceholderNode or ErrorNode))
+        else if (!visible && hasGroups)
         {
-            Children.Add(new FunctionsGroupNode(_schemaService, Name));
+            foreach (var group in Children.Where(IsAdvancedGroup).ToList())
+            {
+                Children.Remove(group);
+            }
+        }
+
+        foreach (var table in Children.OfType<TableNode>())
+        {
+            table.SetAdvancedSubGroupsVisible(visible);
         }
     }
+
+    private static bool IsAdvancedGroup(SchemaTreeNode node) =>
+        node is FunctionsGroupNode or SequencesGroupNode or TypesGroupNode;
 }

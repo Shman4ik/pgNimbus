@@ -7,8 +7,11 @@ public sealed class TableNode : SchemaTreeNode
 {
     private readonly SchemaService _schemaService;
     private readonly Func<bool> _showSizes;
+    private readonly Func<bool> _showAdvanced;
 
-    public TableNode(SchemaService schemaService, string schema, string name, RelationKind kind, long? totalBytes = null, Func<bool>? showSizes = null)
+    public TableNode(
+        SchemaService schemaService, string schema, string name, RelationKind kind,
+        long? totalBytes = null, Func<bool>? showSizes = null, Func<bool>? showAdvanced = null)
     {
         _schemaService = schemaService;
         Schema = schema;
@@ -16,6 +19,7 @@ public sealed class TableNode : SchemaTreeNode
         Kind = kind;
         TotalBytes = totalBytes;
         _showSizes = showSizes ?? (static () => false);
+        _showAdvanced = showAdvanced ?? (static () => false);
         MarkExpandable();
     }
 
@@ -35,18 +39,63 @@ public sealed class TableNode : SchemaTreeNode
     /// <summary>Re-evaluate <see cref="SizeText"/> after the sidebar's "show sizes" toggle flips.</summary>
     public void NotifySizeVisibilityChanged() => OnPropertyChanged(nameof(SizeText));
 
-    public string Glyph => Kind switch
-    {
-        RelationKind.Table => "▤",
-        RelationKind.View => "▥",
-        RelationKind.MaterializedView => "▦",
-        RelationKind.PartitionedTable => "▧",
-        _ => "▤",
-    };
+    /// <summary>Only relations with real storage carry indexes (tables, matviews, partitioned parents) — not plain views.</summary>
+    private bool CanHaveIndexes => Kind is RelationKind.Table or RelationKind.MaterializedView or RelationKind.PartitionedTable;
+
+    /// <summary>Triggers can sit on tables, (INSTEAD OF) views, and partitioned parents — but not on materialized views.</summary>
+    private bool CanHaveTriggers => Kind is RelationKind.Table or RelationKind.View or RelationKind.PartitionedTable;
 
     protected override async Task<IReadOnlyList<SchemaTreeNode>> FetchChildrenAsync()
     {
         var columns = await _schemaService.GetColumnsAsync(Schema, Name, CancellationToken.None);
-        return columns.Select(c => (SchemaTreeNode)new ColumnNode(c)).ToList();
+        var children = columns.Select(c => (SchemaTreeNode)new ColumnNode(c)).ToList();
+        if (_showAdvanced())
+        {
+            children.AddRange(AdvancedSubGroups());
+        }
+
+        return children;
+    }
+
+    private IEnumerable<SchemaTreeNode> AdvancedSubGroups()
+    {
+        if (CanHaveIndexes)
+        {
+            yield return new IndexesGroupNode(_schemaService, Schema, Name);
+        }
+
+        if (CanHaveTriggers)
+        {
+            yield return new TriggersGroupNode(_schemaService, Schema, Name);
+        }
+    }
+
+    /// <summary>
+    /// Adds/removes this table's Indexes/Triggers sub-groups in place when the
+    /// advanced-objects toggle flips. Only touches an already-loaded (column) child
+    /// list — an unexpanded table picks the current toggle state up on first expand.
+    /// </summary>
+    public void SetAdvancedSubGroupsVisible(bool visible)
+    {
+        if (Children.Any(c => c is PlaceholderNode or ErrorNode))
+        {
+            return;
+        }
+
+        var hasGroups = Children.Any(c => c is IndexesGroupNode or TriggersGroupNode);
+        if (visible && !hasGroups)
+        {
+            foreach (var group in AdvancedSubGroups())
+            {
+                Children.Add(group);
+            }
+        }
+        else if (!visible && hasGroups)
+        {
+            foreach (var group in Children.Where(c => c is IndexesGroupNode or TriggersGroupNode).ToList())
+            {
+                Children.Remove(group);
+            }
+        }
     }
 }

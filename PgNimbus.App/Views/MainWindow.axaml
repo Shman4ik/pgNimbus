@@ -37,7 +37,13 @@
                         <MenuItem Header="Alter Table..." Tag="{Binding}" Click="OnAlterTableClick" />
                     </ContextMenu>
                 </StackPanel.ContextMenu>
-                <TextBlock Text="{Binding Glyph}" />
+                <!-- One family icon per relation kind (table/view/matview/partitioned)
+                     with the exact kind on hover — same one-glyph-plus-tooltip
+                     language the column type family uses -->
+                <PathIcon Data="{Binding Kind, Converter={x:Static conv2:RelationKindIconConverter.Instance}}"
+                          Width="12" Height="12" VerticalAlignment="Center" Opacity="0.75"
+                          ToolTip.Tip="{Binding Kind, Converter={x:Static conv2:RelationKindLabelConverter.Instance}}"
+                          ToolTip.ShowDelay="300" />
                 <TextBlock Text="{Binding Name}" />
                 <!-- Dim on-disk size hint (heap + indexes + TOAST); blank for views/partitioned parents -->
                 <TextBlock Text="{Binding SizeText}" Opacity="0.5" FontSize="11" VerticalAlignment="Center" />
@@ -115,6 +121,64 @@
                 <TextBlock Text="{Binding Name}" />
                 <TextBlock Text="{Binding AttributesLabel}" Opacity="0.6" FontSize="11" VerticalAlignment="Center" />
             </StackPanel>
+        </DataTemplate>
+        <DataTemplate DataType="vm:SequencesGroupNode">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+                <PathIcon Data="{StaticResource SequenceIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" Opacity="0.8" />
+                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Opacity="0.85" />
+            </StackPanel>
+        </DataTemplate>
+        <DataTemplate DataType="vm:SequenceNode">
+            <StackPanel Orientation="Horizontal" Spacing="6" ToolTip.Tip="{Binding Tooltip}" ToolTip.ShowDelay="200">
+                <PathIcon Data="{StaticResource SequenceIconGeometry}" Width="11" Height="11" Opacity="0.5" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding Name}" />
+                <TextBlock Text="{Binding Detail}" Opacity="0.6" FontSize="11" VerticalAlignment="Center" />
+            </StackPanel>
+        </DataTemplate>
+        <DataTemplate DataType="vm:TypesGroupNode">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+                <PathIcon Data="{StaticResource ShapeIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" Opacity="0.8" />
+                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Opacity="0.85" />
+            </StackPanel>
+        </DataTemplate>
+        <DataTemplate DataType="vm:UserTypeNode">
+            <StackPanel Orientation="Horizontal" Spacing="6" ToolTip.Tip="{Binding Tooltip}" ToolTip.ShowDelay="200">
+                <!-- Reuse the column type-family icon language: enum/composite have
+                     their own glyph; a domain shows its base type's family icon -->
+                <PathIcon Data="{Binding Category, Converter={x:Static conv2:PgTypeIconConverter.Instance}}"
+                          Width="11" Height="11" Opacity="0.55" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding Name}" />
+                <TextBlock Text="{Binding Detail}" Opacity="0.6" FontSize="11" VerticalAlignment="Center" />
+            </StackPanel>
+        </DataTemplate>
+        <DataTemplate DataType="vm:IndexesGroupNode">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+                <PathIcon Data="{StaticResource SortIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" Opacity="0.8" />
+                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Opacity="0.85" />
+            </StackPanel>
+        </DataTemplate>
+        <DataTemplate DataType="vm:IndexNode">
+            <StackPanel Orientation="Horizontal" Spacing="6" ToolTip.Tip="{Binding Tooltip}" ToolTip.ShowDelay="200">
+                <PathIcon Data="{StaticResource SortIconGeometry}" Width="11" Height="11" Opacity="0.5" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding Name}" />
+                <TextBlock Text="{Binding Detail}" Opacity="0.6" FontSize="11" VerticalAlignment="Center" />
+            </StackPanel>
+        </DataTemplate>
+        <DataTemplate DataType="vm:TriggersGroupNode">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+                <PathIcon Data="{StaticResource FlashIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" Opacity="0.8" />
+                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Opacity="0.85" />
+            </StackPanel>
+        </DataTemplate>
+        <DataTemplate DataType="vm:TriggerNode">
+            <StackPanel Orientation="Horizontal" Spacing="6" ToolTip.Tip="{Binding Tooltip}" ToolTip.ShowDelay="200">
+                <PathIcon Data="{StaticResource FlashIconGeometry}" Width="11" Height="11" Opacity="0.5" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding Name}" />
+                <TextBlock Text="{Binding Detail}" Opacity="0.6" FontSize="11" VerticalAlignment="Center" />
+            </StackPanel>
+        </DataTemplate>
+        <DataTemplate DataType="vm:EmptyNode">
+            <TextBlock Text="{Binding Name}" Opacity="0.45" FontStyle="Italic" />
         </DataTemplate>
         <DataTemplate DataType="vm:PlaceholderNode">
             <TextBlock Text="Loading..." Opacity="0.5" FontStyle="Italic" />
@@ -265,10 +329,11 @@
                             ToolTip.Tip="Refresh database &amp; schema (Ctrl+Shift+R)">
                         <PathIcon Data="{StaticResource RefreshIconGeometry}" Width="14" Height="14" />
                     </Button>
-                    <!-- Advanced-objects toggle: off = schemas/tables + Roles only; on adds Functions groups and Extensions -->
+                    <!-- Advanced-objects toggle: off = schemas/tables + Roles only; on adds
+                         Functions/Sequences/Types groups, per-table Indexes/Triggers, and Extensions -->
                     <ToggleButton DockPanel.Dock="Right" Classes="chip" Padding="5" Margin="6,0,0,0"
                                   VerticalAlignment="Center" IsChecked="{Binding SchemaTree.ShowAdvancedObjects}"
-                                  ToolTip.Tip="Show advanced objects (functions &amp; extensions)">
+                                  ToolTip.Tip="Show advanced objects (functions, sequences, types, indexes, triggers, extensions)">
                         <PathIcon Data="{StaticResource TuneIconGeometry}" Width="14" Height="14" />
                     </ToggleButton>
                     <!-- Type-to-filter box: matches schema and loaded-table names, case-insensitive substring -->

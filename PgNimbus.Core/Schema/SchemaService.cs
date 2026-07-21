@@ -61,6 +61,32 @@ public sealed record ExtensionInfo(string Name, string? InstalledVersion, string
 public sealed record RoleInfo(string Name, bool CanLogin, bool IsSuperuser, bool CanCreateDb, bool CanCreateRole);
 
 /// <summary>
+/// A sequence (pg_sequences). <paramref name="LastValue"/> is null when the
+/// sequence has never been advanced (no <c>nextval</c> yet), which pg reports as
+/// a null last_value rather than the start value.
+/// </summary>
+public sealed record SequenceInfo(
+    string Name, string DataType, long IncrementBy, long? LastValue,
+    long StartValue, long MinValue, long MaxValue, bool Cycle);
+
+/// <summary>
+/// A user-defined type: enum (<c>e</c>), composite (<c>c</c>), or domain (<c>d</c>),
+/// per pg_type.typtype. Only the fields relevant to the kind are populated —
+/// <paramref name="EnumLabels"/> for enums, <paramref name="CompositeFields"/> for
+/// composites, <paramref name="DomainBaseType"/>/<paramref name="DomainNotNull"/>
+/// for domains — the rest are empty/default.
+/// </summary>
+public sealed record UserTypeInfo(
+    string Name, char TypType, string? DomainBaseType, bool DomainNotNull,
+    IReadOnlyList<string> EnumLabels, IReadOnlyList<string> CompositeFields);
+
+/// <summary>An index on a relation. <paramref name="Definition"/> is the full <c>pg_get_indexdef</c> for the tooltip.</summary>
+public sealed record IndexInfo(string Name, bool IsUnique, bool IsPrimary, string Definition);
+
+/// <summary>A user (non-internal) trigger. <paramref name="Definition"/> is the full <c>pg_get_triggerdef</c>; <paramref name="Enabled"/> is false only for a fully-disabled trigger.</summary>
+public sealed record TriggerInfo(string Name, string Definition, bool Enabled);
+
+/// <summary>
 /// A foreign key edge: <paramref name="FromColumns"/> on <paramref name="FromSchema"/>.<paramref name="FromTable"/>
 /// (the referencing/"child" side) reference <paramref name="ToColumns"/> on
 /// <paramref name="ToSchema"/>.<paramref name="ToTable"/> (the referenced/"parent" side), positionally paired.
@@ -509,6 +535,152 @@ public sealed class SchemaService
             results.Add(new ForeignKeyInfo(
                 reader.GetString(0), reader.GetString(1), reader.GetFieldValue<string[]>(2),
                 reader.GetString(3), reader.GetString(4), reader.GetFieldValue<string[]>(5)));
+        }
+
+        return results;
+    }
+
+    /// <summary>Sequences in a schema (pg_sequences), with the headline numbers worth a tooltip.</summary>
+    public async Task<IReadOnlyList<SequenceInfo>> GetSequencesAsync(string schema, CancellationToken ct)
+    {
+        const string sql = """
+            SELECT s.sequencename, s.data_type::text, s.increment_by, s.last_value,
+                   s.start_value, s.min_value, s.max_value, s.cycle
+            FROM pg_catalog.pg_sequences s
+            WHERE s.schemaname = @schema
+            ORDER BY s.sequencename
+            """;
+
+        await using var connection = await _dataSource.OpenConnectionAsync(ct);
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("schema", schema);
+        await using var reader = await command.ExecuteReaderAsync(ct);
+
+        var results = new List<SequenceInfo>();
+        while (await reader.ReadAsync(ct))
+        {
+            results.Add(new SequenceInfo(
+                reader.GetString(0),
+                reader.GetString(1),
+                reader.GetInt64(2),
+                reader.IsDBNull(3) ? null : reader.GetInt64(3),
+                reader.GetInt64(4),
+                reader.GetInt64(5),
+                reader.GetInt64(6),
+                reader.GetBoolean(7)));
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// User-defined types in a schema: enums, standalone composites, and domains.
+    /// Table row-types (the composite pg auto-creates per table) and array types
+    /// are excluded — only types a user actually declares. Each row carries just
+    /// the detail its kind needs (enum labels / composite fields / domain base).
+    /// </summary>
+    public async Task<IReadOnlyList<UserTypeInfo>> GetUserTypesAsync(string schema, CancellationToken ct)
+    {
+        const string sql = """
+            SELECT t.typname,
+                   t.typtype::text,
+                   CASE WHEN t.typtype = 'd' THEN pg_catalog.format_type(t.typbasetype, t.typtypmod) END,
+                   CASE WHEN t.typtype = 'd' THEN t.typnotnull ELSE false END,
+                   CASE WHEN t.typtype = 'e' THEN
+                       (SELECT array_agg(e.enumlabel ORDER BY e.enumsortorder)
+                        FROM pg_catalog.pg_enum e WHERE e.enumtypid = t.oid)
+                   END,
+                   CASE WHEN t.typtype = 'c' THEN
+                       (SELECT array_agg(a.attname || ' ' || pg_catalog.format_type(a.atttypid, a.atttypmod) ORDER BY a.attnum)
+                        FROM pg_catalog.pg_attribute a
+                        WHERE a.attrelid = t.typrelid AND a.attnum > 0 AND NOT a.attisdropped)
+                   END
+            FROM pg_catalog.pg_type t
+            JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace
+            WHERE n.nspname = @schema
+              AND t.typtype IN ('e', 'c', 'd')
+              AND (t.typrelid = 0
+                   OR EXISTS (SELECT 1 FROM pg_catalog.pg_class c WHERE c.oid = t.typrelid AND c.relkind = 'c'))
+            ORDER BY t.typname
+            """;
+
+        await using var connection = await _dataSource.OpenConnectionAsync(ct);
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("schema", schema);
+        await using var reader = await command.ExecuteReaderAsync(ct);
+
+        var results = new List<UserTypeInfo>();
+        while (await reader.ReadAsync(ct))
+        {
+            results.Add(new UserTypeInfo(
+                reader.GetString(0),
+                reader.GetString(1)[0],
+                reader.IsDBNull(2) ? null : reader.GetString(2),
+                reader.GetBoolean(3),
+                reader.IsDBNull(4) ? [] : reader.GetFieldValue<string[]>(4),
+                reader.IsDBNull(5) ? [] : reader.GetFieldValue<string[]>(5)));
+        }
+
+        return results;
+    }
+
+    /// <summary>Indexes on a relation, primary key first, each with its full definition for a tooltip.</summary>
+    public async Task<IReadOnlyList<IndexInfo>> GetIndexesAsync(string schema, string table, CancellationToken ct)
+    {
+        const string sql = """
+            SELECT ic.relname, i.indisunique, i.indisprimary, pg_catalog.pg_get_indexdef(i.indexrelid)
+            FROM pg_catalog.pg_index i
+            JOIN pg_catalog.pg_class ic ON ic.oid = i.indexrelid
+            JOIN pg_catalog.pg_class tc ON tc.oid = i.indrelid
+            JOIN pg_catalog.pg_namespace n ON n.oid = tc.relnamespace
+            WHERE n.nspname = @schema AND tc.relname = @table
+            ORDER BY i.indisprimary DESC, ic.relname
+            """;
+
+        await using var connection = await _dataSource.OpenConnectionAsync(ct);
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("schema", schema);
+        command.Parameters.AddWithValue("table", table);
+        await using var reader = await command.ExecuteReaderAsync(ct);
+
+        var results = new List<IndexInfo>();
+        while (await reader.ReadAsync(ct))
+        {
+            results.Add(new IndexInfo(
+                reader.GetString(0),
+                reader.GetBoolean(1),
+                reader.GetBoolean(2),
+                reader.GetString(3)));
+        }
+
+        return results;
+    }
+
+    /// <summary>User (non-internal) triggers on a relation. Constraint/FK-enforcement triggers are excluded via tgisinternal.</summary>
+    public async Task<IReadOnlyList<TriggerInfo>> GetTriggersAsync(string schema, string table, CancellationToken ct)
+    {
+        const string sql = """
+            SELECT t.tgname, pg_catalog.pg_get_triggerdef(t.oid, true), (t.tgenabled <> 'D')
+            FROM pg_catalog.pg_trigger t
+            JOIN pg_catalog.pg_class c ON c.oid = t.tgrelid
+            JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname = @schema AND c.relname = @table AND NOT t.tgisinternal
+            ORDER BY t.tgname
+            """;
+
+        await using var connection = await _dataSource.OpenConnectionAsync(ct);
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("schema", schema);
+        command.Parameters.AddWithValue("table", table);
+        await using var reader = await command.ExecuteReaderAsync(ct);
+
+        var results = new List<TriggerInfo>();
+        while (await reader.ReadAsync(ct))
+        {
+            results.Add(new TriggerInfo(
+                reader.GetString(0),
+                reader.GetString(1),
+                reader.GetBoolean(2)));
         }
 
         return results;
