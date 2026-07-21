@@ -47,10 +47,11 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
 
     /// <summary>
     /// The sidebar's "advanced objects" toggle. Off (the default), the tree
-    /// shows just schemas/tables and Roles; on, each schema also gets its
-    /// Functions group and the root gains the Extensions group. Purely a
-    /// declutter switch — the advanced groups are lazy either way, so the
-    /// toggle never costs a catalog query by itself.
+    /// shows just schemas/tables and Roles; on, each schema gains its Functions,
+    /// Sequences, and Types sub-groups, each table gains Indexes/Triggers
+    /// sub-groups, and the root gains the Extensions group. Purely a declutter
+    /// switch — the advanced groups are lazy either way, so the toggle never costs
+    /// a catalog query by itself.
     /// </summary>
     [ObservableProperty]
     private bool _showAdvancedObjects;
@@ -115,7 +116,7 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
 
         foreach (var schema in Schemas.OfType<SchemaNode>())
         {
-            schema.SetFunctionsGroupVisible(value);
+            schema.SetAdvancedGroupsVisible(value);
         }
 
         // Newly inserted nodes default to visible; a live filter has to vet them.

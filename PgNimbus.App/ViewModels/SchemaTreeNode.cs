@@ -73,3 +73,6 @@ public abstract partial class SchemaTreeNode : ObservableObject
 public sealed class PlaceholderNode : SchemaTreeNode;
 
 public sealed class ErrorNode : SchemaTreeNode;
+
+/// <summary>A dim "(nothing here)" leaf shown when a loaded group turns out to be empty.</summary>
+public sealed class EmptyNode : SchemaTreeNode;
