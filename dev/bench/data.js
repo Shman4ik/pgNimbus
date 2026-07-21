@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784389791755,
+  "lastUpdate": 1784614187184,
   "repoUrl": "https://github.com/Shman4ik/pgNimbus",
   "entries": {
     "pgNimbus benchmarks": [
@@ -891,6 +891,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "Stream 100000 rows",
             "value": 100.6,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shman4ik@gmail.com",
+            "name": "Dmitrii Shmanev",
+            "username": "Shman4ik"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e8f114dea24218b5e661868e715b4dcbbd0dd6d7",
+          "message": "UX: type-aware display for PostgreSQL types (#146)\n\n* Schema tree: type-category icons on column nodes\n\nAdd a pure Core classifier (PgTypeCategorizer) that maps a Postgres type\nname — from either the format_type spellings the schema tree reads or the\nwire GetDataTypeName strings a result set carries — to a coarse\nPgTypeCategory family (numeric, text, date/time, boolean, uuid, json,\nnetwork, geometric, range, binary, bit-string, vector, full-text, array).\nOne family per icon keeps a single visual language across the dozens of\nconcrete type names. Unit-tested in PgNimbus.Core.Tests.\n\nThe App side maps each category to a small monochrome MDI glyph\n(PgTypeVisuals + two IValueConverters) and renders it next to the column's\ntype text in the schema tree. Geometries are parsed once and cached; a bad\npath falls back to no icon so it can never crash column virtualization.\nEnum/composite/domain types (unresolvable from a bare name) show no icon.\n\nVerified on the demo Neon DB (commerce.products: bigint/citext/text/jsonb/\nbox/text[]/vector(3)/boolean/interval/numrange/timestamptz/tsvector) in\nboth light and dark themes.\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>\n\n* Results grid: type-family icon + rich tooltip in column headers\n\nEach results-grid column header now shows the type-family glyph (the same\nPgTypeVisuals vocabulary as the schema tree) beside the column name, for\nANY result set — the type comes from the wire-protocol DataTypeName that\nevery ColumnInfo carries, not just editable browses. The header tooltip\ncarries the full type name, its family, and — in browse mode, where the\ntable's real columns are known — the primary-key / not-null flags.\n\nQueryViewModel exposes a focused ColumnTypeName(index) accessor rather than\nthe whole ColumnInfo list; RebuildColumns builds an icon+name header via a\nnew CreateColumnHeader helper.\n\nVerified on the demo Neon DB in both themes: commerce.customers headers\nshow uuid (id), text (first/last/full_name), array (tags) and json\n(interests) icons; a domain column (email → commerce.email_addr) correctly\nshows none, matching how enums render in the tree.\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>\n\n* Type icons: resolve domain columns to their base-type family\n\nA domain's own name classifies as Other (no icon), so a domain column used\nto render blank. Add PgTypeCategorizer.ClassifierType, which falls back to a\ndomain's resolved base type when the declared type has no family of its own —\nso a domain over citext shows the text glyph, a domain over inet the network\nglyph, and so on. Unit-tested.\n\nWired through both surfaces: ColumnNode exposes DomainBaseType + a\nTypeClassifier the schema tree binds its icon to; the results-grid header\nclassifies from the base type too, while its tooltip keeps the declared\n(domain) type name plus the resolved family label.\n\nVerified on the demo Neon DB (commerce.customers.email → commerce.email_addr\nover citext) in both tree and grid: the column now shows the text icon.\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>\n\n* Results grid: type-aware cell rendering (numeric align, boolean check/cross)\n\nEach result column now renders by its resolved type family, for any query:\n- Numeric cells right-align and use the mono stack the editor/inspector use,\n  so digits line up and magnitudes compare down the column; the header\n  right-aligns to sit over them.\n- Boolean cells show a centered check/cross glyph (via BoolCellGlyphConverter)\n  instead of the literal \"true\"/\"false\"; SQL NULL keeps the dim \"NULL\"\n  marker every column uses.\n\nRebuildColumns computes each column's category once (domain-resolved) and\nthreads it into both the header and ResultTextColumn; PgTypeVisuals gains\ncategory-based IconFor/LabelFor so the header no longer re-classifies.\n\nVerified on the demo Neon DB (public.customers: id right-aligned/mono,\nis_active check/cross) in both light and dark themes.\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>\n\n* QueryEngine: text-fallback for any unmapped type, not just composites\n\nBrowsing a table with a pgvector column threw \"Reading as 'System.Object'\nis not supported for fields having DataTypeName 'public.vector'\": the\ntext-fallback mask only flagged composites (and containers of them), but\nthe identical failure hits any base type Npgsql has no handler for — an\nextension type with no plugin loaded (pgvector's vector/halfvec/sparsevec,\nPostGIS geometry, ltree, …). Npgsql resolves such a column's CLR type to\nSystem.Object and GetValue then throws.\n\nDetect it generically by resolved CLR type (GetFieldType == object, or an\nunresolvable type) rather than by an allowlist of names, so every such type\nis re-requested in text format and arrives as its Postgres literal — the\nshape the grid already renders. Normal result sets (all types mapped) still\nbuild a null mask and skip the re-execution, and the caller opt-in that\nguards double-executing side effects is unchanged. Covers both the\nstreaming and materialized/script paths.\n\nValidated on the demo Neon DB: commerce.products (vector embedding),\norg.units (ltree path), commerce.orders (address composite + enums) now\nbrowse instead of erroring.\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>\n\n* add git ignore\n\n* Grid: readable display for bit-string and bytea values\n\nTwo Npgsql CLR types whose default ToString is the class name, not the\nvalue, showed up literally in the grid:\n\n- bit / bit varying map to System.Collections.BitArray → cells read\n  \"System.Collections.BitArray\". Route them through the text fallback (by\n  resolved CLR type) so Postgres returns the bit literal (\"10110000\"); this\n  also fixes the inspector and exports uniformly, and bit values are tiny so\n  the extra round trip is cheap.\n- bytea maps to byte[] → cells read \"System.Byte[]\". It's deliberately kept\n  as byte[] (not text-fallback) so a large blob isn't materialized as\n  megabytes of hex inline; instead the grid converter shows a capped \\x-hex\n  preview, matching the full hex the cell inspector already renders.\n\nhstore needs no change: with no hstore plugin enabled it's unmapped, so it\nalready flows through the text fallback as its \"k\"=>\"v\" literal.\n\nValidated on the demo Neon DB: iot.devices firmware bit(16)/flags bit(8)\nshow bit strings; commerce.customers.avatar_thumb (bytea) shows \\x-hex.\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>\n\n* Type icons for enum/composite columns; hstore reads as text\n\nTwo follow-ups from browsing the demo DB:\n\n- Enum and composite columns showed no icon: their family can't be told from\n  a bare type name, so they fell to Other. In browse/tree contexts the\n  catalog kind is already known (ColumnValueEditor), so add PgTypeCategory\n  Enum/Composite and a CategorizeColumn helper that lets the editor decide,\n  with a list glyph for enums and a columns glyph for composites. The tree\n  and grid-header bindings now carry a resolved PgTypeCategory (ColumnNode\n  exposes Category; the two converters take a category), so the string-based\n  Icon/Label helpers are gone. Arbitrary queries, which only have the wire\n  type name, still can't distinguish an enum and fall back to no icon.\n\n- hstore rendered as \"System.Collections.Generic.Dictionary`2[…]\": Npgsql\n  maps it to Dictionary<string,string> (its default ToString is the class\n  name). Add that CLR type to the text fallback alongside BitArray, so it\n  arrives as its \"k\"=>\"v\" literal.\n\nVerified on the demo Neon DB: iot.devices.status shows the enum icon;\ncommerce.customers.attrs shows \"lang\"=>\"de\", \"referrer\"=>\"organic\".\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>\n\n---------\n\nCo-authored-by: Claude Opus 4.8 <noreply@anthropic.com>",
+          "timestamp": "2026-07-21T08:03:17+02:00",
+          "tree_id": "3fa6b05887872acc67c6a7790299b230c3058533",
+          "url": "https://github.com/Shman4ik/pgNimbus/commit/e8f114dea24218b5e661868e715b4dcbbd0dd6d7"
+        },
+        "date": 1784614186653,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Startup, launch to first frame (NativeAOT)",
+            "value": 151,
+            "unit": "ms"
+          },
+          {
+            "name": "Memory at first frame (NativeAOT)",
+            "value": 157.4,
+            "unit": "MB"
+          },
+          {
+            "name": "Binary size (NativeAOT)",
+            "value": 41.3,
+            "unit": "MB"
+          },
+          {
+            "name": "Publish size (NativeAOT, shipped files)",
+            "value": 54.7,
+            "unit": "MB"
+          },
+          {
+            "name": "Startup, launch to first frame (JIT)",
+            "value": 1330,
+            "unit": "ms"
+          },
+          {
+            "name": "Connect, cold pool",
+            "value": 113.6,
+            "unit": "ms"
+          },
+          {
+            "name": "Round-trip, SELECT 1 warm",
+            "value": 0.34,
+            "unit": "ms"
+          },
+          {
+            "name": "First row batch of a 100000-row SELECT",
+            "value": 8,
+            "unit": "ms"
+          },
+          {
+            "name": "Stream 100000 rows",
+            "value": 105.6,
             "unit": "ms"
           }
         ]
