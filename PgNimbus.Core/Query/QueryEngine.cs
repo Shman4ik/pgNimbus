@@ -844,6 +844,33 @@ public sealed class QueryEngine
         _ => false,
     };
 
+    // The same "unreadable as object" failure hits any base type Npgsql has no
+    // handler for — an extension type with no plugin loaded: pgvector's vector /
+    // halfvec / sparsevec, PostGIS geometry, and the like. Npgsql resolves such a
+    // column's CLR type to System.Object (or can't resolve it at all), and
+    // GetValue then throws the identical error. Detecting it by resolved CLR type
+    // rather than by name catches every such type without an allowlist to keep
+    // current. Requesting the column as text is always safe: worst case a value
+    // that would have read fine arrives as its Postgres literal, which the grid
+    // already renders.
+    private static bool NeedsTextFormat(NpgsqlDataReader reader, int column)
+    {
+        if (NeedsTextFormat(reader.GetPostgresType(column)))
+        {
+            return true;
+        }
+
+        try
+        {
+            return reader.GetFieldType(column) == typeof(object);
+        }
+        catch
+        {
+            // No resolvable CLR type at all — GetValue would throw too, so read it as text.
+            return true;
+        }
+    }
+
     /// <summary>
     /// A per-column "request as text" mask for <see cref="NpgsqlCommand.UnknownResultTypeList"/>,
     /// or null when every column materializes fine as-is (the common case — no
@@ -854,7 +881,7 @@ public sealed class QueryEngine
         bool[]? mask = null;
         for (var i = 0; i < reader.FieldCount; i++)
         {
-            if (NeedsTextFormat(reader.GetPostgresType(i)))
+            if (NeedsTextFormat(reader, i))
             {
                 (mask ??= new bool[reader.FieldCount])[i] = true;
             }
