@@ -32,6 +32,22 @@ public enum ColumnValueEditor
 
     /// <summary>json / jsonb — free text with client-side JSON validation, parsed and stored server-side via a cast to the declared type.</summary>
     Json,
+
+    /// <summary>
+    /// A type Postgres won't implicitly assign from text (it has no text→type
+    /// assignment cast) but whose displayed value is already a valid input
+    /// literal — network addresses, geometric types, ranges/multiranges, bit
+    /// strings, xml, full-text search vectors/queries, bytea, and the like.
+    /// Edited as free text (plain box, no dedicated widget) and parsed
+    /// server-side via <c>CAST(@value AS declared-type)</c>, the same mechanism
+    /// <see cref="Enum"/>/<see cref="Array"/>/<see cref="Composite"/>/<see cref="Json"/>
+    /// use. No client-side syntax check — Postgres is the parser (the cast
+    /// surfaces a precise error), since these literal grammars are too varied to
+    /// pre-validate cheaply. Distinct from <see cref="Text"/>, which is for
+    /// types that round-trip through a bare (uncast) text parameter or a CLR
+    /// conversion (text/varchar, the numeric family, uuid, date/time).
+    /// </summary>
+    CastText,
 }
 
 public static class ColumnValueEditorClassifier
@@ -55,9 +71,29 @@ public static class ColumnValueEditorClassifier
             "timestamp" or "timestamptz" => ColumnValueEditor.Timestamp,
             // json/jsonb round-trip as text but need a server-side cast (there is
             // no implicit text→json[b] assignment cast) plus a JSON structure
-            // check; jsonpath/hstore aren't JSON-shaped and stay plain Text.
+            // check; jsonpath isn't JSON-shaped so it takes the plain cast path
+            // (below), and hstore stays Text (its display needs an extension mapping).
             "json" or "jsonb" => ColumnValueEditor.Json,
-            _ => ColumnValueEditor.Text,
+            _ => NeedsServerCast(typcategory, typname) ? ColumnValueEditor.CastText : ColumnValueEditor.Text,
         },
     };
+
+    /// <summary>
+    /// Whether a base type must round-trip an inline edit through
+    /// <c>CAST(text AS type)</c> rather than a bare text parameter — true for
+    /// types Postgres won't implicitly assign from text (no text→type
+    /// assignment cast), which otherwise fail with "column is of type X but
+    /// expression is of type text". Whole pg_type categories qualify: network
+    /// addresses ('I': inet/cidr), geometric types ('G'), ranges and
+    /// multiranges ('R'), and bit strings ('V': bit/varbit) — so user-defined
+    /// range types get the same treatment. A handful of category-'U' types share
+    /// the property and are listed by name; uuid and json/jsonb are that
+    /// category's round-trippable exceptions and are classified before this is
+    /// reached. Numeric <c>money</c> deliberately stays <see cref="ColumnValueEditor.Text"/>:
+    /// it round-trips through its CLR <c>decimal</c>.
+    /// </summary>
+    private static bool NeedsServerCast(char typcategory, string typname) =>
+        typcategory is 'I' or 'G' or 'R' or 'V'
+        || typname is "bytea" or "xml" or "tsvector" or "tsquery" or "jsonpath"
+            or "macaddr" or "macaddr8" or "pg_lsn";
 }

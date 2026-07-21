@@ -280,8 +280,9 @@ csproj / WiX / MSIX manifest reference them unchanged:
   XAML `Binding`. Both the main SQL editor (`_suppressEditorSync`) and the
   cell inspector's JSON editor (`_suppressInspectorSync`) follow this pattern.
 - **json/jsonb are a first-class editable type.** `ColumnValueEditorClassifier`
-  maps them to `ColumnValueEditor.Json` (jsonpath/hstore stay `Text` — not
-  JSON-shaped), which does two things every edit path (inline F2, staged edits,
+  maps them to `ColumnValueEditor.Json` (jsonpath isn't JSON-shaped so it takes
+  the plain-cast `CastText` path below; hstore stays `Text` — its display needs
+  an extension mapping), which does two things every edit path (inline F2, staged edits,
   the Add-row dialog) honors: the value is validated client-side by
   `PgValueSyntax.ValidateJson` (a `JsonDocument.Parse` structure check — a bare
   scalar is valid json, so it accepts any JSON value) and stored via
@@ -295,6 +296,31 @@ csproj / WiX / MSIX manifest reference them unchanged:
   highlighted by `Assets/Json.xshd`). Completion carries the jsonb function
   family (`SqlCompletionProvider.Functions`); JSON operators (`->`, `@>`, `?`,
   `@?`, …) are punctuation, out of the identifier-triggered completion model.
+- **Cell edits round-trip through a server-side cast, not a CLR conversion, for
+  types Postgres won't assign from text.** Inline edits send the cell text as a
+  parameter and let the engine convert it (`QueryViewModel.ConvertEditedValue`:
+  string/Guid/DateOnly/TimeOnly/TimeSpan/DateTime — the last with deliberate
+  `DateTime.Kind` handling for timestamp vs timestamptz — and the IConvertible
+  numeric family). That path is *wrong* for any type with no implicit text→type
+  assignment cast: Npgsql returns it as `string` (xml, tsvector, tsquery,
+  jsonpath, pg_lsn) or a non-`IConvertible` CLR type (inet→IPAddress,
+  cidr→IPNetwork, macaddr→PhysicalAddress, bytea→byte[], ranges→NpgsqlRange,
+  geometric→Npgsql* structs, bit/varbit→BitArray), and an uncast parameter fails
+  with "column is of type X but expression is of type text". These are classified
+  `ColumnValueEditor.CastText` (whole pg_type categories — network `I`, geometric
+  `G`, range/multirange `R`, bit-string `V` — plus named category-`U` types), and
+  every edit path (inline F2, staged edits, Add-row) routes them through
+  `CAST(@value AS <declared type>)`, exactly as enum/array/composite/json already
+  do — no client-side syntax check (Postgres is the parser; the cast surfaces a
+  precise error). `money` and `uuid` deliberately stay `Text` (they round-trip
+  through decimal/Guid). The value shown in the grid must itself be a valid input
+  literal for the cast to accept the round-trip, so `RowIndexConverter` formats
+  the CLR types whose `ToString` is useless: `byte[]`→`\x`-hex (capped preview),
+  `Array`→Postgres `{…}` literal (`PgValueSyntax.FormatArray`), and
+  `BitArray`→bit string (`10110001`, MSB first). Known edge: a `bit(1)` column
+  surfaces from Npgsql as `bool` (displays `True`/`False`), so an inline edit of
+  it fails loudly at the cast rather than corrupting — the inspector or a `bit(n)`
+  column edits cleanly.
 - `SqlFormatter` follows <https://www.sqlstyle.guide/> ("river" layout: root
   keywords right-aligned to a common column, content to its right). The tests
   in `PgNimbus.Core.Tests` assert exact spacing — a deliberate layout change

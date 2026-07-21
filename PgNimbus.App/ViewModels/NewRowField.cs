@@ -36,7 +36,8 @@ public sealed partial class NewRowField : ObservableObject
     /// <summary>The resolved base type when the declared type is a domain; null otherwise.</summary>
     public string? DomainBaseType { get; init; }
 
-    public bool IsTextEditor => Editor is ColumnValueEditor.Text or ColumnValueEditor.Array or ColumnValueEditor.Composite or ColumnValueEditor.Json;
+    public bool IsTextEditor => Editor is ColumnValueEditor.Text or ColumnValueEditor.Array
+        or ColumnValueEditor.Composite or ColumnValueEditor.Json or ColumnValueEditor.CastText;
 
     public bool IsBooleanEditor => Editor == ColumnValueEditor.Boolean;
 
