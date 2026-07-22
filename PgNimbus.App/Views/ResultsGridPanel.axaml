@@ -176,6 +176,10 @@
             client-side validation, and Save through the same cast-to-jsonb path an
             inline grid edit uses. Centered-overlay-over-scrim shape, closed by the
             scrim, the × button, or Esc (the last handled by MainWindow's OnKeyDown).
+            Defined here (it owns the JSON editor + sync + highlighting) but
+            reparented into the window's root Grid at attach time
+            (HoistCellInspectorToWindowRoot) so it covers the whole window and
+            centers in the middle, not just this panel's results row.
         -->
         <Border Name="CellInspectorOverlay"
                 IsVisible="{Binding CellInspector.IsOpen}"

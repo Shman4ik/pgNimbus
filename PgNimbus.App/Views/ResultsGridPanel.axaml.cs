@@ -127,12 +127,55 @@ public partial class ResultsGridPanel : UserControl
         DataContextChanged += OnDataContextChanged;
     }
 
+    // The window's root panel the cell inspector overlay is re-hosted into (see below).
+    private Panel? _inspectorOverlayHost;
+
     // ActualThemeVariant isn't final at construction time; re-resolve the JSON
-    // highlighting palette once the panel is in a live visual tree.
+    // highlighting palette once the panel is in a live visual tree. Also hoist
+    // the cell inspector overlay out of this panel's layout so it covers the
+    // whole window rather than just the results-pane row it lives in.
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
         ApplyJsonHighlightingTheme();
+        HoistCellInspectorToWindowRoot();
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        // Give the inspector back before the panel leaves the tree, so a
+        // re-attach re-hoists cleanly and the root isn't left holding a
+        // detached child.
+        if (_inspectorOverlayHost is not null)
+        {
+            _inspectorOverlayHost.Children.Remove(CellInspectorOverlay);
+            _inspectorOverlayHost = null;
+        }
+
+        base.OnDetachedFromVisualTree(e);
+    }
+
+    // The cell inspector is defined inside this panel (its JSON editor, sync, and
+    // highlighting all belong here), but the panel sits in the editor/results
+    // split's results row, so a child overlay would only dim/center within that
+    // row. Reparent it into the window's root Grid — a stretch panel that fills
+    // the whole top level — so the scrim dims everything and the card centers in
+    // the middle of the window, exactly like the command-palette overlay that is
+    // its sibling there. The binding context is unaffected: the root inherits the
+    // window's MainViewModel DataContext, so {Binding CellInspector…} resolves as
+    // before. Falls back to leaving it in-panel if the host isn't the expected
+    // shape (never a crash, just a scoped overlay).
+    private void HoistCellInspectorToWindowRoot()
+    {
+        if (_inspectorOverlayHost is not null
+            || TopLevel.GetTopLevel(this) is not Window { Content: Panel root })
+        {
+            return;
+        }
+
+        (CellInspectorOverlay.Parent as Panel)?.Children.Remove(CellInspectorOverlay);
+        root.Children.Add(CellInspectorOverlay);
+        _inspectorOverlayHost = root;
     }
 
     // --- Host-driven interactions ----------------------------------------

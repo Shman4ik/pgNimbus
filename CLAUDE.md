@@ -204,9 +204,15 @@ and wrong project memory is worse than none.
    open/save dialogs) — new view code still follows the same rule: a focused
    `UserControl` per responsibility, never a god-view. `ResultsGridPanel` is
    window-central like `QueryEditorPanel` (it inherits the `MainViewModel`
-   DataContext and tracks the active tab itself); the cell inspector overlay
-   moved inside it, so it now scopes to the results pane rather than the whole
-   window.
+   DataContext and tracks the active tab itself). The cell inspector overlay is
+   *defined* inside `ResultsGridPanel` (it owns the JSON editor, its two-way
+   sync, and its highlighting) but **reparented into the window's root `Grid`**
+   at attach time (`HoistCellInspectorToWindowRoot`) so its scrim and centered
+   card cover the whole window and center in the middle — a child overlay would
+   otherwise be clipped to the panel's results-pane row. It ends up a sibling of
+   the command-palette overlay there; the root inherits the window's
+   `MainViewModel` DataContext, so the `{Binding CellInspector…}` paths resolve
+   unchanged.
 
 ## Platform window chrome
 
