@@ -235,6 +235,44 @@ public static class PgValueSyntax
     private static readonly System.Buffers.SearchValues<char> QuotedElementChars =
         System.Buffers.SearchValues.Create("{},\"\\ \t\n\r");
 
+    /// <summary>
+    /// Renders an hstore value (Npgsql materializes it as a
+    /// <c>Dictionary&lt;string,string&gt;</c>, whose default ToString is the CLR
+    /// type name) in Postgres's own literal syntax — <c>"k"=&gt;"v", "k2"=&gt;NULL</c>
+    /// — so the grid shows a readable value everywhere, not only in browse mode's
+    /// text-format path. Both key and value are always double-quoted (the form
+    /// Postgres itself emits); a null value is the bare keyword <c>NULL</c>.
+    /// </summary>
+    public static string FormatHstore(System.Collections.IDictionary map)
+    {
+        var sb = new StringBuilder();
+        var first = true;
+        foreach (System.Collections.DictionaryEntry entry in map)
+        {
+            if (!first)
+            {
+                sb.Append(", ");
+            }
+
+            first = false;
+            AppendHstoreString(sb, entry.Key.ToString() ?? string.Empty);
+            sb.Append("=>");
+            if (entry.Value is null)
+            {
+                sb.Append("NULL");
+            }
+            else
+            {
+                AppendHstoreString(sb, entry.Value.ToString() ?? string.Empty);
+            }
+        }
+
+        return sb.ToString();
+    }
+
+    private static void AppendHstoreString(StringBuilder sb, string text) =>
+        sb.Append('"').Append(text.Replace("\\", "\\\\").Replace("\"", "\\\"")).Append('"');
+
     private static string? Validate(string trimmed, char open, char close, string kind)
     {
         if (trimmed.Length == 0 || trimmed[0] != open)

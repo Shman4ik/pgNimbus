@@ -2,11 +2,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:ae="using:AvaloniaEdit"
         xmlns:vm="using:PgNimbus.App.ViewModels"
         xmlns:conv="using:Avalonia.Data.Converters"
         xmlns:conv2="using:PgNimbus.App.Converters"
-        xmlns:json="using:PgNimbus.Core.Json"
         xmlns:views="using:PgNimbus.App.Views"
         mc:Ignorable="d"
         d:DesignWidth="1000" d:DesignHeight="650"
@@ -347,7 +345,7 @@
 
                     <!-- Group 4 — data out: export -->
                     <Rectangle Classes="statusSeparator" Margin="7,0" />
-                    <Button Classes="toolbar" Name="ExportButton" ToolTip.Tip="Export results (CSV / JSON)">
+                    <Button Classes="toolbar" ToolTip.Tip="Export results (CSV / JSON)">
                         <StackPanel Orientation="Horizontal" Spacing="7">
                             <PathIcon Data="{StaticResource ExportIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
                             <TextBlock Text="Export" VerticalAlignment="Center" Classes="collapsible" />
@@ -399,149 +397,12 @@
                 </GridSplitter.Template>
             </GridSplitter>
 
-            <Border Grid.Row="4" Classes="card" Margin="0,0,0,12">
-                <DockPanel>
-                    <!-- No browse bar here on purpose: browse mode's WHERE/ORDER BY live in the
-                         composed SQL (visible in the editor), and its paging sits in the status
-                         bar — the results pane is the grid, nothing else (2026-07 rework). -->
-
-                    <!-- Script sections: one selectable chip per statement of a multi-statement run -->
-                    <Border DockPanel.Dock="Top" IsVisible="{Binding ActiveTab.IsScriptResult}"
-                            BorderThickness="0,0,0,1" BorderBrush="{StaticResource CardBorderBrush}"
-                            Padding="2,2,2,2" Margin="0,0,0,4">
-                        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
-                            <!-- Bottom padding = ScrollBarSize: the overlay thumb gets its
-                                 own lane below the chips instead of covering their text -->
-                            <ListBox ItemsSource="{Binding ActiveTab.ResultSections}"
-                                     SelectedItem="{Binding ActiveTab.SelectedSection, Mode=TwoWay}"
-                                     Background="Transparent" Padding="0,0,0,10">
-                                <ListBox.Styles>
-                                    <Style Selector="TextBlock.err">
-                                        <Setter Property="Foreground" Value="#E03131" />
-                                    </Style>
-                                </ListBox.Styles>
-                                <ListBox.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <StackPanel Orientation="Horizontal" Spacing="4" />
-                                    </ItemsPanelTemplate>
-                                </ListBox.ItemsPanel>
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate x:DataType="vm:ScriptResultViewModel">
-                                        <StackPanel MinWidth="64" Margin="6,2">
-                                            <TextBlock Text="{Binding Label}" FontWeight="SemiBold" FontSize="12"
-                                                       Classes.err="{Binding HasError}" />
-                                            <TextBlock Text="{Binding Summary}" FontSize="11" Opacity="0.6"
-                                                       Classes.err="{Binding HasError}" />
-                                        </StackPanel>
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
-                            </ListBox>
-                        </ScrollViewer>
-                    </Border>
-
-                <Grid>
-                    <!-- Background must stay set (Transparent is enough): a
-                         null background makes the grid's empty area — below
-                         the last row, right of the last column — miss hit
-                         testing, so wheel events there bypass the DataGrid's
-                         own scroll handling entirely. -->
-                    <DataGrid Name="ResultsGrid"
-                              IsVisible="{Binding !ActiveTab.IsShowingPlan}"
-                              IsReadOnly="{Binding !ActiveTab.IsEditable}"
-                              Background="Transparent"
-                              CanUserReorderColumns="False"
-                              CanUserSortColumns="True"
-                              SelectionMode="Extended"
-                              ClipboardCopyMode="None"
-                              AutoGenerateColumns="False"
-                              CellPointerPressed="OnResultsGridCellPointerPressed">
-                        <DataGrid.ContextMenu>
-                            <ContextMenu x:DataType="vm:MainViewModel">
-                                <MenuItem Header="Copy" InputGesture="Ctrl+C" Click="OnCopyCells" />
-                                <Separator />
-                                <MenuItem Header="Copy as">
-                                    <MenuItem Header="CSV" Click="OnCopyAsCsv" />
-                                    <MenuItem Header="JSON" Click="OnCopyAsJson" />
-                                    <MenuItem Header="Markdown table" Click="OnCopyAsMarkdown" />
-                                    <MenuItem Header="INSERT statements" Click="OnCopyAsInsert" />
-                                </MenuItem>
-                                <Separator />
-                                <MenuItem Header="Inspect cell…" Click="OnInspectCellClick" />
-                                <MenuItem Header="Set cell to NULL" Click="OnSetCellNullClick"
-                                          IsEnabled="{Binding ActiveTab.IsEditable}" />
-                                <!-- FK navigation: headers/sub-items are composed per-cell in
-                                     OnResultsGridMenuOpening; hidden when the cell has no key. -->
-                                <MenuItem x:Name="FollowFkMenuItem" Header="Follow foreign key"
-                                          IsVisible="False" Click="OnFollowFkClick" />
-                                <MenuItem x:Name="ReferencingRowsMenuItem" Header="Referencing rows"
-                                          IsVisible="False" />
-                                <Separator />
-                                <MenuItem Header="Add row…" Click="OnAddRowClick"
-                                          IsEnabled="{Binding ActiveTab.IsEditable}" />
-                                <MenuItem Header="Delete selected row(s)" InputGesture="Delete" Click="OnDeleteRowsClick"
-                                          IsEnabled="{Binding ActiveTab.IsEditable}" />
-                            </ContextMenu>
-                        </DataGrid.ContextMenu>
-                    </DataGrid>
-                    <!-- Empty state: a friendly hint instead of a bare grid before any query has run -->
-                    <StackPanel IsVisible="{Binding ActiveTab.HasNoResults}"
-                                HorizontalAlignment="Center" VerticalAlignment="Center"
-                                Spacing="10" IsHitTestVisible="False">
-                        <PathIcon Data="{StaticResource TableIconGeometry}" Width="34" Height="34"
-                                  Opacity="0.28" HorizontalAlignment="Center" />
-                        <TextBlock Text="No results yet" FontSize="14" FontWeight="SemiBold"
-                                   Opacity="0.6" HorizontalAlignment="Center" />
-                        <TextBlock Opacity="0.45" FontSize="12" HorizontalAlignment="Center">
-                            Run a query with <Run FontWeight="SemiBold">Ctrl+Enter</Run> or <Run FontWeight="SemiBold">F5</Run>
-                        </TextBlock>
-                    </StackPanel>
-                    <Grid RowDefinitions="Auto,*" IsVisible="{Binding ActiveTab.IsShowingPlan}">
-                        <DockPanel Grid.Row="0" Margin="4">
-                            <!-- pgAdmin-style plan view switch: raw text (default) vs graphical tree -->
-                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="2">
-                                <Button Classes="chip" Classes.active="{Binding ActiveTab.IsPlanTextView}"
-                                        Command="{Binding ActiveTab.ShowPlanAsTextCommand}"
-                                        Content="Text" FontSize="11" Padding="8,2" />
-                                <Button Classes="chip" Classes.active="{Binding !ActiveTab.IsPlanTextView}"
-                                        Command="{Binding ActiveTab.ShowPlanAsTreeCommand}"
-                                        Content="Tree" FontSize="11" Padding="8,2" />
-                                <!-- Fixed 18x18: in this StackPanel the taller Text/Tree chips would
-                                     otherwise stretch the ✕ chip and push its glyph off-center -->
-                                <Button Classes="chip" Command="{Binding ActiveTab.ShowResultsCommand}"
-                                        Content="✕" FontSize="10" Width="18" Height="18" Padding="0"
-                                        Margin="6,0,0,0" VerticalAlignment="Center"
-                                        ToolTip.Tip="Close the plan and show results" />
-                            </StackPanel>
-                            <TextBlock Text="{Binding ActiveTab.ExplainSummary}" FontSize="12" Opacity="0.8"
-                                       VerticalAlignment="Center" />
-                        </DockPanel>
-                        <ScrollViewer Grid.Row="1" IsVisible="{Binding ActiveTab.IsPlanTextView}"
-                                      HorizontalScrollBarVisibility="Auto">
-                            <SelectableTextBlock Text="{Binding ActiveTab.ExplainText}" Margin="8,4"
-                                                 FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="12.5" />
-                        </ScrollViewer>
-                        <ScrollViewer Grid.Row="1" IsVisible="{Binding !ActiveTab.IsPlanTextView}">
-                            <TreeView ItemsSource="{Binding ActiveTab.ExplainRoots}" Margin="4">
-                                <TreeView.ItemTemplate>
-                                    <TreeDataTemplate DataType="vm:ExplainNodeViewModel" ItemsSource="{Binding Children}">
-                                        <StackPanel Margin="0,2">
-                                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                                <Rectangle Width="{Binding BarWidth}" Height="10" RadiusX="2" RadiusY="2"
-                                                           Fill="{DynamicResource AppAccentBrush}" VerticalAlignment="Center" />
-                                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
-                                            </StackPanel>
-                                            <TextBlock Text="{Binding CostLabel}" FontSize="11" Opacity="0.7" Margin="16,0,0,0" />
-                                            <TextBlock Text="{Binding ActualLabel}" FontSize="11" Opacity="0.7" Margin="16,0,0,0"
-                                                       IsVisible="{Binding ActualLabel, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-                                        </StackPanel>
-                                    </TreeDataTemplate>
-                                </TreeView.ItemTemplate>
-                            </TreeView>
-                        </ScrollViewer>
-                    </Grid>
-                </Grid>
-                </DockPanel>
-            </Border>
+            <!-- The results surface (grid + column build + cell edit + follow-FK +
+                 cell inspector + export/import) lives in ResultsGridPanel; it
+                 inherits this window's MainViewModel DataContext. The window
+                 resolves it by name (F6 focus hand-off; the Export/Import toolbar
+                 buttons delegate to its public methods). -->
+            <views:ResultsGridPanel Name="ResultsPanel" Grid.Row="4" Margin="0,0,0,12" />
 
         </Grid>
 
@@ -719,111 +580,6 @@
                                    HorizontalAlignment="Center" VerticalAlignment="Center" Margin="16" />
                     </Grid>
                 </Border>
-            </Grid>
-        </Border>
-    </Border>
-
-    <!--
-        Cell inspector: Space on the current cell, double-click (read-only
-        results - in editable grids double-click starts the inline edit), or
-        the context menu. Shows the full value - readable and copyable without
-        inline-edit tricks, with jsonb/json pretty-printed, browsable as a tree,
-        and (for an editable jsonb/json cell) editable in place: Format, Minify,
-        client-side validation, and Save through the same cast-to-jsonb path an
-        inline grid edit uses. Same centered-overlay-over-scrim shape as the
-        command palette, closed by the scrim, the × button, or Esc.
-    -->
-    <Border Name="CellInspectorOverlay"
-            IsVisible="{Binding CellInspector.IsOpen}"
-            Background="#66000000"
-            PointerPressed="OnCellInspectorScrimPressed">
-        <Border Width="660" MaxHeight="580" MinHeight="120" VerticalAlignment="Center"
-                Background="{DynamicResource SystemControlPageBackgroundAltHighBrush}"
-                BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
-                CornerRadius="10" BoxShadow="0 12 32 0 #40000000"
-                PointerPressed="OnCellInspectorCardPressed"
-                x:DataType="vm:CellInspectorViewModel" DataContext="{Binding CellInspector}">
-            <Grid RowDefinitions="Auto,*,Auto" Margin="14">
-                <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,10">
-                    <TextBlock Grid.Column="0" Text="{Binding ColumnName}" FontWeight="SemiBold" FontSize="14"
-                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                    <StackPanel Grid.Column="1" Orientation="Horizontal">
-                        <!-- View / Edit segmented tabs for an editable JSON cell: one
-                             click switches either way, and the edit buffer survives a
-                             hop to View and back (see CellInspectorViewModel). -->
-                        <Button Content="View" Classes="chip" Classes.active="{Binding !IsEditing}"
-                                IsVisible="{Binding CanEdit}"
-                                Command="{Binding ViewTextCommand}" ToolTip.Tip="View the value" />
-                        <Button Content="Edit" Classes="chip" Margin="6,0,0,0" Classes.active="{Binding IsEditing}"
-                                IsVisible="{Binding CanEdit}"
-                                Command="{Binding EditCommand}" ToolTip.Tip="Edit this JSON value" />
-                        <ToggleButton Content="Tree" Classes="chip" Margin="6,0,0,0"
-                                      IsVisible="{Binding CanShowTreeToggle}"
-                                      IsChecked="{Binding IsTreeView}"
-                                      ToolTip.Tip="Toggle tree / text view" />
-                        <ToggleButton Content="Wrap" Classes="chip" Margin="6,0,0,0"
-                                      IsVisible="{Binding ShowText}"
-                                      IsChecked="{Binding WordWrap}" ToolTip.Tip="Toggle word wrap" />
-                        <Button Content="Copy" Classes="chip" Margin="6,0,0,0"
-                                IsVisible="{Binding !IsEditing}"
-                                Click="OnCellInspectorCopyClick" />
-                        <Button Content="✕" Classes="chip" Margin="6,0,0,0"
-                                Command="{Binding CloseCommand}" />
-                    </StackPanel>
-                </Grid>
-
-                <!-- Read: pretty/raw text -->
-                <ScrollViewer Grid.Row="1" IsVisible="{Binding ShowText}"
-                              HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-                    <SelectableTextBlock Text="{Binding DisplayText}"
-                                          TextWrapping="{Binding WordWrap, Converter={x:Static conv2:BoolToTextWrappingConverter.Instance}}"
-                                          FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="13" />
-                </ScrollViewer>
-
-                <!-- Read: collapsible document tree (JSON only) -->
-                <TreeView Grid.Row="1" IsVisible="{Binding ShowTree}"
-                          ItemsSource="{Binding TreeRoots}"
-                          Background="Transparent" BorderThickness="0">
-                    <TreeView.ItemTemplate>
-                        <TreeDataTemplate ItemsSource="{Binding Children}" x:DataType="json:JsonTreeNode">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
-                                           FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="12" />
-                                <TextBlock Text="{Binding ValuePreview}" Opacity="0.75"
-                                           FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="12"
-                                           TextTrimming="CharacterEllipsis" />
-                            </StackPanel>
-                        </TreeDataTemplate>
-                    </TreeView.ItemTemplate>
-                </TreeView>
-
-                <!-- Edit: AvaloniaEdit JSON editor (two-way synced in code-behind) -->
-                <Border Grid.Row="1" IsVisible="{Binding IsEditing}"
-                        BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" CornerRadius="6">
-                    <ae:TextEditor Name="JsonInspectorEditor"
-                                   ShowLineNumbers="True" WordWrap="True"
-                                   FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="13" />
-                </Border>
-
-                <!-- Edit action bar + inline validation/save messages -->
-                <StackPanel Grid.Row="2" IsVisible="{Binding IsEditing}" Spacing="6" Margin="0,10,0,0">
-                    <TextBlock Text="{Binding ValidationError}" IsVisible="{Binding HasValidationError}"
-                               Foreground="{DynamicResource SystemControlErrorTextForegroundBrush}"
-                               TextWrapping="Wrap" FontSize="12" />
-                    <TextBlock Text="{Binding SaveError}"
-                               IsVisible="{Binding SaveError, Converter={x:Static conv:ObjectConverters.IsNotNull}}"
-                               Foreground="{DynamicResource SystemControlErrorTextForegroundBrush}"
-                               TextWrapping="Wrap" FontSize="12" />
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="6">
-                        <Button Content="Format" Classes="chip" Command="{Binding FormatCommand}"
-                                IsVisible="{Binding IsJson}" ToolTip.Tip="Pretty-print" />
-                        <Button Content="Minify" Classes="chip" Command="{Binding MinifyCommand}"
-                                IsVisible="{Binding IsJson}" ToolTip.Tip="Collapse to one line" />
-                        <Button Content="Cancel" Classes="chip" Command="{Binding CancelEditCommand}" />
-                        <Button Content="Save" Classes="chip" Command="{Binding SaveCommand}"
-                                IsEnabled="{Binding !HasValidationError}" />
-                    </StackPanel>
-                </StackPanel>
             </Grid>
         </Border>
     </Border>

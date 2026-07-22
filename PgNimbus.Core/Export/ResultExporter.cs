@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Unicode;
+using PgNimbus.Core.Schema;
 
 namespace PgNimbus.Core.Export;
 
@@ -116,6 +117,9 @@ public static class ResultExporter
         DateTimeOffset dto => dto.ToString("O", CultureInfo.InvariantCulture),
         byte[] bytes => Convert.ToBase64String(bytes),
         Array array => string.Join(';', array.Cast<object?>().Select(FormatCsvValue)),
+        // hstore comes back as a Dictionary<string,string>; emit its Postgres
+        // literal ("k"=>"v") rather than the CLR type name.
+        System.Collections.IDictionary map => PgValueSyntax.FormatHstore(map),
         IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
         _ => value.ToString() ?? string.Empty,
     };
@@ -216,6 +220,19 @@ public static class ResultExporter
                 }
 
                 writer.WriteEndArray();
+                break;
+            // hstore (Dictionary<string,string>) is naturally a JSON object —
+            // faithful and machine-readable, matching how arrays serialize
+            // structurally above rather than as a literal string.
+            case System.Collections.IDictionary map:
+                writer.WriteStartObject();
+                foreach (System.Collections.DictionaryEntry entry in map)
+                {
+                    writer.WritePropertyName(entry.Key.ToString() ?? string.Empty);
+                    WriteJsonValue(writer, entry.Value);
+                }
+
+                writer.WriteEndObject();
                 break;
             default:
                 writer.WriteStringValue(value.ToString());
