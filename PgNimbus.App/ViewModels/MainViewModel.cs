@@ -276,6 +276,16 @@ public sealed partial class MainViewModel : ObservableObject
         _engine = engine;
         _explainService = explainService;
         SchemaTree = schemaTree;
+        // Wire the schema tree's window-level actions (context menu, double-click,
+        // full refresh) so the SchemaTreePanel can invoke them through its own
+        // sub-ViewModel without reaching back into this host — see the callbacks'
+        // docs on SchemaTreeViewModel.
+        SchemaTree.RefreshAllRequested = RefreshSchemaAsync;
+        SchemaTree.ShowTableSourceRequested = ShowSourceAsync;
+        SchemaTree.PreviewTableRequested = PreviewTableAsync;
+        SchemaTree.ShowFunctionSourceRequested = ShowFunctionSourceAsync;
+        SchemaTree.SetExtensionInstalledRequested = SetExtensionInstalledAsync;
+        SchemaTree.AlterTableViewModelFactory = CreateAlterTableViewModel;
         _schemaService = schemaService;
         _schemaEditor = schemaEditor;
         _ddlService = ddlService;

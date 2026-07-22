@@ -67,6 +67,42 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
 
     public ObservableCollection<SchemaTreeNode> Schemas { get; } = [];
 
+    // --- Host-supplied actions --------------------------------------------
+    // The schema tree's context-menu / double-click / refresh actions are
+    // window-level orchestration — opening query and browse tabs, refreshing
+    // the autocomplete and palette caches alongside the tree, building an
+    // Alter Table dialog VM — so MainViewModel wires them here after
+    // construction. The SchemaTreePanel invokes them through this VM and never
+    // reaches back into the host window, keeping the panel bound to just this
+    // focused sub-ViewModel (UI design rule 7).
+
+    /// <summary>Reloads the tree plus everything else derived from the catalog (autocomplete + palette). Backs <see cref="RefreshAllCommand"/>.</summary>
+    public Func<Task>? RefreshAllRequested { get; set; }
+
+    /// <summary>Opens a table/view's reconstructed CREATE DDL in a new query tab.</summary>
+    public Func<TableNode, Task>? ShowTableSourceRequested { get; set; }
+
+    /// <summary>Opens a browse (preview) tab for a table/view — the tree's double-click default action.</summary>
+    public Func<TableNode, Task>? PreviewTableRequested { get; set; }
+
+    /// <summary>Opens a function's source in a new query tab.</summary>
+    public Func<FunctionNode, Task>? ShowFunctionSourceRequested { get; set; }
+
+    /// <summary>Installs or drops an extension, then refreshes its node.</summary>
+    public Func<ExtensionNode, bool, Task>? SetExtensionInstalledRequested { get; set; }
+
+    /// <summary>Builds the Alter Table dialog's ViewModel for a table (the dialog itself is shown by the view).</summary>
+    public Func<TableNode, AlterTableViewModel>? AlterTableViewModelFactory { get; set; }
+
+    /// <summary>
+    /// The sidebar refresh button. Reloads the tree together with everything
+    /// else derived from the live catalog (autocomplete + palette) via the
+    /// host-supplied <see cref="RefreshAllRequested"/>; falls back to a
+    /// tree-only refresh when no host is wired (e.g. design time).
+    /// </summary>
+    [RelayCommand]
+    private Task RefreshAll() => RefreshAllRequested?.Invoke() ?? RefreshAsync();
+
     public SchemaTreeViewModel(
         SchemaService schemaService,
         bool showAdvancedObjects = false,
