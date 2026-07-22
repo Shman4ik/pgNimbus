@@ -43,6 +43,12 @@ public sealed class RowIndexConverter : IValueConverter
                 // and editable in place since the cell editor pre-fills from
                 // this text and the edit pipeline casts it back server-side.
                 Array array => PgValueSyntax.FormatArray(array),
+                // hstore arrives as a Dictionary<string,string>, whose default
+                // ToString is the CLR type name. Render the Postgres literal
+                // ("k"=>"v") so it reads in any result set — browse mode already
+                // re-requests it as text, but a hand-written SELECT gets the raw
+                // dictionary, and without this it showed the type name.
+                System.Collections.IDictionary map => PgValueSyntax.FormatHstore(map),
                 var cell => cell,
             }
             : null;

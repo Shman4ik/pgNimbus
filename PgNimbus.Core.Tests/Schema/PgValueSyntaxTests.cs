@@ -67,6 +67,37 @@ public class PgValueSyntaxTests
     }
 
     [Test]
+    public async Task FormatsHstoreDictionariesAsPostgresLiterals()
+    {
+        var map = new System.Collections.Generic.Dictionary<string, string?>
+        {
+            ["lang"] = "de",
+            ["referrer"] = "organic",
+        };
+        await Assert.That(PgValueSyntax.FormatHstore(map))
+            .IsEqualTo("""
+                "lang"=>"de", "referrer"=>"organic"
+                """);
+
+        await Assert.That(PgValueSyntax.FormatHstore(new System.Collections.Generic.Dictionary<string, string?>()))
+            .IsEqualTo(string.Empty);
+    }
+
+    [Test]
+    public async Task FormatsHstoreNullValuesAndEscapesKeyAndValue()
+    {
+        var map = new System.Collections.Generic.Dictionary<string, string?>
+        {
+            ["with\"quote"] = @"back\slash",
+            ["missing"] = null,
+        };
+        await Assert.That(PgValueSyntax.FormatHstore(map))
+            .IsEqualTo("""
+                "with\"quote"=>"back\\slash", "missing"=>NULL
+                """);
+    }
+
+    [Test]
     public async Task QuotesArrayElementsTheWayPostgresWould()
     {
         await Assert.That(PgValueSyntax.FormatArray(new[] { "a b", "c,d" })).IsEqualTo("""{"a b","c,d"}""");

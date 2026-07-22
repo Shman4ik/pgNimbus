@@ -277,6 +277,9 @@ public sealed partial class CellInspectorViewModel : ObservableObject
             byte[] bytes => $"\\x{Convert.ToHexString(bytes)}",
             // Same Postgres-literal rendering the grid uses — never "System.String[]".
             Array array => PgValueSyntax.FormatArray(array),
+            // hstore materializes as a Dictionary<string,string>; render its
+            // literal ("k"=>"v") like the grid, never the CLR type name.
+            System.Collections.IDictionary map => PgValueSyntax.FormatHstore(map),
             _ => value.ToString() ?? string.Empty,
         };
 
