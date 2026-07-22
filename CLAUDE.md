@@ -192,12 +192,21 @@ and wrong project memory is worse than none.
    owns *its* interaction logic and binds to a focused sub-ViewModel. Genuine
    business operations invoked from a handler (import/export orchestration,
    value-cast conversion) belong in a service the ViewModel calls, not inline
-   in the handler. `MainWindow` is the standing decomposition target
-   (2026-07): the panels to peel off are `SchemaTreePanel`,
+   in the handler. `MainWindow` was the standing decomposition target
+   (2026-07); the peel-off is now **complete** — `SchemaTreePanel`,
    `SavedQueriesPanel`, `NotifyMonitorPanel`, `QueryEditorPanel` (editor +
    completion + highlighting), and `ResultsGridPanel` (grid + column build +
-   cell edit + follow-FK + inspector + export) — do it incrementally, one
-   panel per PR, each `verify`-checked, not one big-bang rewrite.
+   cell edit + follow-FK + cell inspector + copy/export/import) each shipped as
+   its own `verify`-checked PR, one panel at a time, not one big-bang rewrite.
+   What's left in `MainWindow` is the shell that composes them (command bar,
+   sidebar tabs, editor/results split, status bar, the command-palette overlay)
+   plus window-only concerns (chrome, key bindings, the native macOS menu, file
+   open/save dialogs) — new view code still follows the same rule: a focused
+   `UserControl` per responsibility, never a god-view. `ResultsGridPanel` is
+   window-central like `QueryEditorPanel` (it inherits the `MainViewModel`
+   DataContext and tracks the active tab itself); the cell inspector overlay
+   moved inside it, so it now scopes to the results pane rather than the whole
+   window.
 
 ## Platform window chrome
 
