@@ -379,13 +379,7 @@
                 </StackPanel>
             </Border>
 
-            <Border Grid.Row="2" Classes="card">
-                <ae:TextEditor Name="SqlEditor"
-                               ShowLineNumbers="True"
-                               WordWrap="{Binding WordWrapEditor}"
-                               FontFamily="Cascadia Code,Consolas,Menlo,monospace"
-                               FontSize="14" />
-            </Border>
+            <views:QueryEditorPanel Name="QueryEditor" Grid.Row="2" />
 
             <!-- Drag to resize the editor/results split. Stretches to fill its
                  12px row so the whole strip is a grab target; a faint centered

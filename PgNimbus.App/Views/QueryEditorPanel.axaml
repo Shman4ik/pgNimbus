@@ -1,0 +1,22 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ae="using:AvaloniaEdit"
+             xmlns:vm="using:PgNimbus.App.ViewModels"
+             x:Class="PgNimbus.App.Views.QueryEditorPanel"
+             x:DataType="vm:MainViewModel">
+    <!-- The SQL editor surface. DataContext is inherited from the host window
+         (the MainViewModel), because the editor is genuinely window-central: it
+         edits whichever tab is active (MainViewModel.ActiveTab), and draws on
+         MainViewModel-level services (the shared completion provider, the global
+         word-wrap preference, and the Format/Expand-*/Find palette events). All
+         editor interaction — text sync, completion, highlighting, bracket match,
+         auto-close pairs, font zoom, find/replace, drag-drop target — lives in
+         the code-behind, which is this control's single responsibility. -->
+    <Border Classes="card">
+        <ae:TextEditor Name="SqlEditor"
+                       ShowLineNumbers="True"
+                       WordWrap="{Binding WordWrapEditor}"
+                       FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                       FontSize="14" />
+    </Border>
+</UserControl>
