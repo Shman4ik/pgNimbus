@@ -785,6 +785,13 @@
     <Style Selector="TextBox">
         <Setter Property="SelectionBrush" Value="{StaticResource AppTextSelectionBrush}" />
     </Style>
+    <!-- Read-only selectable text (cell-inspector Wrap view, EXPLAIN output, the
+         pending-changes SQL preview) shares the same brand-blue wash - otherwise
+         it falls back to FluentTheme's grey OS-accent default and selection reads
+         differently there than in the SQL editor / TextBoxes. -->
+    <Style Selector="SelectableTextBlock">
+        <Setter Property="SelectionBrush" Value="{StaticResource AppTextSelectionBrush}" />
+    </Style>
 
     <!-- Results grid: soft horizontal rules instead of a full grid -->
     <Style Selector="DataGrid">

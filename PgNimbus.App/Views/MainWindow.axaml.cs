@@ -212,6 +212,9 @@ public partial class MainWindow : Window
             && selectionBrush is IBrush brush)
         {
             SqlEditor.TextArea.SelectionBrush = brush;
+            // Same wash for the cell inspector's JSON editor, so a selection
+            // there reads identically to the SQL editor and every plain TextBox.
+            JsonInspectorEditor.TextArea.SelectionBrush = brush;
         }
         SqlEditor.TextArea.Caret.PositionChanged += (_, _) => UpdateBracketHighlight();
         SqlEditor.AddHandler(PointerWheelChangedEvent, OnSqlEditorPointerWheel, RoutingStrategies.Tunnel);
