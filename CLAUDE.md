@@ -177,6 +177,27 @@ and wrong project memory is worse than none.
    vocabulary is app-wide across the secondary windows and dialogs; the main
    window's command bar deliberately keeps its flat minimalist `toolbar`
    buttons (rule 1) and is the one surface exempt.
+7. **Views compose from focused `UserControl`s — no god-view.** Following
+   Avalonia's MVVM guidance (<https://docs.avaloniaui.net/docs/fundamentals/architecture>):
+   code-behind is the *right* home for purely visual interaction logic that
+   touches `Control` types directly — tab drag-reorder, completion popups,
+   `DataGrid` column building, syntax-highlighting theming, cell-edit events,
+   pointer/scroll handlers. Pushing that into a ViewModel would be *worse*: it
+   leaks `Avalonia.*` types into the layer that (per hard rule 1) must stay
+   engine-clean. So the smell to watch is **not** "code in code-behind" — it's
+   **one code-behind owning many unrelated responsibilities**. When a view's
+   code-behind approaches god-class size (schema tree + tabs + completion +
+   cell editing + import/export + palette + follow-FK all in one file), split
+   the view into `UserControl`s, each with its own `.axaml` + `.axaml.cs` that
+   owns *its* interaction logic and binds to a focused sub-ViewModel. Genuine
+   business operations invoked from a handler (import/export orchestration,
+   value-cast conversion) belong in a service the ViewModel calls, not inline
+   in the handler. `MainWindow` is the standing decomposition target
+   (2026-07): the panels to peel off are `SchemaTreePanel`,
+   `SavedQueriesPanel`, `NotifyMonitorPanel`, `QueryEditorPanel` (editor +
+   completion + highlighting), and `ResultsGridPanel` (grid + column build +
+   cell edit + follow-FK + inspector + export) — do it incrementally, one
+   panel per PR, each `verify`-checked, not one big-bang rewrite.
 
 ## Platform window chrome
 
