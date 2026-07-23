@@ -186,6 +186,36 @@ public sealed partial class QueryViewModel : ObservableObject
 
     partial void OnPlanJsonChanged(string? value) => OnPropertyChanged(nameof(HasPlanJson));
 
+    /// <summary>Which metric the plan tree's heat bar is scaled by (pev2-style re-color toggle).</summary>
+    [ObservableProperty]
+    private PlanMetric _planMetric = PlanMetric.SelfTime;
+
+    /// <summary>True when the plan carries ANALYZE timing — gates the Time/Buffers metric toggles.</summary>
+    [ObservableProperty]
+    private bool _planHasTiming;
+
+    /// <summary>True when the plan carries BUFFERS data — gates the Buffers metric toggle.</summary>
+    [ObservableProperty]
+    private bool _planHasBuffers;
+
+    public bool IsMetricSelfTime => PlanMetric == PlanMetric.SelfTime;
+    public bool IsMetricRows => PlanMetric == PlanMetric.Rows;
+    public bool IsMetricCost => PlanMetric == PlanMetric.Cost;
+    public bool IsMetricBuffers => PlanMetric == PlanMetric.Buffers;
+
+    partial void OnPlanMetricChanged(PlanMetric value)
+    {
+        OnPropertyChanged(nameof(IsMetricSelfTime));
+        OnPropertyChanged(nameof(IsMetricRows));
+        OnPropertyChanged(nameof(IsMetricCost));
+        OnPropertyChanged(nameof(IsMetricBuffers));
+        ExplainRoot?.ApplyMetric(value);
+    }
+
+    /// <summary>Re-scales the plan tree's bars by <paramref name="metric"/> (the header's segmented toggle).</summary>
+    [RelayCommand]
+    private void SetPlanMetric(PlanMetric metric) => PlanMetric = metric;
+
     /// <summary>Plan pane mode: true = text layout (default), false = the graphical tree.</summary>
     [ObservableProperty]
     private bool _isPlanTextView = true;
@@ -738,6 +768,17 @@ public sealed partial class QueryViewModel : ObservableObject
     [RelayCommand]
     private void ShowPlanAsTree() => IsPlanTextView = false;
 
+    // Sets the metric-toggle availability, picks the default metric (self time when the
+    // plan was analyzed, else cost), and paints the initial heat. Shared by live and
+    // imported plans so both light up the same way.
+    private void ApplyPlanHeat(ExplainNodeViewModel root)
+    {
+        PlanHasTiming = root.HasTiming;
+        PlanHasBuffers = root.HasAnyBuffers;
+        PlanMetric = root.HasTiming ? PlanMetric.SelfTime : PlanMetric.Cost;
+        root.ApplyMetric(PlanMetric); // explicit: OnPlanMetricChanged is a no-op when the value didn't change
+    }
+
     /// <summary>
     /// Shows a plan that was imported from pasted text rather than run against the DB
     /// (see <see cref="ExplainService.Import"/>) — same views, heat, and warnings strip
@@ -749,8 +790,8 @@ public sealed partial class QueryViewModel : ObservableObject
     public void ShowImportedPlan(ExplainResult result, string displayText, string? planJson)
     {
         var root = new ExplainNodeViewModel(result.Root, result.Root.TotalCost);
-        root.ApplyTimeHeat();
         ExplainRoot = root;
+        ApplyPlanHeat(root);
 
         PlanWarnings = PlanAnalyzer.Analyze(result).Select(w => new PlanWarningViewModel(w)).ToList();
         ExplainText = displayText;
@@ -782,8 +823,8 @@ public sealed partial class QueryViewModel : ObservableObject
             var result = run.Result;
             PlanJson = run.Json;
             var root = new ExplainNodeViewModel(result.Root, result.Root.TotalCost);
-            root.ApplyTimeHeat();
             ExplainRoot = root;
+            ApplyPlanHeat(root);
 
             var warnings = new List<PlanWarningViewModel>();
             // Reassure the user their data is intact: ANALYZE ran the write, but ExplainService

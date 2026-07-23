@@ -148,9 +148,14 @@ and wrong project memory is worse than none.
    header's "Export ▾" flyout copies/saves the plan as JSON or rendered text —
    `ExplainService.ExplainAsync` returns an `ExplainRun` that keeps the raw
    server JSON, carried on `QueryViewModel.PlanJson` (null, and the JSON actions
-   hidden, for a text import). The design doc + competitive research is in
-   [`docs/design/explain-improvements.md`](docs/design/explain-improvements.md)
-   (it also tracks the remaining deferred follow-up: re-color-by-metric).
+   hidden, for a text import). **Re-color by metric**: the plan header (tree view)
+   has a "Color:" segmented toggle — Time / Rows / Cost / Buffers — that rescales
+   the heat bars. `ExplainNodeViewModel` is observable and holds each node's
+   exclusive self-time, self-cost, output rows, and self-buffers (buffer counts
+   read from `ExplainNode.Details`, cumulative like time, so exclusive = node
+   minus children); `ApplyMetric` rescales bars and re-marks the hottest node in
+   place. The design doc + competitive research is in
+   [`docs/design/explain-improvements.md`](docs/design/explain-improvements.md).
 
 ## UI design rules
 

@@ -121,6 +121,32 @@
                     </StackPanel>
                     <Grid RowDefinitions="Auto,Auto,*" IsVisible="{Binding ActiveTab.IsShowingPlan}">
                         <DockPanel Grid.Row="0" Margin="4">
+                            <!-- pev2-style re-color toggle: re-scale the tree bars by a chosen metric.
+                                 Tree-view only (the bars live there); Time/Buffers gated on the plan
+                                 actually carrying ANALYZE timing / BUFFERS data. -->
+                            <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="2"
+                                        VerticalAlignment="Center" Margin="0,0,12,0"
+                                        IsVisible="{Binding !ActiveTab.IsPlanTextView}">
+                                <TextBlock Text="Color:" FontSize="11" Opacity="0.7" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                <Button Classes="chip" Content="Time" FontSize="11" Padding="8,2"
+                                        Classes.active="{Binding ActiveTab.IsMetricSelfTime}"
+                                        IsEnabled="{Binding ActiveTab.PlanHasTiming}"
+                                        Command="{Binding ActiveTab.SetPlanMetricCommand}"
+                                        CommandParameter="{x:Static vm:PlanMetric.SelfTime}" />
+                                <Button Classes="chip" Content="Rows" FontSize="11" Padding="8,2"
+                                        Classes.active="{Binding ActiveTab.IsMetricRows}"
+                                        Command="{Binding ActiveTab.SetPlanMetricCommand}"
+                                        CommandParameter="{x:Static vm:PlanMetric.Rows}" />
+                                <Button Classes="chip" Content="Cost" FontSize="11" Padding="8,2"
+                                        Classes.active="{Binding ActiveTab.IsMetricCost}"
+                                        Command="{Binding ActiveTab.SetPlanMetricCommand}"
+                                        CommandParameter="{x:Static vm:PlanMetric.Cost}" />
+                                <Button Classes="chip" Content="Buffers" FontSize="11" Padding="8,2"
+                                        Classes.active="{Binding ActiveTab.IsMetricBuffers}"
+                                        IsEnabled="{Binding ActiveTab.PlanHasBuffers}"
+                                        Command="{Binding ActiveTab.SetPlanMetricCommand}"
+                                        CommandParameter="{x:Static vm:PlanMetric.Buffers}" />
+                            </StackPanel>
                             <!-- pgAdmin-style plan view switch: raw text (default) vs graphical tree -->
                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="2">
                                 <!-- Share the plan into external tools (pev2, depesz). Plan-scoped,

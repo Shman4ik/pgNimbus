@@ -80,7 +80,16 @@ Out of scope for v1 (follow-ups, noted so they aren't forgotten):
   out verbatim; `QueryViewModel.PlanJson` carries it (null for a text import,
   which hides the JSON actions via `HasPlanJson`). Copy/save live in
   `ResultsGridPanel` alongside the existing grid copy/export.
-- Re-color-by-metric toggle (time / rows / cost / buffers), pev2-style.
+- ~~Re-color-by-metric toggle (time / rows / cost / buffers), pev2-style~~ —
+  **done** (v1.2): the plan header (tree view only) carries a "Color:" segmented
+  toggle — Time / Rows / Cost / Buffers. `ExplainNodeViewModel` is now observable
+  and holds each node's exclusive self-time, self-cost, output rows, and
+  self-buffers (buffer counts read from `ExplainNode.Details`, which are
+  cumulative like time, so exclusive = node minus children); `ApplyMetric` rescales
+  every bar and re-marks the single hottest node as the bottleneck in place, no
+  tree rebuild. Time/Buffers are disabled when the plan lacks ANALYZE timing /
+  BUFFERS data (`PlanHasTiming`/`PlanHasBuffers`), and "self time" falls back to
+  cost for a plain EXPLAIN, preserving the old default.
 - Aggregating buffer counters onto a single `Buffers:` line in the text view
   to match `EXPLAIN (FORMAT TEXT)` exactly.
 
