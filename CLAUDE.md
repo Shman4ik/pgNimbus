@@ -130,10 +130,14 @@ and wrong project memory is worse than none.
    `ExplainNodeViewModel` computes each node's exclusive **self time** so the
    tree's bar becomes a time-heat profile (falling back to cost when there's
    no ANALYZE timing) and tints the single slowest node as the bottleneck.
-   The design doc + competitive research is in
+   `EXPLAIN ANALYZE` always runs inside a transaction `ExplainService` rolls
+   back, so analyzing an INSERT/UPDATE/DELETE/MERGE (or a data-modifying CTE)
+   never persists — `SqlStatementInspector.IsDataModifying` (Core-pure,
+   unit-tested) drives the "rolled back" info note in the warnings strip. The
+   design doc + competitive research is in
    [`docs/design/explain-improvements.md`](docs/design/explain-improvements.md)
-   (it also tracks the deferred follow-ups: write-statement `ROLLBACK` guard,
-   paste-a-plan, copy/export, re-color-by-metric).
+   (it also tracks the deferred follow-ups: paste-a-plan, copy/export,
+   re-color-by-metric).
 
 ## UI design rules
 

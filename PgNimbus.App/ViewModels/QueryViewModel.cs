@@ -745,7 +745,23 @@ public sealed partial class QueryViewModel : ObservableObject
             var root = new ExplainNodeViewModel(result.Root, result.Root.TotalCost);
             root.ApplyTimeHeat();
             ExplainRoot = root;
-            PlanWarnings = PlanAnalyzer.Analyze(result).Select(w => new PlanWarningViewModel(w)).ToList();
+
+            var warnings = new List<PlanWarningViewModel>();
+            // Reassure the user their data is intact: ANALYZE ran the write, but ExplainService
+            // rolled it back. Leads the strip so it's the first thing seen for a write plan.
+            if (analyze && SqlStatementInspector.IsDataModifying(Sql))
+            {
+                warnings.Add(new PlanWarningViewModel(new PlanWarning(
+                    PlanWarningSeverity.Info,
+                    "Data-modifying statement rolled back",
+                    "EXPLAIN ANALYZE executed this statement inside a transaction and rolled it back, "
+                        + "so no changes were persisted.",
+                    result.Root.NodeType,
+                    null)));
+            }
+
+            warnings.AddRange(PlanAnalyzer.Analyze(result).Select(w => new PlanWarningViewModel(w)));
+            PlanWarnings = warnings;
             ExplainText = ExplainTextFormatter.Format(result);
             var planningFragment = result.PlanningTimeMs is { } planMs ? $"Planning: {planMs:F3} ms" : null;
             var executionFragment = result.ExecutionTimeMs is { } execMs ? $"Execution: {execMs:F3} ms" : null;
