@@ -47,7 +47,12 @@ public sealed class ExplainService
     {
         // Plain EXPLAIN omits "Planning Time" unless SUMMARY is requested explicitly
         // (ANALYZE defaults SUMMARY to true already, so it's fine either way there).
-        var options = analyze ? "ANALYZE, FORMAT JSON, BUFFERS false, TIMING true" : "FORMAT JSON, SUMMARY";
+        // BUFFERS (I/O counters) is the most-requested EXPLAIN option and is what the
+        // disk-spill / lossy-bitmap analysis reads; SETTINGS surfaces the non-default
+        // planner GUCs that shaped the plan. Both are cheap to always ask for.
+        var options = analyze
+            ? "ANALYZE, FORMAT JSON, BUFFERS true, TIMING true, SETTINGS"
+            : "FORMAT JSON, SUMMARY, SETTINGS";
         var explainSql = $"EXPLAIN ({options}) {sql}";
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
@@ -104,6 +109,15 @@ public sealed class ExplainService
 
             // PG 18 stamps "Disabled": false on every node — only a true value is worth a line.
             if (property.Name == "Disabled" && property.Value.ValueKind == JsonValueKind.False)
+            {
+                continue;
+            }
+
+            // BUFFERS emits every counter in FORMAT JSON even when zero (unlike FORMAT TEXT,
+            // which hides them). Drop the zero-valued buffer lines so the text view stays clean.
+            if (property.Name.EndsWith("Blocks", StringComparison.Ordinal)
+                && property.Value.ValueKind == JsonValueKind.Number
+                && property.Value.GetDouble() == 0)
             {
                 continue;
             }

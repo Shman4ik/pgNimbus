@@ -115,6 +115,25 @@ and wrong project memory is worse than none.
    it shows the error, the on-disk log path, and a "Report on GitHub" button
    that opens a pre-filled new-issue URL (title/body/labels query params,
    including version + OS).
+6. **Query plans are parsed, analyzed, and heat-mapped — not dumped raw.**
+   `ExplainService` runs `EXPLAIN (FORMAT JSON …)` and parses it into an
+   `ExplainNode` tree; the ANALYZE path always asks for `BUFFERS` and
+   `SETTINGS` (buffers are the most-requested EXPLAIN option and what the
+   spill/lossy analysis reads — zero-valued buffer lines are dropped so the
+   text view stays clean). `Monitoring`-style separation applies:
+   `Query/PlanAnalyzer` is a **Core-pure, unit-tested** walker (a read-only
+   sibling of `Json/JsonTree` and `Monitoring/BlockingTree`) that emits named
+   `PlanWarning`s — bad row estimates, disk-spilled sorts/hashes, wasteful
+   sequential scans, lossy bitmap heap blocks — each with an actionable
+   one-liner and a conservative threshold constant. The App wraps them in
+   `PlanWarningViewModel` (glyph + severity brush) for the warnings strip;
+   `ExplainNodeViewModel` computes each node's exclusive **self time** so the
+   tree's bar becomes a time-heat profile (falling back to cost when there's
+   no ANALYZE timing) and tints the single slowest node as the bottleneck.
+   The design doc + competitive research is in
+   [`docs/design/explain-improvements.md`](docs/design/explain-improvements.md)
+   (it also tracks the deferred follow-ups: write-statement `ROLLBACK` guard,
+   paste-a-plan, copy/export, re-color-by-metric).
 
 ## UI design rules
 

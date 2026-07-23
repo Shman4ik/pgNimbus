@@ -162,6 +162,10 @@ public sealed partial class QueryViewModel : ObservableObject
     [ObservableProperty]
     private ExplainNodeViewModel? _explainRoot;
 
+    /// <summary>Named plan problems from <see cref="PlanAnalyzer"/> — the warnings strip above the plan.</summary>
+    [ObservableProperty]
+    private IReadOnlyList<PlanWarningViewModel> _planWarnings = [];
+
     [ObservableProperty]
     private string? _explainSummary;
 
@@ -189,6 +193,11 @@ public sealed partial class QueryViewModel : ObservableObject
     public IReadOnlyList<ExplainNodeViewModel> ExplainRoots => ExplainRoot is null ? [] : [ExplainRoot];
 
     partial void OnExplainRootChanged(ExplainNodeViewModel? value) => OnPropertyChanged(nameof(ExplainRoots));
+
+    /// <summary>Drives the warnings strip's visibility — hidden entirely when a plan has no findings.</summary>
+    public bool HasPlanWarnings => PlanWarnings.Count > 0;
+
+    partial void OnPlanWarningsChanged(IReadOnlyList<PlanWarningViewModel> value) => OnPropertyChanged(nameof(HasPlanWarnings));
 
     /// <summary>
     /// One entry per statement when the editor holds a multi-statement script;
@@ -733,7 +742,10 @@ public sealed partial class QueryViewModel : ObservableObject
         try
         {
             var result = await _explainService.ExplainAsync(Sql, analyze, ct);
-            ExplainRoot = new ExplainNodeViewModel(result.Root, result.Root.TotalCost);
+            var root = new ExplainNodeViewModel(result.Root, result.Root.TotalCost);
+            root.ApplyTimeHeat();
+            ExplainRoot = root;
+            PlanWarnings = PlanAnalyzer.Analyze(result).Select(w => new PlanWarningViewModel(w)).ToList();
             ExplainText = ExplainTextFormatter.Format(result);
             var planningFragment = result.PlanningTimeMs is { } planMs ? $"Planning: {planMs:F3} ms" : null;
             var executionFragment = result.ExecutionTimeMs is { } execMs ? $"Execution: {execMs:F3} ms" : null;
