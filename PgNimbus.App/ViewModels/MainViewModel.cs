@@ -574,7 +574,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         var tab = NewTab();
         tab.TitleOverride = "Imported plan";
-        tab.ShowImportedPlan(plan.Result, plan.DisplayText);
+        tab.ShowImportedPlan(plan.Result, plan.DisplayText, plan.RawJson);
     }
 
     /// <summary>CREATE/DROP EXTENSION, then reload the Extensions group so the list reflects reality. Errors land in the sidebar's message strip.</summary>

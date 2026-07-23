@@ -72,7 +72,14 @@ Out of scope for v1 (follow-ups, noted so they aren't forgotten):
   (`MainViewModel.OpenImportedPlan` → `QueryViewModel.ShowImportedPlan`) with the
   same views, time-heat, and warnings strip as a live plan. Parse failures raise
   `FormatException` with a human-readable message, shown inline in the dialog.
-- Copy/export plan (raw JSON/text) for sharing into external tools.
+- ~~Copy/export plan (raw JSON/text) for sharing into external tools~~ —
+  **done** (v1.2): the plan header carries an "Export ▾" flyout (plan-scoped,
+  shown only while a plan is on screen — not a main-toolbar control) with Copy
+  as JSON / Copy as text and Save as .json / .txt. `ExplainService.ExplainAsync`
+  now returns an `ExplainRun` that keeps the raw server JSON so it can be handed
+  out verbatim; `QueryViewModel.PlanJson` carries it (null for a text import,
+  which hides the JSON actions via `HasPlanJson`). Copy/save live in
+  `ResultsGridPanel` alongside the existing grid copy/export.
 - Re-color-by-metric toggle (time / rows / cost / buffers), pev2-style.
 - Aggregating buffer counters onto a single `Buffers:` line in the text view
   to match `EXPLAIN (FORMAT TEXT)` exactly.

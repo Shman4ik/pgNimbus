@@ -40,6 +40,18 @@ public class ExplainImportTests
     }
 
     [Test]
+    public async Task JsonImportKeepsRawJsonTextImportDoesNot()
+    {
+        var json = ExplainService.Import(StandardJson);
+        await Assert.That(json.RawJson).IsNotNull();
+        await Assert.That(json.RawJson!).Contains("\"Node Type\"");
+
+        var text = ExplainService.Import("Seq Scan on t  (cost=0.00..1.05 rows=5 width=4)");
+        // A text import has no JSON to copy/export.
+        await Assert.That(text.RawJson).IsNull();
+    }
+
+    [Test]
     public async Task BarePlanNodeWithoutWrapperParses()
     {
         // Some tools export just the plan node (no [{ "Plan": … }] envelope).

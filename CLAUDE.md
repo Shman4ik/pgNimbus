@@ -144,11 +144,13 @@ and wrong project memory is worse than none.
    command palette's "Import query plan…" opens `ImportPlanDialog` and, on a
    successful parse, shows the plan in a **new tab**
    (`MainViewModel.OpenImportedPlan` → `QueryViewModel.ShowImportedPlan`) — same
-   warnings strip and time-heat as a live plan. The design doc + competitive
-   research is in
+   warnings strip and time-heat as a live plan. **Sharing back out**: the plan
+   header's "Export ▾" flyout copies/saves the plan as JSON or rendered text —
+   `ExplainService.ExplainAsync` returns an `ExplainRun` that keeps the raw
+   server JSON, carried on `QueryViewModel.PlanJson` (null, and the JSON actions
+   hidden, for a text import). The design doc + competitive research is in
    [`docs/design/explain-improvements.md`](docs/design/explain-improvements.md)
-   (it also tracks the remaining deferred follow-ups: copy/export,
-   re-color-by-metric).
+   (it also tracks the remaining deferred follow-up: re-color-by-metric).
 
 ## UI design rules
 

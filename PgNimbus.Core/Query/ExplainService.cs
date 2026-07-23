@@ -30,11 +30,19 @@ public sealed record ExplainNode(
 public sealed record ExplainResult(ExplainNode Root, double? PlanningTimeMs, double? ExecutionTimeMs);
 
 /// <summary>
-/// A plan imported from pasted text (<see cref="ExplainService.Import"/>): the parsed
-/// tree plus the text the plan pane should display (canonical layout for JSON, the
-/// pasted text verbatim for a text import).
+/// The outcome of a live <see cref="ExplainService.ExplainAsync"/>: the parsed tree and
+/// the raw <c>FORMAT JSON</c> payload the server returned (kept so the plan can be copied
+/// or exported as JSON into external tools like pev2, unchanged).
 /// </summary>
-public sealed record ImportedPlan(ExplainResult Result, string DisplayText);
+public sealed record ExplainRun(ExplainResult Result, string Json);
+
+/// <summary>
+/// A plan imported from pasted text (<see cref="ExplainService.Import"/>): the parsed
+/// tree, the text the plan pane should display (canonical layout for JSON, the pasted
+/// text verbatim for a text import), and the raw JSON when the import was JSON (null for
+/// a text import, which has no JSON to copy/export).
+/// </summary>
+public sealed record ImportedPlan(ExplainResult Result, string DisplayText, string? RawJson);
 
 /// <summary>
 /// Runs `EXPLAIN (FORMAT JSON [, ANALYZE])` and parses the resulting plan
@@ -50,7 +58,7 @@ public sealed class ExplainService
         _dataSource = dataSource;
     }
 
-    public async Task<ExplainResult> ExplainAsync(string sql, bool analyze, CancellationToken ct)
+    public async Task<ExplainRun> ExplainAsync(string sql, bool analyze, CancellationToken ct)
     {
         // Plain EXPLAIN omits "Planning Time" unless SUMMARY is requested explicitly
         // (ANALYZE defaults SUMMARY to true already, so it's fine either way there).
@@ -68,7 +76,8 @@ public sealed class ExplainService
         if (!analyze)
         {
             await using var command = new NpgsqlCommand(explainSql, connection);
-            return Parse((string)(await command.ExecuteScalarAsync(ct))!);
+            var planJson = (string)(await command.ExecuteScalarAsync(ct))!;
+            return new ExplainRun(Parse(planJson), planJson);
         }
 
         // EXPLAIN ANALYZE *runs* the statement. Wrap it in a transaction we always
@@ -81,7 +90,7 @@ public sealed class ExplainService
         await using var analyzeCommand = new NpgsqlCommand(explainSql, connection, transaction);
         var json = (string)(await analyzeCommand.ExecuteScalarAsync(ct))!;
         await transaction.RollbackAsync(ct);
-        return Parse(json);
+        return new ExplainRun(Parse(json), json);
     }
 
     /// <summary>
@@ -149,11 +158,11 @@ public sealed class ExplainService
                 throw new FormatException($"That doesn't look like valid EXPLAIN JSON: {ex.Message}", ex);
             }
 
-            return new ImportedPlan(result, ExplainTextFormatter.Format(result));
+            return new ImportedPlan(result, ExplainTextFormatter.Format(result), trimmed);
         }
 
         var cleaned = ExplainPlanTextParser.Clean(raw);
-        return new ImportedPlan(ExplainPlanTextParser.Parse(cleaned), cleaned);
+        return new ImportedPlan(ExplainPlanTextParser.Parse(cleaned), cleaned, RawJson: null);
     }
 
     /// <summary>

@@ -173,6 +173,19 @@ public sealed partial class QueryViewModel : ObservableObject
     [ObservableProperty]
     private string? _explainText;
 
+    /// <summary>
+    /// The raw `FORMAT JSON` plan payload behind the current plan, kept so it can be
+    /// copied/exported verbatim into external tools (pev2, depesz). Null for a plan
+    /// imported from text (no JSON to hand out) or when no plan is showing.
+    /// </summary>
+    [ObservableProperty]
+    private string? _planJson;
+
+    /// <summary>Drives the "Copy/Save as JSON" plan-export actions — hidden when there's no JSON (a text import).</summary>
+    public bool HasPlanJson => PlanJson is not null;
+
+    partial void OnPlanJsonChanged(string? value) => OnPropertyChanged(nameof(HasPlanJson));
+
     /// <summary>Plan pane mode: true = text layout (default), false = the graphical tree.</summary>
     [ObservableProperty]
     private bool _isPlanTextView = true;
@@ -733,7 +746,7 @@ public sealed partial class QueryViewModel : ObservableObject
     /// import). Opened into its own tab by <see cref="MainViewModel.OpenImportedPlan"/>,
     /// so it never overwrites another tab's results.
     /// </summary>
-    public void ShowImportedPlan(ExplainResult result, string displayText)
+    public void ShowImportedPlan(ExplainResult result, string displayText, string? planJson)
     {
         var root = new ExplainNodeViewModel(result.Root, result.Root.TotalCost);
         root.ApplyTimeHeat();
@@ -741,6 +754,7 @@ public sealed partial class QueryViewModel : ObservableObject
 
         PlanWarnings = PlanAnalyzer.Analyze(result).Select(w => new PlanWarningViewModel(w)).ToList();
         ExplainText = displayText;
+        PlanJson = planJson;
         var planningFragment = result.PlanningTimeMs is { } planMs ? $"Planning: {planMs:F3} ms" : null;
         var executionFragment = result.ExecutionTimeMs is { } execMs ? $"Execution: {execMs:F3} ms" : null;
         ExplainSummary = string.Join("   ", new[] { "Imported plan", planningFragment, executionFragment }.Where(f => f is not null));
@@ -764,7 +778,9 @@ public sealed partial class QueryViewModel : ObservableObject
 
         try
         {
-            var result = await _explainService.ExplainAsync(Sql, analyze, ct);
+            var run = await _explainService.ExplainAsync(Sql, analyze, ct);
+            var result = run.Result;
+            PlanJson = run.Json;
             var root = new ExplainNodeViewModel(result.Root, result.Root.TotalCost);
             root.ApplyTimeHeat();
             ExplainRoot = root;
