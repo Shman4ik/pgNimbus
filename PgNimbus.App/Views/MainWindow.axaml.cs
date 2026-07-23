@@ -9,6 +9,7 @@ using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using PgNimbus.App.ViewModels;
+using PgNimbus.Core.Query;
 
 namespace PgNimbus.App.Views;
 
@@ -421,7 +422,8 @@ public partial class MainWindow : Window
             _viewModel.ShortcutsRequested -= ShowShortcutsWindow;
             _viewModel.SwitchConnectionRequested -= SwitchConnection;
             _viewModel.NewWindowRequested -= OpenNewWindow;
-            _viewModel.ActivityRequested -= ShowActivityWindow;
+            _viewModel.ImportPlanRequested -= ShowImportPlanDialog;
+        _viewModel.ActivityRequested -= ShowActivityWindow;
             _viewModel.DatabaseOverviewRequested -= ShowDatabaseOverviewWindow;
             _viewModel.SidebarToggleRequested -= ToggleSidebar;
             _viewModel.PreferencesRequested -= ShowPreferencesWindow;
@@ -438,6 +440,7 @@ public partial class MainWindow : Window
         _viewModel.NewWindowRequested += OpenNewWindow;
         // FormatSqlRequested / ExpandStarRequested / FindRequested are handled by
         // QueryEditorPanel, which subscribes to them off its own DataContext.
+        _viewModel.ImportPlanRequested += ShowImportPlanDialog;
         _viewModel.ActivityRequested += ShowActivityWindow;
         _viewModel.DatabaseOverviewRequested += ShowDatabaseOverviewWindow;
         _viewModel.SidebarToggleRequested += ToggleSidebar;
@@ -849,6 +852,24 @@ public partial class MainWindow : Window
         _preferencesWindow = new PreferencesWindow { DataContext = new PreferencesViewModel(_viewModel) };
         _preferencesWindow.Closed += (_, _) => _preferencesWindow = null;
         _preferencesWindow.Show(this);
+    }
+
+    private void ShowImportPlanDialog() => _ = ShowImportPlanDialogAsync();
+
+    // Opens the paste-a-plan modal; on a successful parse the plan opens in a new tab
+    // (MainViewModel.OpenImportedPlan) with no DB round-trip.
+    private async Task ShowImportPlanDialogAsync()
+    {
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        var dialog = new ImportPlanDialog();
+        if (await dialog.ShowDialog<ImportedPlan?>(this) is { } imported)
+        {
+            _viewModel.OpenImportedPlan(imported);
+        }
     }
 
     private ActivityWindow? _activityWindow;

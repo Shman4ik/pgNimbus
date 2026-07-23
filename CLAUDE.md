@@ -133,10 +133,21 @@ and wrong project memory is worse than none.
    `EXPLAIN ANALYZE` always runs inside a transaction `ExplainService` rolls
    back, so analyzing an INSERT/UPDATE/DELETE/MERGE (or a data-modifying CTE)
    never persists — `SqlStatementInspector.IsDataModifying` (Core-pure,
-   unit-tested) drives the "rolled back" info note in the warnings strip. The
-   design doc + competitive research is in
+   unit-tested) drives the "rolled back" info note in the warnings strip.
+   **Paste-a-plan** rides the same views with no DB round-trip:
+   `ExplainService.Import(raw)` auto-detects JSON vs text and returns an
+   `ImportedPlan` (parsed tree + display text). JSON parsing is tolerant of the
+   shapes external tools emit (the `[{ "Plan": … }]` array, a lone
+   `{ "Plan": … }` object, or a bare `{ "Node Type": … }` node); `FORMAT TEXT`
+   is parsed best-effort by `Query/ExplainPlanTextParser` (another Core-pure,
+   unit-tested sibling of `PlanAnalyzer`, which also strips psql framing). The
+   command palette's "Import query plan…" opens `ImportPlanDialog` and, on a
+   successful parse, shows the plan in a **new tab**
+   (`MainViewModel.OpenImportedPlan` → `QueryViewModel.ShowImportedPlan`) — same
+   warnings strip and time-heat as a live plan. The design doc + competitive
+   research is in
    [`docs/design/explain-improvements.md`](docs/design/explain-improvements.md)
-   (it also tracks the deferred follow-ups: paste-a-plan, copy/export,
+   (it also tracks the remaining deferred follow-ups: copy/export,
    re-color-by-metric).
 
 ## UI design rules

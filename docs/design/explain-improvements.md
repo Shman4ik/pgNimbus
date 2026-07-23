@@ -59,8 +59,19 @@ Out of scope for v1 (follow-ups, noted so they aren't forgotten):
   drives an info note in the warnings strip so the user knows their data is
   intact. Non-transactional side effects (`nextval()`, `dblink`, etc.) remain
   inherently un-undoable — that's a property of EXPLAIN ANALYZE itself.
-- Paste-a-plan / import-external-plan entry point (`ExplainService.Parse` is
-  already static and side-effect-free, so this is cheap later).
+- ~~Paste-a-plan / import-external-plan entry point~~ — **done** (v1.2):
+  `ExplainService.Import(raw)` (Core-pure, unit-tested) auto-detects JSON vs
+  text and returns an `ImportedPlan` (parsed tree + the text to display), no DB
+  round-trip. JSON parsing is tolerant of the shapes tools/pastes produce (the
+  standard `[{ "Plan": … }]` array, a single `{ "Plan": … }` object, or a bare
+  `{ "Node Type": … }` node); `FORMAT TEXT` is parsed best-effort by
+  `ExplainPlanTextParser` (a read-only sibling of `PlanAnalyzer`), which also
+  strips psql framing (`QUERY PLAN` header, `(N rows)` footer, the leading-space
+  pad) via `Clean`. The command palette's "Import query plan…" opens
+  `ImportPlanDialog`; a successful parse opens the plan in a **new tab**
+  (`MainViewModel.OpenImportedPlan` → `QueryViewModel.ShowImportedPlan`) with the
+  same views, time-heat, and warnings strip as a live plan. Parse failures raise
+  `FormatException` with a human-readable message, shown inline in the dialog.
 - Copy/export plan (raw JSON/text) for sharing into external tools.
 - Re-color-by-metric toggle (time / rows / cost / buffers), pev2-style.
 - Aggregating buffer counters onto a single `Buffers:` line in the text view

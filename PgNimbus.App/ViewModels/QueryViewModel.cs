@@ -725,6 +725,29 @@ public sealed partial class QueryViewModel : ObservableObject
     [RelayCommand]
     private void ShowPlanAsTree() => IsPlanTextView = false;
 
+    /// <summary>
+    /// Shows a plan that was imported from pasted text rather than run against the DB
+    /// (see <see cref="ExplainService.Import"/>) — same views, heat, and warnings strip
+    /// as a live plan, no round-trip. <paramref name="displayText"/> is what the text
+    /// pane shows (the canonical layout for a JSON import, the pasted text for a text
+    /// import). Opened into its own tab by <see cref="MainViewModel.OpenImportedPlan"/>,
+    /// so it never overwrites another tab's results.
+    /// </summary>
+    public void ShowImportedPlan(ExplainResult result, string displayText)
+    {
+        var root = new ExplainNodeViewModel(result.Root, result.Root.TotalCost);
+        root.ApplyTimeHeat();
+        ExplainRoot = root;
+
+        PlanWarnings = PlanAnalyzer.Analyze(result).Select(w => new PlanWarningViewModel(w)).ToList();
+        ExplainText = displayText;
+        var planningFragment = result.PlanningTimeMs is { } planMs ? $"Planning: {planMs:F3} ms" : null;
+        var executionFragment = result.ExecutionTimeMs is { } execMs ? $"Execution: {execMs:F3} ms" : null;
+        ExplainSummary = string.Join("   ", new[] { "Imported plan", planningFragment, executionFragment }.Where(f => f is not null));
+        IsShowingPlan = true;
+        Status = "Imported plan";
+    }
+
     private async Task RunExplainAsync(bool analyze)
     {
         // Own a CTS so the Cancel button (enabled by IsRunning) actually cancels
