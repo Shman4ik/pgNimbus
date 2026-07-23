@@ -289,6 +289,7 @@ Prioritized by how much it advances the thesis (fast + open + modern, PostgreSQL
 - [ ] **Row detail sidebar** — a vertical name/value view of the selected row, doubling as a form-style editor.
 - [ ] **winget-pkgs submission** — manifests are generated and validated per release; the first manual community-source PR is pending (the `msstore` source already covers `winget install`).
 - [ ] **Windows polish** — Mica/acrylic backdrop; per-action hotkey remapping.
+- [ ] **UI-thread watchdog** — a background timer that notices when the dispatcher stops responding for N seconds, captures a dump/log, and surfaces it (the crash reporter only catches thrown exceptions, not deadlocks/hangs — see the `Switch connection` compositor-deadlock fix).
 
 **Bigger bets**
 
