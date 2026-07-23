@@ -143,14 +143,22 @@ public partial class ResultsGridPanel : UserControl
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
-        // Give the inspector back before the panel leaves the tree, so a
-        // re-attach re-hoists cleanly and the root isn't left holding a
-        // detached child.
-        if (_inspectorOverlayHost is not null)
-        {
-            _inspectorOverlayHost.Children.Remove(CellInspectorOverlay);
-            _inspectorOverlayHost = null;
-        }
+        // Deliberately do NOT remove the hoisted overlay from the window root
+        // here. In practice this panel only ever detaches when its window is
+        // closing, and mutating the root's Children mid-teardown is a deadlock:
+        // the root is itself detaching, so Remove() serializes a compositor
+        // change onto a window whose native handle DestroyWindow is already
+        // tearing down — the UI thread blocks in DestroyWindow waiting on the
+        // render thread, which is waiting to drain that change. (The regression
+        // that broke "Switch connection": closing the previous window hung the
+        // whole UI. Introduced with the hoist in 3d0b8e0.) Letting the window
+        // teardown dispose the overlay with the rest of the tree is exactly the
+        // pre-extraction behavior, when the overlay was a static child of
+        // MainWindow's root grid. We only drop our claim on it so that if the
+        // panel is ever reparented into a live window, HoistCellInspectorToWindowRoot
+        // re-hoists (it already reparents the overlay off whatever old parent it
+        // still has).
+        _inspectorOverlayHost = null;
 
         base.OnDetachedFromVisualTree(e);
     }
