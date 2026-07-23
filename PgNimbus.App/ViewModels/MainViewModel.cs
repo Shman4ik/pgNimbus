@@ -59,6 +59,9 @@ public sealed partial class MainViewModel : ObservableObject
     // Raised to open the editor's find / find & replace panel (the view owns
     // the AvaloniaEdit SearchPanel). The bool is "replace mode".
     public event Action<bool>? FindRequested;
+    // Raised to open the "paste an EXPLAIN plan" dialog; MainWindow owns the modal
+    // and calls OpenImportedPlan on success (no DB round-trip).
+    public event Action? ImportPlanRequested;
     // Raised to open (or focus) the Server Activity window, which the view owns.
     public event Action? ActivityRequested;
     // Raised to open (or focus) the Database Overview window, which the view owns.
@@ -562,6 +565,18 @@ public sealed partial class MainViewModel : ObservableObject
         tab.Sql = ddl;
     }
 
+    /// <summary>
+    /// Opens an imported plan (parsed from pasted EXPLAIN JSON/text, no DB round-trip)
+    /// in a new tab showing the plan views + warnings strip — never overwriting the
+    /// active tab, per the "loading never overwrites" rule.
+    /// </summary>
+    public void OpenImportedPlan(ImportedPlan plan)
+    {
+        var tab = NewTab();
+        tab.TitleOverride = "Imported plan";
+        tab.ShowImportedPlan(plan.Result, plan.DisplayText, plan.RawJson);
+    }
+
     /// <summary>CREATE/DROP EXTENSION, then reload the Extensions group so the list reflects reality. Errors land in the sidebar's message strip.</summary>
     public async Task SetExtensionInstalledAsync(ExtensionNode extension, bool install)
     {
@@ -717,6 +732,7 @@ public sealed partial class MainViewModel : ObservableObject
         yield return new PaletteItem("Cancel query", "Action", "■", Invoke(() => ActiveTab.CancelCommand), "Esc");
         yield return new PaletteItem("Explain", "Action", "⚡", Invoke(() => ActiveTab.ExplainCommand));
         yield return new PaletteItem("Explain Analyze", "Action", "⚡", Invoke(() => ActiveTab.ExplainAnalyzeCommand));
+        yield return new PaletteItem("Import query plan (paste EXPLAIN JSON or text)…", "Action", "⭳", () => { ImportPlanRequested?.Invoke(); return Task.CompletedTask; });
         yield return new PaletteItem("Begin transaction", "Action", "⛃", Invoke(() => BeginTransactionCommand));
         yield return new PaletteItem("Commit transaction", "Action", "✓", Invoke(() => CommitTransactionCommand));
         yield return new PaletteItem("Rollback transaction", "Action", "↺", Invoke(() => RollbackTransactionCommand));

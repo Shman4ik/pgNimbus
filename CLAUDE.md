@@ -120,7 +120,11 @@ and wrong project memory is worse than none.
    `ExplainNode` tree; the ANALYZE path always asks for `BUFFERS` and
    `SETTINGS` (buffers are the most-requested EXPLAIN option and what the
    spill/lossy analysis reads — zero-valued buffer lines are dropped so the
-   text view stays clean). `Monitoring`-style separation applies:
+   text view stays clean, and `ExplainTextFormatter` folds the per-pool block
+   counters onto one `Buffers:` line — plus an `I/O Timings:` line — to match
+   `EXPLAIN (FORMAT TEXT)`, while the individual counters stay in
+   `ExplainNode.Details` for the re-color "Buffers" metric). `Monitoring`-style
+   separation applies:
    `Query/PlanAnalyzer` is a **Core-pure, unit-tested** walker (a read-only
    sibling of `Json/JsonTree` and `Monitoring/BlockingTree`) that emits named
    `PlanWarning`s — bad row estimates, disk-spilled sorts/hashes, wasteful
@@ -133,11 +137,29 @@ and wrong project memory is worse than none.
    `EXPLAIN ANALYZE` always runs inside a transaction `ExplainService` rolls
    back, so analyzing an INSERT/UPDATE/DELETE/MERGE (or a data-modifying CTE)
    never persists — `SqlStatementInspector.IsDataModifying` (Core-pure,
-   unit-tested) drives the "rolled back" info note in the warnings strip. The
-   design doc + competitive research is in
-   [`docs/design/explain-improvements.md`](docs/design/explain-improvements.md)
-   (it also tracks the deferred follow-ups: paste-a-plan, copy/export,
-   re-color-by-metric).
+   unit-tested) drives the "rolled back" info note in the warnings strip.
+   **Paste-a-plan** rides the same views with no DB round-trip:
+   `ExplainService.Import(raw)` auto-detects JSON vs text and returns an
+   `ImportedPlan` (parsed tree + display text). JSON parsing is tolerant of the
+   shapes external tools emit (the `[{ "Plan": … }]` array, a lone
+   `{ "Plan": … }` object, or a bare `{ "Node Type": … }` node); `FORMAT TEXT`
+   is parsed best-effort by `Query/ExplainPlanTextParser` (another Core-pure,
+   unit-tested sibling of `PlanAnalyzer`, which also strips psql framing). The
+   command palette's "Import query plan…" opens `ImportPlanDialog` and, on a
+   successful parse, shows the plan in a **new tab**
+   (`MainViewModel.OpenImportedPlan` → `QueryViewModel.ShowImportedPlan`) — same
+   warnings strip and time-heat as a live plan. **Sharing back out**: the plan
+   header's "Export ▾" flyout copies/saves the plan as JSON or rendered text —
+   `ExplainService.ExplainAsync` returns an `ExplainRun` that keeps the raw
+   server JSON, carried on `QueryViewModel.PlanJson` (null, and the JSON actions
+   hidden, for a text import). **Re-color by metric**: the plan header (tree view)
+   has a "Color:" segmented toggle — Time / Rows / Cost / Buffers — that rescales
+   the heat bars. `ExplainNodeViewModel` is observable and holds each node's
+   exclusive self-time, self-cost, output rows, and self-buffers (buffer counts
+   read from `ExplainNode.Details`, cumulative like time, so exclusive = node
+   minus children); `ApplyMetric` rescales bars and re-marks the hottest node in
+   place. The design doc + competitive research is in
+   [`docs/design/explain-improvements.md`](docs/design/explain-improvements.md).
 
 ## UI design rules
 

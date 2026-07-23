@@ -1,0 +1,38 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="PgNimbus.App.Views.ImportPlanDialog"
+        Title="Import query plan"
+        Width="640" Height="520"
+        MinWidth="420" MinHeight="320"
+        WindowStartupLocation="CenterOwner"
+        FontFamily="{StaticResource InterFont}">
+
+    <Grid Margin="20" RowDefinitions="Auto,*,Auto,Auto">
+        <StackPanel Grid.Row="0" Spacing="4" Margin="0,0,0,10">
+            <TextBlock Text="Paste an EXPLAIN plan" FontWeight="SemiBold" FontSize="14" />
+            <TextBlock TextWrapping="Wrap" FontSize="12" Opacity="0.7"
+                       Text="Paste EXPLAIN output in JSON (FORMAT JSON — most reliable) or the plain text layout. It's parsed locally and shown with the warnings strip and time-heat tree; the database isn't touched." />
+        </StackPanel>
+
+        <Border Grid.Row="1" BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" CornerRadius="6">
+            <TextBox Name="PlanInput"
+                     AcceptsReturn="True" AcceptsTab="True" TextWrapping="NoWrap"
+                     ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                     FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="12.5"
+                     PlaceholderText="[ { &quot;Plan&quot;: { … } } ]  — or —  Seq Scan on t  (cost=…) (actual …)"
+                     BorderThickness="0" Background="Transparent" />
+        </Border>
+
+        <TextBlock Name="ErrorText" Grid.Row="2" IsVisible="False" Margin="0,10,0,0"
+                   Foreground="{DynamicResource SystemControlErrorTextForegroundBrush}"
+                   TextWrapping="Wrap" FontSize="12" />
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="8"
+                    HorizontalAlignment="Right" Margin="0,14,0,0">
+            <Button Classes="accent" Content="Import" Click="OnImportClick" />
+            <Button Classes="soft" Content="Cancel" Click="OnCancelClick" />
+        </StackPanel>
+    </Grid>
+
+</Window>

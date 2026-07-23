@@ -30,6 +30,21 @@ public sealed record ExplainNode(
 public sealed record ExplainResult(ExplainNode Root, double? PlanningTimeMs, double? ExecutionTimeMs);
 
 /// <summary>
+/// The outcome of a live <see cref="ExplainService.ExplainAsync"/>: the parsed tree and
+/// the raw <c>FORMAT JSON</c> payload the server returned (kept so the plan can be copied
+/// or exported as JSON into external tools like pev2, unchanged).
+/// </summary>
+public sealed record ExplainRun(ExplainResult Result, string Json);
+
+/// <summary>
+/// A plan imported from pasted text (<see cref="ExplainService.Import"/>): the parsed
+/// tree, the text the plan pane should display (canonical layout for JSON, the pasted
+/// text verbatim for a text import), and the raw JSON when the import was JSON (null for
+/// a text import, which has no JSON to copy/export).
+/// </summary>
+public sealed record ImportedPlan(ExplainResult Result, string DisplayText, string? RawJson);
+
+/// <summary>
 /// Runs `EXPLAIN (FORMAT JSON [, ANALYZE])` and parses the resulting plan
 /// into a navigable tree, rather than leaving callers to parse Postgres's
 /// raw JSON shape themselves.
@@ -43,7 +58,7 @@ public sealed class ExplainService
         _dataSource = dataSource;
     }
 
-    public async Task<ExplainResult> ExplainAsync(string sql, bool analyze, CancellationToken ct)
+    public async Task<ExplainRun> ExplainAsync(string sql, bool analyze, CancellationToken ct)
     {
         // Plain EXPLAIN omits "Planning Time" unless SUMMARY is requested explicitly
         // (ANALYZE defaults SUMMARY to true already, so it's fine either way there).
@@ -61,7 +76,8 @@ public sealed class ExplainService
         if (!analyze)
         {
             await using var command = new NpgsqlCommand(explainSql, connection);
-            return Parse((string)(await command.ExecuteScalarAsync(ct))!);
+            var planJson = (string)(await command.ExecuteScalarAsync(ct))!;
+            return new ExplainRun(Parse(planJson), planJson);
         }
 
         // EXPLAIN ANALYZE *runs* the statement. Wrap it in a transaction we always
@@ -74,18 +90,79 @@ public sealed class ExplainService
         await using var analyzeCommand = new NpgsqlCommand(explainSql, connection, transaction);
         var json = (string)(await analyzeCommand.ExecuteScalarAsync(ct))!;
         await transaction.RollbackAsync(ct);
-        return Parse(json);
+        return new ExplainRun(Parse(json), json);
     }
 
-    /// <summary>Parses the raw `EXPLAIN (FORMAT JSON)` payload. Split out from the DB round-trip for testability.</summary>
+    /// <summary>
+    /// Parses the raw `EXPLAIN (FORMAT JSON)` payload. Split out from the DB round-trip
+    /// for testability. Tolerant of the shapes external tools/pastes produce: the
+    /// standard <c>[{ "Plan": … }]</c> array, a single <c>{ "Plan": … }</c> object, or a
+    /// bare plan node (<c>{ "Node Type": … }</c>, with or without the array wrapper).
+    /// </summary>
     public static ExplainResult Parse(string json)
     {
         using var document = JsonDocument.Parse(json);
-        var planEntry = document.RootElement[0];
-        var planningTime = planEntry.TryGetProperty("Planning Time", out var pt) ? pt.GetDouble() : (double?)null;
-        var executionTime = planEntry.TryGetProperty("Execution Time", out var et) ? et.GetDouble() : (double?)null;
+        var root = document.RootElement;
+        var entry = root.ValueKind == JsonValueKind.Array
+            ? (root.GetArrayLength() > 0 ? root[0] : throw new FormatException("The EXPLAIN JSON array is empty."))
+            : root;
 
-        return new ExplainResult(ParseNode(planEntry.GetProperty("Plan")), planningTime, executionTime);
+        // The entry is either the wrapper ({ "Plan": …, "Planning Time": … }) or the
+        // plan node itself ({ "Node Type": … }) when a tool exported just the tree.
+        JsonElement planElement;
+        if (entry.TryGetProperty("Plan", out var plan))
+        {
+            planElement = plan;
+        }
+        else if (entry.TryGetProperty("Node Type", out _))
+        {
+            planElement = entry;
+        }
+        else
+        {
+            throw new FormatException("Unrecognized EXPLAIN JSON: no \"Plan\" or \"Node Type\" element found.");
+        }
+
+        var planningTime = entry.TryGetProperty("Planning Time", out var pt) ? pt.GetDouble() : (double?)null;
+        var executionTime = entry.TryGetProperty("Execution Time", out var et) ? et.GetDouble() : (double?)null;
+
+        return new ExplainResult(ParseNode(planElement), planningTime, executionTime);
+    }
+
+    /// <summary>
+    /// Imports an externally-produced plan pasted by the user — no DB round-trip. Accepts
+    /// either <c>FORMAT JSON</c> (the robust interchange format) or <c>FORMAT TEXT</c>
+    /// (best-effort, via <see cref="ExplainPlanTextParser"/>), auto-detecting which from
+    /// the first non-blank character. <see cref="ImportedPlan.DisplayText"/> is what the
+    /// plan pane should show: the canonical text layout for a JSON import, or the pasted
+    /// text verbatim for a text import. Throws <see cref="FormatException"/> with a
+    /// human-readable message on anything it can't parse, so the import UI can surface it.
+    /// </summary>
+    public static ImportedPlan Import(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            throw new FormatException("Nothing to import — paste an EXPLAIN plan first.");
+        }
+
+        var trimmed = raw.TrimStart();
+        if (trimmed.StartsWith('[') || trimmed.StartsWith('{'))
+        {
+            ExplainResult result;
+            try
+            {
+                result = Parse(trimmed);
+            }
+            catch (JsonException ex)
+            {
+                throw new FormatException($"That doesn't look like valid EXPLAIN JSON: {ex.Message}", ex);
+            }
+
+            return new ImportedPlan(result, ExplainTextFormatter.Format(result), trimmed);
+        }
+
+        var cleaned = ExplainPlanTextParser.Clean(raw);
+        return new ImportedPlan(ExplainPlanTextParser.Parse(cleaned), cleaned, RawJson: null);
     }
 
     /// <summary>

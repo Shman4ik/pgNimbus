@@ -179,6 +179,45 @@ public class ExplainParsingTests
         await Assert.That(text.ReplaceLineEndings("\n")).IsEqualTo(expected);
     }
 
+    private const string BuffersJson = """
+        [
+          {
+            "Plan": {
+              "Node Type": "Seq Scan",
+              "Relation Name": "t",
+              "Alias": "t",
+              "Startup Cost": 0.00,
+              "Total Cost": 41.88,
+              "Plan Rows": 850,
+              "Plan Width": 4,
+              "Shared Hit Blocks": 100,
+              "Shared Read Blocks": 50,
+              "Shared Dirtied Blocks": 0,
+              "Shared Written Blocks": 0,
+              "Temp Read Blocks": 5,
+              "Temp Written Blocks": 7,
+              "I/O Read Time": 1.234,
+              "I/O Write Time": 0
+            }
+          }
+        ]
+        """;
+
+    [Test]
+    public async Task BufferCountersFoldOntoOneBuffersLine()
+    {
+        var text = ExplainTextFormatter.Format(ExplainService.Parse(BuffersJson)).ReplaceLineEndings("\n");
+
+        // One aggregated line, non-zero counters only, pools comma-separated — matching
+        // EXPLAIN (FORMAT TEXT). Not one line per counter.
+        await Assert.That(text).Contains("Buffers: shared hit=100 read=50, temp read=5 written=7");
+        await Assert.That(text).DoesNotContain("Shared Hit Blocks");
+        await Assert.That(text).DoesNotContain("Shared Dirtied Blocks");
+        // I/O Timings shows only the non-zero direction, 3-decimal.
+        await Assert.That(text).Contains("I/O Timings: read=1.234");
+        await Assert.That(text).DoesNotContain("write=");
+    }
+
     [Test]
     public async Task FractionalActualRowsKeepTheirDecimals()
     {

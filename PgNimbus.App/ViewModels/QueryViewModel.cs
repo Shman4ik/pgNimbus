@@ -173,6 +173,49 @@ public sealed partial class QueryViewModel : ObservableObject
     [ObservableProperty]
     private string? _explainText;
 
+    /// <summary>
+    /// The raw `FORMAT JSON` plan payload behind the current plan, kept so it can be
+    /// copied/exported verbatim into external tools (pev2, depesz). Null for a plan
+    /// imported from text (no JSON to hand out) or when no plan is showing.
+    /// </summary>
+    [ObservableProperty]
+    private string? _planJson;
+
+    /// <summary>Drives the "Copy/Save as JSON" plan-export actions — hidden when there's no JSON (a text import).</summary>
+    public bool HasPlanJson => PlanJson is not null;
+
+    partial void OnPlanJsonChanged(string? value) => OnPropertyChanged(nameof(HasPlanJson));
+
+    /// <summary>Which metric the plan tree's heat bar is scaled by (pev2-style re-color toggle).</summary>
+    [ObservableProperty]
+    private PlanMetric _planMetric = PlanMetric.SelfTime;
+
+    /// <summary>True when the plan carries ANALYZE timing — gates the Time/Buffers metric toggles.</summary>
+    [ObservableProperty]
+    private bool _planHasTiming;
+
+    /// <summary>True when the plan carries BUFFERS data — gates the Buffers metric toggle.</summary>
+    [ObservableProperty]
+    private bool _planHasBuffers;
+
+    public bool IsMetricSelfTime => PlanMetric == PlanMetric.SelfTime;
+    public bool IsMetricRows => PlanMetric == PlanMetric.Rows;
+    public bool IsMetricCost => PlanMetric == PlanMetric.Cost;
+    public bool IsMetricBuffers => PlanMetric == PlanMetric.Buffers;
+
+    partial void OnPlanMetricChanged(PlanMetric value)
+    {
+        OnPropertyChanged(nameof(IsMetricSelfTime));
+        OnPropertyChanged(nameof(IsMetricRows));
+        OnPropertyChanged(nameof(IsMetricCost));
+        OnPropertyChanged(nameof(IsMetricBuffers));
+        ExplainRoot?.ApplyMetric(value);
+    }
+
+    /// <summary>Re-scales the plan tree's bars by <paramref name="metric"/> (the header's segmented toggle).</summary>
+    [RelayCommand]
+    private void SetPlanMetric(PlanMetric metric) => PlanMetric = metric;
+
     /// <summary>Plan pane mode: true = text layout (default), false = the graphical tree.</summary>
     [ObservableProperty]
     private bool _isPlanTextView = true;
@@ -725,6 +768,41 @@ public sealed partial class QueryViewModel : ObservableObject
     [RelayCommand]
     private void ShowPlanAsTree() => IsPlanTextView = false;
 
+    // Sets the metric-toggle availability, picks the default metric (self time when the
+    // plan was analyzed, else cost), and paints the initial heat. Shared by live and
+    // imported plans so both light up the same way.
+    private void ApplyPlanHeat(ExplainNodeViewModel root)
+    {
+        PlanHasTiming = root.HasTiming;
+        PlanHasBuffers = root.HasAnyBuffers;
+        PlanMetric = root.HasTiming ? PlanMetric.SelfTime : PlanMetric.Cost;
+        root.ApplyMetric(PlanMetric); // explicit: OnPlanMetricChanged is a no-op when the value didn't change
+    }
+
+    /// <summary>
+    /// Shows a plan that was imported from pasted text rather than run against the DB
+    /// (see <see cref="ExplainService.Import"/>) — same views, heat, and warnings strip
+    /// as a live plan, no round-trip. <paramref name="displayText"/> is what the text
+    /// pane shows (the canonical layout for a JSON import, the pasted text for a text
+    /// import). Opened into its own tab by <see cref="MainViewModel.OpenImportedPlan"/>,
+    /// so it never overwrites another tab's results.
+    /// </summary>
+    public void ShowImportedPlan(ExplainResult result, string displayText, string? planJson)
+    {
+        var root = new ExplainNodeViewModel(result.Root, result.Root.TotalCost);
+        ExplainRoot = root;
+        ApplyPlanHeat(root);
+
+        PlanWarnings = PlanAnalyzer.Analyze(result).Select(w => new PlanWarningViewModel(w)).ToList();
+        ExplainText = displayText;
+        PlanJson = planJson;
+        var planningFragment = result.PlanningTimeMs is { } planMs ? $"Planning: {planMs:F3} ms" : null;
+        var executionFragment = result.ExecutionTimeMs is { } execMs ? $"Execution: {execMs:F3} ms" : null;
+        ExplainSummary = string.Join("   ", new[] { "Imported plan", planningFragment, executionFragment }.Where(f => f is not null));
+        IsShowingPlan = true;
+        Status = "Imported plan";
+    }
+
     private async Task RunExplainAsync(bool analyze)
     {
         // Own a CTS so the Cancel button (enabled by IsRunning) actually cancels
@@ -741,10 +819,12 @@ public sealed partial class QueryViewModel : ObservableObject
 
         try
         {
-            var result = await _explainService.ExplainAsync(Sql, analyze, ct);
+            var run = await _explainService.ExplainAsync(Sql, analyze, ct);
+            var result = run.Result;
+            PlanJson = run.Json;
             var root = new ExplainNodeViewModel(result.Root, result.Root.TotalCost);
-            root.ApplyTimeHeat();
             ExplainRoot = root;
+            ApplyPlanHeat(root);
 
             var warnings = new List<PlanWarningViewModel>();
             // Reassure the user their data is intact: ANALYZE ran the write, but ExplainService

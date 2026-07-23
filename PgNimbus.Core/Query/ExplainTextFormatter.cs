@@ -145,7 +145,24 @@ public static class ExplainTextFormatter
         var detailIndent = new string(' ', textIndent + 2);
         foreach (var (key, value) in node.Details)
         {
+            // Buffer counters and I/O timings are folded into single aggregate lines
+            // below (matching EXPLAIN (FORMAT TEXT)) rather than one line per counter.
+            if (IsBufferBlockKey(key) || key is "I/O Read Time" or "I/O Write Time")
+            {
+                continue;
+            }
+
             sb.Append(detailIndent).Append(key).Append(": ").AppendLine(value);
+        }
+
+        if (FormatBuffers(node.Details) is { } buffers)
+        {
+            sb.Append(detailIndent).AppendLine(buffers);
+        }
+
+        if (FormatIoTimings(node.Details) is { } ioTimings)
+        {
+            sb.Append(detailIndent).AppendLine(ioTimings);
         }
 
         foreach (var child in node.Children)
@@ -159,6 +176,83 @@ public static class ExplainTextFormatter
 
             AppendNode(sb, child, textIndent + 6, isRoot: false);
         }
+    }
+
+    private static readonly string[] BufferPools = ["Shared ", "Local ", "Temp "];
+
+    private static bool IsBufferBlockKey(string key) =>
+        key.EndsWith(" Blocks", StringComparison.Ordinal)
+        && Array.Exists(BufferPools, p => key.StartsWith(p, StringComparison.Ordinal));
+
+    /// <summary>
+    /// Folds the per-pool buffer counters into the one `Buffers:` line
+    /// `EXPLAIN (FORMAT TEXT)` emits — <c>shared hit=… read=…, local …, temp read=… written=…</c> —
+    /// showing only non-zero counters and only pools that have any (the parser already
+    /// drops zero-valued block lines). Null when the node reports no buffer usage.
+    /// </summary>
+    private static string? FormatBuffers(IReadOnlyList<KeyValuePair<string, string>> details)
+    {
+        var groups = new List<string>();
+        AddGroup(groups, details, "shared", ("hit", "Shared Hit Blocks"), ("read", "Shared Read Blocks"),
+            ("dirtied", "Shared Dirtied Blocks"), ("written", "Shared Written Blocks"));
+        AddGroup(groups, details, "local", ("hit", "Local Hit Blocks"), ("read", "Local Read Blocks"),
+            ("dirtied", "Local Dirtied Blocks"), ("written", "Local Written Blocks"));
+        AddGroup(groups, details, "temp", ("read", "Temp Read Blocks"), ("written", "Temp Written Blocks"));
+
+        return groups.Count == 0 ? null : "Buffers: " + string.Join(", ", groups);
+    }
+
+    private static void AddGroup(
+        List<string> groups,
+        IReadOnlyList<KeyValuePair<string, string>> details,
+        string label,
+        params (string Suffix, string Key)[] members)
+    {
+        var parts = new List<string>();
+        foreach (var (suffix, key) in members)
+        {
+            if (Detail(details, key) is { } value && value != "0")
+            {
+                parts.Add($"{suffix}={value}");
+            }
+        }
+
+        if (parts.Count > 0)
+        {
+            groups.Add($"{label} {string.Join(" ", parts)}");
+        }
+    }
+
+    /// <summary>The `I/O Timings:` line (only when track_io_timing was on), 3-decimal like Postgres.</summary>
+    private static string? FormatIoTimings(IReadOnlyList<KeyValuePair<string, string>> details)
+    {
+        var parts = new List<string>();
+        AppendIoTiming(parts, details, "read", "I/O Read Time");
+        AppendIoTiming(parts, details, "write", "I/O Write Time");
+        return parts.Count == 0 ? null : "I/O Timings: " + string.Join(" ", parts);
+    }
+
+    private static void AppendIoTiming(List<string> parts, IReadOnlyList<KeyValuePair<string, string>> details, string label, string key)
+    {
+        if (Detail(details, key) is { } value
+            && double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var ms)
+            && ms != 0)
+        {
+            parts.Add(Invariant($"{label}={ms:F3}"));
+        }
+    }
+
+    private static string? Detail(IReadOnlyList<KeyValuePair<string, string>> details, string key)
+    {
+        foreach (var pair in details)
+        {
+            if (pair.Key == key)
+            {
+                return pair.Value;
+            }
+        }
+
+        return null;
     }
 
     private static string Invariant(FormattableString value) => value.ToString(CultureInfo.InvariantCulture);

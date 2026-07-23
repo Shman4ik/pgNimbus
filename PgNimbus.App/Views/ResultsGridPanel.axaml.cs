@@ -1073,6 +1073,73 @@ public partial class ResultsGridPanel : UserControl
         await Task.Run(() => write(stream));
     }
 
+    // --- Plan copy / export ------------------------------------------------
+    // Share the current query plan into external tools (pev2, depesz, an issue).
+    // JSON is the interchange format; the rendered text is the human-readable one.
+    // The JSON actions are hidden (see the flyout) when the plan came from a text
+    // import, which has no JSON to hand out.
+
+    private void OnCopyPlanJson(object? sender, RoutedEventArgs e) => _ = CopyToClipboardAsync(_activeQuery?.PlanJson);
+
+    private void OnCopyPlanText(object? sender, RoutedEventArgs e) => _ = CopyToClipboardAsync(_activeQuery?.ExplainText);
+
+    private void OnSavePlanJson(object? sender, RoutedEventArgs e) =>
+        _ = SavePlanAsync(_activeQuery?.PlanJson, "json", "JSON", ["*.json"]);
+
+    private void OnSavePlanText(object? sender, RoutedEventArgs e) =>
+        _ = SavePlanAsync(_activeQuery?.ExplainText, "txt", "Text", ["*.txt"]);
+
+    private async Task CopyToClipboardAsync(string? text)
+    {
+        if (string.IsNullOrEmpty(text) || TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard)
+        {
+            return;
+        }
+
+        await clipboard.SetTextAsync(text);
+        if (_activeQuery is not null)
+        {
+            _activeQuery.Status = "Plan copied to clipboard";
+        }
+    }
+
+    private async Task SavePlanAsync(string? content, string extension, string typeName, string[] patterns)
+    {
+        if (string.IsNullOrEmpty(content) || TopLevel.GetTopLevel(this)?.StorageProvider is not { } storageProvider)
+        {
+            return;
+        }
+
+        var file = await storageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "Save query plan",
+            SuggestedFileName = $"plan.{extension}",
+            DefaultExtension = extension,
+            FileTypeChoices = [new FilePickerFileType(typeName) { Patterns = patterns }],
+        });
+
+        if (file is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await using var stream = await file.OpenWriteAsync();
+            await using var writer = new StreamWriter(stream);
+            await writer.WriteAsync(content);
+            if (_activeQuery is not null)
+            {
+                _activeQuery.Status = $"Plan saved to {file.Name}";
+            }
+        }
+        catch (Exception ex) when (_activeQuery is not null)
+        {
+            _activeQuery.Status = $"Save failed: {ex.Message}";
+            _activeQuery.HasError = true;
+        }
+    }
+
     // --- Column building ---------------------------------------------------
 
     // The column Binding has an empty Path - it passes the row array straight

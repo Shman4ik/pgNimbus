@@ -59,12 +59,48 @@ Out of scope for v1 (follow-ups, noted so they aren't forgotten):
   drives an info note in the warnings strip so the user knows their data is
   intact. Non-transactional side effects (`nextval()`, `dblink`, etc.) remain
   inherently un-undoable — that's a property of EXPLAIN ANALYZE itself.
-- Paste-a-plan / import-external-plan entry point (`ExplainService.Parse` is
-  already static and side-effect-free, so this is cheap later).
-- Copy/export plan (raw JSON/text) for sharing into external tools.
-- Re-color-by-metric toggle (time / rows / cost / buffers), pev2-style.
-- Aggregating buffer counters onto a single `Buffers:` line in the text view
-  to match `EXPLAIN (FORMAT TEXT)` exactly.
+- ~~Paste-a-plan / import-external-plan entry point~~ — **done** (v1.2):
+  `ExplainService.Import(raw)` (Core-pure, unit-tested) auto-detects JSON vs
+  text and returns an `ImportedPlan` (parsed tree + the text to display), no DB
+  round-trip. JSON parsing is tolerant of the shapes tools/pastes produce (the
+  standard `[{ "Plan": … }]` array, a single `{ "Plan": … }` object, or a bare
+  `{ "Node Type": … }` node); `FORMAT TEXT` is parsed best-effort by
+  `ExplainPlanTextParser` (a read-only sibling of `PlanAnalyzer`), which also
+  strips psql framing (`QUERY PLAN` header, `(N rows)` footer, the leading-space
+  pad) via `Clean`. The command palette's "Import query plan…" opens
+  `ImportPlanDialog`; a successful parse opens the plan in a **new tab**
+  (`MainViewModel.OpenImportedPlan` → `QueryViewModel.ShowImportedPlan`) with the
+  same views, time-heat, and warnings strip as a live plan. Parse failures raise
+  `FormatException` with a human-readable message, shown inline in the dialog.
+- ~~Copy/export plan (raw JSON/text) for sharing into external tools~~ —
+  **done** (v1.2): the plan header carries an "Export ▾" flyout (plan-scoped,
+  shown only while a plan is on screen — not a main-toolbar control) with Copy
+  as JSON / Copy as text and Save as .json / .txt. `ExplainService.ExplainAsync`
+  now returns an `ExplainRun` that keeps the raw server JSON so it can be handed
+  out verbatim; `QueryViewModel.PlanJson` carries it (null for a text import,
+  which hides the JSON actions via `HasPlanJson`). Copy/save live in
+  `ResultsGridPanel` alongside the existing grid copy/export.
+- ~~Re-color-by-metric toggle (time / rows / cost / buffers), pev2-style~~ —
+  **done** (v1.2): the plan header (tree view only) carries a "Color:" segmented
+  toggle — Time / Rows / Cost / Buffers. `ExplainNodeViewModel` is now observable
+  and holds each node's exclusive self-time, self-cost, output rows, and
+  self-buffers (buffer counts read from `ExplainNode.Details`, which are
+  cumulative like time, so exclusive = node minus children); `ApplyMetric` rescales
+  every bar and re-marks the single hottest node as the bottleneck in place, no
+  tree rebuild. Time/Buffers are disabled when the plan lacks ANALYZE timing /
+  BUFFERS data (`PlanHasTiming`/`PlanHasBuffers`), and "self time" falls back to
+  cost for a plain EXPLAIN, preserving the old default.
+- ~~Aggregating buffer counters onto a single `Buffers:` line in the text view
+  to match `EXPLAIN (FORMAT TEXT)` exactly~~ — **done** (v1.2):
+  `ExplainTextFormatter` folds the per-pool block counters into one
+  `Buffers: shared hit=… read=…, temp read=… written=…` line (non-zero counters
+  and non-empty pools only) and the I/O timings into an `I/O Timings:` line
+  (3-decimal), instead of one detail line per counter. The individual counters
+  stay in `ExplainNode.Details` (the re-color "Buffers" metric reads them) — only
+  the text rendering aggregates.
+
+All five deferred follow-ups are now shipped; nothing remains out of scope for
+the EXPLAIN feature.
 
 ## Design
 
