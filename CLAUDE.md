@@ -120,7 +120,11 @@ and wrong project memory is worse than none.
    `ExplainNode` tree; the ANALYZE path always asks for `BUFFERS` and
    `SETTINGS` (buffers are the most-requested EXPLAIN option and what the
    spill/lossy analysis reads — zero-valued buffer lines are dropped so the
-   text view stays clean). `Monitoring`-style separation applies:
+   text view stays clean, and `ExplainTextFormatter` folds the per-pool block
+   counters onto one `Buffers:` line — plus an `I/O Timings:` line — to match
+   `EXPLAIN (FORMAT TEXT)`, while the individual counters stay in
+   `ExplainNode.Details` for the re-color "Buffers" metric). `Monitoring`-style
+   separation applies:
    `Query/PlanAnalyzer` is a **Core-pure, unit-tested** walker (a read-only
    sibling of `Json/JsonTree` and `Monitoring/BlockingTree`) that emits named
    `PlanWarning`s — bad row estimates, disk-spilled sorts/hashes, wasteful

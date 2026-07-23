@@ -90,8 +90,17 @@ Out of scope for v1 (follow-ups, noted so they aren't forgotten):
   tree rebuild. Time/Buffers are disabled when the plan lacks ANALYZE timing /
   BUFFERS data (`PlanHasTiming`/`PlanHasBuffers`), and "self time" falls back to
   cost for a plain EXPLAIN, preserving the old default.
-- Aggregating buffer counters onto a single `Buffers:` line in the text view
-  to match `EXPLAIN (FORMAT TEXT)` exactly.
+- ~~Aggregating buffer counters onto a single `Buffers:` line in the text view
+  to match `EXPLAIN (FORMAT TEXT)` exactly~~ — **done** (v1.2):
+  `ExplainTextFormatter` folds the per-pool block counters into one
+  `Buffers: shared hit=… read=…, temp read=… written=…` line (non-zero counters
+  and non-empty pools only) and the I/O timings into an `I/O Timings:` line
+  (3-decimal), instead of one detail line per counter. The individual counters
+  stay in `ExplainNode.Details` (the re-color "Buffers" metric reads them) — only
+  the text rendering aggregates.
+
+All five deferred follow-ups are now shipped; nothing remains out of scope for
+the EXPLAIN feature.
 
 ## Design
 
