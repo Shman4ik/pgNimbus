@@ -147,7 +147,7 @@
                                       IsVisible="{Binding ActiveTab.HasPlanWarnings}" Margin="4,0,4,4">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate DataType="vm:PlanWarningViewModel">
-                                    <Border Background="{DynamicResource AppDangerWashBrush}" CornerRadius="4"
+                                    <Border Background="{Binding WashBrush}" CornerRadius="4"
                                             Padding="8,5" Margin="0,2">
                                         <StackPanel Orientation="Horizontal" Spacing="8">
                                             <TextBlock Text="{Binding Glyph}" Foreground="{Binding AccentBrush}"

@@ -52,8 +52,13 @@ change:
 
 Out of scope for v1 (follow-ups, noted so they aren't forgotten):
 
-- Write-statement safety guard (wrap `EXPLAIN ANALYZE <write>` in
-  `BEGIN … ROLLBACK`).
+- ~~Write-statement safety guard~~ — **done** (v1.1): `ExplainService` now runs
+  every `EXPLAIN ANALYZE` inside a transaction it always rolls back, so an
+  ANALYZE of an INSERT/UPDATE/DELETE/MERGE (or a data-modifying CTE) never
+  persists. `SqlStatementInspector.IsDataModifying` (Core-pure, unit-tested)
+  drives an info note in the warnings strip so the user knows their data is
+  intact. Non-transactional side effects (`nextval()`, `dblink`, etc.) remain
+  inherently un-undoable — that's a property of EXPLAIN ANALYZE itself.
 - Paste-a-plan / import-external-plan entry point (`ExplainService.Parse` is
   already static and side-effect-free, so this is cheap later).
 - Copy/export plan (raw JSON/text) for sharing into external tools.

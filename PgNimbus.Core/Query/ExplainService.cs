@@ -56,9 +56,24 @@ public sealed class ExplainService
         var explainSql = $"EXPLAIN ({options}) {sql}";
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
-        await using var command = new NpgsqlCommand(explainSql, connection);
-        var json = (string)(await command.ExecuteScalarAsync(ct))!;
 
+        // Plain EXPLAIN only plans — it never executes the statement, so no guard is needed.
+        if (!analyze)
+        {
+            await using var command = new NpgsqlCommand(explainSql, connection);
+            return Parse((string)(await command.ExecuteScalarAsync(ct))!);
+        }
+
+        // EXPLAIN ANALYZE *runs* the statement. Wrap it in a transaction we always
+        // roll back, so an ANALYZE of an INSERT/UPDATE/DELETE/MERGE (or a
+        // data-modifying CTE) never persists its changes — harmless for reads, since
+        // a read-only statement has nothing to commit either way. (Non-transactional
+        // side effects like nextval() still can't be undone; that's inherent to
+        // EXPLAIN ANALYZE.)
+        await using var transaction = await connection.BeginTransactionAsync(ct);
+        await using var analyzeCommand = new NpgsqlCommand(explainSql, connection, transaction);
+        var json = (string)(await analyzeCommand.ExecuteScalarAsync(ct))!;
+        await transaction.RollbackAsync(ct);
         return Parse(json);
     }
 
