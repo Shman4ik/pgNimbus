@@ -797,12 +797,21 @@ into the connection profile.</p>
 put a password in, so a profile file cannot leak one even if you copy it
 somewhere.</p>
 <h2 id="saved-profiles">Saved profiles<a class="headerlink" href="#saved-profiles" title="Permanent link">&para;</a></h2>
-<p>Save a connection and it appears in the list on the left of the dialog.
-Double-click a profile to connect to it.</p>
-<p>Give production a colour. Each profile carries an accent colour, shown as a dot
-in the main window's command bar and used through the window's chrome. Making
-production red and staging green is the cheapest possible guard against running
-the right query against the wrong server.</p>
+<p>Save a connection and it appears in the list on the left of the dialog. Each row
+shows who connects where, as <code>user@host/database</code>, so two profiles on the same
+server are told apart without clicking either.</p>
+<p>The connection you used last is already selected when the dialog opens, with the
+password loaded, so launching pgNimbus and pressing <kbd>Enter</kbd> reconnects
+to it. Pick another with the arrow keys and press <kbd>Enter</kbd>, or
+double-click any profile to connect to that one.</p>
+<p>Right-click a profile for Connect, Duplicate and Delete. Duplicate is the fast
+way to add a second database on the same server: it copies the host, SSL mode,
+SSH settings and password, and you change only what differs.</p>
+<p>Give production a colour. Each profile carries an accent colour, picked from the
+round swatch next to the name field. It shows as a dot in the main window's
+command bar and runs through the window's chrome. Making production red and
+staging green is the cheapest possible guard against running the right query
+against the wrong server.</p>
 <h2 id="ssh-tunnels">SSH tunnels<a class="headerlink" href="#ssh-tunnels" title="Permanent link">&para;</a></h2>
 <p>A profile can carry SSH tunnel settings, so a database that is only reachable
 from a bastion host connects like any other. The tunnel is owned by the window,
@@ -832,6 +841,10 @@ pgNimbus connects straight to it, skipping the dialog. Handy for scripted or
 repeated local testing:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">PGNIMBUS_CONN</span><span class="o">=</span><span class="s2">&quot;postgres://postgres:secret@localhost:5432/mydb&quot;</span>
 </code></pre></div>
+<p>For everyday use there is a switch in Preferences, <strong>Open the last
+connection on startup</strong>, which goes straight to whatever you connected to
+last. The dialog stays one Switch connection away, and a connect that fails
+lands back in it with the error.</p>
 </div>
 <h2 id="next">Next<a class="headerlink" href="#next" title="Permanent link">&para;</a></h2>
 <p><a href="../../guide/editor/">Get to know the SQL editor</a></p>
