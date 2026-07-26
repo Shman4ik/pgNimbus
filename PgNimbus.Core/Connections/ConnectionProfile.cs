@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Npgsql;
 
 namespace PgNimbus.Core.Connections;
@@ -42,6 +43,20 @@ public sealed record ConnectionProfile(
     SshTunnelOptions? SshTunnel = null)
 {
     public const int DefaultPort = 5432;
+
+    /// <summary>
+    /// One-line "who and where" for the connection list —
+    /// <c>postgres@db.example.com/analytics</c>, with the port shown only when
+    /// it isn't 5432 (the default is noise on every row). Enough to tell two
+    /// profiles on the same host apart without selecting either.
+    /// <see cref="JsonIgnoreAttribute"/> because it is derived: the source-
+    /// generated serializer would otherwise write it into connections.json,
+    /// where it would go stale the moment a field it is built from changes.
+    /// </summary>
+    [JsonIgnore]
+    public string Endpoint => Port == DefaultPort
+        ? $"{Username}@{Host}/{Database}"
+        : $"{Username}@{Host}:{Port}/{Database}";
 
     // Callers resolve the password via ICredentialStore (DPAPI on Windows, a
     // permission-restricted file fallback elsewhere) and pass it in here -

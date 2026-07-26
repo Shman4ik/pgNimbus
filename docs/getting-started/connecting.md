@@ -32,13 +32,24 @@ somewhere.
 
 ## Saved profiles
 
-Save a connection and it appears in the list on the left of the dialog.
-Double-click a profile to connect to it.
+Save a connection and it appears in the list on the left of the dialog. Each row
+shows who connects where, as `user@host/database`, so two profiles on the same
+server are told apart without clicking either.
 
-Give production a colour. Each profile carries an accent colour, shown as a dot
-in the main window's command bar and used through the window's chrome. Making
-production red and staging green is the cheapest possible guard against running
-the right query against the wrong server.
+The connection you used last is already selected when the dialog opens, with the
+password loaded, so launching pgNimbus and pressing <kbd>Enter</kbd> reconnects
+to it. Pick another with the arrow keys and press <kbd>Enter</kbd>, or
+double-click any profile to connect to that one.
+
+Right-click a profile for Connect, Duplicate and Delete. Duplicate is the fast
+way to add a second database on the same server: it copies the host, SSL mode,
+SSH settings and password, and you change only what differs.
+
+Give production a colour. Each profile carries an accent colour, picked from the
+round swatch next to the name field. It shows as a dot in the main window's
+command bar and runs through the window's chrome. Making production red and
+staging green is the cheapest possible guard against running the right query
+against the wrong server.
 
 ## SSH tunnels
 
@@ -81,6 +92,11 @@ new one and leaving you to guess what happened, pgNimbus surfaces a clear
     ```bash
     export PGNIMBUS_CONN="postgres://postgres:secret@localhost:5432/mydb"
     ```
+
+    For everyday use there is a switch in Preferences, **Open the last
+    connection on startup**, which goes straight to whatever you connected to
+    last. The dialog stays one Switch connection away, and a connect that fails
+    lands back in it with the error.
 
 ## Next
 

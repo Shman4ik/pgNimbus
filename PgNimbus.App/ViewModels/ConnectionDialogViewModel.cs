@@ -11,8 +11,20 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
 {
     private readonly ConnectionProfileStore _store;
     private readonly ICredentialStore _credentialStore;
+    private readonly Action<Guid?>? _persistLastProfileId;
 
     public ObservableCollection<ConnectionProfile> Profiles { get; } = [];
+
+    /// <summary>
+    /// Set by the startup flow when the "connect on startup" preference is on:
+    /// the view fires <see cref="ConnectCommand"/> as soon as the dialog opens.
+    /// Only meaningful with a preselected profile — a fresh install has nothing
+    /// to connect to and just shows the form.
+    /// </summary>
+    public bool AutoConnectOnOpen { get; init; }
+
+    /// <summary>Whether opening the dialog should connect straight away — the view's cue to skip waiting for a click.</summary>
+    public bool ShouldAutoConnect => AutoConnectOnOpen && SelectedProfile is not null;
 
     /// <summary>
     /// Dialog footer: release version (e.g. "0.4.5", stripped of the
@@ -125,16 +137,33 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
     /// <summary>Raised with the built connection string, the profile's accent color, and, if a tunnel was used, the live SshTunnel to keep alive.</summary>
     public event Action<string, string?, SshTunnel?>? Connected;
 
-    public ConnectionDialogViewModel(ConnectionProfileStore store, ICredentialStore credentialStore)
+    /// <param name="lastProfileId">
+    /// The profile connected to last session, preselected here so the common
+    /// case — reconnect to the same database — needs no clicking at all: the
+    /// form is already filled, the password already loaded, and Enter connects.
+    /// Ignored when it names a profile that no longer exists.
+    /// </param>
+    /// <param name="persistLastProfileId">Called with the connected profile's id (null for an unsaved, ad-hoc connection) so the next session can preselect it.</param>
+    public ConnectionDialogViewModel(
+        ConnectionProfileStore store,
+        ICredentialStore credentialStore,
+        Guid? lastProfileId = null,
+        Action<Guid?>? persistLastProfileId = null)
     {
         _store = store;
         _credentialStore = credentialStore;
+        _persistLastProfileId = persistLastProfileId;
 
         Profiles.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasNoProfiles));
 
         foreach (var profile in _store.Load())
         {
             Profiles.Add(profile);
+        }
+
+        if (lastProfileId is { } id)
+        {
+            SelectedProfile = Profiles.FirstOrDefault(p => p.Id == id);
         }
     }
 
@@ -218,6 +247,38 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         }
 
         SelectedProfile = profile;
+    }
+
+    /// <summary>
+    /// Clones the selected profile under a new id, right below the original,
+    /// and selects it — the "same server, other database" case, without
+    /// retyping the host, SSL mode, and SSH block. The password is copied too
+    /// (a copy you have to re-enter the password for saves nothing), the name
+    /// gets a " (copy)" suffix so the two are told apart in the list.
+    /// </summary>
+    [RelayCommand]
+    private void Duplicate()
+    {
+        if (SelectedProfile is not { } source)
+        {
+            return;
+        }
+
+        var copy = source with { Id = Guid.NewGuid(), Name = $"{source.Name} (copy)" };
+        Profiles.Insert(Profiles.IndexOf(source) + 1, copy);
+        _store.Save(Profiles);
+
+        if (_credentialStore.LoadPassword(source.Id) is { } password)
+        {
+            _credentialStore.SavePassword(copy.Id, password);
+        }
+
+        if (_credentialStore.LoadPassword(DeriveSshCredentialId(source.Id)) is { } sshPassword)
+        {
+            _credentialStore.SavePassword(DeriveSshCredentialId(copy.Id), sshPassword);
+        }
+
+        SelectedProfile = copy;
     }
 
     [RelayCommand]
@@ -488,7 +549,7 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         }
 
         ErrorMessage = null;
-        StatusMessage = null;
+        StatusMessage = $"Connecting to {profile.Name}…";
         IsConnecting = true;
 
         SshTunnel? tunnel = null;
@@ -507,6 +568,8 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
                 var connectionString = profile.BuildConnectionString(string.IsNullOrEmpty(Password) ? null : Password);
                 Connected?.Invoke(connectionString, profile.AccentColor, null);
             }
+
+            RememberLastProfile();
         }
         catch (Exception ex)
         {
@@ -520,6 +583,23 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         finally
         {
             IsConnecting = false;
+        }
+    }
+
+    /// <summary>
+    /// Files the just-connected profile as "last used". Runs after the hand-off
+    /// so a settings write that fails can't take the connection with it — and
+    /// swallows its own failure for the same reason: losing the preselection is
+    /// not worth failing a working connection over.
+    /// </summary>
+    private void RememberLastProfile()
+    {
+        try
+        {
+            _persistLastProfileId?.Invoke(SelectedProfile?.Id);
+        }
+        catch
+        {
         }
     }
 

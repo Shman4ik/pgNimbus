@@ -20,12 +20,17 @@ public sealed partial class PreferencesViewModel : ObservableObject
     [ObservableProperty]
     private int _hotkeySchemeIndex;
 
+    /// <summary>Skip the connection dialog at startup and open the last-used connection outright.</summary>
+    [ObservableProperty]
+    private bool _autoConnectLastProfile;
+
     public PreferencesViewModel(MainViewModel main)
     {
         _main = main;
         var settings = App.LoadSettings();
         _themeIndex = settings.Theme switch { "light" => 1, "dark" => 2, _ => 0 };
         _hotkeySchemeIndex = settings.HotkeyScheme switch { "windows" => 1, "mac" => 2, _ => 0 };
+        _autoConnectLastProfile = settings.AutoConnectLastProfile;
         _main.PropertyChanged += OnMainPropertyChanged;
         _main.SchemaTree.PropertyChanged += OnSchemaTreePropertyChanged;
     }
@@ -88,6 +93,9 @@ public sealed partial class PreferencesViewModel : ObservableObject
 
     partial void OnThemeIndexChanged(int value) =>
         App.SetTheme(value switch { 1 => "light", 2 => "dark", _ => "system" });
+
+    partial void OnAutoConnectLastProfileChanged(bool value) =>
+        App.SetAutoConnectLastProfile(value);
 
     partial void OnHotkeySchemeIndexChanged(int value) =>
         App.SetHotkeyScheme(value switch { 1 => "windows", 2 => "mac", _ => "auto" });

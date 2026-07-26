@@ -19,11 +19,12 @@ namespace PgNimbus.Core.Settings;
 public sealed record WindowPlacement(int X, int Y, double Width, double Height, bool IsMaximized);
 
 /// <summary>
-/// Persists the main window's placement across sessions (<c>window.json</c>,
-/// next to <c>workspace.json</c> — window geometry is session state like the
-/// restored workspace, not a user preference like <see cref="AppSettings"/>).
-/// One placement for the whole app: with several main windows open, the last
-/// one to close wins, same as the workspace store's per-connection snapshots.
+/// Persists a window's placement across sessions (<c>window.json</c> for the
+/// main window, next to <c>workspace.json</c> — window geometry is session
+/// state like the restored workspace, not a user preference like
+/// <see cref="AppSettings"/>). One placement per file: with several main
+/// windows open, the last one to close wins, same as the workspace store's
+/// per-connection snapshots.
 /// </summary>
 public sealed class WindowPlacementStore
 {
@@ -33,6 +34,14 @@ public sealed class WindowPlacementStore
     {
         _filePath = filePath ?? Path.Combine(AppDataPaths.GetRootDirectory(), "window.json");
     }
+
+    /// <summary>
+    /// The connection dialog's own placement file. Separate from the main
+    /// window's: the two have unrelated sizes, and a resized dialog must not
+    /// drag the main window's geometry along with it.
+    /// </summary>
+    public static WindowPlacementStore ForConnectionDialog() =>
+        new(Path.Combine(AppDataPaths.GetRootDirectory(), "connection-window.json"));
 
     /// <summary>The saved placement, or null if none was ever saved (or the file is unreadable).</summary>
     public WindowPlacement? Load()
