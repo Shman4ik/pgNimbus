@@ -23,6 +23,8 @@ public partial class ConnectionDialog : Window
         InitializeComponent();
         ThemedWindowChrome.Attach(this);
 
+        Opened += OnDialogOpened;
+
         // Reorder saved connections by dragging rows. Live-moves the row while
         // the pointer travels (the list itself is the drop preview), then
         // persists the order on release. Tunneled press so the row is known
@@ -31,6 +33,74 @@ public partial class ConnectionDialog : Window
         ProfilesList.PointerMoved += OnProfilesPointerMoved;
         ProfilesList.PointerReleased += OnProfilesPointerReleased;
     }
+
+    /// <summary>
+    /// Puts the keyboard where the next action is: on the preselected
+    /// last-used connection (arrows pick another, Enter connects — no click
+    /// anywhere), or on the name field when there is nothing to preselect and
+    /// the form is what needs filling in. Then, if startup armed it, connects
+    /// on its own.
+    /// </summary>
+    private void OnDialogOpened(object? sender, EventArgs e)
+    {
+        if (DataContext is not ConnectionDialogViewModel vm)
+        {
+            return;
+        }
+
+        if (vm.SelectedProfile is not null)
+        {
+            ProfilesList.Focus();
+        }
+        else
+        {
+            NameBox.Focus();
+        }
+
+        if (vm.ShouldAutoConnect)
+        {
+            vm.ConnectCommand.Execute(null);
+        }
+    }
+
+    /// <summary>
+    /// Right-clicking a row acts on that row, so the menu's commands (which
+    /// read <see cref="ConnectionDialogViewModel.SelectedProfile"/>) target
+    /// what the pointer is actually over. Right-clicking empty space below the
+    /// rows opens nothing — every entry needs a profile.
+    /// </summary>
+    private void OnProfilesContextRequested(object? sender, ContextRequestedEventArgs e)
+    {
+        var profile = (e.Source as Visual)?.FindAncestorOfType<ListBoxItem>(includeSelf: true)?.DataContext as ConnectionProfile;
+        if (profile is null || DataContext is not ConnectionDialogViewModel vm)
+        {
+            e.Handled = true;
+            return;
+        }
+
+        vm.SelectedProfile = profile;
+    }
+
+    /// <summary>
+    /// Deleting a saved connection also drops its stored passwords, and nothing
+    /// undoes that — hence the confirm the old toolbar button never had.
+    /// </summary>
+    private async void OnDeleteProfileClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not ConnectionDialogViewModel vm || vm.SelectedProfile is not { } profile)
+        {
+            return;
+        }
+
+        var confirm = new ConfirmDialog($"Delete the saved connection \"{profile.Name}\"? Its stored password goes with it.", "Delete");
+        if (await confirm.ShowDialog<bool>(this))
+        {
+            vm.DeleteCommand.Execute(null);
+        }
+    }
+
+    /// <summary>Picking a swatch is the whole point of the flyout — close it rather than making the user click away.</summary>
+    private void OnAccentSwatchClick(object? sender, RoutedEventArgs e) => AccentButton.Flyout?.Hide();
 
     private void OnProfilesPointerPressed(object? sender, PointerPressedEventArgs e)
     {

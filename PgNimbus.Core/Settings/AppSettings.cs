@@ -66,6 +66,27 @@ public sealed record AppSettings
     public bool WordWrapEditor { get; set; }
 
     /// <summary>
+    /// The id of the connection profile that was last connected to, as a
+    /// string (Core keeps the settings record free of any type the JSON
+    /// source generator needs special handling for; the App parses it back to
+    /// a <c>Guid</c>). The connection dialog preselects that profile so the
+    /// common case — reconnect to what you used last — is Enter, not a hunt
+    /// through the list. Null on a fresh install, or after the profile it
+    /// pointed at was deleted.
+    /// </summary>
+    public string? LastConnectionProfileId { get; set; }
+
+    /// <summary>
+    /// Whether startup connects straight to <see cref="LastConnectionProfileId"/>
+    /// instead of waiting on the connection dialog. Off by default — silently
+    /// opening a connection is a surprise unless you asked for it. The dialog
+    /// still shows while the connect is in flight, so a failure lands back in
+    /// it with the error, and "Switch connection" remains the way to reach it
+    /// deliberately.
+    /// </summary>
+    public bool AutoConnectLastProfile { get; set; }
+
+    /// <summary>
     /// The most recently opened/saved <c>.sql</c> file paths, most recent
     /// first, capped at 10 by the caller. Backs the command palette's
     /// "Recent file" entries. <c>set</c>, not <c>init</c>, for the same

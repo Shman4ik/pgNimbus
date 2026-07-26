@@ -4,6 +4,9 @@ using System.Text;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PgNimbus.Core.Connections;
+// Type alias rather than `using Npgsql`: that namespace has its own SslMode,
+// which would collide with Core's on every field in this view model.
+using NpgsqlDataSource = Npgsql.NpgsqlDataSource;
 
 namespace PgNimbus.App.ViewModels;
 
@@ -11,8 +14,20 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
 {
     private readonly ConnectionProfileStore _store;
     private readonly ICredentialStore _credentialStore;
+    private readonly Action<Guid?>? _persistLastProfileId;
 
     public ObservableCollection<ConnectionProfile> Profiles { get; } = [];
+
+    /// <summary>
+    /// Set by the startup flow when the "connect on startup" preference is on:
+    /// the view fires <see cref="ConnectCommand"/> as soon as the dialog opens.
+    /// Only meaningful with a preselected profile — a fresh install has nothing
+    /// to connect to and just shows the form.
+    /// </summary>
+    public bool AutoConnectOnOpen { get; init; }
+
+    /// <summary>Whether opening the dialog should connect straight away — the view's cue to skip waiting for a click.</summary>
+    public bool ShouldAutoConnect => AutoConnectOnOpen && SelectedProfile is not null;
 
     /// <summary>
     /// Dialog footer: release version (e.g. "0.4.5", stripped of the
@@ -122,19 +137,44 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
     /// </summary>
     private bool _syncingConnectionString;
 
-    /// <summary>Raised with the built connection string, the profile's accent color, and, if a tunnel was used, the live SshTunnel to keep alive.</summary>
-    public event Action<string, string?, SshTunnel?>? Connected;
+    /// <summary>
+    /// Raised with a <see cref="NpgsqlDataSource"/> that has already opened (and
+    /// returned to its pool) one real connection, the profile's accent color,
+    /// and, if a tunnel was used, the live SshTunnel to keep alive. The data
+    /// source — not a connection string — is what crosses the hand-off, so the
+    /// credentials are known good by the time a window is built and the pool
+    /// arrives warm. Ownership transfers with it: the handler is responsible for
+    /// disposing both the data source and the tunnel.
+    /// </summary>
+    public event Action<NpgsqlDataSource, string?, SshTunnel?>? Connected;
 
-    public ConnectionDialogViewModel(ConnectionProfileStore store, ICredentialStore credentialStore)
+    /// <param name="lastProfileId">
+    /// The profile connected to last session, preselected here so the common
+    /// case — reconnect to the same database — needs no clicking at all: the
+    /// form is already filled, the password already loaded, and Enter connects.
+    /// Ignored when it names a profile that no longer exists.
+    /// </param>
+    /// <param name="persistLastProfileId">Called with the connected profile's id (null for an unsaved, ad-hoc connection) so the next session can preselect it.</param>
+    public ConnectionDialogViewModel(
+        ConnectionProfileStore store,
+        ICredentialStore credentialStore,
+        Guid? lastProfileId = null,
+        Action<Guid?>? persistLastProfileId = null)
     {
         _store = store;
         _credentialStore = credentialStore;
+        _persistLastProfileId = persistLastProfileId;
 
         Profiles.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasNoProfiles));
 
         foreach (var profile in _store.Load())
         {
             Profiles.Add(profile);
+        }
+
+        if (lastProfileId is { } id)
+        {
+            SelectedProfile = Profiles.FirstOrDefault(p => p.Id == id);
         }
     }
 
@@ -218,6 +258,38 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         }
 
         SelectedProfile = profile;
+    }
+
+    /// <summary>
+    /// Clones the selected profile under a new id, right below the original,
+    /// and selects it — the "same server, other database" case, without
+    /// retyping the host, SSL mode, and SSH block. The password is copied too
+    /// (a copy you have to re-enter the password for saves nothing), the name
+    /// gets a " (copy)" suffix so the two are told apart in the list.
+    /// </summary>
+    [RelayCommand]
+    private void Duplicate()
+    {
+        if (SelectedProfile is not { } source)
+        {
+            return;
+        }
+
+        var copy = source with { Id = Guid.NewGuid(), Name = $"{source.Name} (copy)" };
+        Profiles.Insert(Profiles.IndexOf(source) + 1, copy);
+        _store.Save(Profiles);
+
+        if (_credentialStore.LoadPassword(source.Id) is { } password)
+        {
+            _credentialStore.SavePassword(copy.Id, password);
+        }
+
+        if (_credentialStore.LoadPassword(DeriveSshCredentialId(source.Id)) is { } sshPassword)
+        {
+            _credentialStore.SavePassword(DeriveSshCredentialId(copy.Id), sshPassword);
+        }
+
+        SelectedProfile = copy;
     }
 
     [RelayCommand]
@@ -488,38 +560,76 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         }
 
         ErrorMessage = null;
-        StatusMessage = null;
+        StatusMessage = $"Connecting to {profile.Name}…";
         IsConnecting = true;
 
         SshTunnel? tunnel = null;
+        NpgsqlDataSource? dataSource = null;
         try
         {
+            string connectionString;
             if (profile.SshTunnel is { } sshOptions)
             {
                 tunnel = await Task.Run(() => SshTunnel.Connect(sshOptions, SshPassword, profile.Host, profile.Port));
-                var connectionString = profile.BuildConnectionString(
+                connectionString = profile.BuildConnectionString(
                     string.IsNullOrEmpty(Password) ? null : Password,
                     (tunnel.LocalHost, tunnel.LocalPort));
-                Connected?.Invoke(connectionString, profile.AccentColor, tunnel);
             }
             else
             {
-                var connectionString = profile.BuildConnectionString(string.IsNullOrEmpty(Password) ? null : Password);
-                Connected?.Invoke(connectionString, profile.AccentColor, null);
+                connectionString = profile.BuildConnectionString(string.IsNullOrEmpty(Password) ? null : Password);
             }
+
+            // Open one real connection before handing anything off. Creating an
+            // NpgsqlDataSource opens no socket, so without this a bad password or
+            // an unreachable host only surfaced once the main window was already
+            // up, in a schema-tree error far from the password field that caused
+            // it. The connection goes straight back to the pool, so the main
+            // window inherits it warm — this costs a round-trip only in the sense
+            // that it moves the first one earlier.
+            dataSource = NpgsqlDataSource.Create(connectionString);
+            await using (await dataSource.OpenConnectionAsync())
+            {
+            }
+
+            Connected?.Invoke(dataSource, profile.AccentColor, tunnel);
+            dataSource = null; // handed off; the main window owns it now
+            RememberLastProfile();
         }
         catch (Exception ex)
         {
-            // If the tunnel came up but the hand-off threw (or nothing was
-            // listening on Connected), it owns a live SSH session and port
-            // forward the main window's Closed handler will never dispose —
-            // release it here so it doesn't leak.
+            // Anything still owned here is ours to release: the pool if the probe
+            // failed (or the hand-off threw, or nothing was listening on
+            // Connected), and the SSH session and port forward under it — the
+            // main window's Closed handler will never see either.
+            if (dataSource is not null)
+            {
+                await dataSource.DisposeAsync();
+            }
+
             tunnel?.Dispose();
             ErrorMessage = $"Connection failed: {ex.Message}";
         }
         finally
         {
             IsConnecting = false;
+        }
+    }
+
+    /// <summary>
+    /// Files the just-connected profile as "last used". Runs after the hand-off
+    /// so a settings write that fails can't take the connection with it — and
+    /// swallows its own failure for the same reason: losing the preselection is
+    /// not worth failing a working connection over.
+    /// </summary>
+    private void RememberLastProfile()
+    {
+        try
+        {
+            _persistLastProfileId?.Invoke(SelectedProfile?.Id);
+        }
+        catch
+        {
         }
     }
 

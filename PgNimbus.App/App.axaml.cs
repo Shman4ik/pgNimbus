@@ -57,6 +57,19 @@ public partial class App : Application
     private static void PersistRecentSqlFiles(IReadOnlyList<string> value) =>
         SettingsStore.Save(SettingsStore.Load() with { RecentSqlFiles = value.ToList() });
 
+    /// <summary>
+    /// Remembers which saved profile was last connected to, so the next
+    /// connection dialog opens with it preselected (and startup can connect to
+    /// it outright when the preference is on). Null for an unsaved, ad-hoc
+    /// connection — there is no profile to come back to.
+    /// </summary>
+    private static void PersistLastConnectionProfileId(Guid? value) =>
+        SettingsStore.Save(SettingsStore.Load() with { LastConnectionProfileId = value?.ToString() });
+
+    /// <summary>Applies the "connect to the last connection on startup" preference.</summary>
+    internal static void SetAutoConnectLastProfile(bool value) =>
+        SettingsStore.Save(SettingsStore.Load() with { AutoConnectLastProfile = value });
+
     /// <summary>The saved settings snapshot, for the preferences page to initialize from.</summary>
     internal static AppSettings LoadSettings() => SettingsStore.Load();
 
@@ -175,7 +188,7 @@ public partial class App : Application
             }
             else
             {
-                desktop.MainWindow = BuildConnectionDialog(desktop);
+                desktop.MainWindow = BuildConnectionDialog(desktop, autoConnect: true);
             }
 
             StartupProbe.ArmIfRequested(desktop);
@@ -196,7 +209,10 @@ public partial class App : Application
     /// window" (<paramref name="replaceMainWindow"/> = false, no
     /// <paramref name="previousWindow"/>) which leaves every existing window —
     /// and <see cref="IClassicDesktopStyleApplicationLifetime.MainWindow"/> itself
-    /// — untouched; the new window simply joins them. There is no explicit
+    /// — untouched; the new window simply joins them. Only the startup flow
+    /// passes <paramref name="autoConnect"/>, and even then the dialog only
+    /// connects on its own if the user turned the preference on.
+    /// There is no explicit
     /// <c>ShutdownMode</c> set, so Avalonia's default <c>OnLastWindowClose</c>
     /// applies: the app keeps running until every window (whichever one that is)
     /// has closed.
@@ -207,14 +223,30 @@ public partial class App : Application
     /// one that closes last wins and overwrites the other's save. Acceptable
     /// by design; not worth merging snapshots across windows for.
     /// </summary>
-    internal static ConnectionDialog BuildConnectionDialog(IClassicDesktopStyleApplicationLifetime desktop, Window? previousWindow = null, bool replaceMainWindow = true)
+    internal static ConnectionDialog BuildConnectionDialog(IClassicDesktopStyleApplicationLifetime desktop, Window? previousWindow = null, bool replaceMainWindow = true, bool autoConnect = false)
     {
-        var viewModel = new ConnectionDialogViewModel(new ConnectionProfileStore(), CredentialStore.Create());
-        var dialog = new ConnectionDialog { DataContext = viewModel };
+        var settings = SettingsStore.Load();
+        var lastProfileId = Guid.TryParse(settings.LastConnectionProfileId, out var parsed) ? parsed : (Guid?)null;
 
-        viewModel.Connected += (connectionString, accentColor, tunnel) =>
+        var viewModel = new ConnectionDialogViewModel(
+            new ConnectionProfileStore(),
+            CredentialStore.Create(),
+            lastProfileId,
+            PersistLastConnectionProfileId)
         {
-            var mainWindow = BuildMainWindow(connectionString, accentColor, tunnel);
+            // Only startup auto-connects; reaching this dialog from an open
+            // window ("switch connection", "new window") means the user came
+            // here to pick something, so connecting out from under them would
+            // be exactly wrong.
+            AutoConnectOnOpen = autoConnect && settings.AutoConnectLastProfile,
+        };
+
+        var dialog = new ConnectionDialog { DataContext = viewModel };
+        WindowPlacementPersistence.Attach(dialog, WindowPlacementStore.ForConnectionDialog());
+
+        viewModel.Connected += (dataSource, accentColor, tunnel) =>
+        {
+            var mainWindow = BuildMainWindow(dataSource, accentColor, tunnel);
             mainWindow.Show();
             dialog.Close();
 
@@ -228,9 +260,25 @@ public partial class App : Application
         return dialog;
     }
 
-    internal static MainWindow BuildMainWindow(string connectionString, string? accentColor = null, SshTunnel? tunnel = null)
+    /// <summary>
+    /// The <c>PGNIMBUS_CONN</c> entry point: no dialog stands behind this one, so
+    /// the data source is created here and stays lazy — a bad connection string
+    /// surfaces as the window's first schema-tree error, which is the right place
+    /// for it when nobody is sitting in a connect form.
+    /// </summary>
+    internal static MainWindow BuildMainWindow(string connectionString) =>
+        BuildMainWindow(NpgsqlDataSource.Create(connectionString));
+
+    /// <summary>
+    /// Builds a connected window around an existing <paramref name="dataSource"/>
+    /// and takes ownership of it (and of <paramref name="tunnel"/>): both are
+    /// disposed by the window's <c>Closed</c> handler. The connection dialog
+    /// hands over a data source that has already opened one connection, so by
+    /// the time this runs the credentials are known good.
+    /// </summary>
+    internal static MainWindow BuildMainWindow(NpgsqlDataSource dataSource, string? accentColor = null, SshTunnel? tunnel = null)
     {
-        var dataSource = NpgsqlDataSource.Create(connectionString);
+        var connectionString = dataSource.ConnectionString;
         var engine = new QueryEngine(dataSource);
         var explainService = new ExplainService(dataSource);
         var schemaService = new SchemaService(dataSource);

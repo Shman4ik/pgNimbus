@@ -24,7 +24,20 @@
     <ScrollViewer HorizontalScrollBarVisibility="Disabled">
         <StackPanel Margin="20" Spacing="6">
 
-            <TextBlock Classes="sectionHeader" Text="APPEARANCE" Margin="4,0,4,4" />
+            <TextBlock Classes="sectionHeader" Text="STARTUP" Margin="4,0,4,4" />
+            <Border Classes="card" Padding="14,12">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Spacing="2" Margin="0,0,16,0">
+                        <TextBlock Classes="label" Text="Open the last connection on startup" />
+                        <TextBlock Classes="hint" Text="Connects straight to whatever you used last instead of waiting at the connection dialog. The dialog is still one Switch connection away, and a failed connect lands back in it with the error." />
+                    </StackPanel>
+                    <ToggleSwitch Grid.Column="1" VerticalAlignment="Center"
+                                  OnContent="" OffContent=""
+                                  IsChecked="{Binding AutoConnectLastProfile}" />
+                </Grid>
+            </Border>
+
+            <TextBlock Classes="sectionHeader" Text="APPEARANCE" Margin="4,10,4,4" />
             <Border Classes="card" Padding="14,12">
                 <Grid ColumnDefinitions="*,Auto">
                     <StackPanel Spacing="2" Margin="0,0,16,0">

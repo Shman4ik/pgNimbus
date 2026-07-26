@@ -186,7 +186,10 @@ and wrong project memory is worse than none.
    before it's added; the default answer is no. Secondary/rare actions belong
    in the command palette (Ctrl+K) or a context menu, not on the toolbar
    (that's why the auto-alias "AS" toggle moved from the toolbar to the
-   palette, 2026-07).
+   palette, 2026-07, and why Delete left the connection dialog's button row for
+   the saved-connections right-click menu — Connect / Duplicate / Delete —
+   alongside the accent-colour row collapsing into one swatch button + flyout
+   next to the Name field).
 2. **Double-click triggers the default action.** Anywhere a list/tree item
    has an obvious primary action, double-clicking it must perform that
    action: schema-tree table → browse, function → source, saved query /
@@ -194,6 +197,27 @@ and wrong project memory is worse than none.
    cell → inline edit when the result set is editable, inspector when it's
    read-only (Space quick-peeks the current cell in the inspector in both
    modes, 2026-07). Apply the same rule to any new list-like UI.
+   The connection dialog goes further, because reconnecting to the same database
+   is the most repeated action in the app (2026-07): the profile from last
+   session is preselected on open (`AppSettings.LastConnectionProfileId`, written
+   by `ConnectionDialogViewModel` on a successful connect), the list takes focus,
+   and Connect is the window's `IsDefault` button — so launch + Enter reconnects,
+   no click anywhere. `AppSettings.AutoConnectLastProfile` (preferences page, off
+   by default) skips even that; the dialog still opens for the moment the connect
+   is in flight, so a failure lands back in it with the error instead of leaving
+   a blank screen. The dialog is resizable and remembers its own placement in
+   `connection-window.json` (`WindowPlacementStore.ForConnectionDialog`) —
+   deliberately a separate file from the main window's `window.json`.
+   The hand-off carries a **live `NpgsqlDataSource`, not a connection string**:
+   `NpgsqlDataSource.Create` opens no socket, so a wrong password used to
+   surface as the new window's first schema-tree error rather than in the form
+   that caused it. `ConnectAsync` opens one real connection (returned straight
+   to the pool) before raising `Connected`, and ownership travels with the data
+   source — the dialog disposes the pool *and* the SSH tunnel under it on any
+   failure, the window's `Closed` handler does so afterwards. Net cost is zero
+   round-trips: the window inherits a warm pool. The one deliberate exception is
+   `BuildMainWindow`'s string overload behind `PGNIMBUS_CONN`, which stays lazy
+   because no connect form is standing behind it.
 3. **Loading a query never overwrites the active tab.** Saved queries,
    history entries, and generated DDL all open in a *new* tab.
 4. **Tabs drag-reorder; the ☰ app menu is the file-command home.** The query

@@ -8,13 +8,13 @@
         x:Class="PgNimbus.App.Views.ConnectionDialog"
         x:DataType="vm:ConnectionDialogViewModel"
         Title="pgNimbus — Connect"
-        Width="640" Height="680"
-        CanResize="False"
+        Width="720" Height="600"
+        MinWidth="620" MinHeight="520"
         WindowStartupLocation="CenterScreen">
 
     <Grid Margin="16" RowDefinitions="*,Auto,Auto">
 
-    <Grid Grid.Row="0" ColumnDefinitions="220,*">
+    <Grid Grid.Row="0" ColumnDefinitions="240,*">
 
         <Grid Grid.Column="0" RowDefinitions="Auto,*">
             <TextBlock Grid.Row="0" Text="Saved Connections" FontWeight="SemiBold" Margin="0,0,0,8" />
@@ -23,16 +23,34 @@
                     <!-- Rows reorder by drag (pointer handlers in code-behind);
                          the new order persists to connections.json on release. -->
                     <ListBox Name="ProfilesList" ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}"
-                             DoubleTapped="OnProfileDoubleTapped">
+                             DoubleTapped="OnProfileDoubleTapped" ContextRequested="OnProfilesContextRequested">
+                        <ListBox.KeyBindings>
+                            <!-- Enter on the focused row connects. The window's default
+                                 button would cover this, but ListBox handles Enter
+                                 itself on some platforms and would swallow it. -->
+                            <KeyBinding Gesture="Enter" Command="{Binding ConnectCommand}" />
+                        </ListBox.KeyBindings>
+                        <ListBox.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Connect" Command="{Binding ConnectCommand}" />
+                                <MenuItem Header="Duplicate" Command="{Binding DuplicateCommand}" />
+                                <Separator />
+                                <MenuItem Header="Delete…" Click="OnDeleteProfileClick" />
+                            </ContextMenu>
+                        </ListBox.ContextMenu>
                         <ListBox.ItemTemplate>
                             <DataTemplate DataType="conn:ConnectionProfile">
-                                <StackPanel>
+                                <StackPanel ToolTip.Tip="{Binding Endpoint}">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
                                         <Ellipse Width="8" Height="8" VerticalAlignment="Center"
                                                  Fill="{Binding AccentColor, Converter={x:Static converters:HexToBrushConverter.Instance}}" />
-                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                                     </StackPanel>
-                                    <TextBlock Text="{Binding Host}" FontSize="11" Opacity="0.7" Margin="14,0,0,0" />
+                                    <!-- user@host[:port]/database - enough to tell two
+                                         profiles on the same server apart without
+                                         selecting either one. -->
+                                    <TextBlock Text="{Binding Endpoint}" FontSize="11" Opacity="0.7" Margin="14,0,0,0"
+                                               TextTrimming="CharacterEllipsis" />
                                 </StackPanel>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
@@ -66,10 +84,51 @@
 
         <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
         <!-- Right margin keeps the scrollbar (shown once the SSH section expands) off the field edges -->
-        <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" Margin="0,0,14,0">
+        <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" Margin="0,0,14,0">
 
             <TextBlock Grid.Row="0" Text="Name" />
-            <TextBox Grid.Row="1" Text="{Binding Name}" Margin="0,0,0,8" />
+            <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                <TextBox Name="NameBox" Grid.Column="0" Text="{Binding Name}" Margin="0,0,6,0" />
+                <!-- The accent color is a per-connection marker, not a field you
+                     fill in every time - one swatch button with the palette
+                     behind it, rather than a permanent eight-circle row. -->
+                <Button Name="AccentButton" Grid.Column="1" Classes="soft" Width="32" Height="32" Padding="0"
+                        VerticalAlignment="Center" HorizontalContentAlignment="Center"
+                        ToolTip.Tip="Accent color — tints this connection's window so prod and dev are told apart at a glance">
+                    <Ellipse Width="14" Height="14"
+                             Fill="{Binding AccentColor, Converter={x:Static converters:HexToBrushConverter.Instance}}"
+                             Stroke="{DynamicResource SystemControlForegroundBaseLowBrush}" StrokeThickness="1" />
+                    <Button.Flyout>
+                        <Flyout Placement="Bottom">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Button Command="{Binding SelectAccentColorCommand}" CommandParameter="{x:Null}"
+                                        Click="OnAccentSwatchClick"
+                                        Width="24" Height="24" Padding="0" CornerRadius="12"
+                                        Background="Transparent" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1"
+                                        ToolTip.Tip="No accent color" />
+                                <ItemsControl ItemsSource="{Binding AccentColorSwatches}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Orientation="Horizontal" Spacing="6" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="sys:String">
+                                            <Button Command="{Binding $parent[ItemsControl].((vm:ConnectionDialogViewModel)DataContext).SelectAccentColorCommand}"
+                                                    CommandParameter="{Binding}"
+                                                    Click="OnAccentSwatchClick"
+                                                    Width="24" Height="24" Padding="0" CornerRadius="12"
+                                                    Background="{Binding Converter={x:Static converters:HexToBrushConverter.Instance}}"
+                                                    BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1"
+                                                    ToolTip.Tip="{Binding}" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Flyout>
+                    </Button.Flyout>
+                </Button>
+            </Grid>
 
             <TextBlock Grid.Row="2" Text="Host / Port" />
             <Grid Grid.Row="3" ColumnDefinitions="*,80" Margin="0,0,0,8">
@@ -94,7 +153,7 @@
             <StackPanel Grid.Row="7" Margin="0,0,0,8">
                 <TextBlock Text="Password" />
                 <!-- revealPasswordButton = Fluent's built-in eye toggle -->
-                <TextBox Text="{Binding Password}" PasswordChar="•" Classes="revealPasswordButton" />
+                <TextBox Name="PasswordBox" Text="{Binding Password}" PasswordChar="•" Classes="revealPasswordButton" />
             </StackPanel>
 
             <StackPanel Grid.Row="8" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
@@ -143,33 +202,6 @@
                            IsVisible="{Binding StatusMessage, Converter={x:Static conv:ObjectConverters.IsNotNull}}" Margin="0,0,0,8" />
             </StackPanel>
 
-            <StackPanel Grid.Row="11" Margin="0,0,0,8">
-                <TextBlock Text="Accent Color" />
-                <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,4,0,0">
-                    <Button Command="{Binding SelectAccentColorCommand}" CommandParameter="{x:Null}"
-                            Width="24" Height="24" Padding="0" CornerRadius="12"
-                            Background="Transparent" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1"
-                            ToolTip.Tip="No accent color" />
-                    <ItemsControl ItemsSource="{Binding AccentColorSwatches}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <StackPanel Orientation="Horizontal" Spacing="6" />
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="sys:String">
-                                <Button Command="{Binding $parent[ItemsControl].((vm:ConnectionDialogViewModel)DataContext).SelectAccentColorCommand}"
-                                        CommandParameter="{Binding}"
-                                        Width="24" Height="24" Padding="0" CornerRadius="12"
-                                        Background="{Binding Converter={x:Static converters:HexToBrushConverter.Instance}}"
-                                        BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1"
-                                        ToolTip.Tip="{Binding}" />
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </StackPanel>
-            </StackPanel>
-
         </Grid>
         </ScrollViewer>
         </Grid>
@@ -177,15 +209,19 @@
     </Grid>
 
     <!-- All action buttons on one row: New (scoped to the saved-connections
-         column) on the left, the current form's actions on the right. -->
-    <Grid Grid.Row="1" ColumnDefinitions="220,*" Margin="0,8,0,0">
+         column) on the left, the current form's actions on the right. Delete
+         lives in the list's right-click menu — it acts on a saved row, not on
+         the form, and a destructive button does not belong next to Connect. -->
+    <Grid Grid.Row="1" ColumnDefinitions="240,*" Margin="0,8,0,0">
         <Button Grid.Column="0" Classes="soft" Content="New" Command="{Binding NewCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" Margin="20,0,0,0">
-            <Button Classes="soft danger" Content="Delete" Command="{Binding DeleteCommand}" />
             <Button Classes="soft" Content="Test" Command="{Binding TestConnectionCommand}" IsEnabled="{Binding !IsTesting}"
                     ToolTip.Tip="Verify the connection (and SSH tunnel, if enabled) without opening it" />
             <Button Classes="soft" Content="Save" Command="{Binding SaveCommand}" />
-            <Button Classes="accent" Content="Connect" Command="{Binding ConnectCommand}" IsEnabled="{Binding !IsConnecting}" />
+            <!-- IsDefault: Enter anywhere in the dialog connects, so a preselected
+                 profile needs no click at all. -->
+            <Button Classes="accent" Content="Connect" Command="{Binding ConnectCommand}" IsEnabled="{Binding !IsConnecting}"
+                    IsDefault="True" />
         </StackPanel>
     </Grid>
 
