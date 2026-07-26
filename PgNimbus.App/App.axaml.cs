@@ -244,9 +244,9 @@ public partial class App : Application
         var dialog = new ConnectionDialog { DataContext = viewModel };
         WindowPlacementPersistence.Attach(dialog, WindowPlacementStore.ForConnectionDialog());
 
-        viewModel.Connected += (connectionString, accentColor, tunnel) =>
+        viewModel.Connected += (dataSource, accentColor, tunnel) =>
         {
-            var mainWindow = BuildMainWindow(connectionString, accentColor, tunnel);
+            var mainWindow = BuildMainWindow(dataSource, accentColor, tunnel);
             mainWindow.Show();
             dialog.Close();
 
@@ -260,9 +260,25 @@ public partial class App : Application
         return dialog;
     }
 
-    internal static MainWindow BuildMainWindow(string connectionString, string? accentColor = null, SshTunnel? tunnel = null)
+    /// <summary>
+    /// The <c>PGNIMBUS_CONN</c> entry point: no dialog stands behind this one, so
+    /// the data source is created here and stays lazy — a bad connection string
+    /// surfaces as the window's first schema-tree error, which is the right place
+    /// for it when nobody is sitting in a connect form.
+    /// </summary>
+    internal static MainWindow BuildMainWindow(string connectionString) =>
+        BuildMainWindow(NpgsqlDataSource.Create(connectionString));
+
+    /// <summary>
+    /// Builds a connected window around an existing <paramref name="dataSource"/>
+    /// and takes ownership of it (and of <paramref name="tunnel"/>): both are
+    /// disposed by the window's <c>Closed</c> handler. The connection dialog
+    /// hands over a data source that has already opened one connection, so by
+    /// the time this runs the credentials are known good.
+    /// </summary>
+    internal static MainWindow BuildMainWindow(NpgsqlDataSource dataSource, string? accentColor = null, SshTunnel? tunnel = null)
     {
-        var dataSource = NpgsqlDataSource.Create(connectionString);
+        var connectionString = dataSource.ConnectionString;
         var engine = new QueryEngine(dataSource);
         var explainService = new ExplainService(dataSource);
         var schemaService = new SchemaService(dataSource);
