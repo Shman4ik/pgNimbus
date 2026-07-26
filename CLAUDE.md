@@ -158,7 +158,25 @@ and wrong project memory is worse than none.
    exclusive self-time, self-cost, output rows, and self-buffers (buffer counts
    read from `ExplainNode.Details`, cumulative like time, so exclusive = node
    minus children); `ApplyMetric` rescales bars and re-marks the hottest node in
-   place. The design doc + competitive research is in
+   place. **Every route to a plan lands in the same views** (2026-07), through one
+   `QueryViewModel.ShowPlan`: the Explain commands, an import, *and* a hand-written
+   `EXPLAIN` the user simply Runs. That last one used to dump `QUERY PLAN` text into
+   the grid; now `TryParsePlanOutput` feeds the output back through
+   `ExplainService.Import` (so both `FORMAT TEXT` and `FORMAT JSON` work — JSON also
+   keeps the plan's JSON export and the Buffers metric, which the text form can't
+   carry), and shows the plan with the rows still behind it, one ✕ away. It works
+   per script section too — `ScriptResultViewModel` carries the parsed
+   `ImportedPlan`, so selecting the EXPLAIN section of a `SET …; EXPLAIN …` script
+   shows its plan while the other sections show their grid. Unlike the Explain
+   command, a Run *executes* the statement, so an `ANALYZE` of a write is not
+   rolled back — that gets its own warning-strip note, mirroring the Explain path's
+   "rolled back" one. **What the Explain commands explain**: the selection, else the
+   statement the caret sits in (`ExplainTarget`, mirroring Run's targeting via
+   `SqlScriptSplitter.StatementAt` + the view-pushed `QueryViewModel.CaretOffset`),
+   with any existing `EXPLAIN` prefix removed by `SqlStatementInspector.StripExplain`.
+   Both matter because `EXPLAIN` takes exactly one un-nested statement: handing it a
+   whole script failed at the second one ("syntax error at or near SET"). The design
+   doc + competitive research is in
    [`docs/design/explain-improvements.md`](docs/design/explain-improvements.md).
 
 ## UI design rules

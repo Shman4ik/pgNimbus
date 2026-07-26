@@ -12,6 +12,7 @@ public sealed class ScriptResultViewModel
 {
     private ScriptResultViewModel(
         int index,
+        string sql,
         string label,
         string summary,
         bool hasError,
@@ -21,9 +22,11 @@ public sealed class ScriptResultViewModel
         AvaloniaList<object?[]> rows,
         string? rowCountText,
         string? timingText,
-        string? capText)
+        string? capText,
+        ImportedPlan? plan = null)
     {
         Index = index;
+        Sql = sql;
         Label = label;
         Summary = summary;
         HasError = hasError;
@@ -34,10 +37,14 @@ public sealed class ScriptResultViewModel
         RowCountText = rowCountText;
         TimingText = timingText;
         CapText = capText;
+        Plan = plan;
     }
 
     /// <summary>1-based position of this statement in the script.</summary>
     public int Index { get; }
+
+    /// <summary>The statement that produced this section, as it appeared in the script.</summary>
+    public string Sql { get; }
 
     /// <summary>Short strip label — "1 · SELECT" (statement number + command keyword).</summary>
     public string Label { get; }
@@ -56,6 +63,14 @@ public sealed class ScriptResultViewModel
     public string? RowCountText { get; }
     public string? TimingText { get; }
     public string? CapText { get; }
+
+    /// <summary>
+    /// The plan this statement's output parses into when it was an <c>EXPLAIN</c>; null
+    /// for every other statement. Selecting such a section shows the plan views rather
+    /// than the section's <c>QUERY PLAN</c> text rows, so an EXPLAIN inside a script
+    /// (the `SET work_mem = …; EXPLAIN …` shape) reads like one run on its own.
+    /// </summary>
+    public ImportedPlan? Plan { get; }
 
     public const int MaxDisplayRows = QueryViewModel.MaxDisplayRows;
 
@@ -77,6 +92,7 @@ public sealed class ScriptResultViewModel
 
                 return new ScriptResultViewModel(
                     index,
+                    sql,
                     $"{index} · {keyword}",
                     $"{rowText} · {timeText}",
                     hasError: false,
@@ -86,7 +102,8 @@ public sealed class ScriptResultViewModel
                     rows: new AvaloniaList<object?[]>(set.Rows),
                     rowCountText: rowText,
                     timingText: timeText,
-                    capText: capText);
+                    capText: capText,
+                    plan: QueryViewModel.TryParsePlanOutput(sql, names, set.Rows));
             }
 
             case CommandResult command:
@@ -95,6 +112,7 @@ public sealed class ScriptResultViewModel
                 var timeText = $"{ms:F0} ms";
                 return new ScriptResultViewModel(
                     index,
+                    sql,
                     $"{index} · {command.CommandTag}",
                     $"{affected} affected · {timeText}",
                     hasError: false,
@@ -111,6 +129,7 @@ public sealed class ScriptResultViewModel
             {
                 return new ScriptResultViewModel(
                     index,
+                    sql,
                     $"{index} · {keyword}",
                     "Error",
                     hasError: true,
@@ -127,7 +146,7 @@ public sealed class ScriptResultViewModel
 
             default:
                 return new ScriptResultViewModel(
-                    index, $"{index}", string.Empty, false, string.Empty, [], [], [], null, null, null);
+                    index, sql, $"{index}", string.Empty, false, string.Empty, [], [], [], null, null, null);
         }
     }
 

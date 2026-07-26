@@ -53,6 +53,14 @@ public sealed partial class QueryViewModel : ObservableObject
     /// </summary>
     public string? SelectedSql { get; set; }
 
+    /// <summary>
+    /// The SQL editor's caret offset, pushed from the view as the caret moves.
+    /// Read by the Explain commands to pick the statement to explain when nothing
+    /// is selected (see <see cref="ExplainTarget"/>). Not observable — pure
+    /// view→VM input state, like <see cref="SelectedSql"/>.
+    /// </summary>
+    public int CaretOffset { get; set; }
+
     [ObservableProperty]
     private string _status = "Ready";
 
@@ -576,11 +584,18 @@ public sealed partial class QueryViewModel : ObservableObject
                     break;
             }
 
+            // A hand-written EXPLAIN gets the plan views, not a grid of QUERY PLAN
+            // text rows — the same tree/heat/warnings the Explain command produces.
+            if (result is ResultSet or MaterializedResultSet
+                && TryParsePlanOutput(executedSql, ColumnNames, Rows) is { } plan)
+            {
+                ShowRunPlan(executedSql, plan);
+            }
             // A hand-typed statement whose columns map cleanly onto one table
             // gets the same inline editing browse mode has. Browse pages skip
             // this — RunBrowseSqlAsync re-establishes their context itself, from
             // metadata it already holds.
-            if (result is ResultSet or MaterializedResultSet && Browse is null)
+            else if (result is ResultSet or MaterializedResultSet && Browse is null)
             {
                 await TryEnableEditingForQueryAsync(ct);
             }
@@ -725,6 +740,18 @@ public sealed partial class QueryViewModel : ObservableObject
         TimingText = value.TimingText;
         CapText = value.CapText;
 
+        // An EXPLAIN section shows its plan (tree, heat, warnings) instead of the raw
+        // QUERY PLAN rows; every other section shows the grid. Selecting between them
+        // switches the pane, and the plan header's ✕ still falls back to the rows.
+        if (value.Plan is { } plan)
+        {
+            ShowRunPlan(value.Sql, plan);
+        }
+        else
+        {
+            IsShowingPlan = false;
+        }
+
         // Script sections never get an edit context (statements share one
         // session; results are materialized snapshots) — say so, but only for
         // sections that actually show a grid someone might try to edit.
@@ -780,6 +807,42 @@ public sealed partial class QueryViewModel : ObservableObject
     }
 
     /// <summary>
+    /// Puts a parsed plan on screen — tree, text pane, heat, and warnings strip — for
+    /// every source of one: the Explain commands, a hand-written EXPLAIN that was Run
+    /// (see <see cref="TryParsePlanOutput"/>), and a pasted import. <paramref name="displayText"/>
+    /// is what the text pane shows; <paramref name="summaryPrefix"/> leads the header line
+    /// ("Imported plan"); <paramref name="leadingWarnings"/> are pinned above the analyzer's
+    /// findings (the rolled-back / ran-for-real notes).
+    /// </summary>
+    private void ShowPlan(
+        ExplainResult result,
+        string displayText,
+        string? planJson,
+        string? summaryPrefix = null,
+        IReadOnlyList<PlanWarningViewModel>? leadingWarnings = null)
+    {
+        var root = new ExplainNodeViewModel(result.Root, result.Root.TotalCost);
+        ExplainRoot = root;
+        ApplyPlanHeat(root);
+
+        var warnings = new List<PlanWarningViewModel>();
+        if (leadingWarnings is not null)
+        {
+            warnings.AddRange(leadingWarnings);
+        }
+
+        warnings.AddRange(PlanAnalyzer.Analyze(result).Select(w => new PlanWarningViewModel(w)));
+        PlanWarnings = warnings;
+
+        ExplainText = displayText;
+        PlanJson = planJson;
+        var planningFragment = result.PlanningTimeMs is { } planMs ? $"Planning: {planMs:F3} ms" : null;
+        var executionFragment = result.ExecutionTimeMs is { } execMs ? $"Execution: {execMs:F3} ms" : null;
+        ExplainSummary = string.Join("   ", new[] { summaryPrefix, planningFragment, executionFragment }.Where(f => f is not null));
+        IsShowingPlan = true;
+    }
+
+    /// <summary>
     /// Shows a plan that was imported from pasted text rather than run against the DB
     /// (see <see cref="ExplainService.Import"/>) — same views, heat, and warnings strip
     /// as a live plan, no round-trip. <paramref name="displayText"/> is what the text
@@ -789,18 +852,83 @@ public sealed partial class QueryViewModel : ObservableObject
     /// </summary>
     public void ShowImportedPlan(ExplainResult result, string displayText, string? planJson)
     {
-        var root = new ExplainNodeViewModel(result.Root, result.Root.TotalCost);
-        ExplainRoot = root;
-        ApplyPlanHeat(root);
-
-        PlanWarnings = PlanAnalyzer.Analyze(result).Select(w => new PlanWarningViewModel(w)).ToList();
-        ExplainText = displayText;
-        PlanJson = planJson;
-        var planningFragment = result.PlanningTimeMs is { } planMs ? $"Planning: {planMs:F3} ms" : null;
-        var executionFragment = result.ExecutionTimeMs is { } execMs ? $"Execution: {execMs:F3} ms" : null;
-        ExplainSummary = string.Join("   ", new[] { "Imported plan", planningFragment, executionFragment }.Where(f => f is not null));
-        IsShowingPlan = true;
+        ShowPlan(result, displayText, planJson, summaryPrefix: "Imported plan");
         Status = "Imported plan";
+    }
+
+    /// <summary>
+    /// Turns the output of a hand-written EXPLAIN — one typed into the editor and Run,
+    /// rather than invoked through the Explain command — back into a plan tree, so it
+    /// lands in the plan views instead of a grid of <c>QUERY PLAN</c> text rows. Reuses
+    /// the paste-a-plan importer, so both formats it understands work: <c>FORMAT TEXT</c>
+    /// (the default, arriving as one row per plan line) and <c>FORMAT JSON</c> (one row
+    /// holding the whole payload, which also gives the plan's JSON export). Returns null
+    /// for anything else — <c>FORMAT XML</c>/<c>YAML</c>, or a plan the best-effort text
+    /// parser can't place — leaving the raw rows as the result. Shared with
+    /// <see cref="ScriptResultViewModel"/>, which parses the same way per script section.
+    /// </summary>
+    internal static ImportedPlan? TryParsePlanOutput(
+        string sql,
+        IReadOnlyList<string> columnNames,
+        IReadOnlyList<object?[]> rows)
+    {
+        if (columnNames.Count != 1 || rows.Count == 0 || !SqlStatementInspector.IsExplain(sql))
+        {
+            return null;
+        }
+
+        var text = string.Join('\n', rows.Select(row => row.Length > 0 ? row[0]?.ToString() : null));
+        try
+        {
+            return ExplainService.Import(text);
+        }
+        catch (FormatException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Shows the plan a Run-executed EXPLAIN produced. The rows stay in the grid behind
+    /// it (the plan header's ✕ switches back), and an <c>ANALYZE</c> of a write gets a
+    /// note: unlike the Explain command, Run doesn't wrap it in a rolled-back
+    /// transaction, so those changes really were applied.
+    /// </summary>
+    private void ShowRunPlan(string sql, ImportedPlan plan)
+    {
+        var analyzed = plan.Result.Root.ActualLoops is not null || plan.Result.ExecutionTimeMs is not null;
+        var notes = analyzed && SqlStatementInspector.IsDataModifying(SqlStatementInspector.StripExplain(sql))
+            ? new List<PlanWarningViewModel>
+            {
+                new(new PlanWarning(
+                    PlanWarningSeverity.Warning,
+                    "EXPLAIN ANALYZE executed this write",
+                    "Run executes the statement as written, so its changes were applied (subject to the "
+                        + "surrounding transaction). The Explain command analyzes a write inside a "
+                        + "transaction it always rolls back.",
+                    plan.Result.Root.NodeType,
+                    null)),
+            }
+            : null;
+
+        ShowPlan(plan.Result, plan.DisplayText, plan.RawJson, leadingWarnings: notes);
+    }
+
+    /// <summary>
+    /// The statement the Explain commands actually explain. Mirrors <see cref="RunAsync"/>'s
+    /// targeting — the selection when there is one, otherwise the statement the caret sits
+    /// in — because <c>EXPLAIN</c> takes exactly one statement: handing it a whole script
+    /// fails at the second one (a buffer starting with <c>SET work_mem = …;</c> errored with
+    /// "syntax error at or near SET"). An already-EXPLAIN statement is unwrapped, since
+    /// nesting two EXPLAINs is itself a syntax error.
+    /// </summary>
+    private string ExplainTarget()
+    {
+        var candidate = string.IsNullOrWhiteSpace(SelectedSql)
+            ? SqlScriptSplitter.StatementAt(Sql, CaretOffset) ?? Sql
+            : SelectedSql;
+
+        return SqlStatementInspector.StripExplain(candidate);
     }
 
     private async Task RunExplainAsync(bool analyze)
@@ -819,34 +947,26 @@ public sealed partial class QueryViewModel : ObservableObject
 
         try
         {
-            var run = await _explainService.ExplainAsync(Sql, analyze, ct);
+            var target = ExplainTarget();
+            var run = await _explainService.ExplainAsync(target, analyze, ct);
             var result = run.Result;
-            PlanJson = run.Json;
-            var root = new ExplainNodeViewModel(result.Root, result.Root.TotalCost);
-            ExplainRoot = root;
-            ApplyPlanHeat(root);
 
-            var warnings = new List<PlanWarningViewModel>();
             // Reassure the user their data is intact: ANALYZE ran the write, but ExplainService
             // rolled it back. Leads the strip so it's the first thing seen for a write plan.
-            if (analyze && SqlStatementInspector.IsDataModifying(Sql))
-            {
-                warnings.Add(new PlanWarningViewModel(new PlanWarning(
-                    PlanWarningSeverity.Info,
-                    "Data-modifying statement rolled back",
-                    "EXPLAIN ANALYZE executed this statement inside a transaction and rolled it back, "
-                        + "so no changes were persisted.",
-                    result.Root.NodeType,
-                    null)));
-            }
+            var notes = analyze && SqlStatementInspector.IsDataModifying(target)
+                ? new List<PlanWarningViewModel>
+                {
+                    new(new PlanWarning(
+                        PlanWarningSeverity.Info,
+                        "Data-modifying statement rolled back",
+                        "EXPLAIN ANALYZE executed this statement inside a transaction and rolled it back, "
+                            + "so no changes were persisted.",
+                        result.Root.NodeType,
+                        null)),
+                }
+                : null;
 
-            warnings.AddRange(PlanAnalyzer.Analyze(result).Select(w => new PlanWarningViewModel(w)));
-            PlanWarnings = warnings;
-            ExplainText = ExplainTextFormatter.Format(result);
-            var planningFragment = result.PlanningTimeMs is { } planMs ? $"Planning: {planMs:F3} ms" : null;
-            var executionFragment = result.ExecutionTimeMs is { } execMs ? $"Execution: {execMs:F3} ms" : null;
-            ExplainSummary = string.Join("   ", new[] { planningFragment, executionFragment }.Where(f => f is not null));
-            IsShowingPlan = true;
+            ShowPlan(result, ExplainTextFormatter.Format(result), run.Json, leadingWarnings: notes);
             Status = "Plan ready";
         }
         catch (OperationCanceledException)
