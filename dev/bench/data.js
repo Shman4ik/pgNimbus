@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784661933770,
+  "lastUpdate": 1785096207607,
   "repoUrl": "https://github.com/Shman4ik/pgNimbus",
   "entries": {
     "pgNimbus benchmarks": [
@@ -1029,6 +1029,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "Stream 100000 rows",
             "value": 86.3,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shman4ik@gmail.com",
+            "name": "Dmitrii Shmanev",
+            "username": "Shman4ik"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "36812ff5c229908d1e41fe80d7e64f78a298a530",
+          "message": "Merge pull request #167 from Shman4ik/claude/screen-optimization-5e0e71\n\nMake reconnecting one keystroke, and thin out the connection dialog",
+          "timestamp": "2026-07-26T21:55:21+02:00",
+          "tree_id": "2b424154685120592a51b4264d587421eecf3985",
+          "url": "https://github.com/Shman4ik/pgNimbus/commit/36812ff5c229908d1e41fe80d7e64f78a298a530"
+        },
+        "date": 1785096206521,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Startup, launch to first frame (NativeAOT)",
+            "value": 202,
+            "unit": "ms"
+          },
+          {
+            "name": "Memory at first frame (NativeAOT)",
+            "value": 153.9,
+            "unit": "MB"
+          },
+          {
+            "name": "Binary size (NativeAOT)",
+            "value": 41.9,
+            "unit": "MB"
+          },
+          {
+            "name": "Publish size (NativeAOT, shipped files)",
+            "value": 55.3,
+            "unit": "MB"
+          },
+          {
+            "name": "Startup, launch to first frame (JIT)",
+            "value": 1890,
+            "unit": "ms"
+          },
+          {
+            "name": "Connect, cold pool",
+            "value": 152.2,
+            "unit": "ms"
+          },
+          {
+            "name": "Round-trip, SELECT 1 warm",
+            "value": 0.32,
+            "unit": "ms"
+          },
+          {
+            "name": "First row batch of a 100000-row SELECT",
+            "value": 10.9,
+            "unit": "ms"
+          },
+          {
+            "name": "Stream 100000 rows",
+            "value": 136.6,
             "unit": "ms"
           }
         ]
