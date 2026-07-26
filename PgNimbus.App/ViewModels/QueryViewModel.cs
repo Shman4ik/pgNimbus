@@ -150,7 +150,17 @@ public sealed partial class QueryViewModel : ObservableObject
     /// "diverges from what's on disk", independent of whether it's been run.
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DirtyHint))]
     private bool _isDirty;
+
+    /// <summary>
+    /// What the dirty dot means on <em>this</em> tab — the flag covers two
+    /// different baselines, so the tooltip has to say which one is meant
+    /// instead of guessing at "unsaved changes".
+    /// </summary>
+    public string DirtyHint => FilePath is null
+        ? "Edited since the last run"
+        : "Unsaved changes: this tab differs from the file on disk";
 
     // The SQL as of the last run; edits away from it mark a scratch tab dirty.
     private string _lastRunSql;
@@ -161,6 +171,7 @@ public sealed partial class QueryViewModel : ObservableObject
     /// (open, workspace restore) and <see cref="MarkSaved"/> (save/save-as).
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DirtyHint))]
     private string? _filePath;
 
     // The buffer content as of the last load-from/save-to disk for a

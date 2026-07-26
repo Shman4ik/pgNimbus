@@ -240,7 +240,17 @@ and wrong project memory is worse than none.
    Gestures a `KeyBinding` can't express (focus toggles, keys a panel binds
    itself) still match the catalog via `CommandBindings.Matches(id, e)` rather
    than comparing keys inline — that's how `MainWindow.OnKeyDown` and
-   `QueryEditorPanel`'s editor gestures stay in sync. Two documented exceptions:
+   `QueryEditorPanel`'s editor gestures stay in sync. **Tooltips are a
+   projection too** (2026-07): a control that names a command writes
+   `cmd:CommandTip.Text="…" cmd:CommandTip.Command="Run"` and the attached
+   property in `PgNimbus.App/Commands/CommandTip.cs` renders "text (Ctrl+Enter)",
+   re-rendering itself on a scheme change — never type a gesture into a
+   `ToolTip.Tip` string. `CommandTip.Command` is deliberately `CommandId?`:
+   the enum's zero value is a real command (`Run`), so a non-nullable property
+   reads a set of `Run` as "no change", raises nothing, and silently drops the
+   chord. Where the gestures differ per menu item (the Explain flyout), set
+   `MenuItem.InputGesture` from `CommandBindings.GestureFor` instead of listing
+   both in one tooltip. Two documented exceptions:
    Ctrl/Cmd+1…9 (`CommandId.GoToTabByNumber`) is bound in a loop because nine
    near-identical palette rows would be noise, and Format SQL deliberately also
    accepts Alt+Shift+F whatever the scheme. User-facing settings live on the

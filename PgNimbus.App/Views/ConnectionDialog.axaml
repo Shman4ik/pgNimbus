@@ -53,7 +53,7 @@
         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,14,12">
             <TextBox Grid.Column="0" Text="{Binding ImportText}" Margin="0,0,6,0"
                      PlaceholderText="Paste a connection string (postgres://…, jdbc:…, Key=Value;…, psql …)"
-                     ToolTip.Tip="Accepts postgres:// URIs, JDBC URLs, Npgsql Key=Value strings, libpq keyword strings, and psql command lines — applied automatically as you paste">
+                     ToolTip.Tip="Paste a postgres:// URI, JDBC URL, Npgsql Key=Value string, libpq keyword string or psql command line and the fields fill in by themselves">
                 <TextBox.KeyBindings>
                     <KeyBinding Gesture="Enter" Command="{Binding ImportConnectionStringCommand}" />
                 </TextBox.KeyBindings>
@@ -149,7 +149,7 @@
                     <Button Command="{Binding SelectAccentColorCommand}" CommandParameter="{x:Null}"
                             Width="24" Height="24" Padding="0" CornerRadius="12"
                             Background="Transparent" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1"
-                            ToolTip.Tip="None" />
+                            ToolTip.Tip="No accent color" />
                     <ItemsControl ItemsSource="{Binding AccentColorSwatches}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
