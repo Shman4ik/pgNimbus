@@ -20,6 +20,19 @@
         which surfaces as a bogus "avares://... not found" crash at startup.
     -->
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <!--
+        The release build publishes NativeAOT, so trim/AOT-hostile calls are a
+        runtime crash, not a perf note - JsonSerializer's reflection overloads
+        throw "Reflection-based serialization has been disabled for this
+        application" under AOT. Core carries IsAotCompatible (which turns these
+        analyzers on); the App can't (it isn't a library and shouldn't be marked
+        trimmable), so switch the analyzers on directly and get the IL2026/IL3050
+        warning at build time instead of after a release build ships. Deliberately
+        not IsAotCompatible=true - that also sets IsTrimmable, which is a library
+        concept. The App is currently at zero IL warnings; keep it there.
+    -->
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <EnableAotAnalyzer>true</EnableAotAnalyzer>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <RuntimeIdentifiers>win-x64;osx-arm64;linux-x64;linux-arm64</RuntimeIdentifiers>
     <Authors>Dmitrii Shmanev</Authors>
