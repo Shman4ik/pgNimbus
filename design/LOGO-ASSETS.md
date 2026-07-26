@@ -27,12 +27,20 @@ from them by the scripts in Part 3.
 
 | File | Size | Hand-drawn? | Feeds |
 |---|---|---|---|
-| `icon-1024.png` | 1024² | ⭐ master | macOS 512/1024, Store listing images |
-| `icon-256.png` | 256² | yes (full detail) | `app.ico` 64/128/256, MSIX 150, macOS 64–256 |
+| `icon-1024.png` | 1024² | rendered from `icon-badge.svg` | macOS 512/1024, Store listing images |
+| `icon-256.png` | 256² | rendered from `icon-badge.svg` | `app.ico` 64/128/256, MSIX 150, macOS 64–256 |
 | `icon-48.png` | 48² | yes | `app.ico` 48, MSIX 44 & 50 |
 | `icon-32.png` | 32² | yes (**simplified**) | `app.ico` 32, macOS 32 |
 | `icon-24.png` | 24² | yes (**simplified**) | `app.ico` 24 |
 | `icon-16.png` | 16² | yes (**simplified**) | `app.ico` 16, macOS 16 |
+
+`icon-badge.svg` (2026-07) is the vector source for the circular badge —
+a single traced path (Inkscape Path > Trace Bitmap off the previous
+`icon-1024.png`), scaled up so the artwork fills the 1024×1024 canvas edge
+to edge instead of sitting in a wide transparent margin. `icon-1024.png` and
+`icon-256.png` are rendered from it (`inkscape icon-badge.svg
+--export-type=png --export-filename=<out>.png -w <N> -h <N>`); the smaller
+full-bleed sizes (16–48) stay hand-drawn PNGs, untouched by this file.
 
 ### `window/` — in-app title-bar icons (**transparent** line art)
 

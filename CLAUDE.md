@@ -316,6 +316,13 @@ tiny icon (that produced muddy 16–32px icons; fixed 2026-07). Layout:
   are a circular navy badge with transparent corners (2026-07) — those only
   feed contexts that supply their own backdrop (macOS icon mask, Store
   listing pages), so transparency is safe and reads better at that size.
+  Unlike the hand-drawn small sizes, 256/1024 are the one derived pair in this
+  folder: `design/masters/icon/icon-badge.svg` (2026-07, Inkscape — a single
+  traced path scaled to fill the 1024×1024 canvas edge-to-edge instead of
+  sitting in a wide margin) is the vector source, rendered to both PNGs via
+  `inkscape icon-badge.svg --export-type=png --export-filename=<out> -w <N>
+  -h <N>`. Re-run that export (then `make-app-icons.ps1` +
+  `make-store-logos.ps1`) after editing `icon-badge.svg`.
 - `design/masters/window/window-{light,dark}-256.png` — transparent line-art
   window icons (currently unused in-app, see Part 2 of LOGO-ASSETS.md).
 - `design/masters/logo/` — README/website assets: `logo.svg`,
