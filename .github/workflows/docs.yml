@@ -1,0 +1,61 @@
+name: Docs
+
+# Builds the MkDocs site. On a pull request it only builds (--strict, so a
+# broken link or a page missing from the nav fails the check); on main it also
+# publishes to gh-pages under /docs/, leaving the landing page at the root and
+# dev/bench/ untouched.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+      - "scripts/website/publish-docs.sh"
+      - ".github/workflows/docs.yml"
+  pull_request:
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+      - "scripts/website/publish-docs.sh"
+      - ".github/workflows/docs.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    # Write is only needed for the publish step below; a PR build never reaches
+    # it, and a fork PR gets a read-only token regardless.
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # publish-docs.sh adds a gh-pages worktree, which needs that branch
+          # fetchable — a shallow single-branch clone can't provide it.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: docs/requirements.txt
+
+      - name: Install MkDocs
+        run: pip install -r docs/requirements.txt
+
+      - name: Build
+        run: mkdocs build --strict
+
+      - name: Publish to gh-pages
+        if: github.event_name != 'pull_request'
+        env:
+          # The default GITHUB_TOKEN needs write access to push the branch.
+          GIT_AUTHOR_NAME: github-actions[bot]
+          GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+        run: scripts/website/publish-docs.sh
