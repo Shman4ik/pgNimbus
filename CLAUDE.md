@@ -802,7 +802,37 @@ you upload it to Partner Center.
   Entra ID app registration under the Partner Center account — free,
   unrelated to Azure Artifact Signing).
 
-## Project website (GitHub Pages)
+## Project website + docs (GitHub Pages)
+
+The `gh-pages` branch hosts three independent things at three paths, and nothing
+that writes to one may touch the others: `/` is the landing page, `/docs/` is
+the documentation site, `/dev/bench/` is the benchmark history.
+
+### Documentation site (`/docs/`)
+
+MkDocs Material, configured in the repo-root [`mkdocs.yml`](mkdocs.yml), built
+from `docs/`. `docs/` doubles as the repo's internal notes directory, so
+`exclude_docs` keeps `marketing/`, `design/`, `PROGRESS.md` and
+`PRE-LAUNCH-CHECKLIST.md` out of the published site — **only pages listed in
+`nav` ship**. Published by
+[`scripts/website/publish-docs.sh`](scripts/website/publish-docs.sh), which
+replaces `gh-pages:/docs/` alone; `.github/workflows/docs.yml` builds it with
+`--strict` on every PR touching `docs/`/`mkdocs.yml` (so a broken link or a page
+missing from `nav` fails the check) and publishes on push to `main`. Local
+preview: `pip install -r docs/requirements.txt && mkdocs serve`.
+`docs/reference/keyboard-shortcuts.md` is **generated** — see UI design rule 5,
+don't hand-edit it. `docs/assets/{logo,favicon}.png` are copies of the
+`design/masters/icon/` tiles; refresh them if the masters change.
+
+**User-facing prose goes through the `humanizer` skill.** `.claude/skills/humanizer/`
+is vendored from <https://github.com/blader/humanizer> (MIT; see its `SOURCE.md`
+for the update procedure and the one standing deviation — the README keeps its
+emoji section headings). Apply it to the README, the `docs/` pages, release
+notes and website copy — its hardest rule is no em/en dashes in user-facing prose,
+which is why those files read differently from this one. `CLAUDE.md` and code
+comments are internal and keep their own voice.
+
+### Landing page (`/`)
 
 <https://shman4ik.github.io/pgNimbus/> is a hand-written static landing page.
 Source of truth is [`website/index.html`](website/index.html) (self-contained

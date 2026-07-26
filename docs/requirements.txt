@@ -1,0 +1,5 @@
+# Documentation site toolchain. Pinned so a CI build and a local `mkdocs serve`
+# render identically. Used only to build docs/ — the app itself has no Python
+# dependency.
+mkdocs==1.6.1
+mkdocs-material==9.5.49
