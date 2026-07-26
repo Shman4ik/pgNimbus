@@ -1,12 +1,15 @@
 using Avalonia.Controls;
 using Avalonia.Input;
-using Avalonia.LogicalTree;
+using PgNimbus.App.ViewModels;
+using PgNimbus.Core.Commands;
 
 namespace PgNimbus.App.Views;
 
 /// <summary>
-/// A static keyboard-shortcut cheat sheet. Opened from the main window via
-/// F1 or the "?" title-bar button; Esc (or F1 again) closes it.
+/// The keyboard-shortcut cheat sheet. Opened from the main window via F1 or the
+/// "?" title-bar button; Esc (or F1 again) closes it. Every row is projected
+/// from <see cref="CommandCatalog"/> by <see cref="ShortcutsViewModel"/> — the
+/// window itself authors nothing, so it can't fall behind the real bindings.
 /// </summary>
 public partial class ShortcutsWindow : Window
 {
@@ -15,19 +18,10 @@ public partial class ShortcutsWindow : Window
         InitializeComponent();
         ThemedWindowChrome.Attach(this);
 
-        // The key caps are authored as "Ctrl"; when the resolved command
-        // modifier is Cmd (macOS, or the explicit mac scheme), relabel every
-        // cap marked cmdKey. Ctrl+Space (completion) stays literal Ctrl.
-        if (Hotkeys.CommandLabel != "Ctrl")
-        {
-            foreach (var text in this.GetLogicalDescendants().OfType<TextBlock>())
-            {
-                if (text.Classes.Contains("cmdKey"))
-                {
-                    text.Text = Hotkeys.CommandLabel;
-                }
-            }
-        }
+        // Built here rather than bound in XAML: the key caps are rendered with
+        // the Ctrl/Cmd label resolved at open time, so reopening the window
+        // after a scheme change shows the new gestures.
+        DataContext = new ShortcutsViewModel();
     }
 
     protected override void OnKeyDown(KeyEventArgs e)

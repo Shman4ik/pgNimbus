@@ -3,6 +3,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PgNimbus.App.Completion;
+using PgNimbus.Core.Commands;
 using PgNimbus.Core.Import;
 using PgNimbus.Core.Monitoring;
 using PgNimbus.Core.Query;
@@ -78,6 +79,36 @@ public sealed partial class MainViewModel : ObservableObject
     public event Action<bool>? SaveFileRequested;
     // Raised to open a specific recent file (from the palette's "Recent file" entries).
     public event Action<string>? OpenRecentFileRequested;
+    // Raised to comment/uncomment the selected lines; the editor panel owns the
+    // document, same split as Format SQL.
+    public event Action? ToggleLineCommentRequested;
+
+    // Every catalog command resolves to an ICommand here (see CommandBindings),
+    // so the view-only actions above get thin command wrappers rather than the
+    // palette and the key bindings each raising the event their own way.
+    [RelayCommand]
+    private void ImportPlan() => ImportPlanRequested?.Invoke();
+
+    [RelayCommand]
+    private void ExpandStar() => ExpandStarRequested?.Invoke();
+
+    [RelayCommand]
+    private void Find() => FindRequested?.Invoke(false);
+
+    [RelayCommand]
+    private void FindReplace() => FindRequested?.Invoke(true);
+
+    [RelayCommand]
+    private void ToggleLineComment() => ToggleLineCommentRequested?.Invoke();
+
+    [RelayCommand]
+    private void ToggleSidebar() => SidebarToggleRequested?.Invoke();
+
+    [RelayCommand]
+    private void ToggleTheme() => ThemeToggleRequested?.Invoke();
+
+    [RelayCommand]
+    private void ShowShortcuts() => ShortcutsRequested?.Invoke();
 
     [RelayCommand]
     private void OpenFile() => OpenFileRequested?.Invoke();
@@ -653,6 +684,19 @@ public sealed partial class MainViewModel : ObservableObject
         ActiveTab = Tabs[(index + direction + Tabs.Count) % Tabs.Count];
     }
 
+    /// <summary>
+    /// Ctrl/Cmd+1…9: activates the nth tab (0-based). Browser convention —
+    /// a number past the end of the strip does nothing rather than wrapping.
+    /// </summary>
+    [RelayCommand]
+    private void GoToTab(int index)
+    {
+        if (index >= 0 && index < Tabs.Count)
+        {
+            ActiveTab = Tabs[index];
+        }
+    }
+
     public Task PreviewTableAsync(TableNode table) => PreviewTableAsync(table.Schema, table.Name);
 
     public async Task PreviewTableAsync(string schema, string name, string? initialFilter = null)
@@ -726,40 +770,16 @@ public sealed partial class MainViewModel : ObservableObject
         CommandPalette.SetItems(baseItems.Concat(BuildTableItems(_relationCache)).ToList());
     }
 
-    private IEnumerable<PaletteItem> BuildActionItems()
-    {
-        yield return new PaletteItem("Run query", "Action", "▶", Invoke(() => ActiveTab.RunCommand), Hotkeys.Label("Enter"));
-        yield return new PaletteItem("Cancel query", "Action", "■", Invoke(() => ActiveTab.CancelCommand), "Esc");
-        yield return new PaletteItem("Explain", "Action", "⚡", Invoke(() => ActiveTab.ExplainCommand));
-        yield return new PaletteItem("Explain Analyze", "Action", "⚡", Invoke(() => ActiveTab.ExplainAnalyzeCommand));
-        yield return new PaletteItem("Import query plan (paste EXPLAIN JSON or text)…", "Action", "⭳", () => { ImportPlanRequested?.Invoke(); return Task.CompletedTask; });
-        yield return new PaletteItem("Begin transaction", "Action", "⛃", Invoke(() => BeginTransactionCommand));
-        yield return new PaletteItem("Commit transaction", "Action", "✓", Invoke(() => CommitTransactionCommand));
-        yield return new PaletteItem("Rollback transaction", "Action", "↺", Invoke(() => RollbackTransactionCommand));
-        yield return new PaletteItem("Refresh database & schema", "Action", "⟳", Invoke(() => RefreshSchemaCommand), Hotkeys.Label("Shift+R"));
-        yield return new PaletteItem("Server activity", "Action", "∿", () => { ActivityRequested?.Invoke(); return Task.CompletedTask; });
-        yield return new PaletteItem("Database overview (sizes, cache hit, unused indexes)", "Action", "▦", () => { DatabaseOverviewRequested?.Invoke(); return Task.CompletedTask; });
-        yield return new PaletteItem("New query tab", "Action", "＋", Invoke(() => AddTabCommand), Hotkeys.Label("T"));
-        yield return new PaletteItem("Close tab", "Action", "✕", Invoke(() => CloseTabCommand), Hotkeys.Label("W"));
-        yield return new PaletteItem("Next tab", "Action", "›", Invoke(() => NextTabCommand), Hotkeys.Label("PgDn"));
-        yield return new PaletteItem("Previous tab", "Action", "‹", Invoke(() => PreviousTabCommand), Hotkeys.Label("PgUp"));
-        yield return new PaletteItem("Format SQL", "Action", "❖", Invoke(() => FormatSqlCommand), $"{Hotkeys.Label("Shift+F")} / Alt+Shift+F");
-        yield return new PaletteItem("Toggle word wrap (Notepad++ style)", "Action", "↩", Invoke(() => ToggleWordWrapCommand));
-        yield return new PaletteItem("Find in editor", "Action", "⌕", () => { FindRequested?.Invoke(false); return Task.CompletedTask; }, Hotkeys.Label("F"));
-        yield return new PaletteItem("Find & replace in editor", "Action", "⌕", () => { FindRequested?.Invoke(true); return Task.CompletedTask; }, Hotkeys.Label("H"));
-        yield return new PaletteItem("Expand SELECT * into columns", "Action", "✳", () => { ExpandStarRequested?.Invoke(); return Task.CompletedTask; });
-        yield return new PaletteItem("Toggle sidebar", "Action", "◫", () => { SidebarToggleRequested?.Invoke(); return Task.CompletedTask; }, Hotkeys.Label("B"));
-        yield return new PaletteItem("Toggle auto-alias tables (orders → orders o)", "Action", "a", Invoke(() => ToggleAutoAliasCommand), Hotkeys.Label("Shift+A"));
-        yield return new PaletteItem("Toggle safe mode (stage grid changes, review & commit)", "Action", "⛨", Invoke(() => ToggleSafeModeCommand));
-        yield return new PaletteItem("Switch connection…", "Action", "⇄", () => { SwitchConnectionRequested?.Invoke(); return Task.CompletedTask; });
-        yield return new PaletteItem("Open connection in new window…", "Action", "⧉", Invoke(() => OpenNewWindowCommand));
-        yield return new PaletteItem("Toggle light/dark theme", "Action", "◐", () => { ThemeToggleRequested?.Invoke(); return Task.CompletedTask; });
-        yield return new PaletteItem("Preferences…", "Action", "⚙", Invoke(() => ShowPreferencesCommand), Hotkeys.Label(","));
-        yield return new PaletteItem("Keyboard shortcuts", "Action", "?", () => { ShortcutsRequested?.Invoke(); return Task.CompletedTask; }, "F1");
-        yield return new PaletteItem("Open .sql file…", "Action", "↥", Invoke(() => OpenFileCommand), Hotkeys.Label("O"));
-        yield return new PaletteItem("Save tab to file", "Action", "↧", Invoke(() => SaveFileCommand), Hotkeys.Label("S"));
-        yield return new PaletteItem("Save tab as…", "Action", "↧", Invoke(() => SaveFileAsCommand), Hotkeys.Label("Shift+S"));
-    }
+    // One row per catalog entry flagged for the palette, in catalog order —
+    // title, glyph and the trailing shortcut label all come from there, so the
+    // palette can't drift from the key bindings or the F1 sheet.
+    private IEnumerable<PaletteItem> BuildActionItems() =>
+        CommandCatalog.On(CommandSurface.Palette).Select(descriptor => new PaletteItem(
+            descriptor.Title,
+            "Action",
+            descriptor.Glyph,
+            Invoke(() => CommandBindings.Resolve(descriptor.Id, this)),
+            descriptor.ShortcutLabel(Hotkeys.CommandLabel)));
 
     private IEnumerable<PaletteItem> BuildSavedQueryItems() =>
         SavedQueries.SavedQueries.Select(q => new PaletteItem(

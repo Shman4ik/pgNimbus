@@ -9,6 +9,7 @@ using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using PgNimbus.App.ViewModels;
+using PgNimbus.Core.Commands;
 using PgNimbus.Core.Query;
 
 namespace PgNimbus.App.Views;
@@ -184,17 +185,17 @@ public partial class MainWindow : Window
         {
             Items =
             {
-                CommandItem("New Query Tab", () => _viewModel?.AddTabCommand, new KeyGesture(Key.T, cmd)),
-                CommandItem("Open .sql File…", () => _viewModel?.OpenFileCommand, new KeyGesture(Key.O, cmd)),
+                CommandItem("New Query Tab", CommandId.NewTab),
+                CommandItem("Open .sql File…", CommandId.OpenFile),
                 new NativeMenuItem("Open Recent") { Menu = recentMenu },
                 new NativeMenuItemSeparator(),
-                CommandItem("Save", () => _viewModel?.SaveFileCommand, new KeyGesture(Key.S, cmd)),
-                CommandItem("Save As…", () => _viewModel?.SaveFileAsCommand, new KeyGesture(Key.S, cmd | KeyModifiers.Shift)),
+                CommandItem("Save", CommandId.SaveFile),
+                CommandItem("Save As…", CommandId.SaveFileAs),
                 new NativeMenuItemSeparator(),
-                CommandItem("Close Tab", () => _viewModel?.CloseTabCommand, new KeyGesture(Key.W, cmd)),
+                CommandItem("Close Tab", CommandId.CloseTab),
                 new NativeMenuItemSeparator(),
-                CommandItem("Switch Connection…", () => _viewModel?.SwitchConnectionCommand),
-                CommandItem("New Connection Window…", () => _viewModel?.OpenNewWindowCommand),
+                CommandItem("Switch Connection…", CommandId.SwitchConnection),
+                CommandItem("New Connection Window…", CommandId.NewWindow),
             },
         };
         // Like the ☰ menu's submenu: reflects the list as of menu open.
@@ -204,31 +205,39 @@ public partial class MainWindow : Window
         {
             Items =
             {
-                CommandItem("Run", () => _viewModel?.ActiveTab?.RunCommand, new KeyGesture(Key.Enter, cmd)),
-                CommandItem("Cancel", () => _viewModel?.ActiveTab?.CancelCommand),
+                CommandItem("Run", CommandId.Run),
+                CommandItem("Cancel", CommandId.Cancel),
                 new NativeMenuItemSeparator(),
-                CommandItem("Format SQL", () => _viewModel?.FormatSqlCommand),
+                CommandItem("Explain", CommandId.Explain),
+                CommandItem("Explain Analyze", CommandId.ExplainAnalyze),
                 new NativeMenuItemSeparator(),
-                CommandItem("Refresh Schema", () => _viewModel?.RefreshSchemaCommand, new KeyGesture(Key.R, cmd | KeyModifiers.Shift)),
-                CommandItem("Server Activity…", () => _viewModel?.ShowActivityCommand),
-                CommandItem("Database Overview…", () => _viewModel?.ShowDatabaseOverviewCommand),
+                CommandItem("Format SQL", CommandId.FormatSql),
+                CommandItem("Expand SELECT *", CommandId.ExpandStar),
+                new NativeMenuItemSeparator(),
+                CommandItem("Begin Transaction", CommandId.BeginTransaction),
+                CommandItem("Commit Transaction", CommandId.CommitTransaction),
+                CommandItem("Rollback Transaction", CommandId.RollbackTransaction),
+                new NativeMenuItemSeparator(),
+                CommandItem("Refresh Schema", CommandId.RefreshSchema),
+                CommandItem("Server Activity…", CommandId.ServerActivity),
+                CommandItem("Database Overview…", CommandId.DatabaseOverview),
             },
         };
 
         // Finder-style Show/Hide phrasing, re-resolved every time the menu
         // opens. AppKit appends its own "Enter Full Screen" item to the menu
         // titled "View", so full screen isn't added here.
-        var sidebarItem = ActionItem("Hide Sidebar", ToggleSidebar, new KeyGesture(Key.B, cmd));
+        var sidebarItem = ActionItem("Hide Sidebar", ToggleSidebar, CommandBindings.GestureFor(CommandId.ToggleSidebar));
         var viewMenu = new NativeMenu
         {
             Items =
             {
-                ActionItem("Command Palette…", OpenCommandPalette, new KeyGesture(Key.K, cmd)),
+                ActionItem("Command Palette…", OpenCommandPalette, CommandBindings.GestureFor(CommandId.CommandPalette)),
                 new NativeMenuItemSeparator(),
                 sidebarItem,
                 ActionItem("Toggle Light/Dark Theme", ToggleTheme),
                 new NativeMenuItemSeparator(),
-                ActionItem("Keyboard Shortcuts", ShowShortcutsWindow, new KeyGesture(Key.F1)),
+                ActionItem("Keyboard Shortcuts", ShowShortcutsWindow, CommandBindings.GestureFor(CommandId.ShortcutsWindow)),
             },
         };
         viewMenu.NeedsUpdate += (_, _) => sidebarItem.Header = _sidebarCollapsed ? "Show Sidebar" : "Hide Sidebar";
@@ -257,6 +266,14 @@ public partial class MainWindow : Window
             },
         });
     }
+
+    /// <summary>
+    /// A menu item for a catalog command: the gesture shown next to it and the
+    /// command it runs both come from the catalog, so the menu can't advertise
+    /// a shortcut the window doesn't actually bind.
+    /// </summary>
+    private NativeMenuItem CommandItem(string header, CommandId id) =>
+        CommandItem(header, () => ResolveCommand(id), CommandBindings.GestureFor(id));
 
     private static NativeMenuItem CommandItem(string header, Func<System.Windows.Input.ICommand?> resolve, KeyGesture? gesture = null)
     {
@@ -309,42 +326,65 @@ public partial class MainWindow : Window
         BuildMacNativeMenu();
 
         KeyBindings.Clear();
-        Add(new KeyGesture(Key.Enter, Hotkeys.Command), () => _viewModel?.ActiveTab?.RunCommand);
-        Add(new KeyGesture(Key.F5), () => _viewModel?.ActiveTab?.RunCommand);
-        Add(new KeyGesture(Key.Escape), () => _viewModel?.ActiveTab?.CancelCommand);
-        Add(new KeyGesture(Key.T, Hotkeys.Command), () => _viewModel?.AddTabCommand);
-        // No parameter: CloseTab falls back to the active tab.
-        Add(new KeyGesture(Key.W, Hotkeys.Command), () => _viewModel?.CloseTabCommand);
-        Add(new KeyGesture(Key.PageDown, Hotkeys.Command), () => _viewModel?.NextTabCommand);
-        Add(new KeyGesture(Key.PageUp, Hotkeys.Command), () => _viewModel?.PreviousTabCommand);
-        Add(new KeyGesture(Key.R, Hotkeys.Command | KeyModifiers.Shift), () => _viewModel?.RefreshSchemaCommand);
-        // Ctrl/Cmd+, — the near-universal preferences shortcut.
-        Add(new KeyGesture(Key.OemComma, Hotkeys.Command), () => _viewModel?.ShowPreferencesCommand);
-        Add(new KeyGesture(Key.A, Hotkeys.Command | KeyModifiers.Shift), () => _viewModel?.ToggleAutoAliasCommand);
-        Add(new KeyGesture(Key.O, Hotkeys.Command), () => _viewModel?.OpenFileCommand);
-        Add(new KeyGesture(Key.S, Hotkeys.Command), () => _viewModel?.SaveFileCommand);
-        Add(new KeyGesture(Key.S, Hotkeys.Command | KeyModifiers.Shift), () => _viewModel?.SaveFileAsCommand);
+
+        // Every window-level shortcut comes from the catalog — this loop is the
+        // whole list. Gestures that a KeyBinding can't express (focus toggles,
+        // keys a panel binds itself) are handled in OnKeyDown, still matching
+        // the catalog's chord via CommandBindings.Matches.
+        foreach (var descriptor in CommandCatalog.On(CommandSurface.WindowBinding))
+        {
+            var id = descriptor.Id;
+            Add(CommandBindings.ToGesture(descriptor.Chord!.Value), () => ResolveCommand(id));
+            if (descriptor.AltChord is { } alt)
+            {
+                Add(CommandBindings.ToGesture(alt), () => ResolveCommand(id));
+            }
+        }
+
+        // Ctrl/Cmd+1…9 jumps straight to a tab. Nine near-identical catalog
+        // rows would just be palette noise, so the catalog documents the range
+        // (CommandId.GoToTabByNumber) and the digits are bound here.
+        for (var i = 0; i < 9; i++)
+        {
+            KeyBindings.Add(new KeyBinding
+            {
+                Gesture = new KeyGesture(Key.D1 + i, Hotkeys.Command),
+                Command = new DelegatedCommand(() => _viewModel?.GoToTabCommand),
+                CommandParameter = i,
+            });
+        }
 
         // The gear button's tooltip carries the shortcut, so it's set here
         // (not in XAML) to track the live Ctrl/Cmd scheme.
-        ToolTip.SetTip(PreferencesButton, $"Preferences ({Hotkeys.Label(",")})");
+        ToolTip.SetTip(PreferencesButton, $"Preferences ({Label(CommandId.Preferences)})");
+        ToolTip.SetTip(SidebarToggleButton, $"Toggle sidebar ({Label(CommandId.ToggleSidebar)})");
 
         // Same for the ☰ menu's shortcut captions: display-only gestures whose
         // Ctrl/Cmd side must match the bindings built just above.
-        MenuNewTab.InputGesture = new KeyGesture(Key.T, Hotkeys.Command);
-        MenuOpenFile.InputGesture = new KeyGesture(Key.O, Hotkeys.Command);
-        MenuSaveFile.InputGesture = new KeyGesture(Key.S, Hotkeys.Command);
-        MenuSaveFileAs.InputGesture = new KeyGesture(Key.S, Hotkeys.Command | KeyModifiers.Shift);
-        MenuCloseTab.InputGesture = new KeyGesture(Key.W, Hotkeys.Command);
-        MenuPreferences.InputGesture = new KeyGesture(Key.OemComma, Hotkeys.Command);
+        MenuNewTab.InputGesture = CommandBindings.GestureFor(CommandId.NewTab);
+        MenuOpenFile.InputGesture = CommandBindings.GestureFor(CommandId.OpenFile);
+        MenuSaveFile.InputGesture = CommandBindings.GestureFor(CommandId.SaveFile);
+        MenuSaveFileAs.InputGesture = CommandBindings.GestureFor(CommandId.SaveFileAs);
+        MenuCloseTab.InputGesture = CommandBindings.GestureFor(CommandId.CloseTab);
+        MenuPreferences.InputGesture = CommandBindings.GestureFor(CommandId.Preferences);
+        MenuSwitchConnection.InputGesture = CommandBindings.GestureFor(CommandId.SwitchConnection);
+        MenuNewWindow.InputGesture = CommandBindings.GestureFor(CommandId.NewWindow);
 
         // And the search pill's caption (the palette itself opens from
-        // OnKeyDown, which reads Hotkeys.Command live).
-        PaletteSearchShortcut.Text = Hotkeys.Label("K");
+        // OnKeyDown, which reads the catalog's chord live).
+        PaletteSearchShortcut.Text = Label(CommandId.CommandPalette);
 
         void Add(KeyGesture gesture, Func<System.Windows.Input.ICommand?> resolve) =>
             KeyBindings.Add(new KeyBinding { Gesture = gesture, Command = new DelegatedCommand(resolve) });
     }
+
+    /// <summary>The catalog's command, bound to this window's view model.</summary>
+    private System.Windows.Input.ICommand? ResolveCommand(CommandId id) =>
+        _viewModel is null ? null : CommandBindings.Resolve(id, _viewModel);
+
+    /// <summary>"Ctrl+K" — a command's primary chord in the live Ctrl/Cmd scheme.</summary>
+    private static string Label(CommandId id) =>
+        CommandCatalog.ChordFor(id)?.Label(Hotkeys.CommandLabel) ?? string.Empty;
 
     // F6 hops focus between the SQL editor and the results grid (the two
     // keyboard workspaces). Done in code because the target depends on where
@@ -358,21 +398,24 @@ public partial class MainWindow : Window
             return;
         }
 
-        if ((e.Key == Key.K || e.Key == Key.P) && e.KeyModifiers.HasFlag(Hotkeys.Command))
+        // These read their gestures from the catalog like every other shortcut;
+        // they're handled here rather than as KeyBindings because each does
+        // something a KeyBinding can't express (see the comment on each).
+        if (CommandBindings.Matches(CommandId.CommandPalette, e) || CommandBindings.MatchesAlt(CommandId.CommandPalette, e))
         {
             OpenCommandPalette();
             e.Handled = true;
             return;
         }
 
-        if (e.Key == Key.F1 && e.KeyModifiers == KeyModifiers.None)
+        if (CommandBindings.Matches(CommandId.ShortcutsWindow, e))
         {
             ShowShortcutsWindow();
             e.Handled = true;
             return;
         }
 
-        if (e.Key == Key.B && e.KeyModifiers == Hotkeys.Command)
+        if (CommandBindings.Matches(CommandId.ToggleSidebar, e))
         {
             ToggleSidebar();
             e.Handled = true;
@@ -382,21 +425,21 @@ public partial class MainWindow : Window
         // Find / find & replace in the SQL editor. Handled here rather than a
         // KeyBinding so the Cmd scheme works even though SearchPanel.Install
         // also binds the physical Ctrl+F internally.
-        if (e.Key == Key.F && e.KeyModifiers == Hotkeys.Command)
+        if (CommandBindings.Matches(CommandId.Find, e))
         {
             QueryEditor.OpenSearch(replaceMode: false);
             e.Handled = true;
             return;
         }
 
-        if (e.Key == Key.H && e.KeyModifiers == Hotkeys.Command)
+        if (CommandBindings.Matches(CommandId.FindReplace, e))
         {
             QueryEditor.OpenSearch(replaceMode: true);
             e.Handled = true;
             return;
         }
 
-        if (e.Key == Key.F6 && e.KeyModifiers == KeyModifiers.None)
+        if (CommandBindings.Matches(CommandId.FocusSwap, e))
         {
             if (QueryEditor.IsEditorFocused)
             {

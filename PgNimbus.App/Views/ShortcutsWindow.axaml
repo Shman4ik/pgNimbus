@@ -1,6 +1,8 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:PgNimbus.App.ViewModels"
         x:Class="PgNimbus.App.Views.ShortcutsWindow"
+        x:DataType="vm:ShortcutsViewModel"
         Title="pgNimbus — Keyboard Shortcuts"
         Width="600" Height="700"
         MinWidth="480" MinHeight="400"
@@ -30,300 +32,58 @@
         <Style Selector="TextBlock.what">
             <Setter Property="FontSize" Value="13" />
             <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="TextWrapping" Value="Wrap" />
         </Style>
         <Style Selector="Grid.shortcutRow">
             <Setter Property="Margin" Value="10,5" />
         </Style>
-        <Style Selector="StackPanel.keys">
-            <Setter Property="Orientation" Value="Horizontal" />
-            <Setter Property="Spacing" Value="4" />
-            <Setter Property="HorizontalAlignment" Value="Right" />
-        </Style>
     </Window.Styles>
 
+    <!-- Every row below is generated from PgNimbus.Core.Commands.CommandCatalog
+         (via ShortcutsViewModel), which is also what builds the window's key
+         bindings, the command palette and docs/reference/keyboard-shortcuts.md.
+         Add a shortcut to the catalog and it shows up here on its own — never
+         hand-author a row in this file. -->
     <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-        <StackPanel Margin="20" Spacing="6">
-
-            <TextBlock Classes="sectionHeader" Text="QUERY" Margin="4,0,4,4" />
-            <Border Classes="card" Padding="4">
-                <StackPanel>
-                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
-                        <TextBlock Classes="what" Text="Run query" />
-                        <StackPanel Grid.Column="1" Classes="keys">
-                            <Border Classes="kbd"><TextBlock Classes="cmdKey" Text="Ctrl" /></Border>
-                            <Border Classes="kbd"><TextBlock Text="Enter" /></Border>
-                            <TextBlock Classes="combo" Text="or" />
-                            <Border Classes="kbd"><TextBlock Text="F5" /></Border>
-                        </StackPanel>
-                    </Grid>
-                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
-                        <TextBlock Classes="what" Text="Run just the statement under the cursor" />
-                        <StackPanel Grid.Column="1" Classes="keys">
-                            <Border Classes="kbd"><TextBlock Text="Shift" /></Border>
-                            <Border Classes="kbd"><TextBlock Text="Enter" /></Border>
-                        </StackPanel>
-                    </Grid>
-                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
-                        <TextBlock Classes="what" Text="Cancel running query" />
-                        <StackPanel Grid.Column="1" Classes="keys">
-                            <Border Classes="kbd"><TextBlock Text="Esc" /></Border>
-                        </StackPanel>
-                    </Grid>
-                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
-                        <TextBlock Classes="what" Text="Format the statement under the cursor" />
-                        <StackPanel Grid.Column="1" Classes="keys">
-                            <Border Classes="kbd"><TextBlock Classes="cmdKey" Text="Ctrl" /></Border>
-                            <Border Classes="kbd"><TextBlock Text="Shift" /></Border>
-                            <Border Classes="kbd"><TextBlock Text="F" /></Border>
-                            <TextBlock Classes="combo" Text="or" />
-                            <Border Classes="kbd"><TextBlock Text="Alt" /></Border>
-                            <Border Classes="kbd"><TextBlock Text="Shift" /></Border>
-                            <Border Classes="kbd"><TextBlock Text="F" /></Border>
-                        </StackPanel>
-                    </Grid>
-                </StackPanel>
-            </Border>
-
-            <TextBlock Classes="sectionHeader" Text="TABS" Margin="4,10,4,4" />
-            <Border Classes="card" Padding="4">
-                <StackPanel>
-                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
-                        <TextBlock Classes="what" Text="New query tab" />
-                        <StackPanel Grid.Column="1" Classes="keys">
-                            <Border Classes="kbd"><TextBlock Classes="cmdKey" Text="Ctrl" /></Border>
-                            <Border Classes="kbd"><TextBlock Text="T" /></Border>
-                        </StackPanel>
-                    </Grid>
-                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
-                        <TextBlock Classes="what" Text="Close tab" />
-                        <StackPanel Grid.Column="1" Classes="keys">
-                            <Border Classes="kbd"><TextBlock Classes="cmdKey" Text="Ctrl" /></Border>
-                            <Border Classes="kbd"><TextBlock Text="W" /></Border>
-                        </StackPanel>
-                    </Grid>
-                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
-                        <TextBlock Classes="what" Text="Next tab" />
-                        <StackPanel Grid.Column="1" Classes="keys">
-                            <Border Classes="kbd"><TextBlock Classes="cmdKey" Text="Ctrl" /></Border>
-                            <Border Classes="kbd"><TextBlock Text="PageDown" /></Border>
-                        </StackPanel>
-                    </Grid>
-                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
-                        <TextBlock Classes="what" Text="Previous tab" />
-                        <StackPanel Grid.Column="1" Classes="keys">
-                            <Border Classes="kbd"><TextBlock Classes="cmdKey" Text="Ctrl" /></Border>
-                            <Border Classes="kbd"><TextBlock Text="PageUp" /></Border>
-                        </StackPanel>
-                    </Grid>
-                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
-                        <TextBlock Classes="what" Text="Open a .sql file" />
-                        <StackPanel Grid.Column="1" Classes="keys">
-                            <Border Classes="kbd"><TextBlock Classes="cmdKey" Text="Ctrl" /></Border>
-                            <Border Classes="kbd"><TextBlock Text="O" /></Border>
-                        </StackPanel>
-                    </Grid>
-                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
-                        <TextBlock Classes="what" Text="Save the active tab to a .sql file" />
-                        <StackPanel Grid.Column="1" Classes="keys">
-                            <Border Classes="kbd"><TextBlock Classes="cmdKey" Text="Ctrl" /></Border>
-                            <Border Classes="kbd"><TextBlock Text="S" /></Border>
-                        </StackPanel>
-                    </Grid>
-                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
-                        <TextBlock Classes="what" Text="Save the active tab as…" />
-                        <StackPanel Grid.Column="1" Classes="keys">
-                            <Border Classes="kbd"><TextBlock Classes="cmdKey" Text="Ctrl" /></Border>
-                            <Border Classes="kbd"><TextBlock Text="Shift" /></Border>
-                            <Border Classes="kbd"><TextBlock Text="S" /></Border>
-                        </StackPanel>
-                    </Grid>
-                </StackPanel>
-            </Border>
-
-            <TextBlock Classes="sectionHeader" Text="SQL EDITOR" Margin="4,10,4,4" />
-            <Border Classes="card" Padding="4">
-                <StackPanel>
-                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
-                        <TextBlock Classes="what" Text="Autocomplete (also triggers while typing)" />
-                        <StackPanel Grid.Column="1" Classes="keys">
-                            <!-- Deliberately NOT cmdKey: completion stays on the physical
-                                 Ctrl key everywhere (Cmd+Space is Spotlight on macOS). -->
-                            <Border Classes="kbd"><TextBlock Text="Ctrl" /></Border>
-                            <Border Classes="kbd"><TextBlock Text="Space" /></Border>
-                        </StackPanel>
-                    </Grid>
-                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
-                        <TextBlock Classes="what" Text="Find / find &amp; replace" />
-                        <StackPanel Grid.Column="1" Classes="keys">
-                            <Border Classes="kbd"><TextBlock Classes="cmdKey" Text="Ctrl" /></Border>
-                            <Border Classes="kbd"><TextBlock Text="F" /></Border>
-                            <TextBlock Classes="combo" Text="/" />
-                            <Border Classes="kbd"><TextBlock Classes="cmdKey" Text="Ctrl" /></Border>
-                            <Border Classes="kbd"><TextBlock Text="H" /></Border>
-                        </StackPanel>
-                    </Grid>
-                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
-                        <TextBlock Classes="what" Text="Next / previous match" />
-                        <StackPanel Grid.Column="1" Classes="keys">
-                            <Border Classes="kbd"><TextBlock Text="F3" /></Border>
-                            <TextBlock Classes="combo" Text="/" />
-                            <Border Classes="kbd"><TextBlock Text="Shift" /></Border>
-                            <Border Classes="kbd"><TextBlock Text="F3" /></Border>
-                        </StackPanel>
-                    </Grid>
-                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
-                        <TextBlock Classes="what" Text="Undo / Redo" />
-                        <StackPanel Grid.Column="1" Classes="keys">
-                            <Border Classes="kbd"><TextBlock Classes="cmdKey" Text="Ctrl" /></Border>
-                            <Border Classes="kbd"><TextBlock Text="Z" /></Border>
-                            <TextBlock Classes="combo" Text="/" />
-                            <Border Classes="kbd"><TextBlock Classes="cmdKey" Text="Ctrl" /></Border>
-                            <Border Classes="kbd"><TextBlock Text="Y" /></Border>
-                        </StackPanel>
-                    </Grid>
-                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
-                        <TextBlock Classes="what" Text="Delete whole line" />
-                        <StackPanel Grid.Column="1" Classes="keys">
-                            <Border Classes="kbd"><TextBlock Classes="cmdKey" Text="Ctrl" /></Border>
-                            <Border Classes="kbd"><TextBlock Text="D" /></Border>
-                        </StackPanel>
-                    </Grid>
-                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
-                        <TextBlock Classes="what" Text="Zoom font size in / out" />
-                        <StackPanel Grid.Column="1" Classes="keys">
-                            <Border Classes="kbd"><TextBlock Classes="cmdKey" Text="Ctrl" /></Border>
-                            <Border Classes="kbd"><TextBlock Text="+" /></Border>
-                            <TextBlock Classes="combo" Text="/" />
-                            <Border Classes="kbd"><TextBlock Classes="cmdKey" Text="Ctrl" /></Border>
-                            <Border Classes="kbd"><TextBlock Text="−" /></Border>
-                            <TextBlock Classes="combo" Text="or" />
-                            <Border Classes="kbd"><TextBlock Classes="cmdKey" Text="Ctrl" /></Border>
-                            <TextBlock Classes="combo" Text="wheel" />
-                        </StackPanel>
-                    </Grid>
-                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
-                        <TextBlock Classes="what" Text="Reset font size" />
-                        <StackPanel Grid.Column="1" Classes="keys">
-                            <Border Classes="kbd"><TextBlock Classes="cmdKey" Text="Ctrl" /></Border>
-                            <Border Classes="kbd"><TextBlock Text="0" /></Border>
-                        </StackPanel>
-                    </Grid>
-                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
-                        <TextBlock Classes="what" Text="Toggle auto-alias on table completion" />
-                        <StackPanel Grid.Column="1" Classes="keys">
-                            <Border Classes="kbd"><TextBlock Classes="cmdKey" Text="Ctrl" /></Border>
-                            <Border Classes="kbd"><TextBlock Text="Shift" /></Border>
-                            <Border Classes="kbd"><TextBlock Text="A" /></Border>
-                        </StackPanel>
-                    </Grid>
-                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
-                        <TextBlock Classes="what" Text="Move to word start / end" />
-                        <StackPanel Grid.Column="1" Classes="keys">
-                            <Border Classes="kbd"><TextBlock Classes="cmdKey" Text="Ctrl" /></Border>
-                            <Border Classes="kbd"><TextBlock Text="←" /></Border>
-                            <TextBlock Classes="combo" Text="/" />
-                            <Border Classes="kbd"><TextBlock Classes="cmdKey" Text="Ctrl" /></Border>
-                            <Border Classes="kbd"><TextBlock Text="→" /></Border>
-                        </StackPanel>
-                    </Grid>
-                </StackPanel>
-            </Border>
-
-            <TextBlock Classes="sectionHeader" Text="RESULTS GRID" Margin="4,10,4,4" />
-            <Border Classes="card" Padding="4">
-                <StackPanel>
-                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
-                        <TextBlock Classes="what" Text="Edit selected cell" />
-                        <StackPanel Grid.Column="1" Classes="keys">
-                            <TextBlock Classes="combo" Text="Double-click" />
-                            <TextBlock Classes="combo" Text="or" />
-                            <Border Classes="kbd"><TextBlock Text="F2" /></Border>
-                        </StackPanel>
-                    </Grid>
-                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
-                        <TextBlock Classes="what" Text="Commit / cancel cell edit" />
-                        <StackPanel Grid.Column="1" Classes="keys">
-                            <Border Classes="kbd"><TextBlock Text="Enter" /></Border>
-                            <TextBlock Classes="combo" Text="/" />
-                            <Border Classes="kbd"><TextBlock Text="Esc" /></Border>
-                        </StackPanel>
-                    </Grid>
-                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
-                        <TextBlock Classes="what" Text="Set cell to NULL" />
-                        <StackPanel Grid.Column="1" Classes="keys">
-                            <TextBlock Classes="combo" Text="context menu" />
-                        </StackPanel>
-                    </Grid>
-                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
-                        <TextBlock Classes="what" Text="Inspect cell (full value, pretty-printed JSON)" />
-                        <StackPanel Grid.Column="1" Classes="keys">
-                            <Border Classes="kbd"><TextBlock Text="Space" /></Border>
-                            <TextBlock Classes="combo" Text="/" />
-                            <TextBlock Classes="combo" Text="double-click (read-only)" />
-                            <TextBlock Classes="combo" Text="/" />
-                            <TextBlock Classes="combo" Text="context menu" />
-                        </StackPanel>
-                    </Grid>
-                </StackPanel>
-            </Border>
-
-            <TextBlock Classes="sectionHeader" Text="NAVIGATION" Margin="4,10,4,4" />
-            <Border Classes="card" Padding="4">
-                <StackPanel>
-                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
-                        <TextBlock Classes="what" Text="Command palette (jump to table / query / action)" />
-                        <StackPanel Grid.Column="1" Classes="keys">
-                            <Border Classes="kbd"><TextBlock Classes="cmdKey" Text="Ctrl" /></Border>
-                            <Border Classes="kbd"><TextBlock Text="K" /></Border>
-                            <TextBlock Classes="combo" Text="or" />
-                            <Border Classes="kbd"><TextBlock Classes="cmdKey" Text="Ctrl" /></Border>
-                            <Border Classes="kbd"><TextBlock Text="P" /></Border>
-                        </StackPanel>
-                    </Grid>
-                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
-                        <TextBlock Classes="what" Text="Refresh database &amp; schema" />
-                        <StackPanel Grid.Column="1" Classes="keys">
-                            <Border Classes="kbd"><TextBlock Classes="cmdKey" Text="Ctrl" /></Border>
-                            <Border Classes="kbd"><TextBlock Text="Shift" /></Border>
-                            <Border Classes="kbd"><TextBlock Text="R" /></Border>
-                        </StackPanel>
-                    </Grid>
-                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
-                        <TextBlock Classes="what" Text="Switch focus: editor ↔ results grid" />
-                        <StackPanel Grid.Column="1" Classes="keys">
-                            <Border Classes="kbd"><TextBlock Text="F6" /></Border>
-                        </StackPanel>
-                    </Grid>
-                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
-                        <TextBlock Classes="what" Text="Collapse / show the sidebar" />
-                        <StackPanel Grid.Column="1" Classes="keys">
-                            <Border Classes="kbd"><TextBlock Classes="cmdKey" Text="Ctrl" /></Border>
-                            <Border Classes="kbd"><TextBlock Text="B" /></Border>
-                        </StackPanel>
-                    </Grid>
-                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
-                        <TextBlock Classes="what" Text="Preview a table (in the schema tree)" />
-                        <StackPanel Grid.Column="1" Classes="keys">
-                            <TextBlock Classes="combo" Text="Double-click" />
-                        </StackPanel>
-                    </Grid>
-                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
-                        <TextBlock Classes="what" Text="Preferences" />
-                        <StackPanel Grid.Column="1" Classes="keys">
-                            <Border Classes="kbd"><TextBlock Classes="cmdKey" Text="Ctrl" /></Border>
-                            <Border Classes="kbd"><TextBlock Text="," /></Border>
-                        </StackPanel>
-                    </Grid>
-                    <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
-                        <TextBlock Classes="what" Text="This window" />
-                        <StackPanel Grid.Column="1" Classes="keys">
-                            <Border Classes="kbd"><TextBlock Text="F1" /></Border>
-                        </StackPanel>
-                    </Grid>
-                </StackPanel>
-            </Border>
-
-        </StackPanel>
+        <ItemsControl ItemsSource="{Binding Sections}" Margin="20">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:ShortcutSection">
+                    <StackPanel Spacing="4" Margin="0,0,0,14">
+                        <TextBlock Classes="sectionHeader" Text="{Binding Title}" Margin="4,0,4,4" />
+                        <Border Classes="card" Padding="4">
+                            <ItemsControl ItemsSource="{Binding Rows}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:ShortcutRow">
+                                        <Grid Classes="shortcutRow" ColumnDefinitions="*,Auto">
+                                            <TextBlock Classes="what" Text="{Binding Action}" />
+                                            <ItemsControl Grid.Column="1" ItemsSource="{Binding Tokens}"
+                                                          HorizontalAlignment="Right" Margin="12,0,0,0">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <StackPanel Orientation="Horizontal" Spacing="4" />
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="vm:ShortcutToken">
+                                                        <Panel>
+                                                            <Border Classes="kbd" IsVisible="{Binding IsKey}">
+                                                                <TextBlock Text="{Binding Text}" />
+                                                            </Border>
+                                                            <TextBlock Classes="combo" IsVisible="{Binding !IsKey}"
+                                                                       Text="{Binding Text}" />
+                                                        </Panel>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Border>
+                    </StackPanel>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
     </ScrollViewer>
 
 </Window>
