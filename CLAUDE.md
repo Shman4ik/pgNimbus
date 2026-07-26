@@ -590,13 +590,29 @@ apt-get install -y clang zlib1g-dev         # only for NativeAOT publish (linux-
 
 The linux-x64 NativeAOT publish works and is the build to use for
 startup-time claims (`dotnet publish PgNimbus.App -c Release -r linux-x64
--p:PublishAot=true`, ~100 ms launch-to-window vs ~700 ms JIT). Two
+-p:PublishAot=true`, ~100 ms launch-to-window vs ~700 ms JIT). Three
 AOT-specific landmines are already handled in the codebase — keep them
 that way: `SatelliteResourceLanguages=en` in the App csproj (a
 culture-named satellite assembly + InvariantGlobalization crashes
 Avalonia's asset resolver at startup under AOT, surfacing as a bogus
-"avares://... not found") and no reflection binding paths (the results
-grid binds columns via `RowIndexConverter`, not `"[i]"` indexer paths).
+"avares://... not found"); no reflection binding paths (the results
+grid binds columns via `RowIndexConverter`, not `"[i]"` indexer paths);
+and **no reflection-based `System.Text.Json`** — AOT turns
+`JsonSerializerIsReflectionEnabledByDefault` off, so any
+`JsonSerializer.Serialize/Deserialize` overload that doesn't take a
+`JsonTypeInfo`/`JsonSerializerContext` throws at runtime ("Reflection-based
+serialization has been disabled for this application"). Every persisted store
+uses a source-generated context (`AppSettingsJsonContext`,
+`WorkspaceJsonContext`, …); everything that touches arbitrary user JSON —
+`ResultExporter`'s JSON export, `JsonTree`, `ExplainService`, and the cell
+inspector's Format/Minify — goes through `JsonDocument` + `Utf8JsonWriter`
+by hand, which needs no type model at all. That's enforced at build time:
+`PgNimbus.Core` carries `IsAotCompatible`, and `PgNimbus.App` sets
+`EnableTrimAnalyzer`/`EnableAotAnalyzer` directly (it's an exe, so
+`IsAotCompatible`'s implied `IsTrimmable` doesn't fit), so an offending call
+surfaces as IL2026/IL3050 on an ordinary `dotnet build` instead of as a crash
+in a shipped release. Both projects are currently at zero IL warnings — keep
+them there.
 
 Then, to actually see and drive the UI:
 

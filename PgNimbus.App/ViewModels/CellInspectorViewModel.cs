@@ -1,3 +1,5 @@
+using System.Buffers;
+using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Unicode;
@@ -112,18 +114,23 @@ public sealed partial class CellInspectorViewModel : ObservableObject
     // a plain text column holding a JSON-looking string must accept any string.
     private bool _validatesAsJson;
 
-    private static readonly JsonSerializerOptions PrettyPrintOptions = new()
+    // Re-rendering goes through Utf8JsonWriter + JsonDocument.WriteTo, never
+    // JsonSerializer.Serialize(document, ...): the latter is the reflection-based
+    // serializer, which NativeAOT disables outright
+    // ("Reflection-based serialization has been disabled for this application").
+    // Same reason ResultExporter writes its JSON by hand.
+    private static readonly JsonWriterOptions PrettyPrintOptions = new()
     {
-        WriteIndented = true,
-        // Default JsonSerializer escaping is ASCII-only (everything else
-        // becomes \uXXXX) - relax to all Unicode so e.g. Cyrillic values
-        // show as themselves, not escape sequences.
+        Indented = true,
+        // Default escaping is ASCII-only (everything else becomes \uXXXX) -
+        // relax to all Unicode so e.g. Cyrillic values show as themselves,
+        // not escape sequences.
         Encoder = JavaScriptEncoder.Create(UnicodeRanges.All),
     };
 
-    private static readonly JsonSerializerOptions MinifyOptions = new()
+    private static readonly JsonWriterOptions MinifyOptions = new()
     {
-        WriteIndented = false,
+        Indented = false,
         Encoder = JavaScriptEncoder.Create(UnicodeRanges.All),
     };
 
@@ -254,19 +261,30 @@ public sealed partial class CellInspectorViewModel : ObservableObject
         _editSeeded = false;
     }
 
-    private static bool TryReformat(string text, JsonSerializerOptions options, out string result)
+    private static bool TryReformat(string text, JsonWriterOptions options, out string result)
     {
         result = text;
         try
         {
             using var document = JsonDocument.Parse(text);
-            result = JsonSerializer.Serialize(document, options);
+            result = Render(document, options);
             return true;
         }
         catch (JsonException)
         {
             return false;
         }
+    }
+
+    private static string Render(JsonDocument document, JsonWriterOptions options)
+    {
+        var buffer = new ArrayBufferWriter<byte>();
+        using (var writer = new Utf8JsonWriter(buffer, options))
+        {
+            document.WriteTo(writer);
+        }
+
+        return Encoding.UTF8.GetString(buffer.WrittenSpan);
     }
 
     private static (string Text, bool IsJson) Format(object? value)
@@ -302,7 +320,7 @@ public sealed partial class CellInspectorViewModel : ObservableObject
         try
         {
             using var document = JsonDocument.Parse(text);
-            pretty = JsonSerializer.Serialize(document, PrettyPrintOptions);
+            pretty = Render(document, PrettyPrintOptions);
             return true;
         }
         catch (JsonException)
