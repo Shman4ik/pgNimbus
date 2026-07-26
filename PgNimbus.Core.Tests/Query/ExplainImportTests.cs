@@ -186,6 +186,43 @@ public class ExplainImportTests
     }
 
     [Test]
+    public async Task BufferedAnalyzePlanParsesAndKeepsTrailerOffTheNodes()
+    {
+        // Exactly what `EXPLAIN (ANALYZE, BUFFERS)` prints — the shape a hand-written
+        // EXPLAIN in the editor produces, now parsed back into the plan views. The
+        // trailing "Planning:" section's buffers describe the statement, not the last
+        // node parsed, so they must not land in that node's details (they feed the
+        // buffers heat metric and the analyzer).
+        var text =
+            "Sort  (cost=27820.64..28320.64 rows=200000 width=4) (actual time=77.770..92.000 rows=200000.00 loops=1)\n" +
+            "  Sort Key: g DESC\n" +
+            "  Sort Method: external merge  Disk: 2400kB\n" +
+            "  Buffers: shared hit=3, temp read=1236 written=1308\n" +
+            "  ->  Function Scan on generate_series g  (cost=0.00..2000.00 rows=200000 width=4) (actual time=20.000..40.000 rows=200000.00 loops=1)\n" +
+            "        Buffers: temp read=342 written=342\n" +
+            "Planning:\n" +
+            "  Buffers: shared hit=9\n" +
+            "Planning Time: 0.079 ms\n" +
+            "Execution Time: 102.734 ms";
+
+        var result = ExplainPlanTextParser.Parse(ExplainPlanTextParser.Clean(text));
+
+        await Assert.That(result.Root.NodeType).IsEqualTo("Sort");
+        await Assert.That(result.ExecutionTimeMs).IsEqualTo(102.734);
+        await Assert.That(result.Root.Details.Select(d => d.Key)).Contains("Sort Method");
+
+        // The function scan keeps its own Buffers line and gains no second one from
+        // the Planning trailer.
+        var scan = result.Root.Children[0];
+        await Assert.That(scan.NodeType).IsEqualTo("Function Scan");
+        await Assert.That(scan.Details.Count(d => d.Key == "Buffers")).IsEqualTo(1);
+        await Assert.That(scan.Details.First(d => d.Key == "Buffers").Value).IsEqualTo("temp read=342 written=342");
+
+        // …and the spill in that sort is exactly what the analyzer should flag.
+        await Assert.That(PlanAnalyzer.Analyze(result).Any(w => w.Title == "Sort spilled to disk")).IsTrue();
+    }
+
+    [Test]
     public async Task NonPlanTextThrows()
     {
         await Assert.That(() => ExplainService.Import("hello world, this is not a plan"))

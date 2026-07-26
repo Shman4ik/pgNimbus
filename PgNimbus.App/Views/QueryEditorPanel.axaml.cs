@@ -128,7 +128,16 @@ public partial class QueryEditorPanel : UserControl
         {
             SqlEditor.TextArea.SelectionBrush = brush;
         }
-        SqlEditor.TextArea.Caret.PositionChanged += (_, _) => UpdateBracketHighlight();
+        SqlEditor.TextArea.Caret.PositionChanged += (_, _) =>
+        {
+            UpdateBracketHighlight();
+            // Feed the caret to the active tab too: with no selection, Explain uses it
+            // to pick which statement of the buffer to explain (see ExplainTarget).
+            if (_activeQuery is not null)
+            {
+                _activeQuery.CaretOffset = SqlEditor.CaretOffset;
+            }
+        };
         SqlEditor.AddHandler(PointerWheelChangedEvent, OnSqlEditorPointerWheel, RoutingStrategies.Tunnel);
 
         // Find & replace: AvaloniaEdit's SearchPanel handles matching,
@@ -290,6 +299,10 @@ public partial class QueryEditorPanel : UserControl
         _suppressEditorSync = true;
         SqlEditor.Text = _activeQuery.Sql;
         _suppressEditorSync = false;
+
+        // Seed the newly-attached tab's caret copy from where the editor actually sits,
+        // so Explain doesn't target a statement based on the previous tab's offset.
+        _activeQuery.CaretOffset = SqlEditor.CaretOffset;
     }
 
     // ViewModel → editor half of the manual two-way sync: an external Sql change

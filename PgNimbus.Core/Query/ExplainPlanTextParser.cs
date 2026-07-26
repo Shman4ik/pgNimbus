@@ -94,6 +94,11 @@ public static class ExplainPlanTextParser
         // lines that follow it; detail lines attach to the top of the stack.
         var stack = new List<(int Indent, ParsedNode Node)>();
 
+        // Set once a top-level trailer section ("Planning:", "JIT:", "Triggers:") starts:
+        // its indented lines describe the statement, not the last node parsed, so they
+        // must not land in that node's details (which feed the buffers heat + analyzer).
+        var inTrailer = false;
+
         foreach (var rawLine in lines)
         {
             if (rawLine.Trim().Length == 0)
@@ -132,8 +137,16 @@ public static class ExplainPlanTextParser
                 continue;
             }
 
+            // A bare top-level section header opens the post-tree trailer (see inTrailer).
+            if (indent == 0 && !isChild && trimmedStart.EndsWith(':') && !trimmedStart.Contains(": ", StringComparison.Ordinal))
+            {
+                inTrailer = true;
+                continue;
+            }
+
             if (isChild)
             {
+                inTrailer = false;
                 var node = ParseHeader(trimmedStart[2..].TrimStart())
                     ?? throw new FormatException($"Couldn't parse a plan node from: {trimmedStart}");
 
@@ -158,7 +171,7 @@ public static class ExplainPlanTextParser
             // node. Bare annotations without a colon (subplan headers, "Workers")
             // aren't first-class detail and are skipped.
             var colon = trimmedStart.IndexOf(": ", StringComparison.Ordinal);
-            if (colon > 0 && stack.Count > 0)
+            if (colon > 0 && stack.Count > 0 && !inTrailer)
             {
                 var key = trimmedStart[..colon];
                 var value = trimmedStart[(colon + 2)..].Trim();
