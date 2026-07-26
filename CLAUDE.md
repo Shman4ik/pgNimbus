@@ -208,6 +208,16 @@ and wrong project memory is worse than none.
    a blank screen. The dialog is resizable and remembers its own placement in
    `connection-window.json` (`WindowPlacementStore.ForConnectionDialog`) —
    deliberately a separate file from the main window's `window.json`.
+   The hand-off carries a **live `NpgsqlDataSource`, not a connection string**:
+   `NpgsqlDataSource.Create` opens no socket, so a wrong password used to
+   surface as the new window's first schema-tree error rather than in the form
+   that caused it. `ConnectAsync` opens one real connection (returned straight
+   to the pool) before raising `Connected`, and ownership travels with the data
+   source — the dialog disposes the pool *and* the SSH tunnel under it on any
+   failure, the window's `Closed` handler does so afterwards. Net cost is zero
+   round-trips: the window inherits a warm pool. The one deliberate exception is
+   `BuildMainWindow`'s string overload behind `PGNIMBUS_CONN`, which stays lazy
+   because no connect form is standing behind it.
 3. **Loading a query never overwrites the active tab.** Saved queries,
    history entries, and generated DDL all open in a *new* tab.
 4. **Tabs drag-reorder; the ☰ app menu is the file-command home.** The query
