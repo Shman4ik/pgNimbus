@@ -112,17 +112,6 @@ public partial class ResultsGridPanel : UserControl
             gridMenu.Opening += (_, _) => OnResultsGridMenuOpening();
         }
 
-        // Lock the cell inspector's JSON editor selection wash to the fixed
-        // brand-blue token (AppTextSelectionBrush in Theme.axaml, shared with
-        // every plain TextBox's Style setter), so a selection there reads
-        // identically to the SQL editor and every plain TextBox. SelectionBrush
-        // lives on TextArea, not TextEditor, so it can't be a XAML attribute.
-        if (this.TryFindResource("AppTextSelectionBrush", out var selectionBrush)
-            && selectionBrush is IBrush brush)
-        {
-            JsonInspectorEditor.TextArea.SelectionBrush = brush;
-        }
-
         ActualThemeVariantChanged += (_, _) => ApplyJsonHighlightingTheme();
         DataContextChanged += OnDataContextChanged;
     }
@@ -138,6 +127,7 @@ public partial class ResultsGridPanel : UserControl
     {
         base.OnAttachedToVisualTree(e);
         ApplyJsonHighlightingTheme();
+        ApplyTextSelectionBrush();
         HoistCellInspectorToWindowRoot();
     }
 
@@ -324,6 +314,26 @@ public partial class ResultsGridPanel : UserControl
     // The cell inspector's JSON editor gets its own highlighting, theme-rewritten
     // the same way the SQL editor's is in QueryEditorPanel (the XSHD bakes in the
     // dark palette).
+    /// <summary>
+    /// Locks the cell inspector's JSON editor selection wash to the fixed
+    /// brand-blue token (AppTextSelectionBrush in Theme.axaml, shared with every
+    /// plain TextBox's Style setter), so a selection there reads identically to
+    /// the SQL editor and every plain TextBox. SelectionBrush lives on TextArea,
+    /// not TextEditor, so it can't be a XAML attribute.
+    ///
+    /// Resolved on *attach*, not in the constructor — see the same method on
+    /// <see cref="QueryEditorPanel"/> for why a detached control's lookup of an
+    /// app-level resource silently finds nothing.
+    /// </summary>
+    private void ApplyTextSelectionBrush()
+    {
+        if (this.TryFindResource("AppTextSelectionBrush", ActualThemeVariant, out var selectionBrush)
+            && selectionBrush is IBrush brush)
+        {
+            JsonInspectorEditor.TextArea.SelectionBrush = brush;
+        }
+    }
+
     private void LoadJsonHighlighting()
     {
         using var stream = AssetLoader.Open(new Uri("avares://PgNimbus.App/Assets/Json.xshd"));

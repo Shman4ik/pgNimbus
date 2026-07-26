@@ -310,7 +310,16 @@ and wrong project memory is worse than none.
    otherwise be clipped to the panel's results-pane row. It ends up a sibling of
    the command-palette overlay there; the root inherits the window's
    `MainViewModel` DataContext, so the `{Binding CellInspector…}` paths resolve
-   unchanged.
+   unchanged. **Extraction landmine: a panel's constructor can't see app-level
+   resources.** `TryFindResource` walks the logical parent chain, and a
+   `UserControl` under construction has none — only a `TopLevel` has the
+   `Application` wired in as its styling parent from the start. So code moved
+   verbatim from a `Window` constructor into a panel constructor silently finds
+   nothing and keeps the framework default (that's how the SQL editor's and the
+   JSON inspector's brand-blue `TextArea.SelectionBrush` reverted to the OS
+   accent after the extraction, twice). Resolve app resources from
+   `OnAttachedToVisualTree` (`ApplyTextSelectionBrush` in both panels), where
+   `ActualThemeVariant` is final too.
 
 ## Platform window chrome
 

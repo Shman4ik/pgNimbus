@@ -48,8 +48,11 @@
             <!-- Low-alpha accent for row/pill selection washes; reads on both themes -->
             <SolidColorBrush x:Key="AppSelectionBrush" Color="#282D7FF9" />
             <!--
-                App-wide text-selection wash: the SQL editor (set on
-                TextArea.SelectionBrush in MainWindow.axaml.cs) AND every plain
+                App-wide text-selection wash: the SQL editor and the cell
+                inspector's JSON editor (set on TextArea.SelectionBrush from
+                ApplyTextSelectionBrush in QueryEditorPanel /
+                ResultsGridPanel — on attach, not in the constructor, where an
+                app-level resource isn't reachable yet) AND every plain
                 TextBox (Style below) share this one token, so a selected
                 connection-dialog field reads the same as a selected query. Same
                 fixed brand hue as the rest of the app's selection surfaces (NOT

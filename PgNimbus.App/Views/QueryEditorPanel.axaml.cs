@@ -119,17 +119,6 @@ public partial class QueryEditorPanel : UserControl
         // Ctrl+wheel font zoom. The wheel handler tunnels because the
         // TextView claims wheel events for scrolling before they'd bubble.
         SqlEditor.Options.HighlightCurrentLine = true;
-        // Lock the text-selection wash to the fixed brand-blue token
-        // (AppTextSelectionBrush in Theme.axaml, shared with every plain
-        // TextBox's Style setter) instead of AvaloniaEdit's theme/OS-derived
-        // default, so it matches the app's other selection surfaces and reads
-        // the same on both themes. SelectionBrush lives on TextArea, not
-        // TextEditor, so it can't be a XAML attribute on SqlEditor.
-        if (this.TryFindResource("AppTextSelectionBrush", out var selectionBrush)
-            && selectionBrush is IBrush brush)
-        {
-            SqlEditor.TextArea.SelectionBrush = brush;
-        }
         SqlEditor.TextArea.Caret.PositionChanged += (_, _) =>
         {
             UpdateBracketHighlight();
@@ -173,6 +162,7 @@ public partial class QueryEditorPanel : UserControl
     {
         base.OnAttachedToVisualTree(e);
         ApplySqlHighlightingTheme();
+        ApplyTextSelectionBrush();
         if (TopLevel.GetTopLevel(this) is Window window)
         {
             window.Deactivated += OnHostDeactivated;
@@ -327,6 +317,30 @@ public partial class QueryEditorPanel : UserControl
         _suppressEditorSync = true;
         SqlEditor.Text = _activeQuery.Sql;
         _suppressEditorSync = false;
+    }
+
+    /// <summary>
+    /// Locks the text-selection wash to the fixed brand-blue token
+    /// (AppTextSelectionBrush in Theme.axaml, shared with every plain TextBox's
+    /// Style setter) instead of AvaloniaEdit's theme/OS-accent-derived default,
+    /// so it matches the app's other selection surfaces and reads the same on
+    /// both themes. SelectionBrush lives on TextArea, not TextEditor, so it
+    /// can't be a XAML attribute on SqlEditor.
+    ///
+    /// Resolved on *attach*, not in the constructor: the token lives in the
+    /// app-level Styles.Resources, and a detached control's resource lookup
+    /// stops at its own (null) logical parent — only a TopLevel has the
+    /// Application wired in as its styling parent from the start. Doing this in
+    /// the constructor silently found nothing and left the OS-accent default
+    /// (the regression that came with the MainWindow → panel extraction).
+    /// </summary>
+    private void ApplyTextSelectionBrush()
+    {
+        if (this.TryFindResource("AppTextSelectionBrush", ActualThemeVariant, out var selectionBrush)
+            && selectionBrush is IBrush brush)
+        {
+            SqlEditor.TextArea.SelectionBrush = brush;
+        }
     }
 
     // --- Syntax highlighting ---------------------------------------------
