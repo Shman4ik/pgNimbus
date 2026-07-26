@@ -66,7 +66,7 @@
                                 <Button DockPanel.Dock="Right" Classes="chip" Padding="4" VerticalAlignment="Center"
                                         Command="{Binding $parent[ListBox].((vm:SavedQueriesViewModel)DataContext).TogglePinCommand}"
                                         CommandParameter="{Binding}"
-                                        ToolTip.Tip="Pin — pinned entries stay on top and survive Clear">
+                                        ToolTip.Tip="Pin this entry so it stays on top and survives Clear history">
                                     <Panel>
                                         <PathIcon Data="{StaticResource PinIconGeometry}" Width="11" Height="11"
                                                   Foreground="{DynamicResource AppAccentBrush}" IsVisible="{Binding Pinned}" />

@@ -6,6 +6,7 @@
         xmlns:conv="using:Avalonia.Data.Converters"
         xmlns:conv2="using:PgNimbus.App.Converters"
         xmlns:views="using:PgNimbus.App.Views"
+        xmlns:cmd="using:PgNimbus.App"
         mc:Ignorable="d"
         d:DesignWidth="1000" d:DesignHeight="650"
         x:Class="PgNimbus.App.Views.MainWindow"
@@ -54,7 +55,8 @@
                          Hidden on macOS (SetUpMacTitleBar) — the same commands
                          live in the native menu bar there (BuildMacNativeMenu). -->
                     <Button Name="AppMenuButton" Classes="chip" Padding="5"
-                            Margin="0,0,4,0" VerticalAlignment="Center" ToolTip.Tip="Menu">
+                            Margin="0,0,4,0" VerticalAlignment="Center"
+                            ToolTip.Tip="Files, tabs and preferences">
                         <PathIcon Data="{StaticResource MenuIconGeometry}" Width="14" Height="14" />
                         <Button.Flyout>
                             <MenuFlyout Placement="BottomEdgeAlignedLeft">
@@ -76,7 +78,9 @@
                     </Button>
                     <Button Name="SidebarToggleButton" Classes="chip" Padding="5"
                             Margin="0,0,10,0" VerticalAlignment="Center"
-                            Click="OnToggleSidebarClick">
+                            Click="OnToggleSidebarClick"
+                            cmd:CommandTip.Text="Show or hide the sidebar"
+                            cmd:CommandTip.Command="ToggleSidebar">
                         <PathIcon Data="{OnPlatform Default={StaticResource SidebarToggleIconGeometry}, macOS={StaticResource SidebarToggleMacIconGeometry}}" Width="14" Height="14" />
                     </Button>
                     <Border Width="10" Height="10" CornerRadius="5" Margin="0,0,10,0"
@@ -91,7 +95,9 @@
                     <TextBlock Text="›" FontSize="12" Opacity="0.45" VerticalAlignment="Center" Margin="6,0" />
                     <TextBlock Text="{Binding ConnectionDatabase}" FontSize="12" Opacity="0.75" VerticalAlignment="Center" />
                     <Button Classes="chip" Padding="5" VerticalAlignment="Center" Margin="10,0,0,0"
-                            Click="OnSwitchConnectionClick" ToolTip.Tip="Switch connection">
+                            Click="OnSwitchConnectionClick"
+                            cmd:CommandTip.Text="Connect to another database"
+                            cmd:CommandTip.Command="SwitchConnection">
                         <PathIcon Data="{StaticResource SwapHorizontalIconGeometry}" Width="12" Height="12" />
                     </Button>
                 </StackPanel>
@@ -112,7 +118,9 @@
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                     <Button Classes="chip" Padding="5"
                             Margin="0,0,4,0" VerticalAlignment="Center"
-                            Click="OnShowActivityClick" ToolTip.Tip="Server activity (pg_stat_activity)">
+                            Click="OnShowActivityClick"
+                            cmd:CommandTip.Text="See who is connected and what is blocking what"
+                            cmd:CommandTip.Command="ServerActivity">
                         <PathIcon Data="{StaticResource PulseIconGeometry}" Width="14" Height="14" />
                     </Button>
                     <Button Name="ThemeToggleButton" Classes="chip" Padding="5"
@@ -120,15 +128,17 @@
                             Click="OnToggleThemeClick" ToolTip.Tip="Toggle light/dark theme">
                         <PathIcon Name="ThemeIcon" Data="{StaticResource WeatherNightIconGeometry}" Width="14" Height="14" />
                     </Button>
-                    <!-- Tooltip is set in code (BuildKeyBindings) so its shortcut
-                         label tracks the live Ctrl/Cmd scheme. -->
                     <Button Name="PreferencesButton" Classes="chip" Padding="5"
                             Margin="0,0,4,0" VerticalAlignment="Center"
-                            Click="OnShowPreferencesClick">
+                            Click="OnShowPreferencesClick"
+                            cmd:CommandTip.Text="Preferences"
+                            cmd:CommandTip.Command="Preferences">
                         <PathIcon Data="{StaticResource CogIconGeometry}" Width="14" Height="14" />
                     </Button>
                     <Button Classes="chip" Content="?" FontSize="13" VerticalAlignment="Center"
-                            Click="OnShowShortcutsClick" ToolTip.Tip="Keyboard shortcuts (F1)" />
+                            Click="OnShowShortcutsClick"
+                            cmd:CommandTip.Text="Keyboard shortcuts"
+                            cmd:CommandTip.Command="ShortcutsWindow" />
                 </StackPanel>
             </Grid>
         </Border>
@@ -142,7 +152,10 @@
         </Grid.ColumnDefinitions>
 
         <TabControl Name="SidebarTabs" Grid.Column="0">
-            <TabItem ToolTip.Tip="Schemas">
+            <!-- The tooltips say what each tab holds rather than repeating its
+                 label — and they're the only clue left once a narrow sidebar
+                 collapses the headers to icons. -->
+            <TabItem ToolTip.Tip="Tables, views, functions and roles">
                 <TabItem.Header>
                     <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
                         <PathIcon Data="{StaticResource DatabaseIconGeometry}" Width="14" Height="14" VerticalAlignment="Center" />
@@ -153,7 +166,7 @@
                 </TabItem.Header>
                 <views:SchemaTreePanel DataContext="{Binding SchemaTree}" />
             </TabItem>
-            <TabItem ToolTip.Tip="Queries">
+            <TabItem ToolTip.Tip="Saved queries and run history">
                 <TabItem.Header>
                     <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
                         <PathIcon Data="{StaticResource QueriesIconGeometry}" Width="14" Height="14" VerticalAlignment="Center" />
@@ -163,7 +176,7 @@
                 </TabItem.Header>
                 <views:SavedQueriesPanel DataContext="{Binding SavedQueries}" />
             </TabItem>
-            <TabItem ToolTip.Tip="Notify">
+            <TabItem ToolTip.Tip="LISTEN / NOTIFY channels and their payloads">
                 <TabItem.Header>
                     <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
                         <PathIcon Data="{StaticResource BellIconGeometry}" Width="14" Height="14" VerticalAlignment="Center" />
@@ -193,10 +206,11 @@
             </Grid.RowDefinitions>
 
             <DockPanel Grid.Row="0" Margin="0,0,0,8">
-                <Button DockPanel.Dock="Right" Classes="chip" Content="+" FontSize="14" Command="{Binding AddTabCommand}" ToolTip.Tip="New query tab" />
+                <Button DockPanel.Dock="Right" Classes="chip" Content="+" FontSize="14" Command="{Binding AddTabCommand}"
+                        cmd:CommandTip.Text="New query tab" cmd:CommandTip.Command="NewTab" />
                 <!-- All-tabs dropdown: lists every open tab with type-to-search;
                      the one way to reach a tab that scrolling would take ages to find -->
-                <Button DockPanel.Dock="Right" Classes="chip" Name="TabListButton" ToolTip.Tip="All open tabs">
+                <Button DockPanel.Dock="Right" Classes="chip" Name="TabListButton" ToolTip.Tip="Find an open tab by name">
                     <PathIcon Data="{StaticResource MenuDownIconGeometry}" Width="12" Height="12" />
                     <Button.Flyout>
                         <Flyout Placement="BottomEdgeAlignedRight">
@@ -247,7 +261,7 @@
                                 <Ellipse Width="6" Height="6" VerticalAlignment="Center"
                                          Fill="{DynamicResource AppAccentBrush}"
                                          IsVisible="{Binding IsDirty}"
-                                         ToolTip.Tip="Unsaved changes since last run" />
+                                         ToolTip.Tip="{Binding DirtyHint}" />
                                 <Button Classes="chip" Content="✕" FontSize="10" Tag="{Binding}" Click="OnCloseTabClick" />
                             </StackPanel>
                         </DataTemplate>
@@ -280,13 +294,17 @@
                 </Border.Styles>
                 <StackPanel Orientation="Horizontal" Spacing="2">
                     <!-- Group 1 — execution: the primary Run + its Cancel -->
-                    <Button Classes="accent" Command="{Binding ActiveTab.RunCommand}" ToolTip.Tip="Run (Ctrl+Enter)">
+                    <Button Classes="accent" Command="{Binding ActiveTab.RunCommand}"
+                            cmd:CommandTip.Text="Run the script, or just the selection"
+                            cmd:CommandTip.Command="Run">
                         <StackPanel Orientation="Horizontal" Spacing="7">
                             <PathIcon Data="{StaticResource PlayIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
                             <TextBlock Text="Run" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
-                    <Button Classes="toolbar" Command="{Binding ActiveTab.CancelCommand}" ToolTip.Tip="Cancel (Esc)">
+                    <Button Classes="toolbar" Command="{Binding ActiveTab.CancelCommand}"
+                            cmd:CommandTip.Text="Stop the running query"
+                            cmd:CommandTip.Command="Cancel">
                         <StackPanel Orientation="Horizontal" Spacing="7">
                             <PathIcon Data="{StaticResource StopIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
                             <TextBlock Text="Cancel" VerticalAlignment="Center" Classes="collapsible" />
@@ -301,7 +319,8 @@
                     <Rectangle Classes="statusSeparator" Margin="7,0" />
                     <Button Classes="toolbar" Command="{Binding BeginTransactionCommand}"
                             IsVisible="{Binding !IsInTransaction}"
-                            ToolTip.Tip="Begin a transaction (BEGIN)">
+                            cmd:CommandTip.Text="Start a transaction: nothing sticks until you commit"
+                            cmd:CommandTip.Command="BeginTransaction">
                         <StackPanel Orientation="Horizontal" Spacing="7">
                             <PathIcon Data="{StaticResource FlagIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
                             <TextBlock Text="Begin" VerticalAlignment="Center" Classes="collapsible" />
@@ -310,7 +329,8 @@
                     <Button Classes="toolbar" Command="{Binding CommitTransactionCommand}"
                             IsVisible="{Binding IsInTransaction}"
                             Foreground="#D9822B"
-                            ToolTip.Tip="Commit the transaction (COMMIT)">
+                            cmd:CommandTip.Text="Commit the transaction and keep its changes"
+                            cmd:CommandTip.Command="CommitTransaction">
                         <StackPanel Orientation="Horizontal" Spacing="7">
                             <PathIcon Data="{StaticResource CheckIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
                             <TextBlock Text="Commit" FontWeight="SemiBold" VerticalAlignment="Center" Classes="collapsible" />
@@ -319,7 +339,8 @@
                     <Button Classes="toolbar" Command="{Binding RollbackTransactionCommand}"
                             IsVisible="{Binding IsInTransaction}"
                             Foreground="#D9822B"
-                            ToolTip.Tip="Roll back the transaction (ROLLBACK)">
+                            cmd:CommandTip.Text="Roll back the transaction and undo everything it did"
+                            cmd:CommandTip.Command="RollbackTransaction">
                         <StackPanel Orientation="Horizontal" Spacing="7">
                             <PathIcon Data="{StaticResource UndoIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
                             <TextBlock Text="Rollback" VerticalAlignment="Center" Classes="collapsible" />
@@ -330,22 +351,25 @@
                          the flyout distinguishes estimate-only from actually-executing, closing the
                          plan lives on the plan pane itself, and both commands are in the palette too -->
                     <Rectangle Classes="statusSeparator" Margin="7,0" />
-                    <Button Classes="toolbar" ToolTip.Tip="Query plan (EXPLAIN / EXPLAIN ANALYZE)">
+                    <!-- The two shortcuts differ per item, so they're shown on the
+                         menu items themselves (captions set in BuildKeyBindings)
+                         rather than crammed into the button's tooltip. -->
+                    <Button Classes="toolbar" ToolTip.Tip="Show the query plan, estimated or measured">
                         <StackPanel Orientation="Horizontal" Spacing="7">
                             <PathIcon Data="{StaticResource FlashIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
                             <TextBlock Text="Explain" VerticalAlignment="Center" Classes="collapsible" />
                         </StackPanel>
                         <Button.Flyout>
                             <MenuFlyout>
-                                <MenuItem Header="Explain — estimated plan" Click="OnExplainClick" />
-                                <MenuItem Header="Explain Analyze — runs the query" Click="OnExplainAnalyzeClick" />
+                                <MenuItem Name="MenuExplain" Header="Explain — estimated plan" Click="OnExplainClick" />
+                                <MenuItem Name="MenuExplainAnalyze" Header="Explain Analyze — runs the query" Click="OnExplainAnalyzeClick" />
                             </MenuFlyout>
                         </Button.Flyout>
                     </Button>
 
                     <!-- Group 4 — data out: export -->
                     <Rectangle Classes="statusSeparator" Margin="7,0" />
-                    <Button Classes="toolbar" ToolTip.Tip="Export results (CSV / JSON)">
+                    <Button Classes="toolbar" ToolTip.Tip="Save the results as a CSV or JSON file">
                         <StackPanel Orientation="Horizontal" Spacing="7">
                             <PathIcon Data="{StaticResource ExportIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
                             <TextBlock Text="Export" VerticalAlignment="Center" Classes="collapsible" />
@@ -357,21 +381,26 @@
                             </MenuFlyout>
                         </Button.Flyout>
                     </Button>
-                    <Button Classes="toolbar" Click="OnImportClick" ToolTip.Tip="Import a CSV or JSON file into a table">
+                    <Button Classes="toolbar" Click="OnImportClick" ToolTip.Tip="Load a CSV or JSON file into a table">
                         <StackPanel Orientation="Horizontal" Spacing="7">
                             <PathIcon Data="{StaticResource ImportIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
                             <TextBlock Text="Import" VerticalAlignment="Center" Classes="collapsible" />
                         </StackPanel>
                     </Button>
 
-                    <!-- Group 5 — editor: pretty-print (also Alt+Shift+F) and the
-                         Notepad++-style word-wrap toggle. Icon-only to stay within
-                         the minimalist toolbar rule; both are in the palette too. -->
+                    <!-- Group 5 — editor: pretty-print and the word-wrap toggle.
+                         Icon-only to stay within the minimalist toolbar rule;
+                         both are in the palette too. The tooltips show each
+                         command's primary chord (Format also takes Alt+Shift+F,
+                         which the F1 sheet documents). -->
                     <Rectangle Classes="statusSeparator" Margin="7,0" />
-                    <Button Classes="toolbar" Command="{Binding FormatSqlCommand}" ToolTip.Tip="Format SQL (Ctrl+Shift+F or Alt+Shift+F)">
+                    <Button Classes="toolbar" Command="{Binding FormatSqlCommand}"
+                            cmd:CommandTip.Text="Format the SQL" cmd:CommandTip.Command="FormatSql">
                         <PathIcon Data="{StaticResource AutoFixIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
                     </Button>
-                    <ToggleButton Classes="toolbar" IsChecked="{Binding WordWrapEditor, Mode=TwoWay}" ToolTip.Tip="Word wrap (Notepad++ style)">
+                    <ToggleButton Classes="toolbar" IsChecked="{Binding WordWrapEditor, Mode=TwoWay}"
+                                  cmd:CommandTip.Text="Wrap long lines instead of scrolling sideways"
+                                  cmd:CommandTip.Command="ToggleWordWrap">
                         <PathIcon Data="{StaticResource WrapIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
                     </ToggleButton>
                 </StackPanel>
@@ -431,7 +460,7 @@
                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
                                 Margin="10,0,0,0"
                                 IsVisible="{Binding IsInTransaction}"
-                                ToolTip.Tip="A transaction is open — statements run inside it until you commit or roll back">
+                                ToolTip.Tip="A transaction is open. Statements run inside it until you commit or roll back.">
                         <Rectangle Classes="statusSeparator" />
                         <Ellipse Width="8" Height="8" Fill="#D9822B" VerticalAlignment="Center" />
                         <TextBlock Text="In transaction" Classes="statusText" Foreground="#D9822B"
@@ -443,7 +472,7 @@
                     <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center"
                                 Margin="10,0,0,0"
                                 IsVisible="{Binding ActiveTab.HasPendingChanges}"
-                                ToolTip.Tip="Safe mode: these changes are staged locally — nothing has been sent to the database yet">
+                                ToolTip.Tip="Safe mode: these changes are staged locally and nothing has reached the database yet">
                         <Rectangle Classes="statusSeparator" />
                         <Ellipse Width="8" Height="8" Fill="{DynamicResource AppAccentBrush}" VerticalAlignment="Center" />
                         <TextBlock Classes="statusText" FontWeight="SemiBold"

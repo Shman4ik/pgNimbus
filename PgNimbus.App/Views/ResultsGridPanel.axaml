@@ -273,12 +273,15 @@
                             <!-- View / Edit segmented tabs for an editable JSON cell: one
                                  click switches either way, and the edit buffer survives a
                                  hop to View and back (see CellInspectorViewModel). -->
+                            <!-- No tooltips on View/Edit: the labels already say it,
+                                 and "edit this JSON value" was wrong anyway — every
+                                 free-text column type reaches this tab. -->
                             <Button Content="View" Classes="chip" Classes.active="{Binding !IsEditing}"
                                     IsVisible="{Binding CanEdit}"
-                                    Command="{Binding ViewTextCommand}" ToolTip.Tip="View the value" />
+                                    Command="{Binding ViewTextCommand}" />
                             <Button Content="Edit" Classes="chip" Margin="6,0,0,0" Classes.active="{Binding IsEditing}"
                                     IsVisible="{Binding CanEdit}"
-                                    Command="{Binding EditCommand}" ToolTip.Tip="Edit this JSON value" />
+                                    Command="{Binding EditCommand}" />
                             <ToggleButton Content="Tree" Classes="chip" Margin="6,0,0,0"
                                           IsVisible="{Binding CanShowTreeToggle}"
                                           IsChecked="{Binding IsTreeView}"

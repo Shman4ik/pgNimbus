@@ -33,7 +33,7 @@
                     <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="6" Margin="0,0,0,10">
                         <Button Classes="soft" Command="{Binding CancelBackendCommand}"
                                 IsEnabled="{Binding SelectedRow, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                ToolTip.Tip="pg_cancel_backend — stop the running statement, keep the session">
+                                ToolTip.Tip="Stop the running statement but keep the session (pg_cancel_backend)">
                             <StackPanel Orientation="Horizontal" Spacing="7">
                                 <PathIcon Data="{StaticResource StopIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
                                 <TextBlock Text="Cancel query" VerticalAlignment="Center" />
@@ -41,7 +41,7 @@
                         </Button>
                         <Button Classes="soft danger" Click="OnTerminateClick"
                                 IsEnabled="{Binding SelectedRow, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                ToolTip.Tip="pg_terminate_backend — kill the whole session">
+                                ToolTip.Tip="Kill the whole session (pg_terminate_backend)">
                             <StackPanel Orientation="Horizontal" Spacing="7">
                                 <PathIcon Data="{StaticResource CloseIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
                                 <TextBlock Text="Terminate..." VerticalAlignment="Center" />
@@ -96,7 +96,7 @@
                     <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="6" Margin="0,0,0,10">
                         <Button Classes="soft" Command="{Binding CancelBlockerCommand}"
                                 IsEnabled="{Binding SelectedBlockingNode, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                ToolTip.Tip="pg_cancel_backend on the selected backend — cancel the lock holder to release everyone waiting on it">
+                                ToolTip.Tip="Cancel the selected backend's statement to release everyone waiting on its lock (pg_cancel_backend)">
                             <StackPanel Orientation="Horizontal" Spacing="7">
                                 <PathIcon Data="{StaticResource StopIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
                                 <TextBlock Text="Cancel blocker" VerticalAlignment="Center" />
@@ -104,7 +104,7 @@
                         </Button>
                         <Button Classes="soft danger" Click="OnTerminateBlockerClick"
                                 IsEnabled="{Binding SelectedBlockingNode, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                ToolTip.Tip="pg_terminate_backend on the selected backend — kill the whole session">
+                                ToolTip.Tip="Kill the selected backend's whole session (pg_terminate_backend)">
                             <StackPanel Orientation="Horizontal" Spacing="7">
                                 <PathIcon Data="{StaticResource CloseIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
                                 <TextBlock Text="Terminate..." VerticalAlignment="Center" />

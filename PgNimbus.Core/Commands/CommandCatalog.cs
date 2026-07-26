@@ -320,8 +320,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.ToggleWordWrap,
-            Title = "Toggle word wrap (Notepad++ style)",
-            CheatTitle = "Toggle word wrap",
+            Title = "Toggle word wrap",
             Category = CommandCategory.Editor,
             Glyph = "↩",
             Chord = new(CommandKey.Z, Alt),

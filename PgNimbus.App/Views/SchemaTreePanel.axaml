@@ -3,6 +3,7 @@
              xmlns:vm="using:PgNimbus.App.ViewModels"
              xmlns:conv="using:Avalonia.Data.Converters"
              xmlns:conv2="using:PgNimbus.App.Converters"
+             xmlns:cmd="using:PgNimbus.App"
              x:Class="PgNimbus.App.Views.SchemaTreePanel"
              x:DataType="vm:SchemaTreeViewModel">
     <!-- The "Schemas" sidebar tab. DataContext is the MainViewModel's SchemaTree
@@ -104,7 +105,7 @@
         <DataTemplate DataType="vm:RoleNode">
             <StackPanel Orientation="Horizontal" Spacing="6">
                 <Panel Width="14" VerticalAlignment="Center">
-                    <PathIcon Data="{StaticResource KeyIconGeometry}" Width="11" Height="11" IsVisible="{Binding IsSuperuser}" ToolTip.Tip="superuser" />
+                    <PathIcon Data="{StaticResource KeyIconGeometry}" Width="11" Height="11" IsVisible="{Binding IsSuperuser}" ToolTip.Tip="Superuser" />
                 </Panel>
                 <TextBlock Text="{Binding Name}" />
                 <TextBlock Text="{Binding AttributesLabel}" Opacity="0.6" FontSize="11" VerticalAlignment="Center" />
@@ -181,14 +182,15 @@
         <DockPanel Grid.Row="0" Margin="4,0,4,8">
             <Button DockPanel.Dock="Right" Classes="chip" Padding="5" Margin="6,0,0,0"
                     VerticalAlignment="Center" Command="{Binding RefreshAllCommand}"
-                    ToolTip.Tip="Refresh database &amp; schema (Ctrl+Shift+R)">
+                    cmd:CommandTip.Text="Reload the tree, autocomplete and palette from the server"
+                    cmd:CommandTip.Command="RefreshSchema">
                 <PathIcon Data="{StaticResource RefreshIconGeometry}" Width="14" Height="14" />
             </Button>
             <!-- Advanced-objects toggle: off = schemas/tables + Roles only; on adds
                  Functions/Sequences/Types groups, per-table Indexes/Triggers, and Extensions -->
             <ToggleButton DockPanel.Dock="Right" Classes="chip" Padding="5" Margin="6,0,0,0"
                           VerticalAlignment="Center" IsChecked="{Binding ShowAdvancedObjects}"
-                          ToolTip.Tip="Show advanced objects (functions, sequences, types, indexes, triggers, extensions)">
+                          ToolTip.Tip="Also show functions, sequences, types, indexes, triggers and extensions">
                 <PathIcon Data="{StaticResource TuneIconGeometry}" Width="14" Height="14" />
             </ToggleButton>
             <!-- Type-to-filter box: matches schema and loaded-table names, case-insensitive substring -->

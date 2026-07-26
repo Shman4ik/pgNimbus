@@ -354,12 +354,10 @@ public partial class MainWindow : Window
             });
         }
 
-        // The gear button's tooltip carries the shortcut, so it's set here
-        // (not in XAML) to track the live Ctrl/Cmd scheme.
-        ToolTip.SetTip(PreferencesButton, $"Preferences ({Label(CommandId.Preferences)})");
-        ToolTip.SetTip(SidebarToggleButton, $"Toggle sidebar ({Label(CommandId.ToggleSidebar)})");
+        // Shortcut-carrying tooltips are declared in XAML via CommandTip, which
+        // reads the same catalog and re-renders itself on a scheme change.
 
-        // Same for the ☰ menu's shortcut captions: display-only gestures whose
+        // The ☰ menu's shortcut captions: display-only gestures whose
         // Ctrl/Cmd side must match the bindings built just above.
         MenuNewTab.InputGesture = CommandBindings.GestureFor(CommandId.NewTab);
         MenuOpenFile.InputGesture = CommandBindings.GestureFor(CommandId.OpenFile);
@@ -369,6 +367,11 @@ public partial class MainWindow : Window
         MenuPreferences.InputGesture = CommandBindings.GestureFor(CommandId.Preferences);
         MenuSwitchConnection.InputGesture = CommandBindings.GestureFor(CommandId.SwitchConnection);
         MenuNewWindow.InputGesture = CommandBindings.GestureFor(CommandId.NewWindow);
+
+        // The Explain button's two flyout items have a chord each, so they show
+        // their own rather than the button's tooltip listing both.
+        MenuExplain.InputGesture = CommandBindings.GestureFor(CommandId.Explain);
+        MenuExplainAnalyze.InputGesture = CommandBindings.GestureFor(CommandId.ExplainAnalyze);
 
         // And the search pill's caption (the palette itself opens from
         // OnKeyDown, which reads the catalog's chord live).
