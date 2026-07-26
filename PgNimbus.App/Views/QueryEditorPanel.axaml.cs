@@ -13,11 +13,13 @@ using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using AvaloniaEdit.CodeCompletion;
+using AvaloniaEdit.Document;
 using AvaloniaEdit.Highlighting;
 using AvaloniaEdit.Highlighting.Xshd;
 using AvaloniaEdit.Search;
 using PgNimbus.App.Completion;
 using PgNimbus.App.ViewModels;
+using PgNimbus.Core.Commands;
 using PgNimbus.Core.Query;
 using PgNimbus.Core.Text;
 
@@ -244,6 +246,7 @@ public partial class QueryEditorPanel : UserControl
             _model.PropertyChanged -= OnMainViewModelPropertyChanged;
             _model.FormatSqlRequested -= FormatCurrentStatement;
             _model.ExpandStarRequested -= ExpandSelectStar;
+            _model.ToggleLineCommentRequested -= ToggleLineComment;
             _model.FindRequested -= OpenSearch;
         }
 
@@ -254,6 +257,7 @@ public partial class QueryEditorPanel : UserControl
             _model.PropertyChanged += OnMainViewModelPropertyChanged;
             _model.FormatSqlRequested += FormatCurrentStatement;
             _model.ExpandStarRequested += ExpandSelectStar;
+            _model.ToggleLineCommentRequested += ToggleLineComment;
             _model.FindRequested += OpenSearch;
             AttachQuery(_model.ActiveTab);
         }
@@ -567,7 +571,7 @@ public partial class QueryEditorPanel : UserControl
             return;
         }
 
-        if (e.Key == Key.Space && e.KeyModifiers == KeyModifiers.Control)
+        if (CommandBindings.Matches(CommandId.Completion, e))
         {
             ShowCompletion(includeTypedChar: false);
             e.Handled = true;
@@ -577,7 +581,7 @@ public partial class QueryEditorPanel : UserControl
         // Smart execution: runs just the statement the caret sits in (between
         // ;s) rather than the whole tab, so trying one statement out of a
         // multi-statement script doesn't require selecting it by hand first.
-        if (e.Key == Key.Enter && e.KeyModifiers == KeyModifiers.Shift)
+        if (CommandBindings.Matches(CommandId.RunStatementUnderCursor, e))
         {
             if (_activeQuery is { } query
                 && SqlScriptSplitter.StatementAt(SqlEditor.Text, SqlEditor.CaretOffset) is { } statement)
@@ -602,6 +606,36 @@ public partial class QueryEditorPanel : UserControl
                 || e.KeyModifiers == (KeyModifiers.Alt | KeyModifiers.Shift)))
         {
             FormatCurrentStatement();
+            e.Handled = true;
+            return;
+        }
+
+        // Line-level editing, VS Code conventions. Gestures come from the
+        // catalog (CommandCatalog) so the F1 sheet and the docs can't drift.
+        if (CommandBindings.Matches(CommandId.ToggleLineComment, e))
+        {
+            ToggleLineComment();
+            e.Handled = true;
+            return;
+        }
+
+        if (CommandBindings.Matches(CommandId.DuplicateLine, e))
+        {
+            DuplicateSelectionOrLine();
+            e.Handled = true;
+            return;
+        }
+
+        if (CommandBindings.Matches(CommandId.MoveLineUp, e))
+        {
+            MoveSelectedLines(-1);
+            e.Handled = true;
+            return;
+        }
+
+        if (CommandBindings.Matches(CommandId.MoveLineDown, e))
+        {
+            MoveSelectedLines(+1);
             e.Handled = true;
             return;
         }
@@ -832,4 +866,154 @@ public partial class QueryEditorPanel : UserControl
         SqlEditor.Document.Replace(expansion.Start, expansion.Length, expansion.Replacement);
         SqlEditor.CaretOffset = expansion.Start + expansion.Replacement.Length;
     }
+
+    // --- Line operations (comment, duplicate, move) -----------------------
+
+    /// <summary>
+    /// The document line numbers the selection covers — the caret's line when
+    /// nothing is selected. A selection ending exactly at a line's start hasn't
+    /// really reached that line, so it doesn't count (drag-selecting three full
+    /// lines must act on three, not four).
+    /// </summary>
+    private (int First, int Last) SelectedLineRange()
+    {
+        var document = SqlEditor.Document;
+        var hasSelection = SqlEditor.SelectionLength > 0;
+        var start = hasSelection ? SqlEditor.SelectionStart : SqlEditor.CaretOffset;
+        var end = hasSelection ? SqlEditor.SelectionStart + SqlEditor.SelectionLength : SqlEditor.CaretOffset;
+
+        var first = document.GetLineByOffset(start);
+        var last = document.GetLineByOffset(end);
+        if (last.LineNumber > first.LineNumber && end == last.Offset)
+        {
+            last = last.PreviousLine ?? last;
+        }
+
+        return (first.LineNumber, last.LineNumber);
+    }
+
+    /// <summary>
+    /// Comment/uncomment the selected lines. The decision of what to write is
+    /// <see cref="LineCommenter"/>'s (Core-pure, unit-tested); this only maps
+    /// it onto the document.
+    /// </summary>
+    private void ToggleLineComment()
+    {
+        var document = SqlEditor.Document;
+        var (first, last) = SelectedLineRange();
+
+        var lines = new List<string>(last - first + 1);
+        for (var number = first; number <= last; number++)
+        {
+            var line = document.GetLineByNumber(number);
+            lines.Add(document.GetText(line.Offset, line.Length));
+        }
+
+        var toggled = LineCommenter.Toggle(lines);
+
+        // Bottom-up, so rewriting one line never invalidates the offsets of the
+        // ones still to go. One update group = one undo step.
+        document.BeginUpdate();
+        try
+        {
+            for (var number = last; number >= first; number--)
+            {
+                var line = document.GetLineByNumber(number);
+                var replacement = toggled[number - first];
+                if (document.GetText(line.Offset, line.Length) != replacement)
+                {
+                    document.Replace(line.Offset, line.Length, replacement);
+                }
+            }
+        }
+        finally
+        {
+            document.EndUpdate();
+        }
+    }
+
+    /// <summary>Copies the selection in place, or the caret's line below itself.</summary>
+    private void DuplicateSelectionOrLine()
+    {
+        var document = SqlEditor.Document;
+        if (SqlEditor.SelectionLength > 0)
+        {
+            var start = SqlEditor.SelectionStart;
+            var length = SqlEditor.SelectionLength;
+            document.Insert(start + length, document.GetText(start, length));
+            SqlEditor.Select(start + length, length);
+            return;
+        }
+
+        var line = document.GetLineByOffset(SqlEditor.CaretOffset);
+        var newLine = TextUtilities.GetNewLineFromDocument(document, line.LineNumber);
+        var text = document.GetText(line.Offset, line.Length);
+        var caret = SqlEditor.CaretOffset;
+
+        document.Insert(line.EndOffset, newLine + text);
+        // Land on the copy at the same column, so repeated presses stack copies.
+        SetCaret(caret + newLine.Length + line.Length);
+    }
+
+    /// <summary>Swaps the selected lines with the one above (-1) or below (+1).</summary>
+    private void MoveSelectedLines(int direction)
+    {
+        var document = SqlEditor.Document;
+        var (first, last) = SelectedLineRange();
+
+        var targetNumber = direction < 0 ? first - 1 : last + 1;
+        if (targetNumber < 1 || targetNumber > document.LineCount)
+        {
+            return;
+        }
+
+        var blockStart = document.GetLineByNumber(first).Offset;
+        var blockEnd = document.GetLineByNumber(last).EndOffset;
+        var block = document.GetText(blockStart, blockEnd - blockStart);
+
+        var target = document.GetLineByNumber(targetNumber);
+        var targetText = document.GetText(target.Offset, target.Length);
+        var newLine = TextUtilities.GetNewLineFromDocument(document, first);
+
+        var caret = SqlEditor.CaretOffset;
+        var selectionStart = SqlEditor.SelectionStart;
+        var selectionLength = SqlEditor.SelectionLength;
+
+        // Where the block lands. Offsets are then carried across as distances
+        // from the block's start rather than by a precomputed delta: a caret
+        // that sits outside the block (a selection ending on the following
+        // line's first column trims back to the line above, leaving it there)
+        // would otherwise be shifted into nowhere — that overflow is what
+        // crashed the editor the first time this shipped.
+        int movedStart;
+        if (direction < 0)
+        {
+            document.Replace(target.Offset, blockEnd - target.Offset, block + newLine + targetText);
+            movedStart = target.Offset;
+        }
+        else
+        {
+            document.Replace(blockStart, target.EndOffset - blockStart, targetText + newLine + block);
+            movedStart = blockStart + targetText.Length + newLine.Length;
+        }
+
+        var blockLength = blockEnd - blockStart;
+        SetCaret(Reposition(caret));
+        if (selectionLength > 0)
+        {
+            var start = Math.Clamp(Reposition(selectionStart), 0, document.TextLength);
+            SqlEditor.Select(start, Math.Min(selectionLength, document.TextLength - start));
+        }
+
+        // Offsets inside the block travel with it; anything else stays put.
+        int Reposition(int offset) =>
+            offset >= blockStart && offset <= blockStart + blockLength
+                ? movedStart + (offset - blockStart)
+                : offset;
+    }
+
+    // AvaloniaEdit throws on an out-of-range caret, so every computed offset
+    // goes through here rather than being assigned straight to the editor.
+    private void SetCaret(int offset) =>
+        SqlEditor.CaretOffset = Math.Clamp(offset, 0, SqlEditor.Document.TextLength);
 }

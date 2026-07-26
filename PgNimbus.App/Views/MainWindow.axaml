@@ -67,8 +67,8 @@
                                 <Separator />
                                 <MenuItem Name="MenuCloseTab" Header="Close tab" Command="{Binding CloseTabCommand}" />
                                 <Separator />
-                                <MenuItem Header="Switch connection…" Command="{Binding SwitchConnectionCommand}" />
-                                <MenuItem Header="Open connection in new window…" Command="{Binding OpenNewWindowCommand}" />
+                                <MenuItem Name="MenuSwitchConnection" Header="Switch connection…" Command="{Binding SwitchConnectionCommand}" />
+                                <MenuItem Name="MenuNewWindow" Header="Open connection in new window…" Command="{Binding OpenNewWindowCommand}" />
                                 <Separator />
                                 <MenuItem Name="MenuPreferences" Header="Preferences…" Command="{Binding ShowPreferencesCommand}" />
                             </MenuFlyout>
@@ -76,7 +76,7 @@
                     </Button>
                     <Button Name="SidebarToggleButton" Classes="chip" Padding="5"
                             Margin="0,0,10,0" VerticalAlignment="Center"
-                            Click="OnToggleSidebarClick" ToolTip.Tip="Toggle sidebar (Ctrl+B)">
+                            Click="OnToggleSidebarClick">
                         <PathIcon Data="{OnPlatform Default={StaticResource SidebarToggleIconGeometry}, macOS={StaticResource SidebarToggleMacIconGeometry}}" Width="14" Height="14" />
                     </Button>
                     <Border Width="10" Height="10" CornerRadius="5" Margin="0,0,10,0"
