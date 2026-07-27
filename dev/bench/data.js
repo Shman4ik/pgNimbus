@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785098749676,
+  "lastUpdate": 1785171601464,
   "repoUrl": "https://github.com/Shman4ik/pgNimbus",
   "entries": {
     "pgNimbus benchmarks": [
@@ -1167,6 +1167,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "Stream 100000 rows",
             "value": 130.3,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shman4ik@gmail.com",
+            "name": "Dmitrii Shmanev",
+            "username": "Shman4ik"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "05d261cb6875ec8a23ec5433216ef09005d22659",
+          "message": "Merge pull request #168 from Shman4ik/fix/aot-reflection-json-cell-inspector\n\nStop the cell inspector crashing the AOT build on JSON",
+          "timestamp": "2026-07-26T22:40:18+02:00",
+          "tree_id": "2004bb29733d49574cd4f02c589508374c77c2f1",
+          "url": "https://github.com/Shman4ik/pgNimbus/commit/05d261cb6875ec8a23ec5433216ef09005d22659"
+        },
+        "date": 1785171601071,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Startup, launch to first frame (NativeAOT)",
+            "value": 180,
+            "unit": "ms"
+          },
+          {
+            "name": "Memory at first frame (NativeAOT)",
+            "value": 153.8,
+            "unit": "MB"
+          },
+          {
+            "name": "Binary size (NativeAOT)",
+            "value": 41.9,
+            "unit": "MB"
+          },
+          {
+            "name": "Publish size (NativeAOT, shipped files)",
+            "value": 55.3,
+            "unit": "MB"
+          },
+          {
+            "name": "Startup, launch to first frame (JIT)",
+            "value": 1809,
+            "unit": "ms"
+          },
+          {
+            "name": "Connect, cold pool",
+            "value": 151,
+            "unit": "ms"
+          },
+          {
+            "name": "Round-trip, SELECT 1 warm",
+            "value": 0.36,
+            "unit": "ms"
+          },
+          {
+            "name": "First row batch of a 100000-row SELECT",
+            "value": 10.8,
+            "unit": "ms"
+          },
+          {
+            "name": "Stream 100000 rows",
+            "value": 146.2,
             "unit": "ms"
           }
         ]
