@@ -38,6 +38,49 @@ public class SqlStatementInspectorTests
     }
 
     [Test]
+    [Arguments("SELECT * FROM orders")]
+    [Arguments("  select 1")]
+    [Arguments("-- browse\nSELECT * FROM commerce.orders LIMIT 100")]
+    [Arguments("WITH recent AS (SELECT * FROM t) SELECT * FROM recent")]
+    [Arguments("TABLE t")]
+    [Arguments("VALUES (1), (2)")]
+    [Arguments("SHOW search_path")]
+    [Arguments("SELECT count(*) FROM t")]
+    // A trailing semicolon is one statement, not two.
+    [Arguments("SELECT 1;")]
+    [Arguments("SELECT 1;  -- done\n")]
+    public async Task ReExecutableStatementsAreAllowed(string sql)
+    {
+        await Assert.That(SqlStatementInspector.IsSafeToReExecute(sql)).IsTrue();
+    }
+
+    [Test]
+    // Writes, obviously.
+    [Arguments("INSERT INTO t VALUES (1) RETURNING *")]
+    [Arguments("UPDATE t SET n = 1 RETURNING *")]
+    [Arguments("DELETE FROM t RETURNING *")]
+    [Arguments("WITH gone AS (DELETE FROM t RETURNING *) SELECT * FROM gone")]
+    // Not a result-producing read at all — re-running has no upside and may write.
+    [Arguments("CREATE TABLE t (id int)")]
+    [Arguments("CALL do_work()")]
+    [Arguments("REFRESH MATERIALIZED VIEW mv")]
+    // SELECT … INTO creates a table.
+    [Arguments("SELECT * INTO backup FROM t")]
+    // Side effects hiding inside a read.
+    [Arguments("SELECT nextval('s')")]
+    [Arguments("SELECT setval('s', 1)")]
+    [Arguments("SELECT pg_advisory_lock(42)")]
+    [Arguments("SELECT pg_terminate_backend(pid) FROM pg_stat_activity")]
+    [Arguments("SELECT * FROM dblink_exec('conn', 'DELETE FROM t')")]
+    // The simple query protocol would run both statements, twice.
+    [Arguments("SELECT 1; DROP TABLE t")]
+    [Arguments("")]
+    public async Task NonReExecutableStatementsAreRefused(string sql)
+    {
+        await Assert.That(SqlStatementInspector.IsSafeToReExecute(sql)).IsFalse();
+    }
+
+    [Test]
     [Arguments("EXPLAIN SELECT 1")]
     [Arguments("explain (analyze) select 1")]
     [Arguments("  -- plan it\n  EXPLAIN ANALYZE SELECT 1")]
