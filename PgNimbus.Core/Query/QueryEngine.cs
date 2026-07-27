@@ -404,11 +404,15 @@ public sealed class QueryEngine
     /// backend cancel makes the drain a no-op.
     /// </param>
     /// <param name="allowTextFallback">
-    /// Permits re-executing the statement with unreadable columns (unmapped
-    /// composites) re-requested in text format. Only safe for statements known
-    /// to be side-effect-free — the app-composed browse-mode SELECTs — never
-    /// for arbitrary user SQL, where a second execution would apply an
-    /// <c>INSERT … RETURNING</c> (or any volatile call) twice.
+    /// The caller's guarantee that <paramref name="sql"/> is side-effect-free, which
+    /// permits re-executing it with unreadable columns (unmapped composites)
+    /// re-requested in text format. Pass true only for SQL the app itself composed —
+    /// the browse-mode SELECTs — where the guarantee holds by construction and no
+    /// lexical check is needed. Leaving it false does not disable the fallback: SQL
+    /// that <see cref="SqlStatementInspector.IsSafeToReExecute"/> vouches for gets it
+    /// too. Everything else falls back per cell instead (see <see cref="ReadValue"/>),
+    /// so a second execution can never apply an <c>INSERT … RETURNING</c> — or any
+    /// volatile call — twice.
     /// </param>
     public async Task<StatementResult> ExecuteAsync(string sql, CancellationToken ct, int? maxRows = null, bool allowTextFallback = false)
     {
@@ -461,9 +465,8 @@ public sealed class QueryEngine
                 // Columns Npgsql can't materialize as objects (unmapped composites
                 // and containers of them) are re-requested in text format — one
                 // extra round trip, and only for result sets that contain such a
-                // column. The re-execution is why callers must opt in: it would
-                // run an arbitrary statement's side effects twice.
-                if (allowTextFallback && BuildTextFallbackMask(reader) is { } textFallback)
+                // column.
+                if (MayReExecute(sql, allowTextFallback) && BuildTextFallbackMask(reader) is { } textFallback)
                 {
                     await reader.DisposeAsync();
                     command.UnknownResultTypeList = textFallback;
@@ -738,9 +741,10 @@ public sealed class QueryEngine
                 };
             }
 
-            // Same opt-in unmapped-composite text fallback as ExecuteAsync
-            // (script statements always pass false — they're arbitrary SQL).
-            if (allowTextFallback && BuildTextFallbackMask(reader) is { } textFallback)
+            // Same unmapped-composite text fallback as ExecuteAsync. Script
+            // statements never vouch — they're arbitrary SQL — so here it's
+            // IsSafeToReExecute alone that decides, per statement.
+            if (MayReExecute(sql, allowTextFallback) && BuildTextFallbackMask(reader) is { } textFallback)
             {
                 await reader.DisposeAsync();
                 command.UnknownResultTypeList = textFallback;
@@ -765,8 +769,7 @@ public sealed class QueryEngine
                 var row = new object?[fieldCount];
                 for (var i = 0; i < fieldCount; i++)
                 {
-                    var value = reader.GetValue(i);
-                    row[i] = value is DBNull ? null : value;
+                    row[i] = ReadValue(reader, i);
                 }
 
                 rows.Add(row);
@@ -824,6 +827,59 @@ public sealed class QueryEngine
                     // is already built and the connection is being discarded.
                 }
             }
+        }
+    }
+
+    /// <summary>
+    /// Whether the text-format fallback — which costs a second execution of
+    /// <paramref name="sql"/> — is permitted: either the caller vouched for the
+    /// statement, or it's lexically provable that running it twice changes nothing.
+    /// </summary>
+    private static bool MayReExecute(string sql, bool callerVouched) =>
+        callerVouched || SqlStatementInspector.IsSafeToReExecute(sql);
+
+    /// <summary>
+    /// Renders a cell no client-side mapping can materialize, e.g.
+    /// <c>&lt;unreadable commerce.address&gt;</c>. Public so callers can recognize
+    /// the placeholder rather than pattern-matching its shape.
+    /// </summary>
+    public static string UnreadableCell(string dataTypeName) => $"<unreadable {dataTypeName}>";
+
+    // A column whose type has no client-side mapping can't even report a CLR type:
+    // GetFieldType throws the same "not supported" exception GetValue does, which
+    // would fail the whole result set while building its column list — before a
+    // single row is read. System.Object is the honest answer (it's what Npgsql
+    // reports for the unmapped types that *can* answer), and it's what the App's
+    // edit-value conversion already treats as "no conversion known".
+    private static Type FieldType(NpgsqlDataReader reader, int column)
+    {
+        try
+        {
+            return reader.GetFieldType(column);
+        }
+        catch (Exception ex) when (ex is InvalidCastException or NotSupportedException)
+        {
+            return typeof(object);
+        }
+    }
+
+    // Reads one cell, standing in a placeholder for the values Npgsql refuses to
+    // materialize (see NeedsTextFormat below for which types those are and why).
+    // The text-format re-execution above is the real fix and produces genuine
+    // literals, but it can't be used for every statement — so this is the net that
+    // keeps one composite column from failing an entire result set. Only the two
+    // "this type can't become an object" exceptions are caught: anything else
+    // (a dropped connection mid-row) must still surface as the error it is.
+    private static object? ReadValue(NpgsqlDataReader reader, int column)
+    {
+        try
+        {
+            var value = reader.GetValue(column);
+            return value is DBNull ? null : value;
+        }
+        catch (Exception ex) when (ex is InvalidCastException or NotSupportedException)
+        {
+            return UnreadableCell(reader.GetDataTypeName(column));
         }
     }
 
@@ -916,7 +972,7 @@ public sealed class QueryEngine
             columns[i] = new ColumnInfo(
                 reader.GetName(i),
                 reader.GetDataTypeName(i),
-                reader.GetFieldType(i),
+                FieldType(reader, i),
                 wireSchema[i].TableOID,
                 wireSchema[i].ColumnAttributeNumber ?? 0);
         }
@@ -948,8 +1004,7 @@ public sealed class QueryEngine
                     // ReadAsync returns, so sync GetValue never blocks on I/O.
                     // One call per cell instead of IsDBNullAsync + GetValue -
                     // half a million awaits per 100k×5 result was measurable.
-                    var value = reader.GetValue(i);
-                    row[i] = value is DBNull ? null : value;
+                    row[i] = ReadValue(reader, i);
                 }
 
                 buffer.Add(row);

@@ -537,6 +537,33 @@ csproj / WiX / MSIX manifest reference them unchanged:
   surfaces from Npgsql as `bool` (displays `True`/`False`), so an inline edit of
   it fails loudly at the cast rather than corrupting — the inspector or a `bit(n)`
   column edits cleanly.
+- **A type Npgsql can't materialize must never fail a whole result set.** An
+  unmapped composite (or an array/domain/range over one), an extension type with
+  no plugin loaded (pgvector, PostGIS), `bit`/`hstore` whose CLR mapping has a
+  useless `ToString` — all of them make `GetValue` throw *"Reading as
+  'System.Object' is not supported for fields having DataTypeName …"*, and
+  `GetFieldType` throws it too, before the first row is even read. `QueryEngine`
+  answers in two layers, both required:
+  1. **Text-format re-execution** (`BuildTextFallbackMask` →
+     `NpgsqlCommand.UnknownResultTypeList`) re-requests just those columns as
+     Postgres literals (`("246 Oak St",Milan,MI,20918,IT)`) — the shape the grid
+     shows and the composite editor casts back on edit. It costs a second
+     execution, so it's gated on `MayReExecute`: either the caller vouched
+     (`allowTextFallback: true`, only for app-composed browse SELECTs) or
+     `SqlStatementInspector.IsSafeToReExecute` proves it lexically — a read-shaped
+     leading keyword, no data-modifying CTE, no `SELECT … INTO`, no
+     side-effecting function call (`nextval`, advisory locks, `dblink*`, …), and a
+     single statement (the simple query protocol would happily re-run
+     `SELECT 1; DROP TABLE t`). Deliberately conservative: a false negative costs
+     a placeholder, a false positive applies a side effect twice. Scripts and
+     transaction statements are vetted per statement this way and never vouch.
+  2. **The per-cell guard** (`QueryEngine.ReadValue` / `FieldType`) catches the
+     `InvalidCastException`/`NotSupportedException` for everything layer 1 refuses
+     and yields `QueryEngine.UnreadableCell(dataTypeName)` —
+     `<unreadable commerce.address>` — so the rest of the row still renders. Only
+     those two exception types are caught; a dropped connection mid-row must stay
+     an error. Integration coverage is `QueryEngineCompositeTests` (gated on
+     `PGNIMBUS_TEST_CONN` like the reconnect tests).
 - `SqlFormatter` follows <https://www.sqlstyle.guide/> ("river" layout: root
   keywords right-aligned to a common column, content to its right). The tests
   in `PgNimbus.Core.Tests` assert exact spacing — a deliberate layout change
