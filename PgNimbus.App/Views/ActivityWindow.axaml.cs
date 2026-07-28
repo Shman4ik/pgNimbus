@@ -36,31 +36,18 @@ public partial class ActivityWindow : Window
         Closed += (_, _) => _timer.Stop();
     }
 
+    /// <summary>Terminate whatever the visible tab has selected — the view model resolves the target.</summary>
     private async void OnTerminateClick(object? sender, RoutedEventArgs e)
     {
-        if (DataContext is not ActivityViewModel { SelectedRow: { } row } vm)
+        if (DataContext is not ActivityViewModel { TargetPid: { } pid } vm)
         {
             return;
         }
 
-        var confirm = new ConfirmDialog($"Terminate backend {row.Pid} ({row.User}@{row.Database})? Its session and any open transaction die with it.", "Terminate");
+        var confirm = new ConfirmDialog($"Terminate backend {pid} ({vm.TargetLabel})? Its session and any open transaction die with it.", "Terminate");
         if (await confirm.ShowDialog<bool>(this))
         {
-            await vm.TerminateBackendCommand.ExecuteAsync(null);
-        }
-    }
-
-    private async void OnTerminateBlockerClick(object? sender, RoutedEventArgs e)
-    {
-        if (DataContext is not ActivityViewModel { SelectedBlockingNode: { } node } vm)
-        {
-            return;
-        }
-
-        var confirm = new ConfirmDialog($"Terminate backend {node.Pid} ({node.Identity})? Its session and any open transaction die with it.", "Terminate");
-        if (await confirm.ShowDialog<bool>(this))
-        {
-            await vm.TerminateBlockerCommand.ExecuteAsync(null);
+            await vm.TerminateCommand.ExecuteAsync(null);
         }
     }
 }

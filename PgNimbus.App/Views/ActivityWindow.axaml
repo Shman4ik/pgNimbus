@@ -9,51 +9,73 @@
         WindowStartupLocation="CenterOwner"
         FontFamily="{StaticResource InterFont}">
 
-    <Grid RowDefinitions="Auto,*" Margin="12">
+    <Grid RowDefinitions="*,Auto">
 
-        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="6" Margin="0,0,0,10">
-            <Button Classes="soft" Command="{Binding RefreshCommand}" ToolTip.Tip="Refresh now">
-                <StackPanel Orientation="Horizontal" Spacing="7">
-                    <PathIcon Data="{StaticResource RefreshIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
-                    <TextBlock Text="Refresh" VerticalAlignment="Center" />
+        <!--
+            One band of chrome: the segmented tabs on the left, every action
+            right-aligned on the same line (TabControl.Tag is the strip's
+            trailing region — see Theme.axaml). Both tabs act on "the selected
+            backend", so cancel/terminate live here once rather than being
+            duplicated into each tab above its own grid.
+        -->
+        <TabControl Grid.Row="0" Classes="segmented" Margin="12,12,12,0"
+                    SelectedIndex="{Binding SelectedTab, Mode=TwoWay}">
+            <TabControl.Tag>
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Button Classes="soft" Command="{Binding CancelCommand}"
+                            IsEnabled="{Binding HasTarget}"
+                            ToolTip.Tip="Stop the selected backend's running statement but keep the session (pg_cancel_backend). On the Blocking tab, aim at a lock holder to release everyone waiting beneath it.">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <PathIcon Data="{StaticResource StopIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
+                            <TextBlock Text="Cancel query" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="soft danger" Click="OnTerminateClick"
+                            IsEnabled="{Binding HasTarget}"
+                            ToolTip.Tip="Kill the selected backend's whole session (pg_terminate_backend)">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <PathIcon Data="{StaticResource CloseIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
+                            <TextBlock Text="Terminate…" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Acting on a backend and controlling the polling are two
+                         different jobs — keep them visibly apart. -->
+                    <Rectangle Classes="statusSeparator" Margin="5,0" />
+
+                    <Button Classes="soft" Command="{Binding RefreshCommand}" ToolTip.Tip="Refresh now">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <PathIcon Data="{StaticResource RefreshIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
+                            <TextBlock Text="Refresh" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <ToggleButton Classes="soft" IsChecked="{Binding AutoRefresh}"
+                                  ToolTip.Tip="Refresh every 2 seconds while this window is open">
+                        <TextBlock Text="Auto" VerticalAlignment="Center" />
+                    </ToggleButton>
                 </StackPanel>
-            </Button>
-            <ToggleButton Classes="chip" IsChecked="{Binding AutoRefresh}" Padding="10,6"
-                          ToolTip.Tip="Refresh every 2 seconds while this window is open">
-                <TextBlock Text="Auto" FontSize="12" />
-            </ToggleButton>
-        </StackPanel>
-
-        <TabControl Grid.Row="1" Classes="segmented">
+            </TabControl.Tag>
 
             <!-- Every client backend, live -->
             <TabItem Header="Backends">
-                <Grid RowDefinitions="Auto,*,Auto" Margin="0,8,0,0">
-
-                    <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="6" Margin="0,0,0,10">
-                        <Button Classes="soft" Command="{Binding CancelBackendCommand}"
-                                IsEnabled="{Binding SelectedRow, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                ToolTip.Tip="Stop the running statement but keep the session (pg_cancel_backend)">
-                            <StackPanel Orientation="Horizontal" Spacing="7">
-                                <PathIcon Data="{StaticResource StopIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
-                                <TextBlock Text="Cancel query" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </Button>
-                        <Button Classes="soft danger" Click="OnTerminateClick"
-                                IsEnabled="{Binding SelectedRow, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                ToolTip.Tip="Kill the whole session (pg_terminate_backend)">
-                            <StackPanel Orientation="Horizontal" Spacing="7">
-                                <PathIcon Data="{StaticResource CloseIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
-                                <TextBlock Text="Terminate..." VerticalAlignment="Center" />
-                            </StackPanel>
-                        </Button>
-                    </StackPanel>
-
-                    <DataGrid Grid.Row="1" ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow, Mode=TwoWay}"
+                <!-- Framed content pane so both tabs read as the same surface;
+                     clipped so the grid's header and last row respect the radius. -->
+                <Border Margin="0,8,0,0" ClipToBounds="True"
+                        BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
+                        CornerRadius="{StaticResource CardCornerRadius}">
+                    <DataGrid ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow, Mode=TwoWay}"
                               IsReadOnly="True" SelectionMode="Single" CanUserResizeColumns="True"
                               GridLinesVisibility="Horizontal" HeadersVisibility="Column">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="PID" Binding="{Binding Pid}" Width="70" />
+                            <DataGridTemplateColumn Header="PID" Width="70">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate x:DataType="vm:ActivityRow">
+                                        <!-- Monospace, like the pid badge in the blocking tree -->
+                                        <TextBlock Text="{Binding Pid}" Margin="12,0" VerticalAlignment="Center"
+                                                   FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="12" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                             <DataGridTextColumn Header="User" Binding="{Binding User}" Width="90" />
                             <DataGridTextColumn Header="Database" Binding="{Binding Database}" Width="100" />
                             <DataGridTextColumn Header="Application" Binding="{Binding Application}" Width="110" />
@@ -65,7 +87,7 @@
                                         <Panel Margin="12,0">
                                             <!-- Lock waits are the rows worth spotting instantly - amber + bold -->
                                             <TextBlock Text="{Binding Wait}" VerticalAlignment="Center"
-                                                       Foreground="#E5A50A" FontWeight="SemiBold"
+                                                       Foreground="{StaticResource AppWarningBrush}" FontWeight="SemiBold"
                                                        IsVisible="{Binding IsWaitingOnLock}" />
                                             <TextBlock Text="{Binding Wait}" VerticalAlignment="Center" Opacity="0.7"
                                                        IsVisible="{Binding !IsWaitingOnLock}" />
@@ -84,82 +106,64 @@
                             </DataGridTemplateColumn>
                         </DataGrid.Columns>
                     </DataGrid>
-
-                    <TextBlock Grid.Row="2" Text="{Binding Status}" FontSize="11" Opacity="0.7" Margin="2,8,2,0" />
-                </Grid>
+                </Border>
             </TabItem>
 
             <!-- Who blocks whom: lock holders at the top, waiters nested beneath -->
             <TabItem Header="Blocking">
-                <Grid RowDefinitions="Auto,*,Auto" Margin="0,8,0,0">
-
-                    <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="6" Margin="0,0,0,10">
-                        <Button Classes="soft" Command="{Binding CancelBlockerCommand}"
-                                IsEnabled="{Binding SelectedBlockingNode, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                ToolTip.Tip="Cancel the selected backend's statement to release everyone waiting on its lock (pg_cancel_backend)">
-                            <StackPanel Orientation="Horizontal" Spacing="7">
-                                <PathIcon Data="{StaticResource StopIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
-                                <TextBlock Text="Cancel blocker" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </Button>
-                        <Button Classes="soft danger" Click="OnTerminateBlockerClick"
-                                IsEnabled="{Binding SelectedBlockingNode, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                ToolTip.Tip="Kill the selected backend's whole session (pg_terminate_backend)">
-                            <StackPanel Orientation="Horizontal" Spacing="7">
-                                <PathIcon Data="{StaticResource CloseIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
-                                <TextBlock Text="Terminate..." VerticalAlignment="Center" />
-                            </StackPanel>
-                        </Button>
-                    </StackPanel>
-
-                    <Border Grid.Row="1" BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" CornerRadius="4">
-                        <Panel>
-                            <TreeView ItemsSource="{Binding BlockingRoots}"
-                                      SelectedItem="{Binding SelectedBlockingNode, Mode=TwoWay}"
-                                      IsVisible="{Binding HasLockWaits}">
-                                <!-- Expand every node by default: the whole wait chain should be
-                                     visible at a glance, and it survives the 2s auto-refresh rebuild. -->
-                                <TreeView.Styles>
-                                    <Style Selector="TreeViewItem">
-                                        <Setter Property="IsExpanded" Value="True" />
-                                    </Style>
-                                </TreeView.Styles>
-                                <TreeView.ItemTemplate>
-                                    <TreeDataTemplate x:DataType="vm:BlockingNode" ItemsSource="{Binding Children}">
-                                        <StackPanel Spacing="1" Margin="0,3">
-                                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                                <Border Background="{StaticResource CardBorderBrush}" CornerRadius="3" Padding="5,1" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding Pid}" FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="11" />
-                                                </Border>
-                                                <TextBlock Text="{Binding Identity}" VerticalAlignment="Center" FontWeight="SemiBold" />
-                                                <!-- Amber = this backend is itself stuck waiting on a lock -->
-                                                <TextBlock Text="{Binding WaitLabel}" VerticalAlignment="Center"
-                                                           Foreground="#E5A50A" FontSize="12"
-                                                           IsVisible="{Binding IsBlocked}" />
-                                                <TextBlock Text="{Binding BlockingLabel}" VerticalAlignment="Center"
-                                                           Opacity="0.6" FontSize="12"
-                                                           IsVisible="{Binding IsBlocker}" />
-                                            </StackPanel>
-                                            <TextBlock Text="{Binding Query}" Opacity="0.6" FontSize="11"
-                                                       TextTrimming="CharacterEllipsis" MaxWidth="820" HorizontalAlignment="Left"
-                                                       ToolTip.Tip="{Binding Query}" />
+                <Border Margin="0,8,0,0" ClipToBounds="True"
+                        BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
+                        CornerRadius="{StaticResource CardCornerRadius}">
+                    <Panel>
+                        <TreeView ItemsSource="{Binding BlockingRoots}"
+                                  SelectedItem="{Binding SelectedBlockingNode, Mode=TwoWay}"
+                                  IsVisible="{Binding HasLockWaits}">
+                            <!-- Expand every node by default: the whole wait chain should be
+                                 visible at a glance, and it survives the 2s auto-refresh rebuild. -->
+                            <TreeView.Styles>
+                                <Style Selector="TreeViewItem">
+                                    <Setter Property="IsExpanded" Value="True" />
+                                </Style>
+                            </TreeView.Styles>
+                            <TreeView.ItemTemplate>
+                                <TreeDataTemplate x:DataType="vm:BlockingNode" ItemsSource="{Binding Children}">
+                                    <StackPanel Spacing="1" Margin="0,3">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <Border Background="{StaticResource CardBorderBrush}" CornerRadius="3" Padding="5,1" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Pid}" FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="11" />
+                                            </Border>
+                                            <TextBlock Text="{Binding Identity}" VerticalAlignment="Center" FontWeight="SemiBold" />
+                                            <!-- Amber = this backend is itself stuck waiting on a lock -->
+                                            <TextBlock Text="{Binding WaitLabel}" VerticalAlignment="Center"
+                                                       Foreground="{StaticResource AppWarningBrush}" FontSize="12"
+                                                       IsVisible="{Binding IsBlocked}" />
+                                            <TextBlock Text="{Binding BlockingLabel}" VerticalAlignment="Center"
+                                                       Opacity="0.6" FontSize="12"
+                                                       IsVisible="{Binding IsBlocker}" />
                                         </StackPanel>
-                                    </TreeDataTemplate>
-                                </TreeView.ItemTemplate>
-                            </TreeView>
+                                        <TextBlock Text="{Binding Query}" Opacity="0.6" FontSize="11"
+                                                   TextTrimming="CharacterEllipsis" MaxWidth="820" HorizontalAlignment="Left"
+                                                   ToolTip.Tip="{Binding Query}" />
+                                    </StackPanel>
+                                </TreeDataTemplate>
+                            </TreeView.ItemTemplate>
+                        </TreeView>
 
-                            <!-- Nothing blocked: the calm, common case -->
-                            <TextBlock Text="No backend is waiting on a lock right now."
-                                       Opacity="0.55" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                       IsVisible="{Binding !HasLockWaits}" />
-                        </Panel>
-                    </Border>
-
-                    <TextBlock Grid.Row="2" Text="{Binding BlockingStatus}" FontSize="11" Opacity="0.7" Margin="2,8,2,0" />
-                </Grid>
+                        <!-- Nothing blocked: the calm, common case -->
+                        <TextBlock Text="No backend is waiting on a lock right now."
+                                   Opacity="0.55" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   IsVisible="{Binding !HasLockWaits}" />
+                    </Panel>
+                </Border>
             </TabItem>
 
         </TabControl>
+
+        <!-- One status strip flush along the window's bottom edge, showing the
+             visible tab's line — not a floating caption per tab. -->
+        <Border Grid.Row="1" Classes="statusBar" Margin="0,12,0,0">
+            <TextBlock Classes="statusText dim" Text="{Binding ActiveStatus}" />
+        </Border>
 
     </Grid>
 
