@@ -123,22 +123,57 @@ public sealed partial class ActivityViewModel : ObservableObject
     private readonly ActivityService _service;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TargetPid))]
+    [NotifyPropertyChangedFor(nameof(TargetLabel))]
+    [NotifyPropertyChangedFor(nameof(HasTarget))]
     private ActivityRow? _selectedRow;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TargetPid))]
+    [NotifyPropertyChangedFor(nameof(TargetLabel))]
+    [NotifyPropertyChangedFor(nameof(HasTarget))]
     private BlockingNode? _selectedBlockingNode;
+
+    /// <summary>
+    /// Which tab is showing. The cancel/terminate buttons live once on the
+    /// window's header line rather than once per tab, so they need to know
+    /// whose selection they act on — see <see cref="TargetPid"/>.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TargetPid))]
+    [NotifyPropertyChangedFor(nameof(TargetLabel))]
+    [NotifyPropertyChangedFor(nameof(HasTarget))]
+    [NotifyPropertyChangedFor(nameof(ActiveStatus))]
+    private int _selectedTab;
 
     [ObservableProperty]
     private bool _autoRefresh = true;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ActiveStatus))]
     private string _status = "";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ActiveStatus))]
     private string _blockingStatus = "No lock waits.";
 
     [ObservableProperty]
     private bool _hasLockWaits;
+
+    /// <summary>The backend the header actions act on: whatever the visible tab has selected.</summary>
+    public int? TargetPid => SelectedTab == BlockingTab ? SelectedBlockingNode?.Pid : SelectedRow?.Pid;
+
+    /// <summary>"alice@shop" for the confirm prompt; "" when nothing is selected.</summary>
+    public string TargetLabel => SelectedTab == BlockingTab
+        ? SelectedBlockingNode?.Identity ?? ""
+        : SelectedRow is { } row ? $"{row.User}@{row.Database}" : "";
+
+    public bool HasTarget => TargetPid is not null;
+
+    /// <summary>The visible tab's status line — the window shows one status bar, not one per tab.</summary>
+    public string ActiveStatus => SelectedTab == BlockingTab ? BlockingStatus : Status;
+
+    private const int BlockingTab = 1;
 
     public ObservableCollection<ActivityRow> Rows { get; } = [];
 
@@ -234,24 +269,19 @@ public sealed partial class ActivityViewModel : ObservableObject
         return null;
     }
 
+    /// <summary>
+    /// Stop the target's running statement but keep its session. On the Blocking
+    /// tab the target is the selected node, so aiming at a lock holder releases
+    /// everyone waiting beneath it.
+    /// </summary>
     [RelayCommand]
-    private Task CancelBackendAsync() =>
-        SelectedRow is { } row ? SignalCancelAsync(row.Pid) : Task.CompletedTask;
+    private Task CancelAsync() =>
+        TargetPid is { } pid ? SignalCancelAsync(pid) : Task.CompletedTask;
 
     /// <summary>The view confirms first — this kills the whole session, not just the statement.</summary>
     [RelayCommand]
-    private Task TerminateBackendAsync() =>
-        SelectedRow is { } row ? SignalTerminateAsync(row.Pid) : Task.CompletedTask;
-
-    /// <summary>Cancel the selected node's statement — aimed at the lock holder to release the wait.</summary>
-    [RelayCommand]
-    private Task CancelBlockerAsync() =>
-        SelectedBlockingNode is { } node ? SignalCancelAsync(node.Pid) : Task.CompletedTask;
-
-    /// <summary>The view confirms first — terminate the selected node's whole session.</summary>
-    [RelayCommand]
-    private Task TerminateBlockerAsync() =>
-        SelectedBlockingNode is { } node ? SignalTerminateAsync(node.Pid) : Task.CompletedTask;
+    private Task TerminateAsync() =>
+        TargetPid is { } pid ? SignalTerminateAsync(pid) : Task.CompletedTask;
 
     private async Task SignalCancelAsync(int pid)
     {

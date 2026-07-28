@@ -77,7 +77,7 @@
                                     <Panel Margin="12,0">
                                         <!-- A big table read mostly sequentially is worth spotting - amber + bold -->
                                         <TextBlock Text="{Binding IndexScanPercent}" VerticalAlignment="Center"
-                                                   Foreground="#E5A50A" FontWeight="SemiBold"
+                                                   Foreground="{StaticResource AppWarningBrush}" FontWeight="SemiBold"
                                                    IsVisible="{Binding IsSeqScanHeavy}" />
                                         <TextBlock Text="{Binding IndexScanPercent}" VerticalAlignment="Center"
                                                    IsVisible="{Binding !IsSeqScanHeavy}" />

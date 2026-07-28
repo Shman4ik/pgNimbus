@@ -76,6 +76,14 @@
             <SolidColorBrush x:Key="AppDangerWashBrush" Color="#22E5484D" />
             <SolidColorBrush x:Key="AppDangerBorderBrush" Color="#66E5484D" />
 
+            <!-- Attention, not danger: a monitoring row worth spotting (a backend
+                 stuck on a lock, a table read mostly by seq scan) and the warn
+                 status text. One fixed amber for all of them — dark enough to
+                 stay legible on a white grid row, warm enough to read as amber
+                 on dark. Deliberately a token: hand-rolled #E5A50A/#D9822B
+                 literals used to drift apart between the two monitoring windows. -->
+            <SolidColorBrush x:Key="AppWarningBrush" Color="#D9822B" />
+
         <CornerRadius x:Key="CardCornerRadius">8</CornerRadius>
         <CornerRadius x:Key="ControlCornerRadius">6</CornerRadius>
         <CornerRadius x:Key="PillCornerRadius">16</CornerRadius>
@@ -439,7 +447,7 @@
     </Style>
     <!-- Fixed amber that stays legible on both light and dark surfaces -->
     <Style Selector="TextBlock.statusText.warn">
-        <Setter Property="Foreground" Value="#D9822B" />
+        <Setter Property="Foreground" Value="{StaticResource AppWarningBrush}" />
         <Setter Property="Opacity" Value="1" />
     </Style>
     <Style Selector="Rectangle.statusSeparator">
@@ -632,24 +640,38 @@
          is untouched. The header strip is a subtle capsule; each segment is a
          centered pill that fades to the brand-blue wash when selected. Fully
          retemplated so it doesn't inherit the left-nav geometry or Fluent's
-         underline pipe. -->
+         underline pipe.
+
+         The header line also carries a trailing actions region: whatever is
+         put in the TabControl's Tag is presented right-aligned on the same
+         baseline as the segments. That's what keeps a monitoring window to a
+         single band of chrome instead of stacking a toolbar above the tabs.
+         Tag content is hosted by a ContentPresenter *inside* the template, so
+         it joins the logical tree under the TabControl and inherits its
+         DataContext - bindings in there resolve exactly like normal content.
+         A window that sets no Tag renders nothing there. -->
     <Style Selector="TabControl.segmented">
         <Setter Property="Padding" Value="0" />
         <Setter Property="Template">
             <ControlTemplate>
                 <DockPanel>
-                    <!-- The header strip: a subtle capsule that hugs its segments -->
-                    <Border DockPanel.Dock="Top"
-                            Background="{StaticResource CardBackgroundBrush}"
-                            BorderBrush="{StaticResource CardBorderBrush}"
-                            BorderThickness="1"
-                            CornerRadius="9"
-                            Padding="3"
-                            Margin="0,0,0,2"
-                            HorizontalAlignment="Left">
-                        <ItemsPresenter Name="PART_ItemsPresenter"
-                                        ItemsPanel="{TemplateBinding ItemsPanel}" />
-                    </Border>
+                    <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*" Margin="0,0,0,2">
+                        <!-- The header strip: a subtle capsule that hugs its segments -->
+                        <Border Grid.Column="0"
+                                Background="{StaticResource CardBackgroundBrush}"
+                                BorderBrush="{StaticResource CardBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="9"
+                                Padding="3"
+                                HorizontalAlignment="Left">
+                            <ItemsPresenter Name="PART_ItemsPresenter"
+                                            ItemsPanel="{TemplateBinding ItemsPanel}" />
+                        </Border>
+                        <ContentPresenter Grid.Column="1"
+                                          Content="{TemplateBinding Tag}"
+                                          HorizontalAlignment="Right"
+                                          VerticalAlignment="Center" />
+                    </Grid>
                     <ContentPresenter Name="PART_SelectedContentHost"
                                       Content="{TemplateBinding SelectedContent}"
                                       ContentTemplate="{TemplateBinding SelectedContentTemplate}"
@@ -750,6 +772,72 @@
     <Style Selector="Button.soft.danger:pressed /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{StaticResource AppDangerWashBrush}" />
         <Setter Property="BorderBrush" Value="{StaticResource AppDangerBorderBrush}" />
+    </Style>
+    <!-- A disabled destructive button must not still shout red: .soft:disabled's
+         0.4 opacity over AppDangerBrush lands on a washed-out pink that reads as
+         "broken", not "unavailable". Drop back to the ordinary foreground so it
+         dims like every other disabled button. -->
+    <Style Selector="Button.soft.danger:disabled">
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+    </Style>
+    <Style Selector="Button.soft.danger:disabled PathIcon">
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+    </Style>
+
+    <!-- Toggle variant of .soft, for an on/off action that belongs in the same
+         button group as its neighbours (the activity window's "Auto" refresh
+         next to "Refresh"). A .chip there would sit at a different height and
+         radius, and its checked blue wash reads as a *selected tab* - which is
+         exactly what the segmented strip beside it already means. This keeps
+         the .soft pill geometry and marks "on" with the accent border + wash.
+         Fluent repaints PART_ContentPresenter for every ToggleButton state, so
+         each state is pinned at the template part (same trick as .searchpill),
+         and selectors match by style key so ToggleButton needs its own rules
+         rather than inheriting the Button.soft ones. -->
+    <Style Selector="ToggleButton.soft">
+        <Setter Property="Background" Value="{StaticResource CardBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource ControlCornerRadius}" />
+        <Setter Property="Padding" Value="11,6" />
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+    </Style>
+    <Style Selector="ToggleButton.soft /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource CardBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="Background" Duration="0:0:0.12" />
+                <BrushTransition Property="BorderBrush" Duration="0:0:0.12" />
+            </Transitions>
+        </Setter>
+    </Style>
+    <Style Selector="ToggleButton.soft:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource AppAccentBrush}" />
+    </Style>
+    <Style Selector="ToggleButton.soft:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource AppAccentBrush}" />
+    </Style>
+    <Style Selector="ToggleButton.soft:checked">
+        <Setter Property="Foreground" Value="{StaticResource AppAccentBrush}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="ToggleButton.soft:checked /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource AppAccentBrush}" />
+    </Style>
+    <Style Selector="ToggleButton.soft:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource AppAccentBrush}" />
+    </Style>
+    <Style Selector="ToggleButton.soft:checked:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource AppAccentBrush}" />
+    </Style>
+    <Style Selector="ToggleButton.soft:disabled">
+        <Setter Property="Opacity" Value="0.4" />
     </Style>
 
     <!-- Lists / trees: rounded row selection instead of edge-to-edge highlight bars -->

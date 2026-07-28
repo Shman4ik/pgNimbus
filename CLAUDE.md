@@ -291,11 +291,28 @@ and wrong project memory is worse than none.
    (outline red — a secondary destructive action sitting next to a
    non-destructive primary: Delete a profile, Drop a column, Discard all,
    the activity window's Terminate), and `chip` (small toggle/close pills).
+   `ToggleButton.soft` is the on/off variant of `soft`, for a toggle that
+   belongs in the same button group as its neighbours (the activity window's
+   "Auto" beside "Refresh") — a `chip` there sits at a different height and
+   radius, and its checked blue wash reads as a *selected tab*, which the
+   segmented strip beside it already means.
    Horizontal tab strips use `TabControl.segmented` — a retemplated
    macOS-style segmented capsule (the monitoring windows' Backends/Blocking
    and Database Overview's tabs); the bare global `TabItem` style is the
-   *vertical* left-nav look and must stay untouched. Destructive colors come
-   from the `AppDanger*` tokens (theme-independent fixed red). This
+   *vertical* left-nav look and must stay untouched. Its header line also
+   carries a **trailing actions region**: whatever a window puts in the
+   `TabControl`'s `Tag` is presented right-aligned on the tab baseline (hosted
+   by a `ContentPresenter` inside the template, so it inherits the
+   TabControl's DataContext and bindings resolve normally). That's what keeps
+   a monitoring window to one band of chrome instead of stacking a toolbar
+   above the tabs — the 2026-07 activity-window polish collapsed three bands
+   (Refresh/Auto, the tab strip, and a per-tab Cancel/Terminate pair) into
+   one, which is also why `ActivityViewModel` resolves a single `TargetPid`
+   from the visible tab's selection rather than carrying a command pair per
+   tab. Destructive colors come from the `AppDanger*` tokens
+   (theme-independent fixed red) and attention-but-not-danger amber (a
+   lock-waiting backend, a seq-scan-heavy table, `TextBlock.statusText.warn`)
+   from the single `AppWarningBrush` token — never a hand-rolled hex. This
    vocabulary is app-wide across the secondary windows and dialogs; the main
    window's command bar deliberately keeps its flat minimalist `toolbar`
    buttons (rule 1) and is the one surface exempt.
