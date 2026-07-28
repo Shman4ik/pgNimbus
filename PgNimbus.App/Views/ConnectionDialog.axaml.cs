@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 using PgNimbus.App.ViewModels;
 using PgNimbus.Core.Connections;
@@ -99,8 +100,16 @@ public partial class ConnectionDialog : Window
         }
     }
 
-    /// <summary>Picking a swatch is the whole point of the flyout — close it rather than making the user click away.</summary>
-    private void OnAccentSwatchClick(object? sender, RoutedEventArgs e) => AccentButton.Flyout?.Hide();
+    /// <summary>
+    /// Picking a swatch is the whole point of the flyout — close it rather than
+    /// making the user click away. Deferred to the next dispatcher pass on
+    /// purpose: <c>Button.OnClick</c> raises Click *before* it invokes Command,
+    /// and hiding the flyout detaches the swatch from the tree, which tears down
+    /// its <c>Command</c> binding — so a synchronous Hide() here swallows the
+    /// selection entirely and the accent color never changes.
+    /// </summary>
+    private void OnAccentSwatchClick(object? sender, RoutedEventArgs e) =>
+        Dispatcher.UIThread.Post(() => AccentButton.Flyout?.Hide());
 
     private void OnProfilesPointerPressed(object? sender, PointerPressedEventArgs e)
     {
