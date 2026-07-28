@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785183780032,
+  "lastUpdate": 1785218617979,
   "repoUrl": "https://github.com/Shman4ik/pgNimbus",
   "entries": {
     "pgNimbus benchmarks": [
@@ -1305,6 +1305,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "Stream 100000 rows",
             "value": 120.2,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shman4ik@gmail.com",
+            "name": "Dmitrii Shmanev",
+            "username": "Shman4ik"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "cf9991e7904f4167d638342aec86b88e44f7e9c4",
+          "message": "Merge pull request #172 from Shman4ik/polish/activity-window\n\nCollapse the activity window into one band of chrome",
+          "timestamp": "2026-07-28T07:55:59+02:00",
+          "tree_id": "9338114480ca3c4bada5e8c8292ec68a574f1030",
+          "url": "https://github.com/Shman4ik/pgNimbus/commit/cf9991e7904f4167d638342aec86b88e44f7e9c4"
+        },
+        "date": 1785218616934,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Startup, launch to first frame (NativeAOT)",
+            "value": 191,
+            "unit": "ms"
+          },
+          {
+            "name": "Memory at first frame (NativeAOT)",
+            "value": 154.4,
+            "unit": "MB"
+          },
+          {
+            "name": "Binary size (NativeAOT)",
+            "value": 42,
+            "unit": "MB"
+          },
+          {
+            "name": "Publish size (NativeAOT, shipped files)",
+            "value": 55.3,
+            "unit": "MB"
+          },
+          {
+            "name": "Startup, launch to first frame (JIT)",
+            "value": 1899,
+            "unit": "ms"
+          },
+          {
+            "name": "Connect, cold pool",
+            "value": 153.4,
+            "unit": "ms"
+          },
+          {
+            "name": "Round-trip, SELECT 1 warm",
+            "value": 0.39,
+            "unit": "ms"
+          },
+          {
+            "name": "First row batch of a 100000-row SELECT",
+            "value": 11.4,
+            "unit": "ms"
+          },
+          {
+            "name": "Stream 100000 rows",
+            "value": 152.1,
             "unit": "ms"
           }
         ]
