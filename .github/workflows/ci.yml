@@ -72,3 +72,16 @@ jobs:
         env:
           PGNIMBUS_TEST_CONN: "Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=postgres"
         run: dotnet test --project PgNimbus.Core.Tests -c Release
+
+      # Renders every UI scenario through Avalonia.Headless (no display, no
+      # database — see CLAUDE.md "Headless screenshot harness"). It doubles as a
+      # smoke test: a view that throws while loading, or one that renders no
+      # frame at all, fails the run instead of shipping quietly. The PNGs ride
+      # along as an artifact so a UI change can be eyeballed from the PR.
+      - name: Screenshots
+        run: dotnet run --project tools/Screenshot -c Release -- "${{ runner.temp }}/screenshots"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: ${{ runner.temp }}/screenshots

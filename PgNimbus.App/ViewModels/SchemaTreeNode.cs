@@ -31,6 +31,23 @@ public abstract partial class SchemaTreeNode : ObservableObject
     /// <summary>Re-fetches this node's children immediately, bypassing the lazy-load-once gate (used after schema-changing operations like ALTER TABLE).</summary>
     public Task RefreshAsync() => LoadChildrenAsync();
 
+    /// <summary>
+    /// Fills this node's children in up front and marks it loaded, so expanding
+    /// it never reaches for the catalog. The headless screenshot harness
+    /// (tools/Screenshot) builds its fixture trees this way; production always
+    /// loads lazily through <see cref="FetchChildrenAsync"/>.
+    /// </summary>
+    public void SeedChildren(IEnumerable<SchemaTreeNode> children)
+    {
+        Children.Clear();
+        foreach (var child in children)
+        {
+            Children.Add(child);
+        }
+
+        _loaded = true;
+    }
+
     partial void OnIsExpandedChanged(bool value)
     {
         if (!value || _loaded)

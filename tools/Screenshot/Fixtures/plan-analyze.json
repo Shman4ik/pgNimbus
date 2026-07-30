@@ -1,0 +1,111 @@
+[
+  {
+    "Plan": {
+      "Node Type": "Sort",
+      "Parallel Aware": false,
+      "Startup Cost": 84210.44,
+      "Total Cost": 84960.44,
+      "Plan Rows": 300000,
+      "Plan Width": 64,
+      "Actual Startup Time": 1804.221,
+      "Actual Total Time": 1912.884,
+      "Actual Rows": 412884,
+      "Actual Loops": 1,
+      "Sort Key": ["o.placed_at DESC"],
+      "Sort Method": "external merge",
+      "Sort Space Used": 41208,
+      "Sort Space Type": "Disk",
+      "Shared Hit Blocks": 18422,
+      "Shared Read Blocks": 90114,
+      "Temp Read Blocks": 5142,
+      "Temp Written Blocks": 5164,
+      "Plans": [
+        {
+          "Node Type": "Hash Join",
+          "Parent Relationship": "Outer",
+          "Parallel Aware": false,
+          "Join Type": "Inner",
+          "Startup Cost": 4210.00,
+          "Total Cost": 61204.18,
+          "Plan Rows": 300000,
+          "Plan Width": 64,
+          "Actual Startup Time": 61.402,
+          "Actual Total Time": 1502.118,
+          "Actual Rows": 412884,
+          "Actual Loops": 1,
+          "Hash Cond": "(i.order_id = o.id)",
+          "Shared Hit Blocks": 18422,
+          "Shared Read Blocks": 90114,
+          "Plans": [
+            {
+              "Node Type": "Seq Scan",
+              "Parent Relationship": "Outer",
+              "Parallel Aware": false,
+              "Relation Name": "order_items",
+              "Alias": "i",
+              "Startup Cost": 0.00,
+              "Total Cost": 42104.22,
+              "Plan Rows": 1900000,
+              "Plan Width": 32,
+              "Actual Startup Time": 0.018,
+              "Actual Total Time": 902.441,
+              "Actual Rows": 412884,
+              "Actual Loops": 1,
+              "Filter": "(quantity > 1)",
+              "Rows Removed by Filter": 3488339,
+              "Shared Hit Blocks": 4120,
+              "Shared Read Blocks": 84882
+            },
+            {
+              "Node Type": "Hash",
+              "Parent Relationship": "Inner",
+              "Parallel Aware": false,
+              "Startup Cost": 3210.00,
+              "Total Cost": 3210.00,
+              "Plan Rows": 80000,
+              "Plan Width": 40,
+              "Actual Startup Time": 58.914,
+              "Actual Total Time": 58.914,
+              "Actual Rows": 120488,
+              "Actual Loops": 1,
+              "Hash Buckets": 131072,
+              "Hash Batches": 4,
+              "Original Hash Batches": 1,
+              "Peak Memory Usage": 4128,
+              "Shared Hit Blocks": 14302,
+              "Shared Read Blocks": 5232,
+              "Plans": [
+                {
+                  "Node Type": "Index Scan",
+                  "Parent Relationship": "Outer",
+                  "Parallel Aware": false,
+                  "Scan Direction": "Forward",
+                  "Index Name": "orders_placed_at_idx",
+                  "Relation Name": "orders",
+                  "Alias": "o",
+                  "Startup Cost": 0.42,
+                  "Total Cost": 3120.44,
+                  "Plan Rows": 80000,
+                  "Plan Width": 40,
+                  "Actual Startup Time": 0.041,
+                  "Actual Total Time": 41.208,
+                  "Actual Rows": 120488,
+                  "Actual Loops": 1,
+                  "Index Cond": "(placed_at > (now() - '30 days'::interval))",
+                  "Shared Hit Blocks": 14302,
+                  "Shared Read Blocks": 5232
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "Settings": {
+      "work_mem": "4MB",
+      "random_page_cost": "1.1"
+    },
+    "Planning Time": 0.884,
+    "Execution Time": 1948.402
+  }
+]

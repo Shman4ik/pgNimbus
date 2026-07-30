@@ -69,4 +69,5 @@
   <Project Path="PgNimbus.Benchmarks/PgNimbus.Benchmarks.csproj" />
   <Project Path="PgNimbus.Core.Tests/PgNimbus.Core.Tests.csproj" />
   <Project Path="PgNimbus.Core/PgNimbus.Core.csproj" />
+  <Project Path="tools/Screenshot/Screenshot.csproj" />
 </Solution>

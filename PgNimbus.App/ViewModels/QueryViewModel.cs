@@ -770,6 +770,34 @@ public sealed partial class QueryViewModel : ObservableObject
             : null;
     }
 
+    /// <summary>
+    /// Points the grid at a result set that was never run — the headless
+    /// screenshot harness's entry point (tools/Screenshot), which has no server
+    /// behind it. Sets exactly what the run path's <see cref="ResultSet"/> case
+    /// sets: the columns (so the grid can build its per-column type icons), the
+    /// rows, and the status-bar segments. Never called in production.
+    /// </summary>
+    public void SeedResult(
+        IReadOnlyList<ColumnInfo> columns,
+        IReadOnlyList<object?[]> rows,
+        string status = "Done",
+        string? rowCountText = null,
+        string? timingText = null)
+    {
+        _columns = columns;
+        ColumnNames.Clear();
+        foreach (var column in columns)
+        {
+            ColumnNames.Add(column.Name);
+        }
+
+        Rows = new AvaloniaList<object?[]>(rows);
+        Status = status;
+        HasError = false;
+        RowCountText = rowCountText ?? RowLabel(rows.Count);
+        TimingText = timingText;
+    }
+
     private void NotifyScriptResultChanged()
     {
         OnPropertyChanged(nameof(IsScriptResult));
