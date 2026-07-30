@@ -180,9 +180,88 @@ public sealed partial class ActivityViewModel : ObservableObject
     /// <summary>Roots of the blocking forest — the lock holders to cancel to unstick everyone below.</summary>
     public ObservableCollection<BlockingNode> BlockingRoots { get; } = [];
 
-    public ActivityViewModel(ActivityService service)
+    // --- Trend ------------------------------------------------------------
+
+    private readonly ActivityHistory _history;
+
+    /// <summary>
+    /// Busy backends per poll, oldest first — the sparkline's main series.
+    /// Active rather than total, because a pool full of idle connections is the
+    /// steady state everywhere and its line would never move. Replaced with a
+    /// fresh array each refresh (see <see cref="ActivityHistory.Series"/>).
+    /// </summary>
+    [ObservableProperty]
+    private IReadOnlyList<double?> _activeSeries = [];
+
+    /// <summary>Backends waiting on a lock per poll, drawn over the active line — the shape you open this window to find.</summary>
+    [ObservableProperty]
+    private IReadOnlyList<double?> _lockWaitSeries = [];
+
+    /// <summary>
+    /// The peak across both series, which both sparklines are scaled to. Without
+    /// a shared denominator each would auto-scale to its own maximum and two
+    /// lock waiters would draw as tall as forty active backends — the overlay
+    /// would be a lie.
+    /// </summary>
+    [ObservableProperty]
+    private double _trendPeak = 1;
+
+    /// <summary>
+    /// True once there is more than one sample to draw. A one-point chart says
+    /// nothing a number doesn't, so the trend stays hidden until the second poll
+    /// rather than showing an empty frame (UI rule 1 — nothing always-visible
+    /// that isn't earning its space).
+    /// </summary>
+    public bool HasTrend => _history.Count > 1;
+
+    /// <summary>The window the sparkline covers, e.g. "last 2 min" — a chart with no time span is unreadable.</summary>
+    public string TrendLabel
+    {
+        get
+        {
+            var samples = _history.Samples();
+            if (samples.Count < 2)
+            {
+                return "";
+            }
+
+            var span = samples[^1].At - samples[0].At;
+            return span.TotalMinutes >= 1
+                ? $"last {span.TotalMinutes:F0} min"
+                : $"last {span.TotalSeconds:F0}s";
+        }
+    }
+
+    /// <summary>
+    /// <paramref name="history"/> is the trend window this view fills as it
+    /// polls; it is a parameter rather than a field initializer so a caller can
+    /// hand in a pre-filled one (the screenshot harness does).
+    /// </summary>
+    public ActivityViewModel(ActivityService service, ActivityHistory? history = null)
     {
         _service = service;
+        _history = history ?? new ActivityHistory();
+        PublishTrend();
+    }
+
+    /// <summary>
+    /// Folds this poll into the trend window. A failed poll records a gap rather
+    /// than zeros — see <see cref="ActivitySample"/> — so a server that stopped
+    /// answering doesn't draw like a server that went quiet.
+    /// </summary>
+    private void RecordTrend(int? backends, int? active, int? waiting)
+    {
+        _history.Record(new ActivitySample(DateTimeOffset.Now, backends, active, waiting));
+        PublishTrend();
+    }
+
+    private void PublishTrend()
+    {
+        ActiveSeries = _history.Series(s => s.Active);
+        LockWaitSeries = _history.Series(s => s.WaitingOnLock);
+        TrendPeak = Math.Max(1, ActiveSeries.Concat(LockWaitSeries).Select(v => v ?? 0).DefaultIfEmpty(0).Max());
+        OnPropertyChanged(nameof(HasTrend));
+        OnPropertyChanged(nameof(TrendLabel));
     }
 
     [RelayCommand]
@@ -213,12 +292,15 @@ public sealed partial class ActivityViewModel : ObservableObject
             SelectedRow = selectedPid is { } pid ? Rows.FirstOrDefault(r => r.Pid == pid) : null;
 
             var locks = Rows.Count(r => r.IsWaitingOnLock);
+            RecordTrend(Rows.Count, Rows.Count(r => r.State == "active"), locks);
             Status = $"{Rows.Count} backend{(Rows.Count == 1 ? "" : "s")}"
                 + (locks > 0 ? $" · {locks} waiting on locks" : "")
                 + $" · {DateTime.Now:HH:mm:ss}";
         }
         catch (Exception ex)
         {
+            // A poll that failed is a hole in the trend, not a quiet server.
+            RecordTrend(null, null, null);
             Status = ex.Message;
         }
     }

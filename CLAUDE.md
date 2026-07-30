@@ -83,7 +83,24 @@ and wrong project memory is worse than none.
    recursion). The tree's nodes auto-expand so the whole wait chain shows at a
    glance and survives the 2s auto-refresh rebuild; cancel/terminate on the
    Blocking tab target the *selected* node's pid (aim at the root holder to
-   release everyone beneath it).
+   release everyone beneath it). The window's status bar carries a **trend**
+   (2026-07): a single count can't tell a spike from the steady state, and
+   `pg_stat_activity` keeps no history to ask. `Monitoring/ActivityHistory` (Core,
+   unit-tested, a read-only sibling of `BlockingTree`) is a fixed-capacity ring of
+   `ActivitySample`s — 150 samples, 5 minutes at the 2s cadence — **bounded and
+   never persisted** by design; long-range server metrics are Prometheus's job, so
+   don't grow it into a store. Three rules it exists to enforce: a *failed* poll
+   records a **gap, not a zero** (a server that stopped answering must not draw
+   like a server that went quiet, and `Sparkline` breaks its line across nulls);
+   `Series` hands back a **fresh array** per poll, since a ring mutated in place
+   raises no change notification; and both overlaid series share one scale
+   (`ActivityViewModel.TrendPeak` → `Sparkline.MinimumScale`), or two lock waiters
+   would draw as tall as forty active backends. `Controls/Sparkline.cs` is a
+   hand-rolled `Control` (area + polyline straight into a `DrawingContext`) for the
+   same reason kubeNimbus's is: the Avalonia charting packages bring
+   reflection-based binding and theming, which the NativeAOT shipping build can't
+   accept. The trend stays hidden until the second sample — a one-point chart says
+   nothing a number doesn't (UI rule 1).
 4. **No passwords on `ConnectionProfile`.** Passwords come from
    `ICredentialStore` (DPAPI on Windows via `WindowsDpapiCredentialStore`, a
    permission-restricted file fallback elsewhere via

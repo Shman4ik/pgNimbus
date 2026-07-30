@@ -218,6 +218,28 @@ internal static class Fixtures
         new(4851, "postgres", "shop", "psql", null, "idle", null, null, 0.0, "SELECT 1"),
     ];
 
+    /// <summary>
+    /// A session's worth of polls behind the status bar's trend: a quiet stretch,
+    /// a burst of activity with lock waits behind it, and a hole where two polls
+    /// failed (which must draw as a gap, not as zero).
+    /// </summary>
+    public static IReadOnlyList<ActivitySample> ActivityTrend()
+    {
+        var start = new DateTimeOffset(2026, 7, 30, 9, 38, 22, TimeSpan.Zero);
+        var active = new int?[]
+        {
+            2, 3, 2, 2, 4, 3, 2, 3, 2, 2, 3, 5, 9, 14, 18, 21, 19, 22, 26, 24,
+            20, 17, 19, 23, 27, 25, 21, 16, 12, 9, null, null, 7, 5, 4, 3, 4, 6, 5, 4,
+        };
+        var waiting = new int?[]
+        {
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 4, 5, 6, 6,
+            5, 4, 4, 5, 6, 5, 4, 3, 2, 1, null, null, 1, 1, 0, 0, 0, 2, 2, 1,
+        };
+
+        return [.. active.Select((a, i) => new ActivitySample(start.AddSeconds(2 * i), a is null ? null : a + 6, a, waiting[i]))];
+    }
+
     public static IReadOnlyList<BlockingBackend> BlockingBackends() =>
     [
         new(4844, "app", "shop", "shop-worker", "idle in transaction", null, null, 96.0, "UPDATE orders SET status = 'paid' WHERE id = 4821", [], null, null),

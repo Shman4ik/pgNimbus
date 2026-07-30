@@ -182,7 +182,15 @@ internal static class Scenarios
 
     private static Window BuildActivityWindow(int tab)
     {
-        var vm = Fixtures.MainWindowViewModel().Activity;
+        // A session's worth of polls behind the status bar's trend, seeded
+        // through the constructor rather than replayed one Record at a time.
+        var history = new ActivityHistory();
+        foreach (var sample in Fixtures.ActivityTrend())
+        {
+            history.Record(sample);
+        }
+
+        var vm = new ActivityViewModel(new ActivityService(Fixtures.DataSource), history);
         foreach (var backend in Fixtures.Backends())
         {
             vm.Rows.Add(new ActivityRow(backend));
@@ -207,7 +215,7 @@ internal static class Scenarios
     /// <summary>Database Overview: sizes, cache-hit ratios, scan usage, unused indexes.</summary>
     public static Window DatabaseOverview()
     {
-        var vm = Fixtures.MainWindowViewModel().DatabaseOverview;
+        var vm = new DatabaseOverviewViewModel(new DatabaseStatsService(Fixtures.DataSource));
         vm.DatabaseName = "shop";
         vm.DatabaseSizeText = "1.2 GB";
         vm.TableCacheHitText = "99.1 %";

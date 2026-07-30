@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:PgNimbus.App.ViewModels"
+        xmlns:controls="using:PgNimbus.App.Controls"
         x:Class="PgNimbus.App.Views.ActivityWindow"
         x:DataType="vm:ActivityViewModel"
         Title="pgNimbus — Server Activity"
@@ -162,7 +163,25 @@
         <!-- One status strip flush along the window's bottom edge, showing the
              visible tab's line — not a floating caption per tab. -->
         <Border Grid.Row="1" Classes="statusBar" Margin="0,12,0,0">
-            <TextBlock Classes="statusText dim" Text="{Binding ActiveStatus}" />
+            <DockPanel>
+                <!-- The trend for the session so far: active backends, with lock
+                     waiters drawn over them in warning amber. A single count
+                     can't tell a spike from the steady state, and pg_stat_activity
+                     has no history of its own to ask. Hidden until there are two
+                     samples to join — a one-point chart says nothing. -->
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8"
+                            VerticalAlignment="Center" IsVisible="{Binding HasTrend}"
+                            ToolTip.Tip="Active backends over this session, with lock waits in amber. Not persisted — pg_stat_activity keeps no history.">
+                    <TextBlock Classes="statusText dim" Text="{Binding TrendLabel}" VerticalAlignment="Center" />
+                    <Panel Width="110" Height="18" VerticalAlignment="Center">
+                        <controls:Sparkline Values="{Binding ActiveSeries}" MinimumScale="{Binding TrendPeak}"
+                                            Stroke="{DynamicResource AppAccentBrush}" />
+                        <controls:Sparkline Values="{Binding LockWaitSeries}" MinimumScale="{Binding TrendPeak}"
+                                            Stroke="{DynamicResource AppWarningBrush}" />
+                    </Panel>
+                </StackPanel>
+                <TextBlock Classes="statusText dim" Text="{Binding ActiveStatus}" VerticalAlignment="Center" />
+            </DockPanel>
         </Border>
 
     </Grid>
