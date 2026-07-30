@@ -67,6 +67,76 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
 
     public ObservableCollection<SchemaTreeNode> Schemas { get; } = [];
 
+    // --- Recent relations -------------------------------------------------
+
+    /// <summary>How many entries the pinned Recent section holds — enough for the handful of relations a task actually involves, short enough to stay scannable above the tree.</summary>
+    private const int MaxRecent = 5;
+
+    private readonly List<RelationInfo> _recent = [];
+
+    private RecentGroupNode? _recentGroup;
+
+    /// <summary>
+    /// Records a relation as recently opened, floating it to the top of the
+    /// pinned Recent section (see <see cref="RecentGroupNode"/>). Called from the
+    /// host for every route that opens one — the tree's double-click, the palette's
+    /// table jump, follow-FK, "Source (DDL)" — so Recent reflects what was worked
+    /// on rather than how it was reached.
+    ///
+    /// Session-scoped by design: it is not persisted, and a schema refresh keeps it
+    /// (the relations are still there). Re-recording an entry already at the top is
+    /// a no-op, so re-opening the same table doesn't churn the list.
+    /// </summary>
+    public void RecordRecentRelation(string schema, string name, RelationKind kind)
+    {
+        var entry = new RelationInfo(schema, name, kind);
+        if (_recent.Count > 0 && _recent[0] == entry)
+        {
+            return;
+        }
+
+        _recent.RemoveAll(r => r.Schema == schema && r.Name == name);
+        _recent.Insert(0, entry);
+        if (_recent.Count > MaxRecent)
+        {
+            _recent.RemoveRange(MaxRecent, _recent.Count - MaxRecent);
+        }
+
+        SyncRecentSection();
+    }
+
+    /// <summary>
+    /// Keeps the pinned Recent node in step with <see cref="_recent"/>: present and
+    /// expanded at the top of the tree once anything has been opened, absent before
+    /// that (an empty section is pure noise). The node rebuilds its own children,
+    /// so the same instance survives a refresh with its expansion state intact.
+    /// </summary>
+    private void SyncRecentSection()
+    {
+        if (_recent.Count == 0)
+        {
+            return;
+        }
+
+        if (_recentGroup is null)
+        {
+            _recentGroup = new RecentGroupNode(_schemaService, () => _recent, () => ShowAdvancedObjects);
+            _recentGroup.IsExpanded = true;
+        }
+
+        if (Schemas.Count == 0 || Schemas[0] != _recentGroup)
+        {
+            Schemas.Remove(_recentGroup);
+            Schemas.Insert(0, _recentGroup);
+        }
+
+        // Fire-and-forget like every other node refresh in this tree: the group
+        // builds its children from the in-memory list, so there is nothing to
+        // await and nothing that can fail.
+        _ = _recentGroup.RefreshAsync();
+        ApplyFilter();
+    }
+
     // --- Host-supplied actions --------------------------------------------
     // The schema tree's context-menu / double-click / refresh actions are
     // window-level orchestration — opening query and browse tabs, refreshing
@@ -167,8 +237,12 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
     /// <summary>
     /// Walks the loaded tree and toggles <see cref="SchemaTreeNode.IsFilteredIn"/> so a schema shows when its
     /// own name matches (all its tables stay visible) or when any loaded table matches (only the matches show,
-    /// and the schema auto-expands to reveal them). An empty filter reveals everything. Only schema and table
-    /// names participate; unloaded (lazily-expandable) tables can't be matched until their schema is expanded.
+    /// and the schema auto-expands to reveal them). An empty filter reveals everything.
+    ///
+    /// A table matches on its own name <em>or</em> on any of its loaded column names, so "customer_id" finds
+    /// the tables that reference a customer rather than only the table called customers — a table that
+    /// survives on a column match expands to show why. Unloaded (lazily-expandable) nodes can't be matched
+    /// until they're expanded, which applies to schemas and to a table's columns alike.
     /// </summary>
     private void ApplyFilter()
     {
@@ -190,6 +264,23 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
 
         foreach (var node in Schemas)
         {
+            // The pinned Recent group holds tables, so it filters like a schema
+            // does - except its own name ("Recent") is chrome, not something to
+            // match on, and an empty Recent section under a filter is noise.
+            if (node is RecentGroupNode recent)
+            {
+                var anyRecentMatches = false;
+                foreach (var child in recent.Children)
+                {
+                    var matches = child is TableNode table && TableMatches(table, query);
+                    child.IsFilteredIn = matches || child is not TableNode;
+                    anyRecentMatches |= matches;
+                }
+
+                recent.IsFilteredIn = anyRecentMatches;
+                continue;
+            }
+
             // The root-level Extensions/Roles groups aren't schemas and their
             // children aren't tables, so a schema/table-name filter has nothing
             // to say about them - keep them in rather than hiding them outright.
@@ -209,11 +300,11 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
 
             foreach (var child in schema.Children)
             {
-                // Only real tables are matched by name. Sub-groups (Functions)
-                // and placeholder/error rows aren't tables and have no name to
+                // Only real tables are matched. Sub-groups (Functions) and
+                // placeholder/error rows aren't tables and have no name to
                 // match, so they ride the schema's own visibility instead of
                 // being filtered out.
-                var tableMatches = child is TableNode && Contains(child.Name, query);
+                var tableMatches = child is TableNode table && TableMatches(table, query);
                 child.IsFilteredIn = schemaMatches || tableMatches || child is not TableNode;
                 anyTableMatches |= tableMatches;
             }
@@ -226,6 +317,28 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
                 schema.IsExpanded = true;
             }
         }
+    }
+
+    /// <summary>
+    /// A table matches on its own name, or on one of its already-loaded column
+    /// names — expanding it in that case, since a row that matched on something
+    /// invisible reads as a bug. Columns load on first expand, so an unexpanded
+    /// table can only ever match by name.
+    /// </summary>
+    private static bool TableMatches(TableNode table, string query)
+    {
+        if (Contains(table.Name, query))
+        {
+            return true;
+        }
+
+        if (!table.Children.Any(c => c is ColumnNode column && Contains(column.Name, query)))
+        {
+            return false;
+        }
+
+        table.IsExpanded = true;
+        return true;
     }
 
     private static bool Contains(string haystack, string needle) =>
@@ -254,6 +367,11 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
             }
 
             Schemas.Add(new RolesGroupNode(_schemaService));
+
+            // Recent survives a refresh — the relations are still there, and
+            // losing the section on every catalog reload would defeat it. The
+            // node is re-inserted at the top and rebuilds its own children.
+            SyncRecentSection();
 
             // A fresh catalog invalidates any prior filter pass; re-apply so a lingering query still holds.
             ApplyFilter();

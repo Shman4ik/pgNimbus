@@ -2,6 +2,44 @@ using PgNimbus.Core.Schema;
 
 namespace PgNimbus.App.ViewModels;
 
+/// <summary>
+/// The pinned "Recent" group at the top of the sidebar: the relations most
+/// recently opened, newest first. A database with hundreds of relations has the
+/// same navigation problem a long list of anything does — you work with three
+/// tables at a time and re-find them in the tree over and over.
+///
+/// Its children are <em>fresh</em> <see cref="TableNode"/> instances rather than
+/// the ones already in the tree, so expanding a recent entry doesn't also expand
+/// (or share filter state with) the relation's row under its schema. Cost is one
+/// column query per expanded entry, which is what a first expand costs anywhere
+/// else in the tree.
+/// </summary>
+public sealed class RecentGroupNode : SchemaTreeNode
+{
+    private readonly SchemaService _schemaService;
+    private readonly Func<IReadOnlyList<RelationInfo>> _recent;
+    private readonly Func<bool> _showAdvanced;
+
+    public RecentGroupNode(SchemaService schemaService, Func<IReadOnlyList<RelationInfo>> recent, Func<bool> showAdvanced)
+    {
+        _schemaService = schemaService;
+        _recent = recent;
+        _showAdvanced = showAdvanced;
+        Name = "Recent";
+        MarkExpandable();
+    }
+
+    // No size hint on a recent entry: sizes ride along with a schema's table
+    // list (GetTablesAsync), and a recent entry is rebuilt from just the
+    // relation's identity. TableNode renders no hint for a null size, which is
+    // the same thing it does for a view.
+    protected override Task<IReadOnlyList<SchemaTreeNode>> FetchChildrenAsync() =>
+        Task.FromResult<IReadOnlyList<SchemaTreeNode>>(_recent()
+            .Select(r => (SchemaTreeNode)new TableNode(
+                _schemaService, r.Schema, r.Name, r.Kind, totalBytes: null, showSizes: null, showAdvanced: _showAdvanced))
+            .ToList());
+}
+
 /// <summary>"Functions" group under each schema — lazily lists that schema's functions/procedures/aggregates.</summary>
 public sealed class FunctionsGroupNode : SchemaTreeNode
 {

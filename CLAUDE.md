@@ -361,6 +361,25 @@ and wrong project memory is worse than none.
    accent after the extraction, twice). Resolve app resources from
    `OnAttachedToVisualTree` (`ApplyTextSelectionBrush` in both panels), where
    `ActualThemeVariant` is final too.
+8. **The schema sidebar filters and pins, it doesn't just scroll.** A real
+   database runs to hundreds of relations, so the filter box and the pinned
+   Recent section are load-bearing navigation, not polish — any new sidebar
+   content has to stay filterable. The filter matches **schema names, table
+   names, and the columns of already-expanded tables** (`ApplyFilter` /
+   `TableMatches` in `SchemaTreeViewModel`), because "customer_id" is how you
+   find the tables that reference a customer, not just the one called
+   `customers`; a row that survives on a deep match expands to show why — a
+   match you can't see reads as a bug. Columns only participate once their
+   table is expanded, same lazy-load rule the rest of the tree follows.
+   The pinned **Recent** section (`RecentGroupNode`, top of the tree, max 5,
+   most recent first) is fed by `SchemaTreeViewModel.RecordRecentRelation` from
+   every route that opens a relation — tree double-click, palette jump,
+   follow-FK, Source (DDL) — so it reflects what was worked on rather than how
+   it was reached. Its children are *fresh* `TableNode` instances, not the ones
+   already in the tree: sharing instances would mean expanding a recent entry
+   also expands (and shares filter state with) the same relation's row under its
+   schema. Session-scoped and deliberately not persisted, but it does survive a
+   schema refresh — the relations are still there.
 
 ## Platform window chrome
 

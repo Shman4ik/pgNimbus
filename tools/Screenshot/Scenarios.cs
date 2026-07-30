@@ -3,6 +3,7 @@ using PgNimbus.App.ViewModels;
 using PgNimbus.App.Views;
 using PgNimbus.Core.Monitoring;
 using PgNimbus.Core.Query;
+using PgNimbus.Core.Schema;
 
 namespace PgNimbus.Screenshot;
 
@@ -127,6 +128,38 @@ internal static class Scenarios
         var vm = Fixtures.MainWindowViewModel();
         SeedOrdersResult(vm.ActiveTab);
         vm.SchemaTree.FilterText = "order";
+        return HostMainWindow(vm);
+    }
+
+    /// <summary>The pinned Recent section, after a few relations have been opened.</summary>
+    public static Window SidebarRecent()
+    {
+        var vm = Fixtures.MainWindowViewModel();
+        SeedOrdersResult(vm.ActiveTab);
+
+        // Oldest first — the section floats the most recent to the top.
+        vm.SchemaTree.RecordRecentRelation("public", "products", RelationKind.Table);
+        vm.SchemaTree.RecordRecentRelation("analytics", "sessions", RelationKind.Table);
+        vm.SchemaTree.RecordRecentRelation("public", "customers", RelationKind.Table);
+        vm.SchemaTree.RecordRecentRelation("public", "orders", RelationKind.Table);
+        return HostMainWindow(vm);
+    }
+
+    /// <summary>The filter matching a column name rather than a table name.</summary>
+    public static Window SidebarColumnFilter()
+    {
+        var vm = Fixtures.MainWindowViewModel();
+        SeedOrdersResult(vm.ActiveTab);
+
+        // Columns only participate once a table has been expanded, so expand the
+        // ones this filter is meant to find — the same state a user reaches by
+        // opening a table in the tree.
+        foreach (var table in vm.SchemaTree.Schemas.SelectMany(s => s.Children).OfType<TableNode>())
+        {
+            table.IsExpanded = true;
+        }
+
+        vm.SchemaTree.FilterText = "customer_id";
         return HostMainWindow(vm);
     }
 

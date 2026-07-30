@@ -579,6 +579,8 @@ public sealed partial class MainViewModel : ObservableObject
     /// </summary>
     public async Task ShowSourceAsync(TableNode table)
     {
+        SchemaTree.RecordRecentRelation(table.Schema, table.Name, table.Kind);
+
         var ddl = await _ddlService.GenerateAsync(table.Schema, table.Name, CancellationToken.None);
 
         var tab = NewTab();
@@ -697,10 +699,15 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
-    public Task PreviewTableAsync(TableNode table) => PreviewTableAsync(table.Schema, table.Name);
+    public Task PreviewTableAsync(TableNode table) => PreviewTableAsync(table.Schema, table.Name, kind: table.Kind);
 
-    public async Task PreviewTableAsync(string schema, string name, string? initialFilter = null)
+    public async Task PreviewTableAsync(string schema, string name, string? initialFilter = null, RelationKind kind = RelationKind.Table)
     {
+        // Every route to browsing a relation funnels through here (tree
+        // double-click, palette jump, follow-FK), which makes it the one place
+        // the sidebar's Recent section needs to hear about.
+        SchemaTree.RecordRecentRelation(schema, name, kind);
+
         // Opens in a new tab rather than the active one - see the "loading a
         // query never overwrites the active tab" rule (CLAUDE.md).
         var tab = NewTab();
@@ -805,7 +812,7 @@ public sealed partial class MainViewModel : ObservableObject
             $"{r.Schema}.{r.Name}",
             "Table",
             GlyphFor(r.Kind),
-            () => PreviewTableAsync(r.Schema, r.Name)));
+            () => PreviewTableAsync(r.Schema, r.Name, kind: r.Kind)));
 
     private static string GlyphFor(RelationKind kind) => kind switch
     {

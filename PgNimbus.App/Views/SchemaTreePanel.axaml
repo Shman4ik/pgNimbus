@@ -12,6 +12,12 @@
          and context-menu Click handlers live in the code-behind and resolve their
          actions through this sub-ViewModel's host-supplied callbacks. -->
     <UserControl.DataTemplates>
+        <DataTemplate DataType="vm:RecentGroupNode">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+                <PathIcon Data="{StaticResource HistoryIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" Opacity="0.8" />
+                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+            </StackPanel>
+        </DataTemplate>
         <DataTemplate DataType="vm:SchemaNode">
             <StackPanel Orientation="Horizontal" Spacing="6">
                 <PathIcon Data="{StaticResource DatabaseIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
@@ -193,9 +199,10 @@
                           ToolTip.Tip="Also show functions, sequences, types, indexes, triggers and extensions">
                 <PathIcon Data="{StaticResource TuneIconGeometry}" Width="14" Height="14" />
             </ToggleButton>
-            <!-- Type-to-filter box: matches schema and loaded-table names, case-insensitive substring -->
+            <!-- Type-to-filter box: case-insensitive substring over schema names,
+                 table names, and the columns of already-expanded tables -->
             <TextBox FontSize="12"
-                     PlaceholderText="Filter schemas &amp; tables…"
+                     PlaceholderText="Filter schemas, tables &amp; columns…"
                      Text="{Binding FilterText, Mode=TwoWay}">
                 <TextBox.InnerLeftContent>
                     <PathIcon Data="{StaticResource MagnifyIconGeometry}" Width="13" Height="13"

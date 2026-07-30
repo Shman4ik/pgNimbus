@@ -29,6 +29,8 @@ var scenarios = new (string Name, Func<Window> Build)[]
     ("main-window-plan-tree", Scenarios.QueryPlanTree),
     ("main-window-palette", Scenarios.CommandPalette),
     ("main-window-sidebar-filter", Scenarios.SidebarFilter),
+    ("main-window-sidebar-column-filter", Scenarios.SidebarColumnFilter),
+    ("main-window-sidebar-recent", Scenarios.SidebarRecent),
     ("main-window-cell-inspector", Scenarios.CellInspector),
     ("activity-window", Scenarios.Activity),
     ("activity-window-blocking", Scenarios.ActivityBlocking),
