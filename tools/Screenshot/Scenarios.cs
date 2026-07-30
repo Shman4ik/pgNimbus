@@ -236,8 +236,49 @@ internal static class Scenarios
             vm.UnusedIndexes.Add(new UnusedIndexRow(index));
         }
 
+        vm.HasSnapshot = true;
         vm.Status = "6 relations · 3 unused indexes wasting 68 MB · 09:41:02";
         return new DatabaseOverviewWindow { DataContext = vm, Width = 1100, Height = 760 };
+    }
+
+    /// <summary>Database Overview mid-snapshot — the loading cue, not three blank grids.</summary>
+    public static Window DatabaseOverviewLoading()
+    {
+        var vm = new DatabaseOverviewViewModel(new DatabaseStatsService(Fixtures.DataSource))
+        {
+            IsLoading = true,
+        };
+
+        return new DatabaseOverviewWindow { DataContext = vm, Width = 1100, Height = 760 };
+    }
+
+    /// <summary>Database Overview with nothing to report — the empty states, including the good-news one.</summary>
+    public static Window DatabaseOverviewEmpty()
+    {
+        var vm = new DatabaseOverviewViewModel(new DatabaseStatsService(Fixtures.DataSource))
+        {
+            DatabaseName = "scratch",
+            DatabaseSizeText = "7.8 MB",
+            HasSnapshot = true,
+            Status = "0 relations · 0 unused indexes · 09:41:02",
+        };
+
+        // Deliberately the third tab: "no unused indexes" is the outcome worth
+        // showing, since it is the one where empty means good.
+        return new DatabaseOverviewWindow { DataContext = vm, Width = 1100, Height = 760 };
+    }
+
+    /// <summary>Server Activity with no other backends connected.</summary>
+    public static Window ActivityEmpty()
+    {
+        var vm = new ActivityViewModel(new ActivityService(Fixtures.DataSource))
+        {
+            AutoRefresh = false,
+            HasPolled = true,
+            Status = "0 backends · 09:41:02",
+        };
+
+        return new ActivityWindow { DataContext = vm, Width = 1100, Height = 700 };
     }
 
     /// <summary>The F1 keyboard cheat sheet (projected from the command catalog).</summary>

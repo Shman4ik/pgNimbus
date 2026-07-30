@@ -16,6 +16,16 @@ public partial class DatabaseOverviewWindow : Window
         InitializeComponent();
         ThemedWindowChrome.Attach(this);
 
-        Opened += (_, _) => (DataContext as DatabaseOverviewViewModel)?.RefreshCommand.Execute(null);
+        // Snapshot on open, but only when there is nothing to show yet: a view
+        // model handed over with a snapshot already in it (restored state, the
+        // screenshot harness) would otherwise have it blanked out by a refresh
+        // nobody asked for.
+        Opened += (_, _) =>
+        {
+            if (DataContext is DatabaseOverviewViewModel { HasSnapshot: false } vm)
+            {
+                vm.RefreshCommand.Execute(null);
+            }
+        };
     }
 }

@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:PgNimbus.App.ViewModels"
+        xmlns:conv="using:Avalonia.Data.Converters"
         x:Class="PgNimbus.App.Views.DatabaseOverviewWindow"
         x:DataType="vm:DatabaseOverviewViewModel"
         Title="pgNimbus — Database Overview"
@@ -45,8 +46,10 @@
             </StackPanel>
         </Border>
 
-        <TabControl Grid.Row="2" Classes="segmented">
+        <Panel Grid.Row="2">
+        <TabControl Classes="segmented">
             <TabItem Header="Largest relations">
+              <Panel>
                 <DataGrid ItemsSource="{Binding LargestRelations}" IsReadOnly="True" SelectionMode="Single"
                           CanUserResizeColumns="True" CanUserSortColumns="False"
                           GridLinesVisibility="Horizontal" HeadersVisibility="Column">
@@ -60,9 +63,14 @@
                         <DataGridTextColumn Header="Total" Binding="{Binding Total}" Width="110" />
                     </DataGrid.Columns>
                 </DataGrid>
+                <TextBlock Text="No relations in this database yet." Opacity="0.55"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           IsVisible="{Binding HasNoRelations}" />
+              </Panel>
             </TabItem>
 
             <TabItem Header="Scans (seq vs index)">
+              <Panel>
                 <DataGrid ItemsSource="{Binding TableScans}" IsReadOnly="True" SelectionMode="Single"
                           CanUserResizeColumns="True" CanUserSortColumns="False"
                           GridLinesVisibility="Horizontal" HeadersVisibility="Column">
@@ -89,11 +97,16 @@
                         <DataGridTextColumn Header="Dead rows" Binding="{Binding DeadRows}" Width="110" />
                     </DataGrid.Columns>
                 </DataGrid>
+                <TextBlock Text="No scans recorded yet — the statistics collector has nothing since the last reset." Opacity="0.55"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="420"
+                           TextAlignment="Center" IsVisible="{Binding HasNoScans}" />
+              </Panel>
             </TabItem>
 
             <TabItem Header="Unused indexes">
                 <Grid RowDefinitions="*,Auto">
-                    <DataGrid Grid.Row="0" ItemsSource="{Binding UnusedIndexes}" IsReadOnly="True" SelectionMode="Single"
+                  <Panel Grid.Row="0">
+                    <DataGrid ItemsSource="{Binding UnusedIndexes}" IsReadOnly="True" SelectionMode="Single"
                               CanUserResizeColumns="True" CanUserSortColumns="False"
                               GridLinesVisibility="Horizontal" HeadersVisibility="Column">
                         <DataGrid.Columns>
@@ -103,13 +116,34 @@
                             <DataGridTextColumn Header="Size" Binding="{Binding Size}" Width="110" />
                         </DataGrid.Columns>
                     </DataGrid>
+                    <!-- Here the empty case is the good news, so it says so
+                         rather than leaving a blank grid that reads as a bug. -->
+                    <TextBlock Text="No unused indexes — every index here has been scanned." Opacity="0.55"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               IsVisible="{Binding HasNoUnusedIndexes}" />
+                  </Panel>
                     <TextBlock Grid.Row="1" Margin="4,8,4,0" FontSize="11" Opacity="0.6"
                                Text="Never scanned since the last stats reset. Unique and primary-key indexes are excluded — they enforce constraints regardless of scans." />
                 </Grid>
             </TabItem>
         </TabControl>
 
-        <TextBlock Grid.Row="3" Text="{Binding Status}" FontSize="11" Opacity="0.7" Margin="2,8,2,0" />
+            <!-- The window snapshots as it opens; without this the first thing
+                 it shows is three blank grids, which reads as broken. -->
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
+                        Spacing="10" IsHitTestVisible="False" IsVisible="{Binding IsLoading}">
+                <ProgressBar IsIndeterminate="True" Width="120" Height="4"
+                             Foreground="{DynamicResource AppAccentBrush}" />
+                <TextBlock Text="Reading statistics…" FontSize="12" Opacity="0.6" HorizontalAlignment="Center" />
+            </StackPanel>
+        </Panel>
+
+        <StackPanel Grid.Row="3" Margin="2,8,2,0" Spacing="4">
+            <TextBlock Text="{Binding ErrorMessage}" FontSize="11" TextWrapping="Wrap"
+                       Foreground="{StaticResource AppDangerBrush}"
+                       IsVisible="{Binding ErrorMessage, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+            <TextBlock Text="{Binding Status}" FontSize="11" Opacity="0.7" />
+        </StackPanel>
 
     </Grid>
 

@@ -177,6 +177,23 @@ public sealed partial class ActivityViewModel : ObservableObject
 
     public ObservableCollection<ActivityRow> Rows { get; } = [];
 
+    /// <summary>
+    /// True once a poll has completed, successfully or not — the empty-state
+    /// hint is gated on it so "no other backends" can't flash in the moment
+    /// before the first snapshot lands. An unread grid and an empty one are
+    /// different facts.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasNoBackends))]
+    private bool _hasPolled;
+
+    /// <summary>
+    /// Drives the Backends tab's empty state. The view excludes our own
+    /// connection, so a server nobody else is using legitimately has no rows —
+    /// and a blank grid there reads as a failure rather than as an answer.
+    /// </summary>
+    public bool HasNoBackends => HasPolled && Rows.Count == 0;
+
     /// <summary>Roots of the blocking forest — the lock holders to cancel to unstick everyone below.</summary>
     public ObservableCollection<BlockingNode> BlockingRoots { get; } = [];
 
@@ -293,6 +310,7 @@ public sealed partial class ActivityViewModel : ObservableObject
 
             var locks = Rows.Count(r => r.IsWaitingOnLock);
             RecordTrend(Rows.Count, Rows.Count(r => r.State == "active"), locks);
+            OnPropertyChanged(nameof(HasNoBackends));
             Status = $"{Rows.Count} backend{(Rows.Count == 1 ? "" : "s")}"
                 + (locks > 0 ? $" · {locks} waiting on locks" : "")
                 + $" · {DateTime.Now:HH:mm:ss}";
@@ -302,6 +320,10 @@ public sealed partial class ActivityViewModel : ObservableObject
             // A poll that failed is a hole in the trend, not a quiet server.
             RecordTrend(null, null, null);
             Status = ex.Message;
+        }
+        finally
+        {
+            HasPolled = true;
         }
     }
 

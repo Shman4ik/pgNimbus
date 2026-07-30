@@ -64,6 +64,7 @@
                 <Border Margin="0,8,0,0" ClipToBounds="True"
                         BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
                         CornerRadius="{StaticResource CardCornerRadius}">
+                  <Panel>
                     <DataGrid ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow, Mode=TwoWay}"
                               IsReadOnly="True" SelectionMode="Single" CanUserResizeColumns="True"
                               GridLinesVisibility="Horizontal" HeadersVisibility="Column">
@@ -107,6 +108,15 @@
                             </DataGridTemplateColumn>
                         </DataGrid.Columns>
                     </DataGrid>
+
+                    <!-- This view excludes our own connection, so a server
+                         nobody else is using really does have no rows. Say it,
+                         rather than leaving a blank grid that reads as a
+                         failed query. -->
+                    <TextBlock Text="No other backends are connected right now."
+                               Opacity="0.55" HorizontalAlignment="Center" VerticalAlignment="Center"
+                               IsVisible="{Binding HasNoBackends}" />
+                  </Panel>
                 </Border>
             </TabItem>
 

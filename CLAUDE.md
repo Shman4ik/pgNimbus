@@ -397,6 +397,24 @@ and wrong project memory is worse than none.
    also expands (and shares filter state with) the same relation's row under its
    schema. Session-scoped and deliberately not persisted, but it does survive a
    schema refresh — the relations are still there.
+9. **Every list-backed pane states what it knows: loading, empty, error — never
+   a blank rectangle.** A blank grid reads as a bug, and the user can't tell an
+   unread pane from an empty one, so the two must never look alike. The pattern
+   to copy is `SchemaTreeViewModel`'s (`ShowInitialLoadingCue` /
+   `ShowRefreshLoadingBar` / `ErrorMessage`): a centered cue for the *first*,
+   empty load and a thin top bar for a refresh that already has content, so the
+   cue never covers rows that are still perfectly good. Every empty-state flag is
+   gated on "we have actually looked" — `DatabaseOverviewViewModel.HasSnapshot`,
+   `ActivityViewModel.HasPolled`, `SavedQueriesViewModel.HasNoHistory` /
+   `HasNoHistoryMatches` (which distinguishes "no history" from "the filter hides
+   all of it", two different next steps) — so a hint can't flash before the first
+   read lands. Where empty is the *good* outcome, say that rather than showing
+   nothing: "No unused indexes — every index here has been scanned", "No backend
+   is waiting on a lock right now". A window that snapshots when it opens skips
+   the snapshot if its view model already carries one
+   (`DatabaseOverviewWindow`), so handing over restored (or fixture) state isn't
+   blanked out by a refresh nobody asked for. Errors surface *in* the pane, not
+   only in a dim status line.
 
 ## Platform window chrome
 

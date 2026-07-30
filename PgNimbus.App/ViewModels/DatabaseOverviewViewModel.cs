@@ -96,11 +96,57 @@ public sealed partial class DatabaseOverviewViewModel : ObservableObject
     [ObservableProperty]
     private string _status = "";
 
+    /// <summary>
+    /// True while a snapshot is in flight — drives the centered "Reading
+    /// statistics…" cue. The window snapshots as it opens, so without this the
+    /// first thing it shows is three blank grids and four empty stat values,
+    /// which reads as a broken window rather than a working one.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowEmptyStates))]
+    private bool _isLoading;
+
+    /// <summary>
+    /// True once a snapshot has completed (successfully or not). Empty-state
+    /// text is gated on it so "no unused indexes" can't flash before anything
+    /// has been read — an unread grid and an empty one are different facts.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowEmptyStates))]
+    private bool _hasSnapshot;
+
+    /// <summary>Empty-state hints only make sense between snapshots, never during one.</summary>
+    public bool ShowEmptyStates => HasSnapshot && !IsLoading;
+
+    /// <summary>The error a failed snapshot left behind, or null. Shown in the window, not just logged.</summary>
+    [ObservableProperty]
+    private string? _errorMessage;
+
     public ObservableCollection<RelationSizeRow> LargestRelations { get; } = [];
 
     public ObservableCollection<TableScanRow> TableScans { get; } = [];
 
     public ObservableCollection<UnusedIndexRow> UnusedIndexes { get; } = [];
+
+    /// <summary>Drives the "no relations" hint — a database with nothing in it is a real answer, not a blank grid.</summary>
+    public bool HasNoRelations => ShowEmptyStates && LargestRelations.Count == 0;
+
+    /// <summary>Drives the "no scan activity yet" hint (a freshly reset stats collector).</summary>
+    public bool HasNoScans => ShowEmptyStates && TableScans.Count == 0;
+
+    /// <summary>Drives the "no unused indexes" hint — here the empty case is the *good* outcome, so say so.</summary>
+    public bool HasNoUnusedIndexes => ShowEmptyStates && UnusedIndexes.Count == 0;
+
+    private void NotifyEmptyStates()
+    {
+        OnPropertyChanged(nameof(HasNoRelations));
+        OnPropertyChanged(nameof(HasNoScans));
+        OnPropertyChanged(nameof(HasNoUnusedIndexes));
+    }
+
+    partial void OnIsLoadingChanged(bool value) => NotifyEmptyStates();
+
+    partial void OnHasSnapshotChanged(bool value) => NotifyEmptyStates();
 
     public DatabaseOverviewViewModel(DatabaseStatsService service)
     {
@@ -116,6 +162,9 @@ public sealed partial class DatabaseOverviewViewModel : ObservableObject
     [RelayCommand(AllowConcurrentExecutions = false)]
     private async Task RefreshAsync(CancellationToken ct)
     {
+        IsLoading = true;
+        ErrorMessage = null;
+
         try
         {
             var overviewTask = _service.GetOverviewAsync(ct);
@@ -164,6 +213,17 @@ public sealed partial class DatabaseOverviewViewModel : ObservableObject
         catch (Exception ex)
         {
             Status = ex.Message;
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            IsLoading = false;
+
+            // Set even when the snapshot failed: the window has now tried, so
+            // the panes should say what they know (an error, or genuinely
+            // nothing) rather than sit blank forever.
+            HasSnapshot = true;
+            NotifyEmptyStates();
         }
     }
 
