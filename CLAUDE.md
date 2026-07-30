@@ -693,6 +693,49 @@ Notes:
 - This is how the Avalonia 11→12 upgrade and the PowerToys-style UI polish
   were actually verified (not just built) in a Claude Code sandbox with no
   prior .NET/GUI tooling.
+- For a *visual* check the live sandbox above is the heavy path — prefer the
+  headless harness below, which needs no display, no input tool and no
+  database. The live path is still the one for anything interactive
+  (completion popups, drag-reorder, real catalog shapes).
+
+## Headless screenshot harness (`tools/Screenshot`)
+
+Renders the real Views bound to fixture ViewModels through `Avalonia.Headless`
+(Skia software rendering, `UseHeadlessDrawing = false`) and writes PNGs — one
+`<scenario>.<light|dark>.png` per scenario × theme. Works on Windows, Linux and
+CI alike, with no display, no Xvfb/xdotool, and **no Postgres**:
+
+```bash
+dotnet run --project tools/Screenshot -- <outputDir> [scenario-substring]
+```
+
+Pass a scratch directory — nothing it writes is committed. Omit the filter to
+render every scenario in `Program.cs`'s `scenarios` array. `ci.yml` runs the
+whole set on every PR and uploads the PNGs as the `screenshots` artifact, so the
+harness doubles as a smoke test (a view that throws while loading, or renders no
+frame, fails the run) and as a visual diff a reviewer can actually look at.
+
+How the fixtures work, and why they're shaped this way:
+
+- **The data source is offline but unroutable.** Every service takes an
+  `NpgsqlDataSource`, and `NpgsqlDataSource.Create` opens no socket, so the whole
+  graph constructs with no server. `Fixtures` points it at TEST-NET-3
+  (`203.0.113.1`) rather than a closed local port on purpose: windows that
+  refresh when they open (activity, database overview, schema tree) would get a
+  fast connection-refused back from a closed port and overwrite the seeded status
+  line with an error a fraction of a second after the window shows. An address
+  that never answers leaves the seeded state alone.
+- **Scenarios drive the public ViewModel surface**, the same properties and
+  commands production sets — not the views. Two seams exist purely for this:
+  `SchemaTreeNode.SeedChildren` (fills a node's children and marks it loaded, so
+  expanding never reaches for the catalog) and `QueryViewModel.SeedResult`
+  (points the grid at a result set that was never run). Both are documented as
+  harness-only; production still goes through the lazy-load and run paths.
+- **Nothing reads or writes the developer's real app data.** No workspace is
+  restored and no settings are persisted, and because `MainViewModel` news up its
+  own `SavedQueryStore`/`QueryHistoryStore`, `Fixtures` clears what those loaded
+  before seeding its own — otherwise a screenshot would carry whatever is in the
+  running developer's saved queries and history.
 
 ## Benchmarks pipeline
 
