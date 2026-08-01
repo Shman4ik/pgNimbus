@@ -189,7 +189,32 @@ and wrong project memory is worse than none.
    palette, 2026-07, and why Delete left the connection dialog's button row for
    the saved-connections right-click menu — Connect / Duplicate / Delete —
    alongside the accent-colour row collapsing into one swatch button + flyout
-   next to the Name field).
+   next to the Name field). **A context menu is not a dumping ground either**
+   (2026-08): pgAdmin answers a right-click on a schema with 15 items plus an
+   18-item Create submenu; pgNimbus's schema menu is six — New table…, Copy
+   name, Refresh, Exclude from autocomplete, Drop schema…, Drop schema
+   (cascade)… — and each earns its place the same way a toolbar button would.
+   "New table…" is deliberately a `CREATE TABLE` template opened in a new tab
+   (`Schema/DdlTemplates`, Core-pure and unit-tested), not a dialog: a form that
+   can only express the column types a combo box lists is a worse tool than the
+   statement itself, sitting in the editor where it can be edited and run. The
+   two Drops go through `SchemaEditor.DropSchemaAsync` behind the shared
+   `ConfirmDialog`; the plain one is Postgres's own RESTRICT (it fails on a
+   non-empty schema, and that refusal lands in the sidebar's error strip), and
+   CASCADE is a separate item with a confirm that says what it takes with it.
+   **Exclude from autocomplete** is the answer to "this database has 40 schemas
+   and 30 belong to other teams": the schema stays in the tree (dimmed, eye-off
+   marked, so the exclusion is visible where it was made and one right-click
+   from undone) but contributes nothing to completion. The set is per
+   connection, keyed `host/database` like the workspace snapshot, persisted in
+   `AppSettings.AutocompleteExcludedSchemas` and read/rewritten only through the
+   Core-pure `Settings/AutocompleteExclusions`. It's applied in
+   `SqlCompletionProvider.RefreshAsync` rather than per keystroke, so an
+   excluded schema's tables/columns/functions are never *fetched* — on a big
+   catalog, excluding schemas makes the refresh itself faster. Nothing else is
+   filtered by it: the tree and the command palette still show everything, which
+   is why the toggle rebuilds only the completion cache instead of running the
+   full `RefreshSchemaAsync` (which would collapse the tree).
 2. **Double-click triggers the default action.** Anywhere a list/tree item
    has an obvious primary action, double-clicking it must perform that
    action: schema-tree table → browse, function → source, saved query /

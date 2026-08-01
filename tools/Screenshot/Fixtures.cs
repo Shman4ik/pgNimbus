@@ -120,8 +120,18 @@ internal static class Fixtures
                 ("customer_id", "bigint", false, false),
                 ("started_at", "timestamp with time zone", true, false))));
 
+        // A schema another team owns, kept out of editor completion from its
+        // context menu: it stays in the tree, dimmed and eye-off marked. Seeded
+        // here so that state is in the rendered screenshots too.
+        var billingSchema = Schema(schemaService, tree, "billing",
+            Table(schemaService, "billing", "invoices", RelationKind.Table, 20_971_520, Columns(
+                ("id", "bigint", true, true),
+                ("customer_id", "bigint", true, false))));
+        billingSchema.ExcludedFromCompletion = true;
+
         tree.Schemas.Add(publicSchema);
         tree.Schemas.Add(analyticsSchema);
+        tree.Schemas.Add(billingSchema);
         tree.Schemas.Add(new RolesGroupNode(schemaService));
 
         publicSchema.IsExpanded = true;

@@ -1,18 +1,30 @@
+using CommunityToolkit.Mvvm.ComponentModel;
 using PgNimbus.Core.Schema;
 
 namespace PgNimbus.App.ViewModels;
 
-public sealed class SchemaNode : SchemaTreeNode
+public sealed partial class SchemaNode : SchemaTreeNode
 {
     private readonly SchemaService _schemaService;
     private readonly Func<bool> _showAdvanced;
     private readonly Func<bool> _showSizes;
 
-    public SchemaNode(SchemaService schemaService, string name, Func<bool> showAdvanced, Func<bool> showSizes)
+    /// <summary>
+    /// Whether the editor's completion ignores this schema (the context menu's
+    /// "Exclude from autocomplete"). The node stays in the tree either way —
+    /// dimmed, with a marker — so an exclusion is visible where it was made and
+    /// one right-click away from being undone. Persisted per connection by the
+    /// host; see <see cref="PgNimbus.Core.Settings.AutocompleteExclusions"/>.
+    /// </summary>
+    [ObservableProperty]
+    private bool _excludedFromCompletion;
+
+    public SchemaNode(SchemaService schemaService, string name, Func<bool> showAdvanced, Func<bool> showSizes, bool excludedFromCompletion = false)
     {
         _schemaService = schemaService;
         _showAdvanced = showAdvanced;
         _showSizes = showSizes;
+        _excludedFromCompletion = excludedFromCompletion;
         Name = name;
         MarkExpandable();
     }

@@ -2,6 +2,7 @@ using System;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using PgNimbus.App.ViewModels;
@@ -134,6 +135,87 @@ public partial class SchemaTreePanel : UserControl
             await showSource(function);
         }
     }
+
+    // --- Schema actions ----------------------------------------------------
+
+    private async void OnNewTableClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem { Tag: SchemaNode schema } && Model?.NewTableRequested is { } newTable)
+        {
+            await newTable(schema);
+        }
+    }
+
+    private async void OnCopySchemaNameClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem { Tag: SchemaNode schema } || TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard)
+        {
+            return;
+        }
+
+        try
+        {
+            await clipboard.SetTextAsync(schema.Name);
+        }
+        catch (Exception)
+        {
+            // Clipboard access can throw if another app holds it locked; a
+            // failed copy is not worth surfacing, let alone crashing over.
+        }
+    }
+
+    private async void OnRefreshSchemaClick(object? sender, RoutedEventArgs e)
+    {
+        // Just this schema's own children — the sidebar's refresh button is
+        // still the way to reload the whole catalog (and the caches with it).
+        if (sender is MenuItem { Tag: SchemaNode schema })
+        {
+            await schema.RefreshAsync();
+        }
+    }
+
+    private async void OnToggleSchemaExcludedClick(object? sender, RoutedEventArgs e)
+    {
+        // Read the target state off the node, not the menu item's IsChecked:
+        // the item's checked state is a OneWay projection of the node, and the
+        // click has already flipped it locally by the time this runs.
+        if (sender is MenuItem { Tag: SchemaNode schema } && Model?.SetSchemaExcludedFromCompletionRequested is { } setExcluded)
+        {
+            await setExcluded(schema, !schema.ExcludedFromCompletion);
+        }
+    }
+
+    private void OnDropSchemaClick(object? sender, RoutedEventArgs e) => DropSchema(sender, cascade: false);
+
+    private void OnDropSchemaCascadeClick(object? sender, RoutedEventArgs e) => DropSchema(sender, cascade: true);
+
+    private async void DropSchema(object? sender, bool cascade)
+    {
+        if (sender is not MenuItem { Tag: SchemaNode schema } || Model?.DropSchemaRequested is not { } dropSchema)
+        {
+            return;
+        }
+
+        if (TopLevel.GetTopLevel(this) is not Window owner)
+        {
+            return;
+        }
+
+        // CASCADE takes every table (and their data) in the schema with it, so
+        // it says so; the plain drop is a RESTRICT that simply fails on a
+        // non-empty schema, and the confirm says that too.
+        var message = cascade
+            ? $"Drop schema \"{schema.Name}\" and everything in it? Tables, views and their data are removed."
+            : $"Drop schema \"{schema.Name}\"? This fails if the schema still contains objects.";
+
+        var confirm = new ConfirmDialog(message, "Drop");
+        if (await confirm.ShowDialog<bool>(owner))
+        {
+            await dropSchema(schema, cascade);
+        }
+    }
+
+    // --- Extension actions -------------------------------------------------
 
     private async void OnInstallExtensionClick(object? sender, RoutedEventArgs e)
     {

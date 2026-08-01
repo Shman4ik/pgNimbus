@@ -87,6 +87,49 @@ public class AppSettingsStoreTests
     }
 
     [Test]
+    public async Task SaveThenLoad_RoundTripsAutocompleteExcludedSchemas()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"pgnimbus-{Guid.NewGuid():N}.json");
+
+        try
+        {
+            var store = new AppSettingsStore(path);
+            store.Save(new AppSettings
+            {
+                AutocompleteExcludedSchemas = { ["db1/app"] = ["billing", "legacy"] },
+            });
+
+            var settings = store.Load();
+
+            await Assert.That(settings.AutocompleteExcludedSchemas["db1/app"])
+                .IsEquivalentTo(new List<string> { "billing", "legacy" });
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
+    public async Task Load_FileWithoutAutocompleteExcludedSchemas_LoadsAsEmptyMap()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"pgnimbus-{Guid.NewGuid():N}.json");
+        await File.WriteAllTextAsync(path, """{ "Theme": "dark" }""");
+
+        try
+        {
+            var settings = new AppSettingsStore(path).Load();
+
+            await Assert.That(settings.AutocompleteExcludedSchemas).IsNotNull();
+            await Assert.That(settings.AutocompleteExcludedSchemas).IsEmpty();
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
     public async Task Load_FileWithoutRecentSqlFilesProperty_LoadsAsEmptyList()
     {
         var path = Path.Combine(Path.GetTempPath(), $"pgnimbus-{Guid.NewGuid():N}.json");

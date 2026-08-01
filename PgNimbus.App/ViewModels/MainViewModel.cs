@@ -241,6 +241,14 @@ public sealed partial class MainViewModel : ObservableObject
     /// <summary>The recent .sql files, most recent first — read by the app menu's "Open recent" submenu (the palette reads <see cref="_recentSqlFiles"/> directly).</summary>
     public IReadOnlyList<string> RecentSqlFiles => _recentSqlFiles;
 
+    // Schemas the editor's completion ignores, for this connection. Ordinal:
+    // Postgres identifiers are case-sensitive as stored. Handed to the
+    // completion provider by reference, so the provider sees every change
+    // without being re-wired; the *effect* still lands on its next refresh.
+    private readonly HashSet<string> _excludedSchemas;
+
+    private readonly Action<IReadOnlyList<string>>? _persistExcludedSchemas;
+
     // Persist and report the new state here rather than in ToggleWordWrap, so
     // the status line updates the same way whether wrap was flipped from the
     // palette command or by the toolbar toggle's direct two-way binding.
@@ -295,7 +303,9 @@ public sealed partial class MainViewModel : ObservableObject
         Action<bool>? persistWordWrapEditor = null,
         WorkspaceEntry? workspace = null,
         IReadOnlyList<string>? recentSqlFiles = null,
-        Action<IReadOnlyList<string>>? persistRecentSqlFiles = null)
+        Action<IReadOnlyList<string>>? persistRecentSqlFiles = null,
+        IEnumerable<string>? excludedSchemas = null,
+        Action<IReadOnlyList<string>>? persistExcludedSchemas = null)
     {
         ConnectionHost = connectionHost;
         ConnectionDatabase = connectionDatabase;
@@ -307,6 +317,8 @@ public sealed partial class MainViewModel : ObservableObject
         _persistWordWrapEditor = persistWordWrapEditor;
         _recentSqlFiles = recentSqlFiles is null ? [] : recentSqlFiles.ToList();
         _persistRecentSqlFiles = persistRecentSqlFiles;
+        _excludedSchemas = new HashSet<string>(excludedSchemas ?? [], StringComparer.Ordinal);
+        _persistExcludedSchemas = persistExcludedSchemas;
         _engine = engine;
         _explainService = explainService;
         SchemaTree = schemaTree;
@@ -320,10 +332,17 @@ public sealed partial class MainViewModel : ObservableObject
         SchemaTree.ShowFunctionSourceRequested = ShowFunctionSourceAsync;
         SchemaTree.SetExtensionInstalledRequested = SetExtensionInstalledAsync;
         SchemaTree.AlterTableViewModelFactory = CreateAlterTableViewModel;
+        SchemaTree.NewTableRequested = NewTableAsync;
+        SchemaTree.DropSchemaRequested = DropSchemaAsync;
+        SchemaTree.SetSchemaExcludedFromCompletionRequested = SetSchemaExcludedFromCompletionAsync;
+        SchemaTree.IsSchemaExcludedFromCompletion = _excludedSchemas.Contains;
         _schemaService = schemaService;
         _schemaEditor = schemaEditor;
         _ddlService = ddlService;
         CompletionProvider = completionProvider;
+        // Same set object the toggle mutates, so the provider never holds a
+        // stale copy; it reads it on each refresh.
+        CompletionProvider.ExcludedSchemas = _excludedSchemas;
         SavedQueries = new SavedQueriesViewModel(
             new SavedQueryStore(),
             new QueryHistoryStore(),
@@ -609,6 +628,70 @@ public sealed partial class MainViewModel : ObservableObject
         var tab = NewTab();
         tab.TitleOverride = "Imported plan";
         tab.ShowImportedPlan(plan.Result, plan.DisplayText, plan.RawJson);
+    }
+
+    /// <summary>
+    /// The schema context menu's "New table…": drops a CREATE TABLE skeleton for
+    /// the schema into a new tab (never the active one, per the "loading never
+    /// overwrites" rule), where it can be edited and run. Deliberately a
+    /// template rather than a dialog — see <see cref="DdlTemplates"/>.
+    /// </summary>
+    public Task NewTableAsync(SchemaNode schema)
+    {
+        var tab = NewTab();
+        tab.TitleOverride = $"{schema.Name} · new table";
+        tab.Sql = DdlTemplates.NewTable(schema.Name);
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// DROP SCHEMA (the view confirms first; <paramref name="cascade"/> is its
+    /// separately confirmed variant), then reload everything derived from the
+    /// catalog — the schema is gone from the tree, the autocomplete and the
+    /// palette in one pass. Errors land in the sidebar's message strip, which is
+    /// where a plain RESTRICT refusal ("schema is not empty") shows up too.
+    /// </summary>
+    public async Task DropSchemaAsync(SchemaNode schema, bool cascade)
+    {
+        SchemaTree.ErrorMessage = null;
+        try
+        {
+            await _schemaEditor.DropSchemaAsync(schema.Name, cascade, CancellationToken.None);
+            await RefreshSchemaAsync();
+        }
+        catch (Exception ex)
+        {
+            SchemaTree.ErrorMessage = ex.Message;
+        }
+    }
+
+    /// <summary>
+    /// Adds/removes a schema from the completion exclusion set, persists it for
+    /// this connection, and rebuilds the completion cache so the change is live
+    /// in the editor immediately. The tree keeps the schema either way (dimmed
+    /// when excluded) — nothing here touches what the sidebar shows.
+    /// </summary>
+    public async Task SetSchemaExcludedFromCompletionAsync(SchemaNode schema, bool excluded)
+    {
+        if (excluded)
+        {
+            _excludedSchemas.Add(schema.Name);
+        }
+        else
+        {
+            _excludedSchemas.Remove(schema.Name);
+        }
+
+        schema.ExcludedFromCompletion = excluded;
+        _persistExcludedSchemas?.Invoke(_excludedSchemas.ToList());
+        ActiveTab.Status = excluded
+            ? $"Schema \"{schema.Name}\" excluded from autocomplete"
+            : $"Schema \"{schema.Name}\" back in autocomplete";
+
+        // Only the completion cache is derived from the exclusion set; the tree
+        // and the palette deliberately still show everything, so a full
+        // RefreshSchemaAsync would collapse the tree for nothing.
+        await CompletionProvider.RefreshAsync(CancellationToken.None);
     }
 
     /// <summary>CREATE/DROP EXTENSION, then reload the Extensions group so the list reflects reality. Errors land in the sidebar's message strip.</summary>

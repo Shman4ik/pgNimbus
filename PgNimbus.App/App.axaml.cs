@@ -53,6 +53,20 @@ public partial class App : Application
     private static void PersistWordWrapEditor(bool value) =>
         SettingsStore.Save(SettingsStore.Load() with { WordWrapEditor = value });
 
+    /// <summary>
+    /// Remembers which schemas this connection keeps out of autocomplete. Scoped
+    /// by the same <c>host/database</c> key the workspace snapshot uses —
+    /// schema names are a property of one database, not of the app.
+    /// </summary>
+    private static void PersistExcludedSchemas(string connectionKey, IReadOnlyList<string> schemas)
+    {
+        var settings = SettingsStore.Load();
+        SettingsStore.Save(settings with
+        {
+            AutocompleteExcludedSchemas = AutocompleteExclusions.With(settings, connectionKey, schemas),
+        });
+    }
+
     /// <summary>Remembers the command palette's recent-.sql-files list so it survives a restart.</summary>
     private static void PersistRecentSqlFiles(IReadOnlyList<string> value) =>
         SettingsStore.Save(SettingsStore.Load() with { RecentSqlFiles = value.ToList() });
@@ -319,7 +333,12 @@ public partial class App : Application
             persistWordWrapEditor: PersistWordWrapEditor,
             workspace: workspaceKey is null ? null : workspaceStore.GetEntry(workspaceKey),
             recentSqlFiles: SettingsStore.Load().RecentSqlFiles,
-            persistRecentSqlFiles: PersistRecentSqlFiles);
+            persistRecentSqlFiles: PersistRecentSqlFiles,
+            // Per-connection, same key as the workspace. A connection with no
+            // host (nothing to key on) still toggles exclusions for the session;
+            // there's just nowhere to write them back to.
+            excludedSchemas: AutocompleteExclusions.For(SettingsStore.Load(), workspaceKey),
+            persistExcludedSchemas: workspaceKey is null ? null : schemas => PersistExcludedSchemas(workspaceKey, schemas));
 
         var window = new MainWindow
         {

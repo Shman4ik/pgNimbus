@@ -131,6 +131,18 @@ public sealed class SqlCompletionProvider
         _schemaService = schemaService;
     }
 
+    /// <summary>
+    /// Schemas to leave out of every candidate list — the sidebar's "Exclude
+    /// from autocomplete", for the schemas another team owns in a database with
+    /// dozens of them. Applied in <see cref="RefreshAsync"/> rather than at
+    /// query time, so an excluded schema costs nothing per keystroke *and* its
+    /// tables/columns/functions are never fetched at all: on a big catalog
+    /// excluding schemas makes the refresh itself faster. Set by the host
+    /// (persisted per connection); a change takes effect on the next refresh,
+    /// which the host triggers when the toggle flips.
+    /// </summary>
+    public IReadOnlySet<string> ExcludedSchemas { get; set; } = new HashSet<string>(StringComparer.Ordinal);
+
     public async Task RefreshAsync(CancellationToken ct)
     {
         var tables = new List<(string Schema, string Table)>();
@@ -152,6 +164,15 @@ public sealed class SqlCompletionProvider
         var schemas = await _schemaService.GetSchemasAsync(ct);
         foreach (var schema in schemas)
         {
+            // An excluded schema contributes nothing anywhere — not the schema
+            // itself, not its tables (so no "schema." member list either), not
+            // its columns or functions — and its catalog queries are skipped
+            // with it.
+            if (ExcludedSchemas.Contains(schema.Name))
+            {
+                continue;
+            }
+
             // The bare name filters the list; the quote-if-needed form is what gets
             // inserted, so accepting a mixed-case object writes "Spells" not spells.
             var schemaItem = new SqlCompletionData(schema.Name, SqlCompletionKind.Schema, SqlIdentifier.QuoteIfNeeded(schema.Name), SchemaPriority);
