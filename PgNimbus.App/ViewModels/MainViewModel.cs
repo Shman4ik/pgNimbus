@@ -506,7 +506,7 @@ public sealed partial class MainViewModel : ObservableObject
         tab.Executed += SavedQueries.RecordExecution;
         Tabs.Add(tab);
         ActiveTab = tab;
-        CloseTabCommand.NotifyCanExecuteChanged();
+        NotifyTabCommands();
         return tab;
     }
 
@@ -528,6 +528,9 @@ public sealed partial class MainViewModel : ObservableObject
         Tabs.Move(oldIndex, newIndex);
         // Re-assert: a collection Move can churn the ListBox's selection.
         ActiveTab = tab;
+        // "Close tabs to the right" is position-dependent — a reorder can flip
+        // it either way for the tab that just moved.
+        NotifyTabCommands();
     }
 
     /// <summary>
@@ -664,7 +667,59 @@ public sealed partial class MainViewModel : ObservableObject
             ActiveTab = Tabs[Math.Min(index, Tabs.Count - 1)];
         }
 
+        NotifyTabCommands();
+    }
+
+    private bool CanCloseOtherTabs(QueryViewModel? tab) => Tabs.Count > 1 && Tabs.Contains(tab ?? ActiveTab);
+
+    /// <summary>
+    /// Closes every tab except <paramref name="tab"/> (the active one when the
+    /// palette invokes this with no parameter). Goes through <see cref="CloseTab"/>
+    /// per tab so each one still cancels its running query and unhooks its
+    /// history handler; the snapshot is taken first because that mutates
+    /// <see cref="Tabs"/> underneath the enumeration.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanCloseOtherTabs))]
+    private void CloseOtherTabs(QueryViewModel? tab)
+    {
+        tab ??= ActiveTab;
+        foreach (var other in Tabs.Where(t => !ReferenceEquals(t, tab)).ToList())
+        {
+            CloseTab(other);
+        }
+    }
+
+    private bool CanCloseTabsToTheRight(QueryViewModel? tab)
+    {
+        var index = Tabs.IndexOf(tab ?? ActiveTab);
+        return index >= 0 && index < Tabs.Count - 1;
+    }
+
+    /// <summary>Closes everything after <paramref name="tab"/> in strip order.</summary>
+    [RelayCommand(CanExecute = nameof(CanCloseTabsToTheRight))]
+    private void CloseTabsToTheRight(QueryViewModel? tab)
+    {
+        tab ??= ActiveTab;
+        var index = Tabs.IndexOf(tab);
+        if (index < 0)
+        {
+            return;
+        }
+
+        foreach (var right in Tabs.Skip(index + 1).ToList())
+        {
+            CloseTab(right);
+        }
+    }
+
+    // Every close command's CanExecute reads the tab count or a tab's position,
+    // so all three re-evaluate together whenever the strip's contents or order
+    // change — one call site instead of three easy-to-forget ones.
+    private void NotifyTabCommands()
+    {
         CloseTabCommand.NotifyCanExecuteChanged();
+        CloseOtherTabsCommand.NotifyCanExecuteChanged();
+        CloseTabsToTheRightCommand.NotifyCanExecuteChanged();
     }
 
     [RelayCommand]

@@ -223,7 +223,19 @@ and wrong project memory is worse than none.
 4. **Tabs drag-reorder; the ☰ app menu is the file-command home.** The query
    tab strip reorders by dragging (live, browser-style — pointer handlers in
    `MainWindow.axaml.cs`; the order persists via the workspace snapshot, which
-   serializes `Tabs` in collection order). The ☰ button (top-left, 2026-07)
+   serializes `Tabs` in collection order). Right-clicking a tab opens a
+   three-item flyout — Close / Close others / Close to the right — built and
+   shown from `MainWindow.OnTabStripContextRequested` (code, not XAML: the
+   handler has to resolve the clicked `ListBoxItem` and re-target the menu
+   before it opens, and a `ContextFlyout` on the strip would also fire on its
+   empty space). Deliberately just the close family, and only the two verbs a
+   tab bar can't express by pointing at one tab — the strip's own ✕, its ▾
+   finder and drag-reorder cover the rest. Right-click also makes the clicked
+   tab active (VS / Notepad++ do the same) so the verbs read against what the
+   user is looking at, and the bulk pair is in the catalog as `CloseOtherTabs`
+   / `CloseTabsToTheRight` (palette-only, no chord — three tab commands
+   already own one), so the palette reaches them too, acting on the active
+   tab. The ☰ button (top-left, 2026-07)
    opens the one discoverable menu for file/tab-level commands: New tab,
    Open .sql / Open recent, Save / Save as, Close tab, Switch connection,
    New window, Preferences. The command bar's centered "Search" pill

@@ -145,6 +145,8 @@ public static class CommandBindings
 
         [CommandId.NewTab] = vm => vm.AddTabCommand,
         [CommandId.CloseTab] = vm => vm.CloseTabCommand,
+        [CommandId.CloseOtherTabs] = vm => vm.CloseOtherTabsCommand,
+        [CommandId.CloseTabsToTheRight] = vm => vm.CloseTabsToTheRightCommand,
         [CommandId.NextTab] = vm => vm.NextTabCommand,
         [CommandId.PreviousTab] = vm => vm.PreviousTabCommand,
         [CommandId.OpenFile] = vm => vm.OpenFileCommand,
