@@ -478,6 +478,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#schema-tree" class="md-nav__link">
+    <span class="md-ellipsis">
+      Schema tree
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#completion" class="md-nav__link">
     <span class="md-ellipsis">
       Completion
@@ -491,6 +500,15 @@
   <a href="#join-magic" class="md-nav__link">
     <span class="md-ellipsis">
       JOIN magic
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#leaving-a-schema-out" class="md-nav__link">
+    <span class="md-ellipsis">
+      Leaving a schema out
     </span>
   </a>
   
@@ -777,6 +795,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#schema-tree" class="md-nav__link">
+    <span class="md-ellipsis">
+      Schema tree
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#completion" class="md-nav__link">
     <span class="md-ellipsis">
       Completion
@@ -790,6 +817,15 @@
   <a href="#join-magic" class="md-nav__link">
     <span class="md-ellipsis">
       JOIN magic
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#leaving-a-schema-out" class="md-nav__link">
+    <span class="md-ellipsis">
+      Leaving a schema out
     </span>
   </a>
   
@@ -939,6 +975,49 @@ batches, so the first screenful of a large <code>SELECT</code> appears immediate
 carries across them. <code>BEGIN … COMMIT</code>, <code>SET</code>, and temporary tables all behave as
 they would in <code>psql</code>. Each statement gets its own result section and timing, and
 the script stops at the first error.</p>
+<h2 id="schema-tree">Schema tree<a class="headerlink" href="#schema-tree" title="Permanent link">&para;</a></h2>
+<p>The sidebar reads pg_catalog directly, so it shows what Postgres actually has:
+tables, views, materialized views and partitioned tables, with primary keys and
+column types. Double-click a table to browse it. Drag any node into the editor to
+drop in its quoted name.</p>
+<p>Right-click gives each kind of object the few actions that make sense for it. A
+schema offers:</p>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>New table...</td>
+<td>Opens a <code>CREATE TABLE</code> starter statement for that schema in a new tab</td>
+</tr>
+<tr>
+<td>Copy name</td>
+<td>Puts the schema name on the clipboard</td>
+</tr>
+<tr>
+<td>Refresh</td>
+<td>Reloads just that schema's contents</td>
+</tr>
+<tr>
+<td>Exclude from autocomplete</td>
+<td>See <a href="#leaving-a-schema-out">below</a></td>
+</tr>
+<tr>
+<td>Drop schema...</td>
+<td>Drops it, after a confirmation. Fails if the schema still holds objects</td>
+</tr>
+<tr>
+<td>Drop schema (cascade)...</td>
+<td>Drops it together with everything inside, after a confirmation that says so</td>
+</tr>
+</tbody>
+</table>
+<p>A table offers its reconstructed DDL and the Alter Table dialog; a function
+offers its source; an extension offers install or drop.</p>
 <h2 id="completion">Completion<a class="headerlink" href="#completion" title="Permanent link">&para;</a></h2>
 <p>Completion triggers as you type, or on demand with
 <kbd>Ctrl</kbd>+<kbd>Space</kbd> (literal <kbd>Ctrl</kbd> on every platform,
@@ -959,6 +1038,16 @@ because <kbd>Cmd</kbd>+<kbd>Space</kbd> is Spotlight on macOS).</p>
 <p>Two touches that save the most typing. After <code>JOIN</code>, tables connected to what you
 already have by a foreign key rank first. After <code>ON</code>, the complete join
 condition, <code>oi.order_id = o.id</code>, is the top suggestion, one keystroke away.</p>
+<h3 id="leaving-a-schema-out">Leaving a schema out<a class="headerlink" href="#leaving-a-schema-out" title="Permanent link">&para;</a></h3>
+<p>A database with dozens of schemas usually has a few that belong to another team,
+and their tables only ever get in the way of yours. Right-click the schema in the
+sidebar and pick <strong>Exclude from autocomplete</strong>. Its tables, columns and functions
+stop appearing in every suggestion list, and the refresh gets a little faster too,
+because those catalog queries are skipped.</p>
+<p>The schema stays in the tree, dimmed, with a crossed-out eye next to its name.
+Right-click it again to bring it back. The choice is remembered per connection,
+so excluding <code>billing</code> on one database says nothing about a <code>billing</code> schema on
+another.</p>
 <h3 id="auto-alias">Auto-alias<a class="headerlink" href="#auto-alias" title="Permanent link">&para;</a></h3>
 <p>With auto-alias on, completing a table also gives it a short alias
 (<code>orders</code> becomes <code>orders o</code>) so the columns you complete next are already
