@@ -72,6 +72,7 @@ public partial class MainWindow : Window
         TabsList.PointerMoved += OnTabStripPointerMoved;
         TabsList.PointerReleased += (_, _) => EndTabDrag();
         TabsList.PointerCaptureLost += (_, _) => EndTabDrag();
+        TabsList.ContextRequested += OnTabStripContextRequested;
 
         // The ☰ app menu's "Open recent" submenu reflects the list as of the
         // moment the menu opens, not app start.
@@ -621,6 +622,65 @@ public partial class MainWindow : Window
         {
             container.Opacity = opacity;
         }
+    }
+
+    // --- Tab-strip context menu -------------------------------------------
+
+    // Built lazily and re-shown, so the strip carries no extra always-visible
+    // chrome: bulk tab management is a right-click (and a palette entry), never
+    // a toolbar button. Deliberately just the close family — the strip's own ✕,
+    // its ▾ finder and drag-reorder already cover the rest, and every item here
+    // is one the tab bar can't express by pointing at a single tab.
+    private MenuFlyout? _tabMenu;
+    private MenuItem? _tabMenuClose;
+    private MenuItem? _tabMenuCloseOthers;
+    private MenuItem? _tabMenuCloseRight;
+
+    private void OnTabStripContextRequested(object? sender, ContextRequestedEventArgs e)
+    {
+        if (_viewModel is null
+            || (e.Source as Visual)?.FindAncestorOfType<ListBoxItem>(includeSelf: true) is not { } container
+            || container.DataContext is not QueryViewModel tab)
+        {
+            return; // right-click on the strip's empty space: nothing to act on
+        }
+
+        // Right-click targets what it points at, the way VS and Notepad++ do,
+        // so the menu's verbs read against the tab the user is looking at.
+        _viewModel.ActiveTab = tab;
+
+        _tabMenu ??= BuildTabMenu(_viewModel);
+
+        // Each item's enabled state comes from its command's CanExecute against
+        // this tab; assigning the parameter is what re-evaluates it.
+        _tabMenuClose!.CommandParameter = tab;
+        _tabMenuCloseOthers!.CommandParameter = tab;
+        _tabMenuCloseRight!.CommandParameter = tab;
+
+        _tabMenu.ShowAt(container, showAtPointer: true);
+        e.Handled = true;
+    }
+
+    private MenuFlyout BuildTabMenu(MainViewModel viewModel)
+    {
+        _tabMenuClose = new MenuItem
+        {
+            Header = "Close",
+            Command = viewModel.CloseTabCommand,
+            InputGesture = CommandBindings.GestureFor(CommandId.CloseTab),
+        };
+        _tabMenuCloseOthers = new MenuItem
+        {
+            Header = "Close others",
+            Command = viewModel.CloseOtherTabsCommand,
+        };
+        _tabMenuCloseRight = new MenuItem
+        {
+            Header = "Close to the right",
+            Command = viewModel.CloseTabsToTheRightCommand,
+        };
+
+        return new MenuFlyout { Items = { _tabMenuClose, _tabMenuCloseOthers, _tabMenuCloseRight } };
     }
 
     // --- Tab-strip navigation extras -------------------------------------

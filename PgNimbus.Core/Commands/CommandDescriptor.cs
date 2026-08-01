@@ -24,6 +24,8 @@ public enum CommandId
     // --- Tabs & files ---
     NewTab,
     CloseTab,
+    CloseOtherTabs,
+    CloseTabsToTheRight,
     NextTab,
     PreviousTab,
     GoToTabByNumber,

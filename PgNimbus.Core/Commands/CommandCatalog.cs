@@ -166,6 +166,24 @@ public static class CommandCatalog
             Chord = new(CommandKey.W, Cmd),
             Surfaces = Everywhere,
         },
+        // The bulk-close pair: no chord (three tab commands already own one),
+        // reachable from the tab strip's right-click menu and the palette.
+        new()
+        {
+            Id = CommandId.CloseOtherTabs,
+            Title = "Close other tabs",
+            Category = CommandCategory.Tabs,
+            Glyph = "✕",
+            Surfaces = PaletteOnly,
+        },
+        new()
+        {
+            Id = CommandId.CloseTabsToTheRight,
+            Title = "Close tabs to the right",
+            Category = CommandCategory.Tabs,
+            Glyph = "✕",
+            Surfaces = PaletteOnly,
+        },
         new()
         {
             Id = CommandId.NextTab,
