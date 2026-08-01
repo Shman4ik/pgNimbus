@@ -11,11 +11,39 @@
          the per-type context menus; the tree drag-to-editor, double-tap-to-browse
          and context-menu Click handlers live in the code-behind and resolve their
          actions through this sub-ViewModel's host-supplied callbacks. -->
+    <UserControl.Styles>
+        <!-- Applied by the SchemaNode template's Classes.excludedSchema binding;
+             the whole row mutes, marker glyph included. -->
+        <Style Selector="StackPanel.excludedSchema">
+            <Setter Property="Opacity" Value="0.45" />
+        </Style>
+    </UserControl.Styles>
+
     <UserControl.DataTemplates>
         <DataTemplate DataType="vm:SchemaNode">
-            <StackPanel Orientation="Horizontal" Spacing="6">
+            <!-- A schema excluded from autocomplete stays in the tree, dimmed and
+                 marked with the eye-off glyph, so the exclusion is visible where it
+                 was made and one right-click away from being undone. -->
+            <StackPanel Orientation="Horizontal" Spacing="6" Classes.excludedSchema="{Binding ExcludedFromCompletion}">
+                <StackPanel.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="New table..." Tag="{Binding}" Click="OnNewTableClick" />
+                        <MenuItem Header="Copy name" Tag="{Binding}" Click="OnCopySchemaNameClick" />
+                        <MenuItem Header="Refresh" Tag="{Binding}" Click="OnRefreshSchemaClick" />
+                        <Separator />
+                        <MenuItem Header="Exclude from autocomplete" Tag="{Binding}" Click="OnToggleSchemaExcludedClick"
+                                  ToggleType="CheckBox" IsChecked="{Binding ExcludedFromCompletion, Mode=OneWay}"
+                                  ToolTip.Tip="Keep this schema's tables, columns and functions out of editor completion. It stays in the tree." />
+                        <Separator />
+                        <MenuItem Header="Drop schema..." Tag="{Binding}" Click="OnDropSchemaClick" />
+                        <MenuItem Header="Drop schema (cascade)..." Tag="{Binding}" Click="OnDropSchemaCascadeClick" />
+                    </ContextMenu>
+                </StackPanel.ContextMenu>
                 <PathIcon Data="{StaticResource DatabaseIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
                 <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                <PathIcon Data="{StaticResource EyeOffIconGeometry}" Width="11" Height="11" VerticalAlignment="Center"
+                          IsVisible="{Binding ExcludedFromCompletion}"
+                          ToolTip.Tip="Excluded from autocomplete" ToolTip.ShowDelay="300" />
             </StackPanel>
         </DataTemplate>
         <DataTemplate DataType="vm:TableNode">

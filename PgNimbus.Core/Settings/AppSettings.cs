@@ -87,6 +87,17 @@ public sealed record AppSettings
     public bool AutoConnectLastProfile { get; set; }
 
     /// <summary>
+    /// Schemas kept out of editor autocomplete, keyed by connection
+    /// (<c>host/database</c>, the same key the workspace snapshot uses). A big
+    /// database routinely carries schemas another team owns; excluding them
+    /// drops their tables, columns and functions from every completion list —
+    /// and skips their catalog queries on refresh — without hiding them from
+    /// the schema tree. Names match ordinally, exactly as Postgres stores them.
+    /// Read and rewritten through <see cref="AutocompleteExclusions"/>.
+    /// </summary>
+    public Dictionary<string, List<string>> AutocompleteExcludedSchemas { get; set; } = [];
+
+    /// <summary>
     /// The most recently opened/saved <c>.sql</c> file paths, most recent
     /// first, capped at 10 by the caller. Backs the command palette's
     /// "Recent file" entries. <c>set</c>, not <c>init</c>, for the same

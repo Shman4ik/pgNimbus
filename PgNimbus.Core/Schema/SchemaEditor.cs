@@ -61,6 +61,16 @@ public sealed class SchemaEditor
         return ExecuteAsync(sql, ct);
     }
 
+    /// <summary>
+    /// DROP SCHEMA for a name taken from the catalog (quoted, never raw).
+    /// <paramref name="cascade"/> false is Postgres's own RESTRICT default: the
+    /// drop fails loudly when the schema still holds objects, which is the safe
+    /// answer for a right-click. CASCADE is the caller's explicit, separately
+    /// confirmed choice — it takes every table in the schema with it.
+    /// </summary>
+    public Task DropSchemaAsync(string name, bool cascade, CancellationToken ct) =>
+        ExecuteAsync($"DROP SCHEMA {SqlIdentifier.Quote(name)}{(cascade ? " CASCADE" : "")}", ct);
+
     /// <summary>CREATE EXTENSION for a name taken from pg_available_extensions (quoted, never raw).</summary>
     public Task CreateExtensionAsync(string name, CancellationToken ct) =>
         ExecuteAsync($"CREATE EXTENSION {SqlIdentifier.Quote(name)}", ct);

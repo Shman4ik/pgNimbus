@@ -24,6 +24,28 @@ carries across them. `BEGIN … COMMIT`, `SET`, and temporary tables all behave 
 they would in `psql`. Each statement gets its own result section and timing, and
 the script stops at the first error.
 
+## Schema tree
+
+The sidebar reads pg_catalog directly, so it shows what Postgres actually has:
+tables, views, materialized views and partitioned tables, with primary keys and
+column types. Double-click a table to browse it. Drag any node into the editor to
+drop in its quoted name.
+
+Right-click gives each kind of object the few actions that make sense for it. A
+schema offers:
+
+| Item | What it does |
+| --- | --- |
+| New table... | Opens a `CREATE TABLE` starter statement for that schema in a new tab |
+| Copy name | Puts the schema name on the clipboard |
+| Refresh | Reloads just that schema's contents |
+| Exclude from autocomplete | See [below](#leaving-a-schema-out) |
+| Drop schema... | Drops it, after a confirmation. Fails if the schema still holds objects |
+| Drop schema (cascade)... | Drops it together with everything inside, after a confirmation that says so |
+
+A table offers its reconstructed DDL and the Alter Table dialog; a function
+offers its source; an extension offers install or drop.
+
 ## Completion
 
 Completion triggers as you type, or on demand with
@@ -48,6 +70,19 @@ It reads the live catalog, so it knows about:
 Two touches that save the most typing. After `JOIN`, tables connected to what you
 already have by a foreign key rank first. After `ON`, the complete join
 condition, `oi.order_id = o.id`, is the top suggestion, one keystroke away.
+
+### Leaving a schema out
+
+A database with dozens of schemas usually has a few that belong to another team,
+and their tables only ever get in the way of yours. Right-click the schema in the
+sidebar and pick **Exclude from autocomplete**. Its tables, columns and functions
+stop appearing in every suggestion list, and the refresh gets a little faster too,
+because those catalog queries are skipped.
+
+The schema stays in the tree, dimmed, with a crossed-out eye next to its name.
+Right-click it again to bring it back. The choice is remembered per connection,
+so excluding `billing` on one database says nothing about a `billing` schema on
+another.
 
 ### Auto-alias
 

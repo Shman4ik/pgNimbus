@@ -94,6 +94,22 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
     /// <summary>Builds the Alter Table dialog's ViewModel for a table (the dialog itself is shown by the view).</summary>
     public Func<TableNode, AlterTableViewModel>? AlterTableViewModelFactory { get; set; }
 
+    /// <summary>Opens a CREATE TABLE starter statement for a schema in a new query tab.</summary>
+    public Func<SchemaNode, Task>? NewTableRequested { get; set; }
+
+    /// <summary>DROP SCHEMA (the bool is CASCADE), then reload the tree and the caches derived from it.</summary>
+    public Func<SchemaNode, bool, Task>? DropSchemaRequested { get; set; }
+
+    /// <summary>Adds/removes a schema from the editor completion's exclusion set (persisted per connection by the host).</summary>
+    public Func<SchemaNode, bool, Task>? SetSchemaExcludedFromCompletionRequested { get; set; }
+
+    /// <summary>
+    /// Whether a schema name is currently excluded from completion. Consulted
+    /// when <see cref="RefreshAsync"/> rebuilds the nodes, so a refresh (or a
+    /// reconnect) doesn't lose the markers the host persisted.
+    /// </summary>
+    public Func<string, bool>? IsSchemaExcludedFromCompletion { get; set; }
+
     /// <summary>
     /// The sidebar refresh button. Reloads the tree together with everything
     /// else derived from the live catalog (autocomplete + palette) via the
@@ -243,7 +259,12 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
             Schemas.Clear();
             foreach (var schema in schemas)
             {
-                Schemas.Add(new SchemaNode(_schemaService, schema.Name, () => ShowAdvancedObjects, () => ShowSizes));
+                Schemas.Add(new SchemaNode(
+                    _schemaService,
+                    schema.Name,
+                    () => ShowAdvancedObjects,
+                    () => ShowSizes,
+                    IsSchemaExcludedFromCompletion?.Invoke(schema.Name) ?? false));
             }
 
             // Server-wide groups after the schemas, both lazily loaded.
