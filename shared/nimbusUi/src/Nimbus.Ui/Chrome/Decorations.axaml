@@ -1,0 +1,78 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:chrome="using:Avalonia.Controls.Chrome">
+
+    <!--
+        The window's caption buttons, for the merged title bar (see NimbusWindowChrome).
+        This exists because of what Avalonia 12 actually does on Win32 when the client
+        area is extended: the backend reports `RequestedDrawnDecorations = TitleBar` and
+        calls `DisableCloseButton` on the HWND, so the *system* buttons are switched off
+        and the app is expected to draw its own. That is the opposite of the pre-12
+        `PreferSystemChrome` behaviour, and it is not optional — without a template there
+        is no way to close the window.
+
+        Fluent's stock decorations template would draw them, but it also draws a
+        full-width title bar panel in `TitleBarBackgroundBrush` and the window title in a
+        `TextBlock` — both on top of the command bar, which would put back the second bar
+        and the wordmark this whole arrangement removes. So: the same buttons it would
+        have drawn — Fluent's own `FluentDrawnCaptionButton` theme and glyph geometries,
+        down to the restore glyph when maximized — and nothing else. No underlay either:
+        Win32 asks only for the title bar part, so the border and shadow parts are never
+        enabled here.
+
+        The PART_ names are load-bearing: `WindowDrawnDecorations` finds the three
+        buttons by name in the template's name scope and wires minimize/maximize/close to
+        them. Rename one and it becomes a dead button, not a build error.
+    -->
+    <ControlTheme x:Key="CommandBarWindowDecorations" TargetType="chrome:WindowDrawnDecorations">
+        <Setter Property="Template">
+            <WindowDrawnDecorationsTemplate>
+                <WindowDrawnDecorationsContent>
+                    <WindowDrawnDecorationsContent.Overlay>
+                        <StackPanel Name="PART_OverlayPanel" Orientation="Horizontal"
+                                    HorizontalAlignment="Right" VerticalAlignment="Top"
+                                    Height="{TemplateBinding TitleBarHeight}"
+                                    IsVisible="{TemplateBinding HasTitleBar}">
+                            <Button Name="PART_MinimizeButton" Theme="{StaticResource FluentDrawnCaptionButton}"
+                                    chrome:WindowDecorationProperties.ElementRole="MinimizeButton">
+                                <Viewbox Width="11" Margin="2">
+                                    <Path Stretch="UniformToFill" Fill="{DynamicResource CaptionButtonForeground}"
+                                          Data="M2048 1229v-205h-2048v205h2048z" />
+                                </Viewbox>
+                            </Button>
+                            <Button Name="PART_MaximizeButton" Theme="{StaticResource FluentDrawnCaptionButton}"
+                                    chrome:WindowDecorationProperties.ElementRole="MaximizeButton">
+                                <Viewbox Width="11" Margin="2">
+                                    <Path Name="RestoreButtonPath" Stretch="UniformToFill"
+                                          Fill="{DynamicResource CaptionButtonForeground}"
+                                          Data="M2048 2048v-2048h-2048v2048h2048zM1843 1843h-1638v-1638h1638v1638z" />
+                                </Viewbox>
+                            </Button>
+                            <Button Name="PART_CloseButton" Theme="{StaticResource FluentDrawnCaptionButton}"
+                                    chrome:WindowDecorationProperties.ElementRole="CloseButton">
+                                <Viewbox Width="11" Margin="2">
+                                    <Path Stretch="UniformToFill" Fill="{DynamicResource CaptionButtonForeground}"
+                                          Data="M1169 1024l879 -879l-145 -145l-879 879l-879 -879l-145 145l879 879l-879 879l145 145l879 -879l879 879l145 -145z" />
+                                </Viewbox>
+                            </Button>
+                        </StackPanel>
+                    </WindowDrawnDecorationsContent.Overlay>
+                </WindowDrawnDecorationsContent>
+            </WindowDrawnDecorationsTemplate>
+        </Setter>
+
+        <!-- Maximize becomes Restore, as it does everywhere in Windows. -->
+        <Style Selector="^:maximized /template/ Path#RestoreButtonPath">
+            <Setter Property="Data" Value="M2048 410h-410v-410h-1638v1638h410v410h1638v-1638zM1434 1434h-1229v-1229h1229v1229zM1843 1843h-1229v-205h1024v-1024h205v1229z" />
+        </Style>
+        <!-- A window that cannot be minimized or maximized doesn't get a button for it,
+             rather than a button that refuses (DESIGN.md rule 9). -->
+        <Style Selector="^:not(:has-minimize) /template/ Button#PART_MinimizeButton">
+            <Setter Property="IsVisible" Value="False" />
+        </Style>
+        <Style Selector="^:not(:has-maximize) /template/ Button#PART_MaximizeButton">
+            <Setter Property="IsVisible" Value="False" />
+        </Style>
+    </ControlTheme>
+
+</ResourceDictionary>

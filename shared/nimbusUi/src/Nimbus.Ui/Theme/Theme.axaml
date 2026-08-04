@@ -1,0 +1,196 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+        The shared Nimbus control vocabulary: the style classes both apps use, and the
+        Fluent controls both apps retheme the same way. Loaded through Theme.axaml,
+        which merges Tokens.axaml alongside it — every StaticResource below resolves
+        there.
+
+        Membership rule, same as everywhere in this repo: a class lives here when both
+        apps use it for the same job. `TabItem` is the instructive exception and stays
+        in each app: pgNimbus styles it for the query tab strip (12,9 padding, a margin,
+        a corner radius) and kubeNimbus for the compact inspector strip (12,6, MinHeight
+        0). Same selector, genuinely different jobs — sharing it would mean one app
+        overriding the other right back.
+
+        24 of the 28 blocks below were byte-identical in the two apps at extraction. The
+        other four are noted where they sit.
+    -->
+
+    <Styles.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!--
+                    Merged HERE, into this Styles element's own resources, rather than
+                    left for the app to provide. A StaticResource in a styles file
+                    resolves against that file's own resource chain, so a shared style
+                    that reached for a token defined only in a sibling Styles element
+                    would fail at XAML load. Each consuming app merges the same
+                    dictionaries into its own Theme.axaml for the same reason — the
+                    duplicate merge costs a few hundred brushes and removes the whole
+                    class of load-order bug.
+                -->
+                <ResourceInclude Source="avares://Nimbus.Ui/Theme/Tokens.axaml" />
+                <ResourceInclude Source="avares://Nimbus.Ui/Theme/Icons.axaml" />
+                <ResourceInclude Source="avares://Nimbus.Ui/Chrome/Decorations.axaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Styles.Resources>
+
+    <Style Selector="ScrollBar /template/ Thumb">
+        <Setter Property="CornerRadius" Value="5" />
+    </Style>
+
+    <Style Selector="ScrollBar /template/ RepeatButton#PART_LineUpButton">
+        <Setter Property="IsVisible" Value="False" />
+    </Style>
+
+    <Style Selector="ScrollBar /template/ RepeatButton#PART_LineDownButton">
+        <Setter Property="IsVisible" Value="False" />
+    </Style>
+
+    <Style Selector="Button">
+        <Setter Property="CornerRadius" Value="{StaticResource ControlCornerRadius}" />
+        <Setter Property="Padding" Value="14,7" />
+    </Style>
+
+    <Style Selector="Button.accent">
+        <Setter Property="Background" Value="{StaticResource AppAccentBrush}" />
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <Style Selector="Button.accent:pointerover">
+        <Setter Property="Background" Value="{StaticResource AppAccentHoverBrush}" />
+    </Style>
+
+    <Style Selector="Button.accent:pressed">
+        <Setter Property="Background" Value="{StaticResource AppAccentPressedBrush}" />
+    </Style>
+
+    <Style Selector="Button.accent:disabled">
+        <Setter Property="Background" Value="{DynamicResource SystemControlDisabledBaseLowBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlDisabledBaseMediumLowBrush}" />
+    </Style>
+
+    <Style Selector="Button.chip, ToggleButton.chip">
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="Padding" Value="4,0" />
+        <Setter Property="MinWidth" Value="18" />
+        <Setter Property="MinHeight" Value="18" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Opacity" Value="0.6" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+
+    <Style Selector="Button.chip:pointerover, ToggleButton.chip:pointerover">
+        <Setter Property="Background" Value="{StaticResource HoverBackgroundBrush}" />
+        <Setter Property="Opacity" Value="1" />
+    </Style>
+
+    <Style Selector="ToggleButton.chip:checked">
+        <Setter Property="Opacity" Value="1" />
+    </Style>
+
+    <Style Selector="ToggleButton.chip:checked /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
+    </Style>
+
+    <Style Selector="Button.toolbar, ToggleButton.toolbar">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="10,7" />
+    </Style>
+
+    <Style Selector="ToggleButton.toolbar:checked /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
+    </Style>
+
+    <Style Selector="ToggleButton.toolbar:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
+    </Style>
+
+    <Style Selector="ToggleButton.toolbar:checked:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
+    </Style>
+
+    <Style Selector="ToggleButton.toolbar:checked PathIcon">
+        <Setter Property="Foreground" Value="{StaticResource AppAccentBrush}" />
+    </Style>
+
+    <Style Selector="Button.searchpill">
+        <Setter Property="Background" Value="{StaticResource CardBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource ControlCornerRadius}" />
+        <Setter Property="Padding" Value="10,0" />
+        <Setter Property="MinHeight" Value="24" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+
+    <Style Selector="Button.searchpill:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource HoverBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}" />
+    </Style>
+
+    <Style Selector="Border.card">
+        <Setter Property="Background" Value="{StaticResource CardBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource CardCornerRadius}" />
+    </Style>
+
+    <Style Selector="Border.layer">
+        <Setter Property="Background" Value="{DynamicResource SystemControlPageBackgroundAltHighBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource CardCornerRadius}" />
+        <Setter Property="Padding" Value="12" />
+    </Style>
+
+    <Style Selector="Border.statusBar">
+        <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}" />
+        <Setter Property="BorderThickness" Value="0,1,0,0" />
+        <Setter Property="Padding" Value="12,6" />
+    </Style>
+
+    <Style Selector="Rectangle.statusSeparator">
+        <Setter Property="Width" Value="1" />
+        <Setter Property="Height" Value="12" />
+        <Setter Property="Fill" Value="{StaticResource CardBorderBrush}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="TextBlock.sectionHeader">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Opacity" Value="0.55" />
+        <Setter Property="LetterSpacing" Value="0.8" />
+    </Style>
+
+    <Style Selector="TextBlock.statusText">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Opacity" Value="0.85" />
+    </Style>
+
+    <Style Selector="TextBlock.statusText.dim">
+        <Setter Property="Opacity" Value="0.6" />
+    </Style>
+
+    <Style Selector="TextBlock.statusText.warn">
+        <Setter Property="Foreground" Value="{StaticResource AppWarningBrush}" />
+        <Setter Property="Opacity" Value="1" />
+    </Style>
+
+    <Style Selector="TextBlock.statusText.error">
+        <Setter Property="Foreground" Value="{StaticResource AppDangerBrush}" />
+    </Style>
+
+</Styles>

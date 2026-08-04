@@ -27,6 +27,10 @@
         <FluentTheme />
         <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
         <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
+        <!-- The shared Nimbus design system (shared/nimbusUi, a git subtree). Loads
+             after FluentTheme so its Fluent resource overrides win, and BEFORE this
+             app's own Theme.axaml so the app can override a shared style. -->
+        <StyleInclude Source="avares://Nimbus.Ui/Theme/Theme.axaml" />
         <StyleInclude Source="avares://PgNimbus.App/Styles/Theme.axaml" />
     </Application.Styles>
 

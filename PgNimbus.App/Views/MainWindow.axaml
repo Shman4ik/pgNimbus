@@ -7,6 +7,7 @@
         xmlns:conv2="using:PgNimbus.App.Converters"
         xmlns:views="using:PgNimbus.App.Views"
         xmlns:cmd="using:PgNimbus.App"
+        xmlns:chrome="using:Avalonia.Controls.Chrome"
         mc:Ignorable="d"
         d:DesignWidth="1000" d:DesignHeight="650"
         x:Class="PgNimbus.App.Views.MainWindow"
@@ -23,8 +24,12 @@
          modifier is Ctrl or Cmd depending on platform/preference, which a
          hardcoded XAML gesture can't express. -->
 
-    <!-- Root grid layers the command-palette overlay above the whole shell -->
-    <Grid>
+    <!-- Root grid layers the command-palette overlay above the whole shell.
+         Named because NimbusWindowChrome hangs the window's OffScreenMargin on
+         it: a maximized window with an extended client area really does hang a
+         few pixels off every screen edge, and the thing clipped is now the
+         command bar, which is the title bar. -->
+    <Grid Name="RootLayout">
 
     <!--
         Two-tone shell (Files-style): chrome-tinted base; the content pane is a
@@ -34,18 +39,27 @@
         leaves it opaque otherwise so the base is never a see-through hole.
     -->
     <DockPanel Name="ShellBase" Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}">
-        <!-- On macOS this bar doubles as the title bar: SetUpMacTitleBar
-             (code-behind) extends the client area under the system one, pads
-             the left edge clear of the traffic lights, and makes the bar's
-             empty space drag the window. -->
-        <Border Name="CommandBar" DockPanel.Dock="Top" Height="40" Padding="16,0"
+        <!-- This bar IS the title bar on Windows and macOS (NimbusWindowChrome,
+             called from code-behind; DESIGN.md rule 9). The TitleBar role is what
+             makes it one: Win32 answers it as HTCAPTION, which is where dragging,
+             double-click-to-maximize, the window menu and Snap Layouts come from.
+             Every interactive control inside therefore has to opt back out with
+             the User role, or the caption swallows its clicks — empty bar space
+             is deliberately left as caption, the way a browser leaves its tab
+             strip's empty space grabbable. Background must be non-null: a Border
+             with a null background does not hit-test, so the drag region would
+             only exist where a child covers it. Padding is set from code-behind,
+             where the reserve for the caption buttons is per-platform. -->
+        <Border Name="CommandBar" DockPanel.Dock="Top" Height="40" Background="Transparent"
+                chrome:WindowDecorationProperties.ElementRole="TitleBar"
                 BorderThickness="0,0,0,1" BorderBrush="{StaticResource CardBorderBrush}">
             <!-- Auto | * | Auto: left cluster, the centered search pill, right
                  cluster. The pill stretches up to its MaxWidth and centers in
                  the middle column, VS Code-style; on a narrow window it
                  shrinks instead of overlapping the clusters. -->
             <Grid ColumnDefinitions="Auto,*,Auto">
-                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center"
+                            chrome:WindowDecorationProperties.ElementRole="User">
                     <!-- App menu (☰): the discoverable home for file/tab commands
                          (open/save/recent live nowhere else visible — the palette
                          has them, but only for those who know to look). Shortcut
@@ -86,10 +100,11 @@
                     <Border Width="10" Height="10" CornerRadius="5" Margin="0,0,10,0"
                             VerticalAlignment="Center"
                             Background="{Binding AccentColor, Converter={x:Static conv2:HexToBrushConverter.Instance}}" />
-                    <!-- Hidden on macOS (SetUpMacTitleBar): the menu bar already
-                         carries the app's name there, so the wordmark is
-                         Windows/Linux chrome only. -->
-                    <TextBlock Name="AppTitleText" Text="pgNimbus" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center" />
+                    <!-- No wordmark. The window title and the taskbar/Alt+Tab icon
+                         already carry the identity, and now that this bar is the
+                         title bar it would be printing the window's own title back
+                         at it (DESIGN.md rule 9). The accent dot above stays — it
+                         says which connection this is, not which app. -->
                     <!-- Files-style breadcrumb: where am I connected -->
                     <TextBlock Name="ConnectionHostText" Text="{Binding ConnectionHost}" FontSize="12" Opacity="0.75" VerticalAlignment="Center" Margin="16,0,0,0" />
                     <TextBlock Text="›" FontSize="12" Opacity="0.45" VerticalAlignment="Center" Margin="6,0" />
@@ -105,6 +120,7 @@
                 <!-- Opens the command palette; the shortcut caption is set in
                      BuildKeyBindings to track the live Ctrl/Cmd scheme. -->
                 <Button Grid.Column="1" Name="PaletteSearchButton" Classes="searchpill"
+                        chrome:WindowDecorationProperties.ElementRole="User"
                         HorizontalAlignment="Stretch" VerticalAlignment="Center"
                         MaxWidth="300" Margin="16,0"
                         Click="OnPaletteSearchButtonClick">
@@ -115,7 +131,8 @@
                     </Grid>
                 </Button>
 
-                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center"
+                            chrome:WindowDecorationProperties.ElementRole="User">
                     <Button Classes="chip" Padding="5"
                             Margin="0,0,4,0" VerticalAlignment="Center"
                             Click="OnShowActivityClick"

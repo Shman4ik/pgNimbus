@@ -65,6 +65,12 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PgNimbus.Core\PgNimbus.Core.csproj" />
+    <!-- The design system shared with kubeNimbus. A git subtree, not a NuGet
+         package: the sources stay in the tree, so there is no feed and no version
+         bump between editing a colour and seeing it. See
+         shared\nimbusUi\README.md for the subtree pull/push commands, and
+         shared\nimbusUi\DESIGN.md for the rules it enforces. -->
+    <ProjectReference Include="..\shared\nimbusUi\src\Nimbus.Ui\Nimbus.Ui.csproj" />
   </ItemGroup>
 
 </Project>

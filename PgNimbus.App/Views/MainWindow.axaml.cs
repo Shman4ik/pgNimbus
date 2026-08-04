@@ -8,6 +8,7 @@ using Avalonia.Platform.Storage;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using Nimbus.Ui.Chrome;
 using PgNimbus.App.ViewModels;
 using PgNimbus.Core.Commands;
 using PgNimbus.Core.Query;
@@ -28,7 +29,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         ThemedWindowChrome.Attach(this);
-        SetUpMacTitleBar();
+        SetUpTitleBar();
 
         // Gestures use the platform/preference command modifier (Ctrl or Cmd),
         // so they're built in code, and rebuilt live when the scheme changes.
@@ -103,54 +104,39 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// macOS-only: merges the command bar with the title bar, TablePlus-style.
-    /// The system title bar collapses to just the traffic lights (drawn over
-    /// our 40px bar, which matches the standard macOS title bar height), the
-    /// bar's left padding keeps the sidebar toggle clear of them, and pressing
-    /// the bar's empty space drags the window - buttons mark their presses
-    /// handled, so this never swallows a click. No-op everywhere else; on
-    /// Windows the title bar is themed by <see cref="ThemedWindowChrome"/>.
+    /// Merges the command bar into the title bar: one row of chrome at the top
+    /// instead of two (DESIGN.md rule 9). Shared with kubeNimbus — the platform
+    /// rules this has to respect live on <see cref="NimbusWindowChrome"/>, and
+    /// three of the four fail silently if got wrong.
+    /// <para>
+    /// This replaced a macOS-only version that hand-rolled the drag from
+    /// <c>BeginMoveDrag</c> plus a <c>ClickCount == 2</c> zoom. That reproduced two
+    /// of the four gestures a title bar owes the user and silently lost the
+    /// right-click window menu and Win11 Snap Layouts — and on Windows it did not
+    /// run at all, so the app carried a second bar there. The
+    /// <c>ElementRole="TitleBar"</c> on the bar in XAML is what supplies all four
+    /// now, from the OS.
+    /// </para>
+    /// <para>
+    /// What stays macOS-specific is not chrome: the native menu bar
+    /// (<see cref="BuildMacNativeMenu"/>) is the file-command home there, so the
+    /// in-window ☰ menu would be a second copy of the same commands.
+    /// </para>
     /// </summary>
-    private void SetUpMacTitleBar()
+    private void SetUpTitleBar()
     {
+        // 16 keeps the bar's original horizontal breathing room; the caption
+        // reserve is added on top of it, per platform, and taken back in full
+        // screen where there are no caption buttons to reserve for.
+        NimbusWindowChrome.Attach(this, CommandBar, RootLayout, inset: 16);
+
         if (!OperatingSystem.IsMacOS())
         {
             return;
         }
 
-        // Avalonia 12 keeps the native traffic lights when extending on macOS
-        // (the old ExtendClientAreaChromeHints enum is gone).
-        ExtendClientAreaToDecorationsHint = true;
-        ExtendClientAreaTitleBarHeightHint = 40;
-        // 16px original left padding + room for the traffic-light cluster.
-        CommandBar.Padding = new Thickness(84, 0, 16, 0);
-
-        // The native menu bar (BuildMacNativeMenu) is the file-command home on
-        // macOS, so the in-window ☰ menu would be a second copy of the same
-        // commands; the wordmark goes too — the menu bar already says the
-        // app's name, and Mac toolbars (TablePlus, Finder) don't repeat it.
         AppMenuButton.IsVisible = false;
-        AppTitleText.IsVisible = false;
         ConnectionHostText.Margin = new Thickness(0);
-        CommandBar.PointerPressed += (_, e) =>
-        {
-            if (!e.GetCurrentPoint(CommandBar).Properties.IsLeftButtonPressed)
-            {
-                return;
-            }
-
-            // Match the native macOS title bar: single press drags, double
-            // click zooms. BeginMoveDrag swallows the second press, so the
-            // zoom has to be handled here rather than via DoubleTapped.
-            if (e.ClickCount == 2)
-            {
-                WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-            }
-            else
-            {
-                BeginMoveDrag(e);
-            }
-        };
     }
 
     // KeyBinding.Command must be a live ICommand, but most targets hang off
