@@ -18,6 +18,36 @@ stale `CLAUDE.md` (e.g. it still saying "Avalonia 11" after an upgrade to
 12) as a bug, not a nitpick: it's the first thing a fresh session reads,
 and wrong project memory is worse than none.
 
+## The sibling project, and what is shared with it
+
+kubeNimbus (`X:\source\kubeNimbus`, normally checked out beside this repo) is the
+same product for Kubernetes, and the two must look and behave like one family.
+The shared half lives in **[`shared/nimbusUi`](shared/nimbusUi/)** — a git subtree
+of [nimbusUi](https://github.com/Shman4ik/nimbusUi), referenced as an ordinary
+`ProjectReference`:
+
+- `Theme/Tokens.axaml` — the palette, radii, scrollbars, Fluent resource overrides.
+- `Theme/Icons.axaml` — the MDI glyphs both apps draw.
+- `Theme/Theme.axaml` — the shared style classes (`card`, `layer`, `chip`,
+  `toolbar`, `searchpill`, `statusBar`, …).
+- `Chrome/` — the one-bar window chrome and its drawn caption buttons.
+- `Hotkeys.cs` — Ctrl/Cmd resolution; `PgNimbus.App.Hotkeys` forwards to it.
+- **[`DESIGN.md`](shared/nimbusUi/DESIGN.md) — the UI rules, single source.**
+
+Three rules about it:
+
+1. **A change to a shared surface is a change to both apps.** Edit the files in
+   place, build pgNimbus, then `git subtree push --prefix shared/nimbusUi`, pull
+   it into kubeNimbus and build that too. Both working copies are normally open
+   side by side, so this is one session's work, not a follow-up ticket. The PR
+   template asks for the paired PR.
+2. **The membership test is "can it be described without naming Postgres?"** If
+   yes it probably belongs up there; if no it stays here. When in doubt leave it
+   here — a wrong thing pulled up has to be un-shared against two consumers.
+3. **`DESIGN.md` owns the rule text; this file owns the evidence.** Don't restate
+   a shared rule here in full — that is exactly how the two files started
+   disagreeing (the same red carried two names and two values for months).
+
 ## Hard architectural rules
 
 1. **`PgNimbus.Core` has zero Avalonia/UI dependencies.** It references only
@@ -180,6 +210,15 @@ and wrong project memory is worse than none.
    [`docs/design/explain-improvements.md`](docs/design/explain-improvements.md).
 
 ## UI design rules
+
+> Several of these are shared with kubeNimbus, and their canonical statement is in
+> [`shared/nimbusUi/DESIGN.md`](shared/nimbusUi/DESIGN.md): minimalism (1),
+> double-click as the default action (2), never overwriting the active tab (3),
+> drag-reorderable tabs (4), the Ctrl/Cmd resolver (5), and the merged title bar
+> (DESIGN.md rule 9, adopted on Windows in the same change that created that
+> file). What is kept below is the pgNimbus-specific evidence behind each — the
+> concrete failure is why the rule is believed. Change a shared rule in DESIGN.md,
+> not here.
 
 1. **Minimalist design is a priority.** Every new always-visible control —
    especially a toolbar button — must be explicitly discussed and justified
@@ -401,17 +440,30 @@ and wrong project memory is worse than none.
 
 ## Platform window chrome
 
-- **Windows** — every window calls `ThemedWindowChrome.Attach(this)` (icon +
-  caption color; details in the icon section below).
-- **macOS** — `MainWindow.SetUpMacTitleBar()` merges the 40px command bar
-  with the title bar (`ExtendClientAreaToDecorationsHint` +
-  `ExtendClientAreaTitleBarHeightHint = 40`; Avalonia 12 dropped the old
-  `ExtendClientAreaChromeHints` enum — native traffic lights stay by
-  default). The bar gets 84px left padding to clear the traffic lights and
-  drags the window from its empty space (`BeginMoveDrag`); it also hides the
-  ☰ button and the "pgNimbus" wordmark there — the menu bar covers both
-  (2026-07). The sidebar toggle icon is platform-picked via `{OnPlatform}`
-  (SF-style geometry on macOS).
+- **The command bar IS the title bar, on Windows and macOS.**
+  `MainWindow.SetUpTitleBar()` calls `NimbusWindowChrome.Attach` (shared with
+  kubeNimbus — `shared/nimbusUi/Chrome/`, and DESIGN.md rule 9 states the four
+  platform traps, three of which fail silently). Linux keeps its system
+  decorations deliberately.
+
+  This replaced a **macOS-only** version that hand-rolled the drag from
+  `BeginMoveDrag` plus a `ClickCount == 2` zoom: that reproduced two of the four
+  gestures a title bar owes the user (drag, double-click-maximize) and lost the
+  right-click window menu and Win11 Snap Layouts, all four of which now come from
+  the OS via `WindowDecorationProperties.ElementRole="TitleBar"` on the bar. It
+  also returned early on Windows, so Windows carried two bars until 2026-08.
+  On Windows the caption buttons are now **ours to draw** — Avalonia 12's Win32
+  backend disables the system ones under an extended client area — from the
+  `CommandBarWindowDecorations` theme in `shared/nimbusUi/Chrome/Decorations.axaml`.
+
+  The "pgNimbus" wordmark is gone on every platform (rule 9), not just macOS. The
+  ☰ button is still hidden on macOS only, and that is not chrome: the native menu
+  bar (`BuildMacNativeMenu`) is the file-command home there, so it would be a
+  second copy of the same commands. The sidebar toggle icon is platform-picked
+  via `{OnPlatform}` (SF-style geometry on macOS).
+- **Windows** — every window still calls `ThemedWindowChrome.Attach(this)` for the
+  **icon** (details in the icon section below). Its caption-colour half is now
+  moot on `MainWindow`, whose caption is ours, and still applies to the dialogs.
 - **macOS native menu bar (2026-07)** — two layers. App-level (`App.axaml`,
   needs `Name="pgNimbus"` or Avalonia shows "Avalonia Application"): About
   pgNimbus (opens `AboutWindow` — name/version/license, version from the
