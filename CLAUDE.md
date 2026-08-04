@@ -30,6 +30,17 @@ of [nimbusUi](https://github.com/Shman4ik/nimbusUi), referenced as an ordinary
 - `Theme/Icons.axaml` — the MDI glyphs both apps draw.
 - `Theme/Theme.axaml` — the shared style classes (`card`, `layer`, `chip`,
   `toolbar`, `searchpill`, `statusBar`, …).
+- `Theme/Controls.axaml` — the Fluent **control** retheming: `TextBox`/`ComboBox`/
+  `NumericUpDown` radius and brand text selection, `SelectableTextBlock`,
+  `ListBox`/`ListBoxItem`/`TreeView`/`TreeViewItem` rounded rows, `DataGrid` soft
+  rules, the `.soft` and `.soft.danger` button families, `ToggleButton.soft`, the
+  chip checked/active washes, `TabControl`. **These moved out of
+  `Styles/Theme.axaml`**, where they had been defined for pgNimbus alone: kubeNimbus
+  had none of them and was drawing stock Fluent inputs, lists and grids next to
+  these, which is what made the two apps stop looking like one family. Change them
+  there, not here. What is left in this app's own `Styles/Theme.axaml` is `TabItem`,
+  `TabControl.segmented` and the AvaloniaEdit completion/search themes — all
+  genuinely pgNimbus's (see DESIGN.md's not-shared table).
 - `Chrome/` — the one-bar window chrome and its drawn caption buttons.
 - `Hotkeys.cs` — Ctrl/Cmd resolution; `PgNimbus.App.Hotkeys` forwards to it.
 - **[`DESIGN.md`](shared/nimbusUi/DESIGN.md) — the UI rules, single source.**

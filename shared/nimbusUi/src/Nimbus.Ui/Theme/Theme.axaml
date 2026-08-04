@@ -16,6 +16,12 @@
 
         24 of the 28 blocks below were byte-identical in the two apps at extraction. The
         other four are noted where they sit.
+
+        The Fluent *control* retheming — inputs, lists, trees, grids, the soft and
+        danger button variants — lives in the sibling `Controls.axaml`, included
+        below. It is a separate file only for length: this one is the shell
+        vocabulary the apps compose their chrome from, that one is the stock
+        controls underneath it, and the two are read for different reasons.
     -->
 
     <Styles.Resources>
@@ -37,6 +43,11 @@
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Styles.Resources>
+
+    <!-- Loaded FIRST, so a shell class below can override a control rule it sets.
+         Both are still ahead of the consuming app's own Theme.axaml (see either
+         App.axaml), which is what lets an app override anything shared. -->
+    <StyleInclude Source="avares://Nimbus.Ui/Theme/Controls.axaml" />
 
     <Style Selector="ScrollBar /template/ Thumb">
         <Setter Property="CornerRadius" Value="5" />

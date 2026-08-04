@@ -213,55 +213,15 @@
         </ResourceDictionary>
     </Styles.Resources>
 
-    <!-- Filled destructive primary button — the affirmative of a destructive
-         confirm (Terminate / Drop / Delete / Discard). Mirrors .accent, in red. -->
-    <Style Selector="Button.danger">
-        <Setter Property="Background" Value="{StaticResource AppDangerBrush}" />
-        <Setter Property="Foreground" Value="White" />
-        <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="BorderThickness" Value="0" />
-    </Style>
-    <Style Selector="Button.danger:pointerover">
-        <Setter Property="Background" Value="{StaticResource AppDangerHoverBrush}" />
-    </Style>
-    <Style Selector="Button.danger:pressed">
-        <Setter Property="Background" Value="{StaticResource AppDangerPressedBrush}" />
-    </Style>
-    <Style Selector="Button.danger:disabled">
-        <Setter Property="Background" Value="{DynamicResource SystemControlDisabledBaseLowBrush}" />
-        <Setter Property="Foreground" Value="{DynamicResource SystemControlDisabledBaseMediumLowBrush}" />
-    </Style>
+    <!-- Button.danger, the chip checked/active washes, and the .soft button family
+         moved to the shared design system (shared/nimbusUi, Theme/Controls.axaml):
+         kubeNimbus needs exactly the same vocabulary and was rendering stock Fluent
+         without it. Nothing about them was Postgres-specific. -->
 
-    <!-- Checked state for chip-styled ToggleButtons (e.g. cell inspector's Wrap
-         toggle): the app's brand-blue selection wash, same as the toolbar toggle.
-         Fluent paints the checked fill on PART_ContentPresenter via its ControlTheme,
-         which outranks a plain Background setter, so the wash overrides that template
-         part; idle/hover/pressed are all pinned so the "on" chip stays blue rather
-         than flipping to Fluent's grey on hover. -->
-    <Style Selector="ToggleButton.chip:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
-    </Style>
-    <Style Selector="ToggleButton.chip:checked:pressed /template/ ContentPresenter#PART_ContentPresenter">
-        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
-    </Style>
-    <!-- Same wash for plain chip Buttons acting as a segmented pair (plan Text/Tree
-         switch), where a bound "active" class marks the selected segment instead of
-         :checked. A plain Button has no Fluent checked-state /template/ override, so
-         the rest state renders via TemplateBinding Background; :pointerover is pinned
-         at the template part so the active segment keeps the wash while hovered. -->
-    <Style Selector="Button.chip.active">
-        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
-        <Setter Property="Opacity" Value="1" />
-    </Style>
-    <Style Selector="Button.chip.active:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
-    </Style>
-
-    <!-- Left-nav style TabItem: pill highlight instead of the classic underline tab strip -->
-    <Style Selector="TabControl">
-        <Setter Property="Background" Value="Transparent" />
-        <Setter Property="Padding" Value="0" />
-    </Style>
+    <!-- Left-nav style TabItem: pill highlight instead of the classic underline tab
+         strip. TabControl's own transparent background is shared; TabItem is NOT —
+         DESIGN.md keeps it per-app, because kubeNimbus styles the same selector for
+         its compact inspector strip. -->
     <Style Selector="TabItem">
         <Setter Property="Padding" Value="12,9" />
         <Setter Property="Margin" Value="3,2" />
@@ -365,172 +325,12 @@
         <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
     </Style>
 
-    <!-- Soft action button: a refined, tactile pill (card-toned fill + hairline
-         border) that reads as a real button, unlike the flat transparent
-         .toolbar variant. Hover lifts to the accent tint. Fluent repaints
-         PART_ContentPresenter on hover, so the states are pinned at the template
-         part (same trick as .searchpill). Add .danger for destructive actions. -->
-    <Style Selector="Button.soft">
-        <Setter Property="Background" Value="{StaticResource CardBackgroundBrush}" />
-        <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}" />
-        <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="{StaticResource ControlCornerRadius}" />
-        <Setter Property="Padding" Value="11,6" />
-        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}" />
-    </Style>
-    <Style Selector="Button.soft /template/ ContentPresenter#PART_ContentPresenter">
-        <Setter Property="Transitions">
-            <Transitions>
-                <BrushTransition Property="Background" Duration="0:0:0.12" />
-                <BrushTransition Property="BorderBrush" Duration="0:0:0.12" />
-            </Transitions>
-        </Setter>
-    </Style>
-    <Style Selector="Button.soft:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
-        <Setter Property="BorderBrush" Value="{StaticResource AppAccentBrush}" />
-    </Style>
-    <Style Selector="Button.soft:pressed /template/ ContentPresenter#PART_ContentPresenter">
-        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
-        <Setter Property="BorderBrush" Value="{StaticResource AppAccentBrush}" />
-    </Style>
-    <!-- Disabled soft button: quiet, no border glow -->
-    <Style Selector="Button.soft:disabled">
-        <Setter Property="Opacity" Value="0.4" />
-    </Style>
-    <!-- Destructive variant (terminate a session): red glyph/text, red hover wash. -->
-    <Style Selector="Button.soft.danger">
-        <Setter Property="Foreground" Value="{StaticResource AppDangerBrush}" />
-    </Style>
-    <Style Selector="Button.soft.danger PathIcon">
-        <Setter Property="Foreground" Value="{StaticResource AppDangerBrush}" />
-    </Style>
-    <Style Selector="Button.soft.danger:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-        <Setter Property="Background" Value="{StaticResource AppDangerWashBrush}" />
-        <Setter Property="BorderBrush" Value="{StaticResource AppDangerBorderBrush}" />
-    </Style>
-    <Style Selector="Button.soft.danger:pressed /template/ ContentPresenter#PART_ContentPresenter">
-        <Setter Property="Background" Value="{StaticResource AppDangerWashBrush}" />
-        <Setter Property="BorderBrush" Value="{StaticResource AppDangerBorderBrush}" />
-    </Style>
-    <!-- A disabled destructive button must not still shout red: .soft:disabled's
-         0.4 opacity over AppDangerBrush lands on a washed-out pink that reads as
-         "broken", not "unavailable". Drop back to the ordinary foreground so it
-         dims like every other disabled button. -->
-    <Style Selector="Button.soft.danger:disabled">
-        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}" />
-    </Style>
-    <Style Selector="Button.soft.danger:disabled PathIcon">
-        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}" />
-    </Style>
-
-    <!-- Toggle variant of .soft, for an on/off action that belongs in the same
-         button group as its neighbours (the activity window's "Auto" refresh
-         next to "Refresh"). A .chip there would sit at a different height and
-         radius, and its checked blue wash reads as a *selected tab* - which is
-         exactly what the segmented strip beside it already means. This keeps
-         the .soft pill geometry and marks "on" with the accent border + wash.
-         Fluent repaints PART_ContentPresenter for every ToggleButton state, so
-         each state is pinned at the template part (same trick as .searchpill),
-         and selectors match by style key so ToggleButton needs its own rules
-         rather than inheriting the Button.soft ones. -->
-    <Style Selector="ToggleButton.soft">
-        <Setter Property="Background" Value="{StaticResource CardBackgroundBrush}" />
-        <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}" />
-        <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="{StaticResource ControlCornerRadius}" />
-        <Setter Property="Padding" Value="11,6" />
-        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}" />
-    </Style>
-    <Style Selector="ToggleButton.soft /template/ ContentPresenter#PART_ContentPresenter">
-        <Setter Property="Background" Value="{StaticResource CardBackgroundBrush}" />
-        <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}" />
-        <Setter Property="Transitions">
-            <Transitions>
-                <BrushTransition Property="Background" Duration="0:0:0.12" />
-                <BrushTransition Property="BorderBrush" Duration="0:0:0.12" />
-            </Transitions>
-        </Setter>
-    </Style>
-    <Style Selector="ToggleButton.soft:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
-        <Setter Property="BorderBrush" Value="{StaticResource AppAccentBrush}" />
-    </Style>
-    <Style Selector="ToggleButton.soft:pressed /template/ ContentPresenter#PART_ContentPresenter">
-        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
-        <Setter Property="BorderBrush" Value="{StaticResource AppAccentBrush}" />
-    </Style>
-    <Style Selector="ToggleButton.soft:checked">
-        <Setter Property="Foreground" Value="{StaticResource AppAccentBrush}" />
-        <Setter Property="FontWeight" Value="SemiBold" />
-    </Style>
-    <Style Selector="ToggleButton.soft:checked /template/ ContentPresenter#PART_ContentPresenter">
-        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
-        <Setter Property="BorderBrush" Value="{StaticResource AppAccentBrush}" />
-    </Style>
-    <Style Selector="ToggleButton.soft:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
-        <Setter Property="BorderBrush" Value="{StaticResource AppAccentBrush}" />
-    </Style>
-    <Style Selector="ToggleButton.soft:checked:pressed /template/ ContentPresenter#PART_ContentPresenter">
-        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
-        <Setter Property="BorderBrush" Value="{StaticResource AppAccentBrush}" />
-    </Style>
-    <Style Selector="ToggleButton.soft:disabled">
-        <Setter Property="Opacity" Value="0.4" />
-    </Style>
-
-    <!-- Lists / trees: rounded row selection instead of edge-to-edge highlight bars -->
-    <Style Selector="ListBox, TreeView">
-        <Setter Property="Background" Value="Transparent" />
-        <Setter Property="BorderThickness" Value="0" />
-        <Setter Property="Padding" Value="4" />
-    </Style>
-    <Style Selector="ListBoxItem">
-        <Setter Property="CornerRadius" Value="{StaticResource ControlCornerRadius}" />
-        <Setter Property="Padding" Value="8,6" />
-        <Setter Property="Margin" Value="0,1" />
-    </Style>
-    <Style Selector="ListBoxItem:selected">
-        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
-    </Style>
-    <Style Selector="TreeViewItem">
-        <Setter Property="CornerRadius" Value="{StaticResource ControlCornerRadius}" />
-        <Setter Property="Padding" Value="4,3" />
-        <!-- Tighter rows than Fluent's ~30px default -->
-        <Setter Property="MinHeight" Value="26" />
-    </Style>
-    <Style Selector="TreeViewItem:selected /template/ Border#PART_LayoutRoot">
-        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
-    </Style>
-
-    <!-- Inputs: rounded to match the rest of the surface -->
-    <Style Selector="TextBox, ComboBox, NumericUpDown">
-        <Setter Property="CornerRadius" Value="{StaticResource ControlCornerRadius}" />
-    </Style>
-    <!-- Selected text in every plain TextBox (connection dialog fields, search
-         boxes, etc.) uses the same brand-blue wash as the SQL editor instead of
-         FluentTheme's OS-accent-derived default - SelectionBrush is a TextBox-only
-         property (not exposed on ComboBox/NumericUpDown), hence its own selector;
-         it still reaches the editable TextBox inside a NumericUpDown's template. -->
-    <Style Selector="TextBox">
-        <Setter Property="SelectionBrush" Value="{StaticResource AppTextSelectionBrush}" />
-    </Style>
-    <!-- Read-only selectable text (cell-inspector Wrap view, EXPLAIN output, the
-         pending-changes SQL preview) shares the same brand-blue wash - otherwise
-         it falls back to FluentTheme's grey OS-accent default and selection reads
-         differently there than in the SQL editor / TextBoxes. -->
-    <Style Selector="SelectableTextBlock">
-        <Setter Property="SelectionBrush" Value="{StaticResource AppTextSelectionBrush}" />
-    </Style>
-
-    <!-- Results grid: soft horizontal rules instead of a full grid -->
-    <Style Selector="DataGrid">
-        <Setter Property="GridLinesVisibility" Value="Horizontal" />
-        <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource SystemControlForegroundBaseLowBrush}" />
-        <Setter Property="RowBackground" Value="Transparent" />
-        <Setter Property="BorderThickness" Value="0" />
-    </Style>
+    <!-- The .soft / .soft.danger button family, the list-and-tree row styling, the
+         input corner radius and brand text selection, and the DataGrid's soft
+         horizontal rules all moved to shared/nimbusUi (Theme/Controls.axaml). They
+         were the reason the two apps stopped looking alike: kubeNimbus had none of
+         them and rendered every input, list and grid as raw Fluent. Change them
+         there, not here — and rebuild both apps (nimbusUi/CLAUDE.md rule 5). -->
 
     <!--
         SQL completion popup rows (the card shell is the CompletionList
