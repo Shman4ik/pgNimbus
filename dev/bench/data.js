@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785218617979,
+  "lastUpdate": 1785821853682,
   "repoUrl": "https://github.com/Shman4ik/pgNimbus",
   "entries": {
     "pgNimbus benchmarks": [
@@ -1374,6 +1374,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "Stream 100000 rows",
             "value": 152.1,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shman4ik@gmail.com",
+            "name": "Dmitrii Shmanev",
+            "username": "Shman4ik"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "46df4ad2500bb18fe80d4b6083b627fcd2ad9afd",
+          "message": "Merge pull request #183 from Shman4ik/claude/schema-context-menu-filter-139360\n\nSchema context menu + per-connection autocomplete exclusions",
+          "timestamp": "2026-08-01T18:17:07+02:00",
+          "tree_id": "eeb117e5bb21e6cd9158190f1da5aec2b38dabf1",
+          "url": "https://github.com/Shman4ik/pgNimbus/commit/46df4ad2500bb18fe80d4b6083b627fcd2ad9afd"
+        },
+        "date": 1785821852233,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Startup, launch to first frame (NativeAOT)",
+            "value": 190,
+            "unit": "ms"
+          },
+          {
+            "name": "Memory at first frame (NativeAOT)",
+            "value": 159.6,
+            "unit": "MB"
+          },
+          {
+            "name": "Binary size (NativeAOT)",
+            "value": 42,
+            "unit": "MB"
+          },
+          {
+            "name": "Publish size (NativeAOT, shipped files)",
+            "value": 55.4,
+            "unit": "MB"
+          },
+          {
+            "name": "Startup, launch to first frame (JIT)",
+            "value": 1657,
+            "unit": "ms"
+          },
+          {
+            "name": "Connect, cold pool",
+            "value": 137.8,
+            "unit": "ms"
+          },
+          {
+            "name": "Round-trip, SELECT 1 warm",
+            "value": 0.31,
+            "unit": "ms"
+          },
+          {
+            "name": "First row batch of a 100000-row SELECT",
+            "value": 9.5,
+            "unit": "ms"
+          },
+          {
+            "name": "Stream 100000 rows",
+            "value": 121.1,
             "unit": "ms"
           }
         ]
