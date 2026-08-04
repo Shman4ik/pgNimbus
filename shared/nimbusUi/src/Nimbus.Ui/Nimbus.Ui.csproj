@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Nimbus.Ui</RootNamespace>
+    <!-- The assembly name is the `avares://` authority. Consumers reference
+         avares://Nimbus.Ui/Theme/Theme.axaml, so renaming this breaks both
+         apps at XAML-load time (not at build time) — the same trap kubeNimbus
+         documents for its own <AssemblyName>kubeNimbus</AssemblyName>. -->
+    <AssemblyName>Nimbus.Ui</AssemblyName>
+
+    <!-- Compiled bindings only, matching both consuming apps: no reflection
+         bindings anywhere in the Nimbus family. -->
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+
+    <!-- Both apps ship NativeAOT, so this library has to survive trimming.
+         Keeping the flag on here means a trim-unsafe addition surfaces in an
+         ordinary build of THIS repo rather than in a consumer's publish. -->
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Pinned to the LOWEST version either app is on (pgNimbus 12.1.0,
+         kubeNimbus 12.1.1). NuGet unifies to the highest reference in the
+         consuming app, so this cannot hold either app back — but raising it
+         above an app's own version would fail that app's restore. -->
+    <PackageReference Include="Avalonia" Version="12.1.0" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.0" />
+    <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.1.0" />
+  </ItemGroup>
+
+  <!-- No explicit item group for the .axaml files: Avalonia's own build targets
+       already glob them and register them under avares://. Adding them by hand
+       double-includes and fails the build — both apps rely on the same default
+       for their Styles/Theme.axaml. -->
+
+</Project>

@@ -1,0 +1,144 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+        The Nimbus palette. PowerToys/Files-inspired: soft rounded cards, pill-shaped
+        nav selection, accent-coloured primary actions. Neutral surfaces stay driven off
+        FluentTheme's DynamicResource brushes so light/dark keeps working; everything
+        with a hue is fixed and defined here.
+
+        Names carry the `App` prefix throughout. That is not decoration — it is what
+        tells a Nimbus token apart from one of Fluent's several hundred, at the point of
+        use, in an app where both are in scope.
+    -->
+
+    <ResourceDictionary.ThemeDictionaries>
+        <!--
+            Windows 11 Mica: the translucent base tone the backdrop shows through.
+            Theme-split so the frost reads right in light/dark; only applied when the
+            platform honors Mica.
+
+            Alpha kept high (~90%): Avalonia's Mica shows the wallpaper more strongly
+            than native Windows Mica, so a thinner frost let a dark wallpaper darken the
+            base until dimmed text (breadcrumbs, section headers) went grey-on-grey.
+            0xE6 keeps a stable tinted surface with just a hint of the backdrop.
+        -->
+        <ResourceDictionary x:Key="Light">
+            <SolidColorBrush x:Key="ShellBackdropBrush" Color="#E6F3F3F3" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+            <SolidColorBrush x:Key="ShellBackdropBrush" Color="#E6202020" />
+        </ResourceDictionary>
+    </ResourceDictionary.ThemeDictionaries>
+
+    <!--
+        Fixed brand accent, theme-independent. Deliberately NOT the OS
+        SystemAccentColor: the Windows accent can land anywhere on the wheel (neon
+        green, magenta…), and every selection/hover/primary surface then has to stay
+        legible against an unknown hue — not worth the polish cost. A fixed blue we
+        control keeps contrast predictable, and keeps the two apps looking like one
+        family on a machine whose accent is orange.
+    -->
+    <SolidColorBrush x:Key="AppAccentBrush" Color="#2D7FF9" />
+    <SolidColorBrush x:Key="AppAccentHoverBrush" Color="#4A93FA" />
+    <SolidColorBrush x:Key="AppAccentPressedBrush" Color="#1E63D6" />
+    <!-- Low-alpha accent for row/pill selection washes; reads on both themes. -->
+    <SolidColorBrush x:Key="AppSelectionBrush" Color="#282D7FF9" />
+    <!--
+        App-wide text-selection wash, shared by every TextBox and both apps' code
+        editors. A bit more alpha than AppSelectionBrush (0x40 vs 0x28): a text run
+        under the cursor needs to read as clearly selected even one character wide, and
+        the translucency lets the underlying text colour show through. Tune the alpha
+        here to make selection stronger/weaker across both apps.
+    -->
+    <SolidColorBrush x:Key="AppTextSelectionBrush" Color="#402D7FF9" />
+
+    <!--
+        Destructive action (drop a schema, delete a resource, terminate a session) and
+        the error status colour. A fixed red we control, legible on both themes: the
+        solid brush for a filled primary-destructive button (`Button.danger`, mirroring
+        `.accent`), hover/pressed shades for it, and a low-alpha wash + border for the
+        soft/outline variant.
+
+        One value, one name. kubeNimbus reached this repo with `ErrorBrush` set to the
+        CSS named colour `IndianRed` while pgNimbus used `#E5484D` for the same job —
+        the exact drift a shared token file exists to make impossible.
+    -->
+    <SolidColorBrush x:Key="AppDangerBrush" Color="#E5484D" />
+    <SolidColorBrush x:Key="AppDangerHoverBrush" Color="#EC5B60" />
+    <SolidColorBrush x:Key="AppDangerPressedBrush" Color="#CE3B40" />
+    <SolidColorBrush x:Key="AppDangerWashBrush" Color="#22E5484D" />
+    <SolidColorBrush x:Key="AppDangerBorderBrush" Color="#66E5484D" />
+
+    <!--
+        Attention, not danger: a row worth spotting (a backend stuck on a lock, a pod
+        that is Pending) and the warn status text. One fixed amber for all of them —
+        dark enough to stay legible on a white grid row, warm enough to read as amber on
+        dark. Deliberately a token: hand-rolled #E5A50A/#D9822B literals had already
+        drifted apart between two windows of one app before this existed.
+    -->
+    <SolidColorBrush x:Key="AppWarningBrush" Color="#D9822B" />
+
+    <!-- Healthy/running/connected. The third of the status trio; pairs with the two
+         above so a status dot, a pill and a text run all agree. -->
+    <SolidColorBrush x:Key="AppSuccessBrush" Color="#46A758" />
+
+    <CornerRadius x:Key="CardCornerRadius">8</CornerRadius>
+    <CornerRadius x:Key="ControlCornerRadius">6</CornerRadius>
+    <CornerRadius x:Key="PillCornerRadius">16</CornerRadius>
+
+    <!-- Fixed-alpha neutral grey so cards read the same, subtle weight in light and dark. -->
+    <SolidColorBrush x:Key="CardBackgroundBrush" Color="#80808080" Opacity="0.06" />
+    <SolidColorBrush x:Key="CardBorderBrush" Color="#80808080" Opacity="0.16" />
+    <SolidColorBrush x:Key="HoverBackgroundBrush" Color="#80808080" Opacity="0.1" />
+
+    <!--
+        Nav pill highlight. FluentTheme's TabItem ControlTheme repaints PART_LayoutRoot's
+        background from these TabItemHeaderBackground* resources on :pointerover/:pressed
+        (transparent by default), which erases any background set on the TabItem itself
+        as soon as the pointer touches the selected tab. Those inner ControlTheme styles
+        also win the precedence fight against app-level /template/ styles, so the
+        reliable override point is the DynamicResource values they paint with. This
+        dictionary is merged by a Styles file that loads after FluentTheme, so these take
+        priority in resource lookup.
+    -->
+    <StaticResource x:Key="TabItemHeaderBackgroundSelected" ResourceKey="AppSelectionBrush" />
+    <StaticResource x:Key="TabItemHeaderBackgroundSelectedPointerOver" ResourceKey="AppSelectionBrush" />
+    <StaticResource x:Key="TabItemHeaderBackgroundSelectedPressed" ResourceKey="AppSelectionBrush" />
+    <StaticResource x:Key="TabItemHeaderBackgroundUnselectedPointerOver" ResourceKey="HoverBackgroundBrush" />
+    <StaticResource x:Key="TabItemHeaderBackgroundUnselectedPressed" ResourceKey="HoverBackgroundBrush" />
+    <!-- The pill *is* the selection indicator — hide the stock underline pipe. -->
+    <SolidColorBrush x:Key="TabItemHeaderSelectedPipeFill" Color="Transparent" />
+
+    <!--
+        DataGrid row selection. The DataGrid Fluent theme paints a selected row's backing
+        rectangle Fill from these DynamicResource brushes (SystemAccentColor by default —
+        the one selection surface a fixed-brand-blue pass tends to miss, which is why grid
+        rows could read grey while everything else selected blue) with a separate Opacity
+        resource per state. Brush = opaque brand accent, opacity tuned so the resulting
+        wash matches AppSelectionBrush (0x28 alpha ≈ 0.157), hover a touch stronger.
+        Unfocused states stay identical to focused ones — no other selection surface in
+        either app dims on focus loss.
+    -->
+    <StaticResource x:Key="DataGridRowSelectedBackgroundBrush" ResourceKey="AppAccentBrush" />
+    <StaticResource x:Key="DataGridRowSelectedHoveredBackgroundBrush" ResourceKey="AppAccentBrush" />
+    <StaticResource x:Key="DataGridRowSelectedUnfocusedBackgroundBrush" ResourceKey="AppAccentBrush" />
+    <StaticResource x:Key="DataGridRowSelectedHoveredUnfocusedBackgroundBrush" ResourceKey="AppAccentBrush" />
+    <x:Double x:Key="DataGridRowSelectedBackgroundOpacity">0.157</x:Double>
+    <x:Double x:Key="DataGridRowSelectedHoveredBackgroundOpacity">0.235</x:Double>
+    <x:Double x:Key="DataGridRowSelectedUnfocusedBackgroundOpacity">0.157</x:Double>
+    <x:Double x:Key="DataGridRowSelectedHoveredUnfocusedBackgroundOpacity">0.235</x:Double>
+
+    <!-- Slim 10px thumb-only overlay scrollbars, app-wide. -->
+    <x:Double x:Key="ScrollBarSize">10</x:Double>
+    <SolidColorBrush x:Key="ScrollBarTrackFill" Color="Transparent" />
+    <SolidColorBrush x:Key="ScrollBarTrackFillPointerOver" Color="Transparent" />
+    <Color x:Key="ScrollBarThumbBackgroundColor">#66808080</Color>
+    <SolidColorBrush x:Key="ScrollBarThumbFillPointerOver" Color="#99808080" />
+    <SolidColorBrush x:Key="ScrollBarThumbFillPressed" Color="#B3808080" />
+    <SolidColorBrush x:Key="ScrollBarPanningThumbBackground" Color="#66808080" />
+    <SolidColorBrush x:Key="ScrollViewerScrollBarsSeparatorBackground" Color="Transparent" />
+    <TransformOperations x:Key="VerticalSmallScrollThumbScaleTransform">scaleX(0.3) translateX(-2px)</TransformOperations>
+    <TransformOperations x:Key="HorizontalSmallScrollThumbScaleTransform">scaleY(0.3) translateY(-2px)</TransformOperations>
+
+</ResourceDictionary>
