@@ -201,7 +201,7 @@
             <TextBlock Text="Loading..." Opacity="0.5" FontStyle="Italic" />
         </DataTemplate>
         <DataTemplate DataType="vm:ErrorNode">
-            <TextBlock Text="{Binding Name}" Foreground="IndianRed" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding Name}" Foreground="{StaticResource AppDangerBrush}" TextWrapping="Wrap" />
         </DataTemplate>
     </UserControl.DataTemplates>
 
@@ -288,6 +288,6 @@
         </Border>
         <TextBlock Grid.Row="2" Text="{Binding ErrorMessage}"
                    IsVisible="{Binding ErrorMessage, Converter={x:Static conv:ObjectConverters.IsNotNull}}"
-                   Foreground="IndianRed" TextWrapping="Wrap" Margin="4" FontSize="11" />
+                   Foreground="{StaticResource AppDangerBrush}" TextWrapping="Wrap" Margin="4" FontSize="11" />
     </Grid>
 </UserControl>
