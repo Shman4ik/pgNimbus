@@ -1,16 +1,11 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:vm="using:PgNimbus.App.ViewModels"
-        x:Class="PgNimbus.App.Views.ShortcutsWindow"
-        x:DataType="vm:ShortcutsViewModel"
-        Title="pgNimbus — Keyboard Shortcuts"
-        Width="600" Height="700"
-        MinWidth="480" MinHeight="400"
-        CanResize="True"
-        WindowStartupLocation="CenterOwner"
-        FontFamily="{StaticResource InterFont}">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PgNimbus.App.ViewModels"
+             x:Class="PgNimbus.App.Views.ShortcutsView"
+             x:DataType="vm:ShortcutsViewModel">
 
-    <Window.Styles>
+
+    <UserControl.Styles>
         <!-- kbd chip: one bordered key cap per key, TablePlus/VS Code-style -->
         <Style Selector="Border.kbd">
             <Setter Property="Background" Value="{StaticResource CardBackgroundBrush}" />
@@ -37,15 +32,15 @@
         <Style Selector="Grid.shortcutRow">
             <Setter Property="Margin" Value="10,5" />
         </Style>
-    </Window.Styles>
+    </UserControl.Styles>
 
     <!-- Every row below is generated from PgNimbus.Core.Commands.CommandCatalog
          (via ShortcutsViewModel), which is also what builds the window's key
          bindings, the command palette and docs/reference/keyboard-shortcuts.md.
          Add a shortcut to the catalog and it shows up here on its own — never
          hand-author a row in this file. -->
-    <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-        <ItemsControl ItemsSource="{Binding Sections}" Margin="20">
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled" Padding="14,0,14,14">
+        <ItemsControl ItemsSource="{Binding Sections}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="vm:ShortcutSection">
                     <StackPanel Spacing="4" Margin="0,0,0,14">
@@ -86,4 +81,4 @@
         </ItemsControl>
     </ScrollViewer>
 
-</Window>
+</UserControl>

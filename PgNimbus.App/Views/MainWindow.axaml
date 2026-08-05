@@ -8,6 +8,7 @@
         xmlns:views="using:PgNimbus.App.Views"
         xmlns:cmd="using:PgNimbus.App"
         xmlns:chrome="using:Avalonia.Controls.Chrome"
+        xmlns:nui="using:Nimbus.Ui.Controls"
         mc:Ignorable="d"
         d:DesignWidth="1000" d:DesignHeight="650"
         x:Class="PgNimbus.App.Views.MainWindow"
@@ -92,8 +93,8 @@
                                      macOS app menu has About too, but this is the
                                      only route to it on Windows and Linux, where
                                      there is no native menu bar to hold it. -->
-                                <MenuItem Name="MenuShortcuts" Header="Keyboard shortcuts" Click="OnShowShortcutsClick" />
-                                <MenuItem Name="MenuAbout" Header="About pgNimbus" Click="OnShowAboutClick" />
+                                <MenuItem Name="MenuShortcuts" Header="Keyboard shortcuts" Command="{Binding ShowShortcutsCommand}" />
+                                <MenuItem Name="MenuAbout" Header="About pgNimbus" Command="{Binding ShowAboutCommand}" />
                             </MenuFlyout>
                         </Button.Flyout>
                     </Button>
@@ -154,7 +155,7 @@
                     </Button>
                     <Button Name="PreferencesButton" Classes="chip" Padding="5"
                             Margin="0,0,4,0" VerticalAlignment="Center"
-                            Click="OnShowPreferencesClick"
+                            Command="{Binding ShowPreferencesCommand}"
                             cmd:CommandTip.Text="Preferences"
                             cmd:CommandTip.Command="Preferences">
                         <PathIcon Data="{StaticResource CogIconGeometry}" Width="14" Height="14" />
@@ -165,7 +166,7 @@
                          control — and did not match kubeNimbus's help button at all.
                          Same glyph, same 15px box as kubeNimbus draws it. -->
                     <Button Classes="chip" Padding="5" VerticalAlignment="Center"
-                            Click="OnShowShortcutsClick"
+                            Command="{Binding ShowShortcutsCommand}"
                             cmd:CommandTip.Text="Keyboard shortcuts"
                             cmd:CommandTip.Command="ShortcutsWindow">
                         <PathIcon Data="{StaticResource HelpCircleIconGeometry}" Width="15" Height="15" />
@@ -643,6 +644,43 @@
             </Grid>
         </Border>
     </Border>
+
+    <!-- The shell's three dismissable panels. Same control, same shape, same gestures
+         (backdrop, ✕, Esc) in both Nimbus apps — and none of them a second window,
+         which is what all three were before nimbusUi grew an OverlayPanel to hold
+         them. See that control for why; the short version is that a secondary Window
+         arrives with an OS-painted caption the app does not control, a second Alt+Tab
+         entry, and chrome that is not the shell's.
+
+         IsOpen binds two-way and is the ONLY wiring: the panel closes itself and the
+         binding writes it back. Never pair it with a closing Command — that is the
+         double-toggle no-op of DESIGN.md rule 6. -->
+    <nui:OverlayPanel IsOpen="{Binding IsShortcutsOpen, Mode=TwoWay}"
+                      Title="Keyboard shortcuts" PanelWidth="560" PanelMaxHeight="700"
+                      Content="{Binding Shortcuts}">
+        <nui:OverlayPanel.ContentTemplate>
+            <DataTemplate DataType="vm:ShortcutsViewModel">
+                <views:ShortcutsView />
+            </DataTemplate>
+        </nui:OverlayPanel.ContentTemplate>
+    </nui:OverlayPanel>
+
+    <nui:OverlayPanel IsOpen="{Binding IsPreferencesOpen, Mode=TwoWay}"
+                      Title="Preferences" PanelWidth="580" PanelMaxHeight="640"
+                      Content="{Binding Preferences}">
+        <nui:OverlayPanel.ContentTemplate>
+            <DataTemplate DataType="vm:PreferencesViewModel">
+                <views:PreferencesView />
+            </DataTemplate>
+        </nui:OverlayPanel.ContentTemplate>
+    </nui:OverlayPanel>
+
+    <!-- Sized to its content rather than to the 520 default: an About box is six short
+         lines, and a half-empty card would look like a page that failed to load. -->
+    <nui:OverlayPanel IsOpen="{Binding IsAboutOpen, Mode=TwoWay}"
+                      Title="About" PanelWidth="340" PanelMaxHeight="400">
+        <views:AboutView />
+    </nui:OverlayPanel>
 
     </Grid>
 

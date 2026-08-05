@@ -35,6 +35,7 @@ var scenarios = new (string Name, Func<Window> Build)[]
     ("database-overview-window", Scenarios.DatabaseOverview),
     ("shortcuts-window", Scenarios.Shortcuts),
     ("preferences-window", Scenarios.Preferences),
+    ("about-window", Scenarios.About),
     ("crash-window", Scenarios.Crash),
 };
 

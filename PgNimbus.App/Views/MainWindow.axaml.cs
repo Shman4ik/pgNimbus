@@ -18,7 +18,6 @@ namespace PgNimbus.App.Views;
 public partial class MainWindow : Window
 {
     private MainViewModel? _viewModel;
-    private ShortcutsWindow? _shortcutsWindow;
 
     // Sidebar collapse (Ctrl+B): the width to restore to, and whether it's hidden.
     private const double SidebarMinWidth = 200;
@@ -224,7 +223,7 @@ public partial class MainWindow : Window
                 sidebarItem,
                 ActionItem("Toggle Light/Dark Theme", ToggleTheme),
                 new NativeMenuItemSeparator(),
-                ActionItem("Keyboard Shortcuts", ShowShortcutsWindow, CommandBindings.GestureFor(CommandId.ShortcutsWindow)),
+                ActionItem("Keyboard Shortcuts", () => _viewModel?.ShowShortcutsCommand.Execute(null), CommandBindings.GestureFor(CommandId.ShortcutsWindow)),
             },
         };
         viewMenu.NeedsUpdate += (_, _) => sidebarItem.Header = _sidebarCollapsed ? "Show Sidebar" : "Hide Sidebar";
@@ -401,7 +400,9 @@ public partial class MainWindow : Window
 
         if (CommandBindings.Matches(CommandId.ShortcutsWindow, e))
         {
-            ShowShortcutsWindow();
+            // Toggles, so F1 closes the sheet it opened — the overlay has no
+            // Esc-to-close of its own to fall back on being the only way out.
+            _viewModel?.ShowShortcutsCommand.Execute(null);
             e.Handled = true;
             return;
         }
@@ -453,14 +454,12 @@ public partial class MainWindow : Window
         if (_viewModel is not null)
         {
             _viewModel.ThemeToggleRequested -= ToggleTheme;
-            _viewModel.ShortcutsRequested -= ShowShortcutsWindow;
             _viewModel.SwitchConnectionRequested -= SwitchConnection;
             _viewModel.NewWindowRequested -= OpenNewWindow;
             _viewModel.ImportPlanRequested -= ShowImportPlanDialog;
         _viewModel.ActivityRequested -= ShowActivityWindow;
             _viewModel.DatabaseOverviewRequested -= ShowDatabaseOverviewWindow;
             _viewModel.SidebarToggleRequested -= ToggleSidebar;
-            _viewModel.PreferencesRequested -= ShowPreferencesWindow;
             _viewModel.OpenFileRequested -= OnOpenFileRequested;
             _viewModel.SaveFileRequested -= OnSaveFileRequested;
             _viewModel.OpenRecentFileRequested -= OnOpenRecentFileRequested;
@@ -469,7 +468,6 @@ public partial class MainWindow : Window
         _viewModel = vm;
         // Palette actions that touch the window are handled here.
         _viewModel.ThemeToggleRequested += ToggleTheme;
-        _viewModel.ShortcutsRequested += ShowShortcutsWindow;
         _viewModel.SwitchConnectionRequested += SwitchConnection;
         _viewModel.NewWindowRequested += OpenNewWindow;
         // FormatSqlRequested / ExpandStarRequested / FindRequested are handled by
@@ -478,7 +476,6 @@ public partial class MainWindow : Window
         _viewModel.ActivityRequested += ShowActivityWindow;
         _viewModel.DatabaseOverviewRequested += ShowDatabaseOverviewWindow;
         _viewModel.SidebarToggleRequested += ToggleSidebar;
-        _viewModel.PreferencesRequested += ShowPreferencesWindow;
         _viewModel.OpenFileRequested += OnOpenFileRequested;
         _viewModel.SaveFileRequested += OnSaveFileRequested;
         _viewModel.OpenRecentFileRequested += OnOpenRecentFileRequested;
@@ -874,13 +871,6 @@ public partial class MainWindow : Window
         }
     }
 
-    private void OnShowShortcutsClick(object? sender, RoutedEventArgs e) => ShowShortcutsWindow();
-
-    // The ☰ menu's About entry. App owns the window (one instance app-wide,
-    // shared with the macOS native menu item), so this is a hand-off, not a
-    // second implementation.
-    private void OnShowAboutClick(object? sender, RoutedEventArgs e) => App.ShowAbout();
-
     private void OnSwitchConnectionClick(object? sender, RoutedEventArgs e) => SwitchConnection();
 
     // Reopens the connection dialog so a different profile (or an ad-hoc
@@ -912,44 +902,6 @@ public partial class MainWindow : Window
 
         var dialog = App.BuildConnectionDialog(desktop, replaceMainWindow: false);
         dialog.Show();   // free-standing, NOT Show(this) — the dialog must not be owned by / pinned above the current window
-    }
-
-    private void ShowShortcutsWindow()
-    {
-        // Reuse the open instance instead of stacking copies when F1 is
-        // pressed twice (the window nulls the field on close).
-        if (_shortcutsWindow is not null)
-        {
-            _shortcutsWindow.Activate();
-            return;
-        }
-
-        _shortcutsWindow = new ShortcutsWindow();
-        _shortcutsWindow.Closed += (_, _) => _shortcutsWindow = null;
-        _shortcutsWindow.Show(this);
-    }
-
-    private PreferencesWindow? _preferencesWindow;
-
-    private void OnShowPreferencesClick(object? sender, RoutedEventArgs e) => ShowPreferencesWindow();
-
-    // One live instance, same pattern as the shortcuts window.
-    private void ShowPreferencesWindow()
-    {
-        if (_preferencesWindow is not null)
-        {
-            _preferencesWindow.Activate();
-            return;
-        }
-
-        if (_viewModel is null)
-        {
-            return;
-        }
-
-        _preferencesWindow = new PreferencesWindow { DataContext = new PreferencesViewModel(_viewModel) };
-        _preferencesWindow.Closed += (_, _) => _preferencesWindow = null;
-        _preferencesWindow.Show(this);
     }
 
     private void ShowImportPlanDialog() => _ = ShowImportPlanDialogAsync();

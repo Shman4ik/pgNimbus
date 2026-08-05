@@ -1,0 +1,54 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:controls="using:Nimbus.Ui.Controls">
+
+    <!--
+        The template for OverlayPanel — read that file's comments for why a panel over
+        the window beats a second Window. This is only how it is drawn.
+
+        Two things here are load-bearing:
+
+        - The backdrop's Background must be non-null. In Avalonia a Border with a null
+          background does not hit-test, so a transparent-by-omission backdrop would
+          swallow nothing: clicks would land on the shell behind it and the panel would
+          be a picture rather than a modal surface. #80000000 is both the dim and the
+          hit target (DESIGN.md rule 5).
+        - PART_Backdrop and PART_CloseButton are found by name in OnApplyTemplate.
+          Renaming one is a dead gesture, not a build error — the same trap the window
+          decorations template documents next door.
+
+        The card itself is `layer`, `card` and `chip` from the shared vocabulary, so an
+        overlay is made of the same surfaces as everything else in the shell. Content
+        brings its own ScrollViewer and padding: an About box wants neither, and a
+        cheat sheet wants both.
+    -->
+    <ControlTheme x:Key="{x:Type controls:OverlayPanel}" TargetType="controls:OverlayPanel">
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Name="PART_Backdrop" Background="#80000000"
+                        IsVisible="{TemplateBinding IsOpen}">
+                    <Border Classes="layer" Padding="0"
+                            Width="{TemplateBinding PanelWidth}"
+                            MaxHeight="{TemplateBinding PanelMaxHeight}"
+                            VerticalAlignment="Center" HorizontalAlignment="Center">
+                        <Grid RowDefinitions="Auto,*">
+                            <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="14,12,10,8">
+                                <TextBlock Grid.Column="0" Text="{TemplateBinding Title}"
+                                           FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center" />
+                                <Button Name="PART_CloseButton" Grid.Column="1" Classes="chip"
+                                        Padding="0" MinWidth="18" MinHeight="18">
+                                    <PathIcon Data="{StaticResource CloseIconGeometry}" Width="10" Height="10" />
+                                </Button>
+                            </Grid>
+
+                            <ContentPresenter Grid.Row="1"
+                                              Content="{TemplateBinding Content}"
+                                              ContentTemplate="{TemplateBinding ContentTemplate}" />
+                        </Grid>
+                    </Border>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </ControlTheme>
+
+</ResourceDictionary>

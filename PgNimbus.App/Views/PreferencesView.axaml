@@ -1,15 +1,11 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:vm="using:PgNimbus.App.ViewModels"
-        x:Class="PgNimbus.App.Views.PreferencesWindow"
-        x:DataType="vm:PreferencesViewModel"
-        Title="pgNimbus — Preferences"
-        Width="560" Height="560"
-        MinWidth="440" MinHeight="520"
-        WindowStartupLocation="CenterOwner"
-        FontFamily="{StaticResource InterFont}">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PgNimbus.App.ViewModels"
+             x:Class="PgNimbus.App.Views.PreferencesView"
+             x:DataType="vm:PreferencesViewModel">
 
-    <Window.Styles>
+
+    <UserControl.Styles>
         <Style Selector="TextBlock.label">
             <Setter Property="FontSize" Value="13" />
             <Setter Property="VerticalAlignment" Value="Center" />
@@ -19,7 +15,7 @@
             <Setter Property="Opacity" Value="0.55" />
             <Setter Property="TextWrapping" Value="Wrap" />
         </Style>
-    </Window.Styles>
+    </UserControl.Styles>
 
     <ScrollViewer HorizontalScrollBarVisibility="Disabled">
         <StackPanel Margin="20" Spacing="6">
@@ -110,4 +106,4 @@
         </StackPanel>
     </ScrollViewer>
 
-</Window>
+</UserControl>
