@@ -33,7 +33,16 @@ future move.
    upgraded yet. Today: 12.1.0 (pgNimbus), while kubeNimbus is on 12.1.1.
 5. **A change here is not done until both apps have been built against it.**
    There is no test suite that can catch a broken style — the apps' screenshot
-   harnesses are the only check, and they live in the apps.
+   harnesses are the only check, and they live in the apps. Building is not
+   enough on its own: a XAML file that fails to *load* compiles perfectly, so
+   render the scenarios too.
+6. **A style both apps need but only one has is a bug, not a gap.** The first
+   extraction pulled up the shell vocabulary and left the whole Fluent control
+   layer in pgNimbus, so kubeNimbus drew stock inputs, lists and grids next to
+   pgNimbus's toned ones. Nobody noticed from inside either app — you only see
+   it with the two windows side by side, which is exactly the comparison this
+   library exists to survive. When adding a style, ask what the *other* app
+   renders for the same control today.
 
 ## Working on this from inside an app repo
 
@@ -55,8 +64,11 @@ so this is one session's work, not a follow-up ticket.
 src/Nimbus.Ui/
   Theme/Tokens.axaml      Colour, radii, scrollbars, Fluent resource overrides.
   Theme/Icons.axaml       MDI geometries used by both apps (Apache-2.0).
-  Theme/Controls.axaml    Primitive style classes + Fluent control retheming.
-  Theme/Theme.axaml       The single include point; merges the three above.
+  Theme/Controls.axaml    Fluent control retheming: inputs, lists, trees, grids,
+                          the .soft/.danger button families, TabControl.
+  Theme/Theme.axaml       The include point. Merges the dictionaries, pulls in
+                          Controls.axaml, and holds the shell vocabulary itself
+                          (card, layer, chip, searchpill, toolbar, statusBar, …).
   Chrome/                 One-bar window chrome + drawn caption buttons.
   Hotkeys.cs              Ctrl/Cmd resolution, gesture labels.
 ```

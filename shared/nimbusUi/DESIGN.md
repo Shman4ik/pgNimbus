@@ -151,8 +151,9 @@ reasons:
 | Thing | Why it stays per-app |
 |---|---|
 | `TabItem` styling | pgNimbus styles it for the query tab strip (12,9 padding, a margin, a corner radius), kubeNimbus for the compact inspector strip (12,6, `MinHeight` 0). Same selector, genuinely different jobs. |
+| `TabControl.segmented` | pgNimbus's segmented strip. kubeNimbus does the same job with `ListBox.segmented` + `TabControl.headerless` on purpose — a `TabControl` cannot host a panel's own tools on its header row, and its inspector dock needs exactly that (its rule 10). Sharing a mechanism the sibling has explicitly rejected buys nothing. |
 | Domain icons | A Kubernetes cube and a Postgres elephant are not shared vocabulary. `Theme/Icons.axaml` holds only glyphs both apps actually use. |
-| Everything in `*.Core` | Both engines are UI-free by their own hard rule and share nothing but coincidence. |
+| Everything in `*.Core` | Both engines are UI-free by their own hard rule and share nothing but coincidence. This is why each app has its own copy of the command catalog and chord types: they are UI-free by design, so they cannot live in a library that references Avalonia. |
 
 ## Cross-port list
 
@@ -165,3 +166,25 @@ mechanism — a rule nobody tracks is a rule that decays.
 - [x] One-bar window chrome on Windows → pgNimbus (rule 9). It previously extended
       the client area on macOS only, with a hand-rolled `BeginMoveDrag`.
 - [ ] `AppSuccessBrush` → pgNimbus. The status trio was two-thirds defined there.
+- [x] **The Fluent control layer → `Theme/Controls.axaml`.** Inputs, lists, trees,
+      grids and the `.soft`/`.danger` button families were defined in pgNimbus only,
+      so kubeNimbus rendered every `TextBox`, `ComboBox`, `ListBox`, `TreeView` and
+      `DataGrid` as stock Fluent beside pgNimbus's toned versions — two apps sharing a
+      design system and visibly not looking like it. This was the single biggest cause
+      of the family drifting apart, and it was invisible from inside either app.
+- [ ] **`ThemedWindowChrome`'s caption-colour half → shared.** Both apps have a copy
+      that pins a secondary window's Windows 11 caption to the shell tone (without it,
+      a dialog gets a black title bar while the app is in Light). pgNimbus's copy also
+      carries a native-icon half that is genuinely its own; only the DWM colour part
+      should move.
+- [ ] **Preferences page shape → keep them converging.** Both apps now use the same
+      page: section header, one card per setting, label and explanation left, control
+      right, immediate apply, no OK/Cancel. It is duplicated markup rather than a
+      shared control today, and that is fine — but a change to one is a change both
+      should get.
+- [ ] **Load the window icon through `AssetLoader`, not `Icon="/Assets/…"`** — see the
+      note under kubeNimbus's release section. The XAML attribute goes through
+      `IconTypeConverter`, which cannot resolve a relative asset path under NativeAOT
+      and killed kubeNimbus's published binary on *every* RID. pgNimbus already loads
+      its icons in code and is unaffected; worth confirming no window there still uses
+      the attribute form.
