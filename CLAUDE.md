@@ -313,7 +313,14 @@ Three rules about it:
    tab. The ☰ button (top-left, 2026-07)
    opens the one discoverable menu for file/tab-level commands: New tab,
    Open .sql / Open recent, Save / Save as, Close tab, Switch connection,
-   New window, Preferences. The command bar's centered "Search" pill
+   New window, Preferences, **Keyboard shortcuts and About pgNimbus**. Those last
+   two were reachable only from the macOS native menu (About) or a single unlabelled
+   `?` button (shortcuts), so on Windows and Linux the About box had no entry point
+   at all; the menu's tail now matches kubeNimbus's, which is the whole argument for
+   having a ☰ menu in both. Neither needed a `BuildMacNativeMenu` addition — View
+   already carries Keyboard Shortcuts and the app menu already carries About, which
+   is the pairing rule below being satisfied rather than skipped. The command bar's
+   centered "Search" pill
    (VS Code-style, same date) opens the command palette — the palette's
    one visible entry point besides Ctrl+K/P. Both deliberately duplicate palette entries
    (discoverability);

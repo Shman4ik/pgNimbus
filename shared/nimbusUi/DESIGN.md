@@ -172,6 +172,16 @@ mechanism — a rule nobody tracks is a rule that decays.
       `DataGrid` as stock Fluent beside pgNimbus's toned versions — two apps sharing a
       design system and visibly not looking like it. This was the single biggest cause
       of the family drifting apart, and it was invisible from inside either app.
+- [x] **The help-circle glyph → `Theme/Icons.axaml`, and the ☰ menu's tail → both.**
+      kubeNimbus drew a real `PathIcon` for the command bar's help button while
+      pgNimbus drew a bare `?` text button, which sits on the glyph baseline rather
+      than the icons' box and takes the default foreground rather than theirs — the
+      one control in that bar that did not look like the rest of it. The geometry
+      named neither app, so it was simply in the wrong file. The menu behind ☰ now
+      ends the same way in both — Preferences…, Keyboard shortcuts, About — and on
+      Windows and Linux that is the *only* route to About: pgNimbus had it wired
+      exclusively to the macOS native app menu, so two thirds of its users could not
+      reach it at all.
 - [ ] **`ThemedWindowChrome`'s caption-colour half → shared.** Both apps have a copy
       that pins a secondary window's Windows 11 caption to the shell tone (without it,
       a dialog gets a black title bar while the app is in Light). pgNimbus's copy also

@@ -87,6 +87,13 @@
                                 <MenuItem Name="MenuNewWindow" Header="Open connection in new window…" Command="{Binding OpenNewWindowCommand}" />
                                 <Separator />
                                 <MenuItem Name="MenuPreferences" Header="Preferences…" Command="{Binding ShowPreferencesCommand}" />
+                                <!-- The cheat sheet and the About box, in the same
+                                     place kubeNimbus's ☰ menu carries them. The
+                                     macOS app menu has About too, but this is the
+                                     only route to it on Windows and Linux, where
+                                     there is no native menu bar to hold it. -->
+                                <MenuItem Name="MenuShortcuts" Header="Keyboard shortcuts" Click="OnShowShortcutsClick" />
+                                <MenuItem Name="MenuAbout" Header="About pgNimbus" Click="OnShowAboutClick" />
                             </MenuFlyout>
                         </Button.Flyout>
                     </Button>
@@ -152,10 +159,17 @@
                             cmd:CommandTip.Command="Preferences">
                         <PathIcon Data="{StaticResource CogIconGeometry}" Width="14" Height="14" />
                     </Button>
-                    <Button Classes="chip" Content="?" FontSize="13" VerticalAlignment="Center"
+                    <!-- Help. A PathIcon rather than a "?" character: a text button
+                         sits on the glyph baseline and takes the default foreground,
+                         so beside four 14px PathIcons it read as a different kind of
+                         control — and did not match kubeNimbus's help button at all.
+                         Same glyph, same 15px box as kubeNimbus draws it. -->
+                    <Button Classes="chip" Padding="5" VerticalAlignment="Center"
                             Click="OnShowShortcutsClick"
                             cmd:CommandTip.Text="Keyboard shortcuts"
-                            cmd:CommandTip.Command="ShortcutsWindow" />
+                            cmd:CommandTip.Command="ShortcutsWindow">
+                        <PathIcon Data="{StaticResource HelpCircleIconGeometry}" Width="15" Height="15" />
+                    </Button>
                 </StackPanel>
             </Grid>
         </Border>

@@ -115,15 +115,18 @@ public partial class App : Application
     private static string ThemeToString(ThemeVariant variant) =>
         variant == ThemeVariant.Dark ? "dark" : variant == ThemeVariant.Light ? "light" : "system";
 
-    // The About box is app-global; one instance at a time, re-activated if
-    // the menu item is clicked while it's already open.
-    private AboutWindow? _aboutWindow;
+    // The About box is app-global; one instance at a time, re-activated if it is
+    // asked for again while already open. Static because the two entry points sit
+    // on different objects — the macOS native app menu is handled here, the ☰ menu
+    // in MainWindow — and a second copy of the box per window is not a thing.
+    private static AboutWindow? _aboutWindow;
 
     /// <summary>
-    /// "About pgNimbus" in the macOS app menu (see App.axaml): the standard
-    /// About box — name, version, license (<see cref="AboutWindow"/>).
+    /// The standard About box — name, version, license (<see cref="AboutWindow"/>).
+    /// Reached from the macOS app menu (see App.axaml) and from every window's ☰
+    /// menu, which is the only route to it on Windows and Linux.
     /// </summary>
-    private void OnAboutMenuItemClicked(object? sender, EventArgs e)
+    internal static void ShowAbout()
     {
         if (_aboutWindow is not null)
         {
@@ -135,6 +138,9 @@ public partial class App : Application
         _aboutWindow.Closed += (_, _) => _aboutWindow = null;
         _aboutWindow.Show();
     }
+
+    /// <summary>"About pgNimbus" in the macOS app menu (see App.axaml).</summary>
+    private void OnAboutMenuItemClicked(object? sender, EventArgs e) => ShowAbout();
 
     /// <summary>"pgNimbus on GitHub" in the macOS app menu: opens the project page.</summary>
     private void OnGitHubMenuItemClicked(object? sender, EventArgs e)

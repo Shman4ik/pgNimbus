@@ -352,6 +352,7 @@ public partial class MainWindow : Window
         MenuSaveFileAs.InputGesture = CommandBindings.GestureFor(CommandId.SaveFileAs);
         MenuCloseTab.InputGesture = CommandBindings.GestureFor(CommandId.CloseTab);
         MenuPreferences.InputGesture = CommandBindings.GestureFor(CommandId.Preferences);
+        MenuShortcuts.InputGesture = CommandBindings.GestureFor(CommandId.ShortcutsWindow);
         MenuSwitchConnection.InputGesture = CommandBindings.GestureFor(CommandId.SwitchConnection);
         MenuNewWindow.InputGesture = CommandBindings.GestureFor(CommandId.NewWindow);
 
@@ -874,6 +875,11 @@ public partial class MainWindow : Window
     }
 
     private void OnShowShortcutsClick(object? sender, RoutedEventArgs e) => ShowShortcutsWindow();
+
+    // The ☰ menu's About entry. App owns the window (one instance app-wide,
+    // shared with the macOS native menu item), so this is a hand-off, not a
+    // second implementation.
+    private void OnShowAboutClick(object? sender, RoutedEventArgs e) => App.ShowAbout();
 
     private void OnSwitchConnectionClick(object? sender, RoutedEventArgs e) => SwitchConnection();
 
