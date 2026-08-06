@@ -44,7 +44,6 @@ public sealed partial class MainViewModel : ObservableObject
     // Palette actions that need the window (theme, dialogs) live in the view;
     // MainWindow subscribes to these so the palette can trigger them.
     public event Action? ThemeToggleRequested;
-    public event Action? ShortcutsRequested;
     // Raised when the user asks to connect to a different server/database;
     // MainWindow reopens the connection dialog (App.BuildConnectionDialog).
     public event Action? SwitchConnectionRequested;
@@ -69,8 +68,6 @@ public sealed partial class MainViewModel : ObservableObject
     public event Action? DatabaseOverviewRequested;
     // Raised to collapse/restore the sidebar (the view owns the grid column).
     public event Action? SidebarToggleRequested;
-    // Raised to open (or focus) the preferences window, which the view owns.
-    public event Action? PreferencesRequested;
     // Raised to open the "Open SQL file" picker; MainWindow owns the
     // StorageProvider dialog and file I/O.
     public event Action? OpenFileRequested;
@@ -107,8 +104,64 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void ToggleTheme() => ThemeToggleRequested?.Invoke();
 
+    // --- The shell's three dismissable panels ---------------------------------
+    //
+    // Shortcuts, preferences and About are OverlayPanels over this window rather than
+    // windows of their own (Nimbus.Ui.Controls.OverlayPanel — read that file for why).
+    // So they are bindable state here, not the "raise an event, let the view open a
+    // Window" shape the rest of this file uses: there is nothing left for the view to
+    // own. Each IsOpen binds two-way and the panel closes itself; never pair one with a
+    // closing command, which is the double-toggle no-op of DESIGN.md rule 6.
+
+    [ObservableProperty]
+    private bool _isShortcutsOpen;
+
+    [ObservableProperty]
+    private bool _isPreferencesOpen;
+
+    [ObservableProperty]
+    private bool _isAboutOpen;
+
+    /// <summary>
+    /// The cheat sheet's rows. Rebuilt on each open rather than held, because the key
+    /// caps spell out Ctrl or Cmd: a sheet built once would keep showing the other
+    /// platform's chords after the hotkey preference changed.
+    /// </summary>
+    [ObservableProperty]
+    private ShortcutsViewModel? _shortcuts;
+
+    /// <summary>The preferences page's own view model; built on open, detached on close.</summary>
+    [ObservableProperty]
+    private PreferencesViewModel? _preferences;
+
+    /// <summary>F1 and the ? button both toggle, so the key that opens it also closes it.</summary>
     [RelayCommand]
-    private void ShowShortcuts() => ShortcutsRequested?.Invoke();
+    private void ShowShortcuts() => IsShortcutsOpen = !IsShortcutsOpen;
+
+    partial void OnIsShortcutsOpenChanged(bool value) =>
+        Shortcuts = value ? new ShortcutsViewModel() : null;
+
+    /// <summary>
+    /// The page subscribes to this view model to mirror the settings the shell owns,
+    /// so an open page is a live listener and closing one has to
+    /// <see cref="PreferencesViewModel.Detach"/> — otherwise every dismissed page stays
+    /// subscribed for the life of the window.
+    /// </summary>
+    partial void OnIsPreferencesOpenChanged(bool value)
+    {
+        if (value)
+        {
+            Preferences ??= new PreferencesViewModel(this);
+            return;
+        }
+
+        Preferences?.Detach();
+        Preferences = null;
+    }
+
+    /// <summary>Opens the About box. Reached from the ☰ menu and the macOS app menu.</summary>
+    [RelayCommand]
+    private void ShowAbout() => IsAboutOpen = true;
 
     [RelayCommand]
     private void OpenFile() => OpenFileRequested?.Invoke();
@@ -126,7 +179,7 @@ public sealed partial class MainViewModel : ObservableObject
     private void OpenNewWindow() => NewWindowRequested?.Invoke();
 
     [RelayCommand]
-    private void ShowPreferences() => PreferencesRequested?.Invoke();
+    private void ShowPreferences() => IsPreferencesOpen = true;
 
     /// <summary>
     /// Flips auto-alias and reports the new state in the status bar — the

@@ -313,7 +313,14 @@ Three rules about it:
    tab. The ☰ button (top-left, 2026-07)
    opens the one discoverable menu for file/tab-level commands: New tab,
    Open .sql / Open recent, Save / Save as, Close tab, Switch connection,
-   New window, Preferences. The command bar's centered "Search" pill
+   New window, Preferences, **Keyboard shortcuts and About pgNimbus**. Those last
+   two were reachable only from the macOS native menu (About) or a single unlabelled
+   `?` button (shortcuts), so on Windows and Linux the About box had no entry point
+   at all; the menu's tail now matches kubeNimbus's, which is the whole argument for
+   having a ☰ menu in both. Neither needed a `BuildMacNativeMenu` addition — View
+   already carries Keyboard Shortcuts and the app menu already carries About, which
+   is the pairing rule below being satisfied rather than skipped. The command bar's
+   centered "Search" pill
    (VS Code-style, same date) opens the command palette — the palette's
    one visible entry point besides Ctrl+K/P. Both deliberately duplicate palette entries
    (discoverability);
@@ -448,6 +455,26 @@ Three rules about it:
    accent after the extraction, twice). Resolve app resources from
    `OnAttachedToVisualTree` (`ApplyTextSelectionBrush` in both panels), where
    `ActualThemeVariant` is final too.
+8. **A panel you open, use and dismiss is an `OverlayPanel`, not a window.** Shared;
+   canonical text is [`DESIGN.md`](shared/nimbusUi/DESIGN.md) rule 13. Three windows
+   became overlays: the cheat sheet, the preferences page and the About box —
+   `ShortcutsView`, `PreferencesView`, `AboutView`, hosted from `MainWindow.axaml`
+   against `MainViewModel.IsShortcutsOpen` / `IsPreferencesOpen` / `IsAboutOpen`. That
+   is why those three stopped following this file's usual "raise an event, let the
+   view open a `Window`" shape: with no window to own there is nothing left for the
+   view to do, so the state lives on the view model and binds two-way.
+   **What stays a window, and why**, since this is the line the rule turns on: an
+   overlay covers the shell, so anything you need to *watch* while it is open cannot be
+   one. `ActivityWindow` and `DatabaseOverviewWindow` are reference views you read
+   beside your query and are deliberately untouched. `ConnectionDialog` and
+   `CrashWindow` cannot be overlays at all — both exist before, or instead of, a main
+   window. The modal dialogs (`ConfirmDialog`, `AddRowDialog`, `AlterTableDialog`,
+   `ImportDialog`, `ImportPlanDialog`, `PendingChangesDialog`) each return a result
+   through `ShowDialog`, which an overlay would have to re-express as an awaited
+   completion; that is a real change to six call sites and has not been made.
+   The command palette and the cell inspector are also **not** OverlayPanels, and for
+   a better reason than inertia: both are focus-driven surfaces with their own
+   keyboard model, not panels you read.
 
 ## Platform window chrome
 
@@ -472,15 +499,19 @@ Three rules about it:
   bar (`BuildMacNativeMenu`) is the file-command home there, so it would be a
   second copy of the same commands. The sidebar toggle icon is platform-picked
   via `{OnPlatform}` (SF-style geometry on macOS).
-- **Windows** — every window still calls `ThemedWindowChrome.Attach(this)` for the
-  **icon** (details in the icon section below). Its caption-colour half is now
-  moot on `MainWindow`, whose caption is ours, and still applies to the dialogs.
+- **Windows** — every remaining window still calls `ThemedWindowChrome.Attach(this)`
+  for the **icon** (details in the icon section below). Its caption-colour half is
+  moot on `MainWindow`, whose caption is ours, and still applies to the dialogs and
+  the two reference windows. kubeNimbus deleted its copy outright once its last two
+  secondary windows became overlays; ours stays because the connection dialog and the
+  crash reporter exist *before* or *instead of* a main window and can never be one.
 - **macOS native menu bar (2026-07)** — two layers. App-level (`App.axaml`,
   needs `Name="pgNimbus"` or Avalonia shows "Avalonia Application"): About
-  pgNimbus (opens `AboutWindow` — name/version/license, version from the
-  same `InformationalVersion` the connection-dialog footer reads), pgNimbus
-  on GitHub, and Settings… (Cmd+, — routes to the active MainWindow's
-  preferences via `OnSettingsMenuItemClicked`). Window-level:
+  pgNimbus, pgNimbus on GitHub, and Settings… (Cmd+,). The first and last both
+  route to the *active* MainWindow's view model through
+  `App.ActiveMainViewModel()`, because both are overlays on a window now rather
+  than free-standing boxes — which also makes About a no-op while only the
+  connection dialog is up, exactly as Settings… already was. Window-level:
   `MainWindow.BuildMacNativeMenu()` builds File / Query / View / Window via
   `NativeMenu.SetMenu`, rebuilt from `BuildKeyBindings` so gestures track
   the live Ctrl/Cmd scheme. Landmines, all learned the hard way: (a) menu

@@ -141,6 +141,33 @@ The gutter is not free — nine columns × 10px comes out of a fixed width — s
 > it moves column widths there and that needs its own visual pass. First candidate
 > on the cross-port list.
 
+### 13. A panel you open, use and dismiss is an overlay, not a window
+
+`Nimbus.Ui.Controls.OverlayPanel`: dimmed backdrop, centred `layer` card, title row
+with a ✕, dismissed by the backdrop, the ✕ or Esc. The cheat sheet, the About box and
+the preferences page are all one of these in both apps.
+
+A secondary `Window` loses on three counts. It arrives with an OS-painted caption the
+app does not control — which is the *entire* reason rule 9's sibling
+`ThemedWindowChrome` has to pin the Windows 11 caption colour, or a dialog opened from
+a Light app on a Dark desktop gets a black title bar. It is a second Alt+Tab and
+taskbar entry for something that is not a second place to be. And it renders in its own
+chrome rather than inside the two-tone shell, so it never quite looks like the app that
+opened it.
+
+Three things follow:
+
+- **`IsOpen` binds two-way and is the only wiring.** The panel closes itself. Never
+  pair it with a closing `Command` — that is rule 6's double-toggle, and it compiles.
+- **Escape is handled on the `TopLevel`, bubbling.** Nothing inside a cheat sheet holds
+  focus, so a handler on the panel would never see the key; bubbling from the top level
+  still lets a focused search box in another overlay refuse it first.
+- **Anything you need to *watch* while it is open stays a window.** An overlay covers
+  the shell. That is the line: pgNimbus's server-activity and database-overview windows
+  are reference views you read beside your work and are deliberately not converted, and
+  the connection dialog and crash reporter cannot be — they exist before, or instead
+  of, a main window.
+
 ---
 
 ## What is deliberately *not* shared
@@ -172,11 +199,30 @@ mechanism — a rule nobody tracks is a rule that decays.
       `DataGrid` as stock Fluent beside pgNimbus's toned versions — two apps sharing a
       design system and visibly not looking like it. This was the single biggest cause
       of the family drifting apart, and it was invisible from inside either app.
-- [ ] **`ThemedWindowChrome`'s caption-colour half → shared.** Both apps have a copy
-      that pins a secondary window's Windows 11 caption to the shell tone (without it,
-      a dialog gets a black title bar while the app is in Light). pgNimbus's copy also
-      carries a native-icon half that is genuinely its own; only the DWM colour part
-      should move.
+- [x] **The help-circle glyph → `Theme/Icons.axaml`, and the ☰ menu's tail → both.**
+      kubeNimbus drew a real `PathIcon` for the command bar's help button while
+      pgNimbus drew a bare `?` text button, which sits on the glyph baseline rather
+      than the icons' box and takes the default foreground rather than theirs — the
+      one control in that bar that did not look like the rest of it. The geometry
+      named neither app, so it was simply in the wrong file. The menu behind ☰ now
+      ends the same way in both — Preferences…, Keyboard shortcuts, About — and on
+      Windows and Linux that is the *only* route to About: pgNimbus had it wired
+      exclusively to the macOS native app menu, so two thirds of its users could not
+      reach it at all.
+- [x] **The cheat sheet, About and preferences → `OverlayPanel`** (rule 13). kubeNimbus
+      already drew its cheat sheet as a hand-written overlay inside `MainWindow.axaml`
+      and pgNimbus drew all three as windows, so the two apps disagreed about what a
+      panel even *is*. The overlay won and the pattern moved into a real control here,
+      rather than being copied into the second app — the one thing guaranteed to make
+      them drift again.
+- [ ] **`ThemedWindowChrome`'s caption-colour half → shared.** It pins a secondary
+      window's Windows 11 caption to the shell tone (without it, a dialog gets a black
+      title bar while the app is in Light). Only pgNimbus has a copy now — rule 13 left
+      kubeNimbus with no secondary windows at all, so its copy was deleted rather than
+      left as dead code. pgNimbus's also carries a native-icon half that is genuinely
+      its own; only the DWM colour part should move. Moving it is what makes a future
+      kubeNimbus dialog safe, since that failure is invisible on a machine whose OS
+      theme matches the app's.
 - [ ] **Preferences page shape → keep them converging.** Both apps now use the same
       page: section header, one card per setting, label and explanation left, control
       right, immediate apply, no OK/Cancel. It is duplicated markup rather than a

@@ -40,6 +40,7 @@
                 <ResourceInclude Source="avares://Nimbus.Ui/Theme/Tokens.axaml" />
                 <ResourceInclude Source="avares://Nimbus.Ui/Theme/Icons.axaml" />
                 <ResourceInclude Source="avares://Nimbus.Ui/Chrome/Decorations.axaml" />
+                <ResourceInclude Source="avares://Nimbus.Ui/Theme/Overlay.axaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Styles.Resources>

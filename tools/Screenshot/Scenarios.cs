@@ -199,12 +199,26 @@ internal static class Scenarios
         return new DatabaseOverviewWindow { DataContext = vm, Width = 1100, Height = 760 };
     }
 
-    /// <summary>The F1 keyboard cheat sheet (projected from the command catalog).</summary>
-    public static Window Shortcuts() => new ShortcutsWindow { Width = 900, Height = 760 };
+    /// <summary>
+    /// The F1 keyboard cheat sheet (projected from the command catalog), the
+    /// preferences page and the About box — all three OverlayPanels over the shell
+    /// rather than windows of their own, so all three are rendered by opening the
+    /// shell with one of them up.
+    /// </summary>
+    public static Window Shortcuts() => OverlayOn(vm => vm.IsShortcutsOpen = true);
 
     /// <summary>The preferences page.</summary>
-    public static Window Preferences() =>
-        new PreferencesWindow { DataContext = new PreferencesViewModel(Fixtures.MainWindowViewModel()), Width = 720, Height = 640 };
+    public static Window Preferences() => OverlayOn(vm => vm.IsPreferencesOpen = true);
+
+    /// <summary>The About box.</summary>
+    public static Window About() => OverlayOn(vm => vm.IsAboutOpen = true);
+
+    private static Window OverlayOn(Action<MainViewModel> open)
+    {
+        var vm = Fixtures.MainWindowViewModel();
+        open(vm);
+        return HostMainWindow(vm);
+    }
 
     /// <summary>The crash reporter, with a representative failure.</summary>
     public static Window Crash() =>
