@@ -75,6 +75,9 @@ jobs:
           find "$RUNNER_TEMP/shots" -name '*.png' -not -name '*.diff.png' \
             -exec cp {} tools/Screenshot/baselines/ \;
 
+      # Needs "Allow GitHub Actions to create and approve pull requests"
+      # (Settings > Actions > General). Without it the push still lands and the
+      # branch is there to open a PR from by hand, but this step fails.
       - name: Open a pull request
         env:
           GH_TOKEN: ${{ github.token }}
