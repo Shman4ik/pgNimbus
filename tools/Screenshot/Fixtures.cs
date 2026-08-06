@@ -9,6 +9,10 @@ using PgNimbus.Core.Schema;
 
 namespace PgNimbus.Screenshot;
 
+// SslMode is declared by both Npgsql and PgNimbus.Core.Connections; profiles
+// carry the app's own enum.
+using SslMode = PgNimbus.Core.Connections.SslMode;
+
 /// <summary>
 /// Builds fully-populated ViewModels with no live Postgres behind them.
 ///
@@ -23,7 +27,7 @@ namespace PgNimbus.Screenshot;
 /// stay in flight for the life of the (very short) process and never touch the
 /// seeded state.
 /// </summary>
-internal static class Fixtures
+public static class Fixtures
 {
     private const string OfflineConnectionString =
         "Host=203.0.113.1;Port=5432;Database=shop;Username=pgnimbus;Timeout=300;Command Timeout=0";
@@ -169,6 +173,21 @@ internal static class Fixtures
         saved.History.Add(new QueryHistoryEntry("UPDATE orders SET status = 'shipped' WHERE id = 4821;", now.AddMinutes(-6), 4.1, "1 row affected") { Connection = "localhost/shop" });
         saved.History.Add(new QueryHistoryEntry("SELECT count(*) FROM analytics.events;", now.AddMinutes(-22), 942.0, "1 row") { Connection = "localhost/shop" });
     }
+
+    // --- Connection profiles ----------------------------------------------
+
+    /// <summary>
+    /// Saved connections for the picker. Fixed ids so the rendered frame is
+    /// identical on every run (the visual-regression baselines depend on it),
+    /// and hostnames from the documentation-only domains so no screenshot ever
+    /// advertises a real server.
+    /// </summary>
+    public static IReadOnlyList<PgNimbus.Core.Connections.ConnectionProfile> ConnectionProfiles() =>
+    [
+        new(Guid.Parse("aaaaaaaa-0000-0000-0000-000000000001"), "Local shop", "localhost", 5432, "shop", "pgnimbus", SslMode.Prefer),
+        new(Guid.Parse("aaaaaaaa-0000-0000-0000-000000000002"), "Staging", "db.staging.example", 5432, "shop", "app", SslMode.Require, AccentColor: "#F0A030"),
+        new(Guid.Parse("aaaaaaaa-0000-0000-0000-000000000003"), "Production (read-only)", "db.example.com", 6432, "shop", "reporting", SslMode.VerifyFull, AccentColor: "#E05252"),
+    ];
 
     // --- Result sets ------------------------------------------------------
 

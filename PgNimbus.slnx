@@ -53,6 +53,11 @@
   <Folder Name="/scripts/">
     <File Path="scripts/benchmarks/run-benchmarks.sh" />
     <File Path="scripts/macos/build-app-bundle.sh" />
+    <File Path="scripts/release/Smoke-Launch.ps1" />
+    <File Path="scripts/release/smoke-launch.sh" />
+    <File Path="scripts/screenshots/render-linux.sh" />
+    <File Path="scripts/screenshots/update-baselines.sh" />
+    <File Path="scripts/screenshots/update-published.sh" />
     <File Path="scripts/winget/render-manifest.sh" />
   </Folder>
   <Folder Name="/scripts/windows/">
@@ -66,6 +71,7 @@
     <File Path="README.md" />
   </Folder>
   <Project Path="PgNimbus.App/PgNimbus.App.csproj" />
+  <Project Path="PgNimbus.App.Tests/PgNimbus.App.Tests.csproj" />
   <Project Path="PgNimbus.Benchmarks/PgNimbus.Benchmarks.csproj" />
   <Project Path="PgNimbus.Core.Tests/PgNimbus.Core.Tests.csproj" />
   <Project Path="PgNimbus.Core/PgNimbus.Core.csproj" />

@@ -8,39 +8,73 @@ using PgNimbus.App;
 using PgNimbus.Screenshot;
 
 // Usage: dotnet run --project tools/Screenshot -- <outputDir> [scenario-substring]
+//                                                [--baseline <dir>] [--fail-on-new]
 //
 // Renders every scenario in light and dark and writes one PNG per (scenario,
 // theme). No display, no xdotool, no Postgres — see CLAUDE.md, "Headless
 // screenshot harness".
+//
+// With --baseline it also becomes the visual-regression gate: each rendered
+// frame is compared against the committed baseline of the same name, and a
+// difference beyond tolerance fails the run and leaves a diff image behind.
 
-var outDir = args.Length > 0 ? args[0] : "screenshots";
-var filter = args.Length > 1 ? args[1] : null;
+var positional = new List<string>();
+string? baselineDir = null;
+string? publishRoot = null;
+var failOnNew = false;
+
+for (var i = 0; i < args.Length; i++)
+{
+    switch (args[i])
+    {
+        case "--baseline":
+            if (++i >= args.Length)
+            {
+                Console.Error.WriteLine("--baseline needs a directory");
+                return 2;
+            }
+
+            baselineDir = args[i];
+            break;
+
+        // A scenario with no baseline is normally just a warning: the harness is
+        // run from a developer machine long before the baselines (which have to
+        // be rendered on the CI OS) catch up, and blocking that would only teach
+        // people to skip the check. The refresh workflow passes this to assert
+        // it actually produced every baseline it was supposed to.
+        case "--fail-on-new":
+            failOnNew = true;
+            break;
+
+        // Copies the user-facing subset (README, docs site, Store listing) out
+        // of this render and into the repo — see Marketing.
+        case "--publish":
+            if (++i >= args.Length)
+            {
+                Console.Error.WriteLine("--publish needs the repository root");
+                return 2;
+            }
+
+            publishRoot = args[i];
+            break;
+
+        default:
+            positional.Add(args[i]);
+            break;
+    }
+}
+
+var outDir = positional.Count > 0 ? positional[0] : "screenshots";
+var filter = positional.Count > 1 ? positional[1] : null;
 Directory.CreateDirectory(outDir);
 
 BuildAvaloniaApp().SetupWithoutStarting();
 
-var scenarios = new (string Name, Func<Window> Build)[]
-{
-    ("main-window", Scenarios.Results),
-    ("main-window-empty", Scenarios.EmptyResults),
-    ("main-window-error", Scenarios.QueryError),
-    ("main-window-script", Scenarios.ScriptResult),
-    ("main-window-plan", Scenarios.QueryPlan),
-    ("main-window-plan-tree", Scenarios.QueryPlanTree),
-    ("main-window-palette", Scenarios.CommandPalette),
-    ("main-window-sidebar-filter", Scenarios.SidebarFilter),
-    ("main-window-cell-inspector", Scenarios.CellInspector),
-    ("activity-window", Scenarios.Activity),
-    ("activity-window-blocking", Scenarios.ActivityBlocking),
-    ("database-overview-window", Scenarios.DatabaseOverview),
-    ("shortcuts-window", Scenarios.Shortcuts),
-    ("preferences-window", Scenarios.Preferences),
-    ("about-window", Scenarios.About),
-    ("crash-window", Scenarios.Crash),
-};
-
 var failures = 0;
-foreach (var (name, build) in scenarios)
+var mismatches = new List<string>();
+var missingBaselines = new List<string>();
+
+foreach (var (name, build) in Scenarios.All)
 {
     if (filter is not null && !name.Contains(filter, StringComparison.OrdinalIgnoreCase))
     {
@@ -53,7 +87,45 @@ foreach (var (name, build) in scenarios)
     }
 }
 
+Console.WriteLine();
 Console.WriteLine($"Wrote screenshots to {Path.GetFullPath(outDir)}");
+
+if (publishRoot is not null)
+{
+    if (failures > 0)
+    {
+        Console.Error.WriteLine("Not publishing: the render did not come out clean.");
+        return 1;
+    }
+
+    Console.WriteLine();
+    Marketing.Publish(outDir, publishRoot);
+}
+
+if (baselineDir is not null)
+{
+    Console.WriteLine(
+        missingBaselines.Count == 0 && mismatches.Count == 0
+            ? "Visual regression: every scenario matches its baseline."
+            : $"Visual regression: {mismatches.Count} mismatched, {missingBaselines.Count} without a baseline.");
+
+    foreach (var entry in mismatches)
+    {
+        Console.WriteLine($"  CHANGED  {entry}");
+    }
+
+    foreach (var entry in missingBaselines)
+    {
+        Console.WriteLine($"  NEW      {entry}");
+    }
+
+    if (mismatches.Count > 0)
+    {
+        Console.WriteLine();
+        Console.WriteLine("If the change is intended, refresh the baselines — see docs/design/release-checks.md.");
+    }
+}
+
 return failures == 0 ? 0 : 1;
 
 bool Capture(string name, ThemeVariant theme, Func<Window> build)
@@ -79,8 +151,35 @@ bool Capture(string name, ThemeVariant theme, Func<Window> build)
     frame?.Save(path, new PngBitmapEncoderOptions());
     window.Close();
 
-    Console.WriteLine(frame is null ? $"FAILED (no frame): {path}" : $"Wrote {path}");
-    return frame is not null;
+    if (frame is null)
+    {
+        Console.WriteLine($"FAILED (no frame): {path}");
+        return false;
+    }
+
+    if (baselineDir is null)
+    {
+        Console.WriteLine($"Wrote {path}");
+        return true;
+    }
+
+    var result = ImageDiff.Compare(path, baselineDir);
+    var label = Path.GetFileName(path);
+    Console.WriteLine($"{result.Outcome,-11} {label}  ({result.Message})");
+
+    switch (result.Outcome)
+    {
+        case ImageDiff.Outcome.Mismatch:
+            mismatches.Add($"{label} — {result.Message}");
+            return false;
+
+        case ImageDiff.Outcome.NoBaseline:
+            missingBaselines.Add(label);
+            return !failOnNew;
+
+        default:
+            return true;
+    }
 }
 
 static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<App>()

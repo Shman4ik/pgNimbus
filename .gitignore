@@ -10,6 +10,10 @@ x86/
 [Ww][Ii][Nn]32/
 [Aa][Rr][Mm]/
 [Aa][Rr][Mm]64/
+
+# scripts/release/ holds release *tooling* (the smoke launchers), not build
+# output — "[Rr]elease/" above would otherwise swallow the whole directory.
+!scripts/release/
 bld/
 [Bb]in/
 [Oo]bj/

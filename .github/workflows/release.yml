@@ -64,6 +64,15 @@ jobs:
           -p:InformationalVersion=${{ env.VERSION }}
           -o publish/win-x64
 
+      # Smoke the binary before packaging it, so a NativeAOT failure is
+      # distinguishable from an installer failure at a glance.
+      - name: Smoke test (publish output)
+        shell: pwsh
+        run: >
+          scripts/release/Smoke-Launch.ps1
+          -Label "win-x64 publish output"
+          -Executable publish/win-x64/PgNimbus.App.exe
+
       - name: Install WiX
         run: dotnet tool install --global wix --version 5.*
 
@@ -77,6 +86,32 @@ jobs:
           -d IconFile=${{ github.workspace }}\PgNimbus.App\Assets\app.ico
           -arch x64
           -o pgNimbus-${{ env.VERSION }}-win-x64.msi
+
+      # The MSI is the artifact most people actually download, and nothing else
+      # in the pipeline proves it installs. Per-user (no elevation), so this
+      # lands in %LocalAppData%\pgNimbus — see installer/windows/Product.wxs.
+      - name: Smoke test (install the MSI, launch it, uninstall)
+        shell: pwsh
+        run: |
+          $msi = (Resolve-Path "pgNimbus-${{ env.VERSION }}-win-x64.msi").Path
+          $log = "msi-install.log"
+
+          $install = Start-Process msiexec -ArgumentList "/i", "`"$msi`"", "/qn", "/l*v", $log -Wait -PassThru
+          if ($install.ExitCode -ne 0) {
+              Get-Content $log -Tail 60
+              throw "msiexec /i failed with $($install.ExitCode)"
+          }
+
+          $installed = Join-Path $env:LOCALAPPDATA "pgNimbus\PgNimbus.App.exe"
+          scripts/release/Smoke-Launch.ps1 -Label "installed MSI" -Executable $installed
+
+          # Uninstall in the same step: leaving the product registered would
+          # make a re-run of this job hit an unexpected upgrade path instead of
+          # a clean first install.
+          $uninstall = Start-Process msiexec -ArgumentList "/x", "`"$msi`"", "/qn" -Wait -PassThru
+          if ($uninstall.ExitCode -ne 0) {
+              throw "msiexec /x failed with $($uninstall.ExitCode)"
+          }
 
       - name: Compute SHA256
         id: sha
@@ -192,10 +227,34 @@ jobs:
           -p:InformationalVersion=${{ env.VERSION }}
           -o publish/osx-arm64
 
+      - name: Smoke test (publish output)
+        run: |
+          chmod +x scripts/release/smoke-launch.sh
+          ./scripts/release/smoke-launch.sh "osx-arm64 publish output" publish/osx-arm64/PgNimbus.App
+
       - name: Build .app bundle + .dmg
         run: |
           chmod +x scripts/macos/build-app-bundle.sh
           ./scripts/macos/build-app-bundle.sh publish/osx-arm64 "$VERSION" osx-arm64 dist
+
+      # Mount the .dmg and launch the bundled binary the way a user would get
+      # it, so a broken bundle layout (a missing Info.plist key, an executable
+      # left out of MacOS/) fails here rather than on someone's desktop.
+      - name: Smoke test (mounted .dmg)
+        run: |
+          dmg=$(ls dist/*.dmg | head -1)
+          mount_point=$(mktemp -d)
+          hdiutil attach "$dmg" -nobrowse -readonly -mountpoint "$mount_point"
+          trap 'hdiutil detach "$mount_point" -quiet || true' EXIT
+
+          # hdiutil's treatment of a .app passed as -srcfolder decides whether
+          # the bundle lands at the volume root or its contents do; find it
+          # either way rather than encoding a guess into the gate.
+          app=$(find "$mount_point" -maxdepth 1 -name '*.app' | head -1)
+          [ -n "$app" ] || app="$mount_point"
+          ls -la "$app"
+
+          ./scripts/release/smoke-launch.sh "mounted .dmg" "$app/Contents/MacOS/PgNimbus.App"
 
       - uses: actions/upload-artifact@v7
         with:
@@ -245,6 +304,33 @@ jobs:
           chmod +x scripts/linux/build-packages.sh
           ./scripts/linux/build-packages.sh publish/${{ matrix.rid }} "$VERSION" ${{ matrix.rid }} dist
 
+      - name: Install a virtual display
+        run: sudo apt-get install -y xvfb
+
+      # Each of the three Linux packages is launched the way its users will get
+      # it. The .deb leg is the one that earns its runtime: apt resolves the
+      # package's own Depends list, so a library the X11 backend loads but the
+      # control file forgot fails here instead of on a user's machine.
+      - name: Smoke test (all three packages)
+        run: |
+          chmod +x scripts/release/smoke-launch.sh
+          arch=$(echo "${{ matrix.rid }}" | sed 's/linux-//')
+          base="pgNimbus-${VERSION}-linux-${arch}"
+
+          ./scripts/release/smoke-launch.sh "publish output" "publish/${{ matrix.rid }}/PgNimbus.App"
+
+          tar -xzf "dist/${base}.tar.gz" -C "$RUNNER_TEMP"
+          ./scripts/release/smoke-launch.sh "tar.gz" "$RUNNER_TEMP/${base}/PgNimbus.App"
+
+          # CI runners have no FUSE, so the AppImage has to unpack itself —
+          # the same flag build-packages.sh uses for appimagetool.
+          chmod +x "dist/${base}.AppImage"
+          ./scripts/release/smoke-launch.sh "AppImage" "dist/${base}.AppImage" --appimage-extract-and-run
+
+          sudo apt-get install -y "./dist/${base}.deb"
+          ./scripts/release/smoke-launch.sh ".deb" /usr/bin/pgnimbus
+          sudo apt-get remove -y pgnimbus
+
       # Software bill of materials: every NuGet package (direct + transitive)
       # baked into the shipped app, as CycloneDX JSON. Generated once on the
       # x64 leg — the NuGet dependency graph is RID-independent. -c Release
@@ -284,6 +370,10 @@ jobs:
           name: publish-linux-x64
           path: publish-linux-x64.tar.gz
 
+  # The publish gate. Each build job smoke-launches its own artifacts before
+  # uploading them, so "needs" already means "every package started and drew a
+  # window" — a broken build cannot reach a GitHub Release without someone
+  # deliberately re-running past a red job.
   release:
     needs: [build-windows, build-macos, build-linux]
     if: startsWith(github.ref, 'refs/tags/v')

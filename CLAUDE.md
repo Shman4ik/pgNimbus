@@ -607,6 +607,9 @@ csproj / WiX / MSIX manifest reference them unchanged:
   `test.runner` opt-in in the repo-root `global.json`) or plain
   `dotnet run --project PgNimbus.Core.Tests`. Never add
   `Microsoft.NET.Test.Sdk` to a TUnit project — it breaks test discovery.
+- UI tests: `PgNimbus.App.Tests` — same platform, plus `Avalonia.Headless`.
+  Real windows, real key input, no display and no Postgres; see "Headless UI
+  tests" below.
 - Benchmarks: `PgNimbus.Benchmarks` — a plain console project (Core-only, no
   UI deps) measuring the query engine through its streaming API; see
   "Benchmarks pipeline" below.
@@ -838,13 +841,45 @@ CI alike, with no display, no Xvfb/xdotool, and **no Postgres**:
 
 ```bash
 dotnet run --project tools/Screenshot -- <outputDir> [scenario-substring]
+                                        [--baseline <dir>] [--publish <repo-root>]
 ```
 
 Pass a scratch directory — nothing it writes is committed. Omit the filter to
-render every scenario in `Program.cs`'s `scenarios` array. `ci.yml` runs the
-whole set on every PR and uploads the PNGs as the `screenshots` artifact, so the
-harness doubles as a smoke test (a view that throws while loading, or renders no
-frame, fails the run) and as a visual diff a reviewer can actually look at.
+render every scenario in `Scenarios.All` (the single list: `Program` walks it,
+the baseline set is exactly its names × {light,dark}, and `Marketing` picks its
+sources out of it by name).
+
+The harness wears three hats, and the second and third were added because a PNG
+artifact nobody opens is not a check:
+
+1. **Smoke** — a view that throws while loading, or renders no frame at all,
+   fails the run.
+2. **Visual regression** (`--baseline`) — each frame is compared against the
+   committed baseline in `tools/Screenshot/baselines/`, and anything past
+   tolerance fails the run and leaves a `*.diff.png` (baseline desaturated,
+   changed pixels magenta) behind. `ci.yml` runs it this way on every PR.
+   **Baselines are OS-specific**: two renders of one commit on the same OS are
+   bit-identical, while the same frames on Windows vs Linux differ by 0.6–6%
+   from glyph rasterization alone — hence the 0.1%-of-pixels threshold, and
+   hence `scripts/screenshots/update-baselines.sh` reaching for the .NET SDK
+   container (plus `libfontconfig1`, which Skia links against and the image
+   lacks) when it isn't already on Linux. The `screenshots.yml` workflow does
+   the same on a real runner and opens a PR. A missing baseline is reported
+   `NEW` and doesn't fail — a developer adding a scenario can't render a Linux
+   baseline without Docker, and blocking that would only teach people to skip
+   the check.
+3. **Publishing** (`--publish`) — `Marketing.cs` maps scenarios to the images
+   that face users: `docs/screenshots/` (README + docs site) and
+   `design/store/screenshots/` (Store listing, padded to the Store's 1366×768
+   minimum on a backdrop sampled from the shot's own chrome so it matches its
+   theme). Run `scripts/screenshots/update-published.sh` before a release.
+   These used to be hand-captured against a live database, which made them go
+   stale silently and leaked real detail — the old main-window shot published a
+   live Neon hostname. The README's animated GIFs are deliberately **not**
+   covered: they show motion and are still recorded by hand.
+
+Full rationale, thresholds and the weekly-release loop:
+[`docs/design/release-checks.md`](docs/design/release-checks.md).
 
 How the fixtures work, and why they're shaped this way:
 
@@ -866,7 +901,43 @@ How the fixtures work, and why they're shaped this way:
   restored and no settings are persisted, and because `MainViewModel` news up its
   own `SavedQueryStore`/`QueryHistoryStore`, `Fixtures` clears what those loaded
   before seeding its own — otherwise a screenshot would carry whatever is in the
-  running developer's saved queries and history.
+  running developer's saved queries and history. The connection-dialog scenario
+  points `ConnectionProfileStore`/`PlainFileCredentialStore` at a throwaway
+  directory for the same reason: their real paths are the developer's own saved
+  connections and passwords.
+
+## Headless UI tests (`PgNimbus.App.Tests`)
+
+Real windows on Avalonia's headless platform, driven with real key input — the
+layer that used to be a person clicking through the app. It reuses
+`tools/Screenshot`'s fixture graph (hence the `ProjectReference` to it) rather
+than growing a second set that would drift from what the screenshots show.
+
+What it covers that nothing else does: that a gesture reaches its command, that
+the palette invokes the entry it highlights, that a saved query opens a *new*
+tab (UI design rule 3), that the results grid builds a column per result column
+and re-points on a tab switch, and that every window opens **and closes** — the
+detach path a render-and-exit pass never runs.
+
+Two landmines, both load-bearing:
+
+- **`Ui.Run(async () => …)` is deliberately the only overload.** Avalonia's
+  `HeadlessUnitTestSession` has a `Dispatch<T>(Func<T>)` that an async lambda
+  binds to with `T = Task`, handing back a `Task<Task>` whose outer task
+  completes the moment the body *returns* its task. The dispatcher then stops
+  pumping and every assertion after the first `await` lands on a task nobody
+  observes — **the whole suite passes without running**. That is how this was
+  written the first time; it was caught only by deliberately breaking an
+  assertion to check the tests could still go red. Do that check when adding
+  tests here.
+- **Gestures come from the catalog**, via `Ui.Press(window, CommandId.X)`, never
+  typed in — otherwise a test keeps passing after a chord moves, and fails on
+  macOS where the same entry resolves to Cmd (UI design rule 5).
+
+The session runs the app with **no lifetime**, asserted by a test: with one,
+`App.OnFrameworkInitializationCompleted` would read the developer's real
+`AppSettings` and, with `AutoConnectLastProfile` on, try to connect to their
+last database from a unit test.
 
 ## Benchmarks pipeline
 
@@ -926,7 +997,25 @@ gh-pages history starts over under the new name.
 
 `.github/workflows/release.yml` runs on every `vX.Y.Z` tag push (or manually
 via `workflow_dispatch`, which builds everything but skips the "release"
-job so it never publishes). It produces, per tag:
+job so it never publishes).
+
+**Every package is launched before it ships.** Each build job runs
+`scripts/release/smoke-launch.sh` (or `Smoke-Launch.ps1` on Windows) against
+its own artifacts with `PGNIMBUS_STARTUP_PROBE=1`, asserting both a clean exit
+*and* the probe line — an app that quit before drawing anything also exits 0.
+Windows smokes the publish output and the MSI after a silent per-user install
+(uninstalled in the same step); macOS smokes the publish output and the binary
+inside the mounted `.dmg`; Linux smokes the publish output, the `.tar.gz`, the
+`.AppImage` (`--appimage-extract-and-run`, runners have no FUSE) and the `.deb`
+after `apt-get install` resolves its own `Depends` — that last one is how a
+missing runtime library gets caught here instead of on a user's machine. The
+Linux legs need `xvfb`; macOS runners have a real window server. `release`
+already `needs` all three jobs, so this is the publish gate. Note
+`PgNimbus.App` is a `WinExe` with no console of its own — the probe line is
+still readable because redirecting stdout gives the process a handle to write
+to (verified, not assumed).
+
+It produces, per tag:
 
 - **Windows** — `dotnet publish -r win-x64 -p:PublishAot=true`, then a
   per-user WiX v5 MSI built from [`installer/windows/Product.wxs`](installer/windows/Product.wxs)

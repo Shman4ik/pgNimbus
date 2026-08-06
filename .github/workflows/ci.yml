@@ -68,20 +68,40 @@ jobs:
 
       # TUnit on Microsoft.Testing.Platform — "dotnet test --project" works
       # via the test.runner opt-in in the repo-root global.json.
-      - name: Test
+      - name: Test (core)
         env:
           PGNIMBUS_TEST_CONN: "Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=postgres"
         run: dotnet test --project PgNimbus.Core.Tests -c Release
 
-      # Renders every UI scenario through Avalonia.Headless (no display, no
-      # database — see CLAUDE.md "Headless screenshot harness"). It doubles as a
-      # smoke test: a view that throws while loading, or one that renders no
-      # frame at all, fails the run instead of shipping quietly. The PNGs ride
-      # along as an artifact so a UI change can be eyeballed from the PR.
-      - name: Screenshots
-        run: dotnet run --project tools/Screenshot -c Release -- "${{ runner.temp }}/screenshots"
+      # The UI half: real windows on Avalonia's headless platform, driven with
+      # real key input. No display and no database — the fixture data source
+      # opens no socket. This is the check that used to be a person clicking
+      # through the app before a release.
+      - name: Test (UI)
+        run: dotnet test --project PgNimbus.App.Tests -c Release
 
+      # Renders every UI scenario through Avalonia.Headless (no display, no
+      # database — see CLAUDE.md "Headless screenshot harness") and compares each
+      # frame against its committed baseline. Two failures are caught here: a
+      # view that throws while loading or renders no frame at all, and a view
+      # that renders something *different* from what was signed off. The second
+      # is the one that used to reach a release, because a PNG artifact nobody
+      # opens is not a check.
+      #
+      # Baselines are pixel data and only comparable against the OS that made
+      # them, which is why this job pins to ubuntu-latest and why refreshing
+      # them goes through scripts/screenshots/update-baselines.sh (Docker on a
+      # non-Linux machine) or the screenshots.yml workflow.
+      - name: Screenshots (visual regression)
+        run: >
+          dotnet run --project tools/Screenshot -c Release --
+          "${{ runner.temp }}/screenshots"
+          --baseline tools/Screenshot/baselines
+
+      # if: always() — the run above fails on a mismatch, and the diff images it
+      # just wrote are the whole point of looking at the artifact.
       - uses: actions/upload-artifact@v7
+        if: always()
         with:
           name: screenshots
           path: ${{ runner.temp }}/screenshots
