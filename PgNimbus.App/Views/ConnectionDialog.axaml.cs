@@ -33,6 +33,47 @@ public partial class ConnectionDialog : Window
         ProfilesList.AddHandler(PointerPressedEvent, OnProfilesPointerPressed, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         ProfilesList.PointerMoved += OnProfilesPointerMoved;
         ProfilesList.PointerReleased += OnProfilesPointerReleased;
+
+        // Address-bar behaviour for the paste box. Its content is written by the
+        // app, not by the user: the form mirrors itself back into it as a
+        // postgres:// URI, so by the time anyone reaches for it it already holds
+        // a string that reads as a hint. Splicing a pasted connection string into
+        // the middle of that produced a hybrid of the two - which then parsed,
+        // and filled the form with nonsense. Selecting everything as focus
+        // arrives makes a paste (or a keystroke) replace the whole string, the
+        // way an address bar does.
+        ImportBox.AddHandler(PointerPressedEvent, OnImportBoxPointerPressed, Avalonia.Interactivity.RoutingStrategies.Tunnel);
+        ImportBox.GotFocus += OnImportBoxGotFocus;
+    }
+
+    /// <summary>
+    /// The click that brings focus to the paste box selects its whole content;
+    /// clicks after that place the caret as usual, so the string is still
+    /// editable by hand. Left button only - marking a right-click handled would
+    /// swallow the box's own cut/copy/paste menu.
+    /// </summary>
+    private void OnImportBoxPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (ImportBox.IsFocused || !e.GetCurrentPoint(ImportBox).Properties.IsLeftButtonPressed)
+        {
+            return;
+        }
+
+        ImportBox.Focus();
+        ImportBox.SelectAll();
+
+        // The TextBox's own press handler runs next and would collapse the
+        // selection back to a caret, so this click ends here.
+        e.Handled = true;
+    }
+
+    /// <summary>Keyboard focus never goes through the pointer handler above, so Tab into the box selects all too.</summary>
+    private void OnImportBoxGotFocus(object? sender, FocusChangedEventArgs e)
+    {
+        if (e.NavigationMethod is NavigationMethod.Tab or NavigationMethod.Directional)
+        {
+            ImportBox.SelectAll();
+        }
     }
 
     /// <summary>

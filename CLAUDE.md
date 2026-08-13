@@ -295,6 +295,19 @@ Three rules about it:
    round-trips: the window inherits a warm pool. The one deliberate exception is
    `BuildMainWindow`'s string overload behind `PGNIMBUS_CONN`, which stays lazy
    because no connect form is standing behind it.
+   The dialog's **paste-a-connection-string box behaves like a browser address
+   bar** (2026-08): focusing it selects everything, so a paste replaces the
+   whole string. It has to, because the box is two things at once — the paste
+   target *and* a mirror of the form below, rewritten as a `postgres://` URI on
+   every field edit. So it is almost never empty, its content reads as a hint
+   rather than as text anyone typed, and splicing a pasted string into the
+   middle of it produced a hybrid of the two that then *parsed*, filling the
+   form with nonsense (the reported bug). Select-all-on-focus is in
+   `ConnectionDialog.axaml.cs`: a tunneled `PointerPressed` that only fires on
+   the click bringing focus in (left button only — marking a right-click handled
+   would swallow the box's own cut/copy/paste menu), plus a `GotFocus` handler
+   for Tab/arrow entry. Clicks after that place the caret normally, so the
+   string stays editable by hand.
 3. **Loading a query never overwrites the active tab.** Saved queries,
    history entries, and generated DDL all open in a *new* tab.
 4. **Tabs drag-reorder; the ☰ app menu is the file-command home.** The query
@@ -501,6 +514,22 @@ Three rules about it:
   bar (`BuildMacNativeMenu`) is the file-command home there, so it would be a
   second copy of the same commands. The sidebar toggle icon is platform-picked
   via `{OnPlatform}` (SF-style geometry on macOS).
+- **macOS: closing the last window does not quit the app (2026-08).** Closing a
+  window and quitting are two separate actions there, and the app that exits
+  when its last window closes is the one Mac users report as a bug. So
+  `App.KeepRunningWithNoWindowsOnMac` sets `ShutdownMode.OnExplicitShutdown` on
+  macOS only — Windows and Linux keep Avalonia's default `OnLastWindowClose`,
+  where a windowless background app would read as "close did nothing" — and
+  subscribes to `IActivatableLifetime.Activated` (via
+  `Application.TryGetFeature`) for `ActivationKind.Reopen`, the Dock-icon click.
+  Reopen raises an existing window if there is one, and otherwise builds a fresh
+  connection dialog: the closed `MainWindow`'s `Closed` handler already disposed
+  its data source and SSH tunnel, so there is nothing to resurrect. What still
+  quits, and why `OnExplicitShutdown` is safe: Cmd+Q and the app menu's Quit
+  arrive as a platform shutdown request, which
+  `ClassicDesktopStyleApplicationLifetime` routes straight to `DoShutdown`
+  without consulting `ShutdownMode`, as does the `Shutdown()` that
+  `CrashReporter` and `StartupProbe` call directly.
 - **Windows** — every remaining window still calls `ThemedWindowChrome.Attach(this)`
   for the **icon** (details in the icon section below). Its caption-colour half is
   moot on `MainWindow`, whose caption is ours, and still applies to the dialogs and

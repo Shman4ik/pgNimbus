@@ -67,9 +67,12 @@
 
         <!-- Paste-anything import: URI / JDBC / Key=Value / libpq / psql command line.
              Parses automatically as you paste/type, and mirrors the fields below
-             as a postgres:// URI whenever you edit them by hand. -->
+             as a postgres:// URI whenever you edit them by hand. Because of that
+             mirroring the box is usually already full, so it behaves like a
+             browser address bar - focusing it selects everything (see
+             ConnectionDialog.axaml.cs). -->
         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,14,12">
-            <TextBox Grid.Column="0" Text="{Binding ImportText}" Margin="0,0,6,0"
+            <TextBox Name="ImportBox" Grid.Column="0" Text="{Binding ImportText}" Margin="0,0,6,0"
                      PlaceholderText="Paste a connection string (postgres://…, jdbc:…, Key=Value;…, psql …)"
                      ToolTip.Tip="Paste a postgres:// URI, JDBC URL, Npgsql Key=Value string, libpq keyword string or psql command line and the fields fill in by themselves">
                 <TextBox.KeyBindings>
