@@ -61,10 +61,12 @@ Three rules about it:
 
 ## Hard architectural rules
 
-1. **`PgNimbus.Core` has zero Avalonia/UI dependencies.** It references only
-   `Npgsql`. Anything UI-related belongs in `PgNimbus.App`. This keeps the
-   engine reusable for a future CLI or test harness — don't leak
-   `Avalonia.*` or `CommunityToolkit.Mvvm` types into `Core`.
+1. **`PgNimbus.Core` has zero Avalonia/UI dependencies.** Its only packages are
+   `Npgsql`, `System.Security.Cryptography.ProtectedData` (the DPAPI credential
+   store) and `SSH.NET` (the tunnel) — all headless. Anything UI-related belongs
+   in `PgNimbus.App`. This keeps the engine reusable for a future CLI or test
+   harness — don't leak `Avalonia.*` or `CommunityToolkit.Mvvm` types into
+   `Core`.
 2. **Streaming + cancellation are non-negotiable.** `QueryEngine.ExecuteAsync`
    returns result rows via `IAsyncEnumerable<RowBatch>` in ~200-row batches so
    the UI can render before the full result set arrives. Every execution
@@ -597,7 +599,7 @@ csproj / WiX / MSIX manifest reference them unchanged:
 ## Tech stack
 
 - `net10.0` for all projects.
-- Core: `Npgsql`.
+- Core: `Npgsql`, `System.Security.Cryptography.ProtectedData`, `SSH.NET`.
 - App: `Avalonia`, `Avalonia.Desktop`, `Avalonia.Themes.Fluent`,
   `Avalonia.Fonts.Inter`, `Avalonia.Controls.DataGrid`, `Avalonia.AvaloniaEdit`,
   `CommunityToolkit.Mvvm`, `AvaloniaUI.DiagnosticsSupport` (DevTools/MCP —
