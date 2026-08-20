@@ -264,8 +264,10 @@ public partial class QueryEditorPanel : UserControl
 
     private void OnMainViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        // ActiveTab is transiently null while the tab ListBox reacts to the
-        // removal of its selected item (see MainViewModel.CloseTab).
+        // Guarded because the tab strip's two-way SelectedItem binding can write
+        // a null: CloseTab reselects before it removes, so it no longer does,
+        // but the property is non-nullable by convention (a null!-initialized
+        // backing field), not by the compiler.
         if (e.PropertyName == nameof(MainViewModel.ActiveTab) && _model is { ActiveTab: not null })
         {
             AttachQuery(_model.ActiveTab);

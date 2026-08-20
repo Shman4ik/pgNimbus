@@ -785,10 +785,19 @@ public sealed partial class MainViewModel : ObservableObject
             return;
         }
 
-        // Decide before the removal: when the removed item is the ListBox's
-        // selection, RemoveAt makes the two-way SelectedItem binding push
-        // ActiveTab = null synchronously, so comparing afterwards misses.
-        var wasActive = ReferenceEquals(ActiveTab, tab);
+        // Move the selection off the doomed tab *before* removing it. Removing
+        // the ListBox's selected item makes its two-way SelectedItem binding
+        // push ActiveTab = null synchronously, and every binding under
+        // ActiveTab logs a path error against that transient null (a screenful
+        // of [Binding] noise per closed tab) before a post-removal reassignment
+        // could put it right. Reselecting first means the removal never touches
+        // the selection at all. Successor: the tab to the right, or the one to
+        // the left when the last tab is closing — the count guard above
+        // guarantees a neighbour exists.
+        if (ActiveTab is null || ReferenceEquals(ActiveTab, tab))
+        {
+            ActiveTab = Tabs[index < Tabs.Count - 1 ? index + 1 : index - 1];
+        }
 
         // A query still running in the closed tab would otherwise keep streaming
         // in the background, holding a pool connection and server-side work for a
@@ -797,11 +806,6 @@ public sealed partial class MainViewModel : ObservableObject
 
         tab.Executed -= SavedQueries.RecordExecution;
         Tabs.RemoveAt(index);
-
-        if (wasActive || ActiveTab is null)
-        {
-            ActiveTab = Tabs[Math.Min(index, Tabs.Count - 1)];
-        }
 
         NotifyTabCommands();
     }

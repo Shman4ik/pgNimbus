@@ -629,6 +629,21 @@ csproj / WiX / MSIX manifest reference them unchanged:
   (via `TextChanged` + `PropertyChanged`, with a re-entrancy guard), not via
   XAML `Binding`. Both the main SQL editor (`_suppressEditorSync`) and the
   cell inspector's JSON editor (`_suppressInspectorSync`) follow this pattern.
+- **A nullable view model never sits *inside* a binding path.** Avalonia logs
+  `[Binding] … 'Value is null.'` on every re-evaluation where an *intermediate*
+  link of a path is null — a real binding bug then hides in the noise. Two
+  shapes produced ~65 of those messages per closed tab (fixed 2026-08): the
+  status bar's browse paging reached through `ActiveTab.Browse.PageLabel`, and
+  `Browse` is null on every tab that isn't browsing a table — it now hangs off
+  `DataContext="{Binding ActiveTab.Browse}"` (+ `x:DataType`, the same shape the
+  command-palette overlay uses), so the null lands at the *end* of the path
+  where it is merely an unset binding; and `MainViewModel.CloseTab` removed the
+  tab strip's selected item, which makes the two-way `SelectedItem` binding push
+  `ActiveTab = null` synchronously and every `ActiveTab.*` binding in the window
+  log against that transient null — it now moves the selection to the neighbour
+  (right, or left when the last tab closes) *before* `Tabs.RemoveAt`, so the
+  removal never touches the selection.
+
 - **json/jsonb are a first-class editable type.** `ColumnValueEditorClassifier`
   maps them to `ColumnValueEditor.Json` (jsonpath isn't JSON-shaped so it takes
   the plain-cast `CastText` path below; hstore stays `Text` — its display needs

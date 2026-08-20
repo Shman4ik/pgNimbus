@@ -563,15 +563,25 @@
                                 IsVisible="{Binding ActiveTab.IsBrowsing}"
                                 IsEnabled="{Binding !ActiveTab.IsRunning}">
                         <Rectangle Classes="statusSeparator" />
-                        <TextBlock Classes="statusText dim" Text="{Binding ActiveTab.Browse.PageLabel}" VerticalAlignment="Center" />
-                        <Button Classes="chip" Padding="4" VerticalAlignment="Center"
-                                Command="{Binding ActiveTab.Browse.PreviousPageCommand}" ToolTip.Tip="Previous page">
-                            <PathIcon Data="{StaticResource ChevronLeftIconGeometry}" Width="11" Height="11" />
-                        </Button>
-                        <Button Classes="chip" Padding="4" VerticalAlignment="Center"
-                                Command="{Binding ActiveTab.Browse.NextPageCommand}" ToolTip.Tip="Next page">
-                            <PathIcon Data="{StaticResource ChevronRightIconGeometry}" Width="11" Height="11" />
-                        </Button>
+                        <!-- The paging controls hang off the browse view model itself
+                             rather than reaching through ActiveTab.Browse.*: Browse is
+                             null on every tab that isn't browsing a table (the common
+                             case), and a null *inside* a binding path is logged as a
+                             [Binding] error on every re-evaluation, while a null
+                             DataContext is just an unset binding. Same shape as the
+                             command palette's Border below. -->
+                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"
+                                    x:DataType="vm:TableBrowseViewModel" DataContext="{Binding ActiveTab.Browse}">
+                            <TextBlock Classes="statusText dim" Text="{Binding PageLabel}" VerticalAlignment="Center" />
+                            <Button Classes="chip" Padding="4" VerticalAlignment="Center"
+                                    Command="{Binding PreviousPageCommand}" ToolTip.Tip="Previous page">
+                                <PathIcon Data="{StaticResource ChevronLeftIconGeometry}" Width="11" Height="11" />
+                            </Button>
+                            <Button Classes="chip" Padding="4" VerticalAlignment="Center"
+                                    Command="{Binding NextPageCommand}" ToolTip.Tip="Next page">
+                                <PathIcon Data="{StaticResource ChevronRightIconGeometry}" Width="11" Height="11" />
+                            </Button>
+                        </StackPanel>
                     </StackPanel>
                 </Grid>
             </Border>
