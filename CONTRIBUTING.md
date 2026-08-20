@@ -22,8 +22,16 @@ Run the tests with:
 dotnet test --project PgNimbus.Core.Tests
 ```
 
-(The test project uses TUnit on Microsoft.Testing.Platform — never add
-`Microsoft.NET.Test.Sdk` to it, that breaks test discovery.)
+```bash
+dotnet test --project PgNimbus.App.Tests
+```
+
+The first covers the engine and the pure logic. The second drives real
+windows on Avalonia's headless platform with real key input, so it needs no
+display and no database.
+
+(Both use TUnit on Microsoft.Testing.Platform. Never add
+`Microsoft.NET.Test.Sdk` to either, that breaks test discovery.)
 
 ## The two hard architectural rules
 
@@ -70,6 +78,23 @@ skip the connection dialog, `xdotool` to drive, and ImageMagick's
 [CLAUDE.md](CLAUDE.md#bootstrapping-a-fresh-linuxci-sandbox-no-net-no-display-no-postgres).
 Please check both themes (the in-app light/dark toggle) for visual
 changes.
+
+CI compares every screen against a committed reference image, so a UI
+change makes the screenshot check go red. That is expected. When the change
+is intended, refresh the reference set:
+
+```bash
+scripts/screenshots/update-baselines.sh
+```
+
+The images are pixel data and only comparable against the operating system
+that made them, and CI renders on Linux. On Linux the script renders
+directly; anywhere else it uses Docker. You can also run the Screenshots
+workflow from the Actions tab, which renders on a real runner and opens a
+pull request.
+
+Include the updated images in your PR. Reviewing them is the point: it is
+where we agree on how the app now looks.
 
 ## Pull requests
 

@@ -18,8 +18,14 @@
 - [ ] `dotnet build PgNimbus.slnx`
 - [ ] `dotnet test --project PgNimbus.Core.Tests/PgNimbus.Core.Tests.csproj`
       — against a live Postgres? <!-- yes / no, tests skip cleanly without one -->
+- [ ] `dotnet test --project PgNimbus.App.Tests/PgNimbus.App.Tests.csproj`
+      <!-- headless UI tests: real windows, no display, no database -->
 - [ ] NativeAOT publish, no new trim/AOT warnings — RID: <!-- win-x64 (shipping) / linux-x64 -->
-- [ ] `dotnet run --project tools/Screenshot -- <dir>` (UI changes)
+- [ ] UI changes: baselines refreshed via `scripts/screenshots/update-baselines.sh`
+      (or the Screenshots workflow) and the image diff reviewed
+      <!-- CI compares against tools/Screenshot/baselines and goes red on any change -->
+- [ ] Release-facing change: `scripts/screenshots/update-published.sh` for the
+      README / docs / Store shots
 
 Anything left unverified:
 

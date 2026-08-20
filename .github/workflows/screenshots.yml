@@ -1,0 +1,114 @@
+name: Screenshots
+
+# Renders the headless screenshot harness on the same OS CI compares against,
+# and opens a PR with whatever changed.
+#
+# Two things live here, both of which used to be manual:
+#
+#   baselines  the visual-regression set in tools/Screenshot/baselines. Refresh
+#              it when a UI change is intended and ci.yml reports screenshots as
+#              CHANGED. The PR diff is where the new look gets signed off.
+#   published  the user-facing shots — README, docs site, Microsoft Store
+#              listing. Refresh before cutting a release so they show the
+#              version being shipped.
+#
+# Baselines are pixel data and only comparable against the OS that made them,
+# which is the whole reason this runs here rather than on a developer machine.
+# The same job exists locally as scripts/screenshots/update-baselines.sh and
+# update-published.sh, which reach for Docker off Linux.
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "What to refresh"
+        required: true
+        default: both
+        type: choice
+        options:
+          - baselines
+          - published
+          - both
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  DOTNET_NOLOGO: "1"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Render
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/shots"
+
+          publish=()
+          if [ "${{ inputs.target }}" != "baselines" ]; then
+            publish=(--publish "$PWD")
+          fi
+
+          # No --baseline here: this run *produces* the reference set rather
+          # than checking against it, and it renders every scenario (no filter)
+          # because publishing over a partial render would refresh some assets
+          # and leave others stale.
+          dotnet run --project tools/Screenshot -c Release -- \
+            "$RUNNER_TEMP/shots" "${publish[@]}"
+
+      - name: Update baselines
+        if: inputs.target != 'published'
+        run: |
+          set -euo pipefail
+          # Replace wholesale: a deleted scenario must lose its baseline too.
+          rm -rf tools/Screenshot/baselines
+          mkdir -p tools/Screenshot/baselines
+          find "$RUNNER_TEMP/shots" -name '*.png' -not -name '*.diff.png' \
+            -exec cp {} tools/Screenshot/baselines/ \;
+
+      # Needs "Allow GitHub Actions to create and approve pull requests"
+      # (Settings > Actions > General). Without it the push still lands and the
+      # branch is there to open a PR from by hand, but this step fails.
+      - name: Open a pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "Nothing changed — the screenshots already match this commit."
+            exit 0
+          fi
+
+          branch="screenshots/refresh-${{ github.run_id }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add -A
+          git commit -m "Refresh screenshots (${{ inputs.target }})
+
+          Rendered by .github/workflows/screenshots.yml from ${{ github.sha }}."
+          git push origin "$branch"
+
+          gh pr create \
+            --title "Refresh screenshots (${{ inputs.target }})" \
+            --body "Rendered on \`ubuntu-latest\` by the Screenshots workflow from ${{ github.sha }}.
+
+          Review the image diff: a baseline change is where the new look gets signed off, and a published change is what the README and the Store listing will show." \
+            --base "${{ github.ref_name }}" \
+            --head "$branch"
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: screenshots
+          path: ${{ runner.temp }}/shots

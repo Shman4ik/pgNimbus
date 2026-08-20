@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using PgNimbus.App.ViewModels;
 using PgNimbus.App.Views;
+using PgNimbus.Core.Connections;
 using PgNimbus.Core.Monitoring;
 using PgNimbus.Core.Query;
 
@@ -15,7 +16,7 @@ namespace PgNimbus.Screenshot;
 /// screenshot shows what the app would actually render — the one concession is
 /// that data arrives from <see cref="Fixtures"/> instead of a server.
 /// </summary>
-internal static class Scenarios
+public static class Scenarios
 {
     private const string SampleSql = """
         SELECT o.id,
@@ -30,6 +31,33 @@ internal static class Scenarios
          WHERE o.placed_at > now() - interval '30 days'
          ORDER BY o.placed_at DESC;
         """;
+
+    /// <summary>
+    /// Every scenario the harness renders, in the order it renders them. The
+    /// single list: <c>Program</c> walks it, the baseline set is exactly its
+    /// names x {light,dark}, and the marketing shots in <see cref="Marketing"/>
+    /// pick their sources out of it by name.
+    /// </summary>
+    public static readonly (string Name, Func<Window> Build)[] All =
+    [
+        ("main-window", Results),
+        ("main-window-empty", EmptyResults),
+        ("main-window-error", QueryError),
+        ("main-window-script", ScriptResult),
+        ("main-window-plan", QueryPlan),
+        ("main-window-plan-tree", QueryPlanTree),
+        ("main-window-palette", CommandPalette),
+        ("main-window-sidebar-filter", SidebarFilter),
+        ("main-window-cell-inspector", CellInspector),
+        ("activity-window", Activity),
+        ("activity-window-blocking", ActivityBlocking),
+        ("database-overview-window", DatabaseOverview),
+        ("shortcuts-window", Shortcuts),
+        ("preferences-window", Preferences),
+        ("about-window", About),
+        ("crash-window", Crash),
+        ("connection-dialog", ConnectionDialog),
+    ];
 
     // --- Main window ------------------------------------------------------
 
@@ -220,6 +248,30 @@ internal static class Scenarios
         return HostMainWindow(vm);
     }
 
+    /// <summary>
+    /// The connection picker, with a few saved profiles.
+    ///
+    /// Both stores are pointed at a throwaway directory that does not exist:
+    /// their real paths are the developer's own <c>connections.json</c> and
+    /// saved passwords, and a screenshot run must never read — let alone
+    /// publish — either.
+    /// </summary>
+    public static Window ConnectionDialog()
+    {
+        var scratch = Path.Combine(Path.GetTempPath(), "pgnimbus-fixtures", Guid.NewGuid().ToString("N"));
+        var viewModel = new ConnectionDialogViewModel(
+            new ConnectionProfileStore(Path.Combine(scratch, "connections.json")),
+            new PlainFileCredentialStore(Path.Combine(scratch, "credentials")));
+
+        foreach (var profile in Fixtures.ConnectionProfiles())
+        {
+            viewModel.Profiles.Add(profile);
+        }
+
+        viewModel.SelectedProfile = viewModel.Profiles[0];
+        return new PgNimbus.App.Views.ConnectionDialog { DataContext = viewModel, Width = 640, Height = 680 };
+    }
+
     /// <summary>The crash reporter, with a representative failure.</summary>
     public static Window Crash() =>
         new CrashWindow(
@@ -231,6 +283,22 @@ internal static class Scenarios
         };
 
     // --- Helpers ----------------------------------------------------------
+
+    /// <summary>
+    /// The shell with the fixture catalog and a result set already in the grid,
+    /// handed back together with its view model.
+    ///
+    /// <see cref="Results"/> throws the view model away because a screenshot only
+    /// needs the window; the UI tests in <c>PgNimbus.App.Tests</c> drive the same
+    /// window and then have to assert on what the commands did, so they need
+    /// both halves.
+    /// </summary>
+    public static (Window Window, MainViewModel ViewModel) Shell()
+    {
+        var vm = Fixtures.MainWindowViewModel();
+        SeedOrdersResult(vm.ActiveTab);
+        return (HostMainWindow(vm), vm);
+    }
 
     private static void SeedOrdersResult(QueryViewModel tab)
     {
