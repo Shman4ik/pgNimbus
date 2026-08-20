@@ -22,6 +22,7 @@ internal static class Scenarios
                c.full_name AS customer,
                o.status,
                o.total,
+               o.paid,
                o.metadata,
                o.placed_at
           FROM orders AS o
