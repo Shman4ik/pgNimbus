@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785821853682,
+  "lastUpdate": 1787236175758,
   "repoUrl": "https://github.com/Shman4ik/pgNimbus",
   "entries": {
     "pgNimbus benchmarks": [
@@ -1443,6 +1443,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "Stream 100000 rows",
             "value": 121.1,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shman4ik@gmail.com",
+            "name": "Dmitrii Shmanev",
+            "username": "Shman4ik"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ad40a5df25b90e9582347dff906591c7bc04f36d",
+          "message": "Bump SSH.NET to 2026.0.0 for CVE-2026-48798 (#189)",
+          "timestamp": "2026-08-13T09:22:56+02:00",
+          "tree_id": "2f65a8d15f3e40632ee12387e58d049cb3f3dd3f",
+          "url": "https://github.com/Shman4ik/pgNimbus/commit/ad40a5df25b90e9582347dff906591c7bc04f36d"
+        },
+        "date": 1787236174142,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Startup, launch to first frame (NativeAOT)",
+            "value": 145,
+            "unit": "ms"
+          },
+          {
+            "name": "Memory at first frame (NativeAOT)",
+            "value": 166.7,
+            "unit": "MB"
+          },
+          {
+            "name": "Binary size (NativeAOT)",
+            "value": 42.1,
+            "unit": "MB"
+          },
+          {
+            "name": "Publish size (NativeAOT, shipped files)",
+            "value": 55.5,
+            "unit": "MB"
+          },
+          {
+            "name": "Startup, launch to first frame (JIT)",
+            "value": 1153,
+            "unit": "ms"
+          },
+          {
+            "name": "Connect, cold pool",
+            "value": 99.2,
+            "unit": "ms"
+          },
+          {
+            "name": "Round-trip, SELECT 1 warm",
+            "value": 0.27,
+            "unit": "ms"
+          },
+          {
+            "name": "First row batch of a 100000-row SELECT",
+            "value": 6.4,
+            "unit": "ms"
+          },
+          {
+            "name": "Stream 100000 rows",
+            "value": 101.3,
             "unit": "ms"
           }
         ]
