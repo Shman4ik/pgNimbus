@@ -57,23 +57,69 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
     public IReadOnlyList<string> AccentColorSwatches { get; } =
         ["#E5484D", "#F76B15", "#FFB224", "#46A758", "#0091FF", "#8E4EC6", "#6B7280"];
 
+    /// <summary>Shown as the host field's placeholder and used when it is left blank.</summary>
+    public const string DefaultHost = "localhost";
+
+    /// <summary>Shown as the database field's placeholder and used when it is left blank.</summary>
+    public const string DefaultDatabase = "postgres";
+
+    /// <summary>Shown as the username field's placeholder and used when it is left blank.</summary>
+    public const string DefaultUsername = "postgres";
+
+    /// <summary>The host to actually connect to: what was typed, or <see cref="DefaultHost"/> when the field is blank.</summary>
+    public string EffectiveHost => Blank(Host) ? DefaultHost : Host.Trim();
+
+    /// <summary>The database to actually connect to: what was typed, or <see cref="DefaultDatabase"/> when the field is blank.</summary>
+    public string EffectiveDatabase => Blank(Database) ? DefaultDatabase : Database.Trim();
+
+    /// <summary>The username to actually connect as: what was typed, or <see cref="DefaultUsername"/> when the field is blank.</summary>
+    public string EffectiveUsername => Blank(Username) ? DefaultUsername : Username.Trim();
+
+    /// <summary>The port to actually connect to: what was typed, or <see cref="ConnectionProfile.DefaultPort"/> when the field is left empty.</summary>
+    public int EffectivePort => Port ?? ConnectionProfile.DefaultPort;
+
+    /// <summary>
+    /// The name a blank Name field stands for, shown there as a placeholder and
+    /// saved as the profile's name. It tracks the host/database fields as they
+    /// are typed, so naming a connection is opt-in rather than a chore.
+    /// </summary>
+    public string NamePlaceholder => $"{EffectiveHost}/{EffectiveDatabase}";
+
+    /// <summary>The profile name to save: what was typed, or <see cref="NamePlaceholder"/> when the field is blank.</summary>
+    public string EffectiveName => Blank(Name) ? NamePlaceholder : Name.Trim();
+
+    private static bool Blank(string? value) => string.IsNullOrWhiteSpace(value);
+
     [ObservableProperty]
     private ConnectionProfile? _selectedProfile;
 
-    [ObservableProperty]
-    private string _name = "New Connection";
+    // The four text fields below start *empty*, showing their default as a
+    // dim placeholder instead of as real text (see the Default* constants and
+    // the Effective* properties). Pre-filling them with "localhost"/"postgres"
+    // meant every hand-typed connection began with a select-all or a run of
+    // backspaces, because the caret lands after text the user never typed.
+    // Leaving a field blank still connects to its default - Effective* is what
+    // the profile, the test/connect path and the connection-string preview all
+    // read, so nothing is lost by not typing.
 
     [ObservableProperty]
-    private string _host = "localhost";
+    [NotifyPropertyChangedFor(nameof(NamePlaceholder))]
+    private string _name = string.Empty;
 
     [ObservableProperty]
-    private int _port = ConnectionProfile.DefaultPort;
+    [NotifyPropertyChangedFor(nameof(NamePlaceholder))]
+    private string _host = string.Empty;
+
+    /// <summary>Null means "not typed" - the field shows 5432 as a placeholder and <see cref="EffectivePort"/> supplies it.</summary>
+    [ObservableProperty]
+    private int? _port;
 
     [ObservableProperty]
-    private string _database = "postgres";
+    [NotifyPropertyChangedFor(nameof(NamePlaceholder))]
+    private string _database = string.Empty;
 
     [ObservableProperty]
-    private string _username = "postgres";
+    private string _username = string.Empty;
 
     [ObservableProperty]
     private SslMode _sslMode = SslMode.Prefer;
@@ -207,11 +253,11 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
     private void New()
     {
         SelectedProfile = null;
-        Name = "New Connection";
-        Host = "localhost";
-        Port = ConnectionProfile.DefaultPort;
-        Database = "postgres";
-        Username = "postgres";
+        Name = string.Empty;
+        Host = string.Empty;
+        Port = null;
+        Database = string.Empty;
+        Username = string.Empty;
         SslMode = SslMode.Prefer;
         AccentColor = null;
         Password = string.Empty;
@@ -333,7 +379,7 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
     }
 
     partial void OnHostChanged(string value) => SyncImportTextFromFields();
-    partial void OnPortChanged(int value) => SyncImportTextFromFields();
+    partial void OnPortChanged(int? value) => SyncImportTextFromFields();
     partial void OnDatabaseChanged(string value) => SyncImportTextFromFields();
     partial void OnUsernameChanged(string value) => SyncImportTextFromFields();
     partial void OnPasswordChanged(string value) => SyncImportTextFromFields();
@@ -381,11 +427,9 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
                 SslMode = sslMode;
             }
 
-            // Give a fresh profile a recognizable name; never rename a saved one.
-            if (SelectedProfile is null && parsed.Host is not null)
-            {
-                Name = parsed.Database is null ? parsed.Host : $"{parsed.Host}/{parsed.Database}";
-            }
+            // No name is written here: a blank Name field already reads as
+            // host/database (NamePlaceholder) and saves under that name, and it
+            // keeps tracking the fields if the pasted string is edited after.
 
             ImportText = BuildPreviewConnectionString();
         }
@@ -394,6 +438,10 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
             _syncingConnectionString = false;
         }
     }
+
+    /// <summary>True while the form says nothing at all - every field blank, so only the placeholders are on screen.</summary>
+    private bool IsFormBlank =>
+        Blank(Host) && Blank(Database) && Blank(Username) && Port is null && string.IsNullOrEmpty(Password);
 
     /// <summary>Mirrors the current form fields into the import box as a postgres:// URI whenever a field is edited by hand.</summary>
     private void SyncImportTextFromFields()
@@ -406,7 +454,10 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         _syncingConnectionString = true;
         try
         {
-            ImportText = BuildPreviewConnectionString();
+            // An untouched form leaves the paste box empty rather than filling it
+            // with the defaults' URI: it is the box you paste *into*, and text
+            // nobody typed sitting in it is one more thing to clear first.
+            ImportText = IsFormBlank ? string.Empty : BuildPreviewConnectionString();
         }
         finally
         {
@@ -426,31 +477,25 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
     {
         var builder = new StringBuilder("postgres://");
 
-        if (!string.IsNullOrEmpty(Username))
+        // Effective*, not the raw fields: a blank field connects to its default,
+        // so a preview built from the raw text would describe a different
+        // connection than the one Connect makes.
+        builder.Append(Uri.EscapeDataString(EffectiveUsername));
+        if (!string.IsNullOrEmpty(Password))
         {
-            builder.Append(Uri.EscapeDataString(Username));
-            if (!string.IsNullOrEmpty(Password))
-            {
-                builder.Append(':').Append(maskPassword
-                    ? PasswordMask
-                    : Uri.EscapeDataString(Password));
-            }
-
-            builder.Append('@');
+            builder.Append(':').Append(maskPassword
+                ? PasswordMask
+                : Uri.EscapeDataString(Password));
         }
 
-        builder.Append(string.IsNullOrEmpty(Host) ? "localhost" : Host);
+        builder.Append('@').Append(EffectiveHost);
 
-        if (Port != ConnectionProfile.DefaultPort)
+        if (EffectivePort != ConnectionProfile.DefaultPort)
         {
-            builder.Append(':').Append(Port);
+            builder.Append(':').Append(EffectivePort);
         }
 
-        builder.Append('/');
-        if (!string.IsNullOrEmpty(Database))
-        {
-            builder.Append(Uri.EscapeDataString(Database));
-        }
+        builder.Append('/').Append(Uri.EscapeDataString(EffectiveDatabase));
 
         if (SslMode != SslMode.Prefer)
         {
@@ -635,13 +680,8 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
 
     private bool TryBuildProfile(out ConnectionProfile profile, out string? error)
     {
-        if (string.IsNullOrWhiteSpace(Host) || string.IsNullOrWhiteSpace(Database) || string.IsNullOrWhiteSpace(Username))
-        {
-            profile = null!;
-            error = "Host, database, and username are required.";
-            return false;
-        }
-
+        // Host / database / username are no longer checked for emptiness: blank
+        // means "the default", the same thing the placeholder in the field says.
         if (UseSshTunnel && (string.IsNullOrWhiteSpace(SshHost) || string.IsNullOrWhiteSpace(SshUsername)))
         {
             profile = null!;
@@ -655,11 +695,11 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
 
         profile = new ConnectionProfile(
             SelectedProfile?.Id ?? Guid.NewGuid(),
-            string.IsNullOrWhiteSpace(Name) ? Host : Name,
-            Host,
-            Port,
-            Database,
-            Username,
+            EffectiveName,
+            EffectiveHost,
+            EffectivePort,
+            EffectiveDatabase,
+            EffectiveUsername,
             SslMode,
             AccentColor,
             sshTunnel);
