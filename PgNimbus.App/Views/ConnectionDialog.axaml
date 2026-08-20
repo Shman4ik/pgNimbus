@@ -88,7 +88,12 @@
 
             <TextBlock Grid.Row="0" Text="Name" />
             <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
-                <TextBox Name="NameBox" Grid.Column="0" Text="{Binding Name}" Margin="0,0,6,0" />
+                <!-- Placeholders, not pre-filled text: the defaults show dim and
+                     vanish the moment you type, and a field left blank still
+                     connects to the default it names (Effective* on the VM).
+                     The Name placeholder tracks host/database as they're typed. -->
+                <TextBox Name="NameBox" Grid.Column="0" Text="{Binding Name}" Margin="0,0,6,0"
+                         PlaceholderText="{Binding NamePlaceholder}" />
                 <!-- The accent color is a per-connection marker, not a field you
                      fill in every time - one swatch button with the palette
                      behind it, rather than a permanent eight-circle row. -->
@@ -132,17 +137,18 @@
 
             <TextBlock Grid.Row="2" Text="Host / Port" />
             <Grid Grid.Row="3" ColumnDefinitions="*,80" Margin="0,0,0,8">
-                <TextBox Grid.Column="0" Text="{Binding Host}" Margin="0,0,6,0" />
-                <NumericUpDown Grid.Column="1" Value="{Binding Port}" Minimum="1" Maximum="65535" FormatString="0" ShowButtonSpinner="False" />
+                <TextBox Grid.Column="0" Text="{Binding Host}" Margin="0,0,6,0" PlaceholderText="localhost" />
+                <NumericUpDown Grid.Column="1" Value="{Binding Port}" Minimum="1" Maximum="65535" FormatString="0" ShowButtonSpinner="False"
+                               PlaceholderText="5432" />
             </Grid>
 
             <TextBlock Grid.Row="4" Text="Database" />
-            <TextBox Grid.Row="5" Text="{Binding Database}" Margin="0,0,0,8" />
+            <TextBox Grid.Row="5" Text="{Binding Database}" Margin="0,0,0,8" PlaceholderText="postgres" />
 
             <Grid Grid.Row="6" ColumnDefinitions="*,*" Margin="0,0,0,8">
                 <StackPanel Grid.Column="0" Margin="0,0,6,0">
                     <TextBlock Text="Username" />
-                    <TextBox Text="{Binding Username}" />
+                    <TextBox Text="{Binding Username}" PlaceholderText="postgres" />
                 </StackPanel>
                 <StackPanel Grid.Column="1">
                     <TextBlock Text="SSL Mode" />

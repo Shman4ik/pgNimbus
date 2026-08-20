@@ -285,6 +285,17 @@ Three rules about it:
    a blank screen. The dialog is resizable and remembers its own placement in
    `connection-window.json` (`WindowPlacementStore.ForConnectionDialog`) —
    deliberately a separate file from the main window's `window.json`.
+   **The form's defaults are placeholders, not pre-filled text** (2026-08):
+   host/port/database/username start empty and show `localhost` / `5432` /
+   `postgres` / `postgres` dim, so typing needs no select-all first; a field
+   left blank still connects to the default it names, because
+   `ConnectionDialogViewModel.Effective{Host,Port,Database,Username,Name}` —
+   not the raw fields — is what the built profile, the test/connect path and
+   the connection-string preview all read. The Name placeholder is derived
+   (`host/database`, tracking those fields as they're typed) and is what an
+   unnamed profile saves as, which is why nothing writes `Name` on import
+   anymore. An untouched form also leaves the paste-a-connection-string box
+   empty rather than mirroring the defaults into it.
    The hand-off carries a **live `NpgsqlDataSource`, not a connection string**:
    `NpgsqlDataSource.Create` opens no socket, so a wrong password used to
    surface as the new window's first schema-tree error rather than in the form
