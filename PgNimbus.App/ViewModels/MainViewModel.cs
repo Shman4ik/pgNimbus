@@ -430,7 +430,14 @@ public sealed partial class MainViewModel : ObservableObject
             {
                 var tab = NewTab();
                 tab.Sql = saved.Sql;
-                tab.TitleOverride = saved.Title;
+                // A persisted title the SQL would produce on its own carries no
+                // information, and pinning it as an override would freeze the
+                // tab's name against later edits — snapshots written before
+                // labels and overrides were separated store browse labels here.
+                // Dropping it displays exactly the same name, automatically.
+                tab.TitleOverride = string.Equals(saved.Title, tab.TabTitle, StringComparison.Ordinal)
+                    ? null
+                    : saved.Title;
 
                 // Best-effort reattach to the tab's saved file association. The
                 // restored buffer (saved.Sql, just set above) is kept as-is —
@@ -566,7 +573,9 @@ public sealed partial class MainViewModel : ObservableObject
             EnsureForeignKeysAsync());
     }
 
-    private bool CanCloseTab() => Tabs.Count > 1;
+    // Always available: closing the only tab replaces it with a fresh empty one
+    // (see CloseTab) rather than being refused.
+    private bool CanCloseTab() => Tabs.Count > 0;
 
     [RelayCommand]
     private void AddTab() => NewTab();
@@ -657,7 +666,7 @@ public sealed partial class MainViewModel : ObservableObject
         var ddl = await _ddlService.GenerateAsync(table.Schema, table.Name, CancellationToken.None);
 
         var tab = NewTab();
-        tab.TitleOverride = $"{table.Name} · source";
+        tab.DefaultTitle = $"{table.Name} · source";
         tab.Sql = ddl;
     }
 
@@ -667,7 +676,7 @@ public sealed partial class MainViewModel : ObservableObject
         var ddl = await _ddlService.GenerateFunctionAsync(function.Schema, function.Name, function.Arguments, CancellationToken.None);
 
         var tab = NewTab();
-        tab.TitleOverride = $"{function.Name} · source";
+        tab.DefaultTitle = $"{function.Name} · source";
         tab.Sql = ddl;
     }
 
@@ -679,7 +688,7 @@ public sealed partial class MainViewModel : ObservableObject
     public void OpenImportedPlan(ImportedPlan plan)
     {
         var tab = NewTab();
-        tab.TitleOverride = "Imported plan";
+        tab.DefaultTitle = "Imported plan";
         tab.ShowImportedPlan(plan.Result, plan.DisplayText, plan.RawJson);
     }
 
@@ -692,7 +701,7 @@ public sealed partial class MainViewModel : ObservableObject
     public Task NewTableAsync(SchemaNode schema)
     {
         var tab = NewTab();
-        tab.TitleOverride = $"{schema.Name} · new table";
+        tab.DefaultTitle = $"{schema.Name} · new table";
         tab.Sql = DdlTemplates.NewTable(schema.Name);
         return Task.CompletedTask;
     }
@@ -770,13 +779,29 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Closes <paramref name="tab"/> (the active one when invoked with no
+    /// parameter). Closing the *last* tab empties it rather than refusing:
+    /// a fresh scratch tab takes its place, Notepad++-style, so "close" always
+    /// does something and the window is never left tab-less (every binding
+    /// under <c>ActiveTab</c> depends on there being one).
+    /// </summary>
     [RelayCommand(CanExecute = nameof(CanCloseTab))]
     private void CloseTab(QueryViewModel? tab)
     {
         tab ??= ActiveTab;
-        if (Tabs.Count <= 1)
+        if (Tabs.Count == 1)
         {
-            return;
+            if (!ReferenceEquals(Tabs[0], tab))
+            {
+                return;
+            }
+
+            // The replacement is created *before* the removal so the strip is
+            // never momentarily empty — same reason the successor below is
+            // selected first. It is about to be the only tab, so it is "Query 1"
+            // however many tabs this session has been through.
+            NewTab().DefaultTitle = "Query 1";
         }
 
         var index = Tabs.IndexOf(tab);
@@ -809,6 +834,16 @@ public sealed partial class MainViewModel : ObservableObject
 
         NotifyTabCommands();
     }
+
+    /// <summary>
+    /// Opens the inline rename box on <paramref name="tab"/> — the right-clicked
+    /// tab from the strip's menu, the active one from the palette. The name a
+    /// user types wins over the automatic (SQL-derived) one from then on and
+    /// rides the workspace snapshot into the next session; clearing it hands the
+    /// tab back to automatic naming.
+    /// </summary>
+    [RelayCommand]
+    private void RenameTab(QueryViewModel? tab) => (tab ?? ActiveTab)?.BeginRename();
 
     private bool CanCloseOtherTabs(QueryViewModel? tab) => Tabs.Count > 1 && Tabs.Contains(tab ?? ActiveTab);
 
@@ -898,8 +933,11 @@ public sealed partial class MainViewModel : ObservableObject
     {
         // Opens in a new tab rather than the active one - see the "loading a
         // query never overwrites the active tab" rule (CLAUDE.md).
+        // A label, not an override: the tab is named after the browsed table
+        // only until its SQL says otherwise — retyping the query in this tab
+        // renames it after what it now selects from.
         var tab = NewTab();
-        tab.TitleOverride = name;
+        tab.DefaultTitle = name;
 
         var columns = await _schemaService.GetColumnsAsync(schema, name, CancellationToken.None);
 

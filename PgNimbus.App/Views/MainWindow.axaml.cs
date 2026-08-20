@@ -509,8 +509,12 @@ public partial class MainWindow : Window
             return;
         }
 
-        // A press on the tab's ✕ chip is a close click, never a drag.
-        if (e.Source is Visual source && source.FindAncestorOfType<Button>(includeSelf: true) is not null)
+        // A press on the tab's ✕ chip is a close click, never a drag; a press in
+        // its open rename box is a caret placement (and dragging in it selects
+        // text), so neither may arm the reorder.
+        if (e.Source is Visual source
+            && (source.FindAncestorOfType<Button>(includeSelf: true) is not null
+                || source.FindAncestorOfType<TextBox>(includeSelf: true) is not null))
         {
             return;
         }
@@ -612,10 +616,11 @@ public partial class MainWindow : Window
 
     // Built lazily and re-shown, so the strip carries no extra always-visible
     // chrome: bulk tab management is a right-click (and a palette entry), never
-    // a toolbar button. Deliberately just the close family — the strip's own ✕,
-    // its ▾ finder and drag-reorder already cover the rest, and every item here
-    // is one the tab bar can't express by pointing at a single tab.
+    // a toolbar button. Rename plus the close family — the strip's own ✕, its ▾
+    // finder and drag-reorder already cover the rest, and every item here is one
+    // the tab bar can't express by pointing at a single tab.
     private MenuFlyout? _tabMenu;
+    private MenuItem? _tabMenuRename;
     private MenuItem? _tabMenuClose;
     private MenuItem? _tabMenuCloseOthers;
     private MenuItem? _tabMenuCloseRight;
@@ -637,6 +642,7 @@ public partial class MainWindow : Window
 
         // Each item's enabled state comes from its command's CanExecute against
         // this tab; assigning the parameter is what re-evaluates it.
+        _tabMenuRename!.CommandParameter = tab;
         _tabMenuClose!.CommandParameter = tab;
         _tabMenuCloseOthers!.CommandParameter = tab;
         _tabMenuCloseRight!.CommandParameter = tab;
@@ -647,6 +653,11 @@ public partial class MainWindow : Window
 
     private MenuFlyout BuildTabMenu(MainViewModel viewModel)
     {
+        _tabMenuRename = new MenuItem
+        {
+            Header = "Rename…",
+            Command = viewModel.RenameTabCommand,
+        };
         _tabMenuClose = new MenuItem
         {
             Header = "Close",
@@ -664,7 +675,91 @@ public partial class MainWindow : Window
             Command = viewModel.CloseTabsToTheRightCommand,
         };
 
-        return new MenuFlyout { Items = { _tabMenuClose, _tabMenuCloseOthers, _tabMenuCloseRight } };
+        return new MenuFlyout { Items = { _tabMenuRename, new Separator(), _tabMenuClose, _tabMenuCloseOthers, _tabMenuCloseRight } };
+    }
+
+    // --- Inline tab rename ------------------------------------------------
+
+    // A rename box that nobody can type into is the whole feature missing, and
+    // two things conspire to produce exactly that:
+    //
+    // 1. IsVisible="False" keeps a control in the visual tree, so attachment
+    //    fires once when the tab's container is realized — not when rename
+    //    starts. Focus therefore follows the *visibility flip*, which is what
+    //    this subscription is for; the attach handler only wires it up (and
+    //    covers the case of a container realized already renaming).
+    // 2. Rename starts from the tab strip's context flyout, and a closing
+    //    flyout restores focus to whatever held it before it opened (the SQL
+    //    editor). Focusing in the same frame loses that race — the box appears,
+    //    and the name the user types lands in their query instead. One frame
+    //    later the flyout is gone and the focus sticks.
+    private void OnTabRenameBoxAttached(object? sender, VisualTreeAttachmentEventArgs e)
+    {
+        if (sender is not TextBox box)
+        {
+            return;
+        }
+
+        box.PropertyChanged -= OnTabRenameBoxPropertyChanged;
+        box.PropertyChanged += OnTabRenameBoxPropertyChanged;
+
+        if (box.IsVisible)
+        {
+            FocusTabRenameBox(box);
+        }
+    }
+
+    private void OnTabRenameBoxPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
+    {
+        if (e.Property == IsVisibleProperty && sender is TextBox { IsVisible: true } box)
+        {
+            FocusTabRenameBox(box);
+        }
+    }
+
+    private static void FocusTabRenameBox(TextBox box) =>
+        Dispatcher.UIThread.Post(
+            () =>
+            {
+                // The tab may have left rename mode again before this ran.
+                if (box.IsVisible)
+                {
+                    box.Focus();
+                    box.SelectAll();
+                }
+            },
+            DispatcherPriority.Input);
+
+    private void OnTabRenameBoxKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (sender is not TextBox { DataContext: QueryViewModel tab })
+        {
+            return;
+        }
+
+        if (e.Key == Key.Enter)
+        {
+            tab.CommitRename();
+            e.Handled = true;
+            QueryEditor.FocusEditor();
+        }
+        else if (e.Key == Key.Escape)
+        {
+            tab.CancelRename();
+            e.Handled = true;
+            QueryEditor.FocusEditor();
+        }
+    }
+
+    // Clicking away commits, the way an in-place rename does everywhere else
+    // (Explorer, VS Code's explorer). Escape has already left rename mode by
+    // the time focus moves, so it can't be undone by this.
+    private void OnTabRenameBoxLostFocus(object? sender, RoutedEventArgs e)
+    {
+        if (sender is TextBox { DataContext: QueryViewModel tab })
+        {
+            tab.CommitRename();
+        }
     }
 
     // --- Tab-strip navigation extras -------------------------------------

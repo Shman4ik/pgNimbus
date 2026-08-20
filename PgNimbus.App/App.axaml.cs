@@ -329,6 +329,7 @@ public partial class App : Application
         viewModel.Connected += (dataSource, accentColor, tunnel) =>
         {
             var mainWindow = BuildMainWindow(dataSource, accentColor, tunnel);
+            CarryWindowState(dialog, mainWindow);
             mainWindow.Show();
             dialog.Close();
 
@@ -340,6 +341,38 @@ public partial class App : Application
         };
 
         return dialog;
+    }
+
+    /// <summary>
+    /// Opens the connected window in the display mode the user left the connect
+    /// form in. Connecting reads as one continuous act — the form is the app's
+    /// first screen, not a separate program — so a full-screen (macOS green
+    /// button) or maximized dialog must not hand off to a small window sitting
+    /// on the desktop behind it. Only ever *promotes*: a normal dialog leaves
+    /// the window on its own restored placement, which may itself be maximized.
+    /// </summary>
+    private static void CarryWindowState(Window from, Window to)
+    {
+        if (from.WindowState is not (WindowState.Maximized or WindowState.FullScreen) || from.WindowState == to.WindowState)
+        {
+            return;
+        }
+
+        var state = from.WindowState;
+        to.WindowState = state;
+
+        // macOS enters full screen through an animated Space transition that a
+        // window which has not been shown yet can drop; re-assert once it is up.
+        to.Opened += Reassert;
+
+        void Reassert(object? sender, EventArgs e)
+        {
+            to.Opened -= Reassert;
+            if (to.WindowState != state)
+            {
+                to.WindowState = state;
+            }
+        }
     }
 
     /// <summary>
