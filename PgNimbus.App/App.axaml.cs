@@ -190,6 +190,8 @@ public partial class App : Application
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            KeepRunningWithNoWindowsOnMac(desktop);
+
             var envConnectionString = Environment.GetEnvironmentVariable("PGNIMBUS_CONN");
             if (!string.IsNullOrWhiteSpace(envConnectionString))
             {
@@ -210,6 +212,71 @@ public partial class App : Application
     }
 
     /// <summary>
+    /// macOS only: closing the last window leaves the app running instead of
+    /// quitting it. Closing a window and quitting an app are two different
+    /// actions on macOS — the menu bar stays, the Dock icon stays, and clicking
+    /// that icon brings a window back (<see cref="ActivationKind.Reopen"/>).
+    /// Quitting is Cmd+Q / the app menu's Quit, which still works: the
+    /// platform's quit request reaches
+    /// <c>ClassicDesktopStyleApplicationLifetime</c> through its
+    /// <c>ShutdownRequested</c> hook, which doesn't consult
+    /// <see cref="ShutdownMode"/> — so does <c>Shutdown()</c>, which the crash
+    /// reporter and the startup probe call directly.
+    ///
+    /// Windows and Linux keep Avalonia's default <c>OnLastWindowClose</c>: a
+    /// windowless app in the background is a macOS idea, and elsewhere it would
+    /// read as "close did nothing".
+    /// </summary>
+    private void KeepRunningWithNoWindowsOnMac(IClassicDesktopStyleApplicationLifetime desktop)
+    {
+        if (!OperatingSystem.IsMacOS())
+        {
+            return;
+        }
+
+        desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+
+        if (TryGetFeature(typeof(IActivatableLifetime)) is IActivatableLifetime activatable)
+        {
+            activatable.Activated += (_, e) =>
+            {
+                if (e.Kind == ActivationKind.Reopen)
+                {
+                    ReopenWindow(desktop);
+                }
+            };
+        }
+    }
+
+    /// <summary>
+    /// The Dock icon was clicked. A window that merely sat behind something else
+    /// (or minimized) is what the user is asking for, so raise that; only when
+    /// every window is gone does the app need a fresh entry point, and that's
+    /// the connection dialog — the closed window's data source and SSH tunnel
+    /// went with it (see <see cref="BuildMainWindow(NpgsqlDataSource, string?, SshTunnel?)"/>),
+    /// so there is nothing to resurrect.
+    /// </summary>
+    private static void ReopenWindow(IClassicDesktopStyleApplicationLifetime desktop)
+    {
+        if (desktop.Windows.Count > 0)
+        {
+            var existing = desktop.Windows.FirstOrDefault(w => w.IsActive) ?? desktop.Windows[0];
+            if (existing.WindowState == WindowState.Minimized)
+            {
+                existing.WindowState = WindowState.Normal;
+            }
+
+            existing.Show();
+            existing.Activate();
+            return;
+        }
+
+        var dialog = BuildConnectionDialog(desktop);
+        desktop.MainWindow = dialog;
+        dialog.Show();
+    }
+
+    /// <summary>
     /// Builds the connection-profile picker. Used for three flows:
     /// startup (as <see cref="IClassicDesktopStyleApplicationLifetime.MainWindow"/>,
     /// no <paramref name="previousWindow"/>, default <paramref name="replaceMainWindow"/>),
@@ -223,11 +290,14 @@ public partial class App : Application
     /// and <see cref="IClassicDesktopStyleApplicationLifetime.MainWindow"/> itself
     /// — untouched; the new window simply joins them. Only the startup flow
     /// passes <paramref name="autoConnect"/>, and even then the dialog only
-    /// connects on its own if the user turned the preference on.
-    /// There is no explicit
-    /// <c>ShutdownMode</c> set, so Avalonia's default <c>OnLastWindowClose</c>
-    /// applies: the app keeps running until every window (whichever one that is)
-    /// has closed.
+    /// connects on its own if the user turned the preference on. A fourth caller
+    /// is <see cref="ReopenWindow"/>, the macOS Dock-icon route back in.
+    ///
+    /// <c>ShutdownMode</c> is Avalonia's default <c>OnLastWindowClose</c> on
+    /// Windows and Linux — the app keeps running until every window (whichever
+    /// one that is) has closed — and <c>OnExplicitShutdown</c> on macOS, where
+    /// closing the last window is not quitting (see
+    /// <see cref="KeepRunningWithNoWindowsOnMac"/>).
     ///
     /// Note: two windows connected to the same host/database each own a
     /// separate in-memory workspace snapshot but save under the same
