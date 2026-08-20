@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Documents;
 using Avalonia.Data;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
@@ -18,8 +19,9 @@ namespace PgNimbus.App;
 /// binding has to be attached per generated element.
 /// The column also renders type-aware: given its resolved
 /// <see cref="PgTypeCategory"/> it right-aligns and mono-fonts numeric cells
-/// (so digits line up) and shows a ✓/✗ glyph for booleans instead of the
-/// literal "true"/"false" — for every result set, not just editable ones.
+/// (so digits line up) and draws a centered check/cross icon for booleans
+/// instead of the literal "true"/"false" — for every result set, not just
+/// editable ones.
 /// When the result maps to an editable table, the column also knows its
 /// Postgres type (via <paramref name="editorMeta"/>) and generates a
 /// type-appropriate cell editor: a dropdown of pg_enum labels for enum
@@ -33,6 +35,10 @@ public sealed class ResultTextColumn : DataGridTextColumn
     // Shared numeric font — the same mono stack the SQL editor/inspector use, so
     // digits line up column-to-column under the right-aligned numeric cells.
     private static readonly FontFamily MonoFont = new("Cascadia Code,Consolas,Menlo,monospace");
+
+    // Drawn at roughly cap height so the icon reads as one line of text rather
+    // than as a control sitting inside the row.
+    private const double BoolIconSize = 13;
 
     private readonly int _index;
     private readonly ColumnDetail? _editorMeta;
@@ -65,18 +71,10 @@ public sealed class ResultTextColumn : DataGridTextColumn
         Justification = "Pathless binding uses a converter only; no dynamic code.")]
     protected override Control GenerateElement(DataGridCell cell, object dataItem)
     {
-        // Boolean cells read as a ✓/✗ glyph rather than "true"/"false" — its own
-        // TextBlock (bound through the glyph converter), centered.
+        // Boolean cells read as a check/cross icon rather than "true"/"false".
         if (_category == PgTypeCategory.Boolean)
         {
-            var glyph = new TextBlock
-            {
-                TextAlignment = TextAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Stretch,
-            };
-            glyph.Bind(TextBlock.TextProperty, new Binding { Converter = new BoolCellGlyphConverter(_index) });
-            glyph.Bind(Visual.OpacityProperty, new Binding { Converter = new NullCellOpacityConverter(_index) });
-            return glyph;
+            return GenerateBooleanElement();
         }
 
         var element = base.GenerateElement(cell, dataItem);
@@ -94,6 +92,50 @@ public sealed class ResultTextColumn : DataGridTextColumn
         }
 
         return element;
+    }
+
+    /// <summary>
+    /// The check/cross icon and the "NULL" placeholder share one cell: exactly
+    /// one of them ever has content, so they overlap in a single-cell Panel and
+    /// both centre themselves in it. The icon is a drawn geometry rather than a
+    /// ✓/✗ text glyph because those two dingbats resolve to different fallback
+    /// fonts on most platforms, which left the cross riding high above the row's
+    /// centre while the check sat on the text baseline.
+    /// </summary>
+    // Pathless converter bindings, same as GenerateElement's — no reflection.
+    [UnconditionalSuppressMessage("Trimming", "IL2026",
+        Justification = "Pathless binding uses a converter only; no reflection member access.")]
+    [UnconditionalSuppressMessage("AOT", "IL3050",
+        Justification = "Pathless binding uses a converter only; no dynamic code.")]
+    private Control GenerateBooleanElement()
+    {
+        var icon = new Avalonia.Controls.Shapes.Path
+        {
+            Width = BoolIconSize,
+            Height = BoolIconSize,
+            Stretch = Stretch.Uniform,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        icon.Bind(Avalonia.Controls.Shapes.Path.DataProperty, new Binding
+        {
+            Converter = new BoolCellIconConverter(_index),
+        });
+        // Shape.Fill is not an inherited property, so take the cell's text
+        // colour (which the row's selected/unselected states retint) explicitly.
+        icon.Bind(Avalonia.Controls.Shapes.Shape.FillProperty, icon.GetObservable(TextElement.ForegroundProperty));
+
+        var text = new TextBlock
+        {
+            TextAlignment = TextAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        text.Bind(TextBlock.TextProperty, new Binding { Converter = new BoolCellTextConverter(_index) });
+
+        var cell = new Panel { Children = { icon, text } };
+        cell.Bind(Visual.OpacityProperty, new Binding { Converter = new NullCellOpacityConverter(_index) });
+        return cell;
     }
 
     protected override Control GenerateEditingElementDirect(DataGridCell cell, object dataItem)

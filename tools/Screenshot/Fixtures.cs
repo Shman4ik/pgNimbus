@@ -200,8 +200,9 @@ public static class Fixtures
             new("customer", "text", typeof(string), TableOid, 2),
             new("status", "order_status", typeof(string), TableOid, 3),
             new("total", "numeric", typeof(decimal), TableOid, 4),
-            new("metadata", "jsonb", typeof(string), TableOid, 5),
-            new("placed_at", "timestamp with time zone", typeof(DateTime), TableOid, 6),
+            new("paid", "boolean", typeof(bool), TableOid, 5),
+            new("metadata", "jsonb", typeof(string), TableOid, 6),
+            new("placed_at", "timestamp with time zone", typeof(DateTime), TableOid, 7),
         ];
 
         var statuses = new[] { "shipped", "pending", "cancelled", "shipped", "paid" };
@@ -223,6 +224,9 @@ public static class Fixtures
                 names[i],
                 statuses[i % statuses.Length],
                 decimal.Round(18.5m + i * 37.25m, 2),
+                // true / false / NULL in turn, so the boolean column's check,
+                // cross and NULL placeholder all appear in the screenshots.
+                i % 3 == 2 ? null : (object)(i % 3 == 0),
                 $$"""{"channel": "web", "coupon": {{(i % 3 == 0 ? "\"SUMMER26\"" : "null")}}}""",
                 placed.AddMinutes(-7 * i),
             ]);

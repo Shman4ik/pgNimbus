@@ -1,5 +1,7 @@
 using System.Globalization;
+using Avalonia;
 using Avalonia.Data.Converters;
+using Avalonia.Media;
 using PgNimbus.Core.Schema;
 
 namespace PgNimbus.App.Converters;
@@ -77,27 +79,68 @@ public sealed class RowIndexConverter : IValueConverter
 }
 
 /// <summary>
-/// Renders a boolean cell as a ✓/✗ glyph instead of the literal "true"/"false"
-/// text, so a boolean column reads at a glance. SQL NULL keeps the same "NULL"
-/// placeholder every other column uses (dimmed via <see cref="NullCellOpacityConverter"/>).
+/// Renders a boolean cell as the app's own check/close icon geometry instead of
+/// the literal "true"/"false" text, so a boolean column reads at a glance.
+/// Drawn rather than typed: the ✓/✗ dingbats (U+2713/U+2717) are not carried by
+/// one font on every platform — Inter has the check and not the cross — so the
+/// pair fell back to different fonts and sat at visibly different heights in the
+/// row. Two geometries from the same icon set share one box and one baseline.
+/// Returns null for anything that is not a bool (SQL NULL, or a surprise value);
+/// <see cref="BoolCellTextConverter"/> covers those cases with text.
 /// </summary>
-public sealed class BoolCellGlyphConverter : IValueConverter
+public sealed class BoolCellIconConverter : IValueConverter
 {
-    public const string True = "✓";  // ✓
-    public const string False = "✗";  // ✗
+    // UI-thread only (cells are generated and rendered there), so a plain
+    // lazily-filled cache is fine.
+    private static Geometry? _check;
+    private static Geometry? _cross;
+    private static bool _resolved;
 
     private readonly int _index;
 
-    public BoolCellGlyphConverter(int index) => _index = index;
+    public BoolCellIconConverter(int index) => _index = index;
+
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        value is object?[] row && _index < row.Length && row[_index] is bool b ? Icon(b) : null;
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        throw new NotSupportedException();
+
+    private static Geometry? Icon(bool value)
+    {
+        if (!_resolved)
+        {
+            _resolved = true;
+            _check = Find("CheckIconGeometry");
+            _cross = Find("CloseIconGeometry");
+        }
+
+        return value ? _check : _cross;
+    }
+
+    private static Geometry? Find(string key) =>
+        Application.Current is { } app && app.TryGetResource(key, null, out var resource)
+            ? resource as Geometry
+            : null;
+}
+
+/// <summary>
+/// The text half of a boolean cell: the shared "NULL" placeholder for SQL NULL
+/// and, defensively, the text form of a value a boolean column should never
+/// hold. Empty for a real bool — <see cref="BoolCellIconConverter"/> draws that.
+/// </summary>
+public sealed class BoolCellTextConverter : IValueConverter
+{
+    private readonly int _index;
+
+    public BoolCellTextConverter(int index) => _index = index;
 
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
         value is object?[] row && _index < row.Length
             ? row[_index] switch
             {
                 null => RowIndexConverter.NullPlaceholder,
-                bool b => b ? True : False,
-                // A boolean column should only ever hold bool/null, but never
-                // throw on a surprise value — show its text form.
+                bool => string.Empty,
                 var other => other.ToString(),
             }
             : null;
