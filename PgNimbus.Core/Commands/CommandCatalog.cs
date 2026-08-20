@@ -184,6 +184,17 @@ public static class CommandCatalog
             Glyph = "✕",
             Surfaces = PaletteOnly,
         },
+        // Renaming is a tab-strip verb like the closes: no chord (F2 is the
+        // results grid's cell edit), reachable from the strip's right-click menu
+        // and the palette.
+        new()
+        {
+            Id = CommandId.RenameTab,
+            Title = "Rename tab",
+            Category = CommandCategory.Tabs,
+            Glyph = "✎",
+            Surfaces = PaletteOnly,
+        },
         new()
         {
             Id = CommandId.NextTab,

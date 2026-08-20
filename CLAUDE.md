@@ -267,6 +267,17 @@ Three rules about it:
    filtered by it: the tree and the command palette still show everything, which
    is why the toggle rebuilds only the completion cache instead of running the
    full `RefreshSchemaAsync` (which would collapse the tree).
+   **Completion ranks by what can legally be typed at the caret**, and the
+   statement-start caret is its own context (2026-08):
+   `SqlCompletionContext.IsAtStatementStart` (Core-pure, unit-tested) is true
+   when nothing but whitespace, comments and the previous statement's `;`
+   precedes the word being typed, and `SqlCompletionProvider` then prepends its
+   `StatementStartKeywords` at a priority band above everything else, each
+   ranked by its position in that list. Without it, typing `se` in an empty
+   editor pre-selected a `search` column three schemas away: `CompletionRanker`
+   breaks a fuzzy-score tie by priority, and keywords used to carry the
+   *lowest* band of all (0, under catalog columns at 5), so SELECT lost to any
+   same-prefixed column and — being longer — even to SET.
 2. **Double-click triggers the default action.** Anywhere a list/tree item
    has an obvious primary action, double-clicking it must perform that
    action: schema-tree table → browse, function → source, saved query /
@@ -325,19 +336,41 @@ Three rules about it:
    tab strip reorders by dragging (live, browser-style — pointer handlers in
    `MainWindow.axaml.cs`; the order persists via the workspace snapshot, which
    serializes `Tabs` in collection order). Right-clicking a tab opens a
-   three-item flyout — Close / Close others / Close to the right — built and
-   shown from `MainWindow.OnTabStripContextRequested` (code, not XAML: the
+   four-item flyout — Rename… / Close / Close others / Close to the right —
+   built and shown from `MainWindow.OnTabStripContextRequested` (code, not XAML: the
    handler has to resolve the clicked `ListBoxItem` and re-target the menu
    before it opens, and a `ContextFlyout` on the strip would also fire on its
-   empty space). Deliberately just the close family, and only the two verbs a
-   tab bar can't express by pointing at one tab — the strip's own ✕, its ▾
+   empty space). Deliberately rename plus the close family, and of the closes
+   only the two verbs a tab bar can't express by pointing at one tab — the strip's own ✕, its ▾
    finder and drag-reorder cover the rest. Right-click also makes the clicked
    tab active (VS / Notepad++ do the same) so the verbs read against what the
    user is looking at, and the bulk pair is in the catalog as `CloseOtherTabs`
    / `CloseTabsToTheRight` (palette-only, no chord — three tab commands
    already own one), so the palette reaches them too, acting on the active
-   tab. The ☰ button (top-left, 2026-07)
-   opens the one discoverable menu for file/tab-level commands: New tab,
+   tab. **Rename** (2026-08) is `CommandId.RenameTab`, palette-only for the
+   same reason (F2 is the results grid's cell edit) and edited **in place** in
+   the strip: `QueryViewModel.IsRenaming` swaps the label for a `TextBox`,
+   Enter/focus-loss commits and Escape drops it. Two traps behind
+   `OnTabRenameBoxAttached`, both of which produce a box nobody can type into:
+   `IsVisible="False"` leaves a control *in* the visual tree, so attachment
+   fires when the tab's container is realized and never again — focus has to
+   follow the visibility flip; and the flyout the rename starts from restores
+   focus to the SQL editor as it closes, so the focus call must be posted a
+   frame later or the new name lands in the user's query.
+   **Closing the last tab empties it** rather than being refused
+   (Notepad++): `CloseTab` creates the replacement scratch tab *before*
+   removing the old one, so the strip is never momentarily empty and no
+   binding sees a null `ActiveTab`.
+   **A tab's name is either a label or an override, and the difference is the
+   bug this fixed**: `QueryViewModel.TitleOverride` is for names a *person*
+   chose (the backing file, a saved query, a rename) and survives every later
+   edit; `DefaultTitle` is the fallback an app-assigned label uses (browse's
+   table name, `x · source`, `s · new table`, "Imported plan"), so it yields
+   to the SQL-derived name the moment the buffer says something else. Browsing
+   `customers` and then typing a query against `products` used to leave the
+   tab named `customers` forever, because the label had been written as an
+   override. Only `TitleOverride` rides the workspace snapshot.
+   The ☰ button (top-left, 2026-07) opens the one discoverable menu for file/tab-level commands: New tab,
    Open .sql / Open recent, Save / Save as, Close tab, Switch connection,
    New window, Preferences, **Keyboard shortcuts and About pgNimbus**. Those last
    two were reachable only from the macOS native menu (About) or a single unlabelled
@@ -525,6 +558,17 @@ Three rules about it:
   bar (`BuildMacNativeMenu`) is the file-command home there, so it would be a
   second copy of the same commands. The sidebar toggle icon is platform-picked
   via `{OnPlatform}` (SF-style geometry on macOS).
+- **The connected window opens in the display mode the connect form was left
+  in (2026-08).** `App.CarryWindowState`, called from the dialog's `Connected`
+  handler before `Show()`. Connecting reads as one continuous act — the form is
+  the app's first screen, not a separate program — so a full-screen (macOS
+  green button) or maximized dialog handing off to a small window on the
+  desktop behind it reads as the app losing the user's place. It only ever
+  *promotes*: a normal-state dialog leaves the window on its own restored
+  placement (`WindowPlacementPersistence`, which may itself be maximized).
+  macOS enters full screen through an animated Space transition that a window
+  which has not been shown yet can drop, so the state is re-asserted once from
+  `Opened`.
 - **macOS: closing the last window does not quit the app (2026-08).** Closing a
   window and quitting are two separate actions there, and the app that exits
   when its last window closes is the one Mac users report as a bug. So

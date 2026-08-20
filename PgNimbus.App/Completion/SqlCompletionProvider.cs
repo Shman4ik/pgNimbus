@@ -48,6 +48,20 @@ public sealed class SqlCompletionProvider
         "KEY", "REFERENCES", "CASCADE", "IF",
     ];
 
+    // What can legally open a statement, ordered by how often one actually does.
+    // Only consulted at a statement-start caret (see SqlCompletionContext.
+    // IsAtStatementStart); the order is the ranking, so SELECT outranks SET on a
+    // typed "se" even though SET is the shorter match. A few of these aren't in
+    // Keywords above (they're only ever leading words) — the rest dedupe against
+    // it, the boosted copy winning because it is prepended.
+    private static readonly string[] StatementStartKeywords =
+    [
+        "SELECT", "WITH", "INSERT", "UPDATE", "DELETE", "CREATE", "ALTER",
+        "DROP", "EXPLAIN", "TRUNCATE", "BEGIN", "COMMIT", "ROLLBACK", "SET",
+        "SHOW", "ANALYZE", "VACUUM", "REFRESH", "COMMENT", "GRANT", "REVOKE",
+        "COPY", "CALL", "DO",
+    ];
+
     // Everyday Postgres functions, curated rather than read from pg_proc — the
     // full catalog is thousands of overloads of noise. Inserted as "name()"
     // with the caret placed between the parens (see SqlCompletionData.Complete).
@@ -96,6 +110,12 @@ public sealed class SqlCompletionProvider
     // sit far above the rest so a match among them wins pre-selection; the base
     // bands only order ties within the catalog-wide list.
     private const double JoinConditionPriority = 200;
+    // Statement-start keywords (SELECT, INSERT, WITH …) at a caret where nothing
+    // else is grammatical. Above the current statement's own columns because at
+    // that caret there is no statement yet — and each keyword's own rank falls
+    // by its position in StatementStartKeywords, so "se" preselects SELECT
+    // rather than the shorter SET.
+    private const double StatementKeywordPriority = 120;
     private const double CurrentColumnPriority = 100;
     private const double AliasPriority = 90;
     private const double FkTablePriority = 15;
@@ -264,7 +284,7 @@ public sealed class SqlCompletionProvider
             SqlClause.JoinTableRef => GetJoinTableRefCompletions(sql),
             SqlClause.Predicate when SqlCompletionContext.IsAfterOnKeyword(sql, caretOffset) => GetJoinConditionCompletions(sql),
             SqlClause.Predicate => GetPredicateCompletions(sql),
-            _ => GetGeneralCompletions(sql),
+            _ => GetGeneralCompletions(sql, SqlCompletionContext.IsAtStatementStart(sql, caretOffset)),
         };
     }
 
@@ -329,6 +349,13 @@ public sealed class SqlCompletionProvider
     // they're boosted to the top instead of the flat table/keyword dump.
     private IReadOnlyList<SqlCompletionData> GetJoinKeywordCompletions(string sql) =>
         BuildTableRefCompletions(sql, JoinKeywordBoostItems);
+
+    // Ranked copies of StatementStartKeywords: priority falls by one per position
+    // so the list's own order decides ties among equally-good prefix matches.
+    private static readonly IReadOnlyList<SqlCompletionData> StatementStartItems =
+        StatementStartKeywords
+            .Select((keyword, index) => new SqlCompletionData(keyword, SqlCompletionKind.Keyword, keyword, StatementKeywordPriority - index))
+            .ToList();
 
     private static readonly IReadOnlyList<SqlCompletionData> JoinKeywordBoostItems =
     [
@@ -396,11 +423,20 @@ public sealed class SqlCompletionProvider
 
     // Bare identifier: the whole catalog, with the columns of the statement's
     // tables hoisted to the front (and top priority) so the statement's own
-    // columns win, plus its aliases and CTE names.
-    private IReadOnlyList<SqlCompletionData> GetGeneralCompletions(string sql)
+    // columns win, plus its aliases and CTE names. At a statement-start caret the
+    // leading keywords go in front of even those — nothing else can be typed
+    // there, and a same-prefix column would otherwise take the pre-selection.
+    private IReadOnlyList<SqlCompletionData> GetGeneralCompletions(string sql, bool atStatementStart)
     {
         var items = CollectStatementItems(sql, out _);
         items.AddRange(_baseItems);
+        if (atStatementStart)
+        {
+            // Prepended, so the dedupe below keeps these ranked copies over the
+            // flat-priority ones already in _baseItems.
+            items.InsertRange(0, StatementStartItems);
+        }
+
         return Dedupe(items);
     }
 

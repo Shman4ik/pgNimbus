@@ -288,7 +288,16 @@
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="vm:QueryViewModel">
                             <StackPanel Orientation="Horizontal" Spacing="4">
-                                <TextBlock Text="{Binding TabTitle}" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding TabTitle}" VerticalAlignment="Center"
+                                           IsVisible="{Binding !IsRenaming}" />
+                                <!-- Inline rename (tab menu / palette): the label is swapped for an
+                                     edit box in place, committed on Enter or focus loss, dropped on Escape -->
+                                <TextBox Text="{Binding RenameText, Mode=TwoWay}" IsVisible="{Binding IsRenaming}"
+                                         MinWidth="80" MaxWidth="220" Padding="4,0" Margin="0,-2"
+                                         VerticalAlignment="Center" VerticalContentAlignment="Center"
+                                         AttachedToVisualTree="OnTabRenameBoxAttached"
+                                         KeyDown="OnTabRenameBoxKeyDown"
+                                         LostFocus="OnTabRenameBoxLostFocus" />
                                 <!-- Dirty-state dot: SQL edited since last run -->
                                 <Ellipse Width="6" Height="6" VerticalAlignment="Center"
                                          Fill="{DynamicResource AppAccentBrush}"

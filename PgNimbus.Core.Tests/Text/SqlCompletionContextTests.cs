@@ -275,6 +275,28 @@ public class SqlCompletionContextTests
         await Assert.That(names).IsEquivalentTo(new[] { "tree" });
     }
 
+    // --- IsAtStatementStart: the caret where only a leading keyword fits ---
+
+    [Test]
+    [Arguments("|", true)]
+    [Arguments("se|", true)]
+    [Arguments("   |", true)]
+    [Arguments("\n\n  se|", true)]
+    [Arguments("-- a note\nse|", true)]
+    [Arguments("/* banner */ |", true)]
+    [Arguments("SET search_path = public; se|", true)]
+    [Arguments("SET search_path = public;\n\n|", true)]
+    [Arguments("SELECT |", false)]
+    [Arguments("SELECT * FROM orders WHERE se|", false)]
+    [Arguments("SELECT se|", false)]
+    [Arguments("SELECT ';' se|", false)]
+    [Arguments("-- ends with ; se|", true)]
+    public async Task IsAtStatementStart(string marked, bool expected)
+    {
+        var (sql, caret) = AtCaret(marked);
+        await Assert.That(SqlCompletionContext.IsAtStatementStart(sql, caret)).IsEqualTo(expected);
+    }
+
     // --- GetQualifierBeforeCaret ---
 
     [Test]

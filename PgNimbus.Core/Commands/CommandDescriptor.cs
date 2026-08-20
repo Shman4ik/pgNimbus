@@ -26,6 +26,7 @@ public enum CommandId
     CloseTab,
     CloseOtherTabs,
     CloseTabsToTheRight,
+    RenameTab,
     NextTab,
     PreviousTab,
     GoToTabByNumber,

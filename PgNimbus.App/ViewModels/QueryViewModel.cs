@@ -130,17 +130,67 @@ public sealed partial class QueryViewModel : ObservableObject
     [ObservableProperty]
     private string _tabTitle = "Query";
 
-    /// <summary>Fallback tab label ("Query N") used when the SQL names no table to derive a title from.</summary>
+    /// <summary>
+    /// Fallback tab label used when the SQL names no table to derive a title
+    /// from: "Query N" for a scratch tab, or the label of whatever opened the
+    /// tab ("customers", "orders · source", "public · new table"). Deliberately
+    /// a *fallback* and not an override — a label describes the content the tab
+    /// was opened with, so replacing that content with a different query must
+    /// rename the tab after the new one instead of leaving the old object's
+    /// name on a tab that no longer has anything to do with it.
+    /// </summary>
     [ObservableProperty]
     private string _defaultTitle = "Query";
 
     /// <summary>
     /// A fixed tab label that wins over both the SQL-derived name and
-    /// <see cref="DefaultTitle"/> — set for special tabs (e.g. an object's
-    /// reconstructed source) whose SQL wouldn't name them sensibly.
+    /// <see cref="DefaultTitle"/>. Reserved for names a *person* chose — the
+    /// backing file's name, a saved query's title, an explicit rename — which
+    /// is why it survives every later edit to the buffer. It is what the
+    /// workspace snapshot persists.
     /// </summary>
     [ObservableProperty]
     private string? _titleOverride;
+
+    /// <summary>
+    /// True while this tab's strip entry shows its inline rename box instead of
+    /// its label. Driven by <see cref="BeginRename"/> (the tab menu's Rename and
+    /// the palette command); the view swaps the two and focuses the box.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isRenaming;
+
+    /// <summary>The rename box's buffer — seeded from the live title, applied on commit.</summary>
+    [ObservableProperty]
+    private string _renameText = "";
+
+    /// <summary>Opens the inline rename box, pre-filled with the name showing now.</summary>
+    public void BeginRename()
+    {
+        RenameText = TabTitle;
+        IsRenaming = true;
+    }
+
+    /// <summary>
+    /// Applies the rename box's text as this tab's name. A blank entry clears
+    /// the custom name rather than leaving a nameless tab: the label goes back
+    /// to being derived from the SQL (or "Query N"), which is also how a
+    /// rename is undone.
+    /// </summary>
+    public void CommitRename()
+    {
+        if (!IsRenaming)
+        {
+            return;
+        }
+
+        IsRenaming = false;
+        var name = RenameText.Trim();
+        TitleOverride = name.Length == 0 ? null : name;
+    }
+
+    /// <summary>Dismisses the rename box, leaving the name as it was.</summary>
+    public void CancelRename() => IsRenaming = false;
 
     /// <summary>
     /// True when the tab's content diverges from its dirty baseline —

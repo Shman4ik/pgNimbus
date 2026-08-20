@@ -349,6 +349,45 @@ public static partial class SqlCompletionContext
     }
 
     /// <summary>
+    /// True when the caret — ignoring the identifier being typed under it —
+    /// sits where a new statement begins: nothing before it in the buffer but
+    /// whitespace, comments, and the previous statement's <c>;</c>. That is the
+    /// one position where only a leading keyword (SELECT, INSERT, WITH …) is
+    /// grammatical, so completion floats those above the catalog there instead
+    /// of pre-selecting whatever column happens to share the typed prefix
+    /// (typing "se" at the start of an empty editor must preselect SELECT, not
+    /// a <c>search</c> column three schemas away).
+    /// </summary>
+    public static bool IsAtStatementStart(string sql, int caret)
+    {
+        var i = Math.Clamp(caret, 0, sql.Length);
+
+        // Skip back over the (possibly empty) word currently being typed — it's
+        // the completion filter, not context, exactly as GetCaretContext does.
+        while (i > 0 && IsIdentPart(sql[i - 1]))
+        {
+            i--;
+        }
+
+        // Comments and literals are blanked so a leading "-- note" line (or a
+        // ';' inside a string) can't be read as code.
+        var masked = MaskCommentsAndStrings(sql);
+        while (i > 0)
+        {
+            var c = masked[i - 1];
+            if (char.IsWhiteSpace(c))
+            {
+                i--;
+                continue;
+            }
+
+            return c == ';';
+        }
+
+        return true;
+    }
+
+    /// <summary>
     /// If the caret sits in the member position of a <c>qualifier.partial</c>
     /// expression (e.g. the caret in <c>u.na|</c> or right after <c>u.|</c>),
     /// returns the qualifier — the alias/table/schema immediately before the dot,
