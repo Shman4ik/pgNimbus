@@ -23,17 +23,24 @@ be allowed to `CREATE EXTENSION`.
 
 ## Running it
 
-Point it at any PostgreSQL 14+ database (a throwaway local DB, a Docker
-`postgres`, or a hosted one like Neon). **It drops and recreates the demo
+Point it at any PostgreSQL 14+ database (a throwaway local DB, a `postgres`
+container, or a hosted one like Neon). **It drops and recreates the demo
 schemas and the `public.*` demo tables**, so use a database you don't mind
 overwriting.
+
+A throwaway local Postgres, via WSL's built-in `wslc.exe` (no Docker Desktop
+needed — ships with WSL 2.9.3+):
+
+```powershell
+wslc run -d --rm --name pgnimbus-demo -e POSTGRES_PASSWORD=postgres -p 55432:5432 postgres:17
+```
 
 ```bash
 # macOS / Linux
 ./seed.sh "postgres://user:pass@host:5432/dbname?sslmode=require"
 
 # Windows / PowerShell
-./seed.ps1 "postgres://user:pass@host:5432/dbname?sslmode=require"
+./seed.ps1 "postgres://postgres:postgres@localhost:55432/postgres"
 ```
 
 Omit the argument to fall back to libpq's `PG*` environment variables
