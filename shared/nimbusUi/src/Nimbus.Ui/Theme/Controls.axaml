@@ -207,19 +207,30 @@
         <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
 
+    <!-- Fluent's ControlTheme also paints checked-state Foreground on the inner
+         PART_ContentPresenter (ToggleButtonForegroundChecked, meant for its own
+         solid accent-filled background). That Template-priority setter outranks
+         the plain Foreground above, so without pinning it here the pill renders
+         Fluent's near-white checked text over our translucent AppSelectionBrush
+         wash instead of AppAccentBrush - low-contrast, barely-legible text
+         (see the "Auto" toggle in the Activity window). Same fix as the
+         Background/BorderBrush pins below. -->
     <Style Selector="ToggleButton.soft:checked /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
         <Setter Property="BorderBrush" Value="{StaticResource AppAccentBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource AppAccentBrush}" />
     </Style>
 
     <Style Selector="ToggleButton.soft:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
         <Setter Property="BorderBrush" Value="{StaticResource AppAccentBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource AppAccentBrush}" />
     </Style>
 
     <Style Selector="ToggleButton.soft:checked:pressed /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
         <Setter Property="BorderBrush" Value="{StaticResource AppAccentBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource AppAccentBrush}" />
     </Style>
 
     <Style Selector="ToggleButton.soft:disabled">
