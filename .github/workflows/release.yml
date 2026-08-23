@@ -124,6 +124,13 @@ jobs:
         with:
           name: windows-msi
           path: pgNimbus-${{ env.VERSION }}-win-x64.msi
+          # Handed straight to the "release" job below, which publishes it as a
+          # GitHub Release asset — and Release assets do not count against the
+          # Actions storage allowance. So this copy is a same-run hand-off, not
+          # a keepsake; the 90-day default kept a second copy of every package
+          # ever built. A workflow_dispatch test run (no "release" job) still
+          # leaves it downloadable for the rest of the day.
+          retention-days: 1
 
       - name: Build MSIX (for Microsoft Store submission)
         # Self-signed for upload only — Store re-signs with its own trusted
@@ -143,6 +150,12 @@ jobs:
         with:
           name: windows-msix
           path: pgNimbus-${{ env.VERSION }}-win-x64.msix
+          # The one build artifact with no Release asset behind it: Partner Center
+          # submission is a manual download-and-upload step (see CLAUDE.md,
+          # "Microsoft Store (MSIX)"), so it has to outlive the run. Two weeks is
+          # long enough for that and short enough that a ~25 MB package is not
+          # held 90 days per release.
+          retention-days: 14
 
       # winget manifests are rendered right here rather than in a separate
       # job: the MSI and its SHA256 are already at hand, so this saves a
@@ -166,6 +179,8 @@ jobs:
         with:
           name: winget-manifests
           path: winget-manifests.zip
+          # Same-run hand-off to "release" (see windows-msi above).
+          retention-days: 1
 
   build-macos:
     # Apple Silicon only: GitHub retired the last Intel macOS runner image
@@ -260,6 +275,8 @@ jobs:
         with:
           name: macos-dmg-arm64
           path: dist/*.dmg
+          # Same-run hand-off to "release" (see windows-msi above).
+          retention-days: 1
 
   build-linux:
     strategy:
@@ -350,11 +367,15 @@ jobs:
         with:
           name: sbom
           path: sbom/*.cdx.json
+          # Same-run hand-off to "release" (see windows-msi above).
+          retention-days: 1
 
       - uses: actions/upload-artifact@v7
         with:
           name: linux-packages-${{ matrix.rid }}
           path: dist/*
+          # Same-run hand-off to "release" (see windows-msi above).
+          retention-days: 1
 
       # The raw x64 publish output feeds the benchmark job so it doesn't
       # repeat the slow NativeAOT publish. Tarred because upload-artifact
@@ -369,6 +390,8 @@ jobs:
         with:
           name: publish-linux-x64
           path: publish-linux-x64.tar.gz
+          # Consumed by the benchmark job in this same run and by nothing else.
+          retention-days: 1
 
   # The publish gate. Each build job smoke-launches its own artifacts before
   # uploading them, so "needs" already means "every package started and drew a

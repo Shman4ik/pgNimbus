@@ -1185,6 +1185,44 @@ automatically discoverable via winget's built-in `msstore` source with no
 separate winget submission. It's an *additional* channel, not a replacement
 for the direct MSI + `winget-pkgs` path above — the two coexist.
 
+### Actions storage is a 0.5 GB budget (2026-08)
+
+The account's included GitHub Actions storage is **0.5 GB**, and it is a
+*standing* budget, not a per-run one: an artifact counts for every day it
+stays alive. So **every `upload-artifact` must set `retention-days`** — the
+default is 90, and at 90 days this pipeline held ~6.8 GB (13x the allowance)
+in copies of things that were already stored for free somewhere else. Two
+rules keep it there:
+
+1. **An artifact that ships in the GitHub Release gets `retention-days: 1`.**
+   Release assets don't count against the Actions allowance, and the `release`
+   job consumes these in the same run — the artifact is a job-to-job hand-off,
+   not storage. That covers `windows-msi`, `macos-dmg-arm64`,
+   `linux-packages-*`, `sbom`, `winget-manifests`, and `publish-linux-x64`
+   (benchmark input). A day is still long enough for a human to grab a
+   `workflow_dispatch` test build, where the `release` job never runs.
+   `windows-msix` is the one exception at 14 days: Partner Center submission is
+   a manual download-and-upload, so it has to outlive the run.
+2. **Diagnostic artifacts upload on `failure()` only, for days not months.**
+   The CI `screenshots` artifact is worth looking at exactly when the visual
+   regression went red; on a green run it is a byte-for-byte re-render of
+   `tools/Screenshot/baselines/`, which is already in git. Pair the condition
+   with `if-no-files-found: ignore` — the usual failure is the render step
+   throwing, which leaves the directory empty, and a missing diagnostic must
+   not turn one red step into two.
+
+Retention is **not retroactive**: lowering it leaves already-uploaded artifacts
+on their original 90-day clock, so a change like this needs a one-time purge of
+the backlog (`gh api repos/OWNER/REPO/actions/artifacts` → `DELETE`) to actually
+free anything. The repo's default retention is set to 7 days as a backstop for
+uploads that forget rule 1.
+
+Runner *minutes* ride the same fix from the other side: every workflow that
+triggers on both `push` and `pull_request` keys its `concurrency` group on
+`github.event.pull_request.head.ref || github.ref`. Keyed on `github.ref` the
+two triggers land in different groups (`refs/heads/x` vs `refs/pull/N/merge`)
+and run the whole job twice for one commit — which is also two artifacts.
+
 ### Supply-chain proofs (2026-07)
 
 Unsigned binaries still get verifiable provenance, three layers:

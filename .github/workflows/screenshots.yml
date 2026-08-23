@@ -112,3 +112,7 @@ jobs:
         with:
           name: screenshots
           path: ${{ runner.temp }}/shots
+          # The PR this workflow opens is where these images actually get
+          # reviewed — the artifact is a fallback for the run where the push or
+          # the PR create failed. Days, not months.
+          retention-days: 7

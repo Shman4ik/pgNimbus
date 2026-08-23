@@ -100,6 +100,9 @@ jobs:
         with:
           name: bench-results
           path: bench-results/
+          # A few hundred bytes of JSON + summary; the trend that matters is
+          # appended to gh-pages below and outlives the artifact.
+          retention-days: 14
 
       # Real tag-triggered releases append to the benchmark history on
       # gh-pages (./dev/bench), which renders per-metric trend charts.
