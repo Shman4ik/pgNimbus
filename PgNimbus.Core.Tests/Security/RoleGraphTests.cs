@@ -32,13 +32,13 @@ public class RoleGraphTests
             [Edge("app", "readers")]);
 
         var memberOf = graph.MemberOf("app");
-        await Assert.That(memberOf).HasCount(1);
+        await Assert.That(memberOf).Count().IsEqualTo(1);
         await Assert.That(memberOf[0].Role).IsEqualTo("readers");
         await Assert.That(memberOf[0].Inherits).IsTrue();
         await Assert.That(memberOf[0].Children).IsEmpty();
 
         var members = graph.Members("readers");
-        await Assert.That(members).HasCount(1);
+        await Assert.That(members).Count().IsEqualTo(1);
         await Assert.That(members[0].Role).IsEqualTo("app");
 
         await Assert.That(string.Join('|', graph.InheritedGroups("app"))).IsEqualTo("readers");
@@ -85,7 +85,7 @@ public class RoleGraphTests
 
         // The relationship still exists and the tree has to show it.
         var memberOf = graph.MemberOf("app");
-        await Assert.That(memberOf).HasCount(1);
+        await Assert.That(memberOf).Count().IsEqualTo(1);
         await Assert.That(memberOf[0].Role).IsEqualTo("ops");
         await Assert.That(memberOf[0].Inherits).IsFalse();
     }
@@ -202,7 +202,7 @@ public class RoleGraphTests
             [Role("app"), Role("readers")],
             [Edge("app", "readers"), Edge("app", "readers")]);
 
-        await Assert.That(graph.MemberOf("app")).HasCount(1);
-        await Assert.That(graph.InheritedGroups("app")).HasCount(1);
+        await Assert.That(graph.MemberOf("app")).Count().IsEqualTo(1);
+        await Assert.That(graph.InheritedGroups("app")).Count().IsEqualTo(1);
     }
 }

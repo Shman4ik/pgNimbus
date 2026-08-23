@@ -405,9 +405,10 @@ public sealed record RlsPolicyInfo(
 
 /// <summary>
 /// A table's RLS state plus its policies. <paramref name="BypassedByCurrentRole"/>
-/// is the footgun that makes RLS "work for me but not for the app": the table
-/// owner and any BYPASSRLS role never see the policies apply, unless the table
-/// is FORCE ROW LEVEL SECURITY.
+/// is the footgun that makes RLS "work for me but not for the app". The two
+/// bypass routes are not symmetric: a superuser or a BYPASSRLS role skips row
+/// security always, while the table's owner skips it only while the table is
+/// not FORCE ROW LEVEL SECURITY.
 /// </summary>
 public sealed record RlsTableState(
     string Schema,
