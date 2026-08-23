@@ -12,6 +12,15 @@ on:
 permissions:
   contents: read
 
+# A newer push supersedes whatever was still running for the same branch, so a
+# force-push burst leaves one run instead of five — and one screenshots
+# artifact instead of five. The head ref (not github.ref) is the key on
+# purpose: a branch push and the pull_request run of that same branch would
+# otherwise land in different groups and never cancel each other.
+concurrency:
+  group: ci-${{ github.event.pull_request.head.ref || github.ref }}
+  cancel-in-progress: true
+
 env:
   DOTNET_NOLOGO: "1"
   DOTNET_CLI_TELEMETRY_OPTOUT: "1"
@@ -98,10 +107,17 @@ jobs:
           "${{ runner.temp }}/screenshots"
           --baseline tools/Screenshot/baselines
 
-      # if: always() — the run above fails on a mismatch, and the diff images it
-      # just wrote are the whole point of looking at the artifact.
+      # if: failure() — on a mismatch the diff images the run just wrote are the
+      # whole point of looking at the artifact. On a green run they are, by
+      # definition, the committed baselines again, and nobody has ever
+      # downloaded them: uploading ~3 MB per push kept ~50 identical copies
+      # alive against a 0.5 GB Actions storage allowance. Kept short for the
+      # same reason — a visual diff is looked at while the PR is open or not
+      # at all.
       - uses: actions/upload-artifact@v7
-        if: always()
+        if: failure()
         with:
           name: screenshots
           path: ${{ runner.temp }}/screenshots
+          if-no-files-found: ignore
+          retention-days: 7
