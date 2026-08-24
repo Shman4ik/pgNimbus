@@ -167,8 +167,13 @@ public sealed class PrivilegeService
         // SecurableKind enum, never from user input.
         //
         // LEFT JOIN LATERAL, so an object whose ACL is NULL still yields one row
-        // carrying the owner and the is-default flag. The COALESCE to an empty
-        // aclitem[] keeps that from depending on aclexplode's strictness.
+        // carrying the owner and the is-default flag. The NULL is handed to
+        // aclexplode as-is: the function is strict, so it returns no rows and
+        // the outer join supplies the placeholder. Do not "defend" that with a
+        // COALESCE to an empty array -- an empty array literal is
+        // zero-dimensional and aclexplode rejects it outright with
+        // "ACL arrays must be one-dimensional", which turns every untouched
+        // object into an error.
         var sql = $"""
             SELECT pg_catalog.pg_get_userbyid(t.{ownerColumn}),
                    t.{aclColumn} IS NULL,
@@ -179,8 +184,7 @@ public sealed class PrivilegeService
                    a.privilege_type,
                    a.is_grantable
             FROM {catalog} t
-            LEFT JOIN LATERAL pg_catalog.aclexplode(
-                COALESCE(t.{aclColumn}, ARRAY[]::aclitem[])) a ON true
+            LEFT JOIN LATERAL pg_catalog.aclexplode(t.{aclColumn}) a ON true
             WHERE t.oid = @oid
             """;
 
