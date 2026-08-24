@@ -6,6 +6,7 @@ using PgNimbus.Core.Monitoring;
 using PgNimbus.Core.Notifications;
 using PgNimbus.Core.Query;
 using PgNimbus.Core.Schema;
+using PgNimbus.Core.Security;
 
 namespace PgNimbus.Screenshot;
 
@@ -57,6 +58,9 @@ public static class Fixtures
             new NotifyMonitorViewModel(new NotificationListener(dataSource)),
             new ActivityService(dataSource),
             new DatabaseStatsService(dataSource),
+            new RoleService(dataSource),
+            new PrivilegeService(dataSource),
+            new SecurityEditor(dataSource),
             new ImportService(dataSource),
             connectionHost: "localhost",
             connectionDatabase: "shop");

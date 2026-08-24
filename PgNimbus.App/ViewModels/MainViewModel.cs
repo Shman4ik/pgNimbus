@@ -3,11 +3,13 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PgNimbus.App.Completion;
+using PgNimbus.App.ViewModels.Security;
 using PgNimbus.Core.Commands;
 using PgNimbus.Core.Import;
 using PgNimbus.Core.Monitoring;
 using PgNimbus.Core.Query;
 using PgNimbus.Core.Schema;
+using PgNimbus.Core.Security;
 using PgNimbus.Core.Settings;
 
 namespace PgNimbus.App.ViewModels;
@@ -33,6 +35,9 @@ public sealed partial class MainViewModel : ObservableObject
 
     /// <summary>Backs the Database Overview window (sizes, cache-hit, scan usage, unused indexes).</summary>
     public DatabaseOverviewViewModel DatabaseOverview { get; }
+
+    /// <summary>Backs the Roles &amp; Permissions window (roles, grants, default privileges, RLS).</summary>
+    public SecurityViewModel Security { get; }
 
     /// <summary>COPY-based CSV/JSON loader behind the Import dialog (the view constructs the dialog's ViewModel from it).</summary>
     public ImportService Importer { get; }
@@ -66,6 +71,9 @@ public sealed partial class MainViewModel : ObservableObject
     public event Action? ActivityRequested;
     // Raised to open (or focus) the Database Overview window, which the view owns.
     public event Action? DatabaseOverviewRequested;
+
+    // Raised to open (or focus) the Roles & Permissions window.
+    public event Action? SecurityRequested;
     // Raised to collapse/restore the sidebar (the view owns the grid column).
     public event Action? SidebarToggleRequested;
     // Raised to open the "Open SQL file" picker; MainWindow owns the
@@ -216,6 +224,9 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void ShowDatabaseOverview() => DatabaseOverviewRequested?.Invoke();
 
+    [RelayCommand]
+    private void ShowSecurity() => SecurityRequested?.Invoke();
+
     // Relations rarely change mid-session, so the palette's "jump to a table"
     // list is fetched once and reused across opens.
     private IReadOnlyList<RelationInfo>? _relationCache;
@@ -344,6 +355,9 @@ public sealed partial class MainViewModel : ObservableObject
         NotifyMonitorViewModel notifyMonitor,
         ActivityService activityService,
         DatabaseStatsService databaseStatsService,
+        RoleService roleService,
+        PrivilegeService privilegeService,
+        SecurityEditor securityEditor,
         ImportService importService,
         string? accentColor = null,
         string connectionHost = "",
@@ -411,6 +425,10 @@ public sealed partial class MainViewModel : ObservableObject
         NotifyMonitor = notifyMonitor;
         Activity = new ActivityViewModel(activityService);
         DatabaseOverview = new DatabaseOverviewViewModel(databaseStatsService);
+        Security = new SecurityViewModel(roleService, privilegeService, securityEditor, connectionDatabase);
+        // Every privilege change leaves the security window as a script in a new
+        // editor tab rather than being applied from there - see OpenGeneratedSql.
+        Security.OpenSqlInNewTab = (title, sql) => OpenGeneratedSql(title, sql);
         Importer = importService;
         AccentColor = accentColor;
 
@@ -690,6 +708,22 @@ public sealed partial class MainViewModel : ObservableObject
         var tab = NewTab();
         tab.DefaultTitle = "Imported plan";
         tab.ShowImportedPlan(plan.Result, plan.DisplayText, plan.RawJson);
+    }
+
+    /// <summary>
+    /// Drops a generated script into a new tab, where it can be read, edited and
+    /// run. This is how every privilege change leaves the Roles &amp; Permissions
+    /// window: the window composes the GRANT/REVOKE text, the user reviews it in
+    /// the editor they already trust, and nothing is applied behind their back.
+    /// The one deliberate exception is a statement carrying a password, which
+    /// never comes through here — see <c>SecurityEditor</c>.
+    /// </summary>
+    public QueryViewModel OpenGeneratedSql(string title, string sql)
+    {
+        var tab = NewTab();
+        tab.DefaultTitle = title;
+        tab.Sql = sql;
+        return tab;
     }
 
     /// <summary>

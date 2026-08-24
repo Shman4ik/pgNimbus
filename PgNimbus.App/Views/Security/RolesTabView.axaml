@@ -1,0 +1,7 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PgNimbus.App.ViewModels.Security"
+             x:Class="PgNimbus.App.Views.Security.RolesTabView"
+             x:DataType="vm:RolesTabViewModel">
+    <Panel />
+</UserControl>

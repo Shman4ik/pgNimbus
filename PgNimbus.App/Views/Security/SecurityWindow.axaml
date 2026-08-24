@@ -1,0 +1,64 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:PgNimbus.App.ViewModels.Security"
+        xmlns:views="using:PgNimbus.App.Views.Security"
+        x:Class="PgNimbus.App.Views.Security.SecurityWindow"
+        x:DataType="vm:SecurityViewModel"
+        Title="pgNimbus — Roles and Permissions"
+        Width="1100" Height="720"
+        MinWidth="820" MinHeight="440"
+        WindowStartupLocation="CenterOwner"
+        FontFamily="{StaticResource InterFont}">
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="12">
+
+        <!-- Context line. Who you are connected as is half of "why can't I see
+             this?": the reader's own privileges decide what the catalog shows. -->
+        <Border Grid.Row="0" Background="{StaticResource CardBackgroundBrush}"
+                BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
+                CornerRadius="{StaticResource CardCornerRadius}" Padding="16,12" Margin="0,0,0,10">
+            <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto">
+                <StackPanel Grid.Column="0" Spacing="2" Margin="0,0,36,0">
+                    <TextBlock Text="DATABASE" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding DatabaseName}" FontSize="16" FontWeight="SemiBold" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="2" Margin="0,0,36,0"
+                            ToolTip.Tip="The role this window reads the catalog as — it only ever sees what this role is allowed to see">
+                    <TextBlock Text="CONNECTED AS" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding CurrentRole}" FontSize="16" FontWeight="SemiBold" />
+                </StackPanel>
+                <StackPanel Grid.Column="2" Spacing="2">
+                    <TextBlock Text="SERVER" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding ServerVersionText}" FontSize="16" FontWeight="SemiBold" />
+                </StackPanel>
+                <Button Grid.Column="4" Classes="soft" VerticalAlignment="Center"
+                        Command="{Binding RefreshCommand}"
+                        ToolTip.Tip="Re-read roles, privileges and policies from the catalog">
+                    <StackPanel Orientation="Horizontal" Spacing="7">
+                        <PathIcon Data="{StaticResource RefreshIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
+                        <TextBlock Text="Refresh" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+            </Grid>
+        </Border>
+
+        <TabControl Grid.Row="1" Classes="segmented">
+            <TabItem Header="Roles">
+                <views:RolesTabView DataContext="{Binding Roles}" />
+            </TabItem>
+            <TabItem Header="Permissions">
+                <views:PermissionsTabView DataContext="{Binding Permissions}" />
+            </TabItem>
+            <TabItem Header="Default privileges">
+                <views:DefaultPrivilegesTabView DataContext="{Binding DefaultPrivileges}" />
+            </TabItem>
+            <TabItem Header="Row-level security">
+                <views:RlsTabView DataContext="{Binding Rls}" />
+            </TabItem>
+        </TabControl>
+
+        <TextBlock Grid.Row="2" Text="{Binding Status}" FontSize="11" Opacity="0.7" Margin="2,8,2,0" />
+
+    </Grid>
+
+</Window>

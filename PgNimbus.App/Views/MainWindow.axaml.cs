@@ -207,6 +207,7 @@ public partial class MainWindow : Window
                 CommandItem("Refresh Schema", CommandId.RefreshSchema),
                 CommandItem("Server Activity…", CommandId.ServerActivity),
                 CommandItem("Database Overview…", CommandId.DatabaseOverview),
+                CommandItem("Roles and Permissions…", CommandId.SecurityManager),
             },
         };
 
@@ -459,6 +460,7 @@ public partial class MainWindow : Window
             _viewModel.ImportPlanRequested -= ShowImportPlanDialog;
         _viewModel.ActivityRequested -= ShowActivityWindow;
             _viewModel.DatabaseOverviewRequested -= ShowDatabaseOverviewWindow;
+            _viewModel.SecurityRequested -= ShowSecurityWindow;
             _viewModel.SidebarToggleRequested -= ToggleSidebar;
             _viewModel.OpenFileRequested -= OnOpenFileRequested;
             _viewModel.SaveFileRequested -= OnSaveFileRequested;
@@ -475,6 +477,7 @@ public partial class MainWindow : Window
         _viewModel.ImportPlanRequested += ShowImportPlanDialog;
         _viewModel.ActivityRequested += ShowActivityWindow;
         _viewModel.DatabaseOverviewRequested += ShowDatabaseOverviewWindow;
+        _viewModel.SecurityRequested += ShowSecurityWindow;
         _viewModel.SidebarToggleRequested += ToggleSidebar;
         _viewModel.OpenFileRequested += OnOpenFileRequested;
         _viewModel.SaveFileRequested += OnSaveFileRequested;
@@ -1049,6 +1052,24 @@ public partial class MainWindow : Window
         _databaseOverviewWindow = new DatabaseOverviewWindow { DataContext = _viewModel?.DatabaseOverview };
         _databaseOverviewWindow.Closed += (_, _) => _databaseOverviewWindow = null;
         _databaseOverviewWindow.Show(this);
+    }
+
+    private Security.SecurityWindow? _securityWindow;
+
+    // One live instance, like the other two reference windows. Deliberately a
+    // window and not an overlay: it is read beside the editor while a grant is
+    // being fixed, and the scripts it generates land in that editor's tabs.
+    private void ShowSecurityWindow()
+    {
+        if (_securityWindow is not null)
+        {
+            _securityWindow.Activate();
+            return;
+        }
+
+        _securityWindow = new Security.SecurityWindow { DataContext = _viewModel?.Security };
+        _securityWindow.Closed += (_, _) => _securityWindow = null;
+        _securityWindow.Show(this);
     }
 
     // The Explain toolbar button is a single slot with a flyout (minimalist rule);

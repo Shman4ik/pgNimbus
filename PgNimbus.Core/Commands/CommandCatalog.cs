@@ -521,6 +521,16 @@ public static class CommandCatalog
         },
         new()
         {
+            Id = CommandId.SecurityManager,
+            Title = "Roles and permissions…",
+            CheatTitle = "Roles and permissions",
+            Category = CommandCategory.Navigation,
+            Glyph = "⚿",
+            Chord = new(CommandKey.U, CmdShift),
+            Surfaces = Everywhere,
+        },
+        new()
+        {
             Id = CommandId.SwitchConnection,
             Title = "Switch connection…",
             Category = CommandCategory.Navigation,
