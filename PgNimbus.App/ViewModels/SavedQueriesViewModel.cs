@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PgNimbus.Core.Query;
+using PgNimbus.Core.Security;
 
 namespace PgNimbus.App.ViewModels;
 
@@ -75,9 +76,18 @@ public sealed partial class SavedQueriesViewModel : ObservableObject
         ApplyHistoryFilter();
     }
 
+    /// <summary>
+    /// Files an executed statement in the history — the single choke point for
+    /// it, which is why the password redaction lives here rather than at a call
+    /// site. Nothing in the Roles &amp; Permissions window routes a PASSWORD
+    /// literal through a query tab (see <c>SecurityEditor</c>), but a user can
+    /// always type <c>ALTER ROLE … PASSWORD 'x'</c> into the editor themselves,
+    /// and <see cref="QueryHistoryStore"/> writes what it is given to disk in
+    /// the clear.
+    /// </summary>
     public void RecordExecution(QueryHistoryEntry entry)
     {
-        entry = entry with { Connection = _getConnectionLabel() };
+        entry = entry with { Sql = SecretRedactor.Redact(entry.Sql), Connection = _getConnectionLabel() };
         History.Insert(0, entry);
         _historyStore.Append(entry);
     }

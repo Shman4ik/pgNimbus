@@ -164,6 +164,7 @@ public static class CommandBindings
         [CommandId.ToggleSidebar] = vm => vm.ToggleSidebarCommand,
         [CommandId.ServerActivity] = vm => vm.ShowActivityCommand,
         [CommandId.DatabaseOverview] = vm => vm.ShowDatabaseOverviewCommand,
+        [CommandId.SecurityManager] = vm => vm.ShowSecurityCommand,
         [CommandId.SwitchConnection] = vm => vm.SwitchConnectionCommand,
         [CommandId.NewWindow] = vm => vm.OpenNewWindowCommand,
         [CommandId.ToggleTheme] = vm => vm.ToggleThemeCommand,

@@ -13,6 +13,7 @@ using PgNimbus.Core.Monitoring;
 using PgNimbus.Core.Notifications;
 using PgNimbus.Core.Query;
 using PgNimbus.Core.Schema;
+using PgNimbus.Core.Security;
 using PgNimbus.Core.Settings;
 
 namespace PgNimbus.App;
@@ -401,6 +402,9 @@ public partial class App : Application
         var ddlService = new DdlService(dataSource);
         var activityService = new ActivityService(dataSource);
         var databaseStatsService = new DatabaseStatsService(dataSource);
+        var roleService = new RoleService(dataSource);
+        var privilegeService = new PrivilegeService(dataSource);
+        var securityEditor = new SecurityEditor(dataSource);
         var importService = new ImportService(dataSource);
         var schemaTree = new SchemaTreeViewModel(
             schemaService,
@@ -422,7 +426,7 @@ public partial class App : Application
         var workspaceKey = string.IsNullOrEmpty(connectionHost) ? null : $"{connectionHost}/{connectionDatabase}";
 
         var viewModel = new MainViewModel(
-            engine, explainService, schemaTree, schemaService, schemaEditor, ddlService, completionProvider, notifyMonitor, activityService, databaseStatsService, importService,
+            engine, explainService, schemaTree, schemaService, schemaEditor, ddlService, completionProvider, notifyMonitor, activityService, databaseStatsService, roleService, privilegeService, securityEditor, importService,
             accentColor,
             connectionHost: connectionHost,
             connectionDatabase: connectionDatabase,
