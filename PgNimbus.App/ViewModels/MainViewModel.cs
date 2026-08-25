@@ -446,6 +446,7 @@ public sealed partial class MainViewModel : ObservableObject
         // Every privilege change leaves the security window as a script in a new
         // editor tab rather than being applied from there - see OpenGeneratedSql.
         Security.OpenSqlInNewTab = (title, sql) => OpenGeneratedSql(title, sql);
+        Security.RolesChanged = SchemaTree.RefreshRolesAsync;
         Importer = importService;
         AccentColor = accentColor;
 

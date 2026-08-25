@@ -245,7 +245,7 @@ public sealed partial class RolesTabViewModel : ObservableObject, ISecuritySecti
         var editor = RoleEditorViewModel.ForCreate(_editor, _host);
         if (await show(editor))
         {
-            await _host.RefreshAsync(CancellationToken.None);
+            await _host.ReloadAfterRoleChangeAsync(CancellationToken.None);
         }
     }
 
@@ -260,7 +260,7 @@ public sealed partial class RolesTabViewModel : ObservableObject, ISecuritySecti
         var editor = RoleEditorViewModel.ForAlter(_editor, _host, row.Attributes, DirectGroupsOf(row.Name));
         if (await show(editor))
         {
-            await _host.RefreshAsync(CancellationToken.None);
+            await _host.ReloadAfterRoleChangeAsync(CancellationToken.None);
         }
     }
 
@@ -284,7 +284,7 @@ public sealed partial class RolesTabViewModel : ObservableObject, ISecuritySecti
 
         if (await show(drop))
         {
-            await _host.RefreshAsync(CancellationToken.None);
+            await _host.ReloadAfterRoleChangeAsync(CancellationToken.None);
         }
     }
 

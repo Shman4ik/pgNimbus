@@ -62,7 +62,15 @@
                     </StackPanel>
                     <StackPanel Grid.Column="2" Spacing="4">
                         <TextBlock Text="VALID UNTIL" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
-                        <DatePicker SelectedDate="{Binding ValidUntilDate}" />
+                        <!-- CalendarDatePicker, not Fluent's segmented DatePicker:
+                             the segmented one is a three-box month/day/year control
+                             that the shared input styling does not reach, so it
+                             stood a good deal taller than the NumericUpDown beside
+                             it. This is also the picker AddRowDialog already uses,
+                             so dates look the same everywhere in the app. -->
+                        <CalendarDatePicker SelectedDate="{Binding ValidUntilDate, Mode=TwoWay}"
+                                            PlaceholderText="no expiry"
+                                            HorizontalAlignment="Stretch" />
                     </StackPanel>
                 </Grid>
 
@@ -74,7 +82,15 @@
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:RoleMembershipOption">
                                 <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2">
-                                    <CheckBox Content="{Binding Name}" IsChecked="{Binding IsMember}" />
+                                    <!-- The name goes in a TextBlock rather than
+                                         straight into Content: a string Content is
+                                         parsed for access keys, and "_" is the
+                                         mnemonic prefix, so pg_read_all_data would
+                                         render as "pgread_all_data". Underscores are
+                                         the norm in Postgres role names. -->
+                                    <CheckBox IsChecked="{Binding IsMember}">
+                                        <TextBlock Text="{Binding Name}" />
+                                    </CheckBox>
                                     <TextBlock Text="{Binding Hint}" FontSize="11" Opacity="0.6" VerticalAlignment="Center" />
                                 </StackPanel>
                             </DataTemplate>
@@ -91,7 +107,12 @@
                             <ItemsControl ItemsSource="{Binding GroupMemberships}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="vm:RoleMembershipOption">
-                                        <CheckBox Content="{Binding Name}" IsChecked="{Binding IsMember}" Margin="0,1" />
+                                        <!-- TextBlock, not a string Content: see the
+                                             built-in roles list above — "_" would be
+                                             eaten as an access-key prefix. -->
+                                        <CheckBox IsChecked="{Binding IsMember}" Margin="0,1">
+                                            <TextBlock Text="{Binding Name}" />
+                                        </CheckBox>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>

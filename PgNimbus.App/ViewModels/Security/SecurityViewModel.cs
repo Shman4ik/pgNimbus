@@ -105,6 +105,30 @@ public sealed partial class SecurityViewModel : ObservableObject
     public string? PendingRoleSelection { get; set; }
 
     /// <summary>
+    /// Raised after a role was created, altered or dropped, so surfaces outside
+    /// this window — the schema tree's Roles group — stop showing the old set.
+    /// Set by the host; null in the screenshot harness.
+    /// </summary>
+    public Func<Task>? RolesChanged { get; set; }
+
+    /// <summary>
+    /// Re-reads everything after a write, then tells the host. Every role
+    /// dialog ends here rather than refreshing its own tab, because a new role
+    /// is a row in the permissions matrix and a possible grantee in the default
+    /// privileges list too — refreshing only the tab that made the change is
+    /// what makes the others look stale.
+    /// </summary>
+    public async Task ReloadAfterRoleChangeAsync(CancellationToken ct)
+    {
+        await RefreshAsync(ct);
+
+        if (RolesChanged is { } notify)
+        {
+            await notify();
+        }
+    }
+
+    /// <summary>
     /// Applies <see cref="PendingRoleSelection"/> against the roles already
     /// listed. Called for the case where the window was already open, so no
     /// refresh is coming to pick the name up.

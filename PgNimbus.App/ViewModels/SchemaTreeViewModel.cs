@@ -112,6 +112,17 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
     public Func<string?, Task>? ManageRolesRequested { get; set; }
 
     /// <summary>
+    /// Reloads the sidebar's Roles group after a role was created, altered or
+    /// dropped elsewhere, so the tree does not keep showing a role that no
+    /// longer exists. Only touches that one node — a full catalog refresh would
+    /// collapse the tree the user is working in.
+    /// </summary>
+    public Task RefreshRolesAsync() =>
+        Schemas.OfType<RolesGroupNode>().FirstOrDefault() is { IsLoaded: true } roles
+            ? roles.RefreshAsync()
+            : Task.CompletedTask;
+
+    /// <summary>
     /// Whether a schema name is currently excluded from completion. Consulted
     /// when <see cref="RefreshAsync"/> rebuilds the nodes, so a refresh (or a
     /// reconnect) doesn't lose the markers the host persisted.

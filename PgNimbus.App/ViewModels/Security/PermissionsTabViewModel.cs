@@ -154,8 +154,9 @@ public sealed partial class PermissionsTabViewModel : ObservableObject, ISecurit
     private readonly List<SecurableRef> _allObjects = [];
     private readonly List<PrivilegeChange> _pending = [];
 
-    // Set only by SeedForHarness, so seeding a snapshot cannot kick off the
-    // catalog reads the property setters normally trigger.
+    // Set while this view model is driving its own loads - by SeedForHarness,
+    // and by RefreshAsync - so the property setters do not start a second,
+    // overlapping read of what is already being fetched.
     private bool _suppressLoads;
 
     [ObservableProperty]
@@ -244,23 +245,44 @@ public sealed partial class PermissionsTabViewModel : ObservableObject, ISecurit
         $"No GRANT or REVOKE has ever been run on this object. {OwnerLabel} owns it and holds every privilege; "
         + "everyone else has only what Postgres grants by default for this object type.";
 
+    /// <summary>
+    /// Re-reads schemas, objects and the matrix. The matrix reload is driven
+    /// explicitly rather than left to the property setters, because the setters
+    /// only fire on a *change*: a refresh rebuilds the object list into equal
+    /// <see cref="SecurableRef"/> records, so re-selecting the same object is a
+    /// no-op and nothing would reload. That is what left a role created in this
+    /// window missing from the matrix until Refresh was pressed a second time.
+    /// The loads the setters would have started are suppressed for the same
+    /// reason, so this is one reload rather than two.
+    /// </summary>
     public async Task RefreshAsync(CancellationToken ct)
     {
         try
         {
             var schemas = await _privileges.GetSecurablesAsync(SecurableKind.Schema, null, ct);
             var previous = SelectedSchema;
-            Schemas.Clear();
-            foreach (var schema in schemas)
+
+            _suppressLoads = true;
+            try
             {
-                Schemas.Add(schema.Name);
+                Schemas.Clear();
+                foreach (var schema in schemas)
+                {
+                    Schemas.Add(schema.Name);
+                }
+
+                SelectedSchema = previous is not null && Schemas.Contains(previous)
+                    ? previous
+                    : Schemas.FirstOrDefault();
+
+                await LoadObjectsAsync(ct);
+            }
+            finally
+            {
+                _suppressLoads = false;
             }
 
-            SelectedSchema = previous is not null && Schemas.Contains(previous)
-                ? previous
-                : Schemas.FirstOrDefault();
-
-            await LoadObjectsAsync(ct);
+            await LoadMatrixAsync(ct);
         }
         catch (OperationCanceledException)
         {

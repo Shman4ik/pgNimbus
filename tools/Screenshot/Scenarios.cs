@@ -1,11 +1,13 @@
 using Avalonia.Controls;
 using PgNimbus.App.ViewModels;
+using PgNimbus.App.ViewModels.Security;
 using PgNimbus.App.Views;
 using PgNimbus.App.Views.Security;
 using Avalonia.VisualTree;
 using PgNimbus.Core.Connections;
 using PgNimbus.Core.Monitoring;
 using PgNimbus.Core.Query;
+using PgNimbus.Core.Security;
 
 namespace PgNimbus.Screenshot;
 
@@ -59,6 +61,7 @@ public static class Scenarios
         ("security-window-permissions", SecurityPermissions),
         ("security-window-default-privileges", SecurityDefaultPrivileges),
         ("security-window-rls", SecurityRls),
+        ("security-role-dialog", SecurityRoleDialog),
         ("shortcuts-window", Shortcuts),
         ("preferences-window", Preferences),
         ("about-window", About),
@@ -194,6 +197,24 @@ public static class Scenarios
         var window = new SecurityWindow { DataContext = Fixtures.SecurityViewModel(), Width = 1100, Height = 720 };
         window.Opened += (_, _) => SelectTab(window, 3);
         return window;
+    }
+
+    /// <summary>
+    /// The role editor, mid-edit. Worth its own shot because it is the one
+    /// surface in this feature that writes, and because its generated-SQL
+    /// preview is always the masked build — a password appearing here would be
+    /// the bug.
+    /// </summary>
+    public static Window SecurityRoleDialog()
+    {
+        var host = Fixtures.SecurityViewModel();
+        var editor = RoleEditorViewModel.ForCreate(new SecurityEditor(Fixtures.DataSource), host);
+        editor.Name = "reporting_ro";
+        editor.Password = "hunter2";
+        editor.PasswordConfirm = "hunter2";
+        editor.ConnectionLimit = 10;
+        editor.Comment = "read-only user for the reporting job";
+        return new RoleDialog { DataContext = editor, Width = 760, Height = 660 };
     }
 
     /// <summary>Selects a tab by index once the window's template is up.</summary>
