@@ -234,7 +234,7 @@ public static class RoleScriptBuilder
     /// difference is the entire reason the parameter exists, and it is not
     /// recoverable.</para>
     /// </summary>
-    public static string Drop(string role, string? reassignTo)
+    public static string Drop(string role, string? reassignTo, bool grantMembershipFirst = false)
     {
         var name = SqlIdentifier.QuoteIfNeeded(role);
         var display = CommentSafe(role);
@@ -242,6 +242,30 @@ public static class RoleScriptBuilder
 
         sb.Append("-- \"").Append(display).Append("\" may own objects or hold grants, and DROP ROLE alone").Append(Newline);
         sb.Append("-- then fails with 2BP01 without naming either the objects or the fix.").Append(Newline);
+
+        // REASSIGN OWNED and DROP OWNED are not superuser-only, but they do
+        // require the executing role to hold the privileges of the role being
+        // emptied (and of the one taking over), or the server answers 42501
+        // "permission denied to reassign objects". A superuser has them
+        // implicitly; on RDS, Neon or Supabase nobody is, so the membership has
+        // to be granted first -- and since CREATEROLE is what let the user make
+        // this role in the first place, it is also what lets them grant it.
+        if (grantMembershipFirst)
+        {
+            sb.Append(reassignTo is null
+                    ? "-- DROP OWNED requires the privileges of the role being"
+                    : "-- REASSIGN OWNED and DROP OWNED require the privileges of the role being")
+                .Append(Newline);
+            sb.Append("-- emptied. Without them the server answers 42501, however many objects the").Append(Newline);
+            sb.Append("-- role owns. A superuser holds them implicitly; otherwise grant the").Append(Newline);
+            sb.Append("-- membership to yourself first -- it is revoked again below.").Append(Newline);
+            sb.Append("GRANT ").Append(name).Append(" TO CURRENT_USER;").Append(Newline);
+
+            if (reassignTo is not null)
+            {
+                sb.Append("GRANT ").Append(SqlIdentifier.QuoteIfNeeded(reassignTo)).Append(" TO CURRENT_USER;").Append(Newline);
+            }
+        }
 
         if (reassignTo is not null)
         {
@@ -263,6 +287,16 @@ public static class RoleScriptBuilder
         }
 
         sb.Append("DROP OWNED BY ").Append(name).Append(';').Append(Newline);
+
+        // DROP ROLE takes the membership in the dropped role with it, but a
+        // membership granted in the *target* role outlives this script and has
+        // to be given back, or the drop quietly leaves the user holding
+        // privileges they did not have before.
+        if (grantMembershipFirst && reassignTo is not null)
+        {
+            sb.Append("REVOKE ").Append(SqlIdentifier.QuoteIfNeeded(reassignTo)).Append(" FROM CURRENT_USER;").Append(Newline);
+        }
+
         sb.Append("DROP ROLE ").Append(name).Append(';');
 
         return sb.ToString();

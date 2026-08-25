@@ -280,7 +280,8 @@ public sealed partial class RolesTabViewModel : ObservableObject, ISecuritySecti
             _all.Where(r => !string.Equals(r.Name, row.Name, StringComparison.Ordinal) && !r.IsPredefined)
                 .Select(r => r.Name)
                 .ToList(),
-            _host.OpenSqlInNewTab);
+            _host.OpenSqlInNewTab,
+            _host.Graph?.IsSuperuser(_host.CurrentRole) ?? false);
 
         if (await show(drop))
         {
