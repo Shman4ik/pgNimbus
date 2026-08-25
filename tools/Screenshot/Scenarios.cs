@@ -62,6 +62,7 @@ public static class Scenarios
         ("security-window-default-privileges", SecurityDefaultPrivileges),
         ("security-window-rls", SecurityRls),
         ("security-role-dialog", SecurityRoleDialog),
+        ("security-drop-role-dialog", SecurityDropRoleDialog),
         ("shortcuts-window", Shortcuts),
         ("preferences-window", Preferences),
         ("about-window", About),
@@ -215,6 +216,31 @@ public static class Scenarios
         editor.ConnectionLimit = 10;
         editor.Comment = "read-only user for the reporting job";
         return new RoleDialog { DataContext = editor, Width = 760, Height = 660 };
+    }
+
+    /// <summary>
+    /// The drop-role dialog on a role that blocks nothing — the empty state,
+    /// deliberately, because both of its lists are usually empty and a grid
+    /// drawing bare column headers over the sentence explaining that is exactly
+    /// the failure this shot catches.
+    /// </summary>
+    public static Window SecurityDropRoleDialog()
+    {
+        var host = Fixtures.SecurityViewModel();
+        var drop = new DropRoleViewModel(
+            new RoleService(Fixtures.DataSource),
+            new SecurityEditor(Fixtures.DataSource),
+            "legacy_etl",
+            "postgres",
+            ["postgres", "app_rw", "readers"],
+            null)
+        {
+            // LoadAsync is the view's job on Opened; the harness stands in for it
+            // with the answer a role that owns nothing would have produced.
+            IsLoading = false,
+        };
+
+        return new DropRoleDialog { DataContext = drop, Width = 820, Height = 680 };
     }
 
     /// <summary>Selects a tab by index once the window's template is up.</summary>

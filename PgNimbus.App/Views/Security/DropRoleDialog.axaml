@@ -23,13 +23,20 @@
 
         <Grid Grid.Row="1" ColumnDefinitions="*,12,*">
 
-            <StackPanel Grid.Column="0" Spacing="6">
-                <TextBlock Text="{Binding OwnedHeader}" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
-                <Border Background="{StaticResource CardBackgroundBrush}"
+            <!-- Grid, not StackPanel: the card has to fill the row so the layout
+                 does not jump between the empty and the populated state. -->
+            <Grid Grid.Column="0" RowDefinitions="Auto,*">
+                <TextBlock Grid.Row="0" Text="{Binding OwnedHeader}" FontSize="10" Opacity="0.55"
+                           FontWeight="SemiBold" Margin="0,0,0,6" />
+                <Border Grid.Row="1" Background="{StaticResource CardBackgroundBrush}"
                         BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
                         CornerRadius="{StaticResource CardCornerRadius}">
                     <Panel>
-                        <DataGrid ItemsSource="{Binding Owned}" IsReadOnly="True" SelectionMode="Single"
+                        <!-- Hidden rather than left under the empty-state text: a DataGrid with
+                             no rows still draws its column headers, and they showed
+                             through the sentence explaining there is nothing to show. -->
+                        <DataGrid IsVisible="{Binding HasOwned}"
+                                  ItemsSource="{Binding Owned}" IsReadOnly="True" SelectionMode="Single"
                                   CanUserSortColumns="False" GridLinesVisibility="Horizontal" HeadersVisibility="Column">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Kind" Binding="{Binding Kind}" Width="110" />
@@ -37,19 +44,27 @@
                             </DataGrid.Columns>
                         </DataGrid>
                         <TextBlock Text="Owns nothing in this database." FontSize="12" Opacity="0.6"
-                                   Margin="12" VerticalAlignment="Top"
+                                   Margin="16" TextWrapping="Wrap" TextAlignment="Center"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
                                    IsVisible="{Binding !HasOwned}" />
                     </Panel>
                 </Border>
-            </StackPanel>
+            </Grid>
 
-            <StackPanel Grid.Column="2" Spacing="6">
-                <TextBlock Text="{Binding GrantsHeader}" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
-                <Border Background="{StaticResource CardBackgroundBrush}"
+            <!-- Grid, not StackPanel: the card has to fill the row so the layout
+                 does not jump between the empty and the populated state. -->
+            <Grid Grid.Column="2" RowDefinitions="Auto,*">
+                <TextBlock Grid.Row="0" Text="{Binding GrantsHeader}" FontSize="10" Opacity="0.55"
+                           FontWeight="SemiBold" Margin="0,0,0,6" />
+                <Border Grid.Row="1" Background="{StaticResource CardBackgroundBrush}"
                         BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
                         CornerRadius="{StaticResource CardCornerRadius}">
                     <Panel>
-                        <DataGrid ItemsSource="{Binding GrantsHeld}" IsReadOnly="True" SelectionMode="Single"
+                        <!-- Hidden rather than left under the empty-state text: a DataGrid with
+                             no rows still draws its column headers, and they showed
+                             through the sentence explaining there is nothing to show. -->
+                        <DataGrid IsVisible="{Binding HasGrantsHeld}"
+                                  ItemsSource="{Binding GrantsHeld}" IsReadOnly="True" SelectionMode="Single"
                                   CanUserSortColumns="False" GridLinesVisibility="Horizontal" HeadersVisibility="Column">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Kind" Binding="{Binding Kind}" Width="140" />
@@ -57,11 +72,12 @@
                             </DataGrid.Columns>
                         </DataGrid>
                         <TextBlock Text="Holds no privileges in this database." FontSize="12" Opacity="0.6"
-                                   Margin="12" VerticalAlignment="Top"
+                                   Margin="16" TextWrapping="Wrap" TextAlignment="Center"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
                                    IsVisible="{Binding !HasGrantsHeld}" />
                     </Panel>
                 </Border>
-            </StackPanel>
+            </Grid>
 
         </Grid>
 
