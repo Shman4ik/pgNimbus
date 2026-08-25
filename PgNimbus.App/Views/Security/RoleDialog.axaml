@@ -112,6 +112,15 @@
                             BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
                             CornerRadius="{StaticResource CardCornerRadius}" Padding="10,8">
                             <ItemsControl ItemsSource="{Binding GroupMemberships}">
+                                <!-- Two columns: role names are short, and a single
+                                     column turned a server's worth of them into a
+                                     long thin list that pushed the generated SQL
+                                     below the fold. -->
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <UniformGrid Columns="2" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="vm:RoleMembershipOption">
                                         <!-- TextBlock, not a string Content: see the
