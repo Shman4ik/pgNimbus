@@ -227,6 +227,22 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void ShowSecurity() => SecurityRequested?.Invoke();
 
+    /// <summary>
+    /// The schema tree's route into the Roles &amp; Permissions window, on a
+    /// named role when the user right-clicked one. The name is parked on the
+    /// view model rather than passed to the window, because the window may be
+    /// opening for the first time (its snapshot has not been read yet) or may
+    /// already be up (nothing will refresh) - so both paths have to pick it up,
+    /// and ApplyPendingRoleSelection covers the second.
+    /// </summary>
+    private Task ManageRolesAsync(string? role)
+    {
+        Security.PendingRoleSelection = role;
+        SecurityRequested?.Invoke();
+        Security.ApplyPendingRoleSelection();
+        return Task.CompletedTask;
+    }
+
     // Relations rarely change mid-session, so the palette's "jump to a table"
     // list is fetched once and reused across opens.
     private IReadOnlyList<RelationInfo>? _relationCache;
@@ -402,6 +418,7 @@ public sealed partial class MainViewModel : ObservableObject
         SchemaTree.NewTableRequested = NewTableAsync;
         SchemaTree.DropSchemaRequested = DropSchemaAsync;
         SchemaTree.SetSchemaExcludedFromCompletionRequested = SetSchemaExcludedFromCompletionAsync;
+        SchemaTree.ManageRolesRequested = ManageRolesAsync;
         SchemaTree.IsSchemaExcludedFromCompletion = _excludedSchemas.Contains;
         _schemaService = schemaService;
         _schemaEditor = schemaEditor;

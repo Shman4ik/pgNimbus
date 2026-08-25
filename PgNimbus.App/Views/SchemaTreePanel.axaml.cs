@@ -164,6 +164,49 @@ public partial class SchemaTreePanel : UserControl
         }
     }
 
+    private async void OnManageRolesClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is SchemaTreeViewModel { ManageRolesRequested: { } manage })
+        {
+            await manage(null);
+        }
+    }
+
+    private async void OnManageRoleClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem { Tag: RoleNode role }
+            && DataContext is SchemaTreeViewModel { ManageRolesRequested: { } manage })
+        {
+            await manage(role.Name);
+        }
+    }
+
+    private async void OnCopyRoleNameClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem { Tag: RoleNode role } || TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard)
+        {
+            return;
+        }
+
+        try
+        {
+            await clipboard.SetTextAsync(role.Name);
+        }
+        catch (Exception)
+        {
+            // Another app holding the clipboard locked is not worth a crash.
+        }
+    }
+
+    /// <summary>Reloads one group node's children, leaving the rest of the tree alone.</summary>
+    private async void OnRefreshNodeClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem { Tag: SchemaTreeNode node })
+        {
+            await node.RefreshAsync();
+        }
+    }
+
     private async void OnRefreshSchemaClick(object? sender, RoutedEventArgs e)
     {
         // Just this schema's own children — the sidebar's refresh button is

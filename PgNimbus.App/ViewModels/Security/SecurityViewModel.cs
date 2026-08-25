@@ -98,6 +98,26 @@ public sealed partial class SecurityViewModel : ObservableObject
     public Action<string, string>? OpenSqlInNewTab { get; set; }
 
     /// <summary>
+    /// A role the window should land on once it has a snapshot — set by the
+    /// schema tree's "Roles and permissions…" before the window opens. Cleared
+    /// by whichever path consumes it first.
+    /// </summary>
+    public string? PendingRoleSelection { get; set; }
+
+    /// <summary>
+    /// Applies <see cref="PendingRoleSelection"/> against the roles already
+    /// listed. Called for the case where the window was already open, so no
+    /// refresh is coming to pick the name up.
+    /// </summary>
+    public void ApplyPendingRoleSelection()
+    {
+        if (PendingRoleSelection is { } role && Roles.SelectRole(role))
+        {
+            PendingRoleSelection = null;
+        }
+    }
+
+    /// <summary>
     /// Re-reads the shared role snapshot, then fans out to the four sections.
     /// Sections run in parallel because their reads are independent — one round
     /// trip's worth of latency instead of four, which is what makes this bearable

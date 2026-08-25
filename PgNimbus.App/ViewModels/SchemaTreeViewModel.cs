@@ -104,6 +104,14 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
     public Func<SchemaNode, bool, Task>? SetSchemaExcludedFromCompletionRequested { get; set; }
 
     /// <summary>
+    /// Opens the Roles &amp; Permissions window, optionally on a named role.
+    /// The tree lists roles but can only ever show their headline attributes;
+    /// the window is where "what can this role actually do" gets answered, so
+    /// the node is a route to it rather than a dead end.
+    /// </summary>
+    public Func<string?, Task>? ManageRolesRequested { get; set; }
+
+    /// <summary>
     /// Whether a schema name is currently excluded from completion. Consulted
     /// when <see cref="RefreshAsync"/> rebuilds the nodes, so a refresh (or a
     /// reconnect) doesn't lose the markers the host persisted.
