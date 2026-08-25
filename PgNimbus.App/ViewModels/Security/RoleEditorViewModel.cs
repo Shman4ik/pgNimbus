@@ -459,14 +459,25 @@ public sealed partial class DropRoleViewModel : ObservableObject
     [ObservableProperty]
     private string _grantsHeader = "Privileges it holds";
 
+    /// <summary>
+    /// Whether the script grants the executing role the memberships REASSIGN
+    /// OWNED and DROP OWNED need. Defaults on for a non-superuser, which is
+    /// everyone on managed Postgres — without it the server answers 42501
+    /// "permission denied to reassign objects".
+    /// </summary>
+    [ObservableProperty]
+    private bool _grantMembershipFirst;
+
     public DropRoleViewModel(
         RoleService roleService,
         SecurityEditor editor,
         string roleName,
         string currentRole,
         IReadOnlyList<string> otherRoles,
-        Action<string, string>? openSqlInNewTab)
+        Action<string, string>? openSqlInNewTab,
+        bool currentRoleIsSuperuser = false)
     {
+        _grantMembershipFirst = !currentRoleIsSuperuser;
         _roleService = roleService;
         _editor = editor;
         _openSqlInNewTab = openSqlInNewTab;
@@ -563,9 +574,11 @@ public sealed partial class DropRoleViewModel : ObservableObject
 
     private void Rebuild()
     {
-        Script = RoleScriptBuilder.Drop(RoleName, ReassignTo?.Role);
+        Script = RoleScriptBuilder.Drop(RoleName, ReassignTo?.Role, GrantMembershipFirst);
         OnPropertyChanged(nameof(WillDeleteOwnedObjects));
     }
+
+    partial void OnGrantMembershipFirstChanged(bool value) => Rebuild();
 
     [RelayCommand(CanExecute = nameof(CanRun))]
     private async Task RunAsync()

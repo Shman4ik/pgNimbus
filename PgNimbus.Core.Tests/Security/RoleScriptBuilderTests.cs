@@ -230,6 +230,57 @@ public class RoleScriptBuilderTests
             """));
     }
 
+    /// <summary>
+    /// The managed-Postgres path. REASSIGN OWNED and DROP OWNED need the
+    /// privileges of the role being emptied, and nobody on RDS/Neon/Supabase is
+    /// a superuser holding them implicitly — without the grants the server
+    /// answers 42501 rather than doing anything.
+    /// </summary>
+    [Test]
+    public async Task DropCanGrantItselfTheMembershipsItNeeds()
+    {
+        var sql = RoleScriptBuilder.Drop("app", "postgres", grantMembershipFirst: true);
+
+        // Both grants come before REASSIGN, and the one that outlives the script
+        // — membership in the target — is handed back before the role is dropped.
+        await Assert.That(N(sql)).IsEqualTo(N("""
+            -- "app" may own objects or hold grants, and DROP ROLE alone
+            -- then fails with 2BP01 without naming either the objects or the fix.
+            -- REASSIGN OWNED and DROP OWNED require the privileges of the role being
+            -- emptied. Without them the server answers 42501, however many objects the
+            -- role owns. A superuser holds them implicitly; otherwise grant the
+            -- membership to yourself first -- it is revoked again below.
+            GRANT app TO CURRENT_USER;
+            GRANT postgres TO CURRENT_USER;
+            -- REASSIGN OWNED hands the objects to another role; DROP OWNED then removes
+            -- the privileges REASSIGN OWNED leaves behind. Both act on the current
+            -- database only -- repeat them while connected to every other database that
+            -- contains objects owned by this role, then drop it.
+            REASSIGN OWNED BY app TO postgres;
+            DROP OWNED BY app;
+            REVOKE postgres FROM CURRENT_USER;
+            DROP ROLE app;
+            """));
+    }
+
+    /// <summary>
+    /// With nobody to reassign to there is no second membership to grant, and
+    /// nothing to hand back — DROP ROLE takes the membership in the dropped role
+    /// with it.
+    /// </summary>
+    [Test]
+    public async Task DropWithoutAReassignTargetGrantsAndRevokesNothingExtra()
+    {
+        var sql = RoleScriptBuilder.Drop("app", reassignTo: null, grantMembershipFirst: true);
+
+        await Assert.That(sql).Contains("GRANT app TO CURRENT_USER;");
+        await Assert.That(sql).DoesNotContain("REVOKE");
+        await Assert.That(sql).DoesNotContain("REASSIGN OWNED BY");
+
+        // The explanation names only the statement the script actually runs.
+        await Assert.That(sql).Contains("-- DROP OWNED requires the privileges");
+    }
+
     [Test]
     public async Task DropQuotesTheRoleInEveryStatement()
     {

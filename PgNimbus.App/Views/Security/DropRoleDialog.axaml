@@ -95,6 +95,14 @@
                 </ComboBox>
             </StackPanel>
 
+            <!-- Off only for a superuser, who holds these privileges implicitly.
+                 On managed Postgres nobody is one, and without the grants the
+                 server refuses with 42501 no matter what the role owns. -->
+            <CheckBox IsChecked="{Binding GrantMembershipFirst, Mode=TwoWay}"
+                      ToolTip.Tip="REASSIGN OWNED and DROP OWNED require the privileges of the role being emptied. The script grants them to you and gives back the one that outlives it.">
+                <TextBlock Text="Grant myself the memberships the script needs" TextWrapping="Wrap" />
+            </CheckBox>
+
             <TextBlock IsVisible="{Binding WillDeleteOwnedObjects}"
                        Foreground="{StaticResource AppWarningBrush}" FontSize="12" TextWrapping="Wrap"
                        Text="With no successor named, DROP OWNED deletes the objects this role owns instead of transferring them." />
