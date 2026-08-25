@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787639892489,
+  "lastUpdate": 1787640587158,
   "repoUrl": "https://github.com/Shman4ik/pgNimbus",
   "entries": {
     "pgNimbus benchmarks": [
@@ -1581,6 +1581,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "Stream 100000 rows",
             "value": 141.4,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shman4ik@gmail.com",
+            "name": "Shman4ik",
+            "username": "Shman4ik"
+          },
+          "committer": {
+            "email": "shman4ik@gmail.com",
+            "name": "Dmitrii Shmanev",
+            "username": "Shman4ik"
+          },
+          "distinct": true,
+          "id": "230c3f8d31604ca79f805de17e2656657d1071e2",
+          "message": "Fix macOS smoke-launch failing on bash 3.2's empty-array nounset bug\n\nThe v0.11.1 release run failed build-macos before ever launching the app:\n\"${launcher[@]}\" on the always-empty macOS launcher array threw \"unbound\nvariable\" under set -u. macOS runners' system /bin/bash is 3.2, which treats\nexpanding a declared-but-empty array under nounset as unset, unlike bash 4.4+\n(and the Linux runners' bash, where the array is never empty). Branch on\n${#launcher[@]} instead of expanding it directly.\n\nCo-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>",
+          "timestamp": "2026-08-25T08:43:15+02:00",
+          "tree_id": "fd4c2da6c93a1b2db00e55d9f14c047bd612f173",
+          "url": "https://github.com/Shman4ik/pgNimbus/commit/230c3f8d31604ca79f805de17e2656657d1071e2"
+        },
+        "date": 1787640586065,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Startup, launch to first frame (NativeAOT)",
+            "value": 199,
+            "unit": "ms"
+          },
+          {
+            "name": "Memory at first frame (NativeAOT)",
+            "value": 157.1,
+            "unit": "MB"
+          },
+          {
+            "name": "Binary size (NativeAOT)",
+            "value": 43.2,
+            "unit": "MB"
+          },
+          {
+            "name": "Publish size (NativeAOT, shipped files)",
+            "value": 56.6,
+            "unit": "MB"
+          },
+          {
+            "name": "Startup, launch to first frame (JIT)",
+            "value": 1914,
+            "unit": "ms"
+          },
+          {
+            "name": "Connect, cold pool",
+            "value": 153.4,
+            "unit": "ms"
+          },
+          {
+            "name": "Round-trip, SELECT 1 warm",
+            "value": 0.32,
+            "unit": "ms"
+          },
+          {
+            "name": "First row batch of a 100000-row SELECT",
+            "value": 13.3,
+            "unit": "ms"
+          },
+          {
+            "name": "Stream 100000 rows",
+            "value": 147.3,
             "unit": "ms"
           }
         ]
