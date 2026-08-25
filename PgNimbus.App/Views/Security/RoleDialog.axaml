@@ -11,8 +11,11 @@
 
     <Grid RowDefinitions="*,Auto" Margin="16">
 
-        <ScrollViewer Grid.Row="0">
-            <StackPanel Spacing="14">
+        <!-- The scrollbar is an overlay in this theme, so the content needs a
+             gutter of its own: without it the text boxes run underneath the bar
+             and the right edge of every input is unreachable. -->
+        <ScrollViewer Grid.Row="0" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Spacing="14" Margin="0,0,14,0">
 
                 <!-- Identity -->
                 <StackPanel Spacing="6">
@@ -100,10 +103,14 @@
 
                 <StackPanel Spacing="6">
                     <TextBlock Text="MEMBER OF" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
-                    <Border MaxHeight="150" Background="{StaticResource CardBackgroundBrush}"
+                    <!-- No inner scroll: a capped, scrolling list inside a dialog
+                         that already scrolls gives two bars competing for the
+                         same wheel, and on a server with a handful of roles the
+                         inner one appeared with nothing to scroll. The list grows
+                         to its content and the dialog's own scroll handles it. -->
+                    <Border Background="{StaticResource CardBackgroundBrush}"
                             BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
                             CornerRadius="{StaticResource CardCornerRadius}" Padding="10,8">
-                        <ScrollViewer>
                             <ItemsControl ItemsSource="{Binding GroupMemberships}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="vm:RoleMembershipOption">
@@ -116,7 +123,6 @@
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
-                        </ScrollViewer>
                     </Border>
                 </StackPanel>
 
