@@ -33,7 +33,10 @@
 
         <Grid Grid.Row="1" ColumnDefinitions="210,12,*">
 
-            <Border Grid.Column="0" Background="{StaticResource CardBackgroundBrush}"
+            <!-- Same resizable split as the roles tab: object names run long, and
+                 the matrix wants every pixel once a table carries eight privileges. -->
+
+            <Border Grid.Column="0" MinWidth="140" Background="{StaticResource CardBackgroundBrush}"
                     BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
                     CornerRadius="{StaticResource CardCornerRadius}">
                 <ListBox ItemsSource="{Binding Objects}" SelectedItem="{Binding SelectedObject, Mode=TwoWay}">
@@ -45,7 +48,22 @@
                 </ListBox>
             </Border>
 
-            <Grid Grid.Column="2" RowDefinitions="Auto,Auto,*,Auto">
+            <GridSplitter Grid.Column="1"
+                          HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                          ResizeDirection="Columns" ResizeBehavior="PreviousAndNext"
+                          Background="Transparent">
+                <GridSplitter.Template>
+                    <ControlTemplate>
+                        <Border Background="{TemplateBinding Background}">
+                            <Rectangle Width="2" Height="36" RadiusX="1" RadiusY="1"
+                                       VerticalAlignment="Center" HorizontalAlignment="Center"
+                                       Fill="{DynamicResource CardBorderBrush}" />
+                        </Border>
+                    </ControlTemplate>
+                </GridSplitter.Template>
+            </GridSplitter>
+
+            <Grid Grid.Column="2" RowDefinitions="Auto,Auto,*,Auto" MinWidth="420">
 
                 <!-- A NULL catalog ACL means "untouched", not "no privileges". An
                      empty grid with no explanation is the bug this banner prevents. -->

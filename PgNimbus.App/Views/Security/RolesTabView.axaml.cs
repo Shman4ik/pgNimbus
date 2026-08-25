@@ -1,5 +1,9 @@
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
+using Avalonia.VisualTree;
 using PgNimbus.App.ViewModels.Security;
 
 namespace PgNimbus.App.Views.Security;
@@ -21,6 +25,7 @@ public partial class RolesTabView : UserControl
         // rather than once in the constructor.
         DataContextChanged += OnDataContextChanged;
         RolesGrid.DoubleTapped += OnRolesGridDoubleTapped;
+        RolesGrid.ContextRequested += OnRolesGridContextRequested;
     }
 
     private void OnDataContextChanged(object? sender, System.EventArgs e)
@@ -56,6 +61,74 @@ public partial class RolesTabView : UserControl
 
         var owner = TopLevel.GetTopLevel(this) as Window;
         return owner is null ? false : await dialog.ShowDialog<bool>(owner);
+    }
+
+    /// <summary>
+    /// The right-click menu, built in code rather than as a XAML
+    /// <c>ContextFlyout</c> for the same two reasons the tab strip's is: the
+    /// handler has to re-target the selection before the menu opens, and a
+    /// flyout on the grid itself would also fire on its empty space.
+    ///
+    /// Four items, each one a route to something the button row already does
+    /// (UI design rule 1 — a context menu is not a dumping ground either). The
+    /// odd one out is Copy name, which earns its place because every one of
+    /// these roles ends up typed into a GRANT sooner or later.
+    /// </summary>
+    private void OnRolesGridContextRequested(object? sender, ContextRequestedEventArgs e)
+    {
+        if (DataContext is not RolesTabViewModel vm
+            || (e.Source as Visual)?.FindAncestorOfType<DataGridRow>(includeSelf: true) is not { } row
+            || row.DataContext is not RoleRowViewModel role)
+        {
+            return; // right-click on the header or the empty space below the rows
+        }
+
+        // Right-click targets what it points at, the way VS and Notepad++ do, so
+        // the menu's verbs read against the role the user is looking at.
+        vm.SelectedRole = role;
+
+        _roleMenu ??= BuildRoleMenu(vm);
+        _roleMenu.ShowAt(row, showAtPointer: true);
+        e.Handled = true;
+    }
+
+    private MenuFlyout? _roleMenu;
+
+    private MenuFlyout BuildRoleMenu(RolesTabViewModel vm)
+    {
+        var copyName = new MenuItem { Header = "Copy name" };
+        copyName.Click += OnCopyRoleNameClick;
+
+        return new MenuFlyout
+        {
+            Items =
+            {
+                new MenuItem { Header = "Edit…", Command = vm.EditRoleCommand },
+                copyName,
+                new MenuItem { Header = "CREATE ROLE script", Command = vm.CopyCreateScriptCommand },
+                new Separator(),
+                new MenuItem { Header = "Drop role…", Command = vm.DropRoleCommand },
+            },
+        };
+    }
+
+    private async void OnCopyRoleNameClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not RolesTabViewModel { SelectedRole: { } role }
+            || TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard)
+        {
+            return;
+        }
+
+        try
+        {
+            await clipboard.SetTextAsync(role.Name);
+        }
+        catch (Exception)
+        {
+            // Clipboard access can throw if another app holds it locked; a failed
+            // copy is not worth surfacing, let alone crashing over.
+        }
     }
 
     /// <summary>Double-click performs the default action for a role — edit it (UI design rule 2).</summary>
