@@ -2,6 +2,166 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:PgNimbus.App.ViewModels.Security"
              x:Class="PgNimbus.App.Views.Security.RlsTabView"
+             x:Name="Root"
              x:DataType="vm:RlsTabViewModel">
-    <Panel />
+
+    <Grid RowDefinitions="Auto,*" Margin="0,8,0,0">
+
+        <!-- Filter on the left, the one action on the right: one band of chrome,
+             like the monitoring windows. -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*,Auto" Margin="0,0,0,8">
+            <TextBlock Grid.Column="0" Text="Schema" VerticalAlignment="Center"
+                       FontSize="12" Opacity="0.6" Margin="2,0,8,0" />
+            <ComboBox Grid.Column="1" MinWidth="180"
+                      ItemsSource="{Binding Schemas}"
+                      SelectedItem="{Binding SelectedSchema, Mode=TwoWay}"
+                      ToolTip.Tip="Only schemas that have row-level security anywhere are listed" />
+
+            <Button Grid.Column="3" Classes="soft"
+                    Command="{Binding CopyPolicyAsSqlCommand}"
+                    ToolTip.Tip="Open the selected policy's CREATE POLICY statement in a new editor tab — Postgres cannot change a policy's command or permissiveness in place, so re-creating it is how one gets edited">
+                <TextBlock Text="Copy policy as SQL" VerticalAlignment="Center" />
+            </Button>
+        </Grid>
+
+        <Panel Grid.Row="1">
+
+            <Grid ColumnDefinitions="300,12,*" IsVisible="{Binding HasTables}">
+
+                <!-- Master: every table that has RLS on, or has policies at all -->
+                <Border Grid.Column="0" ClipToBounds="True"
+                        BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
+                        CornerRadius="{StaticResource CardCornerRadius}">
+                    <ListBox ItemsSource="{Binding Tables}" SelectedItem="{Binding SelectedTable, Mode=TwoWay}"
+                             Background="Transparent" BorderThickness="0">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:RlsTableRow">
+                                <StackPanel Spacing="2" Margin="0,3">
+                                    <TextBlock Text="{Binding Display}" FontWeight="SemiBold"
+                                               TextTrimming="CharacterEllipsis" />
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <TextBlock Text="{Binding StatusLabel}" FontSize="11" Opacity="0.6" />
+                                        <TextBlock Text="{Binding PolicyCountLabel}" FontSize="11" Opacity="0.6" />
+                                    </StackPanel>
+                                    <!-- Amber, not red: nothing is broken, but this table looks
+                                         protected and is not. -->
+                                    <TextBlock Text="Policies inert — RLS is off" FontSize="11" FontWeight="SemiBold"
+                                               Foreground="{StaticResource AppWarningBrush}"
+                                               IsVisible="{Binding IsInert}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Border>
+
+                <!-- Detail. The selected table hangs off the DataContext rather than
+                     sitting inside every binding path: SelectedTable is null whenever
+                     nothing is picked, and a null in the middle of a path is what fills
+                     the log with "Value is null" on every re-evaluation. -->
+                <Border Grid.Column="2" ClipToBounds="True"
+                        BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
+                        CornerRadius="{StaticResource CardCornerRadius}">
+                    <Grid RowDefinitions="Auto,*" Margin="16,14"
+                          DataContext="{Binding SelectedTable}" x:DataType="vm:RlsTableRow">
+
+                        <StackPanel Grid.Row="0" Spacing="12" Margin="0,0,0,12">
+
+                            <StackPanel Spacing="3">
+                                <TextBlock Text="{Binding Display}" FontSize="16" FontWeight="SemiBold" />
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <TextBlock Text="{Binding StatusLabel}" FontSize="12" Opacity="0.65" />
+                                    <TextBlock Text="{Binding PolicyCountLabel}" FontSize="12" Opacity="0.65" />
+                                </StackPanel>
+                            </StackPanel>
+
+                            <!-- Warning 1: policies that look like protection and are not -->
+                            <Border Classes="card" Padding="12,10" IsVisible="{Binding IsInert}">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="These policies do nothing." FontWeight="SemiBold" FontSize="12"
+                                               Foreground="{StaticResource AppWarningBrush}" />
+                                    <TextBlock TextWrapping="Wrap" FontSize="12" Opacity="0.75"
+                                               Text="Row-level security was never switched on for this table, so every policy below is inert and every role reads every row. Writing policies does not enable it — ALTER TABLE … ENABLE ROW LEVEL SECURITY does." />
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Warning 2: works for me, not for the app -->
+                            <Border Classes="card" Padding="12,10" IsVisible="{Binding IsBypassed}">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="You bypass these policies." FontWeight="SemiBold" FontSize="12"
+                                               Foreground="{StaticResource AppWarningBrush}" />
+                                    <TextBlock Text="{Binding BypassReason}" TextWrapping="Wrap"
+                                               FontSize="12" Opacity="0.75" />
+                                </StackPanel>
+                            </Border>
+
+                            <!-- RLS on with nothing to permit: default deny, easy to reach by half a migration -->
+                            <TextBlock IsVisible="{Binding DeniesEverything}" TextWrapping="Wrap"
+                                       FontSize="12" Opacity="0.7"
+                                       Text="Row-level security is enabled and this table has no policies, so it returns no rows to any role that does not bypass it. That is the default-deny state, not a misconfiguration in itself." />
+
+                        </StackPanel>
+
+                        <!-- Policies are selectable because the Copy button acts on one.
+                             The quals are SQL, so they are monospace, selectable and never
+                             trimmed - they are the only part of a policy that says what it
+                             actually does. -->
+                        <ListBox Grid.Row="1" ItemsSource="{Binding Policies}"
+                                 SelectedItem="{Binding #Root.((vm:RlsTabViewModel)DataContext).SelectedPolicy, Mode=TwoWay}"
+                                 Background="Transparent" BorderThickness="0"
+                                 IsVisible="{Binding HasPolicies}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="vm:RlsPolicyRow">
+                                    <StackPanel Spacing="7" Margin="0,4">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                            <TextBlock Text="{Binding Kind}" FontSize="11" Opacity="0.55" VerticalAlignment="Center" />
+                                            <TextBlock Text="{Binding Command}" FontSize="11" Opacity="0.55" VerticalAlignment="Center" />
+                                        </StackPanel>
+
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <TextBlock Text="Applies to" FontSize="11" Opacity="0.5" VerticalAlignment="Center" />
+                                            <TextBlock Text="{Binding RolesLabel}" FontSize="11" VerticalAlignment="Center"
+                                                       TextWrapping="Wrap" />
+                                        </StackPanel>
+
+                                        <StackPanel Spacing="3" IsVisible="{Binding HasUsing}">
+                                            <TextBlock Text="USING — which existing rows are visible"
+                                                       FontSize="10" Opacity="0.5" FontWeight="SemiBold" />
+                                            <SelectableTextBlock Text="{Binding Using}" TextWrapping="Wrap"
+                                                                 FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                                                 FontSize="12" />
+                                        </StackPanel>
+
+                                        <StackPanel Spacing="3" IsVisible="{Binding HasWithCheck}">
+                                            <TextBlock Text="WITH CHECK — which new or updated rows are allowed"
+                                                       FontSize="10" Opacity="0.5" FontWeight="SemiBold" />
+                                            <SelectableTextBlock Text="{Binding WithCheck}" TextWrapping="Wrap"
+                                                                 FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                                                 FontSize="12" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+
+                        <TextBlock Grid.Row="1" IsVisible="{Binding !HasPolicies}" FontSize="12" Opacity="0.55"
+                                   Text="This table has no policies." />
+
+                    </Grid>
+                </Border>
+
+            </Grid>
+
+            <StackPanel IsVisible="{Binding !HasTables}" Spacing="6" MaxWidth="520"
+                        HorizontalAlignment="Center" VerticalAlignment="Center">
+                <TextBlock Text="No table here uses row-level security."
+                           FontWeight="SemiBold" HorizontalAlignment="Center" />
+                <TextBlock TextWrapping="Wrap" TextAlignment="Center" Opacity="0.65" FontSize="12"
+                           Text="Tables appear here as soon as they have row security enabled or carry a policy, in either order." />
+            </StackPanel>
+
+        </Panel>
+
+    </Grid>
+
 </UserControl>

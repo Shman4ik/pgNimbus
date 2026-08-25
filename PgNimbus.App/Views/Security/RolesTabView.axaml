@@ -3,5 +3,197 @@
              xmlns:vm="using:PgNimbus.App.ViewModels.Security"
              x:Class="PgNimbus.App.Views.Security.RolesTabView"
              x:DataType="vm:RolesTabViewModel">
-    <Panel />
+
+    <!-- The list answers "who exists"; the pane beside it answers "and what is
+         that role, really" - which is mostly the membership chain, because a
+         role's attributes rarely explain what it can do and its groups always
+         do. -->
+    <Grid ColumnDefinitions="470,*" Margin="0,8,0,0">
+
+        <Grid Grid.Column="0" RowDefinitions="Auto,*,Auto" Margin="0,0,10,0">
+
+            <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                <TextBox Grid.Column="0" Text="{Binding Filter}" PlaceholderText="Filter roles…" FontSize="12" />
+                <!-- A stock server carries a dozen pg_* roles nobody made and
+                     nobody edits. Off by default, one click from visible. -->
+                <ToggleButton Grid.Column="1" Classes="chip" Margin="6,0,0,0" VerticalAlignment="Center"
+                              IsChecked="{Binding ShowPredefinedRoles}"
+                              ToolTip.Tip="Also list the built-in pg_* roles the server ships with">
+                    <TextBlock Text="pg_*" />
+                </ToggleButton>
+            </Grid>
+
+            <Border Grid.Row="1" ClipToBounds="True"
+                    BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
+                    CornerRadius="{StaticResource CardCornerRadius}">
+                <Panel>
+                    <DataGrid Name="RolesGrid"
+                              ItemsSource="{Binding FilteredRoles}"
+                              SelectedItem="{Binding SelectedRole, Mode=TwoWay}"
+                              IsReadOnly="True" SelectionMode="Single"
+                              CanUserResizeColumns="True" CanUserSortColumns="False"
+                              GridLinesVisibility="Horizontal" HeadersVisibility="Column">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Role" Binding="{Binding Name}" Width="*" />
+                            <DataGridTextColumn Header="Attributes" Binding="{Binding AttributesLabel}" Width="160" />
+                            <DataGridTemplateColumn Header="Valid until" Width="112">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate x:DataType="vm:RoleRowViewModel">
+                                        <Panel Margin="12,0">
+                                            <!-- A login role nobody can log in as any more is
+                                                 worth spotting from the list - amber + bold -->
+                                            <TextBlock Text="{Binding ValidUntilText}" VerticalAlignment="Center"
+                                                       Foreground="{StaticResource AppWarningBrush}" FontWeight="SemiBold"
+                                                       IsVisible="{Binding IsExpired}" />
+                                            <TextBlock Text="{Binding ValidUntilText}" VerticalAlignment="Center"
+                                                       Opacity="0.7" IsVisible="{Binding !IsExpired}" />
+                                        </Panel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <!-- "No role is called that" and "this server has no roles"
+                         send you looking for opposite problems, but only the
+                         first can happen here: every server has roles. -->
+                    <TextBlock Text="No role matches that filter." Opacity="0.55" FontSize="12"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               IsVisible="{Binding !HasFilteredRoles}" />
+                </Panel>
+            </Border>
+
+            <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="6" Margin="0,8,0,0">
+                <Button Classes="soft" Content="New role…" Command="{Binding NewRoleCommand}"
+                        ToolTip.Tip="Create a role, with the CREATE ROLE statement shown before it runs" />
+                <Button Classes="soft" Content="Edit…" Command="{Binding EditRoleCommand}"
+                        ToolTip.Tip="Change the selected role's attributes and memberships" />
+                <Button Classes="soft danger" Content="Drop…" Command="{Binding DropRoleCommand}"
+                        ToolTip.Tip="Work out what the role owns and holds, then generate the drop recipe" />
+                <Button Classes="soft" Content="CREATE ROLE script" Command="{Binding CopyCreateScriptCommand}"
+                        ToolTip.Tip="Open this role's CREATE ROLE statement in a new query tab. It carries no password — pgNimbus never reads password hashes." />
+            </StackPanel>
+
+        </Grid>
+
+        <Border Grid.Column="1" Classes="card" Padding="0">
+            <Panel>
+
+                <TextBlock Text="Select a role to see its attributes and where it sits in the membership graph."
+                           Opacity="0.55" FontSize="12" TextWrapping="Wrap" MaxWidth="320"
+                           TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center"
+                           IsVisible="{Binding !HasSelection}" />
+
+                <ScrollViewer IsVisible="{Binding HasSelection}">
+                    <StackPanel Spacing="16" Margin="16">
+
+                        <!-- The row's own view model, hung off the DataContext
+                             rather than reached through SelectedRole.* : a null
+                             in the middle of a binding path is logged as an
+                             error on every re-evaluation, a null DataContext is
+                             just an unset binding. -->
+                        <StackPanel Spacing="10" x:DataType="vm:RoleRowViewModel" DataContext="{Binding SelectedRole}">
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding AttributesLabel}" FontSize="11" Opacity="0.6" />
+                            </StackPanel>
+
+                            <ItemsControl ItemsSource="{Binding Details}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:RoleDetailRow">
+                                        <Grid ColumnDefinitions="130,*" Margin="0,2">
+                                            <TextBlock Grid.Column="0" Text="{Binding Label}" FontSize="12" Opacity="0.55" />
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                                                <TextBlock Text="{Binding Value}" FontSize="12" TextWrapping="Wrap"
+                                                           IsVisible="{Binding !IsWarning}" />
+                                                <TextBlock Text="{Binding Value}" FontSize="12" FontWeight="SemiBold"
+                                                           Foreground="{StaticResource AppWarningBrush}"
+                                                           IsVisible="{Binding IsWarning}" />
+                                                <TextBlock Text="{Binding Note}" FontSize="11" Opacity="0.55"
+                                                           VerticalAlignment="Center" IsVisible="{Binding HasNote}" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+
+                        <StackPanel Spacing="4">
+                            <TextBlock Classes="sectionHeader" Text="MEMBER OF" />
+                            <TreeView ItemsSource="{Binding MemberOf}" MaxHeight="200">
+                                <TreeView.Styles>
+                                    <!-- The whole chain at a glance: a privilege
+                                         three groups up is still the answer to
+                                         "why can this role do that". -->
+                                    <Style Selector="TreeViewItem">
+                                        <Setter Property="IsExpanded" Value="True" />
+                                    </Style>
+                                </TreeView.Styles>
+                                <TreeView.ItemTemplate>
+                                    <TreeDataTemplate x:DataType="vm:RoleTreeNodeViewModel" ItemsSource="{Binding Children}">
+                                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2">
+                                            <TextBlock Text="{Binding Role}" VerticalAlignment="Center"
+                                                       Opacity="{Binding RowOpacity}" />
+                                            <!-- The membership that looks granted and behaves
+                                                 as if it is not: NOINHERIT privileges are
+                                                 dormant until an explicit SET ROLE. -->
+                                            <TextBlock Text="NOINHERIT · needs SET ROLE" FontSize="11"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="{StaticResource AppWarningBrush}"
+                                                       IsVisible="{Binding IsDormant}" />
+                                        </StackPanel>
+                                    </TreeDataTemplate>
+                                </TreeView.ItemTemplate>
+                            </TreeView>
+                            <TextBlock Text="Belongs to no group." FontSize="12" Opacity="0.5"
+                                       IsVisible="{Binding !HasMemberOf}" />
+                        </StackPanel>
+
+                        <StackPanel Spacing="4">
+                            <TextBlock Classes="sectionHeader" Text="MEMBERS" />
+                            <TreeView ItemsSource="{Binding Members}" MaxHeight="200">
+                                <TreeView.Styles>
+                                    <Style Selector="TreeViewItem">
+                                        <Setter Property="IsExpanded" Value="True" />
+                                    </Style>
+                                </TreeView.Styles>
+                                <TreeView.ItemTemplate>
+                                    <TreeDataTemplate x:DataType="vm:RoleTreeNodeViewModel" ItemsSource="{Binding Children}">
+                                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2">
+                                            <TextBlock Text="{Binding Role}" VerticalAlignment="Center"
+                                                       Opacity="{Binding RowOpacity}" />
+                                            <TextBlock Text="NOINHERIT · needs SET ROLE" FontSize="11"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="{StaticResource AppWarningBrush}"
+                                                       IsVisible="{Binding IsDormant}" />
+                                        </StackPanel>
+                                    </TreeDataTemplate>
+                                </TreeView.ItemTemplate>
+                            </TreeView>
+                            <TextBlock Text="No role belongs to this one." FontSize="12" Opacity="0.5"
+                                       IsVisible="{Binding !HasMembers}" />
+                        </StackPanel>
+
+                        <!-- ALTER ROLE … SET entries. Hidden when there are none,
+                             which is the overwhelmingly common case. -->
+                        <StackPanel Spacing="4" IsVisible="{Binding HasSettings}">
+                            <TextBlock Classes="sectionHeader" Text="SESSION DEFAULTS" />
+                            <ItemsControl ItemsSource="{Binding Settings}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="x:String">
+                                        <TextBlock Text="{Binding}" FontSize="12" Margin="0,1"
+                                                   FontFamily="Cascadia Code,Consolas,Menlo,monospace" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+
+                    </StackPanel>
+                </ScrollViewer>
+
+            </Panel>
+        </Border>
+
+    </Grid>
+
 </UserControl>

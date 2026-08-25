@@ -221,6 +221,51 @@ Three rules about it:
    whole script failed at the second one ("syntax error at or near SET"). The design
    doc + competitive research is in
    [`docs/design/explain-improvements.md`](docs/design/explain-improvements.md).
+7. **Permissions are answered, not dumped — and never applied behind the user's
+   back.** `PgNimbus.Core/Security/` reads roles and ACLs, but the headline is
+   that it answers *"can this role do this, and why?"* rather than rendering
+   what the catalog stores. pgAdmin, DBeaver, DataGrip and TablePlus all render
+   the stored ACL, which omits everything a role reaches through group
+   membership, ownership or PUBLIC — so a permission that works looks missing.
+   `PrivilegeService.GetServerAnswersAsync` asks the server itself through
+   `has_*_privilege()` (which expands inheritance, ownership and superuser
+   server-side, so it is ground truth), and the Core-pure, unit-tested
+   `EffectivePrivilegeResolver` — a sibling of `PlanAnalyzer`/`BlockingTree` —
+   attributes each answer to a `PrivilegeSource` (direct / inherited-via-X /
+   PUBLIC / owner / superuser) and reconciles against the server, which always
+   wins: a yes the catalog cannot explain is reported `Unknown`, never dressed
+   up as a direct grant. `RoleGraph` is the other pure half; its load-bearing
+   rule is that a `NOINHERIT` membership shows in the tree but never counts as
+   inherited, because claiming a privilege the server will refuse is worse than
+   showing none.
+   **Three landmines, all found the hard way.** `ObjectAcl.IsDefaultAcl` models
+   a NULL catalog ACL as its own state — in Postgres that means "untouched: the
+   owner has everything and the built-in defaults apply", not "no privileges",
+   and rendering it as an empty grid is how a permissions UI teaches the wrong
+   thing. `aclexplode` is *strict*, so a NULL ACL must be passed to it as-is;
+   "defending" that with `COALESCE(acl, ARRAY[]::aclitem[])` fails every
+   untouched object with `ACL arrays must be one-dimensional`, because an empty
+   array literal is zero-dimensional. And `Privileges.For` must be given the
+   real server version — asking a pre-PG17 server about `MAINTAIN` raises
+   `unrecognized privilege type` and takes the whole matrix down.
+   **Nothing writes from the window.** Every privilege change leaves as a script
+   in a new editor tab (`MainViewModel.OpenGeneratedSql`), following the
+   `DdlTemplates` precedent. The single exception is a statement carrying a
+   `PASSWORD` literal: Postgres has no parameter form for one, so it would land
+   on screen and in the on-disk query history — those run through
+   `SecurityEditor` instead, are never shown, and `SecretRedactor` guards
+   `SavedQueriesViewModel.RecordExecution`, the one choke point into
+   `QueryHistoryStore`, for the case where a user types one by hand.
+   `GrantScriptBuilder.BuildBulk` is deliberately more correct than pgAdmin's
+   Grant Wizard: `GRANT USAGE ON SCHEMA` comes first (theirs skips it and the
+   user still gets `permission denied`), revoke is a preset rather than an
+   impossibility, and the matching `ALTER DEFAULT PRIVILEGES` is offered with
+   the creating role named, since one set for the wrong creator silently does
+   nothing. `RoleScriptBuilder.Drop` emits the whole `REASSIGN OWNED` →
+   `DROP OWNED` → `DROP ROLE` recipe with its "current database only" caveat —
+   the answer to 2BP01, which Postgres reports without naming either the
+   blocking objects or the fix. The research and the plan are in
+   [`docs/design/accounts-permissions.md`](docs/design/accounts-permissions.md).
 
 ## UI design rules
 

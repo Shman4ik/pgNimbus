@@ -3,5 +3,72 @@
              xmlns:vm="using:PgNimbus.App.ViewModels.Security"
              x:Class="PgNimbus.App.Views.Security.DefaultPrivilegesTabView"
              x:DataType="vm:DefaultPrivilegesTabViewModel">
-    <Panel />
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="0,8,0,0">
+
+        <!-- One action, and it leaves through the editor like every other write
+             path in this window: the statement lands in a new tab where it can be
+             edited into a REVOKE or aimed at a different creating role. -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="6" Margin="0,0,0,8">
+            <Button Classes="soft"
+                    Command="{Binding CopySelectedAsSqlCommand}"
+                    ToolTip.Tip="Open the ALTER DEFAULT PRIVILEGES statement this row represents in a new editor tab">
+                <TextBlock Text="Copy as SQL" VerticalAlignment="Center" />
+            </Button>
+        </StackPanel>
+
+        <Border Grid.Row="1" ClipToBounds="True"
+                BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
+                CornerRadius="{StaticResource CardCornerRadius}">
+            <Panel>
+                <DataGrid ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow, Mode=TwoWay}"
+                          IsVisible="{Binding HasRows}"
+                          IsReadOnly="True" SelectionMode="Single"
+                          CanUserResizeColumns="True" CanUserSortColumns="False"
+                          GridLinesVisibility="Horizontal" HeadersVisibility="Column">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Created by" Binding="{Binding OwnerRole}" Width="160" />
+                        <DataGridTextColumn Header="In schema" Binding="{Binding SchemaLabel}" Width="160" />
+                        <DataGridTextColumn Header="Applies to" Binding="{Binding AppliesToLabel}" Width="110" />
+                        <DataGridTextColumn Header="Grantee" Binding="{Binding GranteeLabel}" Width="160" />
+                        <DataGridTemplateColumn Header="Privileges" Width="*">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate x:DataType="vm:DefaultPrivilegeRow">
+                                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="12,0" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding PrivilegesText}" VerticalAlignment="Center" />
+                                        <!-- The grant option is part of the statement, not a footnote
+                                             on one privilege - kept visibly beside the list. -->
+                                        <TextBlock Text="{Binding GrantOptionNote}" VerticalAlignment="Center"
+                                                   FontSize="11" Opacity="0.6"
+                                                   IsVisible="{Binding WithGrantOption}" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <!-- Nothing configured is a real state with real consequences, and an
+                     empty grid says none of them. -->
+                <StackPanel IsVisible="{Binding !HasRows}" Spacing="6" MaxWidth="560"
+                            HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <TextBlock Text="No default privileges are configured."
+                               FontWeight="SemiBold" HorizontalAlignment="Center" />
+                    <TextBlock TextWrapping="Wrap" TextAlignment="Center" Opacity="0.65" FontSize="12"
+                               Text="Every object created from now on will carry only the built-in defaults: its owner gets everything, PUBLIC gets EXECUTE on functions and USAGE on types, and nothing at all on tables and sequences." />
+                </StackPanel>
+            </Panel>
+        </Border>
+
+        <!-- The two things people get wrong about pg_default_acl. Neither is
+             visible in the grid above, and both are why the tab exists. -->
+        <StackPanel Grid.Row="2" Margin="4,8,4,0" Spacing="4">
+            <TextBlock FontSize="11" Opacity="0.6" TextWrapping="Wrap"
+                       Text="These do not affect objects that already exist. They apply to objects created from now on, which is why a GRANT … ON ALL TABLES IN SCHEMA … and a default privilege are both needed: neither replaces the other." />
+            <TextBlock FontSize="11" Opacity="0.6" TextWrapping="Wrap"
+                       Text="They are keyed to the role that creates the object, not to the schema it lands in. A default privilege set for the wrong creator runs fine and silently does nothing — the single most common reason someone says they set default privileges and nothing changed." />
+        </StackPanel>
+
+    </Grid>
+
 </UserControl>

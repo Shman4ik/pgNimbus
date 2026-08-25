@@ -1,7 +1,164 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:PgNimbus.App.ViewModels.Security"
+             xmlns:sec="using:PgNimbus.Core.Security"
              x:Class="PgNimbus.App.Views.Security.PermissionsTabView"
              x:DataType="vm:PermissionsTabViewModel">
-    <Panel />
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="0,10,0,0">
+
+        <!-- Picker and edit strip, one band: the window already carries a toolbar. -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto,Auto" Margin="0,0,0,10">
+            <ComboBox Grid.Column="0" ItemsSource="{Binding Kinds}" SelectedItem="{Binding SelectedKind, Mode=TwoWay}"
+                      MinWidth="110" VerticalAlignment="Center" />
+            <ComboBox Grid.Column="1" ItemsSource="{Binding Schemas}" SelectedItem="{Binding SelectedSchema, Mode=TwoWay}"
+                      MinWidth="150" Margin="8,0,0,0" VerticalAlignment="Center"
+                      IsVisible="{Binding KindHasSchema}" PlaceholderText="Schema" />
+            <TextBox Grid.Column="2" Text="{Binding ObjectFilter}" Watermark="Filter objects"
+                     MinWidth="160" Margin="8,0,0,0" VerticalAlignment="Center" />
+            <Button Grid.Column="3" Classes="soft" Content="Bulk grant…" Margin="8,0,0,0"
+                    Command="{Binding BulkGrantCommand}"
+                    ToolTip.Tip="Give a role access to a whole schema, including objects created later" />
+
+            <ToggleButton Grid.Column="5" Classes="soft" Content="Edit grants" IsChecked="{Binding IsEditing, Mode=TwoWay}"
+                          ToolTip.Tip="Click cells to stage a GRANT or REVOKE; nothing runs until you review the script" />
+            <TextBlock Grid.Column="6" Text="{Binding PendingLabel}" VerticalAlignment="Center"
+                       FontSize="11" Opacity="0.7" Margin="10,0,0,0" IsVisible="{Binding IsEditing}" />
+            <StackPanel Grid.Column="7" Orientation="Horizontal" Spacing="6" Margin="10,0,0,0"
+                        IsVisible="{Binding HasPending}">
+                <Button Classes="soft" Content="Discard" Command="{Binding ClearPendingCommand}" />
+                <Button Classes="accent" Content="Review changes" Command="{Binding ReviewChangesCommand}" />
+            </StackPanel>
+        </Grid>
+
+        <Grid Grid.Row="1" ColumnDefinitions="210,12,*">
+
+            <Border Grid.Column="0" Background="{StaticResource CardBackgroundBrush}"
+                    BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
+                    CornerRadius="{StaticResource CardCornerRadius}">
+                <ListBox ItemsSource="{Binding Objects}" SelectedItem="{Binding SelectedObject, Mode=TwoWay}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="sec:SecurableRef">
+                            <TextBlock Text="{Binding Display}" TextTrimming="CharacterEllipsis" />
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Border>
+
+            <Grid Grid.Column="2" RowDefinitions="Auto,Auto,*,Auto">
+
+                <!-- A NULL catalog ACL means "untouched", not "no privileges". An
+                     empty grid with no explanation is the bug this banner prevents. -->
+                <Border Grid.Row="0" IsVisible="{Binding IsDefaultAcl}"
+                        Background="{StaticResource CardBackgroundBrush}"
+                        BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
+                        CornerRadius="{StaticResource CardCornerRadius}" Padding="12,9" Margin="0,0,0,8">
+                    <TextBlock Text="{Binding DefaultAclNote}" TextWrapping="Wrap" FontSize="12" Opacity="0.8" />
+                </Border>
+
+                <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,0,0,6">
+                    <TextBox Grid.Column="0" Text="{Binding RoleFilter}" Watermark="Filter roles" MaxWidth="240"
+                             HorizontalAlignment="Left" />
+                    <ToggleButton Grid.Column="1" Classes="chip" Content="Built-in roles"
+                                  IsChecked="{Binding ShowPredefinedRoles, Mode=TwoWay}"
+                                  ToolTip.Tip="Show the pg_* roles initdb created" />
+                </Grid>
+
+                <!-- Fixed widths keep the header aligned with the rows; a DataGrid
+                     cannot carry a per-cell source tint this cheaply. -->
+                <Border Grid.Row="2" Background="{StaticResource CardBackgroundBrush}"
+                        BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
+                        CornerRadius="{StaticResource CardCornerRadius}" Padding="10,8">
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="12,0,0,6">
+                                <TextBlock Text="ROLE" Width="150" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
+                                <ItemsControl ItemsSource="{Binding PrivilegeColumns}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Orientation="Horizontal" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:PrivilegeColumn">
+                                            <TextBlock Text="{Binding Header}" Width="66" FontSize="10"
+                                                       Opacity="0.55" FontWeight="SemiBold" TextAlignment="Center" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <TextBlock Text="HOW" Width="120" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
+                            </StackPanel>
+
+                            <ListBox ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow, Mode=TwoWay}"
+                                     Background="Transparent" BorderThickness="0">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:PermissionRowViewModel">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{Binding Role}" Width="150" VerticalAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis" />
+                                            <ItemsControl ItemsSource="{Binding Cells}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <StackPanel Orientation="Horizontal" />
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="vm:PrivilegeCellViewModel">
+                                                        <Button Classes="toolbar" Width="66" Padding="0"
+                                                                Command="{Binding ToggleCommand}"
+                                                                ToolTip.Tip="{Binding Tooltip}">
+                                                            <Panel>
+                                                                <TextBlock Text="{Binding Glyph}" HorizontalAlignment="Center"
+                                                                           Opacity="{Binding Weight}" FontSize="13"
+                                                                           IsVisible="{Binding !IsUnexplained}" />
+                                                                <!-- Granted, but nothing in the catalog explains it. -->
+                                                                <TextBlock Text="{Binding Glyph}" HorizontalAlignment="Center"
+                                                                           Foreground="{StaticResource AppWarningBrush}"
+                                                                           FontSize="13" IsVisible="{Binding IsUnexplained}" />
+                                                            </Panel>
+                                                        </Button>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                            <TextBlock Text="{Binding SourceSummary}" Width="120" VerticalAlignment="Center"
+                                                       FontSize="11" Opacity="0.7" TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+
+                <!-- Column grants are additive on top of the table's, and no other
+                     client surfaces them. A compact list is enough. -->
+                <StackPanel Grid.Row="3" Spacing="4" Margin="0,8,0,0" IsVisible="{Binding HasColumnGrants}">
+                    <TextBlock Text="COLUMN GRANTS" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
+                    <ItemsControl ItemsSource="{Binding ColumnGrants}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:ColumnGrantRow">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <TextBlock Text="{Binding Column}" FontWeight="SemiBold" FontSize="12" MinWidth="120" />
+                                    <TextBlock Text="{Binding Grants}" FontSize="12" Opacity="0.75" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+            </Grid>
+
+        </Grid>
+
+        <!-- The plain-English answer, given real space on purpose: it is the thing
+             no other client can tell you. -->
+        <Border Grid.Row="2" IsVisible="{Binding HasAccessSentence}" Margin="0,10,0,0"
+                Background="{StaticResource CardBackgroundBrush}"
+                BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
+                CornerRadius="{StaticResource CardCornerRadius}" Padding="14,11">
+            <SelectableTextBlock Text="{Binding AccessSentence}" TextWrapping="Wrap" FontSize="13" />
+        </Border>
+
+    </Grid>
+
 </UserControl>

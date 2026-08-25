@@ -1,6 +1,7 @@
 using Npgsql;
 using PgNimbus.App.Completion;
 using PgNimbus.App.ViewModels;
+using PgNimbus.App.ViewModels.Security;
 using PgNimbus.Core.Import;
 using PgNimbus.Core.Monitoring;
 using PgNimbus.Core.Notifications;
@@ -287,4 +288,128 @@ public static class Fixtures
         new("analytics", "sessions", "sessions_started_at_idx", 20_971_520),
         new("public", "customers", "customers_full_name_idx", 8_388_608),
     ];
+
+    // --- Roles & permissions --------------------------------------------
+
+    /// <summary>
+    /// The role snapshot the security window renders: an inheritance chain
+    /// (app_ro -&gt; readers), a group in the middle (writers), and a NOINHERIT
+    /// membership whose privileges are dormant until SET ROLE - the case the
+    /// membership tree exists to make visible.
+    /// </summary>
+    public static IReadOnlyList<RoleAttributes> Roles() =>
+    [
+        new(16390, "app_ro", true, false, true, false, false, false, false, 5,
+            new DateTimeOffset(2030, 1, 1, 0, 0, 0, TimeSpan.Zero), ["statement_timeout=30s"], "the read-only API user"),
+        new(16391, "app_rw", true, false, true, false, false, false, false, -1, null, [], null),
+        new(16392, "readers", false, false, true, false, false, false, false, -1, null, [], "read-only group"),
+        new(16393, "writers", false, false, true, false, false, false, false, -1, null, [], null),
+        new(16394, "legacy_etl", true, false, false, false, false, false, false, -1,
+            new DateTimeOffset(2024, 6, 1, 0, 0, 0, TimeSpan.Zero), [], "kept for the nightly job"),
+        new(10, "postgres", true, true, true, true, true, true, true, -1, null, [], null),
+    ];
+
+    public static IReadOnlyList<RoleMembership> RoleMemberships() =>
+    [
+        new("app_ro", "readers", false, true, true, "postgres"),
+        new("writers", "readers", false, true, true, "postgres"),
+        new("app_rw", "writers", false, true, true, "postgres"),
+        // Dormant until SET ROLE - shown in the tree, never counted as inherited.
+        new("app_ro", "legacy_etl", true, false, true, "postgres"),
+    ];
+
+    /// <summary>
+    /// A security window with its shared snapshot seeded, so the tabs render
+    /// without a server. Same seam as the other fixtures: the public ViewModel
+    /// surface production sets, never the views.
+    /// </summary>
+    public static SecurityViewModel SecurityViewModel()
+    {
+        var dataSource = DataSource;
+        var vm = new SecurityViewModel(
+            new RoleService(dataSource),
+            new PrivilegeService(dataSource),
+            new SecurityEditor(dataSource),
+            "shop")
+        {
+            CurrentRole = "postgres",
+            ServerVersion = new Version(17, 2),
+            ServerVersionText = "PostgreSQL 17.2",
+            Graph = RoleGraph.Build(Roles(), RoleMemberships()),
+            Status = "5 roles · 09:41:02",
+        };
+
+        SeedRolesTab(vm);
+        SeedPermissionsTab(vm);
+        return vm;
+    }
+
+    /// <summary>
+    /// The roles tab has no server call in its refresh — it reads the snapshot
+    /// the host already holds — so the harness drives the real path rather than
+    /// filling its collections behind its back.
+    /// </summary>
+    private static void SeedRolesTab(SecurityViewModel vm)
+    {
+        vm.Roles.RefreshAsync(CancellationToken.None).GetAwaiter().GetResult();
+        vm.Roles.SelectedRole = vm.Roles.FilteredRoles.FirstOrDefault(r => r.Name == "app_ro");
+    }
+
+    /// <summary>
+    /// One object's matrix, showing the thing no other client shows: SELECT that
+    /// app_ro holds only through readers, two memberships up.
+    /// </summary>
+    private static void SeedPermissionsTab(SecurityViewModel vm)
+    {
+        var kinds = Privileges.For(SecurableKind.Table, new Version(17, 2));
+        var columns = kinds.Select(k => new PrivilegeColumn(k, Privileges.Sql(k))).ToList();
+
+        var objects = new[] { "orders", "order_items", "customers", "shipments" }
+            .Select((name, i) => new SecurableRef(SecurableKind.Table, (uint)(16400 + i), "sales", name))
+            .ToList();
+
+        List<PermissionRowViewModel> rows =
+        [
+            Row("app_ro", kinds, PrivilegeSource.Inherited, "readers", PrivilegeKind.Select),
+            Row("app_rw", kinds, PrivilegeSource.Inherited, "writers",
+                PrivilegeKind.Select, PrivilegeKind.Insert, PrivilegeKind.Update, PrivilegeKind.Delete),
+            Row("readers", kinds, PrivilegeSource.Direct, null, PrivilegeKind.Select),
+            Row("legacy_etl", kinds, PrivilegeSource.None, null),
+            Row("postgres", kinds, PrivilegeSource.Superuser, null),
+        ];
+
+        vm.Permissions.SeedForHarness(
+            ["sales", "public", "analytics"],
+            objects,
+            columns,
+            rows,
+            "app_ro can SELECT sales.orders — inherited from readers. It cannot INSERT, UPDATE or DELETE.",
+            [new ColumnGrantRow("email", "app_ro: SELECT")]);
+
+        static PermissionRowViewModel Row(
+            string role,
+            IReadOnlyList<PrivilegeKind> kinds,
+            PrivilegeSource source,
+            string? via,
+            params PrivilegeKind[] granted)
+        {
+            var held = new HashSet<PrivilegeKind>(granted);
+            var everything = source == PrivilegeSource.Superuser;
+
+            var cells = kinds.Select(kind =>
+            {
+                var isGranted = everything || held.Contains(kind);
+                var effective = new EffectivePrivilege(
+                    role, kind, isGranted,
+                    isGranted ? source : PrivilegeSource.None,
+                    isGranted ? via : null,
+                    isGranted && source == PrivilegeSource.Direct ? "postgres" : null);
+
+                // Ownership and superuser are not grants, so their cells do not toggle.
+                return new PrivilegeCellViewModel(effective, !everything, _ => { });
+            }).ToList();
+
+            return new PermissionRowViewModel(role, cells);
+        }
+    }
 }

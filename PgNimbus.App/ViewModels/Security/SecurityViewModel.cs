@@ -108,7 +108,13 @@ public sealed partial class SecurityViewModel : ObservableObject
     {
         try
         {
-            Status = "Reading roles…";
+            // Only on the first read: a refresh that already has a snapshot behind
+            // it should not blank the status line, and the screenshot harness
+            // seeds a snapshot before the window's Opened refresh fires.
+            if (Graph is null)
+            {
+                Status = "Reading roles…";
+            }
 
             var rolesTask = _roleService.GetRolesAsync(includePredefined: true, ct);
             var membershipsTask = _roleService.GetMembershipsAsync(ct);
