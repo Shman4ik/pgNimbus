@@ -57,7 +57,15 @@ echo "   $*"
 # The app has no natural exit outside the probe, so a hang is a real failure
 # mode and needs its own deadline. `timeout` is GNU-only and macOS runners do
 # not ship it, hence the hand-rolled wait.
-PGNIMBUS_STARTUP_PROBE=1 "${launcher[@]}" "$@" >"$log" 2>&1 &
+#
+# The empty/non-empty branch (rather than a bare "${launcher[@]}") is
+# deliberate: macOS runners' system bash is 3.2, which treats expanding an
+# empty-but-declared array under `set -u` as an unbound variable.
+if [ ${#launcher[@]} -eq 0 ]; then
+    PGNIMBUS_STARTUP_PROBE=1 "$@" >"$log" 2>&1 &
+else
+    PGNIMBUS_STARTUP_PROBE=1 "${launcher[@]}" "$@" >"$log" 2>&1 &
+fi
 pid=$!
 
 deadline=$(( $(date +%s) + timeout_seconds ))
