@@ -11,6 +11,13 @@ public abstract partial class SchemaTreeNode : ObservableObject
 {
     private bool _loaded;
 
+    /// <summary>
+    /// True once this node's children have actually been fetched. Lets a caller
+    /// refresh a node it knows the user has opened without forcing a catalog
+    /// read for one they never expanded.
+    /// </summary>
+    public bool IsLoaded => _loaded;
+
     [ObservableProperty]
     private bool _isExpanded;
 
