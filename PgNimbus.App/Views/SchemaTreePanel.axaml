@@ -126,12 +126,27 @@
         </DataTemplate>
         <DataTemplate DataType="vm:RolesGroupNode">
             <StackPanel Orientation="Horizontal" Spacing="6">
+                <StackPanel.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="Roles and permissions..." Click="OnManageRolesClick" />
+                        <MenuItem Header="Refresh" Tag="{Binding}" Click="OnRefreshNodeClick" />
+                    </ContextMenu>
+                </StackPanel.ContextMenu>
                 <PathIcon Data="{StaticResource AccountMultipleIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
                 <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
             </StackPanel>
         </DataTemplate>
         <DataTemplate DataType="vm:RoleNode">
             <StackPanel Orientation="Horizontal" Spacing="6">
+                <!-- The tree can only ever show a role's headline attributes.
+                     "Roles and permissions..." opens the window on this role,
+                     which is where the effective-privilege answer lives. -->
+                <StackPanel.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="Roles and permissions..." Tag="{Binding}" Click="OnManageRoleClick" />
+                        <MenuItem Header="Copy name" Tag="{Binding}" Click="OnCopyRoleNameClick" />
+                    </ContextMenu>
+                </StackPanel.ContextMenu>
                 <Panel Width="14" VerticalAlignment="Center">
                     <PathIcon Data="{StaticResource KeyIconGeometry}" Width="11" Height="11" IsVisible="{Binding IsSuperuser}" ToolTip.Tip="Superuser" />
                 </Panel>

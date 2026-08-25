@@ -117,6 +117,13 @@ public sealed partial class RolesTabViewModel : ObservableObject, ISecuritySecti
             SelectedRole = previous is null
                 ? null
                 : FilteredRoles.FirstOrDefault(r => string.Equals(r.Name, previous, StringComparison.Ordinal));
+
+            // A role the schema tree asked for outranks the restored selection:
+            // the user right-clicked that name to get here.
+            if (_host.PendingRoleSelection is { } pending && SelectRole(pending))
+            {
+                _host.PendingRoleSelection = null;
+            }
         }
         catch (Exception ex)
         {
@@ -124,6 +131,28 @@ public sealed partial class RolesTabViewModel : ObservableObject, ISecuritySecti
         }
 
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Selects a role by name, returning false when this snapshot has no such
+    /// role. A <c>pg_*</c> name turns the built-in filter on first — being asked
+    /// for a role and silently not showing it would read as the command doing
+    /// nothing, which is worse than changing a toggle the user can flip back.
+    /// </summary>
+    public bool SelectRole(string name)
+    {
+        if (name.StartsWith("pg_", StringComparison.Ordinal) && !ShowPredefinedRoles)
+        {
+            ShowPredefinedRoles = true; // ApplyFilter runs on the change
+        }
+
+        if (FilteredRoles.FirstOrDefault(r => string.Equals(r.Name, name, StringComparison.Ordinal)) is not { } match)
+        {
+            return false;
+        }
+
+        SelectedRole = match;
+        return true;
     }
 
     partial void OnFilterChanged(string value) => ApplyFilter();
