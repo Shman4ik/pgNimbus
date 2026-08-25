@@ -1,0 +1,137 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:PgNimbus.App.ViewModels.Security"
+        x:Class="PgNimbus.App.Views.Security.RoleDialog"
+        x:DataType="vm:RoleEditorViewModel"
+        Title="{Binding Title}"
+        Width="760" Height="660"
+        MinWidth="620" MinHeight="480"
+        WindowStartupLocation="CenterOwner"
+        FontFamily="{StaticResource InterFont}">
+
+    <Grid RowDefinitions="*,Auto" Margin="16">
+
+        <ScrollViewer Grid.Row="0">
+            <StackPanel Spacing="14">
+
+                <!-- Identity -->
+                <StackPanel Spacing="6">
+                    <TextBlock Text="NAME" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
+                    <TextBox Text="{Binding Name}" IsEnabled="{Binding CanEditName}" Watermark="app_ro" />
+                </StackPanel>
+
+                <!-- Login and password -->
+                <Border Background="{StaticResource CardBackgroundBrush}"
+                        BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
+                        CornerRadius="{StaticResource CardCornerRadius}" Padding="14,12">
+                    <StackPanel Spacing="10">
+                        <CheckBox Content="Can log in" IsChecked="{Binding CanLogin}" />
+                        <Grid ColumnDefinitions="*,12,*" IsVisible="{Binding CanLogin}">
+                            <StackPanel Grid.Column="0" Spacing="4">
+                                <TextBlock Text="PASSWORD" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
+                                <TextBox Text="{Binding Password}" PasswordChar="•" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" Spacing="4">
+                                <TextBlock Text="CONFIRM" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
+                                <TextBox Text="{Binding PasswordConfirm}" PasswordChar="•" />
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Attributes -->
+                <StackPanel Spacing="6">
+                    <TextBlock Text="ATTRIBUTES" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
+                    <WrapPanel Orientation="Horizontal">
+                        <CheckBox Content="Inherit" IsChecked="{Binding Inherit}" Margin="0,0,18,4"
+                                  ToolTip.Tip="Off means the role must SET ROLE before a group's privileges apply" />
+                        <CheckBox Content="Superuser" IsChecked="{Binding IsSuperuser}" Margin="0,0,18,4" />
+                        <CheckBox Content="Create DB" IsChecked="{Binding CanCreateDb}" Margin="0,0,18,4" />
+                        <CheckBox Content="Create role" IsChecked="{Binding CanCreateRole}" Margin="0,0,18,4" />
+                        <CheckBox Content="Replication" IsChecked="{Binding CanReplicate}" Margin="0,0,18,4" />
+                        <CheckBox Content="Bypass RLS" IsChecked="{Binding BypassRls}" Margin="0,0,18,4"
+                                  ToolTip.Tip="Skips every row-level security policy, always" />
+                    </WrapPanel>
+                </StackPanel>
+
+                <Grid ColumnDefinitions="*,12,*">
+                    <StackPanel Grid.Column="0" Spacing="4">
+                        <TextBlock Text="CONNECTION LIMIT" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
+                        <NumericUpDown Value="{Binding ConnectionLimitValue}" Minimum="0" Increment="1"
+                                       Watermark="no limit" FormatString="0" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Spacing="4">
+                        <TextBlock Text="VALID UNTIL" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
+                        <DatePicker SelectedDate="{Binding ValidUntilDate}" />
+                    </StackPanel>
+                </Grid>
+
+                <!-- Predefined roles first: on PG14+ this is the whole answer to
+                     "make a read-only user", instead of a per-schema grant script. -->
+                <StackPanel Spacing="6" IsVisible="{Binding HasPredefinedMemberships}">
+                    <TextBlock Text="BUILT-IN ROLES" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
+                    <ItemsControl ItemsSource="{Binding PredefinedMemberships}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:RoleMembershipOption">
+                                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2">
+                                    <CheckBox Content="{Binding Name}" IsChecked="{Binding IsMember}" />
+                                    <TextBlock Text="{Binding Hint}" FontSize="11" Opacity="0.6" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <StackPanel Spacing="6">
+                    <TextBlock Text="MEMBER OF" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
+                    <Border MaxHeight="150" Background="{StaticResource CardBackgroundBrush}"
+                            BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
+                            CornerRadius="{StaticResource CardCornerRadius}" Padding="10,8">
+                        <ScrollViewer>
+                            <ItemsControl ItemsSource="{Binding GroupMemberships}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:RoleMembershipOption">
+                                        <CheckBox Content="{Binding Name}" IsChecked="{Binding IsMember}" Margin="0,1" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Border>
+                </StackPanel>
+
+                <StackPanel Spacing="4">
+                    <TextBlock Text="COMMENT" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
+                    <TextBox Text="{Binding Comment}" Watermark="what this role is for" />
+                </StackPanel>
+
+                <!-- The preview is always the masked build. The real password goes
+                     straight to SecurityEditor and is never rendered anywhere. -->
+                <StackPanel Spacing="4">
+                    <TextBlock Text="GENERATED SQL" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
+                    <Border Background="{StaticResource CardBackgroundBrush}"
+                            BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
+                            CornerRadius="{StaticResource CardCornerRadius}" Padding="12,10">
+                        <SelectableTextBlock Text="{Binding LivePreview}" FontFamily="Consolas,Menlo,monospace"
+                                             FontSize="12" TextWrapping="Wrap" />
+                    </Border>
+                </StackPanel>
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <StackPanel Grid.Row="1" Margin="0,14,0,0" Spacing="8">
+            <TextBlock Text="{Binding ValidationMessage}" IsVisible="{Binding HasValidationMessage}"
+                       Foreground="{StaticResource AppDangerBrush}" FontSize="12" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding WarningMessage}" IsVisible="{Binding HasWarningMessage}"
+                       Foreground="{StaticResource AppWarningBrush}" FontSize="12" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding ErrorMessage}" IsVisible="{Binding HasErrorMessage}"
+                       Foreground="{StaticResource AppDangerBrush}" FontSize="12" TextWrapping="Wrap" />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                <Button Classes="soft" Content="Cancel" Click="OnCancelClick" IsCancel="True" />
+                <Button Classes="accent" Content="Apply" Command="{Binding ApplyCommand}" IsDefault="True" />
+            </StackPanel>
+        </StackPanel>
+
+    </Grid>
+
+</Window>

@@ -1,0 +1,113 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:PgNimbus.App.ViewModels.Security"
+        xmlns:sec="using:PgNimbus.Core.Security"
+        x:Class="PgNimbus.App.Views.Security.DropRoleDialog"
+        x:DataType="vm:DropRoleViewModel"
+        Title="Drop role"
+        Width="820" Height="680"
+        MinWidth="640" MinHeight="480"
+        WindowStartupLocation="CenterOwner"
+        FontFamily="{StaticResource InterFont}">
+
+    <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="16">
+
+        <StackPanel Grid.Row="0" Spacing="4" Margin="0,0,0,12">
+            <TextBlock Text="{Binding RoleName}" FontSize="17" FontWeight="SemiBold" />
+            <!-- Postgres's own 2BP01 says a role cannot be dropped and nothing
+                 else: not which objects block it, not that the fix is three
+                 statements, not that all three act on one database only. -->
+            <TextBlock FontSize="12" Opacity="0.7" TextWrapping="Wrap"
+                       Text="A role that owns objects or holds privileges cannot be dropped outright. Reassigning its objects and clearing its privileges first is what makes DROP ROLE succeed." />
+        </StackPanel>
+
+        <Grid Grid.Row="1" ColumnDefinitions="*,12,*">
+
+            <StackPanel Grid.Column="0" Spacing="6">
+                <TextBlock Text="{Binding OwnedHeader}" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
+                <Border Background="{StaticResource CardBackgroundBrush}"
+                        BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
+                        CornerRadius="{StaticResource CardCornerRadius}">
+                    <Panel>
+                        <DataGrid ItemsSource="{Binding Owned}" IsReadOnly="True" SelectionMode="Single"
+                                  CanUserSortColumns="False" GridLinesVisibility="Horizontal" HeadersVisibility="Column">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Kind" Binding="{Binding Kind}" Width="110" />
+                                <DataGridTextColumn Header="Object" Binding="{Binding Identity}" Width="*" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <TextBlock Text="Owns nothing in this database." FontSize="12" Opacity="0.6"
+                                   Margin="12" VerticalAlignment="Top"
+                                   IsVisible="{Binding !HasOwned}" />
+                    </Panel>
+                </Border>
+            </StackPanel>
+
+            <StackPanel Grid.Column="2" Spacing="6">
+                <TextBlock Text="{Binding GrantsHeader}" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
+                <Border Background="{StaticResource CardBackgroundBrush}"
+                        BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
+                        CornerRadius="{StaticResource CardCornerRadius}">
+                    <Panel>
+                        <DataGrid ItemsSource="{Binding GrantsHeld}" IsReadOnly="True" SelectionMode="Single"
+                                  CanUserSortColumns="False" GridLinesVisibility="Horizontal" HeadersVisibility="Column">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Kind" Binding="{Binding Kind}" Width="140" />
+                                <DataGridTextColumn Header="Object" Binding="{Binding Identity}" Width="*" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <TextBlock Text="Holds no privileges in this database." FontSize="12" Opacity="0.6"
+                                   Margin="12" VerticalAlignment="Top"
+                                   IsVisible="{Binding !HasGrantsHeld}" />
+                    </Panel>
+                </Border>
+            </StackPanel>
+
+        </Grid>
+
+        <StackPanel Grid.Row="2" Spacing="8" Margin="0,12,0,0">
+
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="Reassign owned objects to" VerticalAlignment="Center" FontSize="12" />
+                <ComboBox ItemsSource="{Binding ReassignTargets}" SelectedItem="{Binding ReassignTo, Mode=TwoWay}"
+                          MinWidth="260">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:ReassignOption">
+                            <TextBlock Text="{Binding Label}" />
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+            </StackPanel>
+
+            <TextBlock IsVisible="{Binding WillDeleteOwnedObjects}"
+                       Foreground="{StaticResource AppWarningBrush}" FontSize="12" TextWrapping="Wrap"
+                       Text="With no successor named, DROP OWNED deletes the objects this role owns instead of transferring them." />
+
+            <TextBlock FontSize="11" Opacity="0.6" TextWrapping="Wrap"
+                       Text="REASSIGN OWNED and DROP OWNED act on the current database only. If this role owns objects in other databases, run the script again while connected to each of them before the role will drop." />
+
+            <Border Background="{StaticResource CardBackgroundBrush}"
+                    BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
+                    CornerRadius="{StaticResource CardCornerRadius}" Padding="12,10" MaxHeight="170">
+                <ScrollViewer>
+                    <SelectableTextBlock Text="{Binding Script}" FontFamily="Consolas,Menlo,monospace"
+                                         FontSize="12" TextWrapping="NoWrap" />
+                </ScrollViewer>
+            </Border>
+
+        </StackPanel>
+
+        <StackPanel Grid.Row="3" Margin="0,12,0,0" Spacing="8">
+            <TextBlock Text="{Binding ErrorMessage}" IsVisible="{Binding HasErrorMessage}"
+                       Foreground="{StaticResource AppDangerBrush}" FontSize="12" TextWrapping="Wrap" />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                <Button Classes="soft" Content="Cancel" Click="OnCancelClick" IsCancel="True" />
+                <Button Classes="soft" Content="Open in editor" Command="{Binding OpenInEditorCommand}"
+                        ToolTip.Tip="Run it yourself — and re-run it in every other database this role owns objects in" />
+                <Button Classes="danger" Content="Run it" Command="{Binding RunCommand}" />
+            </StackPanel>
+        </StackPanel>
+
+    </Grid>
+
+</Window>

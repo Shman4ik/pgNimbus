@@ -1,0 +1,97 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:PgNimbus.App.ViewModels.Security"
+        x:Class="PgNimbus.App.Views.Security.BulkGrantDialog"
+        x:DataType="vm:BulkGrantViewModel"
+        Title="Bulk grant"
+        Width="660" Height="640"
+        MinWidth="520" MinHeight="480"
+        WindowStartupLocation="CenterOwner"
+        FontFamily="{StaticResource InterFont}">
+
+    <Grid Margin="20" RowDefinitions="Auto,Auto,*,Auto">
+
+        <StackPanel Grid.Row="0" Spacing="4" Margin="0,0,0,12">
+            <TextBlock Text="Give a role access to a whole schema" FontWeight="SemiBold" FontSize="14" />
+            <TextBlock TextWrapping="Wrap" FontSize="12" Opacity="0.7"
+                       Text="The script always starts with USAGE on the schema itself — without it every table grant below is inert. Nothing runs from here: the script opens in the editor for you to read and run." />
+        </StackPanel>
+
+        <Border Grid.Row="1" Classes="card" Padding="14" Margin="0,0,0,12">
+            <StackPanel Spacing="10">
+
+                <Grid ColumnDefinitions="110,*,110,*">
+                    <TextBlock Grid.Column="0" Text="Schema" VerticalAlignment="Center" FontSize="12" />
+                    <ComboBox Grid.Column="1" HorizontalAlignment="Stretch"
+                              ItemsSource="{Binding Schemas}"
+                              SelectedItem="{Binding Schema, Mode=TwoWay}"
+                              PlaceholderText="Pick a schema" />
+
+                    <TextBlock Grid.Column="2" Text="Grantee" VerticalAlignment="Center" FontSize="12" Margin="16,0,0,0" />
+                    <ComboBox Grid.Column="3" HorizontalAlignment="Stretch"
+                              ItemsSource="{Binding Grantees}"
+                              SelectedItem="{Binding Grantee, Mode=TwoWay}"
+                              PlaceholderText="Pick a role" />
+                </Grid>
+
+                <Grid ColumnDefinitions="110,*">
+                    <TextBlock Grid.Column="0" Text="Preset" VerticalAlignment="Center" FontSize="12" />
+                    <ComboBox Grid.Column="1" HorizontalAlignment="Stretch"
+                              ItemsSource="{Binding Presets}"
+                              SelectedItem="{Binding Preset, Mode=TwoWay}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:BulkGrantPresetOption">
+                                <TextBlock Text="{Binding Label}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </Grid>
+
+                <TextBlock Text="{Binding PresetDescription}" TextWrapping="Wrap" FontSize="11.5"
+                           Opacity="0.7" Margin="110,0,0,0" />
+
+                <!-- The trap complaint 2 in the design doc is about: ON ALL TABLES
+                     covers only what exists right now, so the next migration
+                     creates a table the role cannot read. -->
+                <CheckBox IsChecked="{Binding IncludeFutureObjects, Mode=TwoWay}"
+                          Content="Also cover objects created later (adds ALTER DEFAULT PRIVILEGES)" />
+
+                <TextBlock TextWrapping="Wrap" FontSize="11.5" Opacity="0.7" Margin="26,-4,0,0"
+                           Text="Without this, the grant reaches only the tables, views and sequences that exist at the moment it runs. Anything a later migration creates is not covered." />
+
+                <Grid ColumnDefinitions="110,*" IsEnabled="{Binding IncludeFutureObjects}">
+                    <TextBlock Grid.Column="0" Text="Created by" VerticalAlignment="Center" FontSize="12" />
+                    <ComboBox Grid.Column="1" HorizontalAlignment="Stretch"
+                              ItemsSource="{Binding CreatorRoles}"
+                              SelectedItem="{Binding FutureObjectsOwner, Mode=TwoWay}"
+                              PlaceholderText="The role that will create the objects" />
+                </Grid>
+
+                <TextBlock TextWrapping="Wrap" FontSize="11.5" Margin="110,-4,0,0"
+                           Foreground="{StaticResource AppWarningBrush}"
+                           IsVisible="{Binding IncludeFutureObjects}"
+                           Text="ALTER DEFAULT PRIVILEGES is keyed to the role that creates an object, not to the schema the object lands in. Point it at the wrong creator and it runs cleanly and does nothing — name the role your migrations connect as." />
+
+            </StackPanel>
+        </Border>
+
+        <Border Grid.Row="2" BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" CornerRadius="6">
+            <TextBox Text="{Binding Script, Mode=OneWay}"
+                     IsReadOnly="True"
+                     AcceptsReturn="True" TextWrapping="NoWrap"
+                     ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                     FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="12.5"
+                     BorderThickness="0" Background="Transparent" />
+        </Border>
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="8"
+                    HorizontalAlignment="Right" Margin="0,14,0,0">
+            <Button Classes="accent" Content="Open in editor" Click="OnOpenClick"
+                    IsEnabled="{Binding CanOpen}" />
+            <Button Classes="soft" Content="Cancel" Click="OnCancelClick" />
+        </StackPanel>
+
+    </Grid>
+
+</Window>

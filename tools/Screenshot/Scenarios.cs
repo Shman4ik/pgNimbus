@@ -1,6 +1,8 @@
 using Avalonia.Controls;
 using PgNimbus.App.ViewModels;
 using PgNimbus.App.Views;
+using PgNimbus.App.Views.Security;
+using Avalonia.VisualTree;
 using PgNimbus.Core.Connections;
 using PgNimbus.Core.Monitoring;
 using PgNimbus.Core.Query;
@@ -53,6 +55,10 @@ public static class Scenarios
         ("activity-window", Activity),
         ("activity-window-blocking", ActivityBlocking),
         ("database-overview-window", DatabaseOverview),
+        ("security-window", Security),
+        ("security-window-permissions", SecurityPermissions),
+        ("security-window-default-privileges", SecurityDefaultPrivileges),
+        ("security-window-rls", SecurityRls),
         ("shortcuts-window", Shortcuts),
         ("preferences-window", Preferences),
         ("about-window", About),
@@ -148,6 +154,55 @@ public static class Scenarios
         // completes against the offline data source (see Fixtures).
         _ = vm.OpenCommandPaletteAsync();
         return HostMainWindow(vm);
+    }
+
+    /// <summary>Roles: the list, one role's attributes, and its membership tree.</summary>
+    public static Window Security()
+    {
+        var vm = Fixtures.SecurityViewModel();
+        return new SecurityWindow { DataContext = vm, Width = 1100, Height = 720 };
+    }
+
+    /// <summary>
+    /// The permissions matrix, on the tab that is the feature's whole point:
+    /// SELECT that app_ro holds only through a group two memberships up, with
+    /// the source spelled out rather than left to be inferred from an ACL.
+    /// </summary>
+    public static Window SecurityPermissions()
+    {
+        var vm = Fixtures.SecurityViewModel();
+        var window = new SecurityWindow { DataContext = vm, Width = 1100, Height = 720 };
+        window.Opened += (_, _) => SelectTab(window, 1);
+        return window;
+    }
+
+    /// <summary>
+    /// Default privileges and row-level security, unseeded on purpose: both tabs
+    /// have to say something useful when the catalog has nothing to show, and an
+    /// empty state that renders as a blank rectangle is the failure these two
+    /// shots exist to catch.
+    /// </summary>
+    public static Window SecurityDefaultPrivileges()
+    {
+        var window = new SecurityWindow { DataContext = Fixtures.SecurityViewModel(), Width = 1100, Height = 720 };
+        window.Opened += (_, _) => SelectTab(window, 2);
+        return window;
+    }
+
+    public static Window SecurityRls()
+    {
+        var window = new SecurityWindow { DataContext = Fixtures.SecurityViewModel(), Width = 1100, Height = 720 };
+        window.Opened += (_, _) => SelectTab(window, 3);
+        return window;
+    }
+
+    /// <summary>Selects a tab by index once the window's template is up.</summary>
+    private static void SelectTab(Window window, int index)
+    {
+        if (window.GetVisualDescendants().OfType<TabControl>().FirstOrDefault() is { } tabs)
+        {
+            tabs.SelectedIndex = index;
+        }
     }
 
     /// <summary>The sidebar filter narrowing the tree to matching relations.</summary>
