@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787236175758,
+  "lastUpdate": 1787639892489,
   "repoUrl": "https://github.com/Shman4ik/pgNimbus",
   "entries": {
     "pgNimbus benchmarks": [
@@ -1512,6 +1512,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "Stream 100000 rows",
             "value": 101.3,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shman4ik@gmail.com",
+            "name": "Shman4ik",
+            "username": "Shman4ik"
+          },
+          "committer": {
+            "email": "shman4ik@gmail.com",
+            "name": "Dmitrii Shmanev",
+            "username": "Shman4ik"
+          },
+          "distinct": true,
+          "id": "de93a32f44f652a3fa3bcb115d66b2faee5e8b89",
+          "message": "The Roles & Permissions window, and the command that opens it\n\nThe shell only: a window in the shape of DatabaseOverviewWindow -- one live\ninstance, opened from the palette, no toolbar button, snapshot on open -- with\nfour empty sections behind a segmented tab strip. The sections themselves land\nnext.\n\nDeliberately a window rather than an OverlayPanel, which the rule in CLAUDE.md\nturns on whether you need to watch the thing while you work: this is read beside\nthe editor while a grant is being fixed, and the scripts it produces open as\ntabs in that editor. SecurityViewModel owns the shared snapshot -- roles, the\nmembership graph, the server version -- so a section never opens the connection\non its own schedule, and it fans the four reads out in parallel because they are\nindependent and this often runs over an SSH tunnel.\n\nThe server version is carried rather than defaulted for a specific reason:\nasking a pre-17 server about MAINTAIN raises \"unrecognized privilege type\" and\ntakes the whole permissions matrix with it, so Privileges.For has to be given\nthe real version.\n\nPasswords are now redacted in SavedQueriesViewModel.RecordExecution, the single\nchoke point through which everything reaches the on-disk query history. Nothing\nin this feature routes a PASSWORD literal through a query tab, but a user can\ntype one into the editor at any time and the store writes what it is given.\n\nCo-Authored-By: Claude Opus 5 <noreply@anthropic.com>",
+          "timestamp": "2026-08-24T18:29:41+02:00",
+          "tree_id": "d091c4a7f811969676dd89076912880470ec55d4",
+          "url": "https://github.com/Shman4ik/pgNimbus/commit/de93a32f44f652a3fa3bcb115d66b2faee5e8b89"
+        },
+        "date": 1787639890792,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Startup, launch to first frame (NativeAOT)",
+            "value": 197,
+            "unit": "ms"
+          },
+          {
+            "name": "Memory at first frame (NativeAOT)",
+            "value": 155,
+            "unit": "MB"
+          },
+          {
+            "name": "Binary size (NativeAOT)",
+            "value": 42.3,
+            "unit": "MB"
+          },
+          {
+            "name": "Publish size (NativeAOT, shipped files)",
+            "value": 55.6,
+            "unit": "MB"
+          },
+          {
+            "name": "Startup, launch to first frame (JIT)",
+            "value": 1902,
+            "unit": "ms"
+          },
+          {
+            "name": "Connect, cold pool",
+            "value": 146.1,
+            "unit": "ms"
+          },
+          {
+            "name": "Round-trip, SELECT 1 warm",
+            "value": 0.34,
+            "unit": "ms"
+          },
+          {
+            "name": "First row batch of a 100000-row SELECT",
+            "value": 9.8,
+            "unit": "ms"
+          },
+          {
+            "name": "Stream 100000 rows",
+            "value": 141.4,
             "unit": "ms"
           }
         ]
