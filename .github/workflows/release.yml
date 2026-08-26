@@ -267,7 +267,25 @@ jobs:
           # either way rather than encoding a guess into the gate.
           app=$(find "$mount_point" -maxdepth 1 -name '*.app' | head -1)
           [ -n "$app" ] || app="$mount_point"
-          ls -la "$app"
+          ls -la "$mount_point"
+
+          # The drag-to-install target. Without it the only gesture the window
+          # offers is double-clicking the app on the read-only image.
+          [ -L "$mount_point/Applications" ] || {
+            echo "::error::.dmg is missing the /Applications symlink" >&2
+            exit 1
+          }
+
+          # The signature is what decides whether Gatekeeper calls a quarantined
+          # download "damaged" (unrecoverable without a Terminal command) or
+          # "cannot be checked for malicious software" (right-click -> Open
+          # clears it). Verify it survived hdiutil, not just codesign.
+          codesign --verify --deep --strict --verbose=2 "$app"
+          codesign -dv "$app" 2>&1 | tee /tmp/codesign.txt
+          grep -q 'Signature=adhoc' /tmp/codesign.txt || {
+            echo "::error::app bundle in the .dmg is not signed" >&2
+            exit 1
+          }
 
           ./scripts/release/smoke-launch.sh "mounted .dmg" "$app/Contents/MacOS/PgNimbus.App"
 

@@ -39,22 +39,39 @@ installer: it writes to `%LocalAppData%` and needs no administrator rights.
 ## macOS
 
 Apple Silicon only. Download `pgNimbus-<version>-macos-arm64.dmg` from the
-[releases page](https://github.com/Shman4ik/pgNimbus/releases).
+[releases page](https://github.com/Shman4ik/pgNimbus/releases). Open the disk
+image, drag pgNimbus onto the Applications folder beside it, then eject the
+image. Running the app from the mounted image works, but it disappears the
+moment you eject.
 
-The beta is unsigned and unnotarized, so Gatekeeper shows a misleading
-*"pgNimbus is damaged and can't be opened"* dialog on first launch. The file is
-fine. That is what macOS says about any unsigned app. Clear the quarantine flag
-once per downloaded update:
+The build carries an ad-hoc signature instead of an Apple Developer ID one, so
+macOS asks about it the first time you open it:
 
-```bash
-# If you moved the app to Applications:
-xattr -cr /Applications/pgNimbus.app
+=== "macOS 14 and earlier"
 
-# If it is still in Downloads:
-xattr -cr ~/Downloads/pgNimbus.app
-```
+    Right-click (or Control-click) pgNimbus in Applications, choose **Open**,
+    then **Open** again in the dialog.
 
-Then launch it normally.
+=== "macOS 15 Sequoia and later"
+
+    Double-click pgNimbus and dismiss the warning. Open
+    **System Settings → Privacy & Security**, scroll to the security section,
+    and click **Open Anyway** next to the message about pgNimbus.
+
+You do this once per installed version. Later launches open normally.
+
+!!! warning "If macOS says the app is damaged"
+
+    That dialog means the download carries no signature at all, which is what
+    0.11.1 and earlier shipped. There is no **Open Anyway** path out of it.
+    Either download a later build, or clear the quarantine flag by hand:
+
+    ```bash
+    xattr -dr com.apple.quarantine /Applications/pgNimbus.app
+    ```
+
+    The command works as a fallback on any version, including from Downloads if
+    you have not moved the app yet.
 
 !!! note "No Intel build"
 
