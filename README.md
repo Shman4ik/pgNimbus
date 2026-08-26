@@ -79,22 +79,25 @@ Grab `pgNimbus-<version>-win-x64.msi` from [Releases](https://github.com/Shman4i
 
 ### macOS (early beta)
 
-`pgNimbus-<version>-macos-arm64.dmg` from [Releases](https://github.com/Shman4ik/pgNimbus/releases) (Apple Silicon only). The beta is unsigned and unnotarized, so Gatekeeper shows a misleading *"pgNimbus is damaged"* dialog on first launch.
+`pgNimbus-<version>-macos-arm64.dmg` from [Releases](https://github.com/Shman4ik/pgNimbus/releases) (Apple Silicon only). Open the disk image, drag pgNimbus to the Applications folder, then eject the image.
+
+The build carries an ad-hoc signature rather than an Apple Developer ID one, so macOS asks about it the first time you open it:
+
+1. Right-click (or Control-click) pgNimbus in Applications and choose **Open**, then **Open** again in the dialog.
+2. On macOS 15 Sequoia and later, double-click it, dismiss the warning, then go to **System Settings → Privacy & Security** and click **Open Anyway**.
+
+You do this once. Every later launch opens normally.
 
 <details>
-<summary>Fixing the Gatekeeper "App is damaged" error</summary>
+<summary>If macOS says the app is damaged</summary>
 
-The file is safe. This is standard macOS behavior for unsigned apps. Clear the quarantine flag once per downloaded update:
+That is what Gatekeeper says about a download with no signature at all, which is what pgNimbus 0.11.1 and earlier shipped. Later builds are signed and give you the **Open Anyway** path above instead. To open an older download, clear the quarantine flag:
 
 ```bash
-# If you moved the app to the Applications folder:
-xattr -cr /Applications/pgNimbus.app
-
-# If the app is still in your Downloads folder:
-xattr -cr ~/Downloads/pgNimbus.app
+xattr -dr com.apple.quarantine /Applications/pgNimbus.app
 ```
 
-Then launch `pgNimbus.app` normally. Proper signing and notarization are planned, see [Roadmap](#-roadmap).
+The same command also works as a fallback on any version. Signing with a real Developer ID and notarizing, which removes the warning entirely, is on the [Roadmap](#-roadmap).
 
 </details>
 

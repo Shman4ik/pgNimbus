@@ -1183,12 +1183,33 @@ It produces, per tag:
   ("symbol(s) not found for architecture arm64" / `pal_swiftbindings`),
   closed "not planned" upstream
   ([dotnet/runtime#116448](https://github.com/dotnet/runtime/issues/116448)).
-  The publish output is wrapped into an unsigned/unnotarized `.app` + `.dmg`
-  by [`scripts/macos/build-app-bundle.sh`](scripts/macos/build-app-bundle.sh),
+  The publish output is wrapped into an **ad-hoc signed** (`codesign --sign -`),
+  un-notarized `.app` + `.dmg` by
+  [`scripts/macos/build-app-bundle.sh`](scripts/macos/build-app-bundle.sh),
   which also generates `.icns` directly from the `design/masters/icon/` tiles
   via `sips`/`iconutil` (stock macOS tools, no extra dependency) — each
   iconset slot uses the exact-size master when one exists, else downscales
   from `icon-1024.png`.
+  **The ad-hoc signature is not decoration, it picks which Gatekeeper dialog a
+  user sees** (added 2026-08, after 0.11.1 shipped with none): a quarantined
+  bundle carrying *no* signature is reported as "pgNimbus is damaged and can't
+  be opened. You should eject the disk image", which reads as a corrupt
+  download, sends people back to Releases for the same bytes, and has no
+  right-click → Open escape. The same bundle ad-hoc signed fails the same
+  Gatekeeper check as "Apple cannot check it for malicious software" — true,
+  and clearable by right-click → Open (System Settings → Privacy & Security →
+  Open Anyway on Sequoia). It is also what makes an arm64 binary loadable at
+  all. Two consequences for the script: the NativeAOT `*.dsym` is deleted
+  before signing (a `.dsym` is itself a bundle directory, the one shape
+  `codesign --deep` won't seal inside `Contents/MacOS`, mirroring the Linux
+  packages' `*.dbg` exclusion), and dylibs are signed inside-out before the
+  bundle. The `.dmg` also carries the `/Applications` symlink it had always
+  claimed to (the volume used to hold the app alone, so the obvious gesture was
+  double-clicking it on the read-only image — that is where "the disk image
+  should be ejected" came from). `release.yml`'s mounted-`.dmg` smoke step
+  gates both: `Signature=adhoc` present after `hdiutil`, and the symlink there.
+  None of this substitutes for a Developer ID signature plus notarization,
+  which needs a paid Apple account and would remove the warning outright.
 - **Linux** — `linux-x64` + `linux-arm64` (the arm64 leg runs natively on
   GitHub's free `ubuntu-24.04-arm` runners — no cross-compile toolchain).
   Each RID is packaged three ways by
