@@ -75,6 +75,8 @@
                               Background="Transparent"
                               CanUserReorderColumns="False"
                               CanUserSortColumns="True"
+                              CanUserResizeColumns="True"
+                              MinColumnWidth="44"
                               SelectionMode="Extended"
                               ClipboardCopyMode="None"
                               AutoGenerateColumns="False"

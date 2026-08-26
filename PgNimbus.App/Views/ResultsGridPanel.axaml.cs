@@ -70,6 +70,17 @@ public partial class ResultsGridPanel : UserControl
     // space bar - a TextBox doesn't mark Space's KeyDown handled, it inserts
     // the space on TextInput, so the key would otherwise bubble up here.
     private bool _isCellEditing;
+    // Column widths the user dragged, as indexes into the columns currently
+    // built, plus the names those indexes stood for. Saved onto the tab (by
+    // name, in QueryViewModel.ColumnWidths) whenever the grid is rebuilt, which
+    // is the only reason a drag survives a re-run, a page turn or a tab switch.
+    private readonly HashSet<int> _resizedColumns = [];
+    private readonly List<string> _builtColumnNames = [];
+    // The tab the columns currently in the grid were built for — not the same
+    // thing as _activeQuery, which has already been swapped by the time
+    // AttachQuery rebuilds.
+    private QueryViewModel? _builtFor;
+
     // One-shot: set when a double-click lands on an editable json/jsonb cell,
     // consumed by OnResultsGridBeginningEdit to cancel the grid's inline edit so
     // the click opens the cell inspector's JSON editor instead (see
@@ -93,6 +104,13 @@ public partial class ResultsGridPanel : UserControl
             _model.CellInspector.EditText = JsonInspectorEditor.Text;
         };
         LoadJsonHighlighting();
+
+        // Column resizing is the DataGrid's own, but the cap that keeps one long
+        // value from blowing a column past the viewport has to be lifted for the
+        // column about to be dragged — tunneled, because the header marks the
+        // press handled before it bubbles (see OnResultsGridPointerPressed).
+        ResultsGrid.AddHandler(
+            InputElement.PointerPressedEvent, OnResultsGridPointerPressed, RoutingStrategies.Tunnel);
 
         ResultsGrid.CellEditEnding += OnCellEditEnding;
         ResultsGrid.CellEditEnded += OnCellEditEnded;
@@ -1171,7 +1189,14 @@ public partial class ResultsGridPanel : UserControl
         Justification = "Pathless binding uses a converter only; no dynamic code.")]
     private void RebuildColumns(QueryViewModel query)
     {
+        // The columns about to be discarded may carry widths the user dragged;
+        // hand them back to the tab they belong to before they go.
+        SaveUserColumnWidths();
+
         ResultsGrid.Columns.Clear();
+        _resizedColumns.Clear();
+        _builtColumnNames.Clear();
+        _builtFor = query;
 
         for (var i = 0; i < query.ColumnNames.Count; i++)
         {
@@ -1191,9 +1216,9 @@ public partial class ResultsGridPanel : UserControl
                 ? PgTypeCategorizer.CategorizeColumn(declaredType, meta.DomainBaseType, meta.Editor)
                 : PgTypeCategorizer.Categorize(PgTypeCategorizer.ClassifierType(declaredType, null));
 
-            ResultsGrid.Columns.Add(new ResultTextColumn(i, editorMeta, category)
+            var column = new ResultTextColumn(i, editorMeta, category)
             {
-                Header = CreateColumnHeader(name, declaredType, category, editorMeta),
+                Header = CreateColumnHeader(i, name, declaredType, category, editorMeta),
                 // Avalonia 12's DataGrid infers "read-only" from a column's
                 // binding path — and a pathless converter binding (the
                 // AOT-safe pattern used here) has none, which silently made
@@ -1216,9 +1241,114 @@ public partial class ResultsGridPanel : UserControl
                 CanUserSort = true,
                 // Auto width sizes to the widest cell, so one long text value
                 // used to blow the column past the viewport; cap it and let
-                // the cell inspector carry the full value.
-                MaxWidth = 560,
-            });
+                // the cell inspector carry the full value. The cap is only for
+                // *automatic* sizing — a user drag lifts it (UnclampColumn).
+                MaxWidth = AutoWidthCap,
+            };
+
+            ResultsGrid.Columns.Add(column);
+            _builtColumnNames.Add(name);
+
+            // A width this tab was already dragged to wins over auto-sizing, and
+            // keeps the cap lifted so the next drag starts where the last ended.
+            if (query.ColumnWidths.TryGetValue(name, out var width))
+            {
+                column.MaxWidth = double.PositiveInfinity;
+                column.Width = new DataGridLength(width);
+                _resizedColumns.Add(i);
+            }
+        }
+    }
+
+    // The widest a column sizes itself to. Only bounds auto-sizing: past this,
+    // a value belongs in the cell inspector, not in a column that has pushed
+    // every other one off screen.
+    private const double AutoWidthCap = 560;
+
+    // The strip at each header edge the DataGrid treats as the resize grip
+    // (DataGridColumnHeader's own private constant — repeated here because
+    // deciding which column a press is about to resize means repeating its test).
+    private const double ResizeGripWidth = 5;
+
+    /// <summary>
+    /// Lifts <see cref="AutoWidthCap"/> off the column a press is about to
+    /// resize, so a widening drag isn't stopped dead at the cap
+    /// (DataGridColumnHeader clamps every drag step to the column's MaxWidth).
+    ///
+    /// Tunneled: the header marks a resize press handled, so a bubbling handler
+    /// — including <c>DataGridColumn.HeaderPointerPressed</c>, which is raised
+    /// from an ordinary bubbling subscription — never sees it.
+    /// </summary>
+    private void OnResultsGridPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (!e.GetCurrentPoint(ResultsGrid).Properties.IsLeftButtonPressed
+            || e.Source is not Visual source
+            || source.FindAncestorOfType<DataGridColumnHeader>(includeSelf: true) is not { } header
+            || HeaderColumnIndex(header) is not { } index)
+        {
+            return;
+        }
+
+        // Same test the grid makes: the right grip resizes this column, the left
+        // one resizes its neighbour.
+        var x = e.GetPosition(header).X;
+        if (header.Bounds.Width - x <= ResizeGripWidth)
+        {
+            UnclampColumn(index);
+        }
+        else if (x <= ResizeGripWidth)
+        {
+            UnclampColumn(index - 1);
+        }
+    }
+
+    // Which result column a header belongs to. DataGridColumnHeader.OwningColumn
+    // is internal, so the index rides on the header content this panel built
+    // (CreateColumnHeader) instead.
+    private static int? HeaderColumnIndex(DataGridColumnHeader header) =>
+        header.Content is Control content && content.Tag is int index ? index : null;
+
+    private void UnclampColumn(int index)
+    {
+        if (index < 0 || index >= ResultsGrid.Columns.Count)
+        {
+            return;
+        }
+
+        // Marked before the early-out: an already-uncapped column is one a drag
+        // has been through before, and this drag still has to be remembered.
+        _resizedColumns.Add(index);
+
+        var column = ResultsGrid.Columns[index];
+        if (double.IsPositiveInfinity(column.MaxWidth))
+        {
+            return;
+        }
+
+        // Pin the width the column is actually at before lifting the cap.
+        // Raising MaxWidth on a column sitting *at* its cap re-expands it to the
+        // full width its content wants (DataGrid.OnColumnMaxWidthChanged), so
+        // without this the column would jump on mouse-down, before the drag.
+        column.Width = new DataGridLength(column.ActualWidth);
+        column.MaxWidth = double.PositiveInfinity;
+    }
+
+    // Hands the dragged widths back to the tab that owns them. Only the columns
+    // a drag touched: saving the auto-sized ones would pin them, and a column
+    // nobody resized should keep growing with the values that scroll into view.
+    private void SaveUserColumnWidths()
+    {
+        if (_builtFor is null)
+        {
+            return;
+        }
+
+        foreach (var index in _resizedColumns)
+        {
+            if (index < _builtColumnNames.Count && index < ResultsGrid.Columns.Count)
+            {
+                _builtFor.ColumnWidths[_builtColumnNames[index]] = ResultsGrid.Columns[index].ActualWidth;
+            }
         }
     }
 
@@ -1227,10 +1357,14 @@ public partial class ResultsGridPanel : UserControl
     // and — in browse mode, where the table's real columns are known — its
     // primary-key / not-null flags. The type name comes from the wire protocol so
     // every result set gets the icon, not just editable ones.
-    private static Control CreateColumnHeader(string name, string? displayType, PgTypeCategory category, ColumnDetail? meta)
+    private static Control CreateColumnHeader(
+        int index, string name, string? displayType, PgTypeCategory category, ColumnDetail? meta)
     {
         var panel = new StackPanel
         {
+            // Which column this header stands for — the only public way back
+            // from a DataGridColumnHeader to its column (see HeaderColumnIndex).
+            Tag = index,
             Orientation = Avalonia.Layout.Orientation.Horizontal,
             Spacing = 5,
             VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,

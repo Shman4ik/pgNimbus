@@ -9,6 +9,17 @@ hundred-million-row table costs the same as any other single page.
 The SQL that produces the view sits in the editor, and doubles as the filter: add
 a `WHERE` clause and run it.
 
+## Column widths
+
+Columns size themselves to their content, up to a limit that keeps one long
+value from pushing every other column off screen. Drag the divider between two
+headers to set a width yourself, and that column stops sizing itself and keeps
+the width you gave it. Dragging is not bound by the limit, so a column holding
+long JSON can be pulled as wide as you need.
+
+Widths you set are remembered per tab, by column name, so re-running the query,
+turning a page, or switching to another tab and back keeps them.
+
 ## Editing cells
 
 | Action | How |

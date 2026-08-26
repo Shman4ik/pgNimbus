@@ -679,6 +679,28 @@ Three rules about it:
   menu titled "View"; (d) the File → Open Recent submenu rebuilds on the
   menu's `NeedsUpdate`, same contract as the ☰ menu's, and View's
   Show/Hide Sidebar header re-resolves the same way.
+- **Results-grid columns resize by dragging, and the drag lifts the auto-width
+  cap.** Every generated column is `Width=Auto` with `MaxWidth=AutoWidthCap`
+  (560), so one long value can't blow a column past the viewport — but
+  `DataGridColumnHeader` clamps *every* step of a resize drag to the column's
+  `ActualMaxWidth` too, so with the cap left on, widening a capped column stops
+  dead with nothing on screen saying why. `ResultsGridPanel` therefore lifts the
+  cap for the column a press is about to resize. Three things make that work:
+  the handler is **tunneled** (the header marks a resize press handled before it
+  bubbles, so `DataGridColumn.HeaderPointerPressed` — an ordinary bubbling
+  subscription — never fires for the very presses that matter); it repeats the
+  grid's own 5px-edge test to decide *which* column the press resizes (the right
+  grip resizes this column, the left one its neighbour); and it pins
+  `Width = ActualWidth` **before** raising `MaxWidth`, because
+  `DataGrid.OnColumnMaxWidthChanged` re-expands a column sitting exactly at its
+  cap to the full width its content wants — without the pin the column jumps on
+  mouse-down, before the drag. The header→column mapping rides on the header
+  content's `Tag` (`DataGridColumnHeader.OwningColumn` is internal). Dragged
+  widths are handed back to the tab in `QueryViewModel.ColumnWidths`, keyed by
+  column name, because the grid is window-central and rebuilds its columns from
+  scratch on every re-run, page turn, `EditContext` arrival and tab switch;
+  only dragged columns are saved, so an untouched column keeps growing with the
+  values that scroll into view.
 - **Results-grid scrolling is the DataGrid's own.** Avalonia 12's DataGrid
   handles both wheel axes natively (`UpdateScroll`). Don't reintroduce a
   tunneled wheel handler that writes `ScrollBar.Value` directly — the
