@@ -120,12 +120,27 @@ public partial class App : Application
     /// "About pgNimbus" in the macOS app menu (see App.axaml): opens the About panel
     /// on the active main window (or the first one — the app menu is global, windows
     /// are not). The box is an <c>OverlayPanel</c> over a window rather than a window
-    /// of its own now, so like "Settings…" below this is a no-op while only the
-    /// connection dialog is up; the ☰ menu is the in-window route, and on Windows and
-    /// Linux the only one.
+    /// of its own, so it needs a host; when there is no main window yet it falls back
+    /// to the connection dialog, which hosts its own copy for exactly this reason.
+    /// Without that fallback the menu item did nothing on the app's first screen —
+    /// the one place a Mac user is most likely to reach for it, and the one place the
+    /// ☰ menu (the in-window route, and on Windows and Linux the only one) is absent.
+    /// "Settings…" below has no such fallback on purpose: preferences hang off a
+    /// connected window's view model, so there is nothing for it to show.
     /// </summary>
-    private void OnAboutMenuItemClicked(object? sender, EventArgs e) =>
-        ActiveMainViewModel()?.ShowAboutCommand.Execute(null);
+    private void OnAboutMenuItemClicked(object? sender, EventArgs e)
+    {
+        if (ActiveMainViewModel() is { } main)
+        {
+            main.ShowAboutCommand.Execute(null);
+            return;
+        }
+
+        if (ActiveWindow<ConnectionDialog>()?.DataContext is ConnectionDialogViewModel dialog)
+        {
+            dialog.IsAboutOpen = true;
+        }
+    }
 
     /// <summary>"pgNimbus on GitHub" in the macOS app menu: opens the project page.</summary>
     private void OnGitHubMenuItemClicked(object? sender, EventArgs e)
@@ -150,20 +165,24 @@ public partial class App : Application
         ActiveMainViewModel()?.ShowPreferencesCommand.Execute(null);
 
     /// <summary>
-    /// The main window an app-menu item should act on: the active one, or the first
-    /// if none is (the app menu is global, windows are not). Null while only the
-    /// connection dialog is up — nothing in this menu has a window-less meaning.
+    /// The main window's view model an app-menu item should act on. Null while only
+    /// the connection dialog is up — every item here but About then has nothing to do.
     /// </summary>
-    private MainViewModel? ActiveMainViewModel()
+    private MainViewModel? ActiveMainViewModel() => ActiveWindow<MainWindow>()?.DataContext as MainViewModel;
+
+    /// <summary>
+    /// The open window of type <typeparamref name="T"/> an app-menu item should act on:
+    /// the active one, or the first if none is (the app menu is global, windows are not).
+    /// </summary>
+    private T? ActiveWindow<T>() where T : Window
     {
         if (ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
         {
             return null;
         }
 
-        var window = desktop.Windows.OfType<MainWindow>().FirstOrDefault(w => w.IsActive)
-            ?? desktop.Windows.OfType<MainWindow>().FirstOrDefault();
-        return window?.DataContext as MainViewModel;
+        return desktop.Windows.OfType<T>().FirstOrDefault(w => w.IsActive)
+            ?? desktop.Windows.OfType<T>().FirstOrDefault();
     }
 
     public override void Initialize()
