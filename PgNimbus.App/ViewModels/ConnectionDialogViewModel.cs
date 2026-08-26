@@ -49,6 +49,16 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
     /// <summary>Drives the empty-state hint over the Saved Connections list.</summary>
     public bool HasNoProfiles => Profiles.Count == 0;
 
+    /// <summary>
+    /// Whether the About overlay is showing over the connect form. The dialog hosts its
+    /// own copy of the box because it is the app's first screen and often its only one:
+    /// with no <c>MainWindow</c> open yet, macOS's app-menu "About pgNimbus" has nowhere
+    /// else to land, and the ☰ menu the other platforms reach it through does not exist
+    /// here. Two-way from the overlay, which closes itself (see <c>OverlayPanel</c>).
+    /// </summary>
+    [ObservableProperty]
+    private bool _isAboutOpen;
+
     public IReadOnlyList<SslMode> SslModes { get; } = Enum.GetValues<SslMode>();
 
     public IReadOnlyList<SshAuthMethod> SshAuthMethods { get; } = Enum.GetValues<SshAuthMethod>();
@@ -594,6 +604,15 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         // could otherwise start a second connect and spin up a duplicate SSH
         // tunnel while the first is still in flight.
         if (IsConnecting)
+        {
+            return;
+        }
+
+        // Enter still reaches Connect while the About overlay is up - the button is
+        // the window's IsDefault and the profiles list binds Enter to this command
+        // too - so dismissing the box with the key that dismisses every other overlay
+        // would connect instead. Escape and the backdrop are the way out of it.
+        if (IsAboutOpen)
         {
             return;
         }

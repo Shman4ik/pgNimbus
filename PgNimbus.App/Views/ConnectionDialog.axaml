@@ -4,6 +4,8 @@
         xmlns:conn="using:PgNimbus.Core.Connections"
         xmlns:conv="using:Avalonia.Data.Converters"
         xmlns:converters="using:PgNimbus.App.Converters"
+        xmlns:views="using:PgNimbus.App.Views"
+        xmlns:nui="using:Nimbus.Ui.Controls"
         xmlns:sys="using:System"
         x:Class="PgNimbus.App.Views.ConnectionDialog"
         x:DataType="vm:ConnectionDialogViewModel"
@@ -11,6 +13,10 @@
         Width="720" Height="600"
         MinWidth="620" MinHeight="520"
         WindowStartupLocation="CenterScreen">
+
+    <!-- Outer grid carries no margin so the About overlay's backdrop can reach the
+         window edges; the form keeps its own inset. -->
+    <Grid>
 
     <Grid Margin="16" RowDefinitions="*,Auto,Auto">
 
@@ -237,6 +243,16 @@
     <!-- Thin full-width footer strip, below the buttons like everything else. -->
     <TextBlock Grid.Row="2" Text="{Binding FooterText}" FontSize="10" Opacity="0.4"
                HorizontalAlignment="Center" Margin="0,10,0,0" />
+
+    </Grid>
+
+    <!-- The same About box the shell hosts, with the same sizing. Here because the
+         connect form is often the only window open, and macOS's app-menu "About
+         pgNimbus" has to land somewhere (see ConnectionDialogViewModel.IsAboutOpen). -->
+    <nui:OverlayPanel IsOpen="{Binding IsAboutOpen, Mode=TwoWay}"
+                      Title="About" PanelWidth="340" PanelMaxHeight="400">
+        <views:AboutView />
+    </nui:OverlayPanel>
 
     </Grid>
 

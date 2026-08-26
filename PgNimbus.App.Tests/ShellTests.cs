@@ -1,5 +1,8 @@
 using Avalonia;
 using Avalonia.Input;
+using Avalonia.VisualTree;
+using PgNimbus.App.ViewModels;
+using PgNimbus.App.Views;
 using PgNimbus.Core.Commands;
 using PgNimbus.Screenshot;
 
@@ -119,6 +122,44 @@ public class ShellTests
 
             Ui.Press(window, Key.Escape);
             await Assert.That(vm.IsShortcutsOpen).IsFalse();
+
+            window.Close();
+        });
+    }
+
+    /// <summary>
+    /// The About box reaches the connect form too, not just the shell. On macOS the
+    /// app menu is the only route to it and the connect form is often the only window
+    /// open, so before this the menu item did nothing on the app's first screen.
+    /// Three things, all of which were broken by hand once: it becomes visible, Enter
+    /// does not connect out from under it (the profiles list and the default Connect
+    /// button both bind that key), and Escape takes it back down.
+    /// </summary>
+    [Test]
+    public async Task About_overlay_opens_over_the_connection_dialog()
+    {
+        await Ui.Run(async () =>
+        {
+            var window = Scenarios.ConnectionDialog();
+            var vm = (ConnectionDialogViewModel)window.DataContext!;
+            Ui.Show(window);
+
+            // Nothing to find yet: a closed panel's backdrop is collapsed, so the
+            // ContentPresenter under it never realizes the box in the first place.
+            await Assert.That(window.GetVisualDescendants().OfType<AboutView>().Any()).IsFalse();
+
+            vm.IsAboutOpen = true;
+            Ui.Settle();
+            var about = window.GetVisualDescendants().OfType<AboutView>().Single();
+            await Assert.That(about.IsEffectivelyVisible).IsTrue();
+
+            // StatusMessage is set synchronously by ConnectAsync before its first
+            // await, so a connect that got past the guard would have left one here.
+            vm.ConnectCommand.Execute(null);
+            await Assert.That(vm.StatusMessage).IsNull();
+
+            Ui.Press(window, Key.Escape);
+            await Assert.That(vm.IsAboutOpen).IsFalse();
 
             window.Close();
         });

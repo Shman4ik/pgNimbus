@@ -663,8 +663,18 @@ Three rules about it:
   pgNimbus, pgNimbus on GitHub, and Settings… (Cmd+,). The first and last both
   route to the *active* MainWindow's view model through
   `App.ActiveMainViewModel()`, because both are overlays on a window now rather
-  than free-standing boxes — which also makes About a no-op while only the
-  connection dialog is up, exactly as Settings… already was. Window-level:
+  than free-standing boxes. **About falls back to the connection dialog** when
+  there is no main window yet (2026-08): `ConnectionDialog` hosts its own
+  `AboutView` overlay against `ConnectionDialogViewModel.IsAboutOpen`, because
+  the connect form is the app's first screen and often its only one — with the
+  ☰ menu absent there and no window for the overlay to land on, the menu item
+  used to do nothing exactly where a Mac user is most likely to reach for it.
+  One consequence to keep: `ConnectAsync` returns early while that overlay is
+  open, since the profiles list binds Enter to Connect and the Connect button is
+  the window's `IsDefault`, so Escape-the-overlay's sibling gesture would
+  otherwise connect instead of dismissing. Settings… keeps the no-op — the
+  preferences page hangs off a connected window's view model, so there is
+  nothing for it to show. Window-level:
   `MainWindow.BuildMacNativeMenu()` builds File / Query / View / Window via
   `NativeMenu.SetMenu`, rebuilt from `BuildKeyBindings` so gestures track
   the live Ctrl/Cmd scheme. Landmines, all learned the hard way: (a) menu
