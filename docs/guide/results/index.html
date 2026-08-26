@@ -484,6 +484,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#column-widths" class="md-nav__link">
+    <span class="md-ellipsis">
+      Column widths
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#editing-cells" class="md-nav__link">
     <span class="md-ellipsis">
       Editing cells
@@ -732,6 +741,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#column-widths" class="md-nav__link">
+    <span class="md-ellipsis">
+      Column widths
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#editing-cells" class="md-nav__link">
     <span class="md-ellipsis">
       Editing cells
@@ -848,6 +866,14 @@ headers are pushed down to Postgres as <code>ORDER BY</code> / <code>LIMIT</code
 hundred-million-row table costs the same as any other single page.</p>
 <p>The SQL that produces the view sits in the editor, and doubles as the filter: add
 a <code>WHERE</code> clause and run it.</p>
+<h2 id="column-widths">Column widths<a class="headerlink" href="#column-widths" title="Permanent link">&para;</a></h2>
+<p>Columns size themselves to their content, up to a limit that keeps one long
+value from pushing every other column off screen. Drag the divider between two
+headers to set a width yourself, and that column stops sizing itself and keeps
+the width you gave it. Dragging is not bound by the limit, so a column holding
+long JSON can be pulled as wide as you need.</p>
+<p>Widths you set are remembered per tab, by column name, so re-running the query,
+turning a page, or switching to another tab and back keeps them.</p>
 <h2 id="editing-cells">Editing cells<a class="headerlink" href="#editing-cells" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
