@@ -193,6 +193,10 @@ public partial class App : Application
         {
             KeepRunningWithNoWindowsOnMac(desktop);
 
+            // macOS: quitting must not hand the process back to AppKit's exit()
+            // — it aborts on the way out (see MacShutdown).
+            MacShutdown.ExitProcessOnShutdown(desktop);
+
             var envConnectionString = Environment.GetEnvironmentVariable("PGNIMBUS_CONN");
             if (!string.IsNullOrWhiteSpace(envConnectionString))
             {

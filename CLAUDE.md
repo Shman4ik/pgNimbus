@@ -630,6 +630,28 @@ Three rules about it:
   `ClassicDesktopStyleApplicationLifetime` routes straight to `DoShutdown`
   without consulting `ShutdownMode`, as does the `Shutdown()` that
   `CrashReporter` and `StartupProbe` call directly.
+- **macOS: the app ends its own process, and must (2026-08).** Shipped 0.7.5
+  aborted with SIGABRT on every quit, *after* the shutdown had already run
+  cleanly (windows closed, workspace and placement saved). AppKit's
+  `-[NSApplication terminate:]` asks Avalonia's delegate first — that is the
+  whole managed shutdown, answering `NSTerminateNow` — and then calls C's
+  `exit()`, which runs libAvaloniaNative's C++ static destructors. One of them
+  releases a `ComPtr<IAvnDispatcher>` whose vtable is a managed MicroCom proxy,
+  so `__cxa_finalize` reverse-P/Invokes into managed code on a main thread whose
+  NativeAOT runtime state is already torn down: a `RhFailFast`, not a catchable
+  exception (`ThreadStore::AttachCurrentThread` → "Attempt to execute managed
+  code after the .NET runtime thread state has been destroyed";
+  AvaloniaUI/Avalonia#12459). No frame in that trace is ours, so the fix is to
+  never reach `__cxa_finalize`: `MacShutdown.ExitProcessOnShutdown` hooks the
+  lifetime's `Exit` event — raised after every window has closed and only when
+  the shutdown really goes through — and calls libc `_exit(2)`, which skips
+  atexit handlers and static destructors entirely. Consequences to keep in mind:
+  an `Exit` handler registered after that one never runs, nothing `Program.Main`
+  would do on the way out runs either, and `_exit` flushes nothing — hence the
+  explicit `Console` flush, without which `StartupProbe`'s single line (the
+  release smoke gate) can be lost. `Environment.Exit` is not a substitute: it
+  runs the very `exit()` teardown this avoids. macOS-only; Windows and Linux
+  exit through their own teardown cleanly.
 - **Windows** — every remaining window still calls `ThemedWindowChrome.Attach(this)`
   for the **icon** (details in the icon section below). Its caption-colour half is
   moot on `MainWindow`, whose caption is ours, and still applies to the dialogs and
