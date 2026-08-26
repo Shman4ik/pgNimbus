@@ -851,18 +851,36 @@ trusting the warning either way.</p>
 </div>
 <h2 id="macos">macOS<a class="headerlink" href="#macos" title="Permanent link">&para;</a></h2>
 <p>Apple Silicon only. Download <code>pgNimbus-&lt;version&gt;-macos-arm64.dmg</code> from the
-<a href="https://github.com/Shman4ik/pgNimbus/releases">releases page</a>.</p>
-<p>The beta is unsigned and unnotarized, so Gatekeeper shows a misleading
-<em>"pgNimbus is damaged and can't be opened"</em> dialog on first launch. The file is
-fine. That is what macOS says about any unsigned app. Clear the quarantine flag
-once per downloaded update:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># If you moved the app to Applications:</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>xattr<span class="w"> </span>-cr<span class="w"> </span>/Applications/pgNimbus.app
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># If it is still in Downloads:</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>xattr<span class="w"> </span>-cr<span class="w"> </span>~/Downloads/pgNimbus.app
+<a href="https://github.com/Shman4ik/pgNimbus/releases">releases page</a>. Open the disk
+image, drag pgNimbus onto the Applications folder beside it, then eject the
+image. Running the app from the mounted image works, but it disappears the
+moment you eject.</p>
+<p>The build carries an ad-hoc signature instead of an Apple Developer ID one, so
+macOS asks about it the first time you open it:</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">macOS 14 and earlier</label><label for="__tabbed_1_2">macOS 15 Sequoia and later</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<p>Right-click (or Control-click) pgNimbus in Applications, choose <strong>Open</strong>,
+then <strong>Open</strong> again in the dialog.</p>
+</div>
+<div class="tabbed-block">
+<p>Double-click pgNimbus and dismiss the warning. Open
+<strong>System Settings → Privacy &amp; Security</strong>, scroll to the security section,
+and click <strong>Open Anyway</strong> next to the message about pgNimbus.</p>
+</div>
+</div>
+</div>
+<p>You do this once per installed version. Later launches open normally.</p>
+<div class="admonition warning">
+<p class="admonition-title">If macOS says the app is damaged</p>
+<p>That dialog means the download carries no signature at all, which is what
+0.11.1 and earlier shipped. There is no <strong>Open Anyway</strong> path out of it.
+Either download a later build, or clear the quarantine flag by hand:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>xattr<span class="w"> </span>-dr<span class="w"> </span>com.apple.quarantine<span class="w"> </span>/Applications/pgNimbus.app
 </code></pre></div>
-<p>Then launch it normally.</p>
+<p>The command works as a fallback on any version, including from Downloads if
+you have not moved the app yet.</p>
+</div>
 <div class="admonition note">
 <p class="admonition-title">No Intel build</p>
 <p>GitHub retired its last Intel macOS runner in December 2025, so there is no
@@ -871,7 +889,7 @@ hosted way to build an <code>osx-x64</code> binary. Apple Silicon only for now.<
 <h2 id="linux">Linux<a class="headerlink" href="#linux" title="Permanent link">&para;</a></h2>
 <p>x64 and arm64 builds, in three formats, all on the
 <a href="https://github.com/Shman4ik/pgNimbus/releases">releases page</a>.</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">AppImage</label><label for="__tabbed_1_2">Debian / Ubuntu</label><label for="__tabbed_1_3">tar.gz</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="2:3"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><input id="__tabbed_2_2" name="__tabbed_2" type="radio" /><input id="__tabbed_2_3" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">AppImage</label><label for="__tabbed_2_2">Debian / Ubuntu</label><label for="__tabbed_2_3">tar.gz</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <p>Works on any distribution and installs nothing.</p>
