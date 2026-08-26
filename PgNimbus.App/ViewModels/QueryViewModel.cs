@@ -327,6 +327,22 @@ public sealed partial class QueryViewModel : ObservableObject
     public ObservableCollection<string> ColumnNames { get; } = [];
 
     /// <summary>
+    /// Results-grid column widths the user dragged, by column name — the tab's
+    /// memory of its own layout, written and read by <c>ResultsGridPanel</c>
+    /// (the grid itself is window-central and rebuilds its columns from scratch
+    /// on every re-run, page turn, EditContext arrival and tab switch, so
+    /// without this a drag would be undone by the next of those).
+    ///
+    /// Keyed by name rather than position and deliberately never cleared: a
+    /// re-run of the same query, a page turn, or a browse whose columns arrive
+    /// twice all have to match, and a later query that happens to share a
+    /// column name inheriting its width is the same answer the user already
+    /// gave for that column. Widths are view state and stay out of the
+    /// workspace snapshot.
+    /// </summary>
+    public Dictionary<string, double> ColumnWidths { get; } = [];
+
+    /// <summary>
     /// The Postgres type name of result column <paramref name="index"/> (as the
     /// wire protocol reports it — "jsonb", "integer[]", "timestamp with time
     /// zone", …), or null when out of range. Available for every result set, not
