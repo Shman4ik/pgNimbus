@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787640587158,
+  "lastUpdate": 1787763158629,
   "repoUrl": "https://github.com/Shman4ik/pgNimbus",
   "entries": {
     "pgNimbus benchmarks": [
@@ -1650,6 +1650,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "Stream 100000 rows",
             "value": 147.3,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shman4ik@gmail.com",
+            "name": "Dmitrii Shmanev",
+            "username": "Shman4ik"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "74356487858f7d93a90df3fff86f47d2d08a4c31",
+          "message": "Merge pull request #207 from Shman4ik/resizable-result-columns\n\nLet the results grid's columns be dragged to a width",
+          "timestamp": "2026-08-26T18:30:39+02:00",
+          "tree_id": "420bb1f274db43a234ef577248f15370de494a59",
+          "url": "https://github.com/Shman4ik/pgNimbus/commit/74356487858f7d93a90df3fff86f47d2d08a4c31"
+        },
+        "date": 1787763157697,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Startup, launch to first frame (NativeAOT)",
+            "value": 194,
+            "unit": "ms"
+          },
+          {
+            "name": "Memory at first frame (NativeAOT)",
+            "value": 156,
+            "unit": "MB"
+          },
+          {
+            "name": "Binary size (NativeAOT)",
+            "value": 43.3,
+            "unit": "MB"
+          },
+          {
+            "name": "Publish size (NativeAOT, shipped files)",
+            "value": 56.6,
+            "unit": "MB"
+          },
+          {
+            "name": "Startup, launch to first frame (JIT)",
+            "value": 1776,
+            "unit": "ms"
+          },
+          {
+            "name": "Connect, cold pool",
+            "value": 142.1,
+            "unit": "ms"
+          },
+          {
+            "name": "Round-trip, SELECT 1 warm",
+            "value": 0.29,
+            "unit": "ms"
+          },
+          {
+            "name": "First row batch of a 100000-row SELECT",
+            "value": 11.9,
+            "unit": "ms"
+          },
+          {
+            "name": "Stream 100000 rows",
+            "value": 125.9,
             "unit": "ms"
           }
         ]
