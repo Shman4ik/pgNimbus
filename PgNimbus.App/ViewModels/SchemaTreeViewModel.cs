@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PgNimbus.Core.Schema;
@@ -10,6 +11,16 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
     private readonly SchemaService _schemaService;
     private readonly Action<bool>? _persistShowAdvanced;
     private readonly Action<bool>? _persistShowSizes;
+
+    // The whole catalog's relations, fetched once on the first filter keystroke
+    // and reused until the tree is refreshed. Held as the in-flight task rather
+    // than the result so a burst of keystrokes shares one round trip.
+    private Task<IReadOnlyList<RelationInfo>>? _relationsFetch;
+
+    // Bumped per filter pass, so a slow catalog fetch that returns after the
+    // user has typed on (or cleared the box) is discarded instead of painting
+    // a stale filter over the tree.
+    private int _filterGeneration;
 
     [ObservableProperty]
     private bool _isLoading;
@@ -41,7 +52,7 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
     [ObservableProperty]
     private string? _errorMessage;
 
-    /// <summary>Case-insensitive substring typed into the sidebar filter box. Filters schemas and their already-loaded tables live.</summary>
+    /// <summary>Case-insensitive substring typed into the sidebar filter box. Filters schemas and their tables live, expanded or not.</summary>
     [ObservableProperty]
     private string _filterText = string.Empty;
 
@@ -123,6 +134,16 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
             : Task.CompletedTask;
 
     /// <summary>
+    /// Every relation in the database, schema-qualified — what the filter box
+    /// matches against so a table in a schema the user has never expanded is
+    /// still findable (the command palette already searched this list, which is
+    /// why a table it found could be missing from the sidebar). Host-supplied so
+    /// the sidebar and the palette share one cached snapshot; falls back to the
+    /// schema service when nothing is wired (design time, tests).
+    /// </summary>
+    public Func<Task<IReadOnlyList<RelationInfo>>>? AllRelationsRequested { get; set; }
+
+    /// <summary>
     /// Whether a schema name is currently excluded from completion. Consulted
     /// when <see cref="RefreshAsync"/> rebuilds the nodes, so a refresh (or a
     /// reconnect) doesn't lose the markers the host persisted.
@@ -150,6 +171,34 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
         _persistShowAdvanced = persistShowAdvanced;
         _showSizes = showSizes;
         _persistShowSizes = persistShowSizes;
+
+        // A schema the filter revealed from the catalog is expanded to show its
+        // match, and its children arrive later, all defaulting to visible. Watch
+        // for that so the newly loaded rows are vetted against the live filter
+        // instead of the schema flashing open with every table it owns.
+        Schemas.CollectionChanged += OnSchemasChanged;
+    }
+
+    private void OnSchemasChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        foreach (var schema in e.NewItems?.OfType<SchemaNode>() ?? [])
+        {
+            // Not unsubscribed on removal: the handler is reached only through the
+            // discarded node's own collection, so it dies with the node (it keeps
+            // this view model alive, never the other way round).
+            schema.Children.CollectionChanged += (_, _) => OnSchemaChildrenChanged(schema);
+        }
+    }
+
+    private void OnSchemaChildrenChanged(SchemaNode schema)
+    {
+        var query = FilterText.Trim();
+        if (query.Length == 0)
+        {
+            return;
+        }
+
+        FilterChildren(schema, query, Contains(schema.Name, query));
     }
 
     partial void OnShowSizesChanged(bool value)
@@ -197,15 +246,69 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
     [RelayCommand]
     private void ClearFilter() => FilterText = string.Empty;
 
-    partial void OnFilterTextChanged(string value) => ApplyFilter();
+    partial void OnFilterTextChanged(string value) => _ = ApplyFilterAsync();
 
     /// <summary>
-    /// Walks the loaded tree and toggles <see cref="SchemaTreeNode.IsFilteredIn"/> so a schema shows when its
-    /// own name matches (all its tables stay visible) or when any loaded table matches (only the matches show,
-    /// and the schema auto-expands to reveal them). An empty filter reveals everything. Only schema and table
-    /// names participate; unloaded (lazily-expandable) tables can't be matched until their schema is expanded.
+    /// Runs a filter pass, then a second one once the catalog snapshot is in
+    /// hand. The first pass is synchronous so typing stays responsive with what
+    /// is already loaded; the second is what makes a table in a collapsed schema
+    /// findable at all, and costs one catalog query per connection.
     /// </summary>
-    private void ApplyFilter()
+    private async Task ApplyFilterAsync()
+    {
+        var generation = ++_filterGeneration;
+        ApplyFilter();
+
+        if (FilterText.Trim().Length == 0)
+        {
+            return;
+        }
+
+        var relations = await GetRelationsAsync();
+
+        // No catalog (offline, or a failed query), or the user typed on while it
+        // was in flight: the synchronous pass above already stands.
+        if (relations is null || generation != _filterGeneration)
+        {
+            return;
+        }
+
+        ApplyFilter(relations);
+    }
+
+    private async Task<IReadOnlyList<RelationInfo>?> GetRelationsAsync()
+    {
+        try
+        {
+            return await (_relationsFetch ??= AllRelationsRequested is null
+                ? _schemaService.GetAllRelationsAsync(CancellationToken.None)
+                : AllRelationsRequested());
+        }
+        catch
+        {
+            // Not the sidebar's error to report — the tree itself loaded fine and
+            // the filter degrades to what is on screen. Drop the failed task so
+            // the next keystroke retries.
+            _relationsFetch = null;
+            return null;
+        }
+    }
+
+    private void ApplyFilter() => ApplyFilter(_relationsFetch is { IsCompletedSuccessfully: true } fetch ? fetch.Result : null);
+
+    /// <summary>
+    /// Walks the tree and toggles <see cref="SchemaTreeNode.IsFilteredIn"/> so a schema shows when its own name
+    /// matches (all its tables stay visible) or when a table inside it matches (only the matches show, and the
+    /// schema auto-expands to reveal them). An empty filter reveals everything. Only schema and table names
+    /// participate.
+    /// </summary>
+    /// <param name="relations">
+    /// The whole catalog, when it has been fetched. Without it only already-loaded tables can be matched, which
+    /// is what made a table in a never-expanded schema look like it did not exist while the command palette —
+    /// which searches this same list — found it. A loaded schema is still judged by its own children: they are
+    /// the fresher of the two, so a table dropped since the snapshot doesn't keep its schema on screen.
+    /// </param>
+    private void ApplyFilter(IReadOnlyList<RelationInfo>? relations)
     {
         var query = FilterText.Trim();
 
@@ -240,27 +343,45 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
             }
 
             var schemaMatches = Contains(schema.Name, query);
-            var anyTableMatches = false;
+            var anyTableMatches = FilterChildren(schema, query, schemaMatches);
 
-            foreach (var child in schema.Children)
-            {
-                // Only real tables are matched by name. Sub-groups (Functions)
-                // and placeholder/error rows aren't tables and have no name to
-                // match, so they ride the schema's own visibility instead of
-                // being filtered out.
-                var tableMatches = child is TableNode && Contains(child.Name, query);
-                child.IsFilteredIn = schemaMatches || tableMatches || child is not TableNode;
-                anyTableMatches |= tableMatches;
-            }
+            // An unexpanded schema has no children to match, so the catalog
+            // snapshot answers for it. Expanding it below loads them, and the
+            // load re-runs FilterChildren so only the matches end up visible.
+            var catalogMatches = !schema.IsLoaded && relations is not null &&
+                relations.Any(r => r.Schema == schema.Name && Contains(r.Name, query));
 
-            schema.IsFilteredIn = schemaMatches || anyTableMatches;
+            schema.IsFilteredIn = schemaMatches || anyTableMatches || catalogMatches;
 
             // Reveal deep matches: if the schema only survives because a table inside it matched, expand it.
-            if (anyTableMatches && !schemaMatches)
+            if ((anyTableMatches || catalogMatches) && !schemaMatches)
             {
                 schema.IsExpanded = true;
             }
         }
+    }
+
+    /// <summary>
+    /// Vets one schema's loaded children against the filter and reports whether any table matched.
+    /// Called both from a full <see cref="ApplyFilter(IReadOnlyList{RelationInfo})"/> pass and on its
+    /// own when a lazily-loaded schema's children arrive after the pass that expanded it.
+    /// </summary>
+    private static bool FilterChildren(SchemaNode schema, string query, bool schemaMatches)
+    {
+        var anyTableMatches = false;
+
+        foreach (var child in schema.Children)
+        {
+            // Only real tables are matched by name. Sub-groups (Functions)
+            // and placeholder/error rows aren't tables and have no name to
+            // match, so they ride the schema's own visibility instead of
+            // being filtered out.
+            var tableMatches = child is TableNode && Contains(child.Name, query);
+            child.IsFilteredIn = schemaMatches || tableMatches || child is not TableNode;
+            anyTableMatches |= tableMatches;
+        }
+
+        return anyTableMatches;
     }
 
     private static bool Contains(string haystack, string needle) =>
@@ -271,6 +392,10 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
     {
         IsLoading = true;
         ErrorMessage = null;
+
+        // The catalog snapshot the filter matches against is as stale as the tree
+        // it came with; drop it so the next filter keystroke re-fetches.
+        _relationsFetch = null;
 
         try
         {
