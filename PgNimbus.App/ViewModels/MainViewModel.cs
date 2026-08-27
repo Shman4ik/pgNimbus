@@ -244,8 +244,14 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     // Relations rarely change mid-session, so the palette's "jump to a table"
-    // list is fetched once and reused across opens.
+    // list — and the sidebar filter, which matches the same list so a table in a
+    // collapsed schema is still findable — is fetched once and reused. Cleared by
+    // RefreshSchemaAsync.
     private IReadOnlyList<RelationInfo>? _relationCache;
+
+    /// <summary>Every relation in the database, fetched once and shared by the command palette and the schema tree's filter box.</summary>
+    private async Task<IReadOnlyList<RelationInfo>> GetRelationsAsync() =>
+        _relationCache ??= await _schemaService.GetAllRelationsAsync(CancellationToken.None);
 
     // Catalog-name snapshot for the unquoted-identifier fix, built lazily on the
     // first failed query and reused until the schema is refreshed.
@@ -420,6 +426,7 @@ public sealed partial class MainViewModel : ObservableObject
         SchemaTree.SetSchemaExcludedFromCompletionRequested = SetSchemaExcludedFromCompletionAsync;
         SchemaTree.ManageRolesRequested = ManageRolesAsync;
         SchemaTree.IsSchemaExcludedFromCompletion = _excludedSchemas.Contains;
+        SchemaTree.AllRelationsRequested = GetRelationsAsync;
         _schemaService = schemaService;
         _schemaEditor = schemaEditor;
         _ddlService = ddlService;
@@ -1038,7 +1045,7 @@ public sealed partial class MainViewModel : ObservableObject
 
         try
         {
-            _relationCache ??= await _schemaService.GetAllRelationsAsync(CancellationToken.None);
+            _relationCache = await GetRelationsAsync();
         }
         catch
         {

@@ -312,6 +312,24 @@ Three rules about it:
    filtered by it: the tree and the command palette still show everything, which
    is why the toggle rebuilds only the completion cache instead of running the
    full `RefreshSchemaAsync` (which would collapse the tree).
+   **The sidebar's filter box searches the database, not the screen** (2026-08).
+   It used to walk only the nodes the tree had already loaded, and the tree
+   loads a schema's tables lazily on first expand — so a table in a schema
+   nobody had opened was reported as absent, while Ctrl+K found it instantly
+   (the palette searches `GetAllRelationsAsync`). `SchemaTreeViewModel` now
+   matches that same whole-catalog list: a filter pass runs synchronously over
+   the loaded tree first (typing stays responsive), then again once the
+   snapshot is in hand, and a schema whose *unloaded* tables match is revealed
+   and expanded, which triggers its lazy load. The snapshot is host-supplied
+   (`AllRelationsRequested`, wired to `MainViewModel.GetRelationsAsync`) so the
+   sidebar and the palette share one cache and one invalidation on
+   `RefreshSchemaAsync`. Two things make it hold together: the children that
+   arrive from that triggered load default to visible, so the VM watches each
+   schema's `Children` collection and re-vets them against the live filter
+   (otherwise the schema flashes open with every table it owns); and a
+   *loaded* schema is still judged by its own children rather than the
+   snapshot, which is the fresher of the two.
+
    **Completion ranks by what can legally be typed at the caret**, and the
    statement-start caret is its own context (2026-08):
    `SqlCompletionContext.IsAtStatementStart` (Core-pure, unit-tested) is true

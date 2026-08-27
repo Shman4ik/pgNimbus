@@ -31,6 +31,11 @@ tables, views, materialized views and partitioned tables, with primary keys and
 column types. Double-click a table to browse it. Drag any node into the editor to
 drop in its quoted name.
 
+The filter box above the tree searches the whole database, not just the part you
+have expanded. Type any part of a schema or table name and the tree narrows to
+what matches, opening a schema to show a table inside it. Clear the box, or click
+the x, to get the full tree back.
+
 Right-click gives each kind of object the few actions that make sense for it. A
 schema offers:
 

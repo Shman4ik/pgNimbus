@@ -236,7 +236,9 @@
                           ToolTip.Tip="Also show functions, sequences, types, indexes, triggers and extensions">
                 <PathIcon Data="{StaticResource TuneIconGeometry}" Width="14" Height="14" />
             </ToggleButton>
-            <!-- Type-to-filter box: matches schema and loaded-table names, case-insensitive substring -->
+            <!-- Type-to-filter box: case-insensitive substring over schema and table
+                 names, including tables in schemas that were never expanded (the
+                 filter matches the same whole-catalog list the command palette does) -->
             <TextBox FontSize="12"
                      PlaceholderText="Filter schemas &amp; tables…"
                      Text="{Binding FilterText, Mode=TwoWay}">
