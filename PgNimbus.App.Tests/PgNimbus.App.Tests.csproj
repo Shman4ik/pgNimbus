@@ -17,7 +17,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="TUnit" Version="1.65.38" />
+    <PackageReference Include="TUnit" Version="1.65.68" />
     <PackageReference Include="Avalonia.Headless" Version="12.1.1" />
   </ItemGroup>
 
