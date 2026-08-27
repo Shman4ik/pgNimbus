@@ -1134,8 +1134,12 @@ workspace next session.</p>
 <td><kbd>Ctrl</kbd>+<kbd>1</kbd> … <kbd>Ctrl</kbd>+<kbd>9</kbd></td>
 </tr>
 <tr>
-<td>Open / save a <code>.sql</code> file</td>
-<td><kbd>Ctrl</kbd>+<kbd>O</kbd> / <kbd>Ctrl</kbd>+<kbd>S</kbd></td>
+<td>Open a <code>.sql</code> file</td>
+<td><kbd>Ctrl</kbd>+<kbd>O</kbd></td>
+</tr>
+<tr>
+<td>Save</td>
+<td><kbd>Ctrl</kbd>+<kbd>S</kbd></td>
 </tr>
 <tr>
 <td>Save as</td>
@@ -1155,6 +1159,17 @@ left them, including never-saved scratch SQL.</p>
 <p>The sidebar's Queries tab holds saved queries and the query history. History is
 searchable, pinnable, and scoped per connection. Double-click any entry to open
 it in a new tab.</p>
+<p>To save the query you are looking at, right-click its tab and choose <strong>Save
+query</strong>, or press <kbd>Ctrl</kbd>+<kbd>S</kbd>. You are asked for a name once.
+After that, <kbd>Ctrl</kbd>+<kbd>S</kbd> writes straight through to the same
+entry, so a query you keep editing stays one row in the list instead of becoming
+a pile of copies. If you type a name that is already taken, pgNimbus says so and
+offers to replace that entry.</p>
+<p><kbd>Ctrl</kbd>+<kbd>S</kbd> follows the tab. A tab you opened from a <code>.sql</code> file
+saves back to that file; any other tab goes to the Saved Queries list. When you
+want a specific destination, the command palette and the ☰ menu carry both by
+name: <strong>Save query to Saved Queries</strong> and <strong>Save tab to a .sql file</strong>.</p>
+<p>Right-click a row in the list to open it in a new tab, rename it, or delete it.</p>
 <h2 id="command-palette">Command palette<a class="headerlink" href="#command-palette" title="Permanent link">&para;</a></h2>
 <p><kbd>Ctrl</kbd>+<kbd>K</kbd> (or <kbd>Ctrl</kbd>+<kbd>P</kbd>, or the "Search"
 pill in the command bar) fuzzy-jumps to any table, saved query, recent file, or
