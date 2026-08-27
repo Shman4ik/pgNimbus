@@ -228,6 +228,17 @@ public sealed partial class QueryViewModel : ObservableObject
     // file-backed tab; the dirty comparison baseline while FilePath is set.
     private string? _lastSavedSql;
 
+    /// <summary>
+    /// The Saved Queries entry this tab was last saved to, or null if it has
+    /// never been saved to the list. This is what makes a second Save an
+    /// overwrite instead of a duplicate: without it every save minted a fresh
+    /// <see cref="Guid"/> and the list filled up with copies of one query
+    /// under the same name. It rides the workspace snapshot, so the link
+    /// survives a restart the way <see cref="FilePath"/> does.
+    /// </summary>
+    [ObservableProperty]
+    private Guid? _savedQueryId;
+
     [ObservableProperty]
     private ExplainNodeViewModel? _explainRoot;
 
@@ -1204,6 +1215,18 @@ public sealed partial class QueryViewModel : ObservableObject
         _lastSavedSql = Sql;
         IsDirty = false;
         TitleOverride = Path.GetFileName(path);
+    }
+
+    /// <summary>
+    /// Records that this tab's buffer was written to the Saved Queries entry
+    /// <paramref name="id"/> under <paramref name="name"/>. The name becomes a
+    /// <see cref="TitleOverride"/> rather than a <see cref="DefaultTitle"/>
+    /// because a person chose it, so it must survive later edits to the SQL.
+    /// </summary>
+    public void MarkSavedAsQuery(Guid id, string name)
+    {
+        SavedQueryId = id;
+        TitleOverride = name;
     }
 
     partial void OnBrowseChanged(TableBrowseViewModel? value)

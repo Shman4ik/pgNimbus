@@ -488,7 +488,7 @@ public partial class App : Application
             {
                 if (workspaceKey is not null)
                 {
-                    var tabs = viewModel.Tabs.Select(t => new WorkspaceTab(t.Sql, t.TitleOverride, t.FilePath)).ToList();
+                    var tabs = viewModel.Tabs.Select(t => new WorkspaceTab(t.Sql, t.TitleOverride, t.FilePath, t.SavedQueryId)).ToList();
                     var activeIndex = Math.Max(viewModel.Tabs.IndexOf(viewModel.ActiveTab), 0);
                     workspaceStore.Save(workspaceKey, tabs, activeIndex);
                 }

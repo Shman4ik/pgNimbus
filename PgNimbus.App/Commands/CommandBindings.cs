@@ -151,8 +151,10 @@ public static class CommandBindings
         [CommandId.NextTab] = vm => vm.NextTabCommand,
         [CommandId.PreviousTab] = vm => vm.PreviousTabCommand,
         [CommandId.OpenFile] = vm => vm.OpenFileCommand,
+        [CommandId.Save] = vm => vm.SaveCommand,
+        [CommandId.SaveAs] = vm => vm.SaveAsCommand,
+        [CommandId.SaveQuery] = vm => vm.SaveQueryCommand,
         [CommandId.SaveFile] = vm => vm.SaveFileCommand,
-        [CommandId.SaveFileAs] = vm => vm.SaveFileAsCommand,
 
         [CommandId.Find] = vm => vm.FindCommand,
         [CommandId.FindReplace] = vm => vm.FindReplaceCommand,

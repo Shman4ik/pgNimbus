@@ -232,10 +232,21 @@ public static class CommandCatalog
             Chord = new(CommandKey.O, Cmd),
             Surfaces = Everywhere,
         },
+        // The two chorded saves are deliberately *smart* rather than each
+        // owning one destination, because pgNimbus has two of them — the
+        // Saved Queries list and a .sql file on disk — and Ctrl+S went to the
+        // file one alone. Users pressed the obvious gesture, got a file
+        // picker, and never found the list sitting in the sidebar in front of
+        // them; "how do I save a query" was the single most reported piece of
+        // confusion. So Ctrl+S now follows the tab: one opened from a file
+        // saves back to it, a scratch tab saves to the list. The two explicit
+        // rows below name a destination outright, for the palette, so neither
+        // destination is reachable only through a guess about the tab.
         new()
         {
-            Id = CommandId.SaveFile,
-            Title = "Save tab to file",
+            Id = CommandId.Save,
+            Title = "Save",
+            CheatTitle = "Save — to the tab's file, or to Saved Queries",
             Category = CommandCategory.Tabs,
             Glyph = "↧",
             Chord = new(CommandKey.S, Cmd),
@@ -243,12 +254,29 @@ public static class CommandCatalog
         },
         new()
         {
-            Id = CommandId.SaveFileAs,
-            Title = "Save tab as…",
+            Id = CommandId.SaveAs,
+            Title = "Save as…",
+            CheatTitle = "Save as — a new file, or a new saved query",
             Category = CommandCategory.Tabs,
             Glyph = "↧",
             Chord = new(CommandKey.S, CmdShift),
             Surfaces = Everywhere,
+        },
+        new()
+        {
+            Id = CommandId.SaveQuery,
+            Title = "Save query to Saved Queries…",
+            Category = CommandCategory.Tabs,
+            Glyph = "☆",
+            Surfaces = PaletteOnly,
+        },
+        new()
+        {
+            Id = CommandId.SaveFile,
+            Title = "Save tab to a .sql file…",
+            Category = CommandCategory.Tabs,
+            Glyph = "↧",
+            Surfaces = PaletteOnly,
         },
 
         // ----------------------------------------------------------- SQL editor

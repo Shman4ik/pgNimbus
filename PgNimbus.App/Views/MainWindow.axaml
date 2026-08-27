@@ -79,8 +79,15 @@
                                 <MenuItem Name="MenuOpenFile" Header="Open .sql file…" Command="{Binding OpenFileCommand}" />
                                 <MenuItem Name="MenuOpenRecent" Header="Open recent" />
                                 <Separator />
-                                <MenuItem Name="MenuSaveFile" Header="Save" Command="{Binding SaveFileCommand}" />
-                                <MenuItem Name="MenuSaveFileAs" Header="Save as…" Command="{Binding SaveFileAsCommand}" />
+                                <!-- Save and Save as… follow the active tab (see
+                                     MainViewModel.Save); the two rows under them name a
+                                     destination outright, so "save this query somewhere I
+                                     can find it again" is answerable without knowing
+                                     which kind of tab is open. -->
+                                <MenuItem Name="MenuSaveFile" Header="Save" Command="{Binding SaveCommand}" />
+                                <MenuItem Name="MenuSaveFileAs" Header="Save as…" Command="{Binding SaveAsCommand}" />
+                                <MenuItem Name="MenuSaveQuery" Header="Save query to Saved Queries…" Command="{Binding SaveQueryCommand}" />
+                                <MenuItem Name="MenuSaveToFile" Header="Save tab to a .sql file…" Command="{Binding SaveFileCommand}" />
                                 <Separator />
                                 <MenuItem Name="MenuCloseTab" Header="Close tab" Command="{Binding CloseTabCommand}" />
                                 <Separator />
