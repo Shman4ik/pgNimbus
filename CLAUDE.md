@@ -381,13 +381,23 @@ Three rules about it:
    tab strip reorders by dragging (live, browser-style — pointer handlers in
    `MainWindow.axaml.cs`; the order persists via the workspace snapshot, which
    serializes `Tabs` in collection order). Right-clicking a tab opens a
-   four-item flyout — Rename… / Close / Close others / Close to the right —
+   five-item flyout — Save query… / Rename… / Close / Close others / Close to
+   the right —
    built and shown from `MainWindow.OnTabStripContextRequested` (code, not XAML: the
    handler has to resolve the clicked `ListBoxItem` and re-target the menu
    before it opens, and a `ContextFlyout` on the strip would also fire on its
-   empty space). Deliberately rename plus the close family, and of the closes
+   empty space). Deliberately save plus rename plus the close family, and of the
+   closes
    only the two verbs a tab bar can't express by pointing at one tab — the strip's own ✕, its ▾
-   finder and drag-reorder cover the rest. Right-click also makes the clicked
+   finder and drag-reorder cover the rest. **Save query… is first, and it is
+   there because it was missing** (2026-08): the only route into the Saved
+   Queries list was a `Query name` text box parked *under* the sidebar list, in
+   a button row with Load and Delete — which act on the list *selection*, so
+   Save read as a third verb doing the same rather than as "save this tab".
+   Meanwhile Ctrl+S was bound to the file save alone, so the one gesture
+   everybody tries opened a `.sql` picker and left the list visibly unchanged.
+   Users reported being unable to find saving at all, and they were right: it
+   was on no menu, no palette row and no right-click anywhere. Right-click also makes the clicked
    tab active (VS / Notepad++ do the same) so the verbs read against what the
    user is looking at, and the bulk pair is in the catalog as `CloseOtherTabs`
    / `CloseTabsToTheRight` (palette-only, no chord — three tab commands
@@ -416,7 +426,8 @@ Three rules about it:
    tab named `customers` forever, because the label had been written as an
    override. Only `TitleOverride` rides the workspace snapshot.
    The ☰ button (top-left, 2026-07) opens the one discoverable menu for file/tab-level commands: New tab,
-   Open .sql / Open recent, Save / Save as, Close tab, Switch connection,
+   Open .sql / Open recent, Save / Save as / Save query to Saved Queries /
+   Save tab to a .sql file, Close tab, Switch connection,
    New window, Preferences, **Keyboard shortcuts and About pgNimbus**. Those last
    two were reachable only from the macOS native menu (About) or a single unlabelled
    `?` button (shortcuts), so on Windows and Linux the About box had no entry point
@@ -435,6 +446,35 @@ Three rules about it:
    ☰ command lives in the real menu bar instead (see "Platform window
    chrome"). A command added to the ☰ menu must be added to
    `BuildMacNativeMenu` in the same change, and vice versa.
+   **Ctrl+S follows the tab, and both destinations are also named outright**
+   (2026-08).
+   pgNimbus can save a query to two places — the Saved Queries list and a `.sql`
+   file — and the obvious gesture used to reach only the file one: a user
+   pressing Ctrl+S over an ordinary query tab got a file picker while the Saved
+   Queries list sat in the sidebar, unchanged, three inches away. `MainViewModel.Save` now routes on
+   `ActiveTab.FilePath`: a tab opened from disk saves back to its file (so nobody
+   who was using file save loses their Ctrl+S), anything else goes to the list.
+   `SaveAs` splits the same way, into a new file or a new saved query.
+   **A mode on the most-pressed key is only safe because it is not the only
+   route**: `CommandId.SaveQuery` and `CommandId.SaveFile` are palette-and-menu
+   entries that each name one destination, so nothing is reachable only by
+   guessing what Ctrl+S will do here. Three supporting pieces, each of which was
+   a real defect before:
+   `QueryViewModel.SavedQueryId` links a tab to the entry it was saved as, so a
+   second save is an **overwrite** — saving used to mint a fresh `Guid` every
+   time and the list filled with same-named rows nothing could tell apart. It
+   rides the workspace snapshot (`WorkspaceTab.SavedQueryId`) so the link
+   survives a restart, and a *stale* id (the user deleted the row from the
+   sidebar while the tab stayed open) is treated as never-saved rather than
+   resurrecting the deleted entry — which is why `MainWindow.SaveQueryAsync`
+   re-resolves it through `SavedQueriesViewModel.FindById` instead of trusting
+   it. And a save that already has an entry **skips the dialog entirely**; the
+   naming modal (`SaveQueryDialog`, shared with the list's Rename) appears only
+   the first time, which is what keeps Ctrl+S feeling like Ctrl+S rather than
+   like a prompt. Its name-collision check is case-insensitive on purpose: the
+   list is read by eye, so "Daily report" and "daily report" as two rows is the
+   duplicate bug wearing a different hat.
+
 5. **One command catalog, no hardcoded gestures.** Every command and every
    documented keyboard gesture is declared exactly once, in the Core-pure,
    unit-tested `PgNimbus.Core.Commands.CommandCatalog` (a read-only sibling of

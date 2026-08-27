@@ -1,0 +1,32 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="PgNimbus.App.Views.SaveQueryDialog"
+        Title="pgNimbus"
+        Width="420" SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        FontFamily="{StaticResource InterFont}">
+
+    <!-- Names a query for the Saved Queries list. Deliberately a small modal
+         rather than a text box parked in the sidebar: the old box sat below
+         the list and beside Load/Delete, so "Save" read as acting on the list
+         selection rather than on the tab, and nobody found it. This asks at
+         the moment of the gesture, next to what is being saved. -->
+    <StackPanel Margin="20" Spacing="14">
+        <TextBlock Name="HeadingText" Text="Save query" FontSize="15" FontWeight="SemiBold" />
+        <StackPanel Spacing="6">
+            <TextBlock Text="Name" FontSize="12" Opacity="0.7" />
+            <TextBox Name="NameBox" KeyDown="OnNameBoxKeyDown" />
+        </StackPanel>
+        <!-- Only shown when the typed name already belongs to another entry:
+             the alternative is quietly creating a second row with the same
+             label, which is what made the list unusable before. -->
+        <TextBlock Name="ConflictText" Classes="statusText warn" FontSize="12"
+                   TextWrapping="Wrap" IsVisible="False" />
+        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+            <Button Name="SaveButton" Classes="accent" Content="Save" Click="OnSaveClick" />
+            <Button Classes="soft" Content="Cancel" Click="OnCancelClick" />
+        </StackPanel>
+    </StackPanel>
+
+</Window>

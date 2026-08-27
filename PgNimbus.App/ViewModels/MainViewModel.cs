@@ -82,6 +82,10 @@ public sealed partial class MainViewModel : ObservableObject
     // Raised to save the active tab's SQL to disk; true = "save as" (always
     // prompt), false = save-in-place (prompt only when the tab has no file yet).
     public event Action<bool>? SaveFileRequested;
+    // Raised to save the active tab into the Saved Queries list; MainWindow owns
+    // the naming modal. true = "save as new" (always a fresh entry, even if this
+    // tab is already saved), false = update the tab's own entry when it has one.
+    public event Action<bool>? SaveQueryRequested;
     // Raised to open a specific recent file (from the palette's "Recent file" entries).
     public event Action<string>? OpenRecentFileRequested;
     // Raised to comment/uncomment the selected lines; the editor panel owns the
@@ -174,11 +178,47 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void OpenFile() => OpenFileRequested?.Invoke();
 
+    /// <summary>
+    /// Ctrl+S. pgNimbus has two places a query can be saved, and binding the
+    /// obvious gesture to only one of them is what made "how do I save a
+    /// query?" the most common piece of user confusion: Ctrl+S opened a file
+    /// picker while the Saved Queries list sat unchanged in the sidebar. So it
+    /// follows the tab instead — a tab that came from a .sql file saves back to
+    /// that file, anything else goes to the list. The palette carries both
+    /// destinations by name (<see cref="SaveQuery"/>, <see cref="SaveFile"/>)
+    /// so neither is reachable only by guessing what this will do.
+    /// </summary>
     [RelayCommand]
-    private void SaveFile() => SaveFileRequested?.Invoke(false);
+    private void Save()
+    {
+        if (ActiveTab.FilePath is not null)
+        {
+            SaveFileRequested?.Invoke(false);
+            return;
+        }
+
+        SaveQueryRequested?.Invoke(false);
+    }
+
+    /// <summary>Ctrl+Shift+S: the same split, but always a new file / a new saved query.</summary>
+    [RelayCommand]
+    private void SaveAs()
+    {
+        if (ActiveTab.FilePath is not null)
+        {
+            SaveFileRequested?.Invoke(true);
+            return;
+        }
+
+        SaveQueryRequested?.Invoke(true);
+    }
+
+    /// <summary>Names a destination outright, whatever kind of tab is active.</summary>
+    [RelayCommand]
+    private void SaveQuery() => SaveQueryRequested?.Invoke(false);
 
     [RelayCommand]
-    private void SaveFileAs() => SaveFileRequested?.Invoke(true);
+    private void SaveFile() => SaveFileRequested?.Invoke(false);
 
     [RelayCommand]
     private void SwitchConnection() => SwitchConnectionRequested?.Invoke();
@@ -430,7 +470,6 @@ public sealed partial class MainViewModel : ObservableObject
         SavedQueries = new SavedQueriesViewModel(
             new SavedQueryStore(),
             new QueryHistoryStore(),
-            () => ActiveTab,
             (title, sql) =>
             {
                 var tab = NewTab();

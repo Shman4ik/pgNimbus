@@ -9,33 +9,45 @@
     <!-- Saved queries + run history sidebar tab. DataContext is the
          MainViewModel's SavedQueries, supplied by the host. Double-tapping a
          list row opens it in a new tab (wired in code-behind). -->
-    <Grid RowDefinitions="Auto,*,Auto,Auto,Auto,Auto,*,Auto" Margin="0,8,0,0">
+    <Grid RowDefinitions="Auto,*,Auto,Auto,*,Auto" Margin="0,8,0,0">
         <TextBlock Grid.Row="0" Classes="sectionHeader" Text="SAVED QUERIES" Margin="4,0,4,6" />
         <Border Grid.Row="1" Classes="card" MinHeight="80">
             <Grid>
+                <!-- No name box and no Save button under this list anymore. They
+                     were the reported confusion: the box sat *below* the list and
+                     Save sat in a row with Load and Delete, which act on the list
+                     selection - so Save read as acting on the selection too, not on
+                     the open tab, and the one route to saving a query was a control
+                     nobody recognised as one. Saving now starts where the query is
+                     (right-click the tab, Ctrl+S, or the palette) and this list is
+                     just the list. Load and Delete moved to the right-click menu, the
+                     same trade the connection dialog's button row made. -->
                 <ListBox Name="SavedQueriesList" ItemsSource="{Binding SavedQueries}">
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="query:SavedQuery">
                             <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Sql}" />
                         </DataTemplate>
                     </ListBox.ItemTemplate>
+                    <ListBox.ContextFlyout>
+                        <MenuFlyout>
+                            <MenuItem Header="Open in a new tab" Click="OnOpenSavedQueryClick" />
+                            <MenuItem Header="Rename…" Click="OnRenameSavedQueryClick" />
+                            <Separator />
+                            <MenuItem Header="Delete" Click="OnDeleteSavedQueryClick" />
+                        </MenuFlyout>
+                    </ListBox.ContextFlyout>
                 </ListBox>
+                <!-- The empty state names the gesture, since it is the only place
+                     a user with an empty list will look for one. -->
                 <TextBlock IsVisible="{Binding HasNoSavedQueries}" IsHitTestVisible="False"
-                           Text="Name a query above and Save to keep it here"
+                           Text="Nothing saved yet. Right-click a query tab and choose Save query, or press the Save shortcut."
                            TextWrapping="Wrap" TextAlignment="Center" Opacity="0.4" FontSize="12"
                            Margin="12" HorizontalAlignment="Center" VerticalAlignment="Center" />
             </Grid>
         </Border>
-        <TextBox Grid.Row="2" Name="NewQueryNameBox" Text="{Binding NewQueryName}" PlaceholderText="Query name" Margin="0,8,0,0" />
-        <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="6" Margin="0,8,0,0">
-            <Button Content="Save" Command="{Binding SaveCurrentQueryCommand}" />
-            <Button Content="Load" Command="{Binding LoadSavedQueryCommand}" CommandParameter="{Binding #SavedQueriesList.SelectedItem}"
-                    ToolTip.Tip="Open the selected query in a new tab (or double-click it)" />
-            <Button Content="Delete" Command="{Binding DeleteSavedQueryCommand}" CommandParameter="{Binding #SavedQueriesList.SelectedItem}" />
-        </StackPanel>
-        <TextBlock Grid.Row="4" Classes="sectionHeader" Text="HISTORY" Margin="4,16,4,6" />
+        <TextBlock Grid.Row="2" Classes="sectionHeader" Text="HISTORY" Margin="4,16,4,6" />
         <!-- Search + per-connection scope toggle -->
-        <DockPanel Grid.Row="5" Margin="0,0,0,6">
+        <DockPanel Grid.Row="3" Margin="0,0,0,6">
             <ToggleButton DockPanel.Dock="Right" Classes="chip" Padding="5" Margin="6,0,0,0"
                           VerticalAlignment="Center" IsChecked="{Binding ScopeHistoryToConnection}"
                           ToolTip.Tip="Only queries run against the current connection">
@@ -57,7 +69,7 @@
                 </TextBox.InnerRightContent>
             </TextBox>
         </DockPanel>
-        <Border Grid.Row="6" Classes="card" MinHeight="80">
+        <Border Grid.Row="4" Classes="card" MinHeight="80">
             <Grid>
                 <ListBox Name="HistoryList" ItemsSource="{Binding FilteredHistory}">
                     <ListBox.ItemTemplate>
@@ -96,7 +108,7 @@
                            Margin="12" HorizontalAlignment="Center" VerticalAlignment="Center" />
             </Grid>
         </Border>
-        <StackPanel Grid.Row="7" Orientation="Horizontal" Spacing="6" Margin="0,8,0,0">
+        <StackPanel Grid.Row="5" Orientation="Horizontal" Spacing="6" Margin="0,8,0,0">
             <Button Content="Load selected" Command="{Binding LoadHistoryEntryCommand}" CommandParameter="{Binding #HistoryList.SelectedItem}"
                     ToolTip.Tip="Open the selected entry in a new tab (or double-click it)" />
             <Button Content="Clear history" Command="{Binding ClearHistoryCommand}" />

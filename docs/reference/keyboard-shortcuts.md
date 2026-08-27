@@ -34,8 +34,8 @@ way in Preferences → Hotkey scheme.
 | Previous tab | Ctrl+PgUp | Cmd+PgUp |
 | Go to tab 1…9 | Ctrl+1 … Ctrl+9 | Cmd+1 … Cmd+9 |
 | Open .sql file… | Ctrl+O | Cmd+O |
-| Save tab to file | Ctrl+S | Cmd+S |
-| Save tab as… | Ctrl+Shift+S | Cmd+Shift+S |
+| Save — to the tab's file, or to Saved Queries | Ctrl+S | Cmd+S |
+| Save as — a new file, or a new saved query | Ctrl+Shift+S | Cmd+Shift+S |
 
 ## SQL editor
 

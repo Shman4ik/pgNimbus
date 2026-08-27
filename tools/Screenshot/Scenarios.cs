@@ -63,6 +63,7 @@ public static class Scenarios
         ("security-window-rls", SecurityRls),
         ("security-role-dialog", SecurityRoleDialog),
         ("security-drop-role-dialog", SecurityDropRoleDialog),
+        ("save-query-dialog", SaveQueryDialogShot),
         ("shortcuts-window", Shortcuts),
         ("preferences-window", Preferences),
         ("about-window", About),
@@ -241,6 +242,25 @@ public static class Scenarios
         };
 
         return new DropRoleDialog { DataContext = drop, Width = 820, Height = 680 };
+    }
+
+    /// <summary>
+    /// Naming a query on its way into the Saved Queries list, caught in its
+    /// name-already-taken state — the one branch with anything to look at, and
+    /// the one that keeps the list from filling with rows sharing a name.
+    /// </summary>
+    public static Window SaveQueryDialogShot()
+    {
+        var taken = new SavedQuery(Guid.NewGuid(), "Daily revenue", "SELECT 1;", DateTimeOffset.Now);
+        return new SaveQueryDialog(
+            "Save query",
+            taken.Name,
+            currentId: null,
+            name => string.Equals(name.Trim(), taken.Name, StringComparison.OrdinalIgnoreCase) ? taken : null)
+        {
+            Width = 420,
+            Height = 260,
+        };
     }
 
     /// <summary>Selects a tab by index once the window's template is up.</summary>

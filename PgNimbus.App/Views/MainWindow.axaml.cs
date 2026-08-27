@@ -175,8 +175,10 @@ public partial class MainWindow : Window
                 CommandItem("Open .sql File…", CommandId.OpenFile),
                 new NativeMenuItem("Open Recent") { Menu = recentMenu },
                 new NativeMenuItemSeparator(),
-                CommandItem("Save", CommandId.SaveFile),
-                CommandItem("Save As…", CommandId.SaveFileAs),
+                CommandItem("Save", CommandId.Save),
+                CommandItem("Save As…", CommandId.SaveAs),
+                CommandItem("Save Query to Saved Queries…", CommandId.SaveQuery),
+                CommandItem("Save Tab to a .sql File…", CommandId.SaveFile),
                 new NativeMenuItemSeparator(),
                 CommandItem("Close Tab", CommandId.CloseTab),
                 new NativeMenuItemSeparator(),
@@ -348,8 +350,8 @@ public partial class MainWindow : Window
         // Ctrl/Cmd side must match the bindings built just above.
         MenuNewTab.InputGesture = CommandBindings.GestureFor(CommandId.NewTab);
         MenuOpenFile.InputGesture = CommandBindings.GestureFor(CommandId.OpenFile);
-        MenuSaveFile.InputGesture = CommandBindings.GestureFor(CommandId.SaveFile);
-        MenuSaveFileAs.InputGesture = CommandBindings.GestureFor(CommandId.SaveFileAs);
+        MenuSaveFile.InputGesture = CommandBindings.GestureFor(CommandId.Save);
+        MenuSaveFileAs.InputGesture = CommandBindings.GestureFor(CommandId.SaveAs);
         MenuCloseTab.InputGesture = CommandBindings.GestureFor(CommandId.CloseTab);
         MenuPreferences.InputGesture = CommandBindings.GestureFor(CommandId.Preferences);
         MenuShortcuts.InputGesture = CommandBindings.GestureFor(CommandId.ShortcutsWindow);
@@ -464,6 +466,7 @@ public partial class MainWindow : Window
             _viewModel.SidebarToggleRequested -= ToggleSidebar;
             _viewModel.OpenFileRequested -= OnOpenFileRequested;
             _viewModel.SaveFileRequested -= OnSaveFileRequested;
+            _viewModel.SaveQueryRequested -= OnSaveQueryRequested;
             _viewModel.OpenRecentFileRequested -= OnOpenRecentFileRequested;
         }
 
@@ -481,6 +484,7 @@ public partial class MainWindow : Window
         _viewModel.SidebarToggleRequested += ToggleSidebar;
         _viewModel.OpenFileRequested += OnOpenFileRequested;
         _viewModel.SaveFileRequested += OnSaveFileRequested;
+        _viewModel.SaveQueryRequested += OnSaveQueryRequested;
         _viewModel.OpenRecentFileRequested += OnOpenRecentFileRequested;
 
         // The results grid tracks the active tab itself, inside ResultsGridPanel
@@ -623,6 +627,7 @@ public partial class MainWindow : Window
     // finder and drag-reorder already cover the rest, and every item here is one
     // the tab bar can't express by pointing at a single tab.
     private MenuFlyout? _tabMenu;
+    private MenuItem? _tabMenuSaveQuery;
     private MenuItem? _tabMenuRename;
     private MenuItem? _tabMenuClose;
     private MenuItem? _tabMenuCloseOthers;
@@ -656,6 +661,16 @@ public partial class MainWindow : Window
 
     private MenuFlyout BuildTabMenu(MainViewModel viewModel)
     {
+        // First item, above rename and the close family, because right-clicking
+        // the tab is where users went looking for "save this query" and found
+        // nothing — the only route was a name box buried in the sidebar. The
+        // menu stays short (UI design rule 1): this earns its row by being the
+        // reported gap, not by being one more thing that could go here.
+        _tabMenuSaveQuery = new MenuItem
+        {
+            Header = "Save query…",
+            Command = viewModel.SaveQueryCommand,
+        };
         _tabMenuRename = new MenuItem
         {
             Header = "Rename…",
@@ -678,7 +693,15 @@ public partial class MainWindow : Window
             Command = viewModel.CloseTabsToTheRightCommand,
         };
 
-        return new MenuFlyout { Items = { _tabMenuRename, new Separator(), _tabMenuClose, _tabMenuCloseOthers, _tabMenuCloseRight } };
+        return new MenuFlyout
+        {
+            Items =
+            {
+                _tabMenuSaveQuery, new Separator(),
+                _tabMenuRename, new Separator(),
+                _tabMenuClose, _tabMenuCloseOthers, _tabMenuCloseRight,
+            },
+        };
     }
 
     // --- Inline tab rename ------------------------------------------------
@@ -1180,6 +1203,8 @@ public partial class MainWindow : Window
 
     private void OnSaveFileRequested(bool saveAs) => _ = SaveSqlFileAsync(saveAs);
 
+    private void OnSaveQueryRequested(bool saveAsNew) => _ = SaveQueryAsync(saveAsNew);
+
     private void OnOpenRecentFileRequested(string path) => _ = OpenRecentFileAsync(path);
 
     /// <summary>Ctrl+O / palette "Open .sql file…": pick a file and load it into a new tab (or focus it if already open).</summary>
@@ -1318,6 +1343,74 @@ public partial class MainWindow : Window
             tab.Status = $"Save failed: {ex.Message}";
             tab.HasError = true;
         }
+    }
+
+    /// <summary>
+    /// Ctrl+S on a scratch tab, the tab menu's "Save query…", and the palette's
+    /// explicit entry all land here: name the query and put it in the Saved
+    /// Queries list. Re-saving a tab that already has an entry skips the dialog
+    /// entirely and just writes through — that silent path is the point of
+    /// keeping <see cref="QueryViewModel.SavedQueryId"/> around, and it is what
+    /// makes Ctrl+S feel like Ctrl+S rather than like a prompt every time.
+    /// </summary>
+    private async Task SaveQueryAsync(bool saveAsNew)
+    {
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        var tab = _viewModel.ActiveTab;
+        var saved = _viewModel.SavedQueries;
+
+        if (string.IsNullOrWhiteSpace(tab.Sql))
+        {
+            tab.Status = "Nothing to save: this tab is empty";
+            tab.HasError = true;
+            return;
+        }
+
+        // The tab's own entry, if it still exists — a user can delete it from
+        // the sidebar while the tab stays open, and a stale id must then behave
+        // as "never saved" rather than resurrect a deleted row.
+        var existing = !saveAsNew && tab.SavedQueryId is { } id ? saved.FindById(id) : null;
+
+        if (existing is not null)
+        {
+            var updated = saved.SaveQuery(existing.Name, tab.Sql, existing.Id);
+            tab.MarkSavedAsQuery(updated.Id, updated.Name);
+            tab.Status = $"Saved query “{updated.Name}”";
+            tab.HasError = false;
+            return;
+        }
+
+        var dialog = new SaveQueryDialog(
+            saveAsNew ? "Save as a new query" : "Save query",
+            SuggestQueryName(tab),
+            currentId: null,
+            saved.FindByName);
+
+        if (await dialog.ShowDialog<SaveQueryResult?>(this) is not { } result)
+        {
+            return;
+        }
+
+        var entry = saved.SaveQuery(result.Name, tab.Sql, result.OverwriteId);
+        tab.MarkSavedAsQuery(entry.Id, entry.Name);
+        tab.Status = $"Saved query “{entry.Name}”";
+        tab.HasError = false;
+    }
+
+    /// <summary>
+    /// What to pre-fill the name box with. The tab's title is the best guess
+    /// available — it is either a name a person already chose or one derived
+    /// from the SQL — except for the "Query N" placeholders, which would name
+    /// every saved query after its tab position and tell the user nothing.
+    /// </summary>
+    private static string SuggestQueryName(QueryViewModel tab)
+    {
+        var title = tab.TabTitle;
+        return title.StartsWith("Query ", StringComparison.Ordinal) ? string.Empty : title;
     }
 
     /// <summary>A usable file-name stem from a tab title: strips characters the filesystem would reject.</summary>

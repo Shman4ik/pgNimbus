@@ -31,8 +31,10 @@ public enum CommandId
     PreviousTab,
     GoToTabByNumber,
     OpenFile,
+    Save,
+    SaveAs,
+    SaveQuery,
     SaveFile,
-    SaveFileAs,
 
     // --- SQL editor ---
     Completion,
