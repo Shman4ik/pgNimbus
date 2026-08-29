@@ -559,18 +559,18 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#relation-sizes-in-the-schema-tree" class="md-nav__link">
+  <a href="#listen-notify-monitor" class="md-nav__link">
     <span class="md-ellipsis">
-      Relation sizes in the schema tree
+      LISTEN / NOTIFY monitor
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#listen-notify-monitor" class="md-nav__link">
+  <a href="#relation-sizes-in-the-schema-tree" class="md-nav__link">
     <span class="md-ellipsis">
-      LISTEN / NOTIFY monitor
+      Relation sizes in the schema tree
     </span>
   </a>
   
@@ -738,18 +738,18 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#relation-sizes-in-the-schema-tree" class="md-nav__link">
+  <a href="#listen-notify-monitor" class="md-nav__link">
     <span class="md-ellipsis">
-      Relation sizes in the schema tree
+      LISTEN / NOTIFY monitor
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#listen-notify-monitor" class="md-nav__link">
+  <a href="#relation-sizes-in-the-schema-tree" class="md-nav__link">
     <span class="md-ellipsis">
-      LISTEN / NOTIFY monitor
+      Relation sizes in the schema tree
     </span>
   </a>
   
@@ -788,9 +788,9 @@
 
 
 <h1 id="monitoring">Monitoring<a class="headerlink" href="#monitoring" title="Permanent link">&para;</a></h1>
-<p>Both monitoring windows open from the command palette, and on macOS from the
-native Query menu. Each one opens at most a single live instance; asking again
-focuses the window you already have.</p>
+<p>All three monitoring windows open from the command palette, and on macOS from
+the native Query menu. Each one opens at most a single live instance; asking
+again focuses the window you already have.</p>
 <h2 id="server-activity">Server activity<a class="headerlink" href="#server-activity" title="Permanent link">&para;</a></h2>
 <p><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>M</kbd></p>
 <p><img alt="The server activity window showing live backends and their wait events" src="../../screenshots/server-activity.png" /></p>
@@ -829,15 +829,34 @@ killing a waiter achieves nothing.</p>
 <li>unused indexes that are not backing a constraint, with the disk they are
   wasting</li>
 </ul>
+<h2 id="listen-notify-monitor">LISTEN / NOTIFY monitor<a class="headerlink" href="#listen-notify-monitor" title="Permanent link">&para;</a></h2>
+<p><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>L</kbd></p>
+<p><img alt="The LISTEN NOTIFY monitor with a channel list, a live feed and a formatted JSON payload" src="../../screenshots/notify-monitor.png" /></p>
+<p>Watch an application's event plumbing without writing a consumer. Add the
+channels you care about, press <strong>Start listening</strong>, and every <code>NOTIFY</code> on them
+arrives in the feed.</p>
+<ul>
+<li><strong>Payloads read as documents.</strong> Select a notification and its payload opens in
+  the pane on the right. JSON is formatted, and the <strong>Tree</strong> toggle browses it as
+  a collapsible document, the same view the results grid uses for a <code>jsonb</code> cell.</li>
+<li><strong>Channels are remembered.</strong> The list is saved per connection, so the monitor
+  opens next time with your channels already in it. It does not start listening
+  on its own; that stays one click.</li>
+<li><strong>Send a notification from here.</strong> The send box at the bottom publishes with
+  <code>pg_notify()</code>, so you can prove a channel works without opening a second
+  session somewhere else.</li>
+<li><strong>A dropped connection comes back.</strong> If the connection behind the listener
+  dies, the monitor re-establishes it and re-subscribes to every channel. If it
+  cannot, it says so and stops showing itself as listening. Notifications
+  published while the connection was down are gone, because Postgres keeps no
+  backlog for a listener that is not connected.</li>
+</ul>
+<p>The feed keeps the most recent 500 notifications.</p>
 <h2 id="relation-sizes-in-the-schema-tree">Relation sizes in the schema tree<a class="headerlink" href="#relation-sizes-in-the-schema-tree" title="Permanent link">&para;</a></h2>
 <p>A dimmed size hint next to each relation in the schema tree. It is off by
 default; turn on "Show relation sizes" in Preferences, under Appearance.</p>
 <p>Views and partitioned parents show no size, because they have no storage of their
 own worth reporting.</p>
-<h2 id="listen-notify-monitor">LISTEN / NOTIFY monitor<a class="headerlink" href="#listen-notify-monitor" title="Permanent link">&para;</a></h2>
-<p>The sidebar's Notify tab subscribes to <code>LISTEN</code> channels and shows notifications
-as they arrive, live. Useful for watching an application's event plumbing without
-writing a consumer.</p>
 <h2 id="reference">Reference<a class="headerlink" href="#reference" title="Permanent link">&para;</a></h2>
 <p><a href="../../reference/keyboard-shortcuts/">Every keyboard shortcut</a></p>
 
