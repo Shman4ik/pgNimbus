@@ -18,14 +18,9 @@ namespace PgNimbus.Core.Security;
 /// a three-statement drop-role recipe that fails on its second statement leaves
 /// the role exactly as it was rather than half-dismantled.
 /// </summary>
-public sealed class SecurityEditor
+public sealed class SecurityEditor(NpgsqlDataSource dataSource)
 {
-    private readonly NpgsqlDataSource _dataSource;
-
-    public SecurityEditor(NpgsqlDataSource dataSource)
-    {
-        _dataSource = dataSource;
-    }
+    private readonly NpgsqlDataSource _dataSource = dataSource;
 
     /// <summary>
     /// Executes <paramref name="script"/> — one or more statements — atomically.

@@ -49,14 +49,9 @@ public sealed record ImportedPlan(ExplainResult Result, string DisplayText, stri
 /// into a navigable tree, rather than leaving callers to parse Postgres's
 /// raw JSON shape themselves.
 /// </summary>
-public sealed class ExplainService
+public sealed class ExplainService(NpgsqlDataSource dataSource)
 {
-    private readonly NpgsqlDataSource _dataSource;
-
-    public ExplainService(NpgsqlDataSource dataSource)
-    {
-        _dataSource = dataSource;
-    }
+    private readonly NpgsqlDataSource _dataSource = dataSource;
 
     public async Task<ExplainRun> ExplainAsync(string sql, bool analyze, CancellationToken ct)
     {

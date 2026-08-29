@@ -450,7 +450,7 @@ public sealed partial class MainViewModel : ObservableObject
         _persistSafeModeEdits = persistSafeModeEdits;
         _wordWrapEditor = wordWrapEditor;
         _persistWordWrapEditor = persistWordWrapEditor;
-        _recentSqlFiles = recentSqlFiles is null ? [] : recentSqlFiles.ToList();
+        _recentSqlFiles = recentSqlFiles is null ? [] : [.. recentSqlFiles];
         _persistRecentSqlFiles = persistRecentSqlFiles;
         _excludedSchemas = new HashSet<string>(excludedSchemas ?? [], StringComparer.Ordinal);
         _persistExcludedSchemas = persistExcludedSchemas;

@@ -8,14 +8,9 @@ namespace PgNimbus.App.ViewModels;
 /// glyph and accent brush. Keeps <see cref="PlanWarning"/> itself UI-free
 /// (hard rule 1) while the warnings strip binds glyph/brush directly.
 /// </summary>
-public sealed class PlanWarningViewModel
+public sealed class PlanWarningViewModel(PlanWarning warning)
 {
-    public PlanWarningViewModel(PlanWarning warning)
-    {
-        Warning = warning;
-    }
-
-    public PlanWarning Warning { get; }
+    public PlanWarning Warning { get; } = warning;
 
     public string Title => Warning.Title;
 

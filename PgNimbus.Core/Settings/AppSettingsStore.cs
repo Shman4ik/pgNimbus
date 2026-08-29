@@ -5,14 +5,9 @@ using PgNimbus.Core.Connections;
 namespace PgNimbus.Core.Settings;
 
 /// <summary>Persists <see cref="AppSettings"/> to a single JSON file under the app data root.</summary>
-public sealed class AppSettingsStore
+public sealed class AppSettingsStore(string? filePath = null)
 {
-    private readonly string _filePath;
-
-    public AppSettingsStore(string? filePath = null)
-    {
-        _filePath = filePath ?? Path.Combine(AppDataPaths.GetRootDirectory(), "settings.json");
-    }
+    private readonly string _filePath = filePath ?? Path.Combine(AppDataPaths.GetRootDirectory(), "settings.json");
 
     /// <summary>
     /// Reads the saved settings, or returns defaults when there is no file yet.

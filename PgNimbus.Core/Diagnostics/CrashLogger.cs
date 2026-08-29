@@ -11,7 +11,7 @@ namespace PgNimbus.Core.Diagnostics;
 /// already tearing down. Every operation swallows its own failures: a logger
 /// that throws while logging a crash would only mask the original error.
 /// </summary>
-public sealed class CrashLog
+public sealed class CrashLog(string directory)
 {
     // Serializes appends across threads. A crash can surface on several threads
     // at once (UI + a faulted background task), and interleaved writes would
@@ -24,16 +24,10 @@ public sealed class CrashLog
     private const long MaxLogBytes = 1024 * 1024; // 1 MiB
 
     /// <summary>Directory that holds the log file(s). Created on demand.</summary>
-    public string Directory { get; }
+    public string Directory { get; } = directory;
 
     /// <summary>Full path to the current log file, shown to the user in the crash dialog.</summary>
-    public string FilePath { get; }
-
-    public CrashLog(string directory)
-    {
-        Directory = directory;
-        FilePath = Path.Combine(directory, "pgnimbus.log");
-    }
+    public string FilePath { get; } = Path.Combine(directory, "pgnimbus.log");
 
     /// <summary>
     /// Records a critical error with a short describing context and the

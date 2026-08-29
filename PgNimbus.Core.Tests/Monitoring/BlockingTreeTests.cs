@@ -20,9 +20,9 @@ public class BlockingTreeTests
         // 100 holds the lock, 200 waits on 100.
         var roots = BlockingTree.Build([Backend(100), Backend(200, 100)]);
 
-        await Assert.That(roots).HasCount(1);
+        await Assert.That(roots).Count().IsEqualTo(1);
         await Assert.That(roots[0].Backend.Pid).IsEqualTo(100);
-        await Assert.That(roots[0].Children).HasCount(1);
+        await Assert.That(roots[0].Children).Count().IsEqualTo(1);
         await Assert.That(roots[0].Children[0].Backend.Pid).IsEqualTo(200);
         await Assert.That(roots[0].BlockedDescendants).IsEqualTo(1);
     }
@@ -42,7 +42,7 @@ public class BlockingTreeTests
         // 1 blocks 2 blocks 3.
         var roots = BlockingTree.Build([Backend(1), Backend(2, 1), Backend(3, 2)]);
 
-        await Assert.That(roots).HasCount(1);
+        await Assert.That(roots).Count().IsEqualTo(1);
         await Assert.That(roots[0].Backend.Pid).IsEqualTo(1);
         await Assert.That(roots[0].BlockedDescendants).IsEqualTo(2);
 
@@ -56,7 +56,7 @@ public class BlockingTreeTests
     {
         var roots = BlockingTree.Build([Backend(1), Backend(2, 1), Backend(3, 1), Backend(4, 1)]);
 
-        await Assert.That(roots).HasCount(1);
+        await Assert.That(roots).Count().IsEqualTo(1);
         await Assert.That(roots[0].Children.Select(c => c.Backend.Pid)).Contains(2).And.Contains(3).And.Contains(4);
         await Assert.That(roots[0].BlockedDescendants).IsEqualTo(3);
     }
@@ -80,7 +80,7 @@ public class BlockingTreeTests
         // 200 is blocked by pid 999, which isn't in the snapshot (e.g. autovacuum).
         var roots = BlockingTree.Build([Backend(200, 999)]);
 
-        await Assert.That(roots).HasCount(1);
+        await Assert.That(roots).Count().IsEqualTo(1);
         await Assert.That(roots[0].Backend.Pid).IsEqualTo(200);
         await Assert.That(roots[0].Children).IsEmpty();
     }
@@ -97,7 +97,7 @@ public class BlockingTreeTests
         Collect(roots, pids);
 
         await Assert.That(pids.Distinct().Order()).IsEquivalentTo([1, 2]);
-        await Assert.That(pids).HasCount(2); // no pid rendered twice
+        await Assert.That(pids).Count().IsEqualTo(2); // no pid rendered twice
 
         static void Collect(IReadOnlyList<BlockingTreeNode> nodes, List<int> acc)
         {

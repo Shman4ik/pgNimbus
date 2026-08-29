@@ -10,14 +10,9 @@ namespace PgNimbus.Core.Connections;
 /// machine it was saved on) can decrypt it back.
 /// </summary>
 [SupportedOSPlatform("windows")]
-public sealed class WindowsDpapiCredentialStore : ICredentialStore
+public sealed class WindowsDpapiCredentialStore(string? directory = null) : ICredentialStore
 {
-    private readonly string _directory;
-
-    public WindowsDpapiCredentialStore(string? directory = null)
-    {
-        _directory = directory ?? Path.Combine(AppDataPaths.GetRootDirectory(), "credentials");
-    }
+    private readonly string _directory = directory ?? Path.Combine(AppDataPaths.GetRootDirectory(), "credentials");
 
     public void SavePassword(Guid connectionId, string password)
     {

@@ -61,15 +61,9 @@ public sealed record ActivityRow(BackendActivity Backend)
 /// (<see cref="IsBlocked"/>); a root holding a lock is the one to cancel to
 /// unstick its whole subtree.
 /// </summary>
-public sealed class BlockingNode
+public sealed class BlockingNode(BlockingTreeNode node)
 {
-    private readonly BlockingTreeNode _node;
-
-    public BlockingNode(BlockingTreeNode node)
-    {
-        _node = node;
-        Children = node.Children.Select(c => new BlockingNode(c)).ToList();
-    }
+    private readonly BlockingTreeNode _node = node;
 
     public int Pid => _node.Backend.Pid;
 
@@ -109,7 +103,7 @@ public sealed class BlockingNode
 
     public string Query => ActivityFormat.OneLine(_node.Backend.Query);
 
-    public IReadOnlyList<BlockingNode> Children { get; }
+    public IReadOnlyList<BlockingNode> Children { get; } = node.Children.Select(c => new BlockingNode(c)).ToList();
 }
 
 /// <summary>
@@ -118,9 +112,9 @@ public sealed class BlockingNode
 /// tree built from pg_blocking_pids. The 2s auto-refresh timer lives in the
 /// window (a UI concern); this just exposes RefreshCommand for it to tick.
 /// </summary>
-public sealed partial class ActivityViewModel : ObservableObject
+public sealed partial class ActivityViewModel(ActivityService service) : ObservableObject
 {
-    private readonly ActivityService _service;
+    private readonly ActivityService _service = service;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(TargetPid))]
@@ -179,11 +173,6 @@ public sealed partial class ActivityViewModel : ObservableObject
 
     /// <summary>Roots of the blocking forest — the lock holders to cancel to unstick everyone below.</summary>
     public ObservableCollection<BlockingNode> BlockingRoots { get; } = [];
-
-    public ActivityViewModel(ActivityService service)
-    {
-        _service = service;
-    }
 
     [RelayCommand]
     private async Task RefreshAsync()

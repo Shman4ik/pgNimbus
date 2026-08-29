@@ -11,14 +11,9 @@ namespace PgNimbus.Core.Schema;
 /// <c>format_type</c>) to render real Postgres semantics — identity columns,
 /// partition keys, matviews — rather than an approximation.
 /// </summary>
-public sealed class DdlService
+public sealed class DdlService(NpgsqlDataSource dataSource)
 {
-    private readonly NpgsqlDataSource _dataSource;
-
-    public DdlService(NpgsqlDataSource dataSource)
-    {
-        _dataSource = dataSource;
-    }
+    private readonly NpgsqlDataSource _dataSource = dataSource;
 
     /// <summary>
     /// Builds the DDL for <paramref name="schema"/>.<paramref name="name"/>.

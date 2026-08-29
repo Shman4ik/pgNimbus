@@ -84,7 +84,7 @@ public partial class App : Application
 
     /// <summary>Remembers the command palette's recent-.sql-files list so it survives a restart.</summary>
     private static void PersistRecentSqlFiles(IReadOnlyList<string> value) =>
-        SettingsStore.Save(SettingsStore.Load() with { RecentSqlFiles = value.ToList() });
+        SettingsStore.Save(SettingsStore.Load() with { RecentSqlFiles = [.. value] });
 
     /// <summary>
     /// Remembers which saved profile was last connected to, so the next

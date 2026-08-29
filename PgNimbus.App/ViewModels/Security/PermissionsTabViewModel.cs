@@ -12,21 +12,14 @@ public sealed record PrivilegeColumn(PrivilegeKind Privilege, string Header);
 /// One cell: whether the role holds the privilege, and — the part no other
 /// client shows — which grant explains that.
 /// </summary>
-public sealed partial class PrivilegeCellViewModel : ObservableObject
+public sealed partial class PrivilegeCellViewModel(EffectivePrivilege effective, bool editable, Action<PrivilegeCellViewModel> toggle) : ObservableObject
 {
-    private readonly Action<PrivilegeCellViewModel> _toggle;
+    private readonly Action<PrivilegeCellViewModel> _toggle = toggle;
 
     [ObservableProperty]
     private bool _isPending;
 
-    public PrivilegeCellViewModel(EffectivePrivilege effective, bool editable, Action<PrivilegeCellViewModel> toggle)
-    {
-        Effective = effective;
-        IsEditable = editable;
-        _toggle = toggle;
-    }
-
-    public EffectivePrivilege Effective { get; }
+    public EffectivePrivilege Effective { get; } = effective;
 
     public PrivilegeKind Privilege => Effective.Privilege;
 
@@ -37,7 +30,7 @@ public sealed partial class PrivilegeCellViewModel : ObservableObject
     /// superuser are not privileges you can revoke, so offering a toggle there
     /// would promise something the statement cannot deliver.
     /// </summary>
-    public bool IsEditable { get; }
+    public bool IsEditable { get; } = editable;
 
     public bool Granted => Effective.Granted;
 
@@ -147,10 +140,10 @@ public sealed record ColumnGrantRow(string Column, string Grants);
 /// Nothing here writes. Toggling cells accumulates a change set and produces a
 /// GRANT/REVOKE script that opens in the editor.
 /// </summary>
-public sealed partial class PermissionsTabViewModel : ObservableObject, ISecuritySection
+public sealed partial class PermissionsTabViewModel(PrivilegeService privileges, SecurityViewModel host) : ObservableObject, ISecuritySection
 {
-    private readonly PrivilegeService _privileges;
-    private readonly SecurityViewModel _host;
+    private readonly PrivilegeService _privileges = privileges;
+    private readonly SecurityViewModel _host = host;
     private readonly List<SecurableRef> _allObjects = [];
     private readonly List<PrivilegeChange> _pending = [];
 
@@ -191,12 +184,6 @@ public sealed partial class PermissionsTabViewModel : ObservableObject, ISecurit
 
     [ObservableProperty]
     private PermissionRowViewModel? _selectedRow;
-
-    public PermissionsTabViewModel(PrivilegeService privileges, SecurityViewModel host)
-    {
-        _privileges = privileges;
-        _host = host;
-    }
 
     public IReadOnlyList<SecurableKind> Kinds { get; } =
     [

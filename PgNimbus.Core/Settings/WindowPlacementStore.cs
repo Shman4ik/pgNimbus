@@ -26,14 +26,9 @@ public sealed record WindowPlacement(int X, int Y, double Width, double Height, 
 /// windows open, the last one to close wins, same as the workspace store's
 /// per-connection snapshots.
 /// </summary>
-public sealed class WindowPlacementStore
+public sealed class WindowPlacementStore(string? filePath = null)
 {
-    private readonly string _filePath;
-
-    public WindowPlacementStore(string? filePath = null)
-    {
-        _filePath = filePath ?? Path.Combine(AppDataPaths.GetRootDirectory(), "window.json");
-    }
+    private readonly string _filePath = filePath ?? Path.Combine(AppDataPaths.GetRootDirectory(), "window.json");
 
     /// <summary>
     /// The connection dialog's own placement file. Separate from the main

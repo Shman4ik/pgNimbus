@@ -76,7 +76,7 @@ public static class ExplainPlanTextParser
         // the root sits at column 0 and child indentation stays relative.
         if (lines.Where(l => l.Length > 0).All(l => l.StartsWith(' ')))
         {
-            lines = lines.Select(l => l.Length > 0 ? l[1..] : l).ToList();
+            lines = [.. lines.Select(l => l.Length > 0 ? l[1..] : l)];
         }
 
         return string.Join("\n", lines);

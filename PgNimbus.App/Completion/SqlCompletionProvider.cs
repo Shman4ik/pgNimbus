@@ -32,7 +32,7 @@ namespace PgNimbus.App.Completion;
 /// caches below; per-keystroke work is one scan of the editor text and a few
 /// dictionary lookups.
 /// </summary>
-public sealed class SqlCompletionProvider
+public sealed class SqlCompletionProvider(SchemaService schemaService)
 {
     private static readonly string[] Keywords =
     [
@@ -125,7 +125,7 @@ public sealed class SqlCompletionProvider
     private const double FunctionPriority = 3;
     private const double SchemaPriority = 1;
 
-    private readonly SchemaService _schemaService;
+    private readonly SchemaService _schemaService = schemaService;
 
     // Structured snapshot of the catalog, rebuilt by RefreshAsync.
     private IReadOnlyList<(string Schema, string Table)> _tables = [];
@@ -145,11 +145,6 @@ public sealed class SqlCompletionProvider
     // what condition connects two of them) is pure Core logic in ForeignKeyMatcher —
     // this is just its input, refreshed alongside everything else below.
     private IReadOnlyList<ForeignKeyInfo> _foreignKeys = [];
-
-    public SqlCompletionProvider(SchemaService schemaService)
-    {
-        _schemaService = schemaService;
-    }
 
     /// <summary>
     /// Schemas to leave out of every candidate list — the sidebar's "Exclude
@@ -419,7 +414,7 @@ public sealed class SqlCompletionProvider
     }
 
     private static List<TableReference> ToTableReferences(IReadOnlyList<SqlCompletionContext.TableRef> tables) =>
-        tables.Select(t => new TableReference(t.Schema, t.Table, t.Alias)).ToList();
+        [.. tables.Select(t => new TableReference(t.Schema, t.Table, t.Alias))];
 
     // Bare identifier: the whole catalog, with the columns of the statement's
     // tables hoisted to the front (and top priority) so the statement's own
@@ -625,7 +620,7 @@ public sealed class SqlCompletionProvider
     }
 
     private static List<SqlCompletionData> ColumnItems(IReadOnlyList<TableColumn> columns) =>
-        columns.Select(c => ColumnItem(c, CurrentColumnPriority)).ToList();
+        [.. columns.Select(c => ColumnItem(c, CurrentColumnPriority))];
 
     // The data type rides in Detail (right-aligned in the row); the tooltip
     // names the owning table, which the row itself doesn't show.

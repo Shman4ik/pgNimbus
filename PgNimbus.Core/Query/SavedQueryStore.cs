@@ -5,14 +5,9 @@ using PgNimbus.Core.Connections;
 namespace PgNimbus.Core.Query;
 
 /// <summary>Persists user-named saved queries (no cap - the user manages these explicitly).</summary>
-public sealed class SavedQueryStore
+public sealed class SavedQueryStore(string? filePath = null)
 {
-    private readonly string _filePath;
-
-    public SavedQueryStore(string? filePath = null)
-    {
-        _filePath = filePath ?? Path.Combine(AppDataPaths.GetRootDirectory(), "saved-queries.json");
-    }
+    private readonly string _filePath = filePath ?? Path.Combine(AppDataPaths.GetRootDirectory(), "saved-queries.json");
 
     public IReadOnlyList<SavedQuery> Load()
     {
@@ -42,7 +37,7 @@ public sealed class SavedQueryStore
             Directory.CreateDirectory(directory);
         }
 
-        var json = JsonSerializer.Serialize(queries.ToList(), SavedQueryJsonContext.Default.ListSavedQuery);
+        var json = JsonSerializer.Serialize([.. queries], SavedQueryJsonContext.Default.ListSavedQuery);
         File.WriteAllText(_filePath, json);
     }
 }

@@ -403,24 +403,16 @@ public sealed partial class RoleEditorViewModel : ObservableObject
 }
 
 /// <summary>One membership checkbox: a role this one may belong to.</summary>
-public sealed partial class RoleMembershipOption : ObservableObject
+public sealed partial class RoleMembershipOption(string name, string hint, bool isMember, Action changed) : ObservableObject
 {
-    private readonly Action _changed;
+    private readonly Action _changed = changed;
 
     [ObservableProperty]
-    private bool _isMember;
+    private bool _isMember = isMember;
 
-    public RoleMembershipOption(string name, string hint, bool isMember, Action changed)
-    {
-        Name = name;
-        Hint = hint;
-        _isMember = isMember;
-        _changed = changed;
-    }
+    public string Name { get; } = name;
 
-    public string Name { get; }
-
-    public string Hint { get; }
+    public string Hint { get; } = hint;
 
     partial void OnIsMemberChanged(bool value) => _changed();
 }
