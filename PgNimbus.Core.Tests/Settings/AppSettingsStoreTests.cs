@@ -111,6 +111,30 @@ public class AppSettingsStoreTests
     }
 
     [Test]
+    public async Task SaveThenLoad_RoundTripsNotifyChannels()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"pgnimbus-{Guid.NewGuid():N}.json");
+
+        try
+        {
+            var store = new AppSettingsStore(path);
+            store.Save(new AppSettings
+            {
+                NotifyChannels = { ["db1/app"] = ["order_events", "cache_invalidation"] },
+            });
+
+            var settings = store.Load();
+
+            await Assert.That(settings.NotifyChannels["db1/app"])
+                .IsEquivalentTo(new List<string> { "order_events", "cache_invalidation" });
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
     public async Task Load_FileWithoutAutocompleteExcludedSchemas_LoadsAsEmptyMap()
     {
         var path = Path.Combine(Path.GetTempPath(), $"pgnimbus-{Guid.NewGuid():N}.json");

@@ -549,6 +549,15 @@ public static class CommandCatalog
         },
         new()
         {
+            Id = CommandId.NotifyMonitor,
+            Title = "LISTEN / NOTIFY monitor",
+            Category = CommandCategory.Navigation,
+            Glyph = "⚑",
+            Chord = new(CommandKey.L, CmdShift),
+            Surfaces = Everywhere,
+        },
+        new()
+        {
             Id = CommandId.SecurityManager,
             Title = "Roles and permissions…",
             CheatTitle = "Roles and permissions",

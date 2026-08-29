@@ -98,6 +98,16 @@ public sealed record AppSettings
     public Dictionary<string, List<string>> AutocompleteExcludedSchemas { get; set; } = [];
 
     /// <summary>
+    /// The LISTEN channels the notification monitor subscribes to, keyed by
+    /// connection (<c>host/database</c>, the same key the workspace snapshot
+    /// uses). Channels belong to one application's event plumbing, not to the
+    /// app, and retyping them after every restart was most of the reason the
+    /// monitor went unused. Read and rewritten through
+    /// <see cref="NotifyChannels"/>.
+    /// </summary>
+    public Dictionary<string, List<string>> NotifyChannels { get; set; } = [];
+
+    /// <summary>
     /// The most recently opened/saved <c>.sql</c> file paths, most recent
     /// first, capped at 10 by the caller. Backs the command palette's
     /// "Recent file" entries. <c>set</c>, not <c>init</c>, for the same

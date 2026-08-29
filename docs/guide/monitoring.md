@@ -1,8 +1,8 @@
 # Monitoring
 
-Both monitoring windows open from the command palette, and on macOS from the
-native Query menu. Each one opens at most a single live instance; asking again
-focuses the window you already have.
+All three monitoring windows open from the command palette, and on macOS from
+the native Query menu. Each one opens at most a single live instance; asking
+again focuses the window you already have.
 
 ## Server activity
 
@@ -54,6 +54,33 @@ A read-only health panel over the `pg_stat_*` and `pg_statio_*` views:
 - unused indexes that are not backing a constraint, with the disk they are
   wasting
 
+## LISTEN / NOTIFY monitor
+
+<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>L</kbd>
+
+![The LISTEN NOTIFY monitor with a channel list, a live feed and a formatted JSON payload](../screenshots/notify-monitor.png)
+
+Watch an application's event plumbing without writing a consumer. Add the
+channels you care about, press **Start listening**, and every `NOTIFY` on them
+arrives in the feed.
+
+- **Payloads read as documents.** Select a notification and its payload opens in
+  the pane on the right. JSON is formatted, and the **Tree** toggle browses it as
+  a collapsible document, the same view the results grid uses for a `jsonb` cell.
+- **Channels are remembered.** The list is saved per connection, so the monitor
+  opens next time with your channels already in it. It does not start listening
+  on its own; that stays one click.
+- **Send a notification from here.** The send box at the bottom publishes with
+  `pg_notify()`, so you can prove a channel works without opening a second
+  session somewhere else.
+- **A dropped connection comes back.** If the connection behind the listener
+  dies, the monitor re-establishes it and re-subscribes to every channel. If it
+  cannot, it says so and stops showing itself as listening. Notifications
+  published while the connection was down are gone, because Postgres keeps no
+  backlog for a listener that is not connected.
+
+The feed keeps the most recent 500 notifications.
+
 ## Relation sizes in the schema tree
 
 A dimmed size hint next to each relation in the schema tree. It is off by
@@ -62,11 +89,6 @@ default; turn on "Show relation sizes" in Preferences, under Appearance.
 Views and partitioned parents show no size, because they have no storage of their
 own worth reporting.
 
-## LISTEN / NOTIFY monitor
-
-The sidebar's Notify tab subscribes to `LISTEN` channels and shows notifications
-as they arrive, live. Useful for watching an application's event plumbing without
-writing a consumer.
 
 ## Reference
 

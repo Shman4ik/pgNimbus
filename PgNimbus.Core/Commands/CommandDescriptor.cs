@@ -69,6 +69,7 @@ public enum CommandId
     PreviewTable,
     ServerActivity,
     DatabaseOverview,
+    NotifyMonitor,
     SecurityManager,
     SwitchConnection,
     NewWindow,

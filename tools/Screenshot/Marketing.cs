@@ -44,6 +44,7 @@ internal static class Marketing
         new("main-window-palette.light.png", "docs/screenshots/command-palette.png"),
         new("main-window-plan-tree.light.png", "docs/screenshots/explain-visualization.png"),
         new("activity-window.light.png", "docs/screenshots/server-activity.png"),
+        new("notify-window.light.png", "docs/screenshots/notify-monitor.png"),
         new("shortcuts-window.light.png", "docs/screenshots/shortcuts.png"),
         new("connection-dialog.light.png", "docs/screenshots/connection-dialog.png"),
 

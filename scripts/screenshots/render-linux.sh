@@ -65,8 +65,12 @@ docker run --rm \
         apt-get install -y -qq --no-install-recommends libfontconfig1 >/dev/null
 
         mkdir -p /work
+        # .vs is excluded for a different reason than the rest: Visual Studio
+        # keeps its index files open, and tar reporting "Permission denied" on
+        # one is a hard failure that stops the whole render, so a developer with
+        # the solution open could not regenerate baselines at all.
         tar -C /src -cf - \
-            --exclude=bin --exclude=obj --exclude=.git \
+            --exclude=bin --exclude=obj --exclude=.git --exclude=.vs \
             --exclude=site --exclude=TestResults . | tar -C /work -xf -
         cd /work
         dotnet run --project tools/Screenshot -c Release -- /out "$@"

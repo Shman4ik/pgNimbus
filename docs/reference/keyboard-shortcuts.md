@@ -79,6 +79,7 @@ way in Preferences → Hotkey scheme.
 | Preview a table (in the schema tree) | Double-click | Double-click |
 | Server activity | Ctrl+Shift+M | Cmd+Shift+M |
 | Database overview | Ctrl+Shift+G | Cmd+Shift+G |
+| LISTEN / NOTIFY monitor | Ctrl+Shift+L | Cmd+Shift+L |
 | Roles and permissions | Ctrl+Shift+U | Cmd+Shift+U |
 | Switch connection… | Ctrl+Shift+O | Cmd+Shift+O |
 | Open connection in new window… | Ctrl+Shift+N | Cmd+Shift+N |
