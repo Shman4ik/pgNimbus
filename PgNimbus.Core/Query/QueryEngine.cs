@@ -10,22 +10,17 @@ namespace PgNimbus.Core.Query;
 /// batches so the caller can render the first screenful before the whole
 /// result set has arrived, and every execution can be cancelled mid-flight.
 /// </summary>
-public sealed class QueryEngine
+public sealed class QueryEngine(NpgsqlDataSource dataSource)
 {
     private const int BatchSize = 200;
 
-    private readonly NpgsqlDataSource _dataSource;
+    private readonly NpgsqlDataSource _dataSource = dataSource;
 
     // Non-null while an explicit user transaction is open. Every execution then
     // runs on this one connection (instead of a fresh pooled one) so BEGIN and a
     // later COMMIT/ROLLBACK bracket the same session. Cleared — and the
     // connection disposed back to the pool — when the transaction ends.
     private NpgsqlConnection? _transactionConnection;
-
-    public QueryEngine(NpgsqlDataSource dataSource)
-    {
-        _dataSource = dataSource;
-    }
 
     /// <summary>True while an explicit BEGIN…COMMIT/ROLLBACK transaction is open.</summary>
     public bool IsInTransaction => _transactionConnection is not null;

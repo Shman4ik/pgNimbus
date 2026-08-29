@@ -14,7 +14,7 @@
             <ComboBox Grid.Column="1" ItemsSource="{Binding Schemas}" SelectedItem="{Binding SelectedSchema, Mode=TwoWay}"
                       MinWidth="150" Margin="8,0,0,0" VerticalAlignment="Center"
                       IsVisible="{Binding KindHasSchema}" PlaceholderText="Schema" />
-            <TextBox Grid.Column="2" Text="{Binding ObjectFilter}" Watermark="Filter objects"
+            <TextBox Grid.Column="2" Text="{Binding ObjectFilter}" PlaceholderText="Filter objects"
                      MinWidth="160" Margin="8,0,0,0" VerticalAlignment="Center" />
             <Button Grid.Column="3" Classes="soft" Content="Bulk grant…" Margin="8,0,0,0"
                     Command="{Binding BulkGrantCommand}"
@@ -75,7 +75,7 @@
                 </Border>
 
                 <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,0,0,6">
-                    <TextBox Grid.Column="0" Text="{Binding RoleFilter}" Watermark="Filter roles" MaxWidth="240"
+                    <TextBox Grid.Column="0" Text="{Binding RoleFilter}" PlaceholderText="Filter roles" MaxWidth="240"
                              HorizontalAlignment="Left" />
                     <ToggleButton Grid.Column="1" Classes="chip" Content="Built-in roles"
                                   IsChecked="{Binding ShowPredefinedRoles, Mode=TwoWay}"

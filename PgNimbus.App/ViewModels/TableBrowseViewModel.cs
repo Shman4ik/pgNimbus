@@ -17,18 +17,18 @@ namespace PgNimbus.App.ViewModels;
 /// nothing itself: it just runs the SQL this view-model builds and reports how
 /// many rows came back.
 /// </summary>
-public sealed partial class TableBrowseViewModel : ObservableObject
+public sealed partial class TableBrowseViewModel(string schema, string name, IReadOnlyList<string> pkColumns, Func<string, Task<int>> execute) : ObservableObject
 {
     /// <summary>Rows fetched per page. One page past the fold is never loaded; paging is server-side.</summary>
     public const int PageSize = 100;
 
     // Runs the composed SQL through the owning tab's normal streaming path and
     // returns the number of rows the grid ended up showing.
-    private readonly Func<string, Task<int>> _execute;
+    private readonly Func<string, Task<int>> _execute = execute;
 
-    public string Schema { get; }
+    public string Schema { get; } = schema;
 
-    public string Name { get; }
+    public string Name { get; } = name;
 
     /// <summary>Raw SQL predicate (the text after <c>WHERE</c>), seeded by FK navigation. Empty means no filter.</summary>
     [ObservableProperty]
@@ -54,15 +54,7 @@ public sealed partial class TableBrowseViewModel : ObservableObject
     private bool _canGoNext;
 
     // Primary-key column names, in key order; empty for views / PK-less tables.
-    private readonly IReadOnlyList<string> _pkColumns;
-
-    public TableBrowseViewModel(string schema, string name, IReadOnlyList<string> pkColumns, Func<string, Task<int>> execute)
-    {
-        Schema = schema;
-        Name = name;
-        _pkColumns = pkColumns;
-        _execute = execute;
-    }
+    private readonly IReadOnlyList<string> _pkColumns = pkColumns;
 
     /// <summary>
     /// Composes the page query. Identifiers are quoted; the filter is inlined

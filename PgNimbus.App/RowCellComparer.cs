@@ -11,11 +11,9 @@ namespace PgNimbus.App;
 /// strings...) compare natively, anything else falls back to an ordinal
 /// string comparison.
 /// </summary>
-public sealed class RowCellComparer : IComparer
+public sealed class RowCellComparer(int index) : IComparer
 {
-    private readonly int _index;
-
-    public RowCellComparer(int index) => _index = index;
+    private readonly int _index = index;
 
     public int Compare(object? x, object? y)
     {

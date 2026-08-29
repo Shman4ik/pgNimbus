@@ -114,10 +114,10 @@ public sealed record DefaultPrivilegeRow(
 /// object rather than the schema it lands in. Both live under the grid, in the
 /// note idiom the Database Overview uses for its unused-index caveat.</para>
 /// </summary>
-public sealed partial class DefaultPrivilegesTabViewModel : ObservableObject, ISecuritySection
+public sealed partial class DefaultPrivilegesTabViewModel(PrivilegeService privileges, SecurityViewModel host) : ObservableObject, ISecuritySection
 {
-    private readonly PrivilegeService _privileges;
-    private readonly SecurityViewModel _host;
+    private readonly PrivilegeService _privileges = privileges;
+    private readonly SecurityViewModel _host = host;
 
     /// <summary>
     /// False when nothing is configured, which is a state worth spelling out
@@ -130,12 +130,6 @@ public sealed partial class DefaultPrivilegesTabViewModel : ObservableObject, IS
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(CopySelectedAsSqlCommand))]
     private DefaultPrivilegeRow? _selectedRow;
-
-    public DefaultPrivilegesTabViewModel(PrivilegeService privileges, SecurityViewModel host)
-    {
-        _privileges = privileges;
-        _host = host;
-    }
 
     public ObservableCollection<DefaultPrivilegeRow> Rows { get; } = [];
 

@@ -20,9 +20,9 @@ public sealed record DatabaseNotification(string Channel, string Payload, int Pr
 /// the UI can stop claiming to be listening. Anything that is not a connection
 /// loss stops immediately: re-running it would fail the same way.
 /// </summary>
-public sealed class NotificationListener : IAsyncDisposable
+public sealed class NotificationListener(NpgsqlDataSource dataSource) : IAsyncDisposable
 {
-    private readonly NpgsqlDataSource _dataSource;
+    private readonly NpgsqlDataSource _dataSource = dataSource;
     private NpgsqlConnection? _connection;
     private CancellationTokenSource? _cts;
     private Task? _listenLoop;
@@ -47,11 +47,6 @@ public sealed class NotificationListener : IAsyncDisposable
     /// from the listener's background loop, not the caller's thread.
     /// </summary>
     public event Action? Reconnected;
-
-    public NotificationListener(NpgsqlDataSource dataSource)
-    {
-        _dataSource = dataSource;
-    }
 
     public bool IsListening => _connection is not null;
 

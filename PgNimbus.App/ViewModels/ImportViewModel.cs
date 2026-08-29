@@ -6,21 +6,15 @@ using PgNimbus.Core.Import;
 namespace PgNimbus.App.ViewModels;
 
 /// <summary>One target column in the import dialog: renameable, retypeable (types locked to the inference allow-list).</summary>
-public sealed partial class ImportColumnViewModel : ObservableObject
+public sealed partial class ImportColumnViewModel(string name, string dataType) : ObservableObject
 {
     public static IReadOnlyList<string> TypeChoices => TypeInferrer.Types;
 
     [ObservableProperty]
-    private string _name;
+    private string _name = name;
 
     [ObservableProperty]
-    private string _dataType;
-
-    public ImportColumnViewModel(string name, string dataType)
-    {
-        _name = name;
-        _dataType = dataType;
-    }
+    private string _dataType = dataType;
 }
 
 /// <summary>

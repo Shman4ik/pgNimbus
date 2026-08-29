@@ -101,14 +101,9 @@ public sealed record ForeignKeyInfo(
 /// partitioned tables, actual type names) instead of the SQL-standard
 /// lowest common denominator.
 /// </summary>
-public sealed class SchemaService
+public sealed class SchemaService(NpgsqlDataSource dataSource)
 {
-    private readonly NpgsqlDataSource _dataSource;
-
-    public SchemaService(NpgsqlDataSource dataSource)
-    {
-        _dataSource = dataSource;
-    }
+    private readonly NpgsqlDataSource _dataSource = dataSource;
 
     public async Task<IReadOnlyList<SchemaInfo>> GetSchemasAsync(CancellationToken ct)
     {

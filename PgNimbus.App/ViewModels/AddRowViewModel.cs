@@ -14,19 +14,24 @@ namespace PgNimbus.App.ViewModels;
 /// Postgres does the parsing and the statement stays injection-safe. Columns
 /// left blank are omitted so their defaults apply.
 /// </summary>
-public sealed partial class AddRowViewModel : ObservableObject
+public sealed partial class AddRowViewModel(
+    QueryEngine engine,
+    SchemaService schemaService,
+    string schema,
+    string table,
+    Func<IReadOnlyList<PendingInsertValue>, string?>? stageInsert = null) : ObservableObject
 {
-    private readonly QueryEngine _engine;
-    private readonly SchemaService _schemaService;
+    private readonly QueryEngine _engine = engine;
+    private readonly SchemaService _schemaService = schemaService;
 
     // Safe mode's staging hook: non-null means Insert stages the row into the
     // owning tab's pending change set (returning an error message, or null on
     // success) instead of executing. Supplied by the view at dialog-open time.
-    private readonly Func<IReadOnlyList<PendingInsertValue>, string?>? _stageInsert;
+    private readonly Func<IReadOnlyList<PendingInsertValue>, string?>? _stageInsert = stageInsert;
 
-    public string Schema { get; }
+    public string Schema { get; } = schema;
 
-    public string Table { get; }
+    public string Table { get; } = table;
 
     public string QualifiedName => $"{Schema}.{Table}";
 
@@ -45,20 +50,6 @@ public sealed partial class AddRowViewModel : ObservableObject
 
     /// <summary>Raised after a successful INSERT so the grid can refresh and the dialog can close.</summary>
     public event Action? Inserted;
-
-    public AddRowViewModel(
-        QueryEngine engine,
-        SchemaService schemaService,
-        string schema,
-        string table,
-        Func<IReadOnlyList<PendingInsertValue>, string?>? stageInsert = null)
-    {
-        _engine = engine;
-        _schemaService = schemaService;
-        Schema = schema;
-        Table = table;
-        _stageInsert = stageInsert;
-    }
 
     public async Task LoadAsync()
     {

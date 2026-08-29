@@ -1072,7 +1072,7 @@ public partial class ResultsGridPanel : UserControl
     private static string SuggestTableName(string fileName)
     {
         var stem = Path.GetFileNameWithoutExtension(fileName).ToLowerInvariant();
-        var name = new string(stem.Select(c => char.IsAsciiLetterOrDigit(c) ? c : '_').ToArray()).Trim('_');
+        var name = new string([.. stem.Select(c => char.IsAsciiLetterOrDigit(c) ? c : '_')]).Trim('_');
         if (name.Length == 0)
         {
             name = "imported";

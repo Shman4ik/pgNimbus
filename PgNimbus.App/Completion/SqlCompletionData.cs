@@ -22,38 +22,30 @@ public enum SqlCompletionKind
     JoinCondition,
 }
 
-public sealed class SqlCompletionData : ICompletionData
+/// <param name="text">The name shown in the list and matched against what the user typed.</param>
+/// <param name="kind">What the item names — picks the row glyph/color and the default tooltip label.</param>
+/// <param name="insertText">
+/// What actually gets written when the item is accepted. Defaults to
+/// <paramref name="text"/>; a schema/table/column passes its quote-if-needed
+/// form (<c>"Spells"</c>) so the user filters on the bare name but inserts a
+/// spelling Postgres will resolve.
+/// </param>
+/// <param name="priority">
+/// Ranking hint the completion list uses to pre-select the best match among
+/// equally-good textual matches — higher wins. Lets context-aware
+/// completion float the current table's columns above the rest of the
+/// catalog (see <see cref="SqlCompletionProvider"/>).
+/// </param>
+public sealed class SqlCompletionData(string text, SqlCompletionKind kind, string? insertText = null, double priority = 0) : ICompletionData
 {
-    /// <param name="text">The name shown in the list and matched against what the user typed.</param>
-    /// <param name="kind">What the item names — picks the row glyph/color and the default tooltip label.</param>
-    /// <param name="insertText">
-    /// What actually gets written when the item is accepted. Defaults to
-    /// <paramref name="text"/>; a schema/table/column passes its quote-if-needed
-    /// form (<c>"Spells"</c>) so the user filters on the bare name but inserts a
-    /// spelling Postgres will resolve.
-    /// </param>
-    /// <param name="priority">
-    /// Ranking hint the completion list uses to pre-select the best match among
-    /// equally-good textual matches — higher wins. Lets context-aware
-    /// completion float the current table's columns above the rest of the
-    /// catalog (see <see cref="SqlCompletionProvider"/>).
-    /// </param>
-    public SqlCompletionData(string text, SqlCompletionKind kind, string? insertText = null, double priority = 0)
-    {
-        Text = text;
-        Kind = kind;
-        InsertText = insertText ?? text;
-        Priority = priority;
-    }
-
     public IImage? Image => null;
 
-    public string Text { get; }
+    public string Text { get; } = text;
 
-    public SqlCompletionKind Kind { get; }
+    public SqlCompletionKind Kind { get; } = kind;
 
     /// <summary>The literal inserted on completion — may be quoted even when <see cref="Text"/> isn't.</summary>
-    public string InsertText { get; }
+    public string InsertText { get; } = insertText ?? text;
 
     /// <summary>
     /// Dim right-aligned text in the popup row: a column's data type, a table's
@@ -95,7 +87,7 @@ public sealed class SqlCompletionData : ICompletionData
 
     public IBrush KindBrush => CompletionKindVisuals.Brush(Kind);
 
-    public double Priority { get; }
+    public double Priority { get; } = priority;
 
     public void Complete(TextArea textArea, ISegment completionSegment, EventArgs insertionRequestEventArgs)
     {

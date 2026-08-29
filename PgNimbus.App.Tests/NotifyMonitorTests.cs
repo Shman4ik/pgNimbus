@@ -80,7 +80,7 @@ public class NotifyMonitorTests
         await Ui.Run(async () =>
         {
             List<string>? persisted = null;
-            var vm = Monitor(persist: channels => persisted = channels.ToList());
+            var vm = Monitor(persist: channels => persisted = [.. channels]);
 
             vm.ChannelName = "  order_events  ";
             vm.AddChannelCommand.Execute(null);

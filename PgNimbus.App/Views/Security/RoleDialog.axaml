@@ -20,7 +20,7 @@
                 <!-- Identity -->
                 <StackPanel Spacing="6">
                     <TextBlock Text="NAME" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
-                    <TextBox Text="{Binding Name}" IsEnabled="{Binding CanEditName}" Watermark="app_ro" />
+                    <TextBox Text="{Binding Name}" IsEnabled="{Binding CanEditName}" PlaceholderText="app_ro" />
                 </StackPanel>
 
                 <!-- Login and password -->
@@ -61,7 +61,7 @@
                     <StackPanel Grid.Column="0" Spacing="4">
                         <TextBlock Text="CONNECTION LIMIT" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
                         <NumericUpDown Value="{Binding ConnectionLimitValue}" Minimum="0" Increment="1"
-                                       Watermark="no limit" FormatString="0" />
+                                       PlaceholderText="no limit" FormatString="0" />
                     </StackPanel>
                     <StackPanel Grid.Column="2" Spacing="4">
                         <TextBlock Text="VALID UNTIL" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
@@ -137,7 +137,7 @@
 
                 <StackPanel Spacing="4">
                     <TextBlock Text="COMMENT" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
-                    <TextBox Text="{Binding Comment}" Watermark="what this role is for" />
+                    <TextBox Text="{Binding Comment}" PlaceholderText="what this role is for" />
                 </StackPanel>
 
                 <!-- The preview is always the masked build. The real password goes

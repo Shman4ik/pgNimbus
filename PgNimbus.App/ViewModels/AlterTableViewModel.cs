@@ -6,14 +6,14 @@ using PgNimbus.Core.Schema;
 namespace PgNimbus.App.ViewModels;
 
 /// <summary>Drives the no-SQL "alter table" dialog: lists a table's columns and lets the user add/drop/rename one without writing DDL by hand.</summary>
-public sealed partial class AlterTableViewModel : ObservableObject
+public sealed partial class AlterTableViewModel(SchemaEditor schemaEditor, SchemaService schemaService, string schema, string table) : ObservableObject
 {
-    private readonly SchemaEditor _schemaEditor;
-    private readonly SchemaService _schemaService;
+    private readonly SchemaEditor _schemaEditor = schemaEditor;
+    private readonly SchemaService _schemaService = schemaService;
 
-    public string Schema { get; }
+    public string Schema { get; } = schema;
 
-    public string Table { get; }
+    public string Table { get; } = table;
 
     public ObservableCollection<ColumnDetail> Columns { get; } = [];
 
@@ -42,14 +42,6 @@ public sealed partial class AlterTableViewModel : ObservableObject
 
     /// <summary>Raised after a successful ALTER TABLE so the schema tree node for this table can refresh.</summary>
     public event Action? SchemaChanged;
-
-    public AlterTableViewModel(SchemaEditor schemaEditor, SchemaService schemaService, string schema, string table)
-    {
-        _schemaEditor = schemaEditor;
-        _schemaService = schemaService;
-        Schema = schema;
-        Table = table;
-    }
 
     public async Task LoadAsync()
     {

@@ -6,11 +6,11 @@ using PgNimbus.Core.Security;
 namespace PgNimbus.App.ViewModels.Security;
 
 /// <summary>The roles list, one role's attributes, and its membership tree in both directions.</summary>
-public sealed partial class RolesTabViewModel : ObservableObject, ISecuritySection
+public sealed partial class RolesTabViewModel(RoleService roleService, SecurityEditor editor, SecurityViewModel host) : ObservableObject, ISecuritySection
 {
-    private readonly RoleService _roleService;
-    private readonly SecurityEditor _editor;
-    private readonly SecurityViewModel _host;
+    private readonly RoleService _roleService = roleService;
+    private readonly SecurityEditor _editor = editor;
+    private readonly SecurityViewModel _host = host;
 
     /// <summary>Every role the last refresh saw; <see cref="FilteredRoles"/> is the view onto it.</summary>
     private readonly List<RoleRowViewModel> _all = [];
@@ -47,13 +47,6 @@ public sealed partial class RolesTabViewModel : ObservableObject, ISecuritySecti
 
     [ObservableProperty]
     private bool _hasMembers;
-
-    public RolesTabViewModel(RoleService roleService, SecurityEditor editor, SecurityViewModel host)
-    {
-        _roleService = roleService;
-        _editor = editor;
-        _host = host;
-    }
 
     /// <summary>One row per role on the server, predefined ones included.</summary>
     public ObservableCollection<RoleRowViewModel> Roles { get; } = [];

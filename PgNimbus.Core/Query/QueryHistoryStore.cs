@@ -5,16 +5,11 @@ using PgNimbus.Core.Connections;
 namespace PgNimbus.Core.Query;
 
 /// <summary>Persists the last <see cref="MaxEntries"/> executions, most recent first.</summary>
-public sealed class QueryHistoryStore
+public sealed class QueryHistoryStore(string? filePath = null)
 {
     private const int MaxEntries = 200;
 
-    private readonly string _filePath;
-
-    public QueryHistoryStore(string? filePath = null)
-    {
-        _filePath = filePath ?? Path.Combine(AppDataPaths.GetRootDirectory(), "history.json");
-    }
+    private readonly string _filePath = filePath ?? Path.Combine(AppDataPaths.GetRootDirectory(), "history.json");
 
     public IReadOnlyList<QueryHistoryEntry> Load()
     {
@@ -64,7 +59,7 @@ public sealed class QueryHistoryStore
             Directory.CreateDirectory(directory);
         }
 
-        var json = JsonSerializer.Serialize(entries.ToList(), QueryHistoryJsonContext.Default.ListQueryHistoryEntry);
+        var json = JsonSerializer.Serialize([.. entries], QueryHistoryJsonContext.Default.ListQueryHistoryEntry);
         File.WriteAllText(_filePath, json);
     }
 }

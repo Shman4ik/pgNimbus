@@ -75,11 +75,11 @@ public sealed record UnusedIndexRow(UnusedIndex Index)
 /// indexes. Everything is read-only, so unlike the activity view there's no
 /// auto-refresh timer — the user hits Refresh to re-snapshot.
 /// </summary>
-public sealed partial class DatabaseOverviewViewModel : ObservableObject
+public sealed partial class DatabaseOverviewViewModel(DatabaseStatsService service) : ObservableObject
 {
     private const int LargestRelationsLimit = 50;
 
-    private readonly DatabaseStatsService _service;
+    private readonly DatabaseStatsService _service = service;
 
     [ObservableProperty]
     private string _databaseName = "";
@@ -101,11 +101,6 @@ public sealed partial class DatabaseOverviewViewModel : ObservableObject
     public ObservableCollection<TableScanRow> TableScans { get; } = [];
 
     public ObservableCollection<UnusedIndexRow> UnusedIndexes { get; } = [];
-
-    public DatabaseOverviewViewModel(DatabaseStatsService service)
-    {
-        _service = service;
-    }
 
     // AllowConcurrentExecutions = false disables the Refresh button while a
     // snapshot is in flight, so repeated clicks can't race the ObservableCollection

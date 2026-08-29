@@ -20,16 +20,11 @@ public sealed record WorkspaceTab(string Sql, string? Title = null, string? File
 public sealed record WorkspaceEntry(string Connection, DateTimeOffset SavedAt, List<WorkspaceTab> Tabs, int ActiveTabIndex = 0);
 
 /// <summary>Persists the last <see cref="MaxEntries"/> per-connection workspaces, most recent first.</summary>
-public sealed class WorkspaceStore
+public sealed class WorkspaceStore(string? filePath = null)
 {
     private const int MaxEntries = 20;
 
-    private readonly string _filePath;
-
-    public WorkspaceStore(string? filePath = null)
-    {
-        _filePath = filePath ?? Path.Combine(AppDataPaths.GetRootDirectory(), "workspace.json");
-    }
+    private readonly string _filePath = filePath ?? Path.Combine(AppDataPaths.GetRootDirectory(), "workspace.json");
 
     private IReadOnlyList<WorkspaceEntry> Load()
     {
@@ -60,7 +55,7 @@ public sealed class WorkspaceStore
     {
         var entries = Load().ToList();
         entries.RemoveAll(e => string.Equals(e.Connection, connection, StringComparison.Ordinal));
-        entries.Insert(0, new WorkspaceEntry(connection, DateTimeOffset.UtcNow, tabs.ToList(), activeTabIndex));
+        entries.Insert(0, new WorkspaceEntry(connection, DateTimeOffset.UtcNow, [.. tabs], activeTabIndex));
 
         // Trim oldest-first - the list is most-recent-first, so drop from the end.
         for (var i = entries.Count - 1; i >= 0 && entries.Count > MaxEntries; i--)

@@ -8,14 +8,9 @@ namespace PgNimbus.Core.Connections;
 /// Keychain / Linux libsecret integration lands. The file is restricted to
 /// the owning user where the OS supports POSIX permissions.
 /// </summary>
-public sealed class PlainFileCredentialStore : ICredentialStore
+public sealed class PlainFileCredentialStore(string? directory = null) : ICredentialStore
 {
-    private readonly string _directory;
-
-    public PlainFileCredentialStore(string? directory = null)
-    {
-        _directory = directory ?? Path.Combine(AppDataPaths.GetRootDirectory(), "credentials");
-    }
+    private readonly string _directory = directory ?? Path.Combine(AppDataPaths.GetRootDirectory(), "credentials");
 
     public void SavePassword(Guid connectionId, string password)
     {

@@ -43,10 +43,9 @@ public static partial class SqlCompletionContext
             {
                 // WITH x (a, b) AS (…) — the declared list *is* the output shape.
                 var declared = match.Groups["cols"].Value.Trim();
-                columns = SplitTopLevel(declared[1..^1])
+                columns = [.. SplitTopLevel(declared[1..^1])
                     .Select(c => Unquote(c.Trim()))
-                    .Where(c => c.Length > 0)
-                    .ToList();
+                    .Where(c => c.Length > 0)];
             }
             else
             {

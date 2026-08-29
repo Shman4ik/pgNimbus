@@ -13,14 +13,9 @@ public sealed record ImportColumn(string Name, string DataType);
 /// column types are restricted to <see cref="TypeInferrer.Types"/> because
 /// they're concatenated into DDL.
 /// </summary>
-public sealed class ImportService
+public sealed class ImportService(NpgsqlDataSource dataSource)
 {
-    private readonly NpgsqlDataSource _dataSource;
-
-    public ImportService(NpgsqlDataSource dataSource)
-    {
-        _dataSource = dataSource;
-    }
+    private readonly NpgsqlDataSource _dataSource = dataSource;
 
     /// <summary>Creates the table (when <paramref name="createTable"/>) and loads every row. Returns the number of rows imported.</summary>
     public async Task<long> ImportAsync(

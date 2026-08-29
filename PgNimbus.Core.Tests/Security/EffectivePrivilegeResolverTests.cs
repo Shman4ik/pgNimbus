@@ -11,18 +11,12 @@ public class EffectivePrivilegeResolverTests
     /// exercised without a server (and without RoleGraph, which is the thing
     /// under test's collaborator, not its dependency).
     /// </summary>
-    private sealed class FakeLookup : IRoleMembershipLookup
+    private sealed class FakeLookup(
+        Dictionary<string, IReadOnlyList<string>>? groups = null,
+        params string[] superusers) : IRoleMembershipLookup
     {
-        private readonly Dictionary<string, IReadOnlyList<string>> _groups;
-        private readonly HashSet<string> _superusers;
-
-        public FakeLookup(
-            Dictionary<string, IReadOnlyList<string>>? groups = null,
-            params string[] superusers)
-        {
-            _groups = groups ?? [];
-            _superusers = new HashSet<string>(superusers, StringComparer.Ordinal);
-        }
+        private readonly Dictionary<string, IReadOnlyList<string>> _groups = groups ?? [];
+        private readonly HashSet<string> _superusers = new HashSet<string>(superusers, StringComparer.Ordinal);
 
         /// <summary>Nearest first, as the interface documents.</summary>
         public IReadOnlyList<string> InheritedGroups(string role) =>

@@ -17,13 +17,11 @@ namespace PgNimbus.App.Converters;
 /// empty string; MainWindow's cell-edit preparation clears the placeholder
 /// out of the editor so it can't be committed back as a literal string.
 /// </summary>
-public sealed class RowIndexConverter : IValueConverter
+public sealed class RowIndexConverter(int index) : IValueConverter
 {
     public const string NullPlaceholder = "NULL";
 
-    private readonly int _index;
-
-    public RowIndexConverter(int index) => _index = index;
+    private readonly int _index = index;
 
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
         value is object?[] row && _index < row.Length
@@ -88,7 +86,7 @@ public sealed class RowIndexConverter : IValueConverter
 /// Returns null for anything that is not a bool (SQL NULL, or a surprise value);
 /// <see cref="BoolCellTextConverter"/> covers those cases with text.
 /// </summary>
-public sealed class BoolCellIconConverter : IValueConverter
+public sealed class BoolCellIconConverter(int index) : IValueConverter
 {
     // UI-thread only (cells are generated and rendered there), so a plain
     // lazily-filled cache is fine.
@@ -96,9 +94,7 @@ public sealed class BoolCellIconConverter : IValueConverter
     private static Geometry? _cross;
     private static bool _resolved;
 
-    private readonly int _index;
-
-    public BoolCellIconConverter(int index) => _index = index;
+    private readonly int _index = index;
 
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
         value is object?[] row && _index < row.Length && row[_index] is bool b ? Icon(b) : null;
@@ -129,11 +125,9 @@ public sealed class BoolCellIconConverter : IValueConverter
 /// and, defensively, the text form of a value a boolean column should never
 /// hold. Empty for a real bool — <see cref="BoolCellIconConverter"/> draws that.
 /// </summary>
-public sealed class BoolCellTextConverter : IValueConverter
+public sealed class BoolCellTextConverter(int index) : IValueConverter
 {
-    private readonly int _index;
-
-    public BoolCellTextConverter(int index) => _index = index;
+    private readonly int _index = index;
 
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
         value is object?[] row && _index < row.Length
@@ -150,11 +144,9 @@ public sealed class BoolCellTextConverter : IValueConverter
 }
 
 /// <summary>Dims cells whose underlying value is SQL NULL, so the "NULL" placeholder reads as a marker, not data.</summary>
-public sealed class NullCellOpacityConverter : IValueConverter
+public sealed class NullCellOpacityConverter(int index) : IValueConverter
 {
-    private readonly int _index;
-
-    public NullCellOpacityConverter(int index) => _index = index;
+    private readonly int _index = index;
 
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
         value is object?[] row && _index < row.Length && row[_index] is null ? 0.4 : 1.0;

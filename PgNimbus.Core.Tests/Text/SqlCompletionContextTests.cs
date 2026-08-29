@@ -163,7 +163,7 @@ public class SqlCompletionContextTests
     {
         var tables = SqlCompletionContext.ExtractTables("SELECT * FROM orders");
 
-        await Assert.That(tables).HasCount().EqualTo(1);
+        await Assert.That(tables).Count().IsEqualTo(1);
         await Assert.That(tables[0]).IsEqualTo(new SqlCompletionContext.TableRef("", "orders", null));
     }
 
@@ -181,7 +181,7 @@ public class SqlCompletionContextTests
         var tables = SqlCompletionContext.ExtractTables(
             "SELECT * FROM customers c JOIN orders o ON c.id = o.customer_id LEFT JOIN order_items oi ON o.id = oi.order_id");
 
-        await Assert.That(tables).HasCount().EqualTo(3);
+        await Assert.That(tables).Count().IsEqualTo(3);
         await Assert.That(tables[0].Table).IsEqualTo("customers");
         await Assert.That(tables[0].Alias).IsEqualTo("c");
         await Assert.That(tables[1].Table).IsEqualTo("orders");
@@ -195,7 +195,7 @@ public class SqlCompletionContextTests
     {
         var tables = SqlCompletionContext.ExtractTables("SELECT * FROM customers c, orders o WHERE c.id = o.customer_id");
 
-        await Assert.That(tables).HasCount().EqualTo(2);
+        await Assert.That(tables).Count().IsEqualTo(2);
         await Assert.That(tables[0].Alias).IsEqualTo("c");
         await Assert.That(tables[1].Alias).IsEqualTo("o");
     }
@@ -241,7 +241,7 @@ public class SqlCompletionContextTests
         var tables = SqlCompletionContext.ExtractTables(
             "SELECT * FROM customers c -- order by signup date\nJOIN orders o ON c.id = o.customer_id");
 
-        await Assert.That(tables).HasCount().EqualTo(2);
+        await Assert.That(tables).Count().IsEqualTo(2);
         await Assert.That(tables[1].Table).IsEqualTo("orders");
     }
 

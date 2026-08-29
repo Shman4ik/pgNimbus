@@ -57,7 +57,7 @@ public class SqlCteDefinitionTests
 
         await Assert.That(cte.Columns).IsEmpty();
         await Assert.That(cte.SelectsStar).IsTrue();
-        await Assert.That(cte.SourceTables).HasCount().EqualTo(1);
+        await Assert.That(cte.SourceTables).Count().IsEqualTo(1);
         await Assert.That(cte.SourceTables[0].Table).IsEqualTo("orders");
         await Assert.That(cte.SourceTables[0].Schema).IsEqualTo("public");
     }
@@ -78,7 +78,7 @@ public class SqlCteDefinitionTests
         var defs = SqlCompletionContext.ExtractCteDefinitions(
             "WITH a AS (SELECT id FROM t), b AS (SELECT * FROM a) SELECT * FROM b");
 
-        await Assert.That(defs).HasCount().EqualTo(2);
+        await Assert.That(defs).Count().IsEqualTo(2);
         await Assert.That(defs[0].Name).IsEqualTo("a");
         await Assert.That(defs[0].Columns).IsEquivalentTo(new[] { "id" });
         await Assert.That(defs[1].Name).IsEqualTo("b");

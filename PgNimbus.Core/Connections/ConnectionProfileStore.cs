@@ -8,14 +8,9 @@ namespace PgNimbus.Core.Connections;
 /// <see cref="ConnectionProfile"/> has no password property, there is
 /// nothing sensitive for this store to ever write to disk.
 /// </summary>
-public sealed class ConnectionProfileStore
+public sealed class ConnectionProfileStore(string? filePath = null)
 {
-    private readonly string _filePath;
-
-    public ConnectionProfileStore(string? filePath = null)
-    {
-        _filePath = filePath ?? Path.Combine(AppDataPaths.GetRootDirectory(), "connections.json");
-    }
+    private readonly string _filePath = filePath ?? Path.Combine(AppDataPaths.GetRootDirectory(), "connections.json");
 
     public IReadOnlyList<ConnectionProfile> Load()
     {
@@ -45,7 +40,7 @@ public sealed class ConnectionProfileStore
             Directory.CreateDirectory(directory);
         }
 
-        var json = JsonSerializer.Serialize(profiles.ToList(), ConnectionProfileJsonContext.Default.ListConnectionProfile);
+        var json = JsonSerializer.Serialize([.. profiles], ConnectionProfileJsonContext.Default.ListConnectionProfile);
         File.WriteAllText(_filePath, json);
     }
 }

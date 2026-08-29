@@ -1439,7 +1439,7 @@ public partial class MainWindow : Window
     private static string SanitizeFileName(string title)
     {
         var invalid = Path.GetInvalidFileNameChars();
-        var cleaned = new string(title.Select(c => invalid.Contains(c) ? '_' : c).ToArray()).Trim();
+        var cleaned = new string([.. title.Select(c => invalid.Contains(c) ? '_' : c)]).Trim();
         return cleaned.Length == 0 ? "query" : cleaned;
     }
 
