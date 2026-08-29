@@ -57,6 +57,7 @@ public static class Scenarios
         ("activity-window", Activity),
         ("activity-window-blocking", ActivityBlocking),
         ("database-overview-window", DatabaseOverview),
+        ("notify-window", NotifyMonitor),
         ("security-window", Security),
         ("security-window-permissions", SecurityPermissions),
         ("security-window-default-privileges", SecurityDefaultPrivileges),
@@ -348,6 +349,35 @@ public static class Scenarios
 
         vm.Status = "6 relations · 3 unused indexes wasting 68 MB · 09:41:02";
         return new DatabaseOverviewWindow { DataContext = vm, Width = 1100, Height = 760 };
+    }
+
+    /// <summary>
+    /// The LISTEN/NOTIFY monitor: channels subscribed, a live feed, and the
+    /// selected payload pretty-printed in the detail pane — the shot exists
+    /// because that pane is the whole argument for the window (a JSON payload
+    /// was previously a trimmed one-liner in a sidebar).
+    /// </summary>
+    public static Window NotifyMonitor()
+    {
+        var vm = Fixtures.MainWindowViewModel().NotifyMonitor;
+
+        foreach (var channel in new[] { "order_events", "cache_invalidation", "job_queue" })
+        {
+            vm.ChannelName = channel;
+            vm.AddChannelCommand.Execute(null);
+        }
+
+        // Oldest first, so the feed ends up newest-first the way the live one does.
+        foreach (var notification in Fixtures.Notifications().Reverse())
+        {
+            vm.SeedNotification(notification);
+        }
+
+        vm.IsListening = true;
+        vm.SelectedChannel = "order_events";
+        vm.SelectedNotification = vm.Notifications[0];
+
+        return new NotifyMonitorWindow { DataContext = vm, Width = 1040, Height = 620 };
     }
 
     /// <summary>

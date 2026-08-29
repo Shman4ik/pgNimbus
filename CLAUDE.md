@@ -95,6 +95,11 @@ Three rules about it:
    send it down) and returns a `QueryError` with `ConnectionLost`/`RolledBack`
    set, stating plainly that the transaction is gone and nothing from it
    committed.
+   The classification itself lives in `Query/ConnectionFailure.IsLoss`, not in
+   `QueryEngine` (2026-08): the LISTEN/NOTIFY listener holds a connection open
+   for hours and has to answer the same question when its wait loop throws, and
+   two hand-kept copies of "what a dropped socket looks like" is exactly the
+   kind of thing that drifts. `QueryEngine.IsConnectionLoss` forwards to it.
 3. **PostgreSQL-first, not lowest-common-denominator.** `SchemaService` reads
    `pg_catalog` directly (not `information_schema`) so it can see materialized
    views, partitioned tables, and real Postgres semantics (e.g. primary-key
@@ -110,8 +115,8 @@ Three rules about it:
    (heap/index split), per-table seq-vs-index scan usage, and unused
    non-constraint indexes. Human-readable byte counts go through
    `PgNimbus.Core.ByteSize` (base-1024, unit-tested, shared by both) rather
-   than being formatted ad hoc in the App. Both monitoring windows follow the
-   same shape: one-live-instance, opened from the command palette (and the
+   than being formatted ad hoc in the App. All three monitoring windows follow
+   the same shape: one-live-instance, opened from the command palette (and the
    macOS Query native menu), no new toolbar button. The **Server Activity**
    window (backed by `ActivityService`) is two tabs: the flat
    `pg_stat_activity` grid, and a **Blocking** who-blocks-whom lock tree.
@@ -127,6 +132,36 @@ Three rules about it:
    glance and survives the 2s auto-refresh rebuild; cancel/terminate on the
    Blocking tab target the *selected* node's pid (aim at the root holder to
    release everyone beneath it).
+   The third is the **LISTEN/NOTIFY monitor** (`Notifications/NotificationListener`
+   + `NotifyMonitorWindow`), which stopped being a permanent sidebar tab in
+   2026-08 — see UI design rule 1 for why that was the wrong home. Four things
+   about it are load-bearing. (a) **It must never claim to be listening when it
+   is not.** Npgsql only delivers notifications while something waits on the
+   connection, so the listener parks in a `WaitAsync` loop; a dropped connection
+   used to fault that loop with nobody observing the exception, leaving the dot
+   green forever. The loop now classifies the failure through
+   `ConnectionFailure.IsLoss`, retries **once** on a fresh connection with every
+   channel re-`LISTEN`ed (pool flushed first, same reasoning as the engine's
+   retry), and otherwise raises `Stopped` so the view model can drop
+   `IsListening`. `Reconnected` is surfaced too, because NOTIFY keeps no backlog:
+   anything published while the socket was down is simply gone, and the user has
+   to know that. Both events are raised from the background loop, so the view
+   model marshals them. (b) **Channels are persisted per connection**
+   (`AppSettings.NotifyChannels`, read/rewritten only through the Core-pure
+   `Settings/NotifyChannels`, keyed `host/database` like the workspace snapshot
+   and the autocomplete exclusions) — retyping them after every restart was most
+   of why the panel went unused. Restored channels do **not** auto-start the
+   listener; opening a connection nobody asked for is the same surprise
+   `AutoConnectLastProfile` defaults away from. (c) **The payload is a document,
+   not a line.** Most NOTIFY payloads are JSON, and the window's detail pane is
+   driven by the results grid's own `CellInspectorViewModel` in read-only mode,
+   so pretty-printing and the collapsible `JsonTree` come for free rather than
+   being reimplemented. The feed itself is capped at
+   `NotifyMonitorViewModel.MaxNotifications` (500) — a chatty channel would
+   otherwise grow it all afternoon. (d) **It can publish**, through
+   `pg_notify(@channel, @payload)` on a pooled connection (the listening one is
+   parked in a wait, and `NOTIFY` takes literals rather than parameters). pgAdmin
+   needs a second session to produce a test event; this is one button.
 4. **No passwords on `ConnectionProfile`.** Passwords come from
    `ICredentialStore` (DPAPI on Windows via `WindowsDpapiCredentialStore`, a
    permission-restricted file fallback elsewhere via
@@ -312,6 +347,15 @@ Three rules about it:
    filtered by it: the tree and the command palette still show everything, which
    is why the toggle rebuilds only the completion cache instead of running the
    full `RefreshSchemaAsync` (which would collapse the tree).
+   **The sidebar has two tabs, and the third one leaving is the rule's own
+   evidence** (2026-08). Notify was a permanent third of the sidebar's
+   navigation — equal billing with the schema tree — for the feature nobody
+   opened, while Server Activity and Database Overview, used far more often,
+   have no permanent UI at all and are reached from the palette. The rarest
+   surface had the most prominent home, which is what rule 1 exists to catch;
+   it is now `NotifyMonitorWindow`, opened from the palette like its two
+   siblings. The icon-only collapse threshold on the remaining tab labels came
+   down with it (300 → 210), since two labels fit where three did not.
    **The sidebar's filter box searches the database, not the screen** (2026-08).
    It used to walk only the nodes the tree had already loaded, and the tree
    loads a schema's tables lazily on first expand — so a table in a schema
@@ -627,8 +671,10 @@ Three rules about it:
    view to do, so the state lives on the view model and binds two-way.
    **What stays a window, and why**, since this is the line the rule turns on: an
    overlay covers the shell, so anything you need to *watch* while it is open cannot be
-   one. `ActivityWindow` and `DatabaseOverviewWindow` are reference views you read
-   beside your query and are deliberately untouched. `ConnectionDialog` and
+   one. `ActivityWindow`, `DatabaseOverviewWindow` and `NotifyMonitorWindow` are
+   reference views you read beside your query — the notify one is watched *while*
+   the application under test runs, which is the clearest case in the list — and
+   are deliberately untouched. `ConnectionDialog` and
    `CrashWindow` cannot be overlays at all — both exist before, or instead of, a main
    window. The modal dialogs (`ConfirmDialog`, `AddRowDialog`, `AlterTableDialog`,
    `ImportDialog`, `ImportPlanDialog`, `PendingChangesDialog`) each return a result

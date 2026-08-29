@@ -209,6 +209,7 @@ public partial class MainWindow : Window
                 CommandItem("Refresh Schema", CommandId.RefreshSchema),
                 CommandItem("Server Activity…", CommandId.ServerActivity),
                 CommandItem("Database Overview…", CommandId.DatabaseOverview),
+                CommandItem("LISTEN / NOTIFY Monitor…", CommandId.NotifyMonitor),
                 CommandItem("Roles and Permissions…", CommandId.SecurityManager),
             },
         };
@@ -462,6 +463,7 @@ public partial class MainWindow : Window
             _viewModel.ImportPlanRequested -= ShowImportPlanDialog;
         _viewModel.ActivityRequested -= ShowActivityWindow;
             _viewModel.DatabaseOverviewRequested -= ShowDatabaseOverviewWindow;
+            _viewModel.NotifyMonitorRequested -= ShowNotifyMonitorWindow;
             _viewModel.SecurityRequested -= ShowSecurityWindow;
             _viewModel.SidebarToggleRequested -= ToggleSidebar;
             _viewModel.OpenFileRequested -= OnOpenFileRequested;
@@ -480,6 +482,7 @@ public partial class MainWindow : Window
         _viewModel.ImportPlanRequested += ShowImportPlanDialog;
         _viewModel.ActivityRequested += ShowActivityWindow;
         _viewModel.DatabaseOverviewRequested += ShowDatabaseOverviewWindow;
+        _viewModel.NotifyMonitorRequested += ShowNotifyMonitorWindow;
         _viewModel.SecurityRequested += ShowSecurityWindow;
         _viewModel.SidebarToggleRequested += ToggleSidebar;
         _viewModel.OpenFileRequested += OnOpenFileRequested;
@@ -1075,6 +1078,25 @@ public partial class MainWindow : Window
         _databaseOverviewWindow = new DatabaseOverviewWindow { DataContext = _viewModel?.DatabaseOverview };
         _databaseOverviewWindow.Closed += (_, _) => _databaseOverviewWindow = null;
         _databaseOverviewWindow.Show(this);
+    }
+
+    private NotifyMonitorWindow? _notifyMonitorWindow;
+
+    // One live instance, like the other reference windows — and load-bearing
+    // here rather than merely tidy: a second window would mean a second
+    // listener holding its own connection open on the same channels, and every
+    // NOTIFY would appear to arrive twice.
+    private void ShowNotifyMonitorWindow()
+    {
+        if (_notifyMonitorWindow is not null)
+        {
+            _notifyMonitorWindow.Activate();
+            return;
+        }
+
+        _notifyMonitorWindow = new NotifyMonitorWindow { DataContext = _viewModel?.NotifyMonitor };
+        _notifyMonitorWindow.Closed += (_, _) => _notifyMonitorWindow = null;
+        _notifyMonitorWindow.Show(this);
     }
 
     private Security.SecurityWindow? _securityWindow;

@@ -1,6 +1,5 @@
 using System.Data;
 using System.Diagnostics;
-using System.Net.Sockets;
 using Npgsql;
 using Npgsql.PostgresTypes;
 
@@ -183,38 +182,9 @@ public sealed class QueryEngine
     // deterministic: the next rent is guaranteed to open a new connection.
     private void ClearPool() => _dataSource.Clear();
 
-    // Classifies a failure as "the server-side connection itself is gone" —
-    // the dead-socket shape a laptop sleep or a dropped SSH tunnel leaves
-    // behind — as opposed to an ordinary statement failure (syntax error,
-    // constraint violation, ...) that happened over a perfectly live
-    // connection. Only losses are safe to silently retry on a fresh
-    // connection; everything else must reach the user as-is.
-    private static bool IsConnectionLoss(Exception ex) => ex switch
-    {
-        OperationCanceledException => false,
-
-        // PostgresException derives from NpgsqlException, so it has to be
-        // matched first, or every ordinary server-side error would fall
-        // through to the NpgsqlException arm below. Class 08 ("connection
-        // exception") plus the two shutdown codes cover both a network-level
-        // drop and the server-announced kind (e.g. pg_terminate_backend on a
-        // pooled idle connection).
-        PostgresException pg => pg.SqlState is { } state &&
-            (state.StartsWith("08", StringComparison.Ordinal) ||
-             state is PostgresErrorCodes.AdminShutdown or PostgresErrorCodes.CrashShutdown),
-
-        // A non-Postgres NpgsqlException wrapping a socket-level failure — the
-        // shape a dead pooled connection takes after the peer vanished without
-        // a clean close, discovered only once a command tries to use it.
-        // TimeoutException is deliberately NOT here: Npgsql also wraps command
-        // timeouts (a merely slow query, possibly a write still executing
-        // server-side) and pool exhaustion in it, and silently re-running
-        // those would double-apply work and pile load onto an already
-        // struggling server.
-        NpgsqlException { InnerException: IOException or SocketException or EndOfStreamException } => true,
-
-        _ => false,
-    };
+    // The one classifier, shared with the LISTEN/NOTIFY listener — see
+    // ConnectionFailure for why it does not live here anymore.
+    private static bool IsConnectionLoss(Exception ex) => ConnectionFailure.IsLoss(ex);
 
     /// <summary>
     /// Executes a parameterized statement that returns no rows (used for

@@ -72,6 +72,9 @@ public sealed partial class MainViewModel : ObservableObject
     // Raised to open (or focus) the Database Overview window, which the view owns.
     public event Action? DatabaseOverviewRequested;
 
+    // Raised to open (or focus) the LISTEN/NOTIFY monitor window.
+    public event Action? NotifyMonitorRequested;
+
     // Raised to open (or focus) the Roles & Permissions window.
     public event Action? SecurityRequested;
     // Raised to collapse/restore the sidebar (the view owns the grid column).
@@ -263,6 +266,9 @@ public sealed partial class MainViewModel : ObservableObject
 
     [RelayCommand]
     private void ShowDatabaseOverview() => DatabaseOverviewRequested?.Invoke();
+
+    [RelayCommand]
+    private void ShowNotifyMonitor() => NotifyMonitorRequested?.Invoke();
 
     [RelayCommand]
     private void ShowSecurity() => SecurityRequested?.Invoke();

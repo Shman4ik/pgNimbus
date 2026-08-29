@@ -68,6 +68,20 @@ public partial class App : Application
         });
     }
 
+    /// <summary>
+    /// Remembers this connection's LISTEN channels. Scoped by the same
+    /// <c>host/database</c> key as the workspace: channels belong to one
+    /// application's event plumbing, not to the app.
+    /// </summary>
+    private static void PersistNotifyChannels(string connectionKey, IReadOnlyList<string> channels)
+    {
+        var settings = SettingsStore.Load();
+        SettingsStore.Save(settings with
+        {
+            NotifyChannels = Core.Settings.NotifyChannels.With(settings, connectionKey, channels),
+        });
+    }
+
     /// <summary>Remembers the command palette's recent-.sql-files list so it survives a restart.</summary>
     private static void PersistRecentSqlFiles(IReadOnlyList<string> value) =>
         SettingsStore.Save(SettingsStore.Load() with { RecentSqlFiles = value.ToList() });
@@ -436,7 +450,6 @@ public partial class App : Application
             SettingsStore.Load().ShowSchemaSizes,
             PersistShowSchemaSizes);
         var completionProvider = new SqlCompletionProvider(schemaService);
-        var notifyMonitor = new NotifyMonitorViewModel(new NotificationListener(dataSource));
 
         var csb = new NpgsqlConnectionStringBuilder(connectionString);
 
@@ -447,6 +460,12 @@ public partial class App : Application
         var connectionHost = csb.Host ?? "";
         var connectionDatabase = csb.Database ?? "";
         var workspaceKey = string.IsNullOrEmpty(connectionHost) ? null : $"{connectionHost}/{connectionDatabase}";
+
+        // Built after the connection key, which scopes its restored channels.
+        var notifyMonitor = new NotifyMonitorViewModel(
+            new NotificationListener(dataSource),
+            channels: Core.Settings.NotifyChannels.For(SettingsStore.Load(), workspaceKey),
+            persistChannels: workspaceKey is null ? null : channels => PersistNotifyChannels(workspaceKey, channels));
 
         var viewModel = new MainViewModel(
             engine, explainService, schemaTree, schemaService, schemaEditor, ddlService, completionProvider, notifyMonitor, activityService, databaseStatsService, roleService, privilegeService, securityEditor, importService,

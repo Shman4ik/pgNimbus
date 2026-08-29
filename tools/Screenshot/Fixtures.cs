@@ -289,6 +289,25 @@ public static class Fixtures
         new("public", "customers", "customers_full_name_idx", 8_388_608),
     ];
 
+    /// <summary>
+    /// A LISTEN/NOTIFY feed: the JSON payloads an application's event plumbing
+    /// actually publishes (which is why the monitor pretty-prints them), plus a
+    /// bare-string one, since plenty of channels carry only a row id.
+    /// </summary>
+    public static IReadOnlyList<DatabaseNotification> Notifications()
+    {
+        var at = new DateTimeOffset(2026, 8, 29, 9, 41, 2, TimeSpan.Zero);
+
+        return
+        [
+            new("order_events", """{"event":"order.paid","order_id":4821,"customer":"nadia.k","total":"128.40","items":[{"sku":"NIM-1","qty":2},{"sku":"NIM-7","qty":1}]}""", 4822, at),
+            new("order_events", """{"event":"order.placed","order_id":4822,"customer":"tomas.r","total":"64.00","items":[{"sku":"NIM-3","qty":1}]}""", 4822, at.AddSeconds(-6)),
+            new("cache_invalidation", "products:24119", 4844, at.AddSeconds(-11)),
+            new("order_events", """{"event":"order.shipped","order_id":4815,"carrier":"dhl"}""", 4822, at.AddSeconds(-24)),
+            new("cache_invalidation", "customers:184002", 4844, at.AddSeconds(-38)),
+        ];
+    }
+
     // --- Roles & permissions --------------------------------------------
 
     /// <summary>
