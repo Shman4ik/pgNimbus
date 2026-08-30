@@ -841,9 +841,34 @@ tiny icon (that produced muddy 16–32px icons; fixed 2026-07). Layout:
   listing pages), so transparency is safe and reads better at that size.
 - `design/masters/window/window-{light,dark}-256.png` — transparent line-art
   window icons (currently unused in-app, see Part 2 of LOGO-ASSETS.md).
-- `design/masters/logo/` — README/website assets: `logo.svg`,
-  `logo-{light,dark}.png`, `wordmark-{light,dark}.{svg,png}`,
-  `social-preview.png` (1280×640).
+- **`design/logo.svg` + `design/logo-dark.svg` — the vector master**, and the
+  one thing on this page that is drawn rather than generated. `viewBox="0 0
+  1024 1024"`; three modules (`#base`, `#mascot-elephant`, `#brand-broom`) as
+  plain `<path>` geometry in the root coordinate system — no `transform`, no
+  `mask`, no `<use>`, no CSS variables — which is what makes it survive
+  Inkscape / Illustrator / Figma and what lets a module be lifted whole into a
+  sibling mark. Colour is two classes, `.ink` and `.paper`, with the value
+  repeated as a plain attribute so tools that ignore `<style>` still render;
+  `logo-dark.svg` is the same bytes with the two exchanged. Two rules hold it
+  together. **Nothing changes colour where it crosses the field's rim**: the
+  broom's handle and the tip of the trunk both carry on past the light field
+  onto the plate and stay ink the whole way, carried by a `.paper` clearance
+  halo drawn underneath — the raster-era master flipped them to white instead,
+  which is the same drawing but a different object every time the rim crosses
+  it. And **each module carries its own clearance**, so hiding `#base` leaves a
+  whole elephant and a whole broom rather than a heap of fragments. That halo
+  is 39.451 in both modules, the width kubeNimbus's broom already used: at the
+  trunk it has to *fill* the hollow between the trunk's two walls out on the
+  plate, not merely outline them, or the trunk ends with a black wedge inside
+  it. What this replaced is `design/archive/logo-raster-era.svg` — one compound
+  path with seven subpaths, in which neither the elephant nor the broom was an
+  object: both were white showing through a solid ink disc, so hiding the disc
+  left nothing.
+- `design/masters/logo/` — README/website assets: `logo-{light,dark}.png`,
+  `wordmark-{light,dark}.{svg,png}`, `social-preview.png` (1280×640). These are
+  still renders of the raster-era artwork and **do not match the vector master
+  above yet**; generating `design/masters/**` from it is the step that closes
+  that gap, and until it lands the two disagree.
 - `design/store/` — **generated**, not hand-edited: Microsoft Partner Center
   listing images from `icon-1024.png`, via
   `scripts/windows/make-store-logos.ps1`. Checked into git so a Partner
