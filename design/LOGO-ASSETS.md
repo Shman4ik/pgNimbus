@@ -5,14 +5,14 @@ generates it, and where it's consumed. **For the designer hand-off, use
 [`DESIGNER-BRIEF.md`](DESIGNER-BRIEF.md)** — this file is the plumbing behind it.
 
 Pipeline model (changed 2026-08): **one drawing feeds everything.** The mark is
-drawn once in `design/logo.af`, exported to `design/logo.svg` +
-`logo-dark.svg`, and every raster in the repo is rendered from those. Nothing
-under `design/masters/` or `PgNimbus.App/Assets/` is hand-edited any more.
+drawn once in `design/logo.af`, exported to `design/logo.svg`, and every raster
+in the repo is rendered from that. Nothing under `design/masters/` or
+`PgNimbus.App/Assets/` is hand-edited any more.
 
 ```
 design/logo.af                     Affinity, the editable master
   → scripts/design/dump-af.js      geometry out to JSON (run via the Affinity MCP)
-  → scripts/design/af-to-svg.py    design/logo.svg + logo-dark.svg
+  → scripts/design/af-to-svg.py    design/logo.svg
   → scripts/design/make-masters.ps1        design/masters/**
   → scripts/windows/make-app-icons.ps1     PgNimbus.App/Assets/**
   → scripts/windows/make-store-logos.ps1   design/store/**
@@ -26,7 +26,7 @@ size ever does stop reading, the fix is a simplified **mark** fed into
 `make-masters.ps1` (a `logo-small.svg`, the way kubeNimbus does it), never a
 hand-painted PNG that nothing can regenerate.
 
-- **Part 0 — The vector master** (`design/logo.af`, `design/logo*.svg`)
+- **Part 0 — The vector master** (`design/logo.af`, `design/logo.svg`)
 - **Part 1 — Sources** (`design/masters/`, now all generated)
 - **Part 2 — Shipped outputs** (`PgNimbus.App/Assets/`, generated)
 - **Part 3 — The scripts** (source → output mapping)
@@ -107,14 +107,22 @@ disappears on a dark taskbar.
 
 | File | Size | Feeds / used by |
 |---|---|---|
-| `logo-light.png` / `logo-dark.png` | 1024² | README header `<picture>` (light/dark) |
+| `logo.png` | 1024² | the bare mark, for a README or site header |
 | `wordmark-{light,dark}.svg` (+ `.png` @2×) | ≈3.7:1 | README wordmark (see Part 4) |
 | `social-preview.png` | 1280×640 | GitHub repo social preview (has a bg) |
 
 The wordmark is the mark at 240px beside "pgNimbus" in Segoe UI Bold, with the
 text baked to paths by Inkscape so the committed SVG renders identically on a
-machine without that font — GitHub's, for one. The social card is deliberately
-opaque: a transparent one renders white in some clients and black in others.
+machine without that font — GitHub's, for one. **Both lockups carry the same
+mark**; only the type changes colour, because "pgNimbus" set in ink is
+unreadable on a dark README. That is also why there is one `logo.png` and not a
+light/dark pair — the plate carries the mark's own contrast.
+
+The social card is the bare mark on a `.paper` background. It is the mark
+rather than the lockup because link unfurlers crop this aggressively and to
+wildly different aspect ratios: a square survives that, a 3.7:1 lockup gets its
+ends eaten. It is opaque because a transparent card renders white in some
+clients and black in others.
 
 > Superseded/old concepts live in `design/archive/`.
 
@@ -160,21 +168,21 @@ via `makepri` at pack time for Windows to actually resolve them (see Part 3).
 
 ### `scripts/design/af-to-svg.py` (any OS, stdlib only)
 Run after `scripts/design/dump-af.js` in Affinity. Bakes every node transform
-into the path data and writes `design/logo.svg` + `logo-dark.svg`; the dark
-mark is the same bytes with `.ink` and `.paper` exchanged.
+into the path data and writes `design/logo.svg`.
 
 ### `scripts/design/make-masters.ps1` (Windows, Inkscape + System.Drawing)
-Run after any change to `design/logo*.svg`. Renders every file under
-`design/masters/`:
+Run after any change to `design/logo.svg`. Renders every file under
+`design/masters/`. The palette is inverted in exactly one place — the
+light-surface window master — and that inversion lives here rather than in a
+second committed SVG:
 
 ```
 logo.svg ─── render at 16/24/32/48/256/1024 ──────────► masters/icon/icon-*.png
-logo.svg ─── render at 1024 ──────────────────────────► masters/logo/logo-light.png
-logo-dark.svg ─ render at 1024 ───────────────────────► masters/logo/logo-dark.png
-logo-dark.svg ─ strip <circle r="512"> ──────────────► masters/window/window-light-256.png
-logo.svg ────── strip <circle r="512"> ──────────────► masters/window/window-dark-256.png
-logo*.svg ───── + "pgNimbus" text, baked to paths ───► masters/logo/wordmark-*.{svg,png}
-wordmark-dark.png ─ centred on a 1280×640 ink card ──► masters/logo/social-preview.png
+logo.svg ─── render at 1024 ──────────────────────────► masters/logo/logo.png
+logo.svg ─── invert palette, strip <circle r="512"> ─► masters/window/window-light-256.png
+logo.svg ─── strip <circle r="512"> ─────────────────► masters/window/window-dark-256.png
+logo.svg ─── + "pgNimbus" text, baked to paths ──────► masters/logo/wordmark-*.{svg,png}
+logo.png ─── centred on a 1280×640 paper card ───────► masters/logo/social-preview.png
 ```
 
 ### `scripts/windows/make-app-icons.ps1` (Windows, System.Drawing)
@@ -224,21 +232,22 @@ uploading the files to Partner Center is still a manual step.
 
 ## Part 4 — GitHub page surfaces
 
-**1. README header** (`README.md`, top). Currently the **glyph** at
-`width="180"`, theme-switched:
+**1. README header** (`README.md`, top). The **wordmark** lockup at
+`width="300"`, theme-switched — the mark is the same in both, only the type
+changes colour:
 
 ```html
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="design/masters/logo/logo-dark.png">
-  <img src="design/masters/logo/logo-light.png" alt="pgNimbus logo …" width="180">
+  <source media="(prefers-color-scheme: dark)" srcset="design/masters/logo/wordmark-dark.png">
+  <img src="design/masters/logo/wordmark-light.png" alt="pgNimbus logo …" width="300">
 </picture>
 ```
 
-**Planned:** swap to the horizontal **wordmark** lockup once delivered. How
-GitHub renders it: README column ≈980px on desktop, device-width on mobile,
-with `max-width:100%` — so one image scales to both **if it stays legible
-small**. Use **SVG** for crispness everywhere; display `width="440"`; PNG
-fallback at 2× (~880px). Keep the lockup ≈3.5:1.
+For the bare mark with no type, use `masters/logo/logo.png` — one file, no
+theme switch needed. How GitHub renders either: README column ≈980px on
+desktop, device-width on mobile, with `max-width:100%`, so one image scales to
+both **if it stays legible small**. The committed wordmark SVGs are crisper
+still if you would rather link those; the PNGs are 2× (~2150px wide).
 
 **2. Repo social preview** — the share/search card (Settings → Social preview,
 *not* in the repo). Currently **unset**. Recommended **1280×640** PNG/JPG,

@@ -829,15 +829,18 @@ designer hand-off brief is [`design/DESIGNER-BRIEF.md`](design/DESIGNER-BRIEF.md
 **Keep both current** when assets or the pipeline change.
 
 **One drawing feeds everything** (2026-08). `design/logo.af` is where the mark
-is drawn; `design/logo.svg` + `logo-dark.svg` are generated from it; every
-raster below is generated from those. Nothing in `design/masters/**` or
+is drawn; `design/logo.svg` is generated from it; every raster below is
+generated from that. **There is one colourway** (2026-08): the mark is plated,
+a dark disc holding a light field, so it carries its own contrast and reads on
+white, on a light UI, on GitHub dark and on black alike — a second SVG would be
+a second thing to keep in step for no gain. Nothing in `design/masters/**` or
 `PgNimbus.App/Assets/**` is hand-edited any more — regenerate, don't retouch.
 The chain, each step a script:
 
 ```
 design/logo.af                     Affinity, the editable master
   → scripts/design/dump-af.js      geometry out to JSON (run via the Affinity MCP)
-  → scripts/design/af-to-svg.py    design/logo.svg + logo-dark.svg
+  → scripts/design/af-to-svg.py    design/logo.svg
   → scripts/design/make-masters.ps1        design/masters/**
   → scripts/windows/make-app-icons.ps1     PgNimbus.App/Assets/**
   → scripts/windows/make-store-logos.ps1   design/store/**
@@ -861,19 +864,22 @@ nothing can regenerate. Layout:
   full-bleed plate stripped (`make-masters.ps1` matches the `<circle>` on
   `r="512"`), leaving two-tone line art on transparency. The name is the theme
   the icon is used *on*, not the colour it is drawn in, so `window-light` is
-  cut from `logo-dark.svg`. Currently unused in-app, see Part 2 of
-  LOGO-ASSETS.md.
-- **`design/logo.svg` + `design/logo-dark.svg` — the committed vector master**,
-  generated from the `.af` and never hand-edited (`af-to-svg.py` overwrites
-  them). `viewBox="0 0
+  cut from an inverted copy — **the only place the palette is flipped**, and it
+  earns it: with no plate left, a pale field carrying dark line art sits on a
+  light Start menu as almost nothing. `make-masters.ps1` does that swap itself,
+  at the point of use. These feed `window-icon-{light,dark}.ico`, which
+  `ThemedWindowChrome` picks between by theme at runtime, and the MSIX unplated
+  altforms.
+- **`design/logo.svg` — the committed vector master**, generated from the
+  `.af` and never hand-edited (`af-to-svg.py` overwrites it). `viewBox="0 0
   1024 1024"`; three modules (`#base`, `#mascot-elephant`, `#brand-broom`) as
   plain `<path>` geometry in the root coordinate system — no `transform`, no
   `mask`, no `<use>`, no CSS variables — which is what makes it survive
   Inkscape / Illustrator / Figma and what lets a module be lifted whole into a
   sibling mark. Colour is two classes, `.ink` and `.paper`, with the value
-  repeated as a plain attribute so tools that ignore `<style>` still render;
-  `logo-dark.svg` is the same bytes with the two exchanged. Two rules hold it
-  together. **Nothing changes colour where it crosses the field's rim**: the
+  repeated as a plain attribute so tools that ignore `<style>` still render, so
+  a host page can retheme the mark without touching the geometry. Two rules
+  hold it together. **Nothing changes colour where it crosses the field's rim**: the
   broom's handle and the tip of the trunk both carry on past the light field
   onto the plate and stay ink the whole way, carried by a `.paper` clearance
   halo drawn underneath — the raster-era master flipped them to white instead,
@@ -893,13 +899,17 @@ nothing can regenerate. Layout:
   renamed or regrouped in Affinity changes the generated SVG's ids, and those
   ids are load-bearing (`make-masters.ps1` finds the plate by radius, kubeNimbus
   lifts `#brand-broom` by id).
-- `design/masters/logo/` — README/website assets: `logo-{light,dark}.png`
-  (the mark at 1024 on transparency), `wordmark-{light,dark}.{svg,png}` (the
+- `design/masters/logo/` — README/website assets: `logo.png`
+  (the mark at 1024 on transparency, one file), `wordmark-{light,dark}.{svg,png}` (the
   mark at 240px beside "pgNimbus" in Segoe UI Bold, text baked to paths by
   Inkscape so it renders on a machine without that font), and
-  `social-preview.png` (1280×640, the wordmark on a solid ink card — solid
-  because a transparent one renders white in some clients and black in
-  others). All five come out of `make-masters.ps1`.
+  `social-preview.png` (1280×640, the bare mark on a solid paper card — the
+  mark rather than the lockup because unfurlers crop this to wildly different
+  aspect ratios and a square survives that; solid because a transparent card
+  renders white in some clients and black in others). The wordmark is the one
+  asset that still ships in two colourways, and only because of the type:
+  "pgNimbus" set in ink is unreadable on a dark README. Both lockups carry the
+  same mark. All of these come out of `make-masters.ps1`.
 - `design/store/` — **generated**, not hand-edited: Microsoft Partner Center
   listing images from `icon-1024.png`, via
   `scripts/windows/make-store-logos.ps1`. Checked into git so a Partner
