@@ -4,11 +4,11 @@
 #                             the plated mark reads on light and dark alike)
 #
 #   OUTPUT design/masters/icon/icon-{16,24,32,48,256,1024}.png   the app tile
-#          design/masters/window/window-{light,dark}-256.png     transparent glyph
+#          design/masters/window/window-{light,dark}-256.png     plated mark, same file twice
 #          design/masters/logo/logo.png                          README header, 1024
 #          design/masters/logo/wordmark-{light,dark}.svg         lockup, text baked to paths
 #          design/masters/logo/wordmark-{light,dark}.png         same at 2x
-#          design/masters/logo/social-preview.png                1280x640, solid bg
+#          design/masters/logo/social-preview.png                1280x640, wordmark + tagline
 #
 # Every size comes off the one vector master, including 16 and 24. That is a
 # change from the era when design/masters/** were hand-drawn per size: the mark
@@ -64,18 +64,6 @@ function Export-Png([string]$Svg, [string]$Png, [int]$Size) {
 $light = Join-Path $designDir 'logo.svg'
 if (-not (Test-Path $light)) { throw "Missing $light - run scripts/design/af-to-svg.py first." }
 
-# The mark ships in one colourway. The only surface that needs it inverted is
-# the unplated Windows title-bar icon below, so the swap lives here, at the
-# point of use, rather than as a second SVG in design/ for someone to keep in
-# step. (Both classes and the literal fill/stroke attributes carry the value,
-# so a plain two-way substitution is the whole job.)
-function New-InvertedSvg([string]$SrcSvg, [string]$DstSvg) {
-    $svg = Get-Content -Raw $SrcSvg
-    $swapped = [regex]::Replace($svg, '#242B36|#F5F7FA',
-        { param($m) if ($m.Value -eq '#242B36') { '#F5F7FA' } else { '#242B36' } })
-    Set-Content -Path $DstSvg -Value $swapped -Encoding UTF8
-}
-
 # ---------------------------------------------------------------- icon tiles
 # These end up in app.ico, and app.ico is the one icon Windows hands the
 # taskbar, Alt+Tab and the title bar through a single WM_SETICON slot, so it
@@ -88,31 +76,22 @@ foreach ($size in 16, 24, 32, 48, 256, 1024) {
 }
 
 # ------------------------------------------------------------ window masters
-# Transparent line art for the unplated taskbar/Alt+Tab surfaces: the same mark
-# with the plate removed, so what is left is the two-tone glyph on transparency.
-# Stripping the <circle> from the committed SVG (rather than keeping two more
-# hand-maintained files) keeps design/logo*.svg the single source of geometry.
-function New-GlyphSvg([string]$SrcSvg, [string]$DstSvg) {
-    $svg = Get-Content -Raw $SrcSvg
-    $stripped = [regex]::Replace($svg, '\s*<circle[^>]*\br="512"[^>]*/>', '')
-    if ($stripped -eq $svg) { throw "No full-bleed plate (r=512) found to strip in $SrcSvg" }
-    Set-Content -Path $DstSvg -Value $stripped -Encoding UTF8
-}
-# This is the one place the palette is inverted, and it earns it: with no plate
-# left, what remains on a light surface is a pale field carrying dark line art,
-# which sits on a light Start menu as almost nothing. ThemedWindowChrome picks
-# between the two by theme at runtime. The name is the theme the icon is used
-# *on*, not the colour it is drawn in - so window-light comes off the inverted
-# mark.
-$inverted = Join-Path $tmpDir 'logo-inverted.svg'
-New-InvertedSvg $light $inverted
-foreach ($pair in @(
-        @{ Src = $inverted; Dst = 'window-light-256.png' },
-        @{ Src = $light;    Dst = 'window-dark-256.png' })) {
-    $glyph = Join-Path $tmpDir ("glyph-" + $pair.Dst + ".svg")
-    New-GlyphSvg $pair.Src $glyph
-    Export-Png $glyph (Join-Path $winDir $pair.Dst) 256
-}
+# One plated mark for both themes, same file twice (2026-08) - it used to be
+# theme-tinted transparent line art (an inverted, plate-stripped SVG per
+# theme), on the theory that the plate needed to go so the glyph would sit
+# flush against the taskbar/Start surface. In practice that meant two more
+# hand-maintained colourways of a mark that, everywhere else, ships in exactly
+# one because the plate already carries its own contrast (icon.ico, logo.png).
+# Two identical files rather than one is kept only because downstream
+# consumers (window-icon-{light,dark}.ico, the MSIX altform-{unplated,
+# lightunplated} tiles) still key off two file names - collapsing that is a
+# separate change to make-app-icons.ps1 and ThemedWindowChrome.cs, not this
+# script's job. The MSIX altform-unplated tiles specifically now carry a
+# plate too: Windows adds its own backplate around an "unplated" tile, so
+# that surface gets a plate inside a plate, accepted deliberately for one
+# mark everywhere over a special transparent-only cut for that one surface.
+Export-Png $light (Join-Path $winDir 'window-light-256.png') 256
+Export-Png $light (Join-Path $winDir 'window-dark-256.png') 256
 
 # -------------------------------------------------------- README header mark
 # The full mark at 1024 on transparency, one file: the plate carries the mark's
@@ -193,27 +172,49 @@ foreach ($v in @(
 }
 
 # ------------------------------------------------------------ social preview
-# GitHub's repo social card, and the site's og:image: 1280x640, solid
-# background (a transparent one renders as white in some clients and black in
-# others). It carries the bare mark rather than the wordmark, because link
-# unfurlers crop this aggressively and to wildly different aspect ratios - a
-# square mark survives that, a 3.7:1 lockup gets its ends eaten. The mark is
-# the same mark everything else uses, on a .paper card. Sized off the card's
-# HEIGHT (a square sized off the width would overflow
-# a 2:1 card) and kept at 62% of it, which leaves a clear margin on the crop
-# that square-thumbnail clients apply.
+# GitHub's repo social card, and the site's og:image: 1280x640, the dark navy
+# card the raster-era mark used, carrying the "pgNimbus" wordmark and the
+# one-line tagline - not the bare mark alone. A bare-mark version of this card
+# shipped briefly (2026-08) on the theory that link unfurlers crop the card to
+# wildly different aspect ratios and a square mark survives that better than a
+# lockup; in practice GitHub itself (where this card is seen the most) renders
+# it uncropped at its native 2:1, so the crop-safety argument gave up a
+# legible product name and tagline for a benefit that mostly wasn't there.
+# Reuses the already-generated wordmark-dark.svg (the light-on-dark lockup, so
+# it reads on the dark card) rather than re-deriving the mark+text geometry a
+# third time.
 $cardW = 1280; $cardH = 640
 $card  = New-Object System.Drawing.Bitmap($cardW, $cardH, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
 $g     = [System.Drawing.Graphics]::FromImage($card)
-$g.Clear([System.Drawing.Color]::FromArgb(255, 0xF5, 0xF7, 0xFA))   # .paper, matching design/logo.svg
+$g.Clear([System.Drawing.Color]::FromArgb(255, 0x24, 0x2B, 0x36))   # .ink, matching design/logo.svg
 $g.InterpolationMode  = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
 $g.PixelOffsetMode    = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
 $g.CompositingQuality = [System.Drawing.Drawing2D.CompositingQuality]::HighQuality
-$mark = New-Object System.Drawing.Bitmap((Join-Path $logoDir 'logo.png'))
-$targetH2 = [int]($cardH * 0.62)
-$targetW2 = [int]($mark.Width * ($targetH2 / $mark.Height))
-$g.DrawImage($mark, [int](($cardW - $targetW2) / 2), [int](($cardH - $targetH2) / 2), $targetW2, $targetH2)
-$mark.Dispose(); $g.Dispose()
+$g.TextRenderingHint  = [System.Drawing.Text.TextRenderingHint]::AntiAliasGridFit
+
+$lockupPng = Join-Path $tmpDir 'social-lockup.png'
+$lockupH   = 260
+Invoke-Inkscape @((Join-Path $logoDir 'wordmark-dark.svg'), '--export-type=png', "--export-filename=$lockupPng", '-h', "$lockupH")
+$lockup = New-Object System.Drawing.Bitmap($lockupPng)
+
+$tagline   = 'Fast, modern PostgreSQL client for Windows & macOS'
+$tagFont   = New-Object System.Drawing.Font('Segoe UI', 40, [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Pixel)
+$tagBrush  = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(255, 0xAA, 0xB2, 0xC0))
+$tagFormat = New-Object System.Drawing.StringFormat
+$tagFormat.Alignment = [System.Drawing.StringAlignment]::Center
+$tagGap  = 90.0   # lockup bottom -> tagline top
+$tagRectH = 70.0
+
+# The lockup + tagline are centred as one block, top-to-bottom, so a size
+# tweak to either never has to be paired with a hand-recomputed Y.
+$blockH  = $lockup.Height + $tagGap + $tagRectH
+$lockupX = [int](($cardW - $lockup.Width) / 2)
+$lockupY = [int](($cardH - $blockH) / 2)
+$g.DrawImage($lockup, $lockupX, $lockupY, $lockup.Width, $lockup.Height)
+$tagRect = New-Object System.Drawing.RectangleF(0, ($lockupY + $lockup.Height + $tagGap), $cardW, $tagRectH)
+$g.DrawString($tagline, $tagFont, $tagBrush, $tagRect, $tagFormat)
+
+$lockup.Dispose(); $tagFont.Dispose(); $tagBrush.Dispose(); $tagFormat.Dispose(); $g.Dispose()
 $card.Save((Join-Path $logoDir 'social-preview.png'), [System.Drawing.Imaging.ImageFormat]::Png)
 $card.Dispose()
 Write-Host "wrote design/masters/logo/social-preview.png (1280x640)"

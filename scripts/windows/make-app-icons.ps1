@@ -6,17 +6,18 @@
 # scale variants), always from a LARGER master, never upscaling.
 #
 #   INPUT  design/masters/icon/icon-{16,24,32,48,256,1024}.png   square full-bleed tiles
-#          design/masters/window/window-{light,dark}-256.png     transparent line art
+#          design/masters/window/window-{light,dark}-256.png     the same plated mark, twice
 #
-#   OUTPUT PgNimbus.App/Assets/app.ico                exe + MSI icon (multi-size)
-#          PgNimbus.App/Assets/icon-256-light.png     light-theme window icon (transparent)
-#          PgNimbus.App/Assets/icon-256-dark.png      dark-theme  window icon (transparent)
+#   OUTPUT PgNimbus.App/Assets/app.ico                    exe + MSI icon (multi-size)
+#          PgNimbus.App/Assets/window-icon-{light,dark}.ico   window icon, same mark both themes
 #          PgNimbus.App/Assets/Msix/{Square44x44Logo,Square150x150Logo,StoreLogo}
 #              .scale-{100,125,150,200,400}.png           MSIX plated tiles, one file per DPI
 #          PgNimbus.App/Assets/Msix/Square44x44Logo
 #              .targetsize-{16,24,32,48,256}_altform-{unplated,lightunplated}.png
-#              transparent taskbar/Alt+Tab/Start icon — without these, Windows adds
-#              its own backplate around the plated logo on those surfaces
+#              the plated mark again (2026-08) — Windows still backplates an
+#              "unplated" tile on top, so this is a plate inside a plate,
+#              accepted deliberately for one mark everywhere over a special
+#              transparent-only cut for just this Store/taskbar surface
 #
 # Windows-only (uses System.Drawing/GDI+). Run after the designer updates the
 # masters:  pwsh scripts/windows/make-app-icons.ps1
@@ -56,9 +57,11 @@ function Get-Tile([int]$size, [int]$fromSize) {
     return $bmp
 }
 
-# Alpha-preserving downscale of a transparent master (unlike Get-Tile, which
-# only ever reads opaque full-bleed icon masters). Used for the unplated MSIX
-# taskbar/Alt+Tab icons, sourced from the transparent window-icon masters.
+# Alpha-preserving downscale (unlike Get-Tile, which reads the icon masters,
+# whose corners are always opaque-adjacent transparency at most). Used for the
+# window-icon .ico files and the MSIX "unplated" tiles, both sourced from the
+# window/ masters — which still carry transparent corners outside the plate's
+# circle even though the plate itself is no longer stripped out.
 function Get-TransparentTile([string]$masterPath, [int]$size) {
     $src = New-Object System.Drawing.Bitmap($masterPath)
     if ($src.Width -eq $size -and $src.Height -eq $size) { return $src }
@@ -114,15 +117,19 @@ function Get-BmpEntryBytes([System.Drawing.Bitmap]$bmp) {
 
 New-Item -ItemType Directory -Force -Path $msixDir | Out-Null
 
-# --- per-theme window icons: a real multi-size .ico (16/24/32/48/256, all
+# --- window icons: a real multi-size .ico (16/24/32/48/256, all
 #     PNG-compressed entries — Windows Vista+ decodes PNG at any .ico size,
-#     so this needs no BMP fallback like app.ico's legacy sizes do) built
-#     from the transparent 256px line art. A flat single-size PNG here (the
-#     previous approach) leaves Avalonia's Win32 WM_SETICON call with only
-#     one oversized image to downscale, which Windows silently fails to
-#     apply to the title bar/taskbar on some Windows 11 builds — see
-#     ThemedWindowChrome's SendMessage(WM_SETICON) workaround, which needs
-#     these multi-size .ico files to pick a correctly-sized HICON from.
+#     so this needs no BMP fallback like app.ico's legacy sizes do) built from
+#     the 256px window master. window-icon-light.ico and window-icon-dark.ico
+#     are byte-for-byte the same artwork now (2026-08 — both masters are the
+#     one plated mark), kept as two files only because ThemedWindowChrome
+#     still picks between two names by theme; a flat single-size PNG here (the
+#     original approach, predating even the theme split) leaves Avalonia's
+#     Win32 WM_SETICON call with only one oversized image to downscale, which
+#     Windows silently fails to apply to the title bar/taskbar on some Windows
+#     11 builds — see ThemedWindowChrome's SendMessage(WM_SETICON) workaround,
+#     which needs these multi-size .ico files to pick a correctly-sized HICON
+#     from.
 $windowIconSizes = 16, 24, 32, 48, 256
 foreach ($pair in @(
         @{ Src = 'window-light-256.png'; Dst = 'window-icon-light.ico' },
@@ -212,10 +219,12 @@ foreach ($logo in @(
     Write-Host "wrote PgNimbus.App\Assets\Msix\$($logo.Name).scale-{100,125,150,200,400}.png"
 }
 
-# --- MSIX unplated Square44x44Logo: transparent taskbar/Alt+Tab/Start icon.
-#     Dark-theme (altform-unplated) reuses the light-line window-dark master;
-#     light-theme (altform-lightunplated) reuses the dark-line window-light
-#     master — both already transparent line art, no new design work needed.
+# --- MSIX "unplated" Square44x44Logo: the taskbar/Alt+Tab/Start altform
+#     Windows expects to carry no background of its own, since it adds one.
+#     Both window/ masters are the plated mark now (2026-08), so these two
+#     files come out identical and so does the tile Windows renders — a plate
+#     inside Windows' own backplate, chosen deliberately (one mark everywhere)
+#     over keeping a transparent-only cut that only this Store surface used.
 $unplatedSizes = 16, 24, 32, 48, 256
 foreach ($pair in @(
         @{ Src = Join-Path $winDir 'window-dark-256.png';  Suffix = 'altform-unplated' },
