@@ -96,12 +96,19 @@ disappears on a dark taskbar.
 | `icon-24.png` | 24² | `logo.svg` | `app.ico` 24 |
 | `icon-16.png` | 16² | `logo.svg` | `app.ico` 16, macOS 16 |
 
-### `window/` — in-app title-bar icons (**transparent** line art)
+### `window/` — in-app title-bar icons (plated, byte-identical pair)
+
+Both files are the same render of `logo.svg` at 256px (2026-08) — before that
+each was a separate transparent line-art cut, one palette-inverted for the
+light-surface variant, on the theory that the plate had to go for the glyph to
+sit flush against the taskbar/Start. That gave up the one-mark-everywhere rule
+every other master follows for no real gain, so now it's one mark rendered
+twice.
 
 | File | Size | Feeds |
 |---|---|---|
-| `window-light-256.png` | 256² | `Assets/window-icon-light.ico` (light theme) |
-| `window-dark-256.png` | 256² | `Assets/window-icon-dark.ico` (dark theme) |
+| `window-light-256.png` | 256² | `Assets/window-icon-light.ico`, MSIX `altform-lightunplated` |
+| `window-dark-256.png` | 256² | `Assets/window-icon-dark.ico`, MSIX `altform-unplated` |
 
 ### `logo/` — website / marketing (**transparent**, except the social card)
 
@@ -118,22 +125,29 @@ mark**; only the type changes colour, because "pgNimbus" set in ink is
 unreadable on a dark README. That is also why there is one `logo.png` and not a
 light/dark pair — the plate carries the mark's own contrast.
 
-The social card is the bare mark on a `.paper` background. It is the mark
-rather than the lockup because link unfurlers crop this aggressively and to
-wildly different aspect ratios: a square survives that, a 3.7:1 lockup gets its
-ends eaten. It is opaque because a transparent card renders white in some
-clients and black in others.
+The social card carries the "pgNimbus" wordmark plus the one-line tagline on a
+dark navy (`.ink`) background — the layout the raster-era mark used, rebuilt
+onto the vector mark by reusing the generated `wordmark-dark.svg` at a larger
+size, with the tagline drawn under it. A bare-mark version (the mark alone,
+sized off the card's height) shipped briefly, on the theory that link
+unfurlers crop this aggressively to wildly different aspect ratios and a
+square mark survives that better than a 3.7:1 lockup; in practice GitHub
+renders the card uncropped at its native 2:1, so that traded away a legible
+product name and tagline for a benefit that mostly didn't apply. It is opaque
+because a transparent card renders white in some clients and black in others.
 
 > Superseded/old concepts live in `design/archive/`.
 
 ### `design/store/` — Microsoft Partner Center listing images (**generated**)
 
 Not a source — **generated** by `scripts/windows/make-store-logos.ps1` from
-`icon/icon-1024.png` and checked in so a Partner Center re-upload is a
-copy-paste, not a script run someone forgot about. Regenerate and commit
-whenever `icon-1024.png` changes: `BoxArt-1x1-2160x2160.png`,
-`AppTileIcon-1x1-300x300.png`, `Square-1x1-{150,71}x{150,71}.png`,
-`Poster-9x16-1440x2160.png` — see Part 3.
+`icon/icon-1024.png` (the square tiles) and `logo/wordmark-dark.svg` (the
+poster) and checked in so a Partner Center re-upload is a copy-paste, not a
+script run someone forgot about. Regenerate and commit whenever those change:
+`BoxArt-1x1-2160x2160.png`, `AppTileIcon-1x1-300x300.png`,
+`Square-1x1-{150,71}x{150,71}.png`, `Poster-9x16-1440x2160.png` — see Part 3.
+The poster carries the same wordmark-plus-tagline layout as
+`logo/social-preview.png`, not the bare tile — see that section above.
 
 ---
 
@@ -144,23 +158,27 @@ MSIX manifest / CI reference them unchanged.
 
 | File | Size(s) | Bg | Consumed by |
 |---|---|---|---|
-| `app.ico` | 16,24,32,48,64,128,256 | solid tile | exe icon (`ApplicationIcon` in csproj) + MSI (`Product.wxs` → `ARPPRODUCTICON`, shortcut) + runtime window icon, title bar + taskbar (`ThemedWindowChrome.cs`) |
-| `window-icon-light.ico` | 16,24,32,48,256 | transparent | **nothing right now** — was the light-theme window icon until 2026-07, superseded by the plated `app.ico` (title bar/taskbar/Alt+Tab share one `WM_SETICON` slot, and theme-swapped line art was unreadable on the dark taskbar in light theme); still generated |
-| `window-icon-dark.ico` | 16,24,32,48,256 | transparent | **nothing right now** — same as above (was the dark-theme window icon) |
+| `app.ico` | 16,24,32,48,64,128,256 | solid tile | exe icon (`ApplicationIcon` in csproj) + MSI (`Product.wxs` → `ARPPRODUCTICON`, shortcut) only — **not** the runtime window icon, see the next row |
+| `window-icon-light.ico` | 16,24,32,48,256 | solid tile | what `ThemedWindowChrome.Attach` actually sets at runtime: the small/big taskbar `WM_SETICON` HICONs when the app is in light theme |
+| `window-icon-dark.ico` | 16,24,32,48,256 | solid tile | same, dark theme — **and** unconditionally `Window.Icon` regardless of theme (a pre-existing quirk in `ThemedWindowChrome.cs` that stopped visibly mattering once both `.ico` files became byte-identical, 2026-08) |
 | `Msix/Square44x44Logo.scale-{100,125,150,200,400}.png` | 44,55,66,88,176 | solid tile | MSIX small tile (`Package.appxmanifest`) |
 | `Msix/Square150x150Logo.scale-{100,125,150,200,400}.png` | 150,188,225,300,600 | solid tile | MSIX medium tile |
 | `Msix/StoreLogo.scale-{100,125,150,200,400}.png` | 50,63,75,100,200 | solid tile | MSIX `Properties/Logo` |
-| `Msix/Square44x44Logo.targetsize-{16,24,32,48,256}_altform-unplated.png` | 16,24,32,48,256 | transparent | taskbar/Alt+Tab/Start/install-dialog icon on dark surfaces |
-| `Msix/Square44x44Logo.targetsize-{16,24,32,48,256}_altform-lightunplated.png` | 16,24,32,48,256 | transparent | same, on light surfaces |
+| `Msix/Square44x44Logo.targetsize-{16,24,32,48,256}_altform-unplated.png` | 16,24,32,48,256 | solid tile (2026-08, was transparent) | taskbar/Alt+Tab/Start/install-dialog icon on dark surfaces — Windows still backplates this "unplated" slot, so it's a plate inside a plate here, accepted for one mark everywhere |
+| `Msix/Square44x44Logo.targetsize-{16,24,32,48,256}_altform-lightunplated.png` | 16,24,32,48,256 | solid tile (2026-08, was transparent) | same, on light surfaces |
 | `PostgreSql.xshd` | — | n/a | *(not a logo — syntax highlighting; listed to avoid confusion)* |
 
-The scale/targetsize sets replaced a single flat file per logo (fixed
-2026-07): without a qualifier-matched size, Windows shrinks the one file it
-has and adds its own backplate around it — visible as an undersized icon on
-a big dark square in the taskbar, Start, and the sideload "Install app?"
-dialog. The qualified filenames alone don't do anything, though —
-`scripts/windows/build-msix.ps1` has to compile them into `resources.pri`
-via `makepri` at pack time for Windows to actually resolve them (see Part 3).
+Before 2026-07 `window-icon-{light,dark}.ico` were plain flat single-size
+PNGs-in-an-ico; the multi-size rebuild was to fix Avalonia's Win32
+`WM_SETICON` call silently failing to apply an oversized single image to the
+title bar/taskbar on some Windows 11 builds. The scale/targetsize MSIX sets
+replaced a single flat file per logo the same release: without a
+qualifier-matched size, Windows shrinks the one file it has and adds its own
+backplate around it — visible as an undersized icon on a big dark square in
+the taskbar, Start, and the sideload "Install app?" dialog. The qualified
+filenames alone don't do anything, though — `scripts/windows/build-msix.ps1`
+has to compile them into `resources.pri` via `makepri` at pack time for
+Windows to actually resolve them (see Part 3).
 
 ---
 
@@ -172,17 +190,16 @@ into the path data and writes `design/logo.svg`.
 
 ### `scripts/design/make-masters.ps1` (Windows, Inkscape + System.Drawing)
 Run after any change to `design/logo.svg`. Renders every file under
-`design/masters/`. The palette is inverted in exactly one place — the
-light-surface window master — and that inversion lives here rather than in a
-second committed SVG:
+`design/masters/`. There is no palette inversion anywhere in this script any
+more (there used to be, for the light-surface window master) — every render
+is the same one colourway:
 
 ```
 logo.svg ─── render at 16/24/32/48/256/1024 ──────────► masters/icon/icon-*.png
 logo.svg ─── render at 1024 ──────────────────────────► masters/logo/logo.png
-logo.svg ─── invert palette, strip <circle r="512"> ─► masters/window/window-light-256.png
-logo.svg ─── strip <circle r="512"> ─────────────────► masters/window/window-dark-256.png
+logo.svg ─── render at 256, written out twice ────────► masters/window/window-{light,dark}-256.png
 logo.svg ─── + "pgNimbus" text, baked to paths ──────► masters/logo/wordmark-*.{svg,png}
-logo.png ─── centred on a 1280×640 paper card ───────► masters/logo/social-preview.png
+wordmark-dark.svg ─ rasterised + tagline, on a 1280×640 ink card ─► masters/logo/social-preview.png
 ```
 
 ### `scripts/windows/make-app-icons.ps1` (Windows, System.Drawing)
@@ -219,14 +236,17 @@ icon/icon-1024.png ── sips → 64,128,512,1024 ┼─► app.iconset → app
 (iconset needs 16,32,64,128,256,512 at @1× and @2× → 16…1024 px.)
 
 ### `scripts/windows/make-store-logos.ps1` (manual, upload-only)
-Partner Center **Store-listing** images from `icon/icon-1024.png` (square):
-BoxArt 2160, tile 300/150/71, 9:16 poster 1440×2160. Writes to `design/store/`
-by default (checked into the repo — re-run and commit after `icon-1024.png`
-changes) or `-OutDir` for a one-off elsewhere. Not wired into any build;
-uploading the files to Partner Center is still a manual step.
+Partner Center **Store-listing** images: BoxArt 2160, tile 300/150/71 from
+`icon/icon-1024.png` (square), and the 9:16 poster 1440×2160 from
+`logo/wordmark-dark.svg` (rasterised via Inkscape, same as the social card) plus
+a drawn tagline. Writes to `design/store/` by default (checked into the repo —
+re-run and commit after `icon-1024.png` or `wordmark-dark.svg` changes) or
+`-OutDir` for a one-off elsewhere. Not wired into any build; uploading the
+files to Partner Center is still a manual step.
 
-> Nothing consumes `masters/logo/*` via a script — the README references those
-> files directly by path.
+> The README references `masters/logo/*` directly by path; the one script
+> consumer is `make-store-logos.ps1`, which rasterises `wordmark-dark.svg` for
+> the Store poster (see Part 3).
 
 ---
 

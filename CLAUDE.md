@@ -860,16 +860,19 @@ nothing can regenerate. Layout:
   through one `WM_SETICON` slot, so it cannot be theme-aware, and unplated
   dark line art vanishes on a dark taskbar. The corners outside the plate are
   transparent, which is fine — what must not be transparent is the middle.
-- `design/masters/window/window-{light,dark}-256.png` — the same mark with the
-  full-bleed plate stripped (`make-masters.ps1` matches the `<circle>` on
-  `r="512"`), leaving two-tone line art on transparency. The name is the theme
-  the icon is used *on*, not the colour it is drawn in, so `window-light` is
-  cut from an inverted copy — **the only place the palette is flipped**, and it
-  earns it: with no plate left, a pale field carrying dark line art sits on a
-  light Start menu as almost nothing. `make-masters.ps1` does that swap itself,
-  at the point of use. These feed `window-icon-{light,dark}.ico`, which
-  `ThemedWindowChrome` picks between by theme at runtime, and the MSIX unplated
-  altforms.
+- `design/masters/window/window-{light,dark}-256.png` — the same plated mark,
+  written out twice (2026-08). It used to be theme-tinted transparent line art
+  (the full-bleed plate stripped, `window-light` cut from a palette-inverted
+  copy so dark lines would still read on a light Start menu with no plate
+  behind them) — two more hand-maintained colourways of a mark that, every
+  other place it ships, needs exactly one because the plate already carries
+  its own contrast. `make-masters.ps1` now just renders `design/logo.svg` at
+  256px for both file names. These feed `window-icon-{light,dark}.ico` (now
+  byte-identical, kept as two files only because `ThemedWindowChrome` still
+  picks between two names by theme) and the MSIX "unplated" altforms — which,
+  since Windows backplates an unplated tile on its own, now show a plate
+  inside a plate there. Accepted deliberately: one mark everywhere beat a
+  transparent-only cut that only that one Store surface used.
 - **`design/logo.svg` — the committed vector master**, generated from the
   `.af` and never hand-edited (`af-to-svg.py` overwrites it). `viewBox="0 0
   1024 1024"`; three modules (`#base`, `#mascot-elephant`, `#brand-broom`) as
@@ -903,10 +906,15 @@ nothing can regenerate. Layout:
   (the mark at 1024 on transparency, one file), `wordmark-{light,dark}.{svg,png}` (the
   mark at 240px beside "pgNimbus" in Segoe UI Bold, text baked to paths by
   Inkscape so it renders on a machine without that font), and
-  `social-preview.png` (1280×640, the bare mark on a solid paper card — the
-  mark rather than the lockup because unfurlers crop this to wildly different
-  aspect ratios and a square survives that; solid because a transparent card
-  renders white in some clients and black in others). The wordmark is the one
+  `social-preview.png` (1280×640, the dark navy card the raster-era mark
+  used: the "pgNimbus" wordmark plus the one-line tagline, not the bare mark
+  — a bare-mark version shipped briefly in 2026-08 on the theory that link
+  unfurlers crop this to wildly different aspect ratios and a square survives
+  that better than a lockup, but GitHub itself renders the card uncropped at
+  its native 2:1, so the crop-safety argument gave up a legible product name
+  for a benefit that mostly wasn't there; reuses the generated
+  `wordmark-dark.svg` rather than re-deriving the mark+text lockup a third
+  time). The wordmark is the one
   asset that still ships in two colourways, and only because of the type:
   "pgNimbus" set in ink is unreadable on a dark README. Both lockups carry the
   same mark. All of these come out of `make-masters.ps1`.
@@ -921,31 +929,36 @@ Everything in `PgNimbus.App/Assets/` is **generated** by
 regenerate via that script, don't hand-edit. Output filenames are stable so
 csproj / WiX / MSIX manifest reference them unchanged:
 
-- `app.ico` — 16–256px multi-size tile; the exe (`ApplicationIcon`), the MSI
-  icon, *and* the runtime window icon. Windows don't set `Icon` in XAML;
-  each window calls `ThemedWindowChrome.Attach(this)` in its constructor,
-  which sets `Window.Icon` to this plated tile *and* sends `WM_SETICON`
-  directly via P/Invoke (built from the same `.ico` bytes) because
+- `app.ico` — 16–256px multi-size tile; the exe (`ApplicationIcon`) and the
+  MSI icon only. Windows don't set `Icon` in XAML; the runtime window icon is
+  the next bullet, not this file.
+- `window-icon-light.ico` / `window-icon-dark.ico` — what
+  `ThemedWindowChrome.Attach(this)` (called from every window's constructor)
+  actually sets at runtime: `Window.Icon` (always from the `-dark` file — a
+  quirk that stopped mattering once both files became the same plated mark,
+  2026-08) and, via a direct `WM_SETICON` P/Invoke built from the same `.ico`
+  bytes, the small/big taskbar HICONs (still picked by theme, `-light` or
+  `-dark`, though now visually identical too — that branch is harmless,
+  redundant, and hasn't been collapsed). The P/Invoke exists because
   Avalonia's `Window.Icon` reliably updates the title bar but not the
   Windows 11 taskbar button (a known Avalonia/Win32 gap). One plated icon
-  for every surface on purpose: the title bar, taskbar and Alt+Tab all read
-  the same `WM_SETICON` slots (they cannot diverge), Avalonia re-asserts
-  `Window.Icon` on its own schedule (racing any divergent native icon back),
-  and theme-swapped transparent line art was unreadable on the
-  (almost always dark) taskbar whenever the app ran the light theme.
-- `window-icon-light.ico` / `window-icon-dark.ico` — theme-tinted
-  transparent line-art icons (16/24/32/48/256, all PNG entries) built from
-  the `window/` masters. **Not consumed in-app anymore** — superseded by the
-  plated `app.ico` window icon above (2026-07); still generated in case
-  transparent themed line art is wanted later.
+  everywhere is the same reasoning `app.ico` already applied: the title bar,
+  taskbar and Alt+Tab all read the same `WM_SETICON` slots (they cannot
+  diverge), and theme-swapped transparent line art was unreadable on the
+  (almost always dark) taskbar whenever the app ran the light theme — which
+  is also why these two files are no longer transparent line art themselves
+  (see `design/masters/window/` above).
 - `Assets/Msix/*` — MSIX tiles, packaging-time-only. Each of
   `Square44x44Logo`/`Square150x150Logo`/`StoreLogo` ships as
   `.scale-{100,125,150,200,400}.png` (not one flat file — Windows will
   backplate/blur a lone unqualified asset when a surface asks for a size it
   doesn't have), plus `Square44x44Logo.targetsize-{16,24,32,48,256}_altform-
-  {unplated,lightunplated}.png` (transparent, reused from the `window/`
-  masters) for the taskbar/Start/Alt+Tab/install-dialog surfaces that expect
-  an unplated icon. `build-msix.ps1` compiles these into `resources.pri` via
+  {unplated,lightunplated}.png` (reused from the `window/` masters, which are
+  the plated mark rather than transparent line art as of 2026-08 — see
+  `design/masters/window/` above for why that's a deliberate plate-inside-a-
+  plate on this one surface) for the taskbar/Start/Alt+Tab/install-dialog
+  surfaces that expect an unplated icon. `build-msix.ps1` compiles these into
+  `resources.pri` via
   `makepri` — see "Microsoft Store (MSIX)" below; the qualified filenames do
   nothing on their own without that resource index.
 
