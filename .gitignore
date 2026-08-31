@@ -81,3 +81,6 @@ docs/marketing/
 
 # MkDocs build output (mkdocs.yml site_dir)
 site/
+
+# Affinity's per-document lock file, present while design/logo.af is open
+*.af~lock~

@@ -1,8 +1,15 @@
 # pgNimbus — logo redraw brief
 
+> **Out of date as of 2026-08.** This brief asks for a folder of hand-drawn
+> PNGs, one per size. That is no longer how the logo works: there is now a
+> single vector master, and every PNG in the repo is generated from it. The
+> sections below still describe the sizes and surfaces correctly, and the two
+> golden rules still hold, so they are worth reading. What has changed is the
+> deliverable. See **How delivery works** immediately below, and
+> [`LOGO-ASSETS.md`](LOGO-ASSETS.md) for the full pipeline.
+
 Hi, and thanks for taking this on! This is everything you need to redraw the
-pgNimbus logo and icon set. It's written so you can work from **this page
-alone** — no need to read any code.
+pgNimbus logo and icon set.
 
 **What pgNimbus is:** a fast, modern, open-source PostgreSQL desktop app for
 Windows and macOS. The current mascot is *an elephant riding a broom* (Postgres
@@ -13,20 +20,40 @@ keep it recognizable at tiny sizes.
 
 ## How delivery works (please read first)
 
-Every file you produce has a **fixed name and a fixed folder**. To hand off,
-just **replace the placeholder file of the same name** in the `design/masters/`
-folders below. The build tooling picks them up automatically — nothing else
-needs to change. Please keep the exact filenames, sizes, and PNG format.
+**One file: `design/logo.af`.** Draw the mark there, at 1024 × 1024, and
+everything else in the repo is regenerated from it by script. Do not hand-paint
+anything under `design/masters/` — those files are output, and the next person
+to run the pipeline will overwrite them.
 
-The only exceptions: the `wordmark-*` files and `social-preview.png` are
-**new** — there's no placeholder to replace, just add them to
-`design/masters/logo/` under exactly those names.
+Three things about the `.af` are load-bearing, because a script reads them:
+
+1. **The layer names.** They become the ids in the generated SVG, and other
+   tools find geometry by id — the transparent title-bar icon is built by
+   stripping the layer named for the full-bleed plate, and the sibling project
+   kubeNimbus lifts the broom group out by name. Rename a layer and something
+   downstream stops finding it. The current tree is listed in Part 0 of
+   [`LOGO-ASSETS.md`](LOGO-ASSETS.md).
+2. **Each module carries its own light halo.** Hiding the plate has to leave a
+   whole elephant and a whole broom, not fragments, because the mark gets used
+   without its plate.
+3. **Nothing changes colour where it crosses the plate's rim.** The broom
+   handle and the tip of the trunk run out past the light field onto the dark
+   plate and stay dark the whole way; the halo underneath is what keeps them
+   readable there.
+
+If you would rather work in another tool, hand back an SVG at
+`viewBox="0 0 1024 1024"` with the same group structure and no transforms,
+masks, or `<use>` — that is the shape the pipeline expects.
 
 ```
+design/logo.af        ← you draw here
+  ↓ generated
+design/logo.svg + logo-dark.svg
+  ↓ generated
 design/masters/
-├── icon/      ← the app icon (a colored square "tile") — hand-drawn per size
+├── icon/      ← the app icon tile, six sizes
 ├── window/    ← the in-app title-bar icon (transparent line art)
-└── logo/      ← website/README logo + wordmark (transparent + a share card)
+└── logo/      ← website/README logo + wordmark + share card
 ```
 
 ---
