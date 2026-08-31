@@ -1,7 +1,9 @@
-# Assembles the shipped app icons from the prepared design masters. The
-# masters are hand-drawn per size (see design/DESIGNER-BRIEF.md) — this script
-# does NOT resample the small, legibility-critical sizes: it copies them
-# verbatim and only downscales the larger, non-critical sizes from a master.
+# Assembles the shipped app icons from the prepared design masters. Every
+# master is rendered from design/logo.svg by scripts/design/make-masters.ps1,
+# so run that first if the mark changed. This script does NOT resample a size
+# a master already exists at: it copies that master verbatim and only
+# downscales the sizes with no master of their own (64, 128, and the MSIX
+# scale variants), always from a LARGER master, never upscaling.
 #
 #   INPUT  design/masters/icon/icon-{16,24,32,48,256,1024}.png   square full-bleed tiles
 #          design/masters/window/window-{light,dark}-256.png     transparent line art

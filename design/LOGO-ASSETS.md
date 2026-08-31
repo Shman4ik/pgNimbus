@@ -4,13 +4,30 @@ The technical source of truth for every logo/icon: where each file lives, what
 generates it, and where it's consumed. **For the designer hand-off, use
 [`DESIGNER-BRIEF.md`](DESIGNER-BRIEF.md)** — this file is the plumbing behind it.
 
-Pipeline model (changed 2026-07): the design masters are **hand-drawn per
-size**, and the scripts **copy/assemble** them — they no longer downscale one
-mid-size master into every tiny icon (which produced muddy 16–32px icons).
-Legibility-critical small sizes are copied verbatim; only large, non-critical
-sizes are derived.
+Pipeline model (changed 2026-08): **one drawing feeds everything.** The mark is
+drawn once in `design/logo.af`, exported to `design/logo.svg` +
+`logo-dark.svg`, and every raster in the repo is rendered from those. Nothing
+under `design/masters/` or `PgNimbus.App/Assets/` is hand-edited any more.
 
-- **Part 1 — Sources** (`design/masters/`, what the designer edits)
+```
+design/logo.af                     Affinity, the editable master
+  → scripts/design/dump-af.js      geometry out to JSON (run via the Affinity MCP)
+  → scripts/design/af-to-svg.py    design/logo.svg + logo-dark.svg
+  → scripts/design/make-masters.ps1        design/masters/**
+  → scripts/windows/make-app-icons.ps1     PgNimbus.App/Assets/**
+  → scripts/windows/make-store-logos.ps1   design/store/**
+```
+
+What this replaced: from 2026-07 to 2026-08 the masters were **hand-drawn per
+size**, because the mark was then a traced raster whose downscale turned to mud
+below 32px. The modular vector master rasterises cleanly, so the six icon tiles
+became six renders of one file rather than six drawings that drift apart. If a
+size ever does stop reading, the fix is a simplified **mark** fed into
+`make-masters.ps1` (a `logo-small.svg`, the way kubeNimbus does it), never a
+hand-painted PNG that nothing can regenerate.
+
+- **Part 0 — The vector master** (`design/logo.af`, `design/logo*.svg`)
+- **Part 1 — Sources** (`design/masters/`, now all generated)
 - **Part 2 — Shipped outputs** (`PgNimbus.App/Assets/`, generated)
 - **Part 3 — The scripts** (source → output mapping)
 - **Part 4 — GitHub surfaces**
@@ -18,21 +35,66 @@ sizes are derived.
 
 ---
 
+## Part 0 — The vector master
+
+`design/logo.af` is the only file anyone *draws* in. Its layer tree mirrors the
+generated SVG one-for-one, and that correspondence is what lets
+`af-to-svg.py` be a transcription rather than an interpretation:
+
+```
+base                 base-plate                 ink disc, r 512, full bleed
+                     base-field                 paper disc, r 360, concentric
+mascot-elephant      elephant-clearance/        one paper halo per ink path
+                     elephant-head              \
+                     elephant-haunch             |  ink line art,
+                     elephant-foreleg            |  21 units wide
+                     elephant-eye               /
+brand-broom          broom-clearance/           bristles + handle + ferrule halos
+                     broom-bristles             \
+                     broom-handle                |  ink, the kubeNimbus broom verbatim
+                     broom-ferrule              /
+                     broom-grip-slot            paper, cut out of the handle
+```
+
+The numbers that are not free choices:
+
+| | |
+|---|---|
+| plate / field | 512 / 360, both centred on (512, 512) — ratio 0.703125, measured off the raster-era master (plate 460.68, field 323.84 at 1024) |
+| ink line width | 21 units, held by every elephant stroke |
+| clearance halo | 39.451, the width kubeNimbus's broom already used |
+| broom offset | (−1, −10) applied to every broom part, so the module stays rigid |
+
+**Rename a node and you change the generated SVG's ids**, which are
+load-bearing: `make-masters.ps1` finds the plate by `r="512"` to build the
+transparent glyph, and kubeNimbus lifts `#brand-broom` by id. The elephant's
+four ink paths deliberately carry *different* offsets — they are independent
+strokes with gaps between them, not a jointed assembly — so moving the mascot
+means moving eight objects (four ink, four halo), not one group.
+
+---
+
 ## Part 1 — Sources: `design/masters/`
 
-These are the **only** files anyone edits. Everything shipped is regenerated
-from them by the scripts in Part 3.
+**Generated, not edited** (changed 2026-08 — see the pipeline at the top).
+`scripts/design/make-masters.ps1` rewrites every file here from
+`design/logo.svg`; a hand edit survives exactly until the next person runs it.
 
-### `icon/` — app-icon tiles (square, **solid full-bleed**, no rounding)
+### `icon/` — app-icon tiles (plated, transparent only outside the disc)
 
-| File | Size | Hand-drawn? | Feeds |
+Every size is a render of `logo.svg`. They all keep the plate because they feed
+`app.ico`, which Windows hands the taskbar, Alt+Tab and the title bar through
+one `WM_SETICON` slot — it cannot be theme-aware, and unplated dark line art
+disappears on a dark taskbar.
+
+| File | Size | Source | Feeds |
 |---|---|---|---|
-| `icon-1024.png` | 1024² | ⭐ master | macOS 512/1024, Store listing images |
-| `icon-256.png` | 256² | yes (full detail) | `app.ico` 64/128/256, MSIX 150, macOS 64–256 |
-| `icon-48.png` | 48² | yes | `app.ico` 48, MSIX 44 & 50 |
-| `icon-32.png` | 32² | yes (**simplified**) | `app.ico` 32, macOS 32 |
-| `icon-24.png` | 24² | yes (**simplified**) | `app.ico` 24 |
-| `icon-16.png` | 16² | yes (**simplified**) | `app.ico` 16, macOS 16 |
+| `icon-1024.png` | 1024² | `logo.svg` | macOS 512/1024, Store listing images |
+| `icon-256.png` | 256² | `logo.svg` | `app.ico` 64/128/256, MSIX 150, macOS 64–256 |
+| `icon-48.png` | 48² | `logo.svg` | `app.ico` 48, MSIX 44 & 50 |
+| `icon-32.png` | 32² | `logo.svg` | `app.ico` 32, macOS 32 |
+| `icon-24.png` | 24² | `logo.svg` | `app.ico` 24 |
+| `icon-16.png` | 16² | `logo.svg` | `app.ico` 16, macOS 16 |
 
 ### `window/` — in-app title-bar icons (**transparent** line art)
 
@@ -45,10 +107,14 @@ from them by the scripts in Part 3.
 
 | File | Size | Feeds / used by |
 |---|---|---|
-| `logo.svg` | vector | archival master |
 | `logo-light.png` / `logo-dark.png` | 1024² | README header `<picture>` (light/dark) |
-| `wordmark-{light,dark}.svg` (+ `.png` @2×) | ≈3.5:1 | *planned* README wordmark (see Part 4) |
-| `social-preview.png` | 1280×640 | *planned* GitHub repo social preview (has a bg) |
+| `wordmark-{light,dark}.svg` (+ `.png` @2×) | ≈3.7:1 | README wordmark (see Part 4) |
+| `social-preview.png` | 1280×640 | GitHub repo social preview (has a bg) |
+
+The wordmark is the mark at 240px beside "pgNimbus" in Segoe UI Bold, with the
+text baked to paths by Inkscape so the committed SVG renders identically on a
+machine without that font — GitHub's, for one. The social card is deliberately
+opaque: a transparent one renders white in some clients and black in others.
 
 > Superseded/old concepts live in `design/archive/`.
 
@@ -92,9 +158,28 @@ via `makepri` at pack time for Windows to actually resolve them (see Part 3).
 
 ## Part 3 — The scripts (source → output)
 
+### `scripts/design/af-to-svg.py` (any OS, stdlib only)
+Run after `scripts/design/dump-af.js` in Affinity. Bakes every node transform
+into the path data and writes `design/logo.svg` + `logo-dark.svg`; the dark
+mark is the same bytes with `.ink` and `.paper` exchanged.
+
+### `scripts/design/make-masters.ps1` (Windows, Inkscape + System.Drawing)
+Run after any change to `design/logo*.svg`. Renders every file under
+`design/masters/`:
+
+```
+logo.svg ─── render at 16/24/32/48/256/1024 ──────────► masters/icon/icon-*.png
+logo.svg ─── render at 1024 ──────────────────────────► masters/logo/logo-light.png
+logo-dark.svg ─ render at 1024 ───────────────────────► masters/logo/logo-dark.png
+logo-dark.svg ─ strip <circle r="512"> ──────────────► masters/window/window-light-256.png
+logo.svg ────── strip <circle r="512"> ──────────────► masters/window/window-dark-256.png
+logo*.svg ───── + "pgNimbus" text, baked to paths ───► masters/logo/wordmark-*.{svg,png}
+wordmark-dark.png ─ centred on a 1280×640 ink card ──► masters/logo/social-preview.png
+```
+
 ### `scripts/windows/make-app-icons.ps1` (Windows, System.Drawing)
-Run after the designer updates `masters/`. Copies exact-size masters verbatim,
-derives only larger sizes:
+Run after `make-masters.ps1`. Copies exact-size masters verbatim, derives only
+the sizes with no master of their own:
 
 ```
 window/window-light-256.png ── resize to 16/24/32/48/256 ──► Assets/window-icon-light.ico
@@ -193,8 +278,12 @@ pages. Where we stand:
   *down*, never up.
 - ✅ **Unplated + lightunplated variants** — shipped; these are what keep the
   taskbar/Start icon from getting Windows's auto-backplate.
-- ✅ **Per-size hand-drawn small masters** — matches Microsoft's "maintain
-  legibility at small sizes" guidance.
+- ⚠️ **Small-size legibility.** Every tile is now a render of one vector
+  master rather than a per-size drawing, so 16px is the whole mark shrunk to
+  16px — a dark disc with a smudge in it. Microsoft's "maintain legibility at
+  small sizes" guidance is not met at 16 and 24. The fix, when it matters, is a
+  simplified **mark** (`logo-small.svg` / `logo-micro.svg`, as in kubeNimbus)
+  fed into `make-masters.ps1`, not a hand-painted PNG.
 - ⚠️ **Partial targetsize coverage.** Microsoft's *required* AppList list is
   14 sizes: 16, 20, 24, 30, 32, 36, 40, 48, 60, 64, 72, 80, 96, 256 — we ship
   5 (16/24/32/48/256). The gap bites at fractional display scales: at 125% /

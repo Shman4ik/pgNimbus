@@ -828,21 +828,44 @@ Full reference: [`design/LOGO-ASSETS.md`](design/LOGO-ASSETS.md); the
 designer hand-off brief is [`design/DESIGNER-BRIEF.md`](design/DESIGNER-BRIEF.md).
 **Keep both current** when assets or the pipeline change.
 
-Sources live in `design/masters/` and are **hand-drawn per size** — the
-scripts *copy/assemble* them, they do **not** downscale one master into every
-tiny icon (that produced muddy 16–32px icons; fixed 2026-07). Layout:
+**One drawing feeds everything** (2026-08). `design/logo.af` is where the mark
+is drawn; `design/logo.svg` + `logo-dark.svg` are generated from it; every
+raster below is generated from those. Nothing in `design/masters/**` or
+`PgNimbus.App/Assets/**` is hand-edited any more — regenerate, don't retouch.
+The chain, each step a script:
 
-- `design/masters/icon/icon-{16,24,32,48,256,1024}.png` — the app tile.
-  16/24/32/48 are square full-bleed (no transparency — these feed the
-  taskbar/Explorer directly with no OS-drawn plate behind them, so a
-  transparent icon disappears there) and simplified for legibility. 256/1024
-  are a circular navy badge with transparent corners (2026-07) — those only
-  feed contexts that supply their own backdrop (macOS icon mask, Store
-  listing pages), so transparency is safe and reads better at that size.
-- `design/masters/window/window-{light,dark}-256.png` — transparent line-art
-  window icons (currently unused in-app, see Part 2 of LOGO-ASSETS.md).
-- **`design/logo.svg` + `design/logo-dark.svg` — the vector master**, and the
-  one thing on this page that is drawn rather than generated. `viewBox="0 0
+```
+design/logo.af                     Affinity, the editable master
+  → scripts/design/dump-af.js      geometry out to JSON (run via the Affinity MCP)
+  → scripts/design/af-to-svg.py    design/logo.svg + logo-dark.svg
+  → scripts/design/make-masters.ps1        design/masters/**
+  → scripts/windows/make-app-icons.ps1     PgNimbus.App/Assets/**
+  → scripts/windows/make-store-logos.ps1   design/store/**
+```
+
+What this replaced: masters that were **hand-drawn per size**, because the mark
+was a traced raster whose downscale turned to mud below 32px. The modular
+vector master rasterises cleanly, so the six icon tiles are now six renders of
+one file rather than six drawings that drift apart. If a size ever does stop
+reading, the fix is a simplified *mark* fed into `make-masters.ps1` (a
+`logo-small.svg`, the way kubeNimbus does it) — never a hand-painted PNG that
+nothing can regenerate. Layout:
+
+- `design/masters/icon/icon-{16,24,32,48,256,1024}.png` — the app tile, every
+  size rendered from `logo.svg`. All of them keep the plate: these feed
+  `app.ico`, which Windows hands the taskbar, Alt+Tab and the title bar
+  through one `WM_SETICON` slot, so it cannot be theme-aware, and unplated
+  dark line art vanishes on a dark taskbar. The corners outside the plate are
+  transparent, which is fine — what must not be transparent is the middle.
+- `design/masters/window/window-{light,dark}-256.png` — the same mark with the
+  full-bleed plate stripped (`make-masters.ps1` matches the `<circle>` on
+  `r="512"`), leaving two-tone line art on transparency. The name is the theme
+  the icon is used *on*, not the colour it is drawn in, so `window-light` is
+  cut from `logo-dark.svg`. Currently unused in-app, see Part 2 of
+  LOGO-ASSETS.md.
+- **`design/logo.svg` + `design/logo-dark.svg` — the committed vector master**,
+  generated from the `.af` and never hand-edited (`af-to-svg.py` overwrites
+  them). `viewBox="0 0
   1024 1024"`; three modules (`#base`, `#mascot-elephant`, `#brand-broom`) as
   plain `<path>` geometry in the root coordinate system — no `transform`, no
   `mask`, no `<use>`, no CSS variables — which is what makes it survive
@@ -864,11 +887,19 @@ tiny icon (that produced muddy 16–32px icons; fixed 2026-07). Layout:
   path with seven subpaths, in which neither the elephant nor the broom was an
   object: both were white showing through a solid ink disc, so hiding the disc
   left nothing.
-- `design/masters/logo/` — README/website assets: `logo-{light,dark}.png`,
-  `wordmark-{light,dark}.{svg,png}`, `social-preview.png` (1280×640). These are
-  still renders of the raster-era artwork and **do not match the vector master
-  above yet**; generating `design/masters/**` from it is the step that closes
-  that gap, and until it lands the two disagree.
+  **The `.af` mirrors this structure exactly** — same three groups, same
+  clearance subgroups, one node per `<path>` — which is what lets `af-to-svg.py`
+  be a transcription rather than an interpretation. Keep it that way: a node
+  renamed or regrouped in Affinity changes the generated SVG's ids, and those
+  ids are load-bearing (`make-masters.ps1` finds the plate by radius, kubeNimbus
+  lifts `#brand-broom` by id).
+- `design/masters/logo/` — README/website assets: `logo-{light,dark}.png`
+  (the mark at 1024 on transparency), `wordmark-{light,dark}.{svg,png}` (the
+  mark at 240px beside "pgNimbus" in Segoe UI Bold, text baked to paths by
+  Inkscape so it renders on a machine without that font), and
+  `social-preview.png` (1280×640, the wordmark on a solid ink card — solid
+  because a transparent one renders white in some clients and black in
+  others). All five come out of `make-masters.ps1`.
 - `design/store/` — **generated**, not hand-edited: Microsoft Partner Center
   listing images from `icon-1024.png`, via
   `scripts/windows/make-store-logos.ps1`. Checked into git so a Partner
