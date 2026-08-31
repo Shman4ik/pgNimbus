@@ -1,11 +1,10 @@
 # pgNimbus — logo redraw brief
 
-> **Out of date as of 2026-08.** This brief asks for a folder of hand-drawn
-> PNGs, one per size. That is no longer how the logo works: there is now a
-> single vector master, and every PNG in the repo is generated from it. The
-> sections below still describe the sizes and surfaces correctly, and the two
-> golden rules still hold, so they are worth reading. What has changed is the
-> deliverable. See **How delivery works** immediately below, and
+> **Revised 2026-08.** This brief used to ask for a folder of hand-drawn PNGs,
+> one per size. That is no longer how the logo works: there is a single vector
+> master, and every PNG in the repo is generated from it. The sizes and
+> surfaces below are still right, and so are the two golden rules — what
+> changed is the deliverable. See **How delivery works** immediately below, and
 > [`LOGO-ASSETS.md`](LOGO-ASSETS.md) for the full pipeline.
 
 Hi, and thanks for taking this on! This is everything you need to redraw the
@@ -48,7 +47,7 @@ masks, or `<use>` — that is the shape the pipeline expects.
 ```
 design/logo.af        ← you draw here
   ↓ generated
-design/logo.svg + logo-dark.svg
+design/logo.svg
   ↓ generated
 design/masters/
 ├── icon/      ← the app icon tile, six sizes
@@ -67,32 +66,27 @@ design/masters/
 | **App icon "tile"** (`icon/`) | **Solid color, fills the whole square** | The app's icon on the desktop, taskbar, Start menu, Dock, and in the app stores. It's a little colored square. |
 | **Window / line-art** (`window/`, `logo/`) | **Transparent** | Drawn *on top of* the app's UI and the website. No background — it must look right on both white and near-black. |
 
-**2. Small icons must be redrawn simpler, not just shrunk.**
-The whole reason for this brief: today the small icons are just the big one
-shrunk down, so they look muddy and unreadable. At **16 / 24 / 32 px** please
-**simplify** — thicker lines, fewer details, drop anything that turns to mush.
-The 16px version can be almost a symbol. Think "readable first, pretty second."
+**2. Small icons need a simpler drawing, not just a smaller one.**
+The small icons are the big mark shrunk down, so 16 and 24 px look muddy. The
+fix is a second *vector* of the mark drawn for those sizes — thicker strokes,
+fewer details, anything that turns to mush left out. The 16 px version can be
+almost a symbol. Think "readable first, pretty second."
 
 ---
 
 ## Checklist — what to deliver
 
 ### 📦 App icon tile — `design/masters/icon/`
-Square, **solid-color background filling the entire canvas** (no rounded corners
-— the OS rounds them itself; no transparency). Same artwork, but **hand-tuned
-per size**: full detail on the big ones, simplified on the small ones.
+**Generated, not delivered.** All six sizes (1024, 256, 48, 32, 24, 16) are
+rendered from the vector master, along with the in-between sizes (64, 128, 44,
+50, 150). You do not draw any of them.
 
-| File | Size (px) | Detail level |
-|---|---|---|
-| `icon-1024.png` | 1024 × 1024 | ⭐ Master — full detail. Everything large derives from this. |
-| `icon-256.png` | 256 × 256 | Full detail. |
-| `icon-48.png` | 48 × 48 | Slightly simplified. |
-| `icon-32.png` | 32 × 32 | **Simplified.** |
-| `icon-24.png` | 24 × 24 | **Simplified.** |
-| `icon-16.png` | 16 × 16 | **Most simplified** — legibility over detail. |
-
-*(We generate the in-between sizes — 64, 128, 44, 50, 150 — automatically from
-these, so you don't need to draw them.)*
+What still needs your attention is rule 2 above: the mark has to survive being
+shrunk to 16 px. It currently does not — at that size it is a dark disc with a
+smudge in it. If you want to fix that, the answer is a **second, simpler
+drawing of the mark** (fewer strokes, heavier weight, no fine detail), which we
+wire in as the source for the 16 and 24 px renders. It is not a hand-painted
+PNG: it is another vector, drawn once.
 
 ### 🪟 Window icon — `design/masters/window/`
 The little icon in the app's own title bar and taskbar. **Transparent line
@@ -116,12 +110,10 @@ Shown at the top of the project's web page (GitHub). **Transparent.**
 
 | File | Size / format | Notes |
 |---|---|---|
-| `logo.svg` | vector | ⭐ Master vector of the full logo. |
-| `logo-light.png` | 1024 × 1024 | Transparent, dark ink (for light backgrounds). |
-| `logo-dark.png` | 1024 × 1024 | Transparent, light ink (for dark backgrounds). |
-| `wordmark-light.svg` + `wordmark-light.png` | vector + PNG ~880 wide | **Horizontal lockup**: the mark **+ the word “pgNimbus”**. Dark ink. See note below. |
-| `wordmark-dark.svg` + `wordmark-dark.png` | vector + PNG ~880 wide | Same, light ink. |
-| `social-preview.png` | **1280 × 640** | A share/link-preview **card** — mark + “pgNimbus” + short tagline, **on a solid branded background** (this one is NOT transparent). Keep it under ~1 MB. |
+| `logo.png` | 1024 × 1024 | Transparent. One file, no light/dark pair: the plate gives the mark its own contrast, so it reads on both. |
+| `wordmark-light.svg` + `wordmark-light.png` | vector + PNG @2× | **Horizontal lockup**: the mark **+ the word “pgNimbus”**, dark type. Generated. |
+| `wordmark-dark.svg` + `wordmark-dark.png` | vector + PNG @2× | Same mark, light type. Two versions exist only because the *type* has to change colour; the mark does not. |
+| `social-preview.png` | **1280 × 640** | Share/link-preview card: the bare mark on a solid background (this one is NOT transparent). Generated. |
 
 **Wordmark note (important for how it looks on phones):** please deliver it as
 **SVG** — that stays razor-sharp on any screen, phone or 4K monitor. Keep the

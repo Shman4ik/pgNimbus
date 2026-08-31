@@ -1,10 +1,17 @@
 #!/usr/bin/env python3
-"""Writes design/logo.svg and design/logo-dark.svg from a design/logo.af dump.
+"""Writes design/logo.svg from a design/logo.af dump.
 
-The .af is where the mark is drawn; these two SVGs are the committed master that
-every other asset is generated from (see design/LOGO-ASSETS.md). Keeping the
-bridge in a script rather than in someone's export settings is what stops the
-two from drifting.
+The .af is where the mark is drawn; this SVG is the committed master that every
+other asset is generated from (see design/LOGO-ASSETS.md). Keeping the bridge in
+a script rather than in someone's export settings is what stops the two from
+drifting.
+
+There is deliberately no dark variant. The mark is plated - a dark disc holding
+a light field - so it carries its own contrast and reads on white, on a light
+UI, on GitHub dark and on black alike. A second colourway would be a second
+thing to keep in step for no gain. The one surface that genuinely needs the
+palette inverted is the unplated Windows title-bar icon, and make-masters.ps1
+does that swap itself, at the point of use.
 
     (1) open design/logo.af in Affinity
     (2) run scripts/design/dump-af.js through the Affinity MCP
@@ -18,12 +25,11 @@ file liftable into a sibling mark (kubeNimbus shares the broom):
   * the two base circles stay <circle>, because make-masters.ps1 builds the
     transparent glyph by stripping the full-bleed one, matched on r="512";
   * colour is the two classes .ink / .paper, with the value repeated as a plain
-    attribute so tools that ignore <style> still render;
-  * logo-dark.svg is the same bytes with the two values exchanged.
+    attribute so tools that ignore <style> still render, and so a host page can
+    retheme the mark without touching the geometry.
 """
 import json
 import os
-import re
 import sys
 
 INK = '#242B36'
@@ -66,8 +72,9 @@ HEADER = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role
        Colour is two classes with the value repeated as a plain
        attribute, so tools that ignore <style> still render; CSS
        wins where it is honoured, so a host page can retheme the
-       mark without touching the geometry. logo-dark.svg is the
-       same bytes with the two values exchanged.
+       mark without touching the geometry. There is no dark
+       colourway: the plate carries the mark's own contrast, so
+       this one file reads on light and dark alike.
        ============================================================ -->
 
   <style>
@@ -155,14 +162,11 @@ def main():
         raise SystemExit('dump not found: %s\n'
                          'Run scripts/design/dump-af.js in Affinity first.' % src)
     svg = build(json.load(open(src, encoding='utf-8')))
-    swapped = re.sub('%s|%s' % (INK, PAPER),
-                     lambda m: PAPER if m.group(0) == INK else INK, svg)
 
-    for name, text in (('logo.svg', svg), ('logo-dark.svg', swapped)):
-        dst = os.path.join(REPO, 'design', name)
-        with open(dst, 'w', encoding='utf-8', newline='\n') as fh:
-            fh.write(text)
-        print('wrote design/%s (%d bytes)' % (name, len(text)))
+    dst = os.path.join(REPO, 'design', 'logo.svg')
+    with open(dst, 'w', encoding='utf-8', newline='\n') as fh:
+        fh.write(svg)
+    print('wrote design/logo.svg (%d bytes)' % len(svg))
 
 
 if __name__ == '__main__':
