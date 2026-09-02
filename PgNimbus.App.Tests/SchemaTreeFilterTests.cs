@@ -127,6 +127,136 @@ public class SchemaTreeFilterTests
     }
 
     /// <summary>
+    /// The reveal has to be undoable. A one-character query matches a table in
+    /// nearly every schema, so the filter used to leave the whole tree open —
+    /// clearing the box put the rows back but never the expansion, which read as
+    /// the sidebar having "remembered" a state nobody asked for.
+    /// </summary>
+    [Test]
+    public async Task Clearing_the_filter_closes_the_schemas_it_opened()
+    {
+        var tree = CollapsedTree(schemas: ["public", "billing"]);
+        var billing = SchemaNamed(tree, "billing");
+
+        tree.FilterText = "invoices";
+        await Assert.That(await Until(() => billing.IsExpanded)).IsTrue();
+
+        tree.ClearFilterCommand.Execute(null);
+
+        await Assert.That(billing.IsExpanded).IsFalse();
+    }
+
+    /// <summary>A schema the user opened is theirs, and the filter never closes it.</summary>
+    [Test]
+    public async Task Clearing_the_filter_leaves_a_hand_opened_schema_open()
+    {
+        var tree = CollapsedTree(schemas: ["public", "billing"]);
+        var billing = SchemaNamed(tree, "billing");
+        billing.IsExpanded = true;
+
+        tree.FilterText = "invoices";
+        await Assert.That(await Until(() => billing.IsFilteredIn)).IsTrue();
+
+        tree.ClearFilterCommand.Execute(null);
+
+        await Assert.That(billing.IsExpanded).IsTrue();
+    }
+
+    /// <summary>Typing on past the match closes the reveal there and then, not at clear time.</summary>
+    [Test]
+    public async Task A_schema_that_stops_matching_closes_again()
+    {
+        var tree = CollapsedTree(schemas: ["billing"]);
+        var billing = SchemaNamed(tree, "billing");
+
+        tree.FilterText = "invoices";
+        await Assert.That(await Until(() => billing.IsExpanded)).IsTrue();
+
+        tree.FilterText = "invoices_that_do_not_exist";
+
+        await Assert.That(await Until(() => !billing.IsExpanded)).IsTrue();
+    }
+
+    /// <summary>
+    /// A refresh rebuilds every node, and used to collapse everything the user had
+    /// open with it. The expansions are remembered by name and re-applied as the
+    /// new nodes arrive.
+    /// </summary>
+    [Test]
+    public async Task A_hand_opened_schema_is_reopened_when_the_tree_is_rebuilt()
+    {
+        var tree = CollapsedTree(schemas: ["public", "billing"]);
+        SchemaNamed(tree, "billing").IsExpanded = true;
+
+        // Stand in for RefreshAsync's rebuild: same names, brand-new nodes.
+        tree.Schemas.Clear();
+        tree.Schemas.Add(new SchemaNode(Service, "public", () => false, () => false));
+        tree.Schemas.Add(new SchemaNode(Service, "billing", () => false, () => false));
+
+        await Assert.That(SchemaNamed(tree, "billing").IsExpanded).IsTrue();
+        await Assert.That(SchemaNamed(tree, "public").IsExpanded).IsFalse();
+    }
+
+    /// <summary>
+    /// Roles and Extensions aren't schemas, and were exempt from the filter
+    /// entirely — so a query that found nothing left "Roles" alone on screen,
+    /// reading as a hit.
+    /// </summary>
+    [Test]
+    public async Task Root_groups_are_filtered_by_their_own_name()
+    {
+        var tree = CollapsedTree(schemas: ["billing"]);
+        var roles = tree.Schemas.OfType<RolesGroupNode>().FirstOrDefault();
+        if (roles is null)
+        {
+            roles = new RolesGroupNode(Service);
+            tree.Schemas.Add(roles);
+        }
+
+        tree.FilterText = "invoices";
+        await Assert.That(await Until(() => !roles.IsFilteredIn)).IsTrue();
+
+        tree.FilterText = "rol";
+        await Assert.That(await Until(() => roles.IsFilteredIn)).IsTrue();
+    }
+
+    /// <summary>An empty tree with no explanation reads as a broken sidebar.</summary>
+    [Test]
+    public async Task Nothing_matching_is_an_explicit_state()
+    {
+        var tree = CollapsedTree(schemas: ["public", "billing"]);
+
+        tree.FilterText = "nothing_by_that_name";
+        await Assert.That(await Until(() => tree.ShowNoMatches)).IsTrue();
+
+        tree.FilterText = "invoices";
+        await Assert.That(await Until(() => !tree.ShowNoMatches)).IsTrue();
+    }
+
+    /// <summary>Collapse all closes the tree however deep it was opened; expand all opens the schemas.</summary>
+    [Test]
+    public async Task Collapse_all_and_expand_all_walk_the_tree()
+    {
+        var tree = CollapsedTree(schemas: ["public", "billing"]);
+        var billing = SchemaNamed(tree, "billing");
+        var table = new TableNode(Service, "billing", "invoices", RelationKind.Table, null, () => false, () => false)
+        {
+            IsExpanded = true,
+        };
+        billing.SeedChildren([table]);
+        billing.IsExpanded = true;
+
+        tree.CollapseAllCommand.Execute(null);
+
+        await Assert.That(billing.IsExpanded).IsFalse();
+        await Assert.That(table.IsExpanded).IsFalse();
+
+        tree.ExpandAllCommand.Execute(null);
+
+        await Assert.That(tree.Schemas.OfType<SchemaNode>().All(s => s.IsExpanded)).IsTrue();
+    }
+
+    /// <summary>
     /// A catalog fetch that fails (no connection, a permissions error) must not
     /// take the filter down with it — it falls back to what the tree has loaded.
     /// </summary>

@@ -22,6 +22,28 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
     // a stale filter over the tree.
     private int _filterGeneration;
 
+    // Schemas the filter expanded by itself to put a deep match on screen.
+    // Tracked so the reveal can be undone: a one-character query matches a table
+    // in nearly every schema, and without this the whole tree was left open —
+    // clearing the box put the rows back but never the expansion, so the sidebar
+    // looked like it had "remembered" a state nobody asked for.
+    private readonly HashSet<SchemaNode> _autoExpanded = [];
+
+    // Node paths ("billing", "billing.invoices") the user opened by hand, as
+    // opposed to the ones above. Kept because every node is rebuilt from scratch
+    // on a refresh, which would otherwise collapse everything they had open.
+    private readonly HashSet<string> _userExpanded = new(StringComparer.Ordinal);
+
+    // Set while this view model is the one assigning IsExpanded (a filter reveal,
+    // a post-refresh restore), so those don't get recorded as the user's own.
+    private bool _restoringExpansion;
+
+    // True between the first synchronous filter pass and the catalog snapshot
+    // arriving. Until then "nothing matched" isn't a fact yet — the schemas
+    // nobody expanded haven't been consulted — so the empty-state cue is held
+    // back rather than flashing on the first keystroke against a remote server.
+    private bool _awaitingCatalog;
+
     [ObservableProperty]
     private bool _isLoading;
 
@@ -51,6 +73,23 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
 
     [ObservableProperty]
     private string? _errorMessage;
+
+    /// <summary>
+    /// True when a filter is typed and nothing in the tree survives it. The
+    /// panel is then genuinely empty, which on its own reads as a broken
+    /// sidebar, so the view shows an explicit cue instead. (It used to read as
+    /// "found: Roles" — the root groups were exempt from the filter entirely.)
+    /// </summary>
+    public bool ShowNoMatches =>
+        !_awaitingCatalog && FilterText.Trim().Length > 0 && !Schemas.Any(n => n.IsFilteredIn);
+
+    public string NoMatchesMessage => $"Nothing matches “{FilterText.Trim()}”";
+
+    private void NotifyFilterOutcomeChanged()
+    {
+        OnPropertyChanged(nameof(ShowNoMatches));
+        OnPropertyChanged(nameof(NoMatchesMessage));
+    }
 
     /// <summary>Case-insensitive substring typed into the sidebar filter box. Filters schemas and their tables live, expanded or not.</summary>
     [ObservableProperty]
@@ -181,24 +220,96 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
 
     private void OnSchemasChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        foreach (var schema in e.NewItems?.OfType<SchemaNode>() ?? [])
+        foreach (var node in e.NewItems?.OfType<SchemaTreeNode>() ?? [])
         {
-            // Not unsubscribed on removal: the handler is reached only through the
-            // discarded node's own collection, so it dies with the node (it keeps
+            // Not unsubscribed on removal: both handlers are reached only through
+            // the discarded node's own events, so they die with the node (it keeps
             // this view model alive, never the other way round).
-            schema.Children.CollectionChanged += (_, _) => OnSchemaChildrenChanged(schema);
+            TrackExpansion(node, node.Name);
+
+            if (node is SchemaNode schema)
+            {
+                schema.Children.CollectionChanged += (_, args) => OnSchemaChildrenChanged(schema, args);
+            }
+
+            // A refresh rebuilds every node, so this is also where a tree the user
+            // had opened comes back: reopening the schema loads its tables, and the
+            // tables they had open are reopened as those arrive.
+            if (_userExpanded.Contains(node.Name))
+            {
+                SetExpanded(node, true);
+            }
         }
     }
 
-    private void OnSchemaChildrenChanged(SchemaNode schema)
+    /// <summary>
+    /// Records a node's hand-made expansions under <paramref name="path"/>, so a
+    /// refresh (which rebuilds every node) can reopen what the user had open.
+    /// Expansions this view model makes itself are skipped — a filter reveal is
+    /// undone when the filter goes away, and must not outlive it as if the user
+    /// had opened the schema.
+    /// </summary>
+    private void TrackExpansion(SchemaTreeNode node, string path)
     {
+        node.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName != nameof(SchemaTreeNode.IsExpanded) || _restoringExpansion)
+            {
+                return;
+            }
+
+            if (node.IsExpanded)
+            {
+                _userExpanded.Add(path);
+            }
+            else
+            {
+                _userExpanded.Remove(path);
+            }
+        };
+    }
+
+    private void OnSchemaChildrenChanged(SchemaNode schema, NotifyCollectionChangedEventArgs e)
+    {
+        foreach (var table in e.NewItems?.OfType<TableNode>() ?? [])
+        {
+            var path = $"{schema.Name}.{table.Name}";
+            TrackExpansion(table, path);
+
+            // The children of a schema reopened after a refresh land here; a table
+            // the user had open is reopened with them.
+            if (_userExpanded.Contains(path))
+            {
+                SetExpanded(table, true);
+            }
+        }
+
         var query = FilterText.Trim();
         if (query.Length == 0)
         {
             return;
         }
 
-        FilterChildren(schema, query, Contains(schema.Name, query));
+        // The pass that expanded this schema judged it by the catalog snapshot,
+        // because it had no children yet. Now it has: re-answer the whole question
+        // for it, or a schema whose rows arrive after the next keystroke stays
+        // hidden with its match inside it.
+        ApplyReveal(schema, ApplySchemaFilter(schema, query, CachedRelations));
+        NotifyFilterOutcomeChanged();
+    }
+
+    /// <summary>Assigns <see cref="SchemaTreeNode.IsExpanded"/> without it counting as the user's own doing.</summary>
+    private void SetExpanded(SchemaTreeNode node, bool expanded)
+    {
+        _restoringExpansion = true;
+        try
+        {
+            node.IsExpanded = expanded;
+        }
+        finally
+        {
+            _restoringExpansion = false;
+        }
     }
 
     partial void OnShowSizesChanged(bool value)
@@ -246,6 +357,46 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
     [RelayCommand]
     private void ClearFilter() => FilterText = string.Empty;
 
+    /// <summary>
+    /// Opens every schema. Deliberately one level deep: a schema loads its tables
+    /// on first expand, so this already costs a catalog query per schema — walking
+    /// on into each table's own sub-groups would multiply that by every table in
+    /// the database.
+    /// </summary>
+    [RelayCommand]
+    private void ExpandAll()
+    {
+        // Not routed through SetExpanded: this is the user opening them, so it is
+        // recorded as such and survives a refresh.
+        foreach (var schema in Schemas.OfType<SchemaNode>())
+        {
+            schema.IsExpanded = true;
+        }
+    }
+
+    /// <summary>Closes the whole tree, however deep it was opened.</summary>
+    [RelayCommand]
+    private void CollapseAll()
+    {
+        foreach (var node in Schemas)
+        {
+            Collapse(node);
+        }
+
+        // Each collapse above already dropped its own path from _userExpanded;
+        // the filter's reveals have to be forgotten here.
+        _autoExpanded.Clear();
+    }
+
+    private static void Collapse(SchemaTreeNode node)
+    {
+        node.IsExpanded = false;
+        foreach (var child in node.Children)
+        {
+            Collapse(child);
+        }
+    }
+
     partial void OnFilterTextChanged(string value) => _ = ApplyFilterAsync();
 
     /// <summary>
@@ -257,19 +408,31 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
     private async Task ApplyFilterAsync()
     {
         var generation = ++_filterGeneration;
+        var query = FilterText.Trim();
+        _awaitingCatalog = query.Length > 0 && _relationsFetch is not { IsCompletedSuccessfully: true };
         ApplyFilter();
 
-        if (FilterText.Trim().Length == 0)
+        if (query.Length == 0)
         {
             return;
         }
 
         var relations = await GetRelationsAsync();
 
-        // No catalog (offline, or a failed query), or the user typed on while it
-        // was in flight: the synchronous pass above already stands.
-        if (relations is null || generation != _filterGeneration)
+        // The user typed on while the catalog was in flight: that later pass owns
+        // the tree now, including the empty-state cue.
+        if (generation != _filterGeneration)
         {
+            return;
+        }
+
+        _awaitingCatalog = false;
+
+        // No catalog (offline, or a failed query): the synchronous pass above
+        // already stands, and its verdict is now final.
+        if (relations is null)
+        {
+            NotifyFilterOutcomeChanged();
             return;
         }
 
@@ -294,7 +457,10 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
         }
     }
 
-    private void ApplyFilter() => ApplyFilter(_relationsFetch is { IsCompletedSuccessfully: true } fetch ? fetch.Result : null);
+    private IReadOnlyList<RelationInfo>? CachedRelations =>
+        _relationsFetch is { IsCompletedSuccessfully: true } fetch ? fetch.Result : null;
+
+    private void ApplyFilter() => ApplyFilter(CachedRelations);
 
     /// <summary>
     /// Walks the tree and toggles <see cref="SchemaTreeNode.IsFilteredIn"/> so a schema shows when its own name
@@ -323,17 +489,29 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
                 }
             }
 
+            // Put back what the filter opened. Only the schemas it opened itself
+            // are closed again, so a schema the user had open (before or during
+            // the filter) stays open.
+            foreach (var schema in _autoExpanded)
+            {
+                SetExpanded(schema, false);
+            }
+
+            _autoExpanded.Clear();
+            NotifyFilterOutcomeChanged();
             return;
         }
 
         foreach (var node in Schemas)
         {
             // The root-level Extensions/Roles groups aren't schemas and their
-            // children aren't tables, so a schema/table-name filter has nothing
-            // to say about them - keep them in rather than hiding them outright.
+            // children aren't tables, so the only thing a schema/table filter can
+            // say about them is whether the group's own name matches. Exempting
+            // them outright is what made a filter that found nothing read as
+            // "found: Roles" - the one row left on screen.
             if (node is not SchemaNode schema)
             {
-                node.IsFilteredIn = true;
+                node.IsFilteredIn = Contains(node.Name, query);
                 foreach (var child in node.Children)
                 {
                     child.IsFilteredIn = true;
@@ -342,22 +520,54 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
                 continue;
             }
 
-            var schemaMatches = Contains(schema.Name, query);
-            var anyTableMatches = FilterChildren(schema, query, schemaMatches);
+            ApplyReveal(schema, ApplySchemaFilter(schema, query, relations));
+        }
 
-            // An unexpanded schema has no children to match, so the catalog
-            // snapshot answers for it. Expanding it below loads them, and the
-            // load re-runs FilterChildren so only the matches end up visible.
-            var catalogMatches = !schema.IsLoaded && relations is not null &&
-                relations.Any(r => r.Schema == schema.Name && Contains(r.Name, query));
+        NotifyFilterOutcomeChanged();
+    }
 
-            schema.IsFilteredIn = schemaMatches || anyTableMatches || catalogMatches;
+    /// <summary>
+    /// Answers the filter for one schema and its loaded children, and reports
+    /// whether it survives only because of something inside it (so the caller
+    /// knows to open it).
+    /// </summary>
+    private static bool ApplySchemaFilter(SchemaNode schema, string query, IReadOnlyList<RelationInfo>? relations)
+    {
+        var schemaMatches = Contains(schema.Name, query);
+        var anyTableMatches = FilterChildren(schema, query, schemaMatches);
 
-            // Reveal deep matches: if the schema only survives because a table inside it matched, expand it.
-            if ((anyTableMatches || catalogMatches) && !schemaMatches)
+        // A schema with no tables on the tree yet - never opened, still loading,
+        // or its load failed - can only be answered by the catalog snapshot.
+        // Asking IsLoaded instead is what made a schema vanish mid-load: expanding
+        // sets that flag at once, so the snapshot standing in for the rows was
+        // dropped a moment before the rows themselves arrived.
+        var catalogMatches = !schema.Children.OfType<TableNode>().Any() && relations is not null &&
+            relations.Any(r => r.Schema == schema.Name && Contains(r.Name, query));
+
+        schema.IsFilteredIn = schemaMatches || anyTableMatches || catalogMatches;
+        return (anyTableMatches || catalogMatches) && !schemaMatches;
+    }
+
+    /// <summary>
+    /// Opens a schema whose only match is inside it, and closes it again when it
+    /// stops matching — but only if the filter is what opened it in the first
+    /// place. A schema the user opened by hand is theirs to close.
+    /// </summary>
+    private void ApplyReveal(SchemaNode schema, bool reveals)
+    {
+        if (reveals)
+        {
+            if (!schema.IsExpanded)
             {
-                schema.IsExpanded = true;
+                _autoExpanded.Add(schema);
+                SetExpanded(schema, true);
             }
+        }
+        else if (_autoExpanded.Remove(schema))
+        {
+            // It stopped matching as the query grew: close it now rather than
+            // waiting for the box to be cleared.
+            SetExpanded(schema, false);
         }
     }
 
@@ -396,6 +606,11 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
         // The catalog snapshot the filter matches against is as stale as the tree
         // it came with; drop it so the next filter keystroke re-fetches.
         _relationsFetch = null;
+
+        // The nodes below are replaced wholesale, so the filter's own reveals go
+        // with them. What the user opened is remembered by path instead, and comes
+        // back as the new nodes are added (OnSchemasChanged).
+        _autoExpanded.Clear();
 
         try
         {
