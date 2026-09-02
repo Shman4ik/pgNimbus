@@ -229,13 +229,36 @@
                     cmd:CommandTip.Command="RefreshSchema">
                 <PathIcon Data="{StaticResource RefreshIconGeometry}" Width="14" Height="14" />
             </Button>
-            <!-- Advanced-objects toggle: off = schemas/tables + Roles only; on adds
-                 Functions/Sequences/Types groups, per-table Indexes/Triggers, and Extensions -->
-            <ToggleButton DockPanel.Dock="Right" Classes="chip" Padding="5" Margin="6,0,0,0"
-                          VerticalAlignment="Center" IsChecked="{Binding ShowAdvancedObjects}"
-                          ToolTip.Tip="Also show functions, sequences, types, indexes, triggers and extensions">
+            <!-- One menu instead of a row of chips: the tree's options are all
+                 secondary next to the filter box itself (UI design rule 1), and
+                 four icons left the box too narrow to read what was typed in it. -->
+            <Button DockPanel.Dock="Right" Classes="chip" Padding="5" Margin="6,0,0,0"
+                    VerticalAlignment="Center" ToolTip.Tip="Tree options">
                 <PathIcon Data="{StaticResource TuneIconGeometry}" Width="14" Height="14" />
-            </ToggleButton>
+                <Button.Flyout>
+                    <MenuFlyout Placement="BottomEdgeAlignedRight">
+                        <!-- Off = schemas/tables + Roles only; on adds Functions/Sequences/Types
+                             groups, per-table Indexes/Triggers, and Extensions -->
+                        <MenuItem Header="Show advanced objects"
+                                  ToggleType="CheckBox"
+                                  IsChecked="{Binding ShowAdvancedObjects, Mode=TwoWay}"
+                                  ToolTip.Tip="Also show functions, sequences, types, indexes, triggers and extensions" />
+                        <Separator />
+                        <!-- Expand is one level deep on purpose: a schema fetches its
+                             tables on first open, so this already costs a query per schema. -->
+                        <MenuItem Header="Expand all schemas" Command="{Binding ExpandAllCommand}">
+                            <MenuItem.Icon>
+                                <PathIcon Data="{StaticResource UnfoldMoreIconGeometry}" Width="14" Height="14" />
+                            </MenuItem.Icon>
+                        </MenuItem>
+                        <MenuItem Header="Collapse all" Command="{Binding CollapseAllCommand}">
+                            <MenuItem.Icon>
+                                <PathIcon Data="{StaticResource UnfoldLessIconGeometry}" Width="14" Height="14" />
+                            </MenuItem.Icon>
+                        </MenuItem>
+                    </MenuFlyout>
+                </Button.Flyout>
+            </Button>
             <!-- Type-to-filter box: case-insensitive substring over schema and table
                  names, including tables in schemas that were never expanded (the
                  filter matches the same whole-catalog list the command palette does) -->
@@ -293,6 +316,17 @@
                              IsIndeterminate="True"
                              Foreground="{DynamicResource AppAccentBrush}"
                              IsVisible="{Binding ShowRefreshLoadingBar}" />
+                <!-- Nothing survived the filter. An empty panel on its own reads as a
+                     broken sidebar (and, while the root groups were exempt from the
+                     filter, as "found: Roles" - the one row left standing). -->
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Top"
+                            Margin="24,36,24,0" Spacing="8" IsHitTestVisible="False"
+                            IsVisible="{Binding ShowNoMatches}">
+                    <PathIcon Data="{StaticResource MagnifyIconGeometry}" Width="20" Height="20"
+                              Opacity="0.3" HorizontalAlignment="Center" />
+                    <TextBlock Text="{Binding NoMatchesMessage}" FontSize="12" Opacity="0.6"
+                               HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" />
+                </StackPanel>
                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
                             Spacing="10" IsHitTestVisible="False"
                             IsVisible="{Binding ShowInitialLoadingCue}">

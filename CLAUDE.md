@@ -370,9 +370,47 @@ Three rules about it:
    `RefreshSchemaAsync`. Two things make it hold together: the children that
    arrive from that triggered load default to visible, so the VM watches each
    schema's `Children` collection and re-vets them against the live filter
-   (otherwise the schema flashes open with every table it owns); and a
-   *loaded* schema is still judged by its own children rather than the
-   snapshot, which is the fresher of the two.
+   (otherwise the schema flashes open with every table it owns); and a schema
+   that *has tables on the tree* is judged by them rather than by the snapshot,
+   which is the fresher of the two. That test is deliberately "has `TableNode`
+   children", not `IsLoaded`: expanding sets `IsLoaded` at once, so keying on it
+   dropped the snapshot a moment before the rows it was standing in for arrived,
+   and the schema vanished mid-load.
+
+   **What the filter does is undone when the filter goes away** (2026-09). The
+   reveal above expands a schema, and nothing used to close it again: a
+   one-character query matches a table in nearly every schema, so the box left
+   the whole tree open, and clearing it put the rows back but never the
+   expansion — which read as the sidebar having "remembered" a state nobody
+   asked for. `_autoExpanded` records the schemas the *filter* opened, and they
+   are closed when they stop matching or when the box is cleared; a schema the
+   *user* opened is never touched. The two are told apart by `SetExpanded`,
+   which assigns `IsExpanded` with tracking suppressed — everything else that
+   sets it is the user, and is recorded by path in `_userExpanded`. That set is
+   also what survives a refresh: the tree is rebuilt from scratch there, so the
+   nodes coming back reopen themselves from it (`OnSchemasChanged`), tables
+   included as their schema's load returns.
+
+   **Root groups are filtered by their own name, and no matches is a state of
+   its own** (2026-09). `Roles`/`Extensions` aren't schemas and their children
+   aren't tables, so they used to be exempt from the filter entirely — which
+   left `Roles` alone on screen for a query that found nothing, reading as a
+   hit. They now match on the group name. And an empty panel on its own reads as
+   a broken sidebar, so `ShowNoMatches` drives an explicit cue under the box. It
+   is held back while the catalog snapshot is still in flight (`_awaitingCatalog`):
+   until it lands, the schemas nobody expanded haven't been consulted, and
+   "nothing matched" isn't a fact yet — without that the cue flashed on the
+   first keystroke against a remote server. A *failed* fetch does release it: the
+   loaded tree's verdict is then final.
+
+   **Expand all / collapse all live in the tree-options menu, not on the bar.**
+   Four chips beside the filter box left it too narrow to read what was typed in
+   it, so the advanced-objects toggle joined them under one ☰-style button
+   (`Tree options`): a checkbox for advanced objects, then Expand all schemas /
+   Collapse all. Expand is one level deep on purpose — a schema fetches its
+   tables on first open, so it already costs a catalog query per schema, and
+   walking into each table's own sub-groups would multiply that by every table
+   in the database.
 
    **Completion ranks by what can legally be typed at the caret**, and the
    statement-start caret is its own context (2026-08):
