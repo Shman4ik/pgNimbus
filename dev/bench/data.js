@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787763158629,
+  "lastUpdate": 1788361339975,
   "repoUrl": "https://github.com/Shman4ik/pgNimbus",
   "entries": {
     "pgNimbus benchmarks": [
@@ -1719,6 +1719,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "Stream 100000 rows",
             "value": 125.9,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shman4ik@gmail.com",
+            "name": "Shman4ik",
+            "username": "Shman4ik"
+          },
+          "committer": {
+            "email": "shman4ik@gmail.com",
+            "name": "Dmitrii Shmanev",
+            "username": "Shman4ik"
+          },
+          "distinct": true,
+          "id": "f2eb022d14e62759d627904f4f96ce92a4163fdd",
+          "message": "Undo what the sidebar filter expands, and say when nothing matched\n\nThe filter opened a schema to reveal a match inside it and never closed it\nagain. A one-character query matches a table in nearly every schema, so the\nbox left the whole tree open, and clearing it put the rows back but not the\nexpansion — the sidebar looked like it had remembered a state nobody asked\nfor. The schemas the filter opened are now tracked apart from the ones the\nuser opened: the first are closed when they stop matching or when the box is\ncleared, the second are never touched by the filter at all, and are also\nremembered by name so a refresh reopens them instead of collapsing the tree.\n\nRoles and Extensions were exempt from the filter entirely, so a query that\nfound nothing left Roles alone on screen, reading as a hit. They now match on\ntheir own name, and an empty result gets an explicit cue under the box rather\nthan an empty panel — held back until the catalog snapshot lands, since until\nthen the schemas nobody expanded have not been consulted.\n\nFixes a schema vanishing mid-load along the way: the catalog snapshot was\ndropped as soon as IsLoaded flipped, which expanding sets at once, a moment\nbefore the rows it was standing in for arrived.\n\nExpand all / collapse all join the advanced-objects toggle under one tree\noptions button, rather than a fourth chip beside a filter box that was\nalready too narrow to read.\n\nCo-Authored-By: Claude Opus 5 <noreply@anthropic.com>",
+          "timestamp": "2026-09-02T16:51:53+02:00",
+          "tree_id": "d6b11a1388b4b12c85633eba5a580a7049ad4cfa",
+          "url": "https://github.com/Shman4ik/pgNimbus/commit/f2eb022d14e62759d627904f4f96ce92a4163fdd"
+        },
+        "date": 1788361339219,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Startup, launch to first frame (NativeAOT)",
+            "value": 204,
+            "unit": "ms"
+          },
+          {
+            "name": "Memory at first frame (NativeAOT)",
+            "value": 157.5,
+            "unit": "MB"
+          },
+          {
+            "name": "Binary size (NativeAOT)",
+            "value": 43.4,
+            "unit": "MB"
+          },
+          {
+            "name": "Publish size (NativeAOT, shipped files)",
+            "value": 56.7,
+            "unit": "MB"
+          },
+          {
+            "name": "Startup, launch to first frame (JIT)",
+            "value": 1984,
+            "unit": "ms"
+          },
+          {
+            "name": "Connect, cold pool",
+            "value": 160.2,
+            "unit": "ms"
+          },
+          {
+            "name": "Round-trip, SELECT 1 warm",
+            "value": 0.36,
+            "unit": "ms"
+          },
+          {
+            "name": "First row batch of a 100000-row SELECT",
+            "value": 10.9,
+            "unit": "ms"
+          },
+          {
+            "name": "Stream 100000 rows",
+            "value": 140.5,
             "unit": "ms"
           }
         ]
