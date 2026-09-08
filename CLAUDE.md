@@ -1102,13 +1102,36 @@ csproj / WiX / MSIX manifest reference them unchanged:
   do — no client-side syntax check (Postgres is the parser; the cast surfaces a
   precise error). `money` and `uuid` deliberately stay `Text` (they round-trip
   through decimal/Guid). The value shown in the grid must itself be a valid input
-  literal for the cast to accept the round-trip, so `RowIndexConverter` formats
+  literal for the cast to accept the round-trip, so `Converters/CellText` formats
   the CLR types whose `ToString` is useless: `byte[]`→`\x`-hex (capped preview),
   `Array`→Postgres `{…}` literal (`PgValueSyntax.FormatArray`), and
   `BitArray`→bit string (`10110001`, MSB first). Known edge: a `bit(1)` column
   surfaces from Npgsql as `bool` (displays `True`/`False`), so an inline edit of
   it fails loudly at the cast rather than corrupting — the inspector or a `bit(n)`
   column edits cleanly.
+- **A grid cell shows a preview, and a previewed cell never opens the inline
+  editor** (2026-09). `CellText` is the one place a result value becomes text: in
+  full for the cell inspector (`CellText.Full`), and capped at
+  `PreviewLength` (256) characters and folded onto a single line for the grid
+  (`CellText.Preview`, behind `RowIndexConverter`). The cap is what makes a
+  jsonb-heavy table scroll at all: a `DataGrid` cell is a bare `TextBlock` with
+  no wrapping and no trimming, so it shapes every character it is handed — even
+  the ones clipped off the right-hand edge of a 560 px column — and it does that
+  as each row is realized. On `scripts/demo/06_telemetry.sql` (47 columns, jsonb
+  payloads averaging 37 KB and reaching 300 KB) one wheel-scroll's worth of new
+  rows cost ~450 ms of layout, and ~30 ms with the cap; 256 is the smallest value
+  that leaves the floor untouched while staying ~3× what the widest column can
+  actually show. Folding newlines to spaces is the same argument from the other
+  side: a 40-line stack trace made its row 40 lines tall.
+  **The safety half is not optional.** The DataGrid pre-fills its inline editor
+  from the column's own display binding — i.e. from the preview — so a cell
+  showing less than it holds must not be edited inline, or committing an
+  untouched editor would save the preview over the real value.
+  `ResultsGridPanel.OnResultsGridBeginningEdit` asks `CellText.IsShortened` and
+  cancels into the cell inspector instead, exactly as json/jsonb already did
+  (that also closed the pre-existing hole where inline-editing a large `bytea`
+  committed its 24-byte hex preview). Everything else — sorting, copy, export,
+  the commit path itself — reads the raw row values and is untouched by the cap.
 - **A type Npgsql can't materialize must never fail a whole result set.** An
   unmapped composite (or an array/domain/range over one), an extension type with
   no plugin loaded (pgvector, PostGIS), `bit`/`hstore` whose CLR mapping has a

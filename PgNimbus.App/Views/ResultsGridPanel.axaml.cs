@@ -17,6 +17,7 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using AvaloniaEdit.Highlighting;
 using AvaloniaEdit.Highlighting.Xshd;
+using PgNimbus.App.Converters;
 using PgNimbus.App.ViewModels;
 using PgNimbus.Core.Import;
 using PgNimbus.Core.Query;
@@ -660,13 +661,32 @@ public partial class ResultsGridPanel : UserControl
 
     // Cancels the inline edit the DataGrid tries to start after a double-click
     // on a json/jsonb cell - OnResultsGridCellPointerPressed has already opened
-    // the inspector for it.
+    // the inspector for it. Also the guard for the other cells the inline editor
+    // must not have: the ones the grid is only showing part of.
     private void OnResultsGridBeginningEdit(object? sender, DataGridBeginningEditEventArgs e)
     {
         if (_suppressJsonInlineEdit)
         {
             _suppressJsonInlineEdit = false;
             e.Cancel = true;
+            return;
+        }
+
+        // The inline editor is pre-filled from the cell's display text (the
+        // column's own binding is what the DataGrid puts in the TextBox), and
+        // that text is capped and folded onto one line - see CellText. So for a
+        // value the cell is only previewing, committing an untouched editor
+        // would save the preview over the real value. Send those to the cell
+        // inspector, which carries the whole thing, exactly as json already is.
+        if (e.Row.DataContext is object?[] row
+            && e.Column is { } column
+            && column.DisplayIndex < row.Length
+            && CellText.IsShortened(row[column.DisplayIndex]))
+        {
+            e.Cancel = true;
+            // Posted: the grid is mid-edit-begin, and the inspector steals focus.
+            var index = column.DisplayIndex;
+            Dispatcher.UIThread.Post(() => OpenCellInspector(row, index, startEditing: true));
         }
     }
 

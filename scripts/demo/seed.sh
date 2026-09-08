@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Loads the pgNimbus type-rich demo dataset into a PostgreSQL database by
-# running 01..05 in order with psql. Idempotent: each run drops and recreates
+# running 01..06 in order with psql. Idempotent: each run drops and recreates
 # the demo schemas, so it always ends in the same canonical state.
 #
 # Usage:
@@ -22,7 +22,7 @@ run() {
     fi
 }
 
-for f in 01_public 02_commerce 03_iot 04_org 05_analytics; do
+for f in 01_public 02_commerce 03_iot 04_org 05_analytics 06_telemetry; do
     echo ">>> ${f}.sql"
     run "$DIR/${f}.sql"
 done

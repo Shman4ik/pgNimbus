@@ -1,13 +1,13 @@
 # pgNimbus demo data
 
-A type-rich, multi-schema PostgreSQL dataset (~46 MB) for exploring and
+A type-rich, multi-schema PostgreSQL dataset (~63 MB) for exploring and
 demoing pgNimbus. It's built to exercise the PostgreSQL-first parts of the
 UI — the schema tree, relation sizes, the Database Overview panel, and the
 result-grid / cell-inspector rendering of exotic types.
 
 ## What it creates
 
-Five schemas, loaded in order:
+Six schemas, loaded in order:
 
 | # | Schema | Highlights | Types on display |
 |---|--------|-----------|------------------|
@@ -16,6 +16,7 @@ Five schemas, loaded in order:
 | 03 | `iot` | 120 devices + **200 000 readings** in a monthly **RANGE-partitioned** table (8 partitions, ~33 MB — the largest relation). | macaddr, `bit`/`varbit`, polygon, partition tree |
 | 04 | `org` | An **`ltree`** org hierarchy (14 units) + 309 employees. | `int4range` salary bands, self-referencing `manager_id` |
 | 05 | `analytics` | 2 views, 2 materialized views, sql/plpgsql **functions**, then `REFRESH` + `ANALYZE`. | — |
+| 06 | `telemetry` | The heavy one: 600 request-log rows in a **46-column** table whose four jsonb payloads average 37 KB and reach 300 KB, plus 40-line stack traces. Scroll it before shipping a change to the results grid. | wide rows, **very large jsonb**, multi-line text, GIN index |
 
 Required extensions (created by `01_public.sql`): `citext`, `hstore`,
 `pgcrypto`, `pg_trgm`, `ltree`, `vector` (pgvector). The connecting role must
@@ -48,7 +49,7 @@ Omit the argument to fall back to libpq's `PG*` environment variables
 files by hand, in order:
 
 ```bash
-for f in 01_public 02_commerce 03_iot 04_org 05_analytics; do
+for f in 01_public 02_commerce 03_iot 04_org 05_analytics 06_telemetry; do
     psql "$CONN" -v ON_ERROR_STOP=1 -f "$f.sql"
 done
 ```

@@ -4,7 +4,10 @@ using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.LogicalTree;
 using Avalonia.VisualTree;
+using PgNimbus.App.Converters;
+using PgNimbus.App.ViewModels;
 using PgNimbus.Core.Query;
+using PgNimbus.Core.Schema;
 using PgNimbus.Screenshot;
 
 namespace PgNimbus.App.Tests;
@@ -174,6 +177,92 @@ public class ResultsGridTests
             window.Close();
         });
     }
+
+    /// <summary>
+    /// The grid shows long values capped and folded onto one line (that is what
+    /// keeps a jsonb-heavy table scrolling — see <c>CellText</c>), and the inline
+    /// editor is pre-filled from exactly that display text. So a cell showing a
+    /// preview must never open one: committing an untouched editor would write
+    /// the preview over the real value. It opens the cell inspector instead,
+    /// which carries the whole thing.
+    /// </summary>
+    [Test]
+    public async Task A_previewed_cell_opens_the_inspector_instead_of_an_inline_editor()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, vm) = Scenarios.Shell();
+            Ui.Show(window);
+
+            var payload = new string('x', CellText.PreviewLength * 3);
+            SeedEditableCell(vm, payload);
+
+            var grid = FindResultsGrid(window)!;
+            BeginEditingTheCell(grid);
+
+            await Assert.That(vm.CellInspector.IsOpen).IsTrue();
+            // The whole value, not the preview the cell was showing.
+            await Assert.That(vm.CellInspector.DisplayText).IsEqualTo(payload);
+            await Assert.That(EditorTextBox(window)).IsNull();
+
+            window.Close();
+        });
+    }
+
+    /// <summary>
+    /// The other half of the pair: a value the cell is showing in full still
+    /// edits inline. Without this, the guard above would also pass if inline
+    /// editing had simply stopped working.
+    /// </summary>
+    [Test]
+    public async Task A_cell_showing_its_whole_value_still_edits_inline()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, vm) = Scenarios.Shell();
+            Ui.Show(window);
+
+            SeedEditableCell(vm, "short enough to read");
+
+            var grid = FindResultsGrid(window)!;
+            BeginEditingTheCell(grid);
+
+            await Assert.That(vm.CellInspector.IsOpen).IsFalse();
+            await Assert.That(EditorTextBox(window)?.Text).IsEqualTo("short enough to read");
+
+            window.Close();
+        });
+    }
+
+    // One editable row: a keyed table context is what makes the grid writable,
+    // which is the only state in which BeginningEdit fires at all.
+    private static void SeedEditableCell(MainViewModel vm, string payload)
+    {
+        var tab = vm.ActiveTab;
+        tab.SeedResult(
+            [new ColumnInfo("id", "bigint", typeof(long)), new ColumnInfo("payload", "text", typeof(string))],
+            [[1L, payload]]);
+        tab.EditContext = new EditableTableContext(
+            "public", "t", ["id"],
+            [new ColumnDetail("id", "bigint", NotNull: true, IsPrimaryKey: true),
+             new ColumnDetail("payload", "text", NotNull: false, IsPrimaryKey: false)]);
+        Ui.Settle();
+    }
+
+    private static void BeginEditingTheCell(DataGrid grid)
+    {
+        grid.SelectedIndex = 0;
+        grid.CurrentColumn = grid.Columns[1];
+        Ui.Settle();
+        grid.BeginEdit();
+        Ui.Settle();
+    }
+
+    private static TextBox? EditorTextBox(Window window) =>
+        window.GetVisualDescendants()
+            .OfType<DataGridCell>()
+            .SelectMany(cell => cell.GetVisualDescendants().OfType<TextBox>())
+            .FirstOrDefault();
 
     // A resize drag on a header's right edge: press inside the grip strip, move,
     // release. Sent as real pointer input so the DataGrid's own resize handling

@@ -2,7 +2,6 @@ using System.Globalization;
 using Avalonia;
 using Avalonia.Data.Converters;
 using Avalonia.Media;
-using PgNimbus.Core.Schema;
 
 namespace PgNimbus.App.Converters;
 
@@ -16,61 +15,15 @@ namespace PgNimbus.App.Converters;
 /// <see cref="NullCellOpacityConverter"/>) so it's distinguishable from an
 /// empty string; MainWindow's cell-edit preparation clears the placeholder
 /// out of the editor so it can't be committed back as a literal string.
+/// How each value reads — and how much of a long one a cell shows — is
+/// <see cref="CellText"/>'s business, shared with the cell inspector.
 /// </summary>
 public sealed class RowIndexConverter(int index) : IValueConverter
 {
-    public const string NullPlaceholder = "NULL";
-
     private readonly int _index = index;
 
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
-        value is object?[] row && _index < row.Length
-            ? row[_index] switch
-            {
-                null => NullPlaceholder,
-                // bytea arrives as byte[]; its default ToString is the useless
-                // "System.Byte[]". Show a capped \x-hex preview (the same shape
-                // the cell inspector uses, which carries the full value) rather
-                // than materializing megabytes of hex for a large blob inline.
-                byte[] bytes => FormatByteaPreview(bytes),
-                // bit/varbit arrive as a BitArray, whose default ToString is
-                // "System.Collections.BitArray". Render the bit string ("10110001",
-                // most-significant bit first, matching Postgres) so it reads and,
-                // for an editable table, round-trips through CAST(text AS bit(n)).
-                System.Collections.BitArray bits => FormatBits(bits),
-                // Array columns render in Postgres's literal syntax ("{a,b}")
-                // instead of the CLR default ("System.String[]") — readable,
-                // and editable in place since the cell editor pre-fills from
-                // this text and the edit pipeline casts it back server-side.
-                Array array => PgValueSyntax.FormatArray(array),
-                // hstore arrives as a Dictionary<string,string>, whose default
-                // ToString is the CLR type name. Render the Postgres literal
-                // ("k"=>"v") so it reads in any result set — browse mode already
-                // re-requests it as text, but a hand-written SELECT gets the raw
-                // dictionary, and without this it showed the type name.
-                System.Collections.IDictionary map => PgValueSyntax.FormatHstore(map),
-                var cell => cell,
-            }
-            : null;
-
-    /// <summary>Bytes shown before a bytea preview is truncated — enough to read a magic number, not a whole blob.</summary>
-    private const int ByteaPreviewBytes = 24;
-
-    private static string FormatByteaPreview(byte[] bytes) =>
-        bytes.Length <= ByteaPreviewBytes
-            ? "\\x" + System.Convert.ToHexString(bytes)
-            : "\\x" + System.Convert.ToHexString(bytes.AsSpan(0, ByteaPreviewBytes)) + "…";
-
-    private static string FormatBits(System.Collections.BitArray bits)
-    {
-        var chars = new char[bits.Count];
-        for (var i = 0; i < bits.Count; i++)
-        {
-            chars[i] = bits[i] ? '1' : '0';
-        }
-
-        return new string(chars);
-    }
+        value is object?[] row && _index < row.Length ? CellText.Preview(row[_index]) : null;
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
         throw new NotSupportedException();
@@ -133,7 +86,7 @@ public sealed class BoolCellTextConverter(int index) : IValueConverter
         value is object?[] row && _index < row.Length
             ? row[_index] switch
             {
-                null => RowIndexConverter.NullPlaceholder,
+                null => CellText.NullPlaceholder,
                 bool => string.Empty,
                 var other => other.ToString(),
             }

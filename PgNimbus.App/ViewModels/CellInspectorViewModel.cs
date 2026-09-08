@@ -6,6 +6,7 @@ using System.Text.Unicode;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using PgNimbus.App.Converters;
 using PgNimbus.Core.Json;
 using PgNimbus.Core.Schema;
 
@@ -289,17 +290,11 @@ public sealed partial class CellInspectorViewModel : ObservableObject
 
     private static (string Text, bool IsJson) Format(object? value)
     {
-        var text = value switch
-        {
-            null => "NULL",
-            byte[] bytes => $"\\x{Convert.ToHexString(bytes)}",
-            // Same Postgres-literal rendering the grid uses — never "System.String[]".
-            Array array => PgValueSyntax.FormatArray(array),
-            // hstore materializes as a Dictionary<string,string>; render its
-            // literal ("k"=>"v") like the grid, never the CLR type name.
-            System.Collections.IDictionary map => PgValueSyntax.FormatHstore(map),
-            _ => value.ToString() ?? string.Empty,
-        };
+        // Exactly what the grid cell renders, minus the length cap: the two must
+        // agree on what a value *is* (bytea as \x-hex, an array as a Postgres
+        // literal, hstore as "k"=>"v"), and this is the view that shows all of
+        // it. See CellText.
+        var text = CellText.Full(value);
 
         return TryPrettyPrintJson(text, out var pretty) ? (pretty, true) : (text, false);
     }
