@@ -1,6 +1,6 @@
 #!/usr/bin/env pwsh
 # Loads the pgNimbus type-rich demo dataset into a PostgreSQL database by
-# running 01..05 in order with psql. Idempotent: each run drops and recreates
+# running 01..06 in order with psql. Idempotent: each run drops and recreates
 # the demo schemas, so it always ends in the same canonical state.
 #
 # Usage:
@@ -14,7 +14,7 @@ param([string]$ConnectionString)
 $ErrorActionPreference = 'Stop'
 $dir = $PSScriptRoot
 
-foreach ($f in '01_public','02_commerce','03_iot','04_org','05_analytics') {
+foreach ($f in '01_public','02_commerce','03_iot','04_org','05_analytics','06_telemetry') {
     Write-Host ">>> $f.sql"
     $file = Join-Path $dir "$f.sql"
     if ($ConnectionString) {
