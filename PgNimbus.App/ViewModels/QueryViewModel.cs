@@ -1269,7 +1269,16 @@ public sealed partial class QueryViewModel : ObservableObject
 
         if (_browsePkColumns is { Count: > 0 } pk && Browse is { } browse)
         {
-            EditContext = new EditableTableContext(browse.Schema, browse.Name, pk, _browseColumns);
+            if (EditableResultDetector.FindUnreadableKey(_columns, pk) is { } unreadable)
+            {
+                // A key the client can only show as a placeholder can't be sent
+                // back to target its row — say so rather than fail every edit.
+                ReadOnlyHint = UnreadableKeyHint(null, unreadable);
+            }
+            else
+            {
+                EditContext = new EditableTableContext(browse.Schema, browse.Name, pk, _browseColumns);
+            }
         }
         else if (Browse is { } pkless)
         {
@@ -1345,7 +1354,10 @@ public sealed partial class QueryViewModel : ObservableObject
             var tableColumns = await _schemaService.GetColumnsAsync(table.Schema, table.Name, ct);
             if (EditableResultDetector.MatchPrimaryKey(_columns, tableColumns, out var primaryKey) is not EditBlocker.None and var matchBlocker)
             {
-                ReadOnlyHint = ReadOnlyHintFor(matchBlocker, table);
+                ReadOnlyHint = matchBlocker == EditBlocker.UnreadableKey
+                    ? UnreadableKeyHint(null, EditableResultDetector.FindUnreadableKey(
+                        _columns, tableColumns.Where(c => c.IsPrimaryKey).Select(c => c.Name).ToList()))
+                    : ReadOnlyHintFor(matchBlocker, table);
                 return;
             }
 
@@ -1372,8 +1384,16 @@ public sealed partial class QueryViewModel : ObservableObject
         EditBlocker.RenamedColumns => "columns are renamed (AS …), so edits can't be mapped back to the table's real columns.",
         EditBlocker.NoPrimaryKey => $"{TableName(table)} has no primary key, so rows can't be targeted exactly.",
         EditBlocker.PrimaryKeyNotSelected => $"the primary key of {TableName(table)} isn't in the result — include it to edit.",
+        EditBlocker.UnreadableKey => UnreadableKeyHint(table is null ? null : $"{table.Schema}.{table.Name}", key: null),
         _ => "this result set can't be mapped back to a table.",
     };
+
+    // The row-identity blocker needs the key column's name and type to be
+    // useful, so it has its own phrasing helper both edit paths share.
+    private static string UnreadableKeyHint(string? table, ColumnInfo? key) =>
+        key is null
+            ? $"a primary-key column of {table ?? "the table"} has a type pgNimbus can't read, so rows can't be identified exactly."
+            : $"primary-key column {key.Name} ({key.DataTypeName}) has a type pgNimbus can't read, so rows can't be identified exactly.";
 
     private static string TableName(RelationInfo? table) => table is null ? "the table" : $"{table.Schema}.{table.Name}";
 
@@ -1463,8 +1483,9 @@ public sealed partial class QueryViewModel : ObservableObject
 
         if (ShouldStageChanges)
         {
-            StageCellValue(context, row, pkIndexes, columnIndex, columnName, newValue, castType);
-            return true;
+            // False when staging was refused (row staged for delete, a key that
+            // can't identify the row), so the grid doesn't treat it as saved.
+            return StageCellValue(context, row, pkIndexes, columnIndex, columnName, newValue, castType);
         }
 
         var whereClause = string.Join(
@@ -1746,29 +1767,40 @@ public sealed partial class QueryViewModel : ObservableObject
 
     // Stages one cell's converted value and shows it in the grid without
     // touching the database. Shared by inline edits and "Set cell to NULL".
-    private void StageCellValue(EditableTableContext context, object?[] row, IReadOnlyList<int> pkIndexes, int columnIndex, string columnName, object? newValue, string? castType = null)
+    private bool StageCellValue(EditableTableContext context, object?[] row, IReadOnlyList<int> pkIndexes, int columnIndex, string columnName, object? newValue, string? castType = null)
     {
         if (EnsurePendingSet(context, out var error) is not { } pending)
         {
             Status = error!;
             HasError = true;
-            return;
+            return false;
+        }
+
+        var pkValues = PkValuesOf(row, pkIndexes);
+        if (UnsupportedIdentity(context, pkValues) is { } identityError)
+        {
+            Status = identityError;
+            HasError = true;
+            return false;
         }
 
         try
         {
-            pending.StageEdit(PkValuesOf(row, pkIndexes), columnName, newValue, castType);
+            // The snapshot is taken before the grid shows the staged value, so
+            // it is the row as the user saw it; the set keeps only the first.
+            pending.StageEdit(pkValues, columnName, newValue, castType, SnapshotOf(context, row));
         }
         catch (InvalidOperationException ex)
         {
             Status = ex.Message;
             HasError = true;
-            return;
+            return false;
         }
 
         ReplaceRowCell(row, columnIndex, newValue);
         NotifyPendingChangesChanged();
         Status = $"Staged {context.Schema}.{context.Table}.{columnName} — nothing applied until you commit";
+        return true;
     }
 
     // Stages deletes for the given rows; a row already staged for deletion is
@@ -1780,6 +1812,18 @@ public sealed partial class QueryViewModel : ObservableObject
             Status = error!;
             HasError = true;
             return;
+        }
+
+        // All or nothing: a multi-row selection with one unidentifiable row
+        // stages none of them, rather than some.
+        foreach (var row in rows)
+        {
+            if (UnsupportedIdentity(context, PkValuesOf(row, pkIndexes)) is { } identityError)
+            {
+                Status = identityError;
+                HasError = true;
+                return;
+            }
         }
 
         var staged = 0;
@@ -1794,7 +1838,7 @@ public sealed partial class QueryViewModel : ObservableObject
             }
             else
             {
-                pending.StageDelete(pkValues);
+                pending.StageDelete(pkValues, SnapshotOf(context, row));
                 staged++;
             }
         }
@@ -1834,9 +1878,22 @@ public sealed partial class QueryViewModel : ObservableObject
     private bool CanCommitPending() => HasPendingChanges && !IsRunning;
 
     /// <summary>
+    /// The conflict the last commit was rolled back for, or null. Set by
+    /// <see cref="CommitPendingAsync"/> so the window can show the
+    /// before / current / proposed comparison right after the commit returns;
+    /// cleared by the next commit, a restage, or anything that empties the set.
+    /// </summary>
+    [ObservableProperty]
+    private StagedChangesConflictException? _lastCommitConflict;
+
+    /// <summary>
     /// Applies every staged change as one transaction, then reloads the grid
-    /// from the server. A failure applies nothing and keeps the set staged, so
-    /// the user can fix the offending change or discard.
+    /// from the server. Every staged edit and delete is first checked against
+    /// the server's current row (<see cref="PendingChangeSet.BuildRowCheck"/>):
+    /// if another session changed or deleted one since it was loaded, the
+    /// whole batch rolls back and <see cref="LastCommitConflict"/> says which
+    /// rows and how. Any failure applies nothing and keeps the set staged, so
+    /// the user can fix the offending change, restage, or discard.
     /// </summary>
     [RelayCommand(CanExecute = nameof(CanCommitPending))]
     private async Task CommitPendingAsync()
@@ -1847,21 +1904,88 @@ public sealed partial class QueryViewModel : ObservableObject
         }
 
         HasError = false;
+        LastCommitConflict = null;
         var count = pending.Count;
 
         try
         {
-            var affected = await _engine.ApplyBatchAsync(pending.BuildStatements(), CancellationToken.None);
+            var affected = await _engine.ApplyBatchAsync(pending.BuildStatements(), pending.BuildRowCheck(), CancellationToken.None);
             ClearPendingSet();
             await RefreshCurrentAsync();
             Status = $"Committed {count} staged change{(count == 1 ? "" : "s")} in one transaction — {RowLabel(affected)} affected";
             HasError = false;
+        }
+        catch (StagedChangesConflictException conflict)
+        {
+            LastCommitConflict = conflict;
+            Status = conflict.Message;
+            HasError = true;
         }
         catch (Exception ex)
         {
             Status = $"Commit failed — no staged changes were applied: {ex.Message}";
             HasError = true;
         }
+    }
+
+    /// <summary>
+    /// "Reload and restage" after a conflict: keeps the staged values, re-bases
+    /// the changed rows onto what the server holds now, drops staged changes to
+    /// rows that no longer exist, and reloads the grid so the user sees the
+    /// current rows under their staged values before committing again. Nothing
+    /// is committed here.
+    /// </summary>
+    public async Task RestageAfterConflictAsync()
+    {
+        if (LastCommitConflict is not { } conflict || PendingChanges is not { } pending)
+        {
+            return;
+        }
+
+        var (rebased, dropped) = pending.Rebase(conflict.Conflicts);
+        LastCommitConflict = null;
+        NotifyPendingChangesChanged();
+        await RefreshCurrentAsync();
+
+        var parts = new List<string>(2);
+        if (rebased > 0)
+        {
+            parts.Add($"{rebased} row{(rebased == 1 ? "" : "s")} restaged on the current values");
+        }
+
+        if (dropped > 0)
+        {
+            parts.Add($"{dropped} staged row{(dropped == 1 ? "" : "s")} dropped (deleted elsewhere)");
+        }
+
+        Status = parts.Count == 0
+            ? "Reloaded — review and commit again"
+            : $"Reloaded: {string.Join(", ", parts)} — review and commit again";
+        HasError = false;
+    }
+
+    /// <summary>Unstages just the conflicting rows, keeps the rest of the set, and reloads the grid.</summary>
+    public async Task UnstageConflictsAsync()
+    {
+        if (LastCommitConflict is not { } conflict || PendingChanges is not { } pending)
+        {
+            return;
+        }
+
+        var count = pending.Unstage(conflict.Conflicts);
+        LastCommitConflict = null;
+        if (pending.IsEmpty)
+        {
+            ClearPendingSet();
+        }
+        else
+        {
+            NotifyPendingChangesChanged();
+        }
+
+        await RefreshCurrentAsync();
+        Status = $"Unstaged {count} conflicting row{(count == 1 ? "" : "s")}; {pending.Count} staged change{(pending.Count == 1 ? "" : "s")} left";
+        HasError = false;
     }
 
     /// <summary>Drops every staged change and reloads the grid so it shows server values again.</summary>
@@ -1917,12 +2041,61 @@ public sealed partial class QueryViewModel : ObservableObject
         }
 
         error = null;
-        return PendingChanges = new PendingChangeSet(context.Schema, context.Table, context.PrimaryKeyColumns);
+        return PendingChanges = new PendingChangeSet(
+            context.Schema,
+            context.Table,
+            context.PrimaryKeyColumns,
+            context.PrimaryKeyColumns.Select(pk => CastTypeFor(context.Column(pk))).ToList());
+    }
+
+    // The declared type a value must be cast to server-side — the same rule
+    // CommitCellEditAsync applies to edited values, reused for key parts so a
+    // composite key with an enum or composite part still targets its row.
+    private static string? CastTypeFor(ColumnDetail? column) =>
+        column?.Editor is ColumnValueEditor.Enum or ColumnValueEditor.Array or ColumnValueEditor.Composite
+            or ColumnValueEditor.Json or ColumnValueEditor.CastText
+            ? column.DataType
+            : null;
+
+    // The row as the user sees it right now, limited to real columns of the
+    // edited table: what safe mode's commit compares the server's row against.
+    private RowSnapshot SnapshotOf(EditableTableContext context, object?[] row)
+    {
+        var columns = new List<string>(ColumnNames.Count);
+        var values = new List<object?>(ColumnNames.Count);
+        for (var i = 0; i < ColumnNames.Count && i < row.Length; i++)
+        {
+            if (context.Column(ColumnNames[i]) is not null)
+            {
+                columns.Add(ColumnNames[i]);
+                values.Add(row[i]);
+            }
+        }
+
+        return new RowSnapshot(columns, values);
+    }
+
+    // A row whose key the client only has as a placeholder can't be targeted by
+    // an UPDATE/DELETE or checked for concurrent changes. The edit context
+    // already refuses a key *column* of such a type; this catches the cell
+    // that slipped through anyway (a per-cell read failure).
+    private static string? UnsupportedIdentity(EditableTableContext context, object?[] pkValues)
+    {
+        for (var i = 0; i < pkValues.Length; i++)
+        {
+            if (QueryEngine.IsUnreadableCell(pkValues[i]))
+            {
+                return $"Can't stage this row: its key column {context.PrimaryKeyColumns[i]} couldn't be read, so the row can't be identified exactly.";
+            }
+        }
+
+        return null;
     }
 
     private void ClearPendingSet()
     {
         PendingChanges = null;
+        LastCommitConflict = null;
         NotifyPendingChangesChanged();
     }
 

@@ -257,4 +257,49 @@ public class PendingChangeSetTests
         await Assert.That(sql).IsEqualTo(
             """UPDATE "Games"."Spell Book" SET "Mana Cost" = @v0 WHERE "Id" = @pk0""");
     }
+
+    [Test]
+    public async Task KeyTargetedStatementsPromiseExactlyOneRowAndInsertsDoNot()
+    {
+        var set = NewSet();
+        set.StageEdit([1], "status", "shipped");
+        set.StageDelete([2]);
+        set.StageInsert([]);
+
+        var statements = set.BuildStatements();
+
+        await Assert.That(statements[0].ExpectedRowsAffected).IsEqualTo(1);
+        await Assert.That(statements[1].ExpectedRowsAffected).IsEqualTo(1);
+        await Assert.That(statements[2].ExpectedRowsAffected).IsNull();
+    }
+
+    [Test]
+    public async Task KeyCastTypesWrapKeyParametersInStatementsAndScript()
+    {
+        // An enum key part arrives from the grid as text; `enum = text` has no operator.
+        var set = new PendingChangeSet("public", "stock", ["warehouse", "sku"], ["region", null]);
+        set.StageEdit(["north", 10], "qty", 3);
+
+        await Assert.That(set.BuildStatements()[0].Sql).IsEqualTo(
+            """UPDATE "public"."stock" SET "qty" = @v0 WHERE "warehouse" = CAST(@pk0 AS region) AND "sku" = @pk1""");
+        await Assert.That(set.BuildScript()).Contains(
+            """WHERE "warehouse" = CAST('north' AS region) AND "sku" = 10;""");
+    }
+
+    [Test]
+    public async Task UnstagingADeleteForgetsItsSnapshotUnlessTheRowHasEdits()
+    {
+        var snapshot = new RowSnapshot(["id", "status"], [1, "packed"]);
+        var set = NewSet();
+        set.StageDelete([1], snapshot);
+        set.UnstageDelete([1]);
+
+        await Assert.That(set.GetOriginal([1])).IsNull();
+
+        set.StageEdit([2], "status", "x", original: snapshot with { Values = [2, "packed"] });
+        set.StageDelete([2]);
+        set.UnstageDelete([2]);
+
+        await Assert.That(set.GetOriginal([2])).IsNotNull();
+    }
 }

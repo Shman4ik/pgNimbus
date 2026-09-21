@@ -724,9 +724,10 @@ Three rules about it:
    are deliberately untouched. `ConnectionDialog` and
    `CrashWindow` cannot be overlays at all — both exist before, or instead of, a main
    window. The modal dialogs (`ConfirmDialog`, `AddRowDialog`, `AlterTableDialog`,
-   `ImportDialog`, `ImportPlanDialog`, `PendingChangesDialog`) each return a result
-   through `ShowDialog`, which an overlay would have to re-express as an awaited
-   completion; that is a real change to six call sites and has not been made.
+   `ImportDialog`, `ImportPlanDialog`, `PendingChangesDialog`, `StagedConflictDialog`)
+   each return a result through `ShowDialog`, which an overlay would have to
+   re-express as an awaited completion; that is a real change to seven call sites
+   and has not been made.
    The command palette and the cell inspector are also **not** OverlayPanels, and for
    a better reason than inertia: both are focus-driven surfaces with their own
    keyboard model, not panels you read.
@@ -1118,6 +1119,46 @@ csproj / WiX / MSIX manifest reference them unchanged:
   surfaces from Npgsql as `bool` (displays `True`/`False`), so an inline edit of
   it fails loudly at the cast rather than corrupting — the inspector or a `bit(n)`
   column edits cleanly.
+- **Safe mode's commit is optimistic-concurrency checked, and a conflict rolls
+  back the whole batch** (2026-09). Staging an edit or delete hands
+  `PendingChangeSet` a `RowSnapshot` — the row's loaded table columns as the grid
+  held them, taken *before* the staged value is shown, and only the first per
+  row (a later one would already carry staged values). At commit,
+  `BuildRowCheck` produces a `StagedRowCheck` that `QueryEngine.ApplyBatchAsync`
+  runs inside the batch's own transaction before any staged statement: one
+  `SELECT … WHERE (key) IN (…) ORDER BY key FOR UPDATE` per 500 rows re-reads
+  and locks every staged row, and `Evaluate` (Core-pure, unit-tested) compares
+  it with the snapshot. **Every loaded column is compared, not just the edited
+  ones** — a delete of a row somebody just modified is the case this exists
+  for — and any difference or missing row throws
+  `StagedChangesConflictException` with before / current / proposed per column,
+  which `StagedConflictDialog` lays out. The ways out are
+  `PendingChangeSet.Rebase` ("Reload and restage": staged values kept,
+  snapshot replaced by the server's current row, rows gone elsewhere dropped)
+  and `Unstage` (just the conflicting rows). Five details that are load-bearing:
+  (a) comparison is `CellValueComparer`, not `Equals` — two reads of one
+  unchanged array are two instances — and it reports **Incomparable**, not
+  Different, for an `<unreadable …>` placeholder or a column read once as a
+  text literal and once as a typed value (bit, hstore via the text fallback),
+  so a type the client can't read degrades to "unchecked" (listed in the review
+  dialog) instead of a conflict nobody caused; (b) the lock waits at most
+  `StagedRowCheck.LockTimeout` (5 s, set transaction-locally with
+  `set_config`) so someone's forgotten open transaction reads as "locked",
+  not a hung commit; (c) inside the user's explicit transaction the batch runs
+  under a `SAVEPOINT`, so a conflict undoes only the batch, and `lock_timeout` is
+  put back once the rows are locked, since a local setting would otherwise
+  outlive the batch; (d) UPDATE/DELETE carry `ExpectedRowsAffected = 1`, so a
+  statement that touches anything but its one row aborts the batch rather than
+  "succeeding" at nothing; (e) key parts are cast to their declared type like
+  edited values are (`keyCastTypes`), because an enum key part arrives as text
+  and `enum = text` has no operator. **Row identity that can't be supported is
+  refused up front:** no primary key was already read-only; a key column whose
+  type the client can't read (`EditBlocker.UnreadableKey`, CLR type `object`)
+  now is too, with its own read-only hint, and a stray unreadable key cell is
+  refused at staging. Nothing offers an undo after a successful commit — the
+  batch is then the server's. Real-server coverage is
+  `QueryEngineStagedConflictTests` (gated on `PGNIMBUS_TEST_CONN`, drives a real
+  second session, including the lock case).
 - **A grid cell shows a preview, and a previewed cell never opens the inline
   editor** (2026-09). `CellText` is the one place a result value becomes text: in
   full for the cell inspector (`CellText.Full`), and capped at
