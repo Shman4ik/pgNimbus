@@ -6,8 +6,56 @@ Double-click a table in the schema tree to browse it. Paging and click-to-sort
 headers are pushed down to Postgres as `ORDER BY` / `LIMIT` / `OFFSET`, so a
 hundred-million-row table costs the same as any other single page.
 
-The SQL that produces the view sits in the editor, and doubles as the filter: add
-a `WHERE` clause and run it.
+The SQL that produces the view sits in the editor, so you can always see what
+ran.
+
+### Filtering rows
+
+Press <kbd>Ctrl</kbd>+<kbd>F</kbd> in the grid while browsing
+(<kbd>Cmd</kbd>+<kbd>F</kbd> on macOS), or pick **Filter rows…** in the command
+palette. Each line of the filter bar is a column, a comparison and a value, and
+all lines must match. The comparisons depend on the column type:
+
+- text columns: contains, doesn't contain, starts with, ends with, =, ≠
+- numbers, dates, times and UUIDs: =, ≠, <, ≤, >, ≥
+- `enum` columns: = or ≠ a label picked from a dropdown
+- `boolean`: is true, is false
+- anything else (`json`, arrays, ranges, …): contains, doesn't contain, which
+  search the value's text
+- every column: is null, is not null
+
+The value box is the same type-aware editor the grid uses, so a date gets a
+calendar and a malformed number is flagged before anything is sent.
+
+The bar shows the `WHERE` clause it will add. Press <kbd>Enter</kbd> or
+**Apply** to run it. The filter runs on the server as part of the page query, so
+paging and sorting keep it, and the whole statement appears in the editor.
+**Clear** removes every filter.
+
+For a quick filter, right-click a cell and open **Filter**: keep rows equal to
+that value, drop them, or keep only the rows where the column is or isn't null.
+
+Filters exist only while you browse a table. Edit the SQL yourself and the tab
+becomes a plain query, and the filter bar goes away with browse mode. pgNimbus
+never rewrites a query you wrote; add a `WHERE` to it instead.
+
+## Row details
+
+<kbd>Ctrl</kbd>+<kbd>I</kbd> (<kbd>Cmd</kbd>+<kbd>I</kbd> on macOS) opens the
+selected row beside the grid as a list of names and values. It follows the
+selection, and <kbd>Tab</kbd> moves between fields. It's also on the grid's
+right-click menu.
+
+On an editable result each column gets the same type-aware editor as the grid,
+plus a NULL box. Edits there are always staged, even with safe mode off:
+<kbd>Enter</kbd> or **Stage** adds them to the staged set, and <kbd>Esc</kbd>
+reverts them. You then review and commit them from the status bar, with the same
+conflict check as any staged edit (see [Safe mode](#safe-mode)). If you move to
+another row before staging, the sidebar keeps your row and your edits until you
+stage or revert.
+
+Primary key columns are read-only there. A value too large for the form shows a
+preview with an **Inspect** button that opens the cell inspector.
 
 ## Column widths
 
@@ -29,6 +77,7 @@ turning a page, or switching to another tab and back keeps them.
 | Inspect the full value | <kbd>Space</kbd>, or double-click a read-only cell |
 | Set a cell to `NULL` | Context menu |
 | Delete the selected row | <kbd>Delete</kbd> |
+| Show the row as a form | <kbd>Ctrl</kbd>+<kbd>I</kbd> |
 | Copy the selected cells | <kbd>Ctrl</kbd>+<kbd>C</kbd> |
 
 Results are editable when the row can be identified unambiguously. That covers
@@ -78,6 +127,9 @@ inserts and deletes are staged locally instead of being sent:
 - "Review & commit…" shows the exact SQL that will be sent
 - everything applies as one transaction, or gets discarded with nothing ever
   having reached the server
+
+Edits made in [row details](#row-details) always stage, whether safe mode is on
+or not.
 
 Toggle it from the command palette. It has no keyboard shortcut on purpose:
 flipping it by accident changes whether your edits hit the database immediately.

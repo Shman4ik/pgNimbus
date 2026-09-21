@@ -1,0 +1,47 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PgNimbus.App.ViewModels"
+             x:Class="PgNimbus.App.Views.ColumnValueEditorView"
+             x:DataType="vm:NewRowField">
+    <!-- The type-aware value input: one control per Postgres type family, each
+         writing canonical text into NewRowField.Value, so whatever consumes the
+         value (an INSERT, a staged cell edit, a filter predicate) sees text no
+         matter which control produced it. Shared by the Add-row dialog, the
+         row-detail sidebar and the browse filter bar, which is the point: one
+         set of editors, not three that drift. The NULL toggle is the host's,
+         because a filter has no use for one. -->
+    <StackPanel VerticalAlignment="Center" IsEnabled="{Binding !IsNull}">
+        <TextBox Name="TextValueInput" Text="{Binding Value, Mode=TwoWay}" FontSize="12"
+                 PlaceholderText="{Binding Placeholder}"
+                 TextWrapping="Wrap" MaxHeight="140"
+                 AutomationProperties.Name="{Binding Name}"
+                 IsVisible="{Binding IsTextEditor}" />
+        <CheckBox Name="BoolInput" IsChecked="{Binding BoolValue, Mode=TwoWay}"
+                  IsThreeState="True" Content="{Binding Value}" FontSize="12"
+                  AutomationProperties.Name="{Binding Name}"
+                  IsVisible="{Binding IsBooleanEditor}" />
+        <ComboBox Name="EnumInput" ItemsSource="{Binding EnumLabels}"
+                  SelectedItem="{Binding EnumChoice, Mode=TwoWay}"
+                  PlaceholderText="{Binding Placeholder}" FontSize="12"
+                  HorizontalAlignment="Stretch"
+                  AutomationProperties.Name="{Binding Name}"
+                  IsVisible="{Binding IsEnumEditor}" />
+        <CalendarDatePicker Name="DateInput" SelectedDate="{Binding DateValue, Mode=TwoWay}"
+                            PlaceholderText="{Binding Placeholder}" FontSize="12"
+                            HorizontalAlignment="Stretch"
+                            AutomationProperties.Name="{Binding Name}"
+                            IsVisible="{Binding IsDateEditor}" />
+        <Grid ColumnDefinitions="*,6,88" IsVisible="{Binding IsTimestampEditor}">
+            <CalendarDatePicker Name="StampDateInput" Grid.Column="0"
+                                SelectedDate="{Binding DateValue, Mode=TwoWay}"
+                                PlaceholderText="{Binding Placeholder}" FontSize="12"
+                                HorizontalAlignment="Stretch"
+                                AutomationProperties.Name="{Binding Name}" />
+            <TextBox Grid.Column="2" Text="{Binding TimeText, Mode=TwoWay}"
+                     PlaceholderText="HH:MM:SS" FontSize="12" />
+        </Grid>
+        <TextBlock Text="{Binding ValidationError}" FontSize="10"
+                   Foreground="{DynamicResource AppDangerBrush}" TextWrapping="Wrap" Margin="2,2,0,0"
+                   IsVisible="{Binding HasValidationError}" />
+    </StackPanel>
+</UserControl>

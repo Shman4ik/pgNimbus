@@ -436,8 +436,12 @@ public sealed partial class QueryViewModel : ObservableObject
         _safeMode = safeMode;
         _schemaService = schemaService;
         _lastRunSql = Sql;
+        RowDetail = new RowDetailViewModel(this);
         UpdateTabTitle();
     }
+
+    /// <summary>This tab's row-detail sidebar state: the selected row as a name/value form.</summary>
+    public RowDetailViewModel RowDetail { get; }
 
     private bool CanRun() => !IsRunning;
 
@@ -1245,7 +1249,7 @@ public sealed partial class QueryViewModel : ObservableObject
     {
         _browseColumns = columns;
         _browsePkColumns = columns.Where(c => c.IsPrimaryKey).Select(c => c.Name).ToList();
-        Browse = new TableBrowseViewModel(schema, name, _browsePkColumns, RunBrowseSqlAsync);
+        Browse = new TableBrowseViewModel(schema, name, columns, RunBrowseSqlAsync);
         if (!string.IsNullOrEmpty(initialFilter))
         {
             // A pre-seeded WHERE (e.g. following a foreign key to the referenced
@@ -1431,54 +1435,11 @@ public sealed partial class QueryViewModel : ObservableObject
             return false;
         }
 
-        // Postgres-native values a CLR conversion can't express — enum labels,
-        // array/composite/json literals, and the CastText family (network,
-        // geometric, range, bit-string, xml, tsvector/tsquery, jsonpath, bytea,
-        // …, all of which Postgres won't implicitly assign from text) — travel
-        // as raw text and get parsed server-side via a cast to the declared
-        // type, the same mechanism the Add-row dialog uses for every value.
-        // A cheap client-side structure check catches malformed hand-typed
-        // array/composite/json literals before anything is sent; the CastText
-        // types have no cheap check and defer to Postgres (the cast's error).
-        var columnMeta = context.Column(columnName);
-        var castType = columnMeta?.Editor
-            is ColumnValueEditor.Enum or ColumnValueEditor.Array or ColumnValueEditor.Composite
-               or ColumnValueEditor.Json or ColumnValueEditor.CastText
-            ? columnMeta.DataType
-            : null;
-
-        object? newValue;
-        if (castType is not null)
+        if (!TryConvertEdit(context, columnIndex, newValueText, out var newValue, out var castType, out var conversionError))
         {
-            var syntaxError = columnMeta!.Editor switch
-            {
-                ColumnValueEditor.Array => PgValueSyntax.ValidateArray(newValueText),
-                ColumnValueEditor.Composite => PgValueSyntax.ValidateComposite(newValueText),
-                ColumnValueEditor.Json => PgValueSyntax.ValidateJson(newValueText),
-                _ => null,
-            };
-
-            if (syntaxError is not null)
-            {
-                Status = $"Invalid value for {columnName}: {syntaxError}";
-                HasError = true;
-                return false;
-            }
-
-            newValue = newValueText;
-        }
-        else
-        {
-            try
-            {
-                newValue = ConvertEditedValue(newValueText, columnIndex);
-            }
-            catch (Exception ex)
-            {
-                Status = $"Invalid value for {columnName}: {ex.Message}";
-                HasError = true;
-                return false;
-            }
+            Status = conversionError!;
+            HasError = true;
+            return false;
         }
 
         if (ShouldStageChanges)
@@ -1518,6 +1479,120 @@ public sealed partial class QueryViewModel : ObservableObject
             HasError = true;
             return false;
         }
+    }
+
+    // Turns typed text into the value an UPDATE sends for one column. Values a
+    // CLR conversion can't express — enum labels, array/composite/json
+    // literals, and the CastText family (network, geometric, range,
+    // bit-string, xml, tsvector/tsquery, jsonpath, bytea, …, all of which
+    // Postgres won't implicitly assign from text) — travel as raw text and get
+    // parsed server-side via a cast to the declared type (castType), the same
+    // mechanism the Add-row dialog uses for every value. A cheap client-side
+    // structure check catches malformed hand-typed array/composite/json
+    // literals before anything is sent; the CastText types have no cheap check
+    // and defer to Postgres (the cast's error).
+    private bool TryConvertEdit(EditableTableContext context, int columnIndex, string text, out object? value, out string? castType, out string? error)
+    {
+        var columnName = ColumnNames[columnIndex];
+        var columnMeta = context.Column(columnName);
+        castType = CastTypeFor(columnMeta);
+        value = null;
+        error = null;
+
+        if (castType is not null)
+        {
+            var syntaxError = columnMeta!.Editor switch
+            {
+                ColumnValueEditor.Array => PgValueSyntax.ValidateArray(text),
+                ColumnValueEditor.Composite => PgValueSyntax.ValidateComposite(text),
+                ColumnValueEditor.Json => PgValueSyntax.ValidateJson(text),
+                _ => null,
+            };
+
+            if (syntaxError is not null)
+            {
+                error = $"Invalid value for {columnName}: {syntaxError}";
+                return false;
+            }
+
+            value = text;
+            return true;
+        }
+
+        try
+        {
+            value = ConvertEditedValue(text, columnIndex);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            error = $"Invalid value for {columnName}: {ex.Message}";
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Stages several cells of one row at once — the row-detail sidebar's
+    /// Stage. Always staged, whatever safe mode says: a form of edits is one
+    /// change to review, so it goes into the same <see cref="PendingChanges"/>
+    /// set, and so through the same review dialog and conflict-checked commit,
+    /// as every other staged edit. A null text means SQL NULL. All-or-nothing
+    /// up front: every value is converted before any is staged, so one bad
+    /// field leaves the set untouched. Returns the row as the grid now holds
+    /// it (staging replaces the row instance) and null on success, or an error.
+    /// </summary>
+    public (object?[] Row, string? Error) StageRowEdits(object?[] row, IReadOnlyList<(int ColumnIndex, string? Text)> edits)
+    {
+        HasError = false;
+        if (EditContext is not { } context)
+        {
+            return (row, "Editing isn't available for this result set.");
+        }
+
+        var pkIndexes = context.PrimaryKeyColumns.Select(pk => ColumnNames.IndexOf(pk)).ToList();
+        if (pkIndexes.Any(i => i < 0))
+        {
+            return (row, "Cannot edit: primary key column isn't present in this result set.");
+        }
+
+        var converted = new List<(int Index, string Column, object? Value, string? Cast)>(edits.Count);
+        foreach (var (index, text) in edits)
+        {
+            var column = ColumnNames[index];
+            if (context.PrimaryKeyColumns.Contains(column))
+            {
+                return (row, $"{column} is part of the primary key, and editing key columns isn't supported yet.");
+            }
+
+            if (text is null)
+            {
+                converted.Add((index, column, null, null));
+            }
+            else if (TryConvertEdit(context, index, text, out var value, out var cast, out var error))
+            {
+                converted.Add((index, column, value, cast));
+            }
+            else
+            {
+                return (row, error);
+            }
+        }
+
+        var current = row;
+        foreach (var (index, column, value, cast) in converted)
+        {
+            if (StageCellValueCore(context, current, pkIndexes, index, column, value, cast) is not { } updated)
+            {
+                return (current, Status);
+            }
+
+            current = updated;
+        }
+
+        Status = converted.Count == 1
+            ? $"Staged {context.Schema}.{context.Table}.{converted[0].Column} — nothing applied until you commit"
+            : $"Staged {converted.Count} fields of {context.Schema}.{context.Table} — nothing applied until you commit";
+        return (current, null);
     }
 
     /// <summary>
@@ -1767,13 +1842,20 @@ public sealed partial class QueryViewModel : ObservableObject
 
     // Stages one cell's converted value and shows it in the grid without
     // touching the database. Shared by inline edits and "Set cell to NULL".
-    private bool StageCellValue(EditableTableContext context, object?[] row, IReadOnlyList<int> pkIndexes, int columnIndex, string columnName, object? newValue, string? castType = null)
+    private bool StageCellValue(EditableTableContext context, object?[] row, IReadOnlyList<int> pkIndexes, int columnIndex, string columnName, object? newValue, string? castType = null) =>
+        StageCellValueCore(context, row, pkIndexes, columnIndex, columnName, newValue, castType) is not null;
+
+    // As StageCellValue, returning the row instance the grid now holds (the
+    // staged value replaces the row wholesale), or null when staging was
+    // refused — a caller staging several cells of one row needs the new
+    // instance to stage the next one against.
+    private object?[]? StageCellValueCore(EditableTableContext context, object?[] row, IReadOnlyList<int> pkIndexes, int columnIndex, string columnName, object? newValue, string? castType)
     {
         if (EnsurePendingSet(context, out var error) is not { } pending)
         {
             Status = error!;
             HasError = true;
-            return false;
+            return null;
         }
 
         var pkValues = PkValuesOf(row, pkIndexes);
@@ -1781,7 +1863,7 @@ public sealed partial class QueryViewModel : ObservableObject
         {
             Status = identityError;
             HasError = true;
-            return false;
+            return null;
         }
 
         try
@@ -1794,13 +1876,13 @@ public sealed partial class QueryViewModel : ObservableObject
         {
             Status = ex.Message;
             HasError = true;
-            return false;
+            return null;
         }
 
-        ReplaceRowCell(row, columnIndex, newValue);
+        var updated = ReplaceRowCell(row, columnIndex, newValue);
         NotifyPendingChangesChanged();
         Status = $"Staged {context.Schema}.{context.Table}.{columnName} — nothing applied until you commit";
-        return true;
+        return updated;
     }
 
     // Stages deletes for the given rows; a row already staged for deletion is
@@ -2189,15 +2271,19 @@ public sealed partial class QueryViewModel : ObservableObject
 
     // Replaces the row wholesale (mutating an array element in place doesn't
     // raise a UI change notification) with one cell's new value.
-    private void ReplaceRowCell(object?[] row, int columnIndex, object? value)
+    // Returns the replacement (or the row itself when it's no longer on screen).
+    private object?[] ReplaceRowCell(object?[] row, int columnIndex, object? value)
     {
         var rowIndex = Rows.IndexOf(row);
-        if (rowIndex >= 0)
+        if (rowIndex < 0)
         {
-            var updated = (object?[])row.Clone();
-            updated[columnIndex] = value;
-            Rows[rowIndex] = updated;
+            return row;
         }
+
+        var updated = (object?[])row.Clone();
+        updated[columnIndex] = value;
+        Rows[rowIndex] = updated;
+        return updated;
     }
 
     /// <summary>

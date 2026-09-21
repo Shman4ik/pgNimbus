@@ -7,6 +7,7 @@ using Avalonia.VisualTree;
 using PgNimbus.Core.Connections;
 using PgNimbus.Core.Monitoring;
 using PgNimbus.Core.Query;
+using PgNimbus.Core.Schema;
 using PgNimbus.Core.Security;
 
 namespace PgNimbus.Screenshot;
@@ -54,6 +55,7 @@ public static class Scenarios
         ("main-window-palette", CommandPalette),
         ("main-window-sidebar-filter", SidebarFilter),
         ("main-window-cell-inspector", CellInspector),
+        ("main-window-browse-row-details", BrowseWithRowDetails),
         ("activity-window", Activity),
         ("activity-window-blocking", ActivityBlocking),
         ("database-overview-window", DatabaseOverview),
@@ -130,6 +132,40 @@ public static class Scenarios
             CommandTag = "UPDATE",
         }));
         tab.SelectedSection = tab.ResultSections[1];
+        return HostMainWindow(vm);
+    }
+
+    /// <summary>
+    /// Browsing a table with two typed filters applied (the bar and its WHERE
+    /// preview) and the row-detail sidebar open on a row with one unstaged edit.
+    /// </summary>
+    public static Window BrowseWithRowDetails()
+    {
+        var vm = Fixtures.MainWindowViewModel();
+        var tab = vm.ActiveTab;
+        var (columns, rows) = Fixtures.OrdersResult();
+        var details = Fixtures.OrdersTableColumns();
+
+        // The browse view model runs nothing here: its "execute" hands back the
+        // composed SQL, which the editor then shows as it would after a real run.
+        string? composed = null;
+        var browse = new TableBrowseViewModel("public", "orders", details, sql =>
+        {
+            composed = sql;
+            return Task.FromResult(rows.Count);
+        });
+        browse.AddFilter("status", FilterOperator.NotEquals, "cancelled");
+        browse.AddFilter("total", FilterOperator.GreaterOrEqual, "50");
+        browse.ApplyFiltersCommand.Execute(null);
+
+        tab.Sql = composed!;
+        tab.SeedResult(columns, rows, rowCountText: $"{rows.Count} rows", timingText: "9 ms · first byte 4 ms");
+        tab.EditContext = new EditableTableContext("public", "orders", ["id"], details);
+        tab.Browse = browse;
+
+        vm.IsRowDetailOpen = true;
+        tab.RowDetail.Load(tab.Rows[1]);
+        tab.RowDetail.Fields.First(f => f.Name == "status").Editor!.EnumChoice = "shipped";
         return HostMainWindow(vm);
     }
 

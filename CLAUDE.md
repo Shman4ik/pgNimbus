@@ -688,7 +688,10 @@ Three rules about it:
    sidebar tabs, editor/results split, status bar, the command-palette overlay)
    plus window-only concerns (chrome, key bindings, the native macOS menu, file
    open/save dialogs) — new view code still follows the same rule: a focused
-   `UserControl` per responsibility, never a god-view. `ResultsGridPanel` is
+   `UserControl` per responsibility, never a god-view (the row-detail sidebar
+   and the browse filter bar arrived that way: `RowDetailPanel` and
+   `BrowseFilterBar`, hosted by `ResultsGridPanel`, each owning its own keyboard
+   model). `ResultsGridPanel` is
    window-central like `QueryEditorPanel` (it inherits the `MainViewModel`
    DataContext and tracks the active tab itself). The cell inspector overlay is
    *defined* inside `ResultsGridPanel` (it owns the JSON editor, its two-way
@@ -1159,6 +1162,44 @@ csproj / WiX / MSIX manifest reference them unchanged:
   batch is then the server's. Real-server coverage is
   `QueryEngineStagedConflictTests` (gated on `PGNIMBUS_TEST_CONN`, drives a real
   second session, including the lock case).
+- **Row details stage; browse filters compose; neither touches a query someone
+  wrote** (2026-09, README roadmap T4). Three pieces, and the rule each holds:
+  (a) **One set of type-aware inputs.** `Views/ColumnValueEditorView` (bound to a
+  `NewRowField`) is the Add-row dialog's editor stack pulled out whole, and it is
+  also the row-detail sidebar's field editor and a browse filter's value box.
+  `NewRowField.Seed` loads an existing value into whichever control the type
+  shows; `NewRowField.For(column, placeholder)` is the one constructor. Don't grow
+  a fourth copy of the checkbox/dropdown/picker switch.
+  (b) **The sidebar never writes.** `RowDetailViewModel` (per tab, on
+  `QueryViewModel.RowDetail`; visibility is window-wide
+  `MainViewModel.IsRowDetailOpen`, `CommandId.RowDetails`, Ctrl/Cmd+I) collects
+  edits and Stage hands them to `QueryViewModel.StageRowEdits`, which stages
+  **whatever safe mode says**: a form of edits is one change to review, and
+  putting it in `PendingChanges` is what gives it the review dialog and the T2
+  conflict check for free. All values are converted before any is staged, and
+  `StageCellValueCore` returns the replacement row instance, because staging
+  replaces the row wholesale and the next cell must be staged against the new
+  one. The baseline for "changed" is what seeding *produced*, not the raw value,
+  so a control that spells a value differently never reads as an edit. While the
+  sidebar holds unstaged edits it pins its row against selection changes; a new
+  `EditContext` (any run or page load) drops them, since the field column indexes
+  may mean something else in the new result.
+  (c) **Filters exist only in browse mode.** `TableBrowseViewModel.Filters` are
+  drafts; only Apply copies them into `_appliedFilters`, which is what
+  `BuildSql` composes, so paging and sorting keep running what was applied while
+  a half-typed row sits in the bar. Predicates come from the Core-pure,
+  unit-tested `Query/RowFilterSql` (operators per type family, NULL tests on
+  every column, LIKE-wildcard escaping, untyped quoted literals so Postgres types
+  the comparison against the column, `json` offered text search because it has
+  no `=`). The FK-seeded `FilterText` stays a separate raw condition, ANDed first
+  and shown as its own removable line. The bar lives inside a panel bound to
+  `ActiveTab.IsBrowsing`, and `MainViewModel.FilterRows` on a non-browse tab only
+  says where filters live — there is no path from a filter gesture to a
+  hand-written query's text. Ctrl/Cmd+F in a *browsed grid* opens the bar
+  (documented on `CommandId.FilterRows` as a `GestureNote`, not a second chord,
+  which the catalog test would rightly reject as shadowing the global Find).
+  UI tests: `PgNimbus.App.Tests/RowDetailAndFilterTests`; screenshot scenario
+  `main-window-browse-row-details`.
 - **A grid cell shows a preview, and a previewed cell never opens the inline
   editor** (2026-09). `CellText` is the one place a result value becomes text: in
   full for the cell inspector (`CellText.Full`), and capped at

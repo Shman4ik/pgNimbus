@@ -162,6 +162,9 @@ public static class CommandBindings
         [CommandId.ToggleWordWrap] = vm => vm.ToggleWordWrapCommand,
         [CommandId.ToggleAutoAlias] = vm => vm.ToggleAutoAliasCommand,
 
+        [CommandId.RowDetails] = vm => vm.ToggleRowDetailsCommand,
+        [CommandId.FilterRows] = vm => vm.FilterRowsCommand,
+
         [CommandId.RefreshSchema] = vm => vm.RefreshSchemaCommand,
         [CommandId.ToggleSidebar] = vm => vm.ToggleSidebarCommand,
         [CommandId.ServerActivity] = vm => vm.ShowActivityCommand,

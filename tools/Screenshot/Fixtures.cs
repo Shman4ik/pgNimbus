@@ -240,6 +240,22 @@ public static class Fixtures
         return (columns, rows);
     }
 
+    /// <summary>The catalog view of the table <see cref="OrdersResult"/> reads from, for edit contexts and browse mode.</summary>
+    public static IReadOnlyList<ColumnDetail> OrdersTableColumns() =>
+    [
+        new("id", "bigint", NotNull: true, IsPrimaryKey: true),
+        new("customer", "text", NotNull: true, IsPrimaryKey: false),
+        new("status", "order_status", NotNull: true, IsPrimaryKey: false)
+        {
+            Editor = ColumnValueEditor.Enum,
+            EnumLabels = ["pending", "paid", "shipped", "cancelled"],
+        },
+        new("total", "numeric(10,2)", NotNull: true, IsPrimaryKey: false),
+        new("paid", "boolean", NotNull: false, IsPrimaryKey: false) { Editor = ColumnValueEditor.Boolean },
+        new("metadata", "jsonb", NotNull: false, IsPrimaryKey: false) { Editor = ColumnValueEditor.Json },
+        new("placed_at", "timestamp with time zone", NotNull: true, IsPrimaryKey: false) { Editor = ColumnValueEditor.Timestamp },
+    ];
+
     // Any non-zero oid: it only has to be consistent across the columns for the
     // result to look like it reads straight through from one table.
     private const uint TableOid = 16_421;

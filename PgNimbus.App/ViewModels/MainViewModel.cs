@@ -119,6 +119,53 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void ToggleTheme() => ThemeToggleRequested?.Invoke();
 
+    /// <summary>
+    /// The row-detail sidebar beside the results grid. Window-wide rather than
+    /// per tab — it's a place in the layout, like the schema sidebar — while
+    /// what it shows is each tab's own <see cref="QueryViewModel.RowDetail"/>.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isRowDetailOpen;
+
+    /// <summary>Raised when the row-detail sidebar opens, so the view can move focus into it.</summary>
+    public event Action? RowDetailFocusRequested;
+
+    [RelayCommand]
+    private void ToggleRowDetails()
+    {
+        IsRowDetailOpen = !IsRowDetailOpen;
+        if (IsRowDetailOpen)
+        {
+            RowDetailFocusRequested?.Invoke();
+        }
+    }
+
+    /// <summary>Raised to put focus in the browse filter bar once the palette has opened it.</summary>
+    public event Action? FilterBarFocusRequested;
+
+    /// <summary>
+    /// Opens the filter bar — only while the active tab browses a table.
+    /// Anywhere else the tab holds SQL someone wrote, and a filter would mean
+    /// rewriting it behind their back, so this says where filters live instead.
+    /// </summary>
+    [RelayCommand]
+    private void FilterRows()
+    {
+        if (ActiveTab?.Browse is not { } browse)
+        {
+            if (ActiveTab is { } tab)
+            {
+                tab.Status = "Filters apply while browsing a table: double-click one in the sidebar. A query you wrote is never rewritten; add a WHERE to it instead.";
+                tab.HasError = false;
+            }
+
+            return;
+        }
+
+        browse.OpenFilterBar();
+        FilterBarFocusRequested?.Invoke();
+    }
+
     // --- The shell's three dismissable panels ---------------------------------
     //
     // Shortcuts, preferences and About are OverlayPanels over this window rather than
