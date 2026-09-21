@@ -19,6 +19,7 @@ using AvaloniaEdit.Highlighting;
 using AvaloniaEdit.Highlighting.Xshd;
 using PgNimbus.App.Converters;
 using PgNimbus.App.ViewModels;
+using PgNimbus.Core.Commands;
 using PgNimbus.Core.Import;
 using PgNimbus.Core.Query;
 using PgNimbus.Core.Schema;
@@ -133,7 +134,26 @@ public partial class ResultsGridPanel : UserControl
 
         ActualThemeVariantChanged += (_, _) => ApplyJsonHighlightingTheme();
         DataContextChanged += OnDataContextChanged;
+
+        // Row details follow the grid's current row (the sidebar pins itself
+        // while it holds unstaged changes; see RowDetailViewModel.Load).
+        ResultsGrid.SelectionChanged += (_, _) => _activeQuery?.RowDetail.Load(ResultsGrid.SelectedItem as object?[]);
+        RowDetails.CloseRequested += () =>
+        {
+            if (_model is not null)
+            {
+                _model.IsRowDetailOpen = false;
+            }
+
+            FocusGrid();
+        };
+        RowDetails.ReturnFocusRequested += FocusGrid;
+        FilterBar.ReturnFocusRequested += FocusGrid;
+        RowDetailSplitter.DragCompleted += (_, _) => _rowDetailWidth = ResultsLayout.ColumnDefinitions[2].ActualWidth;
     }
+
+    // The sidebar's width, kept across close/reopen (the column is 0 while closed).
+    private double _rowDetailWidth = 340;
 
     // The window's root panel the cell inspector overlay is re-hosted into (see below).
     private Panel? _inspectorOverlayHost;
@@ -237,6 +257,8 @@ public partial class ResultsGridPanel : UserControl
         {
             _model.PropertyChanged -= OnMainViewModelPropertyChanged;
             _model.CellInspector.PropertyChanged -= OnCellInspectorPropertyChanged;
+            _model.RowDetailFocusRequested -= OnRowDetailFocusRequested;
+            _model.FilterBarFocusRequested -= OnFilterBarFocusRequested;
         }
 
         _model = DataContext as MainViewModel;
@@ -245,6 +267,9 @@ public partial class ResultsGridPanel : UserControl
         {
             _model.PropertyChanged += OnMainViewModelPropertyChanged;
             _model.CellInspector.PropertyChanged += OnCellInspectorPropertyChanged;
+            _model.RowDetailFocusRequested += OnRowDetailFocusRequested;
+            _model.FilterBarFocusRequested += OnFilterBarFocusRequested;
+            ApplyRowDetailWidth();
             // Warm the FK cache in the background so the grid's FK-navigation menu
             // items (which can't await) have edges to read by the time it's opened.
             _ = _model.EnsureForeignKeysAsync();
@@ -262,7 +287,99 @@ public partial class ResultsGridPanel : UserControl
         {
             AttachQuery(_model.ActiveTab);
         }
+        else if (e.PropertyName == nameof(MainViewModel.IsRowDetailOpen))
+        {
+            ApplyRowDetailWidth();
+        }
     }
+
+    // --- Row details / filter bar ------------------------------------------
+
+    // Column 2 of ResultsLayout is the sidebar: a pixel width while open (so
+    // the splitter can drag it), zero while closed.
+    private void ApplyRowDetailWidth()
+    {
+        if (_model is null)
+        {
+            return;
+        }
+
+        var column = ResultsLayout.ColumnDefinitions[2];
+        if (_model.IsRowDetailOpen)
+        {
+            column.Width = new GridLength(_rowDetailWidth);
+            column.MinWidth = 220;
+            if (ResultsGrid.SelectedItem is object?[] selected)
+            {
+                _activeQuery?.RowDetail.Load(selected);
+            }
+        }
+        else
+        {
+            if (column.ActualWidth > 0)
+            {
+                _rowDetailWidth = column.ActualWidth;
+            }
+
+            column.MinWidth = 0;
+            column.Width = new GridLength(0);
+        }
+    }
+
+    private void OnRowDetailFocusRequested()
+    {
+        // Opening from the keyboard with no row selected would show an empty
+        // form; the first row is the obvious one to show.
+        if (ResultsGrid.SelectedItem is null && _activeQuery is { Rows.Count: > 0 } query)
+        {
+            ResultsGrid.SelectedItem = query.Rows[0];
+        }
+
+        RowDetails.FocusFirstField();
+    }
+
+    private void OnFilterBarFocusRequested() =>
+        FilterBar.FocusFilter(_activeQuery?.Browse?.Filters.LastOrDefault());
+
+    // Ctrl/Cmd+F in the grid while browsing: open the bar on the current column.
+    private void OpenFilterBarForCurrentColumn()
+    {
+        if (_activeQuery?.Browse is not { } browse)
+        {
+            return;
+        }
+
+        var column = ResultsGrid.CurrentColumn is { } current && current.DisplayIndex < _activeQuery.ColumnNames.Count
+            ? _activeQuery.ColumnNames[current.DisplayIndex]
+            : null;
+        FilterBar.FocusFilter(browse.OpenFilterBar(column));
+    }
+
+    private void OnRowDetailsClick(object? sender, RoutedEventArgs e)
+    {
+        if (_model is null)
+        {
+            return;
+        }
+
+        if (_lastPressedRow is { } row)
+        {
+            ResultsGrid.SelectedItem = row;
+        }
+
+        if (!_model.IsRowDetailOpen)
+        {
+            _model.ToggleRowDetailsCommand.Execute(null);
+        }
+        else
+        {
+            RowDetails.FocusFirstField();
+        }
+    }
+
+    private void OnRowDetailReplacedRow(object?[] row) => ResultsGrid.SelectedItem = row;
+
+    private void OnRowDetailInspectRequested(object?[] row, int columnIndex) => OpenCellInspector(row, columnIndex);
 
     // Switching the active tab swaps which QueryViewModel the shared results grid
     // reflects - each tab keeps its own Rows/Status, but there's only one
@@ -274,6 +391,8 @@ public partial class ResultsGridPanel : UserControl
         {
             _activeQuery.PropertyChanged -= OnActiveQueryPropertyChanged;
             _activeQuery.ColumnNames.CollectionChanged -= OnColumnNamesChanged;
+            _activeQuery.RowDetail.RowReplaced -= OnRowDetailReplacedRow;
+            _activeQuery.RowDetail.InspectRequested -= OnRowDetailInspectRequested;
         }
 
         _activeQuery = query;
@@ -284,6 +403,8 @@ public partial class ResultsGridPanel : UserControl
 
         _activeQuery.PropertyChanged += OnActiveQueryPropertyChanged;
         _activeQuery.ColumnNames.CollectionChanged += OnColumnNamesChanged;
+        _activeQuery.RowDetail.RowReplaced += OnRowDetailReplacedRow;
+        _activeQuery.RowDetail.InspectRequested += OnRowDetailInspectRequested;
 
         ResultsGrid.ItemsSource = _activeQuery.Rows;
         RebuildColumns(_activeQuery);
@@ -568,6 +689,16 @@ public partial class ResultsGridPanel : UserControl
             return;
         }
 
+        // The Find chord, in a browsed grid, filters it (TablePlus does the
+        // same): the grid has no text to search, and the rows are on the server.
+        // Anywhere else it bubbles on to the window and opens the editor's search.
+        if (CommandBindings.Matches(CommandId.Find, e) && _activeQuery?.Browse is not null && !_isCellEditing)
+        {
+            OpenFilterBarForCurrentColumn();
+            e.Handled = true;
+            return;
+        }
+
         // Space quick-peeks the current cell in the inspector (TablePlus-style
         // Quick Look): the fast no-menu path that also works in editable grids,
         // where double-click means "edit" instead. Guarded off while a cell
@@ -731,6 +862,12 @@ public partial class ResultsGridPanel : UserControl
             return;
         }
 
+        ComposeFilterMenu(menu);
+        if (menu.Items.OfType<MenuItem>().FirstOrDefault(m => m.Name == "RowDetailsMenuItem") is { } rowDetails)
+        {
+            rowDetails.InputGesture = CommandBindings.GestureFor(CommandId.RowDetails);
+        }
+
         _followFkItem ??= menu.Items.OfType<MenuItem>().FirstOrDefault(m => m.Name == "FollowFkMenuItem");
         _referencingRowsItem ??= menu.Items.OfType<MenuItem>().FirstOrDefault(m => m.Name == "ReferencingRowsMenuItem");
         if (_followFkItem is null || _referencingRowsItem is null)
@@ -789,6 +926,67 @@ public partial class ResultsGridPanel : UserControl
             }).ToList();
             _referencingRowsItem.IsVisible = true;
         }
+    }
+
+    // The browse-only "Filter" submenu for the pressed cell: keep rows equal to
+    // it, drop them, or (whatever the value) keep only the NULLs / non-NULLs.
+    // Every entry adds one row to the filter bar and applies it, so the result
+    // is the same visible, editable filter a hand-built one would be.
+    private void ComposeFilterMenu(ContextMenu menu)
+    {
+        if (menu.Items.OfType<MenuItem>().FirstOrDefault(m => m.Name == "FilterByValueMenuItem") is not { } filterItem)
+        {
+            return;
+        }
+
+        filterItem.IsVisible = false;
+        filterItem.ItemsSource = null;
+        if (_activeQuery?.Browse is not { } browse || _lastPressedRow is not { } row
+            || _lastPressedColumnIndex < 0 || _lastPressedColumnIndex >= _activeQuery.ColumnNames.Count
+            || _lastPressedColumnIndex >= row.Length)
+        {
+            return;
+        }
+
+        var column = _activeQuery.ColumnNames[_lastPressedColumnIndex];
+        if (browse.Columns.FirstOrDefault(c => c.Name == column) is not { } meta)
+        {
+            return;
+        }
+
+        var value = row[_lastPressedColumnIndex];
+        var entries = new List<(string Header, FilterOperator Op, string? Value)>();
+        if (value is not null && !CellText.IsShortened(value) && !QueryEngine.IsUnreadableCell(value))
+        {
+            var ops = RowFilterSql.OperatorsFor(meta.Editor, meta.DataType);
+            var text = RowFilterSql.ValueText(value);
+            var shown = text.Length > 40 ? text[..40] + "…" : text;
+            if (value is bool b)
+            {
+                entries.Add(($"{column} is {(b ? "true" : "false")}", b ? FilterOperator.IsTrue : FilterOperator.IsFalse, null));
+            }
+            else if (ops.Contains(FilterOperator.Equals))
+            {
+                entries.Add(($"{column} = {shown}", FilterOperator.Equals, text));
+                entries.Add(($"{column} ≠ {shown}", FilterOperator.NotEquals, text));
+            }
+            else
+            {
+                // json and friends have no equality; a text search is the honest offer.
+                entries.Add(($"{column} contains {shown}", FilterOperator.Contains, text));
+            }
+        }
+
+        entries.Add(($"{column} is null", FilterOperator.IsNull, null));
+        entries.Add(($"{column} is not null", FilterOperator.IsNotNull, null));
+
+        filterItem.ItemsSource = entries.Select(entry =>
+        {
+            var item = new MenuItem { Header = EscapeMenuHeader(entry.Header) };
+            item.Click += (_, _) => _ = browse.AddAndApplyFilterAsync(column, entry.Op, entry.Value);
+            return item;
+        }).ToList();
+        filterItem.IsVisible = true;
     }
 
     // A string MenuItem.Header treats "_" as the access-key marker and eats it

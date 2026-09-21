@@ -60,6 +60,8 @@ public enum CommandId
     InspectCell,
     CopySelection,
     DeleteRow,
+    RowDetails,
+    FilterRows,
 
     // --- Navigation & app ---
     CommandPalette,

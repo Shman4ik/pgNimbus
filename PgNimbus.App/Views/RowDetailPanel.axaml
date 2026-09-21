@@ -1,0 +1,101 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PgNimbus.App.ViewModels"
+             xmlns:views="using:PgNimbus.App.Views"
+             xmlns:conv="using:Avalonia.Data.Converters"
+             x:Class="PgNimbus.App.Views.RowDetailPanel"
+             x:DataType="vm:RowDetailViewModel">
+    <!-- Row details: the grid's current row as a name/value form (Ctrl/Cmd+I).
+         Editable columns use the shared type-aware inputs (ColumnValueEditorView);
+         Stage puts every change into the tab's staged set, reviewed and committed
+         from the status bar like any other staged edit. Tab walks the fields,
+         Enter stages, Escape reverts (or, with nothing to revert, returns to the
+         grid). -->
+    <Grid RowDefinitions="Auto,Auto,*,Auto">
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="10,8,6,2">
+            <TextBlock Text="{Binding Heading}" FontWeight="SemiBold" FontSize="13"
+                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+            <Button Grid.Column="1" Name="CloseButton" Classes="chip" Content="✕" FontSize="10"
+                    Width="20" Height="20" Padding="0"
+                    AutomationProperties.Name="Close row details" />
+        </Grid>
+
+        <TextBlock Grid.Row="1" Text="{Binding Note}" FontSize="11" Opacity="0.6" TextWrapping="Wrap"
+                   Margin="10,0,10,6"
+                   IsVisible="{Binding Note, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+
+        <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Disabled">
+            <ItemsControl ItemsSource="{Binding Fields}" Margin="6,0,6,6">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:RowDetailField">
+                        <Border Padding="4,5" CornerRadius="6" Classes.changed="{Binding IsChanged}">
+                            <Border.Styles>
+                                <!-- The same amber the grid's staged-row wash uses: this
+                                     line differs from the row, and Stage would stage it. -->
+                                <Style Selector="Border.changed">
+                                    <Setter Property="Background" Value="#26D9822B" />
+                                </Style>
+                            </Border.Styles>
+                            <StackPanel Spacing="3">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12"
+                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Text="{Binding TypeLabel}" FontSize="10" Opacity="0.5"
+                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                    <!-- Editor is null on read-only lines, so it's the DataContext
+                                         here rather than a hop inside the path (CLAUDE.md: a nullable
+                                         view model never sits inside a binding path). -->
+                                    <Panel Grid.Column="1" IsVisible="{Binding IsEditable}">
+                                        <CheckBox x:DataType="vm:NewRowField" DataContext="{Binding Editor}"
+                                                  Content="NULL" FontSize="11" MinHeight="0" Padding="4,0,0,0"
+                                                  IsChecked="{Binding IsNull, Mode=TwoWay}"
+                                                  AutomationProperties.Name="{Binding Name, StringFormat='{}{0} is NULL'}" />
+                                    </Panel>
+                                </Grid>
+
+                                <Panel IsVisible="{Binding IsEditable}">
+                                    <views:ColumnValueEditorView DataContext="{Binding Editor}" />
+                                </Panel>
+
+                                <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding !IsEditable}">
+                                    <SelectableTextBlock Text="{Binding DisplayText}" FontSize="12" TextWrapping="Wrap"
+                                                         Classes.null="{Binding IsNull}">
+                                        <SelectableTextBlock.Styles>
+                                            <Style Selector="SelectableTextBlock.null">
+                                                <Setter Property="Opacity" Value="0.45" />
+                                                <Setter Property="FontStyle" Value="Italic" />
+                                            </Style>
+                                        </SelectableTextBlock.Styles>
+                                    </SelectableTextBlock>
+                                    <Button Grid.Column="1" Classes="chip" Content="Inspect" FontSize="10" Padding="6,1"
+                                            Margin="6,0,0,0" VerticalAlignment="Top"
+                                            IsVisible="{Binding CanInspect}"
+                                            Command="{Binding $parent[views:RowDetailPanel].((vm:RowDetailViewModel)DataContext).InspectCommand}"
+                                            CommandParameter="{Binding}" />
+                                </Grid>
+                                <TextBlock Text="{Binding ReadOnlyReason}" FontSize="10" Opacity="0.5"
+                                           IsVisible="{Binding ReadOnlyReason, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <StackPanel Grid.Row="3" Spacing="6" Margin="10,4,10,10" IsVisible="{Binding HasRow}">
+            <TextBlock Text="{Binding Error}" FontSize="11" TextWrapping="Wrap"
+                       Foreground="{DynamicResource AppDangerBrush}"
+                       IsVisible="{Binding Error, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+            <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right">
+                <Button Classes="soft" Content="Revert" FontSize="12" Padding="10,3"
+                        Command="{Binding RevertCommand}"
+                        ToolTip.Tip="Put every field back to the row's values (Esc)" />
+                <Button Classes="accent" Content="{Binding StageLabel}" FontSize="12" Padding="12,3"
+                        Command="{Binding StageCommand}"
+                        ToolTip.Tip="Stage these changes; review and commit them from the status bar (Enter)" />
+            </StackPanel>
+        </StackPanel>
+    </Grid>
+</UserControl>

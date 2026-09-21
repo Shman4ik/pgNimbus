@@ -60,16 +60,7 @@ public sealed partial class AddRowViewModel(
             Fields.Clear();
             foreach (var column in columns)
             {
-                Fields.Add(new NewRowField
-                {
-                    Name = column.Name,
-                    DataType = column.DataType,
-                    NotNull = column.NotNull,
-                    IsPrimaryKey = column.IsPrimaryKey,
-                    Editor = column.Editor,
-                    EnumLabels = column.EnumLabels,
-                    DomainBaseType = column.DomainBaseType,
-                });
+                Fields.Add(NewRowField.For(column));
             }
         }
         catch (Exception ex)

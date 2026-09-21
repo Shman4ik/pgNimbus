@@ -62,10 +62,12 @@ way in Preferences → Hotkey scheme.
 | Action | Windows / Linux | macOS |
 | --- | --- | --- |
 | Edit selected cell | F2 / double-click | F2 / double-click |
-| Commit / cancel cell edit | Enter / Esc | Enter / Esc |
+| Commit / cancel a cell edit; stage / revert row-detail edits | Enter / Esc | Enter / Esc |
 | Inspect cell (full value, pretty-printed JSON) | Space / double-click (read-only) / context menu | Space / double-click (read-only) / context menu |
 | Copy the selected cells | Ctrl+C | Cmd+C |
 | Delete the selected row (editable results) | Delete | Delete |
+| Show / hide row details | Ctrl+I | Cmd+I |
+| Filter rows of the browsed table… | Ctrl+F in the results grid while browsing a table | Cmd+F in the results grid while browsing a table |
 | Set cell to NULL | context menu | context menu |
 
 ## Navigation

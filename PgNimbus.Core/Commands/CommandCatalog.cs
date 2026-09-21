@@ -439,6 +439,7 @@ public static class CommandCatalog
         {
             Id = CommandId.CommitCellEdit,
             Title = "Commit / cancel cell edit",
+            CheatTitle = "Commit / cancel a cell edit; stage / revert row-detail edits",
             Category = CommandCategory.Results,
             Scope = CommandScope.Results,
             Chord = new(CommandKey.Enter),
@@ -472,6 +473,32 @@ public static class CommandCatalog
             Scope = CommandScope.Results,
             Chord = new(CommandKey.Delete),
             Surfaces = SheetOnly,
+        },
+        new()
+        {
+            // Global, not Results: the sidebar is a place focus lives in its
+            // own right (Tab through the fields), and the chord has to close
+            // it from there as well as open it from the grid.
+            Id = CommandId.RowDetails,
+            Title = "Toggle row details (the selected row as a name/value form)",
+            CheatTitle = "Show / hide row details",
+            Category = CommandCategory.Results,
+            Glyph = "▤",
+            Chord = new(CommandKey.I, Cmd),
+            Surfaces = Everywhere,
+        },
+        new()
+        {
+            // No chord of its own: in the grid while browsing, the Find chord
+            // means "filter these rows" (the grid has nothing else to find in),
+            // so the gesture is documented here as a note rather than as a
+            // second Ctrl/Cmd+F that would clash with the global one.
+            Id = CommandId.FilterRows,
+            Title = "Filter rows of the browsed table…",
+            Category = CommandCategory.Results,
+            Glyph = "▽",
+            GestureNote = "{cmd}+F in the results grid while browsing a table",
+            Surfaces = PaletteAndSheet,
         },
         new()
         {
