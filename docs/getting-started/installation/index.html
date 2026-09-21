@@ -941,7 +941,7 @@ the tagged commit, rather than tampered with or rehosted:</p>
 </tr>
 <tr>
 <td>Passwords</td>
-<td>The OS credential store: DPAPI on Windows, a permission-restricted file elsewhere. Never the profile file.</td>
+<td>DPAPI-encrypted files on Windows; Keychain on macOS; Secret Service via <code>libsecret-1.so.0</code> on Linux. Unavailable storage uses session memory with a visible warning. Never the profile file. Legacy unencrypted <code>.cred</code> files are migrated when profiles are opened, then removed only after verification. See <a href="../connecting/#where-your-password-goes">credential storage</a>.</td>
 </tr>
 </tbody>
 </table>
