@@ -10,48 +10,109 @@
          Stage puts every change into the tab's staged set, reviewed and committed
          from the status bar like any other staged edit. Tab walks the fields,
          Enter stages, Escape reverts (or, with nothing to revert, returns to the
-         grid). -->
+         grid).
+
+         Labels sit above their inputs (DESIGN rule 8), and a read-only value gets
+         the same box an input does, so every value in the column starts at the
+         same x and reads as one form rather than two kinds of line. -->
+    <UserControl.Styles>
+        <Style Selector="TextBox, ComboBox, CalendarDatePicker">
+            <Setter Property="MinHeight" Value="28" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+        <Style Selector="TextBox">
+            <Setter Property="Padding" Value="8,4" />
+        </Style>
+
+        <!-- A field that differs from the row: amber wash plus an edge, the same
+             amber the grid paints a staged row with. -->
+        <Style Selector="Border.field">
+            <Setter Property="Padding" Value="8,6,8,8" />
+            <Setter Property="BorderThickness" Value="2,0,0,0" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="CornerRadius" Value="0,6,6,0" />
+        </Style>
+        <Style Selector="Border.field.changed">
+            <Setter Property="Background" Value="#1FD9822B" />
+            <Setter Property="BorderBrush" Value="{StaticResource AppWarningBrush}" />
+        </Style>
+
+        <!-- The read-only value box: an input's shape without an input's affordance. -->
+        <Style Selector="Border.readonly">
+            <Setter Property="Background" Value="{StaticResource HoverBackgroundBrush}" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="8,5" />
+            <Setter Property="MinHeight" Value="28" />
+        </Style>
+        <Style Selector="SelectableTextBlock.null">
+            <Setter Property="Opacity" Value="0.45" />
+            <Setter Property="FontStyle" Value="Italic" />
+        </Style>
+    </UserControl.Styles>
+
     <Grid RowDefinitions="Auto,Auto,*,Auto">
-        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="10,8,6,2">
-            <TextBlock Text="{Binding Heading}" FontWeight="SemiBold" FontSize="13"
-                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+        <!-- Which row, and of what. -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="12,10,8,6">
+            <StackPanel Spacing="1">
+                <TextBlock Text="{Binding Heading}" FontWeight="SemiBold" FontSize="13"
+                           TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Source}" FontSize="11" Opacity="0.55"
+                           TextTrimming="CharacterEllipsis"
+                           IsVisible="{Binding Source, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+            </StackPanel>
             <Button Grid.Column="1" Name="CloseButton" Classes="chip" Content="✕" FontSize="10"
-                    Width="20" Height="20" Padding="0"
+                    Width="22" Height="22" Padding="0" VerticalAlignment="Top"
+                    ToolTip.Tip="Close row details"
                     AutomationProperties.Name="Close row details" />
         </Grid>
 
-        <TextBlock Grid.Row="1" Text="{Binding Note}" FontSize="11" Opacity="0.6" TextWrapping="Wrap"
-                   Margin="10,0,10,6"
-                   IsVisible="{Binding Note, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+        <!-- Why the row is read-only: said once, as a banner, not on every field. -->
+        <Border Grid.Row="1" Margin="10,0,12,6" Padding="8,6" CornerRadius="6"
+                Background="{StaticResource HoverBackgroundBrush}">
+            <Border.IsVisible>
+                <MultiBinding Converter="{x:Static BoolConverters.And}">
+                    <Binding Path="HasRow" />
+                    <Binding Path="Note" Converter="{x:Static conv:ObjectConverters.IsNotNull}" />
+                </MultiBinding>
+            </Border.IsVisible>
+            <TextBlock Text="{Binding Note}" FontSize="11" Opacity="0.75" TextWrapping="Wrap" />
+        </Border>
 
-        <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Disabled">
-            <ItemsControl ItemsSource="{Binding Fields}" Margin="6,0,6,6">
+        <!-- No row: an explicit state, not a blank panel (DESIGN rule 7). -->
+        <StackPanel Grid.Row="2" IsVisible="{Binding !HasRow}" Spacing="8" Margin="24,0"
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
+            <PathIcon Data="{StaticResource TableIconGeometry}" Width="26" Height="26"
+                      Opacity="0.28" HorizontalAlignment="Center" />
+            <TextBlock Text="No row selected" FontSize="13" FontWeight="SemiBold"
+                       Opacity="0.6" HorizontalAlignment="Center" />
+            <TextBlock Text="{Binding Note}" FontSize="11.5" Opacity="0.45" TextWrapping="Wrap"
+                       TextAlignment="Center" />
+        </StackPanel>
+
+        <!-- Right margin leaves the overlay scrollbar its own lane. -->
+        <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Disabled" IsVisible="{Binding HasRow}">
+            <ItemsControl ItemsSource="{Binding Fields}" Margin="2,0,12,8">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:RowDetailField">
-                        <Border Padding="4,5" CornerRadius="6" Classes.changed="{Binding IsChanged}">
-                            <Border.Styles>
-                                <!-- The same amber the grid's staged-row wash uses: this
-                                     line differs from the row, and Stage would stage it. -->
-                                <Style Selector="Border.changed">
-                                    <Setter Property="Background" Value="#26D9822B" />
-                                </Style>
-                            </Border.Styles>
-                            <StackPanel Spacing="3">
-                                <Grid ColumnDefinitions="*,Auto">
+                        <Border Classes="field" Classes.changed="{Binding IsChanged}">
+                            <StackPanel Spacing="4">
+                                <Grid ColumnDefinitions="*,Auto" MinHeight="20">
                                     <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                                         <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12"
                                                    VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                                        <TextBlock Text="{Binding TypeLabel}" FontSize="10" Opacity="0.5"
+                                        <TextBlock Text="{Binding TypeLabel}" FontSize="10.5" Opacity="0.5"
                                                    VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                                     </StackPanel>
                                     <!-- Editor is null on read-only lines, so it's the DataContext
                                          here rather than a hop inside the path (CLAUDE.md: a nullable
-                                         view model never sits inside a binding path). -->
+                                         view model never sits inside a binding path). Two-way
+                                         IsChecked and no Command (DESIGN rule 6). -->
                                     <Panel Grid.Column="1" IsVisible="{Binding IsEditable}">
-                                        <CheckBox x:DataType="vm:NewRowField" DataContext="{Binding Editor}"
-                                                  Content="NULL" FontSize="11" MinHeight="0" Padding="4,0,0,0"
-                                                  IsChecked="{Binding IsNull, Mode=TwoWay}"
-                                                  AutomationProperties.Name="{Binding Name, StringFormat='{}{0} is NULL'}" />
+                                        <ToggleButton x:DataType="vm:NewRowField" DataContext="{Binding Editor}"
+                                                      Classes="chip" Content="NULL" FontSize="10" Padding="7,1"
+                                                      IsChecked="{Binding IsNull, Mode=TwoWay}"
+                                                      ToolTip.Tip="Set this field to NULL"
+                                                      AutomationProperties.Name="{Binding Name, StringFormat='{}{0} is NULL'}" />
                                     </Panel>
                                 </Grid>
 
@@ -59,23 +120,20 @@
                                     <views:ColumnValueEditorView DataContext="{Binding Editor}" />
                                 </Panel>
 
-                                <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding !IsEditable}">
-                                    <SelectableTextBlock Text="{Binding DisplayText}" FontSize="12" TextWrapping="Wrap"
-                                                         Classes.null="{Binding IsNull}">
-                                        <SelectableTextBlock.Styles>
-                                            <Style Selector="SelectableTextBlock.null">
-                                                <Setter Property="Opacity" Value="0.45" />
-                                                <Setter Property="FontStyle" Value="Italic" />
-                                            </Style>
-                                        </SelectableTextBlock.Styles>
-                                    </SelectableTextBlock>
-                                    <Button Grid.Column="1" Classes="chip" Content="Inspect" FontSize="10" Padding="6,1"
-                                            Margin="6,0,0,0" VerticalAlignment="Top"
-                                            IsVisible="{Binding CanInspect}"
-                                            Command="{Binding $parent[views:RowDetailPanel].((vm:RowDetailViewModel)DataContext).InspectCommand}"
-                                            CommandParameter="{Binding}" />
-                                </Grid>
-                                <TextBlock Text="{Binding ReadOnlyReason}" FontSize="10" Opacity="0.5"
+                                <Border Classes="readonly" IsVisible="{Binding !IsEditable}">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <SelectableTextBlock Text="{Binding DisplayText}" FontSize="12" TextWrapping="Wrap"
+                                                             VerticalAlignment="Center"
+                                                             Classes.null="{Binding IsNull}" />
+                                        <Button Grid.Column="1" Classes="chip" Content="Inspect" FontSize="10" Padding="7,1"
+                                                Margin="6,0,0,0" VerticalAlignment="Top"
+                                                IsVisible="{Binding CanInspect}"
+                                                Command="{Binding $parent[views:RowDetailPanel].((vm:RowDetailViewModel)DataContext).InspectCommand}"
+                                                CommandParameter="{Binding}"
+                                                ToolTip.Tip="Open the full value in the cell inspector" />
+                                    </Grid>
+                                </Border>
+                                <TextBlock Text="{Binding ReadOnlyReason}" FontSize="10.5" Opacity="0.5"
                                            IsVisible="{Binding ReadOnlyReason, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
                             </StackPanel>
                         </Border>
@@ -84,18 +142,32 @@
             </ItemsControl>
         </ScrollViewer>
 
-        <StackPanel Grid.Row="3" Spacing="6" Margin="10,4,10,10" IsVisible="{Binding HasRow}">
-            <TextBlock Text="{Binding Error}" FontSize="11" TextWrapping="Wrap"
-                       Foreground="{DynamicResource AppDangerBrush}"
-                       IsVisible="{Binding Error, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-            <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right">
-                <Button Classes="soft" Content="Revert" FontSize="12" Padding="10,3"
-                        Command="{Binding RevertCommand}"
-                        ToolTip.Tip="Put every field back to the row's values (Esc)" />
-                <Button Classes="accent" Content="{Binding StageLabel}" FontSize="12" Padding="12,3"
-                        Command="{Binding StageCommand}"
-                        ToolTip.Tip="Stage these changes; review and commit them from the status bar (Enter)" />
+        <!-- Footer: only while the row is editable; a read-only row has nothing to stage. -->
+        <Border Grid.Row="3" BorderThickness="0,1,0,0" BorderBrush="{StaticResource CardBorderBrush}"
+                Padding="12,8,12,10">
+            <Border.IsVisible>
+                <MultiBinding Converter="{x:Static BoolConverters.And}">
+                    <Binding Path="HasRow" />
+                    <Binding Path="Note" Converter="{x:Static conv:ObjectConverters.IsNull}" />
+                </MultiBinding>
+            </Border.IsVisible>
+            <StackPanel Spacing="6">
+                <TextBlock Text="{Binding Error}" FontSize="11" TextWrapping="Wrap"
+                           Foreground="{DynamicResource AppDangerBrush}"
+                           IsVisible="{Binding Error, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                <Grid ColumnDefinitions="*,Auto,Auto">
+                    <TextBlock Text="Reviewed before commit" FontSize="10.5" Opacity="0.45"
+                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                               ToolTip.Tip="Staged changes are listed, checked for conflicts and committed from the status bar" />
+                    <Button Grid.Column="1" Classes="soft" Content="Revert" FontSize="12" Padding="10,3"
+                            Command="{Binding RevertCommand}"
+                            ToolTip.Tip="Put every field back to the row's values (Esc)" />
+                    <Button Grid.Column="2" Classes="accent" Content="{Binding StageLabel}" FontSize="12" Padding="12,3"
+                            Margin="6,0,0,0"
+                            Command="{Binding StageCommand}"
+                            ToolTip.Tip="Stage these changes; review and commit them from the status bar (Enter)" />
+                </Grid>
             </StackPanel>
-        </StackPanel>
+        </Border>
     </Grid>
 </UserControl>

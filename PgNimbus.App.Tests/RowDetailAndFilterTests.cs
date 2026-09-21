@@ -37,7 +37,9 @@ public class RowDetailAndFilterTests
             var fields = tab.RowDetail.Fields;
             await Assert.That(fields.Select(f => f.Name)).IsEquivalentTo(new[] { "id", "status", "qty" });
             await Assert.That(fields[0].IsEditable).IsFalse();
-            await Assert.That(fields[0].ReadOnlyReason).IsEqualTo("primary key");
+            // Said once, in the type line, not again as a note under the value.
+            await Assert.That(fields[0].TypeLabel).IsEqualTo("bigint · primary key");
+            await Assert.That(fields[0].ReadOnlyReason).IsNull();
             await Assert.That(fields[1].Editor!.Value).IsEqualTo("packed");
 
             Ui.Press(window, CommandId.RowDetails);
@@ -161,7 +163,9 @@ public class RowDetailAndFilterTests
         browse.AddFilter("shipped_at", FilterOperator.IsNull);
         // Editing composes a preview, and runs nothing.
         await Assert.That(executed).IsEmpty();
-        await Assert.That(browse.FilterPreviewSql).IsEqualTo("WHERE (\"total\" >= '10.5')\n  AND (\"shipped_at\" IS NULL)");
+        await Assert.That(browse.FilterPreviewSql).IsEqualTo("WHERE (\"total\" >= '10.5') AND (\"shipped_at\" IS NULL)");
+        await Assert.That(browse.HasUnappliedChanges).IsTrue();
+        await Assert.That(browse.Filters.Select(f => f.Connector)).IsEquivalentTo(new[] { "where", "and" });
 
         browse.ApplyFiltersCommand.Execute(null);
 
@@ -170,6 +174,7 @@ public class RowDetailAndFilterTests
         await Assert.That(executed[0]).EndsWith("LIMIT 100 OFFSET 0");
         await Assert.That(browse.HasActiveFilters).IsTrue();
         await Assert.That(browse.IsFilterBarVisible).IsTrue();
+        await Assert.That(browse.HasUnappliedChanges).IsFalse();
 
         // A half-typed change stays a draft: paging keeps running what was applied.
         filter.Value.Value = "99";

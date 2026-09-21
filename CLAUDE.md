@@ -1198,8 +1198,18 @@ csproj / WiX / MSIX manifest reference them unchanged:
   hand-written query's text. Ctrl/Cmd+F in a *browsed grid* opens the bar
   (documented on `CommandId.FilterRows` as a `GestureNote`, not a second chord,
   which the catalog test would rightly reject as shadowing the global Find).
-  UI tests: `PgNimbus.App.Tests/RowDetailAndFilterTests`; screenshot scenario
-  `main-window-browse-row-details`.
+  Four presentation choices, each a fix for how the first cut read: the bar and
+  the sidebar trim Fluent's 32px inputs to 28px through their *own*
+  `UserControl.Styles` (the Add-row dialog keeps the stock size); filter rows
+  lead with "where" / "and" (`BrowseFilterViewModel.Connector`) so the bar reads
+  as the clause it builds, and the value column is `*` capped at 420px so ✕ sits
+  beside its row; Apply is `accent` only while `HasUnappliedChanges` (otherwise
+  it looked pending when nothing was); and an empty browse result has its own
+  states in `ResultsGridPanel` — "No rows match these conditions" with Clear, or
+  the page label for an empty table — instead of the never-ran "Run a query"
+  hint (DESIGN rule 7).
+  UI tests: `PgNimbus.App.Tests/RowDetailAndFilterTests`; screenshot scenarios
+  `main-window-browse-row-details` and `main-window-browse-no-match`.
 - **A grid cell shows a preview, and a previewed cell never opens the inline
   editor** (2026-09). `CellText` is the one place a result value becomes text: in
   full for the cell inspector (`CellText.Full`), and capped at
