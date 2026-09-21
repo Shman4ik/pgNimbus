@@ -287,33 +287,93 @@ pgNimbus sends **zero telemetry**. No usage analytics, no crash reporting, no up
 
 ## 🗺️ Roadmap
 
-Prioritized by how much it advances the thesis (fast + open + modern, PostgreSQL-first). Contributions welcome. Items are intentionally scoped as individually shippable pieces; shipped items graduate into [Features](#-features) above.
+<a id="backlog"></a>
 
-**Next up**
+### Direction and competitive evidence
 
-- [ ] **Full macOS support.** Developer ID signing, notarization, real-world testing.
-- [ ] **macOS look & feel polish.** The native menu bar, About box, and Settings… (Cmd+,) shipped 2026-07. Still open: title-bar vibrancy/translucency (NSVisualEffectView-style material behind the merged command bar), sheet-style modals instead of separate dialog windows, a proper Window menu with the open-windows list, native context-menu styling, and a full-height sidebar that tucks under the traffic lights (TablePlus-style).
-- [x] **Linux builds.** AppImage, .deb, and tar.gz for x64/arm64 ship from the release pipeline (Flatpak still a maybe-later).
-- [x] **Table & index sizes and usage.** Relation sizes in the schema tree plus a Database Overview panel (largest relations with heap/index split, seq-vs-index scans, unused indexes, cache hit ratios).
-- [x] **Locks & blocking tree.** A who-blocks-whom view in the activity window (`pg_blocking_pids`), with one-click cancel/terminate of the *blocker*.
-- [ ] **Row detail sidebar.** A vertical name/value view of the selected row, doubling as a form-style editor.
-- [ ] **winget-pkgs submission.** Manifests are generated and validated per release; the first manual community-source PR is pending (the `msstore` source already covers `winget install`).
-- [ ] **Windows polish.** Mica/acrylic backdrop; per-action hotkey remapping.
-- [ ] **UI-thread watchdog.** A background timer that notices when the dispatcher stops responding for N seconds, captures a dump/log, and surfaces it. The crash reporter only catches thrown exceptions, not deadlocks or hangs (see the `Switch connection` compositor-deadlock fix).
+Research snapshot: **2026-09-21**. This is a proposed backlog, not a list of available features or a delivery commitment. Priorities are product hypotheses based on the source and public competitor documentation; validate demand with user interviews before investing in the larger items.
 
-**Bigger bets**
+**Primary audience:** PostgreSQL developers who investigate slow queries, fix production data, and debug access problems. The proposed positioning is **a fast, local PostgreSQL workbench that makes changes reviewable and performance improvements explainable**. Keep startup speed, NativeAOT, streaming, cancellation, and zero telemetry as constraints on every release.
 
-- [ ] **ER diagram.** Auto-laid-out foreign-key graph of a schema, exportable as SVG.
-- [ ] **EXPLAIN plan diffing.** Run a query before and after an index, then diff the plan trees node-by-node.
-- [ ] **Backup/restore UI.** `pg_dump`/`pg_restore` orchestration with progress streaming.
-- [ ] **AI, privacy-first.** Bring-your-own-key or local model, explicit opt-in, nothing leaves the machine otherwise; possibly an in-app assistant and/or a built-in MCP server exposing the current connection.
-- [ ] **Vim keybindings.** Opt-in modal editing over AvaloniaEdit.
-- [ ] **Parameterized queries.** Recognize `:name` / `$1` placeholders and prompt for values on run.
-- [ ] **Quick chart of a result set.** One click from grid to a bar/line/scatter view.
-- [ ] **PostGIS geometry viewer.** Render `geometry`/`geography` cells on a map.
-- [ ] **Notebook mode.** Mixed SQL + Markdown documents with inline result snapshots.
-- [ ] **Plugin/extension API.** A stable surface for community panels.
-- [ ] **Localization.** Externalize UI strings; Russian and German first.
+| Evidence from competitors | Implication for pgNimbus |
+| --- | --- |
+| TablePlus already offers Safe mode and generated-SQL review ([official overview](https://tableplus.com/blog/2017/07/10-hidden-gems-in-tableplus.html)). | Staging edits alone is not a new category. Extend it with conflict detection and consistent production safeguards. |
+| DBeaver supports graphical execution plans and schema comparison; its documented Schema Compare is in Enterprise/Ultimate ([plans](https://dbeaver.com/docs/dbeaver/Query-Execution-Plan/), [schema comparison](https://dbeaver.com/docs/dbeaver/Schema-compare/)). | A plan viewer is baseline functionality. A compact before/after workflow and an MIT-licensed PostgreSQL schema diff are stronger reasons to switch. |
+| pgAdmin offers AI reports and query/plan assistance ([official AI documentation](https://www.pgadmin.org/docs/pgadmin4/9.18/ai_tools.html)). | Adding a generic AI chat is unlikely to be a sufficient launch story. Prioritize useful workflows that work without a model or account. |
+| Beekeeper Studio advertises AI assistance and shared cloud workspaces ([official product page](https://www.beekeeperstudio.io/)). | Test demand for file-based team workflows without an account; avoid taking on a collaboration backend before the core workflows are compelling. |
+
+These are documented capability comparisons, not measured speed comparisons or claims that competitors lack every proposed workflow. Any future performance claim needs a reproducible, versioned benchmark.
+
+### What the current implementation makes possible
+
+The existing foundations are substantial: staged grid changes, FK navigation, offline plan import, plan warnings, database statistics, a blocking tree, and schema DDL reconstruction. The source also already includes a [security workspace](PgNimbus.App/ViewModels/Security/SecurityViewModel.cs), [effective-privilege explanations](PgNimbus.Core/Security/EffectivePrivilegeResolver.cs), and [RLS policy inspection](PgNimbus.App/ViewModels/Security/RlsTabViewModel.cs); role management and a policy list should not be proposed as new features.
+
+Specific gaps drive the first priorities:
+
+- [CredentialStore](PgNimbus.Core/Connections/CredentialStore.cs) selects DPAPI on Windows but [a base64 file fallback](PgNimbus.Core/Connections/PlainFileCredentialStore.cs) on macOS/Linux. Base64 is not encryption. The README's blanket OS-store/no-password-on-disk wording above therefore needs correction alongside the platform work.
+- [PendingChangeSet](PgNimbus.Core/Query/PendingChangeSet.cs) targets updates/deletes by primary key, without an original-row version predicate. Reviewing SQL does not detect another session changing a row after it was loaded.
+- [ConnectionProfile](PgNimbus.Core/Connections/ConnectionProfile.cs) has connection colors and SSL modes, but no environment policy or configurable query deadline; its command timeout is currently unlimited.
+- [ExplainService](PgNimbus.Core/Query/ExplainService.cs) and [PlanAnalyzer](PgNimbus.Core/Query/PlanAnalyzer.cs) already parse and explain individual plans. Comparing saved runs is the next increment, not rebuilding visualization.
+- [TableBrowseViewModel](PgNimbus.App/ViewModels/TableBrowseViewModel.cs) uses `LIMIT/OFFSET`. Fast initial display alone does not establish fast browsing deep into a large table.
+
+### P0 — Trust and everyday adoption
+
+Ship these before a broad production-use or cross-platform launch. Scope labels are relative: **S** = contained change, **M** = workflow across a few components, **L** = substantial subsystem; they are not calendar estimates.
+
+- [ ] **T1 · Native credential storage and accurate privacy wording (M).** Add macOS Keychain and Linux Secret Service integration, migrate existing saved secrets only after verifying the destination, and offer session-only credentials when the store is unavailable. Make query-history/workspace retention explicit; existing SQL password redaction is not general sensitive-data protection. **Done when:** new saved passwords no longer use the base64 fallback, migration and locked/unavailable stores have tested recovery paths, and README/platform docs accurately describe storage. This is a prerequisite for the cross-platform privacy message.
+- [ ] **T2 · Conflict-aware Safe mode (L).** Extend staged edits/deletes with optimistic concurrency checks and a before/current/proposed row comparison. **Done when:** a second session changing or deleting a staged row causes the entire batch to roll back with a useful conflict explanation; the user can reload and restage. Cover composite keys and NULLs, and clearly mark unsupported row identities. Build on the existing one-transaction commit; do not promise undo after commit.
+- [ ] **T3 · Production connection policies (L).** Add explicit dev/staging/production labels, an opt-in read-only session policy, per-profile statement/lock timeouts, and deliberate write enablement. Apply the policy consistently to the editor, grid, imports, schema/security actions, and diagnostic queries. **Done when:** reconnects and extra windows preserve it and a user can see the active environment and write state before execution. Explain the distinction between client safeguards and PostgreSQL role permissions; SQL keyword checks alone are insufficient.
+- [ ] **T4 · Row detail editor and visual filters (M).** Reuse existing type-aware cell editors in a keyboard-accessible name/value sidebar; add typed predicates, NULL filters, and visible generated SQL to table browsing. **Done when:** filtering happens on the server, arbitrary hand-written queries are not silently rewritten, and sidebar edits use the existing staged-change review. This removes daily friction for users coming from mature clients.
+- [ ] **T5 · Cross-platform installation confidence (M).** Finish macOS Developer ID signing/notarization and real-device checks; submit the generated WinGet manifests to the community source. Linux AppImage/.deb/tar.gz already ship. **Done when:** clean-machine install/update/uninstall checks pass for each advertised platform, with credential behavior from T1 documented. Treat Windows direct-installer signing as a separate distribution follow-up.
+- [ ] **T6 · Local hang diagnostics (M).** Add the UI-thread watchdog from the previous roadmap, with bounded local diagnostics and a recovery message. **Done when:** a deliberately stalled dispatcher is detected, normal long-running queries do not trigger it, and no dump/log is uploaded automatically; users can inspect sensitive diagnostic content before sharing.
+
+### P1 — Features worth announcing
+
+Deliver the following as small, reviewable increments. The first campaign should be **Query Lab**; T1–T3 remain trust work, not optional marketing polish.
+
+- [ ] **Q1 · EXPLAIN baselines and plan diff (L).** Save named runs with query, parameters, PostgreSQL version, settings, and measurement context; compare estimated/actual rows, execution time, buffers, spills, and added/removed/changed nodes. Preserve the existing offline import path. **Done when:** users can compare two imported plans without a connection and two explicit live runs, with missing metrics and changed plan topology handled clearly. Never present estimated cost as elapsed time or a single warm-cache run as proof of improvement.
+- [ ] **Q2 · Slow-query shortlist (M; depends on Q1 for comparison).** Add an optional `pg_stat_statements` view ranked by total execution time, calls, and mean duration, with interval deltas and a path into Query Lab. **Done when:** missing extension/permissions explain what is unavailable, resets invalidate the affected delta, and normalized SQL prompts for real typed parameters before any run. Do not enable extensions, change server configuration, or replay workload queries automatically. PostgreSQL documents the setup and visibility constraints in [pg_stat_statements](https://www.postgresql.org/docs/current/pgstatstatements.html).
+- [ ] **Q3 · Reviewable performance report (M; depends on Q1).** Export a local HTML/Markdown before/after report with plan changes, observed timings, buffers, and reproducibility notes. Allow users to omit SQL, literals, identifiers, and connection metadata, then preview the exact export; do not promise automatic anonymization. **Done when:** the report opens without pgNimbus or an account and its conclusions trace back to saved runs. New runs must be explicit: [EXPLAIN ANALYZE executes the statement](https://www.postgresql.org/docs/current/sql-explain.html), and rollback does not undo every possible side effect.
+- [ ] **S1 · Schema snapshots and drift report (L).** Compare two connections or a connection against a local snapshot. First cover tables, columns, defaults, PK/FK/unique constraints, and indexes; list unsupported object kinds explicitly. **Done when:** deterministic snapshots produce a readable diff, destructive changes are prominent, and renamed objects are shown as uncertain rather than silently inferred. Reuse catalog/DDL services. SQL migration export is a separate increment requiring dependency ordering and review; no automatic synchronization in the MVP.
+- [ ] **R1 · RLS access investigation (L).** Extend the existing privileges/RLS workspace with a bounded read-only preview under a role the current connection is allowed to assume, plus explicit session context. Show relevant policies, `USING`/`WITH CHECK`, and owner/superuser/`BYPASSRLS` caveats. **Done when:** a seeded two-tenant example explains which rows are visible for each role, denied role switches are clear, and the temporary session is always cleaned up. Do not claim that a SELECT preview proves INSERT/UPDATE policy behavior or arbitrary policy causality.
+- [ ] **D1 · Large-table browsing with bounded memory (L).** Add keyset pagination for supported stable unique sort orders, an explicit fallback for other queries, and a result row/memory budget with streaming export beyond it. **Done when:** deep-page and large JSON/text benchmarks report first-page latency, navigation latency, peak memory, and cancellation on a published dataset. Explain live-data changes between pages; do not promise a frozen snapshot without one.
+
+### Launch backlog and evidence
+
+The headlines below are proposals to use **after** the corresponding capabilities ship. Each campaign needs a short screencast, a reproducible example, and an explicit statement of limitations.
+
+| Order / release story | Minimum deliverable | Demonstration and validation |
+| --- | --- | --- |
+| 1. **“See exactly what changed in your PostgreSQL query plan.”** | Q1 + Q3; Q2 can follow. | Compare a seeded query before/after a reviewed index change, including a case with no improvement. Publish the workload and measurement conditions. Ask pilot users to identify the reason for the difference without assistance. |
+| 2. **“Catch conflicting data edits before they overwrite someone else's work.”** | T2 + T3. | Two sessions edit the same row; show the conflict, rollback, and successful restaging. Cover editor/import policy paths as well as the grid in release checks. |
+| 3. **“Find PostgreSQL schema drift without a cloud account.”** | S1. | Compare dev/staging snapshots and expose a missing constraint and changed default. Publish supported object coverage and an example diff that can be reviewed in Git. |
+| 4. **“See what each tenant role can read.”** | R1. | A two-tenant fixture with different policies, including an owner-bypass case. Pilot users should explain the visible rows and identify when the preview cannot answer a write-access question. |
+
+- [ ] **L1 · Repeatable first-run demo (M).** Package an opt-in local sample database and guided tasks for Query Lab, conflicting edits, and tenant access. Use synthetic data, show setup/cleanup steps, and require no production connection or cloud account. Start with an SQL fixture; an embedded server is outside the first scope.
+- [ ] **L2 · Fair comparison kit (S).** Extend the existing benchmarks with large-result memory, deep paging, and cancellation; record hardware, OS, app/database versions, data, and cold/warm conditions. Publish raw results before making new superiority claims. Retain the existing startup benchmark as a regression gate.
+- [ ] **L3 · Validate adoption without telemetry (S).** Recruit an initial small pilot group and record consented task-completion observations, failure reasons, and voluntary follow-up feedback. Use public release downloads and substantive issue/discussion feedback only as supporting signals, not active-user or retention estimates. Decide whether to expand each campaign after users can complete its example unaided.
+
+### P2 — Reduce switching costs and deepen PostgreSQL workflows
+
+- [ ] **Typed query parameters (M).** Prompt for `:name` / `$1` values with PostgreSQL types, NULL support, and reusable parameter definitions; do not persist sensitive values by default. This extends editor execution, not the already-existing internal `ParameterizedStatement` used by grid writes. Implement the minimal typed input needed by Q2 first.
+- [ ] **Portable SQL projects and connection import (M).** Group saved queries, snippets, parameter definitions, and schema snapshots in a versioned folder suitable for Git. Start with one documented external connection-profile format; preview imported fields and omit passwords/SSH secrets. Keep profiles local and resolve project connection aliases explicitly.
+- [ ] **ER diagram (L).** Start with a selected table and its FK neighbors, then schema-wide layout and SVG export; link nodes to existing browse/DDL actions. Bound graph size so a large schema does not freeze the UI.
+- [ ] **Backup/restore UI (L).** Discover compatible `pg_dump`/`pg_restore` binaries, preview commands without secrets, stream progress/errors, and require explicit restore target selection. Verify with an actual dump/restore round trip; downloading external tools is opt-in.
+- [ ] **Maintenance insights (M).** Extend Database Overview with stale statistics, dead tuples, long transactions, and vacuum progress, including permissions and sampling context. Recommendations produce reviewable SQL, never automatic index drops or maintenance based on a single counter.
+- [ ] **Result comparison (M).** Compare two bounded result snapshots by an explicit key; surface duplicate keys, NULL/type differences, and truncation. Export a local diff; cross-database data synchronization is outside the first increment.
+- [ ] **PostGIS geometry viewer (L).** Render geometry/geography cells with SRID awareness and a visible size limit. Start with local rendering; external map tiles require explicit opt-in because they add network traffic beyond configured database connections.
+- [ ] **Quick result charts (M).** Bar/line/scatter views with explicit axis and aggregation choices; show whether the chart uses the full result or a limited preview. Export locally.
+- [ ] **Keyboard and platform polish (M, split by platform).** Hotkey remapping, optional Vim bindings, Windows Mica/acrylic; on macOS, vibrancy, sheet-style dialogs, Window menu, native context menus, and sidebar/title-bar integration. Preserve accessibility, contrast, and keyboard navigation.
+- [ ] **Localization (L).** Externalize strings, then Russian and German; include pluralization, shortcuts, layout expansion, and untranslated-string checks.
+
+### P3 — Validate before committing
+
+- [ ] **Privacy-first AI / MCP (L).** Explore a narrow explanation or query-drafting workflow only after the deterministic workflows above. Local models first; remote providers require explicit opt-in and an exact data preview. Any MCP surface needs connection-scoped permissions, read-only defaults, bounded results, and explicit approval for execution. Revisit the current network/privacy wording before shipping; do not market “AI” alone as the differentiator.
+- [ ] **Notebook mode (L).** Validate demand for mixed SQL/Markdown with local result snapshots after portable SQL projects; define secret handling and snapshot size limits first.
+- [ ] **Plugin API (L).** Defer until repeated extension needs justify a stable, NativeAOT-compatible contract; investigate process isolation and permissions before allowing third-party code access to connections.
+- [ ] **Flatpak distribution (M).** Validate demand beyond the existing Linux packages, including sandbox access to Secret Service and external PostgreSQL tools.
+
+Completed items from the previous backlog: Linux release packages, table/index size and usage inspection, and the blocking tree. Keep them as shipped capabilities, not future launch promises. Contributions welcome; pick one scoped increment rather than an entire campaign.
 
 ## 📄 License
 
