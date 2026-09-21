@@ -13,9 +13,9 @@ public sealed record FilterOperatorOption(FilterOperator Operator, string Label)
 }
 
 /// <summary>
-/// One row of the browse filter bar: column, operator, value. A draft until the
-/// bar is applied — editing it composes nothing and runs nothing, it only
-/// refreshes the bar's SQL preview (<see cref="Changed"/>). The operator list
+/// One browse condition: column, operator, value. Shown as a chip once applied,
+/// and edited in the chip's flyout as a draft — editing composes nothing and
+/// runs nothing, it only refreshes the editor's SQL preview (<see cref="Changed"/>). The operator list
 /// follows the column's type (<see cref="RowFilterSql.OperatorsFor"/>), and the
 /// value input is the same type-aware <see cref="NewRowField"/> the Add-row
 /// dialog and the row-detail sidebar use: an enum gets its labels, a date a
@@ -41,12 +41,28 @@ public sealed partial class BrowseFilterViewModel : ObservableObject
     public IReadOnlyList<string> ColumnNames { get; }
 
     /// <summary>
-    /// The word in front of the row: "where" for the first, "and" after it, so
-    /// the bar reads as the clause it builds. Set by the owning bar as rows come
-    /// and go.
+    /// The chip's text: "status ≠ cancelled", "total ≥ 50", "deleted_at is null".
+    /// A long value is cut short (the whole condition is in the chip's tooltip
+    /// and the editor).
     /// </summary>
-    [ObservableProperty]
-    private string _connector = "where";
+    public string Summary
+    {
+        get
+        {
+            var filter = ToFilter();
+            var head = $"{filter.Column} {RowFilterSql.Label(filter.Operator)}";
+            if (filter.Value is not { } value)
+            {
+                return head;
+            }
+
+            var shown = value.Length > 28 ? value[..28] + "…" : value;
+            return $"{head} {shown}";
+        }
+    }
+
+    /// <summary>The chip's tooltip: the SQL this condition adds.</summary>
+    public string? PredicateText => Predicate();
 
     [ObservableProperty]
     private string _column;

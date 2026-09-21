@@ -392,6 +392,16 @@ public partial class MainWindow : Window
             return;
         }
 
+        // Row details handles Esc itself while focus is in its form (revert
+        // first, then close); this is the net for focus left elsewhere, so Esc
+        // closes the overlay rather than reaching Cancel underneath it.
+        if (e.Key == Key.Escape && _viewModel?.IsRowDetailOpen == true)
+        {
+            _viewModel.IsRowDetailOpen = false;
+            e.Handled = true;
+            return;
+        }
+
         // These read their gestures from the catalog like every other shortcut;
         // they're handled here rather than as KeyBindings because each does
         // something a KeyBinding can't express (see the comment on each).

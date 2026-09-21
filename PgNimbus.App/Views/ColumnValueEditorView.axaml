@@ -31,7 +31,7 @@
                             HorizontalAlignment="Stretch"
                             AutomationProperties.Name="{Binding Name}"
                             IsVisible="{Binding IsDateEditor}" />
-        <Grid ColumnDefinitions="*,6,88" IsVisible="{Binding IsTimestampEditor}">
+        <Grid ColumnDefinitions="*,6,112" IsVisible="{Binding IsTimestampEditor}">
             <CalendarDatePicker Name="StampDateInput" Grid.Column="0"
                                 SelectedDate="{Binding DateValue, Mode=TwoWay}"
                                 PlaceholderText="{Binding Placeholder}" FontSize="12"

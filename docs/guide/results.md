@@ -11,10 +11,14 @@ ran.
 
 ### Filtering rows
 
-Press <kbd>Ctrl</kbd>+<kbd>F</kbd> in the grid while browsing
+Filters and [row details](#row-details) are optional. Turn them on in
+**Preferences → Data editing → Row details and table filters**; they're off by
+default.
+
+While you browse a table, press <kbd>Ctrl</kbd>+<kbd>F</kbd> in the grid
 (<kbd>Cmd</kbd>+<kbd>F</kbd> on macOS), or pick **Filter rows…** in the command
-palette. Each line of the filter bar is a column, a comparison and a value, and
-all lines must match. The comparisons depend on the column type:
+palette. A small editor opens: pick a column, a comparison and a value, then
+press <kbd>Enter</kbd> or **Apply**. The comparisons depend on the column type:
 
 - text columns: contains, doesn't contain, starts with, ends with, =, ≠
 - numbers, dates, times and UUIDs: =, ≠, <, ≤, >, ≥
@@ -24,35 +28,37 @@ all lines must match. The comparisons depend on the column type:
   search the value's text
 - every column: is null, is not null
 
-The value box is the same type-aware editor the grid uses, so a date gets a
-calendar and a malformed number is flagged before anything is sent.
+The editor shows the SQL the condition adds before you apply it, and flags a
+malformed value (a date gets a calendar, a bad number is caught) before anything
+is sent.
 
-The bar shows the `WHERE` clause it will add. Press <kbd>Enter</kbd> or
-**Apply** to run it. The filter runs on the server as part of the page query, so
-paging and sorting keep it, and the whole statement appears in the editor.
-**Clear** removes every filter.
+Each applied condition becomes a chip in one thin line above the grid, and rows
+must match all of them. Click a chip to change it, click its ✕ to remove it, or
+use **Clear all**. The conditions run on the server as part of the page query,
+so paging and sorting keep them, and the whole statement appears in the editor.
+Hover the line to see the full `WHERE`.
 
 For a quick filter, right-click a cell and open **Filter**: keep rows equal to
 that value, drop them, or keep only the rows where the column is or isn't null.
 
 Filters exist only while you browse a table. Edit the SQL yourself and the tab
-becomes a plain query, and the filter bar goes away with browse mode. pgNimbus
-never rewrites a query you wrote; add a `WHERE` to it instead.
+becomes a plain query, and the chips go away with browse mode. pgNimbus never
+rewrites a query you wrote; add a `WHERE` to it instead.
 
 ## Row details
 
-<kbd>Ctrl</kbd>+<kbd>I</kbd> (<kbd>Cmd</kbd>+<kbd>I</kbd> on macOS) opens the
-selected row beside the grid as a list of names and values. It follows the
-selection, and <kbd>Tab</kbd> moves between fields. It's also on the grid's
-right-click menu.
+With row details turned on (see above), <kbd>Ctrl</kbd>+<kbd>I</kbd>
+(<kbd>Cmd</kbd>+<kbd>I</kbd> on macOS), or **Row details** on the grid's
+right-click menu, opens the selected row as a form over the window: one line per
+column, name above value. <kbd>Tab</kbd> moves between fields, the ‹ › buttons
+move to the previous or next row, and <kbd>Esc</kbd> closes it.
 
 On an editable result each column gets the same type-aware editor as the grid,
-plus a NULL box. Edits there are always staged, even with safe mode off:
+plus a NULL toggle. Edits there are always staged, even with safe mode off:
 <kbd>Enter</kbd> or **Stage** adds them to the staged set, and <kbd>Esc</kbd>
-reverts them. You then review and commit them from the status bar, with the same
-conflict check as any staged edit (see [Safe mode](#safe-mode)). If you move to
-another row before staging, the sidebar keeps your row and your edits until you
-stage or revert.
+reverts them first. You then review and commit them from the status bar, with
+the same conflict check as any staged edit (see [Safe mode](#safe-mode)). While a
+row has unstaged edits, ‹ › are disabled until you stage or revert.
 
 Primary key columns are read-only there. A value too large for the form shows a
 preview with an **Inspect** button that opens the cell inspector.
@@ -77,7 +83,7 @@ turning a page, or switching to another tab and back keeps them.
 | Inspect the full value | <kbd>Space</kbd>, or double-click a read-only cell |
 | Set a cell to `NULL` | Context menu |
 | Delete the selected row | <kbd>Delete</kbd> |
-| Show the row as a form | <kbd>Ctrl</kbd>+<kbd>I</kbd> |
+| Show the row as a form (optional, see [Row details](#row-details)) | <kbd>Ctrl</kbd>+<kbd>I</kbd> |
 | Copy the selected cells | <kbd>Ctrl</kbd>+<kbd>C</kbd> |
 
 Results are editable when the row can be identified unambiguously. That covers

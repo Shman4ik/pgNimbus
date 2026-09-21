@@ -135,25 +135,11 @@ public partial class ResultsGridPanel : UserControl
         ActualThemeVariantChanged += (_, _) => ApplyJsonHighlightingTheme();
         DataContextChanged += OnDataContextChanged;
 
-        // Row details follow the grid's current row (the sidebar pins itself
-        // while it holds unstaged changes; see RowDetailViewModel.Load).
+        // Row details follow the grid's current row (the form pins itself while
+        // it holds unstaged changes; see RowDetailViewModel.Load).
         ResultsGrid.SelectionChanged += (_, _) => _activeQuery?.RowDetail.Load(ResultsGrid.SelectedItem as object?[]);
-        RowDetails.CloseRequested += () =>
-        {
-            if (_model is not null)
-            {
-                _model.IsRowDetailOpen = false;
-            }
-
-            FocusGrid();
-        };
-        RowDetails.ReturnFocusRequested += FocusGrid;
-        FilterBar.ReturnFocusRequested += FocusGrid;
-        RowDetailSplitter.DragCompleted += (_, _) => _rowDetailWidth = ResultsLayout.ColumnDefinitions[2].ActualWidth;
+        RowDetails.CloseRequested += CloseRowDetails;
     }
-
-    // The sidebar's width, kept across close/reopen (the column is 0 while closed).
-    private double _rowDetailWidth = 340;
 
     // The window's root panel the cell inspector overlay is re-hosted into (see below).
     private Panel? _inspectorOverlayHost;
@@ -210,8 +196,14 @@ public partial class ResultsGridPanel : UserControl
             return;
         }
 
-        (CellInspectorOverlay.Parent as Panel)?.Children.Remove(CellInspectorOverlay);
-        root.Children.Add(CellInspectorOverlay);
+        // Row details first, so the inspector — which a row-details field can
+        // open — stacks above it.
+        foreach (var overlay in new Control[] { RowDetailOverlay, CellInspectorOverlay })
+        {
+            (overlay.Parent as Panel)?.Children.Remove(overlay);
+            root.Children.Add(overlay);
+        }
+
         _inspectorOverlayHost = root;
     }
 
@@ -258,7 +250,7 @@ public partial class ResultsGridPanel : UserControl
             _model.PropertyChanged -= OnMainViewModelPropertyChanged;
             _model.CellInspector.PropertyChanged -= OnCellInspectorPropertyChanged;
             _model.RowDetailFocusRequested -= OnRowDetailFocusRequested;
-            _model.FilterBarFocusRequested -= OnFilterBarFocusRequested;
+            _model.FilterEditorRequested -= OnFilterEditorRequested;
         }
 
         _model = DataContext as MainViewModel;
@@ -268,8 +260,7 @@ public partial class ResultsGridPanel : UserControl
             _model.PropertyChanged += OnMainViewModelPropertyChanged;
             _model.CellInspector.PropertyChanged += OnCellInspectorPropertyChanged;
             _model.RowDetailFocusRequested += OnRowDetailFocusRequested;
-            _model.FilterBarFocusRequested += OnFilterBarFocusRequested;
-            ApplyRowDetailWidth();
+            _model.FilterEditorRequested += OnFilterEditorRequested;
             // Warm the FK cache in the background so the grid's FK-navigation menu
             // items (which can't await) have edges to read by the time it's opened.
             _ = _model.EnsureForeignKeysAsync();
@@ -287,44 +278,24 @@ public partial class ResultsGridPanel : UserControl
         {
             AttachQuery(_model.ActiveTab);
         }
-        else if (e.PropertyName == nameof(MainViewModel.IsRowDetailOpen))
+        else if (e.PropertyName == nameof(MainViewModel.IsRowDetailOpen) && _model is { IsRowDetailOpen: false })
         {
-            ApplyRowDetailWidth();
+            // However it closed (✕, Esc, the scrim, the chord), the grid gets focus back.
+            FocusGrid();
         }
     }
 
     // --- Row details / filter bar ------------------------------------------
 
-    // Column 2 of ResultsLayout is the sidebar: a pixel width while open (so
-    // the splitter can drag it), zero while closed.
-    private void ApplyRowDetailWidth()
+    private void CloseRowDetails()
     {
-        if (_model is null)
+        if (_model is not null)
         {
-            return;
-        }
-
-        var column = ResultsLayout.ColumnDefinitions[2];
-        if (_model.IsRowDetailOpen)
-        {
-            column.Width = new GridLength(_rowDetailWidth);
-            column.MinWidth = 220;
-            if (ResultsGrid.SelectedItem is object?[] selected)
-            {
-                _activeQuery?.RowDetail.Load(selected);
-            }
-        }
-        else
-        {
-            if (column.ActualWidth > 0)
-            {
-                _rowDetailWidth = column.ActualWidth;
-            }
-
-            column.MinWidth = 0;
-            column.Width = new GridLength(0);
+            _model.IsRowDetailOpen = false;
         }
     }
+
+    private void OnRowDetailScrimPressed(object? sender, PointerPressedEventArgs e) => CloseRowDetails();
 
     private void OnRowDetailFocusRequested()
     {
@@ -334,17 +305,22 @@ public partial class ResultsGridPanel : UserControl
         {
             ResultsGrid.SelectedItem = query.Rows[0];
         }
+        else if (ResultsGrid.SelectedItem is object?[] selected)
+        {
+            _activeQuery?.RowDetail.Load(selected);
+        }
 
         RowDetails.FocusFirstField();
     }
 
-    private void OnFilterBarFocusRequested() =>
-        FilterBar.FocusFilter(_activeQuery?.Browse?.Filters.LastOrDefault());
+    // The palette's "Filter rows…": a new condition on the grid's current column.
+    private void OnFilterEditorRequested() => OpenFilterEditorForCurrentColumn();
 
-    // Ctrl/Cmd+F in the grid while browsing: open the bar on the current column.
-    private void OpenFilterBarForCurrentColumn()
+    // Ctrl/Cmd+F in the grid while browsing, and the palette: a new condition
+    // on the current column, its editor opened on the chip strip.
+    private void OpenFilterEditorForCurrentColumn()
     {
-        if (_activeQuery?.Browse is not { } browse)
+        if (_activeQuery?.Browse is null)
         {
             return;
         }
@@ -352,7 +328,7 @@ public partial class ResultsGridPanel : UserControl
         var column = ResultsGrid.CurrentColumn is { } current && current.DisplayIndex < _activeQuery.ColumnNames.Count
             ? _activeQuery.ColumnNames[current.DisplayIndex]
             : null;
-        FilterBar.FocusFilter(browse.OpenFilterBar(column));
+        FilterBar.OpenNewFilter(column);
     }
 
     private void OnRowDetailsClick(object? sender, RoutedEventArgs e)
@@ -371,10 +347,15 @@ public partial class ResultsGridPanel : UserControl
         {
             _model.ToggleRowDetailsCommand.Execute(null);
         }
-        else
-        {
-            RowDetails.FocusFirstField();
-        }
+    }
+
+    // ‹ › in row details: select that row in the grid (which loads it into the
+    // form), and scroll it into view so closing the overlay lands on it.
+    private void OnRowDetailNavigate(object?[] row)
+    {
+        ResultsGrid.SelectedItem = row;
+        ResultsGrid.ScrollIntoView(row, null);
+        RowDetails.FocusFirstField();
     }
 
     private void OnRowDetailReplacedRow(object?[] row) => ResultsGrid.SelectedItem = row;
@@ -393,6 +374,7 @@ public partial class ResultsGridPanel : UserControl
             _activeQuery.ColumnNames.CollectionChanged -= OnColumnNamesChanged;
             _activeQuery.RowDetail.RowReplaced -= OnRowDetailReplacedRow;
             _activeQuery.RowDetail.InspectRequested -= OnRowDetailInspectRequested;
+            _activeQuery.RowDetail.NavigateRequested -= OnRowDetailNavigate;
         }
 
         _activeQuery = query;
@@ -405,6 +387,7 @@ public partial class ResultsGridPanel : UserControl
         _activeQuery.ColumnNames.CollectionChanged += OnColumnNamesChanged;
         _activeQuery.RowDetail.RowReplaced += OnRowDetailReplacedRow;
         _activeQuery.RowDetail.InspectRequested += OnRowDetailInspectRequested;
+        _activeQuery.RowDetail.NavigateRequested += OnRowDetailNavigate;
 
         ResultsGrid.ItemsSource = _activeQuery.Rows;
         RebuildColumns(_activeQuery);
@@ -692,9 +675,10 @@ public partial class ResultsGridPanel : UserControl
         // The Find chord, in a browsed grid, filters it (TablePlus does the
         // same): the grid has no text to search, and the rows are on the server.
         // Anywhere else it bubbles on to the window and opens the editor's search.
-        if (CommandBindings.Matches(CommandId.Find, e) && _activeQuery?.Browse is not null && !_isCellEditing)
+        if (CommandBindings.Matches(CommandId.Find, e) && _model is { RowDetailsAndFilters: true }
+            && _activeQuery?.Browse is not null && !_isCellEditing)
         {
-            OpenFilterBarForCurrentColumn();
+            OpenFilterEditorForCurrentColumn();
             e.Handled = true;
             return;
         }
@@ -865,6 +849,8 @@ public partial class ResultsGridPanel : UserControl
         ComposeFilterMenu(menu);
         if (menu.Items.OfType<MenuItem>().FirstOrDefault(m => m.Name == "RowDetailsMenuItem") is { } rowDetails)
         {
+            // Gone, not greyed, while the opt-in is off.
+            rowDetails.IsVisible = _model is { RowDetailsAndFilters: true };
             rowDetails.InputGesture = CommandBindings.GestureFor(CommandId.RowDetails);
         }
 
@@ -941,7 +927,7 @@ public partial class ResultsGridPanel : UserControl
 
         filterItem.IsVisible = false;
         filterItem.ItemsSource = null;
-        if (_activeQuery?.Browse is not { } browse || _lastPressedRow is not { } row
+        if (_model is not { RowDetailsAndFilters: true } || _activeQuery?.Browse is not { } browse || _lastPressedRow is not { } row
             || _lastPressedColumnIndex < 0 || _lastPressedColumnIndex >= _activeQuery.ColumnNames.Count
             || _lastPressedColumnIndex >= row.Length)
         {

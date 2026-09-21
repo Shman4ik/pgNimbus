@@ -28,9 +28,9 @@
             <DockPanel>
                 <!-- No browse *toolbar* here on purpose: browse mode's ORDER BY lives in the
                      composed SQL (visible in the editor), and its paging sits in the status
-                     bar (2026-07 rework). The one exception is the filter bar below, which
-                     only appears once asked for (Ctrl/Cmd+F in the grid, the palette, a
-                     cell's Filter menu) or while it is actually filtering the rows. -->
+                     bar (2026-07 rework). The one exception is the filter-chip line below,
+                     which exists only with the opt-in preference on, and appears only while
+                     a condition filters the rows or one is being added. -->
 
                 <!-- Script sections: one selectable chip per statement of a multi-statement run -->
                 <Border DockPanel.Dock="Top" IsVisible="{Binding ActiveTab.IsScriptResult}"
@@ -66,21 +66,23 @@
                     </ScrollViewer>
                 </Border>
 
-                <!-- Browse filters. The outer panel is what keeps the bar to browse mode:
-                     a hand-written query has no bar, so there is nothing that could
-                     rewrite it. Browse is null elsewhere, hence the DataContext hop
-                     rather than ActiveTab.Browse.* paths. -->
-                <Panel DockPanel.Dock="Top" IsVisible="{Binding ActiveTab.IsBrowsing}">
+                <!-- Browse filter chips. The outer panel is what keeps them to browse mode
+                     (and to the opt-in): a hand-written query has no chips, so there is
+                     nothing that could rewrite it. Browse is null elsewhere, hence the
+                     DataContext hop rather than ActiveTab.Browse.* paths. -->
+                <Panel DockPanel.Dock="Top">
+                    <Panel.IsVisible>
+                        <MultiBinding Converter="{x:Static BoolConverters.And}">
+                            <Binding Path="RowDetailsAndFilters" />
+                            <Binding Path="ActiveTab.IsBrowsing" />
+                        </MultiBinding>
+                    </Panel.IsVisible>
                     <views:BrowseFilterBar Name="FilterBar"
                                            x:DataType="vm:TableBrowseViewModel" DataContext="{Binding ActiveTab.Browse}"
                                            IsVisible="{Binding IsFilterBarVisible}" />
                 </Panel>
 
-                <!-- Grid on the left, row details on the right. Column 2's width is set
-                     from code (OnRowDetailOpenChanged) so the splitter can resize a pixel
-                     column and the width survives closing and reopening. -->
-                <Grid Name="ResultsLayout" ColumnDefinitions="*,Auto,0">
-                <Grid Grid.Column="0">
+                <Grid>
                     <!-- Background must stay set (Transparent is enough): a
                          null background makes the grid's empty area — below
                          the last row, right of the last column — miss hit
@@ -152,7 +154,15 @@
                          are different states (DESIGN rule 7), and the filtered one
                          offers its own way out. Browse is null elsewhere, hence the
                          DataContext hop. -->
-                    <Panel IsVisible="{Binding ActiveTab.HasNoResults}">
+                    <!-- Gated on IsBrowsing here, not inside: with Browse null the inner
+                         bindings go unset, and an unset IsVisible is *visible*. -->
+                    <Panel>
+                        <Panel.IsVisible>
+                            <MultiBinding Converter="{x:Static BoolConverters.And}">
+                                <Binding Path="ActiveTab.HasNoResults" />
+                                <Binding Path="ActiveTab.IsBrowsing" />
+                            </MultiBinding>
+                        </Panel.IsVisible>
                         <Panel x:DataType="vm:TableBrowseViewModel" DataContext="{Binding ActiveTab.Browse}">
                             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
                                 <StackPanel.IsVisible>
@@ -303,14 +313,28 @@
                         </ScrollViewer>
                     </Grid>
                 </Grid>
-                <GridSplitter Grid.Column="1" Name="RowDetailSplitter" Width="5" Background="Transparent"
-                              ResizeDirection="Columns" IsVisible="{Binding IsRowDetailOpen}" />
-                <Border Grid.Column="2" BorderThickness="1,0,0,0" BorderBrush="{StaticResource CardBorderBrush}"
-                        IsVisible="{Binding IsRowDetailOpen}">
-                    <views:RowDetailPanel Name="RowDetails" DataContext="{Binding ActiveTab.RowDetail}" />
-                </Border>
-                </Grid>
             </DockPanel>
+        </Border>
+
+        <!--
+            Row details (Ctrl/Cmd+I): the current row as a form, as a card over the
+            whole window like the cell inspector below — a panel you open, use and
+            dismiss (DESIGN rule 13), so the grid never gives up width to it.
+            Hoisted into the window root at attach time with the inspector, and
+            *before* it, so an Inspect from a field opens the inspector on top.
+            The scrim closes it; unstaged edits survive that, in the view model.
+        -->
+        <Border Name="RowDetailOverlay"
+                IsVisible="{Binding IsRowDetailOpen}"
+                Background="#66000000"
+                PointerPressed="OnRowDetailScrimPressed">
+            <Border Width="520" MaxHeight="680" MinHeight="200" VerticalAlignment="Center" Margin="0,40"
+                    Background="{DynamicResource SystemControlPageBackgroundAltHighBrush}"
+                    BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
+                    CornerRadius="10" BoxShadow="0 12 32 0 #40000000"
+                    PointerPressed="OnCellInspectorCardPressed">
+                <views:RowDetailPanel Name="RowDetails" DataContext="{Binding ActiveTab.RowDetail}" />
+            </Border>
         </Border>
 
         <!--

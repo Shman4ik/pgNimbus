@@ -84,7 +84,8 @@ public sealed partial class RowDetailField : ObservableObject
 }
 
 /// <summary>
-/// The row-detail sidebar: the selected result row as a name/value form, one
+/// Row details: the selected result row as a name/value form (an overlay over
+/// the window, like the cell inspector), one
 /// line per column, with the grid's type-aware editors for the columns of an
 /// editable result. Changes are collected here and go nowhere until Stage,
 /// which hands them to <see cref="QueryViewModel.StageRowEdits"/> — the same
@@ -124,7 +125,7 @@ public sealed partial class RowDetailViewModel : ObservableObject
     private string? _error;
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(StageCommand), nameof(RevertCommand))]
+    [NotifyCanExecuteChangedFor(nameof(StageCommand), nameof(RevertCommand), nameof(PreviousRowCommand), nameof(NextRowCommand))]
     private int _changedCount;
 
     public bool HasChanges => ChangedCount > 0;
@@ -141,6 +142,37 @@ public sealed partial class RowDetailViewModel : ObservableObject
 
     /// <summary>Raised for "open in inspector" on a value too large for the form.</summary>
     public event Action<object?[], int>? InspectRequested;
+
+    /// <summary>
+    /// Raised with the row to show next (the grid's previous or next row). The
+    /// overlay covers the grid, so this is how a user walks the rows without
+    /// closing it; the view selects that row in the grid, which loads it here.
+    /// </summary>
+    public event Action<object?[]>? NavigateRequested;
+
+    // Stepping away from unstaged edits would either drop them or leave the
+    // form showing a row the grid no longer has selected; Stage or Revert first.
+    private bool CanStep(int delta) =>
+        !HasChanges && Row is { } row && _owner.Rows.IndexOf(row) is var index and >= 0
+        && index + delta >= 0 && index + delta < _owner.Rows.Count;
+
+    private bool CanGoPrevious() => CanStep(-1);
+
+    private bool CanGoNext() => CanStep(+1);
+
+    [RelayCommand(CanExecute = nameof(CanGoPrevious))]
+    private void PreviousRow() => Step(-1);
+
+    [RelayCommand(CanExecute = nameof(CanGoNext))]
+    private void NextRow() => Step(+1);
+
+    private void Step(int delta)
+    {
+        if (Row is { } row && _owner.Rows.IndexOf(row) is var index and >= 0)
+        {
+            NavigateRequested?.Invoke(_owner.Rows[index + delta]);
+        }
+    }
 
     partial void OnChangedCountChanged(int value)
     {
@@ -171,6 +203,8 @@ public sealed partial class RowDetailViewModel : ObservableObject
         Row = row;
         OnPropertyChanged(nameof(Row));
         OnPropertyChanged(nameof(HasRow));
+        PreviousRowCommand.NotifyCanExecuteChanged();
+        NextRowCommand.NotifyCanExecuteChanged();
 
         var context = _owner.EditContext;
         Source = context is not null ? $"{context.Schema}.{context.Table}"
@@ -187,7 +221,7 @@ public sealed partial class RowDetailViewModel : ObservableObject
         var editable = _owner.IsEditable;
         var index = _owner.Rows.IndexOf(row);
         var offset = _owner.Browse?.Offset ?? 0;
-        Heading = index >= 0 ? $"Row {offset + index + 1:N0}" : "Row details";
+        Heading = index >= 0 ? $"Row {offset + index + 1:N0} of {offset + _owner.Rows.Count:N0}" : "Row details";
         Note = editable ? null : _owner.ReadOnlyHint is { } hint ? $"Read-only: {hint}" : "Read-only: this result isn't mapped to one table.";
 
         for (var i = 0; i < _owner.ColumnNames.Count && i < row.Length; i++)

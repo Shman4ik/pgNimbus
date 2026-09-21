@@ -10,11 +10,11 @@ namespace PgNimbus.App.ViewModels;
 /// <summary>
 /// Drives no-SQL "browse a table" mode: <c>ORDER BY</c> from clicking a column
 /// header and <c>LIMIT</c>/<c>OFFSET</c> paging (the status bar's page
-/// controls), and a <c>WHERE</c> built from the filter bar's typed predicates
+/// controls), and a <c>WHERE</c> built from the filter chips' typed conditions
 /// (<see cref="Filters"/>) plus an optional raw predicate seeded by foreign-key
 /// navigation (<see cref="FilterText"/>). The composed SQL lands in the editor,
 /// so what ran is always on screen: edit it and run, and the tab becomes a
-/// plain query — the filter bar goes with browse mode, and nothing ever
+/// plain query — the chips go with browse mode, and nothing ever
 /// rewrites a query the user typed. Everything is pushed down to Postgres — no
 /// client-side slicing — so browsing a billion-row table stays as cheap as one
 /// page. The owning <see cref="QueryViewModel"/> supplies <see cref="_execute"/>,
@@ -43,55 +43,68 @@ public sealed partial class TableBrowseViewModel(string schema, string name, IRe
     /// ANDed with the typed filters.
     /// </summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasRawFilter), nameof(IsFilterBarVisible), nameof(FilterPreviewSql))]
+    [NotifyPropertyChangedFor(nameof(HasRawFilter), nameof(IsFilterBarVisible), nameof(WhereSql))]
     private string _filterText = string.Empty;
 
-    /// <summary>The filter bar's rows, as edited. Only <see cref="ApplyFiltersAsync"/> turns them into SQL that runs.</summary>
+    /// <summary>
+    /// The conditions the rows are filtered by, one chip each. Only committed
+    /// conditions live here — a condition being written sits in <see cref="Draft"/>
+    /// until Apply — so paging, sorting and reloads always run exactly what the
+    /// chips say. A chip is never edited in place: editing works on a copy and
+    /// swaps it in on Apply.
+    /// </summary>
     public ObservableCollection<BrowseFilterViewModel> Filters { get; } = [];
 
-    // What the page query actually filters on: the rows as of the last Apply.
-    // Kept apart from Filters so paging, sorting and reloads keep running what
-    // was applied while a half-typed row sits in the bar.
-    private IReadOnlyList<RowFilter> _appliedFilters = [];
+    /// <summary>The condition open in the filter editor (the chip flyout), or null when none is.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsEditingExisting), nameof(DraftPreviewSql))]
+    private BrowseFilterViewModel? _draft;
 
-    /// <summary>Opened by Ctrl/Cmd+F in the grid, the palette or a quick filter; see <see cref="IsFilterBarVisible"/>.</summary>
+    // The chip the draft will replace on Apply; null when the draft is a new condition.
+    private BrowseFilterViewModel? _editing;
+
+    /// <summary>True when the draft edits an existing chip, which is when the editor offers Remove.</summary>
+    public bool IsEditingExisting => _editing is not null && Draft is not null;
+
+    /// <summary>Raised when a draft is applied, so the view can close its editor.</summary>
+    public event Action? DraftCommitted;
+
+    /// <summary>
+    /// Set while the user is adding the first condition, so the chip strip
+    /// appears to anchor the editor before there's a chip to show. Cleared
+    /// when that editor closes without adding one.
+    /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsFilterBarVisible))]
     private bool _isFilterBarOpen;
 
     /// <summary>
-    /// The bar shows while it's open <em>or</em> anything is filtering the rows:
-    /// a filtered grid with nothing on screen saying so reads as missing data.
+    /// The chip strip shows while there's something in it — a condition, the
+    /// FK-seeded condition — or one is being added. A filtered grid with
+    /// nothing on screen saying so reads as missing data.
     /// </summary>
     public bool IsFilterBarVisible => IsFilterBarOpen || HasActiveFilters || HasRawFilter;
 
     public bool HasRawFilter => FilterText.Trim().Length > 0;
 
-    /// <summary>True when the running query carries typed filters.</summary>
-    public bool HasActiveFilters => _appliedFilters.Count > 0;
+    /// <summary>True when the running query carries typed conditions.</summary>
+    public bool HasActiveFilters => Filters.Count > 0;
 
-    /// <summary>Why Apply refused, or null.</summary>
+    /// <summary>Why the draft can't be applied, or null.</summary>
     [ObservableProperty]
     private string? _filterError;
 
-    /// <summary>
-    /// The <c>WHERE</c> clause Apply would run, from the bar as it stands: the
-    /// generated SQL, shown before it runs. Rows that aren't valid yet are
-    /// left out (their error shows under their own input). One line — the bar
-    /// has one line for it; the editor gets the laid-out form.
-    /// </summary>
-    public string FilterPreviewSql =>
-        WhereBody(Filters.Select(f => f.Predicate()).OfType<string>()) is { } body
+    /// <summary>The whole <c>WHERE</c> the chips add, one line; the strip's tooltip. Null when nothing filters.</summary>
+    public string? WhereSql =>
+        WhereBody(Filters.Select(f => PredicateOf(f.ToFilter())).OfType<string>()) is { } body
             ? "WHERE " + body.Replace("\n  AND ", " AND ", StringComparison.Ordinal)
-            : "No filter: all rows";
+            : null;
 
     /// <summary>
-    /// True when the bar says something different from what the rows are
-    /// filtered by — the cue that Apply would change anything, and the one
-    /// state in which it's the highlighted button.
+    /// What Apply would add for the draft, shown in the editor before it runs —
+    /// the generated SQL, visible up front. A hint while the draft isn't valid.
     /// </summary>
-    public bool HasUnappliedChanges =>
-        !Filters.Select(f => f.ToFilter()).SequenceEqual(_appliedFilters);
+    public string DraftPreviewSql => Draft?.Predicate() ?? "Pick a column, a comparison and a value";
 
     [ObservableProperty]
     private string? _sortColumn;
@@ -127,7 +140,7 @@ public sealed partial class TableBrowseViewModel(string schema, string name, IRe
         sb.Append("SELECT * FROM ")
           .Append(SqlIdentifier.Quote(Schema)).Append('.').Append(SqlIdentifier.Quote(Name));
 
-        if (WhereBody(_appliedFilters.Select(PredicateOf).OfType<string>()) is { } where)
+        if (WhereBody(Filters.Select(f => PredicateOf(f.ToFilter())).OfType<string>()) is { } where)
         {
             sb.Append("\nWHERE ").Append(where);
         }
@@ -199,20 +212,13 @@ public sealed partial class TableBrowseViewModel(string schema, string name, IRe
         return LoadAsync();
     }
 
-    // --- Filter bar -------------------------------------------------------
+    // --- Filter chips --------------------------------------------------------
 
     /// <summary>
-    /// Opens the filter bar, adding a first row (on <paramref name="column"/>,
-    /// else the first column) when it has none. Returns the row to focus.
+    /// Opens the editor on a new condition for <paramref name="column"/> (else
+    /// the first column). Nothing runs until <see cref="CommitDraftCommand"/>.
     /// </summary>
-    public BrowseFilterViewModel? OpenFilterBar(string? column = null)
-    {
-        IsFilterBarOpen = true;
-        return Filters.Count > 0 ? Filters[^1] : AddFilter(column);
-    }
-
-    /// <summary>Adds a row to the bar; nothing runs until Apply.</summary>
-    public BrowseFilterViewModel? AddFilter(string? column = null, FilterOperator? op = null, string? value = null)
+    public BrowseFilterViewModel? BeginNewFilter(string? column = null, FilterOperator? op = null, string? value = null)
     {
         var name = column is not null && Columns.Any(c => c.Name == column) ? column : Columns.FirstOrDefault()?.Name;
         if (name is null)
@@ -220,82 +226,106 @@ public sealed partial class TableBrowseViewModel(string schema, string name, IRe
             return null;
         }
 
-        var filter = new BrowseFilterViewModel(Columns, name, op, value);
-        filter.Changed += OnDraftChanged;
-        Filters.Add(filter);
-        RenumberConnectors();
-        OnDraftChanged();
-        return filter;
+        IsFilterBarOpen = true;
+        _editing = null;
+        SetDraft(new BrowseFilterViewModel(Columns, name, op, value));
+        return Draft;
     }
 
-    [RelayCommand]
-    private void AddFilterRow() => AddFilter();
-
-    /// <summary>
-    /// Drops a row. When what's left is valid it's applied at once: the ✕
-    /// reads as "stop filtering on this", and leaving the rows filtered until
-    /// a second click would contradict the bar.
-    /// </summary>
-    [RelayCommand]
-    private Task RemoveFilterAsync(BrowseFilterViewModel filter)
+    /// <summary>Opens the editor on a copy of <paramref name="chip"/>; Apply swaps the copy in.</summary>
+    public BrowseFilterViewModel BeginEditFilter(BrowseFilterViewModel chip)
     {
-        filter.Changed -= OnDraftChanged;
-        Filters.Remove(filter);
-        RenumberConnectors();
-        OnDraftChanged();
-        return Filters.All(f => f.Validate() is null) ? ApplyFiltersAsync() : Task.CompletedTask;
+        var applied = chip.ToFilter();
+        _editing = chip;
+        SetDraft(new BrowseFilterViewModel(Columns, applied.Column, applied.Operator, applied.Value));
+        return Draft!;
+    }
+
+    /// <summary>The editor closed without Apply: drop the draft, and the strip if it was only open for it.</summary>
+    public void CancelDraft()
+    {
+        _editing = null;
+        SetDraft(null);
+        FilterError = null;
+        IsFilterBarOpen = false;
     }
 
     /// <summary>
-    /// Runs the bar: validates every row, then re-queries page 1 with the new
-    /// <c>WHERE</c>. Refused as a whole on any invalid row — applying the valid
-    /// half would show rows filtered by less than the bar says.
+    /// Applies the draft: validates it, adds it as a chip (or replaces the chip
+    /// it was copied from) and re-queries page 1. Refused with
+    /// <see cref="FilterError"/> when the draft isn't valid, so nothing runs.
     /// </summary>
     [RelayCommand]
-    private Task ApplyFiltersAsync()
+    private Task CommitDraftAsync()
     {
-        if (Filters.Select(f => f.Validate()).OfType<string>().FirstOrDefault() is { } error)
+        if (Draft is not { } draft)
+        {
+            return Task.CompletedTask;
+        }
+
+        if (draft.Validate() is { } error)
         {
             FilterError = error;
             return Task.CompletedTask;
         }
 
-        FilterError = null;
-        _appliedFilters = Filters.Select(f => f.ToFilter()).ToList();
-        OnPropertyChanged(nameof(HasActiveFilters));
-        OnPropertyChanged(nameof(HasUnappliedChanges));
-        OnPropertyChanged(nameof(IsFilterBarVisible));
-        Offset = 0;
-        return LoadAsync();
+        if (_editing is { } chip && Filters.IndexOf(chip) is var index and >= 0)
+        {
+            Filters[index] = draft;
+        }
+        else
+        {
+            Filters.Add(draft);
+        }
+
+        _editing = null;
+        SetDraft(null);
+        IsFilterBarOpen = false;
+        DraftCommitted?.Invoke();
+        return ReloadFilteredAsync();
     }
 
-    /// <summary>"Filter by this cell": one new row, applied at once.</summary>
+    /// <summary>Drops one chip (the ✕, or Remove in its editor) and re-queries.</summary>
+    [RelayCommand]
+    private Task RemoveFilterAsync(BrowseFilterViewModel? chip)
+    {
+        chip ??= _editing;
+        if (chip is null || !Filters.Remove(chip))
+        {
+            return Task.CompletedTask;
+        }
+
+        if (ReferenceEquals(chip, _editing))
+        {
+            _editing = null;
+            SetDraft(null);
+            DraftCommitted?.Invoke();
+        }
+
+        return ReloadFilteredAsync();
+    }
+
+    /// <summary>"Filter by this cell": one new chip, applied at once.</summary>
     public Task AddAndApplyFilterAsync(string column, FilterOperator op, string? value)
     {
-        IsFilterBarOpen = true;
-        AddFilter(column, op, value);
-        return ApplyFiltersAsync();
+        if (!Columns.Any(c => c.Name == column))
+        {
+            return Task.CompletedTask;
+        }
+
+        Filters.Add(new BrowseFilterViewModel(Columns, column, op, value));
+        return ReloadFilteredAsync();
     }
 
-    /// <summary>Removes every filter, the FK-seeded condition included, closes the bar and reloads.</summary>
+    /// <summary>Removes every condition, the FK-seeded one included, and reloads.</summary>
     [RelayCommand]
     private Task ClearFiltersAsync()
     {
         var wasFiltering = HasActiveFilters || HasRawFilter;
-        foreach (var filter in Filters)
-        {
-            filter.Changed -= OnDraftChanged;
-        }
-
         Filters.Clear();
         FilterText = string.Empty;
-        FilterError = null;
-        IsFilterBarOpen = false;
-        _appliedFilters = [];
-        OnPropertyChanged(nameof(HasActiveFilters));
-        OnPropertyChanged(nameof(HasUnappliedChanges));
-        OnPropertyChanged(nameof(IsFilterBarVisible));
-        OnDraftChanged();
+        CancelDraft();
+        NotifyFiltersChanged();
         if (!wasFiltering)
         {
             return Task.CompletedTask;
@@ -303,6 +333,22 @@ public sealed partial class TableBrowseViewModel(string schema, string name, IRe
 
         Offset = 0;
         return LoadAsync();
+    }
+
+    /// <summary>
+    /// Drops the typed conditions only — what turning the feature off does. The
+    /// FK-seeded condition predates the chips and stays in the page SQL.
+    /// </summary>
+    public Task DropTypedFiltersAsync()
+    {
+        CancelDraft();
+        if (Filters.Count == 0)
+        {
+            return Task.CompletedTask;
+        }
+
+        Filters.Clear();
+        return ReloadFilteredAsync();
     }
 
     /// <summary>Drops the FK-seeded raw condition and reloads.</summary>
@@ -314,31 +360,50 @@ public sealed partial class TableBrowseViewModel(string schema, string name, IRe
         return LoadAsync();
     }
 
+    private Task ReloadFilteredAsync()
+    {
+        FilterError = null;
+        NotifyFiltersChanged();
+        Offset = 0;
+        return LoadAsync();
+    }
+
+    private void NotifyFiltersChanged()
+    {
+        OnPropertyChanged(nameof(HasActiveFilters));
+        OnPropertyChanged(nameof(IsFilterBarVisible));
+        OnPropertyChanged(nameof(WhereSql));
+    }
+
+    private void SetDraft(BrowseFilterViewModel? draft)
+    {
+        if (Draft is { } old)
+        {
+            old.Changed -= OnDraftChanged;
+        }
+
+        Draft = draft;
+        if (draft is not null)
+        {
+            draft.Changed += OnDraftChanged;
+        }
+
+        FilterError = null;
+        OnPropertyChanged(nameof(IsEditingExisting));
+    }
+
     private void OnDraftChanged()
     {
         FilterError = null;
-        OnPropertyChanged(nameof(FilterPreviewSql));
-        OnPropertyChanged(nameof(HasUnappliedChanges));
+        OnPropertyChanged(nameof(DraftPreviewSql));
     }
-
-    // The raw FK condition, when there is one, is the bar's first line, so every
-    // typed row after it is an "and".
-    private void RenumberConnectors()
-    {
-        for (var i = 0; i < Filters.Count; i++)
-        {
-            Filters[i].Connector = i == 0 && !HasRawFilter ? "where" : "and";
-        }
-    }
-
-    partial void OnFilterTextChanged(string value) => RenumberConnectors();
 
     private string? PredicateOf(RowFilter filter) =>
         Columns.FirstOrDefault(c => c.Name == filter.Column) is { } column
             ? RowFilterSql.ToPredicate(filter, column.Editor, column.DataType)
             : null;
 
-    // The raw FK condition first, then the typed filters, ANDed.
+    // The raw FK condition first, then the typed conditions, ANDed.
     private string? WhereBody(IEnumerable<string> predicates) =>
         RowFilterSql.Combine(HasRawFilter ? predicates.Prepend(FilterText) : predicates);
 

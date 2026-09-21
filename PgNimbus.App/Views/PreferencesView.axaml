@@ -86,6 +86,17 @@
                                   IsChecked="{Binding SafeModeEdits}" />
                 </Grid>
             </Border>
+            <Border Classes="card" Padding="14,12" Margin="0,6,0,0">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Spacing="2" Margin="0,0,16,0">
+                        <TextBlock Classes="label" Text="Row details and table filters" />
+                        <TextBlock Classes="hint" Text="Row details (Ctrl/Cmd+I) opens the selected row as a form whose edits are staged for review. While browsing a table, filter chips add conditions that run on the server. Hand-written queries are never changed." />
+                    </StackPanel>
+                    <ToggleSwitch Grid.Column="1" VerticalAlignment="Center"
+                                  OnContent="" OffContent=""
+                                  IsChecked="{Binding RowDetailsAndFilters}" />
+                </Grid>
+            </Border>
 
             <TextBlock Classes="sectionHeader" Text="KEYBOARD" Margin="4,10,4,4" />
             <Border Classes="card" Padding="14,12">

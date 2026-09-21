@@ -53,6 +53,13 @@ public sealed partial class PreferencesViewModel : ObservableObject
         set => _main.SafeModeEdits = value;
     }
 
+    /// <summary>Row details and browse filters, off by default. Same proxy pattern as <see cref="AutoAliasTables"/>.</summary>
+    public bool RowDetailsAndFilters
+    {
+        get => _main.RowDetailsAndFilters;
+        set => _main.RowDetailsAndFilters = value;
+    }
+
     /// <summary>
     /// Whether the schema tree shows each relation's on-disk size. Proxies the
     /// schema tree's own flag (which persists and re-renders the loaded rows),
@@ -80,6 +87,10 @@ public sealed partial class PreferencesViewModel : ObservableObject
         else if (e.PropertyName == nameof(MainViewModel.SafeModeEdits))
         {
             OnPropertyChanged(nameof(SafeModeEdits));
+        }
+        else if (e.PropertyName == nameof(MainViewModel.RowDetailsAndFilters))
+        {
+            OnPropertyChanged(nameof(RowDetailsAndFilters));
         }
     }
 

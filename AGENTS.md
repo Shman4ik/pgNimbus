@@ -14,7 +14,7 @@ speed with TablePlus's polish, PostgreSQL-first.
 Whenever a change touches something this file documents — tech stack
 versions, architectural rules, coding conventions, the sandbox bootstrap
 steps — update the corresponding section in the same commit/PR. Treat a
-stale `CLAUDE.md` (e.g. it still saying "Avalonia 11" after an upgrade to
+stale `AGENTS.md` (e.g. it still saying "Avalonia 11" after an upgrade to
 12) as a bug, not a nitpick: it's the first thing a fresh session reads,
 and wrong project memory is worse than none.
 
@@ -688,9 +688,9 @@ Three rules about it:
    sidebar tabs, editor/results split, status bar, the command-palette overlay)
    plus window-only concerns (chrome, key bindings, the native macOS menu, file
    open/save dialogs) — new view code still follows the same rule: a focused
-   `UserControl` per responsibility, never a god-view (row details and the
-   browse filter chips arrived that way: `RowDetailPanel`, `BrowseFilterBar` and
-   `FilterEditorView`, hosted by `ResultsGridPanel`, each owning its own keyboard
+   `UserControl` per responsibility, never a god-view (the row-detail sidebar
+   and the browse filter bar arrived that way: `RowDetailPanel` and
+   `BrowseFilterBar`, hosted by `ResultsGridPanel`, each owning its own keyboard
    model). `ResultsGridPanel` is
    window-central like `QueryEditorPanel` (it inherits the `MainViewModel`
    DataContext and tracks the active tab itself). The cell inspector overlay is
@@ -1162,64 +1162,54 @@ csproj / WiX / MSIX manifest reference them unchanged:
   batch is then the server's. Real-server coverage is
   `QueryEngineStagedConflictTests` (gated on `PGNIMBUS_TEST_CONN`, drives a real
   second session, including the lock case).
-- **Row details and browse filters: opt-in, out of the way, and neither touches
-  a query someone wrote** (2026-09, README roadmap T4). Both sit behind one
-  preference, `AppSettings.RowDetailsAndFilters` (`MainViewModel.RowDetailsAndFilters`,
-  Preferences → Data editing), **off by default**. Off means absent, not greyed:
-  the two commands' `CanExecute` is false (so the Ctrl/Cmd+I `KeyBinding` is
-  inert), `BuildActionItems` leaves both out of the palette, the grid menu hides
-  its items, and Ctrl/Cmd+F in the grid falls through to the editor's Find.
-  Turning it off closes row details and drops every tab's typed conditions
-  (`DropTypedFiltersAsync`) — a grid filtered by chips nothing shows would read as
-  missing rows; the FK-seeded condition predates the feature and stays.
-  **Where they live was the design question, and the first answer was wrong.**
-  The first cut put row details in a column beside the grid and the filters in a
-  bar of full-size inputs above it; both took the grid's space permanently for an
-  occasional task. Now: row details is a card over the window (`RowDetailOverlay`
-  in `ResultsGridPanel`, hoisted into the window root with the cell inspector and
-  *before* it, so an Inspect from a field stacks the inspector on top) — DESIGN
-  rule 13's "open, use, dismiss", with ‹ › to walk rows since the grid is covered
-  (disabled while edits are unstaged); and the filters are one slim line of chips
-  (`BrowseFilterBar`), shown only while something filters the rows, each chip
-  opening a flyout editor (`FilterEditorView`).
-  Four rules hold the pieces together:
+- **Row details stage; browse filters compose; neither touches a query someone
+  wrote** (2026-09, README roadmap T4). Three pieces, and the rule each holds:
   (a) **One set of type-aware inputs.** `Views/ColumnValueEditorView` (bound to a
   `NewRowField`) is the Add-row dialog's editor stack pulled out whole, and it is
-  also every row-details field and the filter editor's value box.
+  also the row-detail sidebar's field editor and a browse filter's value box.
   `NewRowField.Seed` loads an existing value into whichever control the type
   shows; `NewRowField.For(column, placeholder)` is the one constructor. Don't grow
   a fourth copy of the checkbox/dropdown/picker switch.
-  (b) **Row details never writes.** `RowDetailViewModel` (per tab, on
-  `QueryViewModel.RowDetail`) collects edits and Stage hands them to
-  `QueryViewModel.StageRowEdits`, which stages **whatever safe mode says**: a form
-  of edits is one change to review, and `PendingChanges` gives it the review
-  dialog and the T2 conflict check for free. All values are converted before any
-  is staged, and `StageCellValueCore` returns the replacement row instance,
-  because staging replaces the row wholesale. The baseline for "changed" is what
-  seeding *produced*, not the raw value. Unstaged edits pin the form to its row
-  against selection changes; a new `EditContext` (any run or page load) drops
-  them, since field column indexes may mean something else in the new result.
-  (c) **A chip is applied, a draft is not.** `TableBrowseViewModel.Filters` holds
-  only applied conditions — what `BuildSql` composes, so paging and sorting run
-  exactly what the chips say. The flyout edits `Draft`, a *copy* when editing a
-  chip, swapped in on Apply (`CommitDraftCommand`); closing the flyout any other
-  way drops it (`CancelDraft`). Predicates come from the Core-pure, unit-tested
-  `Query/RowFilterSql` (operators per type family, NULL tests on every column,
-  LIKE-wildcard escaping, untyped quoted literals so Postgres types each
-  comparison by its column, `json` offered text search because it has no `=`);
-  the editor shows the draft's SQL before it runs. The FK-seeded `FilterText`
-  stays a raw, removable chip, ANDed first.
-  (d) **Filters exist only in browse mode.** The strip's host is bound to
+  (b) **The sidebar never writes.** `RowDetailViewModel` (per tab, on
+  `QueryViewModel.RowDetail`; visibility is window-wide
+  `MainViewModel.IsRowDetailOpen`, `CommandId.RowDetails`, Ctrl/Cmd+I) collects
+  edits and Stage hands them to `QueryViewModel.StageRowEdits`, which stages
+  **whatever safe mode says**: a form of edits is one change to review, and
+  putting it in `PendingChanges` is what gives it the review dialog and the T2
+  conflict check for free. All values are converted before any is staged, and
+  `StageCellValueCore` returns the replacement row instance, because staging
+  replaces the row wholesale and the next cell must be staged against the new
+  one. The baseline for "changed" is what seeding *produced*, not the raw value,
+  so a control that spells a value differently never reads as an edit. While the
+  sidebar holds unstaged edits it pins its row against selection changes; a new
+  `EditContext` (any run or page load) drops them, since the field column indexes
+  may mean something else in the new result.
+  (c) **Filters exist only in browse mode.** `TableBrowseViewModel.Filters` are
+  drafts; only Apply copies them into `_appliedFilters`, which is what
+  `BuildSql` composes, so paging and sorting keep running what was applied while
+  a half-typed row sits in the bar. Predicates come from the Core-pure,
+  unit-tested `Query/RowFilterSql` (operators per type family, NULL tests on
+  every column, LIKE-wildcard escaping, untyped quoted literals so Postgres types
+  the comparison against the column, `json` offered text search because it has
+  no `=`). The FK-seeded `FilterText` stays a separate raw condition, ANDed first
+  and shown as its own removable line. The bar lives inside a panel bound to
   `ActiveTab.IsBrowsing`, and `MainViewModel.FilterRows` on a non-browse tab only
   says where filters live — there is no path from a filter gesture to a
-  hand-written query's text. Ctrl/Cmd+F in a *browsed grid* opens a new condition
+  hand-written query's text. Ctrl/Cmd+F in a *browsed grid* opens the bar
   (documented on `CommandId.FilterRows` as a `GestureNote`, not a second chord,
   which the catalog test would rightly reject as shadowing the global Find).
-  An empty browse result has its own states — "No rows match these conditions"
-  with Clear, or the page label for an empty table — instead of the never-ran
-  "Run a query" hint (DESIGN rule 7).
+  Four presentation choices, each a fix for how the first cut read: the bar and
+  the sidebar trim Fluent's 32px inputs to 28px through their *own*
+  `UserControl.Styles` (the Add-row dialog keeps the stock size); filter rows
+  lead with "where" / "and" (`BrowseFilterViewModel.Connector`) so the bar reads
+  as the clause it builds, and the value column is `*` capped at 420px so ✕ sits
+  beside its row; Apply is `accent` only while `HasUnappliedChanges` (otherwise
+  it looked pending when nothing was); and an empty browse result has its own
+  states in `ResultsGridPanel` — "No rows match these conditions" with Clear, or
+  the page label for an empty table — instead of the never-ran "Run a query"
+  hint (DESIGN rule 7).
   UI tests: `PgNimbus.App.Tests/RowDetailAndFilterTests`; screenshot scenarios
-  `main-window-browse-row-details`, `main-window-browse-no-match`, `filter-editor`.
+  `main-window-browse-row-details` and `main-window-browse-no-match`.
 - **A grid cell shows a preview, and a previewed cell never opens the inline
   editor** (2026-09). `CellText` is the one place a result value becomes text: in
   full for the cell inspector (`CellText.Full`), and capped at
@@ -1278,7 +1268,7 @@ csproj / WiX / MSIX manifest reference them unchanged:
 
 ## Avalonia DevTools MCP
 
-The app exposes its live visual tree / runtime state to an MCP client (Claude
+The app exposes its live visual tree / runtime state to an MCP client (Codex
 Code, VS, Rider) via the Avalonia DevTools MCP server. Two pieces make it work:
 
 1. **In the app** — `AvaloniaUI.DiagnosticsSupport` is referenced and
@@ -1297,9 +1287,9 @@ Code, VS, Rider) via the Avalonia DevTools MCP server. Two pieces make it work:
    Avalonia 11.x and earlier):
 
    ```bash
-   claude mcp add --scope user avalonia_devtools \
+   Codex mcp add --scope user avalonia_devtools \
      -e AVALONIA_TOOLS_LICENSE_KEY=<key> -- avdt mcp
-   claude mcp list   # avalonia_devtools: avdt mcp - ✓ Connected
+   Codex mcp list   # avalonia_devtools: avdt mcp - ✓ Connected
    ```
 
    The server only sees the app while it's running, so launch the app before
@@ -1380,7 +1370,7 @@ Notes:
 - Test both themes by toggling `RequestedThemeVariant` in `App.axaml`
   (`Default`/`Dark`) between runs — revert it before committing.
 - This is how the Avalonia 11→12 upgrade and the PowerToys-style UI polish
-  were actually verified (not just built) in a Claude Code sandbox with no
+  were actually verified (not just built) in a Codex sandbox with no
   prior .NET/GUI tooling.
 - For a *visual* check the live sandbox above is the heavy path — prefer the
   headless harness below, which needs no display, no input tool and no
@@ -1804,12 +1794,12 @@ preview: `pip install -r docs/requirements.txt && mkdocs serve`.
 don't hand-edit it. `docs/assets/{logo,favicon}.png` are copies of the
 `design/masters/icon/` tiles; refresh them if the masters change.
 
-**User-facing prose goes through the `humanizer` skill.** `.claude/skills/humanizer/`
+**User-facing prose goes through the `humanizer` skill.** `.Codex/skills/humanizer/`
 is vendored from <https://github.com/blader/humanizer> (MIT; see its `SOURCE.md`
 for the update procedure and the one standing deviation — the README keeps its
 emoji section headings). Apply it to the README, the `docs/` pages, release
 notes and website copy — its hardest rule is no em/en dashes in user-facing prose,
-which is why those files read differently from this one. `CLAUDE.md` and code
+which is why those files read differently from this one. `AGENTS.md` and code
 comments are internal and keep their own voice.
 
 ### Landing page (`/`)

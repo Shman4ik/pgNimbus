@@ -42,6 +42,10 @@ public partial class App : Application
     private static void PersistShowSchemaSizes(bool value) =>
         SettingsStore.Save(SettingsStore.Load() with { ShowSchemaSizes = value });
 
+    /// <summary>Remembers the row-details-and-filters toggle so it survives a restart.</summary>
+    private static void PersistRowDetailsAndFilters(bool value) =>
+        SettingsStore.Save(SettingsStore.Load() with { RowDetailsAndFilters = value });
+
     /// <summary>Remembers the editor's auto-alias-tables toggle so it survives a restart.</summary>
     private static void PersistAutoAliasTables(bool value) =>
         SettingsStore.Save(SettingsStore.Load() with { AutoAliasTables = value });
@@ -476,6 +480,8 @@ public partial class App : Application
             persistAutoAliasTables: PersistAutoAliasTables,
             safeModeEdits: SettingsStore.Load().SafeModeEdits,
             persistSafeModeEdits: PersistSafeModeEdits,
+            rowDetailsAndFilters: SettingsStore.Load().RowDetailsAndFilters,
+            persistRowDetailsAndFilters: PersistRowDetailsAndFilters,
             wordWrapEditor: SettingsStore.Load().WordWrapEditor,
             persistWordWrapEditor: PersistWordWrapEditor,
             workspace: workspaceKey is null ? null : workspaceStore.GetEntry(workspaceKey),
