@@ -13,6 +13,7 @@ public sealed class MacKeychainCredentialStore : ICredentialStore
 
     public void SavePassword(Guid connectionId, string password)
     {
+        using var interaction = new NonInteractiveKeychain();
         using var query = new KeychainQuery(connectionId);
         using var values = new CfDictionary();
         // A legacy file-based Keychain can treat zero-length update data as
@@ -43,6 +44,7 @@ public sealed class MacKeychainCredentialStore : ICredentialStore
 
     public string? LoadPassword(Guid connectionId)
     {
+        using var interaction = new NonInteractiveKeychain();
         using var query = new KeychainQuery(connectionId);
         query.Constant("kSecReturnData", "kCFBooleanTrue", CoreFoundation);
         query.Constant("kSecMatchLimit", "kSecMatchLimitOne");
@@ -65,6 +67,7 @@ public sealed class MacKeychainCredentialStore : ICredentialStore
 
     public void DeletePassword(Guid connectionId)
     {
+        using var interaction = new NonInteractiveKeychain();
         using var query = new KeychainQuery(connectionId);
         var status = SecItemDelete(query.Handle);
         if (status != NotFound) Check(status);
@@ -73,6 +76,29 @@ public sealed class MacKeychainCredentialStore : ICredentialStore
     private static void Check(int status)
     {
         if (status != 0) throw new CredentialStoreException();
+    }
+
+    private sealed class NonInteractiveKeychain : IDisposable
+    {
+        private static readonly object Gate = new();
+        private readonly byte _previous;
+
+        public NonInteractiveKeychain()
+        {
+            Monitor.Enter(Gate);
+            try
+            {
+                Check(SecKeychainGetUserInteractionAllowed(out _previous));
+                Check(SecKeychainSetUserInteractionAllowed(0));
+            }
+            catch { Monitor.Exit(Gate); throw; }
+        }
+
+        public void Dispose()
+        {
+            try { Check(SecKeychainSetUserInteractionAllowed(_previous)); }
+            finally { Monitor.Exit(Gate); }
+        }
     }
 
     private sealed class KeychainQuery : CfDictionary
@@ -84,8 +110,9 @@ public sealed class MacKeychainCredentialStore : ICredentialStore
                 Constant("kSecClass", "kSecClassGenericPassword");
                 Text("kSecAttrService", "pgNimbus");
                 Text("kSecAttrAccount", id.ToString("N"));
-                // Never park a background operation behind an invisible OS prompt.
-                // The dialog directs users to unlock the store and retry instead.
+                // Also suppress data-protection-keychain UI. The scoped legacy
+                // interaction setting above is necessary for file-based keychains,
+                // where this query flag alone does not prevent an unlock prompt.
                 Constant("kSecUseAuthenticationUI", "kSecUseAuthenticationUIFail");
             }
             catch { Dispose(); throw; }
@@ -130,6 +157,8 @@ public sealed class MacKeychainCredentialStore : ICredentialStore
     [DllImport(Security)] private static extern int SecItemUpdate(nint query, nint attributes);
     [DllImport(Security)] private static extern int SecItemCopyMatching(nint query, out nint result);
     [DllImport(Security)] private static extern int SecItemDelete(nint query);
+    [DllImport(Security)] private static extern int SecKeychainGetUserInteractionAllowed(out byte allowed);
+    [DllImport(Security)] private static extern int SecKeychainSetUserInteractionAllowed(byte allowed);
     [DllImport(CoreFoundation)] private static extern nint CFDictionaryCreateMutable(nint allocator, nint capacity, nint keys, nint values);
     [DllImport(CoreFoundation)] private static extern void CFDictionarySetValue(nint dictionary, nint key, nint value);
     [DllImport(CoreFoundation)] private static extern nint CFStringCreateWithBytes(nint allocator, byte[] bytes, nint count, uint encoding, byte externalRepresentation);
