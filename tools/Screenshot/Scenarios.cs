@@ -56,6 +56,7 @@ public static class Scenarios
         ("main-window-sidebar-filter", SidebarFilter),
         ("main-window-cell-inspector", CellInspector),
         ("main-window-browse-row-details", BrowseWithRowDetails),
+        ("main-window-browse-no-match", BrowseNoMatch),
         ("activity-window", Activity),
         ("activity-window-blocking", ActivityBlocking),
         ("database-overview-window", DatabaseOverview),
@@ -166,6 +167,35 @@ public static class Scenarios
         vm.IsRowDetailOpen = true;
         tab.RowDetail.Load(tab.Rows[1]);
         tab.RowDetail.Fields.First(f => f.Name == "status").Editor!.EnumChoice = "shipped";
+        return HostMainWindow(vm);
+    }
+
+    /// <summary>
+    /// A filter that matched nothing: its own empty state with a way out, not the
+    /// "run a query" hint a tab that never ran shows. Row details is open with no
+    /// row to show, which is its empty state.
+    /// </summary>
+    public static Window BrowseNoMatch()
+    {
+        var vm = Fixtures.MainWindowViewModel();
+        var tab = vm.ActiveTab;
+        var (columns, _) = Fixtures.OrdersResult();
+        var details = Fixtures.OrdersTableColumns();
+
+        string? composed = null;
+        var browse = new TableBrowseViewModel("public", "orders", details, sql =>
+        {
+            composed = sql;
+            return Task.FromResult(0);
+        });
+        browse.AddFilter("customer", FilterOperator.Contains, "zzz");
+        browse.ApplyFiltersCommand.Execute(null);
+
+        tab.Sql = composed!;
+        tab.SeedResult(columns, [], rowCountText: "0 rows", timingText: "3 ms");
+        tab.EditContext = new EditableTableContext("public", "orders", ["id"], details);
+        tab.Browse = browse;
+        vm.IsRowDetailOpen = true;
         return HostMainWindow(vm);
     }
 

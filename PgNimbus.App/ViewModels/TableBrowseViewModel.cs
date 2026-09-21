@@ -77,12 +77,21 @@ public sealed partial class TableBrowseViewModel(string schema, string name, IRe
     /// <summary>
     /// The <c>WHERE</c> clause Apply would run, from the bar as it stands: the
     /// generated SQL, shown before it runs. Rows that aren't valid yet are
-    /// left out (their error shows under their own input).
+    /// left out (their error shows under their own input). One line — the bar
+    /// has one line for it; the editor gets the laid-out form.
     /// </summary>
     public string FilterPreviewSql =>
         WhereBody(Filters.Select(f => f.Predicate()).OfType<string>()) is { } body
-            ? $"WHERE {body}"
+            ? "WHERE " + body.Replace("\n  AND ", " AND ", StringComparison.Ordinal)
             : "No filter: all rows";
+
+    /// <summary>
+    /// True when the bar says something different from what the rows are
+    /// filtered by — the cue that Apply would change anything, and the one
+    /// state in which it's the highlighted button.
+    /// </summary>
+    public bool HasUnappliedChanges =>
+        !Filters.Select(f => f.ToFilter()).SequenceEqual(_appliedFilters);
 
     [ObservableProperty]
     private string? _sortColumn;
@@ -214,6 +223,7 @@ public sealed partial class TableBrowseViewModel(string schema, string name, IRe
         var filter = new BrowseFilterViewModel(Columns, name, op, value);
         filter.Changed += OnDraftChanged;
         Filters.Add(filter);
+        RenumberConnectors();
         OnDraftChanged();
         return filter;
     }
@@ -231,6 +241,7 @@ public sealed partial class TableBrowseViewModel(string schema, string name, IRe
     {
         filter.Changed -= OnDraftChanged;
         Filters.Remove(filter);
+        RenumberConnectors();
         OnDraftChanged();
         return Filters.All(f => f.Validate() is null) ? ApplyFiltersAsync() : Task.CompletedTask;
     }
@@ -252,6 +263,7 @@ public sealed partial class TableBrowseViewModel(string schema, string name, IRe
         FilterError = null;
         _appliedFilters = Filters.Select(f => f.ToFilter()).ToList();
         OnPropertyChanged(nameof(HasActiveFilters));
+        OnPropertyChanged(nameof(HasUnappliedChanges));
         OnPropertyChanged(nameof(IsFilterBarVisible));
         Offset = 0;
         return LoadAsync();
@@ -281,6 +293,7 @@ public sealed partial class TableBrowseViewModel(string schema, string name, IRe
         IsFilterBarOpen = false;
         _appliedFilters = [];
         OnPropertyChanged(nameof(HasActiveFilters));
+        OnPropertyChanged(nameof(HasUnappliedChanges));
         OnPropertyChanged(nameof(IsFilterBarVisible));
         OnDraftChanged();
         if (!wasFiltering)
@@ -305,7 +318,20 @@ public sealed partial class TableBrowseViewModel(string schema, string name, IRe
     {
         FilterError = null;
         OnPropertyChanged(nameof(FilterPreviewSql));
+        OnPropertyChanged(nameof(HasUnappliedChanges));
     }
+
+    // The raw FK condition, when there is one, is the bar's first line, so every
+    // typed row after it is an "and".
+    private void RenumberConnectors()
+    {
+        for (var i = 0; i < Filters.Count; i++)
+        {
+            Filters[i].Connector = i == 0 && !HasRawFilter ? "where" : "and";
+        }
+    }
+
+    partial void OnFilterTextChanged(string value) => RenumberConnectors();
 
     private string? PredicateOf(RowFilter filter) =>
         Columns.FirstOrDefault(c => c.Name == filter.Column) is { } column

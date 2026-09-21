@@ -40,6 +40,14 @@ public sealed partial class BrowseFilterViewModel : ObservableObject
 
     public IReadOnlyList<string> ColumnNames { get; }
 
+    /// <summary>
+    /// The word in front of the row: "where" for the first, "and" after it, so
+    /// the bar reads as the clause it builds. Set by the owning bar as rows come
+    /// and go.
+    /// </summary>
+    [ObservableProperty]
+    private string _connector = "where";
+
     [ObservableProperty]
     private string _column;
 

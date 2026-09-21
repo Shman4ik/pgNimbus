@@ -11,35 +11,97 @@
          being rewritten: there is no filter to apply to one. Hidden until opened
          (Ctrl/Cmd+F in the grid, the palette, a cell's Filter menu), then shown for
          as long as anything is filtering the rows. Enter applies, Escape hands
-         focus back to the grid. -->
+         focus back to the grid.
+
+         Laid out to read as the clause it builds — "where status ≠ cancelled / and
+         total ≥ 50" — with every row on one 28px line: the bar sits above the grid
+         and each pixel of it is a pixel of rows, so the Fluent 32px inputs are
+         trimmed here (and only here, via the styles below). -->
+    <UserControl.Styles>
+        <Style Selector="TextBox, ComboBox, CalendarDatePicker">
+            <Setter Property="MinHeight" Value="28" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+        <Style Selector="TextBox">
+            <Setter Property="Padding" Value="8,4" />
+        </Style>
+        <Style Selector="ComboBox">
+            <Setter Property="Padding" Value="10,3,6,3" />
+        </Style>
+        <Style Selector="TextBlock.connector">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Opacity" Value="0.55" />
+            <Setter Property="HorizontalAlignment" Value="Right" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="0,0,10,0" />
+        </Style>
+        <!-- Generated SQL, set apart as code: a quiet filled pill in the editor's font. -->
+        <Style Selector="Border.sqlpill">
+            <Setter Property="Background" Value="{StaticResource HoverBackgroundBrush}" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="8,4" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Border.sqlpill > TextBlock">
+            <Setter Property="FontFamily" Value="Cascadia Code,Consolas,Menlo,monospace" />
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="Opacity" Value="0.8" />
+        </Style>
+        <Style Selector="Button.remove">
+            <Setter Property="Width" Value="22" />
+            <Setter Property="Height" Value="22" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="FontSize" Value="10" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+    </UserControl.Styles>
+
     <Border BorderThickness="0,0,0,1" BorderBrush="{StaticResource CardBorderBrush}"
-            Padding="4,2,4,6" Margin="0,0,0,4">
+            Padding="6,4,6,8" Margin="0,0,0,4">
         <StackPanel Spacing="4">
-            <!-- The FK-seeded raw condition, kept as-is and shown as its own line. -->
-            <Grid ColumnDefinitions="Auto,*,Auto" IsVisible="{Binding HasRawFilter}">
-                <TextBlock Grid.Column="0" Text="Condition" FontSize="11" Opacity="0.6"
-                           VerticalAlignment="Center" Margin="2,0,8,0" />
-                <TextBlock Grid.Column="1" Text="{Binding FilterText}" FontSize="12"
-                           FontFamily="Cascadia Code,Consolas,Menlo,monospace"
-                           TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
-                           ToolTip.Tip="{Binding FilterText}" />
-                <Button Grid.Column="2" Classes="chip" Content="✕" FontSize="10" Width="20" Height="20" Padding="0"
+            <!-- The FK-seeded raw condition, kept verbatim and shown as the clause's
+                 first line; the typed rows below it read "and". -->
+            <Grid ColumnDefinitions="48,*,Auto" IsVisible="{Binding HasRawFilter}" MinHeight="28">
+                <TextBlock Grid.Column="0" Classes="connector" Text="where" />
+                <Border Grid.Column="1" Classes="sqlpill" HorizontalAlignment="Left">
+                    <TextBlock Text="{Binding FilterText}" TextTrimming="CharacterEllipsis"
+                               ToolTip.Tip="{Binding FilterText}" />
+                </Border>
+                <Button Grid.Column="2" Classes="chip remove" Content="✕" Margin="6,0,0,0"
                         Command="{Binding ClearRawFilterCommand}"
                         ToolTip.Tip="Remove this condition"
                         AutomationProperties.Name="Remove condition" />
             </Grid>
 
             <ItemsControl ItemsSource="{Binding Filters}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Spacing="4" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:BrowseFilterViewModel">
-                        <Grid ColumnDefinitions="170,6,130,6,*,6,Auto" Margin="0,2">
-                            <ComboBox Grid.Column="0" ItemsSource="{Binding ColumnNames}"
+                        <!-- The value column stretches up to a cap, then stops: a value box
+                             as wide as the window reads as a search field, and ✕ should sit
+                             next to the row it removes, not at the far edge. -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="48" />
+                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="6" />
+                                <ColumnDefinition Width="140" />
+                                <ColumnDefinition Width="6" />
+                                <ColumnDefinition Width="*" MaxWidth="420" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Classes="connector" Text="{Binding Connector}" />
+                            <ComboBox Grid.Column="1" ItemsSource="{Binding ColumnNames}"
                                       SelectedItem="{Binding Column, Mode=TwoWay}"
-                                      HorizontalAlignment="Stretch" FontSize="12"
+                                      HorizontalAlignment="Stretch"
                                       AutomationProperties.Name="Filter column" />
-                            <ComboBox Grid.Column="2" ItemsSource="{Binding Operators}"
+                            <ComboBox Grid.Column="3" ItemsSource="{Binding Operators}"
                                       SelectedItem="{Binding Operator, Mode=TwoWay}"
-                                      HorizontalAlignment="Stretch" FontSize="12"
+                                      HorizontalAlignment="Stretch"
                                       AutomationProperties.Name="Comparison">
                                 <ComboBox.ItemTemplate>
                                     <DataTemplate x:DataType="vm:FilterOperatorOption">
@@ -47,38 +109,43 @@
                                     </DataTemplate>
                                 </ComboBox.ItemTemplate>
                             </ComboBox>
-                            <Panel Grid.Column="4" IsVisible="{Binding ShowsValue}">
+                            <Panel Grid.Column="5" IsVisible="{Binding ShowsValue}">
                                 <views:ColumnValueEditorView DataContext="{Binding Value}" />
                             </Panel>
-                            <Button Grid.Column="6" Classes="chip" Content="✕" FontSize="10" Width="20" Height="20" Padding="0"
-                                    VerticalAlignment="Center"
+                            <Button Grid.Column="6" Classes="chip remove" Content="✕" Margin="6,0,0,0"
+                                    VerticalAlignment="Top" Height="28"
                                     Command="{Binding $parent[views:BrowseFilterBar].((vm:TableBrowseViewModel)DataContext).RemoveFilterCommand}"
                                     CommandParameter="{Binding}"
-                                    ToolTip.Tip="Remove this filter"
-                                    AutomationProperties.Name="Remove filter" />
+                                    ToolTip.Tip="Remove this condition"
+                                    AutomationProperties.Name="Remove condition" />
                         </Grid>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
 
-            <Grid ColumnDefinitions="Auto,*,Auto,Auto">
-                <Button Grid.Column="0" Classes="chip" Content="+ Filter" FontSize="11" Padding="8,2"
+            <Grid ColumnDefinitions="48,Auto,*,Auto,Auto" Margin="0,2,0,0">
+                <Button Grid.Column="1" Classes="soft" Content="+ Condition" FontSize="12" Padding="10,3"
                         Command="{Binding AddFilterRowCommand}"
-                        ToolTip.Tip="Add another condition (all conditions must match)" />
+                        ToolTip.Tip="Add another condition; rows must match all of them" />
                 <!-- The generated SQL, before it runs: exactly the WHERE that Apply
                      adds to the page query (which then shows whole in the editor). -->
-                <SelectableTextBlock Grid.Column="1" Text="{Binding FilterPreviewSql}" Margin="10,0"
-                                     FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="11.5"
-                                     Opacity="0.7" TextWrapping="Wrap" VerticalAlignment="Center" />
-                <Button Grid.Column="2" Classes="accent" Content="Apply" FontSize="12" Padding="12,3"
+                <Border Grid.Column="2" Classes="sqlpill" Margin="10,0" HorizontalAlignment="Left">
+                    <TextBlock Text="{Binding FilterPreviewSql}" TextTrimming="CharacterEllipsis"
+                               ToolTip.Tip="{Binding FilterPreviewSql}" />
+                </Border>
+                <!-- Highlighted only when it would change something (DESIGN rule 7:
+                     a primary action that reads as pending when nothing is). -->
+                <Button Grid.Column="3" Content="Apply" FontSize="12" Padding="14,3"
+                        Classes.accent="{Binding HasUnappliedChanges}"
+                        Classes.soft="{Binding !HasUnappliedChanges}"
                         Command="{Binding ApplyFiltersCommand}"
-                        ToolTip.Tip="Run the query with these filters (Enter)" />
-                <Button Grid.Column="3" Classes="soft" Content="Clear" FontSize="12" Padding="10,3" Margin="6,0,0,0"
+                        ToolTip.Tip="Run the query with these conditions (Enter)" />
+                <Button Grid.Column="4" Classes="soft" Content="Clear" FontSize="12" Padding="10,3" Margin="6,0,0,0"
                         Command="{Binding ClearFiltersCommand}"
-                        ToolTip.Tip="Remove every filter and close the bar" />
+                        ToolTip.Tip="Remove every condition and close the bar" />
             </Grid>
 
-            <TextBlock Text="{Binding FilterError}" FontSize="11" TextWrapping="Wrap"
+            <TextBlock Text="{Binding FilterError}" FontSize="11" TextWrapping="Wrap" Margin="48,0,0,0"
                        Foreground="{DynamicResource AppDangerBrush}"
                        IsVisible="{Binding FilterError, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
         </StackPanel>

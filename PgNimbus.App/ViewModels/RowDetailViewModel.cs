@@ -112,6 +112,10 @@ public sealed partial class RowDetailViewModel : ObservableObject
     [ObservableProperty]
     private string _heading = "Row details";
 
+    /// <summary>The table the row belongs to ("public.orders"), when the result maps to one.</summary>
+    [ObservableProperty]
+    private string? _source;
+
     /// <summary>What the sidebar says when there's no row, or why the row can't be edited.</summary>
     [ObservableProperty]
     private string? _note = "Select a row to see its fields.";
@@ -168,14 +172,18 @@ public sealed partial class RowDetailViewModel : ObservableObject
         OnPropertyChanged(nameof(Row));
         OnPropertyChanged(nameof(HasRow));
 
+        var context = _owner.EditContext;
+        Source = context is not null ? $"{context.Schema}.{context.Table}"
+            : _owner.Browse is { } browse ? $"{browse.Schema}.{browse.Name}"
+            : null;
+
         if (row is null)
         {
             Heading = "Row details";
-            Note = "Select a row to see its fields.";
+            Note = "Select a row in the grid to see its fields.";
             return;
         }
 
-        var context = _owner.EditContext;
         var editable = _owner.IsEditable;
         var index = _owner.Rows.IndexOf(row);
         var offset = _owner.Browse?.Offset ?? 0;
@@ -196,8 +204,10 @@ public sealed partial class RowDetailViewModel : ObservableObject
             }
             else if (context!.PrimaryKeyColumns.Contains(name))
             {
-                reason = "primary key";
-                typeLabel += " · PK";
+                // The type label carries it ("bigint · primary key"); a second
+                // line saying the same would only push the form down.
+                reason = string.Empty;
+                typeLabel += " · primary key";
             }
             else if (CellText.IsShortened(value) || QueryEngine.IsUnreadableCell(value))
             {
@@ -208,7 +218,7 @@ public sealed partial class RowDetailViewModel : ObservableObject
 
             var field = reason is null && editable && meta is not null
                 ? new RowDetailField(i, name, typeLabel, value, NewRowField.For(meta, placeholder: "empty string"), null)
-                : new RowDetailField(i, name, typeLabel, value, null, reason) { CanInspect = CellText.IsShortened(value) };
+                : new RowDetailField(i, name, typeLabel, value, null, reason is { Length: 0 } ? null : reason) { CanInspect = CellText.IsShortened(value) };
             field.PropertyChanged += OnFieldChanged;
             Fields.Add(field);
         }

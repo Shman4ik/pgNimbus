@@ -131,9 +131,14 @@
                         </DataGrid.ContextMenu>
                     </DataGrid>
                     <!-- Empty state: a friendly hint instead of a bare grid before any query has run -->
-                    <StackPanel IsVisible="{Binding ActiveTab.HasNoResults}"
-                                HorizontalAlignment="Center" VerticalAlignment="Center"
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
                                 Spacing="10" IsHitTestVisible="False">
+                        <StackPanel.IsVisible>
+                            <MultiBinding Converter="{x:Static BoolConverters.And}">
+                                <Binding Path="ActiveTab.HasNoResults" />
+                                <Binding Path="!ActiveTab.IsBrowsing" />
+                            </MultiBinding>
+                        </StackPanel.IsVisible>
                         <PathIcon Data="{StaticResource TableIconGeometry}" Width="34" Height="34"
                                   Opacity="0.28" HorizontalAlignment="Center" />
                         <TextBlock Text="No results yet" FontSize="14" FontWeight="SemiBold"
@@ -142,6 +147,43 @@
                             Run a query with <Run FontWeight="SemiBold">Ctrl+Enter</Run> or <Run FontWeight="SemiBold">F5</Run>
                         </TextBlock>
                     </StackPanel>
+                    <!-- Browsing and nothing came back: an empty table and a filter that
+                         matched nothing send you looking for opposite problems, so they
+                         are different states (DESIGN rule 7), and the filtered one
+                         offers its own way out. Browse is null elsewhere, hence the
+                         DataContext hop. -->
+                    <Panel IsVisible="{Binding ActiveTab.HasNoResults}">
+                        <Panel x:DataType="vm:TableBrowseViewModel" DataContext="{Binding ActiveTab.Browse}">
+                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
+                                <StackPanel.IsVisible>
+                                    <MultiBinding Converter="{x:Static BoolConverters.Or}">
+                                        <Binding Path="HasActiveFilters" />
+                                        <Binding Path="HasRawFilter" />
+                                    </MultiBinding>
+                                </StackPanel.IsVisible>
+                                <PathIcon Data="{StaticResource TableIconGeometry}" Width="34" Height="34"
+                                          Opacity="0.28" HorizontalAlignment="Center" />
+                                <TextBlock Text="No rows match these conditions" FontSize="14" FontWeight="SemiBold"
+                                           Opacity="0.6" HorizontalAlignment="Center" />
+                                <Button Classes="soft" Content="Clear conditions" FontSize="12" Padding="12,4"
+                                        HorizontalAlignment="Center"
+                                        Command="{Binding ClearFiltersCommand}" />
+                            </StackPanel>
+                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10"
+                                        IsHitTestVisible="False">
+                                <StackPanel.IsVisible>
+                                    <MultiBinding Converter="{x:Static BoolConverters.And}">
+                                        <Binding Path="!HasActiveFilters" />
+                                        <Binding Path="!HasRawFilter" />
+                                    </MultiBinding>
+                                </StackPanel.IsVisible>
+                                <PathIcon Data="{StaticResource TableIconGeometry}" Width="34" Height="34"
+                                          Opacity="0.28" HorizontalAlignment="Center" />
+                                <TextBlock Text="{Binding PageLabel}" FontSize="14" FontWeight="SemiBold"
+                                           Opacity="0.6" HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Panel>
+                    </Panel>
                     <Grid RowDefinitions="Auto,Auto,*" IsVisible="{Binding ActiveTab.IsShowingPlan}">
                         <DockPanel Grid.Row="0" Margin="4">
                             <!-- pev2-style re-color toggle: re-scale the tree bars by a chosen metric.
