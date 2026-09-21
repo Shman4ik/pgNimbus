@@ -29,8 +29,8 @@
                 <!-- No browse *toolbar* here on purpose: browse mode's ORDER BY lives in the
                      composed SQL (visible in the editor), and its paging sits in the status
                      bar (2026-07 rework). The one exception is the filter-chip line below,
-                     which exists only with the opt-in preference on, and appears only while
-                     a condition filters the rows or one is being added. -->
+                     which appears only while a condition filters the rows (or one is being
+                     added), unless the funnel in the status bar pins it open. -->
 
                 <!-- Script sections: one selectable chip per statement of a multi-statement run -->
                 <Border DockPanel.Dock="Top" IsVisible="{Binding ActiveTab.IsScriptResult}"
@@ -66,17 +66,11 @@
                     </ScrollViewer>
                 </Border>
 
-                <!-- Browse filter chips. The outer panel is what keeps them to browse mode
-                     (and to the opt-in): a hand-written query has no chips, so there is
+                <!-- Browse filter chips. The outer panel is what keeps them to browse mode:
+                     a query that isn't a browse page query has no chips, so there is
                      nothing that could rewrite it. Browse is null elsewhere, hence the
                      DataContext hop rather than ActiveTab.Browse.* paths. -->
-                <Panel DockPanel.Dock="Top">
-                    <Panel.IsVisible>
-                        <MultiBinding Converter="{x:Static BoolConverters.And}">
-                            <Binding Path="RowDetailsAndFilters" />
-                            <Binding Path="ActiveTab.IsBrowsing" />
-                        </MultiBinding>
-                    </Panel.IsVisible>
+                <Panel DockPanel.Dock="Top" IsVisible="{Binding ActiveTab.IsBrowsing}">
                     <views:BrowseFilterBar Name="FilterBar"
                                            x:DataType="vm:TableBrowseViewModel" DataContext="{Binding ActiveTab.Browse}"
                                            IsVisible="{Binding IsFilterBarVisible}" />

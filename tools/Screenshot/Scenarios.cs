@@ -58,6 +58,7 @@ public static class Scenarios
         ("main-window-browse-row-details", BrowseWithRowDetails),
         ("main-window-browse-no-match", BrowseNoMatch),
         ("filter-editor", FilterEditor),
+        ("main-window-browse-typed-where", BrowseTypedWhere),
         ("activity-window", Activity),
         ("activity-window-blocking", ActivityBlocking),
         ("database-overview-window", DatabaseOverview),
@@ -164,7 +165,6 @@ public static class Scenarios
         tab.EditContext = new EditableTableContext("public", "orders", ["id"], details);
         tab.Browse = browse;
 
-        vm.RowDetailsAndFilters = true;
         vm.IsRowDetailOpen = true;
         tab.RowDetail.Load(tab.Rows[1]);
         tab.RowDetail.Fields.First(f => f.Name == "status").Editor!.EnumChoice = "shipped";
@@ -194,7 +194,31 @@ public static class Scenarios
         tab.SeedResult(columns, [], rowCountText: "0 rows", timingText: "3 ms");
         tab.EditContext = new EditableTableContext("public", "orders", ["id"], details);
         tab.Browse = browse;
-        vm.RowDetailsAndFilters = true;
+        return HostMainWindow(vm);
+    }
+
+    /// <summary>
+    /// A browse tab whose WHERE the user typed and ran: the parts the chips can
+    /// express came back as typed chips, the OR as a raw one — the text in the
+    /// editor is exactly what was typed.
+    /// </summary>
+    public static Window BrowseTypedWhere()
+    {
+        var vm = Fixtures.MainWindowViewModel();
+        var tab = vm.ActiveTab;
+        var (columns, rows) = Fixtures.OrdersResult();
+        var details = Fixtures.OrdersTableColumns();
+        const string typed = """
+            SELECT * FROM "public"."orders"
+            WHERE total > 50 AND (status = 'paid' OR paid) AND placed_at IS NOT NULL
+            LIMIT 100 OFFSET 0
+            """;
+
+        tab.Sql = typed;
+        tab.SeedResult(columns, rows, rowCountText: $"{rows.Count} rows", timingText: "7 ms · first byte 3 ms");
+        tab.EditContext = new EditableTableContext("public", "orders", ["id"], details);
+        var shape = BrowseSqlParser.TryParse(typed, "public", "orders", details)!;
+        tab.Browse = TableBrowseViewModel.FromParsed("public", "orders", details, shape, rows.Count, _ => Task.FromResult(0));
         return HostMainWindow(vm);
     }
 

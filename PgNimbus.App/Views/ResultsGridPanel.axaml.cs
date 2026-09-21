@@ -675,8 +675,7 @@ public partial class ResultsGridPanel : UserControl
         // The Find chord, in a browsed grid, filters it (TablePlus does the
         // same): the grid has no text to search, and the rows are on the server.
         // Anywhere else it bubbles on to the window and opens the editor's search.
-        if (CommandBindings.Matches(CommandId.Find, e) && _model is { RowDetailsAndFilters: true }
-            && _activeQuery?.Browse is not null && !_isCellEditing)
+        if (CommandBindings.Matches(CommandId.Find, e) && _activeQuery?.Browse is not null && !_isCellEditing)
         {
             OpenFilterEditorForCurrentColumn();
             e.Handled = true;
@@ -849,8 +848,6 @@ public partial class ResultsGridPanel : UserControl
         ComposeFilterMenu(menu);
         if (menu.Items.OfType<MenuItem>().FirstOrDefault(m => m.Name == "RowDetailsMenuItem") is { } rowDetails)
         {
-            // Gone, not greyed, while the opt-in is off.
-            rowDetails.IsVisible = _model is { RowDetailsAndFilters: true };
             rowDetails.InputGesture = CommandBindings.GestureFor(CommandId.RowDetails);
         }
 
@@ -927,7 +924,7 @@ public partial class ResultsGridPanel : UserControl
 
         filterItem.IsVisible = false;
         filterItem.ItemsSource = null;
-        if (_model is not { RowDetailsAndFilters: true } || _activeQuery?.Browse is not { } browse || _lastPressedRow is not { } row
+        if (_activeQuery?.Browse is not { } browse || _lastPressedRow is not { } row
             || _lastPressedColumnIndex < 0 || _lastPressedColumnIndex >= _activeQuery.ColumnNames.Count
             || _lastPressedColumnIndex >= row.Length)
         {

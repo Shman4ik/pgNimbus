@@ -428,13 +428,15 @@ public sealed partial class QueryViewModel : ObservableObject
         ExplainService explainService,
         Func<CancellationToken, Task<IdentifierReconciler?>>? reconcilerFactory = null,
         Func<bool>? safeMode = null,
-        SchemaService? schemaService = null)
+        SchemaService? schemaService = null,
+        Func<bool>? showFilterBar = null)
     {
         _engine = engine;
         _explainService = explainService;
         _reconcilerFactory = reconcilerFactory;
         _safeMode = safeMode;
         _schemaService = schemaService;
+        _showFilterBar = showFilterBar;
         _lastRunSql = Sql;
         RowDetail = new RowDetailViewModel(this);
         UpdateTabTitle();
@@ -446,14 +448,48 @@ public sealed partial class QueryViewModel : ObservableObject
     private bool CanRun() => !IsRunning;
 
     [RelayCommand(CanExecute = nameof(CanRun))]
-    private Task RunAsync() =>
+    private async Task RunAsync()
+    {
         // "Run" (button, Ctrl+Enter, F5) executes just the highlighted SQL when
         // the editor has a selection — so running one statement out of several
         // is a matter of selecting it — and the whole buffer otherwise. A
         // selection run doesn't touch the tab's dirty flag: only part ran.
-        string.IsNullOrWhiteSpace(SelectedSql)
-            ? RunCoreAsync(Sql, trackAsFullRun: true)
-            : RunCoreAsync(SelectedSql, trackAsFullRun: false);
+        if (!string.IsNullOrWhiteSpace(SelectedSql))
+        {
+            await RunCoreAsync(SelectedSql, trackAsFullRun: false);
+            return;
+        }
+
+        // A browse tab whose page query was edited by hand (Browse dropped on
+        // the first keystroke, see OnSqlChanged) and still has the browse shape
+        // — same table, SELECT *, a WHERE, a LIMIT — stays a browse tab: its
+        // WHERE comes back as filter chips. The text the user typed is what
+        // runs, unchanged; only a later explicit chip/page/sort action composes
+        // the page query again.
+        var shape = Browse is null && _browsedTable is { } table
+            ? BrowseSqlParser.TryParse(Sql, table.Schema, table.Name, table.Columns)
+            : null;
+
+        await RunCoreAsync(Sql, trackAsFullRun: true);
+
+        if (shape is not null && _browsedTable is { } browsed && !HasError && Browse is null)
+        {
+            _applyingBrowseSql = true;
+            Browse = TableBrowseViewModel.FromParsed(browsed.Schema, browsed.Name, browsed.Columns, shape, Rows.Count, RunBrowseSqlAsync);
+            Browse.AlwaysShowBar = _showFilterBar?.Invoke() ?? false;
+            _applyingBrowseSql = false;
+            EstablishBrowseEditContext();
+        }
+    }
+
+    // The table this tab was opened to browse, kept after a hand edit ends
+    // browse mode so a run of an edited page query can resume it. Null for a
+    // tab that never browsed.
+    private (string Schema, string Name, IReadOnlyList<ColumnDetail> Columns)? _browsedTable;
+
+    // The status bar's "always show the filter bar" preference, read when a
+    // browse view model is created (MainViewModel pushes later changes).
+    private readonly Func<bool>? _showFilterBar;
 
     /// <summary>
     /// Runs a single statement in isolation - e.g. the one the caret sits in,
@@ -1249,7 +1285,11 @@ public sealed partial class QueryViewModel : ObservableObject
     {
         _browseColumns = columns;
         _browsePkColumns = columns.Where(c => c.IsPrimaryKey).Select(c => c.Name).ToList();
-        Browse = new TableBrowseViewModel(schema, name, columns, RunBrowseSqlAsync);
+        _browsedTable = (schema, name, columns);
+        Browse = new TableBrowseViewModel(schema, name, columns, RunBrowseSqlAsync)
+        {
+            AlwaysShowBar = _showFilterBar?.Invoke() ?? false,
+        };
         if (!string.IsNullOrEmpty(initialFilter))
         {
             // A pre-seeded WHERE (e.g. following a foreign key to the referenced
@@ -1270,7 +1310,14 @@ public sealed partial class QueryViewModel : ObservableObject
         _applyingBrowseSql = false;
 
         await RunCommand.ExecuteAsync(null);
+        EstablishBrowseEditContext();
+        return Rows.Count;
+    }
 
+    // Re-establishes inline editing for the browsed table after a page ran
+    // (running cleared it), or says why there's none.
+    private void EstablishBrowseEditContext()
+    {
         if (_browsePkColumns is { Count: > 0 } pk && Browse is { } browse)
         {
             if (EditableResultDetector.FindUnreadableKey(_columns, pk) is { } unreadable)
@@ -1291,8 +1338,6 @@ public sealed partial class QueryViewModel : ObservableObject
             // ignoring edit gestures.
             ReadOnlyHint = $"{pkless.Schema}.{pkless.Name} has no primary key, so rows can't be targeted exactly.";
         }
-
-        return Rows.Count;
     }
 
     partial void OnDefaultTitleChanged(string value) => UpdateTabTitle();

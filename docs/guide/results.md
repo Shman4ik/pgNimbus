@@ -11,10 +11,6 @@ ran.
 
 ### Filtering rows
 
-Filters and [row details](#row-details) are optional. Turn them on in
-**Preferences → Data editing → Row details and table filters**; they're off by
-default.
-
 While you browse a table, press <kbd>Ctrl</kbd>+<kbd>F</kbd> in the grid
 (<kbd>Cmd</kbd>+<kbd>F</kbd> on macOS), or pick **Filter rows…** in the command
 palette. A small editor opens: pick a column, a comparison and a value, then
@@ -38,18 +34,28 @@ use **Clear all**. The conditions run on the server as part of the page query,
 so paging and sorting keep them, and the whole statement appears in the editor.
 Hover the line to see the full `WHERE`.
 
+The line appears whenever something filters the rows. To keep it up all the
+time, with **+ Filter** always in reach, click the funnel in the status bar next
+to the page controls.
+
 For a quick filter, right-click a cell and open **Filter**: keep rows equal to
 that value, drop them, or keep only the rows where the column is or isn't null.
 
-Filters exist only while you browse a table. Edit the SQL yourself and the tab
-becomes a plain query, and the chips go away with browse mode. pgNimbus never
-rewrites a query you wrote; add a `WHERE` to it instead.
+**Typing a WHERE works too.** Edit the browse query in the editor, for example
+add `WHERE order_count > 6`, and run it. What you typed runs as written, and the
+tab stays in browse mode with your conditions shown as chips. Simple conditions
+(a column compared with a value, `IS NULL`, `IS TRUE`, `ILIKE '%text%'`) become
+chips you can edit. Anything else, such as an `OR`, a function call or a
+subquery, is kept exactly as you wrote it in a grey chip that you can remove.
+This works while the query keeps the browse shape: `SELECT *` from the same
+table, a `WHERE`, an `ORDER BY` on one column, and a `LIMIT`. A query of any
+other shape runs as a plain query, and pgNimbus never rewrites it.
 
 ## Row details
 
-With row details turned on (see above), <kbd>Ctrl</kbd>+<kbd>I</kbd>
-(<kbd>Cmd</kbd>+<kbd>I</kbd> on macOS), or **Row details** on the grid's
-right-click menu, opens the selected row as a form over the window: one line per
+<kbd>Ctrl</kbd>+<kbd>I</kbd> (<kbd>Cmd</kbd>+<kbd>I</kbd> on macOS), the form
+icon at the right end of the status bar, or **Row details** on the grid's
+right-click menu opens the selected row as a form over the window: one line per
 column, name above value. <kbd>Tab</kbd> moves between fields, the ‹ › buttons
 move to the previous or next row, and <kbd>Esc</kbd> closes it.
 
@@ -83,7 +89,7 @@ turning a page, or switching to another tab and back keeps them.
 | Inspect the full value | <kbd>Space</kbd>, or double-click a read-only cell |
 | Set a cell to `NULL` | Context menu |
 | Delete the selected row | <kbd>Delete</kbd> |
-| Show the row as a form (optional, see [Row details](#row-details)) | <kbd>Ctrl</kbd>+<kbd>I</kbd> |
+| Show the row as a form | <kbd>Ctrl</kbd>+<kbd>I</kbd> |
 | Copy the selected cells | <kbd>Ctrl</kbd>+<kbd>C</kbd> |
 
 Results are editable when the row can be identified unambiguously. That covers

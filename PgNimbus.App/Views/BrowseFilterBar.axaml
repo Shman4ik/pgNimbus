@@ -5,15 +5,18 @@
              x:Class="PgNimbus.App.Views.BrowseFilterBar"
              x:DataType="vm:TableBrowseViewModel">
     <!-- Browse mode's filter chips: one line, only while something filters the rows
-         (or the first condition is being written). Each chip is a condition that runs
+         (or the first condition is being written, or the status bar's funnel pins
+         it open). A WHERE typed into a browse tab's SQL comes back here too
+         (BrowseSqlParser): typed chips where the chips can express it, raw ones —
+         verbatim, removable — where they can't, so the line always accounts for
+         the whole WHERE. Each chip is a condition that runs
          on the server as part of the page query's WHERE; clicking one opens its
          editor in a flyout (FilterEditorView), ✕ drops it, "+ Filter" adds one. The
          whole WHERE is the strip's tooltip, and the full statement is in the editor.
 
-         Only exists in browse mode, and only with the "Row details and table
-         filters" preference on (the host hides it otherwise) — which is what keeps
-         a hand-written query from ever being rewritten: there are no chips to apply
-         to one. -->
+         Only exists in browse mode (the host hides it otherwise) — which is what
+         keeps any other query from ever being rewritten: there are no chips to
+         apply to one. -->
     <UserControl.Styles>
         <!-- A chip: tinted pill; the label opens the editor, ✕ removes. -->
         <Style Selector="Border.filterchip">
@@ -48,24 +51,39 @@
             Padding="6,3,6,5" Margin="0,0,0,4" Background="Transparent"
             ToolTip.Tip="{Binding WhereSql}">
         <Grid ColumnDefinitions="Auto,*,Auto">
-            <TextBlock Grid.Column="0" Text="Filtered by" FontSize="11" Opacity="0.55"
-                       VerticalAlignment="Center" Margin="4,0,10,0" />
+            <Panel Grid.Column="0" VerticalAlignment="Center" Margin="4,0,10,0">
+                <TextBlock Text="Filtered by" FontSize="11" Opacity="0.55" IsVisible="{Binding IsFiltering}" />
+                <TextBlock Text="No conditions" FontSize="11" Opacity="0.45" IsVisible="{Binding !IsFiltering}" />
+            </Panel>
 
             <WrapPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                <!-- The FK-seeded condition, verbatim. Not editable as a chip (it's
-                     raw SQL), only removable. -->
-                <Border Classes="filterchip raw" IsVisible="{Binding HasRawFilter}">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="{Binding FilterText}" FontSize="11.5" MaxWidth="320"
-                                   FontFamily="Cascadia Code,Consolas,Menlo,monospace"
-                                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
-                                   Margin="10,0,4,0" ToolTip.Tip="{Binding FilterText}" />
-                        <Button Classes="chip x" Content="✕"
-                                Command="{Binding ClearRawFilterCommand}"
-                                ToolTip.Tip="Remove this condition"
-                                AutomationProperties.Name="Remove condition" />
-                    </StackPanel>
-                </Border>
+                <!-- Raw conditions (an FK hop's seed, or a part of a typed WHERE the
+                     chips can't express), verbatim. Removable, not editable here:
+                     they're SQL, and the editor is where SQL is edited. -->
+                <ItemsControl ItemsSource="{Binding RawConditions}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="x:String">
+                            <Border Classes="filterchip raw">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding}" FontSize="11.5" MaxWidth="320"
+                                               FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                                               Margin="10,0,4,0" ToolTip.Tip="{Binding}" />
+                                    <Button Classes="chip x" Content="✕"
+                                            Command="{Binding $parent[views:BrowseFilterBar].((vm:TableBrowseViewModel)DataContext).ClearRawFilterCommand}"
+                                            CommandParameter="{Binding}"
+                                            ToolTip.Tip="Remove this condition"
+                                            AutomationProperties.Name="Remove condition" />
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
 
                 <ItemsControl ItemsSource="{Binding Filters}">
                     <ItemsControl.ItemsPanel>
@@ -77,10 +95,13 @@
                         <DataTemplate x:DataType="vm:BrowseFilterViewModel">
                             <Border Classes="filterchip">
                                 <StackPanel Orientation="Horizontal">
-                                    <Button Classes="label" Content="{Binding Summary}"
-                                            Click="OnChipClick"
+                                    <!-- A TextBlock, not string Content: a string Content treats "_"
+                                         as an access key and eats it (placed_at → placedat). -->
+                                    <Button Classes="label" Click="OnChipClick"
                                             ToolTip.Tip="{Binding PredicateText}"
-                                            AutomationProperties.Name="{Binding Summary, StringFormat='Edit condition {0}'}" />
+                                            AutomationProperties.Name="{Binding Summary, StringFormat='Edit condition {0}'}">
+                                        <TextBlock Text="{Binding Summary}" />
+                                    </Button>
                                     <Button Classes="chip x" Content="✕"
                                             Command="{Binding $parent[views:BrowseFilterBar].((vm:TableBrowseViewModel)DataContext).RemoveFilterCommand}"
                                             CommandParameter="{Binding}"
@@ -100,7 +121,7 @@
             </WrapPanel>
 
             <Button Grid.Column="2" Classes="chip" Content="Clear all" FontSize="11.5" Padding="8,0" Height="24"
-                    VerticalAlignment="Center"
+                    VerticalAlignment="Center" IsVisible="{Binding IsFiltering}"
                     Command="{Binding ClearFiltersCommand}"
                     ToolTip.Tip="Remove every condition" />
         </Grid>

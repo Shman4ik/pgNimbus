@@ -11,8 +11,9 @@ namespace PgNimbus.App.ViewModels;
 /// Drives no-SQL "browse a table" mode: <c>ORDER BY</c> from clicking a column
 /// header and <c>LIMIT</c>/<c>OFFSET</c> paging (the status bar's page
 /// controls), and a <c>WHERE</c> built from the filter chips' typed conditions
-/// (<see cref="Filters"/>) plus an optional raw predicate seeded by foreign-key
-/// navigation (<see cref="FilterText"/>). The composed SQL lands in the editor,
+/// (<see cref="Filters"/>) plus raw conditions kept verbatim
+/// (<see cref="RawConditions"/>: an FK hop's seed, or a part of a hand-edited
+/// <c>WHERE</c> the chips can't express — see <see cref="FromParsed"/>). The composed SQL lands in the editor,
 /// so what ran is always on screen: edit it and run, and the tab becomes a
 /// plain query — the chips go with browse mode, and nothing ever
 /// rewrites a query the user typed. Everything is pushed down to Postgres — no
@@ -23,8 +24,11 @@ namespace PgNimbus.App.ViewModels;
 /// </summary>
 public sealed partial class TableBrowseViewModel(string schema, string name, IReadOnlyList<ColumnDetail> columns, Func<string, Task<int>> execute) : ObservableObject
 {
-    /// <summary>Rows fetched per page. One page past the fold is never loaded; paging is server-side.</summary>
-    public const int PageSize = 100;
+    /// <summary>Rows fetched per page unless a hand-edited query chose another LIMIT. Paging is server-side.</summary>
+    public const int DefaultPageSize = 100;
+
+    /// <summary>Rows per page: <see cref="DefaultPageSize"/>, or the LIMIT of a hand-edited page query this was parsed from.</summary>
+    public int PageSize { get; private set; } = DefaultPageSize;
 
     // Runs the composed SQL through the owning tab's normal streaming path and
     // returns the number of rows the grid ended up showing.
@@ -38,13 +42,42 @@ public sealed partial class TableBrowseViewModel(string schema, string name, IRe
     public IReadOnlyList<ColumnDetail> Columns { get; } = columns;
 
     /// <summary>
-    /// Raw SQL predicate (the text after <c>WHERE</c>), seeded by FK navigation.
-    /// Empty means none. Shown in the filter bar as its own removable condition,
-    /// ANDed with the typed filters.
+    /// Conditions kept as the SQL they were written as: an FK hop's seed, or a
+    /// part of a hand-edited <c>WHERE</c> the chips can't express (an OR, a
+    /// function call, a subquery …). Each shows as its own removable chip and
+    /// is ANDed, verbatim, ahead of the typed conditions — so the chips always
+    /// account for the whole WHERE, whatever it says.
+    /// </summary>
+    public ObservableCollection<string> RawConditions { get; } = [];
+
+    /// <summary>
+    /// The raw conditions as one predicate. Setting it replaces them with that
+    /// one text (how an FK hop seeds a browse); blank clears them.
+    /// </summary>
+    public string FilterText
+    {
+        get => RowFilterSql.Combine(RawConditions) ?? string.Empty;
+        set
+        {
+            RawConditions.Clear();
+            if (value.Trim().Length > 0)
+            {
+                RawConditions.Add(value.Trim());
+            }
+
+            NotifyFiltersChanged();
+        }
+    }
+
+    /// <summary>
+    /// Keeps the chip strip up even with nothing to show — the status bar's
+    /// funnel toggle (<c>AppSettings.ShowFilterBar</c>), for people who filter
+    /// often enough to want "+ Filter" always in reach. Off by default: the
+    /// strip otherwise appears only while something filters the rows.
     /// </summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasRawFilter), nameof(IsFilterBarVisible), nameof(WhereSql))]
-    private string _filterText = string.Empty;
+    [NotifyPropertyChangedFor(nameof(IsFilterBarVisible))]
+    private bool _alwaysShowBar;
 
     /// <summary>
     /// The conditions the rows are filtered by, one chip each. Only committed
@@ -83,9 +116,15 @@ public sealed partial class TableBrowseViewModel(string schema, string name, IRe
     /// FK-seeded condition — or one is being added. A filtered grid with
     /// nothing on screen saying so reads as missing data.
     /// </summary>
-    public bool IsFilterBarVisible => IsFilterBarOpen || HasActiveFilters || HasRawFilter;
+    public bool IsFilterBarVisible => AlwaysShowBar || IsFilterBarOpen || HasActiveFilters || HasRawFilter;
 
-    public bool HasRawFilter => FilterText.Trim().Length > 0;
+    public bool HasRawFilter => RawConditions.Count > 0;
+
+    /// <summary>True when any condition, typed or raw, filters the rows — the funnel's "on" state.</summary>
+    public bool IsFiltering => HasActiveFilters || HasRawFilter;
+
+    /// <summary>How many conditions filter the rows, for the funnel's tooltip.</summary>
+    public int ConditionCount => Filters.Count + RawConditions.Count;
 
     /// <summary>True when the running query carries typed conditions.</summary>
     public bool HasActiveFilters => Filters.Count > 0;
@@ -163,10 +202,11 @@ public sealed partial class TableBrowseViewModel(string schema, string name, IRe
     }
 
     /// <summary>Runs the current page and refreshes the paging/sort labels and button state.</summary>
-    public async Task LoadAsync()
-    {
-        var count = await _execute(BuildSql());
+    public async Task LoadAsync() => UpdatePageState(await _execute(BuildSql()));
 
+    // The paging labels and buttons for a page that came back with `count` rows.
+    private void UpdatePageState(int count)
+    {
         CanGoPrevious = Offset > 0;
         // A full page came back, so there may be another — cheap heuristic that
         // avoids a separate COUNT(*) on every page turn.
@@ -335,29 +375,20 @@ public sealed partial class TableBrowseViewModel(string schema, string name, IRe
         return LoadAsync();
     }
 
-    /// <summary>
-    /// Drops the typed conditions only — what turning the feature off does. The
-    /// FK-seeded condition predates the chips and stays in the page SQL.
-    /// </summary>
-    public Task DropTypedFiltersAsync()
+    /// <summary>Drops one raw condition (its chip's ✕), or all of them when none is named, and reloads.</summary>
+    [RelayCommand]
+    private Task ClearRawFilterAsync(string? condition)
     {
-        CancelDraft();
-        if (Filters.Count == 0)
+        if (condition is null)
+        {
+            RawConditions.Clear();
+        }
+        else if (!RawConditions.Remove(condition))
         {
             return Task.CompletedTask;
         }
 
-        Filters.Clear();
         return ReloadFilteredAsync();
-    }
-
-    /// <summary>Drops the FK-seeded raw condition and reloads.</summary>
-    [RelayCommand]
-    private Task ClearRawFilterAsync()
-    {
-        FilterText = string.Empty;
-        Offset = 0;
-        return LoadAsync();
     }
 
     private Task ReloadFilteredAsync()
@@ -371,6 +402,9 @@ public sealed partial class TableBrowseViewModel(string schema, string name, IRe
     private void NotifyFiltersChanged()
     {
         OnPropertyChanged(nameof(HasActiveFilters));
+        OnPropertyChanged(nameof(HasRawFilter));
+        OnPropertyChanged(nameof(IsFiltering));
+        OnPropertyChanged(nameof(ConditionCount));
         OnPropertyChanged(nameof(IsFilterBarVisible));
         OnPropertyChanged(nameof(WhereSql));
     }
@@ -403,9 +437,48 @@ public sealed partial class TableBrowseViewModel(string schema, string name, IRe
             ? RowFilterSql.ToPredicate(filter, column.Editor, column.DataType)
             : null;
 
-    // The raw FK condition first, then the typed conditions, ANDed.
+    // The raw conditions first, then the typed ones, ANDed.
     private string? WhereBody(IEnumerable<string> predicates) =>
-        RowFilterSql.Combine(HasRawFilter ? predicates.Prepend(FilterText) : predicates);
+        RowFilterSql.Combine(RawConditions.Concat(predicates));
+
+    // --- From a hand-edited page query --------------------------------------
+
+    /// <summary>
+    /// A browse view model for a page query the user edited and ran themselves
+    /// (<see cref="BrowseSqlParser"/> recognised its shape): the WHERE becomes
+    /// chips — typed where it can, raw where it can't — and the sort, page size
+    /// and offset are taken over. Nothing is executed or recomposed here: the
+    /// user's own text already ran and stays in the editor exactly as typed.
+    /// Only a later explicit action (a chip, a page turn, a header click)
+    /// composes the page query again.
+    /// </summary>
+    public static TableBrowseViewModel FromParsed(
+        string schema, string name, IReadOnlyList<ColumnDetail> columns, BrowseQueryShape shape, int rowCount, Func<string, Task<int>> execute)
+    {
+        var browse = new TableBrowseViewModel(schema, name, columns, execute)
+        {
+            PageSize = shape.Limit,
+            SortColumn = shape.SortColumn,
+            SortDescending = shape.SortDescending,
+            Offset = shape.Offset,
+        };
+
+        foreach (var condition in shape.Conditions)
+        {
+            if (condition.Filter is { } filter)
+            {
+                browse.Filters.Add(new BrowseFilterViewModel(columns, filter.Column, filter.Operator, filter.Value));
+            }
+            else
+            {
+                browse.RawConditions.Add(condition.Text);
+            }
+        }
+
+        browse.NotifyFiltersChanged();
+        browse.UpdatePageState(rowCount);
+        return browse;
+    }
 
     partial void OnCanGoNextChanged(bool value) => NextPageCommand.NotifyCanExecuteChanged();
 

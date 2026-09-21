@@ -479,7 +479,7 @@
                  (full text on hover), while every other segment is compact and
                  keeps its width. Long cap text truncates the same way. -->
             <Border Grid.Row="1" Classes="statusBar">
-                <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+                <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
                     <TextBlock Grid.Column="0" Text="{Binding ActiveTab.Status}"
                                Classes="statusText" Classes.error="{Binding ActiveTab.HasError}"
                                TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
@@ -569,6 +569,17 @@
                                 IsVisible="{Binding ActiveTab.IsBrowsing}"
                                 IsEnabled="{Binding !ActiveTab.IsRunning}">
                         <Rectangle Classes="statusSeparator" />
+                        <!-- The filter bar's pin: on, the chip line stays up with nothing
+                             in it, so "+ Filter" is always in reach; off (the default), it
+                             appears only while a condition filters the rows. It's also how
+                             anyone finds out browsing can filter at all. Two-way IsChecked,
+                             no Command (DESIGN rule 6). -->
+                        <ToggleButton Classes="chip" Padding="4" VerticalAlignment="Center"
+                                      IsChecked="{Binding ShowFilterBar, Mode=TwoWay}"
+                                      ToolTip.Tip="Always show the filter bar (Ctrl/Cmd+F in the grid adds a condition)"
+                                      AutomationProperties.Name="Always show the filter bar">
+                            <PathIcon Data="{StaticResource FilterIconGeometry}" Width="11" Height="11" />
+                        </ToggleButton>
                         <!-- The paging controls hang off the browse view model itself
                              rather than reaching through ActiveTab.Browse.*: Browse is
                              null on every tab that isn't browsing a table (the common
@@ -588,6 +599,28 @@
                                 <PathIcon Data="{StaticResource ChevronRightIconGeometry}" Width="11" Height="11" />
                             </Button>
                         </StackPanel>
+                    </StackPanel>
+                    <!-- Row details: the visible way in to the selected row as a form
+                         (besides Ctrl/Cmd+I and the grid's right-click), shown whenever
+                         there are rows to look at. -->
+                    <StackPanel Grid.Column="10" Orientation="Horizontal" Spacing="8" Margin="10,0,0,0"
+                                VerticalAlignment="Center">
+                        <StackPanel.IsVisible>
+                            <MultiBinding Converter="{x:Static BoolConverters.And}">
+                                <Binding Path="!ActiveTab.HasNoResults" />
+                                <Binding Path="!ActiveTab.IsShowingPlan" />
+                            </MultiBinding>
+                        </StackPanel.IsVisible>
+                        <Rectangle Classes="statusSeparator" />
+                        <!-- Negative margin: the button is taller than a line of status
+                             text, and must not make the bar grow the moment rows arrive. -->
+                        <Button Classes="chip" Padding="4" VerticalAlignment="Center" Margin="0,-4"
+                                Command="{Binding ToggleRowDetailsCommand}"
+                                cmd:CommandTip.Text="Row details: the selected row as a form"
+                                cmd:CommandTip.Command="RowDetails"
+                                AutomationProperties.Name="Row details">
+                            <PathIcon Data="{StaticResource RowDetailsIconGeometry}" Width="11" Height="11" />
+                        </Button>
                     </StackPanel>
                 </Grid>
             </Border>

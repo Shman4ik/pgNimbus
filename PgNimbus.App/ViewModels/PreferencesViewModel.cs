@@ -53,11 +53,11 @@ public sealed partial class PreferencesViewModel : ObservableObject
         set => _main.SafeModeEdits = value;
     }
 
-    /// <summary>Row details and browse filters, off by default. Same proxy pattern as <see cref="AutoAliasTables"/>.</summary>
-    public bool RowDetailsAndFilters
+    /// <summary>Always show the browse filter bar, off by default. Same proxy pattern as <see cref="AutoAliasTables"/>.</summary>
+    public bool ShowFilterBar
     {
-        get => _main.RowDetailsAndFilters;
-        set => _main.RowDetailsAndFilters = value;
+        get => _main.ShowFilterBar;
+        set => _main.ShowFilterBar = value;
     }
 
     /// <summary>
@@ -88,9 +88,9 @@ public sealed partial class PreferencesViewModel : ObservableObject
         {
             OnPropertyChanged(nameof(SafeModeEdits));
         }
-        else if (e.PropertyName == nameof(MainViewModel.RowDetailsAndFilters))
+        else if (e.PropertyName == nameof(MainViewModel.ShowFilterBar))
         {
-            OnPropertyChanged(nameof(RowDetailsAndFilters));
+            OnPropertyChanged(nameof(ShowFilterBar));
         }
     }
 

@@ -33,13 +33,11 @@ public sealed record AppSettings
     public bool ShowSchemaSizes { get; set; }
 
     /// <summary>
-    /// Whether the results grid offers row details (Ctrl/Cmd+I, the row as a
-    /// name/value form) and table-browse filters (condition chips). Off by
-    /// default: both are opt-in extras on top of a grid that works without
-    /// them, and while off they leave no trace — no chord, no palette row, no
-    /// menu item.
+    /// Whether browsing a table always shows the filter-chip line, even with no
+    /// condition in it. Off by default: the line appears on its own whenever a
+    /// condition filters the rows, which is when it has something to say.
     /// </summary>
-    public bool RowDetailsAndFilters { get; set; }
+    public bool ShowFilterBar { get; set; }
 
     /// <summary>
     /// Whether accepting a table from completion after FROM/JOIN also appends a
