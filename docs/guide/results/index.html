@@ -532,6 +532,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Safe mode">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#when-someone-else-changed-the-row-first" class="md-nav__link">
+    <span class="md-ellipsis">
+      When someone else changed the row first
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -789,6 +804,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Safe mode">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#when-someone-else-changed-the-row-first" class="md-nav__link">
+    <span class="md-ellipsis">
+      When someone else changed the row first
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -951,6 +981,38 @@ inserts and deletes are staged locally instead of being sent:</p>
 </ul>
 <p>Toggle it from the command palette. It has no keyboard shortcut on purpose:
 flipping it by accident changes whether your edits hit the database immediately.</p>
+<h3 id="when-someone-else-changed-the-row-first">When someone else changed the row first<a class="headerlink" href="#when-someone-else-changed-the-row-first" title="Permanent link">&para;</a></h3>
+<p>Staging takes time, and another session can change or delete a row while your
+edit to it waits. pgNimbus checks for that when you commit. Before it writes
+anything, it reads every row you edited or deleted again, locks it, and compares
+it with the row as it was when you loaded it. That covers every column you
+loaded, not only the ones you edited, and a NULL counts as a value like any
+other.</p>
+<p>If any row differs, or is gone, the whole commit rolls back. Nothing is applied,
+including the rows that had no conflict. A dialog then shows each row that no
+longer matches, column by column: the value when you loaded it, the value on the
+server now, and the value you staged. You can:</p>
+<ul>
+<li><strong>Reload and restage.</strong> The grid reloads with your staged values on top of the
+  current rows. Rows that no longer exist are dropped from the set. Review, then
+  commit again.</li>
+<li><strong>Unstage these rows.</strong> Only the rows with a conflict leave the set. The rest
+  stay staged.</li>
+<li><strong>Close.</strong> Everything stays staged as it was.</li>
+</ul>
+<p>If another session holds one of your rows in an open transaction, the commit
+waits up to 5 seconds, then rolls back and tells you the row is locked. Inside
+your own explicit transaction, a conflict undoes only the staged batch. Your
+transaction stays open.</p>
+<p>A commit that succeeds is final. Safe mode has no undo after commit.</p>
+<p>Some rows can't be checked or targeted:</p>
+<ul>
+<li>A table with no primary key is read-only. The status bar says so.</li>
+<li>A primary key column whose type pgNimbus can't read (for example, a composite
+  type it could only show as <code>&lt;unreadable …&gt;</code>) also makes the grid read-only.</li>
+<li>A column pgNimbus can't read is left out of the comparison. The review dialog
+  lists these columns before you commit.</li>
+</ul>
 <h2 id="following-foreign-keys">Following foreign keys<a class="headerlink" href="#following-foreign-keys" title="Permanent link">&para;</a></h2>
 <p>Right-click a cell in the grid. On a foreign key column, you can jump to the row
 it references. On a key column, you can list every row that references it.</p>
