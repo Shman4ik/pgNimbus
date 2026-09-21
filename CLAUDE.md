@@ -1162,26 +1162,35 @@ csproj / WiX / MSIX manifest reference them unchanged:
   batch is then the server's. Real-server coverage is
   `QueryEngineStagedConflictTests` (gated on `PGNIMBUS_TEST_CONN`, drives a real
   second session, including the lock case).
-- **Row details and browse filters: opt-in, out of the way, and neither touches
-  a query someone wrote** (2026-09, README roadmap T4). Both sit behind one
-  preference, `AppSettings.RowDetailsAndFilters` (`MainViewModel.RowDetailsAndFilters`,
-  Preferences → Data editing), **off by default**. Off means absent, not greyed:
-  the two commands' `CanExecute` is false (so the Ctrl/Cmd+I `KeyBinding` is
-  inert), `BuildActionItems` leaves both out of the palette, the grid menu hides
-  its items, and Ctrl/Cmd+F in the grid falls through to the editor's Find.
-  Turning it off closes row details and drops every tab's typed conditions
-  (`DropTypedFiltersAsync`) — a grid filtered by chips nothing shows would read as
-  missing rows; the FK-seeded condition predates the feature and stays.
-  **Where they live was the design question, and the first answer was wrong.**
-  The first cut put row details in a column beside the grid and the filters in a
-  bar of full-size inputs above it; both took the grid's space permanently for an
-  occasional task. Now: row details is a card over the window (`RowDetailOverlay`
-  in `ResultsGridPanel`, hoisted into the window root with the cell inspector and
-  *before* it, so an Inspect from a field stacks the inspector on top) — DESIGN
-  rule 13's "open, use, dismiss", with ‹ › to walk rows since the grid is covered
-  (disabled while edits are unstaged); and the filters are one slim line of chips
-  (`BrowseFilterBar`), shown only while something filters the rows, each chip
-  opening a flyout editor (`FilterEditorView`).
+- **Row details and browse filters: out of the way, findable, and neither
+  touches a query someone wrote** (2026-09, README roadmap T4).
+  **Where they live was the design question, and it took three answers.** The
+  first cut put row details in a column beside the grid and the filters in a bar
+  of full-size inputs above it — both took the grid's space for an occasional
+  task. The second moved them out of the way (row details a card over the
+  window, filters a line of chips) *and* put both behind an opt-in that defaulted
+  off — which hid them so well that the first person to try couldn't find either.
+  Now: row details needs no setting at all (an overlay costs nothing until it's
+  opened) and has a status-bar button (`RowDetailsIconGeometry`, shown whenever
+  there are rows, negative margin so the bar doesn't grow when they arrive) next
+  to Ctrl/Cmd+I and the grid menu. The filter chips appear whenever a condition
+  filters the rows, and the status bar's funnel (browse mode only) pins the line
+  open even when empty — `AppSettings.ShowFilterBar`, off by default,
+  `TableBrowseViewModel.AlwaysShowBar` per tab.
+  **A WHERE you type comes back as chips** (`Query/BrowseSqlParser`, Core-pure,
+  unit-tested). A browse tab's page query edited by hand drops browse mode on the
+  first keystroke as always, but a *run* of it that still has the browse shape
+  (`SELECT * FROM` the same table, optional `WHERE`, `ORDER BY` one column or the
+  key, `LIMIT` required) resumes browse mode via `TableBrowseViewModel.FromParsed`
+  — running exactly the text typed, recomposing nothing until a later explicit
+  chip/page/sort action. The WHERE is split on top-level `AND` (not the one in
+  `BETWEEN`); a part `RowFilterSql` could have written and the column's operator
+  picker can show becomes a typed chip, **everything else is kept verbatim** in
+  `RawConditions` (an `OR`, a function, a subquery, `IN`, `LIKE` …), shown as a
+  removable raw chip and ANDed back first. So the chips always account for the
+  whole WHERE, and parsing never guesses at an expression it can't reproduce.
+  The FK hop's seeded condition is a raw condition too (`FilterText` is now a
+  wrapper over `RawConditions`).
   Four rules hold the pieces together:
   (a) **One set of type-aware inputs.** `Views/ColumnValueEditorView` (bound to a
   `NewRowField`) is the Add-row dialog's editor stack pulled out whole, and it is
@@ -1211,15 +1220,20 @@ csproj / WiX / MSIX manifest reference them unchanged:
   stays a raw, removable chip, ANDed first.
   (d) **Filters exist only in browse mode.** The strip's host is bound to
   `ActiveTab.IsBrowsing`, and `MainViewModel.FilterRows` on a non-browse tab only
-  says where filters live — there is no path from a filter gesture to a
-  hand-written query's text. Ctrl/Cmd+F in a *browsed grid* opens a new condition
+  says where filters live — there is no path from a filter gesture to the text of
+  a query that isn't a browse page query. Ctrl/Cmd+F in a *browsed grid* opens a new condition
   (documented on `CommandId.FilterRows` as a `GestureNote`, not a second chord,
   which the catalog test would rightly reject as shadowing the global Find).
   An empty browse result has its own states — "No rows match these conditions"
   with Clear, or the page label for an empty table — instead of the never-ran
   "Run a query" hint (DESIGN rule 7).
-  UI tests: `PgNimbus.App.Tests/RowDetailAndFilterTests`; screenshot scenarios
-  `main-window-browse-row-details`, `main-window-browse-no-match`, `filter-editor`.
+  One landmine: a chip label is a `TextBlock` inside the Button, not string
+  `Content`, because string content treats `_` as an access key (`placed_at`
+  rendered as `placedat`) — the same trap `EscapeMenuHeader` exists for.
+  UI tests: `PgNimbus.App.Tests/RowDetailAndFilterTests`; parser tests
+  `PgNimbus.Core.Tests/Query/BrowseSqlParserTests`; screenshot scenarios
+  `main-window-browse-row-details`, `main-window-browse-no-match`,
+  `main-window-browse-typed-where`, `filter-editor`.
 - **A grid cell shows a preview, and a previewed cell never opens the inline
   editor** (2026-09). `CellText` is the one place a result value becomes text: in
   full for the cell inspector (`CellText.Full`), and capped at

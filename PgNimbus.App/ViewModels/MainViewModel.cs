@@ -131,7 +131,7 @@ public sealed partial class MainViewModel : ObservableObject
     /// <summary>Raised when row details open, so the view can pick a row and move focus into the form.</summary>
     public event Action? RowDetailFocusRequested;
 
-    [RelayCommand(CanExecute = nameof(RowDetailsAndFilters))]
+    [RelayCommand]
     private void ToggleRowDetails()
     {
         IsRowDetailOpen = !IsRowDetailOpen;
@@ -149,7 +149,7 @@ public sealed partial class MainViewModel : ObservableObject
     /// Anywhere else the tab holds SQL someone wrote, and a filter would mean
     /// rewriting it behind their back, so this says where filters live instead.
     /// </summary>
-    [RelayCommand(CanExecute = nameof(RowDetailsAndFilters))]
+    [RelayCommand]
     private void FilterRows()
     {
         if (ActiveTab?.Browse is not { } browse)
@@ -400,34 +400,25 @@ public sealed partial class MainViewModel : ObservableObject
     partial void OnSafeModeEditsChanged(bool value) => _persistSafeModeEdits?.Invoke(value);
 
     /// <summary>
-    /// The opt-in for row details and browse filters (Preferences → Data
-    /// editing). Off by default. While off, neither exists: the chord, the
-    /// palette rows and the grid's menu items are gone, not greyed out.
-    /// Turning it off closes row details and drops every tab's typed filters,
-    /// since a grid still filtered by conditions nothing on screen shows would
-    /// read as missing rows; an FK-seeded condition stays, as it always has,
-    /// in the page SQL.
+    /// Whether browsing a table always shows the filter-chip line, even with
+    /// no condition in it (the status bar's funnel toggle, and Preferences).
+    /// Off by default: the line otherwise appears only while a condition
+    /// filters the rows — which, since a hand-edited WHERE comes back as
+    /// chips, is whenever a WHERE is there at all.
     /// </summary>
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(ToggleRowDetailsCommand), nameof(FilterRowsCommand))]
-    private bool _rowDetailsAndFilters;
+    private bool _showFilterBar;
 
-    private readonly Action<bool>? _persistRowDetailsAndFilters;
+    private readonly Action<bool>? _persistShowFilterBar;
 
-    partial void OnRowDetailsAndFiltersChanged(bool value)
+    partial void OnShowFilterBarChanged(bool value)
     {
-        _persistRowDetailsAndFilters?.Invoke(value);
-        if (value)
-        {
-            return;
-        }
-
-        IsRowDetailOpen = false;
+        _persistShowFilterBar?.Invoke(value);
         foreach (var tab in Tabs)
         {
             if (tab.Browse is { } browse)
             {
-                _ = browse.DropTypedFiltersAsync();
+                browse.AlwaysShowBar = value;
             }
         }
     }
@@ -514,8 +505,8 @@ public sealed partial class MainViewModel : ObservableObject
         Action<bool>? persistAutoAliasTables = null,
         bool safeModeEdits = true,
         Action<bool>? persistSafeModeEdits = null,
-        bool rowDetailsAndFilters = false,
-        Action<bool>? persistRowDetailsAndFilters = null,
+        bool showFilterBar = false,
+        Action<bool>? persistShowFilterBar = null,
         bool wordWrapEditor = false,
         Action<bool>? persistWordWrapEditor = null,
         WorkspaceEntry? workspace = null,
@@ -530,8 +521,8 @@ public sealed partial class MainViewModel : ObservableObject
         _persistAutoAliasTables = persistAutoAliasTables;
         _safeModeEdits = safeModeEdits;
         _persistSafeModeEdits = persistSafeModeEdits;
-        _rowDetailsAndFilters = rowDetailsAndFilters;
-        _persistRowDetailsAndFilters = persistRowDetailsAndFilters;
+        _showFilterBar = showFilterBar;
+        _persistShowFilterBar = persistShowFilterBar;
         _wordWrapEditor = wordWrapEditor;
         _persistWordWrapEditor = persistWordWrapEditor;
         _recentSqlFiles = recentSqlFiles is null ? [] : [.. recentSqlFiles];
@@ -755,7 +746,7 @@ public sealed partial class MainViewModel : ObservableObject
     // Creates a query tab, wires its history hook, and makes it active.
     private QueryViewModel NewTab()
     {
-        var tab = new QueryViewModel(_engine, _explainService, GetReconcilerAsync, () => SafeModeEdits, _schemaService) { DefaultTitle = $"Query {Tabs.Count + 1}" };
+        var tab = new QueryViewModel(_engine, _explainService, GetReconcilerAsync, () => SafeModeEdits, _schemaService, () => ShowFilterBar) { DefaultTitle = $"Query {Tabs.Count + 1}" };
         tab.Executed += SavedQueries.RecordExecution;
         Tabs.Add(tab);
         ActiveTab = tab;
@@ -1194,13 +1185,8 @@ public sealed partial class MainViewModel : ObservableObject
     // One row per catalog entry flagged for the palette, in catalog order —
     // title, glyph and the trailing shortcut label all come from there, so the
     // palette can't drift from the key bindings or the F1 sheet.
-    // The opt-in extras are left out entirely while their preference is off,
-    // rather than listed and then refusing: a palette row that does nothing is
-    // DESIGN rule 7's silent no-op.
     private IEnumerable<PaletteItem> BuildActionItems() =>
-        CommandCatalog.On(CommandSurface.Palette)
-            .Where(d => RowDetailsAndFilters || d.Id is not (CommandId.RowDetails or CommandId.FilterRows))
-            .Select(descriptor => new PaletteItem(
+        CommandCatalog.On(CommandSurface.Palette).Select(descriptor => new PaletteItem(
             descriptor.Title,
             "Action",
             descriptor.Glyph,

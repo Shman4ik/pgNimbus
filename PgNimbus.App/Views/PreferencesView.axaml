@@ -89,12 +89,12 @@
             <Border Classes="card" Padding="14,12" Margin="0,6,0,0">
                 <Grid ColumnDefinitions="*,Auto">
                     <StackPanel Spacing="2" Margin="0,0,16,0">
-                        <TextBlock Classes="label" Text="Row details and table filters" />
-                        <TextBlock Classes="hint" Text="Row details (Ctrl/Cmd+I) opens the selected row as a form whose edits are staged for review. While browsing a table, filter chips add conditions that run on the server. Hand-written queries are never changed." />
+                        <TextBlock Classes="label" Text="Always show the filter bar while browsing" />
+                        <TextBlock Classes="hint" Text="Keeps the filter line above the grid even with no conditions, so + Filter is always in reach. Off, it appears whenever a condition (or a WHERE you typed) filters the rows. Also toggled by the funnel in the status bar." />
                     </StackPanel>
                     <ToggleSwitch Grid.Column="1" VerticalAlignment="Center"
                                   OnContent="" OffContent=""
-                                  IsChecked="{Binding RowDetailsAndFilters}" />
+                                  IsChecked="{Binding ShowFilterBar}" />
                 </Grid>
             </Border>
 

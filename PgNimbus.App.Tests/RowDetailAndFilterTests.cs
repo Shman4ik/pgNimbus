@@ -11,14 +11,13 @@ using PgNimbus.Screenshot;
 namespace PgNimbus.App.Tests;
 
 /// <summary>
-/// Row details and browse filter chips (README roadmap T4), both behind one
-/// opt-in preference. What has to hold: row-detail edits go through the staged
+/// Row details and browse filter chips (README roadmap T4). What has to hold: row-detail edits go through the staged
 /// set whatever safe mode says (so
 /// the existing review dialog and conflict-checked commit apply to them), a
 /// bad value stages nothing, conditions compose server-side SQL through the
 /// same page query browse mode runs (and nothing runs until one is applied), a
-/// hand-written query is never rewritten by a filter gesture, and with the
-/// preference off neither feature exists.
+/// hand-written query is never rewritten by a filter gesture, and a WHERE typed
+/// into a browse tab comes back as chips that account for all of it.
 /// </summary>
 public class RowDetailAndFilterTests
 {
@@ -29,7 +28,6 @@ public class RowDetailAndFilterTests
         {
             var (window, vm) = Scenarios.Shell();
             Ui.Show(window);
-            vm.RowDetailsAndFilters = true;
             var tab = SeedEditableRow(vm);
 
             Ui.Press(window, CommandId.RowDetails);
@@ -170,7 +168,6 @@ public class RowDetailAndFilterTests
             var tab = vm.ActiveTab;
             const string sql = "SELECT * FROM orders WHERE total > 10;";
             tab.Sql = sql;
-            vm.RowDetailsAndFilters = true;
 
             vm.FilterRowsCommand.Execute(null);
 
@@ -299,45 +296,78 @@ public class RowDetailAndFilterTests
     }
 
     [Test]
-    public async Task With_the_preference_off_neither_feature_exists()
+    public async Task A_parsed_where_comes_back_as_chips_without_running_anything()
+    {
+        var (_, executed) = Browse();
+        var columns = Browse().Browse.Columns;
+        var shape = BrowseSqlParser.TryParse(
+            "SELECT * FROM orders WHERE total > 6 AND (status = 'packed' OR total IS NULL) ORDER BY total DESC LIMIT 25 OFFSET 50",
+            "public", "orders", columns)!;
+
+        var browse = TableBrowseViewModel.FromParsed("public", "orders", columns, shape, rowCount: 25, sql =>
+        {
+            executed.Add(sql);
+            return Task.FromResult(25);
+        });
+
+        await Assert.That(executed).IsEmpty();
+        await Assert.That(browse.Filters.Select(f => f.Summary)).IsEquivalentTo(new[] { "total > 6" });
+        await Assert.That(browse.RawConditions).IsEquivalentTo(new[] { "status = 'packed' OR total IS NULL" });
+        await Assert.That(browse.IsFilterBarVisible).IsTrue();
+        await Assert.That(browse.PageSize).IsEqualTo(25);
+        await Assert.That(browse.PageLabel).IsEqualTo("Rows 51–75");
+        await Assert.That(browse.CanGoNext).IsTrue();
+
+        // The next explicit action composes the query again, keeping all of it.
+        browse.NextPageCommand.Execute(null);
+        await Assert.That(executed[^1]).IsEqualTo(
+            "SELECT * FROM \"public\".\"orders\"\nWHERE (status = 'packed' OR total IS NULL)\n  AND (\"total\" > '6')\nORDER BY \"total\" DESC\nLIMIT 25 OFFSET 75");
+    }
+
+    [Test]
+    public async Task Removing_a_raw_chip_keeps_the_others()
+    {
+        var (browse, executed) = Browse();
+        browse.RawConditions.Add("a = 1 OR b = 2");
+        browse.RawConditions.Add("c IN (1, 2)");
+
+        browse.ClearRawFilterCommand.Execute("a = 1 OR b = 2");
+
+        await Assert.That(browse.RawConditions).IsEquivalentTo(new[] { "c IN (1, 2)" });
+        await Assert.That(executed[^1]).Contains("WHERE c IN (1, 2)\n");
+    }
+
+    [Test]
+    public async Task The_funnel_pins_the_filter_bar_open_on_every_browse_tab()
     {
         await Ui.Run(async () =>
         {
             var (window, vm) = Scenarios.Shell();
             Ui.Show(window);
-            vm.RowDetailsAndFilters = false;
-            SeedEditableRow(vm);
+            var (browse, _) = Browse();
+            vm.ActiveTab.Browse = browse;
+            await Assert.That(browse.IsFilterBarVisible).IsFalse();
 
-            Ui.Press(window, CommandId.RowDetails);
+            vm.ShowFilterBar = true;
 
-            await Assert.That(vm.IsRowDetailOpen).IsFalse();
-            await Assert.That(vm.ToggleRowDetailsCommand.CanExecute(null)).IsFalse();
-            await Assert.That(vm.FilterRowsCommand.CanExecute(null)).IsFalse();
-
+            await Assert.That(browse.IsFilterBarVisible).IsTrue();
+            await Assert.That(browse.IsFiltering).IsFalse();
             window.Close();
         });
     }
 
     [Test]
-    public async Task Turning_the_preference_off_closes_row_details_and_drops_typed_conditions()
+    public async Task Row_details_need_no_setting()
     {
         await Ui.Run(async () =>
         {
             var (window, vm) = Scenarios.Shell();
             Ui.Show(window);
-            vm.RowDetailsAndFilters = true;
-            var (browse, executed) = Browse();
-            browse.FilterText = "\"customer_id\" = 7";
-            await browse.AddAndApplyFilterAsync("status", FilterOperator.Equals, "packed");
-            vm.ActiveTab.Browse = browse;
-            vm.IsRowDetailOpen = true;
+            SeedEditableRow(vm);
 
-            vm.RowDetailsAndFilters = false;
-
-            await Assert.That(vm.IsRowDetailOpen).IsFalse();
-            await Assert.That(browse.Filters).IsEmpty();
-            // The FK-seeded condition predates the feature and stays.
-            await Assert.That(executed[^1]).Contains("WHERE \"customer_id\" = 7\n");
+            await Assert.That(vm.ToggleRowDetailsCommand.CanExecute(null)).IsTrue();
+            Ui.Press(window, CommandId.RowDetails);
+            await Assert.That(vm.IsRowDetailOpen).IsTrue();
 
             window.Close();
         });
