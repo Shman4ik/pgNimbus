@@ -9,10 +9,9 @@ using PgNimbus.Core.Commands;
 namespace PgNimbus.App.Views;
 
 /// <summary>
-/// The row-detail sidebar (see the XAML). Owns its keyboard model: the same
-/// chords that commit and cancel a cell edit in the grid
-/// (<see cref="CommandId.CommitCellEdit"/>) stage and revert here, and an
-/// Escape with nothing to revert hands focus back to the grid.
+/// Row details (see the XAML). Owns its keyboard model: the same chords that
+/// commit and cancel a cell edit in the grid (<see cref="CommandId.CommitCellEdit"/>)
+/// stage and revert here, and an Escape with nothing to revert closes it.
 /// </summary>
 public partial class RowDetailPanel : UserControl
 {
@@ -25,11 +24,8 @@ public partial class RowDetailPanel : UserControl
         CloseButton.Click += (_, _) => CloseRequested?.Invoke();
     }
 
-    /// <summary>The ✕ was pressed.</summary>
+    /// <summary>The ✕, or Escape with nothing to revert.</summary>
     public event Action? CloseRequested;
-
-    /// <summary>Escape with nothing to revert: the host puts focus back in the grid.</summary>
-    public event Action? ReturnFocusRequested;
 
     private RowDetailViewModel? Model => DataContext as RowDetailViewModel;
 
@@ -70,7 +66,7 @@ public partial class RowDetailPanel : UserControl
             }
             else
             {
-                ReturnFocusRequested?.Invoke();
+                CloseRequested?.Invoke();
             }
 
             e.Handled = true;

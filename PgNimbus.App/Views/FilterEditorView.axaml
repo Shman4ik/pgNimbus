@@ -1,0 +1,67 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PgNimbus.App.ViewModels"
+             xmlns:views="using:PgNimbus.App.Views"
+             xmlns:conv="using:Avalonia.Data.Converters"
+             x:Class="PgNimbus.App.Views.FilterEditorView"
+             x:DataType="vm:TableBrowseViewModel"
+             Width="380">
+    <!-- One filter condition, in the chip strip's flyout: column and comparison on
+         one line, the type-aware value input (the shared ColumnValueEditorView)
+         under them, the SQL the condition adds, then Apply. Enter applies; Escape
+         (the flyout's own light dismiss) abandons the draft. -->
+    <UserControl.Styles>
+        <Style Selector="TextBox, ComboBox, CalendarDatePicker">
+            <Setter Property="MinHeight" Value="28" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+        <Style Selector="TextBox">
+            <Setter Property="Padding" Value="8,4" />
+        </Style>
+    </UserControl.Styles>
+
+    <StackPanel Spacing="8" Margin="2">
+        <!-- Draft is null between conditions, hence the DataContext hop. -->
+        <StackPanel Spacing="8" x:DataType="vm:BrowseFilterViewModel" DataContext="{Binding Draft}">
+            <Grid ColumnDefinitions="*,6,120">
+                <ComboBox Grid.Column="0" ItemsSource="{Binding ColumnNames}"
+                          SelectedItem="{Binding Column, Mode=TwoWay}"
+                          HorizontalAlignment="Stretch"
+                          AutomationProperties.Name="Filter column" />
+                <ComboBox Grid.Column="2" Name="OperatorInput" ItemsSource="{Binding Operators}"
+                          SelectedItem="{Binding Operator, Mode=TwoWay}"
+                          HorizontalAlignment="Stretch"
+                          AutomationProperties.Name="Comparison">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:FilterOperatorOption">
+                            <TextBlock Text="{Binding Label}" />
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+            </Grid>
+            <Panel IsVisible="{Binding ShowsValue}">
+                <views:ColumnValueEditorView Name="ValueInput" DataContext="{Binding Value}" />
+            </Panel>
+        </StackPanel>
+
+        <!-- The generated SQL, before it runs. -->
+        <Border Background="{StaticResource HoverBackgroundBrush}" CornerRadius="6" Padding="8,5">
+            <TextBlock Text="{Binding DraftPreviewSql}" TextWrapping="Wrap"
+                       FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="11.5" Opacity="0.8" />
+        </Border>
+
+        <TextBlock Text="{Binding FilterError}" FontSize="11" TextWrapping="Wrap"
+                   Foreground="{DynamicResource AppDangerBrush}"
+                   IsVisible="{Binding FilterError, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+
+        <Grid ColumnDefinitions="Auto,*,Auto">
+            <Button Grid.Column="0" Classes="soft danger" Content="Remove" FontSize="12" Padding="10,3"
+                    IsVisible="{Binding IsEditingExisting}"
+                    Command="{Binding RemoveFilterCommand}"
+                    ToolTip.Tip="Remove this condition" />
+            <Button Grid.Column="2" Classes="accent" Content="Apply" FontSize="12" Padding="16,3"
+                    Command="{Binding CommitDraftCommand}"
+                    ToolTip.Tip="Filter the rows by this condition (Enter)" />
+        </Grid>
+    </StackPanel>
+</UserControl>

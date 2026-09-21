@@ -33,6 +33,15 @@ public sealed record AppSettings
     public bool ShowSchemaSizes { get; set; }
 
     /// <summary>
+    /// Whether the results grid offers row details (Ctrl/Cmd+I, the row as a
+    /// name/value form) and table-browse filters (condition chips). Off by
+    /// default: both are opt-in extras on top of a grid that works without
+    /// them, and while off they leave no trace — no chord, no palette row, no
+    /// menu item.
+    /// </summary>
+    public bool RowDetailsAndFilters { get; set; }
+
+    /// <summary>
     /// Whether accepting a table from completion after FROM/JOIN also appends a
     /// short alias (<c>public.orders</c> → <c>public.orders o</c>), so the
     /// <c>o.</c> member-access flow is available immediately. On by default;

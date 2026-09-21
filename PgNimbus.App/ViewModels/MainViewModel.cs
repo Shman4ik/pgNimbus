@@ -120,17 +120,18 @@ public sealed partial class MainViewModel : ObservableObject
     private void ToggleTheme() => ThemeToggleRequested?.Invoke();
 
     /// <summary>
-    /// The row-detail sidebar beside the results grid. Window-wide rather than
-    /// per tab — it's a place in the layout, like the schema sidebar — while
-    /// what it shows is each tab's own <see cref="QueryViewModel.RowDetail"/>.
+    /// Whether the row-details overlay is up. An overlay rather than a column
+    /// beside the grid (DESIGN rule 13: a panel you open, use and dismiss), so
+    /// the grid never narrows for it; what it shows is the active tab's own
+    /// <see cref="QueryViewModel.RowDetail"/>.
     /// </summary>
     [ObservableProperty]
     private bool _isRowDetailOpen;
 
-    /// <summary>Raised when the row-detail sidebar opens, so the view can move focus into it.</summary>
+    /// <summary>Raised when row details open, so the view can pick a row and move focus into the form.</summary>
     public event Action? RowDetailFocusRequested;
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(RowDetailsAndFilters))]
     private void ToggleRowDetails()
     {
         IsRowDetailOpen = !IsRowDetailOpen;
@@ -140,15 +141,15 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
-    /// <summary>Raised to put focus in the browse filter bar once the palette has opened it.</summary>
-    public event Action? FilterBarFocusRequested;
+    /// <summary>Raised to open the new-condition editor on the browse filter chips (the view owns the flyout).</summary>
+    public event Action? FilterEditorRequested;
 
     /// <summary>
-    /// Opens the filter bar — only while the active tab browses a table.
+    /// Opens a new filter condition — only while the active tab browses a table.
     /// Anywhere else the tab holds SQL someone wrote, and a filter would mean
     /// rewriting it behind their back, so this says where filters live instead.
     /// </summary>
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(RowDetailsAndFilters))]
     private void FilterRows()
     {
         if (ActiveTab?.Browse is not { } browse)
@@ -162,8 +163,7 @@ public sealed partial class MainViewModel : ObservableObject
             return;
         }
 
-        browse.OpenFilterBar();
-        FilterBarFocusRequested?.Invoke();
+        FilterEditorRequested?.Invoke();
     }
 
     // --- The shell's three dismissable panels ---------------------------------
@@ -400,6 +400,39 @@ public sealed partial class MainViewModel : ObservableObject
     partial void OnSafeModeEditsChanged(bool value) => _persistSafeModeEdits?.Invoke(value);
 
     /// <summary>
+    /// The opt-in for row details and browse filters (Preferences → Data
+    /// editing). Off by default. While off, neither exists: the chord, the
+    /// palette rows and the grid's menu items are gone, not greyed out.
+    /// Turning it off closes row details and drops every tab's typed filters,
+    /// since a grid still filtered by conditions nothing on screen shows would
+    /// read as missing rows; an FK-seeded condition stays, as it always has,
+    /// in the page SQL.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ToggleRowDetailsCommand), nameof(FilterRowsCommand))]
+    private bool _rowDetailsAndFilters;
+
+    private readonly Action<bool>? _persistRowDetailsAndFilters;
+
+    partial void OnRowDetailsAndFiltersChanged(bool value)
+    {
+        _persistRowDetailsAndFilters?.Invoke(value);
+        if (value)
+        {
+            return;
+        }
+
+        IsRowDetailOpen = false;
+        foreach (var tab in Tabs)
+        {
+            if (tab.Browse is { } browse)
+            {
+                _ = browse.DropTypedFiltersAsync();
+            }
+        }
+    }
+
+    /// <summary>
     /// Notepad++-style word wrap in the SQL editor. Bound two-way to the editor's
     /// <c>WordWrap</c> and to the command-bar toggle; persisted like the other
     /// editor toggles so the choice survives a restart.
@@ -481,6 +514,8 @@ public sealed partial class MainViewModel : ObservableObject
         Action<bool>? persistAutoAliasTables = null,
         bool safeModeEdits = true,
         Action<bool>? persistSafeModeEdits = null,
+        bool rowDetailsAndFilters = false,
+        Action<bool>? persistRowDetailsAndFilters = null,
         bool wordWrapEditor = false,
         Action<bool>? persistWordWrapEditor = null,
         WorkspaceEntry? workspace = null,
@@ -495,6 +530,8 @@ public sealed partial class MainViewModel : ObservableObject
         _persistAutoAliasTables = persistAutoAliasTables;
         _safeModeEdits = safeModeEdits;
         _persistSafeModeEdits = persistSafeModeEdits;
+        _rowDetailsAndFilters = rowDetailsAndFilters;
+        _persistRowDetailsAndFilters = persistRowDetailsAndFilters;
         _wordWrapEditor = wordWrapEditor;
         _persistWordWrapEditor = persistWordWrapEditor;
         _recentSqlFiles = recentSqlFiles is null ? [] : [.. recentSqlFiles];
@@ -1157,8 +1194,13 @@ public sealed partial class MainViewModel : ObservableObject
     // One row per catalog entry flagged for the palette, in catalog order —
     // title, glyph and the trailing shortcut label all come from there, so the
     // palette can't drift from the key bindings or the F1 sheet.
+    // The opt-in extras are left out entirely while their preference is off,
+    // rather than listed and then refusing: a palette row that does nothing is
+    // DESIGN rule 7's silent no-op.
     private IEnumerable<PaletteItem> BuildActionItems() =>
-        CommandCatalog.On(CommandSurface.Palette).Select(descriptor => new PaletteItem(
+        CommandCatalog.On(CommandSurface.Palette)
+            .Where(d => RowDetailsAndFilters || d.Id is not (CommandId.RowDetails or CommandId.FilterRows))
+            .Select(descriptor => new PaletteItem(
             descriptor.Title,
             "Action",
             descriptor.Glyph,

@@ -11,12 +11,14 @@ using PgNimbus.Screenshot;
 namespace PgNimbus.App.Tests;
 
 /// <summary>
-/// The row-detail sidebar and browse filters (README roadmap T4). What has to
-/// hold: sidebar edits go through the staged set whatever safe mode says (so
+/// Row details and browse filter chips (README roadmap T4), both behind one
+/// opt-in preference. What has to hold: row-detail edits go through the staged
+/// set whatever safe mode says (so
 /// the existing review dialog and conflict-checked commit apply to them), a
-/// bad value stages nothing, filters compose server-side SQL through the same
-/// page query browse mode runs, and a hand-written query is never rewritten by
-/// a filter gesture.
+/// bad value stages nothing, conditions compose server-side SQL through the
+/// same page query browse mode runs (and nothing runs until one is applied), a
+/// hand-written query is never rewritten by a filter gesture, and with the
+/// preference off neither feature exists.
 /// </summary>
 public class RowDetailAndFilterTests
 {
@@ -27,6 +29,7 @@ public class RowDetailAndFilterTests
         {
             var (window, vm) = Scenarios.Shell();
             Ui.Show(window);
+            vm.RowDetailsAndFilters = true;
             var tab = SeedEditableRow(vm);
 
             Ui.Press(window, CommandId.RowDetails);
@@ -34,6 +37,7 @@ public class RowDetailAndFilterTests
             await Assert.That(vm.IsRowDetailOpen).IsTrue();
             // Opened with nothing selected, the sidebar takes the first row.
             await Assert.That(tab.RowDetail.Row).IsSameReferenceAs(tab.Rows[0]);
+            await Assert.That(tab.RowDetail.Heading).IsEqualTo("Row 1 of 1");
             var fields = tab.RowDetail.Fields;
             await Assert.That(fields.Select(f => f.Name)).IsEquivalentTo(new[] { "id", "status", "qty" });
             await Assert.That(fields[0].IsEditable).IsFalse();
@@ -131,6 +135,32 @@ public class RowDetailAndFilterTests
     }
 
     [Test]
+    public async Task Previous_and_next_walk_the_rows_but_not_away_from_unstaged_edits()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, vm) = Scenarios.Shell();
+            Ui.Show(window);
+            var tab = SeedEditableRow(vm, rows: 3);
+            object?[]? requested = null;
+            tab.RowDetail.NavigateRequested += row => requested = row;
+            tab.RowDetail.Load(tab.Rows[1]);
+
+            await Assert.That(tab.RowDetail.PreviousRowCommand.CanExecute(null)).IsTrue();
+            tab.RowDetail.NextRowCommand.Execute(null);
+            await Assert.That(requested).IsSameReferenceAs(tab.Rows[2]);
+
+            tab.RowDetail.Load(tab.Rows[2]);
+            await Assert.That(tab.RowDetail.NextRowCommand.CanExecute(null)).IsFalse();
+
+            tab.RowDetail.Fields[1].Editor!.Value = "shipped";
+            await Assert.That(tab.RowDetail.PreviousRowCommand.CanExecute(null)).IsFalse();
+
+            window.Close();
+        });
+    }
+
+    [Test]
     public async Task Filtering_a_hand_written_query_rewrites_nothing()
     {
         await Ui.Run(async () =>
@@ -140,13 +170,14 @@ public class RowDetailAndFilterTests
             var tab = vm.ActiveTab;
             const string sql = "SELECT * FROM orders WHERE total > 10;";
             tab.Sql = sql;
+            vm.RowDetailsAndFilters = true;
 
             vm.FilterRowsCommand.Execute(null);
 
             await Assert.That(tab.Sql).IsEqualTo(sql);
             await Assert.That(tab.Browse).IsNull();
             await Assert.That(tab.Status).Contains("never rewritten");
-            // And no filter bar exists to apply to it.
+            // And no chip strip exists to apply to it.
             var bar = window.GetVisualDescendants().OfType<BrowseFilterBar>().Single();
             await Assert.That(bar.IsEffectivelyVisible).IsFalse();
 
@@ -155,58 +186,95 @@ public class RowDetailAndFilterTests
     }
 
     [Test]
-    public async Task Filters_compose_a_server_side_where_and_only_apply_on_request()
+    public async Task A_draft_condition_previews_its_sql_and_runs_nothing_until_applied()
     {
         var (browse, executed) = Browse();
 
-        var filter = browse.AddFilter("total", FilterOperator.GreaterOrEqual, "10.5")!;
-        browse.AddFilter("shipped_at", FilterOperator.IsNull);
-        // Editing composes a preview, and runs nothing.
-        await Assert.That(executed).IsEmpty();
-        await Assert.That(browse.FilterPreviewSql).IsEqualTo("WHERE (\"total\" >= '10.5') AND (\"shipped_at\" IS NULL)");
-        await Assert.That(browse.HasUnappliedChanges).IsTrue();
-        await Assert.That(browse.Filters.Select(f => f.Connector)).IsEquivalentTo(new[] { "where", "and" });
-
-        browse.ApplyFiltersCommand.Execute(null);
-
-        await Assert.That(executed).Count().IsEqualTo(1);
-        await Assert.That(executed[0]).Contains("WHERE (\"total\" >= '10.5')\n  AND (\"shipped_at\" IS NULL)");
-        await Assert.That(executed[0]).EndsWith("LIMIT 100 OFFSET 0");
-        await Assert.That(browse.HasActiveFilters).IsTrue();
+        var draft = browse.BeginNewFilter("total", FilterOperator.GreaterOrEqual, "10.5")!;
+        await Assert.That(browse.DraftPreviewSql).IsEqualTo("\"total\" >= '10.5'");
         await Assert.That(browse.IsFilterBarVisible).IsTrue();
-        await Assert.That(browse.HasUnappliedChanges).IsFalse();
+        await Assert.That(executed).IsEmpty();
+        await Assert.That(browse.Filters).IsEmpty();
 
-        // A half-typed change stays a draft: paging keeps running what was applied.
-        filter.Value.Value = "99";
-        browse.Offset = 100;
-        await browse.LoadAsync();
-        await Assert.That(executed[^1]).Contains("\"total\" >= '10.5'");
+        browse.CommitDraftCommand.Execute(null);
+
+        await Assert.That(browse.Filters).Count().IsEqualTo(1);
+        await Assert.That(browse.Filters[0].Summary).IsEqualTo("total ≥ 10.5");
+        await Assert.That(browse.Draft).IsNull();
+        await Assert.That(executed).Count().IsEqualTo(1);
+        await Assert.That(executed[0]).Contains("WHERE \"total\" >= '10.5'");
+        await Assert.That(executed[0]).EndsWith("LIMIT 100 OFFSET 0");
     }
 
     [Test]
-    public async Task An_invalid_filter_is_refused_as_a_whole()
+    public async Task Conditions_combine_and_paging_keeps_them()
     {
         var (browse, executed) = Browse();
 
-        browse.AddFilter("status", FilterOperator.Equals, "packed");
-        browse.AddFilter("total", FilterOperator.Greater, "lots");
-        browse.ApplyFiltersCommand.Execute(null);
+        await browse.AddAndApplyFilterAsync("total", FilterOperator.GreaterOrEqual, "10.5");
+        await browse.AddAndApplyFilterAsync("shipped_at", FilterOperator.IsNull, null);
+        await Assert.That(browse.WhereSql).IsEqualTo("WHERE (\"total\" >= '10.5') AND (\"shipped_at\" IS NULL)");
+
+        browse.Offset = 100;
+        await browse.LoadAsync();
+        await Assert.That(executed[^1]).Contains("WHERE (\"total\" >= '10.5')\n  AND (\"shipped_at\" IS NULL)");
+        await Assert.That(executed[^1]).EndsWith("LIMIT 100 OFFSET 100");
+    }
+
+    [Test]
+    public async Task An_invalid_draft_is_refused_and_stays_open()
+    {
+        var (browse, executed) = Browse();
+
+        browse.BeginNewFilter("total", FilterOperator.Greater, "lots");
+        browse.CommitDraftCommand.Execute(null);
 
         await Assert.That(executed).IsEmpty();
         await Assert.That(browse.FilterError).Contains("total");
-        await Assert.That(browse.HasActiveFilters).IsFalse();
+        await Assert.That(browse.Filters).IsEmpty();
+        await Assert.That(browse.Draft).IsNotNull();
     }
 
     [Test]
-    public async Task Removing_a_filter_reapplies_and_clearing_drops_the_fk_condition_too()
+    public async Task Editing_a_chip_works_on_a_copy_and_replaces_it_on_apply()
+    {
+        var (browse, executed) = Browse();
+        await browse.AddAndApplyFilterAsync("total", FilterOperator.Greater, "10");
+        var chip = browse.Filters[0];
+
+        var draft = browse.BeginEditFilter(chip);
+        draft.Value.Value = "99";
+        // Until Apply, the chip — and so the query — is untouched.
+        await Assert.That(chip.Summary).IsEqualTo("total > 10");
+        await Assert.That(browse.IsEditingExisting).IsTrue();
+
+        browse.CommitDraftCommand.Execute(null);
+        await Assert.That(browse.Filters).Count().IsEqualTo(1);
+        await Assert.That(browse.Filters[0].Summary).IsEqualTo("total > 99");
+        await Assert.That(executed[^1]).Contains("\"total\" > '99'");
+    }
+
+    [Test]
+    public async Task Abandoning_a_draft_leaves_the_query_and_the_strip_as_they_were()
+    {
+        var (browse, executed) = Browse();
+
+        browse.BeginNewFilter("status");
+        browse.CancelDraft();
+
+        await Assert.That(executed).IsEmpty();
+        await Assert.That(browse.IsFilterBarVisible).IsFalse();
+    }
+
+    [Test]
+    public async Task Removing_a_chip_reapplies_and_clearing_drops_the_fk_condition_too()
     {
         var (browse, executed) = Browse();
         browse.FilterText = "\"customer_id\" = 7";
-        var status = browse.AddFilter("status", FilterOperator.Equals, "packed")!;
-        browse.ApplyFiltersCommand.Execute(null);
+        await browse.AddAndApplyFilterAsync("status", FilterOperator.Equals, "packed");
         await Assert.That(executed[^1]).Contains("WHERE (\"customer_id\" = 7)\n  AND (\"status\" = 'packed')");
 
-        browse.RemoveFilterCommand.Execute(status);
+        browse.RemoveFilterCommand.Execute(browse.Filters[0]);
         await Assert.That(executed[^1]).Contains("WHERE \"customer_id\" = 7\n");
 
         browse.ClearFiltersCommand.Execute(null);
@@ -215,20 +283,64 @@ public class RowDetailAndFilterTests
     }
 
     [Test]
-    public async Task A_filter_on_an_enum_uses_its_dropdown_and_offers_only_what_enums_support()
+    public async Task A_condition_on_an_enum_uses_its_dropdown_and_offers_only_what_enums_support()
     {
         var (browse, executed) = Browse();
 
-        var filter = browse.AddFilter("status")!;
+        var draft = browse.BeginNewFilter("status")!;
 
-        await Assert.That(filter.Operators.Select(o => o.Operator))
+        await Assert.That(draft.Operators.Select(o => o.Operator))
             .IsEquivalentTo(new[] { FilterOperator.Equals, FilterOperator.NotEquals, FilterOperator.IsNull, FilterOperator.IsNotNull });
-        await Assert.That(filter.Value.IsEnumEditor).IsTrue();
-        filter.Value.EnumChoice = "shipped";
-        await browse.AddAndApplyFilterAsync("total", FilterOperator.IsNotNull, null);
+        await Assert.That(draft.Value.IsEnumEditor).IsTrue();
+        draft.Value.EnumChoice = "shipped";
+        browse.CommitDraftCommand.Execute(null);
 
-        await Assert.That(executed[^1]).Contains("(\"status\" = 'shipped')");
-        await Assert.That(executed[^1]).Contains("(\"total\" IS NOT NULL)");
+        await Assert.That(executed[^1]).Contains("WHERE \"status\" = 'shipped'");
+    }
+
+    [Test]
+    public async Task With_the_preference_off_neither_feature_exists()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, vm) = Scenarios.Shell();
+            Ui.Show(window);
+            vm.RowDetailsAndFilters = false;
+            SeedEditableRow(vm);
+
+            Ui.Press(window, CommandId.RowDetails);
+
+            await Assert.That(vm.IsRowDetailOpen).IsFalse();
+            await Assert.That(vm.ToggleRowDetailsCommand.CanExecute(null)).IsFalse();
+            await Assert.That(vm.FilterRowsCommand.CanExecute(null)).IsFalse();
+
+            window.Close();
+        });
+    }
+
+    [Test]
+    public async Task Turning_the_preference_off_closes_row_details_and_drops_typed_conditions()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, vm) = Scenarios.Shell();
+            Ui.Show(window);
+            vm.RowDetailsAndFilters = true;
+            var (browse, executed) = Browse();
+            browse.FilterText = "\"customer_id\" = 7";
+            await browse.AddAndApplyFilterAsync("status", FilterOperator.Equals, "packed");
+            vm.ActiveTab.Browse = browse;
+            vm.IsRowDetailOpen = true;
+
+            vm.RowDetailsAndFilters = false;
+
+            await Assert.That(vm.IsRowDetailOpen).IsFalse();
+            await Assert.That(browse.Filters).IsEmpty();
+            // The FK-seeded condition predates the feature and stays.
+            await Assert.That(executed[^1]).Contains("WHERE \"customer_id\" = 7\n");
+
+            window.Close();
+        });
     }
 
     // A browse view model over a fake table whose "execute" records the SQL

@@ -5,12 +5,13 @@
              xmlns:conv="using:Avalonia.Data.Converters"
              x:Class="PgNimbus.App.Views.RowDetailPanel"
              x:DataType="vm:RowDetailViewModel">
-    <!-- Row details: the grid's current row as a name/value form (Ctrl/Cmd+I).
-         Editable columns use the shared type-aware inputs (ColumnValueEditorView);
-         Stage puts every change into the tab's staged set, reviewed and committed
-         from the status bar like any other staged edit. Tab walks the fields,
-         Enter stages, Escape reverts (or, with nothing to revert, returns to the
-         grid).
+    <!-- Row details: the grid's current row as a name/value form (Ctrl/Cmd+I),
+         shown as a card over the window (ResultsGridPanel hosts it in an overlay,
+         DESIGN rule 13) so the grid never narrows for it. Editable columns use the
+         shared type-aware inputs (ColumnValueEditorView); Stage puts every change
+         into the tab's staged set, reviewed and committed from the status bar like
+         any other staged edit. Tab walks the fields, ‹ › walk the rows, Enter
+         stages, Escape reverts (or, with nothing to revert, closes).
 
          Labels sit above their inputs (DESIGN rule 8), and a read-only value gets
          the same box an input does, so every value in the column starts at the
@@ -52,7 +53,7 @@
 
     <Grid RowDefinitions="Auto,Auto,*,Auto">
         <!-- Which row, and of what. -->
-        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="12,10,8,6">
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="14,12,10,8">
             <StackPanel Spacing="1">
                 <TextBlock Text="{Binding Heading}" FontWeight="SemiBold" FontSize="13"
                            TextTrimming="CharacterEllipsis" />
@@ -60,10 +61,21 @@
                            TextTrimming="CharacterEllipsis"
                            IsVisible="{Binding Source, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
             </StackPanel>
-            <Button Grid.Column="1" Name="CloseButton" Classes="chip" Content="✕" FontSize="10"
-                    Width="22" Height="22" Padding="0" VerticalAlignment="Top"
-                    ToolTip.Tip="Close row details"
-                    AutomationProperties.Name="Close row details" />
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2" VerticalAlignment="Top">
+                <!-- Disabled while there are unstaged edits: Stage or Revert first. -->
+                <Button Classes="chip" Content="‹" FontSize="14" Width="26" Height="24" Padding="0"
+                        Command="{Binding PreviousRowCommand}"
+                        ToolTip.Tip="Previous row"
+                        AutomationProperties.Name="Previous row" />
+                <Button Classes="chip" Content="›" FontSize="14" Width="26" Height="24" Padding="0"
+                        Command="{Binding NextRowCommand}"
+                        ToolTip.Tip="Next row"
+                        AutomationProperties.Name="Next row" />
+                <Button Name="CloseButton" Classes="chip" Content="✕" FontSize="10"
+                        Width="24" Height="24" Padding="0" Margin="6,0,0,0"
+                        ToolTip.Tip="Close (Esc)"
+                        AutomationProperties.Name="Close row details" />
+            </StackPanel>
         </Grid>
 
         <!-- Why the row is read-only: said once, as a banner, not on every field. -->

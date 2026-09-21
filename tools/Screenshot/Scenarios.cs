@@ -57,6 +57,7 @@ public static class Scenarios
         ("main-window-cell-inspector", CellInspector),
         ("main-window-browse-row-details", BrowseWithRowDetails),
         ("main-window-browse-no-match", BrowseNoMatch),
+        ("filter-editor", FilterEditor),
         ("activity-window", Activity),
         ("activity-window-blocking", ActivityBlocking),
         ("database-overview-window", DatabaseOverview),
@@ -137,8 +138,8 @@ public static class Scenarios
     }
 
     /// <summary>
-    /// Browsing a table with two typed filters applied (the bar and its WHERE
-    /// preview) and the row-detail sidebar open on a row with one unstaged edit.
+    /// Browsing a table with two filter chips applied, and row details open
+    /// over it on a row with one unstaged edit.
     /// </summary>
     public static Window BrowseWithRowDetails()
     {
@@ -155,15 +156,15 @@ public static class Scenarios
             composed = sql;
             return Task.FromResult(rows.Count);
         });
-        browse.AddFilter("status", FilterOperator.NotEquals, "cancelled");
-        browse.AddFilter("total", FilterOperator.GreaterOrEqual, "50");
-        browse.ApplyFiltersCommand.Execute(null);
+        _ = browse.AddAndApplyFilterAsync("status", FilterOperator.NotEquals, "cancelled");
+        _ = browse.AddAndApplyFilterAsync("total", FilterOperator.GreaterOrEqual, "50");
 
         tab.Sql = composed!;
         tab.SeedResult(columns, rows, rowCountText: $"{rows.Count} rows", timingText: "9 ms · first byte 4 ms");
         tab.EditContext = new EditableTableContext("public", "orders", ["id"], details);
         tab.Browse = browse;
 
+        vm.RowDetailsAndFilters = true;
         vm.IsRowDetailOpen = true;
         tab.RowDetail.Load(tab.Rows[1]);
         tab.RowDetail.Fields.First(f => f.Name == "status").Editor!.EnumChoice = "shipped";
@@ -172,8 +173,7 @@ public static class Scenarios
 
     /// <summary>
     /// A filter that matched nothing: its own empty state with a way out, not the
-    /// "run a query" hint a tab that never ran shows. Row details is open with no
-    /// row to show, which is its empty state.
+    /// "run a query" hint a tab that never ran shows.
     /// </summary>
     public static Window BrowseNoMatch()
     {
@@ -188,15 +188,31 @@ public static class Scenarios
             composed = sql;
             return Task.FromResult(0);
         });
-        browse.AddFilter("customer", FilterOperator.Contains, "zzz");
-        browse.ApplyFiltersCommand.Execute(null);
+        _ = browse.AddAndApplyFilterAsync("customer", FilterOperator.Contains, "zzz");
 
         tab.Sql = composed!;
         tab.SeedResult(columns, [], rowCountText: "0 rows", timingText: "3 ms");
         tab.EditContext = new EditableTableContext("public", "orders", ["id"], details);
         tab.Browse = browse;
-        vm.IsRowDetailOpen = true;
+        vm.RowDetailsAndFilters = true;
         return HostMainWindow(vm);
+    }
+
+    /// <summary>
+    /// The chip flyout's editor on its own (a popup the main-window shots can't
+    /// catch): editing an applied condition, with its SQL preview and Remove.
+    /// </summary>
+    public static Window FilterEditor()
+    {
+        var browse = new TableBrowseViewModel("public", "orders", Fixtures.OrdersTableColumns(), _ => Task.FromResult(0));
+        _ = browse.AddAndApplyFilterAsync("placed_at", FilterOperator.GreaterOrEqual, "2026-07-01 00:00:00+00");
+        browse.BeginEditFilter(browse.Filters[0]);
+        return new Window
+        {
+            Content = new Border { Padding = new Avalonia.Thickness(14), Child = new FilterEditorView { DataContext = browse } },
+            Width = 420,
+            Height = 230,
+        };
     }
 
     /// <summary>The plan's text layout plus the warnings strip.</summary>
