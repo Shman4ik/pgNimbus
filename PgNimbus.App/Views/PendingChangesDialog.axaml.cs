@@ -24,11 +24,19 @@ public partial class PendingChangesDialog : Window
         ThemedWindowChrome.Attach(this);
     }
 
-    public PendingChangesDialog(string summary, string sqlScript, int changeCount) : this()
+    public PendingChangesDialog(string summary, string sqlScript, int changeCount, IReadOnlyList<string>? uncheckedColumns = null) : this()
     {
         SummaryText.Text = summary;
         SqlText.Text = sqlScript;
         CommitButton.Content = changeCount == 1 ? "Commit 1 change" : $"Commit {changeCount} changes";
+
+        // "Checked" must never quietly mean "partly checked": name the columns
+        // the concurrency check can't compare.
+        if (uncheckedColumns is { Count: > 0 })
+        {
+            UncheckedText.Text = $"Not checked for changes by other sessions (pgNimbus can't read their type): {string.Join(", ", uncheckedColumns)}.";
+            UncheckedText.IsVisible = true;
+        }
     }
 
     private void OnCommitClick(object? sender, RoutedEventArgs e) => Close(Result.Commit);

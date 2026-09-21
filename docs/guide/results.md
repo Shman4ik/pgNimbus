@@ -82,6 +82,42 @@ inserts and deletes are staged locally instead of being sent:
 Toggle it from the command palette. It has no keyboard shortcut on purpose:
 flipping it by accident changes whether your edits hit the database immediately.
 
+### When someone else changed the row first
+
+Staging takes time, and another session can change or delete a row while your
+edit to it waits. pgNimbus checks for that when you commit. Before it writes
+anything, it reads every row you edited or deleted again, locks it, and compares
+it with the row as it was when you loaded it. That covers every column you
+loaded, not only the ones you edited, and a NULL counts as a value like any
+other.
+
+If any row differs, or is gone, the whole commit rolls back. Nothing is applied,
+including the rows that had no conflict. A dialog then shows each row that no
+longer matches, column by column: the value when you loaded it, the value on the
+server now, and the value you staged. You can:
+
+- **Reload and restage.** The grid reloads with your staged values on top of the
+  current rows. Rows that no longer exist are dropped from the set. Review, then
+  commit again.
+- **Unstage these rows.** Only the rows with a conflict leave the set. The rest
+  stay staged.
+- **Close.** Everything stays staged as it was.
+
+If another session holds one of your rows in an open transaction, the commit
+waits up to 5 seconds, then rolls back and tells you the row is locked. Inside
+your own explicit transaction, a conflict undoes only the staged batch. Your
+transaction stays open.
+
+A commit that succeeds is final. Safe mode has no undo after commit.
+
+Some rows can't be checked or targeted:
+
+- A table with no primary key is read-only. The status bar says so.
+- A primary key column whose type pgNimbus can't read (for example, a composite
+  type it could only show as `<unreadable …>`) also makes the grid read-only.
+- A column pgNimbus can't read is left out of the comparison. The review dialog
+  lists these columns before you commit.
+
 ## Following foreign keys
 
 Right-click a cell in the grid. On a foreign key column, you can jump to the row

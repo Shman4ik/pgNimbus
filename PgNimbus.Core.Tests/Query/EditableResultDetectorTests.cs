@@ -85,6 +85,25 @@ public class EditableResultDetectorTests
     }
 
     [Test]
+    public async Task UnreadableKeyColumnIsAnUnsupportedRowIdentity()
+    {
+        // An unmapped composite key read without the text fallback: every cell
+        // is a placeholder, so no row could be targeted or checked.
+        var unreadableId = new ColumnInfo("id", "public.order_ref", typeof(object), OrdersOid, 1);
+        var blocker = EditableResultDetector.MatchPrimaryKey(
+            [unreadableId, Col("status", attNum: 3)],
+            Orders,
+            out var pk);
+
+        await Assert.That(blocker).IsEqualTo(EditBlocker.UnreadableKey);
+        await Assert.That(pk).IsEmpty();
+        await Assert.That(EditableResultDetector.FindUnreadableKey([unreadableId], ["id"])).IsEqualTo(unreadableId);
+
+        // The same key read back as a text literal is fine.
+        await Assert.That(EditableResultDetector.FindUnreadableKey([Col("id", attNum: 1)], ["id"])).IsNull();
+    }
+
+    [Test]
     public async Task SubsetWithPrimaryKeyMatches()
     {
         var blocker = EditableResultDetector.MatchPrimaryKey(

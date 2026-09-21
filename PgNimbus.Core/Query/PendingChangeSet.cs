@@ -23,6 +23,15 @@ public sealed record PendingInsertValue(string Column, string DataType, string? 
 /// <see cref="BuildStatements"/> turns the set into parameterized statements
 /// for one-transaction execution; <see cref="BuildScript"/> renders the same
 /// changes as a human-readable SQL script for review before committing.
+/// <para>
+/// Optimistic concurrency: the first time a row is staged (edit or delete) the
+/// caller hands over a <see cref="RowSnapshot"/> of the row as the user saw it.
+/// <see cref="BuildRowCheck"/> turns those into the commit-time check that
+/// re-reads each row under a lock and aborts the batch if another session
+/// changed or deleted it; <see cref="Rebase"/> and <see cref="Unstage"/> are the
+/// two ways out of a conflict. Nothing here promises an undo after a commit —
+/// once the batch commits it is the server's.
+/// </para>
 /// </summary>
 public sealed class PendingChangeSet
 {
@@ -32,6 +41,16 @@ public sealed class PendingChangeSet
 
     public IReadOnlyList<string> PrimaryKeyColumns { get; }
 
+    // Per key column, the declared type to cast a key parameter to, or null
+    // when the CLR value binds as the right type on its own. An enum or
+    // composite key part arrives from the grid as text, and `enum_col = text`
+    // has no operator — so without the cast a composite key with an enum part
+    // targets nothing.
+    private readonly IReadOnlyList<string?> _keyCastTypes;
+
+    // The row as the user saw it when first staged, keyed like the changes.
+    private readonly Dictionary<RowKey, RowSnapshot> _originals = [];
+
     // Ordered lists, not dictionaries: the review script and the executed
     // batch must list changes in the order they were staged, and the set stays
     // human-sized (it's hand-staged), so linear lookups are fine.
@@ -39,16 +58,22 @@ public sealed class PendingChangeSet
     private readonly List<RowKey> _deletes = [];
     private readonly List<IReadOnlyList<PendingInsertValue>> _inserts = [];
 
-    public PendingChangeSet(string schema, string table, IReadOnlyList<string> primaryKeyColumns)
+    public PendingChangeSet(string schema, string table, IReadOnlyList<string> primaryKeyColumns, IReadOnlyList<string?>? keyCastTypes = null)
     {
         if (primaryKeyColumns.Count == 0)
         {
             throw new ArgumentException("Staged changes need primary-key columns to target rows.", nameof(primaryKeyColumns));
         }
 
+        if (keyCastTypes is not null && keyCastTypes.Count != primaryKeyColumns.Count)
+        {
+            throw new ArgumentException("One cast type (or null) per primary-key column.", nameof(keyCastTypes));
+        }
+
         Schema = schema;
         Table = table;
         PrimaryKeyColumns = primaryKeyColumns;
+        _keyCastTypes = keyCastTypes ?? new string?[primaryKeyColumns.Count];
     }
 
     /// <summary>
@@ -72,8 +97,11 @@ public sealed class PendingChangeSet
     /// that must be parsed server-side (enum labels, array/composite literals
     /// staged as raw text) — the built UPDATE wraps the parameter in
     /// <c>CAST(@p AS type)</c>, matching how staged INSERT values execute.
+    /// <paramref name="original"/> is the row as the user saw it; only the
+    /// first snapshot of a row is kept, since later ones already carry staged
+    /// values.
     /// </summary>
-    public void StageEdit(object?[] pkValues, string column, object? value, string? castType = null)
+    public void StageEdit(object?[] pkValues, string column, object? value, string? castType = null, RowSnapshot? original = null)
     {
         var key = MakeKey(pkValues);
 
@@ -102,6 +130,8 @@ public sealed class PendingChangeSet
         {
             row.Cells.Add((column, value, castType));
         }
+
+        Remember(key, original);
     }
 
     /// <summary>
@@ -109,17 +139,48 @@ public sealed class PendingChangeSet
     /// (the DELETE supersedes them) until the delete is unstaged. A no-op if
     /// already staged.
     /// </summary>
-    public void StageDelete(object?[] pkValues)
+    public void StageDelete(object?[] pkValues, RowSnapshot? original = null)
     {
         var key = MakeKey(pkValues);
         if (!_deletes.Contains(key))
         {
             _deletes.Add(key);
         }
+
+        Remember(key, original);
     }
 
     /// <summary>Removes a staged delete. Returns false when the row wasn't staged.</summary>
-    public bool UnstageDelete(object?[] pkValues) => _deletes.Remove(MakeKey(pkValues));
+    public bool UnstageDelete(object?[] pkValues)
+    {
+        var key = MakeKey(pkValues);
+        if (!_deletes.Remove(key))
+        {
+            return false;
+        }
+
+        if (!_edits.Any(e => e.Key.Equals(key)))
+        {
+            _originals.Remove(key);
+        }
+
+        return true;
+    }
+
+    /// <summary>The snapshot a row was staged against, or null (not staged, or staged without one).</summary>
+    public RowSnapshot? GetOriginal(object?[] pkValues) =>
+        _originals.TryGetValue(MakeKey(pkValues), out var snapshot) ? snapshot : null;
+
+    /// <summary>
+    /// Columns the concurrency check can't compare, because the value the user
+    /// saw was a placeholder for a type the client couldn't read. The review
+    /// dialog lists them so "checked" never quietly means "partly checked".
+    /// </summary>
+    public IReadOnlyList<string> UncheckedColumns =>
+        _originals.Values
+            .SelectMany(s => s.Columns.Where((_, i) => QueryEngine.IsUnreadableCell(s.Values[i])))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
 
     /// <summary>Stages an INSERT. An empty value list means "all defaults" (<c>INSERT … DEFAULT VALUES</c>).</summary>
     public void StageInsert(IReadOnlyList<PendingInsertValue> values) => _inserts.Add(values);
@@ -146,6 +207,133 @@ public sealed class PendingChangeSet
         _edits.Clear();
         _deletes.Clear();
         _inserts.Clear();
+        _originals.Clear();
+    }
+
+    /// <summary>
+    /// "Reload and restage" after a conflict: rows another session changed keep
+    /// their staged values but are re-based onto the server's current row, so
+    /// the next commit checks against what the user has now been shown; rows
+    /// that no longer exist are dropped, since there is nothing left to update
+    /// or delete. Returns how many rows went each way.
+    /// </summary>
+    public (int Rebased, int Dropped) Rebase(IEnumerable<RowConflict> conflicts)
+    {
+        var rebased = 0;
+        var dropped = 0;
+        foreach (var conflict in conflicts)
+        {
+            var key = MakeKey(conflict.KeyValues.ToArray());
+            if (conflict.Kind == RowConflictKind.Deleted || conflict.Current is null)
+            {
+                Forget(key);
+                dropped++;
+            }
+            else
+            {
+                _originals[key] = conflict.Current;
+                rebased++;
+            }
+        }
+
+        return (rebased, dropped);
+    }
+
+    /// <summary>Drops every staged change to the conflicting rows, leaving the rest of the set staged. Returns how many rows were unstaged.</summary>
+    public int Unstage(IEnumerable<RowConflict> conflicts)
+    {
+        var count = 0;
+        foreach (var conflict in conflicts)
+        {
+            Forget(MakeKey(conflict.KeyValues.ToArray()));
+            count++;
+        }
+
+        return count;
+    }
+
+    private void Forget(RowKey key)
+    {
+        _edits.RemoveAll(e => e.Key.Equals(key));
+        _deletes.Remove(key);
+        _originals.Remove(key);
+    }
+
+    private void Remember(RowKey key, RowSnapshot? original)
+    {
+        if (original is not null)
+        {
+            _originals.TryAdd(key, original);
+        }
+    }
+
+    /// <summary>
+    /// The commit-time concurrency check for every staged edit and delete, or
+    /// null when nothing staged targets an existing row (inserts only). Rows
+    /// are locked in key order, <paramref name="chunkSize"/> keys per
+    /// statement, so a page-sized multi-row delete costs a handful of round
+    /// trips rather than one per row.
+    /// </summary>
+    public StagedRowCheck? BuildRowCheck(int chunkSize = 500)
+    {
+        var rows = new List<StagedRowExpectation>();
+        foreach (var row in ActiveEdits)
+        {
+            rows.Add(new StagedRowExpectation(
+                StagedRowKind.Edit,
+                row.Key.Values,
+                _originals.GetValueOrDefault(row.Key),
+                row.Cells.Select(c => (c.Column, c.Value)).ToList()));
+        }
+
+        foreach (var key in _deletes)
+        {
+            rows.Add(new StagedRowExpectation(StagedRowKind.Delete, key.Values, _originals.GetValueOrDefault(key), []));
+        }
+
+        if (rows.Count == 0)
+        {
+            return null;
+        }
+
+        var columns = PrimaryKeyColumns.ToList();
+        foreach (var row in rows)
+        {
+            foreach (var column in row.Original?.Columns ?? [])
+            {
+                if (!columns.Contains(column))
+                {
+                    columns.Add(column);
+                }
+            }
+        }
+
+        var select = string.Join(", ", columns.Select(SqlIdentifier.Quote));
+        var keyList = string.Join(", ", PrimaryKeyColumns.Select(SqlIdentifier.Quote));
+        var target = PrimaryKeyColumns.Count == 1 ? keyList : $"({keyList})";
+
+        var statements = rows.Chunk(Math.Max(1, chunkSize)).Select(chunk =>
+        {
+            var parameters = new Dictionary<string, object?>();
+            var tuples = chunk.Select((row, n) =>
+            {
+                var parts = new List<string>(PrimaryKeyColumns.Count);
+                for (var i = 0; i < PrimaryKeyColumns.Count; i++)
+                {
+                    var name = $"k{n}_{i}";
+                    parameters[name] = row.KeyValues[i];
+                    parts.Add(KeyParameter(name, i));
+                }
+
+                return parts.Count == 1 ? parts[0] : $"({string.Join(", ", parts)})";
+            }).ToList();
+
+            return new ParameterizedStatement(
+                $"SELECT {select} FROM {QualifiedTable} WHERE {target} IN ({string.Join(", ", tuples)}) ORDER BY {keyList} FOR UPDATE",
+                parameters);
+        }).ToList();
+
+        return new StagedRowCheck(PrimaryKeyColumns, columns, rows, statements);
     }
 
     /// <summary>
@@ -171,7 +359,8 @@ public sealed class PendingChangeSet
 
             statements.Add(new ParameterizedStatement(
                 $"UPDATE {QualifiedTable} SET {string.Join(", ", sets)} WHERE {WherePkClause(row.Key, parameters)}",
-                parameters));
+                parameters,
+                ExpectedRowsAffected: 1));
         }
 
         foreach (var key in _deletes)
@@ -179,7 +368,8 @@ public sealed class PendingChangeSet
             var parameters = new Dictionary<string, object?>();
             statements.Add(new ParameterizedStatement(
                 $"DELETE FROM {QualifiedTable} WHERE {WherePkClause(key, parameters)}",
-                parameters));
+                parameters,
+                ExpectedRowsAffected: 1));
         }
 
         foreach (var insert in _inserts)
@@ -234,7 +424,7 @@ public sealed class PendingChangeSet
         var clauses = new List<string>(PrimaryKeyColumns.Count);
         for (var i = 0; i < PrimaryKeyColumns.Count; i++)
         {
-            clauses.Add($"{SqlIdentifier.Quote(PrimaryKeyColumns[i])} = @pk{i}");
+            clauses.Add($"{SqlIdentifier.Quote(PrimaryKeyColumns[i])} = {KeyParameter($"pk{i}", i)}");
             parameters[$"pk{i}"] = key.Values[i];
         }
 
@@ -242,7 +432,14 @@ public sealed class PendingChangeSet
     }
 
     private string WherePkScript(RowKey key) =>
-        string.Join(" AND ", PrimaryKeyColumns.Select((pk, i) => $"{SqlIdentifier.Quote(pk)} = {SqlLiteral.Format(key.Values[i])}"));
+        string.Join(" AND ", PrimaryKeyColumns.Select((pk, i) =>
+        {
+            var literal = SqlLiteral.Format(key.Values[i]);
+            return $"{SqlIdentifier.Quote(pk)} = {(_keyCastTypes[i] is { } cast ? $"CAST({literal} AS {cast})" : literal)}";
+        }));
+
+    private string KeyParameter(string name, int keyIndex) =>
+        _keyCastTypes[keyIndex] is { } cast ? $"CAST(@{name} AS {cast})" : $"@{name}";
 
     private ParameterizedStatement BuildInsertStatement(IReadOnlyList<PendingInsertValue> values)
     {

@@ -259,31 +259,77 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
     /// then comes from that block, and a failure auto-rolls it back like any
     /// other in-transaction statement. Returns the total rows affected.
     /// </summary>
-    public async Task<int> ApplyBatchAsync(IReadOnlyList<ParameterizedStatement> statements, CancellationToken ct)
+    public Task<int> ApplyBatchAsync(IReadOnlyList<ParameterizedStatement> statements, CancellationToken ct) =>
+        ApplyBatchAsync(statements, check: null, ct);
+
+    /// <summary>
+    /// <see cref="ApplyBatchAsync(IReadOnlyList{ParameterizedStatement}, CancellationToken)"/>
+    /// with safe mode's optimistic concurrency check in front of it. Before any
+    /// statement runs, <paramref name="check"/>'s rows are re-read
+    /// <c>FOR UPDATE</c> in the same transaction — waiting at most
+    /// <see cref="StagedRowCheck.LockTimeout"/> for a row another session holds —
+    /// and compared with the rows as the user saw them. A row changed or deleted
+    /// since then, a lock that never came free, or a statement that doesn't touch
+    /// exactly its <see cref="ParameterizedStatement.ExpectedRowsAffected"/> all
+    /// throw <see cref="StagedChangesConflictException"/> with the whole batch
+    /// rolled back. Inside an explicit user transaction the batch runs under a
+    /// savepoint so a conflict undoes only the batch, and the user's own block
+    /// stays open.
+    /// </summary>
+    public async Task<int> ApplyBatchAsync(IReadOnlyList<ParameterizedStatement> statements, StagedRowCheck? check, CancellationToken ct)
     {
         if (_transactionConnection is { } tx)
         {
+            const string Savepoint = "pgnimbus_staged_batch";
             var affected = 0;
-            foreach (var statement in statements)
+            try
             {
-                await using var txCommand = CreateCommand(statement, tx, transaction: null);
+                await ExecuteRawAsync(tx, null, $"SAVEPOINT {Savepoint}", ct);
+                if (check is not null)
+                {
+                    await VerifyStagedRowsAsync(check, tx, null, restoreLockTimeout: true, ct);
+                }
+
+                foreach (var statement in statements)
+                {
+                    await using var txCommand = CreateCommand(statement, tx, transaction: null);
+                    affected += CheckRowCount(statement, await txCommand.ExecuteNonQueryAsync(ct));
+                }
+
+                await ExecuteRawAsync(tx, null, $"RELEASE SAVEPOINT {Savepoint}", ct);
+            }
+            catch (StagedChangesConflictException)
+            {
+                // Undo just the batch: the user's block, and whatever they did
+                // in it before committing the staged set, survives.
                 try
                 {
-                    affected += await txCommand.ExecuteNonQueryAsync(ct);
+                    await ExecuteRawAsync(tx, null, $"ROLLBACK TO SAVEPOINT {Savepoint}", CancellationToken.None);
+                    await ExecuteRawAsync(tx, null, $"RELEASE SAVEPOINT {Savepoint}", CancellationToken.None);
                 }
                 catch (Exception ex) when (IsConnectionLoss(ex))
                 {
-                    // No live socket to send ROLLBACK down — the server already
-                    // destroyed the transaction itself when it dropped the
-                    // connection.
                     await AutoRollbackAsync(connectionLost: true);
-                    throw;
                 }
                 catch (PostgresException)
                 {
                     await AutoRollbackAsync();
-                    throw;
                 }
+
+                throw;
+            }
+            catch (Exception ex) when (IsConnectionLoss(ex))
+            {
+                // No live socket to send ROLLBACK down — the server already
+                // destroyed the transaction itself when it dropped the
+                // connection.
+                await AutoRollbackAsync(connectionLost: true);
+                throw;
+            }
+            catch (PostgresException)
+            {
+                await AutoRollbackAsync();
+                throw;
             }
 
             return affected;
@@ -307,11 +353,19 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
                 // any failure below undoes every statement already executed.
                 batchTransaction = await connection.BeginTransactionAsync(ct);
 
+                // A conflict throws out of here with the transaction still
+                // open, and the finally's dispose rolls it back — nothing from
+                // the batch lands.
+                if (check is not null)
+                {
+                    await VerifyStagedRowsAsync(check, connection, batchTransaction, restoreLockTimeout: false, ct);
+                }
+
                 var total = 0;
                 foreach (var statement in statements)
                 {
                     await using var command = CreateCommand(statement, connection, batchTransaction);
-                    total += await command.ExecuteNonQueryAsync(ct);
+                    total += CheckRowCount(statement, await command.ExecuteNonQueryAsync(ct));
                 }
 
                 committing = true;
@@ -345,6 +399,102 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
                 }
             }
         }
+    }
+
+    private static int CheckRowCount(ParameterizedStatement statement, int affected) =>
+        statement.ExpectedRowsAffected is { } expected && affected != expected
+            ? throw StagedChangesConflictException.UnexpectedRowCount(expected, affected)
+            : affected;
+
+    private static async Task ExecuteRawAsync(NpgsqlConnection connection, NpgsqlTransaction? transaction, string sql, CancellationToken ct)
+    {
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        await command.ExecuteNonQueryAsync(ct);
+    }
+
+    // Safe mode's concurrency check (see StagedRowCheck): lock and re-read the
+    // staged rows, then compare. Runs on the batch's own connection and
+    // transaction, so the rows it vouches for stay locked until the batch
+    // commits or rolls back — nobody can slip a change in between.
+    //
+    // lock_timeout is set transaction-locally so a row held by someone else's
+    // open transaction fails the check in seconds rather than hanging the
+    // commit. On the batch's own transaction that setting dies with it; inside
+    // the user's explicit transaction it would outlive the batch, so the old
+    // value is put back once the rows are locked (restoreLockTimeout).
+    private static async Task VerifyStagedRowsAsync(
+        StagedRowCheck check, NpgsqlConnection connection, NpgsqlTransaction? transaction, bool restoreLockTimeout, CancellationToken ct)
+    {
+        string? previousTimeout = null;
+        if (restoreLockTimeout)
+        {
+            await using var show = new NpgsqlCommand("SELECT current_setting('lock_timeout')", connection, transaction);
+            previousTimeout = (string?)await show.ExecuteScalarAsync(ct);
+        }
+
+        await SetLockTimeoutAsync(connection, transaction, $"{(int)StagedRowCheck.LockTimeout.TotalMilliseconds}ms", ct);
+
+        IReadOnlyList<string>? columnNames = null;
+        var rows = new List<object?[]>();
+        try
+        {
+            foreach (var statement in check.LockStatements)
+            {
+                await using var command = CreateCommand(statement, connection, transaction);
+                var reader = await command.ExecuteReaderAsync(CommandBehavior.Default, ct);
+                try
+                {
+                    // Same text-format fallback as the grid's browse reads, so a
+                    // composite column compares literal against literal. The
+                    // re-execution is harmless: re-locking rows this transaction
+                    // already holds changes nothing.
+                    if (BuildTextFallbackMask(reader) is { } textFallback)
+                    {
+                        await reader.DisposeAsync();
+                        command.UnknownResultTypeList = textFallback;
+                        reader = await command.ExecuteReaderAsync(CommandBehavior.Default, ct);
+                    }
+
+                    columnNames ??= Enumerable.Range(0, reader.FieldCount).Select(reader.GetName).ToList();
+                    while (await reader.ReadAsync(ct))
+                    {
+                        var row = new object?[reader.FieldCount];
+                        for (var i = 0; i < row.Length; i++)
+                        {
+                            row[i] = ReadValue(reader, i);
+                        }
+
+                        rows.Add(row);
+                    }
+                }
+                finally
+                {
+                    await reader.DisposeAsync();
+                }
+            }
+        }
+        catch (PostgresException pg) when (pg.SqlState is PostgresErrorCodes.LockNotAvailable or PostgresErrorCodes.DeadlockDetected)
+        {
+            throw StagedChangesConflictException.Locked(pg);
+        }
+
+        if (previousTimeout is not null)
+        {
+            await SetLockTimeoutAsync(connection, transaction, previousTimeout, ct);
+        }
+
+        var conflicts = check.Evaluate(columnNames ?? check.SelectedColumns, rows);
+        if (conflicts.Count > 0)
+        {
+            throw new StagedChangesConflictException(conflicts);
+        }
+    }
+
+    private static async Task SetLockTimeoutAsync(NpgsqlConnection connection, NpgsqlTransaction? transaction, string value, CancellationToken ct)
+    {
+        await using var command = new NpgsqlCommand("SELECT set_config('lock_timeout', @value, true)", connection, transaction);
+        command.Parameters.AddWithValue("value", value);
+        await command.ExecuteNonQueryAsync(ct);
     }
 
     private static NpgsqlCommand CreateCommand(ParameterizedStatement statement, NpgsqlConnection connection, NpgsqlTransaction? transaction)
@@ -809,6 +959,10 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
     /// the placeholder rather than pattern-matching its shape.
     /// </summary>
     public static string UnreadableCell(string dataTypeName) => $"<unreadable {dataTypeName}>";
+
+    /// <summary>True for a value <see cref="UnreadableCell"/> produced.</summary>
+    public static bool IsUnreadableCell(object? value) =>
+        value is string s && s.StartsWith("<unreadable ", StringComparison.Ordinal) && s.EndsWith('>');
 
     // A column whose type has no client-side mapping can't even report a CLR type:
     // GetFieldType throws the same "not supported" exception GetValue does, which

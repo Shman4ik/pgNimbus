@@ -1156,15 +1156,37 @@ public partial class MainWindow : Window
 
         // Long-form summary here; the status bar's text is deliberately terse.
         var summary = $"{pending.Count} staged change{(pending.Count == 1 ? "" : "s")} · {pending.Schema}.{pending.Table}";
-        var dialog = new PendingChangesDialog(summary, pending.BuildScript(), pending.Count);
+        var dialog = new PendingChangesDialog(summary, pending.BuildScript(), pending.Count, pending.UncheckedColumns);
         var result = await dialog.ShowDialog<PendingChangesDialog.Result>(this);
         switch (result)
         {
             case PendingChangesDialog.Result.Commit:
                 await query.CommitPendingCommand.ExecuteAsync(null);
+                if (query.LastCommitConflict is { } conflict)
+                {
+                    await ShowStagedConflictAsync(query, conflict);
+                }
+
                 break;
             case PendingChangesDialog.Result.Discard:
                 await query.DiscardPendingCommand.ExecuteAsync(null);
+                break;
+        }
+    }
+
+    // A commit rolled back by the concurrency check: show before / current /
+    // proposed, then act on the user's way out. Closing leaves the set staged
+    // exactly as it was, with the explanation still in the status bar.
+    private async Task ShowStagedConflictAsync(QueryViewModel query, StagedChangesConflictException conflict)
+    {
+        var choice = await new StagedConflictDialog(conflict).ShowDialog<StagedConflictDialog.Result>(this);
+        switch (choice)
+        {
+            case StagedConflictDialog.Result.Restage:
+                await query.RestageAfterConflictAsync();
+                break;
+            case StagedConflictDialog.Result.UnstageConflicts:
+                await query.UnstageConflictsAsync();
                 break;
         }
     }

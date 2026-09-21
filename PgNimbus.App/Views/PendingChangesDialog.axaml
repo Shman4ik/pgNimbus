@@ -7,14 +7,17 @@
         WindowStartupLocation="CenterOwner"
         FontFamily="{StaticResource InterFont}">
 
-    <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="16">
+    <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" Margin="16">
 
         <TextBlock Grid.Row="0" Name="SummaryText" FontWeight="SemiBold" FontSize="14" Margin="0,0,0,4" />
 
-        <TextBlock Grid.Row="1" FontSize="11" Opacity="0.55" TextWrapping="Wrap" Margin="0,0,0,10"
-                   Text="This SQL runs as one transaction when you commit — everything applies, or nothing does. Values are shown inline for review; execution is parameterized." />
+        <TextBlock Grid.Row="1" FontSize="11" Opacity="0.55" TextWrapping="Wrap" Margin="0,0,0,6"
+                   Text="This SQL runs as one transaction when you commit — everything applies, or nothing does. Each edited or deleted row is first re-read and locked: if another session changed or deleted it since you loaded it, the whole commit rolls back and shows you what changed. Values are shown inline for review; execution is parameterized." />
 
-        <Border Grid.Row="2" Classes="card" Padding="8">
+        <TextBlock Grid.Row="2" Name="UncheckedText" IsVisible="False" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10"
+                   Foreground="{DynamicResource AppWarningBrush}" />
+
+        <Border Grid.Row="3" Classes="card" Padding="8" Margin="0,4,0,0">
             <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                 <SelectableTextBlock Name="SqlText"
                                      FontFamily="Cascadia Code,Consolas,Menlo,monospace"
@@ -22,7 +25,7 @@
             </ScrollViewer>
         </Border>
 
-        <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" Margin="0,12,0,0">
+        <StackPanel Grid.Row="4" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" Margin="0,12,0,0">
             <Button Name="CommitButton" Classes="accent" Content="Commit" Click="OnCommitClick" />
             <Button Classes="soft danger" Content="Discard all" Click="OnDiscardClick" />
             <Button Classes="soft" Content="Cancel" Click="OnCancelClick" />

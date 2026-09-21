@@ -65,6 +65,7 @@ public static class Scenarios
         ("security-role-dialog", SecurityRoleDialog),
         ("security-drop-role-dialog", SecurityDropRoleDialog),
         ("save-query-dialog", SaveQueryDialogShot),
+        ("staged-conflict-dialog", StagedConflictDialogShot),
         ("shortcuts-window", Shortcuts),
         ("preferences-window", Preferences),
         ("about-window", About),
@@ -251,6 +252,22 @@ public static class Scenarios
     /// name-already-taken state — the one branch with anything to look at, and
     /// the one that keeps the list from filling with rows sharing a name.
     /// </summary>
+    /// <summary>
+    /// A safe-mode commit rolled back by the concurrency check: one row another
+    /// session changed (a column nobody staged), one it deleted, over a
+    /// composite key with NULLs on both sides of the comparison.
+    /// </summary>
+    public static Window StagedConflictDialogShot()
+    {
+        string[] columns = ["order_id", "line", "qty", "status", "note"];
+        var set = new PendingChangeSet("sales", "order_lines", ["order_id", "line"]);
+        set.StageEdit([1042, 1], "qty", 5, original: new RowSnapshot(columns, [1042, 1, 2, "packed", null]));
+        set.StageDelete([1042, 3], new RowSnapshot(columns, [1042, 3, 1, "packed", "gift wrap"]));
+        var conflicts = set.BuildRowCheck()!.Evaluate(columns, [[1042, 1, 2, "shipped", "rush — customer called"]]);
+
+        return new StagedConflictDialog(new StagedChangesConflictException(conflicts)) { Width = 760, Height = 520 };
+    }
+
     public static Window SaveQueryDialogShot()
     {
         var taken = new SavedQuery(Guid.NewGuid(), "Daily revenue", "SELECT 1;", DateTimeOffset.Now);

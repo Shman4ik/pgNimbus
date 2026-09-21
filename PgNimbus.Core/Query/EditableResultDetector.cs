@@ -31,6 +31,14 @@ public enum EditBlocker
 
     /// <summary>The table has a primary key, but the result doesn't include all of it.</summary>
     PrimaryKeyNotSelected,
+
+    /// <summary>
+    /// A primary-key column's type has no client-side reading (an unmapped
+    /// composite, an extension type with no plugin), so its cells are
+    /// placeholders: a row's identity can't be sent back to target it, and
+    /// staging against it would check nothing.
+    /// </summary>
+    UnreadableKey,
 }
 
 /// <summary>
@@ -142,7 +150,22 @@ public static class EditableResultDetector
             return EditBlocker.PrimaryKeyNotSelected;
         }
 
+        if (FindUnreadableKey(resultColumns, pk) is not null)
+        {
+            return EditBlocker.UnreadableKey;
+        }
+
         primaryKey = pk;
         return EditBlocker.None;
     }
+
+    /// <summary>
+    /// The first primary-key column whose values the client can't read (its CLR
+    /// type resolved to <see cref="object"/> — see <c>QueryEngine.FieldType</c>),
+    /// or null when every key part reads as a real value. A key column that
+    /// came back through the text-format fallback reads as a string literal and
+    /// is fine: the literal casts back to the key's type.
+    /// </summary>
+    public static ColumnInfo? FindUnreadableKey(IReadOnlyList<ColumnInfo> resultColumns, IReadOnlyList<string> primaryKey) =>
+        resultColumns.FirstOrDefault(c => c.ClrType == typeof(object) && primaryKey.Contains(c.Name, StringComparer.Ordinal));
 }
