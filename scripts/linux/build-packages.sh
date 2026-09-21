@@ -110,7 +110,7 @@ Architecture: $DEB_ARCH
 Installed-Size: $INSTALLED_SIZE_KB
 Maintainer: Dmitrii Shmanev <shman4ik@gmail.com>
 Homepage: https://github.com/Shman4ik/pgNimbus
-Depends: libx11-6, libice6, libsm6, libfontconfig1, libfreetype6, libxext6, libxi6, libxcursor1, libxinerama1, libxrandr2
+Depends: libx11-6, libice6, libsm6, libfontconfig1, libfreetype6, libxext6, libxi6, libxcursor1, libxinerama1, libxrandr2, libsecret-1-0
 Description: Fast, open-source PostgreSQL GUI client
  A PostgreSQL-first database client built with .NET and Avalonia, compiled
  to a NativeAOT binary for instant startup. Streams large result sets while

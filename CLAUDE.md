@@ -163,10 +163,19 @@ Three rules about it:
    parked in a wait, and `NOTIFY` takes literals rather than parameters). pgAdmin
    needs a second session to produce a test event; this is one button.
 4. **No passwords on `ConnectionProfile`.** Passwords come from
-   `ICredentialStore` (DPAPI on Windows via `WindowsDpapiCredentialStore`, a
-   permission-restricted file fallback elsewhere via
-   `PlainFileCredentialStore`) at connect time, never persisted on the
-   profile record itself.
+   `ICredentialStore` (DPAPI-encrypted files on Windows, macOS Keychain via
+   SecItem APIs, Linux Secret Service via libsecret's non-variadic APIs), never
+   persisted on the profile record itself. `CredentialStore.Create` shares a
+   process-lifetime `RecoverableCredentialStore`: failed writes retain credentials
+   only in session memory and expose a visible warning. Legacy non-Windows `.cred`
+   files are read on profile load and removed only after native write/read verification;
+   unopened profiles retain their old files. A different existing native value wins
+   until explicit Save resolves the legacy copy. No new base64 files are written.
+   Connection-dialog store operations run off the UI thread; Connect awaits initial
+   credential loading. Linux calls are cancellable after 15 seconds and require
+   libsecret plus a running Secret Service. macOS disallows interactive Keychain
+   authorization prompts and reports denied/locked access as unavailable storage.
+   Tests/previews use `MemoryCredentialStore`, never the user's real keychain.
 5. **Crashes are logged and shown, never silent.** Critical/unhandled errors
    append to a plain-text log at `<appdata>/pgNimbus/logs/pgnimbus.log`
    (`PgNimbus.Core.Diagnostics.CrashLog` does the file I/O — directory-injectable
@@ -1346,9 +1355,9 @@ How the fixtures work, and why they're shaped this way:
   own `SavedQueryStore`/`QueryHistoryStore`, `Fixtures` clears what those loaded
   before seeding its own — otherwise a screenshot would carry whatever is in the
   running developer's saved queries and history. The connection-dialog scenario
-  points `ConnectionProfileStore`/`PlainFileCredentialStore` at a throwaway
-  directory for the same reason: their real paths are the developer's own saved
-  connections and passwords.
+  points `ConnectionProfileStore` at a throwaway directory and uses
+  `MemoryCredentialStore`, so it never opens the developer's saved connections
+  or native password store.
 
 ## Headless UI tests (`PgNimbus.App.Tests`)
 

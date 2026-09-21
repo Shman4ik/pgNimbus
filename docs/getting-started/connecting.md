@@ -22,9 +22,25 @@ hosting provider's dashboard and paste it in.
 
 ## Where your password goes
 
-Passwords are handed to the operating system's credential store at connect time:
-DPAPI on Windows, a permission-restricted file elsewhere. They are never written
-into the connection profile.
+**Save** remembers database and SSH passwords separately from the connection
+profile: DPAPI-encrypted files on Windows, Keychain on macOS, and Secret Service
+through libsecret on Linux. Connecting without saving does not persist the entered
+password. These stores can persist protected data on disk.
+
+Linux requires `libsecret-1.so.0` and a running Secret Service provider such as
+GNOME Keyring. If storage is unavailable or access is denied, the dialog warns
+and keeps entered passwords in memory for this app session. Unlock/configure
+the OS store and save again to retry. On macOS, Keychain access must be available
+without an interactive authorization prompt; resolve restrictions in Keychain Access.
+
+When an old macOS/Linux profile is opened, pgNimbus attempts to migrate its
+unencrypted base64 `.cred` files. It deletes an old file only after reading the
+saved password back from the OS store. On failure the old file stays and a warning
+appears; unopened profiles are not migrated yet. If a different OS-store value
+already exists, it takes precedence; saving explicitly resolves the old copy.
+Deleting a profile attempts to remove database and SSH credentials from both
+locations and reports failures. Query history and workspace SQL remain local,
+unencrypted data; credential protection does not encrypt them.
 
 That is a design rule rather than a setting. The profile record has no field to
 put a password in, so a profile file cannot leak one even if you copy it

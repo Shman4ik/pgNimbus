@@ -15,6 +15,17 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
     private readonly ConnectionProfileStore _store;
     private readonly ICredentialStore _credentialStore;
     private readonly Action<Guid?>? _persistLastProfileId;
+    private Task _credentialLoad = Task.CompletedTask;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CredentialsReady))]
+    [NotifyCanExecuteChangedFor(nameof(SaveCommand), nameof(DuplicateCommand), nameof(DeleteCommand), nameof(NewCommand))]
+    private bool _isCredentialBusy;
+
+    public bool CredentialsReady => !IsCredentialBusy;
+
+    [ObservableProperty]
+    private string? _credentialWarning;
 
     public ObservableCollection<ConnectionProfile> Profiles { get; } = [];
 
@@ -248,7 +259,7 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         Username = value.Username;
         SslMode = value.SslMode;
         AccentColor = value.AccentColor;
-        Password = _credentialStore.LoadPassword(value.Id) ?? string.Empty;
+        Password = string.Empty;
 
         UseSshTunnel = value.SshTunnel is not null;
         SshHost = value.SshTunnel?.Host ?? string.Empty;
@@ -256,10 +267,27 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         SshUsername = value.SshTunnel?.Username ?? string.Empty;
         SshAuthMethod = value.SshTunnel?.AuthMethod ?? SshAuthMethod.Password;
         SshPrivateKeyPath = value.SshTunnel?.PrivateKeyPath ?? string.Empty;
-        SshPassword = _credentialStore.LoadPassword(DeriveSshCredentialId(value.Id)) ?? string.Empty;
+        SshPassword = string.Empty;
+        _credentialLoad = LoadCredentialsAsync(value);
     }
 
-    [RelayCommand]
+    private async Task LoadCredentialsAsync(ConnectionProfile profile)
+    {
+        IsCredentialBusy = true;
+        try
+        {
+            var passwords = await Task.Run(() => (
+                Db: _credentialStore.LoadPassword(profile.Id),
+                Ssh: _credentialStore.LoadPassword(DeriveSshCredentialId(profile.Id))));
+            if (SelectedProfile?.Id != profile.Id) return;
+            Password = passwords.Db ?? string.Empty;
+            SshPassword = passwords.Ssh ?? string.Empty;
+            CredentialWarning = _credentialStore.Warning;
+        }
+        finally { IsCredentialBusy = false; }
+    }
+
+    [RelayCommand(CanExecute = nameof(CredentialsReady))]
     private void New()
     {
         SelectedProfile = null;
@@ -282,8 +310,8 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         StatusMessage = null;
     }
 
-    [RelayCommand]
-    private void Save()
+    [RelayCommand(CanExecute = nameof(CredentialsReady))]
+    private async Task SaveAsync()
     {
         if (!TryBuildProfile(out var profile, out var error))
         {
@@ -303,17 +331,24 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
 
         _store.Save(Profiles);
 
-        if (!string.IsNullOrEmpty(Password))
+        var password = Password;
+        var sshPassword = UseSshTunnel ? SshPassword : string.Empty;
+        IsCredentialBusy = true;
+        try
         {
-            _credentialStore.SavePassword(profile.Id, Password);
+            await Task.Run(() =>
+            {
+                if (!string.IsNullOrEmpty(password)) _credentialStore.SavePassword(profile.Id, password);
+                else _credentialStore.DeletePassword(profile.Id);
+                if (!string.IsNullOrEmpty(sshPassword)) _credentialStore.SavePassword(DeriveSshCredentialId(profile.Id), sshPassword);
+                else _credentialStore.DeletePassword(DeriveSshCredentialId(profile.Id));
+            });
+            CredentialWarning = _credentialStore.Warning;
         }
-
-        if (UseSshTunnel && !string.IsNullOrEmpty(SshPassword))
-        {
-            _credentialStore.SavePassword(DeriveSshCredentialId(profile.Id), SshPassword);
-        }
+        finally { IsCredentialBusy = false; }
 
         SelectedProfile = profile;
+        await _credentialLoad;
     }
 
     /// <summary>
@@ -323,8 +358,8 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
     /// (a copy you have to re-enter the password for saves nothing), the name
     /// gets a " (copy)" suffix so the two are told apart in the list.
     /// </summary>
-    [RelayCommand]
-    private void Duplicate()
+    [RelayCommand(CanExecute = nameof(CredentialsReady))]
+    private async Task DuplicateAsync()
     {
         if (SelectedProfile is not { } source)
         {
@@ -335,17 +370,22 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         Profiles.Insert(Profiles.IndexOf(source) + 1, copy);
         _store.Save(Profiles);
 
-        if (_credentialStore.LoadPassword(source.Id) is { } password)
+        IsCredentialBusy = true;
+        try
         {
-            _credentialStore.SavePassword(copy.Id, password);
+            await Task.Run(() =>
+            {
+                if (_credentialStore.LoadPassword(source.Id) is { } password)
+                    _credentialStore.SavePassword(copy.Id, password);
+                if (_credentialStore.LoadPassword(DeriveSshCredentialId(source.Id)) is { } sshPassword)
+                    _credentialStore.SavePassword(DeriveSshCredentialId(copy.Id), sshPassword);
+            });
+            CredentialWarning = _credentialStore.Warning;
         }
-
-        if (_credentialStore.LoadPassword(DeriveSshCredentialId(source.Id)) is { } sshPassword)
-        {
-            _credentialStore.SavePassword(DeriveSshCredentialId(copy.Id), sshPassword);
-        }
+        finally { IsCredentialBusy = false; }
 
         SelectedProfile = copy;
+        await _credentialLoad;
     }
 
     [RelayCommand]
@@ -526,8 +566,8 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         _ => "prefer",
     };
 
-    [RelayCommand]
-    private void Delete()
+    [RelayCommand(CanExecute = nameof(CredentialsReady))]
+    private async Task DeleteAsync()
     {
         if (SelectedProfile is null)
         {
@@ -537,8 +577,17 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         var idToDelete = SelectedProfile.Id;
         Profiles.Remove(SelectedProfile);
         _store.Save(Profiles);
-        _credentialStore.DeletePassword(idToDelete);
-        _credentialStore.DeletePassword(DeriveSshCredentialId(idToDelete));
+        IsCredentialBusy = true;
+        try
+        {
+            await Task.Run(() =>
+            {
+                _credentialStore.DeletePassword(idToDelete);
+                _credentialStore.DeletePassword(DeriveSshCredentialId(idToDelete));
+            });
+            CredentialWarning = _credentialStore.Warning;
+        }
+        finally { IsCredentialBusy = false; }
         New();
     }
 
@@ -551,6 +600,8 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
     [RelayCommand]
     private async Task TestConnectionAsync()
     {
+        await _credentialLoad;
+        if (IsCredentialBusy) return;
         if (IsTesting || IsConnecting)
         {
             return;
@@ -600,6 +651,8 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
     [RelayCommand]
     private async Task ConnectAsync()
     {
+        await _credentialLoad;
+        if (IsCredentialBusy) return;
         // Guard re-entry: a double-click on a profile (which fires ConnectCommand)
         // could otherwise start a second connect and spin up a duplicate SSH
         // tunnel while the first is still in flight.

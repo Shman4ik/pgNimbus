@@ -134,7 +134,7 @@ Each release also ships `SHA256SUMS.txt` and a CycloneDX SBOM (`pgNimbus-<versio
    PGPASSWORD=s3cret psql -h db.example.com -p 5433 -U alice appdb
    ```
 
-3. **Connect.** Your password goes to the OS credential store (DPAPI on Windows), never to disk.
+3. **Connect.** Use **Save** to remember credentials: Windows encrypts local credential files with DPAPI; macOS uses Keychain; Linux uses Secret Service through libsecret. If storage is unavailable, the dialog warns and keeps the entered password in memory for this app session.
 4. **Run a query** with <kbd>Ctrl</kbd>+<kbd>Enter</kbd>, jump anywhere with the command palette (<kbd>Ctrl</kbd>+<kbd>K</kbd>), and press <kbd>F1</kbd> for the full shortcut cheat sheet.
 
 For scripted or repeated local testing, set `PGNIMBUS_CONN` (same formats as the paste box) to skip the dialog entirely:
@@ -184,7 +184,7 @@ dotnet run --project PgNimbus.App
 - **Server activity dashboard.** A live `pg_stat_activity` view with per-backend **cancel statement** and **terminate session**, so a runaway query is one click to stop, plus a **who-blocks-whom lock tree** (`pg_blocking_pids`): lock holders at the top, waiters nested beneath with the lock they're stuck on, and one-click cancel/terminate of the *blocker* to unstick everyone below it.
 - **Table & index sizes and usage.** Relation sizes right in the schema tree, plus a **Database Overview** panel: largest relations (heap/index split), seq-vs-index scan counts (missing-index suspects flagged), unused non-constraint indexes with the disk they waste, and buffer cache-hit ratios.
 - **LISTEN/NOTIFY monitor.** Subscribe to channels and watch notifications arrive live, with JSON payloads formatted and browsable as a tree rather than trimmed to one line. Channels are remembered per connection, a dropped connection is re-established with every channel re-subscribed, and you can publish a test notification from the window instead of opening a second session.
-- **Connection manager.** Saved profiles with per-connection accent colors (so production never looks like staging), SSH tunnels, and passwords held by the OS credential store, never written to disk.
+- **Connection manager.** Saved profiles with per-connection accent colors (so production never looks like staging), SSH tunnels, and protected password storage: DPAPI-encrypted files on Windows, Keychain on macOS, and Secret Service on Linux. Passwords are separate from connection profiles; unavailable storage falls back to session memory with a warning.
 - **Multiple simultaneous connections.** Open profiles in separate self-contained windows (own pool, listener, tunnel, workspace), so dev and prod sit side by side, or switch the current window's connection without restarting.
 
 ## 📸 Screenshots
@@ -283,7 +283,13 @@ mkdocs serve
 
 ## 🔒 Privacy
 
-pgNimbus sends **zero telemetry**. No usage analytics, no crash reporting, no update pings, no "anonymous statistics". The only network connections the app ever opens are the ones you configure: your PostgreSQL servers and, if you use them, your SSH tunnel hosts. Queries, schemas, credentials, and history never leave your machine (passwords live in the OS credential store, everything else in local JSON files under your user profile). The code is MIT-licensed and open, so you can verify this rather than take it on faith.
+pgNimbus sends **zero telemetry**. No usage analytics, no automatic crash uploads, no update pings, no "anonymous statistics". Database and SSH credentials are sent to the servers you configure; pgNimbus does not upload credentials, queries, schemas, or history to an analytics or account service. Saved passwords use DPAPI-encrypted local files on Windows, Keychain on macOS, and Secret Service through libsecret on Linux. These mechanisms may persist protected data on disk; passwords are never part of the connection-profile JSON.
+
+If the OS store is unavailable or locked, a visible warning explains that newly entered passwords may remain only in this app session. Linux needs `libsecret-1.so.0` and a running Secret Service provider such as GNOME Keyring. Unlock/configure the system store, then save the connection again. On macOS, access must be available without an interactive Keychain authorization prompt; use Keychain Access to resolve access restrictions before retrying.
+
+Older macOS/Linux versions wrote base64-encoded, **unencrypted** `.cred` files. Loading a saved profile attempts migration for both database and SSH credentials; the old file is removed only after the OS store returns the saved value. Failed migrations retain the old file and show a warning. A different existing OS-store value takes precedence and leaves the legacy file for an explicit save to resolve. Profiles never opened after upgrading are not migrated yet. Deleting a saved profile also attempts to remove both credential copies and reports failures.
+
+Query history, workspace SQL, and local diagnostic logs can contain sensitive SQL/data and are not encrypted by the credential store. SQL password-literal redaction is a limited safeguard, not general secret detection. The code is MIT-licensed and open, so storage behavior can be inspected.
 
 ## 🗺️ Roadmap
 
@@ -310,7 +316,7 @@ The existing foundations are substantial: staged grid changes, FK navigation, of
 
 Specific gaps drive the first priorities:
 
-- [CredentialStore](PgNimbus.Core/Connections/CredentialStore.cs) selects DPAPI on Windows but [a base64 file fallback](PgNimbus.Core/Connections/PlainFileCredentialStore.cs) on macOS/Linux. Base64 is not encryption. The README's blanket OS-store/no-password-on-disk wording above therefore needs correction alongside the platform work.
+- [CredentialStore](PgNimbus.Core/Connections/CredentialStore.cs) now selects protected platform storage with verified legacy migration and a visible session-memory fallback; see [Privacy](#-privacy) for storage details and remaining legacy files.
 - [PendingChangeSet](PgNimbus.Core/Query/PendingChangeSet.cs) targets updates/deletes by primary key, without an original-row version predicate. Reviewing SQL does not detect another session changing a row after it was loaded.
 - [ConnectionProfile](PgNimbus.Core/Connections/ConnectionProfile.cs) has connection colors and SSL modes, but no environment policy or configurable query deadline; its command timeout is currently unlimited.
 - [ExplainService](PgNimbus.Core/Query/ExplainService.cs) and [PlanAnalyzer](PgNimbus.Core/Query/PlanAnalyzer.cs) already parse and explain individual plans. Comparing saved runs is the next increment, not rebuilding visualization.
@@ -320,7 +326,7 @@ Specific gaps drive the first priorities:
 
 Ship these before a broad production-use or cross-platform launch. Scope labels are relative: **S** = contained change, **M** = workflow across a few components, **L** = substantial subsystem; they are not calendar estimates.
 
-- [ ] **T1 · Native credential storage and accurate privacy wording (M).** Add macOS Keychain and Linux Secret Service integration, migrate existing saved secrets only after verifying the destination, and offer session-only credentials when the store is unavailable. Make query-history/workspace retention explicit; existing SQL password redaction is not general sensitive-data protection. **Done when:** new saved passwords no longer use the base64 fallback, migration and locked/unavailable stores have tested recovery paths, and README/platform docs accurately describe storage. This is a prerequisite for the cross-platform privacy message.
+- [x] **T1 · Native credential storage and accurate privacy wording (M).** macOS Keychain and Linux Secret Service replace new base64-file writes; migration verifies the destination before deleting legacy files. Unavailable stores retain entered credentials in session memory with a warning. See [Privacy](#-privacy) for platform prerequisites, migration limits, and unencrypted query history/workspace data.
 - [ ] **T2 · Conflict-aware Safe mode (L).** Extend staged edits/deletes with optimistic concurrency checks and a before/current/proposed row comparison. **Done when:** a second session changing or deleting a staged row causes the entire batch to roll back with a useful conflict explanation; the user can reload and restage. Cover composite keys and NULLs, and clearly mark unsupported row identities. Build on the existing one-transaction commit; do not promise undo after commit.
 - [ ] **T3 · Production connection policies (L).** Add explicit dev/staging/production labels, an opt-in read-only session policy, per-profile statement/lock timeouts, and deliberate write enablement. Apply the policy consistently to the editor, grid, imports, schema/security actions, and diagnostic queries. **Done when:** reconnects and extra windows preserve it and a user can see the active environment and write state before execution. Explain the distinction between client safeguards and PostgreSQL role permissions; SQL keyword checks alone are insufficient.
 - [ ] **T4 · Row detail editor and visual filters (M).** Reuse existing type-aware cell editors in a keyboard-accessible name/value sidebar; add typed predicates, NULL filters, and visible generated SQL to table browsing. **Done when:** filtering happens on the server, arbitrary hand-written queries are not silently rewritten, and sidebar edits use the existing staged-change review. This removes daily friction for users coming from mature clients.
