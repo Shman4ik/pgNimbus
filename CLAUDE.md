@@ -1237,6 +1237,16 @@ csproj / WiX / MSIX manifest reference them unchanged:
   Also found live: a raw chip drew blank — its `TextTrimming` layout had been
   computed while the line was hidden. Chips shorten text in a converter
   (`Converters/ChipText`) instead.
+  **The chrome must not follow the caret.** Found live: the first keystroke in a
+  browse tab's editor ends browse mode (`OnSqlChanged`), and the chip line and
+  paging were bound to `Browse`, so they vanished as you typed and came back on
+  Run — the grid jumping under them, which read as the panel appearing at random.
+  They now bind to `QueryViewModel.ShownBrowse`, which outlives the edit and is
+  shown disabled/dimmed (`IsBrowseEdited`) until the next full run either brings
+  browse back (browse shape) or clears it (any other query).
+  Also found live: a raw chip drew blank — its `TextTrimming` layout had been
+  computed while the line was hidden. Chips shorten text in a converter
+  (`Converters/ChipText`) instead.
   One landmine: a chip label is a `TextBlock` inside the Button, not string
   `Content`, because string content treats `_` as an access key (`placed_at`
   rendered as `placedat`) — the same trap `EscapeMenuHeader` exists for.
