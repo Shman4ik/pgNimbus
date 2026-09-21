@@ -70,6 +70,7 @@ public static class Scenarios
         ("about-window", About),
         ("crash-window", Crash),
         ("connection-dialog", ConnectionDialog),
+        ("connection-credential-warning", ConnectionCredentialWarning),
     ];
 
     // --- Main window ------------------------------------------------------
@@ -404,7 +405,7 @@ public static class Scenarios
     /// <summary>
     /// The connection picker, with a few saved profiles.
     ///
-    /// Both stores are pointed at a throwaway directory that does not exist:
+    /// Profiles use a throwaway directory and credentials stay in memory:
     /// their real paths are the developer's own <c>connections.json</c> and
     /// saved passwords, and a screenshot run must never read — let alone
     /// publish — either.
@@ -414,7 +415,7 @@ public static class Scenarios
         var scratch = Path.Combine(Path.GetTempPath(), "pgnimbus-fixtures", Guid.NewGuid().ToString("N"));
         var viewModel = new ConnectionDialogViewModel(
             new ConnectionProfileStore(Path.Combine(scratch, "connections.json")),
-            new PlainFileCredentialStore(Path.Combine(scratch, "credentials")));
+            new MemoryCredentialStore());
 
         foreach (var profile in Fixtures.ConnectionProfiles())
         {
@@ -422,7 +423,24 @@ public static class Scenarios
         }
 
         viewModel.SelectedProfile = viewModel.Profiles[0];
+        // Loading is asynchronous now. Pump the screenshot-only dispatcher until
+        // the in-memory fixture is ready, so captures cannot race the busy state.
+        var deadline = Environment.TickCount64 + 5000;
+        while (viewModel.IsCredentialBusy && Environment.TickCount64 < deadline)
+        {
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            Thread.Sleep(1);
+        }
+        if (viewModel.IsCredentialBusy) throw new TimeoutException("Credential fixture did not finish loading.");
         return new PgNimbus.App.Views.ConnectionDialog { DataContext = viewModel, Width = 640, Height = 680 };
+    }
+
+    public static Window ConnectionCredentialWarning()
+    {
+        var window = ConnectionDialog();
+        var vm = (ConnectionDialogViewModel)window.DataContext!;
+        vm.CredentialWarning = "Password storage is unavailable or migration could not finish. You can connect using the password in this dialog, but changes may last only for this session. Check your OS credential store (Keychain on macOS; Secret Service and libsecret-1 on Linux), then save again. Existing legacy credential files are kept until migration is verified.";
+        return window;
     }
 
     /// <summary>The crash reporter, with a representative failure.</summary>

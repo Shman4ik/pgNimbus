@@ -131,7 +131,7 @@ Each release also ships `SHA256SUMS.txt` and a CycloneDX SBOM
 | --- | --- |
 | Connection profiles, saved queries, history, settings, workspace | `<appdata>/pgNimbus/` |
 | Crash log | `<appdata>/pgNimbus/logs/pgnimbus.log` |
-| Passwords | The OS credential store: DPAPI on Windows, a permission-restricted file elsewhere. Never the profile file. |
+| Passwords | DPAPI-encrypted files on Windows; Keychain on macOS; Secret Service via `libsecret-1.so.0` on Linux. Unavailable storage uses session memory with a visible warning. Never the profile file. Legacy unencrypted `.cred` files are migrated when profiles are opened, then removed only after verification. See [credential storage](connecting.md#where-your-password-goes). |
 
 On Windows `<appdata>` is `%AppData%`. On macOS and Linux it follows the
 platform's usual application-data location.

@@ -59,7 +59,7 @@ public sealed record ConnectionProfile(
         : $"{Username}@{Host}:{Port}/{Database}";
 
     // Callers resolve the password via ICredentialStore (DPAPI on Windows, a
-    // permission-restricted file fallback elsewhere) and pass it in here -
+    // Keychain on macOS, Secret Service on Linux) and pass it in here -
     // it never lives on this record itself.
     //
     // When tunneling through SSH, pass the tunnel's local endpoint as
