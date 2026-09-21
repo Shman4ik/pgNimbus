@@ -70,9 +70,21 @@
                      a query that isn't a browse page query has no chips, so there is
                      nothing that could rewrite it. Browse is null elsewhere, hence the
                      DataContext hop rather than ActiveTab.Browse.* paths. -->
-                <Panel DockPanel.Dock="Top" IsVisible="{Binding ActiveTab.IsBrowsing}">
+                <!-- ShownBrowse, not Browse: the line stays put (disabled, dimmed) while
+                     the page query is being edited, instead of vanishing on the first
+                     keystroke and reappearing on Run — see QueryViewModel.ShownBrowse. -->
+                <Panel DockPanel.Dock="Top" IsVisible="{Binding ActiveTab.ShowsBrowseChrome}"
+                       IsEnabled="{Binding !ActiveTab.IsBrowseEdited}"
+                       Classes.stale="{Binding ActiveTab.IsBrowseEdited}"
+                       ToolTip.ShowOnDisabled="True">
+                    <Panel.Styles>
+                        <Style Selector="Panel.stale">
+                            <Setter Property="Opacity" Value="0.5" />
+                            <Setter Property="ToolTip.Tip" Value="The query was edited: run it to update the filters" />
+                        </Style>
+                    </Panel.Styles>
                     <views:BrowseFilterBar Name="FilterBar"
-                                           x:DataType="vm:TableBrowseViewModel" DataContext="{Binding ActiveTab.Browse}"
+                                           x:DataType="vm:TableBrowseViewModel" DataContext="{Binding ActiveTab.ShownBrowse}"
                                            IsVisible="{Binding IsFilterBarVisible}" />
                 </Panel>
 

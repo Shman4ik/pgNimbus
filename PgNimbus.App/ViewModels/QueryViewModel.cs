@@ -123,7 +123,7 @@ public sealed partial class QueryViewModel : ObservableObject
     /// paging range ("Rows 1–100") already carries the same information — one
     /// fewer segment competing for the bar's width.
     /// </summary>
-    public string? RowCountStatusText => IsBrowsing ? null : RowCountText;
+    public string? RowCountStatusText => ShowsBrowseChrome ? null : RowCountText;
 
     partial void OnRowCountTextChanged(string? value) => OnPropertyChanged(nameof(RowCountStatusText));
 
@@ -471,6 +471,13 @@ public sealed partial class QueryViewModel : ObservableObject
             : null;
 
         await RunCoreAsync(Sql, trackAsFullRun: true);
+
+        if (shape is null && Browse is null)
+        {
+            // The whole buffer ran and it isn't a browse page query: the chips
+            // and paging it was showing no longer describe anything.
+            ShownBrowse = null;
+        }
 
         if (shape is not null && _browsedTable is { } browsed && !HasError && Browse is null)
         {
@@ -1273,7 +1280,32 @@ public sealed partial class QueryViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(IsBrowsing));
         OnPropertyChanged(nameof(RowCountStatusText));
+        OnPropertyChanged(nameof(IsBrowseEdited));
+        if (value is not null)
+        {
+            ShownBrowse = value;
+        }
     }
+
+    /// <summary>
+    /// The browse state the filter chips and the paging controls show. It
+    /// outlives <see cref="Browse"/> across a hand edit: the first keystroke in
+    /// the editor ends browse mode (so nothing can recompose over the edit),
+    /// but tearing the chip line and the paging out of the layout on that
+    /// keystroke made them appear and vanish as you typed, and the grid jump
+    /// under them. So they stay, disabled (<see cref="IsBrowseEdited"/>), until
+    /// the next run decides: an edited query that still has the browse shape
+    /// brings browse mode back with its chips; any other query clears this.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsBrowseEdited), nameof(ShowsBrowseChrome), nameof(RowCountStatusText))]
+    private TableBrowseViewModel? _shownBrowse;
+
+    /// <summary>True while the page query has been edited since it last ran as a browse page: the chips and paging are shown but stale.</summary>
+    public bool IsBrowseEdited => Browse is null && ShownBrowse is not null;
+
+    /// <summary>Drives the chip line's and the paging controls' visibility.</summary>
+    public bool ShowsBrowseChrome => ShownBrowse is not null;
 
     /// <summary>
     /// Enters no-SQL browse mode for a table and loads its first page. Paging

@@ -357,6 +357,35 @@ public class RowDetailAndFilterTests
     }
 
     [Test]
+    public async Task Editing_a_browse_query_keeps_the_filter_line_in_place_but_disabled()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, vm) = Scenarios.Shell();
+            Ui.Show(window);
+            var tab = vm.ActiveTab;
+            var (browse, _) = Browse();
+            await browse.AddAndApplyFilterAsync("total", FilterOperator.Greater, "6");
+            tab.Browse = browse;
+            Ui.Settle();
+            var bar = window.GetVisualDescendants().OfType<BrowseFilterBar>().Single();
+            await Assert.That(bar.IsEffectivelyVisible).IsTrue();
+
+            // One keystroke's worth of edit: browse mode ends (nothing may
+            // recompose over it), but the line must not vanish under the caret.
+            tab.Sql += " ";
+            Ui.Settle();
+
+            await Assert.That(tab.Browse).IsNull();
+            await Assert.That(tab.IsBrowseEdited).IsTrue();
+            await Assert.That(bar.IsEffectivelyVisible).IsTrue();
+            await Assert.That(bar.IsEffectivelyEnabled).IsFalse();
+
+            window.Close();
+        });
+    }
+
+    [Test]
     public async Task Row_details_need_no_setting()
     {
         await Ui.Run(async () =>

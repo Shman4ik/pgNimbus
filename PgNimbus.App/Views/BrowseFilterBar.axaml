@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:PgNimbus.App.ViewModels"
              xmlns:views="using:PgNimbus.App.Views"
+             xmlns:conv="using:PgNimbus.App.Converters"
              x:Class="PgNimbus.App.Views.BrowseFilterBar"
              x:DataType="vm:TableBrowseViewModel">
     <!-- Browse mode's filter chips: one line, only while something filters the rows
@@ -70,9 +71,12 @@
                         <DataTemplate x:DataType="x:String">
                             <Border Classes="filterchip raw">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="{Binding}" FontSize="11.5" MaxWidth="320"
+                                    <!-- Shortened by the converter, not TextTrimming: a trimmed
+                                         TextBlock laid out while the line was hidden drew
+                                         nothing at all once it showed (a blank chip). -->
+                                    <TextBlock Text="{Binding Converter={x:Static conv:ChipText.Shorten}}" FontSize="11.5"
                                                FontFamily="Cascadia Code,Consolas,Menlo,monospace"
-                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                                               VerticalAlignment="Center"
                                                Margin="10,0,4,0" ToolTip.Tip="{Binding}" />
                                     <Button Classes="chip x" Content="✕"
                                             Command="{Binding $parent[views:BrowseFilterBar].((vm:TableBrowseViewModel)DataContext).ClearRawFilterCommand}"
