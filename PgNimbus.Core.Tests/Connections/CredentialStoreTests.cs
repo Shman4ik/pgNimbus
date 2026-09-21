@@ -151,6 +151,28 @@ public class CredentialStoreTests
     }
 
     [Test]
+    public async Task Unavailable_native_store_uses_session_memory()
+    {
+        if (Environment.GetEnvironmentVariable("PGNIMBUS_TEST_CREDENTIAL_STORE_UNAVAILABLE") != "1")
+            Skip.Test("Requires an isolated locked Keychain or unavailable Secret Service.");
+        ICredentialStore native = OperatingSystem.IsMacOS() ? new MacKeychainCredentialStore()
+            : new LinuxSecretServiceCredentialStore();
+        var id = Guid.NewGuid();
+        try
+        {
+            var session = new RecoverableCredentialStore(native);
+            session.SavePassword(id, "session-only-test-password");
+            await Assert.That(session.Warning).IsNotNull();
+            await Assert.That(session.LoadPassword(id)).IsEqualTo("session-only-test-password");
+        }
+        finally
+        {
+            try { native.DeletePassword(id); }
+            catch (CredentialStoreException) { /* Expected while locked/unavailable. */ }
+        }
+    }
+
+    [Test]
     public async Task Native_store_round_trip()
     {
         if (Environment.GetEnvironmentVariable("PGNIMBUS_TEST_CREDENTIAL_STORE") != "1")
