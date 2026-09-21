@@ -15,7 +15,12 @@ public sealed class MacKeychainCredentialStore : ICredentialStore
     {
         using var query = new KeychainQuery(connectionId);
         using var values = new CfDictionary();
-        var bytes = Encoding.UTF8.GetBytes(password);
+        // A legacy file-based Keychain can treat zero-length update data as
+        // "leave unchanged". A version byte makes even an empty password an
+        // explicit, non-empty payload inside the OS-protected item.
+        var bytes = new byte[Encoding.UTF8.GetByteCount(password) + 1];
+        bytes[0] = 1;
+        Encoding.UTF8.GetBytes(password, bytes.AsSpan(1));
         try
         {
             values.Data("kSecValueData", bytes);
@@ -50,7 +55,8 @@ public sealed class MacKeychainCredentialStore : ICredentialStore
             try
             {
                 Marshal.Copy(CFDataGetBytePtr(data), bytes, 0, bytes.Length);
-                return Encoding.UTF8.GetString(bytes);
+                if (bytes.Length == 0 || bytes[0] != 1) throw new CredentialStoreException();
+                return Encoding.UTF8.GetString(bytes.AsSpan(1));
             }
             finally { System.Security.Cryptography.CryptographicOperations.ZeroMemory(bytes); }
         }
