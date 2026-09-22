@@ -374,6 +374,24 @@
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
     </Style>
 
+    <!-- A highlight Enter would not accept (a list that opened by itself, nothing
+         chosen, no prefix typed): an outline instead of the fill, so a tentative
+         pick and a real one look different. Tab still takes it. -->
+    <Style Selector="cc|CompletionListBox.tentative ListBoxItem:selected">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="{StaticResource AppSelectionBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
+    <!-- A highlight Enter would not accept (a list that opened by itself, nothing
+         chosen, no prefix typed): an outline instead of the fill, so a tentative
+         pick and a real one look different. Tab still takes it. -->
+    <Style Selector="cc|CompletionListBox.tentative ListBoxItem:selected">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="{StaticResource AppSelectionBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
     <!-- The argument hint above a call: the same card language as the completion tip -->
     <Style Selector="Border.signatureHint">
         <Setter Property="Background" Value="{DynamicResource SystemControlPageBackgroundAltHighBrush}" />

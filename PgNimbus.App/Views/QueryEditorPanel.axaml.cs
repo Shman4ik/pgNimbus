@@ -61,6 +61,8 @@ public partial class QueryEditorPanel : UserControl
     // kept selected across re-filtering while it still matches, instead of
     // being overridden by whichever row ranks first after the next keystroke.
     private string? _userPickedCompletion;
+    // The open list was asked for (Ctrl+Space), not opened by a trigger.
+    private bool _completionExplicit;
     // Set while ApplyFuzzyFilter moves the selection itself, so that move isn't
     // mistaken for the user's pick.
     private bool _applyingCompletionFilter;
@@ -724,9 +726,18 @@ public partial class QueryEditorPanel : UserControl
 
         if (CommandBindings.Matches(CommandId.Completion, e))
         {
-            ShowCompletion();
+            ShowCompletion(explicitRequest: true);
             e.Handled = true;
             return;
+        }
+
+        // Enter takes a suggestion only when the user chose it or typed enough
+        // of it; otherwise the popup steps aside and Enter is a newline. Tab
+        // always takes it (the list handles that itself).
+        if (e.Key == Key.Enter && e.KeyModifiers == KeyModifiers.None && _completionWindow is { } open && !EnterAccepts(open))
+        {
+            open.Close();
+            return; // not handled: the editor writes the newline
         }
 
         if (CommandBindings.Matches(CommandId.ParameterHints, e))
@@ -857,12 +868,13 @@ public partial class QueryEditorPanel : UserControl
     // after "sel" filters on "sel" and accepting replaces all of it; the accept
     // itself replaces the whole token (see SqlCompletionData.Complete). Any
     // popup already open is closed first: one window, one set of handlers.
-    private void ShowCompletion(bool reopening = false)
+    private void ShowCompletion(bool reopening = false, bool explicitRequest = false)
     {
         _completionWindow?.Close();
         if (!reopening)
         {
             _reopenCompletionOnDelete = false;
+            _completionExplicit = explicitRequest;
         }
 
         var text = SqlEditor.Text;
@@ -948,6 +960,7 @@ public partial class QueryEditorPanel : UserControl
             if (!_applyingCompletionFilter && completionWindow.CompletionList.SelectedItem is SqlCompletionData item)
             {
                 _userPickedCompletion = item.StableId;
+                MarkTentative(completionWindow);
             }
         };
         completionWindow.CompletionList.ListBox.SelectionChanged += picked;
@@ -1024,8 +1037,41 @@ public partial class QueryEditorPanel : UserControl
             _applyingCompletionFilter = false;
         }
 
+        MarkTentative(completionWindow);
         return true;
     }
+
+    // The Enter rule (docs/design/sql-editing-experience.md §6.1): Enter accepts
+    // the highlighted row when the user chose it — opened the list with
+    // Ctrl+Space, or moved to a row with the arrows or the mouse — or when what
+    // they typed is that row's name or the start of it. A list that opened by
+    // itself (after FROM, WHERE, a comma) with nothing typed, or holding only a
+    // loose fuzzy match, lets Enter be a newline: finishing a line must not
+    // insert a column nobody asked for.
+    private bool EnterAccepts(CompletionWindow window)
+    {
+        if (_completionExplicit || _userPickedCompletion is not null)
+        {
+            return true;
+        }
+
+        if (window.CompletionList.SelectedItem is not SqlCompletionData selected)
+        {
+            return false;
+        }
+
+        var document = SqlEditor.Document;
+        var start = Math.Clamp(window.StartOffset, 0, document.TextLength);
+        var caret = Math.Clamp(SqlEditor.CaretOffset, start, document.TextLength);
+        var typed = document.GetText(start, caret - start);
+        return typed.Length > 0 && selected.Text.StartsWith(typed, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // A highlight Enter would not take is drawn as an outline rather than a
+    // fill (Theme.axaml, CompletionListBox.tentative), so the two states read
+    // differently before the key is pressed.
+    private void MarkTentative(CompletionWindow window) =>
+        window.CompletionList.ListBox?.Classes.Set("tentative", !EnterAccepts(window));
 
     // --- Argument hint ----------------------------------------------------
 

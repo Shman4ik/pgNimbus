@@ -364,7 +364,7 @@ public class CompletionEditorTests
         {
             var (window, _, editor) = Open("SELECT '1'|");
 
-            TypeKeys(window, "::");
+            TypeKeys(window, "::int");
             Ui.Press(window, Key.Enter);
 
             await Assert.That(Marked(editor)).IsEqualTo("SELECT '1'::integer|");
@@ -416,6 +416,75 @@ public class CompletionEditorTests
 
             // Enter wrote a newline: the stale list never opened to take it.
             await Assert.That(Marked(editor).ReplaceLineEndings("\n").EndsWith("WHERE c.nam\n|", StringComparison.Ordinal)).IsTrue();
+            window.Close();
+        });
+    }
+
+    // --- The Enter rule (§6.1): Enter takes only a chosen or confidently typed row ---
+
+    [Test]
+    public async Task Enter_after_a_list_that_opened_by_itself_is_a_newline()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, _, editor) = Open("SELECT * FROM public.orders o WHERE|");
+
+            Ui.Type(window, " "); // the space after WHERE opens the list unasked
+            Ui.Press(window, Key.Enter);
+
+            await Assert.That(Marked(editor).ReplaceLineEndings("\n")).IsEqualTo("SELECT * FROM public.orders o WHERE \n|");
+            window.Close();
+        });
+    }
+
+    [Test]
+    public async Task Enter_after_only_a_loose_fuzzy_match_is_a_newline_and_tab_still_accepts()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, _, editor) = Open("SELECT * FROM public.orders o WHERE o.|");
+
+            TypeKeys(window, "cid"); // matches customer_id only as a subsequence
+            Ui.Press(window, Key.Enter);
+            await Assert.That(Marked(editor).ReplaceLineEndings("\n")).IsEqualTo("SELECT * FROM public.orders o WHERE o.cid\n|");
+
+            editor.Text = "SELECT * FROM public.orders o WHERE o.";
+            editor.CaretOffset = editor.Text.Length;
+            TypeKeys(window, "cid");
+            Ui.Press(window, Key.Tab);
+            await Assert.That(Marked(editor)).IsEqualTo("SELECT * FROM public.orders o WHERE o.customer_id|");
+            window.Close();
+        });
+    }
+
+    [Test]
+    public async Task Enter_takes_a_row_the_user_moved_to()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, _, editor) = Open("SELECT * FROM public.orders o WHERE o|");
+
+            Ui.Type(window, "."); // opens the columns of o, nothing typed yet
+            Ui.Press(window, Key.Down);
+            Ui.Press(window, Key.Up);
+            Ui.Press(window, Key.Enter);
+
+            await Assert.That(Marked(editor)).IsEqualTo("SELECT * FROM public.orders o WHERE o.id|");
+            window.Close();
+        });
+    }
+
+    [Test]
+    public async Task Enter_takes_the_top_row_of_a_list_asked_for_with_ctrl_space()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, _, editor) = Open("SELECT * FROM public.orders o WHERE o.|");
+
+            Ui.Press(window, CommandId.Completion);
+            Ui.Press(window, Key.Enter);
+
+            await Assert.That(Marked(editor)).IsEqualTo("SELECT * FROM public.orders o WHERE o.id|");
             window.Close();
         });
     }
