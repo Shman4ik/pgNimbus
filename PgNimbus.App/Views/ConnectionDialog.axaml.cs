@@ -234,6 +234,10 @@ public partial class ConnectionDialog : Window
             // The visible preview masks the password - the clipboard gets the
             // real, usable connection string.
             await clipboard.SetTextAsync(vm.BuildClipboardConnectionString());
+            if (sender is Button button)
+            {
+                CopyFeedback.Show(button);
+            }
         }
         catch
         {

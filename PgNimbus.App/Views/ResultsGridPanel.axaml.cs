@@ -1063,6 +1063,10 @@ public partial class ResultsGridPanel : UserControl
         try
         {
             await clipboard.SetTextAsync(_model.CellInspector.DisplayText);
+            if (sender is Button button)
+            {
+                CopyFeedback.Show(button);
+            }
         }
         catch
         {
