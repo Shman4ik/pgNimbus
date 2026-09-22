@@ -582,11 +582,10 @@ public sealed partial class MainViewModel : ObservableObject
         // auto-rollback that fires from a background query thread.
         _engine.TransactionStateChanged += OnEngineTransactionStateChanged;
 
-        // Restore the last session's tabs for this connection, if any. Browse-mode
-        // tabs (table/function "source" views opened via ShowSourceAsync etc.) are
-        // deliberately restored as their composed page SQL - i.e. plain query
-        // tabs - rather than as live browse sessions; there is no saved browse
-        // state to reconstruct from.
+        // Restore the last session's tabs for this connection, if any. A browse
+        // tab comes back as its page SQL plus the name of its table: nothing is
+        // run or fetched at restore, and its first run of a browse-shaped query
+        // resumes browse mode, filter chips included (RestoreBrowsedTable).
         if (workspace is { Tabs.Count: > 0 })
         {
             foreach (var saved in workspace.Tabs)
@@ -601,6 +600,11 @@ public sealed partial class MainViewModel : ObservableObject
                 tab.TitleOverride = string.Equals(saved.Title, tab.TabTitle, StringComparison.Ordinal)
                     ? null
                     : saved.Title;
+
+                if (saved is { BrowseSchema: { } browseSchema, BrowseTable: { } browseTable })
+                {
+                    tab.RestoreBrowsedTable(browseSchema, browseTable);
+                }
 
                 // Best-effort reattach to the tab's saved file association. The
                 // restored buffer (saved.Sql, just set above) is kept as-is —

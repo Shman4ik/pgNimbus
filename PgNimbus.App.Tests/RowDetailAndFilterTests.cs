@@ -386,6 +386,28 @@ public class RowDetailAndFilterTests
     }
 
     [Test]
+    public async Task A_restored_tab_remembers_the_table_it_browses_without_fetching_anything()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, vm) = Scenarios.Shell();
+            Ui.Show(window);
+            var tab = vm.ActiveTab;
+            await Assert.That(tab.BrowsedTableName).IsNull();
+
+            tab.RestoreBrowsedTable("commerce", "customers");
+
+            // Named for the next snapshot, and nothing else: no browse mode yet
+            // (that waits for a run of a browse-shaped query), no chips.
+            await Assert.That(tab.BrowsedTableName).IsEqualTo(("commerce", "customers"));
+            await Assert.That(tab.Browse).IsNull();
+            await Assert.That(tab.ShowsBrowseChrome).IsFalse();
+
+            window.Close();
+        });
+    }
+
+    [Test]
     public async Task Row_details_need_no_setting()
     {
         await Ui.Run(async () =>

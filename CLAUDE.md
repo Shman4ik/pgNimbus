@@ -1191,6 +1191,13 @@ csproj / WiX / MSIX manifest reference them unchanged:
   whole WHERE, and parsing never guesses at an expression it can't reproduce.
   The FK hop's seeded condition is a raw condition too (`FilterText` is now a
   wrapper over `RawConditions`).
+  **It survives a restart.** `WorkspaceTab.BrowseSchema`/`BrowseTable` carry
+  the name of the table a tab browses (`QueryViewModel.BrowsedTableName`); a
+  restored tab gets `RestoreBrowsedTable`, and its *first run* reads the columns
+  (`LoadRestoredBrowseTableAsync`) — not the restore, which would cost a catalog
+  round-trip per tab on every launch — then resumes browse mode the same way a
+  hand-edited run does. Before this, every restored browse tab was a plain query
+  for good, so a typed WHERE never came back as chips after a restart.
   Four rules hold the pieces together:
   (a) **One set of type-aware inputs.** `Views/ColumnValueEditorView` (bound to a
   `NewRowField`) is the Add-row dialog's editor stack pulled out whole, and it is

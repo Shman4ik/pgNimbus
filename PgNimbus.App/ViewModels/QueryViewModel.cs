@@ -466,6 +466,11 @@ public sealed partial class QueryViewModel : ObservableObject
         // WHERE comes back as filter chips. The text the user typed is what
         // runs, unchanged; only a later explicit chip/page/sort action composes
         // the page query again.
+        if (Browse is null && _browsedTable is null && _restoredBrowseTable is { } restored)
+        {
+            await LoadRestoredBrowseTableAsync(restored.Schema, restored.Name);
+        }
+
         var shape = Browse is null && _browsedTable is { } table
             ? BrowseSqlParser.TryParse(Sql, table.Schema, table.Name, table.Columns)
             : null;
@@ -493,6 +498,59 @@ public sealed partial class QueryViewModel : ObservableObject
     // browse mode so a run of an edited page query can resume it. Null for a
     // tab that never browsed.
     private (string Schema, string Name, IReadOnlyList<ColumnDetail> Columns)? _browsedTable;
+
+    // A browsed table named by the workspace snapshot, whose columns haven't
+    // been read yet: they are fetched on the tab's first run, not at restore,
+    // so reopening a session costs no catalog round-trip per tab.
+    private (string Schema, string Name)? _restoredBrowseTable;
+
+    /// <summary>
+    /// The table this tab browses (or browsed before a hand edit, or was
+    /// restored as browsing), for the workspace snapshot; null for any other tab.
+    /// </summary>
+    public (string Schema, string Name)? BrowsedTableName =>
+        _browsedTable is { } table ? (table.Schema, table.Name) : _restoredBrowseTable;
+
+    /// <summary>
+    /// Marks a workspace-restored tab as browsing <paramref name="schema"/>.<paramref name="name"/>:
+    /// its first run of a browse-shaped query resumes browse mode, chips and all.
+    /// Nothing is fetched or run here.
+    /// </summary>
+    public void RestoreBrowsedTable(string schema, string name) => _restoredBrowseTable = (schema, name);
+
+    // Reads the restored table's columns so the run about to happen can be
+    // recognised as its page query. Best-effort: a table dropped since the
+    // snapshot, or a failed lookup, leaves the tab an ordinary query tab.
+    private async Task LoadRestoredBrowseTableAsync(string schema, string name)
+    {
+        _restoredBrowseTable = null;
+        if (_schemaService is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var columns = await _schemaService.GetColumnsAsync(schema, name, CancellationToken.None);
+            if (columns.Count > 0)
+            {
+                RememberBrowsedTable(schema, name, columns);
+            }
+        }
+        catch
+        {
+            // Not fatal to the run: the query still runs, just as a plain query.
+        }
+    }
+
+    // Everything browse mode needs to know about its table, set in one place
+    // for a fresh browse and for a resumed one alike.
+    private void RememberBrowsedTable(string schema, string name, IReadOnlyList<ColumnDetail> columns)
+    {
+        _browseColumns = columns;
+        _browsePkColumns = columns.Where(c => c.IsPrimaryKey).Select(c => c.Name).ToList();
+        _browsedTable = (schema, name, columns);
+    }
 
     // The status bar's "always show the filter bar" preference, read when a
     // browse view model is created (MainViewModel pushes later changes).
@@ -1315,9 +1373,7 @@ public sealed partial class QueryViewModel : ObservableObject
     /// </summary>
     public Task StartBrowseAsync(string schema, string name, IReadOnlyList<ColumnDetail> columns, string? initialFilter = null)
     {
-        _browseColumns = columns;
-        _browsePkColumns = columns.Where(c => c.IsPrimaryKey).Select(c => c.Name).ToList();
-        _browsedTable = (schema, name, columns);
+        RememberBrowsedTable(schema, name, columns);
         Browse = new TableBrowseViewModel(schema, name, columns, RunBrowseSqlAsync)
         {
             AlwaysShowBar = _showFilterBar?.Invoke() ?? false,
