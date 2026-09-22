@@ -13,8 +13,19 @@ namespace PgNimbus.Core.Settings;
 /// <paramref name="FilePath"/> and <paramref name="SavedQueryId"/> are null for
 /// a scratch tab; a workspace.json written before either field existed still
 /// deserializes with it defaulting to null.
+/// <paramref name="BrowseSchema"/>/<paramref name="BrowseTable"/> name the table a
+/// tab was opened to browse, so after a restart a run of its page query can
+/// resume browse mode (filter chips included) instead of the tab being a plain
+/// query for good. Only the name is kept: the columns are read fresh from the
+/// catalog when it's needed, since the table may have changed in between.
 /// </summary>
-public sealed record WorkspaceTab(string Sql, string? Title = null, string? FilePath = null, Guid? SavedQueryId = null);
+public sealed record WorkspaceTab(
+    string Sql,
+    string? Title = null,
+    string? FilePath = null,
+    Guid? SavedQueryId = null,
+    string? BrowseSchema = null,
+    string? BrowseTable = null);
 
 /// <summary>A saved snapshot of one connection's open tabs, most-recently-saved entries kept first in the store.</summary>
 public sealed record WorkspaceEntry(string Connection, DateTimeOffset SavedAt, List<WorkspaceTab> Tabs, int ActiveTabIndex = 0);

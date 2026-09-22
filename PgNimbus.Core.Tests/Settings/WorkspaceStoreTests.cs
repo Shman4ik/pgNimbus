@@ -33,6 +33,50 @@ public class WorkspaceStoreTests
     }
 
     [Test]
+    public async Task SaveThenGetEntry_RoundTripsTheBrowsedTable()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"pgnimbus-{Guid.NewGuid():N}.json");
+
+        try
+        {
+            var store = new WorkspaceStore(path);
+            store.Save("localhost/demo", [new("SELECT * FROM \"commerce\".\"customers\" LIMIT 100", BrowseSchema: "commerce", BrowseTable: "customers")], 0);
+
+            var tab = store.GetEntry("localhost/demo")!.Tabs[0];
+
+            await Assert.That(tab.BrowseSchema).IsEqualTo("commerce");
+            await Assert.That(tab.BrowseTable).IsEqualTo("customers");
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
+    public async Task A_workspace_written_before_browse_state_existed_still_loads()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"pgnimbus-{Guid.NewGuid():N}.json");
+        await File.WriteAllTextAsync(path, """
+            [{ "Connection": "localhost/demo", "SavedAt": "2026-09-01T00:00:00+00:00",
+               "Tabs": [{ "Sql": "SELECT 1;" }], "ActiveTabIndex": 0 }]
+            """);
+
+        try
+        {
+            var tab = new WorkspaceStore(path).GetEntry("localhost/demo")!.Tabs[0];
+
+            await Assert.That(tab.Sql).IsEqualTo("SELECT 1;");
+            await Assert.That(tab.BrowseSchema).IsNull();
+            await Assert.That(tab.BrowseTable).IsNull();
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
     public async Task SaveThenGetEntry_RoundTripsTabsAndActiveIndex()
     {
         var path = Path.Combine(Path.GetTempPath(), $"pgnimbus-{Guid.NewGuid():N}.json");
