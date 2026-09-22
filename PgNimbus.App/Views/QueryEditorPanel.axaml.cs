@@ -67,6 +67,12 @@ public partial class QueryEditorPanel : UserControl
     // Set while ApplyFuzzyFilter moves the selection itself, so that move isn't
     // mistaken for the user's pick.
     private bool _applyingCompletionFilter;
+    // Set from a caret move until the open popup's own caret handler has run.
+    // The stock CompletionWindow answers every caret move with SelectItem on the
+    // typed prefix, picking a row by its own rules; that is not the user's pick
+    // either. Treating it as one pinned "orde" to order_items while orders
+    // ranked first, and Tab wrote order_items (found live 2026-09-22).
+    private bool _completionCaretMoving;
     // The last filter pass: the candidate list it ran over, the typed text, and
     // the indexes that matched — the pool the next, longer query starts from.
     private IReadOnlyList<SqlCompletionData>? _filterData;
@@ -175,6 +181,10 @@ public partial class QueryEditorPanel : UserControl
         SqlEditor.Options.HighlightCurrentLine = true;
         SqlEditor.TextArea.Caret.PositionChanged += (_, _) =>
         {
+            // Subscribed here, before any CompletionWindow exists, so this runs
+            // ahead of the window's own caret handler (see _completionCaretMoving);
+            // the per-window handler in PresentCompletion clears it.
+            _completionCaretMoving = _completionWindow is not null;
             UpdateBracketHighlight();
             if (_signatureHintActive)
             {
@@ -929,6 +939,7 @@ public partial class QueryEditorPanel : UserControl
         completionWindow.CompletionList.IsFiltering = false;
         completionWindow.StartOffset = CompletionEdits.TokenAt(text, caret).FilterStart;
         _userPickedCompletion = null;
+        _completionCaretMoving = false;
 
         if (!ApplyFuzzyFilter(completionWindow, data))
         {
@@ -944,6 +955,7 @@ public partial class QueryEditorPanel : UserControl
         // Registered after the window's own handler, so this runs second and wins.
         EventHandler caretMoved = (_, _) =>
         {
+            _completionCaretMoving = false; // the stock SelectItem has run by now
             if (_completionWindow != completionWindow)
             {
                 return; // already closed by the stock handler in this same event
@@ -961,7 +973,8 @@ public partial class QueryEditorPanel : UserControl
 
         EventHandler<SelectionChangedEventArgs> picked = (_, _) =>
         {
-            if (!_applyingCompletionFilter && completionWindow.CompletionList.SelectedItem is SqlCompletionData item)
+            if (!_applyingCompletionFilter && !_completionCaretMoving
+                && completionWindow.CompletionList.SelectedItem is SqlCompletionData item)
             {
                 _userPickedCompletion = item.StableId;
                 MarkTentative(completionWindow);
@@ -971,6 +984,7 @@ public partial class QueryEditorPanel : UserControl
 
         completionWindow.Closed += (_, _) =>
         {
+            _completionCaretMoving = false;
             SqlEditor.TextArea.Caret.PositionChanged -= caretMoved;
             completionWindow.CompletionList.ListBox.SelectionChanged -= picked;
             if (_completionWindow == completionWindow)

@@ -106,6 +106,9 @@ public class SqlCompletionContextTests
     // pose as the JOIN whose target is being checked.
     [Arguments("SELECT * FROM t /* join note */ JOIN orders o |")]
     [Arguments("SELECT 'self join', * FROM t JOIN orders o |")]
+    // The alias is written, so a word under way can only be ON/USING.
+    [Arguments("SELECT * FROM customers c JOIN public.orders o o|")]
+    [Arguments("SELECT * FROM customers c JOIN orders AS o us|")]
     public async Task IsAfterCompleteJoinTarget_TrueAfterFinishedTableAndAlias(string marked)
     {
         var (sql, caret) = AtCaret(marked);
@@ -131,6 +134,39 @@ public class SqlCompletionContextTests
     {
         var (sql, caret) = AtCaret(marked);
         await Assert.That(SqlCompletionContext.IsAfterCompleteJoinTarget(sql, caret)).IsFalse();
+    }
+
+    // --- IsAfterCompleteFromItem: the WHERE/JOIN/ORDER boost gate ---
+
+    [Test]
+    [Arguments("SELECT * FROM commerce.customers c w|")]
+    [Arguments("SELECT * FROM commerce.customers c |")]
+    [Arguments("SELECT * FROM customers |")]
+    [Arguments("SELECT * FROM customers AS c |")]
+    [Arguments("SELECT * FROM \"Order Items\" oi |")]
+    [Arguments("SELECT * FROM a, b x wh|")]
+    [Arguments("SELECT * FROM a WHERE id IN (SELECT 1 FROM b |")]
+    public async Task IsAfterCompleteFromItem_TrueAfterFinishedItem(string marked)
+    {
+        var (sql, caret) = AtCaret(marked);
+        await Assert.That(SqlCompletionContext.IsAfterCompleteFromItem(sql, caret)).IsTrue();
+    }
+
+    [Test]
+    [Arguments("SELECT * FROM |")]
+    [Arguments("SELECT * FROM cust|")]
+    [Arguments("SELECT * FROM commerce.|")]
+    [Arguments("SELECT * FROM a, |")]
+    [Arguments("SELECT * FROM customers AS |")]
+    [Arguments("SELECT * FROM customers WHERE |")]
+    [Arguments("SELECT * FROM customers ORDER BY |")]
+    [Arguments("SELECT * FROM a JOIN b ON a.id = b.id |")]
+    [Arguments("SELECT * FROM (SELECT 1) q |")]
+    [Arguments("SELECT 1 /* from t */ |")]
+    public async Task IsAfterCompleteFromItem_FalseElsewhere(string marked)
+    {
+        var (sql, caret) = AtCaret(marked);
+        await Assert.That(SqlCompletionContext.IsAfterCompleteFromItem(sql, caret)).IsFalse();
     }
 
     // --- IsAfterOnKeyword: the FK join-condition trigger ---

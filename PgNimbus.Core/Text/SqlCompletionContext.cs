@@ -449,7 +449,22 @@ public static partial class SqlCompletionContext
     /// </summary>
     public static bool IsAfterCompleteJoinTarget(string sql, int caret)
     {
-        var end = Math.Clamp(caret, 0, sql.Length);
+        caret = Math.Clamp(caret, 0, sql.Length);
+        if (IsJoinTargetCompleteAt(sql, caret, requireAlias: false))
+        {
+            return true;
+        }
+
+        // A word already under way after "JOIN customers c ": the alias is
+        // written, so that word can only be the condition's keyword ("o" of
+        // ON). Without an alias it could as well be the alias being typed, and
+        // stays unclaimed (found live 2026-09-22: "c o" + Tab wrote a table).
+        var wordStart = WordStart(sql, caret);
+        return wordStart < caret && IsJoinTargetCompleteAt(sql, wordStart, requireAlias: true);
+    }
+
+    private static bool IsJoinTargetCompleteAt(string sql, int end, bool requireAlias)
+    {
         // Masked so a "join" inside a comment or string literal before the
         // caret can't pose as the JOIN whose target we're checking.
         var before = MaskCommentsAndStrings(sql[..end]);
@@ -486,8 +501,56 @@ public static partial class SqlCompletionContext
             return false;
         }
 
+        if (!match.Groups["alias"].Success)
+        {
+            return !requireAlias;
+        }
+
+        return !ReservedAfterTable.Contains(Unquote(match.Groups["alias"].Value));
+    }
+
+    /// <summary>
+    /// True when the word at the caret (possibly empty) follows a finished FROM
+    /// item: a table name, an optional alias, then whitespace, as in
+    /// <c>FROM users u wh|</c>. No other relation can go there, so the words
+    /// worth offering are the clause keywords that can come next
+    /// (<c>WHERE</c>, <c>JOIN</c>, <c>ORDER</c> …). Unlike
+    /// <see cref="IsAfterCompleteJoinTarget"/> this reads the text up to the
+    /// start of the word being typed, not up to the caret, since the popup
+    /// usually opens on that word's first letter. A subquery or function item
+    /// is not recognised; those keep the ordinary table-position list.
+    /// </summary>
+    public static bool IsAfterCompleteFromItem(string sql, int caret)
+    {
+        var end = WordStart(sql, Math.Clamp(caret, 0, sql.Length));
+        var before = MaskCommentsAndStrings(sql[..end]);
+        var froms = FromKeywordRegex().Matches(before);
+        if (froms.Count == 0)
+        {
+            return false;
+        }
+
+        var last = froms[^1];
+        var segment = JoinSplitRegex().Split(before[(last.Index + last.Length)..])[^1];
+        var match = JoinTargetCompleteRegex().Match(segment);
+        if (!match.Success)
+        {
+            return false;
+        }
+
+        // "FROM users AS " / "FROM users WHERE " — a keyword read as the table or
+        // alias means the item isn't the last thing written.
+        var (schema, table) = SplitQualified(match.Groups["table"].Value);
+        if (schema.Length == 0 && ReservedAfterTable.Contains(table))
+        {
+            return false;
+        }
+
         return !match.Groups["alias"].Success || !ReservedAfterTable.Contains(Unquote(match.Groups["alias"].Value));
     }
+
+    [GeneratedRegex(@"\bfrom\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex FromKeywordRegex();
 
     /// <summary>
     /// Extracts the table references the statement operates on: every FROM clause

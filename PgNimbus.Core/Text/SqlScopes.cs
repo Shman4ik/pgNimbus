@@ -1142,7 +1142,12 @@ public sealed class SqlScopeModel
 
             if (Is(i, SqlTokenKind.Dot))
             {
-                i++; // "schema." still being typed
+                // "schema." still being typed: the last part is the qualifier,
+                // not a relation. Reading it as a table named "schema" made a
+                // "schema.|" caret resolve its qualifier to that phantom table
+                // (no columns) instead of listing the schema's tables.
+                i++;
+                return (parts[^1], "");
             }
 
             return parts.Count == 1 ? ("", parts[0]) : (parts[^2], parts[^1]);

@@ -556,6 +556,33 @@ public class CompletionEditorTests
 
     // --- Found live (2026-09-22) ---
 
+    // Typed "commerce." then "orde": the list showed orders on top but kept
+    // order_items highlighted, and Tab wrote order_items.
+    [Test]
+    public async Task Typing_after_a_schema_dot_preselects_the_best_match_not_an_earlier_row()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, vm, editor) = Open("SELECT * FROM public|");
+            vm.CompletionProvider.Load(new CompletionCatalog(
+                ["public"],
+                [
+                    new CompletionTable("public", "customers", [new TableColumn("customers", "id", "int4")]),
+                    new CompletionTable("public", "order_items", [new TableColumn("order_items", "id", "int4")]),
+                    new CompletionTable("public", "orders", [new TableColumn("orders", "id", "int4")]),
+                ],
+                [],
+                [],
+                ["public"]));
+
+            TypeKeys(window, ".orde");
+            Ui.Press(window, Key.Tab);
+
+            await Assert.That(Marked(editor)).StartsWith("SELECT * FROM public.orders");
+            window.Close();
+        });
+    }
+
     // The popup row the Enter rule would not take: its fill is what the eye
     // reads, so the test reads the template part that paints it, not the class.
     private static IBrush? SelectedRowFill(TextEditor editor, bool pointerOver = false)
