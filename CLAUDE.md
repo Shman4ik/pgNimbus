@@ -216,7 +216,13 @@ Three rules about it:
    sibling of `Json/JsonTree` and `Monitoring/BlockingTree`) that emits named
    `PlanWarning`s — bad row estimates, disk-spilled sorts/hashes, wasteful
    sequential scans, lossy bitmap heap blocks — each with an actionable
-   one-liner and a conservative threshold constant. The App wraps them in
+   one-liner and a conservative threshold constant. A row *over*-estimate is not
+   reported for a node a `Limit` stopped early (2026-09): every browse page is
+   `LIMIT 100`, so its ANALYZE showed a red "off by 10000×" on the scan every
+   time. The exemption flows down through streaming nodes and stops at ones that
+   read their whole input first (Sort, Hash, hashed/plain aggregates, Bitmap Heap
+   Scan), at a Limit that ran its input dry, and never covers an under-estimate.
+   The App wraps them in
    `PlanWarningViewModel` (glyph + severity brush) for the warnings strip;
    `ExplainNodeViewModel` computes each node's exclusive **self time** so the
    tree's bar becomes a time-heat profile (falling back to cost when there's
