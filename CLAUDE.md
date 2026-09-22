@@ -1483,6 +1483,31 @@ csproj / WiX / MSIX manifest reference them unchanged:
   class set and all (found live 2026-09-22; the test reads the part's brush,
   not the class). The interception is in the tunneled
   `OnSqlEditorKeyDown`, which runs before the completion window's own Enter.
+  **A finished FROM item is followed by a clause, not a relation** (2026-09-22):
+  `SqlCompletionContext.IsAfterCompleteFromItem` (read up to the *start* of the
+  word being typed, since the popup opens on its first letter) boosts
+  `FromItemFollowItems` — WHERE, JOIN, LEFT, … in that order — so
+  `FROM customers c w` preselects WHERE, not WHEN/WITH, which can't go there.
+  A finished JOIN target still gets ON/USING first, and keeps it once a word is
+  under way *if the alias is already written* (`JOIN customers c o` → ON; it
+  used to fall back to FK-neighbour tables and Tab wrote a table), but not
+  without one, where that word may be the alias. **The stock `CompletionWindow`
+  re-selects a row on every caret move** (`SelectItem` on the typed prefix, by
+  its own rules), and the `SelectionChanged` handler used to record that as the
+  user's pick, which then outranked the ranking: `commerce.orde` kept
+  `order_items` highlighted under `orders` and Tab wrote it.
+  `_completionCaretMoving` — set by the editor's caret handler, which is
+  subscribed before any popup exists and so runs ahead of the window's — makes
+  that move not count; arrows and the mouse still do. Related landmine, fixed the
+  same day: the scope reader used to read a dangling `FROM commerce.` as a
+  *table* named `commerce`, so the `commerce.|` qualifier resolved to that
+  columnless phantom source and the schema's tables never showed;
+  `ReadRelationName` now returns it as schema `commerce` with an empty name.
+  That bug predates 0.13 and outlived every test because each one put the caret
+  into already-finished text; `CompletionProviderTests.Every_word_of_a_statement_is_offered_while_it_is_typed`
+  replays statements word by word (left to right, and filling one word back in)
+  and is the check for that whole class — give it a statement when adding
+  grammar the provider has to follow.
   Not done yet: a token cache per document version, the first full ranking
   over a ~1M-row list (3.5 ms median), and package J.
 - `SqlFormatter` follows <https://www.sqlstyle.guide/> ("river" layout: root

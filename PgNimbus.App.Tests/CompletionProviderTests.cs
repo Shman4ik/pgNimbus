@@ -117,6 +117,129 @@ public class CompletionProviderTests
     }
 
     [Test]
+    [Arguments("SELECT * FROM public.|")]
+    [Arguments("SELECT * FROM public.us|")]
+    [Arguments("SELECT * FROM public.| WHERE true")]
+    [Arguments("SELECT * FROM public.orders o JOIN public.|")]
+    [Arguments("SELECT * FROM PUBLIC.|")]
+    public async Task A_schema_being_typed_as_a_from_item_lists_its_tables(string marked)
+    {
+        var tables = At(Provider(), marked).Where(i => i.Kind == SqlCompletionKind.Table).Select(i => i.InsertText).ToArray();
+
+        await Assert.That(tables).Contains("users");
+        await Assert.That(tables).Contains("orders");
+    }
+
+    // What the popup would preselect: the provider's list through the ranker
+    // the editor uses, with the word before the caret as the query.
+    private static string Preselected(SqlCompletionProvider provider, string marked)
+    {
+        var caret = marked.IndexOf('|');
+        var start = caret;
+        while (start > 0 && char.IsLetter(marked[start - 1]))
+        {
+            start--;
+        }
+
+        var ranked = CompletionRanker.Rank(
+            At(provider, marked), marked[start..caret], d => d.Text, d => d.Priority, _ => int.MaxValue);
+        return ranked.Items[ranked.SelectedIndex].Text;
+    }
+
+    [Test]
+    [Arguments("SELECT * FROM public.customers c w|", "WHERE")]
+    [Arguments("SELECT * FROM public.users w|", "WHERE")]
+    [Arguments("SELECT * FROM public.users u |", "WHERE")]
+    [Arguments("SELECT * FROM public.users u j|", "JOIN")]
+    [Arguments("SELECT * FROM public.users u o|", "ORDER")]
+    [Arguments("SELECT * FROM public.users u, public.orders o w|", "WHERE")]
+    [Arguments("DELETE FROM public.users u w|", "WHERE")]
+    public async Task After_a_finished_from_item_the_next_clause_is_preselected(string marked, string expected)
+    {
+        await Assert.That(Preselected(Provider(), marked)).IsEqualTo(expected);
+    }
+
+    [Test]
+    [Arguments("SELECT * FROM public.users u JOIN public.orders o |", "ON")]
+    [Arguments("SELECT * FROM public.users u JOIN public.orders o o|", "ON")]
+    [Arguments("SELECT * FROM public.users u JOIN public.orders o us|", "USING")]
+    public async Task After_a_finished_join_target_the_condition_still_comes_first(string marked, string expected)
+    {
+        await Assert.That(Preselected(Provider(), marked)).IsEqualTo(expected);
+    }
+
+    // --- Typing replay: the path a person types, not only finished text ---
+    //
+    // Every other case here puts the caret into a statement that is already
+    // complete. The "FROM commerce.|" bug lived for releases because nobody
+    // stands where a test put them: it only shows while the statement is being
+    // written. So each statement below is replayed word by word: with the text
+    // up to a word (and then its first letter) in the editor, that word must
+    // be on offer. Aliases, literals and operators are the user's to type.
+
+    public static IEnumerable<string> TypedStatements() =>
+    [
+        "SELECT u.name FROM public.users u WHERE u.id = 1 ORDER BY u.name",
+        "SELECT o.total FROM public.orders o JOIN public.users u ON u.id = o.user_id WHERE o.total > 0",
+        "SELECT * FROM audit.users a WHERE a.audit_only IS NOT NULL",
+        "SELECT * FROM public.users WHERE name = 'x'",
+        "SELECT * FROM users WHERE id = 1",
+        "UPDATE public.orders SET total = 0 WHERE id = 1",
+        "DELETE FROM public.orders WHERE user_id = 2",
+        "SELECT user_id FROM public.orders GROUP BY user_id",
+    ];
+
+    private static readonly HashSet<string> UserTyped = new(StringComparer.OrdinalIgnoreCase) { "u", "o", "a", "x" };
+
+    [Test]
+    [MethodDataSource(nameof(TypedStatements))]
+    public async Task Every_word_of_a_statement_is_offered_while_it_is_typed(string sql)
+    {
+        var provider = Provider();
+        var missing = new List<string>();
+        var tokens = SqlLexer.Tokenize(sql);
+        for (var t = 0; t < tokens.Count; t++)
+        {
+            var token = tokens[t];
+            var word = sql[token.Start..token.End];
+            if (token.Kind != SqlTokenKind.Word || token.Start == 0 || UserTyped.Contains(word))
+            {
+                continue;
+            }
+
+            // "u.name" typed before the FROM that declares u: nothing can know
+            // u's columns yet, so left to right it is only owed once FROM is in.
+            var aliasQualified = t >= 2 && tokens[t - 1].Kind == SqlTokenKind.Dot
+                && UserTyped.Contains(sql[tokens[t - 2].Start..tokens[t - 2].End]);
+
+            foreach (var typed in new[] { 0, 1 })
+            {
+                var caret = token.Start + typed;
+                var leftToRight = sql[..caret];
+                if (!aliasQualified || leftToRight.Contains("FROM", StringComparison.Ordinal))
+                {
+                    Check(leftToRight, caret, "typing");
+                }
+
+                // Going back to fill in one word of an otherwise finished statement.
+                Check(sql[..caret] + sql[token.End..], caret, "filling in");
+            }
+
+            void Check(string text, int caret, string how)
+            {
+                var ranked = CompletionRanker.Rank(
+                    provider.GetCompletionData(text, caret), text[token.Start..caret], d => d.Text, d => d.Priority, _ => int.MaxValue);
+                if (!ranked.Items.Any(i => string.Equals(i.Text, word, StringComparison.OrdinalIgnoreCase)))
+                {
+                    missing.Add($"{how}: {text.Insert(caret, "|")}  (expected {word})");
+                }
+            }
+        }
+
+        await Assert.That(missing).IsEmpty();
+    }
+
+    [Test]
     public async Task Unquoted_names_fold_before_they_are_looked_up()
     {
         var columns = ColumnInserts(At(Provider(), "SELECT * FROM PUBLIC.Users U WHERE u.|"));

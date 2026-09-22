@@ -51,6 +51,18 @@ public class SqlScopeModelTests
             .IsEqualTo("o | u");
     }
 
+    [Test]
+    [Arguments("SELECT * FROM commerce.|")]
+    [Arguments("SELECT * FROM public.orders o JOIN commerce.|")]
+    public async Task A_dangling_schema_dot_is_a_qualifier_not_a_table(string marked)
+    {
+        var (_, block) = At(marked);
+        var typed = block!.Sources[^1];
+
+        await Assert.That(typed.Schema).IsEqualTo("commerce");
+        await Assert.That(typed.Name).IsEqualTo("");
+    }
+
     // --- T14: an inner name hides the outer one only inside ---
 
     [Test]

@@ -631,9 +631,14 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
 
         return context.Clause switch
         {
-            SqlClause.TableRef or SqlClause.FromTableRef => BuildTableRefCompletions(snapshot, statement, scope, boosted: []),
             SqlClause.JoinTableRef when SqlCompletionContext.IsAfterCompleteJoinTarget(statement, caret) =>
                 BuildTableRefCompletions(snapshot, statement, scope, JoinKeywordBoostItems),
+            // A finished FROM item: the clause words that can follow it. (A
+            // finished JOIN target owes its ON/USING first, above.)
+            SqlClause.TableRef or SqlClause.FromTableRef
+                when SqlCompletionContext.IsAfterCompleteFromItem(statement, caret) =>
+                BuildTableRefCompletions(snapshot, statement, scope, FromItemFollowItems),
+            SqlClause.TableRef or SqlClause.FromTableRef => BuildTableRefCompletions(snapshot, statement, scope, boosted: []),
             SqlClause.JoinTableRef => BuildTableRefCompletions(snapshot, statement, scope, FkNeighborItems(snapshot, statement, scope)),
             SqlClause.Predicate when SqlCompletionContext.IsAfterOnKeyword(statement, caret) =>
                 GetJoinConditionCompletions(snapshot, statement, caret, scope),
@@ -773,6 +778,19 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         new SqlCompletionData("ON", SqlCompletionKind.Keyword, "ON", JoinConditionPriority),
         new SqlCompletionData("USING", SqlCompletionKind.Keyword, "USING", JoinConditionPriority),
     ];
+
+    // What can follow a finished FROM item, most common first: "FROM users u w"
+    // should preselect WHERE, not WHEN/WITH, which can't go there at all.
+    // Ranked by position like StatementStartItems, above the tables (which
+    // can't follow an item either, only a comma can bring one back).
+    private static readonly IReadOnlyList<SqlCompletionData> FromItemFollowItems =
+        new[]
+        {
+            "WHERE", "JOIN", "LEFT", "INNER", "GROUP", "ORDER", "LIMIT", "CROSS",
+            "RIGHT", "FULL", "NATURAL", "HAVING", "OFFSET", "UNION", "EXCEPT", "INTERSECT",
+        }
+        .Select((keyword, index) => new SqlCompletionData(keyword, SqlCompletionKind.Keyword, keyword, StatementKeywordPriority - index))
+        .ToList();
 
     // Table position (after FROM/INTO/UPDATE …): only what can be a table there —
     // the statement's CTEs first, then schemas + tables (+ keywords, so
