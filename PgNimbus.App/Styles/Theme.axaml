@@ -357,7 +357,7 @@
                     <Path Grid.Column="0" Width="13" Height="13" Margin="1,0,9,0"
                           VerticalAlignment="Center" Stretch="Uniform"
                           Data="{Binding KindGlyph}" Fill="{Binding KindBrush}" />
-                    <TextBlock Grid.Column="1" Text="{Binding Text}"
+                    <TextBlock Grid.Column="1" Text="{Binding Label}"
                                VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                     <TextBlock Grid.Column="2" Text="{Binding Detail}"
                                VerticalAlignment="Center" Margin="18,0,2,0"

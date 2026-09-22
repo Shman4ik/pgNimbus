@@ -174,4 +174,46 @@ public class SelectStarExpansionTests
     {
         await Assert.That(Apply("SELECT '*' AS star FROM orders")).IsNull();
     }
+
+    // --- F07 / T23: decline when the explicit list would change the result ---
+
+    private static string? RefusalFor(string sql)
+    {
+        var expansion = SqlCompletionContext.ExpandSelectStar(sql, sql.Length, ColumnsFor, out var refusal);
+        return expansion is null ? refusal : null;
+    }
+
+    [Test]
+    [Arguments("SELECT * FROM orders o JOIN customers c USING (id)")]
+    [Arguments("SELECT * FROM orders o NATURAL JOIN customers c")]
+    [Arguments("SELECT * FROM orders o NATURAL LEFT JOIN customers c")]
+    public async Task A_merging_join_declines_the_bare_star(string sql)
+    {
+        await Assert.That(Apply(sql)).IsNull();
+        await Assert.That(RefusalFor(sql)).Contains("USING / NATURAL");
+    }
+
+    [Test]
+    public async Task A_qualified_star_still_expands_beside_using()
+    {
+        // o.* is every column of o, merged or not.
+        await Assert.That(Apply("SELECT o.* FROM orders o JOIN customers c USING (id)"))
+            .IsEqualTo("SELECT o.id, o.customer_id, o.total FROM orders o JOIN customers c USING (id)");
+    }
+
+    [Test]
+    [Arguments("SELECT * FROM (SELECT 1 AS a) q JOIN orders o ON true")]
+    [Arguments("SELECT * FROM orders o, generate_series(1, 3) g")]
+    [Arguments("SELECT * FROM orders o JOIN LATERAL (SELECT 1) l ON true")]
+    public async Task A_from_item_with_unknown_columns_declines_the_bare_star(string sql)
+    {
+        await Assert.That(Apply(sql)).IsNull();
+        await Assert.That(RefusalFor(sql)).IsNotNull();
+    }
+
+    [Test]
+    public async Task An_unknown_table_is_named_in_the_refusal()
+    {
+        await Assert.That(RefusalFor("SELECT * FROM mystery")).Contains("mystery");
+    }
 }

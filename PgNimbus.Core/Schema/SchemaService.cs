@@ -128,6 +128,51 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
         return results;
     }
 
+    /// <summary>
+    /// A schema's relation names, without <see cref="GetTablesAsync"/>'s
+    /// per-relation size: completion needs only the names, and
+    /// <c>pg_total_relation_size</c> is a stat of every file of every relation.
+    /// </summary>
+    public async Task<IReadOnlyList<string>> GetRelationNamesAsync(string schema, CancellationToken ct)
+    {
+        const string sql = """
+            SELECT c.relname
+            FROM pg_catalog.pg_class c
+            JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname = @schema
+              AND c.relkind IN ('r', 'v', 'm', 'p', 'f')
+            ORDER BY c.relname
+            """;
+
+        await using var connection = await _dataSource.OpenConnectionAsync(ct);
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("schema", schema);
+        await using var reader = await command.ExecuteReaderAsync(ct);
+
+        var results = new List<string>();
+        while (await reader.ReadAsync(ct))
+        {
+            results.Add(reader.GetString(0));
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// The schemas an unqualified name is looked up in, in order
+    /// (<c>current_schemas(false)</c>: the effective <c>search_path</c> minus the
+    /// implicit pg_catalog/pg_temp, and minus entries that don't exist). Read from
+    /// a pooled connection, so it's the connection's default — a <c>SET
+    /// search_path</c> run in one query isn't visible here, and completion treats
+    /// the answer as the default rather than as ground truth.
+    /// </summary>
+    public async Task<IReadOnlyList<string>> GetSearchPathAsync(CancellationToken ct)
+    {
+        await using var connection = await _dataSource.OpenConnectionAsync(ct);
+        await using var command = new NpgsqlCommand("SELECT pg_catalog.current_schemas(false)", connection);
+        return await command.ExecuteScalarAsync(ct) is string[] path ? path : [];
+    }
+
     public async Task<IReadOnlyList<TableInfo>> GetTablesAsync(string schema, CancellationToken ct)
     {
         // Size only for relations with their own storage (ordinary tables and

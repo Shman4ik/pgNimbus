@@ -29,10 +29,29 @@ public static partial class SqlCompletionContext
     public static StarExpansion? ExpandSelectStar(
         string sql,
         int caret,
-        Func<string, string, IReadOnlyList<string>?> columnsFor)
+        Func<string, string, IReadOnlyList<string>?> columnsFor) =>
+        ExpandSelectStar(sql, caret, columnsFor, out _);
+
+    /// <summary>
+    /// <see cref="ExpandSelectStar(string, int, Func{string, string, IReadOnlyList{string}?})"/>,
+    /// plus the one-line reason when it declines, for the status line.
+    /// Declining is the safe answer whenever the spelled-out list could name a
+    /// different set of columns than the star does: a <c>JOIN … USING</c> or
+    /// <c>NATURAL JOIN</c> outputs each merged column once (and for an outer
+    /// join, from whichever side has it), and a derived table or function in
+    /// FROM has no catalog columns to read — expanding either used to change
+    /// the result's shape silently.
+    /// </summary>
+    public static StarExpansion? ExpandSelectStar(
+        string sql,
+        int caret,
+        Func<string, string, IReadOnlyList<string>?> columnsFor,
+        out string? refusal)
     {
+        refusal = null;
         if (SqlScriptSplitter.StatementSpanAt(sql, caret) is not { } stmt)
         {
+            refusal = "No statement at the caret.";
             return null;
         }
 
@@ -44,6 +63,7 @@ public static partial class SqlCompletionContext
 
         if (FindSelectListSpan(masked) is not { } span)
         {
+            refusal = "No SELECT list in this statement.";
             return null;
         }
 
@@ -60,10 +80,12 @@ public static partial class SqlCompletionContext
 
         if (listStart >= listEnd)
         {
+            refusal = "No SELECT list in this statement.";
             return null;
         }
 
-        var tables = ExtractFromTables(masked);
+        var tables = ExtractFromTables(masked, out var fromFullyRead);
+        var mergesColumns = MergedJoinRegex().IsMatch(masked);
         var items = new List<string>();
         var expandedAny = false;
 
@@ -84,8 +106,21 @@ public static partial class SqlCompletionContext
             var item = masked[s..e];
             if (item == "*")
             {
-                if (tables.Count == 0 || !TryExpandBareStar(tables, columnsFor, items))
+                if (mergesColumns)
                 {
+                    refusal = "Can't expand *: USING / NATURAL JOIN merges columns, so an explicit list would change the result.";
+                    return null;
+                }
+
+                if (tables.Count == 0 || !fromFullyRead)
+                {
+                    refusal = "Can't expand *: FROM has a subquery or function whose columns aren't known.";
+                    return null;
+                }
+
+                if (!TryExpandBareStar(tables, columnsFor, items, out var unknown))
+                {
+                    refusal = $"Can't expand *: the columns of {unknown} aren't known.";
                     return null;
                 }
 
@@ -97,6 +132,7 @@ public static partial class SqlCompletionContext
             {
                 if (!TryExpandQualifiedStar(item[..^2], tables, columnsFor, items))
                 {
+                    refusal = $"Can't expand {item}: its columns aren't known.";
                     return null;
                 }
 
@@ -111,6 +147,7 @@ public static partial class SqlCompletionContext
 
         if (!expandedAny)
         {
+            refusal = "No * in the select list.";
             return null;
         }
 
@@ -122,13 +159,16 @@ public static partial class SqlCompletionContext
     private static bool TryExpandBareStar(
         IReadOnlyList<TableRef> tables,
         Func<string, string, IReadOnlyList<string>?> columnsFor,
-        List<string> items)
+        List<string> items,
+        out string? unknown)
     {
+        unknown = null;
         var qualify = tables.Count > 1;
         foreach (var table in tables)
         {
             if (columnsFor(table.Schema, table.Table) is not { Count: > 0 } columns)
             {
+                unknown = table.Schema.Length == 0 ? table.Table : $"{table.Schema}.{table.Table}";
                 return false;
             }
 
@@ -153,9 +193,9 @@ public static partial class SqlCompletionContext
         foreach (var table in tables)
         {
             var matches = table.Alias is not null
-                ? qSchema.Length == 0 && string.Equals(table.Alias, qTable, StringComparison.OrdinalIgnoreCase)
-                : string.Equals(table.Table, qTable, StringComparison.OrdinalIgnoreCase)
-                    && (qSchema.Length == 0 || string.Equals(table.Schema, qSchema, StringComparison.OrdinalIgnoreCase));
+                ? qSchema.Length == 0 && string.Equals(table.Alias, qTable, StringComparison.Ordinal)
+                : string.Equals(table.Table, qTable, StringComparison.Ordinal)
+                    && (qSchema.Length == 0 || string.Equals(table.Schema, qSchema, StringComparison.Ordinal));
             if (!matches)
             {
                 continue;
@@ -204,20 +244,37 @@ public static partial class SqlCompletionContext
 
     // The FROM/JOIN tables only — ExtractTables minus the UPDATE / INSERT
     // INTO targets, because "INSERT INTO t SELECT * FROM s" expands to s's
-    // columns, never t's. Expects already-masked input.
-    private static List<TableRef> ExtractFromTables(string maskedSql)
+    // columns, never t's. Expects already-masked input. `fullyRead` is false
+    // when some FROM item isn't a plain (schema.)table ref — a derived table,
+    // a function call, LATERAL — whose columns a bare "*" would also cover.
+    private static List<TableRef> ExtractFromTables(string maskedSql, out bool fullyRead)
     {
+        fullyRead = true;
         var tables = new List<TableRef>();
         foreach (System.Text.RegularExpressions.Match clause in FromClauseRegex().Matches(maskedSql))
         {
             foreach (var segment in JoinSplitRegex().Split(clause.Groups["body"].Value))
             {
-                AddTableRef(tables, SingleTableRefRegex().Match(segment));
+                var match = SingleTableRefRegex().Match(segment);
+                var count = tables.Count;
+                AddTableRef(tables, match);
+                if (tables.Count == count
+                    || segment.AsSpan(match.Groups["table"].Index + match.Groups["table"].Length).TrimStart().StartsWith("(")
+                    || tables[^1].Table.Equals("lateral", StringComparison.Ordinal))
+                {
+                    fullyRead = false;
+                }
             }
         }
 
         return tables;
     }
+
+    // A join that merges same-named columns into one output column.
+    [System.Text.RegularExpressions.GeneratedRegex(
+        @"\b(?:using\s*\(|natural\s)",
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant)]
+    private static partial System.Text.RegularExpressions.Regex MergedJoinRegex();
 
     // Blanks the interior of every CTE body (the parens survive, keeping
     // depth intact) so the outer statement's SELECT/FROM are the only ones

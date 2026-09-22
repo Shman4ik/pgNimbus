@@ -1,3 +1,5 @@
+using PgNimbus.Core.Text;
+
 namespace PgNimbus.Core.Query;
 
 /// <summary>
@@ -10,11 +12,10 @@ namespace PgNimbus.Core.Query;
 /// semicolons — are dropped, so an editor full of only comments yields nothing.
 /// </summary>
 /// <remarks>
-/// This is a lexer, not a parser: it understands only enough Postgres syntax to
-/// find the semicolons that actually separate statements. It assumes
-/// <c>standard_conforming_strings</c> (the default since Postgres 9.1), so a
-/// backslash inside a <c>'…'</c> literal is an ordinary character and only a
-/// doubled quote escapes; <c>E'…'</c> escape strings are not special-cased.
+/// Not a parser: it splits on the <see cref="SqlTokenKind.Semicolon"/> tokens
+/// of the shared <see cref="SqlLexer"/>, so it assumes what the lexer assumes —
+/// <c>standard_conforming_strings</c> on (the default since Postgres 9.1) for
+/// plain <c>'…'</c> literals, backslash escapes inside <c>E'…'</c>.
 /// </remarks>
 public static class SqlScriptSplitter
 {
@@ -120,23 +121,9 @@ public static class SqlScriptSplitter
     // segments count as gaps rather than statements, per the type-level summary.
     private static bool HasSignificantText(string sql, int start, int end)
     {
-        var i = start;
-        while (i < end)
+        foreach (var token in SqlLexer.Tokenize(sql, start, end))
         {
-            var c = sql[i];
-            if (char.IsWhiteSpace(c))
-            {
-                i++;
-            }
-            else if (c == '-' && i + 1 < end && sql[i + 1] == '-')
-            {
-                i = SkipLineComment(sql, i);
-            }
-            else if (c == '/' && i + 1 < end && sql[i + 1] == '*')
-            {
-                i = SkipBlockComment(sql, i);
-            }
-            else
+            if (!token.IsTrivia)
             {
                 return true;
             }
@@ -165,10 +152,9 @@ public static class SqlScriptSplitter
     }
 
     // Raw, untrimmed [start, end) spans between semicolons - the lexical scan
-    // both Split and StatementAt key off. Respects single-quoted string
-    // literals ('' escapes), double-quoted identifiers, dollar-quoted strings
-    // ($tag$...$tag$), line comments (-- to end of line), and (nestable)
-    // block comments, per the type-level remarks.
+    // both Split and StatementAt key off. The shared SqlLexer decides what a
+    // literal, quoted identifier or comment is, so a ';' inside any of them
+    // (E'…' escapes and $tag1$…$tag1$ included) never splits.
     private static List<(int Start, int End)> RawSpans(string sql)
     {
         var spans = new List<(int, int)>();
@@ -177,140 +163,18 @@ public static class SqlScriptSplitter
             return spans;
         }
 
-        var n = sql.Length;
         var start = 0;
-        var i = 0;
-
-        while (i < n)
+        foreach (var token in SqlLexer.Tokenize(sql))
         {
-            var c = sql[i];
-            switch (c)
+            if (token.Kind == SqlTokenKind.Semicolon)
             {
-                case '\'':
-                case '"':
-                    i = SkipQuoted(sql, i, c);
-                    break;
-                case '-' when i + 1 < n && sql[i + 1] == '-':
-                    i = SkipLineComment(sql, i);
-                    break;
-                case '/' when i + 1 < n && sql[i + 1] == '*':
-                    i = SkipBlockComment(sql, i);
-                    break;
-                case '$':
-                    var afterDollar = SkipDollarQuote(sql, i);
-                    // Not a dollar-quote open (e.g. a `$1` positional parameter
-                    // or a stray `$`): step over just this character.
-                    i = afterDollar > i ? afterDollar : i + 1;
-                    break;
-                case ';':
-                    spans.Add((start, i));
-                    start = i + 1;
-                    i = start;
-                    break;
-                default:
-                    i++;
-                    break;
+                spans.Add((start, token.Start));
+                start = token.End;
             }
         }
 
         // Trailing statement with no closing semicolon.
-        spans.Add((start, n));
+        spans.Add((start, sql.Length));
         return spans;
-    }
-
-    // Returns the index just past the closing quote (or end-of-string if the
-    // literal is unterminated). A doubled quote (`''` / `""`) is an escape, not a
-    // close.
-    private static int SkipQuoted(string sql, int i, char quote)
-    {
-        var n = sql.Length;
-        var j = i + 1;
-        while (j < n)
-        {
-            if (sql[j] == quote)
-            {
-                if (j + 1 < n && sql[j + 1] == quote)
-                {
-                    j += 2;
-                    continue;
-                }
-
-                return j + 1;
-            }
-
-            j++;
-        }
-
-        return n;
-    }
-
-    private static int SkipLineComment(string sql, int i)
-    {
-        var n = sql.Length;
-        var j = i + 2;
-        while (j < n && sql[j] != '\n')
-        {
-            j++;
-        }
-
-        return j;
-    }
-
-    // Postgres block comments nest, so `/* /* */ */` is a single comment.
-    private static int SkipBlockComment(string sql, int i)
-    {
-        var n = sql.Length;
-        var j = i + 2;
-        var depth = 1;
-        while (j < n && depth > 0)
-        {
-            if (j + 1 < n && sql[j] == '/' && sql[j + 1] == '*')
-            {
-                depth++;
-                j += 2;
-            }
-            else if (j + 1 < n && sql[j] == '*' && sql[j + 1] == '/')
-            {
-                depth--;
-                j += 2;
-            }
-            else
-            {
-                j++;
-            }
-        }
-
-        return j;
-    }
-
-    // If `sql[i]` opens a dollar-quoted string, returns the index just past its
-    // closing tag (or end-of-string if unterminated). Otherwise returns `i` to
-    // signal "not a dollar quote" so the caller advances by one character.
-    private static int SkipDollarQuote(string sql, int i)
-    {
-        var n = sql.Length;
-
-        // Read the opening tag: $tag$ where tag is empty or an identifier that
-        // does not start with a digit (that would be a `$1`-style parameter).
-        var j = i + 1;
-        while (j < n && (char.IsLetterOrDigit(sql[j]) || sql[j] == '_'))
-        {
-            j++;
-        }
-
-        if (j >= n || sql[j] != '$')
-        {
-            return i;
-        }
-
-        if (j > i + 1 && char.IsDigit(sql[i + 1]))
-        {
-            return i;
-        }
-
-        var tag = sql[i..(j + 1)];   // includes both delimiting '$' characters
-        var searchFrom = j + 1;
-        var close = sql.IndexOf(tag, searchFrom, StringComparison.Ordinal);
-        return close < 0 ? n : close + tag.Length;
     }
 }
