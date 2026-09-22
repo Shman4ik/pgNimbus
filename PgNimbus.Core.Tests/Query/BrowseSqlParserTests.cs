@@ -139,4 +139,41 @@ public class BrowseSqlParserTests
         await Assert.That(shape!.SortColumn).IsNull();
         await Assert.That(shape.Conditions[0].Filter).IsEqualTo(new RowFilter("full_name", FilterOperator.Equals, "Ann"));
     }
+
+    [Test]
+    public async Task Any_text_at_all_finishes_parsing()
+    {
+        // The parser runs on the UI thread when a browse tab's edited query is
+        // run, so a tokenizer that stops advancing hangs the app. It did: a lone
+        // ':' (from "Warcraft 3: Forsaken Kingdom" pasted into the WHERE) made a
+        // zero-width token forever. Every printable ASCII character, in every
+        // position a user might leave it, must still come back.
+        var inputs = new List<string>
+        {
+            "SELECT * FROM v_customer_spend\nWarcraft 3: Forsaken Kingdom\nORDER BY id\nLIMIT 100 OFFSET 0",
+            "SELECT * FROM v_customer_spend WHERE a := 1 LIMIT 1",
+            "SELECT * FROM v_customer_spend WHERE $ LIMIT 1",
+            "SELECT * FROM v_customer_spend WHERE $1 = $$x LIMIT 1",
+            "SELECT * FROM v_customer_spend WHERE x = E'\\",
+            "SELECT * FROM v_customer_spend WHERE /* never closed",
+            "SELECT * FROM v_customer_spend WHERE -",
+            ":", "::", "$", "'", "\"", "/*", "--", "E'", ".", "",
+        };
+        for (var c = (char)32; c < 127; c++)
+        {
+            inputs.Add($"SELECT * FROM v_customer_spend WHERE full_name {c} 'x' LIMIT 10");
+            inputs.Add($"SELECT * FROM v_customer_spend WHERE {c}");
+            inputs.Add(c.ToString());
+        }
+
+        var parsing = Task.Run(() =>
+        {
+            foreach (var sql in inputs)
+            {
+                _ = Parse(sql);
+            }
+        });
+
+        await Assert.That(parsing.Wait(TimeSpan.FromSeconds(10))).IsTrue();
+    }
 }

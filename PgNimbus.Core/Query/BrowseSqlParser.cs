@@ -605,6 +605,11 @@ public static class BrowseSqlParser
                 }
                 else
                 {
+                    // The first character is always taken: a lone ':' stops the
+                    // run below before it starts, and a token of no width here
+                    // was an infinite loop on the UI thread (found live, with a
+                    // stray "3: Forsaken" pasted into a browse query).
+                    i++;
                     while (i < sql.Length && OperatorChars.Contains(sql[i]) && sql[i] != ':'
                            && !(sql[i] == '-' && i + 1 < sql.Length && sql[i + 1] == '-'))
                     {

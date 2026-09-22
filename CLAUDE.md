@@ -1237,6 +1237,13 @@ csproj / WiX / MSIX manifest reference them unchanged:
   Also found live: a raw chip drew blank — its `TextTrimming` layout had been
   computed while the line was hidden. Chips shorten text in a converter
   (`Converters/ChipText`) instead.
+  **The parser runs on the UI thread, so it must terminate on any text.** Found
+  live: a lone `:` (a stray "Warcraft 3: …" pasted into a browse WHERE) produced a
+  zero-width operator token forever, and Run hung the app. Every tokenizer branch
+  now consumes at least one character, and
+  `BrowseSqlParserTests.Any_text_at_all_finishes_parsing` feeds it every printable
+  ASCII character in every position under a timeout — keep a new branch honest
+  against it.
   One landmine: a chip label is a `TextBlock` inside the Button, not string
   `Content`, because string content treats `_` as an access key (`placed_at`
   rendered as `placedat`) — the same trap `EscapeMenuHeader` exists for.
