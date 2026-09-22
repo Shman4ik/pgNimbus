@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790094968781,
+  "lastUpdate": 1790101741476,
   "repoUrl": "https://github.com/Shman4ik/pgNimbus",
   "entries": {
     "pgNimbus benchmarks": [
@@ -1857,6 +1857,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "Stream 100000 rows",
             "value": 151,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shman4ik@gmail.com",
+            "name": "Dmitrii Shmanev",
+            "username": "Shman4ik"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bc94ad14a77369037347ba72b458f1db0f64830c",
+          "message": "fix: no row-estimate warning for a node a Limit stopped early (#239)\n\nEXPLAIN ANALYZE of a browse tab (SELECT * FROM t LIMIT 100) always showed\n\"Row estimate off by N x\" in red: the planner estimates the scan for a full\nrun, and the Limit stopped it after 100 rows. That gap is expected, not a\nstatistics problem.\n\nPlanAnalyzer now carries a \"cut short\" flag down the tree from each Limit\nand skips over-estimates where it is set. The flag passes through streaming\nnodes and stops at nodes that read all their input first (Sort, Hash,\nhashed/plain aggregates, hashed SetOp, Bitmap Heap Scan), so a misestimate\nbelow an ORDER BY ... LIMIT is still reported. A Limit that ran its input dry\n(fewer rows than planned, one loop) does not set it, and under-estimates are\nalways reported.\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-09-22T20:17:58+02:00",
+          "tree_id": "ec73e18b912f3123acfbb23f2cf3d1e8401c5b26",
+          "url": "https://github.com/Shman4ik/pgNimbus/commit/bc94ad14a77369037347ba72b458f1db0f64830c"
+        },
+        "date": 1790101740735,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Startup, launch to first frame (NativeAOT)",
+            "value": 194,
+            "unit": "ms"
+          },
+          {
+            "name": "Memory at first frame (NativeAOT)",
+            "value": 159.6,
+            "unit": "MB"
+          },
+          {
+            "name": "Binary size (NativeAOT)",
+            "value": 44.4,
+            "unit": "MB"
+          },
+          {
+            "name": "Publish size (NativeAOT, shipped files)",
+            "value": 57.8,
+            "unit": "MB"
+          },
+          {
+            "name": "Startup, launch to first frame (JIT)",
+            "value": 2053,
+            "unit": "ms"
+          },
+          {
+            "name": "Connect, cold pool",
+            "value": 153.1,
+            "unit": "ms"
+          },
+          {
+            "name": "Round-trip, SELECT 1 warm",
+            "value": 0.33,
+            "unit": "ms"
+          },
+          {
+            "name": "First row batch of a 100000-row SELECT",
+            "value": 10.1,
+            "unit": "ms"
+          },
+          {
+            "name": "Stream 100000 rows",
+            "value": 150,
             "unit": "ms"
           }
         ]
