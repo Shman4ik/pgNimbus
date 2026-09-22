@@ -21,7 +21,14 @@ public sealed record CompletionCatalog(
     IReadOnlyList<CompletionTable> Tables,
     IReadOnlyList<CompletionFunction> Functions,
     IReadOnlyList<ForeignKeyInfo> ForeignKeys,
-    IReadOnlyList<string>? SearchPath);
+    IReadOnlyList<string>? SearchPath)
+{
+    /// <summary>pg_catalog's functions: never offered as candidates (thousands of internal overloads), only read for argument hints.</summary>
+    public IReadOnlyList<CompletionFunction> BuiltinFunctions { get; init; } = [];
+
+    /// <summary>The types a cast can name (see <see cref="SchemaService.GetTypesAsync"/>); empty until read, when a short built-in list stands in.</summary>
+    public IReadOnlyList<DataTypeInfo> Types { get; init; } = [];
+}
 
 /// <summary>
 /// Supplies the candidate list AvaloniaEdit's CompletionWindow shows — SQL
@@ -154,6 +161,9 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService)
     private const double ColumnPriority = 5;
     private const double FunctionPriority = 3;
     private const double SchemaPriority = 1;
+    // Types after "::": a user's own domains and enums before the built-ins.
+    private const double UserTypePriority = 12;
+    private const double TypePriority = 11;
 
     private readonly SchemaService? _schemaService = schemaService;
 
@@ -216,6 +226,10 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService)
         }
 
         var foreignKeys = await _schemaService.GetForeignKeysAsync(ct);
+        var builtinFunctions = (await _schemaService.GetFunctionsAsync("pg_catalog", ct))
+            .Select(f => new CompletionFunction("pg_catalog", f))
+            .ToList();
+        var types = await _schemaService.GetTypesAsync(ct);
         IReadOnlyList<string>? searchPath;
         try
         {
@@ -231,7 +245,11 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService)
             return; // a newer refresh started meanwhile — its catalog wins
         }
 
-        Load(new CompletionCatalog(schemaNames, tables, functions, foreignKeys, searchPath));
+        Load(new CompletionCatalog(schemaNames, tables, functions, foreignKeys, searchPath)
+        {
+            BuiltinFunctions = builtinFunctions,
+            Types = types,
+        });
     }
 
     /// <summary>
@@ -315,6 +333,23 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService)
 
         var predicateBase = keywordItems.Concat(builtinFunctionItems).Concat(callableItems).ToList();
 
+        // Argument hints read every callable by name: pg_catalog's (searched
+        // first by the server, whatever the search_path says) and the schemas'.
+        var hintFunctions = new Dictionary<string, List<CompletionFunction>>(StringComparer.Ordinal);
+        foreach (var function in catalog.BuiltinFunctions.Concat(functions))
+        {
+            if (!hintFunctions.TryGetValue(function.Function.Name, out var overloads))
+            {
+                hintFunctions[function.Function.Name] = overloads = [];
+            }
+
+            overloads.Add(function);
+        }
+
+        var typeItems = catalog.Types.Count == 0
+            ? FallbackTypeItems
+            : Dedupe(catalog.Types.Where(t => !excluded.Contains(t.Schema)).Select(t => TypeItem(t, searchPath)));
+
         return new Snapshot(
             tables,
             tablesByKey,
@@ -326,7 +361,93 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService)
             new HashSet<string>(excluded, StringComparer.Ordinal),
             Dedupe(baseItems),
             Dedupe(tableRefItems),
-            Dedupe(predicateBase));
+            Dedupe(predicateBase),
+            hintFunctions,
+            typeItems);
+    }
+
+    // A type as a cast writes it: pg_catalog's by the name format_type gives
+    // when that is one word ("integer", "jsonb"), else by pg_type's own
+    // ("timestamptz", "varchar") — both are valid in a cast; a user type
+    // schema-qualified when its schema isn't on the search_path.
+    private static SqlCompletionData TypeItem(DataTypeInfo type, IReadOnlyList<string>? searchPath)
+    {
+        if (type.Schema == "pg_catalog")
+        {
+            var name = type.DisplayName.Contains(' ') ? type.Name : type.DisplayName;
+            return new SqlCompletionData(name, SqlCompletionKind.Type, name, TypePriority)
+            {
+                Detail = name == type.DisplayName ? null : type.DisplayName,
+                DescriptionText = "type",
+            };
+        }
+
+        var onPath = searchPath?.Contains(type.Schema) ?? type.Schema == "public";
+        var insert = onPath
+            ? SqlIdentifier.QuoteIfNeeded(type.Name)
+            : $"{SqlIdentifier.QuoteIfNeeded(type.Schema)}.{SqlIdentifier.QuoteIfNeeded(type.Name)}";
+        var kind = type.Kind switch
+        {
+            'd' => "domain",
+            'e' => "enum",
+            'c' => "composite type",
+            'r' => "range type",
+            'm' => "multirange type",
+            _ => "type",
+        };
+        return new SqlCompletionData(type.Name, SqlCompletionKind.Type, insert, UserTypePriority)
+        {
+            Detail = type.Schema,
+            DescriptionText = kind,
+        };
+    }
+
+    // The everyday types, for a cast typed before the catalog has been read.
+    private static readonly IReadOnlyList<SqlCompletionData> FallbackTypeItems =
+    [
+        .. new[]
+        {
+            "integer", "bigint", "smallint", "numeric", "real", "float8", "text", "varchar", "boolean", "date",
+            "time", "timestamp", "timestamptz", "interval", "uuid", "json", "jsonb", "bytea", "inet", "cidr",
+            "money", "xml", "tsvector", "tsquery", "regclass", "oid",
+        }.Select(t => new SqlCompletionData(t, SqlCompletionKind.Type, t, TypePriority) { DescriptionText = "type" }),
+    ];
+
+    /// <summary>
+    /// The argument hint for the call around <paramref name="caret"/>: the
+    /// overloads that fit the argument being typed, each with its parameter
+    /// marked. Null outside a call, or for a name no callable has. A
+    /// qualified name looks in that schema only; a bare one in pg_catalog and
+    /// the search_path (every schema, when the path is unknown).
+    /// </summary>
+    public (SqlCallSite Site, IReadOnlyList<SignatureHint> Hints)? GetSignatureHints(string sql, int caret)
+    {
+        if (SqlCallSite.At(sql, caret) is not { } site || site.Name.Count == 0)
+        {
+            return null;
+        }
+
+        var snapshot = _snapshot;
+        if (!snapshot.HintFunctions.TryGetValue(site.Name[^1], out var overloads))
+        {
+            return null;
+        }
+
+        IEnumerable<CompletionFunction> visible;
+        if (site.Name.Count >= 2)
+        {
+            visible = overloads.Where(o => o.Schema == site.Name[^2]);
+        }
+        else
+        {
+            var path = snapshot.SearchPath;
+            visible = overloads
+                .Where(o => o.Schema == "pg_catalog" || path is null || path.Contains(o.Schema))
+                .OrderBy(o => o.Schema == "pg_catalog" ? -1 : path?.ToList().IndexOf(o.Schema) ?? 0);
+        }
+
+        var hints = SignatureHints.For(site, visible.Select(o => (o.Schema, o.Function)));
+        return hints.Count == 0 ? null : (site, hints);
     }
 
     // A catalog callable (all overloads of one schema.name): inserts as
@@ -386,6 +507,11 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService)
 
     private IReadOnlyList<SqlCompletionData> Candidates(Snapshot snapshot, string statement, int caret, SqlCompletionContext.CaretContext context)
     {
+        if (IsTypePosition(statement, caret))
+        {
+            return snapshot.TypeItems;
+        }
+
         var scope = Scope.At(statement, caret);
         var chain = SqlCompletionContext.GetQualifierChainBeforeCaret(statement, caret);
         if (chain.Count > 0)
@@ -419,6 +545,32 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService)
                 GetPredicateCompletions(snapshot, statement, scope),
             _ => GetGeneralCompletions(snapshot, statement, scope, SqlCompletionContext.IsAtStatementStart(statement, caret)),
         };
+    }
+
+    // Where only a type name can go: right after "::", or after AS inside
+    // CAST( … ). (A "schema." typed after "::" still lands here, and the
+    // schema's user types come first.)
+    private static bool IsTypePosition(string statement, int caret)
+    {
+        var wordStart = caret;
+        while (wordStart > 0 && SqlLexer.IsIdentPart(statement[wordStart - 1]))
+        {
+            wordStart--;
+        }
+
+        var before = wordStart;
+        while (before > 0 && char.IsWhiteSpace(statement[before - 1]))
+        {
+            before--;
+        }
+
+        if (before >= 2 && statement[before - 1] == ':' && statement[before - 2] == ':')
+        {
+            return true;
+        }
+
+        return SqlCompletionContext.IsAfterKeyword(statement, caret, "as")
+            && SqlCallSite.At(statement, caret) is { Name: [var name] } && name == "cast";
     }
 
     // After "qualifier.": the columns of whatever the chain names. One part is
@@ -1346,5 +1498,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService)
         IReadOnlySet<string> Excluded,
         IReadOnlyList<SqlCompletionData> BaseItems,
         IReadOnlyList<SqlCompletionData> TableRefItems,
-        IReadOnlyList<SqlCompletionData> PredicateBaseItems);
+        IReadOnlyList<SqlCompletionData> PredicateBaseItems,
+        IReadOnlyDictionary<string, List<CompletionFunction>> HintFunctions,
+        IReadOnlyList<SqlCompletionData> TypeItems);
 }

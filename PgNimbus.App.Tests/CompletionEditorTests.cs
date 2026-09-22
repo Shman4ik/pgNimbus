@@ -2,6 +2,7 @@ using Avalonia.Input;
 using Avalonia.VisualTree;
 using AvaloniaEdit;
 using PgNimbus.App.Completion;
+using PgNimbus.App.Views;
 using PgNimbus.Core.Commands;
 using PgNimbus.Core.Schema;
 using PgNimbus.Screenshot;
@@ -293,6 +294,78 @@ public class CompletionEditorTests
             Ui.Press(window, Key.Enter);
 
             await Assert.That(Marked(editor)).IsEqualTo("SELECT * FROM public.orders o JOIN public.customers c USING (id|)");
+            window.Close();
+        });
+    }
+
+    // --- Package H: the argument hint and cast types through real keys ---
+
+    private static QueryEditorPanel EditorPanel(Avalonia.Controls.Window window) =>
+        window.GetVisualDescendants().OfType<QueryEditorPanel>().First();
+
+    private static void TypeKeys(Avalonia.Controls.Window window, string text)
+    {
+        foreach (var c in text)
+        {
+            Ui.Type(window, c.ToString());
+        }
+    }
+
+    [Test]
+    public async Task Typing_an_open_paren_after_a_function_shows_its_signature_and_escape_hides_it()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, vm, _) = Open("SELECT |");
+            vm.CompletionProvider.Load(new CompletionCatalog(["public"], [], [], [], ["public"])
+            {
+                BuiltinFunctions = [new CompletionFunction("pg_catalog", new FunctionInfo("round", "numeric, integer", "numeric", 'f'))],
+            });
+            var panel = EditorPanel(window);
+
+            TypeKeys(window, "round(");
+            await Assert.That(panel.SignatureHintText).IsEqualTo("round(numeric, integer) → numeric");
+
+            Ui.Press(window, Key.Escape);
+            await Assert.That(panel.SignatureHintText).IsNull();
+            window.Close();
+        });
+    }
+
+    [Test]
+    public async Task The_signature_hint_closes_when_the_caret_leaves_the_call()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, vm, editor) = Open("SELECT |");
+            vm.CompletionProvider.Load(new CompletionCatalog(["public"], [], [], [], ["public"])
+            {
+                BuiltinFunctions = [new CompletionFunction("pg_catalog", new FunctionInfo("round", "numeric, integer", "numeric", 'f'))],
+            });
+            var panel = EditorPanel(window);
+
+            TypeKeys(window, "round(1, 2");
+            await Assert.That(panel.SignatureHintText).IsNotNull();
+
+            // Step over the auto-closed ")": the caret is outside the call now.
+            Ui.Press(window, Key.End);
+            await Assert.That(Marked(editor)).IsEqualTo("SELECT round(1, 2)|");
+            await Assert.That(panel.SignatureHintText).IsNull();
+            window.Close();
+        });
+    }
+
+    [Test]
+    public async Task A_double_colon_opens_the_type_list()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, _, editor) = Open("SELECT '1'|");
+
+            TypeKeys(window, "::");
+            Ui.Press(window, Key.Enter);
+
+            await Assert.That(Marked(editor)).IsEqualTo("SELECT '1'::integer|");
             window.Close();
         });
     }

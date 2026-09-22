@@ -52,6 +52,15 @@ public sealed record TableColumn(string Table, string Column, string DataType);
 /// <summary>A function/procedure/aggregate/window function. <paramref name="Kind"/> is pg_proc.prokind: f, p, a, or w.</summary>
 public sealed record FunctionInfo(string Name, string Arguments, string ReturnType, char Kind);
 
+/// <summary>
+/// A data type a cast can name: <paramref name="Name"/> is pg_type's name,
+/// <paramref name="DisplayName"/> what <c>format_type</c> spells (<c>integer</c>
+/// for int4, <c>timestamp with time zone</c> for timestamptz), and
+/// <paramref name="Kind"/> pg_type.typtype: <c>b</c>ase, <c>d</c>omain,
+/// <c>e</c>num, <c>c</c>omposite, <c>r</c>ange, <c>m</c>ultirange.
+/// </summary>
+public sealed record DataTypeInfo(string Schema, string Name, string DisplayName, char Kind);
+
 /// <summary>An extension from pg_available_extensions; <paramref name="InstalledVersion"/> is null when not installed.</summary>
 public sealed record ExtensionInfo(string Name, string? InstalledVersion, string DefaultVersion, string? Description)
 {
@@ -406,6 +415,42 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
                 reader.GetString(1),
                 reader.GetString(2),
                 reader.GetString(3)[0]));
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// Every type a cast can name (<c>value::type</c>, <c>CAST(… AS type)</c>):
+    /// base, enum, range and multirange types, domains, and free-standing
+    /// composites — not table row types, array types (<c>type[]</c> is written
+    /// on top of the element) or pseudo/internal types. Read once per completion
+    /// refresh, never per keystroke.
+    /// </summary>
+    public async Task<IReadOnlyList<DataTypeInfo>> GetTypesAsync(CancellationToken ct)
+    {
+        const string sql = """
+            SELECT n.nspname, t.typname, pg_catalog.format_type(t.oid, NULL), t.typtype::text
+            FROM pg_catalog.pg_type t
+            JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace
+            LEFT JOIN pg_catalog.pg_class c ON c.oid = t.typrelid
+            WHERE t.typtype IN ('b', 'd', 'e', 'c', 'r', 'm')
+              AND (t.typrelid = 0 OR c.relkind = 'c')
+              AND t.typcategory NOT IN ('A', 'P', 'X', 'Z')
+              AND n.nspname <> 'information_schema'
+              AND n.nspname NOT LIKE 'pg\_toast%' AND n.nspname NOT LIKE 'pg\_temp%'
+              AND NOT (n.nspname = 'pg_catalog' AND t.typname LIKE 'pg\_%')
+            ORDER BY n.nspname, 3
+            """;
+
+        await using var connection = await _dataSource.OpenConnectionAsync(ct);
+        await using var command = new NpgsqlCommand(sql, connection);
+        await using var reader = await command.ExecuteReaderAsync(ct);
+
+        var results = new List<DataTypeInfo>();
+        while (await reader.ReadAsync(ct))
+        {
+            results.Add(new DataTypeInfo(reader.GetString(0), reader.GetString(1), reader.GetString(2), reader.GetString(3)[0]));
         }
 
         return results;

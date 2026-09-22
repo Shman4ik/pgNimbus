@@ -1,5 +1,6 @@
 using PgNimbus.App.Completion;
 using PgNimbus.Core.Schema;
+using PgNimbus.Core.Text;
 
 namespace PgNimbus.App.Tests;
 
@@ -557,5 +558,87 @@ public class CompletionProviderTests
         var items = At(Provider(), "SELECT * FROM public.users u NATURAL JOIN public.orders o |");
 
         await Assert.That(items.Any(i => i.Text is "ON" or "USING" && i.Priority >= 200)).IsFalse();
+    }
+
+    // --- Package H: argument hints and cast types (T26, T27) ---
+
+    private static SqlCompletionProvider TypedProvider()
+    {
+        var provider = new SqlCompletionProvider(null);
+        provider.Load(Catalog(["public"]) with
+        {
+            BuiltinFunctions =
+            [
+                new CompletionFunction("pg_catalog", new FunctionInfo("round", "numeric", "numeric", 'f')),
+                new CompletionFunction("pg_catalog", new FunctionInfo("round", "numeric, integer", "numeric", 'f')),
+            ],
+            Types =
+            [
+                new DataTypeInfo("pg_catalog", "int4", "integer", 'b'),
+                new DataTypeInfo("pg_catalog", "timestamptz", "timestamp with time zone", 'b'),
+                new DataTypeInfo("public", "email", "email", 'd'),
+                new DataTypeInfo("custom", "Mood", "custom.\"Mood\"", 'e'),
+            ],
+        });
+        return provider;
+    }
+
+    private static (SqlCallSite Site, IReadOnlyList<SignatureHint> Hints)? HintsAt(SqlCompletionProvider provider, string marked)
+    {
+        var caret = marked.IndexOf('|');
+        return provider.GetSignatureHints(marked.Remove(caret, 1), caret);
+    }
+
+    [Test]
+    public async Task T27_Builtin_overloads_hint_the_argument_being_typed()
+    {
+        var hints = HintsAt(TypedProvider(), "SELECT round(total, |) FROM public.orders")!.Value.Hints;
+
+        await Assert.That(hints.Single().Parameters.Select(p => p.Text)).IsEquivalentTo(new[] { "numeric", "integer" });
+        await Assert.That(hints.Single().ActiveParameter).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task T26_A_qualified_call_hints_that_schemas_overloads_only()
+    {
+        var qualified = HintsAt(TypedProvider(), "SELECT custom.normalize(|")!.Value.Hints;
+        await Assert.That(qualified.Select(h => h.Schema)).IsEquivalentTo(new[] { "custom" });
+
+        // Unqualified, only what the search_path reaches.
+        var bare = HintsAt(TypedProvider(), "SELECT normalize(|")!.Value.Hints;
+        await Assert.That(bare.Select(h => h.Schema)).IsEquivalentTo(new[] { "public" });
+
+        await Assert.That(HintsAt(TypedProvider(), "SELECT refresh_all(|")).IsNull(); // a procedure is not a call in an expression
+        await Assert.That(HintsAt(TypedProvider(), "SELECT nosuch(|")).IsNull();
+    }
+
+    [Test]
+    public async Task A_cast_offers_types_and_nothing_else()
+    {
+        var items = At(TypedProvider(), "SELECT total::| FROM public.orders");
+
+        await Assert.That(items.All(i => i.Kind == SqlCompletionKind.Type)).IsTrue();
+        await Assert.That(items.Select(i => i.InsertText)).IsEquivalentTo(new[] { "integer", "timestamptz", "email", "custom.\"Mood\"" });
+    }
+
+    [Test]
+    public async Task Cast_as_offers_types_too()
+    {
+        var items = At(TypedProvider(), "SELECT CAST(total AS tim|) FROM public.orders");
+
+        await Assert.That(items.Any(i => i.InsertText == "timestamptz")).IsTrue();
+        await Assert.That(items.Any(i => i.Kind != SqlCompletionKind.Type)).IsFalse();
+
+        // An alias after AS is not a type position.
+        await Assert.That(At(TypedProvider(), "SELECT total AS t| FROM public.orders").Any(i => i.Kind == SqlCompletionKind.Type)).IsFalse();
+    }
+
+    [Test]
+    public async Task A_cast_before_the_catalog_arrives_still_offers_the_everyday_types()
+    {
+        var items = At(new SqlCompletionProvider(null), "SELECT '1'::|");
+
+        await Assert.That(items.Select(i => i.InsertText)).Contains("integer");
+        await Assert.That(items.Select(i => i.InsertText)).Contains("jsonb");
     }
 }

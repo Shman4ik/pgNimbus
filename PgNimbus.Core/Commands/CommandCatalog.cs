@@ -292,6 +292,16 @@ public static class CommandCatalog
         },
         new()
         {
+            Id = CommandId.ParameterHints,
+            Title = "Show the argument hint (also opens after typing \"(\")",
+            Category = CommandCategory.Editor,
+            Scope = CommandScope.Editor,
+            // Literal Ctrl, like completion: Cmd+Shift+Space is taken on macOS.
+            Chord = new(CommandKey.Space, LiteralCtrl | ChordModifiers.Shift),
+            Surfaces = SheetOnly,
+        },
+        new()
+        {
             Id = CommandId.Find,
             Title = "Find in editor",
             Category = CommandCategory.Editor,

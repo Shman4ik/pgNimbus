@@ -42,6 +42,7 @@ way in Preferences → Hotkey scheme.
 | Action | Windows / Linux | macOS |
 | --- | --- | --- |
 | Autocomplete (also triggers while typing) | Ctrl+Space | Ctrl+Space |
+| Show the argument hint (also opens after typing "(") | Ctrl+Shift+Space | Ctrl+Shift+Space |
 | Find in editor | Ctrl+F | Cmd+F |
 | Find & replace in editor | Ctrl+H | Cmd+H |
 | Next / previous match | F3 / Shift+F3 | F3 / Shift+F3 |

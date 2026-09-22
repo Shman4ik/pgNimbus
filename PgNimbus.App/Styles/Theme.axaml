@@ -374,6 +374,17 @@
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
     </Style>
 
+    <!-- The argument hint above a call: the same card language as the completion tip -->
+    <Style Selector="Border.signatureHint">
+        <Setter Property="Background" Value="{DynamicResource SystemControlPageBackgroundAltHighBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource ControlCornerRadius}" />
+        <Setter Property="Padding" Value="10,5" />
+        <Setter Property="TextElement.FontSize" Value="12" />
+        <Setter Property="MaxWidth" Value="720" />
+    </Style>
+
     <!-- The description tip beside the popup, restyled to the same card language -->
     <Style Selector="cc|CompletionTipContentControl">
         <Setter Property="Background" Value="{DynamicResource SystemControlPageBackgroundAltHighBrush}" />

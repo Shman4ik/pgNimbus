@@ -7,14 +7,17 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Controls.Documents;
 using Avalonia.Media;
 using Avalonia.Platform;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using AvaloniaEdit;
 using AvaloniaEdit.CodeCompletion;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Highlighting;
+using AvaloniaEdit.Rendering;
 using AvaloniaEdit.Highlighting.Xshd;
 using AvaloniaEdit.Search;
 using PgNimbus.App.Completion;
@@ -73,6 +76,12 @@ public partial class QueryEditorPanel : UserControl
     // opened via Ctrl+F / Ctrl+H (from the host's OnKeyDown) or the palette.
     private SearchPanel? _searchPanel;
     private readonly BracketHighlightRenderer _bracketRenderer;
+    // The argument hint is live from "(" (or Ctrl+Shift+Space, or accepting a
+    // function) until the caret leaves the call: only then does a caret move
+    // re-read it. Plain navigation through existing calls never opens it.
+    private bool _signatureHintActive;
+    // How many overloads the hint lists before summing up the rest.
+    private const int MaxSignatureLines = 5;
 
     private const double MinEditorFontSize = 8;
     private const double MaxEditorFontSize = 32;
@@ -125,7 +134,15 @@ public partial class QueryEditorPanel : UserControl
         // Complete); these are the two things it needs from this editor.
         SqlCompletionData.Configure(SqlEditor.TextArea, new SqlCompletionData.AcceptOptions(
             AutoAliasTables: () => _model is { AutoAliasTables: true },
-            Accepted: accepted => _completionRecency.Record(accepted.StableId)));
+            Accepted: accepted =>
+            {
+                _completionRecency.Record(accepted.StableId);
+                // The caret now sits inside the call's parens: show what goes there.
+                if (accepted.Kind == SqlCompletionKind.Function)
+                {
+                    Dispatcher.UIThread.Post(() => ShowSignatureHint());
+                }
+            }));
         // Tunnel on the TextArea: AvaloniaEdit's editing input handler consumes
         // Enter (inserts a newline) and marks the event handled before it bubbles
         // up to the editor, so a plain bubbling KeyDown handler never sees
@@ -140,6 +157,11 @@ public partial class QueryEditorPanel : UserControl
         SqlEditor.TextArea.Caret.PositionChanged += (_, _) =>
         {
             UpdateBracketHighlight();
+            if (_signatureHintActive)
+            {
+                UpdateSignatureHint();
+            }
+
             // Feed the caret to the active tab too: with no selection, Explain uses it
             // to pick which statement of the buffer to explain (see ExplainTarget).
             if (_activeQuery is not null)
@@ -197,7 +219,14 @@ public partial class QueryEditorPanel : UserControl
         base.OnDetachedFromVisualTree(e);
     }
 
-    private void OnHostDeactivated(object? sender, EventArgs e) => _completionWindow?.Close();
+    private void OnHostDeactivated(object? sender, EventArgs e)
+    {
+        _completionWindow?.Close();
+        CloseSignatureHint();
+    }
+
+    /// <summary>The argument hint as shown (one overload per line), or null when it is closed.</summary>
+    public string? SignatureHintText => SignaturePopup.IsOpen ? SignatureText.Inlines?.Text : null;
 
     // --- Host-driven interactions ----------------------------------------
     // The two things only the window can decide: F6 focus hand-off between the
@@ -312,6 +341,7 @@ public partial class QueryEditorPanel : UserControl
 
         // A popup opened over the previous tab's text must not accept into this one.
         _completionWindow?.Close();
+        CloseSignatureHint();
         _suppressEditorSync = true;
         SqlEditor.Text = _activeQuery.Sql;
         _suppressEditorSync = false;
@@ -516,6 +546,28 @@ public partial class QueryEditorPanel : UserControl
             var openerEnd = SqlEditor.CaretOffset;
             SqlEditor.Document.Insert(openerEnd, closer.ToString());
             SqlEditor.CaretOffset = openerEnd;
+            // Only now, with the caret back inside the pair: the insert moved
+            // it past ")" for a moment, which reads as leaving the call.
+            if (c == '(')
+            {
+                ShowSignatureHint();
+            }
+
+            return;
+        }
+
+        // "(" after a name opens the argument hint; "," moves its highlight
+        // through the caret-move handler while the hint is live.
+        if (c == '(' && e.Text.Length == 1)
+        {
+            ShowSignatureHint();
+            return;
+        }
+
+        // "::" is a cast: the type list follows.
+        if (c == ':' && e.Text.Length == 1 && SqlEditor.CaretOffset >= 2 && SqlEditor.Document.GetCharAt(SqlEditor.CaretOffset - 2) == ':')
+        {
+            ShowCompletion();
             return;
         }
 
@@ -659,6 +711,22 @@ public partial class QueryEditorPanel : UserControl
         if (CommandBindings.Matches(CommandId.Completion, e))
         {
             ShowCompletion();
+            e.Handled = true;
+            return;
+        }
+
+        if (CommandBindings.Matches(CommandId.ParameterHints, e))
+        {
+            ShowSignatureHint();
+            e.Handled = true;
+            return;
+        }
+
+        // Escape takes the argument hint down — after the completion list, which
+        // closes first on its own Escape.
+        if (e.Key == Key.Escape && e.KeyModifiers == KeyModifiers.None && _completionWindow is null && SignaturePopup.IsOpen)
+        {
+            CloseSignatureHint();
             e.Handled = true;
             return;
         }
@@ -903,6 +971,80 @@ public partial class QueryEditorPanel : UserControl
         }
 
         return true;
+    }
+
+    // --- Argument hint ----------------------------------------------------
+
+    private void ShowSignatureHint()
+    {
+        _signatureHintActive = true;
+        UpdateSignatureHint();
+    }
+
+    private void CloseSignatureHint()
+    {
+        _signatureHintActive = false;
+        SignaturePopup.IsOpen = false;
+    }
+
+    // Re-reads the call around the caret and redraws the hint, or closes it
+    // when the caret has left every call the catalog knows.
+    private void UpdateSignatureHint()
+    {
+        var text = SqlEditor.Text;
+        var caret = SqlEditor.CaretOffset;
+        if (_model?.CompletionProvider.GetSignatureHints(text, caret) is not { } result)
+        {
+            CloseSignatureHint();
+            return;
+        }
+
+        var inlines = new InlineCollection();
+        var hints = result.Hints;
+        for (var i = 0; i < Math.Min(hints.Count, MaxSignatureLines); i++)
+        {
+            if (i > 0)
+            {
+                inlines.Add(new LineBreak());
+            }
+
+            var hint = hints[i];
+            inlines.Add(new Run($"{hint.Name}("));
+            for (var p = 0; p < hint.Parameters.Count; p++)
+            {
+                if (p > 0)
+                {
+                    inlines.Add(new Run(", "));
+                }
+
+                var run = new Run(hint.Parameters[p].Text);
+                if (p == hint.ActiveParameter)
+                {
+                    run.FontWeight = FontWeight.Bold;
+                }
+
+                inlines.Add(run);
+            }
+
+            inlines.Add(new Run(hint.ReturnType.Length > 0 ? $") → {hint.ReturnType}" : ")"));
+        }
+
+        if (hints.Count > MaxSignatureLines)
+        {
+            inlines.Add(new LineBreak());
+            inlines.Add(new Run($"+{hints.Count - MaxSignatureLines} more") { FontStyle = FontStyle.Italic });
+        }
+
+        SignatureText.Inlines = inlines;
+
+        // Anchored just above the line of the call's "(", so the completion
+        // list (which opens below the caret) never covers it.
+        var textView = SqlEditor.TextArea.TextView;
+        var location = SqlEditor.Document.GetLocation(Math.Min(result.Site.OpenParen, SqlEditor.Document.TextLength));
+        var top = textView.GetVisualPosition(new TextViewPosition(location), VisualYPosition.LineTop) - textView.ScrollOffset;
+        SignaturePopup.PlacementTarget = textView;
+        SignaturePopup.PlacementRect = new Rect(top.X, top.Y - 2, 1, 1);
+        SignaturePopup.IsOpen = true;
     }
 
     // --- Format / expand-star (palette + Shift-F) ------------------------
