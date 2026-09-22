@@ -194,4 +194,121 @@ public class PlanAnalyzerTests
 
         await Assert.That(warnings).IsEmpty();
     }
+
+    // A plan node with ANALYZE counts; children nest through "Plans".
+    private static string Node(string type, long planRows, double actualRows, string extra = "", params string[] children) =>
+        $$"""
+        { "Node Type": "{{type}}", "Relation Name": "t", "Startup Cost": 0, "Total Cost": 1,
+          "Plan Rows": {{planRows}}, "Plan Width": 8, "Actual Startup Time": 0.01, "Actual Total Time": 1,
+          "Actual Rows": {{actualRows}}, "Actual Loops": 1{{extra}}
+          {{(children.Length == 0 ? "" : $", \"Plans\": [{string.Join(",", children)}]")}} }
+        """;
+
+    private static IReadOnlyList<PlanWarning> Analyze(string root) =>
+        PlanAnalyzer.Analyze(ExplainService.Parse($$"""[ { "Plan": {{root}}, "Execution Time": 1 } ]"""));
+
+    private static IEnumerable<PlanWarning> Estimates(IReadOnlyList<PlanWarning> warnings) =>
+        warnings.Where(w => w.Title.StartsWith("Row estimate off by"));
+
+    [Test]
+    public async Task BrowsePageUnderLimitIsNotAnOverestimate()
+    {
+        // SELECT * FROM t LIMIT 100 on a million-row table: the scan stops after 100 rows.
+        var warnings = Analyze(Node("Limit", 100, 100, "", Node("Seq Scan", 1_000_000, 100)));
+
+        await Assert.That(Estimates(warnings)).IsEmpty();
+    }
+
+    [Test]
+    public async Task EveryStreamingNodeUnderLimitIsExempt()
+    {
+        // The Limit's early stop reaches through a join to both of its inputs.
+        var warnings = Analyze(Node("Limit", 100, 100, "",
+            Node("Nested Loop", 500_000, 100, "",
+                Node("Seq Scan", 1_000_000, 100),
+                Node("Index Scan", 5_000, 1))));
+
+        await Assert.That(Estimates(warnings)).IsEmpty();
+    }
+
+    [Test]
+    public async Task UnderestimateUnderLimitIsStillFlagged()
+    {
+        // Stopping early can only lower the count, so more rows than planned is a real misestimate.
+        var warnings = Analyze(Node("Limit", 100, 100, "", Node("Seq Scan", 1, 5_000)));
+
+        await Assert.That(Estimates(warnings).Count()).IsEqualTo(1);
+        await Assert.That(Estimates(warnings).Single().Detail).Contains("underestimated");
+    }
+
+    [Test]
+    public async Task SortReadsItsWholeInputSoItsInputIsJudged()
+    {
+        // ORDER BY … LIMIT: the Sort's own output is cut short, but it read every row first,
+        // so the scan under it ran to completion and its overestimate is genuine.
+        var warnings = Analyze(Node("Limit", 100, 100, "",
+            Node("Sort", 1_000_000, 100, "",
+                Node("Seq Scan", 1_000_000, 2_000))));
+
+        var flagged = Estimates(warnings).Select(w => w.NodeType).ToList();
+        await Assert.That(flagged).IsEquivalentTo(new[] { "Seq Scan" });
+    }
+
+    [Test]
+    public async Task HashIsBuiltInFullUnderLimit()
+    {
+        // The join stops early, but the hash side was built from every row before it began.
+        var warnings = Analyze(Node("Limit", 100, 100, "",
+            Node("Hash Join", 1_000_000, 100, "",
+                Node("Seq Scan", 1_000_000, 100),
+                Node("Hash", 50_000, 200, "",
+                    Node("Seq Scan", 50_000, 200)))));
+
+        var flagged = Estimates(warnings).Select(w => w.NodeType).ToList();
+        await Assert.That(flagged).IsEquivalentTo(new[] { "Hash", "Seq Scan" });
+    }
+
+    [Test]
+    public async Task HashedAggregateReadsItsWholeInput()
+    {
+        var warnings = Analyze(Node("Limit", 100, 100, "",
+            Node("Aggregate", 50_000, 100, ", \"Strategy\": \"Hashed\"",
+                Node("Seq Scan", 1_000_000, 3_000))));
+
+        var flagged = Estimates(warnings).Select(w => w.NodeType).ToList();
+        await Assert.That(flagged).IsEquivalentTo(new[] { "Seq Scan" });
+    }
+
+    [Test]
+    public async Task SortedAggregateStreamsSoItsInputIsExempt()
+    {
+        var warnings = Analyze(Node("Limit", 100, 100, "",
+            Node("Aggregate", 50_000, 100, ", \"Strategy\": \"Sorted\"",
+                Node("Index Scan", 1_000_000, 3_000))));
+
+        await Assert.That(Estimates(warnings)).IsEmpty();
+    }
+
+    [Test]
+    public async Task LimitThatRanItsInputDryDoesNotExemptIt()
+    {
+        // LIMIT 100 over a table the planner thinks holds 5000 rows but that holds 5:
+        // the scan was never stopped, so its overestimate is real.
+        var warnings = Analyze(Node("Limit", 100, 5, "", Node("Seq Scan", 5_000, 5)));
+
+        var flagged = Estimates(warnings).Select(w => w.NodeType).ToList();
+        await Assert.That(flagged).Contains("Seq Scan");
+    }
+
+    [Test]
+    public async Task TextPlanUnderLimitIsNotAnOverestimate()
+    {
+        const string text = """
+            Limit  (cost=0.00..1.54 rows=100 width=8) (actual time=0.010..0.050 rows=100 loops=1)
+              ->  Seq Scan on t  (cost=0.00..15406.00 rows=1000000 width=8) (actual time=0.009..0.030 rows=100 loops=1)
+            """;
+        var warnings = PlanAnalyzer.Analyze(ExplainService.Import(text).Result);
+
+        await Assert.That(Estimates(warnings)).IsEmpty();
+    }
 }

@@ -40,25 +40,57 @@ public static class PlanAnalyzer
     public static IReadOnlyList<PlanWarning> Analyze(ExplainResult result)
     {
         var warnings = new List<PlanWarning>();
-        Walk(result.Root, warnings);
+        Walk(result.Root, cutShort: false, warnings);
         return warnings;
     }
 
-    private static void Walk(ExplainNode node, List<PlanWarning> acc)
+    /// <param name="cutShort">
+    /// True when a <c>Limit</c> above this node may have stopped pulling rows before it ran
+    /// out, so its actual count can be lower than a full run's without the estimate being wrong.
+    /// </param>
+    private static void Walk(ExplainNode node, bool cutShort, List<PlanWarning> acc)
     {
-        InspectRowEstimate(node, acc);
+        // A Hash hands every row it built to its join, however early the join stops.
+        cutShort &= node.NodeType != "Hash";
+
+        InspectRowEstimate(node, cutShort, acc);
         InspectDiskSpills(node, acc);
         InspectSeqScanFilter(node, acc);
         InspectLossyBitmap(node, acc);
 
+        var childrenCutShort = (cutShort || StopsItsInputEarly(node)) && !ReadsAllInput(node);
         foreach (var child in node.Children)
         {
-            Walk(child, acc);
+            Walk(child, childrenCutShort, acc);
         }
     }
 
+    /// <summary>
+    /// A Limit that returned fewer rows than it planned for ran its input dry, so the input
+    /// was never cut short and an over-estimate below it is a real one. Per-loop counts are
+    /// averages, so a rescanned Limit (the inner side of a nested loop) may have hit its
+    /// count on some loops and not others — that one is assumed to stop early.
+    /// </summary>
+    private static bool StopsItsInputEarly(ExplainNode node) =>
+        node.NodeType == "Limit"
+        && !(node.ActualRows is { } actual && node.ActualLoops == 1 && actual < node.PlanRows);
+
+    /// <summary>
+    /// Nodes that consume their whole input before returning a row, so a Limit above them
+    /// cuts short only their own output, never what they read.
+    /// </summary>
+    private static bool ReadsAllInput(ExplainNode node) => node.NodeType switch
+    {
+        "Sort" or "Hash" or "Bitmap Heap Scan" => true,
+        // FORMAT JSON names the strategy separately; FORMAT TEXT folds it into the node name.
+        "Aggregate" => node.Strategy is null or "Plain" or "Hashed" or "Mixed",
+        "SetOp" => node.Strategy == "Hashed",
+        "HashAggregate" or "MixedAggregate" or "HashSetOp" => true,
+        _ => false,
+    };
+
     /// <summary>Estimated vs actual rows (both per-loop) diverging by ≥ 10× — the classic driver of bad join choices.</summary>
-    private static void InspectRowEstimate(ExplainNode node, List<PlanWarning> acc)
+    private static void InspectRowEstimate(ExplainNode node, bool cutShort, List<PlanWarning> acc)
     {
         // Needs ANALYZE; a never-executed branch (loops = 0) has no meaningful actual count.
         if (node.ActualRows is not { } actual || node.ActualLoops is not { } loops || loops == 0)
@@ -67,6 +99,13 @@ public static class PlanAnalyzer
         }
 
         double estimated = node.PlanRows;
+
+        // Under a Limit the planner's estimate is for a full run and the node stopped early,
+        // so fewer rows than estimated is expected. More rows than estimated is still news.
+        if (cutShort && estimated > actual)
+        {
+            return;
+        }
         var hi = Math.Max(estimated, actual);
         var lo = Math.Min(estimated, actual);
         if (hi < EstimateMinRows)
