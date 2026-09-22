@@ -165,11 +165,12 @@ public class SqlCteDefinitionTests
     }
 
     [Test]
-    public async Task ValuesCte_YieldsNoColumnsWithoutADeclaredList()
+    public async Task ValuesCte_YieldsPostgresPositionalNames()
     {
-        var cte = Single("WITH v AS (VALUES (1, 2)) SELECT * FROM v");
+        // Postgres names a VALUES list's columns column1, column2, …
+        var cte = Single("WITH v AS (VALUES (1, 2), (3, 4)) SELECT * FROM v");
 
-        await Assert.That(cte.Columns).IsEmpty();
+        await Assert.That(cte.Columns).IsEquivalentTo(new[] { "column1", "column2" });
         await Assert.That(cte.SelectsStar).IsFalse();
     }
 
@@ -189,5 +190,42 @@ public class SqlCteDefinitionTests
         var cte = Single("WITH x AS (SELECT 1 + 2, active IS NOT NULL, id FROM t) SELECT * FROM x");
 
         await Assert.That(cte.Columns).IsEquivalentTo(new[] { "id" });
+    }
+
+    // --- F06: which sources a star covers, and non-SELECT bodies ---
+
+    [Test]
+    public async Task A_qualified_star_covers_only_its_source()
+    {
+        var cte = Single("WITH x AS (SELECT u.* FROM public.users u JOIN public.orders o ON true) SELECT x. FROM x");
+
+        await Assert.That(cte.SourceTables).Count().IsEqualTo(2);
+        await Assert.That(cte.StarSources).Count().IsEqualTo(1);
+        await Assert.That(cte.StarSources[0].Table).IsEqualTo("users");
+    }
+
+    [Test]
+    public async Task A_bare_star_covers_every_source()
+    {
+        var cte = Single("WITH x AS (SELECT * FROM users u JOIN orders o ON true) SELECT 1");
+
+        await Assert.That(cte.StarSources).Count().IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task A_data_modifying_cte_is_shaped_by_returning()
+    {
+        var cte = Single("WITH x AS (DELETE FROM public.orders WHERE total < 0 RETURNING id, total AS amount) SELECT x. FROM x");
+
+        await Assert.That(cte.Columns).IsEquivalentTo(new[] { "id", "amount" });
+    }
+
+    [Test]
+    public async Task Returning_star_covers_the_target()
+    {
+        var cte = Single("WITH x AS (UPDATE public.orders SET total = 0 RETURNING *) SELECT 1");
+
+        await Assert.That(cte.SelectsStar).IsTrue();
+        await Assert.That(cte.StarSources[0].Table).IsEqualTo("orders");
     }
 }

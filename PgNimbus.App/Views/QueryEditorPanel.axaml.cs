@@ -54,6 +54,17 @@ public partial class QueryEditorPanel : UserControl
     private CompletionWindow? _completionWindow;
     // "Accepted a moment ago" tie-breaker for the completion ranking; session-scoped.
     private readonly CompletionRecency _completionRecency = new();
+    // The row the user picked with the arrow keys or the mouse, by StableId —
+    // kept selected across re-filtering while it still matches, instead of
+    // being overridden by whichever row ranks first after the next keystroke.
+    private string? _userPickedCompletion;
+    // Set while ApplyFuzzyFilter moves the selection itself, so that move isn't
+    // mistaken for the user's pick.
+    private bool _applyingCompletionFilter;
+    // The popup closed because the typed word matched nothing. Deleting a
+    // character may make it match again, and then the popup comes back — the
+    // one case where an edit that isn't typing reopens it.
+    private bool _reopenCompletionOnDelete;
     // Closer promised by OnSqlTextEntering's InsertPair verdict, written by
     // OnSqlTextEntered once the opener is in the document. '\0' = none pending.
     private char _pendingAutoCloser;
@@ -108,6 +119,13 @@ public partial class QueryEditorPanel : UserControl
 
         SqlEditor.TextArea.TextEntering += OnSqlTextEntering;
         SqlEditor.TextArea.TextEntered += OnSqlTextEntered;
+        SqlEditor.Document.Changed += OnSqlDocumentChanged;
+
+        // An accepted suggestion writes itself as one edit (SqlCompletionData.
+        // Complete); these are the two things it needs from this editor.
+        SqlCompletionData.Configure(SqlEditor.TextArea, new SqlCompletionData.AcceptOptions(
+            AutoAliasTables: () => _model is { AutoAliasTables: true },
+            Accepted: accepted => _completionRecency.Record(accepted.StableId)));
         // Tunnel on the TextArea: AvaloniaEdit's editing input handler consumes
         // Enter (inserts a newline) and marks the event handled before it bubbles
         // up to the editor, so a plain bubbling KeyDown handler never sees
@@ -292,6 +310,8 @@ public partial class QueryEditorPanel : UserControl
 
         _activeQuery.PropertyChanged += OnActiveQueryPropertyChanged;
 
+        // A popup opened over the previous tab's text must not accept into this one.
+        _completionWindow?.Close();
         _suppressEditorSync = true;
         SqlEditor.Text = _activeQuery.Sql;
         _suppressEditorSync = false;
@@ -316,6 +336,7 @@ public partial class QueryEditorPanel : UserControl
             return;
         }
 
+        _completionWindow?.Close();
         _suppressEditorSync = true;
         SqlEditor.Text = _activeQuery.Sql;
         _suppressEditorSync = false;
@@ -461,7 +482,10 @@ public partial class QueryEditorPanel : UserControl
 
         var text = SqlEditor.Text;
         var caret = SqlEditor.CaretOffset;
-        var inStringOrComment = SqlCompletionContext.GetCaretContext(text, caret).InStringOrComment;
+        // A quoted identifier counts as prose here: typing "(" inside "Order (x"
+        // is part of the name, not a call.
+        var caretContext = SqlCompletionContext.GetCaretContext(text, caret);
+        var inStringOrComment = caretContext.InStringOrComment || caretContext.InQuotedIdentifier;
         switch (AutoClosePairs.Decide(text, caret, typed, inStringOrComment))
         {
             case AutoClosePairs.Verdict.TypeOver:
@@ -500,8 +524,7 @@ public partial class QueryEditorPanel : UserControl
         // qualifier's columns instead of staying on the catalog-wide list.
         if (c == '.')
         {
-            _completionWindow?.Close();
-            ShowCompletion(includeTypedChar: false);
+            ShowCompletion();
             return;
         }
 
@@ -510,9 +533,12 @@ public partial class QueryEditorPanel : UserControl
             return;
         }
 
-        if (char.IsLetter(c) || c == '_')
+        // Only a single typed character opens the popup: a paste or an IME
+        // commit arrives as one multi-character entry, and its first letter
+        // isn't the user starting to type a name.
+        if (e.Text.Length == 1 && (char.IsLetter(c) || c == '_'))
         {
-            ShowCompletion(includeTypedChar: true);
+            ShowCompletion();
             return;
         }
 
@@ -521,7 +547,7 @@ public partial class QueryEditorPanel : UserControl
         // first one was right after the clause keyword.
         if (c == ',' && CaretIsInKnownClause())
         {
-            ShowCompletion(includeTypedChar: false);
+            ShowCompletion();
             return;
         }
 
@@ -540,8 +566,38 @@ public partial class QueryEditorPanel : UserControl
         var beforeSpace = caret >= 2 && caret <= text.Length ? text[caret - 2] : '\0';
         if (beforeSpace == ',' ? CaretIsInKnownClause() : WordBeforeCaretTriggersAutoOpen())
         {
-            ShowCompletion(includeTypedChar: false);
+            ShowCompletion();
         }
+    }
+
+    // Deleting back into a word that matched nothing reopens the popup once the
+    // word matches again (see _reopenCompletionOnDelete). Any other edit — typing
+    // included, which reopens through OnSqlTextEntered — ends that state.
+    private void OnSqlDocumentChanged(object? sender, DocumentChangeEventArgs e)
+    {
+        if (!_reopenCompletionOnDelete || _completionWindow is not null)
+        {
+            return;
+        }
+
+        if (e.InsertionLength > 0 || e.RemovalLength == 0 || _suppressEditorSync)
+        {
+            _reopenCompletionOnDelete = false;
+            return;
+        }
+
+        // After the deletion has landed and the caret has moved with it.
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (_reopenCompletionOnDelete && _completionWindow is null && SqlEditor.IsKeyboardFocusWithin)
+            {
+                var caret = SqlEditor.CaretOffset;
+                if (CompletionEdits.TokenAt(SqlEditor.Text, caret).FilterStart < caret)
+                {
+                    ShowCompletion(reopening: true);
+                }
+            }
+        });
     }
 
     // True when the caret sits in a recognized clause (table position, select
@@ -602,7 +658,7 @@ public partial class QueryEditorPanel : UserControl
 
         if (CommandBindings.Matches(CommandId.Completion, e))
         {
-            ShowCompletion(includeTypedChar: false);
+            ShowCompletion();
             e.Handled = true;
             return;
         }
@@ -714,9 +770,22 @@ public partial class QueryEditorPanel : UserControl
 
     // --- Completion popup -------------------------------------------------
 
-    private void ShowCompletion(bool includeTypedChar)
+    // Opens the popup for the word under the caret. The filter starts at the
+    // word's start (after the quote, inside "…"), not at the caret, so Ctrl+Space
+    // after "sel" filters on "sel" and accepting replaces all of it; the accept
+    // itself replaces the whole token (see SqlCompletionData.Complete). Any
+    // popup already open is closed first: one window, one set of handlers.
+    private void ShowCompletion(bool reopening = false)
     {
-        var data = _model?.CompletionProvider.GetCompletionData(SqlEditor.Text, SqlEditor.CaretOffset);
+        _completionWindow?.Close();
+        if (!reopening)
+        {
+            _reopenCompletionOnDelete = false;
+        }
+
+        var text = SqlEditor.Text;
+        var caret = SqlEditor.CaretOffset;
+        var data = _model?.CompletionProvider.GetCompletionData(text, caret);
         if (data is not { Count: > 0 })
         {
             return;
@@ -729,15 +798,17 @@ public partial class QueryEditorPanel : UserControl
         // remains of the stock path (SelectItemWithStart on every caret move) only
         // touches the selection, and the re-rank that runs right after overrides it.
         completionWindow.CompletionList.IsFiltering = false;
-        if (includeTypedChar)
-        {
-            completionWindow.StartOffset -= 1;
-        }
+        completionWindow.StartOffset = CompletionEdits.TokenAt(text, caret).FilterStart;
+        _userPickedCompletion = null;
 
         if (!ApplyFuzzyFilter(completionWindow, data))
         {
-            return; // nothing matches the already-typed character — never show
+            // Nothing matches what's typed — never show; a Backspace may change that.
+            _reopenCompletionOnDelete = true;
+            return;
         }
+
+        _reopenCompletionOnDelete = false;
 
         // Stock AvaloniaEdit only moves the *selection* as the user keeps typing;
         // re-filtering the visible items is on us, from the same caret event it uses.
@@ -751,72 +822,34 @@ public partial class QueryEditorPanel : UserControl
 
             if (!ApplyFuzzyFilter(completionWindow, data))
             {
-                completionWindow.Hide(); // fuzzy-matches nothing — done, not "show all"
+                // Fuzzy-matches nothing — close (a hidden window would still sit
+                // on the keyboard), and let a Backspace bring it back.
+                completionWindow.Close();
+                _reopenCompletionOnDelete = true;
             }
         };
         SqlEditor.TextArea.Caret.PositionChanged += caretMoved;
 
-        // On accept: feed the "picked it recently" ranking tie-breaker, and
-        // append the auto-alias when a table just landed after FROM/JOIN. The
-        // alias insert is posted, not run inline: this handler's order relative
-        // to the window's own (which writes the completion text) isn't
-        // guaranteed — text inserted before Complete() runs sits inside the
-        // completion segment and gets replaced away with the filter word.
-        completionWindow.CompletionList.InsertionRequested += (_, _) =>
+        EventHandler<SelectionChangedEventArgs> picked = (_, _) =>
         {
-            if (completionWindow.CompletionList.SelectedItem is SqlCompletionData accepted)
+            if (!_applyingCompletionFilter && completionWindow.CompletionList.SelectedItem is SqlCompletionData item)
             {
-                _completionRecency.Record(accepted.Text);
-                Dispatcher.UIThread.Post(() => MaybeInsertTableAlias(accepted));
+                _userPickedCompletion = item.StableId;
             }
         };
+        completionWindow.CompletionList.ListBox.SelectionChanged += picked;
 
         completionWindow.Closed += (_, _) =>
         {
             SqlEditor.TextArea.Caret.PositionChanged -= caretMoved;
-            _completionWindow = null;
+            completionWindow.CompletionList.ListBox.SelectionChanged -= picked;
+            if (_completionWindow == completionWindow)
+            {
+                _completionWindow = null;
+            }
         };
         completionWindow.Show();
         _completionWindow = completionWindow;
-    }
-
-    // Appends the short auto-alias after a table accepted in FROM/JOIN position
-    // ("FROM public.orders" → "FROM public.orders o") so the "o." member-access
-    // flow works immediately — deduped against every name the statement already
-    // uses (aliases, table names, CTEs). Gated by the persisted "AS" toggle and
-    // re-checked against the clause at the caret, because the same table item
-    // can be accepted in places where an alias is wrong (SELECT list) or
-    // illegal (INSERT INTO / TRUNCATE targets).
-    private void MaybeInsertTableAlias(SqlCompletionData accepted)
-    {
-        if (accepted.AliasTable is null || _model is not { AutoAliasTables: true })
-        {
-            return;
-        }
-
-        var text = SqlEditor.Text;
-        var caret = SqlEditor.CaretOffset;
-        var context = SqlCompletionContext.GetCaretContext(text, caret);
-        if (context.Clause is not (SqlClause.FromTableRef or SqlClause.JoinTableRef))
-        {
-            return;
-        }
-
-        var taken = new List<string>();
-        foreach (var table in SqlCompletionContext.ExtractTables(text))
-        {
-            taken.Add(table.Table);
-            if (table.Alias is not null)
-            {
-                taken.Add(table.Alias);
-            }
-        }
-
-        taken.AddRange(SqlCompletionContext.ExtractCteNames(text));
-
-        var alias = TableAliaser.Derive(accepted.AliasTable, taken);
-        SqlEditor.Document.Insert(caret, " " + alias);
-        SqlEditor.CaretOffset = caret + alias.Length + 1;
     }
 
     // Re-ranks the candidate set against the segment typed since the popup opened
@@ -832,10 +865,18 @@ public partial class QueryEditorPanel : UserControl
         var query = document.GetText(start, caret - start);
 
         var ranked = CompletionRanker.Rank(
-            data, query, static d => d.Text, static d => d.Priority, d => _completionRecency.RankOf(d.Text));
+            data, query, static d => d.Text, static d => d.Priority, d => _completionRecency.RankOf(d.StableId));
         if (ranked.Items.Count == 0)
         {
             return false;
+        }
+
+        // The user's own pick outranks the ranking while it still matches.
+        var selected = ranked.Items[ranked.SelectedIndex];
+        if (_userPickedCompletion is { } pickedId
+            && ranked.Items.FirstOrDefault(i => i.StableId == pickedId) is { } stillThere)
+        {
+            selected = stillThere;
         }
 
         // CompletionData is a plain list the ListBox binds once at template time —
@@ -843,16 +884,24 @@ public partial class QueryEditorPanel : UserControl
         // selection-only pass indexes into it) and rebind ItemsSource for the
         // visible refresh, exactly like the stock filtering path does.
         var list = completionWindow.CompletionList;
-        list.CompletionData.Clear();
-        foreach (var item in ranked.Items)
+        _applyingCompletionFilter = true;
+        try
         {
-            list.CompletionData.Add(item);
+            list.CompletionData.Clear();
+            foreach (var item in ranked.Items)
+            {
+                list.CompletionData.Add(item);
+            }
+
+            list.ListBox.ItemsSource = ranked.Items;
+            list.SelectedItem = selected;
+            list.ScrollIntoView(selected);
+        }
+        finally
+        {
+            _applyingCompletionFilter = false;
         }
 
-        list.ListBox.ItemsSource = ranked.Items;
-        var selected = ranked.Items[ranked.SelectedIndex];
-        list.SelectedItem = selected;
-        list.ScrollIntoView(selected);
         return true;
     }
 
@@ -883,12 +932,24 @@ public partial class QueryEditorPanel : UserControl
 
     // Palette "Expand SELECT *": replace the star(s) in the statement under
     // the caret with the explicit column list — CTEs and catalog tables both
-    // resolve (see SqlCompletionProvider.ExpandSelectStar). A no-op when
-    // there's no star or a table is unknown: better nothing than a wrong list.
+    // resolve (see SqlCompletionProvider.ExpandSelectStar). When the expansion
+    // is declined (a table is unknown, a USING join merges columns …) the text
+    // is left alone and the reason goes to the status line: better nothing
+    // than a list that changes the result, but not nothing *silently*.
     private void ExpandSelectStar()
     {
-        if (_model?.CompletionProvider.ExpandSelectStar(SqlEditor.Text, SqlEditor.CaretOffset) is not { } expansion)
+        if (_model is null)
         {
+            return;
+        }
+
+        if (_model.CompletionProvider.ExpandSelectStar(SqlEditor.Text, SqlEditor.CaretOffset, out var refusal) is not { } expansion)
+        {
+            if (refusal is not null && _activeQuery is not null)
+            {
+                _activeQuery.Status = refusal;
+            }
+
             return;
         }
 

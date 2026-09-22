@@ -41,136 +41,106 @@ public static partial class SqlCompletionContext
     /// <summary>A table reference parsed out of a FROM/JOIN clause, with its alias if one was given.</summary>
     public readonly record struct TableRef(string Schema, string Table, string? Alias);
 
-    /// <summary>What surrounds the caret: literal/comment state plus the governing clause.</summary>
-    public readonly record struct CaretContext(bool InStringOrComment, SqlClause Clause);
+    /// <summary>
+    /// What surrounds the caret: literal/comment state plus the governing clause.
+    /// <see cref="InQuotedIdentifier"/> is kept apart from
+    /// <see cref="InStringOrComment"/> on purpose — inside an unterminated
+    /// <c>"Order I|</c> the user is typing a <i>name</i>, which is exactly where
+    /// completion should help, while inside a string it must stay out of the way.
+    /// </summary>
+    public readonly record struct CaretContext(bool InStringOrComment, SqlClause Clause)
+    {
+        public bool InQuotedIdentifier { get; init; }
+    }
 
     /// <summary>
-    /// Scans the text before the caret (excluding the word being typed — that's
-    /// the completion filter, not context) tracking string/comment state and the
-    /// last clause keyword of the current statement. One forward pass, no regex,
-    /// so it's cheap enough to run per keystroke.
+    /// Reads the text before the caret (excluding the word being typed — that's
+    /// the completion filter, not context) through the shared
+    /// <see cref="SqlLexer"/>, tracking the last clause keyword of the current
+    /// statement. Parentheses keep a stack of clauses, so a closed subquery
+    /// hands the caret back to the clause it interrupted: after
+    /// <c>WHERE id IN (SELECT … FROM t) AND |</c> the caret is in the outer
+    /// predicate again, not in the subquery's FROM.
     /// </summary>
     public static CaretContext GetCaretContext(string sql, int caret)
     {
-        var end = Math.Clamp(caret, 0, sql.Length);
-        while (end > 0 && IsIdentPart(sql[end - 1]))
+        caret = Math.Clamp(caret, 0, sql.Length);
+        var tokens = SqlLexer.Tokenize(sql, 0, caret);
+
+        if (tokens.Count > 0)
         {
-            end--;
+            var last = tokens[^1];
+            // A line comment runs to the newline, which is never inside the
+            // lexed range when the caret is still on the comment's line.
+            if (last.Kind == SqlTokenKind.LineComment || (last.IsProse && last.IsIncomplete))
+            {
+                return new CaretContext(true, ClauseBefore(sql, tokens, last.Start));
+            }
+
+            if (last.Kind == SqlTokenKind.QuotedIdentifier && last.IsIncomplete)
+            {
+                return new CaretContext(false, ClauseBefore(sql, tokens, last.Start)) { InQuotedIdentifier = true };
+            }
         }
 
+        return new CaretContext(false, ClauseBefore(sql, tokens, WordStart(sql, caret)));
+    }
+
+    // The clause governing position `end`, from the tokens that finish before it.
+    private static SqlClause ClauseBefore(string sql, List<SqlToken> tokens, int end)
+    {
         var clause = SqlClause.None;
-        var i = 0;
-        while (i < end)
+        var stack = new Stack<SqlClause>();
+        foreach (var token in tokens)
         {
-            var c = sql[i];
-
-            if (c == '-' && i + 1 < end && sql[i + 1] == '-')
+            if (token.End > end)
             {
-                var eol = sql.IndexOf('\n', i + 2, end - (i + 2));
-                if (eol < 0)
-                {
-                    return new CaretContext(true, clause);
-                }
-
-                i = eol + 1;
-                continue;
+                break;
             }
 
-            if (c == '/' && i + 1 < end && sql[i + 1] == '*')
+            switch (token.Kind)
             {
-                // Postgres block comments nest.
-                var depth = 1;
-                i += 2;
-                while (i < end && depth > 0)
-                {
-                    if (sql[i] == '/' && i + 1 < end && sql[i + 1] == '*')
+                case SqlTokenKind.Semicolon:
+                    clause = SqlClause.None;
+                    stack.Clear();
+                    break;
+                case SqlTokenKind.OpenParen:
+                    stack.Push(clause);
+                    // "INSERT INTO t (" — the parenthesised list is columns, not more
+                    // tables. (A "FROM (" subquery also lands here, and its own SELECT
+                    // re-sets the clause the moment it's typed.)
+                    if (clause is SqlClause.TableRef or SqlClause.FromTableRef)
                     {
-                        depth++;
-                        i += 2;
+                        clause = SqlClause.ColumnRef;
                     }
-                    else if (sql[i] == '*' && i + 1 < end && sql[i + 1] == '/')
+
+                    break;
+                case SqlTokenKind.CloseParen:
+                    if (stack.Count > 0)
                     {
-                        depth--;
-                        i += 2;
+                        clause = stack.Pop();
                     }
-                    else
-                    {
-                        i++;
-                    }
-                }
 
-                if (depth > 0)
-                {
-                    return new CaretContext(true, clause);
-                }
-
-                continue;
+                    break;
+                case SqlTokenKind.Word:
+                    clause = ClassifyKeyword(sql.AsSpan(token.Start, token.Length), clause);
+                    break;
             }
-
-            if (c == '\'' || c == '"')
-            {
-                // A '' (or "") escape reads as close+reopen — same net state.
-                var close = sql.IndexOf(c, i + 1, end - (i + 1));
-                if (close < 0)
-                {
-                    return new CaretContext(true, clause);
-                }
-
-                i = close + 1;
-                continue;
-            }
-
-            if (c == '$' && TrySkipDollarQuote(sql, i, end, ref i))
-            {
-                if (i < 0)
-                {
-                    return new CaretContext(true, clause);
-                }
-
-                continue;
-            }
-
-            if (c == ';')
-            {
-                clause = SqlClause.None;
-                i++;
-                continue;
-            }
-
-            if (c == '(')
-            {
-                // "INSERT INTO t (" — the parenthesised list is columns, not more
-                // tables. (A "FROM (" subquery also lands here, and its own SELECT
-                // will re-set the clause the moment it's typed.)
-                if (clause is SqlClause.TableRef or SqlClause.FromTableRef)
-                {
-                    clause = SqlClause.ColumnRef;
-                }
-
-                i++;
-                continue;
-            }
-
-            if (IsIdentPart(c))
-            {
-                var start = i;
-                while (i < end && IsIdentPart(sql[i]))
-                {
-                    i++;
-                }
-
-                if (!char.IsAsciiDigit(c))
-                {
-                    clause = ClassifyKeyword(sql.AsSpan(start, i - start), clause);
-                }
-
-                continue;
-            }
-
-            i++;
         }
 
-        return new CaretContext(false, clause);
+        return clause;
+    }
+
+    // Start of the (possibly empty) unquoted word ending at the caret.
+    private static int WordStart(string sql, int caret)
+    {
+        var i = caret;
+        while (i > 0 && IsIdentPart(sql[i - 1]))
+        {
+            i--;
+        }
+
+        return i;
     }
 
     // The keywords that move the caret into table position or column position;
@@ -230,122 +200,27 @@ public static partial class SqlCompletionContext
     private static readonly string[] ColumnClauseKeywords =
         ["select", "set", "returning", "values", "when", "then", "else", "distinct"];
 
-    // Blanks the interiors of comments (--, nested /* */) and string literals
-    // ('…', $$…$$) to spaces, length-preserved so every offset stays valid —
-    // the regex heuristics below can't be made quote/comment-aware one by one,
-    // so they run over this masked text instead. Double-quoted identifiers are
-    // *kept* (they're names the heuristics need) but skipped atomically so
-    // their content can't open a fake comment/literal. Same single forward
-    // pass as GetCaretContext; returns the original string when there's
-    // nothing to mask.
+    // Blanks comments and string literals (every form the shared lexer knows)
+    // to spaces, length-preserved so every offset stays valid — the regex
+    // heuristics below can't be made quote/comment-aware one by one, so they run
+    // over this masked text instead. Quoted identifiers are *kept*: they're names
+    // the heuristics need. Returns the original string when there's nothing to
+    // mask.
     private static string MaskCommentsAndStrings(string sql)
     {
         char[]? masked = null;
-        var i = 0;
-        while (i < sql.Length)
+        foreach (var token in SqlLexer.Tokenize(sql))
         {
-            var c = sql[i];
-
-            if (c == '"')
+            if (!token.IsProse)
             {
-                var close = sql.IndexOf('"', i + 1);
-                i = close < 0 ? sql.Length : close + 1;
                 continue;
             }
 
-            if (c == '-' && i + 1 < sql.Length && sql[i + 1] == '-')
-            {
-                var eol = sql.IndexOf('\n', i + 2);
-                var stop = eol < 0 ? sql.Length : eol;
-                Blank(ref masked, sql, i, stop - i);
-                i = stop;
-                continue;
-            }
-
-            if (c == '/' && i + 1 < sql.Length && sql[i + 1] == '*')
-            {
-                var start = i;
-                var depth = 1;
-                i += 2;
-                while (i < sql.Length && depth > 0)
-                {
-                    if (sql[i] == '/' && i + 1 < sql.Length && sql[i + 1] == '*')
-                    {
-                        depth++;
-                        i += 2;
-                    }
-                    else if (sql[i] == '*' && i + 1 < sql.Length && sql[i + 1] == '/')
-                    {
-                        depth--;
-                        i += 2;
-                    }
-                    else
-                    {
-                        i++;
-                    }
-                }
-
-                Blank(ref masked, sql, start, i - start);
-                continue;
-            }
-
-            if (c == '\'')
-            {
-                var start = i;
-                var close = sql.IndexOf('\'', i + 1);
-                i = close < 0 ? sql.Length : close + 1;
-                Blank(ref masked, sql, start, i - start);
-                continue;
-            }
-
-            if (c == '$')
-            {
-                var start = i;
-                var next = i;
-                if (TrySkipDollarQuote(sql, start, sql.Length, ref next))
-                {
-                    // -1 means the literal is still open — mask to the end.
-                    i = next < 0 ? sql.Length : next;
-                    Blank(ref masked, sql, start, i - start);
-                    continue;
-                }
-            }
-
-            i++;
+            masked ??= sql.ToCharArray();
+            Array.Fill(masked, ' ', token.Start, token.Length);
         }
 
         return masked is null ? sql : new string(masked);
-
-        static void Blank(ref char[]? masked, string sql, int start, int count)
-        {
-            masked ??= sql.ToCharArray();
-            for (var j = start; j < start + count; j++)
-            {
-                masked[j] = ' ';
-            }
-        }
-    }
-
-    // Skips a $$…$$ / $tag$…$tag$ literal starting at `start`. Returns false when
-    // the '$' isn't a dollar-quote opener (e.g. a $1 parameter); on true, `i` is
-    // the index after the closing tag, or -1 when the literal is still open at `end`.
-    private static bool TrySkipDollarQuote(string sql, int start, int end, ref int i)
-    {
-        var t = start + 1;
-        while (t < end && (char.IsAsciiLetter(sql[t]) || sql[t] == '_'))
-        {
-            t++;
-        }
-
-        if (t >= end || sql[t] != '$')
-        {
-            return false;
-        }
-
-        var tag = sql.Substring(start, t - start + 1);
-        var close = sql.IndexOf(tag, t + 1, end - (t + 1), StringComparison.Ordinal);
-        i = close < 0 ? -1 : close + tag.Length;
-        return true;
     }
 
     /// <summary>
@@ -360,31 +235,133 @@ public static partial class SqlCompletionContext
     /// </summary>
     public static bool IsAtStatementStart(string sql, int caret)
     {
-        var i = Math.Clamp(caret, 0, sql.Length);
-
-        // Skip back over the (possibly empty) word currently being typed — it's
-        // the completion filter, not context, exactly as GetCaretContext does.
-        while (i > 0 && IsIdentPart(sql[i - 1]))
+        var end = WordStart(sql, Math.Clamp(caret, 0, sql.Length));
+        var last = SqlTokenKind.Semicolon;
+        foreach (var token in SqlLexer.Tokenize(sql, 0, end))
         {
-            i--;
+            if (!token.IsTrivia)
+            {
+                last = token.Kind;
+            }
         }
 
-        // Comments and literals are blanked so a leading "-- note" line (or a
-        // ';' inside a string) can't be read as code.
-        var masked = MaskCommentsAndStrings(sql);
-        while (i > 0)
+        return last == SqlTokenKind.Semicolon;
+    }
+
+    /// <summary>
+    /// The span completion treats as "the statement": everything between the
+    /// real <c>;</c> tokens around the caret, including text to its right — a
+    /// FROM typed after the select list still names the list's sources. A
+    /// caret right after a <c>;</c> belongs to the (possibly empty) statement
+    /// that follows it, never to the one it closed. That is deliberately not
+    /// <see cref="Query.SqlScriptSplitter.StatementSpanAt"/>'s rule, which picks
+    /// the previous statement from a trailing gap so Run/Format still have
+    /// something to act on.
+    /// </summary>
+    public static (int Start, int End) CompletionStatementSpan(string sql, int caret)
+    {
+        caret = Math.Clamp(caret, 0, sql.Length);
+        var start = 0;
+        var end = sql.Length;
+        foreach (var token in SqlLexer.Tokenize(sql))
         {
-            var c = masked[i - 1];
-            if (char.IsWhiteSpace(c))
+            if (token.Kind != SqlTokenKind.Semicolon)
             {
-                i--;
                 continue;
             }
 
-            return c == ';';
+            if (token.End <= caret)
+            {
+                start = token.End;
+            }
+            else
+            {
+                end = token.Start;
+                break;
+            }
         }
 
-        return true;
+        return (start, end);
+    }
+
+    /// <summary>One part of a dotted name, already folded/unquoted to what Postgres would look up.</summary>
+    public readonly record struct NamePart(string Name, bool Quoted);
+
+    /// <summary>
+    /// The whole qualifier chain before the member being typed: <c>[u]</c> for
+    /// <c>u.na|</c>, <c>[public, users]</c> for <c>public.users.|</c>. Names are
+    /// case-folded unless quoted, the way the server resolves them, so
+    /// <c>"Users"</c> and <c>users</c> stay two different things. Empty when the
+    /// caret isn't in a member position. An unterminated quoted member
+    /// (<c>u."na|</c>) is stepped over, so its qualifier still resolves.
+    /// </summary>
+    public static IReadOnlyList<NamePart> GetQualifierChainBeforeCaret(string sql, int caret)
+    {
+        caret = Math.Clamp(caret, 0, sql.Length);
+        var i = WordStart(sql, caret);
+        if (GetCaretContext(sql, caret).InQuotedIdentifier)
+        {
+            i = SqlLexer.Tokenize(sql, 0, caret)[^1].Start;
+        }
+
+        var chain = new List<NamePart>();
+        while (i > 0 && sql[i - 1] == '.')
+        {
+            if (ReadNameBackward(sql, i - 1) is not { } part)
+            {
+                break;
+            }
+
+            chain.Add(part.Part);
+            i = part.Start;
+        }
+
+        chain.Reverse();
+        return chain;
+    }
+
+    // The identifier ending just before exclusive `end`, and where it starts.
+    private static (NamePart Part, int Start)? ReadNameBackward(string sql, int end)
+    {
+        if (end <= 0)
+        {
+            return null;
+        }
+
+        if (sql[end - 1] == '"')
+        {
+            // Walk back to the opening quote, stepping over "" escapes.
+            var j = end - 2;
+            while (j >= 0)
+            {
+                if (sql[j] == '"')
+                {
+                    if (j > 0 && sql[j - 1] == '"')
+                    {
+                        j -= 2;
+                        continue;
+                    }
+
+                    break;
+                }
+
+                j--;
+            }
+
+            return j < 0
+                ? null
+                : (new NamePart(sql.Substring(j + 1, end - 1 - (j + 1)).Replace("\"\"", "\""), true), j);
+        }
+
+        var start = end;
+        while (start > 0 && IsIdentPart(sql[start - 1]))
+        {
+            start--;
+        }
+
+        return start == end || char.IsAsciiDigit(sql[start])
+            ? null
+            : (new NamePart(SqlLexer.FoldCase(sql.AsSpan(start, end - start)), false), start);
     }
 
     /// <summary>
@@ -393,24 +370,8 @@ public static partial class SqlCompletionContext
     /// returns the qualifier — the alias/table/schema immediately before the dot,
     /// unquoted. Returns null for a bare identifier with no dot to its left.
     /// </summary>
-    public static string? GetQualifierBeforeCaret(string sql, int caret)
-    {
-        var i = Math.Clamp(caret, 0, sql.Length);
-
-        // Skip back over the (possibly empty) word currently being typed.
-        while (i > 0 && IsIdentPart(sql[i - 1]))
-        {
-            i--;
-        }
-
-        if (i == 0 || sql[i - 1] != '.')
-        {
-            return null;
-        }
-
-        // The identifier ending just before the dot is the qualifier.
-        return ReadIdentifierBackward(sql, i - 1);
-    }
+    public static string? GetQualifierBeforeCaret(string sql, int caret) =>
+        GetQualifierChainBeforeCaret(sql, caret) is { Count: > 0 } chain ? chain[^1].Name : null;
 
     /// <summary>
     /// True when the word immediately before the caret's (possibly-in-progress)
@@ -418,7 +379,14 @@ public static partial class SqlCompletionContext
     /// soon as a JOIN's <c>ON</c> is typed, distinct from WHERE/HAVING/BY/USING
     /// which share <see cref="SqlClause.Predicate"/> but don't get that treatment.
     /// </summary>
-    public static bool IsAfterOnKeyword(string sql, int caret)
+    public static bool IsAfterOnKeyword(string sql, int caret) => IsAfterKeyword(sql, caret, "on");
+
+    /// <summary>
+    /// True when the word right before the caret's (possibly in-progress) word
+    /// is <paramref name="keyword"/> — e.g. <c>CALL</c>, after which only a
+    /// procedure can follow.
+    /// </summary>
+    public static bool IsAfterKeyword(string sql, int caret, string keyword)
     {
         var i = Math.Clamp(caret, 0, sql.Length);
         while (i > 0 && IsIdentPart(sql[i - 1]))
@@ -437,8 +405,39 @@ public static partial class SqlCompletionContext
             i--;
         }
 
-        return end > i && sql.AsSpan(i, end - i).Equals("on", StringComparison.OrdinalIgnoreCase);
+        return end > i && sql.AsSpan(i, end - i).Equals(keyword, StringComparison.OrdinalIgnoreCase);
     }
+
+    /// <summary>
+    /// The columns a <c>JOIN … USING (…)</c> in the statement merges into one
+    /// output column each, and whether it has a <c>NATURAL JOIN</c> (which
+    /// merges every shared name). Such a name is legal unqualified even though
+    /// two sources carry it, so completion must not treat it as ambiguous.
+    /// </summary>
+    public static IReadOnlySet<string> ExtractUsingColumns(string sql, out bool hasNaturalJoin)
+    {
+        var masked = MaskCommentsAndStrings(sql);
+        hasNaturalJoin = NaturalJoinRegex().IsMatch(masked);
+        var columns = new HashSet<string>(StringComparer.Ordinal);
+        foreach (Match match in UsingListRegex().Matches(masked))
+        {
+            foreach (var column in match.Groups["cols"].Value.Split(','))
+            {
+                if (Unquote(column) is { Length: > 0 } name)
+                {
+                    columns.Add(name);
+                }
+            }
+        }
+
+        return columns;
+    }
+
+    [GeneratedRegex(@"\busing\s*\((?<cols>[^)]*)\)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex UsingListRegex();
+
+    [GeneratedRegex(@"\bnatural\s+(?:\w+\s+)*?join\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex NaturalJoinRegex();
 
     /// <summary>
     /// True when the caret sits right after a JOIN's table reference (and its
@@ -461,6 +460,15 @@ public static partial class SqlCompletionContext
         }
 
         var last = joins[^1];
+        // CROSS JOIN takes no join condition at all and NATURAL JOIN derives its
+        // own, so ON/USING would be a syntax error after either — the target
+        // being complete there means another clause is next, not a condition.
+        if (last.Value.StartsWith("cross", StringComparison.OrdinalIgnoreCase)
+            || last.Value.StartsWith("natural", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
         var segment = before[(last.Index + last.Length)..];
         var match = JoinTargetCompleteRegex().Match(segment);
         if (!match.Success)
@@ -558,35 +566,6 @@ public static partial class SqlCompletionContext
         tables.Add(new TableRef(schema, table, alias));
     }
 
-    // Reads the identifier that ends just before exclusive index `end` (walking
-    // left), returning its unquoted text, or null if there's no identifier there.
-    private static string? ReadIdentifierBackward(string sql, int end)
-    {
-        if (end <= 0)
-        {
-            return null;
-        }
-
-        if (sql[end - 1] == '"')
-        {
-            var open = end - 2;
-            while (open >= 0 && sql[open] != '"')
-            {
-                open--;
-            }
-
-            return open < 0 ? null : sql.Substring(open + 1, end - 1 - (open + 1)).Replace("\"\"", "\"");
-        }
-
-        var start = end;
-        while (start > 0 && IsIdentPart(sql[start - 1]))
-        {
-            start--;
-        }
-
-        return start == end ? null : sql.Substring(start, end - start);
-    }
-
     private static (string Schema, string Table) SplitQualified(string raw)
     {
         var trimmed = raw.Trim();
@@ -609,16 +588,18 @@ public static partial class SqlCompletionContext
         return ("", Unquote(trimmed));
     }
 
+    // The name a written identifier denotes: a quoted one unquoted and
+    // unescaped, a bare one case-folded — the same thing the server looks up,
+    // so "Users" and Users (= users) stay distinct.
     private static string Unquote(string s)
     {
         s = s.Trim();
         return s.Length >= 2 && s[0] == '"' && s[^1] == '"'
             ? s[1..^1].Replace("\"\"", "\"")
-            : s;
+            : SqlLexer.FoldCase(s);
     }
 
-    private static bool IsIdentPart(char c) =>
-        char.IsLetterOrDigit(c) || c == '_' || c == '$';
+    private static bool IsIdentPart(char c) => SqlLexer.IsIdentPart(c);
 
     // Words that can legally follow a table reference but are never an alias, so
     // they must not be swallowed as one.

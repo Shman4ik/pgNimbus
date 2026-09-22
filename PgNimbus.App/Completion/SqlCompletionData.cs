@@ -1,7 +1,9 @@
+using System.Runtime.CompilerServices;
 using Avalonia.Media;
 using AvaloniaEdit.CodeCompletion;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Editing;
+using PgNimbus.Core.Text;
 
 namespace PgNimbus.App.Completion;
 
@@ -67,7 +69,32 @@ public sealed class SqlCompletionData(string text, SqlCompletionKind kind, strin
     /// </summary>
     public string? AliasTable { get; init; }
 
-    public object Content => Text;
+    /// <summary>
+    /// What the row shows when it isn't just <see cref="Text"/> — a column two
+    /// sources share reads <c>u.id</c> / <c>o.id</c> while both still filter on
+    /// <c>id</c>.
+    /// </summary>
+    public string? DisplayText { get; init; }
+
+    /// <summary>The row label the popup binds to.</summary>
+    public string Label => DisplayText ?? Text;
+
+    public object Content => Label;
+
+    /// <summary>
+    /// The candidate's identity for the "picked it recently" ranking: kind plus
+    /// what it writes, so accepting <c>u.id</c> doesn't promote every other
+    /// <c>id</c>, and <c>public.users</c> isn't <c>audit.users</c>.
+    /// </summary>
+    public string StableId => $"{(int)Kind}:{Detail}:{InsertText}";
+
+    /// <summary>How accepting writes the item — a callable's parens, a table's optional alias.</summary>
+    public CompletionInsertKind InsertKind => Kind switch
+    {
+        SqlCompletionKind.Function => CompletionInsertKind.Function,
+        SqlCompletionKind.Table when AliasTable is not null => CompletionInsertKind.Table,
+        _ => CompletionInsertKind.Plain,
+    };
 
     public object Description => DescriptionText ?? Kind switch
     {
@@ -89,15 +116,34 @@ public sealed class SqlCompletionData(string text, SqlCompletionKind kind, strin
 
     public double Priority { get; } = priority;
 
+    // Per-editor accept settings, attached to the TextArea rather than stored on
+    // the items: the provider's items are shared across popups and tabs.
+    private static readonly ConditionalWeakTable<TextArea, AcceptOptions> Options = new();
+
+    /// <summary>What an editor needs from an accept: whether tables get an auto-alias, and a callback once the text is in.</summary>
+    public sealed record AcceptOptions(Func<bool> AutoAliasTables, Action<SqlCompletionData>? Accepted);
+
+    /// <summary>Attaches <paramref name="options"/> to every accept in <paramref name="textArea"/>.</summary>
+    public static void Configure(TextArea textArea, AcceptOptions options) =>
+        Options.AddOrUpdate(textArea, options);
+
+    /// <summary>
+    /// Writes the item as one edit — the replaced token (the whole word, or the
+    /// whole quoted identifier, not just the part the popup filtered on), a
+    /// callable's parens (reusing one already there), and a table's auto-alias —
+    /// so a single Undo takes all of it back. The popup's own
+    /// <paramref name="completionSegment"/> is deliberately not what gets
+    /// replaced: it stops at the caret.
+    /// </summary>
     public void Complete(TextArea textArea, ISegment completionSegment, EventArgs insertionRequestEventArgs)
     {
-        textArea.Document.Replace(completionSegment, InsertText);
+        Options.TryGetValue(textArea, out var options);
+        var document = textArea.Document;
+        var aliasSeed = options?.AutoAliasTables() == true ? AliasTable : null;
+        var edit = CompletionEdits.Plan(document.Text, textArea.Caret.Offset, InsertText, InsertKind, aliasSeed);
 
-        // A function inserts as "name()" — land the caret between the parens so
-        // the arguments can be typed straight away.
-        if (InsertText.EndsWith("()", StringComparison.Ordinal))
-        {
-            textArea.Caret.Offset -= 1;
-        }
+        document.Replace(edit.ReplaceStart, edit.ReplaceLength, edit.InsertText);
+        textArea.Caret.Offset = Math.Clamp(edit.CaretOffset, 0, document.TextLength);
+        options?.Accepted?.Invoke(this);
     }
 }

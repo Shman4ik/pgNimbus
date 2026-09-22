@@ -1308,6 +1308,57 @@ csproj / WiX / MSIX manifest reference them unchanged:
      those two exception types are caught; a dropped connection mid-row must stay
      an error. Integration coverage is `QueryEngineCompositeTests` (gated on
      `PGNIMBUS_TEST_CONN` like the reconnect tests).
+- **SQL text has one lexer, and completion reads one statement the way the
+  server would** (2026-09, first delivery of
+  [`docs/design/sql-editing-experience.md`](docs/design/sql-editing-experience.md),
+  packages A–E). `Text/SqlLexer` (Core-pure, unit-tested, including a
+  generative "tokens exactly tile any text" check — it runs per keystroke on the
+  UI thread, so a zero-width token would hang the app) is the single definition
+  of strings (`E'…'` backslash escapes, `U&`/`B`/`X`/`N` prefixes), quoted
+  identifiers, `$tag1$`/`$тег$` dollar quotes and nested comments.
+  `SqlScriptSplitter` and `SqlCompletionContext`'s caret/mask scans ride it;
+  before that each had its own scanner and they disagreed — `E'can\'t;stop'`
+  split in two, and completion opened inside `$tag1$…$tag1$`. `SqlFormatter` and
+  `BrowseSqlParser` still carry their own tokenizers and move over one at a time,
+  each keeping its own contract (BrowseSqlParser still refuses what it can't
+  reproduce; `IsSafeToReExecute` must not get less conservative).
+  Five rules the provider now keeps, each a reproduced bug in the audit:
+  (a) **The statement is the unit** — `CompletionStatementSpan` is the text
+  between the real `;` tokens around the caret, the part right of it included (a
+  FROM typed after the select list names the list's sources); a caret right after
+  `;` is a new, empty statement. That is deliberately *not* `StatementSpanAt`,
+  which picks the previous statement from a trailing gap so Run/Format have
+  something to act on. (b) **Names fold like the server folds them**: a bare
+  identifier is ASCII-lowercased, a quoted one kept exact (`TableRef` and
+  qualifier chains carry the folded name), and a short table name resolves along
+  `search_path` (`SchemaService.GetSearchPathAsync`, from a pooled connection, so
+  the connection *default*); unknown path → only a name exactly one schema has.
+  `missing.users` never borrows `public.users`' columns and `public.users.` never
+  lists `audit.users`' — the old cache merged same-named tables under the short
+  name. (c) **A column two sources share is offered per source, qualified**
+  (`u.id` / `o.id`, `SqlCompletionData.DisplayText`), unless USING/NATURAL merged
+  it; a self-join is two sources. (d) **An accept is one edit**:
+  `Text/CompletionEdits.Plan` (Core-pure) decides the replaced range — the whole
+  token, past the caret and including a quoted identifier's quotes — a callable's
+  parens (reusing a `(` already there), and the auto-alias (skipped when one is
+  already typed), and `SqlCompletionData.Complete` applies it as a single
+  `Document.Replace`. The alias used to be `Dispatcher.Post`ed a frame later: two
+  Undo steps, and a quick tab switch could land it in another document. The
+  popup's filter starts at the word start (`CompletionToken.FilterStart`), so
+  Ctrl+Space after `sel` filters on `sel`; a word that matches nothing *closes*
+  the popup (a hidden one still sat on the keyboard) and Backspace reopens it.
+  (e) **Expand `*` declines rather than change the result**: a bare `*` over
+  `USING`/`NATURAL` or a FROM item it can't read (subquery, function, LATERAL)
+  refuses, and the reason goes to the tab's status line. The catalog behind all
+  of this is one immutable snapshot (`SqlCompletionProvider.Load(CompletionCatalog)`
+  — also the test seam: `PgNimbus.App.Tests/CompletionProviderTests` runs the
+  audit's catalog in memory), a refresh that finishes after a newer one started
+  is dropped, relation names come without `pg_total_relation_size`
+  (`GetRelationNamesAsync`), and foreign keys touching an excluded schema are
+  dropped with it. Not done yet (packages F–J): real scopes for subqueries/
+  LATERAL/UNION (only the clause stack across parens exists — `EXISTS (…)` still
+  leaks its columns outward), INSERT/ON CONFLICT/RETURNING contexts, cast types,
+  argument hints, the Enter-accept rule, latency budgets.
 - `SqlFormatter` follows <https://www.sqlstyle.guide/> ("river" layout: root
   keywords right-aligned to a common column, content to its right). The tests
   in `PgNimbus.Core.Tests` assert exact spacing — a deliberate layout change

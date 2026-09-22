@@ -16,7 +16,16 @@ public static partial class SqlCompletionContext
         string Name,
         IReadOnlyList<string> Columns,
         bool SelectsStar,
-        IReadOnlyList<TableRef> SourceTables);
+        IReadOnlyList<TableRef> SourceTables)
+    {
+        /// <summary>
+        /// The sources the stars actually cover: all of <see cref="SourceTables"/>
+        /// for a bare <c>*</c>, only the named one for <c>u.*</c>. Reading every
+        /// source for <c>u.*</c> is how a CTE over <c>users u JOIN orders o</c>
+        /// used to offer <c>orders</c>' columns it never selects.
+        /// </summary>
+        public IReadOnlyList<TableRef> StarSources { get; init; } = [];
+    }
 
     /// <summary>
     /// The CTEs a <c>WITH</c> clause introduces, each with the output columns
@@ -39,6 +48,7 @@ public static partial class SqlCompletionContext
 
             List<string> columns;
             var selectsStar = false;
+            List<string?> starQualifiers = [];
             if (match.Groups["cols"].Success)
             {
                 // WITH x (a, b) AS (…) — the declared list *is* the output shape.
@@ -49,29 +59,139 @@ public static partial class SqlCompletionContext
             }
             else
             {
-                columns = DeriveSelectListColumns(body, out selectsStar);
+                columns = DeriveBodyColumns(body, out selectsStar, starQualifiers);
             }
 
-            defs.Add(new CteDefinition(name, columns, selectsStar, ExtractTables(body)));
+            var sources = ExtractTables(body);
+            defs.Add(new CteDefinition(name, columns, selectsStar, sources)
+            {
+                StarSources = StarSourcesOf(sources, starQualifiers),
+            });
         }
 
         return defs;
     }
 
-    // The output column names a body's top-level SELECT list yields: aliases
+    // Which sources the stars cover: every one for a bare "*" (a null
+    // qualifier), else those whose alias — or, unaliased, whose table name —
+    // one of the "q.*" items names.
+    private static IReadOnlyList<TableRef> StarSourcesOf(IReadOnlyList<TableRef> sources, List<string?> qualifiers)
+    {
+        if (qualifiers.Count == 0)
+        {
+            return [];
+        }
+
+        if (qualifiers.Contains(null))
+        {
+            return sources;
+        }
+
+        return [.. sources.Where(t => qualifiers.Contains(t.Alias ?? t.Table))];
+    }
+
+    // The output columns of a CTE body, whatever statement it is: a SELECT's
+    // list, a data-modifying statement's RETURNING list, or VALUES' positional
+    // column1…columnN — the names Postgres gives each.
+    private static List<string> DeriveBodyColumns(string body, out bool selectsStar, List<string?> starQualifiers)
+    {
+        var i = 0;
+        SkipWhitespace(body, ref i);
+        var first = ReadWord(body, ref i);
+        if (first.Equals("values", StringComparison.OrdinalIgnoreCase))
+        {
+            selectsStar = false;
+            return ValuesColumns(body, i);
+        }
+
+        if (first.Equals("insert", StringComparison.OrdinalIgnoreCase)
+            || first.Equals("update", StringComparison.OrdinalIgnoreCase)
+            || first.Equals("delete", StringComparison.OrdinalIgnoreCase)
+            || first.Equals("merge", StringComparison.OrdinalIgnoreCase))
+        {
+            selectsStar = false;
+            return FindTopLevelWord(body, "returning") is { } returning
+                ? DeriveListColumns(body[returning..], out selectsStar, starQualifiers)
+                : [];
+        }
+
+        return FindSelectListSpan(body) is var (start, end) && start < end
+            ? DeriveListColumns(body[start..end], out selectsStar, starQualifiers)
+            : NoColumns(out selectsStar);
+
+        static List<string> NoColumns(out bool selectsStar)
+        {
+            selectsStar = false;
+            return [];
+        }
+    }
+
+    // "VALUES (1, 'a'), …" names its columns column1, column2, … — as many as
+    // the first row has.
+    private static List<string> ValuesColumns(string body, int from)
+    {
+        var open = body.IndexOf('(', from);
+        if (open < 0)
+        {
+            return [];
+        }
+
+        var close = FindBalancedClose(body, open + 1);
+        var count = SplitTopLevel(body[(open + 1)..close]).Count;
+        return [.. Enumerable.Range(1, count).Select(n => $"column{n}")];
+    }
+
+    // Index just past the first paren-depth-0 occurrence of `word`, or null.
+    private static int? FindTopLevelWord(string body, string word)
+    {
+        var depth = 0;
+        var i = 0;
+        while (i < body.Length)
+        {
+            var c = body[i];
+            if (c == '"')
+            {
+                var close = body.IndexOf('"', i + 1);
+                i = close < 0 ? body.Length : close + 1;
+                continue;
+            }
+
+            if (c == '(')
+            {
+                depth++;
+            }
+            else if (c == ')')
+            {
+                depth--;
+            }
+            else if (IsIdentPart(c))
+            {
+                var start = i;
+                var w = ReadWord(body, ref i);
+                if (depth == 0 && !char.IsAsciiDigit(body[start]) && w.Equals(word, StringComparison.OrdinalIgnoreCase))
+                {
+                    return i;
+                }
+
+                continue;
+            }
+
+            i++;
+        }
+
+        return null;
+    }
+
+    // The output column names a comma-separated projection yields: aliases
     // (explicit AS or implicit), the last segment of a plain dotted reference,
     // nothing for an unaliased expression. For a recursive/UNION body only the
     // first branch is read — that's the one that names the columns anyway.
-    private static List<string> DeriveSelectListColumns(string body, out bool selectsStar)
+    // Each star is recorded with its qualifier (null for a bare "*").
+    private static List<string> DeriveListColumns(string list, out bool selectsStar, List<string?> starQualifiers)
     {
         selectsStar = false;
         var columns = new List<string>();
-        if (FindSelectListSpan(body) is not var (start, end) || start >= end)
-        {
-            return columns;
-        }
-
-        foreach (var raw in SplitTopLevel(body[start..end]))
+        foreach (var raw in SplitTopLevel(list))
         {
             var item = raw.Trim();
             if (item.Length == 0)
@@ -79,9 +199,20 @@ public static partial class SqlCompletionContext
                 continue;
             }
 
-            if (item == "*" || item.EndsWith(".*", StringComparison.Ordinal))
+            if (item == "*")
             {
                 selectsStar = true;
+                starQualifiers.Add(null);
+                continue;
+            }
+
+            if (item.EndsWith(".*", StringComparison.Ordinal))
+            {
+                selectsStar = true;
+                // "public.users.*" is qualified by its table part, which is what
+                // an unaliased source is matched on.
+                var (_, table) = SplitQualifiedLast(item[..^2]);
+                starQualifiers.Add(table);
                 continue;
             }
 
@@ -437,5 +568,26 @@ public static partial class SqlCompletionContext
         {
             i++;
         }
+    }
+
+    // "a.b.c" → ("a.b", "c"), each part unquoted/folded; a bare name → ("", name).
+    private static (string Prefix, string Last) SplitQualifiedLast(string raw)
+    {
+        var trimmed = raw.Trim();
+        var inQuote = false;
+        var lastDot = -1;
+        for (var i = 0; i < trimmed.Length; i++)
+        {
+            if (trimmed[i] == '"')
+            {
+                inQuote = !inQuote;
+            }
+            else if (trimmed[i] == '.' && !inQuote)
+            {
+                lastDot = i;
+            }
+        }
+
+        return lastDot < 0 ? ("", Unquote(trimmed)) : (trimmed[..lastDot], Unquote(trimmed[(lastDot + 1)..]));
     }
 }
