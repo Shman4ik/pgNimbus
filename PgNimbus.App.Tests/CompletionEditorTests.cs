@@ -23,7 +23,7 @@ public class CompletionEditorTests
             ["public"],
             [
                 new CompletionTable("public", "orders", [new TableColumn("orders", "id", "int4"), new TableColumn("orders", "customer_id", "int4")]),
-                new CompletionTable("public", "customers", [new TableColumn("customers", "id", "int4"), new TableColumn("customers", "name", "text")]),
+                new CompletionTable("public", "customers", [new TableColumn("customers", "id", "int4"), new TableColumn("customers", "name", "text"), new TableColumn("customers", "Order Id", "int4")]),
             ],
             [],
             [],
@@ -40,6 +40,9 @@ public class CompletionEditorTests
     }
 
     private static string Marked(TextEditor editor) => editor.Text.Insert(editor.CaretOffset, "|");
+
+    // Enter writes the platform newline; the assertions don't care which.
+    private static string Lf(string text) => text.ReplaceLineEndings("\n");
 
     [Test]
     public async Task Ctrl_space_after_a_prefix_filters_on_it_and_replaces_all_of_it()
@@ -122,6 +125,140 @@ public class CompletionEditorTests
             Ui.Press(window, Key.Enter);
 
             await Assert.That(Marked(editor)).IsEqualTo("SELECT * FROM public.customers c WHERE c.name|");
+            window.Close();
+        });
+    }
+
+    // --- T29: accept next to text that is already there ---
+
+    [Test]
+    public async Task A_function_accepted_before_its_paren_reuses_it()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, _, editor) = Open("SELECT coal|(x, 0)");
+
+            Ui.Press(window, CommandId.Completion);
+            Ui.Press(window, Key.Enter);
+
+            await Assert.That(Marked(editor)).IsEqualTo("SELECT coalesce(|x, 0)");
+            window.Close();
+        });
+    }
+
+    [Test]
+    public async Task A_table_accepted_before_a_typed_alias_keeps_that_alias()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, vm, editor) = Open("SELECT * FROM ord| x WHERE x.id = 1");
+            if (!vm.AutoAliasTables)
+            {
+                vm.ToggleAutoAliasCommand.Execute(null);
+            }
+
+            Ui.Press(window, CommandId.Completion);
+            Ui.Press(window, Key.Enter);
+
+            await Assert.That(Marked(editor)).IsEqualTo("SELECT * FROM public.orders| x WHERE x.id = 1");
+            window.Close();
+        });
+    }
+
+    [Test]
+    public async Task Accepting_inside_a_quoted_identifier_writes_one_pair_of_quotes()
+    {
+        await Ui.Run(async () =>
+        {
+            // The closing quote is the auto-closed one the editor wrote.
+            var (window, _, editor) = Open("SELECT * FROM public.customers c WHERE \"Ord|\" = 1");
+
+            Ui.Press(window, CommandId.Completion);
+            Ui.Press(window, Key.Enter);
+
+            await Assert.That(Marked(editor)).IsEqualTo("SELECT * FROM public.customers c WHERE \"Order Id\"| = 1");
+            window.Close();
+        });
+    }
+
+    // --- T30: redo puts the whole accept back, alias included ---
+
+    [Test]
+    public async Task Redo_restores_the_table_and_its_alias_together()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, vm, editor) = Open("SELECT * FROM ord|");
+            if (!vm.AutoAliasTables)
+            {
+                vm.ToggleAutoAliasCommand.Execute(null);
+            }
+
+            Ui.Press(window, CommandId.Completion);
+            Ui.Press(window, Key.Enter);
+            editor.Undo();
+            Ui.Settle();
+            editor.Redo();
+            Ui.Settle();
+
+            await Assert.That(editor.Text).IsEqualTo("SELECT * FROM public.orders o");
+            await Assert.That(editor.CanRedo).IsFalse();
+            window.Close();
+        });
+    }
+
+    // --- T32: pasted text and tab switches never accept anything ---
+
+    [Test]
+    public async Task Pasted_text_does_not_open_the_popup()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, _, editor) = Open("SELECT * FROM public.orders o WHERE |");
+
+            // A paste / IME commit arrives as one multi-character text input.
+            Ui.Type(window, "o.id = 1");
+            Ui.Press(window, Key.Enter);
+
+            await Assert.That(Lf(editor.Text)).IsEqualTo("SELECT * FROM public.orders o WHERE o.id = 1\n");
+            window.Close();
+        });
+    }
+
+    [Test]
+    public async Task Pasting_over_an_open_popup_does_not_accept_into_the_paste()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, _, editor) = Open("SELECT * FROM public.orders o WHERE o.|");
+
+            Ui.Type(window, "c"); // popup opens on the columns of o
+            Ui.Type(window, "ustomer_id = 42");
+            Ui.Press(window, Key.Enter);
+
+            await Assert.That(Lf(editor.Text)).IsEqualTo("SELECT * FROM public.orders o WHERE o.customer_id = 42\n");
+            window.Close();
+        });
+    }
+
+    [Test]
+    public async Task Switching_tabs_closes_the_popup_before_it_can_accept()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, vm, editor) = Open("SELECT * FROM public.customers c WHERE c.na|");
+            var first = vm.ActiveTab;
+
+            Ui.Press(window, CommandId.Completion);
+            Ui.Press(window, CommandId.NewTab);
+            await Assert.That(vm.ActiveTab).IsNotEqualTo(first);
+            editor.TextArea.Focus();
+            var before = editor.Text;
+            editor.CaretOffset = before.Length;
+            Ui.Press(window, Key.Enter);
+
+            await Assert.That(Lf(editor.Text)).IsEqualTo(Lf(before) + "\n");
+            await Assert.That(first.Sql).IsEqualTo("SELECT * FROM public.customers c WHERE c.na");
             window.Close();
         });
     }
