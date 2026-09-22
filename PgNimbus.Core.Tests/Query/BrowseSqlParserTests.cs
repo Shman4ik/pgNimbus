@@ -176,4 +176,45 @@ public class BrowseSqlParserTests
 
         await Assert.That(parsing.Wait(TimeSpan.FromSeconds(10))).IsTrue();
     }
+
+    // --- On the shared SqlLexer: the literal forms it reads, and never guesses at ---
+
+    [Test]
+    public async Task A_nested_comment_is_dropped_whole()
+    {
+        // The old scanner closed the comment at the first "*/" and kept
+        // "c */ order_count = 1" as a raw condition, which would be ANDed back
+        // into the query as broken SQL.
+        var shape = Parse("SELECT * FROM analytics.v_customer_spend WHERE /* a /* b */ c */ order_count = 1 LIMIT 100");
+
+        await Assert.That(shape!.Conditions.Single().Filter).IsEqualTo(new RowFilter("order_count", FilterOperator.Equals, "1"));
+    }
+
+    [Test]
+    [Arguments(@"full_name = E'a\'b'")]
+    [Arguments("full_name = $t1$x;y$t1$")]
+    [Arguments("full_name = $тег$x$тег$")]
+    [Arguments("full_name = N'x'")]
+    [Arguments("full_name = U&'x'")]
+    [Arguments("U&\"full_name\" = 'x'")]
+    [Arguments("order_count = 0x1F")]
+    [Arguments("id = $1")]
+    public async Task A_literal_the_chips_cannot_reproduce_stays_a_raw_condition(string condition)
+    {
+        var shape = Parse($"SELECT * FROM analytics.v_customer_spend WHERE {condition} LIMIT 100");
+
+        await Assert.That(shape).IsNotNull();
+        await Assert.That(shape!.Conditions.Single()).IsEqualTo(new ParsedCondition(condition, null));
+    }
+
+    [Test]
+    [Arguments("SELECT * FROM analytics.v_customer_spend WHERE full_name = 'open LIMIT 100")]
+    [Arguments("SELECT * FROM analytics.v_customer_spend WHERE \"open = 'x' LIMIT 100")]
+    [Arguments("SELECT * FROM analytics.v_customer_spend WHERE a = 1 /* open LIMIT 100")]
+    [Arguments("SELECT * FROM analytics.v_customer_spend WHERE a = $x$open LIMIT 100")]
+    [Arguments("SELECT * FROM analytics.v_customer_spend LIMIT 0x10")]
+    public async Task Unfinished_or_unreadable_text_is_not_a_browse_query(string sql)
+    {
+        await Assert.That(Parse(sql)).IsNull();
+    }
 }
