@@ -156,7 +156,7 @@ dotnet run --project PgNimbus.App
 
 ### ✏️ A Smarter SQL Editor
 
-- **Schema-aware autocomplete.** Schema-qualified tables after `FROM`/`JOIN`, scoped columns in `WHERE`/`ON`/`ORDER BY`, `alias.` member access, CTE output columns (including `SELECT *` bodies resolved through the catalog), and user-defined functions with signature tooltips.
+- **Schema-aware autocomplete.** Schema-qualified tables after `FROM`/`JOIN`, scoped columns in `WHERE`/`ON`/`ORDER BY`, `alias.` member access, CTE output columns (including `SELECT *` bodies resolved through the catalog), and user-defined functions with signature tooltips. Names resolve the way the server resolves them (per query block, along `search_path`), argument hints follow the cursor through a call, and `::` offers only types. [More](docs/guide/editor.md#completion).
 - **FK-aware JOIN magic.** After `JOIN`, tables connected by a foreign key rank first. After `ON`, the complete join condition (`oi.order_id = o.id`) is the top, one-keystroke suggestion.
 - **SQL formatting.** <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> pretty-prints the statement under the cursor; a token round-trip self-check guarantees only whitespace ever changes.
 - **Script execution.** Run several `;`-separated statements on one connection (`BEGIN…COMMIT`, `SET`, and temp tables carry across), each with its own result section and timing, stopping at the first error.

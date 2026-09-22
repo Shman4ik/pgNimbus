@@ -70,6 +70,46 @@ It reads the live catalog, so it knows about:
 - user-defined functions, with signature tooltips
 - the `jsonb` function family
 
+### It reads names the way the server does
+
+Completion works on the statement the cursor is in, not the whole tab. Inside it,
+a name means what PostgreSQL would take it to mean:
+
+- A bare name is folded to lowercase and a quoted one is kept exact. A short
+  table name is looked up along `search_path`, so `users` finds `public.users`
+  and not `audit.users`.
+- A subquery only sees what it can legally see. A `FROM` subquery can't reach
+  its siblings, a `LATERAL` one can, and `EXISTS (…)` sees every level around it.
+  Columns from an outer level come qualified, like `u.name`.
+- When two joined tables share a column name, you get both, as `u.id` and `o.id`.
+- Some places take exactly one table's columns: the column list of
+  `INSERT INTO t (…)`, `ON CONFLICT (…)`, the left side of `SET col =` and
+  `JOIN … USING (…)`. Only those columns are offered there, minus the ones
+  you've already written. `excluded.` shows up in `ON CONFLICT … DO UPDATE`.
+- After `::` or `CAST(… AS`, the list holds only types, your own included.
+
+When a DDL statement you run changes the catalog, the lists refresh on their own.
+Inside an open transaction they wait for it to finish, because the change isn't
+visible to other connections until then.
+
+### Argument hints
+
+Type `(` after a function name, or accept a function from the list, and a hint
+shows its parameters with the current one marked. It follows the cursor across
+arguments and nested calls and knows named arguments (`name => value`). When a
+function has several overloads, it shows the ones that still fit. Bring it back
+with <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Space</kbd> and dismiss it with
+<kbd>Esc</kbd>.
+
+### Enter vs Tab
+
+<kbd>Tab</kbd> always takes the highlighted suggestion. <kbd>Enter</kbd> takes
+it only when you chose it: you opened the list with
+<kbd>Ctrl</kbd>+<kbd>Space</kbd>, moved to a row with the arrows or the mouse, or
+typed the start of its name. Otherwise <kbd>Enter</kbd> just starts a new line,
+so finishing a line never inserts a column you didn't ask for. A row that
+<kbd>Enter</kbd> would skip is drawn with an outline instead of a solid fill.
+
 ### JOIN magic
 
 Two touches that save the most typing. After `JOIN`, tables connected to what you
