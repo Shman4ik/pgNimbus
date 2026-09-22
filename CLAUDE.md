@@ -1355,9 +1355,35 @@ csproj / WiX / MSIX manifest reference them unchanged:
   audit's catalog in memory), a refresh that finishes after a newer one started
   is dropped, relation names come without `pg_total_relation_size`
   (`GetRelationNamesAsync`), and foreign keys touching an excluded schema are
-  dropped with it. Not done yet (packages F–J): real scopes for subqueries/
-  LATERAL/UNION (only the clause stack across parens exists — `EXISTS (…)` still
-  leaks its columns outward), INSERT/ON CONFLICT/RETURNING contexts, cast types,
+  dropped with it.
+  **What a name can refer to is decided per block, not per statement**
+  (package F). `Text/SqlScopes.cs` (`SqlScopeModel`, Core-pure, unit-tested in
+  `SqlScopeModelTests`) reads the statement's tokens into queries and blocks: a
+  query is an optional WITH list plus its set-operation branches, a block is one
+  SELECT / VALUES / INSERT / UPDATE / DELETE / MERGE with its sources, its output
+  items (select list, RETURNING, `column1…N`) and the queries nested in it. Each
+  nested query carries a role, and the role *is* the visibility rule, taken from
+  PostgreSQL: `Expression` (EXISTS/IN/scalar) sees every level around it,
+  `Derived` (a FROM subquery, an INSERT's source query) sees the levels above its
+  block but never its FROM siblings, `Lateral` also sees the FROM items before
+  it, `Cte` sees what its owning query sees plus the CTEs before it (all of them
+  under RECURSIVE). The provider asks `BlockAt(caret)` and resolves only through
+  `VisibleSources` (innermost level first; an inner name hides an outer one) and
+  `VisibleCtes`. Outer-level columns are offered *qualified* (`u.name`), since a
+  bare name that also exists inside would bind to the inner column. A derived
+  table or CTE is resolved through its first branch's output, stars spelled out
+  through that branch's own sources, a column alias list renaming positionally;
+  a CTE reaching itself through a star stops (visited set) instead of recursing.
+  A select list whose block has sources is scoped like a predicate: another
+  branch's or the catalog's columns aren't legal there. Three things to keep:
+  the reader never guesses — past `SqlScopeModel.MaxDepth` (32) nested queries a
+  query is `IsOpaque` and the caret inside it gets **no** columns, not the outer
+  ones; a statement with no query in it (DDL, SET) has `Root == null` and keeps
+  the old whole-statement reading (`ExtractTables`), which is also still what
+  `CompletionEdits`' alias picking and `ExpandSelectStar` use; and only EXPLAIN
+  may be followed by DML — after `CREATE …`, `UPDATE`/`TABLE` are DDL words.
+  Not done yet (packages G–J): INSERT column lists / ON CONFLICT / `excluded`,
+  per-JOIN USING, several FKs as choices, output aliases in ORDER BY, cast types,
   argument hints, the Enter-accept rule, latency budgets.
 - `SqlFormatter` follows <https://www.sqlstyle.guide/> ("river" layout: root
   keywords right-aligned to a common column, content to its right). The tests

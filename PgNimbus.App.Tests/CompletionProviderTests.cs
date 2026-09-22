@@ -297,4 +297,144 @@ public class CompletionProviderTests
         await Assert.That(items.Any(i => i.Text == "SELECT")).IsTrue();
         await Assert.That(items.Any(i => i.Text == "coalesce")).IsTrue();
     }
+
+    // --- Package F: scopes (T13–T19) ---
+
+    // Columns the caret's own block contributes (the top band), as inserted.
+    private static string[] ScopeColumns(IEnumerable<SqlCompletionData> items) =>
+        [.. items.Where(i => i.Kind == SqlCompletionKind.Column && i.Priority >= 95).Select(i => i.InsertText)];
+
+    [Test]
+    public async Task T13_An_exists_subquery_leaks_nothing_into_the_outer_where()
+    {
+        var columns = ColumnInserts(At(Provider(),
+            "SELECT * FROM public.users u WHERE EXISTS (SELECT 1 FROM public.orders o WHERE o.user_id = u.id) AND |"));
+
+        await Assert.That(columns).IsEquivalentTo(new[] { "id", "name" });
+    }
+
+    [Test]
+    public async Task T13_Inside_exists_the_outer_level_is_offered_qualified()
+    {
+        var columns = ColumnInserts(At(Provider(),
+            "SELECT * FROM public.users u WHERE EXISTS (SELECT 1 FROM public.orders o WHERE |)"));
+
+        await Assert.That(columns).Contains("user_id");
+        await Assert.That(columns).Contains("total");
+        await Assert.That(columns).Contains("u.name");
+        await Assert.That(columns).DoesNotContain("name");
+        await Assert.That(columns).DoesNotContain("audit_only");
+    }
+
+    [Test]
+    public async Task T14_An_inner_alias_hides_the_outer_one_only_inside()
+    {
+        var inner = ColumnInserts(At(Provider(), "SELECT * FROM public.users x WHERE EXISTS (SELECT 1 FROM public.orders x WHERE x.|)"));
+        await Assert.That(inner).IsEquivalentTo(new[] { "id", "user_id", "total" });
+
+        var outer = ColumnInserts(At(Provider(), "SELECT * FROM public.users x WHERE EXISTS (SELECT 1 FROM public.orders x) AND x.|"));
+        await Assert.That(outer).IsEquivalentTo(new[] { "id", "name" });
+    }
+
+    [Test]
+    public async Task T15_A_derived_table_exposes_its_output_names()
+    {
+        var columns = ColumnInserts(At(Provider(), "SELECT q.| FROM (SELECT id AS customer_id FROM public.users) q"));
+
+        await Assert.That(columns).IsEquivalentTo(new[] { "customer_id" });
+    }
+
+    [Test]
+    public async Task T15_A_derived_star_and_a_column_alias_list_resolve()
+    {
+        var star = At(Provider(), "SELECT q.| FROM (SELECT * FROM public.users) q");
+        await Assert.That(ColumnInserts(star)).IsEquivalentTo(new[] { "id", "name" });
+        await Assert.That(star.First(i => i.Text == "name").Detail).IsEqualTo("text");
+
+        var renamed = ColumnInserts(At(Provider(), "SELECT q.| FROM (SELECT id, name FROM public.users) q(uid)"));
+        await Assert.That(renamed).IsEquivalentTo(new[] { "uid", "name" });
+    }
+
+    [Test]
+    public async Task T16_A_cte_chain_resolves_through_each_link()
+    {
+        var columns = ColumnInserts(At(Provider(),
+            "WITH a AS (SELECT id AS aid FROM public.users), b AS (SELECT * FROM a) SELECT b.| FROM b"));
+
+        await Assert.That(columns).IsEquivalentTo(new[] { "aid" });
+    }
+
+    [Test]
+    public async Task T16_A_recursive_cte_names_its_columns_from_the_first_branch()
+    {
+        var columns = ColumnInserts(At(Provider(),
+            "WITH RECURSIVE r AS (SELECT 1 AS n UNION ALL SELECT n + 1 FROM r WHERE n < 5) SELECT r.| FROM r"));
+        await Assert.That(columns).IsEquivalentTo(new[] { "n" });
+
+        // A star that reaches the CTE itself terminates rather than recursing forever.
+        var self = ColumnInserts(At(Provider(), "WITH RECURSIVE r AS (SELECT * FROM r) SELECT r.| FROM r"));
+        await Assert.That(self).IsEmpty();
+    }
+
+    [Test]
+    public async Task T16_A_cte_declared_list_wins_over_its_body()
+    {
+        var columns = ColumnInserts(At(Provider(), "WITH x (a, b) AS (SELECT id, name FROM public.users) SELECT x.| FROM x"));
+
+        await Assert.That(columns).IsEquivalentTo(new[] { "a", "b" });
+    }
+
+    [Test]
+    public async Task T16_A_cte_inside_a_subquery_is_not_offered_outside_it()
+    {
+        var items = At(Provider(), "SELECT * FROM (WITH inner_c AS (SELECT 1 AS v) SELECT * FROM inner_c) d JOIN |");
+
+        await Assert.That(items.Any(i => i.Kind == SqlCompletionKind.Cte)).IsFalse();
+    }
+
+    [Test]
+    public async Task T17_Dml_returning_and_values_ctes_expose_their_names()
+    {
+        var returning = ColumnInserts(At(Provider(), "WITH x AS (DELETE FROM public.orders RETURNING id) SELECT x.| FROM x"));
+        await Assert.That(returning).IsEquivalentTo(new[] { "id" });
+
+        var values = ColumnInserts(At(Provider(), "WITH v AS (VALUES (1, 'a')) SELECT v.| FROM v"));
+        await Assert.That(values).IsEquivalentTo(new[] { "column1", "column2" });
+    }
+
+    [Test]
+    public async Task T18_A_from_subquery_cannot_name_its_siblings()
+    {
+        var columns = ColumnInserts(At(Provider(), "SELECT * FROM public.users u, (SELECT * FROM public.orders o WHERE |) d"));
+
+        await Assert.That(columns).IsEquivalentTo(new[] { "id", "user_id", "total" });
+    }
+
+    [Test]
+    public async Task T18_A_lateral_subquery_can()
+    {
+        var columns = ColumnInserts(At(Provider(), "SELECT * FROM public.users u, LATERAL (SELECT * FROM public.orders o WHERE o.user_id = |) d"));
+
+        await Assert.That(columns).Contains("u.id");
+        await Assert.That(columns).Contains("u.name");
+        await Assert.That(columns).Contains("total");
+    }
+
+    [Test]
+    public async Task T19_Union_branches_keep_their_own_sources()
+    {
+        var first = ScopeColumns(At(Provider(), "SELECT | FROM public.users u UNION SELECT total FROM public.orders o"));
+        await Assert.That(first).IsEquivalentTo(new[] { "id", "name" });
+
+        var second = At(Provider(), "SELECT name FROM public.users u UNION SELECT | FROM public.orders o");
+        await Assert.That(ColumnInserts(second)).IsEquivalentTo(new[] { "id", "user_id", "total" });
+    }
+
+    [Test]
+    public async Task Nesting_past_the_limit_offers_no_columns_at_all()
+    {
+        var deep = "SELECT * FROM public.users u WHERE " + string.Concat(Enumerable.Repeat("EXISTS (SELECT 1 FROM public.orders WHERE ", 60)) + "|";
+
+        await Assert.That(ColumnInserts(At(Provider(), deep))).IsEmpty();
+    }
 }
