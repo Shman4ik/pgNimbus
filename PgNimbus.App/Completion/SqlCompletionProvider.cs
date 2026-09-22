@@ -11,6 +11,13 @@ public sealed record CompletionTable(string Schema, string Name, IReadOnlyList<T
 public sealed record CompletionFunction(string Schema, FunctionInfo Function);
 
 /// <summary>
+/// Whether completion's catalog is current. <paramref name="IsStale"/> after a
+/// refresh failed: the previous catalog is still what completion offers, and
+/// <paramref name="Error"/> says why it could not be replaced.
+/// </summary>
+public sealed record CompletionCatalogStatus(bool IsStale, string? Error);
+
+/// <summary>
 /// Everything completion knows about the database, read in one refresh and
 /// swapped in as one value. <paramref name="SearchPath"/> is the order short
 /// names resolve in; null when it couldn't be read, and then a short name
@@ -69,7 +76,7 @@ public sealed record CompletionCatalog(
 /// snapshot; per-keystroke work is a scan of the current statement and a few
 /// dictionary lookups, with no server round-trip.
 /// </summary>
-public sealed class SqlCompletionProvider(SchemaService? schemaService)
+public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDisposable
 {
     private static readonly string[] Keywords =
     [
@@ -186,21 +193,119 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService)
     /// </summary>
     public IReadOnlySet<string> ExcludedSchemas { get; set; } = new HashSet<string>(StringComparer.Ordinal);
 
-    public async Task RefreshAsync(CancellationToken ct)
+    /// <summary>
+    /// Set while the user's explicit transaction has run a <c>SET search_path</c>:
+    /// the held connection now resolves short names along a path the catalog
+    /// (read from a pooled connection) doesn't know. Until the transaction
+    /// ends, a short name resolves only when exactly one schema has it — the
+    /// same rule as an unknown path, and never a guess along the stale one.
+    /// Outside a transaction a SET does not outlive its statement (the pool
+    /// resets the session), so the host clears this when the transaction ends.
+    /// </summary>
+    public bool SessionSearchPathChanged { get; set; }
+
+    /// <summary>What the published catalog is: fresh, or the last good one kept after a failed refresh.</summary>
+    public CompletionCatalogStatus Status { get; private set; } = new(false, null);
+
+    /// <summary>Raised when <see cref="Status"/> changes — from whichever thread the refresh finished on.</summary>
+    public event Action<CompletionCatalogStatus>? StatusChanged;
+
+    /// <summary>
+    /// Reads the catalog and publishes it as one snapshot. Never throws for a
+    /// read that fails: the previous snapshot stays in use (keywords and
+    /// whatever was known keep completing) and <see cref="Status"/> says it is
+    /// stale, with the reason. A newer refresh cancels an older one mid-read,
+    /// and <see cref="Dispose"/> (the window closing, a connection switch)
+    /// cancels whatever is in flight. The snapshot is built on the thread pool:
+    /// for a catalog of a million columns that is half a second the UI thread
+    /// no longer spends. True when this refresh's catalog was published.
+    /// </summary>
+    public async Task<bool> RefreshAsync(CancellationToken ct)
     {
-        if (_schemaService is null)
+        if (_schemaService is null || _lifetime.IsCancellationRequested)
+        {
+            return false;
+        }
+
+        var generation = Interlocked.Increment(ref _refreshGeneration);
+        var cts = CancellationTokenSource.CreateLinkedTokenSource(ct, _lifetime.Token);
+        CancelQuietly(Interlocked.Exchange(ref _refreshCts, cts));
+        try
+        {
+            var catalog = await ReadCatalogAsync(_schemaService, ExcludedSchemas, cts.Token);
+            var excluded = ExcludedSchemas;
+            var snapshot = await Task.Run(() => Build(catalog, excluded), cts.Token);
+            if (generation != Volatile.Read(ref _refreshGeneration) || cts.IsCancellationRequested)
+            {
+                return false; // a newer refresh started meanwhile — its catalog wins
+            }
+
+            _snapshot = snapshot;
+            SetStatus(new CompletionCatalogStatus(false, null));
+            return true;
+        }
+        catch (OperationCanceledException) when (cts.IsCancellationRequested)
+        {
+            return false;
+        }
+        catch (Exception ex)
+        {
+            if (generation == Volatile.Read(ref _refreshGeneration))
+            {
+                SetStatus(new CompletionCatalogStatus(true, ex.Message));
+            }
+
+            return false;
+        }
+        finally
+        {
+            if (Interlocked.CompareExchange(ref _refreshCts, null, cts) == cts)
+            {
+                cts.Dispose();
+            }
+        }
+    }
+
+    /// <summary>Stops any refresh in flight and every later one: this provider's connection is going away.</summary>
+    public void Dispose()
+    {
+        CancelQuietly(_lifetime);
+        CancelQuietly(Interlocked.Exchange(ref _refreshCts, null));
+    }
+
+    private readonly CancellationTokenSource _lifetime = new();
+    private CancellationTokenSource? _refreshCts;
+
+    private static void CancelQuietly(CancellationTokenSource? cts)
+    {
+        try
+        {
+            cts?.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Finished and disposed between the exchange and the cancel: nothing left to stop.
+        }
+    }
+
+    private void SetStatus(CompletionCatalogStatus status)
+    {
+        if (status == Status)
         {
             return;
         }
 
-        var generation = Interlocked.Increment(ref _refreshGeneration);
-        var excluded = ExcludedSchemas;
+        Status = status;
+        StatusChanged?.Invoke(status);
+    }
 
+    private static async Task<CompletionCatalog> ReadCatalogAsync(SchemaService schemaService, IReadOnlySet<string> excluded, CancellationToken ct)
+    {
         var schemaNames = new List<string>();
         var tables = new List<CompletionTable>();
         var functions = new List<CompletionFunction>();
 
-        foreach (var schema in await _schemaService.GetSchemasAsync(ct))
+        foreach (var schema in await schemaService.GetSchemasAsync(ct))
         {
             // An excluded schema contributes nothing anywhere, and its catalog
             // queries are skipped with it.
@@ -210,8 +315,8 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService)
             }
 
             schemaNames.Add(schema.Name);
-            var names = await _schemaService.GetRelationNamesAsync(schema.Name, ct);
-            var columns = (await _schemaService.GetAllColumnsAsync(schema.Name, ct))
+            var names = await schemaService.GetRelationNamesAsync(schema.Name, ct);
+            var columns = (await schemaService.GetAllColumnsAsync(schema.Name, ct))
                 .GroupBy(c => c.Table, StringComparer.Ordinal)
                 .ToDictionary(g => g.Key, g => (IReadOnlyList<TableColumn>)[.. g], StringComparer.Ordinal);
             foreach (var name in names)
@@ -219,37 +324,32 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService)
                 tables.Add(new CompletionTable(schema.Name, name, columns.GetValueOrDefault(name) ?? []));
             }
 
-            foreach (var function in await _schemaService.GetFunctionsAsync(schema.Name, ct))
+            foreach (var function in await schemaService.GetFunctionsAsync(schema.Name, ct))
             {
                 functions.Add(new CompletionFunction(schema.Name, function));
             }
         }
 
-        var foreignKeys = await _schemaService.GetForeignKeysAsync(ct);
-        var builtinFunctions = (await _schemaService.GetFunctionsAsync("pg_catalog", ct))
+        var foreignKeys = await schemaService.GetForeignKeysAsync(ct);
+        var builtinFunctions = (await schemaService.GetFunctionsAsync("pg_catalog", ct))
             .Select(f => new CompletionFunction("pg_catalog", f))
             .ToList();
-        var types = await _schemaService.GetTypesAsync(ct);
+        var types = await schemaService.GetTypesAsync(ct);
         IReadOnlyList<string>? searchPath;
         try
         {
-            searchPath = await _schemaService.GetSearchPathAsync(ct);
+            searchPath = await schemaService.GetSearchPathAsync(ct);
         }
         catch (Npgsql.NpgsqlException)
         {
             searchPath = null;
         }
 
-        if (generation != Volatile.Read(ref _refreshGeneration))
-        {
-            return; // a newer refresh started meanwhile — its catalog wins
-        }
-
-        Load(new CompletionCatalog(schemaNames, tables, functions, foreignKeys, searchPath)
+        return new CompletionCatalog(schemaNames, tables, functions, foreignKeys, searchPath)
         {
             BuiltinFunctions = builtinFunctions,
             Types = types,
-        });
+        };
     }
 
     /// <summary>
@@ -440,7 +540,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService)
         }
         else
         {
-            var path = snapshot.SearchPath;
+            var path = SessionSearchPathChanged ? null : snapshot.SearchPath;
             visible = overloads
                 .Where(o => o.Schema == "pg_catalog" || path is null || path.Contains(o.Schema))
                 .OrderBy(o => o.Schema == "pg_catalog" ? -1 : path?.ToList().IndexOf(o.Schema) ?? 0);
@@ -686,8 +786,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService)
         }
 
         items.AddRange(boosted);
-        items.AddRange(snapshot.TableRefItems);
-        return Dedupe(items);
+        return Merge(items, snapshot.TableRefItems);
     }
 
     // Every table FK-adjacent to a table already in the statement (either side of
@@ -758,15 +857,14 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService)
     private IReadOnlyList<SqlCompletionData> GetGeneralCompletions(Snapshot snapshot, string statement, Scope scope, bool atStatementStart)
     {
         var items = CollectStatementItems(snapshot, statement, scope, out _);
-        items.AddRange(snapshot.BaseItems);
         if (atStatementStart)
         {
-            // Prepended, so the dedupe below keeps these ranked copies over the
+            // Prepended, so the merge below keeps these ranked copies over the
             // flat-priority ones already in BaseItems.
             items.InsertRange(0, StatementStartItems);
         }
 
-        return Dedupe(items);
+        return Merge(items, snapshot.BaseItems);
     }
 
     // Predicate/row position (WHERE, ON, HAVING, GROUP/ORDER BY, USING): only the
@@ -777,8 +875,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService)
     private IReadOnlyList<SqlCompletionData> GetPredicateCompletions(Snapshot snapshot, string statement, Scope scope)
     {
         var items = CollectStatementItems(snapshot, statement, scope, out var sourceCount);
-        items.AddRange(sourceCount == 0 ? snapshot.BaseItems : snapshot.PredicateBaseItems);
-        return Dedupe(items);
+        return Merge(items, sourceCount == 0 ? snapshot.BaseItems : snapshot.PredicateBaseItems);
     }
 
     // A column as one source exposes it.
@@ -1430,14 +1527,14 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService)
     // schema has resolves — picking one of two same-named tables would be a
     // guess. An excluded schema on the path ends the lookup: completion can't
     // see what it holds, so it can't know the name isn't there.
-    private static CompletionTable? Resolve(Snapshot snapshot, string schema, string table)
+    private CompletionTable? Resolve(Snapshot snapshot, string schema, string table)
     {
         if (schema.Length > 0)
         {
             return snapshot.TablesByKey.GetValueOrDefault((schema, table));
         }
 
-        if (snapshot.SearchPath is { } path)
+        if (snapshot.SearchPath is { } path && !SessionSearchPathChanged)
         {
             foreach (var candidate in path)
             {
@@ -1472,8 +1569,53 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService)
 
     // Collapse duplicate candidates, keeping the first — which, because callers
     // prepend the higher-priority items, is the better-ranked one.
-    private static IReadOnlyList<SqlCompletionData> Dedupe(IEnumerable<SqlCompletionData> items) =>
-        items.GroupBy(DedupeKey, StringComparer.Ordinal).Select(g => g.First()).ToList();
+    private static IReadOnlyList<SqlCompletionData> Dedupe(IEnumerable<SqlCompletionData> items)
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var result = new List<SqlCompletionData>();
+        foreach (var item in items)
+        {
+            if (seen.Add(KeyOf(item)))
+            {
+                result.Add(item);
+            }
+        }
+
+        return result;
+    }
+
+    // The per-caret items (`head`, a few dozen) deduplicated and put in front
+    // of one of the snapshot's lists (`tail`, already unique, possibly a
+    // hundred thousand rows), skipping only the tail rows a head item already
+    // stands for. Same result as Dedupe(head ++ tail), without regrouping the
+    // whole catalog on every popup open — that regrouping was most of the
+    // cost of opening the list over a million-column catalog.
+    private static IReadOnlyList<SqlCompletionData> Merge(List<SqlCompletionData> head, IReadOnlyList<SqlCompletionData> tail)
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var result = new List<SqlCompletionData>(head.Count + tail.Count);
+        foreach (var item in head)
+        {
+            if (seen.Add(KeyOf(item)))
+            {
+                result.Add(item);
+            }
+        }
+
+        foreach (var item in tail)
+        {
+            if (seen.Count == 0 || !seen.Contains(KeyOf(item)))
+            {
+                result.Add(item);
+            }
+        }
+
+        return result;
+    }
+
+    // DedupeKey, computed once per item: snapshot items are reused by every
+    // popup, so their keys are too.
+    private static string KeyOf(SqlCompletionData item) => item.DedupeKey ??= DedupeKey(item);
 
     // What makes two rows the same candidate. A label alone isn't it: public.users
     // and audit.users are two tables, u.id and o.id two columns, and two

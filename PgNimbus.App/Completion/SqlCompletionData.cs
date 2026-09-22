@@ -118,6 +118,10 @@ public sealed class SqlCompletionData(string text, SqlCompletionKind kind, strin
 
     public double Priority { get; } = priority;
 
+    // The provider's identity for "the same candidate" (see its DedupeKey),
+    // cached here because snapshot items are shared by every popup.
+    internal string? DedupeKey { get; set; }
+
     // Per-editor accept settings, attached to the TextArea rather than stored on
     // the items: the provider's items are shared across popups and tabs.
     private static readonly ConditionalWeakTable<TextArea, AcceptOptions> Options = new();

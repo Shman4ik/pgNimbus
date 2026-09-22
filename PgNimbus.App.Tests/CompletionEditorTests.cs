@@ -1,4 +1,6 @@
+using Avalonia.Headless;
 using Avalonia.Input;
+using Avalonia.Input.Raw;
 using Avalonia.VisualTree;
 using AvaloniaEdit;
 using PgNimbus.App.Completion;
@@ -366,6 +368,54 @@ public class CompletionEditorTests
             Ui.Press(window, Key.Enter);
 
             await Assert.That(Marked(editor)).IsEqualTo("SELECT '1'::integer|");
+            window.Close();
+        });
+    }
+
+    // --- Package I: long scripts are read off the UI thread ---
+
+    // Past the 50k-character threshold where completion reads the text on the thread pool.
+    private static readonly string LongScript =
+        string.Concat(Enumerable.Repeat("SELECT id, name FROM public.customers WHERE id = 1;\n", 1_200));
+
+    // Lets the background read finish and its posted answer run.
+    private static void SettleBackground()
+    {
+        Thread.Sleep(300);
+        Ui.Settle();
+    }
+
+    [Test]
+    public async Task A_long_script_still_completes_once_the_background_read_is_back()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, _, editor) = Open(LongScript + "SELECT * FROM public.customers c WHERE c.na|");
+
+            Ui.Press(window, CommandId.Completion);
+            SettleBackground();
+            Ui.Press(window, Key.Enter);
+
+            await Assert.That(Marked(editor).EndsWith("WHERE c.name|", StringComparison.Ordinal)).IsTrue();
+            window.Close();
+        });
+    }
+
+    [Test]
+    public async Task An_answer_for_text_that_changed_meanwhile_is_dropped()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, _, editor) = Open(LongScript + "SELECT * FROM public.customers c WHERE c.na|");
+
+            // The request goes out, then the text changes before its answer lands.
+            window.KeyPress(Key.Space, RawInputModifiers.Control, PhysicalKey.None, null);
+            editor.Document.Insert(editor.CaretOffset, "m");
+            SettleBackground();
+            Ui.Press(window, Key.Enter);
+
+            // Enter wrote a newline: the stale list never opened to take it.
+            await Assert.That(Marked(editor).ReplaceLineEndings("\n").EndsWith("WHERE c.nam\n|", StringComparison.Ordinal)).IsTrue();
             window.Close();
         });
     }

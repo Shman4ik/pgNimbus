@@ -1427,8 +1427,34 @@ csproj / WiX / MSIX manifest reference them unchanged:
   schema-qualified off the search_path; a short built-in list stands in until
   the catalog is read. The record is `DataTypeInfo` — `TypeInfo` collides with
   TUnit's and System.Reflection's.
-  Not done yet (packages I–J): the Enter-accept rule (a product decision, not
-  taken), latency budgets.
+  **The catalog has a lifecycle, and the keystroke path is measured**
+  (package I; numbers in the design doc's §8.1, from `tools/CompletionBench`).
+  `RefreshAsync` never throws: a failed read keeps the previous snapshot and
+  sets `Status` stale, which `MainViewModel` shows on the tab's status line;
+  a newer refresh cancels an older one mid-read, `Dispose` (called first in the
+  window's `Closed`, which is also the switch-connection path) cancels
+  everything, and the snapshot is built on the thread pool — 0.5 s for a
+  million columns that used to land on the UI thread. After a run that got
+  through, `SqlStatementInspector.ChangesCatalog` (CREATE/ALTER/DROP/IMPORT,
+  `SELECT … INTO`) triggers a refresh; inside an explicit transaction it waits
+  for the transaction's end (the DDL is invisible to the pooled connection the
+  catalog is read from until then), and a `SET search_path` there
+  (`SetsSearchPath`) sets `SessionSearchPathChanged`, under which short names
+  resolve as if the path were unknown until the transaction ends — a SET
+  outside one does not outlive its statement, because the pool resets the
+  session. Two performance rules that the numbers forced: the snapshot's lists
+  are never regrouped per popup (`Merge` puts the per-caret items in front of
+  an already-unique list; the dedupe key is cached on the item) — regrouping a
+  million-column catalog cost 35 ms per open; and each keystroke ranks only
+  the previous keystroke's matches (`CompletionRanker.Rank(…, within, out
+  matched)`, exact because a subsequence of the longer query is one of the
+  shorter — a generative test holds it to ranking everything). Documents of
+  `QueryEditorPanel.BackgroundCompletionThreshold` (50k) characters or more are
+  read for completion on the thread pool; the answer is shown only when the
+  request number, `_documentEdits` and the caret are all unchanged.
+  Not done yet: the Enter-accept rule (a product decision, not taken), a
+  token cache per document version, the first full ranking over a ~1M-row list
+  (3.5 ms median), and package J.
 - `SqlFormatter` follows <https://www.sqlstyle.guide/> ("river" layout: root
   keywords right-aligned to a common column, content to its right). The tests
   in `PgNimbus.Core.Tests` assert exact spacing — a deliberate layout change

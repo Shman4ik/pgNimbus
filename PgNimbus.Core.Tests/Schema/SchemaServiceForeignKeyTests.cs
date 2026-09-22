@@ -46,7 +46,7 @@ public class SchemaServiceForeignKeyTests
                 .Where(f => f.FromSchema == "pgn_fk")
                 .ToList();
 
-            await Assert.That(fks.Select(f => f.ConstraintName)).IsEquivalentTo(new[] { "orders_buyer_fkey", "orders_line_fkey", "orders_seller_fkey" });
+            await Assert.That(fks.Select(f => f.ConstraintName ?? "<unnamed>")).IsEquivalentTo(new[] { "orders_buyer_fkey", "orders_line_fkey", "orders_seller_fkey" });
             var composite = fks.Single(f => f.ConstraintName == "orders_line_fkey");
             await Assert.That(string.Join(",", composite.FromColumns)).IsEqualTo("l_no,o_id");
             await Assert.That(string.Join(",", composite.ToColumns)).IsEqualTo("line_no,order_id");

@@ -64,6 +64,11 @@ public partial class QueryEditorPanel : UserControl
     // Set while ApplyFuzzyFilter moves the selection itself, so that move isn't
     // mistaken for the user's pick.
     private bool _applyingCompletionFilter;
+    // The last filter pass: the candidate list it ran over, the typed text, and
+    // the indexes that matched — the pool the next, longer query starts from.
+    private IReadOnlyList<SqlCompletionData>? _filterData;
+    private string? _filterQuery;
+    private List<int>? _filterMatches;
     // The popup closed because the typed word matched nothing. Deleting a
     // character may make it match again, and then the popup comes back — the
     // one case where an edit that isn't typing reopens it.
@@ -80,6 +85,14 @@ public partial class QueryEditorPanel : UserControl
     // function) until the caret leaves the call: only then does a caret move
     // re-read it. Plain navigation through existing calls never opens it.
     private bool _signatureHintActive;
+    // Documents at least this long are read for completion off the UI thread
+    // (docs/design/sql-editing-experience.md §8: under it, the whole path stays
+    // well inside the 4 ms per keystroke budget; at 100k characters its tail
+    // does not). Each popup request gets a number, and every edit bumps
+    // _documentEdits: a background answer shows only if neither moved.
+    internal const int BackgroundCompletionThreshold = 50_000;
+    private int _completionRequest;
+    private int _documentEdits;
     // How many overloads the hint lists before summing up the rest.
     private const int MaxSignatureLines = 5;
 
@@ -627,6 +640,7 @@ public partial class QueryEditorPanel : UserControl
     // included, which reopens through OnSqlTextEntered — ends that state.
     private void OnSqlDocumentChanged(object? sender, DocumentChangeEventArgs e)
     {
+        _documentEdits++;
         if (!_reopenCompletionOnDelete || _completionWindow is not null)
         {
             return;
@@ -853,8 +867,39 @@ public partial class QueryEditorPanel : UserControl
 
         var text = SqlEditor.Text;
         var caret = SqlEditor.CaretOffset;
-        var data = _model?.CompletionProvider.GetCompletionData(text, caret);
-        if (data is not { Count: > 0 })
+        if (_model?.CompletionProvider is not { } provider)
+        {
+            return;
+        }
+
+        var request = ++_completionRequest;
+        if (text.Length < BackgroundCompletionThreshold)
+        {
+            PresentCompletion(text, caret, provider.GetCompletionData(text, caret));
+            return;
+        }
+
+        // A long script: read it on the thread pool, and show the answer only
+        // if nothing moved meanwhile — the same request, no edit since, the
+        // caret where it was. A stale answer is dropped, never shown.
+        var edits = _documentEdits;
+        _ = Task.Run(() => provider.GetCompletionData(text, caret)).ContinueWith(
+            done => Dispatcher.UIThread.Post(() =>
+            {
+                if (done.IsCompletedSuccessfully && request == _completionRequest
+                    && edits == _documentEdits && caret == SqlEditor.CaretOffset && SqlEditor.IsKeyboardFocusWithin)
+                {
+                    PresentCompletion(text, caret, done.Result);
+                }
+            }),
+            TaskScheduler.Default);
+    }
+
+    // Opens the popup over `data`, computed for `text` at `caret` (which is
+    // still what the editor holds — ShowCompletion checked).
+    private void PresentCompletion(string text, int caret, IReadOnlyList<SqlCompletionData> data)
+    {
+        if (data.Count == 0)
         {
             return;
         }
@@ -932,8 +977,17 @@ public partial class QueryEditorPanel : UserControl
         var caret = Math.Clamp(SqlEditor.CaretOffset, start, document.TextLength);
         var query = document.GetText(start, caret - start);
 
+        // One more character can only narrow the matches, so the previous
+        // keystroke's matches are all that needs scoring again; anything else
+        // (Backspace, a pasted replacement) starts from the full list.
+        var narrowing = _filterMatches is not null && _filterData == data && _filterQuery is { } previous
+            && query.Length > previous.Length && query.StartsWith(previous, StringComparison.OrdinalIgnoreCase);
         var ranked = CompletionRanker.Rank(
-            data, query, static d => d.Text, static d => d.Priority, d => _completionRecency.RankOf(d.StableId));
+            data, query, static d => d.Text, static d => d.Priority, d => _completionRecency.RankOf(d.StableId),
+            narrowing ? _filterMatches : null, out var matched);
+        _filterData = data;
+        _filterQuery = query;
+        _filterMatches = matched;
         if (ranked.Items.Count == 0)
         {
             return false;
