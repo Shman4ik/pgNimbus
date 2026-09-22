@@ -279,4 +279,21 @@ public class CompletionEditorTests
             window.Close();
         });
     }
+
+    // --- Package G: JOIN USING through the real popup (T22) ---
+
+    [Test]
+    public async Task Join_using_accepts_the_one_column_both_sides_share()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, _, editor) = Open("SELECT * FROM public.orders o JOIN public.customers c USING (|)");
+
+            Ui.Press(window, CommandId.Completion);
+            Ui.Press(window, Key.Enter);
+
+            await Assert.That(Marked(editor)).IsEqualTo("SELECT * FROM public.orders o JOIN public.customers c USING (id|)");
+            window.Close();
+        });
+    }
 }

@@ -219,4 +219,45 @@ public class ForeignKeyMatcherTests
 
         await Assert.That(candidates).Contains(("archive", "orders"));
     }
+
+    // --- T20: several FKs between one pair are several joins ---
+
+    [Test]
+    public async Task BuildJoinConditions_OffersOneConditionPerConstraint()
+    {
+        TableReference[] tables = [new("public", "users", "u"), new("public", "orders", "o")];
+        ForeignKeyInfo[] fks =
+        [
+            new("public", "orders", ["buyer_id"], "public", "users", ["id"], "orders_buyer_fkey"),
+            new("public", "orders", ["seller_id"], "public", "users", ["id"], "orders_seller_fkey"),
+        ];
+
+        var conditions = ForeignKeyMatcher.BuildJoinConditions(tables, fks);
+
+        await Assert.That(conditions).IsEquivalentTo(new[]
+        {
+            new JoinConditionSuggestion("o.buyer_id = u.id", "orders_buyer_fkey"),
+            new JoinConditionSuggestion("o.seller_id = u.id", "orders_seller_fkey"),
+        });
+    }
+
+    [Test]
+    public async Task BuildJoinConditions_KeepsACompositeKeyAsOneCondition_ClosestTableFirst()
+    {
+        TableReference[] tables = [new("public", "orders", "o"), new("public", "lines", "l"), new("public", "shipments", "s")];
+        ForeignKeyInfo[] fks =
+        [
+            new("public", "shipments", ["order_id"], "public", "orders", ["id"], "ship_order_fkey"),
+            new("public", "shipments", ["order_id", "line_no"], "public", "lines", ["order_id", "line_no"], "ship_line_fkey"),
+        ];
+
+        var conditions = ForeignKeyMatcher.BuildJoinConditions(tables, fks);
+
+        await Assert.That(conditions.Select(c => c.Condition)).IsEquivalentTo(new[]
+        {
+            "s.order_id = l.order_id AND s.line_no = l.line_no",
+            "s.order_id = o.id",
+        });
+        await Assert.That(conditions[0].ConstraintName).IsEqualTo("ship_line_fkey");
+    }
 }

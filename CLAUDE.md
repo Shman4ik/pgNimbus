@@ -1382,9 +1382,27 @@ csproj / WiX / MSIX manifest reference them unchanged:
   the old whole-statement reading (`ExtractTables`), which is also still what
   `CompletionEdits`' alias picking and `ExpandSelectStar` use; and only EXPLAIN
   may be followed by DML — after `CREATE …`, `UPDATE`/`TABLE` are DDL words.
-  Not done yet (packages G–J): INSERT column lists / ON CONFLICT / `excluded`,
-  per-JOIN USING, several FKs as choices, output aliases in ORDER BY, cast types,
-  argument hints, the Enter-accept rule, latency budgets.
+  **Some positions take exactly one relation's bare columns, and nothing else**
+  (package G). A block also records its top-level clause keywords
+  (`SqlBlock.Clauses` / `ClauseAt`) and the insides of `INSERT INTO t (…)`,
+  `ON CONFLICT (…)` and each `JOIN … USING (…)`; the provider's
+  `ColumnListCompletions` answers those before any clause logic: the target's
+  columns in the INSERT list, the conflict target and a SET assignment's left
+  side (`SqlScopeModel.IsAssignmentTarget`: after SET or a top-level comma,
+  before `=`; unqualified, since `SET t.col` is an error), and in USING only the
+  columns *that* join's right item shares with the items before it. A column
+  already written in the list is left out. `excluded` (the proposed row) is
+  offered from `DO` to RETURNING and never in RETURNING (`SqlBlock.SeesExcluded`).
+  Output aliases are offered in ORDER BY / GROUP BY and not in WHERE/HAVING — the
+  clause, not the block, decides. A select-list/RETURNING/SET-value caret in any
+  block with sources is scoped like a predicate. JOIN … ON offers **one condition
+  per FK constraint** (`ForeignKeyMatcher.BuildJoinConditions`, closest table
+  first, the constraint name in the row's detail): two FKs between one pair are
+  two different joins, and the old "first edge found" picked one at random.
+  `ForeignKeyInfo.ConstraintName` carries the name (`con.conname`; the query
+  groups by it, so a composite key stays one row).
+  Not done yet (packages H–J): cast types, argument hints, the Enter-accept
+  rule, latency budgets.
 - `SqlFormatter` follows <https://www.sqlstyle.guide/> ("river" layout: root
   keywords right-aligned to a common column, content to its right). The tests
   in `PgNimbus.Core.Tests` assert exact spacing — a deliberate layout change
