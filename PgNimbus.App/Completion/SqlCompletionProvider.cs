@@ -398,6 +398,11 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService)
             return Dedupe(snapshot.ProcedureItems.Concat(snapshot.TableRefItems.Where(i => i.Kind == SqlCompletionKind.Schema)));
         }
 
+        if (scope.Block is { } contextBlock && ColumnListCompletions(snapshot, statement, contextBlock, caret) is { } columnList)
+        {
+            return columnList;
+        }
+
         return context.Clause switch
         {
             SqlClause.TableRef or SqlClause.FromTableRef => BuildTableRefCompletions(snapshot, statement, scope, boosted: []),
@@ -410,7 +415,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService)
             // A select list whose block already names its sources can only
             // reference those (and what is around it): not another branch's
             // tables, not the rest of the catalog.
-            SqlClause.ColumnRef when scope.Block is { Kind: SqlBlockKind.Select, Sources.Count: > 0 } =>
+            SqlClause.ColumnRef when scope.Block is { Kind: not SqlBlockKind.Values, Sources.Count: > 0 } =>
                 GetPredicateCompletions(snapshot, statement, scope),
             _ => GetGeneralCompletions(snapshot, statement, scope, SqlCompletionContext.IsAtStatementStart(statement, caret)),
         };
@@ -438,6 +443,11 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService)
         var qualifier = chain[0].Name;
         if (scope.Block is { } block)
         {
+            if (qualifier == "excluded" && block.SeesExcluded(scope.Caret) && block.Target is { } target)
+            {
+                return ColumnItems(ColumnsOf(snapshot, block, target, []) ?? []);
+            }
+
             // Innermost level first, alias before bare table name within each:
             // the order the server resolves a qualifier in.
             foreach (var level in SqlScopeModel.VisibleSources(block))
@@ -559,13 +569,25 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService)
     {
         var predicateItems = GetPredicateCompletions(snapshot, statement, scope);
         var statementTables = ResolvedReferences(snapshot, scope.Relations(statement, caret));
-        if (ForeignKeyMatcher.BuildJoinCondition(statementTables, snapshot.ForeignKeys) is not { } condition)
+        var conditions = ForeignKeyMatcher.BuildJoinConditions(statementTables, snapshot.ForeignKeys);
+        if (conditions.Count == 0)
         {
             return predicateItems;
         }
 
-        var joinItem = new SqlCompletionData(condition, SqlCompletionKind.JoinCondition, condition, JoinConditionPriority);
-        var items = new List<SqlCompletionData>(predicateItems.Count + 1) { joinItem };
+        // One row per constraint, the closest table's first: two FKs between the
+        // same pair are two different joins, and the row names which is which.
+        var items = new List<SqlCompletionData>(predicateItems.Count + conditions.Count);
+        for (var i = 0; i < conditions.Count; i++)
+        {
+            var (condition, constraint) = conditions[i];
+            items.Add(new SqlCompletionData(condition, SqlCompletionKind.JoinCondition, condition, JoinConditionPriority - i)
+            {
+                Detail = constraint,
+                DescriptionText = constraint is null ? "FK join condition" : $"FK join condition · {constraint}",
+            });
+        }
+
         items.AddRange(predicateItems);
         return Dedupe(items);
     }
@@ -627,7 +649,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService)
 
         if (scope.Block is { } block)
         {
-            return CollectScopeItems(snapshot, block, out sourceCount);
+            return CollectScopeItems(snapshot, block, scope.Caret, out sourceCount);
         }
 
         var items = new List<SqlCompletionData>();
@@ -720,12 +742,12 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService)
     // the scope reader follows (DDL, SET …): those keep the whole-statement
     // reading. Unknown means the caret is in a query nested too deep to read,
     // where nothing is offered rather than a guess.
-    private sealed record Scope(SqlBlock? Block, bool Unknown)
+    private sealed record Scope(SqlBlock? Block, bool Unknown, int Caret)
     {
         public static Scope At(string statement, int caret)
         {
             var block = SqlScopeModel.Parse(statement).BlockAt(caret, out var unknown);
-            return new Scope(block, unknown);
+            return new Scope(block, unknown, caret);
         }
 
         public IEnumerable<string> CteNames(string statement)
@@ -766,11 +788,48 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService)
     // source, qualified, unless USING/NATURAL merged it); an outer level's
     // columns are always offered qualified, since a correlated reference that
     // happens to share a name with an inner column would bind to the inner one.
-    private List<SqlCompletionData> CollectScopeItems(Snapshot snapshot, SqlBlock block, out int sourceCount)
+    private List<SqlCompletionData> CollectScopeItems(Snapshot snapshot, SqlBlock block, int caret, out int sourceCount)
     {
         var items = new List<SqlCompletionData>();
         var levels = SqlScopeModel.VisibleSources(block);
         sourceCount = levels.Sum(l => l.Count);
+
+        // ORDER BY / GROUP BY may name the select list's output columns; WHERE
+        // and HAVING may not, which is why this is keyed on the clause.
+        if (block.Kind == SqlBlockKind.Select && block.ClauseAt(caret) is "order" or "group")
+        {
+            foreach (var output in block.Output)
+            {
+                if (output.Name is { } name && output.RefColumn != name)
+                {
+                    items.Add(new SqlCompletionData(name, SqlCompletionKind.Column, SqlIdentifier.QuoteIfNeeded(name), CurrentColumnPriority)
+                    {
+                        Detail = "output",
+                        DescriptionText = "output column of this SELECT",
+                    });
+                }
+            }
+        }
+
+        // ON CONFLICT … DO UPDATE: "excluded" is the row the INSERT proposed.
+        if (block.SeesExcluded(caret) && block.Target is { } conflictTarget
+            && ColumnsOf(snapshot, block, conflictTarget, []) is { } excludedColumns)
+        {
+            items.Add(new SqlCompletionData("excluded", SqlCompletionKind.Alias, "excluded", AliasPriority)
+            {
+                Detail = conflictTarget.Name,
+                DescriptionText = "the row proposed for insertion",
+            });
+            foreach (var column in excludedColumns)
+            {
+                items.Add(new SqlCompletionData(column.Name, SqlCompletionKind.Column, $"excluded.{SqlIdentifier.QuoteIfNeeded(column.Name)}", OuterColumnPriority)
+                {
+                    DisplayText = $"excluded.{column.Name}",
+                    Detail = column.DataType,
+                    DescriptionText = "column · proposed row",
+                });
+            }
+        }
 
         var shadowed = new HashSet<string>(StringComparer.Ordinal);
         for (var depth = 0; depth < levels.Count; depth++)
@@ -866,6 +925,114 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService)
                 }
             }
         }
+    }
+
+    // The positions where only a bare column of one particular relation can
+    // be written, so the list is exactly those columns and nothing else:
+    // INSERT INTO t (…) and ON CONFLICT (…) take the target's, a SET
+    // assignment's left side too (unqualified — SET t.col is an error), and a
+    // JOIN … USING (…) the columns both sides of *that* join have. A column
+    // already listed is left out. Null when the caret is in none of them.
+    private List<SqlCompletionData>? ColumnListCompletions(Snapshot snapshot, string statement, SqlBlock block, int caret)
+    {
+        if (block.Target is { } target
+            && ((block.Kind == SqlBlockKind.Insert && (block.InsertColumns?.Contains(caret) == true || block.ConflictTarget?.Contains(caret) == true))
+                || (block.Kind is SqlBlockKind.Update or SqlBlockKind.Insert && block.ClauseAt(caret) == "set"
+                    && SqlScopeModel.IsAssignmentTarget(statement, block, caret))))
+        {
+            var listed = block.InsertColumns is { } list && list.Contains(caret) ? NamesListed(statement, list, caret)
+                : block.ConflictTarget is { } conflict && conflict.Contains(caret) ? NamesListed(statement, conflict, caret)
+                : AssignedNames(statement, block, caret);
+            return BareColumnItems(ColumnsOf(snapshot, block, target, []), listed);
+        }
+
+        for (var i = 0; i < block.Sources.Count; i++)
+        {
+            var source = block.Sources[i];
+            if (source.UsingSpan is not { } span || !span.Contains(caret))
+            {
+                continue;
+            }
+
+            var left = new HashSet<string>(StringComparer.Ordinal);
+            for (var j = 0; j < i; j++)
+            {
+                foreach (var column in ColumnsOf(snapshot, block, block.Sources[j], []) ?? [])
+                {
+                    left.Add(column.Name);
+                }
+            }
+
+            var shared = ColumnsOf(snapshot, block, source, [])?.Where(c => left.Contains(c.Name)).ToList();
+            return BareColumnItems(shared, NamesListed(statement, span, caret));
+        }
+
+        return null;
+    }
+
+    private static List<SqlCompletionData> BareColumnItems(IReadOnlyList<SourceColumn>? columns, IReadOnlySet<string> listed) =>
+        [.. (columns ?? []).Where(c => !listed.Contains(c.Name)).Select(c => ColumnItem(c.Name, c.DataType, c.Owner, CurrentColumnPriority))];
+
+    // The names already written in a parenthesized list, except the one the caret is typing.
+    private static HashSet<string> NamesListed(string statement, SqlSpan span, int caret)
+    {
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var token in SqlLexer.Tokenize(statement, span.Start, span.End))
+        {
+            if (token.Kind is SqlTokenKind.Word or SqlTokenKind.QuotedIdentifier && !(token.Start <= caret && caret <= token.End))
+            {
+                names.Add(SqlLexer.IdentifierName(statement, token));
+            }
+        }
+
+        return names;
+    }
+
+    // The columns a SET list already assigns (each name right after SET or a top-level comma).
+    private static HashSet<string> AssignedNames(string statement, SqlBlock block, int caret)
+    {
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        var setEnd = block.Clauses.LastOrDefault(m => m.Keyword == "set" && m.End <= caret).End;
+        var expectName = true;
+        var depth = 0;
+        foreach (var token in SqlLexer.Tokenize(statement, setEnd, statement.Length))
+        {
+            if (token.IsTrivia)
+            {
+                continue;
+            }
+
+            if (token.Kind is SqlTokenKind.OpenParen)
+            {
+                depth++;
+            }
+            else if (token.Kind is SqlTokenKind.CloseParen)
+            {
+                depth--;
+            }
+            else if (token.Kind == SqlTokenKind.Comma && depth == 0)
+            {
+                expectName = true;
+                continue;
+            }
+            else if (expectName && depth == 0 && token.Kind is SqlTokenKind.Word or SqlTokenKind.QuotedIdentifier)
+            {
+                var word = SqlLexer.IdentifierName(statement, token);
+                if (token.Kind == SqlTokenKind.Word && word is "where" or "from" or "returning")
+                {
+                    break;
+                }
+
+                if (!(token.Start <= caret && caret <= token.End))
+                {
+                    names.Add(word);
+                }
+            }
+
+            expectName = false;
+        }
+
+        return names;
     }
 
     // The columns one source of `context` exposes: a derived table's output, a

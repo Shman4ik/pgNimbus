@@ -5,6 +5,9 @@ namespace PgNimbus.Core.Schema;
 /// <summary>A table reference parsed out of a statement — schema-qualified name plus alias, if any.</summary>
 public readonly record struct TableReference(string Schema, string Table, string? Alias);
 
+/// <summary>One join condition an FK offers, with the constraint it comes from (null when the catalog didn't name it).</summary>
+public readonly record struct JoinConditionSuggestion(string Condition, string? ConstraintName);
+
 /// <summary>
 /// Pure FK-graph logic behind completion's JOIN magic: which tables are FK-adjacent
 /// to the statement's tables, and what join condition connects two specific ones.
@@ -56,55 +59,67 @@ public static class ForeignKeyMatcher
     /// AND-joined for a composite key — or null when none of the earlier tables has one.
     /// </summary>
     public static string? BuildJoinCondition(
+        IReadOnlyList<TableReference> statementTables, IReadOnlyList<ForeignKeyInfo> foreignKeys) =>
+        BuildJoinConditions(statementTables, foreignKeys) is { Count: > 0 } conditions ? conditions[0].Condition : null;
+
+    /// <summary>
+    /// Every join condition an FK offers between the last table in
+    /// <paramref name="statementTables"/> (the one being joined) and the
+    /// tables before it — the closest table first, and one condition per
+    /// constraint: two FKs between the same pair (<c>orders.buyer_id</c> and
+    /// <c>orders.seller_id</c>, both to <c>users</c>) are two different joins,
+    /// and picking the first one found would silently pick the wrong one half
+    /// the time. A composite key stays one condition, AND-joined.
+    /// </summary>
+    public static IReadOnlyList<JoinConditionSuggestion> BuildJoinConditions(
         IReadOnlyList<TableReference> statementTables, IReadOnlyList<ForeignKeyInfo> foreignKeys)
     {
+        var results = new List<JoinConditionSuggestion>();
         if (statementTables.Count < 2)
         {
-            return null;
+            return results;
         }
 
         var right = statementTables[^1];
         for (var i = statementTables.Count - 2; i >= 0; i--)
         {
             var left = statementTables[i];
-            if (FindEdge(left, right, foreignKeys) is not { } match)
+            foreach (var (fk, leftIsChild) in FindEdges(left, right, foreignKeys))
             {
-                continue;
+                var leftRef = SqlIdentifier.QuoteIfNeeded(left.Alias ?? left.Table);
+                var rightRef = SqlIdentifier.QuoteIfNeeded(right.Alias ?? right.Table);
+                var (childRef, childCols, parentRef, parentCols) = leftIsChild
+                    ? (leftRef, fk.FromColumns, rightRef, fk.ToColumns)
+                    : (rightRef, fk.FromColumns, leftRef, fk.ToColumns);
+
+                var condition = string.Join(" AND ", childCols.Zip(parentCols, (c, p) =>
+                    $"{childRef}.{SqlIdentifier.QuoteIfNeeded(c)} = {parentRef}.{SqlIdentifier.QuoteIfNeeded(p)}"));
+                if (results.All(r => r.Condition != condition))
+                {
+                    results.Add(new JoinConditionSuggestion(condition, fk.ConstraintName));
+                }
             }
-
-            var (fk, leftIsChild) = match;
-            var leftRef = SqlIdentifier.QuoteIfNeeded(left.Alias ?? left.Table);
-            var rightRef = SqlIdentifier.QuoteIfNeeded(right.Alias ?? right.Table);
-            var (childRef, childCols, parentRef, parentCols) = leftIsChild
-                ? (leftRef, fk.FromColumns, rightRef, fk.ToColumns)
-                : (rightRef, fk.FromColumns, leftRef, fk.ToColumns);
-
-            return string.Join(" AND ", childCols.Zip(parentCols, (c, p) =>
-                $"{childRef}.{SqlIdentifier.QuoteIfNeeded(c)} = {parentRef}.{SqlIdentifier.QuoteIfNeeded(p)}"));
         }
 
-        return null;
+        return results;
     }
 
     // Which side of the edge is the "child" (the FK-column-holding, FromTable
     // side) determines which columns land on which alias in the condition.
-    private static (ForeignKeyInfo Fk, bool LeftIsChild)? FindEdge(
+    private static IEnumerable<(ForeignKeyInfo Fk, bool LeftIsChild)> FindEdges(
         TableReference left, TableReference right, IReadOnlyList<ForeignKeyInfo> foreignKeys)
     {
         foreach (var fk in EdgesFor(left, foreignKeys))
         {
             if (Matches(fk.FromSchema, fk.FromTable, left) && Matches(fk.ToSchema, fk.ToTable, right))
             {
-                return (fk, true);
+                yield return (fk, true);
             }
-
-            if (Matches(fk.FromSchema, fk.FromTable, right) && Matches(fk.ToSchema, fk.ToTable, left))
+            else if (Matches(fk.FromSchema, fk.FromTable, right) && Matches(fk.ToSchema, fk.ToTable, left))
             {
-                return (fk, false);
+                yield return (fk, false);
             }
         }
-
-        return null;
     }
 
     private static IEnumerable<ForeignKeyInfo> EdgesFor(TableReference table, IReadOnlyList<ForeignKeyInfo> foreignKeys)

@@ -41,6 +41,15 @@ public enum SqlJoinKind
     Natural,
 }
 
+/// <summary>A range of offsets in the parsed text; the caret is in it at either end.</summary>
+public readonly record struct SqlSpan(int Start, int End)
+{
+    public bool Contains(int caret) => Start <= caret && caret <= End;
+}
+
+/// <summary>A clause keyword at a block's top level (<c>where</c>, <c>order</c>, <c>set</c>, <c>conflict</c> …) and where it ends.</summary>
+public readonly record struct SqlClauseMark(string Keyword, int End);
+
 /// <summary>
 /// One select-list (or RETURNING) item: its output name when one can be known
 /// without running it, or a star. <see cref="RefQualifier"/> /
@@ -72,6 +81,9 @@ public sealed class SqlSource
 
     /// <summary>The columns a <c>JOIN … USING (…)</c> on this item merges.</summary>
     public IReadOnlyList<string> UsingColumns { get; internal set; } = [];
+
+    /// <summary>The inside of this item's <c>USING (…)</c> list, when it has one.</summary>
+    public SqlSpan? UsingSpan { get; internal set; }
 
     /// <summary>The target of an INSERT / UPDATE / DELETE / MERGE.</summary>
     public bool IsTarget { get; init; }
@@ -141,6 +153,42 @@ public sealed class SqlBlock
     public List<SqlOutputItem> Output { get; } = [];
 
     public List<SqlQuery> Nested { get; } = [];
+
+    /// <summary>The top-level clause keywords, in order — see <see cref="ClauseAt"/>.</summary>
+    public List<SqlClauseMark> Clauses { get; } = [];
+
+    /// <summary>The inside of an INSERT's target column list, <c>INSERT INTO t (…)</c>.</summary>
+    public SqlSpan? InsertColumns { get; internal set; }
+
+    /// <summary>The inside of <c>ON CONFLICT (…)</c>.</summary>
+    public SqlSpan? ConflictTarget { get; internal set; }
+
+    /// <summary>Where <c>ON CONFLICT … DO</c> ends: from here to RETURNING, <c>excluded</c> names the proposed row.</summary>
+    public int? ConflictActionStart { get; internal set; }
+
+    /// <summary>The DML target, if this block has one.</summary>
+    public SqlSource? Target => Sources.FirstOrDefault(s => s.IsTarget);
+
+    /// <summary>The last top-level clause keyword that ends at or before <paramref name="caret"/> (folded), or null.</summary>
+    public string? ClauseAt(int caret)
+    {
+        string? clause = null;
+        foreach (var mark in Clauses)
+        {
+            if (mark.End > caret)
+            {
+                break;
+            }
+
+            clause = mark.Keyword;
+        }
+
+        return clause;
+    }
+
+    /// <summary>True when <c>excluded</c> (the row ON CONFLICT proposed) can be named at <paramref name="caret"/>.</summary>
+    public bool SeesExcluded(int caret) =>
+        Kind == SqlBlockKind.Insert && ConflictActionStart is { } start && caret >= start && ClauseAt(caret) != "returning";
 }
 
 /// <summary>
@@ -306,6 +354,60 @@ public sealed class SqlScopeModel
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// True when <paramref name="caret"/> sits where a SET clause names the
+    /// column being assigned (<c>SET |</c>, <c>SET a = 1, |</c>,
+    /// <c>SET (a, |) = …</c>) rather than the value (<c>SET a = |</c>). Only a
+    /// target column can go there — unqualified, and nothing else.
+    /// </summary>
+    public static bool IsAssignmentTarget(string sql, SqlBlock block, int caret)
+    {
+        var setEnd = -1;
+        foreach (var mark in block.Clauses)
+        {
+            if (mark.End > caret)
+            {
+                break;
+            }
+
+            setEnd = mark.Keyword == "set" ? mark.End : -1;
+        }
+
+        if (setEnd < 0)
+        {
+            return false;
+        }
+
+        var wordStart = caret;
+        while (wordStart > setEnd && SqlLexer.IsIdentPart(sql[wordStart - 1]))
+        {
+            wordStart--;
+        }
+
+        var depth = 0;
+        var assigned = false;
+        foreach (var token in SqlLexer.Tokenize(sql, setEnd, wordStart))
+        {
+            switch (token.Kind)
+            {
+                case SqlTokenKind.OpenParen or SqlTokenKind.OpenBracket:
+                    depth++;
+                    break;
+                case SqlTokenKind.CloseParen or SqlTokenKind.CloseBracket:
+                    depth = Math.Max(0, depth - 1);
+                    break;
+                case SqlTokenKind.Comma when depth == 0:
+                    assigned = false;
+                    break;
+                case SqlTokenKind.Operator when depth == 0 && sql[token.Start] == '=':
+                    assigned = true;
+                    break;
+            }
+        }
+
+        return !assigned;
     }
 
     // --- The reader ---------------------------------------------------------
@@ -581,6 +683,21 @@ public sealed class SqlScopeModel
 
         // --- SELECT ---
 
+        // The clause keywords a block records (SqlBlock.Clauses).
+        private static readonly HashSet<string> MarkWords = new(StringComparer.Ordinal)
+        {
+            "select", "from", "where", "group", "having", "window", "order", "limit", "offset", "fetch",
+            "returning", "set", "conflict", "do", "using", "values", "into",
+        };
+
+        private void Mark(SqlBlock block, int i)
+        {
+            if (WordAt(i) is { } word && MarkWords.Contains(word))
+            {
+                block.Clauses.Add(new SqlClauseMark(word, _t[i].End));
+            }
+        }
+
         private static readonly HashSet<string> SelectClauseWords = new(StringComparer.Ordinal)
         {
             "from", "into", "where", "group", "having", "window", "order", "limit", "offset", "fetch", "for",
@@ -604,6 +721,7 @@ public sealed class SqlScopeModel
 
             if (Kw(i, "select"))
             {
+                Mark(block, i);
                 i++;
             }
 
@@ -637,6 +755,17 @@ public sealed class SqlScopeModel
         {
             while (i < e)
             {
+                Mark(block, i);
+                if (Kw(i, "conflict") && Is(i + 1, SqlTokenKind.OpenParen))
+                {
+                    block.ConflictTarget = new SqlSpan(_t[i + 1].End, InnerEnd(i + 1));
+                }
+
+                if (Kw(i, "do") && block.Kind == SqlBlockKind.Insert)
+                {
+                    block.ConflictActionStart = _t[i].End;
+                }
+
                 if (WordAt(i) is { } word && fromWords.Contains(word))
                 {
                     var fromEnd = i + 1;
@@ -932,6 +1061,7 @@ public sealed class SqlScopeModel
                 if (Kw(i, "using") && Is(i + 1, SqlTokenKind.OpenParen) && block.Sources.Count > 0)
                 {
                     block.Sources[^1].UsingColumns = NamesIn(i + 1);
+                    block.Sources[^1].UsingSpan = new SqlSpan(_t[i + 1].End, InnerEnd(i + 1));
                     i = Next(i + 1);
                     continue;
                 }
@@ -1144,7 +1274,8 @@ public sealed class SqlScopeModel
 
             if (Is(i, SqlTokenKind.OpenParen))
             {
-                i = Next(i); // the target column list
+                block.InsertColumns = new SqlSpan(_t[i].End, InnerEnd(i));
+                i = Next(i);
             }
 
             if (Kw(i, "overriding"))

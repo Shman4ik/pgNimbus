@@ -437,4 +437,125 @@ public class CompletionProviderTests
 
         await Assert.That(ColumnInserts(At(Provider(), deep))).IsEmpty();
     }
+
+    // --- Package G: PostgreSQL statement contexts and JOIN (T20–T25) ---
+
+    [Test]
+    public async Task T24_Insert_column_list_offers_the_targets_columns_not_yet_listed()
+    {
+        var items = At(Provider(), "INSERT INTO public.orders (id, |) VALUES (1, 2, 3)");
+
+        await Assert.That(ColumnInserts(items)).IsEquivalentTo(new[] { "user_id", "total" });
+        await Assert.That(items.Any(i => i.Kind is SqlCompletionKind.Keyword or SqlCompletionKind.Function)).IsFalse();
+
+        var open = ColumnInserts(At(Provider(), "INSERT INTO public.orders AS o (|"));
+        await Assert.That(open).IsEquivalentTo(new[] { "id", "user_id", "total" });
+    }
+
+    [Test]
+    public async Task T24_Set_offers_only_target_columns_left_of_the_equals_sign()
+    {
+        var left = At(Provider(), "UPDATE public.orders o SET total = 0, | FROM public.users u WHERE o.user_id = u.id");
+        await Assert.That(ColumnInserts(left)).IsEquivalentTo(new[] { "id", "user_id" });
+        await Assert.That(left.Any(i => i.Kind != SqlCompletionKind.Column)).IsFalse();
+
+        var right = ColumnInserts(At(Provider(), "UPDATE public.orders o SET total = | FROM public.users u"));
+        await Assert.That(right).Contains("name");
+        await Assert.That(right).Contains("user_id");
+        await Assert.That(right).DoesNotContain("audit_only");
+    }
+
+    [Test]
+    public async Task T24_On_conflict_target_and_do_update_set_use_the_target_and_excluded()
+    {
+        var target = ColumnInserts(At(Provider(), "INSERT INTO public.orders (id, total) VALUES (1, 2) ON CONFLICT (|"));
+        await Assert.That(target).IsEquivalentTo(new[] { "id", "user_id", "total" });
+
+        var setTarget = ColumnInserts(At(Provider(), "INSERT INTO public.orders (id, total) VALUES (1, 2) ON CONFLICT (id) DO UPDATE SET |"));
+        await Assert.That(setTarget).IsEquivalentTo(new[] { "id", "user_id", "total" });
+
+        var value = At(Provider(), "INSERT INTO public.orders (id, total) VALUES (1, 2) ON CONFLICT (id) DO UPDATE SET total = |");
+        await Assert.That(ColumnInserts(value)).Contains("excluded.total");
+        await Assert.That(ColumnInserts(value)).Contains("total");
+
+        var member = ColumnInserts(At(Provider(), "INSERT INTO public.orders (id, total) VALUES (1, 2) ON CONFLICT (id) DO UPDATE SET total = excluded.|"));
+        await Assert.That(member).IsEquivalentTo(new[] { "id", "user_id", "total" });
+    }
+
+    [Test]
+    public async Task T24_Returning_names_the_statements_sources_and_never_excluded()
+    {
+        var delete = At(Provider(), "DELETE FROM public.orders o USING public.users u WHERE o.user_id = u.id RETURNING |");
+        await Assert.That(ColumnInserts(delete)).Contains("total");
+        await Assert.That(ColumnInserts(delete)).Contains("name");
+        await Assert.That(ColumnInserts(delete)).DoesNotContain("audit_only");
+
+        var insert = ColumnInserts(At(Provider(), "INSERT INTO public.orders (id) VALUES (1) ON CONFLICT (id) DO UPDATE SET total = 0 RETURNING |"));
+        await Assert.That(insert).Contains("total");
+        await Assert.That(insert.Any(c => c.StartsWith("excluded.", StringComparison.Ordinal))).IsFalse();
+        await Assert.That(insert).DoesNotContain("name");
+    }
+
+    [Test]
+    public async Task T22_Join_using_offers_the_columns_both_sides_of_that_join_share()
+    {
+        var items = At(Provider(), "SELECT * FROM public.users u JOIN public.orders o USING (|)");
+        await Assert.That(ColumnInserts(items)).IsEquivalentTo(new[] { "id" });
+        await Assert.That(items.Any(i => i.Kind != SqlCompletionKind.Column)).IsFalse();
+
+        var early = ColumnInserts(At(Provider(), "SELECT * FROM public.users u JOIN audit.users a USING (|) JOIN public.orders o ON true"));
+        await Assert.That(early).IsEquivalentTo(new[] { "id" });
+
+        var listed = ColumnInserts(At(Provider(), "SELECT * FROM public.users u JOIN audit.users a USING (id, |)"));
+        await Assert.That(listed).IsEmpty();
+    }
+
+    [Test]
+    public async Task T25_An_output_alias_is_offered_in_order_by_but_not_in_where()
+    {
+        var orderBy = ColumnInserts(At(Provider(), "SELECT total * 2 AS doubled FROM public.orders ORDER BY |"));
+        await Assert.That(orderBy).Contains("doubled");
+        await Assert.That(orderBy).Contains("total");
+
+        var where = ColumnInserts(At(Provider(), "SELECT total * 2 AS doubled FROM public.orders WHERE |"));
+        await Assert.That(where).DoesNotContain("doubled");
+        await Assert.That(where).Contains("total");
+    }
+
+    private static SqlCompletionProvider TwoForeignKeysProvider()
+    {
+        var provider = new SqlCompletionProvider(null);
+        provider.Load(new CompletionCatalog(
+            ["public"],
+            [
+                new CompletionTable("public", "users", [Col("users", "id", "int4")]),
+                new CompletionTable("public", "orders", [Col("orders", "id", "int4"), Col("orders", "buyer_id", "int4"), Col("orders", "seller_id", "int4")]),
+            ],
+            [],
+            [
+                new ForeignKeyInfo("public", "orders", ["buyer_id"], "public", "users", ["id"], "orders_buyer_fkey"),
+                new ForeignKeyInfo("public", "orders", ["seller_id"], "public", "users", ["id"], "orders_seller_fkey"),
+            ],
+            ["public"]));
+        return provider;
+    }
+
+    [Test]
+    public async Task T20_Two_foreign_keys_between_a_pair_are_two_named_conditions()
+    {
+        var conditions = At(TwoForeignKeysProvider(), "SELECT * FROM public.users u JOIN public.orders o ON |")
+            .Where(i => i.Kind == SqlCompletionKind.JoinCondition)
+            .ToList();
+
+        await Assert.That(conditions.Select(c => c.InsertText)).IsEquivalentTo(new[] { "o.buyer_id = u.id", "o.seller_id = u.id" });
+        await Assert.That(conditions.Select(c => c.Detail)).IsEquivalentTo(new[] { "orders_buyer_fkey", "orders_seller_fkey" });
+    }
+
+    [Test]
+    public async Task T21_Natural_join_takes_no_condition()
+    {
+        var items = At(Provider(), "SELECT * FROM public.users u NATURAL JOIN public.orders o |");
+
+        await Assert.That(items.Any(i => i.Text is "ON" or "USING" && i.Priority >= 200)).IsFalse();
+    }
 }

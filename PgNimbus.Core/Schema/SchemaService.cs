@@ -93,7 +93,8 @@ public sealed record TriggerInfo(string Name, string Definition, bool Enabled);
 /// </summary>
 public sealed record ForeignKeyInfo(
     string FromSchema, string FromTable, IReadOnlyList<string> FromColumns,
-    string ToSchema, string ToTable, IReadOnlyList<string> ToColumns);
+    string ToSchema, string ToTable, IReadOnlyList<string> ToColumns,
+    string? ConstraintName = null);
 
 /// <summary>
 /// Reads structure straight from pg_catalog rather than relying on
@@ -550,7 +551,7 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
     {
         const string sql = """
             SELECT ns.nspname, c.relname, array_agg(a.attname ORDER BY k.ord),
-                   fns.nspname, fc.relname, array_agg(fa.attname ORDER BY k.ord)
+                   fns.nspname, fc.relname, array_agg(fa.attname ORDER BY k.ord), con.conname
             FROM pg_catalog.pg_constraint con
             JOIN pg_catalog.pg_class c ON c.oid = con.conrelid
             JOIN pg_catalog.pg_namespace ns ON ns.oid = c.relnamespace
@@ -561,8 +562,8 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
             JOIN pg_catalog.pg_attribute fa ON fa.attrelid = con.confrelid AND fa.attnum = k.confkey
             WHERE con.contype = 'f'
               AND ns.nspname NOT LIKE 'pg\_%' AND ns.nspname <> 'information_schema'
-            GROUP BY con.oid, ns.nspname, c.relname, fns.nspname, fc.relname
-            ORDER BY ns.nspname, c.relname
+            GROUP BY con.oid, con.conname, ns.nspname, c.relname, fns.nspname, fc.relname
+            ORDER BY ns.nspname, c.relname, con.conname
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
@@ -574,7 +575,7 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
         {
             results.Add(new ForeignKeyInfo(
                 reader.GetString(0), reader.GetString(1), reader.GetFieldValue<string[]>(2),
-                reader.GetString(3), reader.GetString(4), reader.GetFieldValue<string[]>(5)));
+                reader.GetString(3), reader.GetString(4), reader.GetFieldValue<string[]>(5), reader.GetString(6)));
         }
 
         return results;

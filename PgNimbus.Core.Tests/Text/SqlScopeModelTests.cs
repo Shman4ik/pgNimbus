@@ -260,4 +260,61 @@ public class SqlScopeModelTests
 
         await Assert.That(true).IsTrue();
     }
+
+    // --- Package G: the clause positions a block records ---
+
+    [Test]
+    [Arguments("SELECT a AS x FROM t WHERE |", "where")]
+    [Arguments("SELECT a AS x FROM t ORDER BY |", "order")]
+    [Arguments("SELECT a AS x FROM t GROUP BY a HAVING |", "having")]
+    [Arguments("UPDATE t SET a = 1 WHERE b = 2 RETURNING |", "returning")]
+    [Arguments("INSERT INTO t (a) VALUES (1) ON CONFLICT (a) DO UPDATE SET |", "set")]
+    public async Task The_clause_at_the_caret_is_the_last_top_level_keyword(string marked, string clause)
+    {
+        var (_, block) = At(marked);
+
+        await Assert.That(block!.ClauseAt(marked.IndexOf('|'))).IsEqualTo(clause);
+    }
+
+    [Test]
+    [Arguments("UPDATE t SET |", true)]
+    [Arguments("UPDATE t SET a = |", false)]
+    [Arguments("UPDATE t SET a = f(1, 2), |", true)]
+    [Arguments("UPDATE t SET a = f(1, |", false)]
+    [Arguments("UPDATE t SET (a, |) = (1, 2)", true)]
+    [Arguments("UPDATE t SET a = 1 WHERE |", false)]
+    [Arguments("INSERT INTO t VALUES (1) ON CONFLICT (a) DO UPDATE SET b = excluded.b, c|", true)]
+    public async Task Assignment_targets_are_told_from_values(string marked, bool target)
+    {
+        var caret = marked.IndexOf('|');
+        var sql = marked.Remove(caret, 1);
+        var block = SqlScopeModel.Parse(sql).BlockAt(caret)!;
+
+        await Assert.That(SqlScopeModel.IsAssignmentTarget(sql, block, caret)).IsEqualTo(target);
+    }
+
+    [Test]
+    public async Task Insert_column_list_conflict_target_and_excluded_are_located()
+    {
+        const string sql = "INSERT INTO t AS x (a, b) VALUES (1, 2) ON CONFLICT (a) DO UPDATE SET b = 3 RETURNING a";
+        var block = SqlScopeModel.Parse(sql).BlockAt(sql.Length)!;
+
+        await Assert.That(sql[block.InsertColumns!.Value.Start..block.InsertColumns.Value.End]).IsEqualTo("a, b");
+        await Assert.That(sql[block.ConflictTarget!.Value.Start..block.ConflictTarget.Value.End]).IsEqualTo("a");
+        await Assert.That(block.Target!.Label).IsEqualTo("x");
+        await Assert.That(block.SeesExcluded(sql.IndexOf("SET", StringComparison.Ordinal))).IsTrue();
+        await Assert.That(block.SeesExcluded(sql.IndexOf("VALUES", StringComparison.Ordinal))).IsFalse();
+        await Assert.That(block.SeesExcluded(sql.Length)).IsFalse();
+    }
+
+    [Test]
+    public async Task A_using_list_records_where_it_is()
+    {
+        const string sql = "SELECT * FROM a JOIN b USING (id, k) JOIN c ON true";
+        var block = SqlScopeModel.Parse(sql).BlockAt(0)!;
+        var span = block.Sources[1].UsingSpan!.Value;
+
+        await Assert.That(sql[span.Start..span.End]).IsEqualTo("id, k");
+        await Assert.That(block.Sources[2].UsingSpan).IsNull();
+    }
 }
