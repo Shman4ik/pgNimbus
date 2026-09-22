@@ -1,3 +1,9 @@
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.Presenters;
+using Avalonia.Media;
+using AvaloniaEdit.CodeCompletion;
+using AvaloniaEdit.Rendering;
 using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Input.Raw;
@@ -357,6 +363,65 @@ public class CompletionEditorTests
         });
     }
 
+    // Where the hint landed, in window coordinates, against the text view's own.
+    private static (Rect Hint, Rect View, Rect Line) SignatureHintBounds(Avalonia.Controls.Window window, TextEditor editor)
+    {
+        var hint = EditorPanel(window).GetVisualDescendants().OfType<Border>().FirstOrDefault(b => b.Classes.Contains("signatureHint"))
+            ?? window.GetVisualDescendants().OfType<Border>().Single(b => b.Classes.Contains("signatureHint"));
+        var view = editor.TextArea.TextView;
+        var line = view.GetVisualPosition(new TextViewPosition(editor.TextArea.Caret.Line, 1), VisualYPosition.LineTop) - view.ScrollOffset;
+        var lineBottom = view.GetVisualPosition(new TextViewPosition(editor.TextArea.Caret.Line, 1), VisualYPosition.LineBottom) - view.ScrollOffset;
+        Rect InWindow(Visual v, Rect r) => new(v.TranslatePoint(r.TopLeft, window)!.Value, r.Size);
+        return (InWindow(hint, new Rect(hint.Bounds.Size)), InWindow(view, new Rect(view.Bounds.Size)),
+            InWindow(view, new Rect(0, line.Y, view.Bounds.Width, lineBottom.Y - line.Y)));
+    }
+
+    private static Avalonia.Controls.Window OpenWithRound(string marked, out TextEditor editor)
+    {
+        var (window, vm, e) = Open(marked);
+        vm.CompletionProvider.Load(new CompletionCatalog(["public"], [], [], [], ["public"])
+        {
+            BuiltinFunctions = [new CompletionFunction("pg_catalog", new FunctionInfo("round", "numeric, integer", "numeric", 'f'))],
+        });
+        editor = e;
+        return window;
+    }
+
+    [Test]
+    public async Task A_signature_hint_on_the_first_line_opens_below_it_inside_the_editor()
+    {
+        await Ui.Run(async () =>
+        {
+            var window = OpenWithRound("SELECT |", out var editor);
+
+            TypeKeys(window, "round(");
+            Ui.Settle();
+            var (hint, view, line) = SignatureHintBounds(window, editor);
+
+            // Nothing above line 1 belongs to the editor: the hint used to cover the toolbar there.
+            await Assert.That(hint.Top).IsGreaterThanOrEqualTo(view.Top);
+            await Assert.That(hint.Top).IsGreaterThanOrEqualTo(line.Bottom);
+            window.Close();
+        });
+    }
+
+    [Test]
+    public async Task A_signature_hint_with_room_above_still_opens_above_its_line()
+    {
+        await Ui.Run(async () =>
+        {
+            var window = OpenWithRound("SELECT 1;\n\n\n\nSELECT |", out var editor);
+
+            TypeKeys(window, "round(");
+            Ui.Settle();
+            var (hint, view, line) = SignatureHintBounds(window, editor);
+
+            await Assert.That(hint.Bottom).IsLessThanOrEqualTo(line.Top);
+            await Assert.That(hint.Top).IsGreaterThanOrEqualTo(view.Top);
+            window.Close();
+        });
+    }
+
     [Test]
     public async Task A_double_colon_opens_the_type_list()
     {
@@ -485,6 +550,108 @@ public class CompletionEditorTests
             Ui.Press(window, Key.Enter);
 
             await Assert.That(Marked(editor)).IsEqualTo("SELECT * FROM public.orders o WHERE o.id|");
+            window.Close();
+        });
+    }
+
+    // --- Found live (2026-09-22) ---
+
+    // The popup row the Enter rule would not take: its fill is what the eye
+    // reads, so the test reads the template part that paints it, not the class.
+    private static IBrush? SelectedRowFill(TextEditor editor, bool pointerOver = false)
+    {
+        var list = TopLevel.GetTopLevel(editor)!.GetVisualDescendants().OfType<CompletionListBox>().Single();
+        var row = list.GetVisualDescendants().OfType<ListBoxItem>().Single(i => i.IsSelected);
+        if (pointerOver)
+        {
+            ((IPseudoClasses)row.Classes).Add(":pointerover");
+            Ui.Settle();
+        }
+
+        return row.GetVisualDescendants().OfType<ContentPresenter>().First(c => c.Name == "PART_ContentPresenter").Background;
+    }
+
+    private static bool Paints(IBrush? brush) =>
+        brush is ISolidColorBrush solid && solid.Color.A > 0 && solid.Opacity > 0;
+
+    [Test]
+    public async Task A_loose_fuzzy_match_is_drawn_as_an_outline_not_a_fill()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, _, editor) = Open("SELECT * FROM public.orders o WHERE o.|");
+
+            TypeKeys(window, "c"); // a prefix of customer_id: Enter takes it, filled
+            await Assert.That(Paints(SelectedRowFill(editor))).IsTrue();
+
+            TypeKeys(window, "id"); // "cid" is only a subsequence: Enter won't, outlined
+            await Assert.That(Paints(SelectedRowFill(editor))).IsFalse();
+            await Assert.That(Paints(SelectedRowFill(editor, pointerOver: true))).IsFalse();
+            window.Close();
+        });
+    }
+
+    // The exact text of the live report, with the caret put after "use" the
+    // three ways a person does it. (The reported output, "use audit.users u",
+    // is what an accept from the *end* of the line produces — the token there
+    // is "u" — so the caret never reached "use" in that run.)
+    private static (Avalonia.Controls.Window Window, TextEditor Editor) OpenWithUsers(string marked)
+    {
+        var (window, vm, editor) = Open(marked);
+        vm.CompletionProvider.Load(new CompletionCatalog(
+            ["public", "audit"],
+            [
+                new CompletionTable("public", "users", [new TableColumn("users", "id", "int4")]),
+                new CompletionTable("audit", "users", [new TableColumn("users", "id", "int4")]),
+                new CompletionTable("public", "big", [new TableColumn("big", "id", "int4")]),
+            ],
+            [],
+            [],
+            ["public"]));
+        if (!vm.AutoAliasTables)
+        {
+            vm.ToggleAutoAliasCommand.Execute(null);
+        }
+
+        return (window, editor);
+    }
+
+    [Test]
+    public async Task A_table_accepted_before_a_one_letter_alias_replaces_the_prefix_caret_set_by_arrows()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, editor) = OpenWithUsers("|");
+            TypeKeys(window, "SELECT * FROM use u");
+            Ui.Press(window, Key.Left);
+            Ui.Press(window, Key.Left);
+
+            Ui.Press(window, CommandId.Completion);
+            Ui.Press(window, Key.Enter);
+
+            await Assert.That(Marked(editor)).IsEqualTo("SELECT * FROM public.users| u");
+            window.Close();
+        });
+    }
+
+    [Test]
+    public async Task A_table_accepted_before_a_one_letter_alias_replaces_the_prefix_caret_set_by_a_click()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, editor) = OpenWithUsers("SELECT * FROM big b|");
+            var view = editor.TextArea.TextView;
+            var at = view.GetVisualPosition(new TextViewPosition(1, 18), VisualYPosition.LineMiddle) - view.ScrollOffset;
+            var point = view.TranslatePoint(new Point(at.X, at.Y), window)!.Value;
+            window.MouseDown(point, MouseButton.Left);
+            window.MouseUp(point, MouseButton.Left);
+            Ui.Settle();
+            await Assert.That(Marked(editor)).IsEqualTo("SELECT * FROM big| b");
+
+            Ui.Press(window, CommandId.Completion);
+            Ui.Press(window, Key.Enter);
+
+            await Assert.That(Marked(editor)).IsEqualTo("SELECT * FROM public.big| b");
             window.Close();
         });
     }

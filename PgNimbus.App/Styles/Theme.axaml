@@ -376,17 +376,11 @@
 
     <!-- A highlight Enter would not accept (a list that opened by itself, nothing
          chosen, no prefix typed): an outline instead of the fill, so a tentative
-         pick and a real one look different. Tab still takes it. -->
-    <Style Selector="cc|CompletionListBox.tentative ListBoxItem:selected">
-        <Setter Property="Background" Value="Transparent" />
-        <Setter Property="BorderBrush" Value="{StaticResource AppSelectionBrush}" />
-        <Setter Property="BorderThickness" Value="1" />
-    </Style>
-
-    <!-- A highlight Enter would not accept (a list that opened by itself, nothing
-         chosen, no prefix typed): an outline instead of the fill, so a tentative
-         pick and a real one look different. Tab still takes it. -->
-    <Style Selector="cc|CompletionListBox.tentative ListBoxItem:selected">
+         pick and a real one look different. Tab still takes it.
+         It targets the template part, not the item: Fluent's ListBoxItem theme
+         paints the selected fill on PART_ContentPresenter itself, so a Background
+         set on the ListBoxItem is never drawn and the row stayed filled. -->
+    <Style Selector="cc|CompletionListBox.tentative ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderBrush" Value="{StaticResource AppSelectionBrush}" />
         <Setter Property="BorderThickness" Value="1" />

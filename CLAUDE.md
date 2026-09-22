@@ -1423,7 +1423,12 @@ csproj / WiX / MSIX manifest reference them unchanged:
   at refresh for hints only and never offered as candidates (thousands of
   internal overloads). The hint is a `Popup` in `QueryEditorPanel.axaml` (no
   new permanent control, UI rule 1) anchored just above the call's line so the
-  completion list below the caret never covers it; it opens on `(`, on
+  completion list below the caret never covers it — except when the editor
+  has no room above that line (a call on its first visible line), where it
+  opens below the line instead: the popup lives in the window's overlay layer,
+  which nothing clips to the editor, so it used to open over the toolbar
+  (found live 2026-09-22; test `A_signature_hint_on_the_first_line_…`, screenshot
+  scenario `main-window-signature-hint`). It opens on `(`, on
   accepting a function, or on Ctrl+Shift+Space (`CommandId.ParameterHints`,
   literal Ctrl like completion), follows the caret while live, and closes when
   the caret leaves every call or on Escape. One landmine: the auto-closed `)`
@@ -1471,7 +1476,12 @@ csproj / WiX / MSIX manifest reference them unchanged:
   editor writes the newline — finishing a line used to insert a column nobody
   asked for. Tab always accepts. The two states look different: a highlight
   Enter would not take gets the `tentative` class on the list (an outline, not
-  the fill; `Theme.axaml`). The interception is in the tunneled
+  the fill; `Theme.axaml`). That style must target the row's
+  `/template/ ContentPresenter#PART_ContentPresenter`, not the `ListBoxItem`:
+  Fluent paints the selected fill on the template part, so a `Background` on the
+  item is never drawn — which is how every tentative row shipped filled anyway,
+  class set and all (found live 2026-09-22; the test reads the part's brush,
+  not the class). The interception is in the tunneled
   `OnSqlEditorKeyDown`, which runs before the completion window's own Enter.
   Not done yet: a token cache per document version, the first full ranking
   over a ~1M-row list (3.5 ms median), and package J.
