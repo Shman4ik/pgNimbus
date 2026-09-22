@@ -504,6 +504,11 @@ public partial class App : Application
 
         window.Closed += async (_, _) =>
         {
+            // A completion refresh still reading this connection's catalog stops
+            // here, rather than running on against a pool about to be disposed
+            // (this is also the "switch connection" path).
+            completionProvider.Dispose();
+
             // Save the workspace before anything else tears down - a failed save
             // must never block window close / resource teardown. This fires on
             // both a normal app exit and a "switch connection" (which closes the

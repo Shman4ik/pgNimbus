@@ -555,6 +555,7 @@ public sealed partial class MainViewModel : ObservableObject
         // Same set object the toggle mutates, so the provider never holds a
         // stale copy; it reads it on each refresh.
         CompletionProvider.ExcludedSchemas = _excludedSchemas;
+        CompletionProvider.StatusChanged += status => Dispatcher.UIThread.Post(() => OnCompletionCatalogStatus(status));
         SavedQueries = new SavedQueriesViewModel(
             new SavedQueryStore(),
             new QueryHistoryStore(),
@@ -637,11 +638,72 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
+    // DDL run inside the user's transaction: invisible to the pooled connection
+    // completion reads its catalog from until the transaction ends.
+    private bool _catalogChangedInTransaction;
+
+    // Keeps completion's catalog in step with what was just run. Only a run
+    // that got through counts (a script may have failed part-way, after its
+    // DDL): a failed CREATE changed nothing. Inside a transaction the refresh
+    // waits for its end, and a SET search_path there makes short names
+    // resolve as "path unknown" until then (SessionSearchPathChanged).
+    private void OnTabExecuted(QueryViewModel tab, QueryHistoryEntry entry)
+    {
+        if (tab.HasError && SqlScriptSplitter.Split(entry.Sql).Count <= 1)
+        {
+            return;
+        }
+
+        if (IsInTransaction || _engine.IsInTransaction)
+        {
+            if (SqlStatementInspector.SetsSearchPath(entry.Sql))
+            {
+                CompletionProvider.SessionSearchPathChanged = true;
+            }
+
+            if (SqlStatementInspector.ChangesCatalog(entry.Sql))
+            {
+                _catalogChangedInTransaction = true;
+            }
+
+            return;
+        }
+
+        if (SqlStatementInspector.ChangesCatalog(entry.Sql))
+        {
+            _relationCache = null;
+            _reconciler = null;
+            _ = CompletionProvider.RefreshAsync(CancellationToken.None);
+        }
+    }
+
+    // A failed refresh leaves completion on the previous catalog; say so where
+    // statuses go, once, rather than letting suggestions quietly go stale.
+    private void OnCompletionCatalogStatus(CompletionCatalogStatus status)
+    {
+        if (status.IsStale && ActiveTab is { } tab)
+        {
+            tab.Status = $"Autocomplete kept the previous catalog: refresh failed ({status.Error})";
+        }
+    }
+
     private void OnEngineTransactionStateChanged() =>
         Dispatcher.UIThread.Post(() => IsInTransaction = _engine.IsInTransaction);
 
     partial void OnIsInTransactionChanged(bool value)
     {
+        if (!value)
+        {
+            // The transaction is over: its SET search_path went with it, and its
+            // DDL (committed, or rolled back) is now what every connection sees.
+            CompletionProvider.SessionSearchPathChanged = false;
+            if (_catalogChangedInTransaction)
+            {
+                _catalogChangedInTransaction = false;
+                _ = CompletionProvider.RefreshAsync(CancellationToken.None);
+            }
+        }
+
         BeginTransactionCommand.NotifyCanExecuteChanged();
         CommitTransactionCommand.NotifyCanExecuteChanged();
         RollbackTransactionCommand.NotifyCanExecuteChanged();
@@ -752,6 +814,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         var tab = new QueryViewModel(_engine, _explainService, GetReconcilerAsync, () => SafeModeEdits, _schemaService, () => ShowFilterBar) { DefaultTitle = $"Query {Tabs.Count + 1}" };
         tab.Executed += SavedQueries.RecordExecution;
+        tab.Executed += entry => OnTabExecuted(tab, entry);
         Tabs.Add(tab);
         ActiveTab = tab;
         NotifyTabCommands();

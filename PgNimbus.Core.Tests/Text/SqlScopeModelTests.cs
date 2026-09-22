@@ -84,7 +84,7 @@ public class SqlScopeModelTests
         var (_, block) = At("SELECT | FROM (VALUES (1, 'a')) v(num, label)");
 
         await Assert.That(block!.Sources.Single().ColumnAliases).IsEquivalentTo(new[] { "num", "label" });
-        await Assert.That(block.Sources.Single().Derived!.Branches[0].Output.Select(o => o.Name))
+        await Assert.That(block.Sources.Single().Derived!.Branches[0].Output.Select(o => o.Name ?? "<unnamed>"))
             .IsEquivalentTo(new[] { "column1", "column2" });
     }
 
@@ -137,7 +137,7 @@ public class SqlScopeModelTests
         var body = SqlScopeModel.VisibleCtes(block!).Single().Body.Branches[0];
 
         await Assert.That(body.Kind).IsEqualTo(SqlBlockKind.Delete);
-        await Assert.That(body.Output.Select(o => o.Name)).IsEquivalentTo(new[] { "id", "uid" });
+        await Assert.That(body.Output.Select(o => o.Name ?? "<unnamed>")).IsEquivalentTo(new[] { "id", "uid" });
     }
 
     // --- T18: FROM subquery / LATERAL / correlated subquery ---
@@ -244,6 +244,7 @@ public class SqlScopeModelTests
         const string alphabet = "SELECT FROM WHERE WITH UNION JOIN LATERAL ( ) , . * \"q\" 'x' AS ON USING RETURNING VALUES a b ;";
         var words = alphabet.Split(' ');
         var random = new Random(1234);
+        var blocksRead = 0;
         for (var n = 0; n < 2000; n++)
         {
             var text = string.Join(' ', Enumerable.Range(0, random.Next(1, 30)).Select(_ => words[random.Next(words.Length)]));
@@ -254,11 +255,12 @@ public class SqlScopeModelTests
                 {
                     _ = SqlScopeModel.VisibleSources(block);
                     _ = SqlScopeModel.VisibleCtes(block);
+                    blocksRead++;
                 }
             }
         }
 
-        await Assert.That(true).IsTrue();
+        await Assert.That(blocksRead).IsGreaterThan(0);
     }
 
     // --- Package G: the clause positions a block records ---

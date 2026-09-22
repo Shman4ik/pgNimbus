@@ -549,7 +549,7 @@ public class CompletionProviderTests
             .ToList();
 
         await Assert.That(conditions.Select(c => c.InsertText)).IsEquivalentTo(new[] { "o.buyer_id = u.id", "o.seller_id = u.id" });
-        await Assert.That(conditions.Select(c => c.Detail)).IsEquivalentTo(new[] { "orders_buyer_fkey", "orders_seller_fkey" });
+        await Assert.That(conditions.Select(c => c.Detail ?? "<none>")).IsEquivalentTo(new[] { "orders_buyer_fkey", "orders_seller_fkey" });
     }
 
     [Test]

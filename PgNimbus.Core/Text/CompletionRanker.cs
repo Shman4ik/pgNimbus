@@ -33,8 +33,30 @@ public static class CompletionRanker
         string query,
         Func<T, string> textOf,
         Func<T, double> priorityOf,
-        Func<T, int> recencyOf)
+        Func<T, int> recencyOf) =>
+        Rank(candidates, query, textOf, priorityOf, recencyOf, within: null, out _);
+
+    /// <summary>
+    /// <see cref="Rank{T}(IReadOnlyList{T}, string, Func{T, string}, Func{T, double}, Func{T, int})"/>
+    /// over only the candidates at <paramref name="within"/> (ascending
+    /// indexes into <paramref name="candidates"/>; null = all of them), also
+    /// handing back the indexes that matched. Typing one more character can
+    /// only lose matches — a subsequence of the longer query is a subsequence
+    /// of the shorter — so the popup passes the previous keystroke's matches
+    /// and a keystroke over a hundred-thousand-row catalog scores only the
+    /// rows still in play. The result is the same as ranking everything: ties
+    /// still fall back to the original index.
+    /// </summary>
+    public static Ranked<T> Rank<T>(
+        IReadOnlyList<T> candidates,
+        string query,
+        Func<T, string> textOf,
+        Func<T, double> priorityOf,
+        Func<T, int> recencyOf,
+        IReadOnlyList<int>? within,
+        out List<int> matched)
     {
+        matched = [];
         if (query.Length == 0)
         {
             var selected = 0;
@@ -49,16 +71,20 @@ public static class CompletionRanker
                 }
             }
 
+            matched.AddRange(Enumerable.Range(0, candidates.Count));
             return new Ranked<T>(candidates, candidates.Count == 0 ? -1 : selected);
         }
 
         var matches = new List<(T Item, int Score, bool ExactPrefix, int Index)>();
-        for (var i = 0; i < candidates.Count; i++)
+        var count = within?.Count ?? candidates.Count;
+        for (var n = 0; n < count; n++)
         {
+            var i = within?[n] ?? n;
             var text = textOf(candidates[i]);
             if (FuzzyMatcher.Score(text, query) is { } score)
             {
                 matches.Add((candidates[i], score, text.StartsWith(query, StringComparison.OrdinalIgnoreCase), i));
+                matched.Add(i);
             }
         }
 
