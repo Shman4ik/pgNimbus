@@ -1452,9 +1452,19 @@ csproj / WiX / MSIX manifest reference them unchanged:
   `QueryEditorPanel.BackgroundCompletionThreshold` (50k) characters or more are
   read for completion on the thread pool; the answer is shown only when the
   request number, `_documentEdits` and the caret are all unchanged.
-  Not done yet: the Enter-accept rule (a product decision, not taken), a
-  token cache per document version, the first full ranking over a ~1M-row list
-  (3.5 ms median), and package J.
+  **Enter accepts only what was chosen** (the §6.1 rule, decided 2026-09-22).
+  Enter takes the highlighted row when the list was asked for (Ctrl+Space,
+  `_completionExplicit`), when the user moved to a row with the arrows or the
+  mouse (`_userPickedCompletion`), or when the typed text is the row's name or
+  its start. A list that opened by itself (after FROM/WHERE/a comma/a dot) with
+  nothing typed, or holding only a loose fuzzy match, closes on Enter and the
+  editor writes the newline — finishing a line used to insert a column nobody
+  asked for. Tab always accepts. The two states look different: a highlight
+  Enter would not take gets the `tentative` class on the list (an outline, not
+  the fill; `Theme.axaml`). The interception is in the tunneled
+  `OnSqlEditorKeyDown`, which runs before the completion window's own Enter.
+  Not done yet: a token cache per document version, the first full ranking
+  over a ~1M-row list (3.5 ms median), and package J.
 - `SqlFormatter` follows <https://www.sqlstyle.guide/> ("river" layout: root
   keywords right-aligned to a common column, content to its right). The tests
   in `PgNimbus.Core.Tests` assert exact spacing — a deliberate layout change
