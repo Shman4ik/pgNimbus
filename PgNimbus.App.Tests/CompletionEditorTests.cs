@@ -262,4 +262,21 @@ public class CompletionEditorTests
             window.Close();
         });
     }
+
+    // --- Package F: a derived table's output through the real popup (T15) ---
+
+    [Test]
+    public async Task A_derived_tables_output_column_completes_after_its_alias()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, _, editor) = Open("SELECT q.c| FROM (SELECT customer_id AS cid FROM public.orders) q");
+
+            Ui.Press(window, CommandId.Completion);
+            Ui.Press(window, Key.Enter);
+
+            await Assert.That(Marked(editor)).IsEqualTo("SELECT q.cid| FROM (SELECT customer_id AS cid FROM public.orders) q");
+            window.Close();
+        });
+    }
 }

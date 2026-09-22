@@ -33,6 +33,11 @@ public sealed record CompletionCatalog(
 /// from the text between the real <c>;</c> tokens around it (the part right of
 /// the caret included, so a FROM typed after the select list still names the
 /// list's sources) — a neighbouring statement's tables never leak in.</item>
+/// <item><b>Only the block under the caret counts, and what it can see.</b>
+/// Within the statement, the SELECT/DML block the caret is in decides what can
+/// be named (see <see cref="SqlScopeModel"/>): an <c>EXISTS (…)</c>'s tables
+/// never leak into the outer WHERE, a FROM subquery can't name its siblings
+/// (unless LATERAL), and correlated outer columns come qualified.</item>
 /// <item><b>Inside a string literal or comment</b> — nothing; no popup while
 /// typing prose. Inside an unterminated quoted identifier, names only.</item>
 /// <item><b>Member access</b> — after <c>alias.</c>/<c>table.</c>/<c>schema.table.</c>,
@@ -381,10 +386,11 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService)
 
     private IReadOnlyList<SqlCompletionData> Candidates(Snapshot snapshot, string statement, int caret, SqlCompletionContext.CaretContext context)
     {
+        var scope = Scope.At(statement, caret);
         var chain = SqlCompletionContext.GetQualifierChainBeforeCaret(statement, caret);
         if (chain.Count > 0)
         {
-            return GetMemberCompletions(snapshot, chain, statement);
+            return GetMemberCompletions(snapshot, chain, statement, scope);
         }
 
         if (SqlCompletionContext.IsAfterKeyword(statement, caret, "call"))
@@ -394,14 +400,19 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService)
 
         return context.Clause switch
         {
-            SqlClause.TableRef or SqlClause.FromTableRef => BuildTableRefCompletions(snapshot, statement, boosted: []),
+            SqlClause.TableRef or SqlClause.FromTableRef => BuildTableRefCompletions(snapshot, statement, scope, boosted: []),
             SqlClause.JoinTableRef when SqlCompletionContext.IsAfterCompleteJoinTarget(statement, caret) =>
-                BuildTableRefCompletions(snapshot, statement, JoinKeywordBoostItems),
-            SqlClause.JoinTableRef => BuildTableRefCompletions(snapshot, statement, FkNeighborItems(snapshot, statement)),
+                BuildTableRefCompletions(snapshot, statement, scope, JoinKeywordBoostItems),
+            SqlClause.JoinTableRef => BuildTableRefCompletions(snapshot, statement, scope, FkNeighborItems(snapshot, statement, scope)),
             SqlClause.Predicate when SqlCompletionContext.IsAfterOnKeyword(statement, caret) =>
-                GetJoinConditionCompletions(snapshot, statement, caret),
-            SqlClause.Predicate => GetPredicateCompletions(snapshot, statement),
-            _ => GetGeneralCompletions(snapshot, statement, SqlCompletionContext.IsAtStatementStart(statement, caret)),
+                GetJoinConditionCompletions(snapshot, statement, caret, scope),
+            SqlClause.Predicate => GetPredicateCompletions(snapshot, statement, scope),
+            // A select list whose block already names its sources can only
+            // reference those (and what is around it): not another branch's
+            // tables, not the rest of the catalog.
+            SqlClause.ColumnRef when scope.Block is { Kind: SqlBlockKind.Select, Sources.Count: > 0 } =>
+                GetPredicateCompletions(snapshot, statement, scope),
+            _ => GetGeneralCompletions(snapshot, statement, scope, SqlCompletionContext.IsAtStatementStart(statement, caret)),
         };
     }
 
@@ -410,10 +421,8 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService)
     // the search_path, or a schema (→ its tables and functions); two parts are
     // schema.table, exactly. A qualifier that names something the catalog
     // doesn't have yields nothing rather than a guess.
-    private IReadOnlyList<SqlCompletionData> GetMemberCompletions(Snapshot snapshot, IReadOnlyList<SqlCompletionContext.NamePart> chain, string statement)
+    private IReadOnlyList<SqlCompletionData> GetMemberCompletions(Snapshot snapshot, IReadOnlyList<SqlCompletionContext.NamePart> chain, string statement, Scope scope)
     {
-        var ctes = SqlCompletionContext.ExtractCteDefinitions(statement);
-
         if (chain.Count >= 2)
         {
             return snapshot.TablesByKey.TryGetValue((chain[^2].Name, chain[^1].Name), out var exact)
@@ -421,27 +430,42 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService)
                 : [];
         }
 
+        if (scope.Unknown)
+        {
+            return [];
+        }
+
         var qualifier = chain[0].Name;
-        var sources = SqlCompletionContext.ExtractTables(statement);
-        foreach (var source in sources)
+        if (scope.Block is { } block)
         {
-            if (source.Alias == qualifier)
+            // Innermost level first, alias before bare table name within each:
+            // the order the server resolves a qualifier in.
+            foreach (var level in SqlScopeModel.VisibleSources(block))
+            {
+                if ((level.FirstOrDefault(s => s.Alias == qualifier) ?? level.FirstOrDefault(s => s.Alias is null && s.Name == qualifier)) is { } source)
+                {
+                    return ColumnItems(ColumnsOf(snapshot, block, source, []) ?? []);
+                }
+            }
+
+            if (FindCte(block, qualifier) is { } visibleCte)
+            {
+                return ColumnItems(CteOutput(snapshot, visibleCte, []) ?? []);
+            }
+        }
+        else
+        {
+            var ctes = SqlCompletionContext.ExtractCteDefinitions(statement);
+            var sources = SqlCompletionContext.ExtractTables(statement);
+            foreach (var source in sources.Where(s => s.Alias == qualifier).Concat(sources.Where(s => s.Alias is null && s.Table == qualifier)))
             {
                 return ColumnItems(SourceColumns(snapshot, source, ctes) ?? []);
             }
-        }
 
-        foreach (var source in sources)
-        {
-            if (source.Alias is null && source.Table == qualifier)
+            if (CteColumns(snapshot, qualifier, ctes) is { } cteColumns)
             {
-                return ColumnItems(SourceColumns(snapshot, source, ctes) ?? []);
+                return ColumnItems(cteColumns);
             }
-        }
-
-        if (CteColumns(snapshot, qualifier, ctes) is { } cteColumns)
-        {
-            return ColumnItems(cteColumns);
         }
 
         if (Resolve(snapshot, "", qualifier) is { } direct)
@@ -491,10 +515,10 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService)
     // Table position (after FROM/INTO/UPDATE …): only what can be a table there —
     // the statement's CTEs first, then schemas + tables (+ keywords, so
     // "JOIN"/"WHERE" still complete after "FROM users "). No columns.
-    private static IReadOnlyList<SqlCompletionData> BuildTableRefCompletions(Snapshot snapshot, string statement, IEnumerable<SqlCompletionData> boosted)
+    private static IReadOnlyList<SqlCompletionData> BuildTableRefCompletions(Snapshot snapshot, string statement, Scope scope, IEnumerable<SqlCompletionData> boosted)
     {
         var items = new List<SqlCompletionData>();
-        foreach (var cte in SqlCompletionContext.ExtractCteNames(statement))
+        foreach (var cte in scope.CteNames(statement))
         {
             items.Add(new SqlCompletionData(cte, SqlCompletionKind.Cte, SqlIdentifier.QuoteIfNeeded(cte), CtePriority));
         }
@@ -508,9 +532,9 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService)
     // the relationship — the new table can be the "many" or the "one" side),
     // excluding tables the statement already references. The graph walk itself is
     // pure Core logic (ForeignKeyMatcher, unit-tested there).
-    private List<SqlCompletionData> FkNeighborItems(Snapshot snapshot, string statement)
+    private List<SqlCompletionData> FkNeighborItems(Snapshot snapshot, string statement, Scope scope)
     {
-        var statementTables = ResolvedReferences(snapshot, SqlCompletionContext.ExtractTables(statement));
+        var statementTables = ResolvedReferences(snapshot, scope.Relations(statement, int.MaxValue));
         var items = new List<SqlCompletionData>();
         foreach (var (neighborSchema, neighborTable) in ForeignKeyMatcher.FindJoinCandidates(statementTables, snapshot.ForeignKeys))
         {
@@ -531,10 +555,10 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService)
     // ignores the JOINs written after it — with the closest earlier table it has
     // a direct FK to, and offers "child.fk_col = parent.pk_col" as the single
     // top item.
-    private IReadOnlyList<SqlCompletionData> GetJoinConditionCompletions(Snapshot snapshot, string statement, int caret)
+    private IReadOnlyList<SqlCompletionData> GetJoinConditionCompletions(Snapshot snapshot, string statement, int caret, Scope scope)
     {
-        var predicateItems = GetPredicateCompletions(snapshot, statement);
-        var statementTables = ResolvedReferences(snapshot, SqlCompletionContext.ExtractTables(statement[..caret]));
+        var predicateItems = GetPredicateCompletions(snapshot, statement, scope);
+        var statementTables = ResolvedReferences(snapshot, scope.Relations(statement, caret));
         if (ForeignKeyMatcher.BuildJoinCondition(statementTables, snapshot.ForeignKeys) is not { } condition)
         {
             return predicateItems;
@@ -557,9 +581,9 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService)
     // Bare identifier: the whole catalog, with the statement's own columns
     // hoisted to the front (and top priority), plus its aliases and CTE names.
     // At a statement-start caret the leading keywords go in front of even those.
-    private IReadOnlyList<SqlCompletionData> GetGeneralCompletions(Snapshot snapshot, string statement, bool atStatementStart)
+    private IReadOnlyList<SqlCompletionData> GetGeneralCompletions(Snapshot snapshot, string statement, Scope scope, bool atStatementStart)
     {
-        var items = CollectStatementItems(snapshot, statement, out _);
+        var items = CollectStatementItems(snapshot, statement, scope, out _);
         items.AddRange(snapshot.BaseItems);
         if (atStatementStart)
         {
@@ -576,9 +600,9 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService)
     // sources but none of them resolves, the catalog's columns still stay out —
     // an unknown table is no reason to offer every column in the database; the
     // full catalog is the fallback only for a statement with no sources at all.
-    private IReadOnlyList<SqlCompletionData> GetPredicateCompletions(Snapshot snapshot, string statement)
+    private IReadOnlyList<SqlCompletionData> GetPredicateCompletions(Snapshot snapshot, string statement, Scope scope)
     {
-        var items = CollectStatementItems(snapshot, statement, out var sourceCount);
+        var items = CollectStatementItems(snapshot, statement, scope, out var sourceCount);
         items.AddRange(sourceCount == 0 ? snapshot.BaseItems : snapshot.PredicateBaseItems);
         return Dedupe(items);
     }
@@ -591,8 +615,21 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService)
     // offered once per source, qualified by that source's alias — the bare name
     // would be an "ambiguous column" error — unless a USING/NATURAL join
     // merged it into a single output column.
-    private List<SqlCompletionData> CollectStatementItems(Snapshot snapshot, string statement, out int sourceCount)
+    private List<SqlCompletionData> CollectStatementItems(Snapshot snapshot, string statement, Scope scope, out int sourceCount)
     {
+        if (scope.Unknown)
+        {
+            // Nested past what the scope reader follows: nothing about the
+            // sources is known, so offer none, and don't open the catalog either.
+            sourceCount = 1;
+            return [];
+        }
+
+        if (scope.Block is { } block)
+        {
+            return CollectScopeItems(snapshot, block, out sourceCount);
+        }
+
         var items = new List<SqlCompletionData>();
         var ctes = SqlCompletionContext.ExtractCteDefinitions(statement);
         var sources = SqlCompletionContext.ExtractTables(statement);
@@ -672,6 +709,303 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService)
         return Resolve(snapshot, source.Schema, source.Table) is { } table
             ? [.. table.Columns.Select(c => new SourceColumn(c.Column, c.DataType, table.Name))]
             : null;
+    }
+
+    // Outer-level columns (a correlated reference from inside a subquery):
+    // offered qualified, just under the block's own columns.
+    private const double OuterColumnPriority = 95;
+
+    // The block the caret is in (from SqlScopeModel), for everything that asks
+    // "what can be named here". Block is null when the statement holds no query
+    // the scope reader follows (DDL, SET …): those keep the whole-statement
+    // reading. Unknown means the caret is in a query nested too deep to read,
+    // where nothing is offered rather than a guess.
+    private sealed record Scope(SqlBlock? Block, bool Unknown)
+    {
+        public static Scope At(string statement, int caret)
+        {
+            var block = SqlScopeModel.Parse(statement).BlockAt(caret, out var unknown);
+            return new Scope(block, unknown);
+        }
+
+        public IEnumerable<string> CteNames(string statement)
+        {
+            if (Unknown)
+            {
+                return [];
+            }
+
+            return Block is { } block
+                ? SqlScopeModel.VisibleCtes(block).Select(c => c.Name).Distinct(StringComparer.Ordinal)
+                : SqlCompletionContext.ExtractCteNames(statement);
+        }
+
+        // The block's own relations (no derived tables or functions) that
+        // start before `before` — what FK matching pairs a JOIN against.
+        public IReadOnlyList<SqlCompletionContext.TableRef> Relations(string statement, int before)
+        {
+            if (Unknown)
+            {
+                return [];
+            }
+
+            if (Block is not { } block)
+            {
+                return SqlCompletionContext.ExtractTables(before < statement.Length ? statement[..before] : statement);
+            }
+
+            return [.. block.Sources
+                .Where(s => s.Derived is null && !s.IsFunction && s.Name.Length > 0 && s.Start < before)
+                .Select(s => new SqlCompletionContext.TableRef(s.Schema, s.Name, s.Alias))];
+        }
+    }
+
+    // The block's own contributions plus the levels around it: aliases, CTE
+    // names, and every visible source's columns. The block's own columns
+    // follow the ambiguity rule (a name two sources share is offered per
+    // source, qualified, unless USING/NATURAL merged it); an outer level's
+    // columns are always offered qualified, since a correlated reference that
+    // happens to share a name with an inner column would bind to the inner one.
+    private List<SqlCompletionData> CollectScopeItems(Snapshot snapshot, SqlBlock block, out int sourceCount)
+    {
+        var items = new List<SqlCompletionData>();
+        var levels = SqlScopeModel.VisibleSources(block);
+        sourceCount = levels.Sum(l => l.Count);
+
+        var shadowed = new HashSet<string>(StringComparer.Ordinal);
+        for (var depth = 0; depth < levels.Count; depth++)
+        {
+            var resolved = new List<(string Label, IReadOnlyList<SourceColumn> Columns)>();
+            var seenLabels = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var source in levels[depth])
+            {
+                var label = source.Label;
+                if (label.Length == 0 || shadowed.Contains(label) || !seenLabels.Add(label))
+                {
+                    continue;
+                }
+
+                if (source.Alias is not null)
+                {
+                    var target = source.Derived is null ? source.Name : "subquery";
+                    items.Add(new SqlCompletionData(source.Alias, SqlCompletionKind.Alias, SqlIdentifier.QuoteIfNeeded(source.Alias), AliasPriority)
+                    {
+                        Detail = target,
+                        DescriptionText = depth == 0 ? $"alias for {target}" : $"alias for {target} · outer query",
+                    });
+                }
+
+                if (ColumnsOf(snapshot, block, source, []) is { } columns)
+                {
+                    resolved.Add((label, columns));
+                }
+            }
+
+            if (depth == 0)
+            {
+                AddBlockColumns(items, block, resolved);
+            }
+            else
+            {
+                foreach (var (label, columns) in resolved)
+                {
+                    foreach (var column in columns)
+                    {
+                        items.Add(new SqlCompletionData(column.Name, SqlCompletionKind.Column,
+                            $"{SqlIdentifier.QuoteIfNeeded(label)}.{SqlIdentifier.QuoteIfNeeded(column.Name)}", OuterColumnPriority)
+                        {
+                            DisplayText = $"{label}.{column.Name}",
+                            Detail = column.DataType,
+                            DescriptionText = $"column · {column.Owner} · outer query",
+                        });
+                    }
+                }
+            }
+
+            shadowed.UnionWith(seenLabels);
+        }
+
+        foreach (var cte in SqlScopeModel.VisibleCtes(block).Select(c => c.Name).Distinct(StringComparer.Ordinal))
+        {
+            items.Add(new SqlCompletionData(cte, SqlCompletionKind.Cte, SqlIdentifier.QuoteIfNeeded(cte), CtePriority));
+        }
+
+        return items;
+    }
+
+    private static void AddBlockColumns(List<SqlCompletionData> items, SqlBlock block, List<(string Label, IReadOnlyList<SourceColumn> Columns)> resolved)
+    {
+        var owners = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var (_, columns) in resolved)
+        {
+            foreach (var name in columns.Select(c => c.Name).Distinct(StringComparer.Ordinal))
+            {
+                owners[name] = owners.GetValueOrDefault(name) + 1;
+            }
+        }
+
+        var natural = block.Sources.Any(s => s.Join == SqlJoinKind.Natural);
+        var merged = block.Sources.SelectMany(s => s.UsingColumns).ToHashSet(StringComparer.Ordinal);
+        foreach (var (label, columns) in resolved)
+        {
+            foreach (var column in columns)
+            {
+                if (owners[column.Name] > 1 && !natural && !merged.Contains(column.Name))
+                {
+                    items.Add(new SqlCompletionData(column.Name, SqlCompletionKind.Column,
+                        $"{SqlIdentifier.QuoteIfNeeded(label)}.{SqlIdentifier.QuoteIfNeeded(column.Name)}", CurrentColumnPriority)
+                    {
+                        DisplayText = $"{label}.{column.Name}",
+                        Detail = column.DataType,
+                        DescriptionText = $"column · {column.Owner} · also in another source",
+                    });
+                }
+                else
+                {
+                    items.Add(ColumnItem(column.Name, column.DataType, column.Owner, CurrentColumnPriority));
+                }
+            }
+        }
+    }
+
+    // The columns one source of `context` exposes: a derived table's output, a
+    // CTE's (a visible CTE shadows a same-named table even when its columns
+    // can't be derived), or a catalog relation's; renamed by a column alias
+    // list. Null when nothing about them is known. `visiting` cuts a CTE that
+    // (through stars) reaches itself.
+    private List<SourceColumn>? ColumnsOf(Snapshot snapshot, SqlBlock context, SqlSource source, HashSet<SqlCte> visiting)
+    {
+        List<SourceColumn>? columns;
+        if (source.Derived is { } derived)
+        {
+            columns = OutputOf(snapshot, derived, source.Label, visiting);
+        }
+        else if (source.IsFunction)
+        {
+            columns = null;
+        }
+        else if (source.Schema.Length == 0 && FindCte(context, source.Name) is { } cte)
+        {
+            columns = CteOutput(snapshot, cte, visiting);
+        }
+        else
+        {
+            columns = Resolve(snapshot, source.Schema, source.Name) is { } table
+                ? [.. table.Columns.Select(c => new SourceColumn(c.Column, c.DataType, table.Name))]
+                : null;
+        }
+
+        if (source.ColumnAliases is { Count: > 0 } aliases)
+        {
+            var renamed = new List<SourceColumn>();
+            for (var i = 0; i < aliases.Count; i++)
+            {
+                var type = columns is not null && i < columns.Count ? columns[i].DataType : null;
+                renamed.Add(new SourceColumn(aliases[i], type, source.Label));
+            }
+
+            if (columns is not null)
+            {
+                renamed.AddRange(columns.Skip(aliases.Count));
+            }
+
+            return renamed;
+        }
+
+        return columns;
+    }
+
+    private static SqlCte? FindCte(SqlBlock block, string name) =>
+        SqlScopeModel.VisibleCtes(block).FirstOrDefault(c => c.Name == name);
+
+    private List<SourceColumn>? CteOutput(Snapshot snapshot, SqlCte cte, HashSet<SqlCte> visiting)
+    {
+        if (!visiting.Add(cte))
+        {
+            return null;
+        }
+
+        try
+        {
+            var body = OutputOf(snapshot, cte.Body, cte.Name, visiting);
+            if (cte.DeclaredColumns is not { Count: > 0 } declared)
+            {
+                return body;
+            }
+
+            return [.. declared.Select((name, i) =>
+                new SourceColumn(name, body is not null && i < body.Count ? body[i].DataType : null, cte.Name))];
+        }
+        finally
+        {
+            visiting.Remove(cte);
+        }
+    }
+
+    // What a query outputs: its first branch's list (that is the one that
+    // names a set operation's columns), stars spelled out through the
+    // branch's sources. Unnamed expressions are skipped rather than guessed.
+    private List<SourceColumn>? OutputOf(Snapshot snapshot, SqlQuery query, string owner, HashSet<SqlCte> visiting)
+    {
+        if (query.IsOpaque || query.Branches.Count == 0)
+        {
+            return null;
+        }
+
+        var branch = query.Branches[0];
+        var columns = new List<SourceColumn>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var item in branch.Output)
+        {
+            if (item.IsStar)
+            {
+                var covered = item.StarQualifier is { } qualifier
+                    ? branch.Sources.Where(s => s.Label == qualifier)
+                    : branch.Sources;
+                foreach (var source in covered)
+                {
+                    foreach (var column in ColumnsOf(snapshot, branch, source, visiting) ?? [])
+                    {
+                        if (seen.Add(column.Name))
+                        {
+                            columns.Add(column with { Owner = owner });
+                        }
+                    }
+                }
+
+                continue;
+            }
+
+            if (item.Name is { } name && seen.Add(name))
+            {
+                columns.Add(new SourceColumn(name, ReferencedType(snapshot, branch, item, visiting), owner));
+            }
+        }
+
+        return columns;
+    }
+
+    // The type of the column a plain reference item passes through, when the
+    // branch's sources say what it is.
+    private string? ReferencedType(Snapshot snapshot, SqlBlock branch, SqlOutputItem item, HashSet<SqlCte> visiting)
+    {
+        if (item.RefColumn is not { } column)
+        {
+            return null;
+        }
+
+        var candidates = item.RefQualifier is { } qualifier
+            ? branch.Sources.Where(s => s.Label == qualifier)
+            : branch.Sources;
+        foreach (var source in candidates)
+        {
+            if (ColumnsOf(snapshot, branch, source, visiting)?.FirstOrDefault(c => c.Name == column) is { } found)
+            {
+                return found.DataType;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
