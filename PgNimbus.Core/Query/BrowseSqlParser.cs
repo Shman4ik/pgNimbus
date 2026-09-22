@@ -1,4 +1,5 @@
 using PgNimbus.Core.Schema;
+using PgNimbus.Core.Text;
 
 namespace PgNimbus.Core.Query;
 
@@ -41,14 +42,9 @@ public static class BrowseSqlParser
 {
     public static BrowseQueryShape? TryParse(string sql, string schema, string table, IReadOnlyList<ColumnDetail> columns)
     {
-        List<Token> tokens;
-        try
+        if (Tokenize(sql) is not { } tokens)
         {
-            tokens = Tokenize(sql);
-        }
-        catch (FormatException)
-        {
-            return null; // an unterminated string or comment
+            return null; // an unterminated string, identifier or comment
         }
 
         if (tokens.Count > 0 && tokens[^1].Kind == Kind.Semicolon)
@@ -492,179 +488,90 @@ public static class BrowseSqlParser
         public string Lower { get; } = Text.ToLowerInvariant();
     }
 
-    private const string OperatorChars = "+-*/<>=~!@#%^&|`?:";
-
-    // Just enough of Postgres's lexer to find boundaries: comments are dropped,
-    // and every token keeps its source span so a raw condition can be quoted
-    // back exactly as it was written.
-    private static List<Token> Tokenize(string sql)
+    // The browse parser's tokens, read through the shared SqlLexer so it agrees
+    // with the splitter, completion and the formatter on where a string, a
+    // quoted identifier, a dollar quote or a comment ends (its own scanner closed
+    // a nested block comment at the first "*/"). Comments are dropped; every
+    // token keeps its source span so a raw condition can be quoted back exactly
+    // as written. Null when a literal, identifier or comment is still open: the
+    // query isn't finished, so it isn't a browse query. Only what the parser can
+    // reproduce gets a kind it reads: a plain '…' string is Str; every other
+    // literal form (E'…', B'…', X'…', N'…', U&'…', a dollar quote), a U&"…"
+    // identifier and a $1 parameter are OtherStr, which no typed filter accepts,
+    // so a condition holding one stays a raw, verbatim chip.
+    private static List<Token>? Tokenize(string sql)
     {
         var tokens = new List<Token>();
-        var i = 0;
-        while (i < sql.Length)
+        var lexed = SqlLexer.Tokenize(sql);
+        for (var i = 0; i < lexed.Count; i++)
         {
-            var c = sql[i];
-            var start = i;
-            if (char.IsWhiteSpace(c))
+            var token = lexed[i];
+            if (token.IsIncomplete)
             {
-                i++;
+                return null;
+            }
+
+            if (token.IsTrivia)
+            {
                 continue;
             }
 
-            if (c == '-' && i + 1 < sql.Length && sql[i + 1] == '-')
+            var start = token.Start;
+            var end = token.End;
+            Kind kind;
+            switch (token.Kind)
             {
-                while (i < sql.Length && sql[i] != '\n')
-                {
-                    i++;
-                }
-
-                continue;
-            }
-
-            if (c == '/' && i + 1 < sql.Length && sql[i + 1] == '*')
-            {
-                var close = sql.IndexOf("*/", i + 2, StringComparison.Ordinal);
-                i = close < 0 ? throw new FormatException() : close + 2;
-                continue;
-            }
-
-            if (c is 'E' or 'e' or 'B' or 'b' or 'X' or 'x' or 'N' or 'n' && i + 1 < sql.Length && sql[i + 1] == '\'')
-            {
-                i = SkipQuoted(sql, i + 1, '\'', backslashEscapes: c is 'E' or 'e');
-                tokens.Add(new Token(Kind.OtherStr, sql[start..i], start, i));
-                continue;
-            }
-
-            if (c == '\'')
-            {
-                i = SkipQuoted(sql, i, '\'', backslashEscapes: false);
-                tokens.Add(new Token(Kind.Str, sql[start..i], start, i));
-                continue;
-            }
-
-            if (c == '"')
-            {
-                i = SkipQuoted(sql, i, '"', backslashEscapes: false);
-                tokens.Add(new Token(Kind.QuotedId, sql[start..i], start, i));
-                continue;
-            }
-
-            if (c == '$' && DollarTag(sql, i) is { } tag)
-            {
-                var close = sql.IndexOf(tag, i + tag.Length, StringComparison.Ordinal);
-                i = close < 0 ? throw new FormatException() : close + tag.Length;
-                tokens.Add(new Token(Kind.OtherStr, sql[start..i], start, i));
-                continue;
-            }
-
-            if (char.IsAsciiDigit(c) || (c == '.' && i + 1 < sql.Length && char.IsAsciiDigit(sql[i + 1])))
-            {
-                while (i < sql.Length && (char.IsAsciiLetterOrDigit(sql[i]) || sql[i] == '.' || sql[i] == '_'
-                       || ((sql[i] is '+' or '-') && sql[i - 1] is 'e' or 'E')))
-                {
-                    i++;
-                }
-
-                tokens.Add(new Token(Kind.Number, sql[start..i], start, i));
-                continue;
-            }
-
-            if (char.IsLetter(c) || c == '_')
-            {
-                while (i < sql.Length && (char.IsLetterOrDigit(sql[i]) || sql[i] is '_' or '$'))
-                {
-                    i++;
-                }
-
-                tokens.Add(new Token(Kind.Word, sql[start..i], start, i));
-                continue;
-            }
-
-            var single = c switch
-            {
-                '(' => Kind.LParen,
-                ')' => Kind.RParen,
-                ',' => Kind.Comma,
-                '.' => Kind.Dot,
-                ';' => Kind.Semicolon,
-                _ => (Kind?)null,
-            };
-            if (single is { } kind)
-            {
-                i++;
-                tokens.Add(new Token(kind, sql[start..i], start, i));
-                continue;
-            }
-
-            if (OperatorChars.Contains(c))
-            {
-                // "::" is its own token so "col::text" splits cleanly.
-                if (c == ':' && i + 1 < sql.Length && sql[i + 1] == ':')
-                {
-                    i += 2;
-                }
-                else
-                {
-                    // The first character is always taken: a lone ':' stops the
-                    // run below before it starts, and a token of no width here
-                    // was an infinite loop on the UI thread (found live, with a
-                    // stray "3: Forsaken" pasted into a browse query).
-                    i++;
-                    while (i < sql.Length && OperatorChars.Contains(sql[i]) && sql[i] != ':'
-                           && !(sql[i] == '-' && i + 1 < sql.Length && sql[i + 1] == '-'))
+                case SqlTokenKind.Word:
+                    kind = Kind.Word;
+                    break;
+                case SqlTokenKind.QuotedIdentifier:
+                    kind = sql[start] == '"' ? Kind.QuotedId : Kind.OtherStr;
+                    break;
+                case SqlTokenKind.String:
+                    kind = sql[start] == '\'' ? Kind.Str : Kind.OtherStr;
+                    break;
+                case SqlTokenKind.DollarString or SqlTokenKind.Parameter:
+                    kind = Kind.OtherStr;
+                    break;
+                case SqlTokenKind.Number:
+                    kind = Kind.Number;
+                    break;
+                case SqlTokenKind.OpenParen:
+                    kind = Kind.LParen;
+                    break;
+                case SqlTokenKind.CloseParen:
+                    kind = Kind.RParen;
+                    break;
+                case SqlTokenKind.Comma:
+                    kind = Kind.Comma;
+                    break;
+                case SqlTokenKind.Dot:
+                    kind = Kind.Dot;
+                    break;
+                case SqlTokenKind.Semicolon:
+                    kind = Kind.Semicolon;
+                    break;
+                case SqlTokenKind.Operator when sql[start] != ':':
+                    // One operator per run of operator characters ("<=", "<>"),
+                    // a ':' ending the run so "col::text" still splits cleanly.
+                    kind = Kind.Op;
+                    while (i + 1 < lexed.Count && lexed[i + 1].Start == end
+                           && lexed[i + 1].Kind == SqlTokenKind.Operator && sql[lexed[i + 1].Start] != ':')
                     {
-                        i++;
+                        end = lexed[++i].End;
                     }
-                }
 
-                tokens.Add(new Token(Kind.Op, sql[start..i], start, i));
-                continue;
+                    break;
+                default:
+                    // "::", a lone ':', brackets, anything else: not part of a
+                    // query browse mode writes, and never a typed filter's.
+                    kind = Kind.Op;
+                    break;
             }
 
-            // Anything else ('[', ']', …): not part of a query browse mode writes.
-            i++;
-            tokens.Add(new Token(Kind.Op, sql[start..i], start, i));
+            tokens.Add(new Token(kind, sql[start..end], start, end));
         }
 
         return tokens;
-    }
-
-    private static int SkipQuoted(string sql, int open, char quote, bool backslashEscapes)
-    {
-        var i = open + 1;
-        while (i < sql.Length)
-        {
-            if (backslashEscapes && sql[i] == '\\')
-            {
-                i += 2;
-                continue;
-            }
-
-            if (sql[i] == quote)
-            {
-                if (i + 1 < sql.Length && sql[i + 1] == quote)
-                {
-                    i += 2;
-                    continue;
-                }
-
-                return i + 1;
-            }
-
-            i++;
-        }
-
-        throw new FormatException();
-    }
-
-    private static string? DollarTag(string sql, int i)
-    {
-        var j = i + 1;
-        while (j < sql.Length && (char.IsLetterOrDigit(sql[j]) || sql[j] == '_'))
-        {
-            j++;
-        }
-
-        return j < sql.Length && sql[j] == '$' && (j == i + 1 || !char.IsAsciiDigit(sql[i + 1])) ? sql[i..(j + 1)] : null;
     }
 }

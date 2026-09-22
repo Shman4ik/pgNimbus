@@ -1246,11 +1246,11 @@ csproj / WiX / MSIX manifest reference them unchanged:
   (`Converters/ChipText`) instead.
   **The parser runs on the UI thread, so it must terminate on any text.** Found
   live: a lone `:` (a stray "Warcraft 3: …" pasted into a browse WHERE) produced a
-  zero-width operator token forever, and Run hung the app. Every tokenizer branch
-  now consumes at least one character, and
-  `BrowseSqlParserTests.Any_text_at_all_finishes_parsing` feeds it every printable
-  ASCII character in every position under a timeout — keep a new branch honest
-  against it.
+  zero-width operator token forever, and Run hung the app. It now tokenizes
+  through the shared `SqlLexer`, whose every branch consumes at least one
+  character, and `BrowseSqlParserTests.Any_text_at_all_finishes_parsing` still
+  feeds it every printable ASCII character in every position under a timeout —
+  keep the adapter's operator-run loop honest against it.
   One landmine: a chip label is a `TextBlock` inside the Button, not string
   `Content`, because string content treats `_` as an access key (`placed_at`
   rendered as `placedat`) — the same trap `EscapeMenuHeader` exists for.
@@ -1324,10 +1324,14 @@ csproj / WiX / MSIX manifest reference them unchanged:
   `1_000` as `1 _000` and `N'x'` as `N 'x'`, both changes of meaning. Its
   round-trip check still compares two runs of one tokenizer, which a misreading
   tokenizer passes on both sides, so `SqlFormatterLexicalTests` pins literal
-  expected output for the lexically tricky inputs. `BrowseSqlParser` still
-  carries its own tokenizer and moves over separately, keeping its contract (it
-  refuses what it can't reproduce; `IsSafeToReExecute` must not get less
-  conservative).
+  expected output for the lexically tricky inputs. `BrowseSqlParser` reads it
+  as well, keeping its contract: any still-open token means "not a browse
+  query", and only a plain `'…'` string is a literal a typed chip may take —
+  E/B/X/N/U& strings, dollar quotes, `U&"…"` and `$1` stay raw, verbatim chips
+  (its own scanner had closed a nested comment at the first `*/`, keeping the
+  rest as a raw condition that would have gone back into the SQL broken, and
+  had read `0x1F` as a typed value). `IsSafeToReExecute` is untouched and must
+  not get less conservative.
   Five rules the provider now keeps, each a reproduced bug in the audit:
   (a) **The statement is the unit** — `CompletionStatementSpan` is the text
   between the real `;` tokens around the caret, the part right of it included (a
