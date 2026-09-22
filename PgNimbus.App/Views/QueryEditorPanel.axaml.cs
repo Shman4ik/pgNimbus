@@ -5,6 +5,7 @@ using System.Xml;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Controls.Primitives.PopupPositioning;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Controls.Documents;
@@ -97,6 +98,9 @@ public partial class QueryEditorPanel : UserControl
     private int _documentEdits;
     // How many overloads the hint lists before summing up the rest.
     private const int MaxSignatureLines = 5;
+
+    // The space between the argument hint and the line it describes.
+    private const double SignatureHintGap = 2;
 
     private const double MinEditorFontSize = 8;
     private const double MaxEditorFontSize = 32;
@@ -1138,12 +1142,33 @@ public partial class QueryEditorPanel : UserControl
         SignatureText.Inlines = inlines;
 
         // Anchored just above the line of the call's "(", so the completion
-        // list (which opens below the caret) never covers it.
+        // list (which opens below the caret) never covers it — unless the
+        // editor has no room above that line (a call on its first visible
+        // line): the popup lives in the window's overlay layer, which nothing
+        // clips to the editor, so it used to open over the toolbar. There it
+        // goes below the line instead.
         var textView = SqlEditor.TextArea.TextView;
         var location = SqlEditor.Document.GetLocation(Math.Min(result.Site.OpenParen, SqlEditor.Document.TextLength));
-        var top = textView.GetVisualPosition(new TextViewPosition(location), VisualYPosition.LineTop) - textView.ScrollOffset;
+        var position = new TextViewPosition(location);
+        var top = textView.GetVisualPosition(position, VisualYPosition.LineTop) - textView.ScrollOffset;
+        var card = SignaturePopup.Child!;
+        card.Measure(Size.Infinity);
+        var below = top.Y - SignatureHintGap < card.DesiredSize.Height;
+        if (below)
+        {
+            var bottom = textView.GetVisualPosition(position, VisualYPosition.LineBottom) - textView.ScrollOffset;
+            SignaturePopup.PlacementAnchor = PopupAnchor.BottomLeft;
+            SignaturePopup.PlacementGravity = PopupGravity.BottomRight;
+            SignaturePopup.PlacementRect = new Rect(bottom.X, bottom.Y + SignatureHintGap, 1, 1);
+        }
+        else
+        {
+            SignaturePopup.PlacementAnchor = PopupAnchor.TopLeft;
+            SignaturePopup.PlacementGravity = PopupGravity.TopRight;
+            SignaturePopup.PlacementRect = new Rect(top.X, top.Y - SignatureHintGap, 1, 1);
+        }
+
         SignaturePopup.PlacementTarget = textView;
-        SignaturePopup.PlacementRect = new Rect(top.X, top.Y - 2, 1, 1);
         SignaturePopup.IsOpen = true;
     }
 

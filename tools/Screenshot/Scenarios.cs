@@ -55,6 +55,7 @@ public static class Scenarios
         ("main-window-palette", CommandPalette),
         ("main-window-sidebar-filter", SidebarFilter),
         ("main-window-cell-inspector", CellInspector),
+        ("main-window-signature-hint", SignatureHint),
         ("main-window-browse-row-details", BrowseWithRowDetails),
         ("main-window-browse-no-match", BrowseNoMatch),
         ("filter-editor", FilterEditor),
@@ -413,6 +414,38 @@ public static class Scenarios
         SeedOrdersResult(vm.ActiveTab);
         vm.CellInspector.Open("metadata", """{"channel":"web","coupon":"SUMMER26","items":[{"sku":"NIM-1","qty":2}]}""");
         return HostMainWindow(vm);
+    }
+
+    /// <summary>
+    /// The argument hint for a call on the editor's first line. There is no room
+    /// above that line inside the editor, so the hint opens below it — it used to
+    /// open over the toolbar ("Explain" read as "xplain").
+    /// </summary>
+    public static Window SignatureHint()
+    {
+        var vm = Fixtures.MainWindowViewModel();
+        vm.CompletionProvider.Load(new App.Completion.CompletionCatalog(["public"], [], [], [], ["public"])
+        {
+            BuiltinFunctions =
+            [
+                new App.Completion.CompletionFunction("pg_catalog", new FunctionInfo("round", "numeric", "numeric", 'f')),
+                new App.Completion.CompletionFunction("pg_catalog", new FunctionInfo("round", "numeric, integer", "numeric", 'f')),
+            ],
+        });
+        vm.ActiveTab.Sql = "SELECT round";
+        var window = HostMainWindow(vm);
+
+        // The hint opens on a typed "(", so it needs the window up first: type it
+        // through the editor once it is shown, exactly as a person would.
+        window.Opened += (_, _) =>
+        {
+            var editor = window.GetVisualDescendants().OfType<AvaloniaEdit.TextEditor>().First(e => e.Name == "SqlEditor");
+            editor.TextArea.Focus();
+            editor.CaretOffset = editor.Document.TextLength;
+            window.UpdateLayout();
+            Avalonia.Headless.HeadlessWindowExtensions.KeyTextInput(window, "(");
+        };
+        return window;
     }
 
     // --- Secondary windows ------------------------------------------------
