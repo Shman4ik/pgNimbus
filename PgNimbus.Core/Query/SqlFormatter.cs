@@ -1,4 +1,5 @@
 using System.Text;
+using PgNimbus.Core.Text;
 
 namespace PgNimbus.Core.Query;
 
@@ -556,215 +557,107 @@ public static class SqlFormatter
 
     // ---- Tokenizer --------------------------------------------------------
 
+    // The formatter's tokens, read through the shared SqlLexer so the formatter
+    // agrees with the splitter and completion on where every string, quoted
+    // identifier, dollar quote and comment starts and ends. Its own scanner used
+    // to disagree on a few, and each disagreement was a layout that changed
+    // what the SQL meant: 1_000 came out as "1 _000" (the number 1 aliased
+    // _000) and N'x' as "N 'x'". What this adds on top of the lexer is only the
+    // formatter's own view of a token: a run of operator characters is one
+    // operator ("->>", "::", "<="), a $1 parameter reads as a word, a bracket
+    // is an operator, and ".5" glued to a name is a dot and a number.
     private static List<Tok> Tokenize(string sql)
     {
         var tokens = new List<Tok>();
-        var n = sql.Length;
-        var i = 0;
-        var spaceBefore = false; // whitespace was skipped just before the next token
+        var spaceBefore = false;
+        var lexed = SqlLexer.Tokenize(sql);
+        for (var i = 0; i < lexed.Count; i++)
+        {
+            var token = lexed[i];
+            var text = sql.Substring(token.Start, token.Length);
+            switch (token.Kind)
+            {
+                case SqlTokenKind.Whitespace:
+                    spaceBefore = true;
+                    continue;
+                case SqlTokenKind.LineComment:
+                    Add(Kind.LineComment, text.TrimEnd());
+                    continue;
+                case SqlTokenKind.BlockComment:
+                    Add(Kind.BlockComment, text);
+                    continue;
+                case SqlTokenKind.Word or SqlTokenKind.Parameter:
+                    Add(Kind.Word, text);
+                    continue;
+                case SqlTokenKind.QuotedIdentifier:
+                    Add(Kind.QuotedId, text);
+                    continue;
+                case SqlTokenKind.String:
+                    Add(Kind.Str, text);
+                    continue;
+                case SqlTokenKind.DollarString:
+                    Add(Kind.Dollar, text);
+                    continue;
+                case SqlTokenKind.Number when text[0] == '.' && i > 0 && lexed[i - 1].End == token.Start
+                                              && lexed[i - 1].Kind is SqlTokenKind.Word or SqlTokenKind.QuotedIdentifier:
+                    // "t.5" — a name's member, not the number .5.
+                    Add(Kind.Dot, ".");
+                    Add(Kind.Number, text[1..]);
+                    continue;
+                case SqlTokenKind.Number:
+                    Add(Kind.Number, text);
+                    continue;
+                case SqlTokenKind.Comma:
+                    Add(Kind.Comma, ",");
+                    continue;
+                case SqlTokenKind.OpenParen:
+                    Add(Kind.OpenParen, "(");
+                    continue;
+                case SqlTokenKind.CloseParen:
+                    Add(Kind.CloseParen, ")");
+                    continue;
+                case SqlTokenKind.Semicolon:
+                    Add(Kind.Semicolon, ";");
+                    continue;
+                case SqlTokenKind.Dot:
+                    Add(Kind.Dot, ".");
+                    continue;
+                case SqlTokenKind.Operator or SqlTokenKind.DoubleColon:
+                {
+                    // One operator per run of operator characters, as the server reads them.
+                    var end = token.End;
+                    while (i + 1 < lexed.Count && lexed[i + 1].Start == end
+                           && lexed[i + 1].Kind is SqlTokenKind.Operator or SqlTokenKind.DoubleColon)
+                    {
+                        i++;
+                        end = lexed[i].End;
+                    }
+
+                    Add(Kind.Op, sql[token.Start..end]);
+                    continue;
+                }
+
+                case SqlTokenKind.Other when text == "$" && i + 1 < lexed.Count && lexed[i + 1].Start == token.End
+                                             && lexed[i + 1].Kind is SqlTokenKind.Word or SqlTokenKind.Number:
+                    // A stray "$name" stays one word, as it always has.
+                    i++;
+                    Add(Kind.Word, sql[token.Start..lexed[i].End]);
+                    continue;
+                default:
+                    // Brackets and anything the lexer has no name for: one-character operators.
+                    Add(Kind.Op, text);
+                    continue;
+            }
+        }
+
+        return tokens;
 
         void Add(Kind kind, string text)
         {
             tokens.Add(new Tok(kind, text, spaceBefore));
             spaceBefore = false;
         }
-
-        while (i < n)
-        {
-            var c = sql[i];
-
-            if (char.IsWhiteSpace(c))
-            {
-                spaceBefore = true;
-                i++;
-                continue;
-            }
-
-            // Prefixed string/identifier literals must stay glued to their prefix,
-            // or a layout space would change their meaning (E'\n' ≠ E '\n'):
-            //   E'…'/e'…' escape (backslash-aware), B'…'/X'…' bit/hex, U&'…'/U&"…" unicode.
-            if (c is 'E' or 'e' or 'B' or 'b' or 'X' or 'x' && i + 1 < n && sql[i + 1] == '\'')
-            {
-                var end = c is 'E' or 'e' ? SkipEscapeQuoted(sql, i + 1) : SkipQuoted(sql, i + 1, '\'');
-                Add(Kind.Str, sql[i..end]);
-                i = end;
-                continue;
-            }
-
-            if (c is 'U' or 'u' && i + 2 < n && sql[i + 1] == '&' && sql[i + 2] is '\'' or '"')
-            {
-                var quote = sql[i + 2];
-                var end = SkipQuoted(sql, i + 2, quote);
-                Add(quote == '"' ? Kind.QuotedId : Kind.Str, sql[i..end]);
-                i = end;
-                continue;
-            }
-
-            switch (c)
-            {
-                case '-' when i + 1 < n && sql[i + 1] == '-':
-                {
-                    var end = SkipLineComment(sql, i);
-                    Add(Kind.LineComment, sql[i..end].TrimEnd());
-                    i = end;
-                    break;
-                }
-
-                case '/' when i + 1 < n && sql[i + 1] == '*':
-                {
-                    var end = SkipBlockComment(sql, i);
-                    Add(Kind.BlockComment, sql[i..end]);
-                    i = end;
-                    break;
-                }
-
-                case '\'':
-                {
-                    var end = SkipQuoted(sql, i, '\'');
-                    Add(Kind.Str, sql[i..end]);
-                    i = end;
-                    break;
-                }
-
-                case '"':
-                {
-                    var end = SkipQuoted(sql, i, '"');
-                    Add(Kind.QuotedId, sql[i..end]);
-                    i = end;
-                    break;
-                }
-
-                case '$':
-                {
-                    var end = SkipDollarQuote(sql, i);
-                    if (end > i)
-                    {
-                        Add(Kind.Dollar, sql[i..end]);
-                        i = end;
-                    }
-                    else
-                    {
-                        // "$1" positional parameter or a stray "$": read as a word.
-                        var w = i + 1;
-                        while (w < n && (char.IsLetterOrDigit(sql[w]) || sql[w] == '_'))
-                        {
-                            w++;
-                        }
-
-                        Add(Kind.Word, sql[i..w]);
-                        i = w;
-                    }
-
-                    break;
-                }
-
-                case ',':
-                    Add(Kind.Comma, ",");
-                    i++;
-                    break;
-                case '(':
-                    Add(Kind.OpenParen, "(");
-                    i++;
-                    break;
-                case ')':
-                    Add(Kind.CloseParen, ")");
-                    i++;
-                    break;
-                case ';':
-                    Add(Kind.Semicolon, ";");
-                    i++;
-                    break;
-
-                case '.' when !(i + 1 < n && char.IsAsciiDigit(sql[i + 1]) && (i == 0 || !IsWordChar(sql[i - 1]))):
-                    Add(Kind.Dot, ".");
-                    i++;
-                    break;
-
-                default:
-                    if (char.IsAsciiDigit(c) || (c == '.' && i + 1 < n && char.IsAsciiDigit(sql[i + 1])))
-                    {
-                        var end = ReadNumber(sql, i);
-                        Add(Kind.Number, sql[i..end]);
-                        i = end;
-                    }
-                    else if (char.IsLetter(c) || c == '_')
-                    {
-                        var end = i + 1;
-                        while (end < n && IsWordChar(sql[end]))
-                        {
-                            end++;
-                        }
-
-                        Add(Kind.Word, sql[i..end]);
-                        i = end;
-                    }
-                    else if (OpChars.IndexOf(c) >= 0)
-                    {
-                        var end = i + 1;
-                        while (end < n && OpChars.IndexOf(sql[end]) >= 0)
-                        {
-                            end++;
-                        }
-
-                        Add(Kind.Op, sql[i..end]);
-                        i = end;
-                    }
-                    else
-                    {
-                        // Anything else (brackets, braces, …) as a single-char op.
-                        Add(Kind.Op, sql[i].ToString());
-                        i++;
-                    }
-
-                    break;
-            }
-        }
-
-        return tokens;
     }
-
-    private static int ReadNumber(string sql, int i)
-    {
-        var n = sql.Length;
-        var j = i;
-        while (j < n && char.IsAsciiDigit(sql[j]))
-        {
-            j++;
-        }
-
-        if (j < n && sql[j] == '.' && j + 1 < n && char.IsAsciiDigit(sql[j + 1]))
-        {
-            j += 2;
-            while (j < n && char.IsAsciiDigit(sql[j]))
-            {
-                j++;
-            }
-        }
-
-        if (j < n && (sql[j] == 'e' || sql[j] == 'E'))
-        {
-            var k = j + 1;
-            if (k < n && (sql[k] == '+' || sql[k] == '-'))
-            {
-                k++;
-            }
-
-            if (k < n && char.IsAsciiDigit(sql[k]))
-            {
-                j = k;
-                while (j < n && char.IsAsciiDigit(sql[j]))
-                {
-                    j++;
-                }
-            }
-        }
-
-        return j;
-    }
-
-    private static bool IsWordChar(char c) => char.IsLetterOrDigit(c) || c == '_' || c == '$';
-
-    private const string OpChars = "+-*/<>=~!@#%^&|:";
 
     // ---- Round-trip check -------------------------------------------------
 
@@ -793,125 +686,6 @@ public static class SqlFormatter
         }
 
         return true;
-    }
-
-    // ---- Lexer skips (mirrors SqlScriptSplitter) --------------------------
-
-    private static int SkipQuoted(string sql, int i, char quote)
-    {
-        var n = sql.Length;
-        var j = i + 1;
-        while (j < n)
-        {
-            if (sql[j] == quote)
-            {
-                if (j + 1 < n && sql[j + 1] == quote)
-                {
-                    j += 2;
-                    continue;
-                }
-
-                return j + 1;
-            }
-
-            j++;
-        }
-
-        return n;
-    }
-
-    // Like SkipQuoted for single quotes but honouring backslash escapes, as an
-    // E'…' escape string uses them (so a "\'" is not a terminator).
-    private static int SkipEscapeQuoted(string sql, int quoteIndex)
-    {
-        var n = sql.Length;
-        var j = quoteIndex + 1;
-        while (j < n)
-        {
-            var ch = sql[j];
-            if (ch == '\\' && j + 1 < n)
-            {
-                j += 2;
-                continue;
-            }
-
-            if (ch == '\'')
-            {
-                if (j + 1 < n && sql[j + 1] == '\'')
-                {
-                    j += 2;
-                    continue;
-                }
-
-                return j + 1;
-            }
-
-            j++;
-        }
-
-        return n;
-    }
-
-    private static int SkipLineComment(string sql, int i)
-    {
-        var n = sql.Length;
-        var j = i + 2;
-        while (j < n && sql[j] != '\n')
-        {
-            j++;
-        }
-
-        return j;
-    }
-
-    private static int SkipBlockComment(string sql, int i)
-    {
-        var n = sql.Length;
-        var j = i + 2;
-        var depth = 1;
-        while (j < n && depth > 0)
-        {
-            if (j + 1 < n && sql[j] == '/' && sql[j + 1] == '*')
-            {
-                depth++;
-                j += 2;
-            }
-            else if (j + 1 < n && sql[j] == '*' && sql[j + 1] == '/')
-            {
-                depth--;
-                j += 2;
-            }
-            else
-            {
-                j++;
-            }
-        }
-
-        return j;
-    }
-
-    private static int SkipDollarQuote(string sql, int i)
-    {
-        var n = sql.Length;
-        var j = i + 1;
-        while (j < n && (char.IsLetterOrDigit(sql[j]) || sql[j] == '_'))
-        {
-            j++;
-        }
-
-        if (j >= n || sql[j] != '$')
-        {
-            return i;
-        }
-
-        if (j > i + 1 && char.IsDigit(sql[i + 1]))
-        {
-            return i;
-        }
-
-        var tag = sql[i..(j + 1)];
-        var close = sql.IndexOf(tag, j + 1, StringComparison.Ordinal);
-        return close < 0 ? n : close + tag.Length;
     }
 
     // ---- Keyword tables ---------------------------------------------------

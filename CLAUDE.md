@@ -1318,10 +1318,16 @@ csproj / WiX / MSIX manifest reference them unchanged:
   identifiers, `$tag1$`/`$тег$` dollar quotes and nested comments.
   `SqlScriptSplitter` and `SqlCompletionContext`'s caret/mask scans ride it;
   before that each had its own scanner and they disagreed — `E'can\'t;stop'`
-  split in two, and completion opened inside `$tag1$…$tag1$`. `SqlFormatter` and
-  `BrowseSqlParser` still carry their own tokenizers and move over one at a time,
-  each keeping its own contract (BrowseSqlParser still refuses what it can't
-  reproduce; `IsSafeToReExecute` must not get less conservative).
+  split in two, and completion opened inside `$tag1$…$tag1$`. `SqlFormatter`
+  reads it too (its `Tokenize` is an adapter: runs of operator characters are one
+  operator, `$1` a word, brackets operators); its own scanner had formatted
+  `1_000` as `1 _000` and `N'x'` as `N 'x'`, both changes of meaning. Its
+  round-trip check still compares two runs of one tokenizer, which a misreading
+  tokenizer passes on both sides, so `SqlFormatterLexicalTests` pins literal
+  expected output for the lexically tricky inputs. `BrowseSqlParser` still
+  carries its own tokenizer and moves over separately, keeping its contract (it
+  refuses what it can't reproduce; `IsSafeToReExecute` must not get less
+  conservative).
   Five rules the provider now keeps, each a reproduced bug in the audit:
   (a) **The statement is the unit** — `CompletionStatementSpan` is the text
   between the real `;` tokens around the caret, the part right of it included (a
