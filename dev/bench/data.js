@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788361339975,
+  "lastUpdate": 1790094968781,
   "repoUrl": "https://github.com/Shman4ik/pgNimbus",
   "entries": {
     "pgNimbus benchmarks": [
@@ -1788,6 +1788,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "Stream 100000 rows",
             "value": 140.5,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shman4ik@gmail.com",
+            "name": "Dmitrii Shmanev",
+            "username": "Shman4ik"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "11288e228e934d1ea3057862bc707190b2743451",
+          "message": "Release prep 0.13: refreshed screenshots, completion docs (#237)\n\n* Refresh screenshots (published)\n\nRendered by .github/workflows/screenshots.yml from a688b31cc7d860c2dd9d24794a4c4f76a4ba411d.\n\n* docs: describe the completion work shipping in 0.13\n\nThe editor guide still listed completion as it stood before packages F-I:\nnothing on search_path resolution, per-block scopes, the single-relation\ncolumn lists, cast types, argument hints or the Enter/Tab rule.\n\nCo-Authored-By: Claude Opus 5 <noreply@anthropic.com>\n\n* docs: bump mkdocs-material to 9.7.7 (search-suggestion DOM XSS)\n\nDependabot alert 2; affects the published docs site only.\n\nCo-Authored-By: Claude Opus 5 <noreply@anthropic.com>\n\n---------\n\nCo-authored-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>\nCo-authored-by: Claude Opus 5 <noreply@anthropic.com>",
+          "timestamp": "2026-09-22T18:30:00+02:00",
+          "tree_id": "65cd7e08b4d9f60c7f2d96c023aebbff4138aea6",
+          "url": "https://github.com/Shman4ik/pgNimbus/commit/11288e228e934d1ea3057862bc707190b2743451"
+        },
+        "date": 1790094967929,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Startup, launch to first frame (NativeAOT)",
+            "value": 236,
+            "unit": "ms"
+          },
+          {
+            "name": "Memory at first frame (NativeAOT)",
+            "value": 161.3,
+            "unit": "MB"
+          },
+          {
+            "name": "Binary size (NativeAOT)",
+            "value": 44.4,
+            "unit": "MB"
+          },
+          {
+            "name": "Publish size (NativeAOT, shipped files)",
+            "value": 57.8,
+            "unit": "MB"
+          },
+          {
+            "name": "Startup, launch to first frame (JIT)",
+            "value": 1997,
+            "unit": "ms"
+          },
+          {
+            "name": "Connect, cold pool",
+            "value": 150.9,
+            "unit": "ms"
+          },
+          {
+            "name": "Round-trip, SELECT 1 warm",
+            "value": 0.33,
+            "unit": "ms"
+          },
+          {
+            "name": "First row batch of a 100000-row SELECT",
+            "value": 12.2,
+            "unit": "ms"
+          },
+          {
+            "name": "Stream 100000 rows",
+            "value": 151,
             "unit": "ms"
           }
         ]
