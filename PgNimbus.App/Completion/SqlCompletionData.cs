@@ -22,6 +22,7 @@ public enum SqlCompletionKind
     Alias,
     Cte,
     JoinCondition,
+    Type,
 }
 
 /// <param name="text">The name shown in the list and matched against what the user typed.</param>
@@ -106,6 +107,7 @@ public sealed class SqlCompletionData(string text, SqlCompletionKind kind, strin
         SqlCompletionKind.Alias => "alias",
         SqlCompletionKind.Cte => "CTE",
         SqlCompletionKind.JoinCondition => "FK join condition",
+        SqlCompletionKind.Type => "type",
         _ => "item",
     };
 

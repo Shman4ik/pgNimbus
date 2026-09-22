@@ -1401,8 +1401,34 @@ csproj / WiX / MSIX manifest reference them unchanged:
   two different joins, and the old "first edge found" picked one at random.
   `ForeignKeyInfo.ConstraintName` carries the name (`con.conname`; the query
   groups by it, so a composite key stays one row).
-  Not done yet (packages H–J): cast types, argument hints, the Enter-accept
-  rule, latency budgets.
+  **Argument hints and cast types** (package H). `Text/SqlCallSite.At`
+  (Core-pure, `SqlCallSiteTests`) reads the innermost call around the caret
+  from lexer tokens — commas inside strings, `ARRAY[…]`, nested calls and
+  subqueries don't count; a `(` after a keyword (`IN`, `VALUES`, `EXISTS` …)
+  is not a call; `arg => …` / `arg := …` names the argument — and
+  `Schema/SignatureHints.For` picks the overloads that can still take that
+  argument (enough parameters, or a VARIADIC last), falling back to all of them
+  unmarked rather than hiding the hint. Overloads come from pg_catalog *and*
+  the schemas: `CompletionCatalog.BuiltinFunctions` is pg_catalog's list, read
+  at refresh for hints only and never offered as candidates (thousands of
+  internal overloads). The hint is a `Popup` in `QueryEditorPanel.axaml` (no
+  new permanent control, UI rule 1) anchored just above the call's line so the
+  completion list below the caret never covers it; it opens on `(`, on
+  accepting a function, or on Ctrl+Shift+Space (`CommandId.ParameterHints`,
+  literal Ctrl like completion), follows the caret while live, and closes when
+  the caret leaves every call or on Escape. One landmine: the auto-closed `)`
+  is inserted *at* the caret, which moves the caret past it for a moment — that
+  reads as leaving the call, so the hint is opened only after the caret is put
+  back. Casts: after `::` or `CAST(… AS`, the list is types only —
+  `SchemaService.GetTypesAsync` (base/enum/range/multirange types, domains and
+  free-standing composites; not table row types, arrays or pseudo-types), a
+  built-in inserted by its `format_type` spelling when that is one word
+  (`integer`) else by pg_type's name (`timestamptz`), a user type
+  schema-qualified off the search_path; a short built-in list stands in until
+  the catalog is read. The record is `DataTypeInfo` — `TypeInfo` collides with
+  TUnit's and System.Reflection's.
+  Not done yet (packages I–J): the Enter-accept rule (a product decision, not
+  taken), latency budgets.
 - `SqlFormatter` follows <https://www.sqlstyle.guide/> ("river" layout: root
   keywords right-aligned to a common column, content to its right). The tests
   in `PgNimbus.Core.Tests` assert exact spacing — a deliberate layout change

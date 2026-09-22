@@ -13,10 +13,28 @@
          auto-close pairs, font zoom, find/replace, drag-drop target — lives in
          the code-behind, which is this control's single responsibility. -->
     <Border Classes="card">
-        <ae:TextEditor Name="SqlEditor"
-                       ShowLineNumbers="True"
-                       WordWrap="{Binding WordWrapEditor}"
-                       FontFamily="Cascadia Code,Consolas,Menlo,monospace"
-                       FontSize="14" />
+        <Panel>
+            <ae:TextEditor Name="SqlEditor"
+                           ShowLineNumbers="True"
+                           WordWrap="{Binding WordWrapEditor}"
+                           FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                           FontSize="14" />
+            <!-- The argument hint: the called function's overloads with the
+                 parameter under the caret in bold, just above the call. Opens
+                 on "(", follows the caret, closes when the caret leaves the
+                 call or on Escape. Never takes focus: typing continues in the
+                 editor. Placement is set from code (the call's position). -->
+            <Popup Name="SignaturePopup"
+                   Placement="AnchorAndGravity"
+                   PlacementAnchor="TopLeft"
+                   PlacementGravity="TopRight"
+                   IsLightDismissEnabled="False"
+                   ShouldUseOverlayLayer="True">
+                <Border Classes="signatureHint">
+                    <TextBlock Name="SignatureText"
+                               FontFamily="Cascadia Code,Consolas,Menlo,monospace" />
+                </Border>
+            </Popup>
+        </Panel>
     </Border>
 </UserControl>

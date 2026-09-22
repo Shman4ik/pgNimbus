@@ -38,6 +38,7 @@ public enum CommandId
 
     // --- SQL editor ---
     Completion,
+    ParameterHints,
     Find,
     FindReplace,
     FindNextPrevious,
