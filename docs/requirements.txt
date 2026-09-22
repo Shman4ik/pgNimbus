@@ -2,4 +2,4 @@
 # render identically. Used only to build docs/ — the app itself has no Python
 # dependency.
 mkdocs==1.6.1
-mkdocs-material==9.5.49
+mkdocs-material==9.7.7
