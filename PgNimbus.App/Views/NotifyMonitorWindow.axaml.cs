@@ -40,6 +40,10 @@ public partial class NotifyMonitorWindow : Window
         try
         {
             await clipboard.SetTextAsync(vm.Payload.DisplayText);
+            if (sender is Button button)
+            {
+                CopyFeedback.Show(button);
+            }
         }
         catch
         {
