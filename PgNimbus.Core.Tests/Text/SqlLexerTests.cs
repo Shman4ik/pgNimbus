@@ -1,5 +1,6 @@
 using PgNimbus.Core.Query;
 using PgNimbus.Core.Text;
+using TUnit.Assertions.Enums;
 
 namespace PgNimbus.Core.Tests.Text;
 
@@ -69,7 +70,7 @@ public class SqlLexerTests
         await Assert.That(Lex("$1 + $12")).IsEquivalentTo(new[]
         {
             (SqlTokenKind.Parameter, "$1"), (SqlTokenKind.Operator, "+"), (SqlTokenKind.Parameter, "$12"),
-        });
+        }, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -101,7 +102,7 @@ public class SqlLexerTests
             (SqlTokenKind.Number, "1"), (SqlTokenKind.CloseBracket, "]"), (SqlTokenKind.Comma, ","),
             (SqlTokenKind.OpenParen, "("), (SqlTokenKind.Word, "x"), (SqlTokenKind.CloseParen, ")"),
             (SqlTokenKind.Semicolon, ";"),
-        });
+        }, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -167,8 +168,6 @@ public class SqlLexerTests
             await Assert.That(part.Count == 0 ? start == end : part[0].Start == start && part[^1].End == end).IsTrue();
         }
 
-        await Assert.That(true).IsTrue();
-
         static void AssertTiles(string sql, List<SqlToken> tokens)
         {
             var at = 0;
@@ -196,7 +195,7 @@ public class SqlLexerTests
     {
         var statements = SqlScriptSplitter.Split("SELECT E'can\\'t;stop'; SELECT 2;");
 
-        await Assert.That(statements).IsEquivalentTo(new[] { "SELECT E'can\\'t;stop'", "SELECT 2" });
+        await Assert.That(statements).IsEquivalentTo(new[] { "SELECT E'can\\'t;stop'", "SELECT 2" }, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -204,6 +203,6 @@ public class SqlLexerTests
     {
         var statements = SqlScriptSplitter.Split("SELECT $tag1$a;b$tag1$; SELECT $тег$c;d$тег$");
 
-        await Assert.That(statements).IsEquivalentTo(new[] { "SELECT $tag1$a;b$tag1$", "SELECT $тег$c;d$тег$" });
+        await Assert.That(statements).IsEquivalentTo(new[] { "SELECT $tag1$a;b$tag1$", "SELECT $тег$c;d$тег$" }, CollectionOrdering.Matching);
     }
 }

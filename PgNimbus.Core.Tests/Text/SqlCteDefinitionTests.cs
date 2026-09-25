@@ -1,4 +1,5 @@
 using PgNimbus.Core.Text;
+using TUnit.Assertions.Enums;
 
 namespace PgNimbus.Core.Tests.Text;
 
@@ -21,7 +22,7 @@ public class SqlCteDefinitionTests
         var cte = Single("WITH x (a, b) AS (SELECT 1, 2) SELECT * FROM x");
 
         await Assert.That(cte.Name).IsEqualTo("x");
-        await Assert.That(cte.Columns).IsEquivalentTo(new[] { "a", "b" });
+        await Assert.That(cte.Columns).IsEquivalentTo(new[] { "a", "b" }, CollectionOrdering.Matching);
         await Assert.That(cte.SelectsStar).IsFalse();
     }
 
@@ -30,7 +31,7 @@ public class SqlCteDefinitionTests
     {
         var cte = Single("WITH recent AS (SELECT id, o.total FROM orders o) SELECT * FROM recent");
 
-        await Assert.That(cte.Columns).IsEquivalentTo(new[] { "id", "total" });
+        await Assert.That(cte.Columns).IsEquivalentTo(new[] { "id", "total" }, CollectionOrdering.Matching);
         await Assert.That(cte.SelectsStar).IsFalse();
     }
 
@@ -39,7 +40,7 @@ public class SqlCteDefinitionTests
     {
         var cte = Single("WITH s AS (SELECT count(*) AS cnt, max(total) top_total FROM orders) SELECT * FROM s");
 
-        await Assert.That(cte.Columns).IsEquivalentTo(new[] { "cnt", "top_total" });
+        await Assert.That(cte.Columns).IsEquivalentTo(new[] { "cnt", "top_total" }, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -93,7 +94,7 @@ public class SqlCteDefinitionTests
             "WITH RECURSIVE tree AS (SELECT id, parent FROM nodes UNION ALL SELECT n.id, n.parent FROM nodes n JOIN tree t ON n.parent = t.id) SELECT * FROM tree");
 
         await Assert.That(cte.Name).IsEqualTo("tree");
-        await Assert.That(cte.Columns).IsEquivalentTo(new[] { "id", "parent" });
+        await Assert.That(cte.Columns).IsEquivalentTo(new[] { "id", "parent" }, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -102,7 +103,7 @@ public class SqlCteDefinitionTests
         var cte = Single(
             "WITH latest AS (SELECT DISTINCT ON (customer_id) customer_id, total FROM orders ORDER BY customer_id, created_at DESC) SELECT * FROM latest");
 
-        await Assert.That(cte.Columns).IsEquivalentTo(new[] { "customer_id", "total" });
+        await Assert.That(cte.Columns).IsEquivalentTo(new[] { "customer_id", "total" }, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -118,7 +119,7 @@ public class SqlCteDefinitionTests
     {
         var cte = Single("WITH q AS (SELECT \"Weird Name\", t.\"Other\" FROM t) SELECT * FROM q");
 
-        await Assert.That(cte.Columns).IsEquivalentTo(new[] { "Weird Name", "Other" });
+        await Assert.That(cte.Columns).IsEquivalentTo(new[] { "Weird Name", "Other" }, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -126,7 +127,7 @@ public class SqlCteDefinitionTests
     {
         var cte = Single("WITH x AS (SELECT id, (SELECT max(v) FROM other) AS peak FROM t) SELECT * FROM x");
 
-        await Assert.That(cte.Columns).IsEquivalentTo(new[] { "id", "peak" });
+        await Assert.That(cte.Columns).IsEquivalentTo(new[] { "id", "peak" }, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -144,7 +145,7 @@ public class SqlCteDefinitionTests
     {
         var cte = Single("WITH x AS (SELECT 'fixed' AS label, id FROM t) SELECT * FROM x");
 
-        await Assert.That(cte.Columns).IsEquivalentTo(new[] { "label", "id" });
+        await Assert.That(cte.Columns).IsEquivalentTo(new[] { "label", "id" }, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -152,7 +153,7 @@ public class SqlCteDefinitionTests
     {
         var cte = Single("WITH x AS (SELECT extract(year from created_at) AS yr, id FROM t) SELECT * FROM x");
 
-        await Assert.That(cte.Columns).IsEquivalentTo(new[] { "yr", "id" });
+        await Assert.That(cte.Columns).IsEquivalentTo(new[] { "yr", "id" }, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -170,7 +171,7 @@ public class SqlCteDefinitionTests
         // Postgres names a VALUES list's columns column1, column2, …
         var cte = Single("WITH v AS (VALUES (1, 2), (3, 4)) SELECT * FROM v");
 
-        await Assert.That(cte.Columns).IsEquivalentTo(new[] { "column1", "column2" });
+        await Assert.That(cte.Columns).IsEquivalentTo(new[] { "column1", "column2" }, CollectionOrdering.Matching);
         await Assert.That(cte.SelectsStar).IsFalse();
     }
 
@@ -180,7 +181,7 @@ public class SqlCteDefinitionTests
         // Mid-typing: the WITH body's paren isn't closed yet.
         var cte = Single("WITH recent AS (SELECT id, total FROM orders");
 
-        await Assert.That(cte.Columns).IsEquivalentTo(new[] { "id", "total" });
+        await Assert.That(cte.Columns).IsEquivalentTo(new[] { "id", "total" }, CollectionOrdering.Matching);
         await Assert.That(cte.SourceTables[0].Table).IsEqualTo("orders");
     }
 
@@ -217,7 +218,7 @@ public class SqlCteDefinitionTests
     {
         var cte = Single("WITH x AS (DELETE FROM public.orders WHERE total < 0 RETURNING id, total AS amount) SELECT x. FROM x");
 
-        await Assert.That(cte.Columns).IsEquivalentTo(new[] { "id", "amount" });
+        await Assert.That(cte.Columns).IsEquivalentTo(new[] { "id", "amount" }, CollectionOrdering.Matching);
     }
 
     [Test]

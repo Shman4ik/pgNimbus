@@ -1,4 +1,5 @@
 using PgNimbus.Core.Settings;
+using TUnit.Assertions.Enums;
 
 namespace PgNimbus.Core.Tests.Settings;
 
@@ -51,7 +52,7 @@ public class NotifyChannelsTests
 
         var map = NotifyChannels.With(settings, "db1/app", ["jobs", "order_events", "jobs"]);
 
-        await Assert.That(map["db1/app"]).IsEquivalentTo(new[] { "jobs", "order_events" });
+        await Assert.That(map["db1/app"]).IsEquivalentTo(new[] { "jobs", "order_events" }, CollectionOrdering.Matching);
     }
 
     [Test]

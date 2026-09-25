@@ -1,3 +1,4 @@
+using System.Globalization;
 using PgNimbus.Core;
 
 namespace PgNimbus.Core.Tests;
@@ -24,8 +25,15 @@ public class ByteSizeTests
     [Test]
     public async Task UsesInvariantDecimalSeparator()
     {
-        // Guard against a machine locale rendering "1,5 KB" — the size columns
-        // must read the same everywhere.
-        await Assert.That(ByteSize.Format(1536L)).Contains(".");
+        var original = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("fr-FR");
+            await Assert.That(ByteSize.Format(1536L)).IsEqualTo("1.5 KB");
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = original;
+        }
     }
 }

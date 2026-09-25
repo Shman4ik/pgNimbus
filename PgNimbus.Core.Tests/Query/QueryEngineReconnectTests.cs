@@ -159,7 +159,7 @@ public class QueryEngineReconnectTests
     }
 
     [Test]
-    public async Task ScriptRetriesOnlyItsFirstStatementAfterConnectionLoss()
+    public async Task ScriptRecoversFromLossBeforeFirstStatement()
     {
         SkipIfNoConnection();
 
@@ -176,10 +176,10 @@ public class QueryEngineReconnectTests
         }
 
         await Assert.That(results).Count().IsEqualTo(2);
-        foreach (var result in results)
-        {
-            await Assert.That(result).IsTypeOf<MaterializedResultSet>();
-        }
+        await Assert.That(results[0]).IsTypeOf<MaterializedResultSet>();
+        await Assert.That(results[1]).IsTypeOf<MaterializedResultSet>();
+        await Assert.That(((MaterializedResultSet)results[0]).Rows[0][0]).IsEqualTo(1);
+        await Assert.That(((MaterializedResultSet)results[1]).Rows[0][0]).IsEqualTo(2);
     }
 
     [Test]
@@ -234,5 +234,8 @@ public class QueryEngineReconnectTests
         var affected = await engine.ApplyBatchAsync(statements, CancellationToken.None);
 
         await Assert.That(affected).IsEqualTo(1);
+        var rows = await DrainAsync(await engine.ExecuteAsync($"SELECT val FROM {ScratchTable} WHERE id = 1", CancellationToken.None));
+        await Assert.That(rows).Count().IsEqualTo(1);
+        await Assert.That(rows[0][0]).IsEqualTo(1);
     }
 }

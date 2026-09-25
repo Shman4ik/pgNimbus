@@ -1,5 +1,6 @@
 using PgNimbus.Core.Query;
 using PgNimbus.Core.Schema;
+using TUnit.Assertions.Enums;
 
 namespace PgNimbus.Core.Tests.Query;
 
@@ -60,7 +61,7 @@ public class BrowseSqlParserTests
             new("active", FilterOperator.IsFalse),
             new("payload", FilterOperator.NotContains, "x"),
             new("lifetime_value", FilterOperator.IsNotNull),
-        });
+        }, CollectionOrdering.Matching);
         await Assert.That(shape.SortColumn).IsEqualTo("order_count");
         await Assert.That(shape.SortDescending).IsTrue();
         await Assert.That(shape.Offset).IsEqualTo(200);
@@ -86,7 +87,7 @@ public class BrowseSqlParserTests
             "lower(full_name) = 'x'",
             "id IN (SELECT id FROM other)",
             "order_count >= -3",
-        });
+        }, CollectionOrdering.Matching);
         await Assert.That(shape.Conditions.Take(4).All(c => c.Filter is null)).IsTrue();
         await Assert.That(shape.Conditions[4].Filter).IsEqualTo(new RowFilter("order_count", FilterOperator.GreaterOrEqual, "-3"));
         await Assert.That(shape.Limit).IsEqualTo(50);
@@ -98,7 +99,11 @@ public class BrowseSqlParserTests
         // json has no "=", so no chip could offer it — keep the text.
         var shape = Parse("SELECT * FROM v_customer_spend WHERE payload = '{}' AND full_name LIKE 'A%' LIMIT 10")!;
 
-        await Assert.That(shape.Conditions.All(c => c.Filter is null)).IsTrue();
+        await Assert.That(shape.Conditions).IsEquivalentTo(new[]
+        {
+            new ParsedCondition("payload = '{}'", null),
+            new ParsedCondition("full_name LIKE 'A%'", null),
+        }, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -106,7 +111,11 @@ public class BrowseSqlParserTests
     {
         var shape = Parse("SELECT * FROM v_customer_spend WHERE full_name ILIKE '%a%b%' AND full_name ILIKE 'a_b%' LIMIT 10")!;
 
-        await Assert.That(shape.Conditions.All(c => c.Filter is null)).IsTrue();
+        await Assert.That(shape.Conditions).IsEquivalentTo(new[]
+        {
+            new ParsedCondition("full_name ILIKE '%a%b%'", null),
+            new ParsedCondition("full_name ILIKE 'a_b%'", null),
+        }, CollectionOrdering.Matching);
     }
 
     [Test]

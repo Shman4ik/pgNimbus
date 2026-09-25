@@ -143,6 +143,7 @@ public class EffectivePrivilegeResolverTests
         var result = EffectivePrivilegeResolver.Resolve(
             Acl(Table(), "alice"), ["alice"], Crud, new FakeLookup());
 
+        await Assert.That(result).Count().IsEqualTo(Crud.Count);
         await Assert.That(result.All(e => e.Granted)).IsTrue();
         await Assert.That(result.All(e => e.Source == PrivilegeSource.Owner)).IsTrue();
     }
@@ -169,6 +170,7 @@ public class EffectivePrivilegeResolverTests
 
         var result = EffectivePrivilegeResolver.Resolve(acl, ["postgres"], Crud, lookup);
 
+        await Assert.That(result).Count().IsEqualTo(Crud.Count);
         await Assert.That(result.All(e => e.Granted)).IsTrue();
         await Assert.That(result.All(e => e.Source == PrivilegeSource.Superuser)).IsTrue();
     }
@@ -199,6 +201,7 @@ public class EffectivePrivilegeResolverTests
 
         var result = EffectivePrivilegeResolver.Resolve(acl, ["bob"], Crud, new FakeLookup());
 
+        await Assert.That(result).Count().IsEqualTo(Crud.Count);
         await Assert.That(result.All(e => !e.Granted)).IsTrue();
         await Assert.That(result.All(e => e.Source == PrivilegeSource.None)).IsTrue();
     }
@@ -209,6 +212,7 @@ public class EffectivePrivilegeResolverTests
         var result = EffectivePrivilegeResolver.Resolve(
             DefaultAcl(Table(), "alice"), ["alice"], Crud, new FakeLookup());
 
+        await Assert.That(result).Count().IsEqualTo(Crud.Count);
         await Assert.That(result.All(e => e.Source == PrivilegeSource.Owner)).IsTrue();
     }
 

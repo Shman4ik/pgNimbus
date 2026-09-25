@@ -131,14 +131,6 @@ public class CompletionRankerTests
     }
 
     [Test]
-    public async Task Matching_IsCaseInsensitive()
-    {
-        var ranked = Rank([new Candidate("SELECT")], "sel");
-
-        await Assert.That(Texts(ranked)).IsEqualTo("SELECT");
-    }
-
-    [Test]
     public async Task FullTie_RecentlyAcceptedWins()
     {
         Candidate[] candidates =

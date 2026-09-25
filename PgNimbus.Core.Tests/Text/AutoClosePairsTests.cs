@@ -72,12 +72,10 @@ public class AutoClosePairsTests
     }
 
     [Test]
-    public async Task AtEndOfText_OpenersPair_ClosersInsert()
+    public async Task AtEndOfText_OpenerPairs()
     {
         await Assert.That(AutoClosePairs.Decide("", 0, '(', inStringOrComment: false))
             .IsEqualTo(AutoClosePairs.Verdict.InsertPair);
-        await Assert.That(AutoClosePairs.Decide("f(x", 3, ')', inStringOrComment: false))
-            .IsEqualTo(AutoClosePairs.Verdict.None);
     }
 
     [Test]

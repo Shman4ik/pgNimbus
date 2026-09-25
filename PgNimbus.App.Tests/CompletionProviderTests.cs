@@ -1,6 +1,7 @@
 using PgNimbus.App.Completion;
 using PgNimbus.Core.Schema;
 using PgNimbus.Core.Text;
+using TUnit.Assertions.Enums;
 
 namespace PgNimbus.App.Tests;
 
@@ -671,8 +672,11 @@ public class CompletionProviderTests
             .Where(i => i.Kind == SqlCompletionKind.JoinCondition)
             .ToList();
 
-        await Assert.That(conditions.Select(c => c.InsertText)).IsEquivalentTo(new[] { "o.buyer_id = u.id", "o.seller_id = u.id" });
-        await Assert.That(conditions.Select(c => c.Detail ?? "<none>")).IsEquivalentTo(new[] { "orders_buyer_fkey", "orders_seller_fkey" });
+        await Assert.That(conditions.Select(c => (c.InsertText, Detail: c.Detail ?? "<none>"))).IsEquivalentTo(new[]
+        {
+            ("o.buyer_id = u.id", "orders_buyer_fkey"),
+            ("o.seller_id = u.id", "orders_seller_fkey"),
+        });
     }
 
     [Test]
@@ -717,7 +721,7 @@ public class CompletionProviderTests
     {
         var hints = HintsAt(TypedProvider(), "SELECT round(total, |) FROM public.orders")!.Value.Hints;
 
-        await Assert.That(hints.Single().Parameters.Select(p => p.Text)).IsEquivalentTo(new[] { "numeric", "integer" });
+        await Assert.That(hints.Single().Parameters.Select(p => p.Text)).IsEquivalentTo(new[] { "numeric", "integer" }, CollectionOrdering.Matching);
         await Assert.That(hints.Single().ActiveParameter).IsEqualTo(1);
     }
 

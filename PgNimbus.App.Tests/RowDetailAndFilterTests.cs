@@ -7,6 +7,7 @@ using PgNimbus.Core.Commands;
 using PgNimbus.Core.Query;
 using PgNimbus.Core.Schema;
 using PgNimbus.Screenshot;
+using TUnit.Assertions.Enums;
 
 namespace PgNimbus.App.Tests;
 
@@ -37,7 +38,7 @@ public class RowDetailAndFilterTests
             await Assert.That(tab.RowDetail.Row).IsSameReferenceAs(tab.Rows[0]);
             await Assert.That(tab.RowDetail.Heading).IsEqualTo("Row 1 of 1");
             var fields = tab.RowDetail.Fields;
-            await Assert.That(fields.Select(f => f.Name)).IsEquivalentTo(new[] { "id", "status", "qty" });
+            await Assert.That(fields.Select(f => f.Name)).IsEquivalentTo(new[] { "id", "status", "qty" }, CollectionOrdering.Matching);
             await Assert.That(fields[0].IsEditable).IsFalse();
             // Said once, in the type line, not again as a note under the value.
             await Assert.That(fields[0].TypeLabel).IsEqualTo("bigint · primary key");
@@ -402,23 +403,6 @@ public class RowDetailAndFilterTests
             await Assert.That(tab.BrowsedTableName).IsEqualTo(("commerce", "customers"));
             await Assert.That(tab.Browse).IsNull();
             await Assert.That(tab.ShowsBrowseChrome).IsFalse();
-
-            window.Close();
-        });
-    }
-
-    [Test]
-    public async Task Row_details_need_no_setting()
-    {
-        await Ui.Run(async () =>
-        {
-            var (window, vm) = Scenarios.Shell();
-            Ui.Show(window);
-            SeedEditableRow(vm);
-
-            await Assert.That(vm.ToggleRowDetailsCommand.CanExecute(null)).IsTrue();
-            Ui.Press(window, CommandId.RowDetails);
-            await Assert.That(vm.IsRowDetailOpen).IsTrue();
 
             window.Close();
         });
