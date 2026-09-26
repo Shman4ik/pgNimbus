@@ -134,7 +134,7 @@ Each release also ships `SHA256SUMS.txt` and a CycloneDX SBOM (`pgNimbus-<versio
    PGPASSWORD=s3cret psql -h db.example.com -p 5433 -U alice appdb
    ```
 
-3. **Connect.** Use **Save** to remember credentials: Windows encrypts local credential files with DPAPI; macOS uses Keychain; Linux uses Secret Service through libsecret. If storage is unavailable, the dialog warns and keeps the entered password in memory for this app session.
+3. **Connect.** There is no Save button: the form saves itself as you type, and the connection shows up in the list on the left. Passwords go to the OS store: Windows encrypts local credential files with DPAPI; macOS uses Keychain; Linux uses Secret Service through libsecret. If storage is unavailable, the dialog warns and keeps the entered password in memory for this app session.
 4. **Run a query** with <kbd>Ctrl</kbd>+<kbd>Enter</kbd>, jump anywhere with the command palette (<kbd>Ctrl</kbd>+<kbd>K</kbd>), and press <kbd>F1</kbd> for the full shortcut cheat sheet.
 
 For scripted or repeated local testing, set `PGNIMBUS_CONN` (same formats as the paste box) to skip the dialog entirely:

@@ -25,6 +25,7 @@ public partial class ConnectionDialog : Window
         ThemedWindowChrome.Attach(this);
 
         Opened += OnDialogOpened;
+        Closing += OnDialogClosing;
 
         // Reorder saved connections by dragging rows. Live-moves the row while
         // the pointer travels (the list itself is the drop preview), then
@@ -103,6 +104,33 @@ public partial class ConnectionDialog : Window
         {
             vm.ConnectCommand.Execute(null);
         }
+    }
+
+    /// <summary>
+    /// The form saves itself, but a password typed just before closing is still
+    /// waiting out its settle delay, and closing the only window ends the process
+    /// under it. So the close is held until the credential store has it, then
+    /// repeated. The write is milliseconds; nobody sees the pause.
+    /// </summary>
+    private async void OnDialogClosing(object? sender, WindowClosingEventArgs e)
+    {
+        if (DataContext is not ConnectionDialogViewModel { HasPendingCredentialWork: true } vm)
+        {
+            return;
+        }
+
+        e.Cancel = true;
+        try
+        {
+            await vm.FlushAsync();
+        }
+        catch
+        {
+            // The store reports its own failures through CredentialWarning; a
+            // failed write must not leave a window that refuses to close.
+        }
+
+        Close();
     }
 
     /// <summary>
