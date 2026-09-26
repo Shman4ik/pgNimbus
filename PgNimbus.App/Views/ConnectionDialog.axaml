@@ -62,7 +62,7 @@
                         </ListBox.ItemTemplate>
                     </ListBox>
                     <TextBlock IsVisible="{Binding HasNoProfiles}" IsHitTestVisible="False"
-                               Text="No saved connections yet — fill in the form and press Save to keep one here"
+                               Text="No saved connections yet — fill in the form and it's kept here as you type"
                                TextWrapping="Wrap" TextAlignment="Center" Opacity="0.4" FontSize="12"
                                Margin="12" HorizontalAlignment="Center" VerticalAlignment="Center" />
                 </Grid>
@@ -232,13 +232,15 @@
     <!-- All action buttons on one row: New (scoped to the saved-connections
          column) on the left, the current form's actions on the right. Delete
          lives in the list's right-click menu — it acts on a saved row, not on
-         the form, and a destructive button does not belong next to Connect. -->
+         the form, and a destructive button does not belong next to Connect.
+         There is no Save: the form saves itself as it is edited (see
+         ConnectionDialogViewModel.OnFormEdited). -->
+
     <Grid Grid.Row="2" ColumnDefinitions="240,*" Margin="0,8,0,0">
         <Button Grid.Column="0" Classes="soft" Content="New" Command="{Binding NewCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" Margin="20,0,0,0">
             <Button Classes="soft" Content="Test" Command="{Binding TestConnectionCommand}" IsEnabled="{Binding !IsTesting}"
                     ToolTip.Tip="Verify the connection (and SSH tunnel, if enabled) without opening it" />
-            <Button Classes="soft" Content="Save" Command="{Binding SaveCommand}" />
             <!-- IsDefault: Enter anywhere in the dialog connects, so a preselected
                  profile needs no click at all. -->
             <Button Classes="accent" Content="Connect" Command="{Binding ConnectCommand}" IsEnabled="{Binding !IsConnecting}"

@@ -109,7 +109,7 @@ public sealed class RecoverableCredentialStore(ICredentialStore persistent, stri
     }
     private void Warn(Guid id)
     {
-        _warnings[id] = "Password storage is unavailable or migration could not finish. You can connect using the password in this dialog, but changes may last only for this session. Check your OS credential store (Keychain on macOS; Secret Service and libsecret-1 on Linux), then save again. Existing legacy credential files are kept until migration is verified.";
+        _warnings[id] = "Password storage is unavailable or migration could not finish. You can connect using the password in this dialog, but changes may last only for this session. Check your OS credential store (Keychain on macOS; Secret Service and libsecret-1 on Linux), then re-enter the password. Existing legacy credential files are kept until migration is verified.";
         UpdateWarning();
     }
     private void WarnLegacy(Guid id)

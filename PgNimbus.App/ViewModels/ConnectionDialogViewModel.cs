@@ -17,9 +17,35 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
     private readonly Action<Guid?>? _persistLastProfileId;
     private Task _credentialLoad = Task.CompletedTask;
 
+    // There is no Save button: the form *is* the profile. Every edit is written to
+    // connections.json as it happens, and the passwords follow a moment later (a
+    // keychain write per keystroke would be churn). A separate Save used to mean an
+    // edited port or a newly typed connection was used once and then silently
+    // gone, because Connect never wrote anything - users pressed Connect, not Save.
+
+    /// <summary>The profile the form is editing; null while the form is a draft nothing has been typed into yet.</summary>
+    private Guid? _editingId;
+
+    /// <summary>Set while the app itself fills the form (selecting a profile, New, a password load), so those writes don't count as edits.</summary>
+    private bool _loadingForm;
+
+    /// <summary>Set while an autosave swaps the edited record into <see cref="Profiles"/>; the list's transient deselect must not reload the form.</summary>
+    private bool _replacingProfile;
+
+    /// <summary>A password or the tunnel toggle changed and the credential store hasn't been told yet.</summary>
+    private bool _credentialsDirty;
+
+    private CancellationTokenSource? _credentialSaveDelay;
+
+    /// <summary>Every credential-store write, delete and read runs through this one chain, so a read never overtakes a write queued before it.</summary>
+    private Task _credentialWork = Task.CompletedTask;
+
+    /// <summary>How long password edits settle before they are written to the credential store.</summary>
+    public TimeSpan CredentialSaveDelay { get; init; } = TimeSpan.FromMilliseconds(400);
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CredentialsReady))]
-    [NotifyCanExecuteChangedFor(nameof(SaveCommand), nameof(DuplicateCommand), nameof(DeleteCommand), nameof(NewCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DuplicateCommand), nameof(DeleteCommand), nameof(NewCommand))]
     private bool _isCredentialBusy;
 
     public bool CredentialsReady => !IsCredentialBusy;
@@ -247,28 +273,47 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
 
     partial void OnSelectedProfileChanged(ConnectionProfile? value)
     {
-        if (value is null)
+        // An autosave replacing the record under the list's selection, not the
+        // user picking something: the form already says exactly this.
+        if (_replacingProfile || value is null)
         {
             return;
         }
 
-        Name = value.Name;
-        Host = value.Host;
-        Port = value.Port;
-        Database = value.Database;
-        Username = value.Username;
-        SslMode = value.SslMode;
-        AccentColor = value.AccentColor;
-        Password = string.Empty;
-
-        UseSshTunnel = value.SshTunnel is not null;
-        SshHost = value.SshTunnel?.Host ?? string.Empty;
-        SshPort = value.SshTunnel?.Port ?? SshTunnelOptions.DefaultPort;
-        SshUsername = value.SshTunnel?.Username ?? string.Empty;
-        SshAuthMethod = value.SshTunnel?.AuthMethod ?? SshAuthMethod.Password;
-        SshPrivateKeyPath = value.SshTunnel?.PrivateKeyPath ?? string.Empty;
-        SshPassword = string.Empty;
+        // The form still holds the profile being left; its passwords may be
+        // waiting out the settle delay, and they belong to that profile's id.
+        FlushCredentials();
+        LoadForm(value);
         _credentialLoad = LoadCredentialsAsync(value);
+    }
+
+    private void LoadForm(ConnectionProfile? value)
+    {
+        _loadingForm = true;
+        try
+        {
+            _editingId = value?.Id;
+            Name = value?.Name ?? string.Empty;
+            Host = value?.Host ?? string.Empty;
+            Port = value?.Port;
+            Database = value?.Database ?? string.Empty;
+            Username = value?.Username ?? string.Empty;
+            SslMode = value?.SslMode ?? SslMode.Prefer;
+            AccentColor = value?.AccentColor;
+            Password = string.Empty;
+
+            UseSshTunnel = value?.SshTunnel is not null;
+            SshHost = value?.SshTunnel?.Host ?? string.Empty;
+            SshPort = value?.SshTunnel?.Port ?? SshTunnelOptions.DefaultPort;
+            SshUsername = value?.SshTunnel?.Username ?? string.Empty;
+            SshAuthMethod = value?.SshTunnel?.AuthMethod ?? SshAuthMethod.Password;
+            SshPrivateKeyPath = value?.SshTunnel?.PrivateKeyPath ?? string.Empty;
+            SshPassword = string.Empty;
+        }
+        finally
+        {
+            _loadingForm = false;
+        }
     }
 
     private async Task LoadCredentialsAsync(ConnectionProfile profile)
@@ -276,13 +321,20 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         IsCredentialBusy = true;
         try
         {
-            var passwords = await Task.Run(() => (
-                Db: _credentialStore.LoadPassword(profile.Id),
-                Ssh: _credentialStore.LoadPassword(DeriveSshCredentialId(profile.Id))));
-            if (SelectedProfile?.Id != profile.Id) return;
-            Password = passwords.Db ?? string.Empty;
-            SshPassword = passwords.Ssh ?? string.Empty;
-            CredentialWarning = _credentialStore.Warning;
+            // Queued behind any pending write, so hopping away from a profile and
+            // straight back reads the password just typed, not the one before it.
+            (string? Db, string? Ssh) passwords = default;
+            await EnqueueCredentialWork(() => passwords = (
+                _credentialStore.LoadPassword(profile.Id),
+                _credentialStore.LoadPassword(DeriveSshCredentialId(profile.Id))));
+            if (_editingId != profile.Id) return;
+            _loadingForm = true;
+            try
+            {
+                Password = passwords.Db ?? string.Empty;
+                SshPassword = passwords.Ssh ?? string.Empty;
+            }
+            finally { _loadingForm = false; }
         }
         finally { IsCredentialBusy = false; }
     }
@@ -290,66 +342,169 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CredentialsReady))]
     private void New()
     {
+        FlushCredentials();
         SelectedProfile = null;
-        Name = string.Empty;
-        Host = string.Empty;
-        Port = null;
-        Database = string.Empty;
-        Username = string.Empty;
-        SslMode = SslMode.Prefer;
-        AccentColor = null;
-        Password = string.Empty;
-        UseSshTunnel = false;
-        SshHost = string.Empty;
-        SshPort = SshTunnelOptions.DefaultPort;
-        SshUsername = string.Empty;
-        SshAuthMethod = SshAuthMethod.Password;
-        SshPrivateKeyPath = string.Empty;
-        SshPassword = string.Empty;
+        LoadForm(null);
         ErrorMessage = null;
         StatusMessage = null;
     }
 
-    [RelayCommand(CanExecute = nameof(CredentialsReady))]
-    private async Task SaveAsync()
+    /// <summary>
+    /// Called for every edit a person makes to the form. The profile record is
+    /// written at once — connections.json is a few hundred bytes, and a row in
+    /// the list that updates as you type is the only "saved" cue this needs —
+    /// while passwords wait out <see cref="CredentialSaveDelay"/>.
+    /// </summary>
+    private void OnFormEdited(bool credentials = false)
     {
-        if (!TryBuildProfile(out var profile, out var error))
+        if (_loadingForm)
         {
-            ErrorMessage = error;
             return;
         }
 
+        if (credentials)
+        {
+            _credentialsDirty = true;
+            ScheduleCredentialSave();
+        }
+
+        SaveProfile();
+    }
+
+    /// <summary>
+    /// Writes the form into <see cref="Profiles"/> and connections.json: over the
+    /// profile being edited, or — the first time a draft is typed into — as a new
+    /// one, which the list then selects. Nothing is validated here: a half-filled
+    /// SSH block is kept as typed, and Test/Connect are where it gets reported.
+    /// </summary>
+    private void SaveProfile()
+    {
+        var profile = BuildProfile();
         var index = Profiles.ToList().FindIndex(p => p.Id == profile.Id);
-        if (index >= 0)
-        {
-            Profiles[index] = profile;
-        }
-        else
-        {
-            Profiles.Add(profile);
-        }
 
-        _store.Save(Profiles);
-
-        var password = Password;
-        var sshPassword = UseSshTunnel ? SshPassword : string.Empty;
-        IsCredentialBusy = true;
+        _replacingProfile = true;
         try
         {
-            await Task.Run(() =>
+            if (index >= 0)
             {
-                if (!string.IsNullOrEmpty(password)) _credentialStore.SavePassword(profile.Id, password);
-                else _credentialStore.DeletePassword(profile.Id);
-                if (!string.IsNullOrEmpty(sshPassword)) _credentialStore.SavePassword(DeriveSshCredentialId(profile.Id), sshPassword);
-                else _credentialStore.DeletePassword(DeriveSshCredentialId(profile.Id));
-            });
+                Profiles[index] = profile;
+            }
+            else
+            {
+                Profiles.Add(profile);
+            }
+
+            SelectedProfile = profile;
+        }
+        finally
+        {
+            _replacingProfile = false;
+        }
+
+        _editingId = profile.Id;
+
+        try
+        {
+            _store.Save(Profiles);
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Couldn't save the connection: {ex.Message}";
+        }
+    }
+
+    private void ScheduleCredentialSave()
+    {
+        _credentialSaveDelay?.Cancel();
+        var delay = _credentialSaveDelay = new CancellationTokenSource();
+        _ = SaveCredentialsAfterDelayAsync(delay.Token);
+    }
+
+    private async Task SaveCredentialsAfterDelayAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(CredentialSaveDelay, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        FlushCredentials();
+    }
+
+    /// <summary>
+    /// Queues the form's passwords for the profile being edited, if they changed.
+    /// Values are captured now, so the write stays correct whatever the form is
+    /// showing by the time it runs. An empty password deletes the stored one.
+    /// </summary>
+    private void FlushCredentials()
+    {
+        _credentialSaveDelay?.Cancel();
+        _credentialSaveDelay = null;
+        if (!_credentialsDirty || _editingId is not { } id)
+        {
+            return;
+        }
+
+        _credentialsDirty = false;
+        var password = Password;
+        var sshPassword = UseSshTunnel ? SshPassword : string.Empty;
+        _ = EnqueueCredentialWork(() =>
+        {
+            if (!string.IsNullOrEmpty(password)) _credentialStore.SavePassword(id, password);
+            else _credentialStore.DeletePassword(id);
+            if (!string.IsNullOrEmpty(sshPassword)) _credentialStore.SavePassword(DeriveSshCredentialId(id), sshPassword);
+            else _credentialStore.DeletePassword(DeriveSshCredentialId(id));
+        });
+    }
+
+    private Task EnqueueCredentialWork(Action work)
+    {
+        var previous = _credentialWork;
+        return _credentialWork = RunAsync();
+
+        async Task RunAsync()
+        {
+            try
+            {
+                await previous;
+            }
+            catch
+            {
+                // Already surfaced by whoever awaited it; one failed write must
+                // not stop every later one from running.
+            }
+
+            await Task.Run(work);
             CredentialWarning = _credentialStore.Warning;
         }
-        finally { IsCredentialBusy = false; }
-
-        SelectedProfile = profile;
-        await _credentialLoad;
     }
+
+    /// <summary>True while a password edit is still waiting to reach the credential store.</summary>
+    public bool HasPendingCredentialWork => _credentialsDirty || !_credentialWork.IsCompleted;
+
+    /// <summary>
+    /// Writes any password edit that is still settling and waits until the
+    /// credential store has it. The dialog awaits this before it closes, since
+    /// closing the last window can end the process under a queued write.
+    /// </summary>
+    public async Task FlushAsync()
+    {
+        FlushCredentials();
+        await _credentialWork;
+    }
+
+    partial void OnNameChanged(string value) => OnFormEdited();
+    partial void OnAccentColorChanged(string? value) => OnFormEdited();
+    partial void OnUseSshTunnelChanged(bool value) => OnFormEdited(credentials: true);
+    partial void OnSshHostChanged(string value) => OnFormEdited();
+    partial void OnSshPortChanged(int value) => OnFormEdited();
+    partial void OnSshUsernameChanged(string value) => OnFormEdited();
+    partial void OnSshAuthMethodChanged(SshAuthMethod value) => OnFormEdited();
+    partial void OnSshPrivateKeyPathChanged(string value) => OnFormEdited();
+    partial void OnSshPasswordChanged(string value) => OnFormEdited(credentials: true);
 
     /// <summary>
     /// Clones the selected profile under a new id, right below the original,
@@ -366,6 +521,10 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
             return;
         }
 
+        // The source's own password edits go first, so the copy gets what the
+        // form shows rather than what was stored before the last keystrokes.
+        FlushCredentials();
+
         var copy = source with { Id = Guid.NewGuid(), Name = $"{source.Name} (copy)" };
         Profiles.Insert(Profiles.IndexOf(source) + 1, copy);
         _store.Save(Profiles);
@@ -373,14 +532,13 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         IsCredentialBusy = true;
         try
         {
-            await Task.Run(() =>
+            await EnqueueCredentialWork(() =>
             {
                 if (_credentialStore.LoadPassword(source.Id) is { } password)
                     _credentialStore.SavePassword(copy.Id, password);
                 if (_credentialStore.LoadPassword(DeriveSshCredentialId(source.Id)) is { } sshPassword)
                     _credentialStore.SavePassword(DeriveSshCredentialId(copy.Id), sshPassword);
             });
-            CredentialWarning = _credentialStore.Warning;
         }
         finally { IsCredentialBusy = false; }
 
@@ -428,12 +586,18 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         }
     }
 
-    partial void OnHostChanged(string value) => SyncImportTextFromFields();
-    partial void OnPortChanged(int? value) => SyncImportTextFromFields();
-    partial void OnDatabaseChanged(string value) => SyncImportTextFromFields();
-    partial void OnUsernameChanged(string value) => SyncImportTextFromFields();
-    partial void OnPasswordChanged(string value) => SyncImportTextFromFields();
-    partial void OnSslModeChanged(SslMode value) => SyncImportTextFromFields();
+    partial void OnHostChanged(string value) => OnConnectionFieldChanged();
+    partial void OnPortChanged(int? value) => OnConnectionFieldChanged();
+    partial void OnDatabaseChanged(string value) => OnConnectionFieldChanged();
+    partial void OnUsernameChanged(string value) => OnConnectionFieldChanged();
+    partial void OnPasswordChanged(string value) => OnConnectionFieldChanged(credentials: true);
+    partial void OnSslModeChanged(SslMode value) => OnConnectionFieldChanged();
+
+    private void OnConnectionFieldChanged(bool credentials = false)
+    {
+        SyncImportTextFromFields();
+        OnFormEdited(credentials);
+    }
 
     /// <summary>Only the fields a parsed string actually mentions are overwritten; the rest of the form is left alone.</summary>
     private void ApplyParsed(ParsedConnectionString parsed)
@@ -575,17 +739,22 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         }
 
         var idToDelete = SelectedProfile.Id;
+
+        // A password still settling for this profile must not be written after
+        // the delete that is about to remove it.
+        _credentialSaveDelay?.Cancel();
+        _credentialsDirty = false;
+
         Profiles.Remove(SelectedProfile);
         _store.Save(Profiles);
         IsCredentialBusy = true;
         try
         {
-            await Task.Run(() =>
+            await EnqueueCredentialWork(() =>
             {
                 _credentialStore.DeletePassword(idToDelete);
                 _credentialStore.DeletePassword(DeriveSshCredentialId(idToDelete));
             });
-            CredentialWarning = _credentialStore.Warning;
         }
         finally { IsCredentialBusy = false; }
         New();
@@ -709,6 +878,17 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
             {
             }
 
+            // A form nobody typed into (the placeholders' localhost/postgres) is
+            // the one case with nothing saved yet; a connection that worked is
+            // worth keeping, and it is what the next launch should preselect.
+            if (_editingId is null)
+            {
+                SaveProfile();
+            }
+
+            // The dialog closes inside the hand-off; the passwords go first.
+            await FlushAsync();
+
             Connected?.Invoke(dataSource, profile.AccentColor, tunnel);
             dataSource = null; // handed off; the main window owns it now
             RememberLastProfile();
@@ -761,12 +941,19 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
             return false;
         }
 
+        profile = BuildProfile();
+        error = null;
+        return true;
+    }
+
+    private ConnectionProfile BuildProfile()
+    {
         var sshTunnel = UseSshTunnel
             ? new SshTunnelOptions(SshHost, SshPort, SshUsername, SshAuthMethod, string.IsNullOrWhiteSpace(SshPrivateKeyPath) ? null : SshPrivateKeyPath)
             : null;
 
-        profile = new ConnectionProfile(
-            SelectedProfile?.Id ?? Guid.NewGuid(),
+        return new ConnectionProfile(
+            _editingId ?? Guid.NewGuid(),
             EffectiveName,
             EffectiveHost,
             EffectivePort,
@@ -775,8 +962,6 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
             SslMode,
             AccentColor,
             sshTunnel);
-        error = null;
-        return true;
     }
 
     /// <summary>

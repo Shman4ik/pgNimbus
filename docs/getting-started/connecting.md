@@ -22,22 +22,23 @@ hosting provider's dashboard and paste it in.
 
 ## Where your password goes
 
-**Save** remembers database and SSH passwords separately from the connection
-profile: DPAPI-encrypted files on Windows, Keychain on macOS, and Secret Service
-through libsecret on Linux. Connecting without saving does not persist the entered
-password. These stores can persist protected data on disk.
+Database and SSH passwords are kept separately from the connection profile:
+DPAPI-encrypted files on Windows, Keychain on macOS, and Secret Service through
+libsecret on Linux. A password is written there a moment after you stop typing
+it. Clearing the field removes the stored one. These stores can persist
+protected data on disk.
 
 Linux requires `libsecret-1.so.0` and a running Secret Service provider such as
 GNOME Keyring. If storage is unavailable or access is denied, the dialog warns
 and keeps entered passwords in memory for this app session. Unlock/configure
-the OS store and save again to retry. On macOS, Keychain access must be available
+the OS store and edit the password again to retry. On macOS, Keychain access must be available
 without an interactive authorization prompt; resolve restrictions in Keychain Access.
 
 When an old macOS/Linux profile is opened, pgNimbus attempts to migrate its
 unencrypted base64 `.cred` files. It deletes an old file only after reading the
 saved password back from the OS store. On failure the old file stays and a warning
 appears; unopened profiles are not migrated yet. If a different OS-store value
-already exists, it takes precedence; saving explicitly resolves the old copy.
+already exists, it takes precedence; editing the password resolves the old copy.
 Deleting a profile attempts to remove database and SSH credentials from both
 locations and reports failures. Query history and workspace SQL remain local,
 unencrypted data; credential protection does not encrypt them.
@@ -48,9 +49,12 @@ somewhere.
 
 ## Saved profiles
 
-Save a connection and it appears in the list on the left of the dialog. Each row
-shows who connects where, as `user@host/database`, so two profiles on the same
-server are told apart without clicking either.
+There is no Save button. Start typing into an empty form, or paste a connection
+string, and the connection appears in the list on the left of the dialog. Every
+later change to a selected profile is kept as you make it, whether you connect
+or not. Press **New** for a blank form. Each row shows who connects where, as
+`user@host/database`, so two profiles on the same server are told apart without
+clicking either.
 
 The connection you used last is already selected when the dialog opens, with the
 password loaded, so launching pgNimbus and pressing <kbd>Enter</kbd> reconnects

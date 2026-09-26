@@ -170,7 +170,7 @@ Three rules about it:
    only in session memory and expose a visible warning. Legacy non-Windows `.cred`
    files are read on profile load and removed only after native write/read verification;
    unopened profiles retain their old files. A different existing native value wins
-   until explicit Save resolves the legacy copy. No new base64 files are written.
+   until a password edit (which the dialog autosaves) resolves the legacy copy. No new base64 files are written.
    Connection-dialog store operations run off the UI thread; Connect awaits initial
    credential loading. Linux calls are cancellable after 15 seconds and require
    libsecret plus a running Secret Service. macOS disallows interactive Keychain
@@ -467,6 +467,30 @@ Three rules about it:
    unnamed profile saves as, which is why nothing writes `Name` on import
    anymore. An untouched form also leaves the paste-a-connection-string box
    empty rather than mirroring the defaults into it.
+   **The form saves itself; there is no Save button** (2026-09). Save was a
+   separate button and Connect wrote nothing, so the two things users did — edit
+   a port and connect, or type a new connection and connect — were each used once
+   and silently gone at the next launch. Now every edit a person makes is written
+   at once (`ConnectionDialogViewModel.OnFormEdited` → `SaveProfile`: the record
+   is swapped into `Profiles` and `connections.json` rewritten), and the first
+   edit into a blank form *creates* the profile, which the list then selects.
+   Passwords wait `CredentialSaveDelay` (400 ms) before reaching the credential
+   store, since a keychain/Secret Service write per keystroke is churn; they are
+   flushed with their values captured on a profile switch, New, Duplicate and
+   Connect, and the dialog's `Closing` is held until `FlushAsync` finishes,
+   because closing the last window ends the process under a queued write. Every
+   store call (read, write, delete) goes through one chain (`EnqueueCredentialWork`)
+   so a read never overtakes a write queued before it, and background writes
+   never set `IsCredentialBusy` — that disables the whole form, which mid-typing
+   would take focus away. Two guards keep the swap honest: `_loadingForm` (the
+   app filling the form on a selection, New or password load is not an edit —
+   selecting a profile writes nothing, which a test pins) and
+   `_replacingProfile` (replacing the selected record makes the ListBox
+   deselect for a moment; that must not reload the form, whose `Effective*`
+   values would otherwise overwrite what is being typed). The one save not
+   driven by an edit: Connect on an untouched draft (the placeholders'
+   `localhost/postgres`) saves it after the probe succeeds. Autosave doesn't
+   validate — a half-filled SSH block is kept as typed; Test/Connect report it.
    The hand-off carries a **live `NpgsqlDataSource`, not a connection string**:
    `NpgsqlDataSource.Create` opens no socket, so a wrong password used to
    surface as the new window's first schema-tree error rather than in the form
