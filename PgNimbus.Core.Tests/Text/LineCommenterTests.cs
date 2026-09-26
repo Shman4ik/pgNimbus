@@ -9,7 +9,7 @@ public class LineCommenterTests
     {
         var result = LineCommenter.Toggle(["SELECT 1", "FROM t"]);
 
-        await Assert.That(result).IsEquivalentTo(new[] { "-- SELECT 1", "-- FROM t" });
+        await Assert.That(result).IsEquivalentTo(new[] { "-- SELECT 1", "-- FROM t" }, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -17,7 +17,7 @@ public class LineCommenterTests
     {
         var result = LineCommenter.Toggle(["-- SELECT 1", "-- FROM t"]);
 
-        await Assert.That(result).IsEquivalentTo(new[] { "SELECT 1", "FROM t" });
+        await Assert.That(result).IsEquivalentTo(new[] { "SELECT 1", "FROM t" }, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -25,7 +25,7 @@ public class LineCommenterTests
     {
         var result = LineCommenter.Toggle(["-- SELECT 1", "FROM t"]);
 
-        await Assert.That(result).IsEquivalentTo(new[] { "-- -- SELECT 1", "-- FROM t" });
+        await Assert.That(result).IsEquivalentTo(new[] { "-- -- SELECT 1", "-- FROM t" }, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -35,17 +35,17 @@ public class LineCommenterTests
         // straight instead of every marker sitting at its own column.
         var result = LineCommenter.Toggle(["  SELECT 1", "      FROM t"]);
 
-        await Assert.That(result).IsEquivalentTo(new[] { "  -- SELECT 1", "  --     FROM t" });
+        await Assert.That(result).IsEquivalentTo(new[] { "  -- SELECT 1", "  --     FROM t" }, CollectionOrdering.Matching);
     }
 
     [Test]
     public async Task BlankLinesAreLeftAloneButDontBlockUncommenting()
     {
         await Assert.That(LineCommenter.Toggle(["SELECT 1", "", "FROM t"]))
-            .IsEquivalentTo(new[] { "-- SELECT 1", "", "-- FROM t" });
+            .IsEquivalentTo(new[] { "-- SELECT 1", "", "-- FROM t" }, CollectionOrdering.Matching);
 
         await Assert.That(LineCommenter.Toggle(["-- SELECT 1", "", "-- FROM t"]))
-            .IsEquivalentTo(new[] { "SELECT 1", "", "FROM t" });
+            .IsEquivalentTo(new[] { "SELECT 1", "", "FROM t" }, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -56,7 +56,7 @@ public class LineCommenterTests
         var commented = LineCommenter.Toggle(original);
         var restored = LineCommenter.Toggle(commented);
 
-        await Assert.That(restored).IsEquivalentTo(original);
+        await Assert.That(restored).IsEquivalentTo(original, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -64,16 +64,16 @@ public class LineCommenterTests
     {
         var result = LineCommenter.Toggle(["--SELECT 1", "--FROM t"]);
 
-        await Assert.That(result).IsEquivalentTo(new[] { "SELECT 1", "FROM t" });
+        await Assert.That(result).IsEquivalentTo(new[] { "SELECT 1", "FROM t" }, CollectionOrdering.Matching);
     }
 
     [Test]
-    public async Task AnAllBlankSelectionIsCommented()
+    public async Task AnAllBlankSelectionIsUnchanged()
     {
-        // Nothing to uncomment, so the gesture must still do something.
+        // Blank lines have no text to comment or uncomment.
         var result = LineCommenter.Toggle(["", "  "]);
 
-        await Assert.That(result).IsEquivalentTo(new[] { "", "  " });
+        await Assert.That(result).IsEquivalentTo(new[] { "", "  " }, CollectionOrdering.Matching);
     }
 
     [Test]

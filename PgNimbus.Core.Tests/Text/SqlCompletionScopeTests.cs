@@ -108,7 +108,7 @@ public class SqlCompletionScopeTests
         var (sql, caret) = AtCaret("SELECT public.users.| FROM public.users");
         var chain = SqlCompletionContext.GetQualifierChainBeforeCaret(sql, caret);
 
-        await Assert.That(chain.Select(p => p.Name)).IsEquivalentTo(new[] { "public", "users" });
+        await Assert.That(chain.Select(p => p.Name)).IsEquivalentTo(new[] { "public", "users" }, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -116,7 +116,7 @@ public class SqlCompletionScopeTests
     {
         var (sql, caret) = AtCaret("SELECT \"Sales\".\"A\"\"b\".x, Public.Users.| FROM t");
         var chain = SqlCompletionContext.GetQualifierChainBeforeCaret(sql, caret);
-        await Assert.That(chain.Select(p => p.Name)).IsEquivalentTo(new[] { "public", "users" });
+        await Assert.That(chain.Select(p => p.Name)).IsEquivalentTo(new[] { "public", "users" }, CollectionOrdering.Matching);
 
         (sql, caret) = AtCaret("SELECT \"Sales\".\"A\"\"b\".| FROM t");
         chain = SqlCompletionContext.GetQualifierChainBeforeCaret(sql, caret);
@@ -159,7 +159,7 @@ public class SqlCompletionScopeTests
     {
         var merged = SqlCompletionContext.ExtractUsingColumns("SELECT * FROM a JOIN b USING (id, \"Key\")", out var natural);
 
-        await Assert.That(merged).IsEquivalentTo(new[] { "id", "Key" });
+        await Assert.That(merged).IsEquivalentTo(new[] { "id", "Key" }, CollectionOrdering.Matching);
         await Assert.That(natural).IsFalse();
 
         SqlCompletionContext.ExtractUsingColumns("SELECT * FROM a NATURAL JOIN b", out natural);

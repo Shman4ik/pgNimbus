@@ -68,7 +68,7 @@ public class AutocompleteExclusionsTests
     {
         var map = AutocompleteExclusions.With(new AppSettings(), "db1/app", ["legacy", "billing", "legacy"]);
 
-        await Assert.That(map["db1/app"]).IsEquivalentTo(new List<string> { "billing", "legacy" });
+        await Assert.That(map["db1/app"]).IsEquivalentTo(new List<string> { "billing", "legacy" }, CollectionOrdering.Matching);
     }
 
     [Test]

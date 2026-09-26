@@ -2,7 +2,7 @@ namespace PgNimbus.Core.Text;
 
 /// <summary>
 /// Comment/uncomment a block of SQL lines, VS Code style: if every non-blank
-/// line is already commented the block is uncommented, otherwise every line is
+/// line is already commented the block is uncommented, otherwise non-blank lines are
 /// commented at the block's common indentation so the SQL keeps its shape.
 /// Pure text in, pure text out — the editor only does the document surgery.
 /// </summary>
@@ -42,8 +42,8 @@ public static class LineCommenter
             }
         }
 
-        // An all-blank selection has nothing to uncomment — comment it instead
-        // so the gesture still does something visible.
+        // An all-blank selection has nothing to uncomment; the comment path
+        // leaves each blank line unchanged.
         return sawContent;
     }
 

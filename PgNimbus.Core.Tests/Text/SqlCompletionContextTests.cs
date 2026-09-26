@@ -299,7 +299,7 @@ public class SqlCompletionContextTests
 
         var chained = SqlCompletionContext.ExtractCteNames(
             "WITH a AS (SELECT 1), b AS (SELECT 2) SELECT * FROM a JOIN b ON true");
-        await Assert.That(chained).IsEquivalentTo(new[] { "a", "b" });
+        await Assert.That(chained).IsEquivalentTo(new[] { "a", "b" }, CollectionOrdering.Matching);
     }
 
     [Test]

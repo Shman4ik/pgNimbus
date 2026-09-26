@@ -49,8 +49,8 @@ public class ForeignKeyNavigatorTests
 
         await Assert.That(hop).IsNotNull();
         await Assert.That(hop!.QualifiedTarget).IsEqualTo("sales.order_items");
-        await Assert.That(hop.TargetColumns).IsEquivalentTo(new[] { "order_id", "line_no" });
-        await Assert.That(hop.SourceColumns).IsEquivalentTo(new[] { "order_id", "line_no" });
+        await Assert.That(hop.TargetColumns).IsEquivalentTo(new[] { "order_id", "line_no" }, CollectionOrdering.Matching);
+        await Assert.That(hop.SourceColumns).IsEquivalentTo(new[] { "order_id", "line_no" }, CollectionOrdering.Matching);
     }
 
     [Test]

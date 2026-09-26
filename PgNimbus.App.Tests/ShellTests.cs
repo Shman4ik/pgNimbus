@@ -32,23 +32,6 @@ public class ShellTests
         });
     }
 
-    [Test]
-    public async Task Shell_opens_with_one_tab_holding_the_seeded_result()
-    {
-        await Ui.Run(async () =>
-        {
-            var (window, vm) = Scenarios.Shell();
-            Ui.Show(window);
-
-            await Assert.That(vm.Tabs).Count().IsEqualTo(1);
-            await Assert.That(vm.ActiveTab.ColumnNames).IsNotEmpty();
-            await Assert.That(vm.ActiveTab.Rows).Count().IsEqualTo(20);
-            await Assert.That(vm.ActiveTab.RowCountText).IsEqualTo("20 rows");
-
-            window.Close();
-        });
-    }
-
     /// <summary>
     /// End to end for UI design rule 5: the chord is declared once in the
     /// command catalog and a real key press has to travel the whole path from

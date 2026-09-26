@@ -42,7 +42,7 @@ public class SqlCallSiteTests
     [Test]
     public async Task A_qualified_name_keeps_its_schema()
     {
-        await Assert.That(At("SELECT Custom.Normalize(|")!.Name).IsEquivalentTo(new[] { "custom", "normalize" });
+        await Assert.That(At("SELECT Custom.Normalize(|")!.Name).IsEquivalentTo(new[] { "custom", "normalize" }, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -72,7 +72,7 @@ public class SqlCallSiteTests
     {
         var parameters = SqlParameters.Parse("x integer, \"Y z\" numeric(10,2), double precision, VARIADIC rest text[]");
 
-        await Assert.That(parameters.Select(p => p.Name)).IsEquivalentTo(new string?[] { "x", "Y z", null, "rest" });
+        await Assert.That(parameters.Select(p => p.Name)).IsEquivalentTo(new string?[] { "x", "Y z", null, "rest" }, CollectionOrdering.Matching);
         await Assert.That(parameters[1].Text).IsEqualTo("\"Y z\" numeric(10,2)");
         await Assert.That(parameters[3].IsVariadic).IsTrue();
         await Assert.That(SqlParameters.Parse("")).IsEmpty();

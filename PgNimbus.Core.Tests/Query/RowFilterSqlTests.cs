@@ -38,9 +38,9 @@ public class RowFilterSqlTests
     public async Task BooleansAndEnumsGetOnlyWhatTheirTypesSupport()
     {
         await Assert.That(RowFilterSql.OperatorsFor(ColumnValueEditor.Boolean, "boolean"))
-            .IsEquivalentTo(new[] { FilterOperator.IsTrue, FilterOperator.IsFalse, FilterOperator.IsNull, FilterOperator.IsNotNull });
+            .IsEquivalentTo(new[] { FilterOperator.IsTrue, FilterOperator.IsFalse, FilterOperator.IsNull, FilterOperator.IsNotNull }, CollectionOrdering.Matching);
         await Assert.That(RowFilterSql.OperatorsFor(ColumnValueEditor.Enum, "mood"))
-            .IsEquivalentTo(new[] { FilterOperator.Equals, FilterOperator.NotEquals, FilterOperator.IsNull, FilterOperator.IsNotNull });
+            .IsEquivalentTo(new[] { FilterOperator.Equals, FilterOperator.NotEquals, FilterOperator.IsNull, FilterOperator.IsNotNull }, CollectionOrdering.Matching);
     }
 
     [Test]

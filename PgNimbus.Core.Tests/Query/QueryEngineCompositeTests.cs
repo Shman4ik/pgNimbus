@@ -23,9 +23,9 @@ public class QueryEngineCompositeTests
 {
     private const string CompositeType = "pgnimbus_composite_scratch_addr";
 
-    // Npgsql reports a composite by its schema-qualified name, which is what the
-    // placeholder carries.
-    private const string QualifiedCompositeType = "public." + CompositeType;
+    // The placeholder is visible to users, so keep the expected text independent
+    // of QueryEngine.UnreadableCell, which also constructs the actual value.
+    private const string ExpectedUnreadableCell = "<unreadable public.pgnimbus_composite_scratch_addr>";
     private const string ScratchTable = "pgnimbus_composite_scratch";
 
     private static readonly string? ConnectionString = Environment.GetEnvironmentVariable("PGNIMBUS_TEST_CONN");
@@ -137,7 +137,7 @@ public class QueryEngineCompositeTests
 
             await Assert.That(rows).Count().IsEqualTo(1);
             await Assert.That(rows[0][0]).IsEqualTo(1);
-            await Assert.That(rows[0][1]).IsEqualTo(QueryEngine.UnreadableCell(QualifiedCompositeType));
+            await Assert.That(rows[0][1]).IsEqualTo(ExpectedUnreadableCell);
         }
         finally
         {
@@ -176,7 +176,7 @@ public class QueryEngineCompositeTests
             var written = (MaterializedResultSet)results[1];
 
             await Assert.That(read.Rows[0][0]).IsEqualTo("(\"246 Oak St\",Milan)");
-            await Assert.That(written.Rows[0][0]).IsEqualTo(QueryEngine.UnreadableCell(QualifiedCompositeType));
+            await Assert.That(written.Rows[0][0]).IsEqualTo(ExpectedUnreadableCell);
 
             // And the UPDATE ran exactly once — the whole point of refusing it.
             var ids = await DrainAsync(

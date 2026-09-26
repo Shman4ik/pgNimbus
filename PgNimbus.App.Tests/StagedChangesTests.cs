@@ -33,7 +33,7 @@ public class StagedChangesTests
             await Assert.That(staged).IsTrue();
             await Assert.That(tab.Rows[0][1]).IsEqualTo("shipped");
             var original = tab.PendingChanges!.GetOriginal([1L])!;
-            await Assert.That(original.Columns).IsEquivalentTo(new[] { "id", "status" });
+            await Assert.That(original.Columns).IsEquivalentTo(new[] { "id", "status" }, CollectionOrdering.Matching);
             await Assert.That(original.Values[1]).IsEqualTo("packed");
 
             // A second edit of the same row must not replace the snapshot with

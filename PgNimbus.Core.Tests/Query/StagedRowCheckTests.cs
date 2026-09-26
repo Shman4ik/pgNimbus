@@ -176,7 +176,7 @@ public class StagedRowCheckTests
 
         var check = CheckFor(set);
 
-        await Assert.That(check.SelectedColumns).IsEquivalentTo(new[] { "id", "status", "note" });
+        await Assert.That(check.SelectedColumns).IsEquivalentTo(new[] { "id", "status", "note" }, CollectionOrdering.Matching);
         await Assert.That(check.LockStatements).Count().IsEqualTo(1);
         await Assert.That(check.LockStatements[0].Sql).IsEqualTo(
             """SELECT "id", "status", "note" FROM "public"."orders" WHERE "id" IN (@k0_0, @k1_0) ORDER BY "id" FOR UPDATE""");

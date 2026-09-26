@@ -87,7 +87,7 @@ public class SqlScopeModelTests
 
         await Assert.That(source.Alias).IsEqualTo("q");
         await Assert.That(source.Derived!.Branches[0].Output.Select(o => o.Name))
-            .IsEquivalentTo(new string?[] { "customer_id", "name", "count", null });
+            .IsEquivalentTo(new string?[] { "customer_id", "name", "count", null }, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -95,9 +95,9 @@ public class SqlScopeModelTests
     {
         var (_, block) = At("SELECT | FROM (VALUES (1, 'a')) v(num, label)");
 
-        await Assert.That(block!.Sources.Single().ColumnAliases).IsEquivalentTo(new[] { "num", "label" });
+        await Assert.That(block!.Sources.Single().ColumnAliases).IsEquivalentTo(new[] { "num", "label" }, CollectionOrdering.Matching);
         await Assert.That(block.Sources.Single().Derived!.Branches[0].Output.Select(o => o.Name ?? "<unnamed>"))
-            .IsEquivalentTo(new[] { "column1", "column2" });
+            .IsEquivalentTo(new[] { "column1", "column2" }, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -116,7 +116,7 @@ public class SqlScopeModelTests
     public async Task The_main_query_sees_every_cte()
     {
         await Assert.That(Ctes("WITH a AS (SELECT 1 AS x), b AS (SELECT * FROM a) SELECT * FROM |"))
-            .IsEquivalentTo(new[] { "a", "b" });
+            .IsEquivalentTo(new[] { "a", "b" }, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -149,7 +149,7 @@ public class SqlScopeModelTests
         var body = SqlScopeModel.VisibleCtes(block!).Single().Body.Branches[0];
 
         await Assert.That(body.Kind).IsEqualTo(SqlBlockKind.Delete);
-        await Assert.That(body.Output.Select(o => o.Name ?? "<unnamed>")).IsEquivalentTo(new[] { "id", "uid" });
+        await Assert.That(body.Output.Select(o => o.Name ?? "<unnamed>")).IsEquivalentTo(new[] { "id", "uid" }, CollectionOrdering.Matching);
     }
 
     // --- T18: FROM subquery / LATERAL / correlated subquery ---
@@ -216,8 +216,8 @@ public class SqlScopeModelTests
         await Assert.That(block!.Sources.Select(s => s.Join)).IsEquivalentTo(new[]
         {
             SqlJoinKind.None, SqlJoinKind.Cross, SqlJoinKind.Natural, SqlJoinKind.Inner, SqlJoinKind.Left, SqlJoinKind.Comma,
-        });
-        await Assert.That(block.Sources[3].UsingColumns).IsEquivalentTo(new[] { "id", "Key" });
+        }, CollectionOrdering.Matching);
+        await Assert.That(block.Sources[3].UsingColumns).IsEquivalentTo(new[] { "id", "Key" }, CollectionOrdering.Matching);
     }
 
     [Test]

@@ -1,4 +1,5 @@
 using PgNimbus.Core;
+using TUnit.Core.Executors;
 
 namespace PgNimbus.Core.Tests;
 
@@ -22,10 +23,10 @@ public class ByteSizeTests
     }
 
     [Test]
+    // A decimal-comma culture: the output must still use a dot.
+    [Culture("fr-FR")]
     public async Task UsesInvariantDecimalSeparator()
     {
-        // Guard against a machine locale rendering "1,5 KB" — the size columns
-        // must read the same everywhere.
-        await Assert.That(ByteSize.Format(1536L)).Contains(".");
+        await Assert.That(ByteSize.Format(1536L)).IsEqualTo("1.5 KB");
     }
 }

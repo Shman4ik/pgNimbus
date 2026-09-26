@@ -183,7 +183,7 @@ public class EditableResultDetectorTests
             out _);
 
         await Assert.That(full).IsEqualTo(EditBlocker.None);
-        await Assert.That(fullPk).IsEquivalentTo(["order_id", "line_no"]);
+        await Assert.That(fullPk).IsEquivalentTo(["order_id", "line_no"], CollectionOrdering.Matching);
         await Assert.That(partial).IsEqualTo(EditBlocker.PrimaryKeyNotSelected);
     }
 }
