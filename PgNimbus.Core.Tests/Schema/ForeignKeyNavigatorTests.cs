@@ -1,5 +1,4 @@
 using PgNimbus.Core.Schema;
-using TUnit.Assertions.Enums;
 
 namespace PgNimbus.Core.Tests.Schema;
 

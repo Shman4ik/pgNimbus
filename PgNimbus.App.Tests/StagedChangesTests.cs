@@ -5,7 +5,6 @@ using PgNimbus.App.Views;
 using PgNimbus.Core.Query;
 using PgNimbus.Core.Schema;
 using PgNimbus.Screenshot;
-using TUnit.Assertions.Enums;
 
 namespace PgNimbus.App.Tests;
 

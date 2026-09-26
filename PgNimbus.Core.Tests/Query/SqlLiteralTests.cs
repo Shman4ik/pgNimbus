@@ -1,5 +1,5 @@
-using System.Globalization;
 using PgNimbus.Core.Query;
+using TUnit.Core.Executors;
 
 namespace PgNimbus.Core.Tests.Query;
 
@@ -25,20 +25,13 @@ public class SqlLiteralTests
     }
 
     [Test]
+    // A decimal-comma culture: the output must still use a dot.
+    [Culture("fr-FR")]
     public async Task NumbersUseInvariantCulture()
     {
-        var original = CultureInfo.CurrentCulture;
-        try
-        {
-            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("fr-FR");
-            await Assert.That(SqlLiteral.Format(42)).IsEqualTo("42");
-            await Assert.That(SqlLiteral.Format(12.5m)).IsEqualTo("12.5");
-            await Assert.That(SqlLiteral.Format(0.25)).IsEqualTo("0.25");
-        }
-        finally
-        {
-            CultureInfo.CurrentCulture = original;
-        }
+        await Assert.That(SqlLiteral.Format(42)).IsEqualTo("42");
+        await Assert.That(SqlLiteral.Format(12.5m)).IsEqualTo("12.5");
+        await Assert.That(SqlLiteral.Format(0.25)).IsEqualTo("0.25");
     }
 
     [Test]

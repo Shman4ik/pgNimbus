@@ -22,6 +22,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- CollectionOrdering: IsEquivalentTo ignores order unless told otherwise. -->
+    <Using Include="TUnit.Assertions.Enums" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- The Screenshot tool is where the offline fixture graph lives (an
          NpgsqlDataSource that opens no socket, a seeded schema tree, seeded
          result sets). These tests drive the same windows the harness renders,

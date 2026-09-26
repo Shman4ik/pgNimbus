@@ -1,5 +1,5 @@
-using System.Globalization;
 using PgNimbus.Core;
+using TUnit.Core.Executors;
 
 namespace PgNimbus.Core.Tests;
 
@@ -23,17 +23,10 @@ public class ByteSizeTests
     }
 
     [Test]
+    // A decimal-comma culture: the output must still use a dot.
+    [Culture("fr-FR")]
     public async Task UsesInvariantDecimalSeparator()
     {
-        var original = CultureInfo.CurrentCulture;
-        try
-        {
-            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("fr-FR");
-            await Assert.That(ByteSize.Format(1536L)).IsEqualTo("1.5 KB");
-        }
-        finally
-        {
-            CultureInfo.CurrentCulture = original;
-        }
+        await Assert.That(ByteSize.Format(1536L)).IsEqualTo("1.5 KB");
     }
 }

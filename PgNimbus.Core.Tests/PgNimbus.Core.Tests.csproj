@@ -17,6 +17,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- CollectionOrdering: IsEquivalentTo ignores order unless told otherwise. -->
+    <Using Include="TUnit.Assertions.Enums" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\PgNimbus.Core\PgNimbus.Core.csproj" />
   </ItemGroup>
 

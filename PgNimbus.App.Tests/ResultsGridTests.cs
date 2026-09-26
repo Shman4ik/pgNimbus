@@ -56,8 +56,11 @@ public class ResultsGridTests
             await Assert.That(grid).IsNotNull();
             await Assert.That(grid!.ItemsSource).IsNotNull();
 
+            // Pinned to the fixture, so an empty seed can't pass as 0 == 0.
             var shown = grid.ItemsSource!.Cast<object>().Count();
-            await Assert.That(shown).IsEqualTo(vm.ActiveTab.Rows.Count);
+            await Assert.That(shown).IsEqualTo(20);
+            await Assert.That(vm.ActiveTab.Rows).Count().IsEqualTo(20);
+            await Assert.That(vm.ActiveTab.RowCountText).IsEqualTo("20 rows");
         });
     }
 

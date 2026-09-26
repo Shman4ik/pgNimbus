@@ -1,7 +1,6 @@
 using PgNimbus.App.Completion;
 using PgNimbus.Core.Schema;
 using PgNimbus.Core.Text;
-using TUnit.Assertions.Enums;
 
 namespace PgNimbus.App.Tests;
 
