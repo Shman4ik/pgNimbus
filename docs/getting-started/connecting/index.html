@@ -968,6 +968,20 @@ against the wrong server.</p>
 <p>A profile can carry SSH tunnel settings, so a database that is only reachable
 from a bastion host connects like any other. The tunnel is owned by the window,
 so closing the window tears it down.</p>
+<p>Pick how pgNimbus signs in to the SSH host with <strong>Auth Method</strong>:</p>
+<ul>
+<li><strong>SSH agent</strong> uses the keys your agent already holds. On Windows that is the
+  OpenSSH Authentication Agent service; on macOS and Linux it is the agent
+  <code>SSH_AUTH_SOCK</code> points at. A key with a passphrase works without typing it
+  here, as long as you have added it with <code>ssh-add</code>. Nothing is stored.</li>
+<li><strong>Key file</strong> reads a private key from disk. Leave the path blank to use the
+  same defaults <code>ssh</code> tries (<code>~/.ssh/id_ed25519</code>, then <code>id_ecdsa</code>, then
+  <code>id_rsa</code>). If the key has a passphrase, type it below; it is stored like a
+  password.</li>
+<li><strong>Password</strong> signs in with the SSH user's password.</li>
+</ul>
+<p>For the database host and port, give them as the SSH host sees them. A Postgres
+that only listens locally on the server is <code>127.0.0.1</code> and <code>5432</code>.</p>
 <h2 id="several-connections-at-once">Several connections at once<a class="headerlink" href="#several-connections-at-once" title="Permanent link">&para;</a></h2>
 <p>Two different things, for two different needs.</p>
 <p>Open a connection in a new window (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>N</kbd>)
