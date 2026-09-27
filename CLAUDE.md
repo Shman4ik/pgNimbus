@@ -1366,6 +1366,25 @@ csproj / WiX / MSIX manifest reference them unchanged:
   (that also closed the pre-existing hole where inline-editing a large `bytea`
   committed its 24-byte hex preview). Everything else — sorting, copy, export,
   the commit path itself — reads the raw row values and is untouched by the cap.
+- **Export writes every row, not the grid's** (2026-09, ROADMAP D1). It used to
+  write `Rows`: one 100-row page when browsing, at most `MaxDisplayRows` for a
+  query, silently. `QueryViewModel.ChooseExportSource` now decides: a grid that
+  holds the whole result is written as is; otherwise the statement runs again
+  with no limit (`_resultSql`, or `TableBrowseViewModel.BuildExportSql` — the
+  page query minus `LIMIT/OFFSET`) and `ResultExporter.WriteStreamingAsync`
+  (Core-pure, unit-tested) writes batch by batch, flushing each before the next
+  is read, so memory holds one batch. A hand-written query runs again only if
+  `SqlStatementInspector.IsSafeToReExecute` vouches for it — the same guard as
+  the text fallback below, for the same reason — and a script section or any
+  query in an explicit transaction (where the engine materializes) never does;
+  those write the grid and say "Exported only the N rows shown". The export
+  runs like a query (`IsRunning`, its own CTS, so Cancel works) and the view
+  deletes the file unless `ExportAsync` reports it complete. Two landmines:
+  no token on the `Task.Run` around the writer (a task cancelled before it
+  starts never enumerates the batches, and only enumerating them closes the
+  engine's connection), and a progress tick still queued at the end must not
+  overwrite the final status line (`finished`). Live coverage is
+  `PgNimbus.App.Tests/ResultExportTests`, gated on `PGNIMBUS_TEST_CONN`.
 - **A type Npgsql can't materialize must never fail a whole result set.** An
   unmapped composite (or an array/domain/range over one), an extension type with
   no plugin loaded (pgvector, PostGIS), `bit`/`hstore` whose CLR mapping has a
