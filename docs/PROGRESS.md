@@ -284,11 +284,12 @@ verified live under Xvfb against a staged lock-wait scene before landing.
       style margin on each nested `PART_ItemsPresenter` (not template-set, so
       a style wins) counter-offsets the template's `Level*16` header indent
       to ~8 px per level. Verified on a live three-level tree.
-- [ ] `Window.MinWidth`/`MinHeight` clamp the layout size (and the `Width`
-      property) but do **not** feed the Win32 min-track-size, so an OS frame
-      drag can still shrink the window below `940` and squeeze the right pane
-      to a sliver (content clips / DataGrid auto-scrolls a clicked cell into
-      view). Fix candidates: push the min into the platform impl, or make the
-      command bar wrap and the pane degrade gracefully. Deferred.
-- [ ] Roadmap features (extension manager, plugin API) — out of polish
-      scope
+- [x] ~~`Window.MinWidth`/`MinHeight` don't feed the Win32 min-track-size~~
+      — does not reproduce on Avalonia 12 (checked 2026-09-27, Windows 11,
+      96 DPI): `MoveWindow` of the main window to 400×300 was clamped to
+      956×599, i.e. the 940×560 client minimum plus the frame, so the minimum
+      reaches `WM_GETMINMAXINFO` and a frame drag stops at it too. The
+      original observation was made under Xvfb, which runs no window manager
+      to honor size hints at all.
+- [x] Roadmap features (extension manager, plugin API) — live in
+      [ROADMAP.md](../ROADMAP.md) P3; not tracked here.

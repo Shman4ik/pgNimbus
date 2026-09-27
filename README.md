@@ -129,9 +129,9 @@ Two things to know. Query history, workspace SQL and the local crash log can con
 
 Next up (a direction, not a commitment):
 
+- **Production connection policies:** read-only sessions that the server enforces, environment labels and per-profile timeouts.
+- **Slow-query shortlist:** the statements that cost the most time, from `pg_stat_statements`, one click from the editor.
 - **Query Lab:** save EXPLAIN runs and compare them before and after a change.
-- **Production connection policies:** environment labels, read-only sessions and per-profile timeouts.
-- **Schema drift:** compare two databases, or one against a snapshot.
 - **Signed and notarized macOS builds.**
 
 The full backlog, with the competitive research behind each item, is in [ROADMAP.md](ROADMAP.md). Pick one scoped item if you'd like to contribute; [CONTRIBUTING.md](CONTRIBUTING.md) has the details.
