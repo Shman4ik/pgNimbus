@@ -224,9 +224,10 @@
     </Styles.Resources>
 
     <!-- Button.danger, the chip checked/active washes, and the .soft button family
-         moved to the shared design system (shared/nimbusUi, Theme/Controls.axaml):
-         kubeNimbus needs exactly the same vocabulary and was rendering stock Fluent
-         without it. Nothing about them was Postgres-specific. -->
+         moved to the shared design system (shared/nimbusUi: Theme/Controls.axaml, and
+         Theme/Theme.axaml for the Button.chip.active wash, which has to load after the
+         base Button.chip rule): kubeNimbus needs exactly the same vocabulary and was
+         rendering stock Fluent without it. Nothing about them was Postgres-specific. -->
 
     <!-- Left-nav style TabItem: pill highlight instead of the classic underline tab
          strip. TabControl's own transparent background is shared; TabItem is NOT —

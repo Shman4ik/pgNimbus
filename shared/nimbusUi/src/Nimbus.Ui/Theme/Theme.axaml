@@ -113,6 +113,24 @@
         <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
     </Style>
 
+    <!-- The same wash for plain chip Buttons acting as a segmented pair, where a
+         bound "active" class marks the selected segment instead of :checked. A plain
+         Button has no Fluent checked-state /template/ override, so the rest state
+         renders through the TemplateBinding; :pointerover is pinned at the template
+         part so the active segment keeps the wash while hovered.
+         These must stay AFTER `Button.chip` above. Avalonia styles have no
+         specificity: `Button.chip.active` does not outrank `Button.chip`, the later
+         of the two does. They sat in Controls.axaml, which loads first, and every
+         active chip rendered as a plain one until that was noticed. -->
+    <Style Selector="Button.chip.active">
+        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
+        <Setter Property="Opacity" Value="1" />
+    </Style>
+
+    <Style Selector="Button.chip.active:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
+    </Style>
+
     <Style Selector="Button.toolbar, ToggleButton.toolbar">
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />

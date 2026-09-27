@@ -168,6 +168,23 @@ Three things follow:
   the connection dialog and crash reporter cannot be — they exist before, or instead
   of, a main window.
 
+### 14. A table's header is section-header type, and its rules are barely there
+
+Every `DataGrid` in both apps (`Theme/Controls.axaml`): column headers at 11px,
+semibold, slightly spaced and dimmed to `BaseMedium` — the same type a `sectionHeader`
+uses — with **no background of their own**; horizontal rules at 10% grey.
+
+Both halves came from one comparison. kubeNimbus grew a hand-built list (its
+Applications mode) next to its DataGrid-based resource list, and the owner preferred
+the hand-built one on sight: its header read as a caption rather than as a row, and
+nothing ruled its rows into boxes. The grid's rules were `BaseLow`, which in the dark
+theme is the brightest line on the page. And its header row was painted by Fluent in
+`AltHigh` — pure black in the dark theme — which nobody had seen because the grid sat
+on a `layer`, which is the same black. Moved onto a `card`, it was a black band.
+
+The cell text size stays in each app, beside rule 12's gutter: it moves column widths,
+and those are the app's own.
+
 ---
 
 ## What is deliberately *not* shared
@@ -188,6 +205,9 @@ Improvements that landed in one app and should reach the other. This list is the
 mechanism — a rule nobody tracks is a rule that decays.
 
 - [ ] `DataGridCell` gutter → pgNimbus (rule 12).
+- [x] Table header type and faint rules → both apps, via `Theme/Controls.axaml` (rule 14).
+- [x] Checked `ToggleButton.soft` foreground pinned to the accent → kubeNimbus. It was
+      fixed in pgNimbus's copy of `Controls.axaml` and never reached the library.
 - [x] `Cursor="Hand"` on `Button.chip` / `Button.searchpill` → pgNimbus, via the
       shared `Theme/Theme.axaml` (rule 5).
 - [x] One-bar window chrome on Windows → pgNimbus (rule 9). It previously extended
