@@ -96,7 +96,7 @@ public class CompletionEditorTests
 
             Ui.Press(window, CommandId.Completion);
             Ui.Press(window, Key.Enter);
-            await Assert.That(Marked(editor)).IsEqualTo("SELECT * FROM public.orders o|");
+            await Assert.That(Marked(editor)).IsEqualTo("SELECT * FROM orders o|");
 
             editor.Undo();
             Ui.Settle();
@@ -169,7 +169,7 @@ public class CompletionEditorTests
             Ui.Press(window, CommandId.Completion);
             Ui.Press(window, Key.Enter);
 
-            await Assert.That(Marked(editor)).IsEqualTo("SELECT * FROM public.orders| x WHERE x.id = 1");
+            await Assert.That(Marked(editor)).IsEqualTo("SELECT * FROM orders| x WHERE x.id = 1");
             window.Close();
         });
     }
@@ -210,7 +210,7 @@ public class CompletionEditorTests
             editor.Redo();
             Ui.Settle();
 
-            await Assert.That(editor.Text).IsEqualTo("SELECT * FROM public.orders o");
+            await Assert.That(editor.Text).IsEqualTo("SELECT * FROM orders o");
             await Assert.That(editor.CanRedo).IsFalse();
             window.Close();
         });
@@ -554,6 +554,83 @@ public class CompletionEditorTests
         });
     }
 
+    // --- The second audit's Enter rule (sql-completion-audit-2.md §6.1, A01–A07) ---
+    //
+    // Typed key by key over the audit stand's catalog, where each of these
+    // lines used to lose its newline or be rewritten by the Enter that ends it.
+
+    private static (Avalonia.Controls.Window Window, TextEditor Editor) OpenAuditStand(bool autoAlias)
+    {
+        var (window, vm, editor) = Open("|");
+        vm.CompletionProvider.Load(PgNimbus.CompletionBench.AuditCatalog.Load(PgNimbus.CompletionBench.AuditCatalog.DefaultPath));
+        if (vm.AutoAliasTables != autoAlias)
+        {
+            vm.ToggleAutoAliasCommand.Execute(null);
+        }
+
+        return (window, editor);
+    }
+
+    [Test]
+    [Arguments("SELECT c.email\nFROM customers c", false)] // A02: not CROSS
+    [Arguments("SELECT i.title\nFROM saas.issues i", false)] // A02: not INNER
+    [Arguments("SELECT p.name\nFROM saas.projects p", true)] // A03: not saas.plans
+    [Arguments("SELECT inv.number\nFROM saas.invoices inv", true)] // A03: not saas.invoices i
+    [Arguments("UPDATE customers", false)] // A04: not commerce.customers
+    [Arguments("DELETE FROM order_items", true)] // A04: not commerce.order_items oi
+    [Arguments("SELECT *\nFROM orders", true)] // A04
+    [Arguments("SELECT a.name\nFROM saas.accounts a\nWHERE a.deleted_at IS NULL", false)] // A05: not nullif(
+    [Arguments("SELECT p.title\nFROM products p\nORDER BY p.title DESC", false)] // A05
+    [Arguments("SELECT e.name, m.name AS manager", false)] // A06: not manager_id
+    [Arguments("SELECT count(*) AS n", false)] // A06: not notifications
+    [Arguments("SELECT c.email\nFROM customers c\nWHERE c.is_active = true", false)] // A07: not TRUE
+    [Arguments("SELECT o.id\nFROM orders o\nJOIN customers c ON c.id = o.customer_id", false)] // A01
+    public async Task Enter_at_the_end_of_a_typed_line_is_a_newline(string line, bool autoAlias)
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, editor) = OpenAuditStand(autoAlias);
+
+            foreach (var ch in line)
+            {
+                if (ch == '\n')
+                {
+                    Ui.Press(window, Key.Enter);
+                }
+                else
+                {
+                    Ui.Type(window, ch.ToString());
+                }
+            }
+
+            Ui.Press(window, Key.Enter);
+
+            await Assert.That(Lf(Marked(editor))).IsEqualTo(line + "\n|");
+            window.Close();
+        });
+    }
+
+    [Test]
+    public async Task At_an_alias_tab_and_a_chosen_row_still_accept()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, editor) = OpenAuditStand(autoAlias: false);
+            TypeKeys(window, "SELECT * FROM customers c");
+            Ui.Press(window, Key.Tab);
+            await Assert.That(Marked(editor)).IsNotEqualTo("SELECT * FROM customers c|");
+
+            editor.Text = "";
+            TypeKeys(window, "SELECT * FROM customers c");
+            Ui.Press(window, Key.Down);
+            Ui.Press(window, Key.Up);
+            Ui.Press(window, Key.Enter);
+            await Assert.That(Marked(editor)).IsNotEqualTo("SELECT * FROM customers c|");
+            await Assert.That(Lf(editor.Text)).DoesNotContain("\n");
+            window.Close();
+        });
+    }
+
     // --- Found live (2026-09-22) ---
 
     // Typed "commerce." then "orde": the list showed orders on top but kept
@@ -656,7 +733,7 @@ public class CompletionEditorTests
             Ui.Press(window, CommandId.Completion);
             Ui.Press(window, Key.Enter);
 
-            await Assert.That(Marked(editor)).IsEqualTo("SELECT * FROM public.users| u");
+            await Assert.That(Marked(editor)).IsEqualTo("SELECT * FROM users| u");
             window.Close();
         });
     }
@@ -666,19 +743,19 @@ public class CompletionEditorTests
     {
         await Ui.Run(async () =>
         {
-            var (window, editor) = OpenWithUsers("SELECT * FROM big b|");
+            var (window, editor) = OpenWithUsers("SELECT * FROM bi b|");
             var view = editor.TextArea.TextView;
-            var at = view.GetVisualPosition(new TextViewPosition(1, 18), VisualYPosition.LineMiddle) - view.ScrollOffset;
+            var at = view.GetVisualPosition(new TextViewPosition(1, 17), VisualYPosition.LineMiddle) - view.ScrollOffset;
             var point = view.TranslatePoint(new Point(at.X, at.Y), window)!.Value;
             window.MouseDown(point, MouseButton.Left);
             window.MouseUp(point, MouseButton.Left);
             Ui.Settle();
-            await Assert.That(Marked(editor)).IsEqualTo("SELECT * FROM big| b");
+            await Assert.That(Marked(editor)).IsEqualTo("SELECT * FROM bi| b");
 
             Ui.Press(window, CommandId.Completion);
             Ui.Press(window, Key.Enter);
 
-            await Assert.That(Marked(editor)).IsEqualTo("SELECT * FROM public.big| b");
+            await Assert.That(Marked(editor)).IsEqualTo("SELECT * FROM big| b");
             window.Close();
         });
     }

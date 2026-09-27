@@ -164,6 +164,9 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
     private const double AliasPriority = 90;
     private const double FkTablePriority = 15;
     private const double CtePriority = 20;
+    // A relation its bare name finds along the search_path, over a same-named
+    // one in another schema.
+    private const double PathTablePriority = 12;
     private const double TablePriority = 10;
     private const double ColumnPriority = 5;
     private const double FunctionPriority = 3;
@@ -408,22 +411,6 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
             tableRefItems.Add(schemaItem);
         }
 
-        foreach (var table in tables)
-        {
-            // Elsewhere a table completes to its bare name; in table position
-            // (after FROM/JOIN) it completes schema-qualified ("public.users")
-            // so the reference is unambiguous whatever the search_path is.
-            baseItems.Add(TableItem(table.Schema, table.Name, qualified: false));
-            tableRefItems.Add(TableItem(table.Schema, table.Name, qualified: true));
-            foreach (var column in table.Columns)
-            {
-                baseItems.Add(ColumnItem(column.Column, column.DataType, table.Name, ColumnPriority));
-            }
-        }
-
-        tableRefItems.AddRange(keywordItems);
-        baseItems.AddRange(callableItems);
-
         var tablesByKey = new Dictionary<(string, string), CompletionTable>();
         var tablesByName = new Dictionary<string, List<CompletionTable>>(StringComparer.Ordinal);
         foreach (var table in tables)
@@ -436,6 +423,33 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
 
             sameName.Add(table);
         }
+
+        var tableRefItemsUnknownPath = new List<SqlCompletionData>(tableRefItems);
+        foreach (var table in tables)
+        {
+            // Elsewhere a table completes to its bare name. In table position
+            // (after FROM/JOIN) it completes bare when the bare name finds this
+            // very relation — "customers" for public.customers on the default
+            // path — and schema-qualified otherwise, so what gets written always
+            // means the relation that was picked (sql-completion-audit-2.md F01).
+            // The second list is for a session whose search_path the catalog
+            // can't know (SessionSearchPathChanged).
+            baseItems.Add(TableItem(table.Schema, table.Name, qualified: false));
+            tableRefItems.Add(TableRefItem(table,
+                ResolveShort(tablesByKey, tablesByName, excluded, searchPath, table.Name) == table));
+            tableRefItemsUnknownPath.Add(TableRefItem(table,
+                ResolveShort(tablesByKey, tablesByName, excluded, null, table.Name) == table));
+            foreach (var column in table.Columns)
+            {
+                // A catalog-wide column is a guess: the statement names no
+                // relation that has it (yet). Enter won't take one unasked.
+                baseItems.Add(ColumnItem(column.Column, column.DataType, table.Name, ColumnPriority, isGuess: true));
+            }
+        }
+
+        tableRefItems.AddRange(keywordItems);
+        tableRefItemsUnknownPath.AddRange(keywordItems);
+        baseItems.AddRange(callableItems);
 
         var predicateBase = keywordItems.Concat(builtinFunctionItems).Concat(callableItems).ToList();
 
@@ -467,6 +481,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
             new HashSet<string>(excluded, StringComparer.Ordinal),
             Dedupe(baseItems),
             Dedupe(tableRefItems),
+            Dedupe(tableRefItemsUnknownPath),
             Dedupe(predicateBase),
             hintFunctions,
             typeItems);
@@ -574,6 +589,12 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         };
     }
 
+    // A relation in table position: bare when the bare name resolves to it
+    // (and ranked above same-named relations elsewhere, which is what keeps
+    // "UPDATE customers" on public.customers), schema-qualified otherwise.
+    private static SqlCompletionData TableRefItem(CompletionTable table, bool resolvesBare) =>
+        TableItem(table.Schema, table.Name, qualified: !resolvesBare, resolvesBare ? PathTablePriority : TablePriority);
+
     private static SqlCompletionData TableItem(string schema, string table, bool qualified, double priority = TablePriority) =>
         new(table, SqlCompletionKind.Table,
             qualified ? $"{SqlIdentifier.QuoteIfNeeded(schema)}.{SqlIdentifier.QuoteIfNeeded(table)}" : SqlIdentifier.QuoteIfNeeded(table),
@@ -627,7 +648,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
 
         if (SqlCompletionContext.IsAfterKeyword(statement, caret, "call"))
         {
-            return Dedupe(snapshot.ProcedureItems.Concat(snapshot.TableRefItems.Where(i => i.Kind == SqlCompletionKind.Schema)));
+            return Dedupe(snapshot.ProcedureItems.Concat(TableRefItemsOf(snapshot).Where(i => i.Kind == SqlCompletionKind.Schema)));
         }
 
         if (scope.Block is { } contextBlock && ColumnListCompletions(snapshot, statement, contextBlock, caret) is { } columnList)
@@ -801,7 +822,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
     // Table position (after FROM/INTO/UPDATE …): only what can be a table there —
     // the statement's CTEs first, then schemas + tables (+ keywords, so
     // "JOIN"/"WHERE" still complete after "FROM users "). No columns.
-    private static IReadOnlyList<SqlCompletionData> BuildTableRefCompletions(Snapshot snapshot, string statement, Scope scope, IEnumerable<SqlCompletionData> boosted)
+    private IReadOnlyList<SqlCompletionData> BuildTableRefCompletions(Snapshot snapshot, string statement, Scope scope, IEnumerable<SqlCompletionData> boosted)
     {
         var items = new List<SqlCompletionData>();
         foreach (var cte in scope.CteNames(statement))
@@ -810,7 +831,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         }
 
         items.AddRange(boosted);
-        return Merge(items, snapshot.TableRefItems);
+        return Merge(items, TableRefItemsOf(snapshot));
     }
 
     // Every table FK-adjacent to a table already in the statement (either side of
@@ -819,11 +840,16 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
     // pure Core logic (ForeignKeyMatcher, unit-tested there).
     private List<SqlCompletionData> FkNeighborItems(Snapshot snapshot, string statement, Scope scope)
     {
-        var statementTables = ResolvedReferences(snapshot, scope.Relations(statement, int.MaxValue));
+        // The relation being typed at the caret is not one the statement
+        // already joins: it would hide the very table the user is spelling.
+        var statementTables = ResolvedReferences(snapshot, scope.Relations(statement, int.MaxValue, exceptAt: scope.WordStart(statement)));
         var items = new List<SqlCompletionData>();
         foreach (var (neighborSchema, neighborTable) in ForeignKeyMatcher.FindJoinCandidates(statementTables, snapshot.ForeignKeys))
         {
-            var item = TableItem(neighborSchema, neighborTable, qualified: true, FkTablePriority);
+            var resolvesBare = snapshot.TablesByKey.TryGetValue((neighborSchema, neighborTable), out var neighbor)
+                && Resolve(snapshot, "", neighborTable) == neighbor;
+            // One the search_path finds over a same-named one it doesn't.
+            var item = TableItem(neighborSchema, neighborTable, qualified: !resolvesBare, resolvesBare ? FkTablePriority + 1 : FkTablePriority);
             items.Add(new SqlCompletionData(item.Text, item.Kind, item.InsertText, item.Priority)
             {
                 AliasTable = item.AliasTable,
@@ -1037,7 +1063,19 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
 
         // The block's own relations (no derived tables or functions) that
         // start before `before` — what FK matching pairs a JOIN against.
-        public IReadOnlyList<SqlCompletionContext.TableRef> Relations(string statement, int before)
+        // Where the (possibly empty) name under the caret starts.
+        public int WordStart(string statement)
+        {
+            var start = Math.Clamp(Caret, 0, statement.Length);
+            while (start > 0 && SqlLexer.IsIdentPart(statement[start - 1]))
+            {
+                start--;
+            }
+
+            return start;
+        }
+
+        public IReadOnlyList<SqlCompletionContext.TableRef> Relations(string statement, int before, int exceptAt = -1)
         {
             if (Unknown)
             {
@@ -1050,7 +1088,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
             }
 
             return [.. block.Sources
-                .Where(s => s.Derived is null && !s.IsFunction && s.Name.Length > 0 && s.Start < before)
+                .Where(s => s.Derived is null && !s.IsFunction && s.Name.Length > 0 && s.Start < before && s.Start != exceptAt)
                 .Select(s => new SqlCompletionContext.TableRef(s.Schema, s.Name, s.Alias))];
         }
     }
@@ -1551,23 +1589,34 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
     // schema has resolves — picking one of two same-named tables would be a
     // guess. An excluded schema on the path ends the lookup: completion can't
     // see what it holds, so it can't know the name isn't there.
-    private CompletionTable? Resolve(Snapshot snapshot, string schema, string table)
-    {
-        if (schema.Length > 0)
-        {
-            return snapshot.TablesByKey.GetValueOrDefault((schema, table));
-        }
+    private CompletionTable? Resolve(Snapshot snapshot, string schema, string table) =>
+        schema.Length > 0
+            ? snapshot.TablesByKey.GetValueOrDefault((schema, table))
+            : ResolveShort(snapshot.TablesByKey, snapshot.TablesByName, snapshot.Excluded,
+                SessionSearchPathChanged ? null : snapshot.SearchPath, table);
 
-        if (snapshot.SearchPath is { } path && !SessionSearchPathChanged)
+    // The table list for table position under the session's current idea of
+    // the search_path.
+    private IReadOnlyList<SqlCompletionData> TableRefItemsOf(Snapshot snapshot) =>
+        SessionSearchPathChanged ? snapshot.TableRefItemsUnknownPath : snapshot.TableRefItems;
+
+    private static CompletionTable? ResolveShort(
+        IReadOnlyDictionary<(string, string), CompletionTable> tablesByKey,
+        IReadOnlyDictionary<string, List<CompletionTable>> tablesByName,
+        IReadOnlySet<string> excluded,
+        IReadOnlyList<string>? path,
+        string table)
+    {
+        if (path is not null)
         {
             foreach (var candidate in path)
             {
-                if (snapshot.Excluded.Contains(candidate))
+                if (excluded.Contains(candidate))
                 {
                     return null;
                 }
 
-                if (snapshot.TablesByKey.TryGetValue((candidate, table), out var found))
+                if (tablesByKey.TryGetValue((candidate, table), out var found))
                 {
                     return found;
                 }
@@ -1576,7 +1625,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
             return null;
         }
 
-        return snapshot.TablesByName.TryGetValue(table, out var sameName) && sameName.Count == 1 ? sameName[0] : null;
+        return tablesByName.TryGetValue(table, out var sameName) && sameName.Count == 1 ? sameName[0] : null;
     }
 
     private static List<SqlCompletionData> ColumnItems(IEnumerable<SourceColumn> columns) =>
@@ -1584,11 +1633,12 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
 
     // The data type rides in Detail (right-aligned in the row); the tooltip
     // names the owning relation, which the row itself doesn't show.
-    private static SqlCompletionData ColumnItem(string column, string? dataType, string owner, double priority) =>
+    private static SqlCompletionData ColumnItem(string column, string? dataType, string owner, double priority, bool isGuess = false) =>
         new(column, SqlCompletionKind.Column, SqlIdentifier.QuoteIfNeeded(column), priority)
         {
             Detail = dataType,
             DescriptionText = $"column · {owner}",
+            IsGuess = isGuess,
         };
 
     // Collapse duplicate candidates, keeping the first — which, because callers
@@ -1664,6 +1714,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         IReadOnlySet<string> Excluded,
         IReadOnlyList<SqlCompletionData> BaseItems,
         IReadOnlyList<SqlCompletionData> TableRefItems,
+        IReadOnlyList<SqlCompletionData> TableRefItemsUnknownPath,
         IReadOnlyList<SqlCompletionData> PredicateBaseItems,
         IReadOnlyDictionary<string, List<CompletionFunction>> HintFunctions,
         IReadOnlyList<SqlCompletionData> TypeItems);
