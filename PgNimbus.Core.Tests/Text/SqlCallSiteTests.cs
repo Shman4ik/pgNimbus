@@ -122,4 +122,29 @@ public class SqlCallSiteTests
         await Assert.That(tooMany.Count).IsEqualTo(2);
         await Assert.That(tooMany.All(h => h.ActiveParameter == -1)).IsTrue();
     }
+
+    [Test]
+    [Arguments("INSERT INTO t (a, b) VALUES (|", 0)]
+    [Arguments("INSERT INTO t (a, b) VALUES (1, |", 1)]
+    [Arguments("INSERT INTO t (a, b) VALUES (1, 2), (3, |", 1)]
+    [Arguments("INSERT INTO t VALUES ('x, y', |", 1)]
+    public async Task A_values_row_is_a_site_whose_arguments_are_the_values(string marked, int index)
+    {
+        var caret = marked.IndexOf('|');
+        var row = SqlCallSite.ValuesRowAt(marked.Remove(caret, 1), caret);
+
+        await Assert.That(row).IsNotNull();
+        await Assert.That(row!.ArgumentIndex).IsEqualTo(index);
+    }
+
+    [Test]
+    [Arguments("INSERT INTO t (a, b) VALUES (lower(|")]
+    [Arguments("SELECT * FROM t WHERE a IN (|")]
+    [Arguments("INSERT INTO t (a, b) VALUES (1, 2) |")]
+    public async Task Elsewhere_there_is_no_values_row(string marked)
+    {
+        var caret = marked.IndexOf('|');
+
+        await Assert.That(SqlCallSite.ValuesRowAt(marked.Remove(caret, 1), caret)).IsNull();
+    }
 }

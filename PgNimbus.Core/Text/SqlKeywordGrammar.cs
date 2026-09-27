@@ -27,6 +27,9 @@ public sealed record SqlKeywordAdvice(SqlKeywordPosition Position, IReadOnlyList
 {
     public static readonly SqlKeywordAdvice None = new(SqlKeywordPosition.Unknown, []);
 
+    /// <summary>Right after <c>INSERT INTO t</c> (or its column list): where the rows come next, and a column list can too.</summary>
+    public bool AfterInsertTarget { get; init; }
+
     /// <summary>Only keywords fit here: no column, function or relation.</summary>
     public bool KeywordsOnly => Position is SqlKeywordPosition.StatementStart or SqlKeywordPosition.AfterOperand or SqlKeywordPosition.KeywordsOnly;
 }
@@ -70,7 +73,7 @@ public static class SqlKeywordGrammar
     /// <summary>Keywords that begin an expression.</summary>
     public static readonly IReadOnlyList<string> OperandStarts =
     [
-        "NOT", "NULL", "TRUE", "FALSE", "CASE", "EXISTS", "INTERVAL", "CAST", "ARRAY", "ROW",
+        "NOT", "NULL", "TRUE", "FALSE", "CASE WHEN", "CASE", "EXISTS", "INTERVAL", "CAST", "ARRAY", "ROW",
         "CURRENT_DATE", "CURRENT_TIMESTAMP", "CURRENT_TIME", "LOCALTIMESTAMP", "LOCALTIME",
         "CURRENT_USER", "SESSION_USER", "CURRENT_ROLE", "CURRENT_SCHEMA", "CURRENT_CATALOG",
     ];
@@ -498,7 +501,7 @@ public static class SqlKeywordGrammar
         // "INSERT INTO t |", "INSERT INTO t (a, b) |": the rows come next.
         if (governing == "into" && WordOf(statement, tokens[0]) == "insert" && DepthOf(tokens) == 0)
         {
-            return KeywordsOnly(["VALUES", "SELECT", "DEFAULT VALUES", "OVERRIDING", "WITH", "AS"]);
+            return KeywordsOnly(["VALUES", "SELECT", "DEFAULT VALUES", "OVERRIDING", "WITH", "AS"]) with { AfterInsertTarget = true };
         }
 
         // "MERGE INTO t [alias] |": the source; "… USING s [alias] |": its join condition.

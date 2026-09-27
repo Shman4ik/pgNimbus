@@ -106,8 +106,21 @@ public class SqlScopeModelTests
         var (_, block) = At("WITH x AS (SELECT u.*, o.total FROM public.users u JOIN public.orders o ON true) SELECT | FROM x");
         var output = SqlScopeModel.VisibleCtes(block!).Single().Body.Branches[0].Output;
 
-        await Assert.That(output[0]).IsEqualTo(new SqlOutputItem(null, IsStar: true, StarQualifier: "u"));
-        await Assert.That(output[1]).IsEqualTo(new SqlOutputItem("total", RefQualifier: "o", RefColumn: "total"));
+        await Assert.That(output[0] with { Expression = null }).IsEqualTo(new SqlOutputItem(null, IsStar: true, StarQualifier: "u"));
+        await Assert.That(output[1] with { Expression = null }).IsEqualTo(new SqlOutputItem("total", RefQualifier: "o", RefColumn: "total"));
+    }
+
+    [Test]
+    [Arguments("SELECT c.email, count(*) AS n, lower(c.name) nm, 1 FROM t c|", "c.email|count(*)|lower(c.name)|1")]
+    [Arguments("SELECT a + b AS total, x::text FROM t|", "a + b|x::text")]
+    public async Task Output_items_know_their_expression_without_the_alias(string marked, string expected)
+    {
+        // Package P: GROUP BY's non-aggregated items are written from these spans.
+        var caret = marked.IndexOf('|');
+        var sql = marked.Remove(caret, 1);
+        var block = SqlScopeModel.Parse(sql).BlockAt(caret, out _)!;
+
+        await Assert.That(block.Output.Select(o => sql[o.Expression!.Value.Start..o.Expression.Value.End])).IsEquivalentTo(expected.Split('|'), CollectionOrdering.Matching);
     }
 
     // --- T16: CTE visibility ---

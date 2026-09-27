@@ -26,6 +26,8 @@ public enum SqlCompletionKind
     /// <summary>A literal value: an enum's label, a date field.</summary>
     Value,
     Sequence,
+    /// <summary>More than a name in one accept: a join with its condition, a column list, a GROUP BY list.</summary>
+    Snippet,
 }
 
 /// <param name="text">The name shown in the list and matched against what the user typed.</param>
@@ -89,6 +91,15 @@ public sealed class SqlCompletionData(string text, SqlCompletionKind kind, strin
     /// </summary>
     public bool IsGuess { get; init; }
 
+    /// <summary>Where the caret goes inside <see cref="InsertText"/> after an accept; null = after it (or inside a callable's parens).</summary>
+    public int? CaretIndex { get; init; }
+
+    /// <summary>
+    /// An absolute document offset the replaced range starts at, when that is
+    /// before the word under the caret: expanding a <c>*</c> replaces the star.
+    /// </summary>
+    public int? ReplaceFrom { get; init; }
+
     /// <summary>The row label the popup binds to.</summary>
     public string Label => DisplayText ?? Text;
 
@@ -124,6 +135,7 @@ public sealed class SqlCompletionData(string text, SqlCompletionKind kind, strin
         SqlCompletionKind.Type => "type",
         SqlCompletionKind.Value => "value",
         SqlCompletionKind.Sequence => "sequence",
+        SqlCompletionKind.Snippet => "snippet",
         _ => "item",
     };
 
@@ -162,7 +174,7 @@ public sealed class SqlCompletionData(string text, SqlCompletionKind kind, strin
         Options.TryGetValue(textArea, out var options);
         var document = textArea.Document;
         var aliasSeed = options?.AutoAliasTables() == true ? AliasTable : null;
-        var edit = CompletionEdits.Plan(document.Text, textArea.Caret.Offset, InsertText, InsertKind, aliasSeed);
+        var edit = CompletionEdits.Plan(document.Text, textArea.Caret.Offset, InsertText, InsertKind, aliasSeed, CaretIndex, ReplaceFrom);
 
         document.Replace(edit.ReplaceStart, edit.ReplaceLength, edit.InsertText);
         textArea.Caret.Offset = Math.Clamp(edit.CaretOffset, 0, document.TextLength);

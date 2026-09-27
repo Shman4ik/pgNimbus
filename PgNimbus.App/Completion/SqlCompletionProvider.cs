@@ -492,9 +492,15 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         // The everyday functions, curated; with the catalog read, their
         // signatures and description go in the tooltip.
         var builtinFunctionItems = Functions
-            .Select(f => new SqlCompletionData(f, SqlCompletionKind.Function, $"{f}()", CommonFunctions.Contains(f) ? CommonFunctionPriority : FunctionPriority)
+            .Select(f =>
             {
-                DescriptionText = builtinOverloads.TryGetValue(f, out var overloads) ? FunctionDescription(overloads) : null,
+                builtinOverloads.TryGetValue(f, out var overloads);
+                var (insert, caretIndex) = CallInsert(f, overloads);
+                return new SqlCompletionData(f, SqlCompletionKind.Function, insert, CommonFunctions.Contains(f) ? CommonFunctionPriority : FunctionPriority)
+                {
+                    DescriptionText = overloads is null ? null : FunctionDescription(overloads),
+                    CaretIndex = caretIndex,
+                };
             })
             .ToList();
         // And the rest of pg_catalog's (E02): pg_size_pretty, to_timestamp,
@@ -767,7 +773,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
     {
         if (SqlCallSite.At(sql, caret) is not { } site || site.Name.Count == 0)
         {
-            return null;
+            return SqlCallSite.ValuesRowAt(sql, caret) is { } row ? ValuesRowHint(sql, caret, row) : null;
         }
 
         var snapshot = _snapshot;
@@ -793,6 +799,38 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         return hints.Count == 0 ? null : (site, hints);
     }
 
+    // Inside a row of INSERT … VALUES: the columns the row fills, the one the
+    // caret's value goes into marked, like a call's parameter (§6.4).
+    private (SqlCallSite Site, IReadOnlyList<SignatureHint> Hints)? ValuesRowHint(string sql, int caret, SqlCallSite row)
+    {
+        var snapshot = _snapshot;
+        var (start, end) = SqlCompletionContext.CompletionStatementSpan(sql, caret);
+        var statement = sql[start..end];
+        var scope = Scope.At(statement, caret - start);
+        // The VALUES list is the INSERT's source query: its own block, owned by the INSERT's.
+        var insert = scope.Block is { Kind: SqlBlockKind.Insert } own ? own : scope.Block?.Query.Owner;
+        if (scope.Unknown || insert is not { Kind: SqlBlockKind.Insert, Target: { } target }
+            || ColumnsOf(snapshot, insert, target, []) is not { Count: > 0 } columns)
+        {
+            return null;
+        }
+
+        // The listed columns in their order, else every column of the target.
+        var byName = columns.ToDictionary(c => c.Name, StringComparer.Ordinal);
+        var named = insert.InsertColumns is { } list
+            ? SqlLexer.Tokenize(statement, list.Start, list.End)
+                .Where(t => t.Kind is SqlTokenKind.Word or SqlTokenKind.QuotedIdentifier)
+                .Select(t => SqlLexer.IdentifierName(statement, t))
+                .Select(n => byName.TryGetValue(n, out var c) ? c : new SourceColumn(n, null, target.Label))
+                .ToList()
+            : [.. columns];
+        var parameters = named
+            .Select(c => new SqlParameter($"{SqlIdentifier.QuoteIfNeeded(c.Name)} {c.DataType}".TrimEnd(), c.Name, false, c.Facts?.HasDefault == true))
+            .ToList();
+        var active = row.ArgumentIndex < parameters.Count ? row.ArgumentIndex : -1;
+        return (row, [new SignatureHint(target.Schema, "VALUES", parameters, active, "")]);
+    }
+
     // A catalog callable (all overloads of one schema.name): inserts as
     // "name()" — schema-qualified when the schema isn't on the search_path, so
     // the call resolves to the function that was picked — with every signature
@@ -806,13 +844,38 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         var callName = onPath
             ? SqlIdentifier.QuoteIfNeeded(name)
             : $"{SqlIdentifier.QuoteIfNeeded(schema)}.{SqlIdentifier.QuoteIfNeeded(name)}";
-        return new SqlCompletionData(name, SqlCompletionKind.Function, $"{callName}()", priority)
+        var (insert, caretIndex) = CallInsert(callName, overloads);
+        return new SqlCompletionData(name, SqlCompletionKind.Function, insert, priority)
         {
             Detail = schema,
             DescriptionText = FunctionDescription(overloads),
             IsGuess = isGuess,
+            CaretIndex = caretIndex,
         };
     }
+
+    // What accepting a callable writes, and where the caret goes: "name()"
+    // with the caret between the parens — or, for a function that is only a
+    // window function, the call with its window (§6.4, F03): "row_number()
+    // OVER (|)", "lag(|) OVER ()" when it takes arguments. A null index
+    // means CompletionEdits' own default, inside the call's parens.
+    private static (string Insert, int? CaretIndex) CallInsert(string name, IReadOnlyList<FunctionInfo>? overloads)
+    {
+        var windowOnly = overloads is { Count: > 0 } ? overloads.All(o => o.Kind == 'w') : FallbackCallKinds.GetValueOrDefault(name) == 'w';
+        if (!windowOnly)
+        {
+            return ($"{name}()", null);
+        }
+
+        var takesArguments = overloads is { Count: > 0 } ? overloads.Any(o => o.Arguments.Length > 0) : FallbackWindowsWithArguments.Contains(name);
+        var insert = $"{name}() OVER ()";
+        return (insert, takesArguments ? name.Length + 1 : insert.Length - 1);
+    }
+
+    private static readonly HashSet<string> FallbackWindowsWithArguments = new(StringComparer.Ordinal)
+    {
+        "ntile", "lag", "lead", "first_value", "last_value", "nth_value",
+    };
 
     // Every signature, with its DEFAULTs (E06), then the function's comment.
     private static string FunctionDescription(IReadOnlyList<FunctionInfo> overloads)
@@ -934,6 +997,14 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
             items = WithValues(values, items);
         }
 
+        // Right after a star in the select list: the star spelled out, as the
+        // palette's Expand * does it (§6.4) — declining where that would
+        // change the result.
+        if (caret > 0 && statement[caret - 1] == '*' && StarExpansionItem(sql, caretOffset) is { } expansion)
+        {
+            items = Prepend([expansion], items);
+        }
+
         // Inside "…" the user is spelling a name; keywords can't go there.
         return context.InQuotedIdentifier
             ? [.. items.Where(i => i.Kind != SqlCompletionKind.Keyword)]
@@ -978,7 +1049,14 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         var advice = context.InQuotedIdentifier ? SqlKeywordAdvice.None : SqlKeywordGrammar.At(statement, caret, snapshot.CallKindOf);
         if (advice.KeywordsOnly)
         {
-            return KeywordItems(advice.Keywords, StatementKeywordPriority);
+            var keywords = WithWindowParens(KeywordItems(advice.Keywords, StatementKeywordPriority));
+            if (advice.AfterInsertTarget && scope.Block is { Kind: SqlBlockKind.Insert, InsertColumns: null, Target: { } target } insert
+                && ColumnsOf(snapshot, insert, target, []) is { Count: > 0 } targetColumns)
+            {
+                keywords.InsertRange(0, InsertColumnListItems(targetColumns));
+            }
+
+            return keywords;
         }
 
         // Where an expression starts, the keywords that can start one replace
@@ -986,6 +1064,15 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         // catalog-wide tail is the one without keywords, so a million-row list
         // is still copied once.
         var operandKeywords = advice.Position == SqlKeywordPosition.Operand ? advice.Keywords : null;
+        var items = ClauseCandidates(snapshot, statement, caret, context, scope, operandKeywords);
+        return advice.Position == SqlKeywordPosition.Operand && ListSnippets(snapshot, statement, caret, scope) is { Count: > 0 } snippets
+            ? Prepend(snippets, items)
+            : items;
+    }
+
+    private IReadOnlyList<SqlCompletionData> ClauseCandidates(
+        Snapshot snapshot, string statement, int caret, SqlCompletionContext.CaretContext context, Scope scope, IReadOnlyList<string>? operandKeywords)
+    {
         return context.Clause switch
         {
             // A finished JOIN target owes ON/USING; a finished FROM item is
@@ -1134,7 +1221,11 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
 
     // The values in front of the rest, the rest without the rows a value
     // stands for (TRUE is already an operand keyword there).
-    private static IReadOnlyList<SqlCompletionData> WithValues(List<SqlCompletionData> values, IReadOnlyList<SqlCompletionData> items)
+    private static IReadOnlyList<SqlCompletionData> WithValues(List<SqlCompletionData> values, IReadOnlyList<SqlCompletionData> items) =>
+        Prepend(values, items);
+
+    // `head` in front of `items`, without the keyword and value rows `head` already has.
+    private static IReadOnlyList<SqlCompletionData> Prepend(List<SqlCompletionData> values, IReadOnlyList<SqlCompletionData> items)
     {
         var keys = new HashSet<string>(values.Select(KeyOf), StringComparer.Ordinal);
         var result = new List<SqlCompletionData>(values.Count + items.Count);
@@ -1148,6 +1239,171 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         }
 
         return result;
+    }
+
+    // The row that replaces the select list's star(s) at `caret` with the
+    // columns, when the star ends the list there and can be spelled out.
+    private SqlCompletionData? StarExpansionItem(string sql, int caret)
+    {
+        if (ExpandSelectStar(sql, caret, out _) is not { } expansion || expansion.Start + expansion.Length != caret)
+        {
+            return null;
+        }
+
+        return new SqlCompletionData(expansion.Replacement, SqlCompletionKind.Snippet, expansion.Replacement, StatementKeywordPriority + 1)
+        {
+            ReplaceFrom = expansion.Start,
+            Detail = "expand *",
+            DescriptionText = "the select list with every star spelled out",
+        };
+    }
+
+    // "(first_name, last_name, email) VALUES (|)" after INSERT INTO t (§6.4):
+    // the columns a row can be written to (not a generated one, not an
+    // identity GENERATED ALWAYS), the caret in the first value — and, when
+    // they differ, the ones a row must be given (NOT NULL, no default).
+    private static List<SqlCompletionData> InsertColumnListItems(IReadOnlyList<SourceColumn> columns)
+    {
+        var writable = columns.Where(c => c.Facts is not { IsGenerated: true } && c.Facts?.Identity != 'a').ToList();
+        var required = writable.Where(c => c.Facts is { NotNull: true, HasDefault: false, Identity: '\0' }).ToList();
+        var items = new List<SqlCompletionData>();
+        foreach (var (list, what, priority) in new[] { (writable, "every column a row can be given", 1.0), (required, "the columns a row must be given", 0.5) })
+        {
+            if (list.Count == 0 || (list == required && required.Count == writable.Count))
+            {
+                continue;
+            }
+
+            var text = $"({string.Join(", ", list.Select(c => SqlIdentifier.QuoteIfNeeded(c.Name)))}) VALUES ()";
+            items.Add(new SqlCompletionData(text, SqlCompletionKind.Snippet, text, StatementKeywordPriority + priority)
+            {
+                CaretIndex = text.Length - 1,
+                Detail = "columns",
+                DescriptionText = $"column list and VALUES · {what}",
+            });
+        }
+
+        return items;
+    }
+
+    // Whole lists offered where an expression list starts (§6.4): after
+    // SELECT, every column of the block's sources; after GROUP BY, the select
+    // list's items that aren't aggregates.
+    private List<SqlCompletionData>? ListSnippets(Snapshot snapshot, string statement, int caret, Scope scope)
+    {
+        if (scope.Unknown || scope.Block is not { Kind: SqlBlockKind.Select } block)
+        {
+            return null;
+        }
+
+        if (block.ClauseAt(caret) == "group" && SqlCompletionContext.IsAfterKeyword(statement, caret, "by")
+            && GroupByItems(snapshot, statement, block) is { Count: > 0 } groupBy)
+        {
+            var text = string.Join(", ", groupBy);
+            return [new SqlCompletionData(text, SqlCompletionKind.Snippet, text, CurrentColumnPriority + 10)
+            {
+                Detail = "non-aggregated",
+                DescriptionText = "the select list's items that aren't aggregates",
+            }];
+        }
+
+        if ((SqlCompletionContext.IsAfterKeyword(statement, caret, "select") || SqlCompletionContext.IsAfterKeyword(statement, caret, "distinct"))
+            && block.Sources.Count > 0)
+        {
+            var parts = new List<string>();
+            foreach (var source in block.Sources)
+            {
+                if (ColumnsOf(snapshot, block, source, []) is not { Count: > 0 } columns)
+                {
+                    return null; // a star it can't spell out: no list is better than a partial one
+                }
+
+                var qualify = block.Sources.Count > 1 || source.Alias is not null;
+                parts.AddRange(columns.Select(c => qualify
+                    ? $"{SqlIdentifier.QuoteIfNeeded(source.Label)}.{SqlIdentifier.QuoteIfNeeded(c.Name)}"
+                    : SqlIdentifier.QuoteIfNeeded(c.Name)));
+            }
+
+            var text = string.Join(", ", parts);
+            return [new SqlCompletionData(text, SqlCompletionKind.Snippet, text, OperandKeywordPriority - 0.005)
+            {
+                Detail = "all columns",
+                DescriptionText = $"every column of {string.Join(", ", block.Sources.Select(s => s.Label))}",
+            }];
+        }
+
+        return null;
+    }
+
+    // The select list's expressions a GROUP BY needs: the ones that aren't an
+    // aggregate or window call (or a bare constant). Empty unless the list
+    // has both kinds — with no aggregate there is nothing to group for.
+    private static List<string> GroupByItems(Snapshot snapshot, string statement, SqlBlock block)
+    {
+        var plain = new List<string>();
+        var aggregates = 0;
+        foreach (var item in block.Output)
+        {
+            if (item.IsStar || item.Expression is not { } span || span.End > statement.Length)
+            {
+                return [];
+            }
+
+            var tokens = SqlLexer.Tokenize(statement, span.Start, span.End).Where(t => !t.IsTrivia).ToList();
+            var aggregate = false;
+            var names = false;
+            for (var i = 0; i < tokens.Count; i++)
+            {
+                if (tokens[i].Kind is not (SqlTokenKind.Word or SqlTokenKind.QuotedIdentifier))
+                {
+                    continue;
+                }
+
+                var word = SqlLexer.IdentifierName(statement, tokens[i]);
+                names = true;
+                if (word == "over" && tokens[i].Kind == SqlTokenKind.Word
+                    || (i + 1 < tokens.Count && tokens[i + 1].Kind == SqlTokenKind.OpenParen && snapshot.CallKindOf(word) is 'a' or 'w'))
+                {
+                    aggregate = true;
+                }
+            }
+
+            if (aggregate)
+            {
+                aggregates++;
+            }
+            else if (names)
+            {
+                plain.Add(statement[span.Start..span.End]);
+            }
+        }
+
+        return aggregates > 0 ? plain : [];
+    }
+
+    // After a call, OVER and FILTER are written with their parentheses and
+    // the caret inside: "OVER (|)", "FILTER (WHERE |)" (§6.4).
+    private static List<SqlCompletionData> WithWindowParens(List<SqlCompletionData> keywords)
+    {
+        for (var i = 0; i < keywords.Count; i++)
+        {
+            var (insert, what) = keywords[i].Text switch
+            {
+                "OVER" => ("OVER ()", "window"),
+                "FILTER" => ("FILTER (WHERE )", "aggregate filter"),
+                _ => (null, null),
+            };
+            if (insert is not null)
+            {
+                keywords[i] = new SqlCompletionData(keywords[i].Text, SqlCompletionKind.Keyword, insert, keywords[i].Priority)
+                {
+                    CaretIndex = insert.Length - 1,
+                    DescriptionText = what,
+                };
+            }
+        }
+
+        return keywords;
     }
 
     // The keywords `keywords`, ranked by their order: the first gets `top`.
@@ -1268,9 +1524,10 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         var items = new List<SqlCompletionData>();
         HashSet<(string, string)>? neighbours = null;
         HashSet<(string, string)>? joined = null;
+        List<TableReference> statementTables = [];
         if (SqlCompletionContext.GetCaretContext(statement, scope.Caret).Clause == SqlClause.JoinTableRef)
         {
-            var statementTables = ResolvedReferences(snapshot, scope.Relations(statement, int.MaxValue, exceptAt: QualifiedNameStart(statement, scope.Caret)));
+            statementTables = ResolvedReferences(snapshot, scope.Relations(statement, int.MaxValue, exceptAt: QualifiedNameStart(statement, scope.Caret)));
             neighbours = [.. ForeignKeyMatcher.FindJoinCandidates(statementTables, snapshot.ForeignKeys)];
             joined = [.. statementTables.Select(t => (t.Schema, t.Table))];
         }
@@ -1286,6 +1543,11 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
                     : CommonSystemRank.TryGetValue($"{table.Schema}.{table.Name}", out var rank) ? TablePriority + 1 - (rank * 0.01)
                     : TablePriority;
                 items.Add(TableItem(table, qualified: false, priority));
+                if (neighbours?.Contains(key) == true)
+                {
+                    // The "schema." is typed already: the table goes in bare.
+                    items.AddRange(JoinSnippets(snapshot, statement, scope, statementTables, table.Schema, table.Name, SqlIdentifier.QuoteIfNeeded(table.Name), priority));
+                }
             }
         }
 
@@ -1352,17 +1614,47 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         // already joins: it would hide the very table the user is spelling.
         var statementTables = ResolvedReferences(snapshot, scope.Relations(statement, int.MaxValue, exceptAt: scope.WordStart(statement)));
         var items = new List<SqlCompletionData>();
+        var index = 0;
         foreach (var (neighborSchema, neighborTable) in ForeignKeyMatcher.FindJoinCandidates(statementTables, snapshot.ForeignKeys))
         {
             var resolvesBare = snapshot.TablesByKey.TryGetValue((neighborSchema, neighborTable), out var neighbor)
                 && Resolve(snapshot, "", neighborTable) == neighbor;
-            // One the search_path finds over a same-named one it doesn't.
-            var item = TableItem(neighborSchema, neighborTable, qualified: !resolvesBare, resolvesBare ? FkTablePriority + 1 : FkTablePriority);
+            // One the search_path finds over a same-named one it doesn't; in
+            // discovery order, each table's joins right under its own row
+            // (with nothing typed the list would otherwise show every table
+            // before the first join).
+            var item = TableItem(neighborSchema, neighborTable, qualified: !resolvesBare,
+                (resolvesBare ? FkTablePriority + 1 : FkTablePriority) - (0.01 * index++));
             items.Add(new SqlCompletionData(item.Text, item.Kind, item.InsertText, item.Priority)
             {
                 AliasTable = item.AliasTable,
                 Detail = item.Detail,
                 DescriptionText = "table · FK match",
+            });
+            items.AddRange(JoinSnippets(snapshot, statement, scope, statementTables, neighborSchema, neighborTable, item.InsertText, item.Priority));
+        }
+
+        return items;
+    }
+
+    // "customers c ON c.id = o.customer_id" after JOIN, in one accept (§6.4):
+    // one row per foreign key that ties the table to the statement's own, its
+    // alias the one the auto-alias would pick, right under the table's row.
+    private static List<SqlCompletionData> JoinSnippets(
+        Snapshot snapshot, string statement, Scope scope, IReadOnlyList<TableReference> statementTables,
+        string schema, string table, string tableInsert, double priority)
+    {
+        var taken = statementTables.SelectMany(t => new[] { t.Table, t.Alias }).OfType<string>().Concat(scope.CteNames(statement));
+        var alias = TableAliaser.Derive(table, taken);
+        var conditions = ForeignKeyMatcher.BuildJoinConditions([.. statementTables, new TableReference(schema, table, alias)], snapshot.ForeignKeys);
+        var items = new List<SqlCompletionData>();
+        for (var i = 0; i < conditions.Count; i++)
+        {
+            var (condition, constraint) = conditions[i];
+            items.Add(new SqlCompletionData($"{table} {alias} ON {condition}", SqlCompletionKind.Snippet, $"{tableInsert} {alias} ON {condition}", priority - (0.001 * (i + 1)))
+            {
+                Detail = constraint ?? schema,
+                DescriptionText = constraint is null ? $"join {schema}.{table} on its foreign key" : $"join {schema}.{table} on its foreign key · {constraint}",
             });
         }
 
@@ -1854,7 +2146,25 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
             var listed = block.InsertColumns is { } list && list.Contains(caret) ? NamesListed(statement, list, caret)
                 : block.ConflictTarget is { } conflict && conflict.Contains(caret) ? NamesListed(statement, conflict, caret)
                 : AssignedNames(statement, block, caret);
-            return BareColumnItems(ColumnsOf(snapshot, block, target, []), listed);
+            var columns = ColumnsOf(snapshot, block, target, []);
+            var items = BareColumnItems(columns, listed);
+            // ON CONFLICT … DO UPDATE SET: "col = excluded.col", the upsert's
+            // usual assignment, one row per column (§6.4).
+            if (block.Kind == SqlBlockKind.Insert && block.ClauseAt(caret) == "set" && block.SeesExcluded(caret))
+            {
+                foreach (var column in (columns ?? []).Where(c => !listed.Contains(c.Name)))
+                {
+                    var name = SqlIdentifier.QuoteIfNeeded(column.Name);
+                    var text = $"{name} = excluded.{name}";
+                    items.Add(new SqlCompletionData(text, SqlCompletionKind.Snippet, text, CurrentColumnPriority - 1)
+                    {
+                        Detail = "excluded",
+                        DescriptionText = "take the proposed row's value",
+                    });
+                }
+            }
+
+            return items;
         }
 
         for (var i = 0; i < block.Sources.Count; i++)

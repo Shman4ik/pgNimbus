@@ -654,6 +654,34 @@ public class CompletionEditorTests
     }
 
     [Test]
+    public async Task One_accept_writes_a_whole_construct_and_leaves_the_caret_inside_it()
+    {
+        // §6.4: the join with its condition; a window function with its
+        // window, the caret in OVER's parentheses; a column list with the
+        // caret in the first value.
+        await Ui.Run(async () =>
+        {
+            var (window, editor) = OpenAuditStand(autoAlias: false);
+            TypeKeys(window, "SELECT * FROM orders o JOIN cust");
+            Ui.Press(window, Key.Down);
+            Ui.Press(window, Key.Tab);
+            await Assert.That(Marked(editor)).IsEqualTo("SELECT * FROM orders o JOIN customers c ON c.id = o.customer_id|");
+
+            editor.Text = "";
+            TypeKeys(window, "SELECT row_num");
+            Ui.Press(window, Key.Tab);
+            await Assert.That(Marked(editor)).IsEqualTo("SELECT row_number() OVER (|)");
+
+            editor.Text = "";
+            TypeKeys(window, "INSERT INTO customers ");
+            Ui.Press(window, CommandId.Completion);
+            Ui.Press(window, Key.Tab);
+            await Assert.That(Marked(editor)).EndsWith(") VALUES (|)");
+            window.Close();
+        });
+    }
+
+    [Test]
     public async Task Punctuation_closes_the_list_and_a_space_does_not_filter_a_phrase()
     {
         await Ui.Run(async () =>

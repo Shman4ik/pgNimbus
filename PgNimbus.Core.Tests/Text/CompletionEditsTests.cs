@@ -107,4 +107,38 @@ public class CompletionEditsTests
         await Assert.That(Accept("SELECT 1 FROM x oi; SELECT * FROM owners o JOIN ord|", "public.orders", CompletionInsertKind.Table, "orders"))
             .IsEqualTo("SELECT 1 FROM x oi; SELECT * FROM owners o JOIN public.orders o2|");
     }
+
+    // --- Package P: more than a name ---
+
+    private static string AcceptSnippet(string marked, string insert, CompletionInsertKind kind, int? caretIndex, int? replaceFrom = null)
+    {
+        var caret = marked.IndexOf('|');
+        var text = marked.Remove(caret, 1);
+        var edit = CompletionEdits.Plan(text, caret, insert, kind, null, caretIndex, replaceFrom);
+        var result = text.Remove(edit.ReplaceStart, edit.ReplaceLength).Insert(edit.ReplaceStart, edit.InsertText);
+        return result.Insert(edit.CaretOffset, "|");
+    }
+
+    [Test]
+    public async Task A_snippet_puts_the_caret_where_it_says()
+    {
+        await Assert.That(AcceptSnippet("INSERT INTO t |", "(a, b) VALUES ()", CompletionInsertKind.Plain, 15))
+            .IsEqualTo("INSERT INTO t (a, b) VALUES (|)");
+        await Assert.That(AcceptSnippet("SELECT row|", "row_number() OVER ()", CompletionInsertKind.Function, 19))
+            .IsEqualTo("SELECT row_number() OVER (|)");
+    }
+
+    [Test]
+    public async Task A_window_call_reuses_a_paren_already_there_and_writes_no_window()
+    {
+        await Assert.That(AcceptSnippet("SELECT row|()", "row_number() OVER ()", CompletionInsertKind.Function, 19))
+            .IsEqualTo("SELECT row_number(|)");
+    }
+
+    [Test]
+    public async Task A_replaced_range_can_start_before_the_word()
+    {
+        await Assert.That(AcceptSnippet("SELECT *| FROM t", "a, b", CompletionInsertKind.Plain, null, replaceFrom: 7))
+            .IsEqualTo("SELECT a, b| FROM t");
+    }
 }

@@ -1690,6 +1690,36 @@ csproj / WiX / MSIX manifest reference them unchanged:
   `CompletionBench quality` now says why each never-offered word is: a new name,
   one declared later in the query (package R), a DDL word (package N), or other
   — O's criterion is the last, now 0.
+  **Package P offers whole constructs** (§6.4), all `SqlCompletionKind.Snippet`
+  rows except the window call: after JOIN, each FK neighbour's row is followed
+  by one row per foreign key tying it to the statement — `customers c ON c.id =
+  o.customer_id`, the alias the auto-alias would pick, inserted as is (no second
+  auto-alias) and after `schema.` too; neighbours keep their discovery order with
+  each one's joins right under it (`- 0.01 × index`), and the plain table row stays
+  first so a typed prefix + Enter still writes just the table. **Join conditions
+  now name the joined table first** (`ForeignKeyMatcher.BuildJoinConditions`,
+  also what the ON row writes): every JOIN in the corpus is written that way.
+  After `INSERT INTO t`, the column list with `VALUES ()` — every writable column
+  (no generated one, no GENERATED ALWAYS identity) and, if different, the
+  required ones — the caret in the first value (`SqlKeywordAdvice.AfterInsertTarget`
+  says where). After SELECT with sources, every column as one row; after
+  `GROUP BY`, the select list's non-aggregate items (`SqlOutputItem.Expression`,
+  the item's span without its alias; an aggregate or window call is told by the
+  snapshot's call kinds), only when there is an aggregate to group for; right
+  after a `*` (Ctrl+Space), the palette's star expansion as a row
+  (`SqlCompletionData.ReplaceFrom` starts the replaced range at the star). A
+  window-only function inserts with its window, `row_number() OVER (|)` or
+  `lag(|) OVER ()`; after a call, OVER and FILTER come with their parentheses
+  (`OVER (|)`, `FILTER (WHERE |)`); `CASE WHEN` is a phrase; in `DO UPDATE SET`,
+  `col = excluded.col` per column. Where the caret lands is
+  `SqlCompletionData.CaretIndex`, applied by `CompletionEdits.Plan`'s long
+  overload. Inside a VALUES row the argument hint names the column the value
+  goes into (`SqlCallSite.ValuesRowAt`, an INSERT's VALUES being its own block
+  whose `Query.Owner` is the INSERT). The popup also opens after `BY `.
+  `PGNIMBUS_ORACLE_TRACE=1` makes the oracle print, per query, what it typed and
+  what it accepted — how the remaining gap to §7's 45% was read: aliases used
+  before the FROM that declares them (package R) and keywords written in lower
+  case, which the uppercase rows can't write (F02, package Q).
 - `SqlFormatter` follows <https://www.sqlstyle.guide/> ("river" layout: root
   keywords right-aligned to a common column, content to its right). The tests
   in `PgNimbus.Core.Tests` assert exact spacing — a deliberate layout change

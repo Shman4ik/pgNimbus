@@ -56,7 +56,11 @@ public readonly record struct SqlClauseMark(string Keyword, int End);
 /// <see cref="RefColumn"/> name the column a bare reference item passes
 /// through, so its type can be looked up.
 /// </summary>
-public sealed record SqlOutputItem(string? Name, bool IsStar = false, string? StarQualifier = null, string? RefQualifier = null, string? RefColumn = null);
+public sealed record SqlOutputItem(string? Name, bool IsStar = false, string? StarQualifier = null, string? RefQualifier = null, string? RefColumn = null)
+{
+    /// <summary>Where the item's expression is in the statement — its alias (<c>AS x</c>, or a bare one) not included.</summary>
+    public SqlSpan? Expression { get; init; }
+}
 
 /// <summary>A FROM item (or DML target): a relation, a derived table, or a set-returning function.</summary>
 public sealed class SqlSource
@@ -830,11 +834,28 @@ public sealed class SqlScopeModel
 
                 if (j > itemStart)
                 {
-                    block.Output.Add(ReadOutputItem(itemStart, Math.Min(j, e)));
+                    var itemEnd = Math.Min(j, e);
+                    block.Output.Add(ReadOutputItem(itemStart, itemEnd) with
+                    {
+                        Expression = new SqlSpan(_t[itemStart].Start, _t[ExpressionLast(itemStart, itemEnd)].End),
+                    });
                 }
 
                 itemStart = j + 1;
             }
+        }
+
+        // The last token of item [s, e)'s expression: before its alias, if it has one.
+        private int ExpressionLast(int s, int e)
+        {
+            var last = e - 1;
+            if (last - 2 >= s && IsName(last) && Kw(last - 1, "as"))
+            {
+                return last - 2;
+            }
+
+            var aliasCandidate = IsName(last) && (!Is(last, SqlTokenKind.Word) || !AliasStopWords.Contains(WordAt(last)!));
+            return last > s && aliasCandidate && !IsChain(s, e) && EndsValue(last - 1) ? last - 1 : last;
         }
 
         // The output name of one item, the way the server names it: an alias

@@ -55,8 +55,9 @@ public static class ForeignKeyMatcher
 
     /// <summary>
     /// The join condition connecting the last table in <paramref name="statementTables"/>
-    /// to the closest earlier one it has a direct FK to — <c>child.fk_col = parent.pk_col</c>,
-    /// AND-joined for a composite key — or null when none of the earlier tables has one.
+    /// to the closest earlier one it has a direct FK to — the joined table's side
+    /// first, <c>c.id = o.customer_id</c> after <c>JOIN customers c</c>, AND-joined
+    /// for a composite key — or null when none of the earlier tables has one.
     /// </summary>
     public static string? BuildJoinCondition(
         IReadOnlyList<TableReference> statementTables, IReadOnlyList<ForeignKeyInfo> foreignKeys) =>
@@ -69,7 +70,9 @@ public static class ForeignKeyMatcher
     /// constraint: two FKs between the same pair (<c>orders.buyer_id</c> and
     /// <c>orders.seller_id</c>, both to <c>users</c>) are two different joins,
     /// and picking the first one found would silently pick the wrong one half
-    /// the time. A composite key stays one condition, AND-joined.
+    /// the time. A composite key stays one condition, AND-joined. Each
+    /// condition names the joined table's column first, the way a JOIN is
+    /// read and written: <c>JOIN customers c ON c.id = o.customer_id</c>.
     /// </summary>
     public static IReadOnlyList<JoinConditionSuggestion> BuildJoinConditions(
         IReadOnlyList<TableReference> statementTables, IReadOnlyList<ForeignKeyInfo> foreignKeys)
@@ -88,12 +91,11 @@ public static class ForeignKeyMatcher
             {
                 var leftRef = SqlIdentifier.QuoteIfNeeded(left.Alias ?? left.Table);
                 var rightRef = SqlIdentifier.QuoteIfNeeded(right.Alias ?? right.Table);
-                var (childRef, childCols, parentRef, parentCols) = leftIsChild
-                    ? (leftRef, fk.FromColumns, rightRef, fk.ToColumns)
-                    : (rightRef, fk.FromColumns, leftRef, fk.ToColumns);
+                // The joined (right) table's columns first.
+                var (rightCols, leftCols) = leftIsChild ? (fk.ToColumns, fk.FromColumns) : (fk.FromColumns, fk.ToColumns);
 
-                var condition = string.Join(" AND ", childCols.Zip(parentCols, (c, p) =>
-                    $"{childRef}.{SqlIdentifier.QuoteIfNeeded(c)} = {parentRef}.{SqlIdentifier.QuoteIfNeeded(p)}"));
+                var condition = string.Join(" AND ", rightCols.Zip(leftCols, (r, l) =>
+                    $"{rightRef}.{SqlIdentifier.QuoteIfNeeded(r)} = {leftRef}.{SqlIdentifier.QuoteIfNeeded(l)}"));
                 if (results.All(r => r.Condition != condition))
                 {
                     results.Add(new JoinConditionSuggestion(condition, fk.ConstraintName));

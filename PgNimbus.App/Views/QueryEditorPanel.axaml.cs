@@ -716,9 +716,10 @@ public partial class QueryEditorPanel : UserControl
 
     // The keywords whose trailing space auto-opens the popup: the ones after
     // which the very next token is predictable — a table (FROM/JOIN/INTO/
-    // UPDATE), a scoped column (WHERE/ON/AND/OR), or a select-list expression.
+    // UPDATE), a scoped column (WHERE/ON/AND/OR, GROUP/ORDER/PARTITION BY),
+    // or a select-list expression.
     private static readonly string[] AutoOpenKeywords =
-        ["from", "join", "into", "update", "on", "where", "and", "or", "select"];
+        ["from", "join", "into", "update", "on", "where", "and", "or", "select", "by"];
 
     // True when the word just left of the caret (which sits right after the
     // freshly typed space) is a keyword after which the popup should open itself.

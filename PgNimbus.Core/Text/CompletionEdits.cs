@@ -98,19 +98,43 @@ public static class CompletionEdits
     /// and only when no alias already follows the replaced token.
     /// </summary>
     public static CompletionEdit Plan(string text, int caret, string insertText, CompletionInsertKind kind, string? aliasSeed = null)
+        => Plan(text, caret, insertText, kind, aliasSeed, caretIndex: null, replaceFrom: null);
+
+    /// <summary>
+    /// <see cref="Plan(string, int, string, CompletionInsertKind, string?)"/> for
+    /// an item that is more than a name: <paramref name="caretIndex"/> puts the
+    /// caret inside the inserted text (the first value of an
+    /// <c>INSERT</c>'s <c>VALUES (…)</c>, the parentheses after <c>OVER</c>)
+    /// instead of after it, and <paramref name="replaceFrom"/> starts the
+    /// replaced range before the word under the caret (a <c>*</c> being expanded).
+    /// </summary>
+    public static CompletionEdit Plan(
+        string text, int caret, string insertText, CompletionInsertKind kind, string? aliasSeed, int? caretIndex, int? replaceFrom)
     {
         var token = TokenAt(text, caret);
-        var start = token.ReplaceStart;
-        var length = token.ReplaceEnd - token.ReplaceStart;
+        var start = replaceFrom is { } from && from <= token.ReplaceStart ? Math.Max(from, 0) : token.ReplaceStart;
+        var length = token.ReplaceEnd - start;
 
         if (kind == CompletionInsertKind.Function)
         {
-            var name = insertText.EndsWith("()", StringComparison.Ordinal) ? insertText[..^2] : insertText;
+            // "row_number() OVER ()" is a call with its window: the name is what
+            // comes before the first "(".
+            var paren = insertText.IndexOf('(', StringComparison.Ordinal);
+            var name = paren >= 0 ? insertText[..paren] : insertText;
             // A "(" already there is the call's own — reuse it rather than
             // writing a second pair in front of it.
-            return token.ReplaceEnd < text.Length && text[token.ReplaceEnd] == '('
-                ? new CompletionEdit(start, length, name, start + name.Length + 1)
-                : new CompletionEdit(start, length, name + "()", start + name.Length + 1);
+            if (token.ReplaceEnd < text.Length && text[token.ReplaceEnd] == '(')
+            {
+                return new CompletionEdit(start, length, name, start + name.Length + 1);
+            }
+
+            var call = paren >= 0 ? insertText : name + "()";
+            return new CompletionEdit(start, length, call, start + (caretIndex ?? name.Length + 1));
+        }
+
+        if (caretIndex is { } at)
+        {
+            return new CompletionEdit(start, length, insertText, start + Math.Clamp(at, 0, insertText.Length));
         }
 
         if (kind == CompletionInsertKind.Table && aliasSeed is not null
