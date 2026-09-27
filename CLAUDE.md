@@ -176,6 +176,22 @@ Three rules about it:
    libsecret plus a running Secret Service. macOS disallows interactive Keychain
    authorization prompts and reports denied/locked access as unavailable storage.
    Tests/previews use `MemoryCredentialStore`, never the user's real keychain.
+   **SSH agent auth stores nothing at all** (2026-09). SSH.NET has no agent
+   support, so `Connections/SshAgentClient` speaks the agent protocol itself
+   (list identities, sign; Windows' `\\.\pipe\openssh-ssh-agent` unless
+   `SSH_AUTH_SOCK` names another pipe, else the `SSH_AUTH_SOCK` socket), and
+   `SshAgentKeySource` hands each key to SSH.NET's ordinary public-key auth as
+   a `HostAlgorithm` whose `Sign` is an agent request — no new package, so
+   Core's three stay three. RSA keys are offered as `rsa-sha2-512`/`-256` only
+   (OpenSSH 8.8+ refuses SHA-1 `ssh-rsa`). This is what makes a
+   passphrase-protected key usable without typing the passphrase, and switching
+   a profile to agent auth deletes its stored SSH secret the way turning the
+   tunnel off does. `SshAuthMethod` is persisted as a number: append, never
+   reorder. `SshTunnel.Connect` throws `SshTunnelException` with a message
+   written for the form (which step failed, what to check), connects with a
+   15 s timeout rather than SSH.NET's 30 s (a jump host behind a VPN that is
+   off never answers), and sends keep-alives every 30 s. Host keys are still
+   not verified against `known_hosts`.
 5. **Crashes are logged and shown, never silent.** Critical/unhandled errors
    append to a plain-text log at `<appdata>/pgNimbus/logs/pgnimbus.log`
    (`PgNimbus.Core.Diagnostics.CrashLog` does the file I/O — directory-injectable

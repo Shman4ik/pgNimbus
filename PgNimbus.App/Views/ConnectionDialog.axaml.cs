@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using PgNimbus.App.ViewModels;
@@ -177,6 +178,33 @@ public partial class ConnectionDialog : Window
     /// its <c>Command</c> binding — so a synchronous Hide() here swallows the
     /// selection entirely and the accent color never changes.
     /// </summary>
+    /// <summary>
+    /// Picks a key file, starting in ~/.ssh where keys almost always are. No
+    /// file-type filter: private keys usually have no extension at all.
+    /// </summary>
+    private async void OnBrowseSshKeyClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not ConnectionDialogViewModel vm)
+        {
+            return;
+        }
+
+        var sshDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".ssh");
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Choose SSH private key",
+            AllowMultiple = false,
+            SuggestedStartLocation = Directory.Exists(sshDirectory)
+                ? await StorageProvider.TryGetFolderFromPathAsync(sshDirectory)
+                : null,
+        });
+
+        if (files.Count > 0 && files[0].TryGetLocalPath() is { } path)
+        {
+            vm.SshPrivateKeyPath = path;
+        }
+    }
+
     private void OnAccentSwatchClick(object? sender, RoutedEventArgs e) =>
         Dispatcher.UIThread.Post(() => AccentButton.Flyout?.Hide());
 
