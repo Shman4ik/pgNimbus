@@ -464,6 +464,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#read-only-connections" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Read-only connections
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#ssh-tunnels" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -841,6 +852,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#read-only-connections" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Read-only connections
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#ssh-tunnels" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -964,6 +986,22 @@ round swatch next to the name field. It shows as a dot in the main window's
 command bar and runs through the window's chrome. Making production red and
 staging green is the cheapest possible guard against running the right query
 against the wrong server.</p>
+<h2 id="read-only-connections">Read-only connections<a class="headerlink" href="#read-only-connections" title="Permanent link">&para;</a></h2>
+<p>Switch on <strong>Read-only session</strong> for a profile you only mean to read from, such
+as production. Every session then starts with <code>default_transaction_read_only</code>
+on, so the server itself refuses <code>INSERT</code>, <code>UPDATE</code>, <code>DELETE</code>, <code>COPY FROM</code> and
+DDL. It refuses them from the editor, the results grid, an import and a schema
+action alike, because the check isn't in pgNimbus. The profile gets a lock in
+the list.</p>
+<p>The main window shows <strong>read-only</strong> with a lock next to the host and database,
+and the results grid doesn't offer editing. pgNimbus asks the server when the
+window opens, so the mark also appears when the server makes the session
+read-only on its own: a role or database with <code>default_transaction_read_only</code>
+set, or a standby replica.</p>
+<p>This guards against mistakes. It isn't a permission. A statement can still
+switch it off for its own session with <code>SET default_transaction_read_only =
+off</code>. To make writes impossible, connect as a role that has no write
+privileges.</p>
 <h2 id="ssh-tunnels">SSH tunnels<a class="headerlink" href="#ssh-tunnels" title="Permanent link">&para;</a></h2>
 <p>A profile can carry SSH tunnel settings, so a database that is only reachable
 from a bastion host connects like any other. The tunnel is owned by the window,

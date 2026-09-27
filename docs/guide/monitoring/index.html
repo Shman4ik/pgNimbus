@@ -652,6 +652,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#slow-queries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Slow queries
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#listen-notify-monitor" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -864,6 +875,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#slow-queries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Slow queries
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#listen-notify-monitor" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -922,7 +944,7 @@
 
 
 <h1 id="monitoring">Monitoring<a class="headerlink" href="#monitoring" title="Permanent link">&para;</a></h1>
-<p>All three monitoring windows open from the command palette, and on macOS from
+<p>All four monitoring windows open from the command palette, and on macOS from
 the native Query menu. Each one opens at most a single live instance; asking
 again focuses the window you already have.</p>
 <h2 id="server-activity">Server activity<a class="headerlink" href="#server-activity" title="Permanent link">&para;</a></h2>
@@ -963,6 +985,37 @@ killing a waiter achieves nothing.</p>
 <li>unused indexes that are not backing a constraint, with the disk they are
   wasting</li>
 </ul>
+<h2 id="slow-queries">Slow queries<a class="headerlink" href="#slow-queries" title="Permanent link">&para;</a></h2>
+<p>Command palette: <strong>Slow queries (pg_stat_statements)</strong></p>
+<p>The statements that cost this database the most time, read from
+<a href="https://www.postgresql.org/docs/current/pgstatstatements.html"><code>pg_stat_statements</code></a>.
+Each row is one normalized statement, with its constants replaced by <code>$1</code>,
+<code>$2</code> and so on, and shows its calls, total and mean time, its share of all the
+time, rows, and buffer cache hit ratio. Rank by <strong>Total time</strong> to see where
+the server's time went, <strong>Mean</strong> for the slowest single calls, or <strong>Calls</strong>
+for the chattiest statements.</p>
+<p>Two scopes:</p>
+<ul>
+<li><strong>Since reset</strong> counts everything since the statistics were last reset.</li>
+<li><strong>Since</strong> <em>time</em> counts only what ran after the window opened. To measure
+  one piece of work, press <strong>Restart interval</strong>, run the workload, then
+  <strong>Refresh</strong>. This never resets the server's counters, so nobody else's
+  numbers change.</li>
+</ul>
+<p>If an entry was reset or evicted during the interval, its row is marked ↺, and
+the status line says so. A reset of the whole view is reported the same way,
+and the numbers then count from that reset.</p>
+<p>Double-click a statement to open it in a new tab. It doesn't run. The tab
+starts with a comment that says where the statement came from, and its <code>$1</code>
+placeholders are still there: put real values back before you run it, or wrap
+it in <code>EXPLAIN</code>.</p>
+<p>pg_stat_statements has to be switched on by a superuser. It must be in
+<code>shared_preload_libraries</code>, which needs a server restart, and it must be
+created in the database with <code>CREATE EXTENSION pg_stat_statements</code>. If either
+step is missing, the window says which one and offers the steps as a script to
+review in a new tab. pgNimbus never runs them for you. Without
+<code>pg_read_all_stats</code>, other roles' statements are hidden, and the status line
+counts them.</p>
 <h2 id="listen-notify-monitor">LISTEN / NOTIFY monitor<a class="headerlink" href="#listen-notify-monitor" title="Permanent link">&para;</a></h2>
 <p><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>L</kbd></p>
 <p><img alt="The LISTEN NOTIFY monitor with a channel list, a live feed and a formatted JSON payload" src="../../screenshots/notify-monitor.png" /></p>

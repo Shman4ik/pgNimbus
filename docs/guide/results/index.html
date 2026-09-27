@@ -1322,6 +1322,22 @@ every subsequent statement errors out.</p>
 inference on the incoming columns.</p>
 <p>Export results, or copy them straight to the clipboard, as TSV, CSV, JSON, a
 Markdown table, or <code>INSERT</code> statements.</p>
+<p><strong>Export writes every row, not just the ones on screen.</strong> The grid holds at
+most 100,000 rows, and a browsed table shows one page at a time. When the grid
+doesn't hold the whole result, export runs the query again with no limit and
+streams the rows straight to the file, so a table of any size exports without
+filling memory. A browsed table exports with its filters and its sort order,
+whatever page you're on. The status bar counts the rows as they're written,
+and <strong>Cancel</strong> stops the export and deletes the unfinished file.</p>
+<p>In two cases the query can't be run again, so the file gets only the rows in
+the grid, and the status bar says so:</p>
+<ul>
+<li>The query might change data, such as <code>INSERT … RETURNING</code>. Running it again
+  would make the change twice.</li>
+<li>The result comes from one statement of a multi-statement script, or from a
+  query inside an open transaction.</li>
+</ul>
+<p>Copying to the clipboard always takes the rows in the grid.</p>
 <h2 id="next">Next<a class="headerlink" href="#next" title="Permanent link">&para;</a></h2>
 <p><a href="../explain/">Read a query plan</a></p>
 
