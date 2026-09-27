@@ -2042,6 +2042,13 @@ artifact nobody opens is not a check:
    `NEW` and doesn't fail — a developer adding a scenario can't render a Linux
    baseline without Docker, and blocking that would only teach people to skip
    the check.
+   **Four scenarios deliberately have no baseline**: the tabbed security
+   window (`security-window`, `-permissions`, `-default-privileges`, `-rls`).
+   Its segmented tab strip animates the selected tab and the harness catches it
+   at a different moment each render (0.3–0.4% on CI), so a baseline only makes
+   false `CHANGED` reports. `update-baselines.sh` leaves them out after a
+   wholesale refresh; one refresh that didn't (#261) turned `main` red (2026-09).
+   Give them baselines back only once that render is deterministic.
 3. **Publishing** (`--publish`) — `Marketing.cs` maps scenarios to the images
    that face users: `docs/screenshots/` (README + docs site) and
    `design/store/screenshots/` (Store listing, padded to the Store's 1366×768
