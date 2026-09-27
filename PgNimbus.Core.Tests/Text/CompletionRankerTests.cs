@@ -6,12 +6,12 @@ public class CompletionRankerTests
 {
     private sealed record Candidate(string Text, double Priority = 0);
 
-    private static readonly CompletionRecency NoRecency = new();
+    private static readonly CompletionUsage NoUsage = new();
 
     private static CompletionRanker.Ranked<Candidate> Rank(
-        IReadOnlyList<Candidate> candidates, string query, CompletionRecency? recency = null)
+        IReadOnlyList<Candidate> candidates, string query, CompletionUsage? usage = null)
     {
-        var r = recency ?? NoRecency;
+        var r = usage ?? NoUsage;
         return CompletionRanker.Rank(candidates, query, c => c.Text, c => c.Priority, c => r.RankOf(c.Text));
     }
 
@@ -19,19 +19,32 @@ public class CompletionRankerTests
         string.Join(", ", ranked.Items.Select(i => i.Text));
 
     [Test]
-    public async Task EmptyQuery_KeepsOrderAndSelectsHighestPriority()
+    public async Task EmptyQuery_OrdersByPriority_AndSelectsTheFirst()
     {
+        // B05: with nothing typed, the context decides the order, not the
+        // order the provider's arrays happened to be built in.
         Candidate[] candidates =
         [
             new("SELECT"),
             new("oi.order_id = o.id", Priority: 200),
             new("orders", Priority: 10),
+            new("customers", Priority: 10),
         ];
 
         var ranked = Rank(candidates, "");
 
-        await Assert.That(Texts(ranked)).IsEqualTo("SELECT, oi.order_id = o.id, orders");
-        await Assert.That(ranked.SelectedIndex).IsEqualTo(1);
+        await Assert.That(Texts(ranked)).IsEqualTo("oi.order_id = o.id, orders, customers, SELECT");
+        await Assert.That(ranked.SelectedIndex).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task EmptyQuery_UsedRowsLeadTheirPriority()
+    {
+        Candidate[] candidates = [new("orders", 10), new("customers", 10), new("products", 10)];
+        var usage = new CompletionUsage();
+        usage.Record("products");
+
+        await Assert.That(Texts(Rank(candidates, "", usage))).IsEqualTo("products, orders, customers");
     }
 
     [Test]
@@ -138,10 +151,10 @@ public class CompletionRankerTests
             new("region", Priority: 10),
             new("rating", Priority: 10),
         ];
-        var recency = new CompletionRecency();
-        recency.Record("rating");
+        var usage = new CompletionUsage();
+        usage.Record("rating");
 
-        var ranked = Rank(candidates, "r", recency);
+        var ranked = Rank(candidates, "r", usage);
 
         await Assert.That(Texts(ranked)).IsEqualTo("rating, region");
     }
@@ -193,5 +206,64 @@ public class CompletionRankerTests
         var ranked = Rank(candidates, query);
 
         await Assert.That(ranked.Items[0].Text).IsEqualTo(expected);
+    }
+
+    // --- Match tiers (second audit B01) ---
+
+    [Test]
+    [Arguments("em", "error_message", "email")] // abbreviation vs prefix
+    [Arguments("is", "ivfflat_bit_support", "is_active")]
+    [Arguments("up", "unit_price", "UPDATE")]
+    [Arguments("gr", "gen_random_uuid", "GROUP")]
+    [Arguments("as", "account_seats", "AS")]
+    [Arguments("su", "seats_used", "sum")]
+    public async Task A_prefix_beats_a_higher_scored_or_higher_priority_abbreviation(string query, string abbreviation, string expected)
+    {
+        Candidate[] candidates =
+        [
+            new(abbreviation, Priority: 100),
+            new(expected, Priority: 0),
+        ];
+
+        await Assert.That(Rank(candidates, query).Items[0].Text).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async Task Part_starts_beat_a_substring_and_a_substring_beats_a_scatter()
+    {
+        Candidate[] candidates =
+        [
+            new("cost_index", Priority: 100), // o…i: scattered only
+            new("point_id", Priority: 50),    // "oi" inside a word
+            new("order_items", Priority: 0),  // o(rder) i(tems)
+        ];
+
+        await Assert.That(Texts(Rank(candidates, "oi"))).IsEqualTo("order_items, point_id, cost_index");
+    }
+
+    [Test]
+    [Arguments("oi", "order_items", CompletionMatchTier.PartStarts)]
+    [Arguments("ordit", "order_items", CompletionMatchTier.PartStarts)]
+    [Arguments("em", "error_message", CompletionMatchTier.PartStarts)]
+    [Arguments("tm", "team_members", CompletionMatchTier.PartStarts)]
+    [Arguments("ci", "customerId", CompletionMatchTier.PartStarts)]
+    [Arguments("em", "email", CompletionMatchTier.Prefix)]
+    [Arguments("EMAIL", "email", CompletionMatchTier.Exact)]
+    [Arguments("ail", "email", CompletionMatchTier.Substring)]
+    [Arguments("ea", "email", CompletionMatchTier.Fuzzy)]
+    [Arguments("is", "ivfflat_bit_support", CompletionMatchTier.Fuzzy)]
+    public async Task TierOf_classifies(string query, string name, CompletionMatchTier expected)
+    {
+        await Assert.That(CompletionRanker.TierOf(name, query)).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async Task Within_a_tier_priority_comes_before_use_and_use_before_length()
+    {
+        Candidate[] candidates = [new("order_items", 10), new("orders", 10), new("order_notes", 20)];
+        var usage = new CompletionUsage();
+        usage.Record("order_items");
+
+        await Assert.That(Texts(Rank(candidates, "ord", usage))).IsEqualTo("order_notes, order_items, orders");
     }
 }

@@ -11,6 +11,7 @@ using PgNimbus.Core.Query;
 using PgNimbus.Core.Schema;
 using PgNimbus.Core.Security;
 using PgNimbus.Core.Settings;
+using PgNimbus.Core.Text;
 
 namespace PgNimbus.App.ViewModels;
 
@@ -25,6 +26,13 @@ public sealed partial class MainViewModel : ObservableObject
     public SchemaTreeViewModel SchemaTree { get; }
 
     public SqlCompletionProvider CompletionProvider { get; }
+
+    /// <summary>
+    /// What the user has accepted from the completion list on this connection
+    /// (per <c>host/database</c>, persisted by the host): the ranking's "names
+    /// you use" signal, shared by every tab of the window.
+    /// </summary>
+    public CompletionUsage CompletionUsage { get; }
 
     public SavedQueriesViewModel SavedQueries { get; }
 
@@ -513,8 +521,10 @@ public sealed partial class MainViewModel : ObservableObject
         IReadOnlyList<string>? recentSqlFiles = null,
         Action<IReadOnlyList<string>>? persistRecentSqlFiles = null,
         IEnumerable<string>? excludedSchemas = null,
-        Action<IReadOnlyList<string>>? persistExcludedSchemas = null)
+        Action<IReadOnlyList<string>>? persistExcludedSchemas = null,
+        CompletionUsage? completionUsage = null)
     {
+        CompletionUsage = completionUsage ?? new CompletionUsage();
         ConnectionHost = connectionHost;
         ConnectionDatabase = connectionDatabase;
         _autoAliasTables = autoAliasTables;

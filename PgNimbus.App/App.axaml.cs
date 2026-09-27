@@ -15,6 +15,7 @@ using PgNimbus.Core.Query;
 using PgNimbus.Core.Schema;
 using PgNimbus.Core.Security;
 using PgNimbus.Core.Settings;
+using PgNimbus.Core.Text;
 
 namespace PgNimbus.App;
 
@@ -70,6 +71,44 @@ public partial class App : Application
         {
             AutocompleteExcludedSchemas = AutocompleteExclusions.With(settings, connectionKey, schemas),
         });
+    }
+
+    private static readonly CompletionUsageStore CompletionUsageStore = new();
+    private static readonly object CompletionUsageSaveLock = new();
+
+    /// <summary>
+    /// This connection's completion usage (what its user accepts, how often),
+    /// written back after every accept — off the UI thread, one write at a time.
+    /// Same <c>host/database</c> key as the workspace; a connection with no host
+    /// ranks by the session's accepts alone.
+    /// </summary>
+    private static CompletionUsage LoadCompletionUsage(string? connectionKey)
+    {
+        if (connectionKey is null)
+        {
+            return new CompletionUsage();
+        }
+
+        var usage = new CompletionUsage(CompletionUsageStore.Load(connectionKey));
+        usage.Changed += () =>
+        {
+            var entries = usage.Entries;
+            _ = Task.Run(() =>
+            {
+                lock (CompletionUsageSaveLock)
+                {
+                    try
+                    {
+                        CompletionUsageStore.Save(connectionKey, entries);
+                    }
+                    catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+                    {
+                        // Losing a ranking hint is not worth an error dialog.
+                    }
+                }
+            });
+        };
+        return usage;
     }
 
     /// <summary>
@@ -491,7 +530,8 @@ public partial class App : Application
             // host (nothing to key on) still toggles exclusions for the session;
             // there's just nowhere to write them back to.
             excludedSchemas: AutocompleteExclusions.For(SettingsStore.Load(), workspaceKey),
-            persistExcludedSchemas: workspaceKey is null ? null : schemas => PersistExcludedSchemas(workspaceKey, schemas));
+            persistExcludedSchemas: workspaceKey is null ? null : schemas => PersistExcludedSchemas(workspaceKey, schemas),
+            completionUsage: LoadCompletionUsage(workspaceKey));
 
         var window = new MainWindow
         {

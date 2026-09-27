@@ -56,8 +56,6 @@ public partial class QueryEditorPanel : UserControl
     private bool _suppressEditorSync;
 
     private CompletionWindow? _completionWindow;
-    // "Accepted a moment ago" tie-breaker for the completion ranking; session-scoped.
-    private readonly CompletionRecency _completionRecency = new();
     // The row the user picked with the arrow keys or the mouse, by StableId —
     // kept selected across re-filtering while it still matches, instead of
     // being overridden by whichever row ranks first after the next keystroke.
@@ -161,7 +159,7 @@ public partial class QueryEditorPanel : UserControl
             AutoAliasTables: () => _model is { AutoAliasTables: true },
             Accepted: accepted =>
             {
-                _completionRecency.Record(accepted.StableId);
+                _model?.CompletionUsage.Record(accepted.StableId);
                 // The caret now sits inside the call's parens: show what goes there.
                 if (accepted.Kind == SqlCompletionKind.Function)
                 {
@@ -1011,10 +1009,11 @@ public partial class QueryEditorPanel : UserControl
         // One more character can only narrow the matches, so the previous
         // keystroke's matches are all that needs scoring again; anything else
         // (Backspace, a pasted replacement) starts from the full list.
+        var usage = _model?.CompletionUsage;
         var narrowing = _filterMatches is not null && _filterData == data && _filterQuery is { } previous
             && query.Length > previous.Length && query.StartsWith(previous, StringComparison.OrdinalIgnoreCase);
         var ranked = CompletionRanker.Rank(
-            data, query, static d => d.Text, static d => d.Priority, d => _completionRecency.RankOf(d.StableId),
+            data, query, static d => d.Text, static d => d.Priority, d => usage?.RankOf(d.StableId) ?? int.MaxValue,
             narrowing ? _filterMatches : null, out var matched);
         _filterData = data;
         _filterQuery = query;

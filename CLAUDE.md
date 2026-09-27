@@ -447,9 +447,9 @@ Three rules about it:
    statement-start caret is its own context (2026-08):
    `SqlCompletionContext.IsAtStatementStart` (Core-pure, unit-tested) is true
    when nothing but whitespace, comments and the previous statement's `;`
-   precedes the word being typed, and `SqlCompletionProvider` then prepends its
-   `StatementStartKeywords` at a priority band above everything else, each
-   ranked by its position in that list. Without it, typing `se` in an empty
+   precedes the word being typed, and the list there is the commands alone
+   (`SqlKeywordGrammar.StatementStarts`, since the second audit's package L),
+   each ranked by its position in that list. Without it, typing `se` in an empty
    editor pre-selected a `search` column three schemas away: `CompletionRanker`
    breaks a fuzzy-score tie by priority, and keywords used to carry the
    *lowest* band of all (0, under catalog columns at 5), so SELECT lost to any
@@ -1579,8 +1579,10 @@ csproj / WiX / MSIX manifest reference them unchanged:
   measures are `CompletionBench quality|cases|hints|dump` and
   `CompletionTypingReplayTests`. **Package K made the literal replay pass and
   it now runs in every build** (0 divergences with the auto-alias off and on);
-  only the keystroke-saving oracle stays `[Explicit]`, being a number to read
-  rather than a gate. Besides the Enter rule above, K ranks a name equal to
+  since package L the keystroke-saving oracle does too, with a floor
+  (`IsGreaterThanOrEqualTo`) that every package raising the saving raises —
+  about a minute of CI, the price of a ranking change that costs keystrokes
+  failing the build instead of going unnoticed. Besides the Enter rule above, K ranks a name equal to
   what was typed first whatever its fuzzy score (`CompletionRanker`: `NULL`
   over `nullif`, `DESC` over `description`), and makes table position write a
   relation bare when its bare name finds it along the search_path
@@ -1590,6 +1592,47 @@ csproj / WiX / MSIX manifest reference them unchanged:
   has goes bare (`TableRefItemsUnknownPath`). An FK-neighbour table no longer
   counts the relation being typed as "already joined", which had hidden the
   path's own table from the JOIN list.
+  **Package L ranks in the order §6.2 of the audit sets** (2026-09-27).
+  `CompletionRanker` sorts by match tier first (`CompletionMatchTier`: the
+  exact name, then a prefix, then the starts of the name's parts — `oi` for
+  `order_items` — then a substring, then any subsequence), and only within a
+  tier by the context priority, then usage, then the fuzzy score and length:
+  `em` → `email` over `error_message`, whose abbreviation used to out-score the
+  real prefix. Which keywords may appear at all is `Text/SqlKeywordGrammar`
+  (Core-pure, `SqlKeywordGrammarTests`), a deliberately local reading — the
+  previous token and the clause word governing the caret at its paren depth —
+  that answers `StatementStart` (the commands alone), `AfterOperand` (only
+  what can continue a finished expression in that clause: `c.id = 1 |` →
+  AND/OR/ORDER/GROUP/…, never a column, never ON), `KeywordsOnly` (after IS,
+  ORDER, INSERT, UNION, a CTE body …), `Operand` (the keywords that can start
+  an expression join the columns and functions, above the catalog, and every
+  other keyword leaves the list) or `Unknown`, where the provider keeps its
+  old list — DDL and utility statements, table positions and new names, all
+  read elsewhere. It says Unknown rather than guess. The catalog marks
+  machinery instead of guessing it from names: `FunctionInfo.IsInternal` is
+  one EXISTS per place the server keeps it (a type's I/O and support
+  functions, an operator's selectivity estimators, a boolean operator's
+  implementation or one described as "implementation of …", `pg_amproc`, an
+  aggregate's state functions, an access-method handler, `internal`/`cstring`
+  and handler pseudo-types) — 372 of the stand's 379 extension functions, while
+  `similarity` and `l2_distance` stay; an on-path function pg_catalog also has
+  (pgcrypto's `gen_random_uuid`) is one row, not two; a partition
+  (`CompletionRelationInfo.IsPartition`, relispartition) is offered only after
+  its schema's `.`, under its parent. Usage is per connection:
+  `Text/CompletionUsage` (accept count, then recency; a thousand rows, the
+  least recently used dropped) replaced the session-only `CompletionRecency`,
+  and `Settings/CompletionUsageStore` keeps it in its own
+  `completion-usage.json` keyed `host/database` (the last 20 connections),
+  written off the UI thread after every accept — its own file because
+  settings.json is rewritten by every preference toggle. In a JOIN's ON, the
+  columns of `alias.` that a foreign key ties to the other side come first, an
+  FK the statement doesn't use yet before one it does (`u.id = i.` →
+  `assignee_id`, `reporter_id`); after `schema.` in a JOIN, the tables an FK
+  reaches first and the ones already joined last. One performance rule it
+  forced: the snapshot's catalog-wide lists are `CandidateList`s, each row's
+  kind kept in a byte array beside it, because `Merge` reading `Kind` off a
+  hundred thousand rows was a cache miss per row (1–2 ms per open on the
+  million-column bench; now an array copy, 0.1–0.8 ms).
 - `SqlFormatter` follows <https://www.sqlstyle.guide/> ("river" layout: root
   keywords right-aligned to a common column, content to its right). The tests
   in `PgNimbus.Core.Tests` assert exact spacing — a deliberate layout change
@@ -1789,7 +1832,8 @@ layer that used to be a person clicking through the app. It reuses
 than growing a second set that would drift from what the screenshots show. It
 references `tools/CompletionBench` too, for the completion audit's stand
 (catalog snapshot and corpus) that `CompletionTypingReplayTests` types through
-the real editor; that class is `[Explicit]`, so a plain `dotnet test` skips it.
+the real editor — both of its measurements run in every build, about two
+minutes of the suite between them.
 
 What it covers that nothing else does: that a gesture reaches its command, that
 the palette invokes the entry it highlights, that a saved query opens a *new*

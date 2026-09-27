@@ -491,10 +491,159 @@ public class CompletionProviderTests
     public async Task Keywords_are_there_before_any_catalog_arrives()
     {
         var provider = new SqlCompletionProvider(null);
-        var items = At(provider, "sel|");
 
-        await Assert.That(items.Any(i => i.Text == "SELECT")).IsTrue();
-        await Assert.That(items.Any(i => i.Text == "coalesce")).IsTrue();
+        await Assert.That(At(provider, "sel|").Any(i => i.Text == "SELECT")).IsTrue();
+        await Assert.That(At(provider, "SELECT coa|").Any(i => i.Text == "coalesce")).IsTrue();
+    }
+
+    // --- Second audit, package L: what is legal at the caret ---
+
+    private static SqlCompletionProvider Stand()
+    {
+        var provider = new SqlCompletionProvider(null);
+        provider.Load(PgNimbus.CompletionBench.AuditCatalog.Load(PgNimbus.CompletionBench.AuditCatalog.DefaultPath));
+        return provider;
+    }
+
+    [Test]
+    [Arguments("up|", "UPDATE")] // B04: not the unit_price column
+    [Arguments("al|", "ALTER")]
+    [Arguments("dr|", "DROP")]
+    [Arguments("not|", "NOTIFY")]
+    [Arguments("mer|", "MERGE")]
+    [Arguments("SELECT 1;\nlis|", "LISTEN")]
+    public async Task At_a_statement_start_only_commands_are_offered(string marked, string expected)
+    {
+        var items = At(Stand(), marked.Replace("\\n", "\n"));
+
+        await Assert.That(items.All(i => i.Kind == SqlCompletionKind.Keyword)).IsTrue();
+        await Assert.That(PreselectedItem(Stand(), marked.Replace("\\n", "\n")).Text).IsEqualTo(expected);
+    }
+
+    [Test]
+    [Arguments("SELECT * FROM public.orders o WHERE o.id = 1 L|", "LIMIT")] // B02: not lag()
+    [Arguments("SELECT * FROM public.orders o ORDER BY o.total_amount DESC L|", "LIMIT")]
+    [Arguments("UPDATE public.customers SET is_active = false W|", "WHERE")] // not word_similarity()
+    [Arguments("SELECT * FROM public.customers c WHERE c.email = 'x' a|", "AND")] // not avg()
+    [Arguments("SELECT * FROM public.customers c JOIN public.orders o ON o.customer_id = c.id WH|", "WHERE")] // not WHEN
+    [Arguments("SELECT * FROM public.customers c WHERE c.id = 1 o|", "OR")] // not ON
+    [Arguments("SELECT * FROM public.customers c WHERE c.email IS |", "NULL")]
+    [Arguments("SELECT * FROM public.customers c WHERE c.email IS NOT |", "NULL")]
+    [Arguments("SELECT status FROM public.orders GROUP |", "BY")]
+    [Arguments("SELECT * FROM public.orders ORDER BY id |", "DESC")]
+    [Arguments("SELECT * FROM public.orders LIMIT 10 |", "OFFSET")]
+    [Arguments("SELECT 1 UNION |", "SELECT")]
+    [Arguments("INSERT |", "INTO")]
+    [Arguments("DELETE |", "FROM")]
+    [Arguments("SELECT * FROM public.orders WHERE status IN (SE|", "SELECT")]
+    [Arguments("WITH r AS (SELECT 1) |", "SELECT")]
+    [Arguments("SELECT * FROM public.customers WHERE a.deleted_at IS NU|", "NULL")] // not nullif()
+    public async Task Only_what_can_follow_is_offered_and_the_likeliest_is_first(string marked, string expected)
+    {
+        await Assert.That(PreselectedItem(Stand(), marked).Text).IsEqualTo(expected);
+    }
+
+    [Test]
+    [Arguments("SELECT * FROM public.customers c WHERE c.id = 1 |")]
+    [Arguments("SELECT * FROM public.customers c WHERE c.email IS |")]
+    [Arguments("SELECT * FROM public.orders ORDER BY id |")]
+    public async Task After_a_finished_expression_no_column_or_function_is_offered(string marked)
+    {
+        await Assert.That(At(Stand(), marked).All(i => i.Kind == SqlCompletionKind.Keyword)).IsTrue();
+    }
+
+    [Test]
+    [Arguments("SELECT * FROM or|")] // B02 prototype: OR must not crowd out orders
+    [Arguments("SELECT * FROM public.orders WHERE or|")]
+    [Arguments("SELECT now() - in|")] // interval, not IN
+    [Arguments("INSERT IN|")]
+    public async Task A_keyword_illegal_here_is_not_offered(string marked)
+    {
+        var keywords = At(Stand(), marked).Where(i => i.Kind == SqlCompletionKind.Keyword).Select(i => i.Text).ToList();
+
+        await Assert.That(keywords).DoesNotContain("OR");
+        await Assert.That(keywords).DoesNotContain("IN");
+    }
+
+    [Test]
+    public async Task A_value_after_an_operator_doesnt_offer_not()
+    {
+        var keywords = At(Stand(), "SELECT * FROM public.orders WHERE order_date > no|").Where(i => i.Kind == SqlCompletionKind.Keyword).Select(i => i.Text).ToList();
+
+        await Assert.That(keywords).DoesNotContain("NOT");
+        await Assert.That(PreselectedItem(Stand(), "SELECT * FROM public.orders WHERE order_date > no|").Text).IsEqualTo("now");
+    }
+
+    [Test]
+    public async Task Extension_machinery_and_partitions_are_not_candidates()
+    {
+        var provider = Stand();
+        var functions = At(provider, "SELECT |").Where(i => i.Kind == SqlCompletionKind.Function).Select(i => i.Text).ToHashSet();
+
+        // E03: I/O, operator implementations, index support — by catalog facts.
+        foreach (var internalName in new[] { "ltree_in", "gtrgm_out", "hnsw_bit_support", "vector_lt", "word_similarity_commutator_op" })
+        {
+            await Assert.That(functions).DoesNotContain(internalName);
+        }
+
+        foreach (var callable in new[] { "similarity", "crypt", "l2_distance", "gen_random_uuid" })
+        {
+            await Assert.That(functions).Contains(callable);
+        }
+
+        // E04: one gen_random_uuid, not pg_catalog's and pgcrypto's.
+        await Assert.That(At(provider, "SELECT gen_ran|").Count(i => i.Text == "gen_random_uuid")).IsEqualTo(1);
+
+        // E05: iot.readings, not its eight partitions; they stay reachable, last, after "iot.".
+        var tables = At(provider, "SELECT * FROM r|").Where(i => i.Kind == SqlCompletionKind.Table).Select(i => i.Text).ToList();
+        await Assert.That(tables).Contains("readings");
+        await Assert.That(tables.Any(t => t.StartsWith("readings_", StringComparison.Ordinal))).IsFalse();
+        var iot = CompletionRanker.Rank(At(provider, "SELECT * FROM iot.|"), "", d => d.Text, d => d.Priority, _ => int.MaxValue).Items.Select(i => i.Text).ToList();
+        await Assert.That(iot.IndexOf("readings")).IsLessThan(iot.IndexOf("readings_2026_01"));
+    }
+
+    [Test]
+    public async Task No_bare_name_the_search_path_resolves_ever_preselects_another_schemas_relation()
+    {
+        var provider = Stand();
+        var catalog = PgNimbus.CompletionBench.AuditCatalog.Load(PgNimbus.CompletionBench.AuditCatalog.DefaultPath);
+        var failures = new List<string>();
+        foreach (var table in catalog.Tables.Where(t => t.Schema == "public"))
+        {
+            foreach (var head in new[] { "SELECT * FROM ", "UPDATE ", "DELETE FROM ", "SELECT * FROM public.orders o JOIN " })
+            {
+                for (var typed = 1; typed <= table.Name.Length; typed++)
+                {
+                    var marked = head + table.Name[..typed] + "|";
+                    var picked = PreselectedItem(provider, marked);
+                    if (picked.Kind == SqlCompletionKind.Table && picked.Text == table.Name && picked.Detail != "public")
+                    {
+                        failures.Add($"{marked} → {picked.InsertText}");
+                    }
+                }
+            }
+        }
+
+        await Assert.That(failures).IsEmpty();
+    }
+
+    [Test]
+    public async Task In_an_on_condition_the_columns_a_foreign_key_ties_to_the_other_side_come_first()
+    {
+        // B07: issues has two FKs to users; either beats issues.id.
+        var first = PreselectedItem(Stand(), "SELECT * FROM saas.issues i JOIN saas.users u ON u.id = i.|");
+        await Assert.That(first.Text is "assignee_id" or "reporter_id").IsTrue();
+
+        // The second join of users gets the FK the first one doesn't use yet.
+        var second = PreselectedItem(Stand(),
+            "SELECT * FROM saas.issues i JOIN saas.users a ON a.id = i.assignee_id JOIN saas.users r ON r.id = i.|");
+        await Assert.That(second.Text).IsEqualTo("reporter_id");
+    }
+
+    [Test]
+    public async Task After_a_schema_in_a_join_the_tables_a_foreign_key_connects_come_first()
+    {
+        await Assert.That(PreselectedItem(Stand(), "SELECT * FROM saas.teams t JOIN saas.te|").Text).IsEqualTo("team_members");
     }
 
     // --- Package F: scopes (T13–T19) ---

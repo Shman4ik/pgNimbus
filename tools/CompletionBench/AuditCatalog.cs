@@ -25,7 +25,11 @@ public static class AuditCatalog
             ?? throw new InvalidDataException($"{path} holds no catalog.");
         return new CompletionCatalog(
             dto.Schemas,
-            [.. dto.Tables.Select(t => new CompletionTable(t.Schema, t.Name, [.. t.Columns.Select(c => new TableColumn(t.Name, c[0], c[1]))]))],
+            [.. dto.Tables.Select(t => new CompletionTable(t.Schema, t.Name, [.. t.Columns.Select(c => new TableColumn(t.Name, c[0], c[1]))])
+            {
+                Kind = string.IsNullOrEmpty(t.Kind) ? 'r' : t.Kind[0],
+                IsPartition = t.IsPartition,
+            })],
             [.. dto.Functions.Select(ToFunction)],
             [.. dto.ForeignKeys.Select(k => new ForeignKeyInfo(k.FromSchema, k.FromTable, k.FromColumns, k.ToSchema, k.ToTable, k.ToColumns, k.ConstraintName))],
             dto.SearchPath)
@@ -39,7 +43,7 @@ public static class AuditCatalog
     {
         var dto = new CatalogDto(
             [.. catalog.Schemas],
-            [.. catalog.Tables.Select(t => new TableDto(t.Schema, t.Name, [.. t.Columns.Select(c => new[] { c.Column, c.DataType })]))],
+            [.. catalog.Tables.Select(t => new TableDto(t.Schema, t.Name, [.. t.Columns.Select(c => new[] { c.Column, c.DataType })], t.Kind.ToString(), t.IsPartition))],
             [.. catalog.Functions.Select(FromFunction)],
             [.. catalog.BuiltinFunctions.Select(FromFunction)],
             [.. catalog.ForeignKeys.Select(k => new ForeignKeyDto(k.FromSchema, k.FromTable, [.. k.FromColumns], k.ToSchema, k.ToTable, [.. k.ToColumns], k.ConstraintName))],
@@ -53,10 +57,10 @@ public static class AuditCatalog
         [.. File.ReadAllText(path).ReplaceLineEndings("\n").Split("\n---\n").Select(q => q.Trim('\n')).Where(q => q.Length > 0)];
 
     private static CompletionFunction ToFunction(FunctionDto f) =>
-        new(f.Schema, new FunctionInfo(f.Name, f.Arguments, f.ReturnType, f.Kind[0]));
+        new(f.Schema, new FunctionInfo(f.Name, f.Arguments, f.ReturnType, f.Kind[0]) { IsInternal = f.IsInternal });
 
     private static FunctionDto FromFunction(CompletionFunction f) =>
-        new(f.Schema, f.Function.Name, f.Function.Arguments, f.Function.ReturnType, f.Function.Kind.ToString());
+        new(f.Schema, f.Function.Name, f.Function.Arguments, f.Function.ReturnType, f.Function.Kind.ToString(), f.Function.IsInternal);
 
     private sealed record CatalogDto(
         List<string> Schemas,
@@ -67,9 +71,9 @@ public static class AuditCatalog
         List<TypeDto> Types,
         List<string>? SearchPath);
 
-    private sealed record TableDto(string Schema, string Name, List<string[]> Columns);
+    private sealed record TableDto(string Schema, string Name, List<string[]> Columns, string? Kind = null, bool IsPartition = false);
 
-    private sealed record FunctionDto(string Schema, string Name, string Arguments, string ReturnType, string Kind);
+    private sealed record FunctionDto(string Schema, string Name, string Arguments, string ReturnType, string Kind, bool IsInternal = false);
 
     private sealed record ForeignKeyDto(
         string FromSchema, string FromTable, List<string> FromColumns,

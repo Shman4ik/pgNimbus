@@ -50,7 +50,31 @@ public sealed record ColumnDetail(string Name, string DataType, bool NotNull, bo
 public sealed record TableColumn(string Table, string Column, string DataType);
 
 /// <summary>A function/procedure/aggregate/window function. <paramref name="Kind"/> is pg_proc.prokind: f, p, a, or w.</summary>
-public sealed record FunctionInfo(string Name, string Arguments, string ReturnType, char Kind);
+public sealed record FunctionInfo(string Name, string Arguments, string ReturnType, char Kind)
+{
+    /// <summary>
+    /// Machinery rather than something a query calls: a type's input/output or
+    /// support function, the implementation of a boolean operator (a predicate
+    /// is written <c>a = b</c>, never <c>vector_eq(a, b)</c>) or of any operator
+    /// the server itself describes as "implementation of …", an operator's
+    /// selectivity estimator, an index access method's support function or
+    /// handler, an aggregate's state function, or anything taking or returning
+    /// a pseudo-type only the server can supply (<c>internal</c>, <c>cstring</c>,
+    /// <c>trigger</c> …). Read from the catalog, never guessed from the name —
+    /// <c>ltree_in</c> and <c>hnsw_bit_support</c> are internal, while
+    /// <c>similarity</c> and <c>l2_distance</c> (which also implements the
+    /// <c>&lt;-&gt;</c> operator, a distance, not a predicate) are not.
+    /// </summary>
+    public bool IsInternal { get; init; }
+}
+
+/// <summary>
+/// A relation as completion lists it: its pg_class.relkind (<c>r</c> table,
+/// <c>v</c> view, <c>m</c> materialized view, <c>p</c> partitioned table,
+/// <c>f</c> foreign table) and whether it is a partition of another
+/// (<c>relispartition</c>) — reached through its parent, so not offered on its own.
+/// </summary>
+public sealed record CompletionRelationInfo(string Name, char Kind, bool IsPartition);
 
 /// <summary>
 /// A data type a cast can name: <paramref name="Name"/> is pg_type's name,
@@ -139,14 +163,14 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
     }
 
     /// <summary>
-    /// A schema's relation names, without <see cref="GetTablesAsync"/>'s
-    /// per-relation size: completion needs only the names, and
-    /// <c>pg_total_relation_size</c> is a stat of every file of every relation.
+    /// A schema's relations as completion needs them, without
+    /// <see cref="GetTablesAsync"/>'s per-relation size (a stat of every file
+    /// of every relation): the name, the kind, and whether it is a partition.
     /// </summary>
-    public async Task<IReadOnlyList<string>> GetRelationNamesAsync(string schema, CancellationToken ct)
+    public async Task<IReadOnlyList<CompletionRelationInfo>> GetCompletionRelationsAsync(string schema, CancellationToken ct)
     {
         const string sql = """
-            SELECT c.relname
+            SELECT c.relname, c.relkind::text, c.relispartition
             FROM pg_catalog.pg_class c
             JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
             WHERE n.nspname = @schema
@@ -159,10 +183,10 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
         command.Parameters.AddWithValue("schema", schema);
         await using var reader = await command.ExecuteReaderAsync(ct);
 
-        var results = new List<string>();
+        var results = new List<CompletionRelationInfo>();
         while (await reader.ReadAsync(ct))
         {
-            results.Add(reader.GetString(0));
+            results.Add(new CompletionRelationInfo(reader.GetString(0), reader.GetString(1)[0], reader.GetBoolean(2)));
         }
 
         return results;
@@ -391,11 +415,32 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
     /// <summary>Functions, procedures, aggregates, and window functions in a schema, with identity arguments and result type.</summary>
     public async Task<IReadOnlyList<FunctionInfo>> GetFunctionsAsync(string schema, CancellationToken ct)
     {
+        // `internal`: see FunctionInfo.IsInternal. Every test is a catalog
+        // fact, one EXISTS per place the server keeps machinery.
         const string sql = """
             SELECT p.proname,
                    pg_catalog.pg_get_function_identity_arguments(p.oid),
                    COALESCE(pg_catalog.pg_get_function_result(p.oid), ''),
-                   p.prokind::text
+                   p.prokind::text,
+                   (EXISTS (SELECT 1 FROM pg_catalog.pg_type t
+                            WHERE p.oid IN (t.typinput, t.typoutput, t.typreceive, t.typsend,
+                                            t.typmodin, t.typmodout, t.typanalyze, t.typsubscript))
+                    OR EXISTS (SELECT 1 FROM pg_catalog.pg_operator o
+                               WHERE p.oid IN (o.oprrest, o.oprjoin)
+                                  OR (o.oprcode = p.oid AND o.oprresult = 'pg_catalog.bool'::pg_catalog.regtype))
+                    OR COALESCE(pg_catalog.obj_description(p.oid, 'pg_proc') LIKE 'implementation of %', false)
+                    OR EXISTS (SELECT 1 FROM pg_catalog.pg_amproc a WHERE a.amproc = p.oid)
+                    OR EXISTS (SELECT 1 FROM pg_catalog.pg_aggregate g
+                               WHERE p.oid IN (g.aggtransfn, g.aggfinalfn, g.aggcombinefn, g.aggserialfn,
+                                               g.aggdeserialfn, g.aggmtransfn, g.aggminvtransfn, g.aggmfinalfn))
+                    OR EXISTS (SELECT 1 FROM pg_catalog.pg_am m WHERE m.amhandler = p.oid)
+                    OR EXISTS (SELECT 1 FROM pg_catalog.pg_type rt
+                               WHERE rt.oid = p.prorettype
+                                 AND rt.typname IN ('internal', 'cstring', 'trigger', 'event_trigger', 'language_handler',
+                                                    'fdw_handler', 'index_am_handler', 'tsm_handler', 'table_am_handler'))
+                    OR EXISTS (SELECT 1 FROM pg_catalog.unnest(p.proargtypes) a(oid)
+                               JOIN pg_catalog.pg_type at ON at.oid = a.oid
+                               WHERE at.typname IN ('internal', 'cstring'))) AS is_internal
             FROM pg_catalog.pg_proc p
             JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
             WHERE n.nspname = @schema
@@ -414,7 +459,10 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
                 reader.GetString(0),
                 reader.GetString(1),
                 reader.GetString(2),
-                reader.GetString(3)[0]));
+                reader.GetString(3)[0])
+            {
+                IsInternal = reader.GetBoolean(4),
+            });
         }
 
         return results;
