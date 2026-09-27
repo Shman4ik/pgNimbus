@@ -126,7 +126,7 @@ public class CompletionTypingReplayTests
         Console.WriteLine($"auto-alias {(autoAlias ? "on" : "off")}: {total.Characters} characters, {total.Keys} keys, saved {saved:P1}; "
             + $"{total.Accepts} accepts, {total.Downs} Downs, {total.Escapes} Escapes before an Enter");
         Console.WriteLine(report);
-        await Assert.That(saved).IsGreaterThanOrEqualTo(0.36);
+        await Assert.That(saved).IsGreaterThanOrEqualTo(0.38);
     }
 
     private sealed class OracleTally
