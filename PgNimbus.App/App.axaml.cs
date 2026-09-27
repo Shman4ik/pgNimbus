@@ -540,6 +540,9 @@ public partial class App : Application
             accentColor,
             connectionHost: connectionHost,
             connectionDatabase: connectionDatabase,
+            // The server's own answer follows once the window is up
+            // (DetectWriteStateAsync below); the profile's is known now.
+            readOnlyConnection: csb.Options?.Contains(ConnectionProfile.ReadOnlySessionOption, StringComparison.Ordinal) == true,
             autoAliasTables: SettingsStore.Load().AutoAliasTables,
             persistAutoAliasTables: PersistAutoAliasTables,
             safeModeEdits: SettingsStore.Load().SafeModeEdits,
@@ -606,6 +609,7 @@ public partial class App : Application
 
         _ = schemaTree.RefreshCommand.ExecuteAsync(null);
         _ = completionProvider.RefreshAsync(CancellationToken.None);
+        _ = viewModel.DetectWriteStateAsync();
 
         return window;
     }

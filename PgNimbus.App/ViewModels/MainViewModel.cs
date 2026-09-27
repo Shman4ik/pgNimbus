@@ -367,6 +367,51 @@ public sealed partial class MainViewModel : ObservableObject
     /// <summary>Database name for the title-bar breadcrumb (host › database).</summary>
     public string ConnectionDatabase { get; }
 
+    /// <summary>
+    /// Why this connection can't write, or null when it can. Shown beside the
+    /// breadcrumb as a read-only mark, and handed to every tab, whose grid
+    /// then offers no editing. Starts from the profile (known before the window
+    /// opens, so no tab ever sees an editable grid on a read-only profile) and
+    /// is then settled by the server (<see cref="DetectWriteStateAsync"/>), which
+    /// also knows about read-only roles and standby replicas.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsReadOnlyConnection))]
+    private string? _connectionReadOnlyHint;
+
+    public bool IsReadOnlyConnection => ConnectionReadOnlyHint is not null;
+
+    private const string ReadOnlySessionHint = "the connection is read-only, so the server refuses writes.";
+
+    /// <summary>
+    /// Asks the server whether a session on this connection may write, once,
+    /// when the window opens. A failure leaves the profile's answer in place:
+    /// the mark is a courtesy, and the server enforces the rule either way.
+    /// </summary>
+    public async Task DetectWriteStateAsync()
+    {
+        try
+        {
+            ConnectionReadOnlyHint = await _schemaService.GetWriteStateAsync(CancellationToken.None) switch
+            {
+                SessionWriteState.Standby => "the server is a standby replica, which refuses writes.",
+                SessionWriteState.ReadOnly => ReadOnlySessionHint,
+                _ => null,
+            };
+        }
+        catch
+        {
+        }
+    }
+
+    partial void OnConnectionReadOnlyHintChanged(string? value)
+    {
+        foreach (var tab in Tabs)
+        {
+            tab.ApplyConnectionReadOnly();
+        }
+    }
+
     public ObservableCollection<QueryViewModel> Tabs { get; } = [];
 
     [ObservableProperty]
@@ -536,6 +581,7 @@ public sealed partial class MainViewModel : ObservableObject
         string? accentColor = null,
         string connectionHost = "",
         string connectionDatabase = "",
+        bool readOnlyConnection = false,
         bool autoAliasTables = true,
         Action<bool>? persistAutoAliasTables = null,
         bool safeModeEdits = true,
@@ -556,6 +602,7 @@ public sealed partial class MainViewModel : ObservableObject
         CompletionUsage = completionUsage ?? new CompletionUsage();
         ConnectionHost = connectionHost;
         ConnectionDatabase = connectionDatabase;
+        _connectionReadOnlyHint = readOnlyConnection ? ReadOnlySessionHint : null;
         _autoAliasTables = autoAliasTables;
         _persistAutoAliasTables = persistAutoAliasTables;
         _safeModeEdits = safeModeEdits;
@@ -865,7 +912,7 @@ public sealed partial class MainViewModel : ObservableObject
     // Creates a query tab, wires its history hook, and makes it active.
     private QueryViewModel NewTab()
     {
-        var tab = new QueryViewModel(_engine, _explainService, GetReconcilerAsync, () => SafeModeEdits, _schemaService, () => ShowFilterBar) { DefaultTitle = $"Query {Tabs.Count + 1}" };
+        var tab = new QueryViewModel(_engine, _explainService, GetReconcilerAsync, () => SafeModeEdits, _schemaService, () => ShowFilterBar, () => ConnectionReadOnlyHint) { DefaultTitle = $"Query {Tabs.Count + 1}" };
         tab.Executed += SavedQueries.RecordExecution;
         tab.Executed += entry => OnTabExecuted(tab, entry);
         Tabs.Add(tab);

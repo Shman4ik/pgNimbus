@@ -22,6 +22,18 @@ public sealed record TableInfo(string Name, RelationKind Kind, long? TotalBytes 
 
 public sealed record RelationInfo(string Schema, string Name, RelationKind Kind);
 
+/// <summary>What <see cref="SchemaService.GetWriteStateAsync"/> found a new session allowed to do.</summary>
+public enum SessionWriteState
+{
+    ReadWrite,
+
+    /// <summary><c>default_transaction_read_only</c> is on: from the profile, or set on the role or database.</summary>
+    ReadOnly,
+
+    /// <summary>The server is a standby replica (in recovery) and refuses every write.</summary>
+    Standby,
+}
+
 public sealed record ColumnDetail(string Name, string DataType, bool NotNull, bool IsPrimaryKey)
 {
     /// <summary>
@@ -268,6 +280,27 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
         await using var command = new NpgsqlCommand("SELECT pg_catalog.current_schemas(false)", connection);
         return await command.ExecuteScalarAsync(ct) is string[] path ? path : [];
+    }
+
+    /// <summary>
+    /// Whether a new session on this connection may write, as the server sees
+    /// it. Asked of the server rather than read off the profile because three
+    /// different things make a session read-only, and only one of them is ours:
+    /// a <see cref="Connections.ConnectionProfile.ReadOnly"/> profile, a role or
+    /// database with <c>default_transaction_read_only</c> set on the server, and
+    /// a standby replica, which refuses every write whatever the session says.
+    /// </summary>
+    public async Task<SessionWriteState> GetWriteStateAsync(CancellationToken ct)
+    {
+        await using var connection = await _dataSource.OpenConnectionAsync(ct);
+        await using var command = new NpgsqlCommand(
+            "SELECT pg_catalog.pg_is_in_recovery(), pg_catalog.current_setting('default_transaction_read_only') = 'on'",
+            connection);
+        await using var reader = await command.ExecuteReaderAsync(ct);
+        await reader.ReadAsync(ct);
+        return reader.GetBoolean(0) ? SessionWriteState.Standby
+            : reader.GetBoolean(1) ? SessionWriteState.ReadOnly
+            : SessionWriteState.ReadWrite;
     }
 
     public async Task<IReadOnlyList<TableInfo>> GetTablesAsync(string schema, CancellationToken ct)

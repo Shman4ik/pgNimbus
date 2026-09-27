@@ -1064,6 +1064,25 @@ csproj / WiX / MSIX manifest reference them unchanged:
   (right, or left when the last tab closes) *before* `Tabs.RemoveAt`, so the
   removal never touches the selection.
 
+- **A read-only connection is the server's to enforce** (2026-09, ROADMAP T3,
+  first slice). `ConnectionProfile.ReadOnly` adds
+  `Options=-c default_transaction_read_only=on` to the connection string and
+  nothing else: no statement is inspected client-side, because a keyword check
+  misses the import's `COPY`, a schema action's DDL and a function that writes,
+  and the server catches all of them (25006). As a *startup* option it is the
+  session default, so the pool's `DISCARD ALL` restores it on every reuse even
+  after a session turned it off (`ReadOnlyConnectionTests` pins that). What the
+  window shows comes from the server, not the profile:
+  `SchemaService.GetWriteStateAsync` (`pg_is_in_recovery()` and
+  `default_transaction_read_only`) runs once when the window opens, so a
+  read-only role and a standby replica get the same `ReadOnlyMark` beside
+  host › database; the profile's flag only seeds it (read in `BuildMainWindow`
+  from the data source's `Options`) so no tab is ever briefly editable on a
+  read-only profile. Tabs read `MainViewModel.ConnectionReadOnlyHint` through a
+  `Func` and refuse an `EditContext` while it is set (`ApplyConnectionReadOnly`
+  withdraws one already on screen when the server's answer lands late). It is
+  deliberately not in the connection-string preview, like the accent colour:
+  it is this app's setting, not part of the target.
 - **json/jsonb are a first-class editable type.** `ColumnValueEditorClassifier`
   maps them to `ColumnValueEditor.Json` (jsonpath isn't JSON-shaped so it takes
   the plain-cast `CastText` path below; hstore stays `Text` — its display needs

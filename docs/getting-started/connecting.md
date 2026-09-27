@@ -71,6 +71,26 @@ command bar and runs through the window's chrome. Making production red and
 staging green is the cheapest possible guard against running the right query
 against the wrong server.
 
+## Read-only connections
+
+Switch on **Read-only session** for a profile you only mean to read from, such
+as production. Every session then starts with `default_transaction_read_only`
+on, so the server itself refuses `INSERT`, `UPDATE`, `DELETE`, `COPY FROM` and
+DDL. It refuses them from the editor, the results grid, an import and a schema
+action alike, because the check isn't in pgNimbus. The profile gets a lock in
+the list.
+
+The main window shows **read-only** with a lock next to the host and database,
+and the results grid doesn't offer editing. pgNimbus asks the server when the
+window opens, so the mark also appears when the server makes the session
+read-only on its own: a role or database with `default_transaction_read_only`
+set, or a standby replica.
+
+This guards against mistakes. It isn't a permission. A statement can still
+switch it off for its own session with `SET default_transaction_read_only =
+off`. To make writes impossible, connect as a role that has no write
+privileges.
+
 ## SSH tunnels
 
 A profile can carry SSH tunnel settings, so a database that is only reachable

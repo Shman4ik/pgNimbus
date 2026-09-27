@@ -31,6 +31,14 @@ internal static class SslModeExtensions
 /// A saved connection target. Never carries a password — the password is
 /// supplied at connect time from wherever the caller retrieves it.
 /// </summary>
+/// <param name="ReadOnly">
+/// Every session starts with <c>default_transaction_read_only</c> on, so the
+/// server itself refuses INSERT, UPDATE, DELETE, COPY FROM and DDL, whichever
+/// path sends them: the editor, the grid, an import, a schema action. It guards
+/// against mistakes and is not a permission: a session can still
+/// <c>SET default_transaction_read_only = off</c>. A role without write
+/// privileges is the way to make writes impossible.
+/// </param>
 public sealed record ConnectionProfile(
     Guid Id,
     string Name,
@@ -40,9 +48,17 @@ public sealed record ConnectionProfile(
     string Username,
     SslMode SslMode,
     string? AccentColor = null,
-    SshTunnelOptions? SshTunnel = null)
+    SshTunnelOptions? SshTunnel = null,
+    bool ReadOnly = false)
 {
     public const int DefaultPort = 5432;
+
+    /// <summary>
+    /// The startup option a <see cref="ReadOnly"/> profile connects with. As a
+    /// startup option it is the session's default, so the pool's reset between
+    /// uses (<c>DISCARD ALL</c>) restores it rather than clearing it.
+    /// </summary>
+    public const string ReadOnlySessionOption = "-c default_transaction_read_only=on";
 
     /// <summary>
     /// One-line "who and where" for the connection list —
@@ -81,6 +97,11 @@ public sealed record ConnectionProfile(
             IncludeErrorDetail = true,
             ApplicationName = "pgNimbus",
         };
+
+        if (ReadOnly)
+        {
+            builder.Options = ReadOnlySessionOption;
+        }
 
         return builder.ConnectionString;
     }

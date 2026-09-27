@@ -423,13 +423,20 @@ public sealed partial class QueryViewModel : ObservableObject
     // in contexts that don't wire it up — editing then only exists in browse mode.
     private readonly SchemaService? _schemaService;
 
+    // Why the connection can't write, or null when it can: a read-only profile,
+    // a read-only role, or a standby. Supplied by the owner, which asks the
+    // server once per connection. The grid offers no editing then; the server
+    // would refuse every commit anyway, after the user had staged the edits.
+    private readonly Func<string?>? _connectionReadOnlyHint;
+
     public QueryViewModel(
         QueryEngine engine,
         ExplainService explainService,
         Func<CancellationToken, Task<IdentifierReconciler?>>? reconcilerFactory = null,
         Func<bool>? safeMode = null,
         SchemaService? schemaService = null,
-        Func<bool>? showFilterBar = null)
+        Func<bool>? showFilterBar = null,
+        Func<string?>? connectionReadOnlyHint = null)
     {
         _engine = engine;
         _explainService = explainService;
@@ -437,6 +444,7 @@ public sealed partial class QueryViewModel : ObservableObject
         _safeMode = safeMode;
         _schemaService = schemaService;
         _showFilterBar = showFilterBar;
+        _connectionReadOnlyHint = connectionReadOnlyHint;
         _lastRunSql = Sql;
         RowDetail = new RowDetailViewModel(this);
         UpdateTabTitle();
@@ -1404,9 +1412,27 @@ public sealed partial class QueryViewModel : ObservableObject
 
     // Re-establishes inline editing for the browsed table after a page ran
     // (running cleared it), or says why there's none.
+    /// <summary>
+    /// Turns editing off on a result already on screen once the owner learns
+    /// the connection can't write. The server's answer arrives a moment after
+    /// the window opens, and a tab can have run in between.
+    /// </summary>
+    public void ApplyConnectionReadOnly()
+    {
+        if (_connectionReadOnlyHint?.Invoke() is { } readOnly && EditContext is not null)
+        {
+            EditContext = null;
+            ReadOnlyHint = readOnly;
+        }
+    }
+
     private void EstablishBrowseEditContext()
     {
-        if (_browsePkColumns is { Count: > 0 } pk && Browse is { } browse)
+        if (_connectionReadOnlyHint?.Invoke() is { } readOnly)
+        {
+            ReadOnlyHint = readOnly;
+        }
+        else if (_browsePkColumns is { Count: > 0 } pk && Browse is { } browse)
         {
             if (EditableResultDetector.FindUnreadableKey(_columns, pk) is { } unreadable)
             {
@@ -1471,6 +1497,12 @@ public sealed partial class QueryViewModel : ObservableObject
     {
         if (_schemaService is null)
         {
+            return;
+        }
+
+        if (_connectionReadOnlyHint?.Invoke() is { } readOnly)
+        {
+            ReadOnlyHint = readOnly;
             return;
         }
 

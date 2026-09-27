@@ -175,6 +175,14 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
     [ObservableProperty]
     private string? _accentColor;
 
+    /// <summary>
+    /// Connect with <c>default_transaction_read_only</c> on (see
+    /// <see cref="ConnectionProfile.ReadOnly"/>). Not part of the
+    /// connection-string preview: it's this app's setting, like the accent colour.
+    /// </summary>
+    [ObservableProperty]
+    private bool _readOnly;
+
     [ObservableProperty]
     private string _password = string.Empty;
 
@@ -319,6 +327,7 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
             Username = value?.Username ?? string.Empty;
             SslMode = value?.SslMode ?? SslMode.Prefer;
             AccentColor = value?.AccentColor;
+            ReadOnly = value?.ReadOnly ?? false;
             Password = string.Empty;
 
             UseSshTunnel = value?.SshTunnel is not null;
@@ -520,6 +529,7 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
 
     partial void OnNameChanged(string value) => OnFormEdited();
     partial void OnAccentColorChanged(string? value) => OnFormEdited();
+    partial void OnReadOnlyChanged(bool value) => OnFormEdited();
     partial void OnUseSshTunnelChanged(bool value) => OnFormEdited(credentials: true);
     partial void OnSshHostChanged(string value) => OnFormEdited();
     partial void OnSshPortChanged(int value) => OnFormEdited();
@@ -983,7 +993,8 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
             EffectiveUsername,
             SslMode,
             AccentColor,
-            sshTunnel);
+            sshTunnel,
+            ReadOnly);
     }
 
     /// <summary>

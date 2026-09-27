@@ -47,6 +47,7 @@ public static class Scenarios
     public static readonly (string Name, Func<Window> Build)[] All =
     [
         ("main-window", Results),
+        ("main-window-read-only", ReadOnlyResults),
         ("main-window-empty", EmptyResults),
         ("main-window-error", QueryError),
         ("main-window-script", ScriptResult),
@@ -89,6 +90,19 @@ public static class Scenarios
     {
         var vm = Fixtures.MainWindowViewModel();
         SeedOrdersResult(vm.ActiveTab);
+        return HostMainWindow(vm);
+    }
+
+    /// <summary>
+    /// The same results on a connection that can't write: the read-only mark
+    /// beside host › database, and the grid's read-only chip in the status bar.
+    /// </summary>
+    public static Window ReadOnlyResults()
+    {
+        var vm = Fixtures.MainWindowViewModel();
+        vm.ConnectionReadOnlyHint = "the connection is read-only, so the server refuses writes.";
+        SeedOrdersResult(vm.ActiveTab);
+        vm.ActiveTab.ReadOnlyHint = vm.ConnectionReadOnlyHint;
         return HostMainWindow(vm);
     }
 

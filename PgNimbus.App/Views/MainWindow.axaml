@@ -124,6 +124,16 @@
                     <TextBlock Name="ConnectionHostText" Text="{Binding ConnectionHost}" FontSize="12" Opacity="0.75" VerticalAlignment="Center" Margin="16,0,0,0" />
                     <TextBlock Text="›" FontSize="12" Opacity="0.45" VerticalAlignment="Center" Margin="6,0" />
                     <TextBlock Text="{Binding ConnectionDatabase}" FontSize="12" Opacity="0.75" VerticalAlignment="Center" />
+                    <!-- Read-only mark: only on a connection that can't write (a
+                         read-only profile or role, or a standby), so the write state
+                         is on screen before anything runs (ROADMAP T3). Not a control. -->
+                    <StackPanel Name="ReadOnlyMark" Orientation="Horizontal" Spacing="4" Margin="10,0,0,0" VerticalAlignment="Center"
+                                Background="Transparent"
+                                IsVisible="{Binding IsReadOnlyConnection}"
+                                ToolTip.Tip="{Binding ConnectionReadOnlyHint, StringFormat='Read-only: {0}'}">
+                        <PathIcon Data="{StaticResource LockIconGeometry}" Width="11" Height="11" Opacity="0.75" />
+                        <TextBlock Text="read-only" FontSize="12" Opacity="0.75" VerticalAlignment="Center" />
+                    </StackPanel>
                     <Button Classes="chip" Padding="5" VerticalAlignment="Center" Margin="10,0,0,0"
                             Click="OnSwitchConnectionClick"
                             cmd:CommandTip.Text="Connect to another database"
