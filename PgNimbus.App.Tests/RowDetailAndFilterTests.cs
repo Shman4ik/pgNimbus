@@ -11,7 +11,7 @@ using PgNimbus.Screenshot;
 namespace PgNimbus.App.Tests;
 
 /// <summary>
-/// Row details and browse filter chips (README roadmap T4). What has to hold: row-detail edits go through the staged
+/// Row details and browse filter chips (ROADMAP.md T4). What has to hold: row-detail edits go through the staged
 /// set whatever safe mode says (so
 /// the existing review dialog and conflict-checked commit apply to them), a
 /// bad value stages nothing, conditions compose server-side SQL through the
