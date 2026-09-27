@@ -2201,21 +2201,30 @@ It produces, per tag:
   winget requires and validates them with `winget validate` right after
   building the MSI (same job — the MSI and its SHA256 are already at
   hand, no separate runner), but does
-  **not** submit them anywhere. `winget-pkgs` needs a manual first PR
-  (registers the `pgNimbus.pgNimbus` identifier) before any automated
-  submission could work — the generated `winget-manifests.zip` release
-  asset is for that manual step.
+  **not** submit them anywhere, and that is now a decision rather than a
+  pending step (2026-09 backlog review, issue #134 closed): `winget install
+  pgNimbus` already resolves through the `msstore` source to the
+  Microsoft-signed Store package, so a community-source entry would only add
+  the unsigned MSI beside it. The generated `winget-manifests.zip` release
+  asset stays, so the first `winget-pkgs` PR (which registers the
+  `pgNimbus.pgNimbus` identifier) can still be filed by hand if the msstore
+  source turns out not to be enough — e.g. machines where it is disabled.
 
-The direct-download MSI/dmg are **unsigned** and stay that way — deliberately
+The direct-download MSI is **unsigned** and stays that way — deliberately
 **not** pursuing a paid signing service (Azure Artifact Signing / a purchased
-Authenticode cert): pgNimbus is a free OSS project with no revenue. Microsoft
+Authenticode cert): pgNimbus is a free OSS project with no revenue. macOS is
+the one exception on the plan (ROADMAP T5, confirmed 2026-09-27): a Developer
+ID signature plus notarization for the `.dmg`, because there is no free
+equivalent of the Store's re-signing there and the ad-hoc signature above still
+leaves every Mac user at "Open Anyway". Until that lands the `.dmg` is ad-hoc
+signed only. Microsoft
 Store publishing gets the trust/SmartScreen benefit for $0 instead (Store
 re-signs an uploaded MSIX with its own trusted certificate during
 certification — the package only needs a throwaway self-signed cert to
 satisfy the upload requirement, not a purchased one), and Store apps are
 automatically discoverable via winget's built-in `msstore` source with no
 separate winget submission. It's an *additional* channel, not a replacement
-for the direct MSI + `winget-pkgs` path above — the two coexist.
+for the direct MSI, and the two coexist.
 
 ### Actions storage is a 0.5 GB budget (2026-08)
 

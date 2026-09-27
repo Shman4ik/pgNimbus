@@ -23,7 +23,8 @@ anything embarrassing or sensitive must be dealt with *before*, not after.
       password/token/api-key literals; only a code comment matched.
 - [x] **No secrets in git history** — no deleted `.env`/key/credential
       files anywhere in the history.
-- [ ] **Run GitHub secret scanning once public** (Settings → Code security →
+- [x] **Run GitHub secret scanning once public** *(enabled with push
+      protection, 2026-09-27)* (Settings → Code security →
       Secret scanning + push protection) as a backstop to the manual grep.
 - [ ] **Accept that personal commit emails are in the history**
       (`shman4ik@gmail.com` appears as author/committer). This is normal
@@ -67,7 +68,8 @@ liability. These exist to protect `main`, not to chase coverage numbers.
       covering `SqlFormatter` and `SqlScriptSplitter`. Still-open
       good-first-test targets: `ConnectionStringParser` (five input
       syntaxes, quoting/escaping edge cases) and `FuzzyMatcher`.
-- [ ] **Enable branch protection on `main`** — require the CI check to
+- [x] **Enable branch protection on `main`** *(requires `build-test` and a
+      code-owner review)* — require the CI check to
       pass, require PRs (no direct pushes). Do this right after the CI
       workflow exists.
 - [x] **Turn on Dependabot** (`.github/dependabot.yml`) for NuGet and
@@ -85,9 +87,8 @@ What a stranger needs to file a good issue or PR without asking.
       generators, no sync-over-async), and how UI changes get verified
       (the Xvfb + screenshot loop from CLAUDE.md).
 - [x] **SECURITY.md** — points at GitHub private vulnerability reporting.
-      **Still manual:** enable the feature itself (Settings → Code
-      security → Private vulnerability reporting) once the repo is
-      public, or the link 404s.
+      The feature itself was only switched on 2026-09-27 — until then
+      the "Report a vulnerability" link led nowhere.
 - [x] **CODE_OF_CONDUCT.md** — stock Contributor Covenant 2.1.
 - [x] **Issue templates** (`.github/ISSUE_TEMPLATE/`): a bug-report form
       (OS, install method MSI/dmg/source, pgNimbus + PostgreSQL versions,
@@ -110,11 +111,13 @@ What a stranger needs to file a good issue or PR without asking.
 Promotion without a downloadable build wastes the launch spike. The
 README already points to Releases — right now that page is empty.
 
-- [ ] **Dry-run the pipeline** via `workflow_dispatch` (builds everything,
+- [x] **Dry-run the pipeline** *(superseded: `release.yml` now launches every
+      package before it ships — MSI install/uninstall, the mounted .dmg,
+      AppImage, .deb via apt)* via `workflow_dispatch` (builds everything,
       publishes nothing) and smoke-test both artifacts: install the MSI on
       real Windows, open the dmg on an Apple Silicon Mac, connect to a
       real database with each.
-- [ ] **Tag `v0.1.0`** (or `v0.9.x` if you want headroom before a 1.0
+- [x] **Tag `v0.1.0`** *(2026-07-06; v0.13.1 by 2026-09-22)* (or `v0.9.x` if you want headroom before a 1.0
       story) and let `release.yml` cut the release. Releases are already
       marked pre-release until signing exists — keep that.
 - [ ] **Write real release notes** for the first tag — the README
@@ -122,11 +125,15 @@ README already points to Releases — right now that page is empty.
       (SmartScreen "More info → Run anyway", Gatekeeper right-click →
       Open). First-run friction surprises are the #1 source of angry
       launch-day comments.
-- [ ] **Fix the screenshots' freshness** — confirm the four
+- [x] **Fix the screenshots' freshness** *(now rendered by
+      `tools/Screenshot --publish`, so they can't go stale silently)* — confirm the four
       `docs/screenshots/*.png` still match the current UI (theme toggle,
       tab strip, status bar all changed recently). Screenshots are the
       first thing every visitor judges.
-- [ ] **Code signing — decide, don't necessarily block.** Authenticode
+- [x] **Code signing — decide, don't necessarily block.** *(Decided: Windows
+      trust comes from the Microsoft Store, which re-signs the MSIX; the
+      direct MSI stays unsigned; macOS Developer ID + notarization is
+      planned as ROADMAP T5.)* Authenticode
       (~$100–400/yr) and an Apple Developer account ($99/yr) +
       notarization remove the single biggest first-impression blocker.
       The pipeline already has the slot. If the budget isn't there yet,
@@ -134,26 +141,29 @@ README already points to Releases — right now that page is empty.
       signing as the top post-launch item — but make the decision
       consciously before promoting, because "is it signed?" will be the
       first question on every thread.
-- [ ] **winget first submission** — after the first real release, open
+- [x] **winget first submission** *(decided against, 2026-09-27, #134:
+      `winget install pgNimbus` already resolves through the `msstore`
+      source to the Microsoft-signed Store package)* — after the first real release, open
       the manual `winget-pkgs` PR using the generated
       `winget-manifests.zip` asset to register `pgNimbus.pgNimbus`.
       `winget install pgnimbus` is itself a promotable moment.
 
 ## Phase 5 — Flip the repo public
 
-- [ ] **Repo description + topics** — description: the one-liner ("A
+- [x] **Repo description + topics** — description: the one-liner ("A
       fast, open-source PostgreSQL GUI client — .NET + Avalonia, native
       speed, modern UI"); topics: `postgresql`, `postgres`, `gui`,
       `database-client`, `sql-client`, `avalonia`, `dotnet`, `csharp`,
       `windows`, `macos`. This is what GitHub search and topic pages
       index.
-- [ ] **Social preview image** (Settings → General → Social preview) —
+- [x] **Social preview image** (Settings → General → Social preview) —
       the dark-theme main-window screenshot, 1280×640. This is what
       renders when the repo link is pasted into HN/Reddit/X.
-- [ ] **Enable Discussions** — gives "how do I…" questions somewhere to
+- [x] **Enable Discussions** — gives "how do I…" questions somewhere to
       go that isn't the issue tracker.
-- [ ] **Enable private vulnerability reporting** (pairs with SECURITY.md).
-- [ ] **Make it public** (Settings → Danger Zone). Immediately verify:
+- [x] **Enable private vulnerability reporting** (pairs with SECURITY.md).
+      *(2026-09-27)*
+- [x] **Make it public** (Settings → Danger Zone). Immediately verify:
       README renders, screenshots load, Releases page shows v0.1.0,
       LICENSE is detected by GitHub, the About sidebar looks right.
 
