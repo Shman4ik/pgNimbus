@@ -30,6 +30,10 @@ internal static class CompletionKindVisuals
         [SqlCompletionKind.Value] = Fixed("#B5642A"),
         [SqlCompletionKind.Sequence] = Fixed("#4F8A8B"),
         [SqlCompletionKind.Snippet] = Fixed("#3E8ED0"),
+        [SqlCompletionKind.Role] = Fixed("#8C6D46"),
+        [SqlCompletionKind.Setting] = Fixed("#6C7A89"),
+        [SqlCompletionKind.Extension] = Fixed("#9A5BA8"),
+        [SqlCompletionKind.Index] = Fixed("#4A7FB0"),
     };
 
     public static IBrush Brush(SqlCompletionKind kind) => Brushes[kind];
@@ -62,6 +66,10 @@ internal static class CompletionKindVisuals
         SqlCompletionKind.Value => "FlagIconGeometry",
         SqlCompletionKind.Sequence => "SequenceIconGeometry",
         SqlCompletionKind.Snippet => "AutoFixIconGeometry",
+        SqlCompletionKind.Role => "AccountMultipleIconGeometry",
+        SqlCompletionKind.Setting => "TuneIconGeometry",
+        SqlCompletionKind.Extension => "PuzzleIconGeometry",
+        SqlCompletionKind.Index => "KeyIconGeometry",
         _ => "TableIconGeometry",
     };
 

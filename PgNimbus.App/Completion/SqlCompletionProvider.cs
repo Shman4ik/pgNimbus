@@ -55,6 +55,9 @@ public sealed record CompletionCatalog(
     /// <summary>The roles a GRANT … TO can name.</summary>
     public IReadOnlyList<string> Roles { get; init; } = [];
 
+    /// <summary>The indexes a DROP INDEX / REINDEX / CLUSTER … USING can name.</summary>
+    public IReadOnlyList<IndexName> Indexes { get; init; } = [];
+
     /// <summary>The server's settings, for SET and SHOW.</summary>
     public IReadOnlyList<SettingInfo> Settings { get; init; } = [];
 
@@ -265,6 +268,9 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
     /// </summary>
     public bool SessionSearchPathChanged { get; set; }
 
+    /// <summary>The LISTEN/NOTIFY channels this connection knows (the monitor's), for LISTEN | and NOTIFY |.</summary>
+    public IReadOnlyList<string> NotifyChannels { get; set; } = [];
+
     /// <summary>What the published catalog is: fresh, or the last good one kept after a failed refresh.</summary>
     public CompletionCatalogStatus Status { get; private set; } = new(false, null);
 
@@ -439,6 +445,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
             BuiltinFunctions = builtinFunctions,
             Types = types,
             Sequences = [.. (await ReadOptionalAsync(() => schemaService.GetSequenceNamesAsync(ct), [])).Where(s => !excluded.Contains(s.Schema))],
+            Indexes = [.. (await ReadOptionalAsync(() => schemaService.GetIndexNamesAsync(ct), [])).Where(s => !excluded.Contains(s.Schema))],
             Roles = [.. (await ReadOptionalAsync(() => schemaService.GetRolesAsync(ct), [])).Select(r => r.Name)],
             Settings = await ReadOptionalAsync(() => schemaService.GetSettingsAsync(ct), []),
             Extensions = await ReadOptionalAsync(() => schemaService.GetExtensionsAsync(ct), []),
@@ -724,7 +731,8 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         if (type.Schema == "pg_catalog")
         {
             var name = type.DisplayName.Contains(' ') ? type.Name : type.DisplayName;
-            return new SqlCompletionData(name, SqlCompletionKind.Type, name, TypePriority)
+            return new SqlCompletionData(name, SqlCompletionKind.Type, name,
+                CommonTypes.IndexOf(name) is var rank and >= 0 ? CommonTypePriority - (rank * 0.01) : TypePriority)
             {
                 Detail = name == type.DisplayName ? null : type.DisplayName,
                 DescriptionText = "type",
@@ -750,6 +758,15 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
             DescriptionText = kind,
         };
     }
+
+    // The types declared most, most first ("bi" is bigint before bit).
+    private static readonly List<string> CommonTypes =
+    [
+        "text", "integer", "bigint", "boolean", "timestamptz", "numeric", "varchar", "date", "jsonb", "uuid",
+        "timestamp", "smallint", "real", "interval", "bytea", "json", "time", "inet",
+    ];
+
+    private const double CommonTypePriority = 11.5;
 
     // The everyday types, for a cast typed before the catalog has been read.
     private static readonly IReadOnlyList<SqlCompletionData> FallbackTypeItems =
@@ -1026,6 +1043,12 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
 
         var scope = Scope.At(statement, caret);
         var chain = SqlCompletionContext.GetQualifierChainBeforeCaret(statement, caret);
+        if (chain.Count == 1 && SqlCommandGrammar.At(statement, QualifiedNameStart(statement, caret)) is { } ddlSlot
+            && CommandMembers(snapshot, ddlSlot, chain[0].Name) is { } members)
+        {
+            return members;
+        }
+
         if (chain.Count > 0)
         {
             return GetMemberCompletions(snapshot, chain, statement, scope);
@@ -1034,6 +1057,13 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         if (SqlCompletionContext.IsAfterKeyword(statement, caret, "call"))
         {
             return Dedupe(snapshot.ProcedureItems.Concat(TableRefItemsOf(snapshot).Where(i => i.Kind == SqlCompletionKind.Schema)));
+        }
+
+        // DDL and utility statements (package N): their slot grammar says
+        // which keywords and which kind of object come next.
+        if (!context.InQuotedIdentifier && SqlCommandGrammar.At(statement, caret) is { } command)
+        {
+            return CommandItems(snapshot, command);
         }
 
         if (scope.Block is { } contextBlock && ColumnListCompletions(snapshot, statement, contextBlock, caret) is { } columnList)
@@ -1094,6 +1124,170 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
             _ => GetGeneralCompletions(snapshot, statement, scope, operandKeywords),
         };
     }
+
+    // A DDL / utility slot: its keywords first, then the objects of its kind.
+    private List<SqlCompletionData> CommandItems(Snapshot snapshot, SqlCommandAdvice advice)
+    {
+        var items = KeywordItems(advice.Keywords, StatementKeywordPriority);
+        items.AddRange(CommandObjects(snapshot, advice));
+        return items;
+    }
+
+    private IEnumerable<SqlCompletionData> CommandObjects(Snapshot snapshot, SqlCommandAdvice advice)
+    {
+        var catalog = snapshot.Catalog;
+        var path = SessionSearchPathChanged ? null : snapshot.SearchPath;
+        switch (advice.Objects)
+        {
+            case SqlObjectKind.Relation:
+                return TableRefItemsOf(snapshot).Where(i => i.Kind != SqlCompletionKind.Keyword);
+            case SqlObjectKind.Table or SqlObjectKind.View or SqlObjectKind.MaterializedView:
+                var kinds = advice.Objects switch
+                {
+                    SqlObjectKind.View => "v",
+                    SqlObjectKind.MaterializedView => "m",
+                    _ => "rpf",
+                };
+                return SchemaItems(snapshot).Concat(snapshot.Tables
+                    .Where(t => kinds.Contains(t.Kind) && !t.IsPartition && !IsSystemSchema(t.Schema))
+                    .Select(t => TableRefItem(t, Resolve(snapshot, "", t.Name) == t) is var item
+                        ? new SqlCompletionData(item.Text, item.Kind, item.InsertText, item.Priority)
+                        {
+                            Detail = item.Detail,
+                            DescriptionText = item.DescriptionText,
+                        }
+                        : item));
+            case SqlObjectKind.Index:
+                return (catalog?.Indexes ?? []).Select(x => new SqlCompletionData(x.Name, SqlCompletionKind.Index, QualifiedIfOffPath(x.Schema, x.Name, path), TablePriority)
+                {
+                    Detail = x.Schema,
+                    DescriptionText = $"index on {x.Table}",
+                });
+            case SqlObjectKind.Sequence:
+                return snapshot.Sequences.Select(s => new SqlCompletionData(s.Name, SqlCompletionKind.Sequence, QualifiedIfOffPath(s.Schema, s.Name, path), TablePriority)
+                {
+                    Detail = s.Schema,
+                });
+            case SqlObjectKind.Function or SqlObjectKind.Procedure:
+                // One row per overload: DROP / ALTER FUNCTION need its argument types.
+                var procedure = advice.Objects == SqlObjectKind.Procedure;
+                return (catalog?.Functions ?? [])
+                    .Where(f => !f.Function.IsInternal && !snapshot.Excluded.Contains(f.Schema) && (f.Function.Kind == 'p') == procedure)
+                    .Select(f => new SqlCompletionData(f.Function.Name, SqlCompletionKind.Function,
+                        $"{QualifiedIfOffPath(f.Schema, f.Function.Name, path)}({f.Function.Arguments})", FunctionPriority)
+                    {
+                        Detail = f.Schema,
+                        DisplayText = $"{f.Function.Name}({f.Function.Arguments})",
+                        DescriptionText = f.Function.Description,
+                    });
+            case SqlObjectKind.Schema:
+                return SchemaItems(snapshot);
+            case SqlObjectKind.Type:
+                return snapshot.TypeItems;
+            case SqlObjectKind.Role:
+                return (catalog?.Roles ?? []).Select(r => new SqlCompletionData(r, SqlCompletionKind.Role, SqlIdentifier.QuoteIfNeeded(r), TablePriority));
+            case SqlObjectKind.Extension or SqlObjectKind.AvailableExtension:
+                var installed = advice.Objects == SqlObjectKind.Extension;
+                return (catalog?.Extensions ?? [])
+                    .Where(e => e.IsInstalled == installed)
+                    .Select(e => new SqlCompletionData(e.Name, SqlCompletionKind.Extension, SqlIdentifier.QuoteIfNeeded(e.Name), TablePriority)
+                    {
+                        Detail = e.InstalledVersion ?? e.DefaultVersion,
+                        DescriptionText = e.Description,
+                    });
+            case SqlObjectKind.Setting:
+                return (catalog?.Settings ?? []).Select(s => new SqlCompletionData(s.Name, SqlCompletionKind.Setting, s.Name, TablePriority)
+                {
+                    Detail = s.VarType,
+                    DescriptionText = s.ShortDescription,
+                });
+            case SqlObjectKind.SettingValue:
+                return SettingValueItems(snapshot, advice.Setting);
+            case SqlObjectKind.Column when advice.Relation is { Count: > 0 } relation:
+                var table = relation.Count >= 2
+                    ? snapshot.TablesByKey.GetValueOrDefault((relation[^2], relation[^1]))
+                    : Resolve(snapshot, "", relation[0]);
+                return table is null ? [] : CatalogColumns(snapshot, table).Select(c => ColumnItem(c, CurrentColumnPriority));
+            case SqlObjectKind.IndexMethod:
+                var methods = new List<string> { "btree", "gin", "gist", "brin", "hash", "spgist" };
+                if (catalog?.Extensions.Any(e => e.Name == "vector" && e.IsInstalled) == true)
+                {
+                    methods.AddRange(["hnsw", "ivfflat"]);
+                }
+
+                return methods.Select((m, i) => new SqlCompletionData(m, SqlCompletionKind.Value, m, TablePriority - (i * 0.01)) { DescriptionText = "index method" });
+            case SqlObjectKind.Language:
+                return new[] { "plpgsql", "sql" }.Select((l, i) => new SqlCompletionData(l, SqlCompletionKind.Value, l, TablePriority - (i * 0.01)) { DescriptionText = "language" });
+            case SqlObjectKind.Channel:
+                return NotifyChannels.Select(ch => new SqlCompletionData(ch, SqlCompletionKind.Value, SqlIdentifier.QuoteIfNeeded(ch), TablePriority)
+                {
+                    DescriptionText = "channel",
+                });
+            default:
+                return [];
+        }
+    }
+
+    // "DROP VIEW saas.|": the schema's objects of the slot's kind, bare (the
+    // schema is typed). Null for a slot that takes no schema-qualified objects.
+    private IReadOnlyList<SqlCompletionData>? CommandMembers(Snapshot snapshot, SqlCommandAdvice slot, string schema)
+    {
+        if (slot.Objects is not (SqlObjectKind.Table or SqlObjectKind.View or SqlObjectKind.MaterializedView or SqlObjectKind.Index
+            or SqlObjectKind.Sequence or SqlObjectKind.Function or SqlObjectKind.Procedure))
+        {
+            return null;
+        }
+
+        var bare = slot with { Keywords = [] };
+        return [.. CommandObjects(snapshot, bare)
+            .Where(i => i.Detail == schema && i.Kind != SqlCompletionKind.Schema)
+            .Select(i => new SqlCompletionData(i.Text, i.Kind, BareName(i.InsertText, schema), i.Priority)
+            {
+                Detail = i.Detail,
+                DisplayText = i.DisplayText,
+                DescriptionText = i.DescriptionText,
+            })];
+    }
+
+    // "saas.account_mrr(…)" → "account_mrr(…)" when the schema is typed already.
+    private static string BareName(string insert, string schema)
+    {
+        var prefix = $"{SqlIdentifier.QuoteIfNeeded(schema)}.";
+        return insert.StartsWith(prefix, StringComparison.Ordinal) ? insert[prefix.Length..] : insert;
+    }
+
+    // A value of `setting`: the schemas for search_path, an enum setting's
+    // values, on/off for a boolean one.
+    private IEnumerable<SqlCompletionData> SettingValueItems(Snapshot snapshot, string? setting)
+    {
+        if (setting == "search_path")
+        {
+            return SchemaItems(snapshot).Prepend(new SqlCompletionData("\"$user\"", SqlCompletionKind.Value, "\"$user\"", SchemaPriority));
+        }
+
+        var info = snapshot.Catalog?.Settings.FirstOrDefault(s => s.Name == setting);
+        IEnumerable<string> values = info?.VarType switch
+        {
+            "bool" => ["on", "off"],
+            "enum" => info.EnumValues,
+            _ => [],
+        };
+        return values.Select((v, i) => new SqlCompletionData(v, SqlCompletionKind.Value, v.All(ch => char.IsAsciiLetterOrDigit(ch) || ch == '_') ? v : $"'{v}'", ValuePriority - (i * 0.01))
+        {
+            Detail = setting,
+        });
+    }
+
+    private static IEnumerable<SqlCompletionData> SchemaItems(Snapshot snapshot) =>
+        (snapshot.Catalog?.Schemas ?? [])
+            .Where(s => !snapshot.Excluded.Contains(s))
+            .Select(s => new SqlCompletionData(s, SqlCompletionKind.Schema, SqlIdentifier.QuoteIfNeeded(s), SchemaPriority));
+
+    // A name bare when its schema is on the search_path, qualified otherwise.
+    private static string QualifiedIfOffPath(string schema, string name, IReadOnlyList<string>? path) =>
+        (path?.Contains(schema) ?? schema == "public") || schema == "pg_catalog"
+            ? SqlIdentifier.QuoteIfNeeded(name)
+            : $"{SqlIdentifier.QuoteIfNeeded(schema)}.{SqlIdentifier.QuoteIfNeeded(name)}";
 
     // The fields extract( takes, most used first.
     private static readonly string[] DateFields =

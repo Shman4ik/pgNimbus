@@ -28,6 +28,10 @@ public enum SqlCompletionKind
     Sequence,
     /// <summary>More than a name in one accept: a join with its condition, a column list, a GROUP BY list.</summary>
     Snippet,
+    Role,
+    Setting,
+    Extension,
+    Index,
 }
 
 /// <param name="text">The name shown in the list and matched against what the user typed.</param>
@@ -136,6 +140,10 @@ public sealed class SqlCompletionData(string text, SqlCompletionKind kind, strin
         SqlCompletionKind.Value => "value",
         SqlCompletionKind.Sequence => "sequence",
         SqlCompletionKind.Snippet => "snippet",
+        SqlCompletionKind.Role => "role",
+        SqlCompletionKind.Setting => "setting",
+        SqlCompletionKind.Extension => "extension",
+        SqlCompletionKind.Index => "index",
         _ => "item",
     };
 

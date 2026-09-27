@@ -95,7 +95,8 @@ public class CompletionTypingReplayTests
     /// 24.4% with the auto-alias off, 25.6% with it on; package L 32.9% /
     /// 33.9%; package M, on the corpus it grew to 30 queries, 35.3% / 36.4%;
     /// package O 38.5% / 38.9%, 36.9% / 37.9% over the snapshot before it;
-    /// package P 42.3% / 42.3%). Set PGNIMBUS_ORACLE_TRACE=1 to see, per
+    /// package P 42.3% / 42.3%; package N, on 36 queries, 40.6% → 43.5%).
+    /// Set PGNIMBUS_ORACLE_TRACE=1 to see, per
     /// query, what was typed by hand and what was accepted (⟨…⟩).
     /// A package that raises the saving raises the floor, and one that adds
     /// queries to the corpus measures the base branch on them first.
@@ -132,7 +133,7 @@ public class CompletionTypingReplayTests
         Console.WriteLine($"auto-alias {(autoAlias ? "on" : "off")}: {total.Characters} characters, {total.Keys} keys, saved {saved:P1}; "
             + $"{total.Accepts} accepts, {total.Downs} Downs, {total.Escapes} Escapes before an Enter");
         Console.WriteLine(report);
-        await Assert.That(saved).IsGreaterThanOrEqualTo(0.42);
+        await Assert.That(saved).IsGreaterThanOrEqualTo(0.43);
     }
 
     private sealed class OracleTally
