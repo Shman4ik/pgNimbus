@@ -320,7 +320,7 @@ public static class Audit
             {
                 var item = ranked.Items[i];
                 var selected = i == ranked.SelectedIndex;
-                var row = new CompletionRow(item.Text, item.InsertText, item.Kind == SqlCompletionKind.Keyword, item.IsGuess);
+                var row = new CompletionRow(item.Text, item.InsertText, item.Kind == SqlCompletionKind.Keyword);
                 var enter = !selected ? ""
                     : CompletionAcceptance.EnterAccepts(text, caret, caret - filter.Length, row, chosen: false) ? " [Enter takes it]"
                     : " [tentative]";

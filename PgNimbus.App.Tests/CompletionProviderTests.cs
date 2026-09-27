@@ -216,15 +216,6 @@ public class CompletionProviderTests
         await Assert.That(tables).DoesNotContain("users");
     }
 
-    [Test]
-    public async Task A_catalog_column_outside_the_statements_sources_is_a_guess()
-    {
-        var items = At(Provider(), "SELECT to|");
-
-        await Assert.That(items.Single(i => i.Kind == SqlCompletionKind.Column && i.Text == "total").IsGuess).IsTrue();
-        await Assert.That(At(Provider(), "SELECT to| FROM public.orders")
-            .Single(i => i.Kind == SqlCompletionKind.Column && i.Text == "total").IsGuess).IsFalse();
-    }
 
     [Test]
     [Arguments("SELECT * FROM public.users u JOIN public.orders o |", "ON")]
@@ -838,14 +829,13 @@ public class CompletionProviderTests
     }
 
     [Test]
-    public async Task Pg_catalogs_rarer_functions_are_guesses_the_everyday_ones_are_not()
+    [Arguments("SELECT pid, state, query|", "query")] // not query_string, not querytree()
+    [Arguments("SELECT query|", "query")]
+    public async Task A_word_typed_in_full_keeps_its_own_row_first_before_any_from(string marked, string expected)
     {
-        // Typed in full, "query" is only a prefix of querytree(): Enter must not take it unasked.
-        var functions = At(Stand(), "SELECT |").Where(i => i.Kind == SqlCompletionKind.Function).ToDictionary(i => i.Text);
-
-        await Assert.That(functions["querytree"].IsGuess).IsTrue();
-        await Assert.That(functions["pg_size_pretty"].IsGuess).IsFalse();
-        await Assert.That(functions["now"].IsGuess).IsFalse();
+        // What stops Enter from swapping a finished word for a longer catalog
+        // name: the name equal to what was typed ranks first (package K).
+        await Assert.That(PreselectedItem(Stand(), marked).Text).IsEqualTo(expected);
     }
 
     [Test]
@@ -1442,7 +1432,7 @@ public class CompletionProviderTests
     {
         var items = At(Stand(), marked);
 
-        await Assert.That(items.Any(i => i.Text == column && i.Detail == table && i.IsGuess)).IsTrue();
+        await Assert.That(items.Any(i => i.Text == column && i.Detail == table)).IsTrue();
         await Assert.That(PreselectedItem(Stand(), marked).Text).IsEqualTo(column);
     }
 
@@ -1465,11 +1455,11 @@ public class CompletionProviderTests
 
     [Test]
     [Arguments("SELECT * FROM customers c WHERE x.|")] // a predicate: the FROM is written, x is a typo
-    [Arguments("SELECT c.| FROM customers c")] // declared: its own columns, not guesses
+    [Arguments("SELECT c.| FROM customers c")] // declared: its own columns
     [Arguments("SELECT public.|")] // a schema
     public async Task Only_an_undeclared_name_in_a_select_list_is_guessed(string marked)
     {
-        await Assert.That(At(Stand(), marked).Any(i => i.IsGuess && i.Kind == SqlCompletionKind.Column)).IsFalse();
+        await Assert.That(At(Stand(), marked).Any(i => i.Kind == SqlCompletionKind.Column && i.DescriptionText?.Contains(" · if ") == true)).IsFalse();
     }
 
     [Test]

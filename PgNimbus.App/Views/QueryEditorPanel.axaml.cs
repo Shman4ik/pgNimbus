@@ -1169,7 +1169,7 @@ public partial class QueryEditorPanel : UserControl
             return false;
         }
 
-        var row = new CompletionRow(selected.Text, selected.InsertText, selected.Kind == SqlCompletionKind.Keyword, selected.IsGuess);
+        var row = new CompletionRow(selected.Text, selected.InsertText, selected.Kind == SqlCompletionKind.Keyword);
         return CompletionAcceptance.EnterAccepts(SqlEditor.Text, SqlEditor.CaretOffset, window.StartOffset, row,
             chosen: _completionExplicit || _userPickedCompletion is not null);
     }

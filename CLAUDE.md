@@ -1525,10 +1525,11 @@ csproj / WiX / MSIX manifest reference them unchanged:
   `_userPickedCompletion`) or be the one whose name starts with what was typed.
   In a **new-name position** (`SqlCompletionContext.IsNewNamePosition`: an alias
   after a FROM/JOIN/UPDATE/MERGE item or after AS, a CTE name, the object a
-  CREATE names, a column in a table definition, ADD COLUMN, RENAME … TO) and for
-  a **guess** (`SqlCompletionData.IsGuess`: a catalog-wide column of a relation
-  the statement doesn't name — `SELECT query⏎` was becoming `query_string`) only
-  a chosen row is taken. Chosen but unchanged is still a newline; a chosen
+  CREATE names, a column in a table definition, ADD COLUMN, RENAME … TO) only
+  a chosen row is taken. (A third case, rows marked as guesses — catalog-wide
+  columns, pg_catalog's rarer functions — was dropped on 2026-09-27: with the
+  exact name ranked first, `SELECT query⏎` keeps `query` and the literal
+  replay stays at 0 divergences without it.) Chosen but unchanged is still a newline; a chosen
   callable still gets its parens. A list that opened by itself with nothing
   typed, or holding only a loose fuzzy match, closes on Enter and the editor
   writes the newline. Tab always accepts. The two states look different: a highlight
@@ -1664,10 +1665,10 @@ csproj / WiX / MSIX manifest reference them unchanged:
   which is also what makes `pg_class` insert bare. pg_catalog's own functions
   are candidates now, one row per name, what `IsInternal` marks left out, under
   the curated list (which grew the everyday admin ones: pg_size_pretty,
-  pg_terminate_backend …) and **marked `IsGuess`**: a thousand rarely typed names
-  are the only longer match for many a word typed in full (`query` →
-  `querytree(`), so Enter takes one only when chosen — found by the literal
-  replay over the old snapshot, which had no `query` column to match exactly.
+  pg_terminate_backend …). A thousand rarely typed names are the only longer
+  match for many a word typed in full (`query` → `querytree(`); the literal
+  replay found that over an old snapshot with no `query` column to match
+  exactly, and what holds it now is the exact name ranking first.
   Rows describe what they name (E06): a column's PK / identity / generated /
   default / NOT NULL / the FK it follows / comment (`TableColumn`'s new init
   props, read by `GetAllColumnsAsync`, which now covers foreign tables too), a
@@ -1798,8 +1799,8 @@ csproj / WiX / MSIX manifest reference them unchanged:
   capped at `FromlessColumnRows` (200); with nothing typed, which is how the
   list opens after `SELECT `, it is the search_path's tables' columns, up to
   2000, because the popup filters the list it opened with instead of asking
-  again. All of these rows are guesses: Enter takes one only when chosen, so a
-  name typed in full stays as typed. The oracle leaves the FROM-writing rows
+  again. A name typed in full stays as typed (Enter's "must change the text"
+  rule doesn't count the FROM a row would bring). The oracle leaves the FROM-writing rows
   alone (the corpus goes on with the select list where they write a FROM).
 - `SqlFormatter` follows <https://www.sqlstyle.guide/> ("river" layout: root
   keywords right-aligned to a common column, content to its right). The tests
