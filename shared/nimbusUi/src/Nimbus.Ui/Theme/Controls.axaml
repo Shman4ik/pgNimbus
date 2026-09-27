@@ -80,19 +80,12 @@
         <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
     </Style>
 
-    <!-- The same wash for plain chip Buttons acting as a segmented pair, where a
-         bound "active" class marks the selected segment instead of :checked. A plain
-         Button has no Fluent checked-state /template/ override, so the rest state
-         renders through the TemplateBinding; :pointerover is pinned at the template
-         part so the active segment keeps the wash while hovered. -->
-    <Style Selector="Button.chip.active">
-        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
-        <Setter Property="Opacity" Value="1" />
-    </Style>
-
-    <Style Selector="Button.chip.active:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
-    </Style>
+    <!-- The `Button.chip.active` wash is NOT here, though it belongs beside these.
+         It sets the same Background and Opacity as the base `Button.chip` rule in
+         Theme.axaml, which is loaded after this file, and Avalonia has no selector
+         specificity: for one property the later style wins. Here, the base rule
+         silently reset every active chip to transparent at 0.6. It lives after the
+         base rule in Theme.axaml (CLAUDE.md hard rule 7). -->
 
     <!-- Soft action button: a refined, tactile pill (card-toned fill + hairline
          border) that reads as a real button, unlike the flat transparent .toolbar

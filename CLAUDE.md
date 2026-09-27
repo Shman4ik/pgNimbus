@@ -34,13 +34,23 @@ of [nimbusUi](https://github.com/Shman4ik/nimbusUi), referenced as an ordinary
   `NumericUpDown` radius and brand text selection, `SelectableTextBlock`,
   `ListBox`/`ListBoxItem`/`TreeView`/`TreeViewItem` rounded rows, `DataGrid` soft
   rules, the `.soft` and `.soft.danger` button families, `ToggleButton.soft`, the
-  chip checked/active washes, `TabControl`. **These moved out of
+  chip checked-hover washes, `TabControl`. **These moved out of
   `Styles/Theme.axaml`**, where they had been defined for pgNimbus alone: kubeNimbus
   had none of them and was drawing stock Fluent inputs, lists and grids next to
   these, which is what made the two apps stop looking like one family. Change them
   there, not here. What is left in this app's own `Styles/Theme.axaml` is `TabItem`,
   `TabControl.segmented` and the AvaloniaEdit completion/search themes — all
   genuinely pgNimbus's (see DESIGN.md's not-shared table).
+  **Load order is the only precedence, and the move broke it once** (2026-09).
+  Avalonia styles have no specificity: for one property, the later style wins,
+  whatever the selectors. `Controls.axaml` is included at the top of `Theme.axaml`,
+  so the `Button.chip.active` wash that moved there with the rest now loaded
+  *before* the base `Button.chip` rule, which reset every active chip to
+  transparent at 0.6 opacity. The plan header's Color and Text/Tree switches and
+  the cell inspector's View/Edit showed no selected segment until then. The wash
+  now sits after the base rule in `Theme.axaml`, and
+  `ChipActiveStateTests` renders an active chip and reads its brush. The rule
+  this taught is nimbusUi's `CLAUDE.md` hard rule 7.
 - `Chrome/` — the one-bar window chrome and its drawn caption buttons.
 - `Hotkeys.cs` — Ctrl/Cmd resolution; `PgNimbus.App.Hotkeys` forwards to it.
 - **[`DESIGN.md`](shared/nimbusUi/DESIGN.md) — the UI rules, single source.**

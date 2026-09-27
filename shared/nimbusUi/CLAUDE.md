@@ -47,6 +47,16 @@ future move.
    it with the two windows side by side, which is exactly the comparison this
    library exists to survive. When adding a style, ask what the *other* app
    renders for the same control today.
+7. **File order is the only precedence between styles.** Avalonia has no
+   selector specificity: when two styles set the same property, the one loaded
+   later wins, so `Button.chip.active` does *not* beat `Button.chip` by being
+   more specific. `Theme.axaml` includes `Controls.axaml` at its top, so a rule
+   there that refines a class `Theme.axaml` also styles is overridden by the
+   base rule and never shows. That is how every active chip in both apps drew
+   as a plain one after the control layer moved here. Put such a rule in
+   `Theme.axaml`, after the rule it refines. Template-part rules
+   (`/template/ ContentPresenter#PART_…`) don't collide with a control-level
+   setter, so they can stay where they are.
 
 ## Working on this from inside an app repo
 
