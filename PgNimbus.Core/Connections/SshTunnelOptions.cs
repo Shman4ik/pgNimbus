@@ -1,9 +1,13 @@
 namespace PgNimbus.Core.Connections;
 
+// Persisted as its number in connections.json: append, never reorder.
 public enum SshAuthMethod
 {
     Password,
     PrivateKey,
+
+    /// <summary>The keys a running SSH agent holds (Windows OpenSSH service, <c>SSH_AUTH_SOCK</c>).</summary>
+    Agent,
 }
 
 /// <summary>

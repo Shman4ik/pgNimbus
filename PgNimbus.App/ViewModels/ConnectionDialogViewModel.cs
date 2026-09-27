@@ -98,7 +98,8 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
 
     public IReadOnlyList<SslMode> SslModes { get; } = Enum.GetValues<SslMode>();
 
-    public IReadOnlyList<SshAuthMethod> SshAuthMethods { get; } = Enum.GetValues<SshAuthMethod>();
+    // Agent first: it is what `ssh` itself tries first, and the one that needs nothing typed.
+    public IReadOnlyList<SshAuthMethod> SshAuthMethods { get; } = [SshAuthMethod.Agent, SshAuthMethod.PrivateKey, SshAuthMethod.Password];
 
     /// <summary>Preset swatches shown in the dialog; a per-connection accent color helps tell environments (prod vs. dev) apart at a glance.</summary>
     public IReadOnlyList<string> AccentColorSwatches { get; } =
@@ -190,7 +191,25 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
     private string _sshUsername = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSshKeyFileAuth), nameof(IsSshAgentAuth), nameof(ShowsSshSecret), nameof(SshSecretLabel))]
     private SshAuthMethod _sshAuthMethod = SshAuthMethod.Password;
+
+    public bool IsSshKeyFileAuth => SshAuthMethod == SshAuthMethod.PrivateKey;
+
+    public bool IsSshAgentAuth => SshAuthMethod == SshAuthMethod.Agent;
+
+    /// <summary>The agent holds the unlocked key itself; there is nothing to type or to store.</summary>
+    public bool ShowsSshSecret => SshAuthMethod != SshAuthMethod.Agent;
+
+    public string SshSecretLabel => SshAuthMethod == SshAuthMethod.PrivateKey ? "Key Passphrase" : "SSH Password";
+
+    /// <summary>The names the auth-method picker shows; the enum's own names read as code.</summary>
+    public static string DescribeSshAuthMethod(SshAuthMethod method) => method switch
+    {
+        SshAuthMethod.Agent => "SSH agent",
+        SshAuthMethod.PrivateKey => "Key file",
+        _ => "Password",
+    };
 
     [ObservableProperty]
     private string _sshPrivateKeyPath = string.Empty;
@@ -450,7 +469,10 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
 
         _credentialsDirty = false;
         var password = Password;
-        var sshPassword = UseSshTunnel ? SshPassword : string.Empty;
+        // Agent auth has no secret of its own, so switching to it drops the stored
+        // one exactly as turning the tunnel off does; the typed value stays in the
+        // form and is written again if the method is switched back.
+        var sshPassword = UseSshTunnel && ShowsSshSecret ? SshPassword : string.Empty;
         _ = EnqueueCredentialWork(() =>
         {
             if (!string.IsNullOrEmpty(password)) _credentialStore.SavePassword(id, password);
@@ -502,7 +524,7 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
     partial void OnSshHostChanged(string value) => OnFormEdited();
     partial void OnSshPortChanged(int value) => OnFormEdited();
     partial void OnSshUsernameChanged(string value) => OnFormEdited();
-    partial void OnSshAuthMethodChanged(SshAuthMethod value) => OnFormEdited();
+    partial void OnSshAuthMethodChanged(SshAuthMethod value) => OnFormEdited(credentials: true);
     partial void OnSshPrivateKeyPathChanged(string value) => OnFormEdited();
     partial void OnSshPasswordChanged(string value) => OnFormEdited(credentials: true);
 

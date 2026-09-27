@@ -193,18 +193,33 @@
                         </StackPanel>
                         <StackPanel Grid.Column="1">
                             <TextBlock Text="Auth Method" />
-                            <ComboBox ItemsSource="{Binding SshAuthMethods}" SelectedItem="{Binding SshAuthMethod}" HorizontalAlignment="Stretch" />
+                            <ComboBox ItemsSource="{Binding SshAuthMethods}" SelectedItem="{Binding SshAuthMethod}" HorizontalAlignment="Stretch">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="conn:SshAuthMethod">
+                                        <TextBlock Text="{Binding Converter={x:Static converters:SshAuthMethodText.Instance}}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
                         </StackPanel>
                     </Grid>
 
-                    <StackPanel Grid.Row="3" Margin="0,0,0,8"
-                                IsVisible="{Binding SshAuthMethod, Converter={x:Static conv:ObjectConverters.Equal}, ConverterParameter={x:Static conn:SshAuthMethod.PrivateKey}}">
+                    <!-- A blank path means ssh's own defaults (id_ed25519, id_ecdsa,
+                         id_rsa under ~/.ssh), which the placeholder says; ~ expands. -->
+                    <StackPanel Grid.Row="3" Margin="0,0,0,8" IsVisible="{Binding IsSshKeyFileAuth}">
                         <TextBlock Text="Private Key Path" />
-                        <TextBox Text="{Binding SshPrivateKeyPath}" />
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBox Grid.Column="0" Text="{Binding SshPrivateKeyPath}" Margin="0,0,6,0"
+                                     PlaceholderText="~/.ssh/id_ed25519 (default)" />
+                            <Button Grid.Column="1" Classes="soft" Content="Browse…" Click="OnBrowseSshKeyClick" />
+                        </Grid>
                     </StackPanel>
 
-                    <StackPanel Grid.Row="4">
-                        <TextBlock Text="SSH Password / Passphrase" />
+                    <TextBlock Grid.Row="3" IsVisible="{Binding IsSshAgentAuth}" Margin="0,0,0,2"
+                               TextWrapping="Wrap" FontSize="12" Opacity="0.6"
+                               Text="Signs in with the keys your SSH agent holds, so a key with a passphrase needs nothing typed here." />
+
+                    <StackPanel Grid.Row="4" IsVisible="{Binding ShowsSshSecret}">
+                        <TextBlock Text="{Binding SshSecretLabel}" />
                         <TextBox Text="{Binding SshPassword}" PasswordChar="•" Classes="revealPasswordButton" />
                     </StackPanel>
                 </Grid>

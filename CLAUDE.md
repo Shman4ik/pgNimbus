@@ -176,6 +176,22 @@ Three rules about it:
    libsecret plus a running Secret Service. macOS disallows interactive Keychain
    authorization prompts and reports denied/locked access as unavailable storage.
    Tests/previews use `MemoryCredentialStore`, never the user's real keychain.
+   **SSH agent auth stores nothing at all** (2026-09). SSH.NET has no agent
+   support, so `Connections/SshAgentClient` speaks the agent protocol itself
+   (list identities, sign; Windows' `\\.\pipe\openssh-ssh-agent` unless
+   `SSH_AUTH_SOCK` names another pipe, else the `SSH_AUTH_SOCK` socket), and
+   `SshAgentKeySource` hands each key to SSH.NET's ordinary public-key auth as
+   a `HostAlgorithm` whose `Sign` is an agent request — no new package, so
+   Core's three stay three. RSA keys are offered as `rsa-sha2-512`/`-256` only
+   (OpenSSH 8.8+ refuses SHA-1 `ssh-rsa`). This is what makes a
+   passphrase-protected key usable without typing the passphrase, and switching
+   a profile to agent auth deletes its stored SSH secret the way turning the
+   tunnel off does. `SshAuthMethod` is persisted as a number: append, never
+   reorder. `SshTunnel.Connect` throws `SshTunnelException` with a message
+   written for the form (which step failed, what to check), connects with a
+   15 s timeout rather than SSH.NET's 30 s (a jump host behind a VPN that is
+   off never answers), and sends keep-alives every 30 s. Host keys are still
+   not verified against `known_hosts`.
 5. **Crashes are logged and shown, never silent.** Critical/unhandled errors
    append to a plain-text log at `<appdata>/pgNimbus/logs/pgnimbus.log`
    (`PgNimbus.Core.Diagnostics.CrashLog` does the file I/O — directory-injectable
@@ -1759,7 +1775,7 @@ tab (UI design rule 3), that the results grid builds a column per result column
 and re-points on a tab switch, and that every window opens **and closes** — the
 detach path a render-and-exit pass never runs.
 
-Two landmines, both load-bearing:
+Three landmines, all load-bearing:
 
 - **`Ui.Run(async () => …)` is deliberately the only overload.** Avalonia's
   `HeadlessUnitTestSession` has a `Dispatch<T>(Func<T>)` that an async lambda
@@ -1773,6 +1789,13 @@ Two landmines, both load-bearing:
 - **Gestures come from the catalog**, via `Ui.Press(window, CommandId.X)`, never
   typed in — otherwise a test keeps passing after a chord moves, and fails on
   macOS where the same entry resolves to Cmd (UI design rule 5).
+
+- **Never await a catalog fetch against the fixture data source.** It points at
+  TEST-NET-3 so nothing ever answers, which means an awaited fetch (e.g.
+  `OpenCommandPaletteAsync`, which waits for the table list) returns only when
+  the OS abandons the TCP connect: ~21 s on Windows, ~127 s on a Linux runner
+  (six SYN retries). One such `await` was two of CI's five minutes until
+  2026-09. Fire it and move on (`_ = …`), as the screenshot scenarios do.
 
 The session runs the app with **no lifetime**, asserted by a test: with one,
 `App.OnFrameworkInitializationCompleted` would read the developer's real

@@ -77,6 +77,7 @@ public static class Scenarios
         ("about-window", About),
         ("crash-window", Crash),
         ("connection-dialog", ConnectionDialog),
+        ("connection-dialog-ssh-agent", ConnectionDialogSshAgent),
         ("connection-credential-warning", ConnectionCredentialWarning),
     ];
 
@@ -589,6 +590,19 @@ public static class Scenarios
         }
         if (viewModel.IsCredentialBusy) throw new TimeoutException("Credential fixture did not finish loading.");
         return new PgNimbus.App.Views.ConnectionDialog { DataContext = viewModel, Width = 640, Height = 680 };
+    }
+
+    /// <summary>The SSH tunnel block with agent auth: no key path, no passphrase field, the hint in their place.</summary>
+    public static Window ConnectionDialogSshAgent()
+    {
+        var window = ConnectionDialog();
+        var vm = (ConnectionDialogViewModel)window.DataContext!;
+        vm.Host = "127.0.0.1";
+        vm.UseSshTunnel = true;
+        vm.SshHost = "bastion.example.com";
+        vm.SshUsername = "deploy";
+        vm.SshAuthMethod = SshAuthMethod.Agent;
+        return window;
     }
 
     public static Window ConnectionCredentialWarning()
