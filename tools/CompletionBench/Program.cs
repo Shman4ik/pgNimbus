@@ -8,6 +8,15 @@ using PgNimbus.Core.Text;
 // documents of 1/10/100 thousand characters and catalogs up to a million
 // columns. Synthetic on purpose: no user SQL, no live database. Prints one
 // Markdown table per catalog; medians and p95 over the timed runs.
+//
+// With arguments it runs the completion audit's quality measurements instead
+// (see Audit.cs and Audit/README.md).
+
+if (args.Length > 0)
+{
+    Environment.ExitCode = await PgNimbus.CompletionBench.Audit.RunAsync(args);
+    return;
+}
 
 var documentSizes = new[] { 1_000, 10_000, 100_000 };
 var catalogs = new (string Label, int Tables, int ColumnsPerTable)[]

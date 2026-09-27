@@ -299,7 +299,13 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         StatusChanged?.Invoke(status);
     }
 
-    private static async Task<CompletionCatalog> ReadCatalogAsync(SchemaService schemaService, IReadOnlySet<string> excluded, CancellationToken ct)
+    /// <summary>
+    /// Reads everything completion knows from the server — the read
+    /// <see cref="RefreshAsync"/> publishes. Public so the measuring tools
+    /// (<c>tools/CompletionBench</c>) snapshot a catalog the same way the
+    /// editor does rather than through a copy of this method.
+    /// </summary>
+    public static async Task<CompletionCatalog> ReadCatalogAsync(SchemaService schemaService, IReadOnlySet<string> excluded, CancellationToken ct)
     {
         var schemaNames = new List<string>();
         var tables = new List<CompletionTable>();

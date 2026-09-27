@@ -14,3 +14,7 @@ and the last recorded results are in
 [`docs/design/sql-editing-experience.md`](../../docs/design/sql-editing-experience.md), section 8.
 Numbers depend on the machine. Compare runs on the same machine, not against
 another machine's numbers.
+
+With arguments it runs the quality measurements of the second completion
+audit instead — `quality`, `cases`, `hints` and `dump` — over the stand in
+[`Audit/`](Audit/README.md).

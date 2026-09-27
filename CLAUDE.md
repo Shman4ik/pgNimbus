@@ -1556,6 +1556,18 @@ csproj / WiX / MSIX manifest reference them unchanged:
   grammar the provider has to follow.
   Not done yet: a token cache per document version, the first full ranking
   over a ~1M-row list (3.5 ms median), and package J.
+  **The second audit measured typing, not parsing** (2026-09-27,
+  [`docs/design/sql-completion-audit-2.md`](docs/design/sql-completion-audit-2.md),
+  packages K–R, J folded into them). Typed without looking at the popup, with
+  Enter at each line end, the 25-query corpus came out changed in 51 places:
+  Enter took a row identical to the typed word (swallowing the newline), turned
+  an end-of-line alias into a keyword or a table (`FROM customers c⏎` →
+  `CROSS`), swapped a bare table for another schema's (`UPDATE customers⏎` →
+  `UPDATE commerce.customers`) and `IS NULL` for `nullif(`. The stand is
+  `tools/CompletionBench/Audit` (catalog snapshot, corpus, SaaS schema); the
+  measures are `CompletionBench quality|cases|hints|dump` and
+  `CompletionTypingReplayTests`, which stays `[Explicit]` until package K makes
+  the literal replay pass.
 - `SqlFormatter` follows <https://www.sqlstyle.guide/> ("river" layout: root
   keywords right-aligned to a common column, content to its right). The tests
   in `PgNimbus.Core.Tests` assert exact spacing — a deliberate layout change
@@ -1752,7 +1764,10 @@ How the fixtures work, and why they're shaped this way:
 Real windows on Avalonia's headless platform, driven with real key input — the
 layer that used to be a person clicking through the app. It reuses
 `tools/Screenshot`'s fixture graph (hence the `ProjectReference` to it) rather
-than growing a second set that would drift from what the screenshots show.
+than growing a second set that would drift from what the screenshots show. It
+references `tools/CompletionBench` too, for the completion audit's stand
+(catalog snapshot and corpus) that `CompletionTypingReplayTests` types through
+the real editor; that class is `[Explicit]`, so a plain `dotnet test` skips it.
 
 What it covers that nothing else does: that a gesture reaches its command, that
 the palette invokes the entry it highlights, that a saved query opens a *new*

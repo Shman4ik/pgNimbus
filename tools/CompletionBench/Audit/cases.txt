@@ -1,0 +1,275 @@
+## 1. Statement start
+[12] |
+s|
+se|
+sel|
+in|
+up|
+de|
+w|
+ex|
+cr|
+al|
+dr|
+tr|
+v|
+an|
+ref|
+gr|
+com|
+ro|
+sh|
+lis|
+not|
+dis|
+lo|
+rei|
+SELECT 1;\n|
+SELECT 1;\nse|
+
+## 2. SELECT list
+[10] SELECT |
+SELECT cu|
+SELECT em|
+[10] SELECT |\nFROM public.customers c
+SELECT c.|\nFROM public.customers c
+SELECT first|\nFROM public.customers c
+[12] SELECT |\nFROM public.customers c JOIN public.orders o ON o.customer_id = c.id
+SELECT c.first_name, |\nFROM public.customers c
+SELECT count(|) FROM public.orders
+SELECT DISTINCT |\nFROM public.orders
+SELECT c.id, c.email AS e|
+SELECT sum(|) FROM public.order_items
+SELECT o.total_amount * 2 AS double_total, o.|\nFROM public.orders o
+
+## 3. FROM / JOIN
+[12] SELECT * FROM |
+SELECT * FROM cu|
+[12] SELECT * FROM ord|
+[10] SELECT * FROM saas.|
+SELECT * FROM saas.iss|
+SELECT * FROM public.customers c J|
+[10] SELECT * FROM public.customers c JOIN |
+SELECT * FROM public.customers c JOIN o|
+[10] SELECT * FROM public.customers c LEFT JOIN |
+[10] SELECT * FROM public.customers c JOIN public.orders o ON |
+SELECT * FROM public.customers c JOIN public.orders o |
+[10] SELECT * FROM saas.issues i JOIN saas.users u ON |
+[10] SELECT * FROM saas.issue_labels il JOIN saas.labels l ON |
+[10] SELECT * FROM public.orders o JOIN public.order_items oi ON oi.order_id = o.id JOIN |
+SELECT * FROM (SELECT |
+SELECT * FROM generate_series(1, 10) g WHERE g.|
+SELECT * FROM public.customers AS |
+SELECT * FROM saas."Ti|
+SELECT * FROM saas.ti|
+SELECT * FROM saas."TimeEntries" t WHERE t.|
+SELECT * FROM pg_stat_act|
+SELECT * FROM information_schema.|
+SELECT * FROM pg_catalog.|
+SELECT * FROM saas.issues i, |
+SELECT * FROM saas.issues i JOIN saas.projects p USING (|
+
+## 4. WHERE / predicates
+[12] SELECT * FROM public.customers c WHERE |
+SELECT * FROM public.customers c WHERE c.|
+SELECT * FROM public.customers c WHERE is|
+SELECT * FROM public.customers c WHERE c.email |
+SELECT * FROM public.customers c WHERE c.email IS |
+SELECT * FROM public.customers c WHERE c.email IS NOT |
+SELECT * FROM public.customers c WHERE c.created_at > n|
+SELECT * FROM public.customers c WHERE c.id IN (|
+SELECT * FROM public.customers c WHERE EXISTS (|
+SELECT * FROM saas.issues i WHERE i.status = |
+SELECT * FROM saas.issues i WHERE i.status = '|'
+SELECT * FROM public.customers c WHERE c.first_name = 'x' a|
+SELECT * FROM public.customers c WHERE c.is_active = t|
+SELECT * FROM public.customers c WHERE c.first_name = 'x' AND |
+SELECT * FROM public.customers c WHERE c.email LIKE '%x%' AND c.|
+
+## 5. GROUP BY / ORDER BY / HAVING / LIMIT
+SELECT status, count(*) FROM public.orders GROUP BY |
+SELECT status, count(*) FROM public.orders G|
+SELECT status, count(*) FROM public.orders GROUP |
+SELECT status, count(*) FROM public.orders o ORDER BY |
+SELECT * FROM public.orders o ORDER BY o.total_amount |
+SELECT * FROM public.orders o ORDER BY o.total_amount DESC |
+SELECT * FROM public.orders o ORDER BY o.total_amount DESC L|
+SELECT status, count(*) AS n FROM public.orders GROUP BY status HAVING |
+SELECT status, count(*) AS n FROM public.orders GROUP BY status ORDER BY |
+SELECT status, count(*) AS n FROM public.orders GROUP BY status ORDER BY n|
+
+## 6. INSERT / UPDATE / DELETE / MERGE
+INSERT INTO |
+INSERT INTO public.customers (|
+INSERT INTO public.customers (first_name, |
+INSERT INTO public.customers |
+INSERT INTO public.customers (first_name, last_name) |
+INSERT INTO public.customers (first_name, last_name) VALUES (|
+UPDATE |
+UPDATE public.customers SET |
+UPDATE public.customers SET is_active = |
+UPDATE public.customers c SET email = lower(c.|
+UPDATE public.customers SET is_active = false W|
+DELETE FROM |
+DELETE FROM public.customers WHERE |
+MERGE INTO public.customers c USING |
+INSERT INTO public.orders (customer_id) VALUES (1) ON CONFLICT (|
+INSERT INTO public.orders (customer_id) VALUES (1) ON CONFLICT |
+INSERT INTO public.orders (customer_id) VALUES (1) ON CONFLICT (id) DO |
+INSERT INTO public.orders (customer_id) VALUES (1) RETURNING |
+
+## 7. DDL
+[12] CREATE |
+CREATE TABLE t (id |
+CREATE TABLE t (id bigint PRIMARY KEY, customer_id bigint REFERENCES |
+CREATE INDEX ON |
+CREATE INDEX idx ON public.orders (|
+CREATE INDEX idx ON public.orders USING |
+ALTER TABLE |
+ALTER TABLE public.customers |
+ALTER TABLE public.customers DROP COLUMN |
+ALTER TABLE public.customers ALTER COLUMN |
+ALTER TABLE public.customers RENAME COLUMN |
+ALTER TABLE public.customers ADD COLUMN x |
+DROP TABLE |
+DROP VIEW |
+DROP FUNCTION |
+TRUNCATE |
+COMMENT ON TABLE |
+COMMENT ON COLUMN public.customers.|
+GRANT SELECT ON |
+GRANT SELECT ON public.customers TO |
+VACUUM |
+ANALYZE |
+REFRESH MATERIALIZED VIEW |
+CREATE VIEW v AS SELECT |
+DROP SCHEMA |
+CREATE EXTENSION |
+
+## 8. Functions / expressions / types
+SELECT now|
+SELECT pg_size_pr|
+SELECT pg_total_rel|
+SELECT current_da|
+SELECT date_trunc('|
+SELECT jsonb_|
+SELECT saas.account_m|
+[12] SELECT saas.|
+SELECT account_m|
+CALL |
+SELECT '1'::|
+SELECT '1'::int|
+SELECT CAST(x AS |
+SELECT row_number() |
+SELECT row_number() OVER (|
+SELECT count(*) FILTER (|
+SELECT CASE WHEN |
+SELECT CASE WHEN x THEN 1 |
+SELECT coalesce(c.| FROM public.customers c
+SELECT nextval('|
+SELECT st|
+SELECT string_a|
+SELECT arr|
+SELECT gen_ra|
+SELECT extr|
+
+## 9. Misc
+SET |
+SET search_path TO |
+SHOW |
+EXPLAIN |
+EXPLAIN (|
+COPY |
+WITH x AS (SELECT 1 AS a) SELECT x.| FROM x
+WITH recent AS (SELECT * FROM public.orders) SELECT * FROM |
+LISTEN |
+TABLE |
+
+## 10. New-name positions (Enter hazard)
+SELECT * FROM public.customers c|
+SELECT * FROM public.orders o|
+SELECT * FROM public.customers u|
+SELECT * FROM public.customers w|
+SELECT * FROM public.customers AS c|
+SELECT * FROM public.customers c JOIN public.orders o|
+SELECT * FROM public.customers c\nJOIN public.orders o|
+SELECT count(*) AS n|
+SELECT c.email AS e|
+WITH r|
+CREATE TABLE t|
+CREATE TABLE t (i|
+SELECT * FROM public.customers c WHERE c.first_name = 'x' AND c.last_name = 'y' AND c.id = 1 o|
+
+## A. Closed-paren variants (what the editor has after auto-close)
+SELECT coalesce(c.|) FROM public.customers c
+SELECT coalesce(c.|
+SELECT count(*) FILTER (WHERE |) FROM public.orders
+SELECT row_number() OVER (PARTITION BY |) FROM public.orders o
+SELECT row_number() OVER (ORDER BY o.|) FROM public.orders o
+SELECT * FROM public.customers c WHERE c.id IN (SELECT o.| FROM public.orders o)
+SELECT * FROM public.customers c WHERE EXISTS (SELECT 1 FROM public.orders o WHERE o.customer_id = c.|)
+CREATE TABLE t (id |)
+CREATE INDEX idx ON public.orders (|)
+INSERT INTO public.customers (first_name) VALUES (|)
+SELECT * FROM saas.issues i WHERE i.labels @> ARRAY[|]
+
+## B. SELECT list without FROM (column-first)
+[10] SELECT first|
+[10] SELECT i.|
+[10] SELECT c.fi|
+SELECT *|
+SELECT DISTINCT ON (|)
+
+## C. Partitions / relation kinds
+[12] SELECT * FROM r|
+[12] SELECT * FROM iot.|
+SELECT * FROM mv|
+SELECT * FROM v_|
+
+## D. Mixed case / quoting typed by the user
+SELECT * FROM SAAS.ISS|
+SELECT * FROM saas.issues I WHERE I.|
+SELECT * FROM saas."TimeEntries" te WHERE te."Log|"
+SELECT * FROM saas."TimeEntries" te WHERE te.log|
+SELECT * FROM saas."TimeEntries" te WHERE te.|"
+
+## E. Keyword follow sets
+[10] SELECT c.id, c.email |\nFROM public.customers c
+[10] SELECT c.id FROM public.customers c |
+[10] SELECT * FROM public.customers c WHERE c.id = 1 |
+[10] SELECT * FROM public.customers c ORDER BY c.id |
+[10] SELECT * FROM public.customers c LIMIT 10 |
+[10] SELECT * FROM public.customers c WHERE c.email LIKE 'a%' |
+SELECT * FROM public.customers c WHERE c.id BETWEEN 1 |
+SELECT * FROM public.customers c WHERE NOT |
+SELECT * FROM public.customers c UNION |
+SELECT * FROM public.customers c UNION ALL |
+[10] SELECT |\nFROM saas.issues i\nWHERE i.status = 'open'
+SELECT c.first_name || ' ' || c.|\nFROM public.customers c
+
+## F. Aggregation helpers
+SELECT i.status, i.priority, count(*) FROM saas.issues i GROUP BY |
+SELECT i.status, count(*) FROM saas.issues i GROUP BY i.status HAVING count(*) > 1 ORDER BY |
+
+## G. Function argument contexts
+SELECT date_trunc('month', |) FROM public.orders o
+SELECT extract(|) FROM public.orders o
+SELECT to_char(o.order_date, |) FROM public.orders o
+SELECT saas.account_mrr(|)
+SELECT round(o.total_amount, |) FROM public.orders o
+SELECT jsonb_extract_path_text(i.metadata, |) FROM saas.issues i
+SELECT * FROM saas.issues i WHERE i.metadata ->> |
+
+## H. Values
+SELECT * FROM saas.issues i WHERE i.status = 'o|'
+SELECT * FROM saas.issues i WHERE i.status IN (|)
+UPDATE saas.issues SET status = |
+SELECT * FROM public.orders o WHERE o.status = |
+
+## I. Joins beyond FKs
+[10] SELECT * FROM saas.issues i JOIN saas.projects p ON |
+[10] SELECT * FROM saas.comments c JOIN |
+[10] SELECT * FROM saas.comments c JOIN saas.issues i ON i.id = c.issue_id JOIN |
+SELECT * FROM public.customers c JOIN public.orders o USING (|)
+[10] SELECT * FROM saas.issues i LEFT JOIN saas.users u ON u.id = i.|
+SELECT * FROM saas.issues i JOIN saas.users a ON a.id = i.assignee_id JOIN saas.users r ON r.id = i.|
