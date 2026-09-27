@@ -240,6 +240,10 @@ public class SqlKeywordGrammarTests
     [Arguments("MERGE INTO t USING s ON s.id = t.id WHEN MATCHED |", "THEN")]
     [Arguments("MERGE INTO t USING s ON s.id = t.id WHEN MATCHED THEN |", "UPDATE SET")]
     [Arguments("MERGE INTO t USING s ON s.id = t.id WHEN NOT MATCHED THEN |", "INSERT")]
+    [Arguments("MERGE INTO t USING s ON s.id = t.id WHEN |", "MATCHED")]
+    [Arguments("MERGE INTO t USING s ON s.id = t.id WHEN NOT |", "MATCHED")]
+    [Arguments("MERGE INTO t USING s ON s.id = t.id WHEN MATCHED THEN UPDATE SET a = 1 |", "WHEN NOT MATCHED")]
+    [Arguments("MERGE INTO t USING s ON s.id = t.id WHEN NOT MATCHED THEN DO |", "NOTHING")]
     public async Task Merge_takes_its_when_clauses(string marked, string expected)
     {
         await Assert.That(At(marked).Keywords).Contains(expected);

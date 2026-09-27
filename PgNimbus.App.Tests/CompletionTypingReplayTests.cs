@@ -93,7 +93,8 @@ public class CompletionTypingReplayTests
     /// row. The number goes to the test output; the floor stops it from
     /// getting worse than the last package delivered (the audit's baseline was
     /// 24.4% with the auto-alias off, 25.6% with it on; package L 32.9% /
-    /// 33.9%; package M, on the corpus it grew to 30 queries, 35.3% / 36.4%).
+    /// 33.9%; package M, on the corpus it grew to 30 queries, 35.3% / 36.4%;
+    /// package O 38.5% / 38.9%, 36.9% / 37.9% over the snapshot before it).
     /// A package that raises the saving raises the floor, and one that adds
     /// queries to the corpus measures the base branch on them first.
     /// </summary>
@@ -125,7 +126,7 @@ public class CompletionTypingReplayTests
         Console.WriteLine($"auto-alias {(autoAlias ? "on" : "off")}: {total.Characters} characters, {total.Keys} keys, saved {saved:P1}; "
             + $"{total.Accepts} accepts, {total.Downs} Downs, {total.Escapes} Escapes before an Enter");
         Console.WriteLine(report);
-        await Assert.That(saved).IsGreaterThanOrEqualTo(0.35);
+        await Assert.That(saved).IsGreaterThanOrEqualTo(0.38);
     }
 
     private sealed class OracleTally

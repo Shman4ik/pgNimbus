@@ -633,6 +633,27 @@ public class CompletionEditorTests
     }
 
     [Test]
+    public async Task A_quote_after_an_enum_comparison_lists_its_labels_and_tab_writes_one()
+    {
+        // E07: the string's own quotes are kept; the label goes between them.
+        await Ui.Run(async () =>
+        {
+            var (window, editor) = OpenAuditStand(autoAlias: false);
+            TypeKeys(window, "SELECT * FROM saas.issues i WHERE i.status = '");
+            await Assert.That(PopupIsOpen(window)).IsTrue();
+
+            TypeKeys(window, "bl");
+            Ui.Press(window, Key.Tab);
+            await Assert.That(Marked(editor)).IsEqualTo("SELECT * FROM saas.issues i WHERE i.status = 'blocked|'");
+
+            editor.Text = "";
+            TypeKeys(window, "SELECT * FROM public.customers c WHERE c.email = '");
+            await Assert.That(PopupIsOpen(window)).IsFalse(); // an ordinary string
+            window.Close();
+        });
+    }
+
+    [Test]
     public async Task Punctuation_closes_the_list_and_a_space_does_not_filter_a_phrase()
     {
         await Ui.Run(async () =>

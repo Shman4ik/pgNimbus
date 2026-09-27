@@ -1654,6 +1654,42 @@ csproj / WiX / MSIX manifest reference them unchanged:
   (`SqlCompletionContext.ClauseBefore`). The C01 table is
   `CompletionProviderTests.C01_…` row by row. `CompletionBench quality` credits
   a phrase row for its first word when the query goes on with the rest.
+  **Package O widened the catalog** (E01–E07). The system catalogs are read like
+  a schema (`SqlCompletionProvider.SystemSchemas`: pg_catalog, information_schema
+  — relations and columns, not functions) and ranked under the user's own
+  (`SystemTablePriority`; a short list of everyday ones, pg_stat_activity first,
+  a little higher; information_schema's rarer views under its schema row and its
+  `_pg_*` plumbing not at all). **pg_catalog is searched first** unless the
+  search_path names it elsewhere — `ResolveShort` checks it before the path,
+  which is also what makes `pg_class` insert bare. pg_catalog's own functions
+  are candidates now, one row per name, what `IsInternal` marks left out, under
+  the curated list (which grew the everyday admin ones: pg_size_pretty,
+  pg_terminate_backend …) and **marked `IsGuess`**: a thousand rarely typed names
+  are the only longer match for many a word typed in full (`query` →
+  `querytree(`), so Enter takes one only when chosen — found by the literal
+  replay over the old snapshot, which had no `query` column to match exactly.
+  Rows describe what they name (E06): a column's PK / identity / generated /
+  default / NOT NULL / the FK it follows / comment (`TableColumn`'s new init
+  props, read by `GetAllColumnsAsync`, which now covers foreign tables too), a
+  relation's kind, row estimate and comment, a function's signatures **with
+  their DEFAULTs** (`FunctionInfo.FullArguments`, `pg_get_function_arguments`,
+  kept apart from the identity `Arguments` DROP FUNCTION needs) and comment; the
+  argument hint parses the full form, drops OUT parameters and marks
+  `SqlParameter.HasDefault`. **Values** (E07) come from `Text/SqlValueSlot`
+  (Core-pure, `SqlValueSlotTests`): the right side of `=`/`<>`/`!=`/`IN (…)` with
+  a column gets its enum's labels (quoted; bare inside the quotes — the one
+  place completion answers inside a string, and the editor opens the list on the
+  `'` itself) or TRUE/FALSE for a boolean, above everything (`ValuePriority`);
+  `nextval('`/`currval('`/`setval('` get the sequences (bare when on the path),
+  `date_trunc('` the units, `extract(` the fields alone. The column's type is
+  matched to an enum by format_type's spelling, which is what both the column's
+  `DataType` and `DataTypeInfo.DisplayName` hold. Sequences, roles, settings and
+  extensions are in the snapshot too (`CompletionCatalog.Sequences/Roles/Settings/
+  Extensions`, each read with `ReadOptionalAsync` so a server that refuses one
+  costs only those candidates); roles, settings and extensions are package N's.
+  `CompletionBench quality` now says why each never-offered word is: a new name,
+  one declared later in the query (package R), a DDL word (package N), or other
+  — O's criterion is the last, now 0.
 - `SqlFormatter` follows <https://www.sqlstyle.guide/> ("river" layout: root
   keywords right-aligned to a common column, content to its right). The tests
   in `PgNimbus.Core.Tests` assert exact spacing — a deliberate layout change

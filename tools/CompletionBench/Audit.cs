@@ -78,6 +78,10 @@ public static class Audit
         var groups = new Dictionary<string, Tally>(StringComparer.Ordinal);
         var offeredWords = new Tally();
         var misses = new List<string>();
+        // Why a word was never offered: no list can hold a name being made up,
+        // one that is declared later in the query (package R, typing "columns
+        // first"), or a DDL word (package N); anything else is a gap.
+        var neverOffered = new Dictionary<string, int>(StringComparer.Ordinal);
         foreach (var query in corpus)
         {
             var tokens = SqlLexer.Tokenize(query);
@@ -127,6 +131,8 @@ public static class Audit
                 if (!offered)
                 {
                     tally.NeverOffered++;
+                    var reason = WhyNeverOffered(query, tokens, t);
+                    neverOffered[reason] = neverOffered.GetValueOrDefault(reason) + 1;
                 }
                 else
                 {
@@ -154,6 +160,10 @@ public static class Audit
         output.AppendLine(all.Row("**all**"));
         output.AppendLine(offeredWords.Row("**offered**"));
         output.AppendLine();
+        var words = groups.Values.Sum(g => g.Words);
+        output.AppendLine($"Never offered: {all.NeverOffered} of {words} ({(double)all.NeverOffered / Math.Max(words, 1):P1}) — "
+            + string.Join(", ", NeverOfferedReasons.Select(r => $"{r} {neverOffered.GetValueOrDefault(r)} ({(double)neverOffered.GetValueOrDefault(r) / Math.Max(words, 1):P1})")));
+        output.AppendLine();
         output.AppendLine("Not first after two characters:");
         foreach (var miss in misses)
         {
@@ -161,6 +171,39 @@ public static class Audit
         }
 
         return output.ToString();
+    }
+
+    private static readonly string[] NeverOfferedReasons = ["new name", "declared later (R)", "DDL (N)", "other"];
+
+    // Why the word at tokens[t] can't be offered while typing left to right:
+    // it is a name being made up (an alias, an output name, a CTE's name);
+    // the alias or name it uses is declared later in the query, so nothing
+    // to the left knows it yet; it is in a DDL statement; or none of these.
+    private static string WhyNeverOffered(string query, List<SqlToken> tokens, int t)
+    {
+        var token = tokens[t];
+        if (SqlCompletionContext.IsNewNamePosition(query[..token.End], token.End))
+        {
+            return "new name";
+        }
+
+        // "c.first_name" before "FROM customers c": c is declared later.
+        var name = SqlLexer.FoldCase(query.AsSpan(token.Start, token.Length));
+        var qualifier = t >= 2 && tokens[t - 1].Kind == SqlTokenKind.Dot ? tokens[t - 2] : (SqlToken?)null;
+        var used = qualifier is { } q ? SqlLexer.FoldCase(query.AsSpan(q.Start, q.Length)) : name;
+        for (var later = t + 1; later < tokens.Count; later++)
+        {
+            if (tokens[later].Kind == SqlTokenKind.Word && SqlLexer.FoldCase(query.AsSpan(tokens[later].Start, tokens[later].Length)) == used
+                && SqlCompletionContext.IsNewNamePosition(query[..tokens[later].End], tokens[later].End))
+            {
+                return "declared later (R)";
+            }
+        }
+
+        var first = tokens.FirstOrDefault(x => x.Kind == SqlTokenKind.Word);
+        return SqlLexer.FoldCase(query.AsSpan(first.Start, first.Length)) is "create" or "alter" or "drop" or "comment" or "grant"
+            ? "DDL (N)"
+            : "other";
     }
 
     // True when accepting `item` writes `word` (the word at `start` in

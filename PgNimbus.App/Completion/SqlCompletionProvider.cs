@@ -12,6 +12,12 @@ public sealed record CompletionTable(string Schema, string Name, IReadOnlyList<T
 
     /// <summary>A partition of another relation: reached through its parent, not offered on its own.</summary>
     public bool IsPartition { get; init; }
+
+    /// <summary>The relation's comment, if it has one.</summary>
+    public string? Comment { get; init; }
+
+    /// <summary>The planner's row estimate; null before the relation was ever analyzed.</summary>
+    public long? RowEstimate { get; init; }
 }
 
 /// <summary>A catalog function, procedure or aggregate, with the schema that owns it.</summary>
@@ -42,6 +48,18 @@ public sealed record CompletionCatalog(
 
     /// <summary>The types a cast can name (see <see cref="SchemaService.GetTypesAsync"/>); empty until read, when a short built-in list stands in.</summary>
     public IReadOnlyList<DataTypeInfo> Types { get; init; } = [];
+
+    /// <summary>The sequences a <c>nextval('…')</c> can name.</summary>
+    public IReadOnlyList<SequenceName> Sequences { get; init; } = [];
+
+    /// <summary>The roles a GRANT … TO can name.</summary>
+    public IReadOnlyList<string> Roles { get; init; } = [];
+
+    /// <summary>The server's settings, for SET and SHOW.</summary>
+    public IReadOnlyList<SettingInfo> Settings { get; init; } = [];
+
+    /// <summary>The extensions the server has, installed or available.</summary>
+    public IReadOnlyList<ExtensionInfo> Extensions { get; init; } = [];
 }
 
 /// <summary>
@@ -107,6 +125,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
     {
         "count", "sum", "avg", "min", "max", "coalesce", "now", "date_trunc", "lower", "upper", "length",
         "round", "string_agg", "array_agg", "row_number", "to_char", "jsonb_build_object", "nullif", "extract",
+        "pg_size_pretty", "pg_total_relation_size", "pg_terminate_backend", "pg_cancel_backend",
     };
 
     // Everyday Postgres functions, curated rather than read from pg_proc — the
@@ -151,6 +170,12 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         "jsonb_path_exists", "jsonb_path_match",
         // misc
         "md5", "gen_random_uuid", "pg_typeof",
+        // the everyday administration ones
+        "pg_size_pretty", "pg_total_relation_size", "pg_relation_size", "pg_table_size", "pg_indexes_size",
+        "pg_database_size", "pg_terminate_backend", "pg_cancel_backend", "pg_sleep", "pg_get_viewdef",
+        "pg_get_functiondef", "pg_get_indexdef", "pg_get_constraintdef", "current_setting", "set_config",
+        "current_database", "current_schemas", "version", "regexp_matches", "regexp_split_to_table",
+        "to_number", "clock_timestamp", "statement_timestamp", "pg_backend_pid", "txid_current",
     ];
 
     // Ranking bands. Current-statement items (its tables' columns, its aliases)
@@ -191,6 +216,19 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
     private const double SchemaPriority = 1;
     // A partition, after its schema's "."; under its parent.
     private const double PartitionPriority = 0.5;
+    // The system catalogs' relations and columns (E01), under the user's own;
+    // the ones people query every day a little over the rest of them.
+    private const double SystemTablePriority = 4;
+    private const double CommonSystemTablePriority = 5;
+    private const double RareInformationSchemaPriority = 0.8;
+    private const double SystemGeneralTablePriority = 1.2;
+    private const double SystemColumnPriority = 1.8;
+    // pg_catalog's functions beyond the curated list (E02): under those, over
+    // the catalog-wide column guesses.
+    private const double BuiltinFunctionPriority = 2.5;
+    // A value the column on the other side of a comparison takes (E07): an
+    // enum's labels, TRUE/FALSE for a boolean — above the statement's columns.
+    private const double ValuePriority = 150;
     // Types after "::": a user's own domains and enums before the built-ins.
     private const double UserTypePriority = 12;
     private const double TypePriority = 11;
@@ -334,6 +372,24 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         var tables = new List<CompletionTable>();
         var functions = new List<CompletionFunction>();
 
+        async Task AddRelationsAsync(string schema)
+        {
+            var relations = await schemaService.GetCompletionRelationsAsync(schema, ct);
+            var columns = (await schemaService.GetAllColumnsAsync(schema, ct))
+                .GroupBy(c => c.Table, StringComparer.Ordinal)
+                .ToDictionary(g => g.Key, g => (IReadOnlyList<TableColumn>)[.. g], StringComparer.Ordinal);
+            foreach (var relation in relations)
+            {
+                tables.Add(new CompletionTable(schema, relation.Name, columns.GetValueOrDefault(relation.Name) ?? [])
+                {
+                    Kind = relation.Kind,
+                    IsPartition = relation.IsPartition,
+                    Comment = relation.Comment,
+                    RowEstimate = relation.RowEstimate,
+                });
+            }
+        }
+
         foreach (var schema in await schemaService.GetSchemasAsync(ct))
         {
             // An excluded schema contributes nothing anywhere, and its catalog
@@ -344,22 +400,22 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
             }
 
             schemaNames.Add(schema.Name);
-            var relations = await schemaService.GetCompletionRelationsAsync(schema.Name, ct);
-            var columns = (await schemaService.GetAllColumnsAsync(schema.Name, ct))
-                .GroupBy(c => c.Table, StringComparer.Ordinal)
-                .ToDictionary(g => g.Key, g => (IReadOnlyList<TableColumn>)[.. g], StringComparer.Ordinal);
-            foreach (var relation in relations)
-            {
-                tables.Add(new CompletionTable(schema.Name, relation.Name, columns.GetValueOrDefault(relation.Name) ?? [])
-                {
-                    Kind = relation.Kind,
-                    IsPartition = relation.IsPartition,
-                });
-            }
-
+            await AddRelationsAsync(schema.Name);
             foreach (var function in await schemaService.GetFunctionsAsync(schema.Name, ct))
             {
                 functions.Add(new CompletionFunction(schema.Name, function));
+            }
+        }
+
+        // The system catalogs (E01): pg_stat_activity, pg_class,
+        // information_schema.columns are everyday names for a Postgres client.
+        // Their functions are pg_catalog's own, read below.
+        foreach (var system in SystemSchemas)
+        {
+            if (!excluded.Contains(system))
+            {
+                schemaNames.Add(system);
+                await AddRelationsAsync(system);
             }
         }
 
@@ -382,8 +438,32 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         {
             BuiltinFunctions = builtinFunctions,
             Types = types,
+            Sequences = [.. (await ReadOptionalAsync(() => schemaService.GetSequenceNamesAsync(ct), [])).Where(s => !excluded.Contains(s.Schema))],
+            Roles = [.. (await ReadOptionalAsync(() => schemaService.GetRolesAsync(ct), [])).Select(r => r.Name)],
+            Settings = await ReadOptionalAsync(() => schemaService.GetSettingsAsync(ct), []),
+            Extensions = await ReadOptionalAsync(() => schemaService.GetExtensionsAsync(ct), []),
         };
     }
+
+    // A read the rest of completion does without: a server that refuses it
+    // (a restricted role, a Postgres-compatible engine missing the view)
+    // costs those candidates, not the whole catalog.
+    private static async Task<IReadOnlyList<T>> ReadOptionalAsync<T>(Func<Task<IReadOnlyList<T>>> read, IReadOnlyList<T> fallback)
+    {
+        try
+        {
+            return await read();
+        }
+        catch (Npgsql.PostgresException)
+        {
+            return fallback;
+        }
+    }
+
+    /// <summary>The system schemas completion reads relations from: pg_catalog (searched first, whatever the path says) and information_schema (reached qualified).</summary>
+    public static readonly IReadOnlyList<string> SystemSchemas = ["pg_catalog", "information_schema"];
+
+    private static bool IsSystemSchema(string schema) => schema is "pg_catalog" or "information_schema";
 
     /// <summary>
     /// Publishes <paramref name="catalog"/> as what completion offers from now
@@ -405,9 +485,32 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         var searchPath = catalog.SearchPath;
 
         var keywordItems = Keywords.Select(k => new SqlCompletionData(k, SqlCompletionKind.Keyword)).ToList();
+        var builtinOverloads = catalog.BuiltinFunctions
+            .Where(f => !f.Function.IsInternal && f.Function.Kind != 'p')
+            .GroupBy(f => f.Function.Name, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => (IReadOnlyList<FunctionInfo>)[.. g.Select(f => f.Function)], StringComparer.Ordinal);
+        // The everyday functions, curated; with the catalog read, their
+        // signatures and description go in the tooltip.
         var builtinFunctionItems = Functions
-            .Select(f => new SqlCompletionData(f, SqlCompletionKind.Function, $"{f}()", CommonFunctions.Contains(f) ? CommonFunctionPriority : FunctionPriority))
+            .Select(f => new SqlCompletionData(f, SqlCompletionKind.Function, $"{f}()", CommonFunctions.Contains(f) ? CommonFunctionPriority : FunctionPriority)
+            {
+                DescriptionText = builtinOverloads.TryGetValue(f, out var overloads) ? FunctionDescription(overloads) : null,
+            })
             .ToList();
+        // And the rest of pg_catalog's (E02): pg_size_pretty, to_timestamp,
+        // pg_terminate_backend … — one row per name, what the catalog marks as
+        // machinery left out, under the curated ones.
+        var curatedNames = new HashSet<string>(Functions, StringComparer.Ordinal);
+        foreach (var (name, overloads) in builtinOverloads.OrderBy(o => o.Key, StringComparer.Ordinal))
+        {
+            if (!curatedNames.Contains(name))
+            {
+                // A thousand rarely-typed names: one of them is often the only
+                // longer match for a word typed in full (query → querytree), so,
+                // like a catalog-wide column, Enter takes one only when chosen.
+                builtinFunctionItems.Add(FunctionItem("pg_catalog", name, overloads, searchPath, BuiltinFunctionPriority, isGuess: true));
+            }
+        }
 
         // A name pg_catalog already has is what an unqualified call reaches
         // (pg_catalog is searched first, whatever the path says), so an
@@ -479,12 +582,16 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
             // can't know (SessionSearchPathChanged).
             // A partition is reached through its parent: offered only after
             // "schema.", below everything else there (E05).
-            if (table.IsPartition)
+            // information_schema's _pg_* views are its own plumbing.
+            if (table.IsPartition || (table.Schema == "information_schema" && table.Name.StartsWith("_pg_", StringComparison.Ordinal)))
             {
                 continue;
             }
 
-            baseItems.Add(TableItem(table.Schema, table.Name, qualified: false, GeneralTablePriority));
+            // A system relation ranks under the user's own everywhere: the
+            // prefix "ta" should reach a tasks table before information_schema.tables.
+            var system = IsSystemSchema(table.Schema);
+            baseItems.Add(TableItem(table, qualified: false, system ? SystemGeneralTablePriority : GeneralTablePriority));
             tableRefItems.Add(TableRefItem(table,
                 ResolveShort(tablesByKey, tablesByName, excluded, searchPath, table.Name) == table));
             tableRefItemsUnknownPath.Add(TableRefItem(table,
@@ -493,7 +600,8 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
             {
                 // A catalog-wide column is a guess: the statement names no
                 // relation that has it (yet). Enter won't take one unasked.
-                baseItems.Add(ColumnItem(column.Column, column.DataType, table.Name, ColumnPriority, isGuess: true));
+                baseItems.Add(ColumnItem(new SourceColumn(column.Column, column.DataType, table.Name) { Facts = column },
+                    system ? SystemColumnPriority : ColumnPriority, isGuess: true));
             }
         }
 
@@ -537,6 +645,29 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
             ? FallbackTypeItems
             : Dedupe(catalog.Types.Where(t => !excluded.Contains(t.Schema)).Select(t => TypeItem(t, searchPath)));
 
+        // An enum's labels by the name format_type gives its columns, which
+        // is what a column's DataType holds (E07).
+        var enumLabels = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
+        foreach (var type in catalog.Types)
+        {
+            if (type.EnumLabels.Count > 0 && !excluded.Contains(type.Schema))
+            {
+                enumLabels[type.DisplayName] = type.EnumLabels;
+            }
+        }
+
+        // What each foreign-key column references, for its tooltip: "→ users.id".
+        var references = new Dictionary<(string, string, string), string>();
+        foreach (var fk in foreignKeys)
+        {
+            for (var i = 0; i < fk.FromColumns.Count && i < fk.ToColumns.Count; i++)
+            {
+                references.TryAdd((fk.FromSchema, fk.FromTable, fk.FromColumns[i]), $"{fk.ToTable}.{fk.ToColumns[i]}");
+            }
+        }
+
+        var sequences = catalog.Sequences.Where(s => !excluded.Contains(s.Schema)).ToList();
+
         return new Snapshot(
             tables,
             tablesByKey,
@@ -554,7 +685,13 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
             new CandidateList(Dedupe(predicateBase.Where(i => i.Kind != SqlCompletionKind.Keyword))),
             hintFunctions,
             typeItems,
-            callKinds);
+            callKinds)
+        {
+            EnumLabels = enumLabels,
+            References = references,
+            Sequences = sequences,
+            Catalog = catalog,
+        };
     }
 
     // One name, two overloads: a window function only when every overload is
@@ -660,25 +797,104 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
     // "name()" — schema-qualified when the schema isn't on the search_path, so
     // the call resolves to the function that was picked — with every signature
     // in the tooltip, doubling as a lightweight parameter hint.
-    private static SqlCompletionData FunctionItem(string schema, string name, IReadOnlyList<FunctionInfo> overloads, IReadOnlyList<string>? searchPath)
+    private static SqlCompletionData FunctionItem(
+        string schema, string name, IReadOnlyList<FunctionInfo> overloads, IReadOnlyList<string>? searchPath, double priority = FunctionPriority,
+        bool isGuess = false)
     {
-        var onPath = searchPath?.Contains(schema) ?? schema == "public";
+        // pg_catalog is searched first whatever the path says: its functions never need the schema.
+        var onPath = schema == "pg_catalog" || (searchPath?.Contains(schema) ?? schema == "public");
         var callName = onPath
             ? SqlIdentifier.QuoteIfNeeded(name)
             : $"{SqlIdentifier.QuoteIfNeeded(schema)}.{SqlIdentifier.QuoteIfNeeded(name)}";
-        var signatures = overloads.Select(f => $"{FunctionSignatureFormatter.KindLabel(f)} · {FunctionSignatureFormatter.Format(f)}");
-        return new SqlCompletionData(name, SqlCompletionKind.Function, $"{callName}()", FunctionPriority)
+        return new SqlCompletionData(name, SqlCompletionKind.Function, $"{callName}()", priority)
         {
             Detail = schema,
-            DescriptionText = string.Join("\n", signatures),
+            DescriptionText = FunctionDescription(overloads),
+            IsGuess = isGuess,
         };
+    }
+
+    // Every signature, with its DEFAULTs (E06), then the function's comment.
+    private static string FunctionDescription(IReadOnlyList<FunctionInfo> overloads)
+    {
+        var lines = overloads
+            .Select(f => $"{FunctionSignatureFormatter.KindLabel(f)} · {FunctionSignatureFormatter.Format(f.FullArguments is { } full ? f with { Arguments = full } : f)}")
+            .Distinct(StringComparer.Ordinal)
+            .Take(8)
+            .ToList();
+        if (overloads.Count > 8)
+        {
+            lines.Add($"… {overloads.Count - 8} more");
+        }
+
+        if (overloads.Select(f => f.Description).FirstOrDefault(d => !string.IsNullOrWhiteSpace(d)) is { } description)
+        {
+            lines.Add(description);
+        }
+
+        return string.Join("\n", lines);
     }
 
     // A relation in table position: bare when the bare name resolves to it
     // (and ranked above same-named relations elsewhere, which is what keeps
     // "UPDATE customers" on public.customers), schema-qualified otherwise.
     private static SqlCompletionData TableRefItem(CompletionTable table, bool resolvesBare) =>
-        TableItem(table.Schema, table.Name, qualified: !resolvesBare, resolvesBare ? PathTablePriority : TablePriority);
+        TableItem(table, qualified: !resolvesBare,
+            CommonSystemRank.TryGetValue($"{table.Schema}.{table.Name}", out var rank) ? CommonSystemTablePriority - (rank * 0.01)
+            // information_schema's rarer views (sql_features, …) under its schema row.
+            : table.Schema == "information_schema" ? RareInformationSchemaPriority
+            : IsSystemSchema(table.Schema) ? SystemTablePriority
+            : resolvesBare ? PathTablePriority : TablePriority);
+
+    // The system relations a Postgres client queries every day, most queried first.
+    private static readonly string[] CommonSystemRelations =
+    [
+        "pg_catalog.pg_stat_activity", "pg_catalog.pg_class", "pg_catalog.pg_namespace", "pg_catalog.pg_locks",
+        "pg_catalog.pg_stat_user_tables", "pg_catalog.pg_indexes", "pg_catalog.pg_tables", "pg_catalog.pg_views",
+        "pg_catalog.pg_settings", "pg_catalog.pg_roles", "pg_catalog.pg_database", "pg_catalog.pg_attribute",
+        "pg_catalog.pg_constraint", "pg_catalog.pg_proc", "pg_catalog.pg_type", "pg_catalog.pg_extension",
+        "pg_catalog.pg_stat_statements", "pg_catalog.pg_stat_user_indexes", "pg_catalog.pg_stat_database",
+        "pg_catalog.pg_matviews", "pg_catalog.pg_sequences", "pg_catalog.pg_stat_replication", "pg_catalog.pg_user",
+        "information_schema.columns", "information_schema.tables", "information_schema.views",
+        "information_schema.routines", "information_schema.schemata", "information_schema.table_constraints",
+        "information_schema.key_column_usage", "information_schema.referential_constraints",
+        "information_schema.parameters", "information_schema.table_privileges",
+    ];
+
+    private static readonly Dictionary<string, int> CommonSystemRank =
+        CommonSystemRelations.Select((name, i) => (name, i)).ToDictionary(x => x.name, x => x.i, StringComparer.Ordinal);
+
+    // A catalog relation, its kind, size and comment in the tooltip (E06).
+    private static SqlCompletionData TableItem(CompletionTable table, bool qualified, double priority)
+    {
+        var item = TableItem(table.Schema, table.Name, qualified, priority);
+        return new SqlCompletionData(item.Text, item.Kind, item.InsertText, item.Priority)
+        {
+            AliasTable = item.AliasTable,
+            Detail = item.Detail,
+            DescriptionText = RelationDescription(table),
+        };
+    }
+
+    // "view · commerce · ~12,000 rows", the comment on the next line.
+    private static string RelationDescription(CompletionTable table)
+    {
+        var kind = table.Kind switch
+        {
+            'v' => "view",
+            'm' => "materialized view",
+            'p' => "partitioned table",
+            'f' => "foreign table",
+            _ => table.IsPartition ? "partition" : "table",
+        };
+        var line = $"{kind} · {table.Schema}";
+        if (table.RowEstimate is { } rows && table.Kind is 'r' or 'm' or 'p')
+        {
+            line += $" · ~{rows.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)} rows";
+        }
+
+        return table.Comment is { Length: > 0 } comment ? $"{line}\n{comment}" : line;
+    }
 
     private static SqlCompletionData TableItem(string schema, string table, bool qualified, double priority = TablePriority) =>
         new(table, SqlCompletionKind.Table,
@@ -704,12 +920,19 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         var caret = Math.Clamp(caretOffset - start, 0, statement.Length);
 
         var context = SqlCompletionContext.GetCaretContext(statement, caret);
+        var slot = SqlValueSlot.At(statement, caret);
         if (context.InStringOrComment)
         {
-            return [];
+            // Prose, except a string that holds a value the text around it
+            // decides: an enum column's label, a sequence in nextval('…') (E07).
+            return slot is { InString: true } ? StringValueItems(snapshot, statement, caret, slot) : [];
         }
 
-        var items = Candidates(snapshot, statement, caret, context);
+        var items = Candidates(snapshot, statement, caret, context, slot);
+        if (slot is not null && ValueItems(snapshot, statement, caret, slot) is { Count: > 0 } values)
+        {
+            items = WithValues(values, items);
+        }
 
         // Inside "…" the user is spelling a name; keywords can't go there.
         return context.InQuotedIdentifier
@@ -717,11 +940,17 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
             : items;
     }
 
-    private IReadOnlyList<SqlCompletionData> Candidates(Snapshot snapshot, string statement, int caret, SqlCompletionContext.CaretContext context)
+    private IReadOnlyList<SqlCompletionData> Candidates(Snapshot snapshot, string statement, int caret, SqlCompletionContext.CaretContext context, SqlValueSlot? slot)
     {
         if (IsTypePosition(statement, caret))
         {
             return snapshot.TypeItems;
+        }
+
+        // "extract(|": only a field can go there, then FROM.
+        if (slot is { InString: false, Function: "extract", ArgumentIndex: 0 })
+        {
+            return ExtractFieldItems;
         }
 
         var scope = Scope.At(statement, caret);
@@ -777,6 +1006,148 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
                 GetPredicateCompletions(snapshot, statement, scope, operandKeywords),
             _ => GetGeneralCompletions(snapshot, statement, scope, operandKeywords),
         };
+    }
+
+    // The fields extract( takes, most used first.
+    private static readonly string[] DateFields =
+    [
+        "year", "month", "day", "hour", "minute", "second", "epoch", "dow", "doy", "week", "quarter", "isodow",
+        "isoyear", "milliseconds", "microseconds", "decade", "century", "millennium", "timezone", "julian",
+    ];
+
+    private static readonly IReadOnlyList<SqlCompletionData> ExtractFieldItems =
+        [.. DateFields.Select((f, i) => new SqlCompletionData(f.ToUpperInvariant(), SqlCompletionKind.Keyword, f.ToUpperInvariant(), ValuePriority - (i * 0.01))
+        {
+            DescriptionText = "date/time field",
+        })];
+
+    // The units date_trunc('…') and date_bin take, in a string.
+    private static readonly string[] TruncUnits =
+    [
+        "day", "month", "year", "hour", "week", "minute", "second", "quarter", "decade", "century", "millennium",
+        "milliseconds", "microseconds",
+    ];
+
+    // Values the column on the left of a comparison takes, written as
+    // literals: an enum's labels quoted, TRUE/FALSE for a boolean. Null when
+    // the slot names no column the scope can resolve, or a type with no such list.
+    private List<SqlCompletionData>? ValueItems(Snapshot snapshot, string statement, int caret, SqlValueSlot slot)
+    {
+        if (slot.ComparedColumn is not { } column || ComparedColumnType(snapshot, statement, caret, column) is not { } type)
+        {
+            return null;
+        }
+
+        if (type is "boolean")
+        {
+            return
+            [
+                new SqlCompletionData("TRUE", SqlCompletionKind.Keyword, "TRUE", ValuePriority) { DescriptionText = "boolean" },
+                new SqlCompletionData("FALSE", SqlCompletionKind.Keyword, "FALSE", ValuePriority - 0.01) { DescriptionText = "boolean" },
+            ];
+        }
+
+        return snapshot.EnumLabels.TryGetValue(type, out var labels)
+            ? [.. labels.Select((label, i) => new SqlCompletionData(label, SqlCompletionKind.Value, $"'{label.Replace("'", "''", StringComparison.Ordinal)}'", ValuePriority - (i * 0.01))
+            {
+                Detail = type,
+                DescriptionText = $"{type} label",
+            })]
+            : null;
+    }
+
+    // Inside a string that holds a value: the value alone, the quotes are
+    // already there — an enum label, a sequence name, a date_trunc unit.
+    private List<SqlCompletionData> StringValueItems(Snapshot snapshot, string statement, int caret, SqlValueSlot slot)
+    {
+        if (slot.ComparedColumn is { } column)
+        {
+            return ComparedColumnType(snapshot, statement, caret, column) is { } type && snapshot.EnumLabels.TryGetValue(type, out var labels)
+                ? [.. labels.Select((label, i) => new SqlCompletionData(label, SqlCompletionKind.Value, label.Replace("'", "''", StringComparison.Ordinal), ValuePriority - (i * 0.01))
+                {
+                    Detail = type,
+                    DescriptionText = $"{type} label",
+                })]
+                : [];
+        }
+
+        return (slot.Function, slot.ArgumentIndex) switch
+        {
+            ("nextval" or "currval" or "setval", 0) => [.. snapshot.Sequences.Select(s =>
+            {
+                var onPath = (SessionSearchPathChanged ? null : snapshot.SearchPath)?.Contains(s.Schema) ?? s.Schema == "public";
+                return new SqlCompletionData(s.Name, SqlCompletionKind.Sequence,
+                    onPath ? SqlIdentifier.QuoteIfNeeded(s.Name) : $"{SqlIdentifier.QuoteIfNeeded(s.Schema)}.{SqlIdentifier.QuoteIfNeeded(s.Name)}",
+                    onPath ? ValuePriority : ValuePriority - 1)
+                {
+                    Detail = s.Schema,
+                };
+            })],
+            ("date_trunc" or "date_bin", 0) => [.. TruncUnits.Select((u, i) => new SqlCompletionData(u, SqlCompletionKind.Value, u, ValuePriority - (i * 0.01)) { DescriptionText = "date/time unit" })],
+            ("date_part", 0) => [.. DateFields.Select((u, i) => new SqlCompletionData(u, SqlCompletionKind.Value, u, ValuePriority - (i * 0.01)) { DescriptionText = "date/time field" })],
+            _ => [],
+        };
+    }
+
+    // The declared type (format_type's spelling) of the column a comparison
+    // names: through the block's sources the way a qualifier resolves, the
+    // target of an UPDATE/INSERT, or schema.table.column exactly.
+    private string? ComparedColumnType(Snapshot snapshot, string statement, int caret, IReadOnlyList<string> column)
+    {
+        var name = column[^1];
+        if (column.Count == 3)
+        {
+            return snapshot.TablesByKey.TryGetValue((column[0], column[1]), out var exact)
+                ? exact.Columns.FirstOrDefault(c => c.Column == name)?.DataType
+                : null;
+        }
+
+        var scope = Scope.At(statement, caret);
+        if (scope.Unknown || scope.Block is not { } block)
+        {
+            return null;
+        }
+
+        var candidates = new List<SqlSource>();
+        foreach (var level in SqlScopeModel.VisibleSources(block))
+        {
+            candidates.AddRange(column.Count == 2
+                ? level.Where(s => s.Alias == column[0] || (s.Alias is null && s.Name == column[0]))
+                : level);
+        }
+
+        if (block.Target is { } target && (column.Count == 1 || target.Label == column[0]))
+        {
+            candidates.Insert(0, target);
+        }
+
+        foreach (var source in candidates)
+        {
+            if (ColumnsOf(snapshot, block, source, [])?.FirstOrDefault(c => c.Name == name) is { DataType: { } type })
+            {
+                return type;
+            }
+        }
+
+        return null;
+    }
+
+    // The values in front of the rest, the rest without the rows a value
+    // stands for (TRUE is already an operand keyword there).
+    private static IReadOnlyList<SqlCompletionData> WithValues(List<SqlCompletionData> values, IReadOnlyList<SqlCompletionData> items)
+    {
+        var keys = new HashSet<string>(values.Select(KeyOf), StringComparer.Ordinal);
+        var result = new List<SqlCompletionData>(values.Count + items.Count);
+        result.AddRange(values);
+        foreach (var item in items)
+        {
+            if (item.Kind is not (SqlCompletionKind.Keyword or SqlCompletionKind.Value) || !keys.Contains(KeyOf(item)))
+            {
+                result.Add(item);
+            }
+        }
+
+        return result;
     }
 
     // The keywords `keywords`, ranked by their order: the first gets `top`.
@@ -836,7 +1207,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         if (chain.Count >= 2)
         {
             return snapshot.TablesByKey.TryGetValue((chain[^2].Name, chain[^1].Name), out var exact)
-                ? ColumnItems(exact.Columns.Select(c => new SourceColumn(c.Column, c.DataType, exact.Name)))
+                ? ColumnItems(CatalogColumns(snapshot, exact))
                 : [];
         }
 
@@ -888,7 +1259,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
 
         if (Resolve(snapshot, "", qualifier) is { } direct)
         {
-            return ColumnItems(direct.Columns.Select(c => new SourceColumn(c.Column, c.DataType, direct.Name)));
+            return ColumnItems(CatalogColumns(snapshot, direct));
         }
 
         // schema. → the schema's tables and functions. After JOIN, the tables
@@ -906,14 +1277,15 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
 
         foreach (var table in snapshot.Tables)
         {
-            if (table.Schema == qualifier)
+            if (table.Schema == qualifier && !(qualifier == "information_schema" && table.Name.StartsWith("_pg_", StringComparison.Ordinal)))
             {
                 var key = (table.Schema, table.Name);
                 var priority = table.IsPartition ? PartitionPriority
                     : neighbours?.Contains(key) == true ? FkTablePriority
                     : joined?.Contains(key) == true ? JoinedTablePriority
+                    : CommonSystemRank.TryGetValue($"{table.Schema}.{table.Name}", out var rank) ? TablePriority + 1 - (rank * 0.01)
                     : TablePriority;
-                items.Add(TableItem(table.Schema, table.Name, qualified: false, priority));
+                items.Add(TableItem(table, qualified: false, priority));
             }
         }
 
@@ -1150,7 +1522,14 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
     }
 
     // A column as one source exposes it.
-    private readonly record struct SourceColumn(string Name, string? DataType, string Owner);
+    // A column as one source exposes it; Facts and Reference when it is a
+    // catalog relation's own column (flags, comment, the FK it follows).
+    private readonly record struct SourceColumn(string Name, string? DataType, string Owner)
+    {
+        public TableColumn? Facts { get; init; }
+
+        public string? Reference { get; init; }
+    }
 
     // The current statement's own contributions: its aliases, CTE names, and
     // every source's columns (top priority). A name two sources share is
@@ -1220,12 +1599,12 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
                     {
                         DisplayText = $"{label}.{column.Name}",
                         Detail = column.DataType,
-                        DescriptionText = $"column · {column.Owner} · also in another source",
+                        DescriptionText = ColumnDescription(column, "also in another source"),
                     });
                 }
                 else
                 {
-                    items.Add(ColumnItem(column.Name, column.DataType, column.Owner, CurrentColumnPriority));
+                    items.Add(ColumnItem(column, CurrentColumnPriority));
                 }
             }
         }
@@ -1249,7 +1628,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         }
 
         return Resolve(snapshot, source.Schema, source.Table) is { } table
-            ? [.. table.Columns.Select(c => new SourceColumn(c.Column, c.DataType, table.Name))]
+            ? [.. CatalogColumns(snapshot, table)]
             : null;
     }
 
@@ -1407,7 +1786,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
                         {
                             DisplayText = $"{label}.{column.Name}",
                             Detail = column.DataType,
-                            DescriptionText = $"column · {column.Owner} · outer query",
+                            DescriptionText = ColumnDescription(column, "outer query"),
                         });
                     }
                 }
@@ -1448,12 +1827,12 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
                     {
                         DisplayText = $"{label}.{column.Name}",
                         Detail = column.DataType,
-                        DescriptionText = $"column · {column.Owner} · also in another source",
+                        DescriptionText = ColumnDescription(column, "also in another source"),
                     });
                 }
                 else
                 {
-                    items.Add(ColumnItem(column.Name, column.DataType, column.Owner, CurrentColumnPriority));
+                    items.Add(ColumnItem(column, CurrentColumnPriority));
                 }
             }
         }
@@ -1503,7 +1882,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
     }
 
     private static List<SqlCompletionData> BareColumnItems(IReadOnlyList<SourceColumn>? columns, IReadOnlySet<string> listed) =>
-        [.. (columns ?? []).Where(c => !listed.Contains(c.Name)).Select(c => ColumnItem(c.Name, c.DataType, c.Owner, CurrentColumnPriority))];
+        [.. (columns ?? []).Where(c => !listed.Contains(c.Name)).Select(c => ColumnItem(c, CurrentColumnPriority))];
 
     // The names already written in a parenthesized list, except the one the caret is typing.
     private static HashSet<string> NamesListed(string statement, SqlSpan span, int caret)
@@ -1590,7 +1969,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         else
         {
             columns = Resolve(snapshot, source.Schema, source.Name) is { } table
-                ? [.. table.Columns.Select(c => new SourceColumn(c.Column, c.DataType, table.Name))]
+                ? [.. CatalogColumns(snapshot, table)]
                 : null;
         }
 
@@ -1792,11 +2171,11 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
                 continue;
             }
 
-            foreach (var column in table.Columns)
+            foreach (var column in CatalogColumns(snapshot, table))
             {
-                if (seen.Add(column.Column))
+                if (seen.Add(column.Name))
                 {
-                    columns.Add(new SourceColumn(column.Column, column.DataType, table.Name));
+                    columns.Add(column);
                 }
             }
         }
@@ -1828,6 +2207,12 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         IReadOnlyList<string>? path,
         string table)
     {
+        // pg_catalog is searched first unless the path names it somewhere else.
+        if (path?.Contains("pg_catalog") != true && tablesByKey.TryGetValue(("pg_catalog", table), out var system))
+        {
+            return system;
+        }
+
         if (path is not null)
         {
             foreach (var candidate in path)
@@ -1850,17 +2235,70 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
     }
 
     private static List<SqlCompletionData> ColumnItems(IEnumerable<SourceColumn> columns) =>
-        [.. columns.Select(c => ColumnItem(c.Name, c.DataType, c.Owner, CurrentColumnPriority))];
+        [.. columns.Select(c => ColumnItem(c, CurrentColumnPriority))];
 
     // The data type rides in Detail (right-aligned in the row); the tooltip
-    // names the owning relation, which the row itself doesn't show.
-    private static SqlCompletionData ColumnItem(string column, string? dataType, string owner, double priority, bool isGuess = false) =>
-        new(column, SqlCompletionKind.Column, SqlIdentifier.QuoteIfNeeded(column), priority)
+    // names the owning relation, which the row itself doesn't show, and what
+    // the catalog knows about the column (E06).
+    private static SqlCompletionData ColumnItem(SourceColumn column, double priority, bool isGuess = false) =>
+        new(column.Name, SqlCompletionKind.Column, SqlIdentifier.QuoteIfNeeded(column.Name), priority)
         {
-            Detail = dataType,
-            DescriptionText = $"column · {owner}",
+            Detail = column.DataType,
+            DescriptionText = ColumnDescription(column, null),
             IsGuess = isGuess,
         };
+
+    // "column · orders · PK · not null · → customers.id", its comment on the next line.
+    private static string ColumnDescription(SourceColumn column, string? note)
+    {
+        var parts = new List<string> { "column", column.Owner };
+        if (note is not null)
+        {
+            parts.Add(note);
+        }
+
+        if (column.Facts is { } facts)
+        {
+            if (facts.IsPrimaryKey)
+            {
+                parts.Add("PK");
+            }
+
+            if (facts.Identity != '\0')
+            {
+                parts.Add(facts.Identity == 'a' ? "identity always" : "identity");
+            }
+            else if (facts.IsGenerated)
+            {
+                parts.Add("generated");
+            }
+            else if (facts.HasDefault)
+            {
+                parts.Add("default");
+            }
+
+            if (facts.NotNull && !facts.IsPrimaryKey)
+            {
+                parts.Add("not null");
+            }
+        }
+
+        if (column.Reference is { } reference)
+        {
+            parts.Add($"→ {reference}");
+        }
+
+        var line = string.Join(" · ", parts);
+        return column.Facts?.Comment is { Length: > 0 } comment ? $"{line}\n{comment}" : line;
+    }
+
+    // A catalog relation's columns, with their facts and the FK each follows.
+    private static IEnumerable<SourceColumn> CatalogColumns(Snapshot snapshot, CompletionTable table) =>
+        table.Columns.Select(c => new SourceColumn(c.Column, c.DataType, table.Name)
+        {
+            Facts = c,
+            Reference = snapshot.References.GetValueOrDefault((table.Schema, table.Name, c.Column)),
+        });
 
     // Collapse duplicate candidates, keeping the first — which, because callers
     // prepend the higher-priority items, is the better-ranked one.
@@ -1991,6 +2429,14 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         IReadOnlyList<SqlCompletionData> TypeItems,
         IReadOnlyDictionary<string, char> CallKinds)
     {
+        public IReadOnlyDictionary<string, IReadOnlyList<string>> EnumLabels { get; init; } = new Dictionary<string, IReadOnlyList<string>>();
+
+        public IReadOnlyDictionary<(string, string, string), string> References { get; init; } = new Dictionary<(string, string, string), string>();
+
+        public IReadOnlyList<SequenceName> Sequences { get; init; } = [];
+
+        public CompletionCatalog? Catalog { get; init; }
+
         // pg_proc.prokind of a called name, for SqlKeywordGrammar; '\0' when
         // no callable of that name is known.
         public char CallKindOf(string name) =>

@@ -47,11 +47,43 @@ public sealed record ColumnDetail(string Name, string DataType, bool NotNull, bo
     public short AttNum { get; init; }
 }
 
-public sealed record TableColumn(string Table, string Column, string DataType);
+public sealed record TableColumn(string Table, string Column, string DataType)
+{
+    // What completion shows beside a column (sql-completion-audit-2.md E06);
+    // left at their defaults by every other reader of TableColumn.
+
+    /// <summary>pg_attribute.attnotnull.</summary>
+    public bool NotNull { get; init; }
+
+    /// <summary>The column has a DEFAULT (pg_attribute.atthasdef, generated columns excluded).</summary>
+    public bool HasDefault { get; init; }
+
+    /// <summary>pg_attribute.attidentity: <c>a</c> GENERATED ALWAYS, <c>d</c> BY DEFAULT, <c>'\0'</c> not an identity.</summary>
+    public char Identity { get; init; }
+
+    /// <summary>A generated (computed) column: it can't be written.</summary>
+    public bool IsGenerated { get; init; }
+
+    /// <summary>Part of the relation's primary key.</summary>
+    public bool IsPrimaryKey { get; init; }
+
+    /// <summary>The column's comment, if it has one.</summary>
+    public string? Comment { get; init; }
+}
 
 /// <summary>A function/procedure/aggregate/window function. <paramref name="Kind"/> is pg_proc.prokind: f, p, a, or w.</summary>
 public sealed record FunctionInfo(string Name, string Arguments, string ReturnType, char Kind)
 {
+    /// <summary>
+    /// The arguments as <c>pg_get_function_arguments</c> spells them — with
+    /// their <c>DEFAULT</c>s, which the identity form in <see cref="Arguments"/>
+    /// (what DROP FUNCTION needs) leaves out. Null when not read.
+    /// </summary>
+    public string? FullArguments { get; init; }
+
+    /// <summary>The function's comment (pg_description), if it has one.</summary>
+    public string? Description { get; init; }
+
     /// <summary>
     /// Machinery rather than something a query calls: a type's input/output or
     /// support function, the implementation of a boolean operator (a predicate
@@ -74,7 +106,14 @@ public sealed record FunctionInfo(string Name, string Arguments, string ReturnTy
 /// <c>f</c> foreign table) and whether it is a partition of another
 /// (<c>relispartition</c>) — reached through its parent, so not offered on its own.
 /// </summary>
-public sealed record CompletionRelationInfo(string Name, char Kind, bool IsPartition);
+public sealed record CompletionRelationInfo(string Name, char Kind, bool IsPartition)
+{
+    /// <summary>The relation's comment, if it has one.</summary>
+    public string? Comment { get; init; }
+
+    /// <summary>pg_class.reltuples, the planner's row estimate; null before the relation was ever analyzed.</summary>
+    public long? RowEstimate { get; init; }
+}
 
 /// <summary>
 /// A data type a cast can name: <paramref name="Name"/> is pg_type's name,
@@ -83,7 +122,21 @@ public sealed record CompletionRelationInfo(string Name, char Kind, bool IsParti
 /// <paramref name="Kind"/> pg_type.typtype: <c>b</c>ase, <c>d</c>omain,
 /// <c>e</c>num, <c>c</c>omposite, <c>r</c>ange, <c>m</c>ultirange.
 /// </summary>
-public sealed record DataTypeInfo(string Schema, string Name, string DisplayName, char Kind);
+public sealed record DataTypeInfo(string Schema, string Name, string DisplayName, char Kind)
+{
+    /// <summary>An enum's labels in their declared order; empty for any other kind.</summary>
+    public IReadOnlyList<string> EnumLabels { get; init; } = [];
+}
+
+/// <summary>A sequence completion can name (in <c>nextval('…')</c>, after DROP SEQUENCE …).</summary>
+public sealed record SequenceName(string Schema, string Name);
+
+/// <summary>
+/// A server setting from pg_settings: <paramref name="VarType"/> is
+/// bool / integer / real / string / enum, <paramref name="EnumValues"/> the
+/// values an enum setting takes.
+/// </summary>
+public sealed record SettingInfo(string Name, string VarType, string? ShortDescription, IReadOnlyList<string> EnumValues);
 
 /// <summary>An extension from pg_available_extensions; <paramref name="InstalledVersion"/> is null when not installed.</summary>
 public sealed record ExtensionInfo(string Name, string? InstalledVersion, string DefaultVersion, string? Description)
@@ -170,7 +223,9 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
     public async Task<IReadOnlyList<CompletionRelationInfo>> GetCompletionRelationsAsync(string schema, CancellationToken ct)
     {
         const string sql = """
-            SELECT c.relname, c.relkind::text, c.relispartition
+            SELECT c.relname, c.relkind::text, c.relispartition,
+                   pg_catalog.obj_description(c.oid, 'pg_class'),
+                   CASE WHEN c.relkind IN ('r', 'm', 'p') THEN c.reltuples::float8 END
             FROM pg_catalog.pg_class c
             JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
             WHERE n.nspname = @schema
@@ -186,7 +241,12 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
         var results = new List<CompletionRelationInfo>();
         while (await reader.ReadAsync(ct))
         {
-            results.Add(new CompletionRelationInfo(reader.GetString(0), reader.GetString(1)[0], reader.GetBoolean(2)));
+            results.Add(new CompletionRelationInfo(reader.GetString(0), reader.GetString(1)[0], reader.GetBoolean(2))
+            {
+                Comment = reader.IsDBNull(3) ? null : reader.GetString(3),
+                // -1 (PG 14+) on a table never analyzed: no estimate yet.
+                RowEstimate = reader.IsDBNull(4) || reader.GetDouble(4) < 0 ? null : (long)reader.GetDouble(4),
+            });
         }
 
         return results;
@@ -422,6 +482,8 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
                    pg_catalog.pg_get_function_identity_arguments(p.oid),
                    COALESCE(pg_catalog.pg_get_function_result(p.oid), ''),
                    p.prokind::text,
+                   pg_catalog.pg_get_function_arguments(p.oid),
+                   pg_catalog.obj_description(p.oid, 'pg_proc'),
                    (EXISTS (SELECT 1 FROM pg_catalog.pg_type t
                             WHERE p.oid IN (t.typinput, t.typoutput, t.typreceive, t.typsend,
                                             t.typmodin, t.typmodout, t.typanalyze, t.typsubscript))
@@ -461,7 +523,9 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
                 reader.GetString(2),
                 reader.GetString(3)[0])
             {
-                IsInternal = reader.GetBoolean(4),
+                FullArguments = reader.IsDBNull(4) ? null : reader.GetString(4),
+                Description = reader.IsDBNull(5) ? null : reader.GetString(5),
+                IsInternal = reader.GetBoolean(6),
             });
         }
 
@@ -478,7 +542,9 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
     public async Task<IReadOnlyList<DataTypeInfo>> GetTypesAsync(CancellationToken ct)
     {
         const string sql = """
-            SELECT n.nspname, t.typname, pg_catalog.format_type(t.oid, NULL), t.typtype::text
+            SELECT n.nspname, t.typname, pg_catalog.format_type(t.oid, NULL), t.typtype::text,
+                   (SELECT pg_catalog.array_agg(e.enumlabel::text ORDER BY e.enumsortorder)
+                    FROM pg_catalog.pg_enum e WHERE e.enumtypid = t.oid)
             FROM pg_catalog.pg_type t
             JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace
             LEFT JOIN pg_catalog.pg_class c ON c.oid = t.typrelid
@@ -498,7 +564,10 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
         var results = new List<DataTypeInfo>();
         while (await reader.ReadAsync(ct))
         {
-            results.Add(new DataTypeInfo(reader.GetString(0), reader.GetString(1), reader.GetString(2), reader.GetString(3)[0]));
+            results.Add(new DataTypeInfo(reader.GetString(0), reader.GetString(1), reader.GetString(2), reader.GetString(3)[0])
+            {
+                EnumLabels = reader.IsDBNull(4) ? [] : reader.GetFieldValue<string[]>(4),
+            });
         }
 
         return results;
@@ -603,17 +672,22 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
     /// <summary>
     /// Column names (with their formatted data types) for every table/view in a
     /// schema, in one query - used to power SQL autocomplete without an N+1
-    /// GetColumnsAsync call per table.
+    /// GetColumnsAsync call per table. Each carries the facts completion shows
+    /// beside it: NOT NULL, a default, identity, generated, primary key, comment.
     /// </summary>
     public async Task<IReadOnlyList<TableColumn>> GetAllColumnsAsync(string schema, CancellationToken ct)
     {
         const string sql = """
-            SELECT c.relname, a.attname, format_type(a.atttypid, a.atttypmod)
+            SELECT c.relname, a.attname, format_type(a.atttypid, a.atttypmod),
+                   a.attnotnull, a.atthasdef AND a.attgenerated = '', a.attidentity::text, a.attgenerated <> '',
+                   EXISTS (SELECT 1 FROM pg_catalog.pg_constraint k
+                           WHERE k.conrelid = c.oid AND k.contype = 'p' AND a.attnum = ANY (k.conkey)),
+                   pg_catalog.col_description(c.oid, a.attnum)
             FROM pg_catalog.pg_attribute a
             JOIN pg_catalog.pg_class c ON c.oid = a.attrelid
             JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
             WHERE n.nspname = @schema
-              AND c.relkind IN ('r', 'v', 'm', 'p')
+              AND c.relkind IN ('r', 'v', 'm', 'p', 'f')
               AND a.attnum > 0
               AND NOT a.attisdropped
             ORDER BY c.relname, a.attnum
@@ -627,7 +701,67 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
         var results = new List<TableColumn>();
         while (await reader.ReadAsync(ct))
         {
-            results.Add(new TableColumn(reader.GetString(0), reader.GetString(1), reader.GetString(2)));
+            var identity = reader.GetString(5);
+            results.Add(new TableColumn(reader.GetString(0), reader.GetString(1), reader.GetString(2))
+            {
+                NotNull = reader.GetBoolean(3),
+                HasDefault = reader.GetBoolean(4),
+                Identity = identity.Length == 0 ? '\0' : identity[0],
+                IsGenerated = reader.GetBoolean(6),
+                IsPrimaryKey = reader.GetBoolean(7),
+                Comment = reader.IsDBNull(8) ? null : reader.GetString(8),
+            });
+        }
+
+        return results;
+    }
+
+    /// <summary>Every sequence outside the system schemas, by schema and name — for completion, which needs nothing else.</summary>
+    public async Task<IReadOnlyList<SequenceName>> GetSequenceNamesAsync(CancellationToken ct)
+    {
+        const string sql = """
+            SELECT n.nspname, c.relname
+            FROM pg_catalog.pg_class c
+            JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+            WHERE c.relkind = 'S'
+              AND n.nspname NOT LIKE 'pg\_%' AND n.nspname <> 'information_schema'
+            ORDER BY 1, 2
+            """;
+
+        await using var connection = await _dataSource.OpenConnectionAsync(ct);
+        await using var command = new NpgsqlCommand(sql, connection);
+        await using var reader = await command.ExecuteReaderAsync(ct);
+
+        var results = new List<SequenceName>();
+        while (await reader.ReadAsync(ct))
+        {
+            results.Add(new SequenceName(reader.GetString(0), reader.GetString(1)));
+        }
+
+        return results;
+    }
+
+    /// <summary>The server's settings (pg_settings), for completion after SET / SHOW.</summary>
+    public async Task<IReadOnlyList<SettingInfo>> GetSettingsAsync(CancellationToken ct)
+    {
+        const string sql = """
+            SELECT name, vartype, short_desc, enumvals
+            FROM pg_catalog.pg_settings
+            ORDER BY name
+            """;
+
+        await using var connection = await _dataSource.OpenConnectionAsync(ct);
+        await using var command = new NpgsqlCommand(sql, connection);
+        await using var reader = await command.ExecuteReaderAsync(ct);
+
+        var results = new List<SettingInfo>();
+        while (await reader.ReadAsync(ct))
+        {
+            results.Add(new SettingInfo(
+                reader.GetString(0),
+                reader.GetString(1),
+                reader.IsDBNull(2) ? null : reader.GetString(2),
+                reader.IsDBNull(3) ? [] : reader.GetFieldValue<string[]>(3)));
         }
 
         return results;

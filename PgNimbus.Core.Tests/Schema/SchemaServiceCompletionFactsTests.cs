@@ -80,4 +80,70 @@ public class SchemaServiceCompletionFactsTests
             await drop.ExecuteNonQueryAsync();
         }
     }
+
+    [Test]
+    public async Task Column_facts_enum_labels_defaults_sequences_and_settings_are_read()
+    {
+        // E06, E07 and what package N reads: from a real server.
+        if (string.IsNullOrEmpty(ConnectionString))
+        {
+            Skip.Test("PGNIMBUS_TEST_CONN not set — no Postgres to read the catalog from.");
+        }
+
+        await using var dataSource = NpgsqlDataSource.Create(ConnectionString!);
+        await using (var seed = dataSource.CreateCommand(
+            """
+            DROP SCHEMA IF EXISTS pgn_facts2 CASCADE;
+            CREATE SCHEMA pgn_facts2;
+            CREATE TYPE pgn_facts2.mood AS ENUM ('sad', 'ok', 'happy');
+            CREATE TABLE pgn_facts2.people (
+                id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                name text NOT NULL DEFAULT 'x',
+                upper_name text GENERATED ALWAYS AS (upper(name)) STORED,
+                mood pgn_facts2.mood);
+            COMMENT ON COLUMN pgn_facts2.people.name IS 'what they are called';
+            COMMENT ON TABLE pgn_facts2.people IS 'everyone';
+            CREATE SEQUENCE pgn_facts2.tickets;
+            CREATE FUNCTION pgn_facts2.greet(who text, loud boolean DEFAULT false) RETURNS text
+                LANGUAGE sql AS $$ SELECT who $$;
+            COMMENT ON FUNCTION pgn_facts2.greet(text, boolean) IS 'says hello';
+            """))
+        {
+            await seed.ExecuteNonQueryAsync();
+        }
+
+        try
+        {
+            var service = new SchemaService(dataSource);
+            var columns = (await service.GetAllColumnsAsync("pgn_facts2", CancellationToken.None)).ToDictionary(c => c.Column);
+            await Assert.That(columns["id"].IsPrimaryKey).IsTrue();
+            await Assert.That(columns["id"].Identity).IsEqualTo('a');
+            await Assert.That(columns["name"].NotNull).IsTrue();
+            await Assert.That(columns["name"].HasDefault).IsTrue();
+            await Assert.That(columns["name"].Comment).IsEqualTo("what they are called");
+            await Assert.That(columns["upper_name"].IsGenerated).IsTrue();
+            await Assert.That(columns["upper_name"].HasDefault).IsFalse();
+
+            var people = (await service.GetCompletionRelationsAsync("pgn_facts2", CancellationToken.None)).Single();
+            await Assert.That(people.Comment).IsEqualTo("everyone");
+
+            var mood = (await service.GetTypesAsync(CancellationToken.None)).Single(t => t.Schema == "pgn_facts2" && t.Name == "mood");
+            await Assert.That(mood.EnumLabels).IsEquivalentTo(new[] { "sad", "ok", "happy" }, CollectionOrdering.Matching);
+
+            var greet = (await service.GetFunctionsAsync("pgn_facts2", CancellationToken.None)).Single();
+            await Assert.That(greet.Arguments).IsEqualTo("who text, loud boolean");
+            await Assert.That(greet.FullArguments).IsEqualTo("who text, loud boolean DEFAULT false");
+            await Assert.That(greet.Description).IsEqualTo("says hello");
+
+            await Assert.That(await service.GetSequenceNamesAsync(CancellationToken.None)).Contains(new SequenceName("pgn_facts2", "tickets"));
+            var settings = await service.GetSettingsAsync(CancellationToken.None);
+            await Assert.That(settings.Single(s => s.Name == "work_mem").VarType).IsEqualTo("integer");
+            await Assert.That(settings.Single(s => s.Name == "client_min_messages").EnumValues).Contains("notice");
+        }
+        finally
+        {
+            await using var drop = dataSource.CreateCommand("DROP SCHEMA IF EXISTS pgn_facts2 CASCADE");
+            await drop.ExecuteNonQueryAsync();
+        }
+    }
 }

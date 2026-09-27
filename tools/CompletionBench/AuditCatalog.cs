@@ -25,30 +25,69 @@ public static class AuditCatalog
             ?? throw new InvalidDataException($"{path} holds no catalog.");
         return new CompletionCatalog(
             dto.Schemas,
-            [.. dto.Tables.Select(t => new CompletionTable(t.Schema, t.Name, [.. t.Columns.Select(c => new TableColumn(t.Name, c[0], c[1]))])
+            [.. dto.Tables.Select(t => new CompletionTable(t.Schema, t.Name, [.. t.Columns.Select(c => ToColumn(t.Name, c))])
             {
                 Kind = string.IsNullOrEmpty(t.Kind) ? 'r' : t.Kind[0],
                 IsPartition = t.IsPartition,
+                Comment = t.Comment,
+                RowEstimate = t.RowEstimate,
             })],
             [.. dto.Functions.Select(ToFunction)],
             [.. dto.ForeignKeys.Select(k => new ForeignKeyInfo(k.FromSchema, k.FromTable, k.FromColumns, k.ToSchema, k.ToTable, k.ToColumns, k.ConstraintName))],
             dto.SearchPath)
         {
             BuiltinFunctions = [.. dto.Builtins.Select(ToFunction)],
-            Types = [.. dto.Types.Select(t => new DataTypeInfo(t.Schema, t.Name, t.DisplayName, t.Kind[0]))],
+            Types = [.. dto.Types.Select(t => new DataTypeInfo(t.Schema, t.Name, t.DisplayName, t.Kind[0]) { EnumLabels = t.EnumLabels ?? [] })],
+            Sequences = [.. (dto.Sequences ?? []).Select(s => new SequenceName(s[0], s[1]))],
+            Roles = dto.Roles ?? [],
+            Settings = [.. (dto.Settings ?? []).Select(s => new SettingInfo(s.Name, s.VarType, s.ShortDescription, s.EnumValues ?? []))],
+            Extensions = [.. (dto.Extensions ?? []).Select(e => new ExtensionInfo(e.Name, e.InstalledVersion, e.DefaultVersion, e.Description))],
         };
+    }
+
+    // A column is [name, type] or, with its facts, [name, type, flags, comment]:
+    // flags are letters — N not null, D default, P primary key, G generated,
+    // A/I identity always / by default.
+    private static TableColumn ToColumn(string table, string[] c)
+    {
+        var flags = c.Length > 2 ? c[2] : "";
+        return new TableColumn(table, c[0], c[1])
+        {
+            NotNull = flags.Contains('N'),
+            HasDefault = flags.Contains('D'),
+            IsPrimaryKey = flags.Contains('P'),
+            IsGenerated = flags.Contains('G'),
+            Identity = flags.Contains('A') ? 'a' : flags.Contains('I') ? 'd' : '\0',
+            Comment = c.Length > 3 && c[3].Length > 0 ? c[3] : null,
+        };
+    }
+
+    private static string[] FromColumn(TableColumn c)
+    {
+        var flags = string.Concat(
+            c.NotNull ? "N" : "", c.HasDefault ? "D" : "", c.IsPrimaryKey ? "P" : "", c.IsGenerated ? "G" : "",
+            c.Identity == 'a' ? "A" : c.Identity == 'd' ? "I" : "");
+        return c.Comment is { } comment ? [c.Column, c.DataType, flags, comment]
+            : flags.Length > 0 ? [c.Column, c.DataType, flags]
+            : [c.Column, c.DataType];
     }
 
     public static void Save(CompletionCatalog catalog, string path)
     {
         var dto = new CatalogDto(
             [.. catalog.Schemas],
-            [.. catalog.Tables.Select(t => new TableDto(t.Schema, t.Name, [.. t.Columns.Select(c => new[] { c.Column, c.DataType })], t.Kind.ToString(), t.IsPartition))],
+            [.. catalog.Tables.Select(t => new TableDto(t.Schema, t.Name, [.. t.Columns.Select(FromColumn)], t.Kind.ToString(), t.IsPartition, t.Comment, t.RowEstimate))],
             [.. catalog.Functions.Select(FromFunction)],
             [.. catalog.BuiltinFunctions.Select(FromFunction)],
             [.. catalog.ForeignKeys.Select(k => new ForeignKeyDto(k.FromSchema, k.FromTable, [.. k.FromColumns], k.ToSchema, k.ToTable, [.. k.ToColumns], k.ConstraintName))],
-            [.. catalog.Types.Select(t => new TypeDto(t.Schema, t.Name, t.DisplayName, t.Kind.ToString()))],
-            catalog.SearchPath?.ToList());
+            [.. catalog.Types.Select(t => new TypeDto(t.Schema, t.Name, t.DisplayName, t.Kind.ToString(), t.EnumLabels.Count > 0 ? [.. t.EnumLabels] : null))],
+            catalog.SearchPath?.ToList())
+        {
+            Sequences = [.. catalog.Sequences.Select(s => new[] { s.Schema, s.Name })],
+            Roles = [.. catalog.Roles],
+            Settings = [.. catalog.Settings.Select(s => new SettingDto(s.Name, s.VarType, s.ShortDescription, s.EnumValues.Count > 0 ? [.. s.EnumValues] : null))],
+            Extensions = [.. catalog.Extensions.Select(e => new ExtensionDto(e.Name, e.InstalledVersion, e.DefaultVersion, e.Description))],
+        };
         File.WriteAllText(path, JsonSerializer.Serialize(dto));
     }
 
@@ -57,10 +96,16 @@ public static class AuditCatalog
         [.. File.ReadAllText(path).ReplaceLineEndings("\n").Split("\n---\n").Select(q => q.Trim('\n')).Where(q => q.Length > 0)];
 
     private static CompletionFunction ToFunction(FunctionDto f) =>
-        new(f.Schema, new FunctionInfo(f.Name, f.Arguments, f.ReturnType, f.Kind[0]) { IsInternal = f.IsInternal });
+        new(f.Schema, new FunctionInfo(f.Name, f.Arguments, f.ReturnType, f.Kind[0])
+        {
+            IsInternal = f.IsInternal,
+            FullArguments = f.FullArguments,
+            Description = f.Description,
+        });
 
     private static FunctionDto FromFunction(CompletionFunction f) =>
-        new(f.Schema, f.Function.Name, f.Function.Arguments, f.Function.ReturnType, f.Function.Kind.ToString(), f.Function.IsInternal);
+        new(f.Schema, f.Function.Name, f.Function.Arguments, f.Function.ReturnType, f.Function.Kind.ToString(), f.Function.IsInternal,
+            f.Function.FullArguments == f.Function.Arguments ? null : f.Function.FullArguments, f.Function.Description);
 
     private sealed record CatalogDto(
         List<string> Schemas,
@@ -69,15 +114,32 @@ public static class AuditCatalog
         List<FunctionDto> Builtins,
         List<ForeignKeyDto> ForeignKeys,
         List<TypeDto> Types,
-        List<string>? SearchPath);
+        List<string>? SearchPath)
+    {
+        public List<string[]>? Sequences { get; init; }
 
-    private sealed record TableDto(string Schema, string Name, List<string[]> Columns, string? Kind = null, bool IsPartition = false);
+        public List<string>? Roles { get; init; }
 
-    private sealed record FunctionDto(string Schema, string Name, string Arguments, string ReturnType, string Kind, bool IsInternal = false);
+        public List<SettingDto>? Settings { get; init; }
+
+        public List<ExtensionDto>? Extensions { get; init; }
+    }
+
+    private sealed record TableDto(
+        string Schema, string Name, List<string[]> Columns, string? Kind = null, bool IsPartition = false,
+        string? Comment = null, long? RowEstimate = null);
+
+    private sealed record FunctionDto(
+        string Schema, string Name, string Arguments, string ReturnType, string Kind, bool IsInternal = false,
+        string? FullArguments = null, string? Description = null);
+
+    private sealed record SettingDto(string Name, string VarType, string? ShortDescription, List<string>? EnumValues);
+
+    private sealed record ExtensionDto(string Name, string? InstalledVersion, string DefaultVersion, string? Description);
 
     private sealed record ForeignKeyDto(
         string FromSchema, string FromTable, List<string> FromColumns,
         string ToSchema, string ToTable, List<string> ToColumns, string? ConstraintName);
 
-    private sealed record TypeDto(string Schema, string Name, string DisplayName, string Kind);
+    private sealed record TypeDto(string Schema, string Name, string DisplayName, string Kind, List<string>? EnumLabels = null);
 }

@@ -23,6 +23,9 @@ public enum SqlCompletionKind
     Cte,
     JoinCondition,
     Type,
+    /// <summary>A literal value: an enum's label, a date field.</summary>
+    Value,
+    Sequence,
 }
 
 /// <param name="text">The name shown in the list and matched against what the user typed.</param>
@@ -78,10 +81,11 @@ public sealed class SqlCompletionData(string text, SqlCompletionKind kind, strin
     public string? DisplayText { get; init; }
 
     /// <summary>
-    /// A column offered from the whole catalog because the statement names no
-    /// relation that has it: a plausible name, not one this statement can
-    /// reach yet. Enter leaves such a row alone unless the user chose it
-    /// (see <see cref="CompletionAcceptance"/>).
+    /// A row that is only a plausible name, not one this statement asked for:
+    /// a column offered from the whole catalog because the statement names no
+    /// relation that has it, or one of pg_catalog's thousand functions beyond
+    /// the everyday list. Enter leaves such a row alone unless the user chose
+    /// it (see <see cref="CompletionAcceptance"/>).
     /// </summary>
     public bool IsGuess { get; init; }
 
@@ -118,6 +122,8 @@ public sealed class SqlCompletionData(string text, SqlCompletionKind kind, strin
         SqlCompletionKind.Cte => "CTE",
         SqlCompletionKind.JoinCondition => "FK join condition",
         SqlCompletionKind.Type => "type",
+        SqlCompletionKind.Value => "value",
+        SqlCompletionKind.Sequence => "sequence",
         _ => "item",
     };
 

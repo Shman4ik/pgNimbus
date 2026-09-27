@@ -27,6 +27,8 @@ internal static class CompletionKindVisuals
         [SqlCompletionKind.Cte] = Fixed("#7B6CDF"),
         [SqlCompletionKind.JoinCondition] = Fixed("#C9A227"),
         [SqlCompletionKind.Type] = Fixed("#C2527A"),
+        [SqlCompletionKind.Value] = Fixed("#B5642A"),
+        [SqlCompletionKind.Sequence] = Fixed("#4F8A8B"),
     };
 
     public static IBrush Brush(SqlCompletionKind kind) => Brushes[kind];
@@ -56,6 +58,8 @@ internal static class CompletionKindVisuals
         SqlCompletionKind.Cte => "LayersIconGeometry",
         SqlCompletionKind.JoinCondition => "LinkIconGeometry",
         SqlCompletionKind.Type => "ShapeIconGeometry",
+        SqlCompletionKind.Value => "FlagIconGeometry",
+        SqlCompletionKind.Sequence => "SequenceIconGeometry",
         _ => "TableIconGeometry",
     };
 
