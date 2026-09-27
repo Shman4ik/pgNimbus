@@ -87,15 +87,6 @@ public sealed class SqlCompletionData(string text, SqlCompletionKind kind, strin
     /// </summary>
     public string? DisplayText { get; init; }
 
-    /// <summary>
-    /// A row that is only a plausible name, not one this statement asked for:
-    /// a column offered from the whole catalog because the statement names no
-    /// relation that has it, or one of pg_catalog's thousand functions beyond
-    /// the everyday list. Enter leaves such a row alone unless the user chose
-    /// it (see <see cref="CompletionAcceptance"/>).
-    /// </summary>
-    public bool IsGuess { get; init; }
-
     /// <summary>Where the caret goes inside <see cref="InsertText"/> after an accept; null = after it (or inside a callable's parens).</summary>
     public int? CaretIndex { get; init; }
 

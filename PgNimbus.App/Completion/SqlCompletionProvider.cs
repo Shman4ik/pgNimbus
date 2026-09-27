@@ -211,7 +211,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
     // The everyday functions (count, sum, now …) a little over the rest.
     private const double CommonFunctionPriority = 3.5;
     private const double FunctionPriority = 3;
-    // A catalog-wide column the statement has no source for: a guess, under
+    // A catalog-wide column the statement has no source for: under
     // the functions (docs/design/sql-completion-audit-2.md §6.2 step 3).
     private const double ColumnPriority = 2;
     // A table named in an expression (only ever as a qualifier there).
@@ -227,7 +227,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
     private const double SystemGeneralTablePriority = 1.2;
     private const double SystemColumnPriority = 1.8;
     // pg_catalog's functions beyond the curated list (E02): under those, over
-    // the catalog-wide column guesses.
+    // the catalog-wide columns.
     private const double BuiltinFunctionPriority = 2.5;
     // A value the column on the other side of a comparison takes (E07): an
     // enum's labels, TRUE/FALSE for a boolean — above the statement's columns.
@@ -565,7 +565,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
                 // A thousand rarely-typed names: one of them is often the only
                 // longer match for a word typed in full (query → querytree), so,
                 // like a catalog-wide column, Enter takes one only when chosen.
-                builtinFunctionItems.Add(FunctionItem("pg_catalog", name, overloads, searchPath, BuiltinFunctionPriority, isGuess: true));
+                builtinFunctionItems.Add(FunctionItem("pg_catalog", name, overloads, searchPath, BuiltinFunctionPriority));
             }
         }
 
@@ -657,10 +657,8 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
                 ResolveShort(tablesByKey, tablesByName, excluded, null, table.Name) == table, alwaysQualify));
             foreach (var column in table.Columns)
             {
-                // A catalog-wide column is a guess: the statement names no
-                // relation that has it (yet). Enter won't take one unasked.
                 baseItems.Add(ColumnItem(new SourceColumn(column.Column, column.DataType, table.Name) { Facts = column },
-                    system ? SystemColumnPriority : ColumnPriority, isGuess: true));
+                    system ? SystemColumnPriority : ColumnPriority));
             }
         }
 
@@ -903,8 +901,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
     // the call resolves to the function that was picked — with every signature
     // in the tooltip, doubling as a lightweight parameter hint.
     private static SqlCompletionData FunctionItem(
-        string schema, string name, IReadOnlyList<FunctionInfo> overloads, IReadOnlyList<string>? searchPath, double priority = FunctionPriority,
-        bool isGuess = false)
+        string schema, string name, IReadOnlyList<FunctionInfo> overloads, IReadOnlyList<string>? searchPath, double priority = FunctionPriority)
     {
         // pg_catalog is searched first whatever the path says: its functions never need the schema.
         var onPath = schema == "pg_catalog" || (searchPath?.Contains(schema) ?? schema == "public");
@@ -916,7 +913,6 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         {
             Detail = schema,
             DescriptionText = FunctionDescription(overloads),
-            IsGuess = isGuess,
             CaretIndex = caretIndex,
         };
     }
@@ -1826,8 +1822,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
     // declares c yet, so offer the columns of what it would stand for — a CTE
     // the statement defines, or a table whose name it shortens (AliasGuess) —
     // each row naming its relation on the right. The likeliest fit first, one
-    // the search_path finds before one it doesn't. All guesses: Enter takes one
-    // only when it was chosen.
+    // the search_path finds before one it doesn't.
     private List<SqlCompletionData> FutureAliasColumns(Snapshot snapshot, SqlBlock block, string alias)
     {
         var relations = new List<(int Fit, bool OnPath, string Label, IReadOnlyList<SourceColumn> Columns)>();
@@ -1861,7 +1856,6 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
                 {
                     Detail = relation.Label,
                     DescriptionText = ColumnDescription(column, $"if {alias} is {relation.Label}"),
-                    IsGuess = true,
                 });
             }
         }
@@ -2238,7 +2232,6 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         {
             Detail = onPath ? table.Name : $"{table.Schema}.{table.Name}",
             DescriptionText = ColumnDescription(source, $"adds FROM {label}"),
-            IsGuess = true,
             AppendClause = $"FROM {label}",
         };
     }
@@ -2993,12 +2986,11 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
     // The data type rides in Detail (right-aligned in the row); the tooltip
     // names the owning relation, which the row itself doesn't show, and what
     // the catalog knows about the column (E06).
-    private static SqlCompletionData ColumnItem(SourceColumn column, double priority, bool isGuess = false) =>
+    private static SqlCompletionData ColumnItem(SourceColumn column, double priority) =>
         new(column.Name, SqlCompletionKind.Column, SqlIdentifier.QuoteIfNeeded(column.Name), priority)
         {
             Detail = column.DataType,
             DescriptionText = ColumnDescription(column, null),
-            IsGuess = isGuess,
         };
 
     // "column · orders · PK · not null · → customers.id", its comment on the next line.

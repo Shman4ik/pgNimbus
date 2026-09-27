@@ -707,7 +707,7 @@ public class CompletionEditorTests
     [Test]
     public async Task Enter_leaves_a_typed_column_alone_before_its_from()
     {
-        // A guess: a name typed in full stays as typed, and Enter is a newline.
+        // A name typed in full stays as typed, and Enter is a newline: the FROM it would bring doesn't count.
         await Ui.Run(async () =>
         {
             var (window, editor) = OpenAuditStand(autoAlias: false);

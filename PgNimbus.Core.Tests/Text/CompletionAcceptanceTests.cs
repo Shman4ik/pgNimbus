@@ -82,16 +82,6 @@ public class CompletionAcceptanceTests
         await Assert.That(Enter("SELECT * FROM t WHERE ct|", Name("created_at"), chosen: true)).IsTrue();
     }
 
-    [Test]
-    public async Task A_catalog_guess_is_not_taken_unless_chosen()
-    {
-        // "SELECT pid, state, query⏎" before any FROM: query_string belongs to
-        // some table the statement doesn't name.
-        var guess = new CompletionRow("query_string", "query_string", IsKeyword: false, IsGuess: true);
-
-        await Assert.That(Enter("SELECT pid, state, query|", guess)).IsFalse();
-        await Assert.That(Enter("SELECT pid, state, query|", guess, chosen: true)).IsTrue();
-    }
 
     // --- A02, A03, A06: new-name positions take only a chosen row ---
 

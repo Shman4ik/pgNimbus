@@ -3,11 +3,9 @@ namespace PgNimbus.Core.Text;
 /// <summary>
 /// The completion row Enter would take: its name (what the list filters on),
 /// what accepting it writes, whether it is a keyword (a keyword differing
-/// only in letter case is the same word), and whether it is a guess — a
-/// column of a relation the statement doesn't name, offered from the whole
-/// catalog because nothing narrower is known yet.
+/// only in letter case is the same word).
 /// </summary>
-public readonly record struct CompletionRow(string Name, string InsertText, bool IsKeyword, bool IsGuess = false);
+public readonly record struct CompletionRow(string Name, string InsertText, bool IsKeyword);
 
 /// <summary>
 /// When Enter accepts the highlighted completion row
@@ -26,9 +24,6 @@ public readonly record struct CompletionRow(string Name, string InsertText, bool
 /// taken.</item>
 /// <item>Where a new name is written (<see cref="SqlCompletionContext.IsNewNamePosition"/>)
 /// nothing else is: <c>FROM customers c⏎</c> is an alias, not <c>CROSS</c>.</item>
-/// <item>A guess (a catalog column with no source in the statement) isn't
-/// either: <c>SELECT query⏎</c> must not become <c>query_string</c> from some
-/// other table.</item>
 /// <item>Otherwise the row is taken when what was typed is the start of its
 /// name.</item>
 /// </list>
@@ -62,7 +57,7 @@ public static class CompletionAcceptance
             return true;
         }
 
-        if (row.IsGuess || SqlCompletionContext.IsNewNamePosition(text, caret))
+        if (SqlCompletionContext.IsNewNamePosition(text, caret))
         {
             return false;
         }
