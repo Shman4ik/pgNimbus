@@ -39,6 +39,7 @@ public static class AuditCatalog
             BuiltinFunctions = [.. dto.Builtins.Select(ToFunction)],
             Types = [.. dto.Types.Select(t => new DataTypeInfo(t.Schema, t.Name, t.DisplayName, t.Kind[0]) { EnumLabels = t.EnumLabels ?? [] })],
             Sequences = [.. (dto.Sequences ?? []).Select(s => new SequenceName(s[0], s[1]))],
+            Indexes = [.. (dto.Indexes ?? []).Select(s => new IndexName(s[0], s[1], s[2]))],
             Roles = dto.Roles ?? [],
             Settings = [.. (dto.Settings ?? []).Select(s => new SettingInfo(s.Name, s.VarType, s.ShortDescription, s.EnumValues ?? []))],
             Extensions = [.. (dto.Extensions ?? []).Select(e => new ExtensionInfo(e.Name, e.InstalledVersion, e.DefaultVersion, e.Description))],
@@ -84,6 +85,7 @@ public static class AuditCatalog
             catalog.SearchPath?.ToList())
         {
             Sequences = [.. catalog.Sequences.Select(s => new[] { s.Schema, s.Name })],
+            Indexes = [.. catalog.Indexes.Select(s => new[] { s.Schema, s.Name, s.Table })],
             Roles = [.. catalog.Roles],
             Settings = [.. catalog.Settings.Select(s => new SettingDto(s.Name, s.VarType, s.ShortDescription, s.EnumValues.Count > 0 ? [.. s.EnumValues] : null))],
             Extensions = [.. catalog.Extensions.Select(e => new ExtensionDto(e.Name, e.InstalledVersion, e.DefaultVersion, e.Description))],
@@ -117,6 +119,8 @@ public static class AuditCatalog
         List<string>? SearchPath)
     {
         public List<string[]>? Sequences { get; init; }
+
+        public List<string[]>? Indexes { get; init; }
 
         public List<string>? Roles { get; init; }
 

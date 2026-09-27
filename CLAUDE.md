@@ -1720,6 +1720,32 @@ csproj / WiX / MSIX manifest reference them unchanged:
   what it accepted — how the remaining gap to §7's 45% was read: aliases used
   before the FROM that declares them (package R) and keywords written in lower
   case, which the uppercase rows can't write (F02, package Q).
+  **Package N reads DDL and utility statements through a slot grammar** (D01,
+  D02): `Text/SqlCommandGrammar` (Core-pure, `SqlCommandGrammarTests`, with a
+  generative "answers on any text" check since it runs per keystroke) takes the
+  statements `SqlKeywordGrammar` leaves alone — CREATE (table, index, view,
+  function, schema, extension, sequence, type/domain, trigger, role), ALTER
+  (table actions per clause, other objects' RENAME/OWNER/SET SCHEMA, SYSTEM),
+  DROP, COMMENT ON, GRANT/REVOKE, TRUNCATE, VACUUM, ANALYZE, REINDEX, CLUSTER,
+  REFRESH, SET/SHOW/RESET, COPY, LISTEN/NOTIFY, LOCK, BEGIN, REASSIGN and
+  EXPLAIN's `(…)` options — and answers a `SqlCommandAdvice`: the keywords that
+  come next and one `SqlObjectKind` (a relation or a kind of one, an index, a
+  sequence, a function overload, a schema, a type, a role, an installed or an
+  available extension, a setting or one setting's values, the columns of the
+  relation the statement names, an index method, a channel, a language). The
+  caret is always at the end of what it reads, so each rule is "what comes next
+  here"; where it can't tell it answers null and the provider keeps its general
+  list. The provider turns the kind into rows (`CommandObjects`): `DROP VIEW`
+  lists views only, `DROP FUNCTION` one row per overload with its identity
+  arguments (`saas.account_mrr(p_account_id bigint, p_at date)`), `SET
+  search_path TO` the schemas, an enum setting its values; after `schema.` in
+  such a slot, that schema's objects of the slot's kind, bare. A created
+  object's name offers the existing schemas (its qualifier), and
+  `NotifyChannels` (the monitor's channels, copied on the UI thread) feed
+  LISTEN. Index names are read into the snapshot (`GetIndexNamesAsync`,
+  `CompletionCatalog.Indexes`), and the everyday types rank first in a type
+  slot or a cast (`bi` → bigint, not bit). New row kinds: Role, Setting,
+  Extension, Index.
 - `SqlFormatter` follows <https://www.sqlstyle.guide/> ("river" layout: root
   keywords right-aligned to a common column, content to its right). The tests
   in `PgNimbus.Core.Tests` assert exact spacing — a deliberate layout change

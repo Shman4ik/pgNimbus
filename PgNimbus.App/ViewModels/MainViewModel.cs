@@ -578,6 +578,11 @@ public sealed partial class MainViewModel : ObservableObject
             // History entries are stamped with this label for per-connection scoping.
             () => string.IsNullOrEmpty(ConnectionHost) ? null : $"{ConnectionHost}/{ConnectionDatabase}");
         NotifyMonitor = notifyMonitor;
+        // LISTEN / NOTIFY complete to the channels the monitor knows for this
+        // connection; copied here, on the UI thread, because completion may
+        // read them from the thread pool.
+        CompletionProvider.NotifyChannels = [.. notifyMonitor.Channels];
+        notifyMonitor.Channels.CollectionChanged += (_, _) => CompletionProvider.NotifyChannels = [.. notifyMonitor.Channels];
         Activity = new ActivityViewModel(activityService);
         DatabaseOverview = new DatabaseOverviewViewModel(databaseStatsService);
         Security = new SecurityViewModel(roleService, privilegeService, securityEditor, connectionDatabase);

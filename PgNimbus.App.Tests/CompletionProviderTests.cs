@@ -973,6 +973,107 @@ public class CompletionProviderTests
         await Assert.That(hint.Parameters[active].Name).IsEqualTo(column);
     }
 
+    // --- Second audit, package N: DDL and utility statements (D01, D02, appendix B 20–25) ---
+
+    [Test]
+    [Arguments("CREATE |", "TABLE", SqlCompletionKind.Keyword)] // 20
+    [Arguments("ALTER TABLE public.customers DROP COLUMN |", "email", SqlCompletionKind.Column)] // 21
+    [Arguments("ALTER TABLE public.customers ADD COLUMN x |", "text", SqlCompletionKind.Type)] // 22
+    [Arguments("CREATE INDEX idx ON public.orders (|)", "customer_id", SqlCompletionKind.Column)] // 23
+    [Arguments("SET |", "work_mem", SqlCompletionKind.Setting)] // 24
+    [Arguments("EXPLAIN (|", "BUFFERS", SqlCompletionKind.Keyword)] // 25
+    [Arguments("CREATE TABLE t (id |", "bigint", SqlCompletionKind.Type)]
+    [Arguments("CREATE TABLE t (id bigint REFERENCES |", "customers", SqlCompletionKind.Table)]
+    [Arguments("CREATE TABLE t (id bigint REFERENCES saas.users (|", "id", SqlCompletionKind.Column)]
+    [Arguments("CREATE INDEX ON |", "orders", SqlCompletionKind.Table)]
+    [Arguments("CREATE INDEX i ON orders USING |", "gin", SqlCompletionKind.Value)]
+    [Arguments("CREATE INDEX i ON orders USING |", "hnsw", SqlCompletionKind.Value)] // pgvector is installed on the stand
+    [Arguments("ALTER TABLE customers |", "ADD COLUMN", SqlCompletionKind.Keyword)]
+    [Arguments("ALTER TABLE customers ALTER COLUMN |", "is_active", SqlCompletionKind.Column)]
+    [Arguments("ALTER TABLE customers RENAME COLUMN |", "last_name", SqlCompletionKind.Column)]
+    [Arguments("DROP VIEW |", "account_seats", SqlCompletionKind.Table)]
+    [Arguments("DROP FUNCTION |", "account_mrr", SqlCompletionKind.Function)]
+    [Arguments("DROP SCHEMA |", "saas", SqlCompletionKind.Schema)]
+    [Arguments("DROP INDEX |", "customers_email_key", SqlCompletionKind.Index)]
+    [Arguments("COMMENT ON TABLE |", "customers", SqlCompletionKind.Table)]
+    [Arguments("GRANT SELECT ON saas.issues TO |", "postgres", SqlCompletionKind.Role)]
+    [Arguments("TRUNCATE |", "orders", SqlCompletionKind.Table)]
+    [Arguments("VACUUM ANALYZE |", "orders", SqlCompletionKind.Table)]
+    [Arguments("REFRESH MATERIALIZED VIEW |", "mv_daily_sales", SqlCompletionKind.Table)]
+    [Arguments("CREATE EXTENSION |", "pg_stat_statements", SqlCompletionKind.Extension)]
+    [Arguments("DROP EXTENSION |", "vector", SqlCompletionKind.Extension)]
+    [Arguments("SET search_path TO |", "saas", SqlCompletionKind.Schema)]
+    [Arguments("SET client_min_messages TO |", "notice", SqlCompletionKind.Value)]
+    [Arguments("SHOW |", "statement_timeout", SqlCompletionKind.Setting)]
+    [Arguments("COPY |", "orders", SqlCompletionKind.Table)]
+    public async Task A_ddl_or_utility_slot_offers_what_goes_there(string marked, string expected, SqlCompletionKind kind)
+    {
+        var items = At(Stand(), marked);
+
+        await Assert.That(items.Any(i => i.Text == expected && i.Kind == kind)).IsTrue();
+    }
+
+    [Test]
+    [Arguments("ALTER TABLE public.customers DROP COLUMN |")]
+    [Arguments("CREATE INDEX idx ON public.orders (|)")]
+    public async Task A_column_slot_holds_that_relations_columns_only(string marked)
+    {
+        var items = At(Stand(), marked);
+        var owner = marked.Contains("customers", StringComparison.Ordinal) ? "customers" : "orders";
+
+        await Assert.That(items.Where(i => i.Kind == SqlCompletionKind.Column).All(i => i.DescriptionText!.Contains($"column · {owner}", StringComparison.Ordinal))).IsTrue();
+        await Assert.That(items.Any(i => i.Kind is SqlCompletionKind.Table or SqlCompletionKind.Function)).IsFalse();
+    }
+
+    [Test]
+    public async Task Drop_function_writes_the_overloads_argument_types()
+    {
+        var mrr = At(Stand(), "DROP FUNCTION |").First(i => i.Text == "account_mrr");
+
+        await Assert.That(mrr.InsertText).IsEqualTo("saas.account_mrr(p_account_id bigint, p_at date)");
+    }
+
+    [Test]
+    public async Task Drop_view_offers_views_not_tables()
+    {
+        var names = At(Stand(), "DROP VIEW |").Where(i => i.Kind == SqlCompletionKind.Table).Select(i => i.Text).ToList();
+
+        await Assert.That(names).Contains("account_seats");
+        await Assert.That(names).DoesNotContain("customers");
+    }
+
+    [Test]
+    public async Task A_created_objects_name_takes_an_existing_schema_and_the_schemas_objects_follow_the_slots_kind()
+    {
+        await Assert.That(At(Stand(), "CREATE TABLE |").Any(i => i.Kind == SqlCompletionKind.Schema && i.Text == "saas")).IsTrue();
+
+        var views = At(Stand(), "DROP VIEW IF EXISTS saas.|");
+        await Assert.That(views.Select(i => i.Text)).Contains("account_seats");
+        await Assert.That(views.Select(i => i.Text)).DoesNotContain("issues");
+        await Assert.That(views.First(i => i.Text == "account_seats").InsertText).IsEqualTo("account_seats");
+
+        await Assert.That(At(Stand(), "DROP FUNCTION saas.|").First(i => i.Text == "account_mrr").InsertText)
+            .IsEqualTo("account_mrr(p_account_id bigint, p_at date)");
+    }
+
+    [Test]
+    [Arguments("CREATE TABLE t (id bi|", "bigint")]
+    [Arguments("CREATE TABLE t (id te|", "text")]
+    [Arguments("SELECT x::ti|", "timestamptz")]
+    public async Task The_types_declared_most_come_first(string marked, string expected)
+    {
+        await Assert.That(PreselectedItem(Stand(), marked).Text).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async Task Listen_offers_the_monitors_channels()
+    {
+        var provider = Stand();
+        provider.NotifyChannels = ["orders_changed"];
+
+        await Assert.That(At(provider, "LISTEN |").Any(i => i.Text == "orders_changed")).IsTrue();
+    }
+
     [Test]
     public async Task After_a_schema_in_a_join_the_tables_a_foreign_key_connects_come_first()
     {

@@ -154,3 +154,19 @@ MERGE INTO customers c
 USING saas.users u ON u.email = c.email
 WHEN MATCHED THEN UPDATE SET is_active = true
 WHEN NOT MATCHED THEN DO NOTHING
+---
+CREATE TABLE saas.labels (
+id bigint PRIMARY KEY,
+name text NOT NULL,
+issue_id bigint REFERENCES saas.issues (id)
+)
+---
+GRANT SELECT ON saas.issues TO postgres
+---
+SET statement_timeout TO '5s'
+---
+VACUUM ANALYZE orders
+---
+DROP VIEW IF EXISTS saas.account_seats
+---
+ALTER TABLE customers ALTER COLUMN email SET NOT NULL

@@ -131,6 +131,9 @@ public sealed record DataTypeInfo(string Schema, string Name, string DisplayName
 /// <summary>A sequence completion can name (in <c>nextval('…')</c>, after DROP SEQUENCE …).</summary>
 public sealed record SequenceName(string Schema, string Name);
 
+/// <summary>An index completion can name (DROP INDEX, REINDEX INDEX, CLUSTER … USING), with the relation it indexes.</summary>
+public sealed record IndexName(string Schema, string Name, string Table);
+
 /// <summary>
 /// A server setting from pg_settings: <paramref name="VarType"/> is
 /// bool / integer / real / string / enum, <paramref name="EnumValues"/> the
@@ -736,6 +739,32 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
         while (await reader.ReadAsync(ct))
         {
             results.Add(new SequenceName(reader.GetString(0), reader.GetString(1)));
+        }
+
+        return results;
+    }
+
+    /// <summary>Every index outside the system schemas, with its table — for completion.</summary>
+    public async Task<IReadOnlyList<IndexName>> GetIndexNamesAsync(CancellationToken ct)
+    {
+        const string sql = """
+            SELECT n.nspname, c.relname, t.relname
+            FROM pg_catalog.pg_index x
+            JOIN pg_catalog.pg_class c ON c.oid = x.indexrelid
+            JOIN pg_catalog.pg_class t ON t.oid = x.indrelid
+            JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname NOT LIKE 'pg\_%' AND n.nspname <> 'information_schema'
+            ORDER BY 1, 2
+            """;
+
+        await using var connection = await _dataSource.OpenConnectionAsync(ct);
+        await using var command = new NpgsqlCommand(sql, connection);
+        await using var reader = await command.ExecuteReaderAsync(ct);
+
+        var results = new List<IndexName>();
+        while (await reader.ReadAsync(ct))
+        {
+            results.Add(new IndexName(reader.GetString(0), reader.GetString(1), reader.GetString(2)));
         }
 
         return results;
