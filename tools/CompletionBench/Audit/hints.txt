@@ -1,0 +1,25 @@
+SELECT saas.account_mrr(|
+SELECT saas.account_mrr(1, |
+SELECT account_mrr(|
+SELECT date_trunc(|
+SELECT date_trunc('day', |
+SELECT round(1.5, |
+SELECT coalesce(|
+SELECT pg_size_pretty(|
+SELECT string_agg(x, |
+SELECT now(|
+SELECT substring(x FROM |
+SELECT extract(|
+SELECT format('%s', |
+SELECT jsonb_build_object(|
+SELECT count(|
+SELECT make_date(2024, |
+SELECT to_char(now(), |
+SELECT generate_series(1, 10, |
+SELECT lower(upper(|
+SELECT greatest(1, |
+SELECT jsonb_set(x, |
+SELECT regexp_replace(s, |
+SELECT similarity(|
+SELECT nextval(|
+SELECT array_agg(x ORDER BY |
