@@ -314,14 +314,29 @@
          Data grid
          ================================================================== -->
 
-    <!-- Soft horizontal rules instead of a full grid. The per-cell gutter that goes
-         with this is DESIGN.md rule 12 and lives in each app, since the column
-         widths it has to be balanced against are the app's own. -->
+    <!-- Soft horizontal rules instead of a full grid, faint enough to guide the eye
+         along a dense single-line row without ruling the table into boxes. They used
+         to be BaseLow, which in the dark theme was the brightest line on the page
+         (DESIGN.md rule 14). The per-cell gutter and the cell text size that go with
+         this are rule 12 and live in each app, since the column widths they have to
+         be balanced against are the app's own. -->
     <Style Selector="DataGrid">
         <Setter Property="GridLinesVisibility" Value="Horizontal" />
-        <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource SystemControlForegroundBaseLowBrush}" />
+        <Setter Property="HorizontalGridLinesBrush" Value="#1A808080" />
         <Setter Property="RowBackground" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <!-- Column headers in the section-header type: small, semibold, dimmed. And no
+         background of their own: Fluent paints the header row in AltHigh, pure black
+         in the dark theme, which vanishes on a `layer` and is a black band across the
+         top of any grid that sits in a `card` or on the shell tone. -->
+    <Style Selector="DataGridColumnHeader">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="LetterSpacing" Value="0.4" />
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
     </Style>
 
 </Styles>
