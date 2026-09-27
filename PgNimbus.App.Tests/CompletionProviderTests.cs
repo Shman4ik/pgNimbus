@@ -135,11 +135,7 @@ public class CompletionProviderTests
     private static string Preselected(SqlCompletionProvider provider, string marked)
     {
         var caret = marked.IndexOf('|');
-        var start = caret;
-        while (start > 0 && char.IsLetter(marked[start - 1]))
-        {
-            start--;
-        }
+        var start = CompletionEdits.TokenAt(marked.Remove(caret, 1), caret).FilterStart;
 
         var ranked = CompletionRanker.Rank(
             At(provider, marked), marked[start..caret], d => d.Text, d => d.Priority, _ => int.MaxValue);
@@ -165,11 +161,7 @@ public class CompletionProviderTests
     private static SqlCompletionData PreselectedItem(SqlCompletionProvider provider, string marked)
     {
         var caret = marked.IndexOf('|');
-        var start = caret;
-        while (start > 0 && char.IsLetter(marked[start - 1]))
-        {
-            start--;
-        }
+        var start = CompletionEdits.TokenAt(marked.Remove(caret, 1), caret).FilterStart;
 
         var ranked = CompletionRanker.Rank(
             At(provider, marked), marked[start..caret], d => d.Text, d => d.Priority, _ => int.MaxValue);
@@ -747,6 +739,120 @@ public class CompletionProviderTests
         await Assert.That(afterCount).Contains("FROM");
         await Assert.That(afterLower).DoesNotContain("OVER");
         await Assert.That(afterLower).Contains("FROM");
+    }
+
+    // --- Second audit, package O: a wider catalog (E01–E07) ---
+
+    [Test]
+    [Arguments("SELECT * FROM pg_stat_act|", "pg_stat_activity", "pg_stat_activity")] // E01
+    [Arguments("SELECT * FROM pg|", "pg_stat_activity", "pg_stat_activity")] // the everyday one first
+    [Arguments("SELECT * FROM pg_cla|", "pg_class", "pg_class")]
+    [Arguments("SELECT * FROM information_schema.col|", "columns", "columns")]
+    [Arguments("SELECT * FROM inf|", "information_schema", "information_schema")]
+    [Arguments("SELECT * FROM cu|", "customers", "customers")] // the user's own still first
+    [Arguments("SELECT pg_size_pr|", "pg_size_pretty", "pg_size_pretty()")] // E02
+    [Arguments("SELECT to_timest|", "to_timestamp", "to_timestamp()")]
+    [Arguments("SELECT pg_terminate_b|", "pg_terminate_backend", "pg_terminate_backend()")]
+    [Arguments("SELECT pid FROM pg_stat_activity WHERE st|", "state", "state")]
+    [Arguments("SELECT relname FROM pg_class WHERE relk|", "relkind", "relkind")]
+    public async Task System_relations_and_builtin_functions_are_candidates(string marked, string expected, string insert)
+    {
+        var item = PreselectedItem(Stand(), marked);
+
+        await Assert.That(item.Text).IsEqualTo(expected);
+        await Assert.That(item.InsertText).IsEqualTo(insert);
+    }
+
+    [Test]
+    public async Task Machinery_stays_out_of_the_builtins_and_information_schemas_plumbing_too()
+    {
+        var functions = At(Stand(), "SELECT |").Where(i => i.Kind == SqlCompletionKind.Function).Select(i => i.Text).ToHashSet();
+        foreach (var internalName in new[] { "int4in", "texteq", "int4_sum", "eqsel", "bthandler", "textcat" })
+        {
+            await Assert.That(functions).DoesNotContain(internalName);
+        }
+
+        await Assert.That(functions.Count(f => f == "now")).IsEqualTo(1);
+        var infoSchema = At(Stand(), "SELECT * FROM information_schema.|").Select(i => i.Text).ToList();
+        await Assert.That(infoSchema).Contains("columns");
+        await Assert.That(infoSchema.Any(t => t.StartsWith("_pg_", StringComparison.Ordinal))).IsFalse();
+    }
+
+    [Test]
+    [Arguments("SELECT * FROM saas.issues i WHERE i.status = |", "open", "'open'")] // E07
+    [Arguments("SELECT * FROM saas.issues i WHERE i.status = in|", "in_progress", "'in_progress'")]
+    [Arguments("SELECT * FROM saas.issues i WHERE i.status IN ('open', |", "open", "'open'")]
+    [Arguments("SELECT * FROM saas.issues i WHERE status <> |", "open", "'open'")]
+    [Arguments("UPDATE saas.issues SET status = |", "open", "'open'")]
+    [Arguments("SELECT * FROM saas.issues i WHERE i.status = 'bl|'", "blocked", "blocked")] // inside the quotes
+    [Arguments("SELECT * FROM public.customers c WHERE c.is_active = t|", "TRUE", "TRUE")]
+    [Arguments("SELECT * FROM public.customers c WHERE c.is_active = |", "TRUE", "TRUE")]
+    public async Task A_comparison_with_an_enum_or_boolean_column_offers_its_values(string marked, string expected, string insert)
+    {
+        var item = PreselectedItem(Stand(), marked);
+
+        await Assert.That(item.Text).IsEqualTo(expected);
+        await Assert.That(item.InsertText).IsEqualTo(insert);
+    }
+
+    [Test]
+    [Arguments("SELECT * FROM public.customers c WHERE c.email = 'x|'")]
+    [Arguments("SELECT 'plain text |'")]
+    [Arguments("SELECT * FROM public.customers -- c.is_active = |")]
+    public async Task An_ordinary_string_or_comment_still_gets_nothing(string marked)
+    {
+        await Assert.That(At(Stand(), marked)).IsEmpty();
+    }
+
+    [Test]
+    public async Task Nextval_date_trunc_and_extract_take_their_own_values()
+    {
+        var sequences = At(Stand(), "SELECT nextval('|')");
+        await Assert.That(sequences.All(i => i.Kind == SqlCompletionKind.Sequence)).IsTrue();
+        await Assert.That(sequences.Any(i => i.InsertText == "customers_id_seq")).IsTrue(); // on the path: bare
+        await Assert.That(sequences.Any(i => i.InsertText == "commerce.products_id_seq")).IsTrue();
+
+        await Assert.That(PreselectedItem(Stand(), "SELECT date_trunc('mo|', now())").InsertText).IsEqualTo("month");
+        var fields = At(Stand(), "SELECT extract(|");
+        await Assert.That(fields.Select(i => i.Text)).Contains("EPOCH");
+        await Assert.That(fields.Any(i => i.Kind == SqlCompletionKind.Column)).IsFalse();
+    }
+
+    [Test]
+    public async Task Rows_describe_what_they_name()
+    {
+        // E06: a column's key, reference and nullability; a relation's kind; a function's defaults.
+        var customerId = At(Stand(), "SELECT * FROM public.orders o WHERE o.|").First(i => i.Text == "customer_id");
+        await Assert.That(customerId.DescriptionText).Contains("→ customers.id");
+        var id = At(Stand(), "SELECT * FROM public.orders o WHERE o.|").First(i => i.Text == "id");
+        await Assert.That(id.DescriptionText).Contains("PK");
+
+        var view = At(Stand(), "SELECT * FROM saas.|").First(i => i.Text == "account_seats");
+        await Assert.That(view.DescriptionText).StartsWith("view");
+
+        var mrr = At(Stand(), "SELECT saas.|").First(i => i.Text == "account_mrr");
+        await Assert.That(mrr.DescriptionText).Contains("DEFAULT");
+    }
+
+    [Test]
+    public async Task Pg_catalogs_rarer_functions_are_guesses_the_everyday_ones_are_not()
+    {
+        // Typed in full, "query" is only a prefix of querytree(): Enter must not take it unasked.
+        var functions = At(Stand(), "SELECT |").Where(i => i.Kind == SqlCompletionKind.Function).ToDictionary(i => i.Text);
+
+        await Assert.That(functions["querytree"].IsGuess).IsTrue();
+        await Assert.That(functions["pg_size_pretty"].IsGuess).IsFalse();
+        await Assert.That(functions["now"].IsGuess).IsFalse();
+    }
+
+    [Test]
+    public async Task An_argument_hint_shows_which_arguments_have_defaults()
+    {
+        var hint = HintsAt(Stand(), "SELECT saas.account_mrr(1, |")!.Value.Hints.Single();
+
+        await Assert.That(hint.Parameters[1].HasDefault).IsTrue();
+        await Assert.That(hint.Parameters[1].Text).Contains("DEFAULT");
+        await Assert.That(hint.Parameters[0].HasDefault).IsFalse();
     }
 
     [Test]

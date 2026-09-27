@@ -28,7 +28,9 @@ public static class SignatureHints
     {
         var all = overloads
             .Where(o => o.Function.Kind != 'p')
-            .Select(o => (o.Schema, o.Function, Parameters: SqlParameters.Parse(o.Function.Arguments)))
+            // The full argument list when it was read: it keeps each DEFAULT,
+            // which is how the hint shows that an argument can be left out.
+            .Select(o => (o.Schema, o.Function, Parameters: SqlParameters.Parse(o.Function.FullArguments ?? o.Function.Arguments)))
             .ToList();
 
         var fitting = new List<SignatureHint>();

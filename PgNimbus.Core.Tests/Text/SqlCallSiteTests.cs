@@ -78,6 +78,16 @@ public class SqlCallSiteTests
         await Assert.That(SqlParameters.Parse("")).IsEmpty();
     }
 
+    [Test]
+    public async Task Defaults_are_marked_and_out_parameters_left_out()
+    {
+        // pg_get_function_arguments' spelling (E06): a call never passes an OUT.
+        var parameters = SqlParameters.Parse("p_account_id bigint, p_at date DEFAULT CURRENT_DATE, OUT mrr numeric, INOUT n integer = 1");
+
+        await Assert.That(parameters.Select(p => p.Name)).IsEquivalentTo(new string?[] { "p_account_id", "p_at", "n" }, CollectionOrdering.Matching);
+        await Assert.That(parameters.Select(p => p.HasDefault)).IsEquivalentTo(new[] { false, true, true }, CollectionOrdering.Matching);
+    }
+
     private static readonly (string, FunctionInfo)[] Overloads =
     [
         ("pg_catalog", new FunctionInfo("round", "numeric", "numeric", 'f')),

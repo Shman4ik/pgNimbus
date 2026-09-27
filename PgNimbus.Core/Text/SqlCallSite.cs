@@ -147,8 +147,12 @@ public sealed record SqlCallSite(IReadOnlyList<string> Name, int ArgumentIndex, 
     }
 }
 
-/// <summary>One parameter of a callable, as <c>pg_get_function_identity_arguments</c> spells it.</summary>
-public sealed record SqlParameter(string Text, string? Name, bool IsVariadic);
+/// <summary>
+/// One parameter of a callable, as <c>pg_get_function_arguments</c> (or the
+/// identity form) spells it; <paramref name="HasDefault"/> when the caller may
+/// leave it out.
+/// </summary>
+public sealed record SqlParameter(string Text, string? Name, bool IsVariadic, bool HasDefault = false);
 
 /// <summary>Reads a function's argument list into its parameters.</summary>
 public static class SqlParameters
@@ -166,7 +170,8 @@ public static class SqlParameters
     /// <summary>
     /// Splits an argument list (<c>x integer, VARIADIC arr text[]</c>) on its
     /// top-level commas — not the ones inside a type's parentheses or a
-    /// quoted name — and reads each parameter's mode and name.
+    /// quoted name — and reads each parameter's mode, name and default. An
+    /// OUT parameter is left out: a call never passes one.
     /// </summary>
     public static IReadOnlyList<SqlParameter> Parse(string arguments)
     {
@@ -190,17 +195,25 @@ public static class SqlParameters
                     depth--;
                     break;
                 case SqlTokenKind.Comma when depth == 0:
-                    result.Add(ParseOne(arguments, start, token.Start));
+                    AddParameter(result, arguments, start, token.Start);
                     start = token.End;
                     break;
             }
         }
 
-        result.Add(ParseOne(arguments, start, arguments.Length));
+        AddParameter(result, arguments, start, arguments.Length);
         return result;
     }
 
-    private static SqlParameter ParseOne(string arguments, int start, int end)
+    private static void AddParameter(List<SqlParameter> result, string arguments, int start, int end)
+    {
+        if (ParseOne(arguments, start, end) is { } parameter)
+        {
+            result.Add(parameter);
+        }
+    }
+
+    private static SqlParameter? ParseOne(string arguments, int start, int end)
     {
         var text = arguments[start..end].Trim();
         var words = SqlLexer.Tokenize(text).Where(t => !t.IsTrivia).ToList();
@@ -208,9 +221,18 @@ public static class SqlParameters
         var variadic = false;
         if (words.Count > 1 && words[0].Kind == SqlTokenKind.Word && Modes.Contains(SqlLexer.FoldCase(text.AsSpan(words[0].Start, words[0].Length))))
         {
-            variadic = SqlLexer.FoldCase(text.AsSpan(words[0].Start, words[0].Length)) == "variadic";
+            var mode = SqlLexer.FoldCase(text.AsSpan(words[0].Start, words[0].Length));
+            if (mode == "out")
+            {
+                return null;
+            }
+
+            variadic = mode == "variadic";
             i = 1;
         }
+
+        var hasDefault = words.Any(w => w.Kind == SqlTokenKind.Word && SqlLexer.FoldCase(text.AsSpan(w.Start, w.Length)) == "default")
+            || words.Any(w => w.Kind == SqlTokenKind.Operator && text.AsSpan(w.Start, w.Length).SequenceEqual("="));
 
         string? name = null;
         if (words.Count - i >= 2 && words[i].Kind is SqlTokenKind.Word or SqlTokenKind.QuotedIdentifier
@@ -220,6 +242,6 @@ public static class SqlParameters
             name = SqlLexer.IdentifierName(text, words[i]);
         }
 
-        return new SqlParameter(text, name, variadic);
+        return new SqlParameter(text, name, variadic, hasDefault);
     }
 }

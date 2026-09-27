@@ -579,6 +579,13 @@ public partial class QueryEditorPanel : UserControl
             {
                 ShowSignatureHint();
             }
+            else if (c == '\'')
+            {
+                // "status = '|'": the values that fit, if the text around the
+                // string decides any (an enum's labels, a sequence); the
+                // provider answers nothing for an ordinary string.
+                ShowCompletion();
+            }
 
             return;
         }

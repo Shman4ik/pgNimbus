@@ -290,9 +290,29 @@ public static class SqlKeywordGrammar
                 return KeywordsOnly(["SELECT", "VALUES", "TABLE"]);
             }
 
+            // "WHEN NOT MATCHED THEN DO |"
+            if (lastWord == "do" && WordOf(statement, tokens[0]) == "merge")
+            {
+                return KeywordsOnly(["NOTHING"]);
+            }
+
             if (lastWord == "do" && !HasWord(statement, tokens, "conflict"))
             {
                 return SqlKeywordAdvice.None;
+            }
+
+            // "MERGE … WHEN |", "WHEN NOT |"
+            if (WordOf(statement, tokens[0]) == "merge" && DepthOf(tokens) == 0 && !InCase(statement, tokens))
+            {
+                if (lastWord == "when")
+                {
+                    return KeywordsOnly(["MATCHED", "NOT MATCHED"]);
+                }
+
+                if (lastWord == "not" && tokens.Count >= 2 && WordOf(statement, tokens[^2]) == "when")
+                {
+                    return KeywordsOnly(["MATCHED"]);
+                }
             }
 
             // "MERGE … WHEN [NOT] MATCHED [AND …] THEN |": what to do with the row.
@@ -534,6 +554,12 @@ public static class SqlKeywordGrammar
             return SqlKeywordAdvice.None;
         }
 
+        // "… WHEN MATCHED THEN UPDATE SET a = 1 |": the next WHEN.
+        if (WordOf(statement, tokens[0]) == "merge" && governing is "set" or "values" && DepthOf(tokens) == 0)
+        {
+            keywords = ["WHEN MATCHED", "WHEN NOT MATCHED", .. keywords.Where(k => k is not ("WHERE" or "FROM" or "RETURNING" or "ON CONFLICT"))];
+        }
+
         if (kind is 'a' or '\0')
         {
             keywords = [.. keywords, "FILTER", "OVER"];
@@ -615,6 +641,26 @@ public static class SqlKeywordGrammar
 
     private static bool HasWord(string statement, List<SqlToken> tokens, string word) =>
         tokens.Any(t => WordOf(statement, t) == word);
+
+    // True when the tokens end inside an unfinished CASE (more CASEs than ENDs).
+    private static bool InCase(string statement, List<SqlToken> tokens)
+    {
+        var open = 0;
+        foreach (var token in tokens)
+        {
+            switch (WordOf(statement, token))
+            {
+                case "case":
+                    open++;
+                    break;
+                case "end" when open > 0:
+                    open--;
+                    break;
+            }
+        }
+
+        return open > 0;
+    }
 
     // The last WHEN of a MERGE: true for WHEN NOT MATCHED, false for WHEN
     // MATCHED, null when the last WHEN is something else (a CASE's).
