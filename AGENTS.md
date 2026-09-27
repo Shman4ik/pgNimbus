@@ -115,7 +115,7 @@ Three rules about it:
    (heap/index split), per-table seq-vs-index scan usage, and unused
    non-constraint indexes. Human-readable byte counts go through
    `PgNimbus.Core.ByteSize` (base-1024, unit-tested, shared by both) rather
-   than being formatted ad hoc in the App. All three monitoring windows follow
+   than being formatted ad hoc in the App. All four monitoring windows follow
    the same shape: one-live-instance, opened from the command palette (and the
    macOS Query native menu), no new toolbar button. The **Server Activity**
    window (backed by `ActivityService`) is two tabs: the flat
@@ -162,6 +162,38 @@ Three rules about it:
    `pg_notify(@channel, @payload)` on a pooled connection (the listening one is
    parked in a wait, and `NOTIFY` takes literals rather than parameters). pgAdmin
    needs a second session to produce a test event; this is one button.
+   The fourth is the **slow-query shortlist** (`Monitoring/StatementStatsService` +
+   `SlowQueriesWindow`, ROADMAP Q2, 2026-09): pg_stat_statements for the current
+   database. Four things are load-bearing. (a) **The column set is read from the
+   catalog, not guessed from the server version**: it belongs to the *extension*
+   version, which pg_upgrade leaves behind until `ALTER EXTENSION … UPDATE`
+   (`total_exec_time` replaced `total_time` in 1.8; `toplevel` and
+   `pg_stat_statements_info` came in 1.9, per-entry `stats_since` in 1.11), so
+   `ReadAsync` asks `pg_attribute` which columns exist and finds the extension's
+   schema through `pg_extension`. (b) **Three "unavailable" states are told
+   apart**: not created in this database (`NotInstalled`), created but not in
+   `shared_preload_libraries` (the view raises 55000, `NotLoaded`), and rows of
+   other roles without `pg_read_all_stats` (text shown as `<insufficient
+   privilege>` and a NULL queryid; counted as hidden, never listed). The window
+   explains each, and the setup steps open as a script in a new tab; nothing
+   ever creates the extension, changes a setting, or calls
+   `pg_stat_statements_reset()` (that would reset everybody's numbers). (c) **An
+   interval is a subtraction until an entry starts over**, and the Core-pure,
+   unit-tested `StatementStatsInterval.Between` (a sibling of `BlockingTree`)
+   catches all three ways: the whole view reset (`stats_reset` moved), one entry
+   reset or evicted and back (`stats_since` moved, or its calls went *down* where
+   the server doesn't report it), or a new entry. In each the later counters are
+   the interval's work, and the row is marked ↺. The baseline is the window's
+   first read, moved only by "Restart interval", so it measures "what did my
+   workload just do" without touching the server. A query preview is cut to
+   `StatementStatsService.PreviewLength` server-side (up to 5,000 entries per
+   refresh), and the whole text is fetched per statement when it is opened.
+   (d) **Nothing runs from it**: a statement opens in a new tab under a comment
+   saying where it came from, with its `$1` placeholders intact. Typed-value
+   prompting is #138's job. The live tests split by server kind: CI's plain
+   `postgres:17` covers `NotInstalled`/`NotLoaded`, and a server started with
+   `-c shared_preload_libraries=pg_stat_statements` covers the reads
+   (`StatementStatsServiceTests`, `SlowQueriesTests`); each skips on the other.
 4. **No passwords on `ConnectionProfile`.** Passwords come from
    `ICredentialStore` (DPAPI-encrypted files on Windows, macOS Keychain via
    SecItem APIs, Linux Secret Service via libsecret's non-variadic APIs), never

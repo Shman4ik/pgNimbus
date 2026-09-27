@@ -586,6 +586,15 @@ public static class CommandCatalog
         },
         new()
         {
+            Id = CommandId.SlowQueries,
+            Title = "Slow queries (pg_stat_statements)",
+            CheatTitle = "Slow queries",
+            Category = CommandCategory.Navigation,
+            Glyph = "⧗",
+            Surfaces = PaletteOnly,
+        },
+        new()
+        {
             Id = CommandId.NotifyMonitor,
             Title = "LISTEN / NOTIFY monitor",
             Category = CommandCategory.Navigation,
