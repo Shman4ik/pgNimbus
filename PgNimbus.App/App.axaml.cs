@@ -59,6 +59,31 @@ public partial class App : Application
     private static void PersistWordWrapEditor(bool value) =>
         SettingsStore.Save(SettingsStore.Load() with { WordWrapEditor = value });
 
+    private static (KeywordCase, bool, bool) LoadCompletionSettings()
+    {
+        var settings = SettingsStore.Load();
+        var keywordCase = settings.CompletionKeywordCase switch
+        {
+            "upper" => KeywordCase.Upper,
+            "lower" => KeywordCase.Lower,
+            _ => KeywordCase.AsTyped,
+        };
+        return (keywordCase, settings.CompletionAlwaysQualifyTables, settings.CompletionEnterAccepts);
+    }
+
+    private static void PersistCompletionSettings(KeywordCase keywordCase, bool alwaysQualifyTables, bool enterAccepts) =>
+        SettingsStore.Save(SettingsStore.Load() with
+        {
+            CompletionKeywordCase = keywordCase switch
+            {
+                KeywordCase.Upper => "upper",
+                KeywordCase.Lower => "lower",
+                _ => "typed",
+            },
+            CompletionAlwaysQualifyTables = alwaysQualifyTables,
+            CompletionEnterAccepts = enterAccepts,
+        });
+
     /// <summary>
     /// Remembers which schemas this connection keeps out of autocomplete. Scoped
     /// by the same <c>host/database</c> key the workspace snapshot uses —
@@ -531,7 +556,9 @@ public partial class App : Application
             // there's just nowhere to write them back to.
             excludedSchemas: AutocompleteExclusions.For(SettingsStore.Load(), workspaceKey),
             persistExcludedSchemas: workspaceKey is null ? null : schemas => PersistExcludedSchemas(workspaceKey, schemas),
-            completionUsage: LoadCompletionUsage(workspaceKey));
+            completionUsage: LoadCompletionUsage(workspaceKey),
+            completionSettings: LoadCompletionSettings(),
+            persistCompletionSettings: PersistCompletionSettings);
 
         var window = new MainWindow
         {

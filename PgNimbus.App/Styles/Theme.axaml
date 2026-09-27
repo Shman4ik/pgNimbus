@@ -83,6 +83,9 @@
             bottom of this file; this include loads after AvaloniaEdit's, so
             this theme wins the implicit-resource lookup.
         -->
+        <!-- Neutral and faint in both themes: a hover, not a selection (G04). -->
+        <SolidColorBrush x:Key="CompletionHoverBrush" Color="#808080" Opacity="0.12" />
+
         <ControlTheme x:Key="{x:Type cc:CompletionList}" TargetType="cc:CompletionList">
             <Setter Property="Template">
                 <ControlTemplate>
@@ -357,11 +360,15 @@
                     <Path Grid.Column="0" Width="13" Height="13" Margin="1,0,9,0"
                           VerticalAlignment="Center" Stretch="Uniform"
                           Data="{Binding KindGlyph}" Fill="{Binding KindBrush}" />
-                    <TextBlock Grid.Column="1" Text="{Binding Label}"
+                    <!-- The matched letters in bold (G01); the list's Tag is what it filters on. -->
+                    <completion:CompletionLabel Grid.Column="1"
+                               Label="{Binding Label}" MatchText="{Binding Text}"
+                               Query="{Binding $parent[cc:CompletionListBox].Tag}"
                                VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                    <!-- The type / schema / constraint on the right: legible, still quieter than the name (G02). -->
                     <TextBlock Grid.Column="2" Text="{Binding Detail}"
                                VerticalAlignment="Center" Margin="18,0,2,0"
-                               FontSize="11" Opacity="0.55"
+                               FontSize="12" Opacity="0.75"
                                IsVisible="{Binding Detail, Converter={x:Static ObjectConverters.IsNotNull}}" />
                 </Grid>
             </DataTemplate>
@@ -372,6 +379,13 @@
         <Setter Property="Padding" Value="8,4" />
         <Setter Property="MinHeight" Value="0" />
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    </Style>
+
+    <!-- The row under the pointer: a faint wash, well short of the selected
+         fill, so hovering one row and having selected another never read the
+         same (G04). On the template part, for the reason given below. -->
+    <Style Selector="cc|CompletionListBox ListBoxItem:pointerover:not(:selected) /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource CompletionHoverBrush}" />
     </Style>
 
     <!-- A highlight Enter would not accept (a list that opened by itself, nothing

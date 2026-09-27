@@ -74,6 +74,44 @@
                 </Grid>
             </Border>
 
+            <TextBlock Classes="sectionHeader" Text="COMPLETION" Margin="4,10,4,4" />
+            <Border Classes="card" Padding="14,12">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Spacing="2" Margin="0,0,16,0">
+                        <TextBlock Classes="label" Text="Keyword case" />
+                        <TextBlock Classes="hint" Text="How accepted keywords are written. As typed follows what you started: tr gives true, SEL gives SELECT." />
+                    </StackPanel>
+                    <ComboBox Grid.Column="1" MinWidth="130" VerticalAlignment="Center"
+                              SelectedIndex="{Binding KeywordCaseIndex}">
+                        <ComboBoxItem Content="As typed" />
+                        <ComboBoxItem Content="UPPER" />
+                        <ComboBoxItem Content="lower" />
+                    </ComboBox>
+                </Grid>
+            </Border>
+            <Border Classes="card" Padding="14,12" Margin="0,6,0,0">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Spacing="2" Margin="0,0,16,0">
+                        <TextBlock Classes="label" Text="Always write the table's schema" />
+                        <TextBlock Classes="hint" Text="Off, a table goes in bare when the search_path finds it (customers), and with its schema otherwise (saas.users). On, every table goes in with its schema." />
+                    </StackPanel>
+                    <ToggleSwitch Grid.Column="1" VerticalAlignment="Center"
+                                  OnContent="" OffContent=""
+                                  IsChecked="{Binding CompletionAlwaysQualifyTables}" />
+                </Grid>
+            </Border>
+            <Border Classes="card" Padding="14,12" Margin="0,6,0,0">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Spacing="2" Margin="0,0,16,0">
+                        <TextBlock Classes="label" Text="Enter accepts a suggestion" />
+                        <TextBlock Classes="hint" Text="On, Enter takes a suggestion you picked or started typing, and is a newline otherwise. Off, only Tab accepts and Enter always ends the line." />
+                    </StackPanel>
+                    <ToggleSwitch Grid.Column="1" VerticalAlignment="Center"
+                                  OnContent="" OffContent=""
+                                  IsChecked="{Binding CompletionEnterAccepts}" />
+                </Grid>
+            </Border>
+
             <TextBlock Classes="sectionHeader" Text="DATA EDITING" Margin="4,10,4,4" />
             <Border Classes="card" Padding="14,12">
                 <Grid ColumnDefinitions="*,Auto">

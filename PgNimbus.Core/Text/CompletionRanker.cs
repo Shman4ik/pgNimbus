@@ -139,6 +139,98 @@ public static class CompletionRanker
 
     private readonly record struct Match<T>(T Item, CompletionMatchTier Tier, double Priority, int Usage, int Score, int Length, int Index);
 
+    /// <summary>
+    /// The positions in <paramref name="name"/> the typed <paramref name="query"/>
+    /// matched, the way its tier reads them — the leading run for a prefix, the
+    /// starts of the parts for <c>oi</c> in <c>order_items</c>, the run for a
+    /// substring, else the leftmost subsequence — so the popup can show why a
+    /// row is there (finding G01). Empty when it doesn't match.
+    /// </summary>
+    public static IReadOnlyList<int> MatchedPositions(string name, string query)
+    {
+        if (query.Length == 0 || FuzzyMatcher.Score(name, query) is null)
+        {
+            return [];
+        }
+
+        switch (TierOf(name, query))
+        {
+            case CompletionMatchTier.Exact or CompletionMatchTier.Prefix:
+                return [.. Enumerable.Range(0, query.Length)];
+            case CompletionMatchTier.PartStarts when PartStartPositions(name, query) is { } parts:
+                return parts;
+            case CompletionMatchTier.Substring:
+                var at = name.IndexOf(query, StringComparison.OrdinalIgnoreCase);
+                return [.. Enumerable.Range(at, query.Length)];
+        }
+
+        var positions = new List<int>(query.Length);
+        var i = 0;
+        foreach (var q in query)
+        {
+            while (i < name.Length && char.ToLowerInvariant(name[i]) != char.ToLowerInvariant(q))
+            {
+                i++;
+            }
+
+            positions.Add(i++);
+        }
+
+        return positions;
+    }
+
+    // MatchesPartStarts, keeping the positions it matched.
+    private static List<int>? PartStartPositions(string name, string query)
+    {
+        var starts = new List<int>();
+        for (var i = 0; i < name.Length; i++)
+        {
+            if (IsPartStart(name, i))
+            {
+                starts.Add(i);
+            }
+        }
+
+        for (var p = 0; p < starts.Count; p++)
+        {
+            if (PartsFrom(name, starts, p, query, 0) is { } positions)
+            {
+                return positions;
+            }
+        }
+
+        return null;
+    }
+
+    private static List<int>? PartsFrom(string name, List<int> starts, int part, string query, int q)
+    {
+        if (q == query.Length)
+        {
+            return [];
+        }
+
+        if (part >= starts.Count)
+        {
+            return null;
+        }
+
+        var end = part + 1 < starts.Count ? starts[part + 1] : name.Length;
+        for (var length = 1; q + length <= query.Length && starts[part] + length <= end; length++)
+        {
+            if (char.ToLowerInvariant(name[starts[part] + length - 1]) != char.ToLowerInvariant(query[q + length - 1]))
+            {
+                break;
+            }
+
+            if (PartsFrom(name, starts, part + 1, query, q + length) is { } rest)
+            {
+                return [.. Enumerable.Range(starts[part], length), .. rest];
+            }
+        }
+
+        return null;
+    }
+
     /// <summary>How <paramref name="name"/> matches <paramref name="query"/> (which it must match as a subsequence).</summary>
     public static CompletionMatchTier TierOf(string name, string query)
     {

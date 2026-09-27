@@ -1,6 +1,8 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Documents;
 using Avalonia.Controls.Presenters;
+using Avalonia.Controls.Primitives;
 using Avalonia.Media;
 using AvaloniaEdit.CodeCompletion;
 using AvaloniaEdit.Rendering;
@@ -10,6 +12,7 @@ using Avalonia.Input.Raw;
 using Avalonia.VisualTree;
 using AvaloniaEdit;
 using PgNimbus.App.Completion;
+using PgNimbus.App.ViewModels;
 using PgNimbus.App.Views;
 using PgNimbus.Core.Commands;
 using PgNimbus.Core.Schema;
@@ -63,7 +66,8 @@ public class CompletionEditorTests
             Ui.Press(window, CommandId.Completion);
             Ui.Press(window, Key.Enter);
 
-            await Assert.That(Marked(editor)).IsEqualTo("SELECT|");
+            // In the case it was typed in (F02, the default).
+            await Assert.That(Marked(editor)).IsEqualTo("select|");
             window.Close();
         });
     }
@@ -614,10 +618,10 @@ public class CompletionEditorTests
     }
 
     [Test]
-    [Arguments("SELECT * FROM orders o WHERE o.id = 1 ob", "SELECT * FROM orders o WHERE o.id = 1 ORDER BY|")]
-    [Arguments("SELECT * FROM orders o lj", "SELECT * FROM orders o LEFT JOIN|")]
-    [Arguments("SELECT * FROM orders o WHERE o.status inn", "SELECT * FROM orders o WHERE o.status IS NOT NULL|")]
-    [Arguments("SELECT row_number() OVER (pb", "SELECT row_number() OVER (PARTITION BY|)")]
+    [Arguments("SELECT * FROM orders o WHERE o.id = 1 OB", "SELECT * FROM orders o WHERE o.id = 1 ORDER BY|")]
+    [Arguments("SELECT * FROM orders o lj", "SELECT * FROM orders o left join|")] // lower case typed: lower case written
+    [Arguments("SELECT * FROM orders o WHERE o.status INN", "SELECT * FROM orders o WHERE o.status IS NOT NULL|")]
+    [Arguments("SELECT row_number() OVER (PB", "SELECT row_number() OVER (PARTITION BY|)")]
     public async Task Tab_on_a_phrase_row_writes_the_whole_phrase(string typed, string expected)
     {
         // C02: the initials find the phrase, and one accept writes all of it.
@@ -677,6 +681,131 @@ public class CompletionEditorTests
             Ui.Press(window, CommandId.Completion);
             Ui.Press(window, Key.Tab);
             await Assert.That(Marked(editor)).EndsWith(") VALUES (|)");
+            window.Close();
+        });
+    }
+
+    // --- Package Q: display and settings ---
+
+    [Test]
+    public async Task The_three_completion_settings_change_what_accepting_does()
+    {
+        // §6.7: keyword case, the schema always, Enter or Tab only. Set through
+        // the Preferences page's view model, as a person would.
+        await Ui.Run(async () =>
+        {
+            var (window, vm, editor) = Open("|");
+            vm.CompletionProvider.Load(PgNimbus.CompletionBench.AuditCatalog.Load(PgNimbus.CompletionBench.AuditCatalog.DefaultPath));
+            var preferences = new PreferencesViewModel(vm);
+
+            preferences.KeywordCaseIndex = 1; // UPPER
+            TypeKeys(window, "sel");
+            Ui.Press(window, Key.Tab);
+            await Assert.That(Marked(editor)).IsEqualTo("SELECT|");
+
+            editor.Text = "";
+            preferences.KeywordCaseIndex = 2; // lower
+            TypeKeys(window, "SEL");
+            Ui.Press(window, Key.Tab);
+            await Assert.That(Marked(editor)).IsEqualTo("select|");
+
+            // Tab only: a typed prefix no longer lets Enter take the row.
+            editor.Text = "";
+            preferences.CompletionEnterAccepts = false;
+            TypeKeys(window, "SELECT * FROM cust");
+            Ui.Press(window, Key.Enter);
+            await Assert.That(Lf(Marked(editor))).IsEqualTo("SELECT * FROM cust\n|");
+            preferences.CompletionEnterAccepts = true;
+
+            // The schema always: the snapshot is rebuilt off the UI thread.
+            editor.Text = "";
+            preferences.CompletionAlwaysQualifyTables = true;
+            for (var i = 0; i < 200 && vm.CompletionProvider.GetCompletionData("SELECT * FROM cust", 18).All(d => d.InsertText != "public.customers"); i++)
+            {
+                await Task.Delay(10);
+            }
+
+            TypeKeys(window, "SELECT * FROM cust");
+            Ui.Press(window, Key.Tab);
+            await Assert.That(Marked(editor)).StartsWith("SELECT * FROM public.customers");
+            preferences.CompletionAlwaysQualifyTables = false;
+            window.Close();
+        });
+    }
+
+    [Test]
+    public async Task An_open_paren_takes_the_function_being_typed()
+    {
+        // F05: "coun(" writes count() with the caret inside, not coun().
+        await Ui.Run(async () =>
+        {
+            var (window, editor) = OpenAuditStand(autoAlias: false);
+            TypeKeys(window, "SELECT coun(");
+
+            await Assert.That(Marked(editor)).IsEqualTo("SELECT count(|)");
+            window.Close();
+        });
+    }
+
+    [Test]
+    public async Task Home_and_end_move_the_caret_not_the_list()
+    {
+        // G05.
+        await Ui.Run(async () =>
+        {
+            var (window, editor) = OpenAuditStand(autoAlias: false);
+            TypeKeys(window, "SELECT * FROM cust");
+            await Assert.That(PopupIsOpen(window)).IsTrue();
+
+            Ui.Press(window, Key.Home);
+            await Assert.That(PopupIsOpen(window)).IsFalse();
+            await Assert.That(editor.CaretOffset).IsEqualTo(0);
+            window.Close();
+        });
+    }
+
+    [Test]
+    public async Task The_argument_hint_goes_when_the_editor_loses_focus()
+    {
+        // G06: it used to stay over the command palette.
+        await Ui.Run(async () =>
+        {
+            var (window, vm, editor) = Open("|");
+            vm.CompletionProvider.Load(PgNimbus.CompletionBench.AuditCatalog.Load(PgNimbus.CompletionBench.AuditCatalog.DefaultPath));
+            TypeKeys(window, "SELECT round(");
+            var hint = window.GetVisualDescendants().OfType<Popup>().First(p => p.Name == "SignaturePopup");
+            await Assert.That(hint.IsOpen).IsTrue();
+
+            _ = vm.OpenCommandPaletteAsync();
+            Ui.Settle();
+            await Assert.That(hint.IsOpen).IsFalse();
+
+            // And when focus goes anywhere else: the sidebar's filter box.
+            vm.CommandPalette.CloseCommand.Execute(null);
+            editor.TextArea.Focus();
+            TypeKeys(window, ", ");
+            Ui.Press(window, CommandId.ParameterHints);
+            await Assert.That(hint.IsOpen).IsTrue();
+            window.GetVisualDescendants().OfType<TextBox>().First(t => t.IsEffectivelyVisible && t.Focusable).Focus();
+            Ui.Settle();
+            await Assert.That(hint.IsOpen).IsFalse();
+            window.Close();
+        });
+    }
+
+    [Test]
+    public async Task A_row_shows_the_letters_it_matched_in_bold()
+    {
+        // G01: "oi" finds order_items by the starts of its parts; the row says so.
+        await Ui.Run(async () =>
+        {
+            var (window, editor) = OpenAuditStand(autoAlias: false);
+            TypeKeys(window, "SELECT * FROM oi");
+            Ui.Settle();
+            var label = window.GetVisualDescendants().OfType<CompletionLabel>().First(l => l.Label == "order_items");
+            var bold = label.Inlines!.OfType<Run>().Where(r => r.FontWeight == FontWeight.Bold).Select(r => r.Text ?? "").ToList();
+
+            await Assert.That(bold).IsEquivalentTo(new[] { "o", "i" });
             window.Close();
         });
     }

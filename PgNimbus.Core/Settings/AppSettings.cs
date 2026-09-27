@@ -73,6 +73,25 @@ public sealed record AppSettings
     public bool WordWrapEditor { get; set; }
 
     /// <summary>
+    /// The letter case completion writes keywords in: <c>"typed"</c> (the case
+    /// being typed — <c>tr</c> gives <c>true</c>, the default), <c>"upper"</c>
+    /// or <c>"lower"</c> (docs/design/sql-completion-audit-2.md F02, §6.7).
+    /// </summary>
+    public string CompletionKeywordCase { get; set; } = "typed";
+
+    /// <summary>
+    /// Completion writes a table's schema always, rather than only when the
+    /// bare name wouldn't find that table along the search_path (F01, §6.7).
+    /// </summary>
+    public bool CompletionAlwaysQualifyTables { get; set; }
+
+    /// <summary>
+    /// Enter accepts a completion row by the rule of §6.1 (true, the default);
+    /// false leaves accepting to Tab alone and Enter always a newline.
+    /// </summary>
+    public bool CompletionEnterAccepts { get; set; } = true;
+
+    /// <summary>
     /// The id of the connection profile that was last connected to, as a
     /// string (Core keeps the settings record free of any type the JSON
     /// source generator needs special handling for; the App parses it back to

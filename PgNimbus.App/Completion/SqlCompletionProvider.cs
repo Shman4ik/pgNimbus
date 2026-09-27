@@ -240,7 +240,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
 
     // The one published view of the catalog. Replaced whole by Load, so a
     // keystroke never sees half of one refresh and half of another.
-    private Snapshot _snapshot = Build(new CompletionCatalog([], [], [], [], null), new HashSet<string>());
+    private Snapshot _snapshot = Build(new CompletionCatalog([], [], [], [], null), new HashSet<string>(), alwaysQualify: false);
     // Bumped by every refresh; a refresh that finishes after a newer one
     // started drops its result instead of overwriting the newer catalog.
     private int _refreshGeneration;
@@ -301,12 +301,14 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         {
             var catalog = await ReadCatalogAsync(_schemaService, ExcludedSchemas, cts.Token);
             var excluded = ExcludedSchemas;
-            var snapshot = await Task.Run(() => Build(catalog, excluded), cts.Token);
+            var alwaysQualify = AlwaysQualifyTables;
+            var snapshot = await Task.Run(() => Build(catalog, excluded, alwaysQualify), cts.Token);
             if (generation != Volatile.Read(ref _refreshGeneration) || cts.IsCancellationRequested)
             {
                 return false; // a newer refresh started meanwhile — its catalog wins
             }
 
+            _catalog = catalog;
             _snapshot = snapshot;
             SetStatus(new CompletionCatalogStatus(false, null));
             return true;
@@ -479,9 +481,51 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
     /// applies here too, including to foreign keys, so an excluded schema can't
     /// come back through a JOIN suggestion.
     /// </summary>
-    public void Load(CompletionCatalog catalog) => _snapshot = Build(catalog, ExcludedSchemas);
+    public void Load(CompletionCatalog catalog)
+    {
+        _catalog = catalog;
+        _snapshot = Build(catalog, ExcludedSchemas, AlwaysQualifyTables);
+    }
 
-    private static Snapshot Build(CompletionCatalog catalog, IReadOnlySet<string> excluded)
+    // The catalog the snapshot was built from, kept for a rebuild when a
+    // setting that shapes the snapshot changes.
+    private CompletionCatalog? _catalog;
+
+    /// <summary>
+    /// Write every table's schema in table position, not only where the bare
+    /// name wouldn't find the table (the Preferences setting of F01). Changing
+    /// it rebuilds the snapshot from the last catalog, off the UI thread.
+    /// </summary>
+    public bool AlwaysQualifyTables
+    {
+        get => _alwaysQualifyTables;
+        set
+        {
+            if (_alwaysQualifyTables == value)
+            {
+                return;
+            }
+
+            _alwaysQualifyTables = value;
+            if (_catalog is { } catalog)
+            {
+                var excluded = ExcludedSchemas;
+                var generation = Volatile.Read(ref _refreshGeneration);
+                _ = Task.Run(() =>
+                {
+                    var rebuilt = Build(catalog, excluded, value);
+                    if (generation == Volatile.Read(ref _refreshGeneration) && _alwaysQualifyTables == value)
+                    {
+                        _snapshot = rebuilt;
+                    }
+                });
+            }
+        }
+    }
+
+    private bool _alwaysQualifyTables;
+
+    private static Snapshot Build(CompletionCatalog catalog, IReadOnlySet<string> excluded, bool alwaysQualify)
     {
         var schemas = catalog.Schemas.Where(s => !excluded.Contains(s)).ToList();
         var tables = catalog.Tables.Where(t => !excluded.Contains(t.Schema)).ToList();
@@ -605,10 +649,12 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
             // prefix "ta" should reach a tasks table before information_schema.tables.
             var system = IsSystemSchema(table.Schema);
             baseItems.Add(TableItem(table, qualified: false, system ? SystemGeneralTablePriority : GeneralTablePriority));
-            tableRefItems.Add(TableRefItem(table,
-                ResolveShort(tablesByKey, tablesByName, excluded, searchPath, table.Name) == table));
+            // "Always write the schema" (Preferences) writes every one qualified;
+            // the one the path finds still ranks first.
+            var resolvesBare = ResolveShort(tablesByKey, tablesByName, excluded, searchPath, table.Name) == table;
+            tableRefItems.Add(TableRefItem(table, resolvesBare, alwaysQualify));
             tableRefItemsUnknownPath.Add(TableRefItem(table,
-                ResolveShort(tablesByKey, tablesByName, excluded, null, table.Name) == table));
+                ResolveShort(tablesByKey, tablesByName, excluded, null, table.Name) == table, alwaysQualify));
             foreach (var column in table.Columns)
             {
                 // A catalog-wide column is a guess: the statement names no
@@ -794,9 +840,11 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         }
 
         var snapshot = _snapshot;
+        // SQL's own call forms (extract(field FROM x), coalesce …) first (H01).
+        var special = SignatureHints.SpecialForms(site);
         if (!snapshot.HintFunctions.TryGetValue(site.Name[^1], out var overloads))
         {
-            return null;
+            return special.Count == 0 ? null : (site, special);
         }
 
         IEnumerable<CompletionFunction> visible;
@@ -812,7 +860,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
                 .OrderBy(o => o.Schema == "pg_catalog" ? -1 : path?.ToList().IndexOf(o.Schema) ?? 0);
         }
 
-        var hints = SignatureHints.For(site, visible.Select(o => (o.Schema, o.Function)));
+        IReadOnlyList<SignatureHint> hints = [.. special, .. SignatureHints.For(site, visible.Select(o => (o.Schema, o.Function)))];
         return hints.Count == 0 ? null : (site, hints);
     }
 
@@ -918,8 +966,8 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
     // A relation in table position: bare when the bare name resolves to it
     // (and ranked above same-named relations elsewhere, which is what keeps
     // "UPDATE customers" on public.customers), schema-qualified otherwise.
-    private static SqlCompletionData TableRefItem(CompletionTable table, bool resolvesBare) =>
-        TableItem(table, qualified: !resolvesBare,
+    private static SqlCompletionData TableRefItem(CompletionTable table, bool resolvesBare, bool alwaysQualify = false) =>
+        TableItem(table, qualified: alwaysQualify || !resolvesBare,
             CommonSystemRank.TryGetValue($"{table.Schema}.{table.Name}", out var rank) ? CommonSystemTablePriority - (rank * 0.01)
             // information_schema's rarer views (sql_features, …) under its schema row.
             : table.Schema == "information_schema" ? RareInformationSchemaPriority
@@ -1817,7 +1865,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
             // discovery order, each table's joins right under its own row
             // (with nothing typed the list would otherwise show every table
             // before the first join).
-            var item = TableItem(neighborSchema, neighborTable, qualified: !resolvesBare,
+            var item = TableItem(neighborSchema, neighborTable, qualified: AlwaysQualifyTables || !resolvesBare,
                 (resolvesBare ? FkTablePriority + 1 : FkTablePriority) - (0.01 * index++));
             items.Add(new SqlCompletionData(item.Text, item.Kind, item.InsertText, item.Priority)
             {
