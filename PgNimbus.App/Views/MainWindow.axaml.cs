@@ -209,6 +209,7 @@ public partial class MainWindow : Window
                 CommandItem("Refresh Schema", CommandId.RefreshSchema),
                 CommandItem("Server Activity…", CommandId.ServerActivity),
                 CommandItem("Database Overview…", CommandId.DatabaseOverview),
+                CommandItem("Slow Queries…", CommandId.SlowQueries),
                 CommandItem("LISTEN / NOTIFY Monitor…", CommandId.NotifyMonitor),
                 CommandItem("Roles and Permissions…", CommandId.SecurityManager),
             },
@@ -473,6 +474,7 @@ public partial class MainWindow : Window
             _viewModel.ImportPlanRequested -= ShowImportPlanDialog;
         _viewModel.ActivityRequested -= ShowActivityWindow;
             _viewModel.DatabaseOverviewRequested -= ShowDatabaseOverviewWindow;
+            _viewModel.SlowQueriesRequested -= ShowSlowQueriesWindow;
             _viewModel.NotifyMonitorRequested -= ShowNotifyMonitorWindow;
             _viewModel.SecurityRequested -= ShowSecurityWindow;
             _viewModel.SidebarToggleRequested -= ToggleSidebar;
@@ -492,6 +494,7 @@ public partial class MainWindow : Window
         _viewModel.ImportPlanRequested += ShowImportPlanDialog;
         _viewModel.ActivityRequested += ShowActivityWindow;
         _viewModel.DatabaseOverviewRequested += ShowDatabaseOverviewWindow;
+        _viewModel.SlowQueriesRequested += ShowSlowQueriesWindow;
         _viewModel.NotifyMonitorRequested += ShowNotifyMonitorWindow;
         _viewModel.SecurityRequested += ShowSecurityWindow;
         _viewModel.SidebarToggleRequested += ToggleSidebar;
@@ -1088,6 +1091,24 @@ public partial class MainWindow : Window
         _databaseOverviewWindow = new DatabaseOverviewWindow { DataContext = _viewModel?.DatabaseOverview };
         _databaseOverviewWindow.Closed += (_, _) => _databaseOverviewWindow = null;
         _databaseOverviewWindow.Show(this);
+    }
+
+    private SlowQueriesWindow? _slowQueriesWindow;
+
+    // One live instance, like the other reference windows. It matters more here:
+    // the window's first read is its interval baseline, and a second window
+    // would quietly count from a different one.
+    private void ShowSlowQueriesWindow()
+    {
+        if (_slowQueriesWindow is not null)
+        {
+            _slowQueriesWindow.Activate();
+            return;
+        }
+
+        _slowQueriesWindow = new SlowQueriesWindow { DataContext = _viewModel?.SlowQueries };
+        _slowQueriesWindow.Closed += (_, _) => _slowQueriesWindow = null;
+        _slowQueriesWindow.Show(this);
     }
 
     private NotifyMonitorWindow? _notifyMonitorWindow;

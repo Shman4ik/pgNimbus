@@ -44,6 +44,9 @@ public sealed partial class MainViewModel : ObservableObject
     /// <summary>Backs the Database Overview window (sizes, cache-hit, scan usage, unused indexes).</summary>
     public DatabaseOverviewViewModel DatabaseOverview { get; }
 
+    /// <summary>The slow-query shortlist (pg_stat_statements), one per connection like the other monitoring windows.</summary>
+    public SlowQueriesViewModel SlowQueries { get; }
+
     /// <summary>Backs the Roles &amp; Permissions window (roles, grants, default privileges, RLS).</summary>
     public SecurityViewModel Security { get; }
 
@@ -79,6 +82,8 @@ public sealed partial class MainViewModel : ObservableObject
     public event Action? ActivityRequested;
     // Raised to open (or focus) the Database Overview window, which the view owns.
     public event Action? DatabaseOverviewRequested;
+
+    public event Action? SlowQueriesRequested;
 
     // Raised to open (or focus) the LISTEN/NOTIFY monitor window.
     public event Action? NotifyMonitorRequested;
@@ -323,6 +328,9 @@ public sealed partial class MainViewModel : ObservableObject
     private void ShowDatabaseOverview() => DatabaseOverviewRequested?.Invoke();
 
     [RelayCommand]
+    private void ShowSlowQueries() => SlowQueriesRequested?.Invoke();
+
+    [RelayCommand]
     private void ShowNotifyMonitor() => NotifyMonitorRequested?.Invoke();
 
     [RelayCommand]
@@ -529,6 +537,7 @@ public sealed partial class MainViewModel : ObservableObject
         NotifyMonitorViewModel notifyMonitor,
         ActivityService activityService,
         DatabaseStatsService databaseStatsService,
+        StatementStatsService statementStatsService,
         RoleService roleService,
         PrivilegeService privilegeService,
         SecurityEditor securityEditor,
@@ -623,6 +632,9 @@ public sealed partial class MainViewModel : ObservableObject
         notifyMonitor.Channels.CollectionChanged += (_, _) => CompletionProvider.NotifyChannels = [.. notifyMonitor.Channels];
         Activity = new ActivityViewModel(activityService);
         DatabaseOverview = new DatabaseOverviewViewModel(databaseStatsService);
+        SlowQueries = new SlowQueriesViewModel(statementStatsService);
+        // A statement, or the setup script, opens as a new tab; nothing runs from the window.
+        SlowQueries.OpenSqlRequested += (title, sql) => OpenGeneratedSql(title, sql);
         Security = new SecurityViewModel(roleService, privilegeService, securityEditor, connectionDatabase);
         // Every privilege change leaves the security window as a script in a new
         // editor tab rather than being applied from there - see OpenGeneratedSql.
