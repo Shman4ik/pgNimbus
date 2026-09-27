@@ -14,3 +14,9 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    groups:
+      # Action bumps are reviewed the same way whichever action moved; one PR
+      # (and one CI run) per week instead of one per action.
+      actions:
+        patterns:
+          - "*"
