@@ -77,6 +77,21 @@ A profile can carry SSH tunnel settings, so a database that is only reachable
 from a bastion host connects like any other. The tunnel is owned by the window,
 so closing the window tears it down.
 
+Pick how pgNimbus signs in to the SSH host with **Auth Method**:
+
+- **SSH agent** uses the keys your agent already holds. On Windows that is the
+  OpenSSH Authentication Agent service; on macOS and Linux it is the agent
+  `SSH_AUTH_SOCK` points at. A key with a passphrase works without typing it
+  here, as long as you have added it with `ssh-add`. Nothing is stored.
+- **Key file** reads a private key from disk. Leave the path blank to use the
+  same defaults `ssh` tries (`~/.ssh/id_ed25519`, then `id_ecdsa`, then
+  `id_rsa`). If the key has a passphrase, type it below; it is stored like a
+  password.
+- **Password** signs in with the SSH user's password.
+
+For the database host and port, give them as the SSH host sees them. A Postgres
+that only listens locally on the server is `127.0.0.1` and `5432`.
+
 ## Several connections at once
 
 Two different things, for two different needs.
