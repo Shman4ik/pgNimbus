@@ -685,6 +685,40 @@ public class CompletionEditorTests
         });
     }
 
+    // --- Package R: columns first ---
+
+    [Test]
+    public async Task A_column_taken_before_any_from_writes_its_from_in_one_undo_step()
+    {
+        // E08: "SELECT first_n" + Tab → the column, and its table's FROM below.
+        await Ui.Run(async () =>
+        {
+            var (window, editor) = OpenAuditStand(autoAlias: false);
+            TypeKeys(window, "SELECT first_n");
+            Ui.Press(window, Key.Tab);
+
+            await Assert.That(Lf(Marked(editor))).IsEqualTo("SELECT first_name|\nFROM customers");
+            editor.Undo();
+            await Assert.That(Lf(editor.Text)).IsEqualTo("SELECT first_n");
+            window.Close();
+        });
+    }
+
+    [Test]
+    public async Task Enter_leaves_a_typed_column_alone_before_its_from()
+    {
+        // A guess: a name typed in full stays as typed, and Enter is a newline.
+        await Ui.Run(async () =>
+        {
+            var (window, editor) = OpenAuditStand(autoAlias: false);
+            TypeKeys(window, "SELECT first_name");
+            Ui.Press(window, Key.Enter);
+
+            await Assert.That(Lf(Marked(editor))).IsEqualTo("SELECT first_name\n|");
+            window.Close();
+        });
+    }
+
     // --- Package Q: display and settings ---
 
     [Test]

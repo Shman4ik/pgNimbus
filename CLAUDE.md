@@ -1774,6 +1774,33 @@ csproj / WiX / MSIX manifest reference them unchanged:
   Enter accepts a suggestion (`CompletionEnterAccepts`, on: off leaves Tab as
   the only accept). No new permanent control. Screenshot scenario
   `main-window-completion`.
+  **Package R: columns before their FROM** (E08). Typed left to right, a
+  select list comes before the FROM that declares its aliases, and a third of
+  the corpus's dot references (`SELECT c.fi`) used to get nothing. Now, in a
+  SELECT block's select list, a qualifier nothing declares — no source, CTE,
+  table or schema of that name — is read as the alias it will be
+  (`FutureAliasColumns`): a CTE or table whose name it shortens
+  (`Text/AliasGuess.Fit`: the name itself, its initials as the auto-alias
+  writes them, those with a number, or the start of the name — `inv` →
+  `invoices`), the likeliest fit and the search_path's first, at most
+  `FutureAliasTables` (12) relations, each row naming its relation on the
+  right. Only in the select list: in WHERE the FROM is already written and an
+  unknown qualifier is a typo, not a plan. And in a top-level select list with
+  no FROM at all, a bare word gets one row per table having a column that
+  starts with it — `first_name · customers` — whose accept writes the FROM too
+  (`SqlCompletionData.AppendClause`, applied by `CompletionEdits.AppendClause`
+  as the same single edit: at the end of the statement, which is its `;` or a
+  blank line, the caret staying on the column). They stand in for the
+  catalog-wide row of the same name (Merge hides it), not at a new name (after
+  AS), not in a subquery or a UNION branch. The candidates come from a
+  `ColumnIndex` built with the snapshot (the user's columns sorted by name,
+  ignoring case, as two arrays of references): a prefix is a binary search,
+  capped at `FromlessColumnRows` (200); with nothing typed, which is how the
+  list opens after `SELECT `, it is the search_path's tables' columns, up to
+  2000, because the popup filters the list it opened with instead of asking
+  again. All of these rows are guesses: Enter takes one only when chosen, so a
+  name typed in full stays as typed. The oracle leaves the FROM-writing rows
+  alone (the corpus goes on with the select list where they write a FROM).
 - `SqlFormatter` follows <https://www.sqlstyle.guide/> ("river" layout: root
   keywords right-aligned to a common column, content to its right). The tests
   in `PgNimbus.Core.Tests` assert exact spacing — a deliberate layout change

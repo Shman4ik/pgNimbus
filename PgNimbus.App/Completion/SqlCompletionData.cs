@@ -106,6 +106,13 @@ public sealed class SqlCompletionData(string text, SqlCompletionKind kind, strin
     public int? ReplaceFrom { get; init; }
 
     /// <summary>
+    /// A clause accepting this row also writes at the end of the statement —
+    /// <c>FROM customers</c> for a column picked in a select list that has no
+    /// FROM yet (E08). Null for everything else.
+    /// </summary>
+    public string? AppendClause { get; init; }
+
+    /// <summary>
     /// What accepting writes with the caret at <paramref name="caret"/>: a
     /// keyword in <paramref name="keywordCase"/>, judged by what was typed of
     /// the word so far; anything else its <see cref="InsertText"/>.
@@ -227,6 +234,10 @@ public sealed class SqlCompletionData(string text, SqlCompletionKind kind, strin
         var caret = textArea.Caret.Offset;
         var insert = InsertTextFor(text, caret, options?.KeywordCase?.Invoke() ?? KeywordCase.AsTyped);
         var edit = CompletionEdits.Plan(text, caret, insert, InsertKind, aliasSeed, CaretIndex, ReplaceFrom);
+        if (AppendClause is { } clause)
+        {
+            edit = CompletionEdits.AppendClause(text, edit, clause);
+        }
 
         document.Replace(edit.ReplaceStart, edit.ReplaceLength, edit.InsertText);
         textArea.Caret.Offset = Math.Clamp(edit.CaretOffset, 0, document.TextLength);

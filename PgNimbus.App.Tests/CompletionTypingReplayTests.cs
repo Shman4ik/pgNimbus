@@ -133,7 +133,7 @@ public class CompletionTypingReplayTests
         Console.WriteLine($"auto-alias {(autoAlias ? "on" : "off")}: {total.Characters} characters, {total.Keys} keys, saved {saved:P1}; "
             + $"{total.Accepts} accepts, {total.Downs} Downs, {total.Escapes} Escapes before an Enter");
         Console.WriteLine(report);
-        await Assert.That(saved).IsGreaterThanOrEqualTo(0.44);
+        await Assert.That(saved).IsGreaterThanOrEqualTo(0.48);
     }
 
     private sealed class OracleTally
@@ -224,6 +224,11 @@ public class CompletionTypingReplayTests
         for (var r = selectedIndex; r >= 0 && r < rows.Count && r - selectedIndex <= 4; r++)
         {
             var item = rows[r];
+            if (item.AppendClause is not null)
+            {
+                continue; // it also writes a FROM below, where the corpus goes on with the select list
+            }
+
             // What Tab would write: a keyword in the case being typed (the default setting).
             var edit = CompletionEdits.Plan(text, pos, item.InsertTextFor(text, pos, KeywordCase.AsTyped), item.InsertKind,
                 autoAlias ? item.AliasTable : null, item.CaretIndex, item.ReplaceFrom);
