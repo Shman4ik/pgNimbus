@@ -173,7 +173,17 @@ public sealed partial class TableBrowseViewModel(string schema, string name, IRe
     /// FK predicate is inlined verbatim (this is a SQL client — the user is
     /// trusted to write a predicate, same as typing it into the editor).
     /// </summary>
-    public string BuildSql()
+    public string BuildSql() => BuildSql(paged: true);
+
+    /// <summary>
+    /// The page query with its <c>LIMIT</c>/<c>OFFSET</c> left off: every row
+    /// the chips let through, in the page order. That is what exporting a
+    /// browsed table writes. A page is a view of the table, and a file with
+    /// the 100 rows that happened to be on screen isn't an export of it.
+    /// </summary>
+    public string BuildExportSql() => BuildSql(paged: false);
+
+    private string BuildSql(bool paged)
     {
         var sb = new StringBuilder();
         sb.Append("SELECT * FROM ")
@@ -197,7 +207,11 @@ public sealed partial class TableBrowseViewModel(string schema, string name, IRe
             sb.Append("\nORDER BY ").Append(string.Join(", ", _pkColumns.Select(SqlIdentifier.Quote)));
         }
 
-        sb.Append("\nLIMIT ").Append(PageSize).Append(" OFFSET ").Append(Offset);
+        if (paged)
+        {
+            sb.Append("\nLIMIT ").Append(PageSize).Append(" OFFSET ").Append(Offset);
+        }
+
         return sb.ToString();
     }
 

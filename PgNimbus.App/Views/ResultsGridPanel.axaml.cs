@@ -20,6 +20,7 @@ using AvaloniaEdit.Highlighting.Xshd;
 using PgNimbus.App.Converters;
 using PgNimbus.App.ViewModels;
 using PgNimbus.Core.Commands;
+using PgNimbus.Core.Export;
 using PgNimbus.Core.Import;
 using PgNimbus.Core.Query;
 using PgNimbus.Core.Schema;
@@ -218,23 +219,10 @@ public partial class ResultsGridPanel : UserControl
     public void FocusGrid() => ResultsGrid.Focus();
 
     /// <summary>Command-bar "Export → CSV": save the current result set as CSV.</summary>
-    public void ExportCsv()
-    {
-        if (_activeQuery is { } query)
-        {
-            // Snapshot on the UI thread; ExportAsync runs the returned writer off it.
-            _ = ExportAsync("csv", "CSV", ["*.csv"], query.CreateCsvExport());
-        }
-    }
+    public void ExportCsv() => _ = ExportAsync(ExportFormat.Csv, "csv", "CSV");
 
     /// <summary>Command-bar "Export → JSON": save the current result set as JSON.</summary>
-    public void ExportJson()
-    {
-        if (_activeQuery is { } query)
-        {
-            _ = ExportAsync("json", "JSON", ["*.json"], query.CreateJsonExport());
-        }
-    }
+    public void ExportJson() => _ = ExportAsync(ExportFormat.Json, "json", "JSON");
 
     /// <summary>Command-bar "Import": pick a CSV/JSON file and load it into a table.</summary>
     public void Import() => _ = ImportAsync();
@@ -1286,9 +1274,13 @@ public partial class ResultsGridPanel : UserControl
         return char.IsAsciiDigit(name[0]) ? "t_" + name : name;
     }
 
-    private async Task ExportAsync(string extension, string typeName, string[] patterns, Action<Stream>? write)
+    // The tab writes the file (every row, not just the grid's: see
+    // QueryViewModel.ExportAsync); this side only picks where, and throws the
+    // file away if the export didn't finish, so a cancelled or failed export
+    // never leaves a partial file that looks complete.
+    private async Task ExportAsync(ExportFormat format, string extension, string typeName)
     {
-        if (write is null || _activeQuery is null || _activeQuery.Rows.Count == 0)
+        if (_activeQuery is not { } query || query.Rows.Count == 0 || query.IsRunning)
         {
             return;
         }
@@ -1301,8 +1293,8 @@ public partial class ResultsGridPanel : UserControl
 
         var file = await storageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
-            SuggestedFileName = $"export.{extension}",
-            FileTypeChoices = [new FilePickerFileType(typeName) { Patterns = patterns }],
+            SuggestedFileName = $"{query.ShownBrowse?.Name ?? "export"}.{extension}",
+            FileTypeChoices = [new FilePickerFileType(typeName) { Patterns = [$"*.{extension}"] }],
         });
 
         if (file is null)
@@ -1310,10 +1302,36 @@ public partial class ResultsGridPanel : UserControl
             return;
         }
 
-        await using var stream = await file.OpenWriteAsync();
-        // The writer was snapshotted on the UI thread; do the (potentially large)
-        // formatting + file write off it so the interface stays responsive.
-        await Task.Run(() => write(stream));
+        Stream stream;
+        try
+        {
+            stream = await file.OpenWriteAsync();
+        }
+        catch (Exception ex)
+        {
+            // Typically the file is open in the spreadsheet that last read it.
+            query.Status = $"Export failed: {ex.Message}";
+            query.HasError = true;
+            return;
+        }
+
+        bool complete;
+        await using (stream)
+        {
+            complete = await query.ExportAsync(format, stream, file.Name);
+        }
+
+        if (!complete)
+        {
+            try
+            {
+                await file.DeleteAsync();
+            }
+            catch (Exception)
+            {
+                // Best effort: the status line already says the export failed.
+            }
+        }
     }
 
     // --- Plan copy / export ------------------------------------------------
