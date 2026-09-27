@@ -2,9 +2,17 @@ using System.Globalization;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Unicode;
+using PgNimbus.Core.Query;
 using PgNimbus.Core.Schema;
 
 namespace PgNimbus.Core.Export;
+
+/// <summary>The file formats <see cref="ResultExporter.WriteStreamingAsync"/> writes.</summary>
+public enum ExportFormat
+{
+    Csv,
+    Json,
+}
 
 /// <summary>
 /// Writes query result rows as CSV or JSON. Values come back from Npgsql as
@@ -17,14 +25,85 @@ public static class ResultExporter
 {
     public static void WriteCsv(TextWriter writer, IReadOnlyList<string> columns, IEnumerable<object?[]> rows)
     {
-        writer.Write(string.Join(',', columns.Select(EscapeCsvField)));
-        writer.Write("\r\n");
+        WriteCsvHeader(writer, columns);
 
         foreach (var row in rows)
         {
-            writer.Write(string.Join(',', row.Select(v => EscapeCsvField(FormatCsvValue(v)))));
-            writer.Write("\r\n");
+            WriteCsvRow(writer, row);
         }
+    }
+
+    private static void WriteCsvHeader(TextWriter writer, IReadOnlyList<string> columns)
+    {
+        writer.Write(string.Join(',', columns.Select(EscapeCsvField)));
+        writer.Write("\r\n");
+    }
+
+    private static void WriteCsvRow(TextWriter writer, object?[] row)
+    {
+        writer.Write(string.Join(',', row.Select(v => EscapeCsvField(FormatCsvValue(v)))));
+        writer.Write("\r\n");
+    }
+
+    /// <summary>
+    /// Writes a result as it arrives, for exports too big to hold in memory: the
+    /// CSV header (or JSON's opening bracket) first, then each batch, flushed to
+    /// <paramref name="stream"/> before the next one is read, then the closing
+    /// bracket. Memory holds one batch, never the whole result — which is the
+    /// point, since the grid stops at 100,000 rows and an export must not.
+    /// <paramref name="progress"/> gets the running row count after each batch.
+    /// Cancelling stops between batches and leaves a partial file in
+    /// <paramref name="stream"/>, which the caller must throw away.
+    /// </summary>
+    /// <returns>The number of rows written.</returns>
+    public static async Task<long> WriteStreamingAsync(
+        ExportFormat format,
+        Stream stream,
+        IReadOnlyList<string> columns,
+        IAsyncEnumerable<RowBatch> batches,
+        Action<long>? progress,
+        CancellationToken ct)
+    {
+        long written = 0;
+
+        if (format == ExportFormat.Csv)
+        {
+            await using var csv = new StreamWriter(stream, leaveOpen: true);
+            WriteCsvHeader(csv, columns);
+            await foreach (var batch in batches.WithCancellation(ct))
+            {
+                foreach (var row in batch.Rows)
+                {
+                    WriteCsvRow(csv, row);
+                }
+
+                written += batch.Rows.Count;
+                progress?.Invoke(written);
+            }
+
+            await csv.FlushAsync(ct);
+            return written;
+        }
+
+        await using var json = new Utf8JsonWriter(stream, JsonOptions);
+        json.WriteStartArray();
+        await foreach (var batch in batches.WithCancellation(ct))
+        {
+            foreach (var row in batch.Rows)
+            {
+                WriteJsonRow(json, columns, row);
+            }
+
+            // Utf8JsonWriter buffers until it is flushed: without this the whole
+            // export would sit in memory until the closing bracket.
+            await json.FlushAsync(ct);
+            written += batch.Rows.Count;
+            progress?.Invoke(written);
+        }
+
+        json.WriteEndArray();
+        await json.FlushAsync(ct);
+        return written;
     }
 
     /// <summary>
@@ -97,17 +176,22 @@ public static class ResultExporter
         writer.WriteStartArray();
         foreach (var row in rows)
         {
-            writer.WriteStartObject();
-            for (var i = 0; i < columns.Count; i++)
-            {
-                writer.WritePropertyName(columns[i]);
-                WriteJsonValue(writer, row[i]);
-            }
-
-            writer.WriteEndObject();
+            WriteJsonRow(writer, columns, row);
         }
 
         writer.WriteEndArray();
+    }
+
+    private static void WriteJsonRow(Utf8JsonWriter writer, IReadOnlyList<string> columns, object?[] row)
+    {
+        writer.WriteStartObject();
+        for (var i = 0; i < columns.Count; i++)
+        {
+            writer.WritePropertyName(columns[i]);
+            WriteJsonValue(writer, row[i]);
+        }
+
+        writer.WriteEndObject();
     }
 
     private static string FormatCsvValue(object? value) => value switch

@@ -72,6 +72,7 @@ public enum CommandId
     PreviewTable,
     ServerActivity,
     DatabaseOverview,
+    SlowQueries,
     NotifyMonitor,
     SecurityManager,
     SwitchConnection,

@@ -1,0 +1,110 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:PgNimbus.App.ViewModels"
+        xmlns:mon="using:PgNimbus.Core.Monitoring"
+        x:Class="PgNimbus.App.Views.SlowQueriesWindow"
+        x:DataType="vm:SlowQueriesViewModel"
+        Title="pgNimbus — Slow Queries"
+        Width="1040" Height="620"
+        MinWidth="760" MinHeight="360"
+        WindowStartupLocation="CenterOwner"
+        FontFamily="{StaticResource InterFont}">
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="12">
+
+        <!-- One band of chrome: the two actions left, the two choices right. -->
+        <DockPanel Grid.Row="0" Margin="0,0,0,10" IsVisible="{Binding HasGrid}">
+            <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="6">
+                <Button Classes="soft" Command="{Binding RefreshCommand}" ToolTip.Tip="Read pg_stat_statements again">
+                    <StackPanel Orientation="Horizontal" Spacing="7">
+                        <PathIcon Data="{StaticResource RefreshIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
+                        <TextBlock Text="Refresh" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+                <Button Classes="soft" Content="Restart interval" Command="{Binding RestartIntervalCommand}"
+                        ToolTip.Tip="Count from now: run your workload, then Refresh to see only what it did. The server's own counters are left alone." />
+            </StackPanel>
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="2" HorizontalAlignment="Right" VerticalAlignment="Center">
+                <TextBlock Text="Rank by" FontSize="11" Opacity="0.6" VerticalAlignment="Center" Margin="0,0,6,0" />
+                <Button Classes="chip" Content="Total time" FontSize="11" Padding="8,2"
+                        Classes.active="{Binding IsRankedByTotal}"
+                        Command="{Binding SetRankingCommand}" CommandParameter="{x:Static mon:StatementRanking.TotalTime}"
+                        ToolTip.Tip="Where the server's time went" />
+                <Button Classes="chip" Content="Mean" FontSize="11" Padding="8,2"
+                        Classes.active="{Binding IsRankedByMean}"
+                        Command="{Binding SetRankingCommand}" CommandParameter="{x:Static mon:StatementRanking.MeanTime}"
+                        ToolTip.Tip="The slowest single calls, however rarely they run" />
+                <Button Classes="chip" Content="Calls" FontSize="11" Padding="8,2" Margin="0,0,14,0"
+                        Classes.active="{Binding IsRankedByCalls}"
+                        Command="{Binding SetRankingCommand}" CommandParameter="{x:Static mon:StatementRanking.Calls}"
+                        ToolTip.Tip="The chattiest statements" />
+                <Button Classes="chip" Content="Since reset" FontSize="11" Padding="8,2"
+                        Classes.active="{Binding IsSinceReset}"
+                        Command="{Binding SetScopeCommand}" CommandParameter="{x:False}"
+                        ToolTip.Tip="Everything since the statistics were last reset" />
+                <Button Classes="chip" Content="{Binding BaselineLabel}" FontSize="11" Padding="8,2"
+                        Classes.active="{Binding IsSinceBaseline}"
+                        Command="{Binding SetScopeCommand}" CommandParameter="{x:True}"
+                        ToolTip.Tip="Only what ran since this window opened, or since Restart interval" />
+            </StackPanel>
+        </DockPanel>
+
+        <!-- The extension missing or not loaded: say what's needed, never do it. -->
+        <Border Grid.Row="1" IsVisible="{Binding HasProblem}" Classes="card" Padding="24,20"
+                HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="560">
+            <StackPanel Spacing="10">
+                <TextBlock Text="{Binding ProblemTitle}" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding ProblemDetail}" TextWrapping="Wrap" Opacity="0.8" />
+                <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,6,0,0">
+                    <Button Classes="soft" Content="Open setup script" Command="{Binding OpenSetupScriptCommand}"
+                            ToolTip.Tip="The two steps as SQL in a new tab, to review and run yourself" />
+                    <Button Classes="soft" Content="Check again" Command="{Binding RefreshCommand}" />
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <Panel Grid.Row="1" IsVisible="{Binding HasGrid}">
+            <DataGrid Name="StatementsGrid" ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow}"
+                      IsReadOnly="True" SelectionMode="Single"
+                      CanUserResizeColumns="True" CanUserSortColumns="False"
+                      GridLinesVisibility="Horizontal" HeadersVisibility="Column">
+                <DataGrid.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="Open in new tab" Command="{Binding OpenInNewTabCommand}" CommandParameter="{x:Null}" />
+                        <MenuItem Header="Copy query" Click="OnCopyQueryClick" />
+                    </ContextMenu>
+                </DataGrid.ContextMenu>
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="" Binding="{Binding Rank}" Width="46" />
+                    <DataGridTemplateColumn Header="Query" Width="*">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate x:DataType="vm:SlowQueryRow">
+                                <StackPanel Orientation="Horizontal" Spacing="6" Margin="12,0" VerticalAlignment="Center">
+                                    <TextBlock Text="↺" Foreground="{StaticResource AppWarningBrush}" IsVisible="{Binding Restarted}"
+                                               ToolTip.Tip="Started counting again inside the interval (reset or evicted), so this covers only part of it" />
+                                    <TextBlock Text="{Binding Query}" FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="12"
+                                               TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Query}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTextColumn Header="Role" Binding="{Binding Role}" Width="100" />
+                    <DataGridTextColumn Header="Calls" Binding="{Binding Calls}" Width="110" />
+                    <DataGridTextColumn Header="Total" Binding="{Binding Total}" Width="95" />
+                    <DataGridTextColumn Header="Mean" Binding="{Binding Mean}" Width="95" />
+                    <DataGridTextColumn Header="% time" Binding="{Binding Share}" Width="85" />
+                    <DataGridTextColumn Header="Rows" Binding="{Binding Rows}" Width="115" />
+                    <DataGridTextColumn Header="Cache hit" Binding="{Binding CacheHit}" Width="100" />
+                </DataGrid.Columns>
+            </DataGrid>
+            <TextBlock Text="{Binding EmptyText}" IsVisible="{Binding EmptyText, Converter={x:Static ObjectConverters.IsNotNull}}"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.55" TextWrapping="Wrap"
+                       TextAlignment="Center" MaxWidth="460" IsHitTestVisible="False" />
+        </Panel>
+
+        <TextBlock Grid.Row="2" Text="{Binding Status}" FontSize="11" Opacity="0.7" Margin="2,8,2,0"
+                   TextWrapping="Wrap" />
+
+    </Grid>
+
+</Window>

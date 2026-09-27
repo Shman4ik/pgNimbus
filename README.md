@@ -97,6 +97,7 @@ On macOS, <kbd>Cmd</kbd> replaces <kbd>Ctrl</kbd>, except autocomplete, which st
 - `EXPLAIN` and `EXPLAIN ANALYZE` as a tree with a self-time heat map and plain warnings (disk spills, bad row estimates). Paste a plan from anywhere and read it with no connection.
 - Server activity with cancel and terminate, plus a who-blocks-whom lock tree from `pg_blocking_pids`.
 - Database overview: largest relations, unused indexes, seq vs index scans, cache hit ratios.
+- Slow queries from `pg_stat_statements`: ranked by total or mean time, measured since the last reset or over just the workload you ran, one double-click from the editor.
 - Roles and permissions that answer "can this role do that, and why" from the server's own `has_*_privilege()`, including grants inherited through roles and PUBLIC. Changes come out as a script, never applied behind your back.
 - LISTEN/NOTIFY monitor with JSON payloads as a tree and a button to publish a test event.
 
@@ -130,7 +131,6 @@ Two things to know. Query history, workspace SQL and the local crash log can con
 Next up (a direction, not a commitment):
 
 - **Production connection policies:** environment labels, on top of the read-only sessions that shipped.
-- **Slow-query shortlist:** the statements that cost the most time, from `pg_stat_statements`, one click from the editor.
 - **Query Lab:** save EXPLAIN runs and compare them before and after a change.
 - **Signed and notarized macOS builds.**
 

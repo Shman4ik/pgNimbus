@@ -215,6 +215,11 @@ public sealed partial class QueryViewModel : ObservableObject
     // The SQL as of the last run; edits away from it mark a scratch tab dirty.
     private string _lastRunSql;
 
+    // The single statement whose rows the grid holds (a whole-buffer, selection
+    // or caret run), so an export can run it again for the rows past the cap.
+    // Null for a script, which has no one statement to run again.
+    private string? _resultSql;
+
     /// <summary>
     /// Full local path of the file this tab is backed by, or null for a
     /// scratch (never saved/opened-from-disk) tab. Set by <see cref="AttachFile"/>
@@ -610,6 +615,7 @@ public sealed partial class QueryViewModel : ObservableObject
         ColumnNames.Clear();
         Rows = [];
         _columns = [];
+        _resultSql = null;
         SelectedSection = null;
         ResultSections.Clear();
         NotifyScriptResultChanged();
@@ -652,6 +658,10 @@ public sealed partial class QueryViewModel : ObservableObject
             // by construction); hand-written SQL doesn't vouch, and the engine
             // decides for itself whether re-executing it is provably harmless.
             var result = await _engine.ExecuteAsync(executedSql, ct, MaxDisplayRows + 1, allowTextFallback: IsBrowsing);
+            if (result is ResultSet or MaterializedResultSet)
+            {
+                _resultSql = executedSql;
+            }
 
             switch (result)
             {
@@ -966,14 +976,21 @@ public sealed partial class QueryViewModel : ObservableObject
     /// behind it. Sets exactly what the run path's <see cref="ResultSet"/> case
     /// sets: the columns (so the grid can build its per-column type icons), the
     /// rows, and the status-bar segments. Never called in production.
+    /// <paramref name="executedSql"/> and <paramref name="capText"/> stand in for
+    /// the statement that "produced" the rows and a cut-off result, which is what
+    /// an export decides by.
     /// </summary>
     public void SeedResult(
         IReadOnlyList<ColumnInfo> columns,
         IReadOnlyList<object?[]> rows,
         string status = "Done",
         string? rowCountText = null,
-        string? timingText = null)
+        string? timingText = null,
+        string? executedSql = null,
+        string? capText = null)
     {
+        _resultSql = executedSql;
+        CapText = capText;
         _columns = columns;
         ColumnNames.Clear();
         foreach (var column in columns)
@@ -2451,31 +2468,181 @@ public sealed partial class QueryViewModel : ObservableObject
         return updated;
     }
 
+    /// <summary>Where an export's rows come from; see <see cref="ChooseExportSource"/>.</summary>
+    /// <param name="Sql">The query to run again for every row, or null to write the rows the grid holds.</param>
+    /// <param name="Vouched">The SQL is app-composed (a browse query), so it's safe to run twice by construction.</param>
+    /// <param name="Shortfall">Why the grid's rows are all an export can write although there are more; null when nothing is missing.</param>
+    public sealed record ExportSource(string? Sql, bool Vouched, string? Shortfall);
+
     /// <summary>
-    /// Snapshots the current result (columns + rows) and returns a writer that
-    /// renders it as CSV. The snapshot is taken synchronously on the calling
-    /// (UI) thread, so the returned delegate is safe to run on a background
-    /// thread — a large export then writes without freezing the UI or racing a
-    /// concurrent grid mutation.
+    /// Decides what an export writes. When the grid holds the whole result it is
+    /// written as is; no second round trip. When it doesn't (a browse page, or a
+    /// query cut off at <see cref="MaxDisplayRows"/>), the statement runs again
+    /// with no limit and streams to the file. A browse query is ours and safe to
+    /// run twice; a hand-written one must pass
+    /// <see cref="SqlStatementInspector.IsSafeToReExecute"/>, the same guard the
+    /// engine's text fallback uses, because running an <c>INSERT … RETURNING</c>
+    /// again to export it would insert its rows twice. Where the rest can't be
+    /// read, the export still writes what's shown and <see cref="ExportSource.Shortfall"/>
+    /// says so, rather than letting a partial file pass for a complete one.
     /// </summary>
-    public Action<Stream> CreateCsvExport()
+    public ExportSource ChooseExportSource()
     {
-        var columns = ColumnNames.ToList();
-        var rows = Rows.ToList();
-        return stream =>
+        if (SelectedSection is { } section)
         {
-            using var writer = new StreamWriter(stream, leaveOpen: true);
-            ResultExporter.WriteCsv(writer, columns, rows);
-        };
+            return new ExportSource(null, false, section.CapText is null
+                ? null
+                : "a statement from a script can't be run again on its own.");
+        }
+
+        string? sql;
+        bool vouched;
+        bool complete;
+        if (ShownBrowse is { } browse)
+        {
+            sql = browse.BuildExportSql();
+            vouched = true;
+            complete = browse.Offset == 0 && !browse.CanGoNext;
+        }
+        else
+        {
+            sql = _resultSql;
+            vouched = false;
+            complete = CapText is null;
+        }
+
+        if (complete)
+        {
+            return new ExportSource(null, false, null);
+        }
+
+        // Inside a transaction the engine reads everything into memory (see
+        // QueryEngine.ExecuteAsync), which is exactly what an export past the cap
+        // can't afford, and running on another connection would miss the
+        // transaction's own uncommitted rows.
+        if (_engine.IsInTransaction)
+        {
+            return new ExportSource(null, false, "inside a transaction the rest can't be read. Commit or roll back, then export again.");
+        }
+
+        if (sql is null || !(vouched || SqlStatementInspector.IsSafeToReExecute(sql)))
+        {
+            return new ExportSource(null, false, "the query might change data, so it wasn't run again for the rest.");
+        }
+
+        return new ExportSource(sql, vouched, null);
     }
 
-    /// <summary>JSON counterpart of <see cref="CreateCsvExport"/> — snapshots on the UI thread, writes off it.</summary>
-    public Action<Stream> CreateJsonExport()
+    /// <summary>
+    /// Writes this tab's result to <paramref name="destination"/> as CSV or JSON:
+    /// every row, not just the grid's (<see cref="ChooseExportSource"/>). Runs like
+    /// a query does, so the status bar shows progress and Cancel stops it. The
+    /// grid is left untouched.
+    /// </summary>
+    /// <returns>
+    /// True when the file is complete; false when the export was cancelled or
+    /// failed, and the caller should delete the partial file.
+    /// </returns>
+    public async Task<bool> ExportAsync(ExportFormat format, Stream destination, string fileName)
     {
-        var columns = ColumnNames.ToList();
-        var rows = Rows.ToList();
-        return stream => ResultExporter.WriteJson(stream, columns, rows);
+        if (IsRunning)
+        {
+            return false;
+        }
+
+        var source = ChooseExportSource();
+        var gridColumns = ColumnNames.ToList();
+        var gridRows = Rows.ToList();
+
+        _cts = new CancellationTokenSource();
+        var ct = _cts.Token;
+        IsRunning = true;
+        HasError = false;
+        Status = "Exporting...";
+
+        // Progress ticks are posted from the writer's thread, so one can still be
+        // queued when the export ends; it must not overwrite the final line.
+        var finished = false;
+
+        try
+        {
+            IReadOnlyList<string> columns = gridColumns;
+            IAsyncEnumerable<RowBatch> batches = InBatches(gridRows);
+
+            if (source.Sql is { } sql)
+            {
+                switch (await _engine.ExecuteAsync(sql, ct, maxRows: null, allowTextFallback: source.Vouched))
+                {
+                    case ResultSet set:
+                        columns = [.. set.Columns.Select(c => c.Name)];
+                        batches = set.Batches;
+                        break;
+                    case MaterializedResultSet materialized:
+                        columns = [.. materialized.Columns.Select(c => c.Name)];
+                        batches = InBatches(materialized.Rows);
+                        break;
+                    case QueryError error:
+                        Status = $"Export failed: {error.Message}";
+                        HasError = true;
+                        return false;
+                    default:
+                        Status = "Export failed: the query returned no rows this time.";
+                        HasError = true;
+                        return false;
+                }
+            }
+
+            // Off the UI thread, for the reason RunCoreAsync gives. No token on
+            // Task.Run itself: a task cancelled before it starts would never
+            // enumerate the batches, and only enumerating them closes the
+            // connection the engine handed over with them.
+            var lastStatus = Stopwatch.StartNew();
+            var written = await Task.Run(() => ResultExporter.WriteStreamingAsync(format, destination, columns, batches, rows =>
+            {
+                if (lastStatus.ElapsedMilliseconds >= 100)
+                {
+                    lastStatus.Restart();
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        if (!finished)
+                        {
+                            Status = $"Exporting... {RowLabel(rows)}";
+                        }
+                    });
+                }
+            }, ct));
+
+            Status = source.Shortfall is { } shortfall
+                ? $"Exported only the {RowLabel(written)} shown to {fileName}: {shortfall}"
+                : $"Exported {RowLabel(written)} to {fileName}";
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            Status = "Export cancelled";
+            return false;
+        }
+        catch (Exception ex)
+        {
+            // A dropped connection mid-stream, or the file itself failing (disk
+            // full, the file locked by the spreadsheet that has it open).
+            Status = $"Export failed: {ex.Message}";
+            HasError = true;
+            return false;
+        }
+        finally
+        {
+            finished = true;
+            IsRunning = false;
+            _cts?.Dispose();
+            _cts = null;
+        }
     }
+
+    // The grid's rows, cut into batches so a big one reports progress and
+    // cancels like a streamed result does.
+    private static IAsyncEnumerable<RowBatch> InBatches(IReadOnlyList<object?[]> rows) =>
+        rows.Chunk(1000).Select(chunk => new RowBatch(chunk)).ToAsyncEnumerable();
 
     /// <summary>The clipboard "Copy as" shapes the results grid offers.</summary>
     public enum CopyFormat

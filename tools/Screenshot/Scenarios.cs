@@ -65,6 +65,8 @@ public static class Scenarios
         ("activity-window", Activity),
         ("activity-window-blocking", ActivityBlocking),
         ("database-overview-window", DatabaseOverview),
+        ("slow-queries-window", SlowQueries),
+        ("slow-queries-window-unavailable", SlowQueriesUnavailable),
         ("notify-window", NotifyMonitor),
         ("security-window", Security),
         ("security-window-permissions", SecurityPermissions),
@@ -563,6 +565,23 @@ public static class Scenarios
 
         vm.Status = "6 relations · 3 unused indexes wasting 68 MB · 09:41:02";
         return new DatabaseOverviewWindow { DataContext = vm, Width = 1100, Height = 760 };
+    }
+
+    /// <summary>The slow-query shortlist, ranked by total time since the statistics were reset.</summary>
+    public static Window SlowQueries()
+    {
+        var vm = Fixtures.MainWindowViewModel().SlowQueries;
+        vm.Load(new StatementStatsRead(StatementStatsProblem.None, Fixtures.SlowQueriesSnapshot()));
+        vm.SelectedRow = vm.Rows[0];
+        return new SlowQueriesWindow { DataContext = vm, Width = 1180, Height = 560 };
+    }
+
+    /// <summary>The same window on a server without pg_stat_statements: what's needed, and nothing done.</summary>
+    public static Window SlowQueriesUnavailable()
+    {
+        var vm = Fixtures.MainWindowViewModel().SlowQueries;
+        vm.Load(new StatementStatsRead(StatementStatsProblem.NotInstalled, null));
+        return new SlowQueriesWindow { DataContext = vm, Width = 1180, Height = 560 };
     }
 
     /// <summary>
