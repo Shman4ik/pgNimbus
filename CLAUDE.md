@@ -1746,6 +1746,34 @@ csproj / WiX / MSIX manifest reference them unchanged:
   `CompletionCatalog.Indexes`), and the everyday types rank first in a type
   slot or a cast (`bi` → bigint, not bit). New row kinds: Role, Setting,
   Extension, Index.
+  **Package Q: what the list shows, and three settings** (G01–G06, H01–H02,
+  F02, F05, §6.7). A row shows the letters the query matched in bold
+  (`CompletionRanker.MatchedPositions`, the same tier reading the ranker sorts
+  by — the prefix, the parts' starts, a substring, else the leftmost
+  subsequence; drawn by `Completion/CompletionLabel`, which reads the query off
+  the list's `Tag`, set where the editor filters). The detail column is
+  smaller and dimmer, the tip beside the selected row is a title and a body,
+  and a hovered row gets a light wash (`CompletionHoverBrush`, on the template
+  part for the same reason as `tentative`). Home/End close the list and move
+  the caret; the argument hint closes when the editor loses focus or the
+  command palette opens (in the headless session the palette never takes
+  focus, so the second is watched on `CommandPalette.IsOpen`). Hints put an
+  ordinary overload before a polymorphic one (`upper(text)` before
+  `upper(anyrange)`) and know SQL's own call forms that pg_proc lists without
+  their keywords or not at all (`SignatureHints.SpecialForms`: extract,
+  substring, position, trim, overlay, coalesce, greatest, least, nullif).
+  Typing `(` right after a function name being completed takes that function
+  (`coun(` → `count(|)`, F05). The Preferences page's **Completion** section
+  holds the three §6.7 settings, all in `AppSettings`: keyword case
+  (`CompletionKeywordCase`, `Text/KeywordCasing`: *as typed* by default — a
+  keyword started in lower case is written in lower case, `tr` → `true`,
+  anything else upper — or always UPPER / lower; applied in
+  `SqlCompletionData.InsertTextFor`, which the oracle uses too), always write
+  the table's schema (`CompletionAlwaysQualifyTables`, off: the provider
+  rebuilds its snapshot off the UI thread with every table row qualified), and
+  Enter accepts a suggestion (`CompletionEnterAccepts`, on: off leaves Tab as
+  the only accept). No new permanent control. Screenshot scenario
+  `main-window-completion`.
 - `SqlFormatter` follows <https://www.sqlstyle.guide/> ("river" layout: root
   keywords right-aligned to a common column, content to its right). The tests
   in `PgNimbus.Core.Tests` assert exact spacing — a deliberate layout change

@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using Avalonia.Controls;
 using Avalonia.Media;
 using AvaloniaEdit.CodeCompletion;
 using AvaloniaEdit.Document;
@@ -104,6 +105,23 @@ public sealed class SqlCompletionData(string text, SqlCompletionKind kind, strin
     /// </summary>
     public int? ReplaceFrom { get; init; }
 
+    /// <summary>
+    /// What accepting writes with the caret at <paramref name="caret"/>: a
+    /// keyword in <paramref name="keywordCase"/>, judged by what was typed of
+    /// the word so far; anything else its <see cref="InsertText"/>.
+    /// </summary>
+    public string InsertTextFor(string text, int caret, KeywordCase keywordCase)
+    {
+        if (Kind != SqlCompletionKind.Keyword)
+        {
+            return InsertText;
+        }
+
+        caret = Math.Clamp(caret, 0, text.Length);
+        var typed = text[CompletionEdits.TokenAt(text, caret).FilterStart..caret];
+        return KeywordCasing.Apply(InsertText, typed, keywordCase);
+    }
+
     /// <summary>The row label the popup binds to.</summary>
     public string Label => DisplayText ?? Text;
 
@@ -126,7 +144,26 @@ public sealed class SqlCompletionData(string text, SqlCompletionKind kind, strin
         _ => CompletionInsertKind.Plain,
     };
 
-    public object Description => DescriptionText ?? Kind switch
+    /// <summary>
+    /// The tip beside the popup (G03): the name and, for a column, its type as
+    /// a title, then what <see cref="DescriptionText"/> says about it — a
+    /// column's key, reference, nullability and comment, a relation's kind,
+    /// size and comment, a function's signatures and description.
+    /// </summary>
+    public object Description
+    {
+        get
+        {
+            var body = DescriptionText ?? KindLabel;
+            var title = Kind is SqlCompletionKind.Column or SqlCompletionKind.Setting && Detail is { } type ? $"{Label}  {type}" : Label;
+            var panel = new StackPanel { Spacing = 2, MaxWidth = 480 };
+            panel.Children.Add(new TextBlock { Text = title, FontWeight = FontWeight.SemiBold, TextWrapping = TextWrapping.Wrap });
+            panel.Children.Add(new TextBlock { Text = body, TextWrapping = TextWrapping.Wrap, Opacity = 0.8 });
+            return panel;
+        }
+    }
+
+    private string KindLabel => Kind switch
     {
         SqlCompletionKind.Keyword => "keyword",
         SqlCompletionKind.Function => "function",
@@ -163,7 +200,11 @@ public sealed class SqlCompletionData(string text, SqlCompletionKind kind, strin
     private static readonly ConditionalWeakTable<TextArea, AcceptOptions> Options = new();
 
     /// <summary>What an editor needs from an accept: whether tables get an auto-alias, and a callback once the text is in.</summary>
-    public sealed record AcceptOptions(Func<bool> AutoAliasTables, Action<SqlCompletionData>? Accepted);
+    public sealed record AcceptOptions(Func<bool> AutoAliasTables, Action<SqlCompletionData>? Accepted)
+    {
+        /// <summary>The letter case a keyword row is written in (Preferences, F02).</summary>
+        public Func<KeywordCase>? KeywordCase { get; init; }
+    }
 
     /// <summary>Attaches <paramref name="options"/> to every accept in <paramref name="textArea"/>.</summary>
     public static void Configure(TextArea textArea, AcceptOptions options) =>
@@ -182,7 +223,10 @@ public sealed class SqlCompletionData(string text, SqlCompletionKind kind, strin
         Options.TryGetValue(textArea, out var options);
         var document = textArea.Document;
         var aliasSeed = options?.AutoAliasTables() == true ? AliasTable : null;
-        var edit = CompletionEdits.Plan(document.Text, textArea.Caret.Offset, InsertText, InsertKind, aliasSeed, CaretIndex, ReplaceFrom);
+        var text = document.Text;
+        var caret = textArea.Caret.Offset;
+        var insert = InsertTextFor(text, caret, options?.KeywordCase?.Invoke() ?? KeywordCase.AsTyped);
+        var edit = CompletionEdits.Plan(text, caret, insert, InsertKind, aliasSeed, CaretIndex, ReplaceFrom);
 
         document.Replace(edit.ReplaceStart, edit.ReplaceLength, edit.InsertText);
         textArea.Caret.Offset = Math.Clamp(edit.CaretOffset, 0, document.TextLength);

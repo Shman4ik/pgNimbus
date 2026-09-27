@@ -165,7 +165,19 @@ public partial class QueryEditorPanel : UserControl
                 {
                     Dispatcher.UIThread.Post(() => ShowSignatureHint());
                 }
-            }));
+            })
+        {
+            KeywordCase = () => _model?.CompletionKeywordCase ?? KeywordCase.AsTyped,
+        });
+        // The argument hint belongs to the editor: it goes when focus does —
+        // to the command palette, the grid, another window (G06).
+        SqlEditor.TextArea.LostFocus += (_, _) => Dispatcher.UIThread.Post(() =>
+        {
+            if (!SqlEditor.TextArea.IsKeyboardFocusWithin)
+            {
+                CloseSignatureHint();
+            }
+        });
         // Tunnel on the TextArea: AvaloniaEdit's editing input handler consumes
         // Enter (inserts a newline) and marks the event handled before it bubbles
         // up to the editor, so a plain bubbling KeyDown handler never sees
@@ -321,6 +333,7 @@ public partial class QueryEditorPanel : UserControl
             _model.ExpandStarRequested -= ExpandSelectStar;
             _model.ToggleLineCommentRequested -= ToggleLineComment;
             _model.FindRequested -= OpenSearch;
+            _model.CommandPalette.PropertyChanged -= OnCommandPalettePropertyChanged;
         }
 
         _model = DataContext as MainViewModel;
@@ -332,7 +345,18 @@ public partial class QueryEditorPanel : UserControl
             _model.ExpandStarRequested += ExpandSelectStar;
             _model.ToggleLineCommentRequested += ToggleLineComment;
             _model.FindRequested += OpenSearch;
+            _model.CommandPalette.PropertyChanged += OnCommandPalettePropertyChanged;
             AttachQuery(_model.ActiveTab);
+        }
+    }
+
+    // The palette opens over the editor: the argument hint goes (G06), as it
+    // does when focus leaves the editor for anything else.
+    private void OnCommandPalettePropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(CommandPaletteViewModel.IsOpen) && _model?.CommandPalette.IsOpen == true)
+        {
+            CloseSignatureHint();
         }
     }
 
@@ -525,6 +549,20 @@ public partial class QueryEditorPanel : UserControl
             return;
         }
 
+        // "(" takes a function row whose name was being typed (F05):
+        // "coun(" writes count() with the caret between the parens, as Tab
+        // would, instead of leaving coun().
+        if (entered[0] == '(' && _completionWindow is { } open
+            && open.CompletionList.SelectedItem is SqlCompletionData { Kind: SqlCompletionKind.Function } function
+            && ParenAccepts(open, function))
+        {
+            AcceptCallOnParen(function);
+            open.Close();
+            e.Handled = true;
+            ShowSignatureHint();
+            return;
+        }
+
         var typed = entered[0];
         var textArea = SqlEditor.TextArea;
 
@@ -699,6 +737,29 @@ public partial class QueryEditorPanel : UserControl
         });
     }
 
+    // A function row "(" may take: the one the user chose, or the one whose
+    // name starts with what was typed.
+    private bool ParenAccepts(CompletionWindow window, SqlCompletionData function)
+    {
+        var caret = SqlEditor.CaretOffset;
+        var start = Math.Clamp(window.StartOffset, 0, caret);
+        var typed = SqlEditor.Document.GetText(start, caret - start);
+        return _completionExplicit || _userPickedCompletion is not null
+            || (typed.Length > 0 && function.Text.StartsWith(typed, StringComparison.OrdinalIgnoreCase));
+    }
+
+    // Writes the call alone — "name()" with the caret inside, no window
+    // (the "(" says the arguments come next) — as one edit.
+    private void AcceptCallOnParen(SqlCompletionData function)
+    {
+        var paren = function.InsertText.IndexOf('(', StringComparison.Ordinal);
+        var name = paren >= 0 ? function.InsertText[..paren] : function.InsertText;
+        var edit = CompletionEdits.Plan(SqlEditor.Text, SqlEditor.CaretOffset, name + "()", CompletionInsertKind.Function);
+        SqlEditor.Document.Replace(edit.ReplaceStart, edit.ReplaceLength, edit.InsertText);
+        SqlEditor.CaretOffset = Math.Clamp(edit.CaretOffset, 0, SqlEditor.Document.TextLength);
+        _model?.CompletionUsage.Record(function.StableId);
+    }
+
     // True when the popup is filtering on the inside of a "quoted name", which
     // may hold spaces and punctuation.
     private bool FiltersQuotedName(CompletionWindow window) =>
@@ -776,6 +837,14 @@ public partial class QueryEditorPanel : UserControl
         {
             open.Close();
             return; // not handled: the editor writes the newline
+        }
+
+        // Home and End move the caret in the line, as they do everywhere else
+        // in the editor, not the list's selection (G05).
+        if (e.Key is Key.Home or Key.End && (e.KeyModifiers & ~KeyModifiers.Shift) == KeyModifiers.None && _completionWindow is { } list)
+        {
+            list.Close();
+            return; // not handled: the editor moves the caret
         }
 
         if (CommandBindings.Matches(CommandId.ParameterHints, e))
@@ -1065,6 +1134,8 @@ public partial class QueryEditorPanel : UserControl
         _applyingCompletionFilter = true;
         try
         {
+            // What the rows bold their matched letters against (CompletionLabel).
+            list.ListBox!.Tag = query;
             list.CompletionData.Clear();
             foreach (var item in ranked.Items)
             {
@@ -1092,7 +1163,8 @@ public partial class QueryEditorPanel : UserControl
     // must not rewrite what was typed.
     private bool EnterAccepts(CompletionWindow window)
     {
-        if (window.CompletionList.SelectedItem is not SqlCompletionData selected)
+        // "Accept with Tab only" (Preferences): Enter is always a newline.
+        if (window.CompletionList.SelectedItem is not SqlCompletionData selected || _model is { CompletionEnterAccepts: false })
         {
             return false;
         }

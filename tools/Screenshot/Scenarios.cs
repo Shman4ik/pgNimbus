@@ -56,6 +56,7 @@ public static class Scenarios
         ("main-window-sidebar-filter", SidebarFilter),
         ("main-window-cell-inspector", CellInspector),
         ("main-window-signature-hint", SignatureHint),
+        ("main-window-completion", Completion),
         ("main-window-browse-row-details", BrowseWithRowDetails),
         ("main-window-browse-no-match", BrowseNoMatch),
         ("filter-editor", FilterEditor),
@@ -445,6 +446,47 @@ public static class Scenarios
             editor.CaretOffset = editor.Document.TextLength;
             window.UpdateLayout();
             Avalonia.Headless.HeadlessWindowExtensions.KeyTextInput(window, "(");
+        };
+        return window;
+    }
+
+    /// <summary>
+    /// The completion list after JOIN: the letters typed shown in bold in each
+    /// row, the join with its foreign-key condition as one row, the schema
+    /// on the right, the tip beside the selected row.
+    /// </summary>
+    public static Window Completion()
+    {
+        var vm = Fixtures.MainWindowViewModel();
+        TableColumn Col(string table, string column, string type, bool key = false) =>
+            new(table, column, type) { IsPrimaryKey = key, NotNull = key };
+        vm.CompletionProvider.Load(new App.Completion.CompletionCatalog(
+            ["public"],
+            [
+                new App.Completion.CompletionTable("public", "orders",
+                    [Col("orders", "id", "integer", key: true), Col("orders", "customer_id", "integer"), Col("orders", "total", "numeric")]),
+                new App.Completion.CompletionTable("public", "customers",
+                    [Col("customers", "id", "integer", key: true), Col("customers", "email", "text"), Col("customers", "country", "text")])
+                {
+                    Comment = "Everyone who ever ordered",
+                    RowEstimate = 12_480,
+                },
+                new App.Completion.CompletionTable("public", "coupons", [Col("coupons", "code", "text", key: true)]),
+            ],
+            [],
+            [new ForeignKeyInfo("public", "orders", ["customer_id"], "public", "customers", ["id"], "orders_customer_id_fkey")],
+            ["public"]));
+        vm.ActiveTab.Sql = "SELECT o.id, o.total\nFROM orders o\nJOIN c";
+        var window = HostMainWindow(vm);
+
+        // The list opens on a typed letter, so it needs the window up first.
+        window.Opened += (_, _) =>
+        {
+            var editor = window.GetVisualDescendants().OfType<AvaloniaEdit.TextEditor>().First(e => e.Name == "SqlEditor");
+            editor.TextArea.Focus();
+            editor.CaretOffset = editor.Document.TextLength;
+            window.UpdateLayout();
+            Avalonia.Headless.HeadlessWindowExtensions.KeyTextInput(window, "u");
         };
         return window;
     }

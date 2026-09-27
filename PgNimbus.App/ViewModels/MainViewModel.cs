@@ -441,6 +441,33 @@ public sealed partial class MainViewModel : ObservableObject
 
     private readonly Action<bool>? _persistWordWrapEditor;
 
+    /// <summary>The letter case completion writes keywords in (Preferences, §6.7 of the second completion audit).</summary>
+    [ObservableProperty]
+    private KeywordCase _completionKeywordCase;
+
+    /// <summary>Completion writes every table's schema, not only where the bare name wouldn't find it (Preferences).</summary>
+    [ObservableProperty]
+    private bool _completionAlwaysQualifyTables;
+
+    /// <summary>Enter accepts a completion row by the §6.1 rule; off, only Tab does (Preferences).</summary>
+    [ObservableProperty]
+    private bool _completionEnterAccepts = true;
+
+    private readonly Action<KeywordCase, bool, bool>? _persistCompletionSettings;
+
+    partial void OnCompletionKeywordCaseChanged(KeywordCase value) => PersistCompletionSettings();
+
+    partial void OnCompletionEnterAcceptsChanged(bool value) => PersistCompletionSettings();
+
+    partial void OnCompletionAlwaysQualifyTablesChanged(bool value)
+    {
+        CompletionProvider.AlwaysQualifyTables = value;
+        PersistCompletionSettings();
+    }
+
+    private void PersistCompletionSettings() =>
+        _persistCompletionSettings?.Invoke(CompletionKeywordCase, CompletionAlwaysQualifyTables, CompletionEnterAccepts);
+
     // Most-recently-opened/saved .sql file paths, most recent first, capped at
     // 10 — backs the palette's "Recent file" entries. Kept as a plain list
     // (not observable) since the palette only reads it when it (re)builds its
@@ -522,7 +549,9 @@ public sealed partial class MainViewModel : ObservableObject
         Action<IReadOnlyList<string>>? persistRecentSqlFiles = null,
         IEnumerable<string>? excludedSchemas = null,
         Action<IReadOnlyList<string>>? persistExcludedSchemas = null,
-        CompletionUsage? completionUsage = null)
+        CompletionUsage? completionUsage = null,
+        (KeywordCase KeywordCase, bool AlwaysQualifyTables, bool EnterAccepts)? completionSettings = null,
+        Action<KeywordCase, bool, bool>? persistCompletionSettings = null)
     {
         CompletionUsage = completionUsage ?? new CompletionUsage();
         ConnectionHost = connectionHost;
@@ -562,6 +591,15 @@ public sealed partial class MainViewModel : ObservableObject
         _schemaEditor = schemaEditor;
         _ddlService = ddlService;
         CompletionProvider = completionProvider;
+        if (completionSettings is { } completion)
+        {
+            _completionKeywordCase = completion.KeywordCase;
+            _completionAlwaysQualifyTables = completion.AlwaysQualifyTables;
+            _completionEnterAccepts = completion.EnterAccepts;
+            CompletionProvider.AlwaysQualifyTables = completion.AlwaysQualifyTables;
+        }
+
+        _persistCompletionSettings = persistCompletionSettings;
         // Same set object the toggle mutates, so the provider never holds a
         // stale copy; it reads it on each refresh.
         CompletionProvider.ExcludedSchemas = _excludedSchemas;

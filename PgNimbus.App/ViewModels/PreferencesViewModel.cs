@@ -46,6 +46,27 @@ public sealed partial class PreferencesViewModel : ObservableObject
         set => _main.AutoAliasTables = value;
     }
 
+    /// <summary>0 = as typed, 1 = UPPER, 2 = lower: the case completion writes keywords in. Proxies the main view-model's setting.</summary>
+    public int KeywordCaseIndex
+    {
+        get => (int)_main.CompletionKeywordCase;
+        set => _main.CompletionKeywordCase = (Core.Text.KeywordCase)value;
+    }
+
+    /// <summary>Completion writes every table's schema. Same proxy pattern as <see cref="AutoAliasTables"/>.</summary>
+    public bool CompletionAlwaysQualifyTables
+    {
+        get => _main.CompletionAlwaysQualifyTables;
+        set => _main.CompletionAlwaysQualifyTables = value;
+    }
+
+    /// <summary>Enter accepts a suggestion (off: only Tab does). Same proxy pattern as <see cref="AutoAliasTables"/>.</summary>
+    public bool CompletionEnterAccepts
+    {
+        get => _main.CompletionEnterAccepts;
+        set => _main.CompletionEnterAccepts = value;
+    }
+
     /// <summary>Safe mode: stage grid changes for review instead of executing them immediately. Same proxy pattern as <see cref="AutoAliasTables"/>.</summary>
     public bool SafeModeEdits
     {
@@ -91,6 +112,18 @@ public sealed partial class PreferencesViewModel : ObservableObject
         else if (e.PropertyName == nameof(MainViewModel.ShowFilterBar))
         {
             OnPropertyChanged(nameof(ShowFilterBar));
+        }
+        else if (e.PropertyName == nameof(MainViewModel.CompletionKeywordCase))
+        {
+            OnPropertyChanged(nameof(KeywordCaseIndex));
+        }
+        else if (e.PropertyName == nameof(MainViewModel.CompletionAlwaysQualifyTables))
+        {
+            OnPropertyChanged(nameof(CompletionAlwaysQualifyTables));
+        }
+        else if (e.PropertyName == nameof(MainViewModel.CompletionEnterAccepts))
+        {
+            OnPropertyChanged(nameof(CompletionEnterAccepts));
         }
     }
 
