@@ -213,7 +213,8 @@ public static class Audit
     // One case per line: SQL with `|` for the caret (`\n` for a newline),
     // optionally prefixed with `[N]` for how many rows to print. `##` lines are
     // headings, `#` lines comments. Prints the ranked popup, the row it would
-    // preselect, and whether Enter would take that row under today's rule.
+    // preselect, and whether Enter would take that row (CompletionAcceptance,
+    // for a list that opened by itself).
     private static string Cases(SqlCompletionProvider provider, IEnumerable<string> lines)
     {
         var output = new StringBuilder();
@@ -250,8 +251,9 @@ public static class Audit
             {
                 var item = ranked.Items[i];
                 var selected = i == ranked.SelectedIndex;
+                var row = new CompletionRow(item.Text, item.InsertText, item.Kind == SqlCompletionKind.Keyword, item.IsGuess);
                 var enter = !selected ? ""
-                    : filter.Length > 0 && item.Text.StartsWith(filter, StringComparison.OrdinalIgnoreCase) ? " [Enter takes it]"
+                    : CompletionAcceptance.EnterAccepts(text, caret, caret - filter.Length, row, chosen: false) ? " [Enter takes it]"
                     : " [tentative]";
                 var insert = item.InsertText == item.Label ? "" : $" → `{item.InsertText}`";
                 output.AppendLine($"  {(selected ? ">" : " ")} {item.Kind,-13} {item.Label}{insert}  ({item.Detail}; p={item.Priority}){enter}");

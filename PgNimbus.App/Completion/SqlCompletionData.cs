@@ -77,6 +77,14 @@ public sealed class SqlCompletionData(string text, SqlCompletionKind kind, strin
     /// </summary>
     public string? DisplayText { get; init; }
 
+    /// <summary>
+    /// A column offered from the whole catalog because the statement names no
+    /// relation that has it: a plausible name, not one this statement can
+    /// reach yet. Enter leaves such a row alone unless the user chose it
+    /// (see <see cref="CompletionAcceptance"/>).
+    /// </summary>
+    public bool IsGuess { get; init; }
+
     /// <summary>The row label the popup binds to.</summary>
     public string Label => DisplayText ?? Text;
 

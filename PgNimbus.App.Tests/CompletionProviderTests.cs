@@ -159,6 +159,81 @@ public class CompletionProviderTests
         await Assert.That(Preselected(Provider(), marked)).IsEqualTo(expected);
     }
 
+    // --- A04 / B03 / F01 (second audit): the search_path decides which relation a bare name is ---
+
+    // The row the popup would preselect, as a whole item.
+    private static SqlCompletionData PreselectedItem(SqlCompletionProvider provider, string marked)
+    {
+        var caret = marked.IndexOf('|');
+        var start = caret;
+        while (start > 0 && char.IsLetter(marked[start - 1]))
+        {
+            start--;
+        }
+
+        var ranked = CompletionRanker.Rank(
+            At(provider, marked), marked[start..caret], d => d.Text, d => d.Priority, _ => int.MaxValue);
+        return ranked.Items[ranked.SelectedIndex];
+    }
+
+    [Test]
+    [Arguments("SELECT * FROM us|")]
+    [Arguments("SELECT * FROM users|")]
+    [Arguments("UPDATE users|")]
+    [Arguments("DELETE FROM users|")]
+    [Arguments("SELECT * FROM public.orders o JOIN users|")]
+    public async Task A_bare_name_preselects_the_relation_the_search_path_finds_and_writes_it_bare(string marked)
+    {
+        var item = PreselectedItem(Provider(["public"]), marked);
+
+        await Assert.That(item.Detail).IsEqualTo("public");
+        await Assert.That(item.InsertText).IsEqualTo("users");
+    }
+
+    [Test]
+    public async Task The_same_name_in_another_schema_is_offered_below_and_qualified()
+    {
+        var tables = At(Provider(["public"]), "UPDATE users|").Where(i => i.Kind == SqlCompletionKind.Table && i.Text == "users").ToList();
+
+        await Assert.That(tables.Select(t => t.InsertText)).IsEquivalentTo(new[] { "users", "audit.users" });
+        await Assert.That(tables.Single(t => t.Detail == "public").Priority)
+            .IsGreaterThan(tables.Single(t => t.Detail == "audit").Priority);
+    }
+
+    [Test]
+    public async Task A_path_that_puts_another_schema_first_moves_the_preference_with_it()
+    {
+        var item = PreselectedItem(Provider(["audit", "public"]), "UPDATE users|");
+
+        await Assert.That(item.Detail).IsEqualTo("audit");
+        await Assert.That(item.InsertText).IsEqualTo("users");
+        await Assert.That(At(Provider(["audit", "public"]), "UPDATE users|")
+            .Single(i => i.Kind == SqlCompletionKind.Table && i.Text == "users" && i.Detail == "public").InsertText).IsEqualTo("public.users");
+    }
+
+    [Test]
+    public async Task With_an_unknown_path_only_a_name_one_schema_has_is_written_bare()
+    {
+        var provider = Provider(["public"]);
+        provider.SessionSearchPathChanged = true;
+        var tables = At(provider, "SELECT * FROM |").Where(i => i.Kind == SqlCompletionKind.Table).Select(i => i.InsertText).ToList();
+
+        await Assert.That(tables).Contains("orders");
+        await Assert.That(tables).Contains("public.users");
+        await Assert.That(tables).Contains("audit.users");
+        await Assert.That(tables).DoesNotContain("users");
+    }
+
+    [Test]
+    public async Task A_catalog_column_outside_the_statements_sources_is_a_guess()
+    {
+        var items = At(Provider(), "SELECT to|");
+
+        await Assert.That(items.Single(i => i.Kind == SqlCompletionKind.Column && i.Text == "total").IsGuess).IsTrue();
+        await Assert.That(At(Provider(), "SELECT to| FROM public.orders")
+            .Single(i => i.Kind == SqlCompletionKind.Column && i.Text == "total").IsGuess).IsFalse();
+    }
+
     [Test]
     [Arguments("SELECT * FROM public.users u JOIN public.orders o |", "ON")]
     [Arguments("SELECT * FROM public.users u JOIN public.orders o o|", "ON")]

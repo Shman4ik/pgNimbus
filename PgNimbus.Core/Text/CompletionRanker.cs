@@ -5,7 +5,8 @@ namespace PgNimbus.Core.Text;
 /// typed so far, replacing the strict-prefix filter of the stock editor list.
 /// Matching is <see cref="FuzzyMatcher"/> subsequence matching, so "dr" finds
 /// <c>daily_revenue</c> (word-boundary hit on the "r") and not just
-/// <c>DROP</c>. Ties are broken by exact-prefix, then the caller-supplied
+/// <c>DROP</c>. A name equal to what was typed comes first whatever its
+/// score. Ties are broken by exact-prefix, then the caller-supplied
 /// context priority (the statement's own columns / FK-neighbor tables float
 /// above the flat catalog), then shorter name (so "ord" preselects
 /// <c>orders</c> over <c>order_items</c>), then recency of use.
@@ -75,7 +76,7 @@ public static class CompletionRanker
             return new Ranked<T>(candidates, candidates.Count == 0 ? -1 : selected);
         }
 
-        var matches = new List<(T Item, int Score, bool ExactPrefix, int Index)>();
+        var matches = new List<(T Item, bool Exact, int Score, bool ExactPrefix, int Index)>();
         var count = within?.Count ?? candidates.Count;
         for (var n = 0; n < count; n++)
         {
@@ -83,13 +84,21 @@ public static class CompletionRanker
             var text = textOf(candidates[i]);
             if (FuzzyMatcher.Score(text, query) is { } score)
             {
-                matches.Add((candidates[i], score, text.StartsWith(query, StringComparison.OrdinalIgnoreCase), i));
+                matches.Add((candidates[i], text.Equals(query, StringComparison.OrdinalIgnoreCase), score,
+                    text.StartsWith(query, StringComparison.OrdinalIgnoreCase), i));
                 matched.Add(i);
             }
         }
 
         matches.Sort((a, b) =>
         {
+            // The name typed in full is what was meant: NULL, not nullif();
+            // DESC, not description.
+            if (a.Exact != b.Exact)
+            {
+                return a.Exact ? -1 : 1;
+            }
+
             if (a.Score != b.Score)
             {
                 return b.Score.CompareTo(a.Score);

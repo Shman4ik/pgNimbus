@@ -1059,30 +1059,22 @@ public partial class QueryEditorPanel : UserControl
         return true;
     }
 
-    // The Enter rule (docs/design/sql-editing-experience.md §6.1): Enter accepts
-    // the highlighted row when the user chose it — opened the list with
-    // Ctrl+Space, or moved to a row with the arrows or the mouse — or when what
-    // they typed is that row's name or the start of it. A list that opened by
-    // itself (after FROM, WHERE, a comma) with nothing typed, or holding only a
-    // loose fuzzy match, lets Enter be a newline: finishing a line must not
-    // insert a column nobody asked for.
+    // The Enter rule (docs/design/sql-completion-audit-2.md §6.1, decided in
+    // CompletionAcceptance): Enter takes the highlighted row only when the
+    // accept would change the text, and the user chose the row (Ctrl+Space,
+    // arrows, mouse) or typed the start of its name outside a new-name position.
+    // Otherwise the popup steps aside and Enter is a newline: finishing a line
+    // must not rewrite what was typed.
     private bool EnterAccepts(CompletionWindow window)
     {
-        if (_completionExplicit || _userPickedCompletion is not null)
-        {
-            return true;
-        }
-
         if (window.CompletionList.SelectedItem is not SqlCompletionData selected)
         {
             return false;
         }
 
-        var document = SqlEditor.Document;
-        var start = Math.Clamp(window.StartOffset, 0, document.TextLength);
-        var caret = Math.Clamp(SqlEditor.CaretOffset, start, document.TextLength);
-        var typed = document.GetText(start, caret - start);
-        return typed.Length > 0 && selected.Text.StartsWith(typed, StringComparison.OrdinalIgnoreCase);
+        var row = new CompletionRow(selected.Text, selected.InsertText, selected.Kind == SqlCompletionKind.Keyword, selected.IsGuess);
+        return CompletionAcceptance.EnterAccepts(SqlEditor.Text, SqlEditor.CaretOffset, window.StartOffset, row,
+            chosen: _completionExplicit || _userPickedCompletion is not null);
     }
 
     // A highlight Enter would not take is drawn as an outline rather than a

@@ -175,4 +175,23 @@ public class CompletionRankerTests
 
         await Assert.That(ranked.Items[0].Text).IsEqualTo("order_items");
     }
+
+    [Test]
+    [Arguments("NULL", "nullif", "NULL")]
+    [Arguments("null", "nullif", "NULL")]
+    [Arguments("DESC", "description", "DESC")]
+    public async Task A_name_typed_in_full_beats_a_longer_higher_priority_one(string query, string longer, string expected)
+    {
+        // A05: the function (3) and the column (100) used to outrank the
+        // keyword (0) on equal fuzzy score.
+        Candidate[] candidates =
+        [
+            new(longer, Priority: 100),
+            new(expected, Priority: 0),
+        ];
+
+        var ranked = Rank(candidates, query);
+
+        await Assert.That(ranked.Items[0].Text).IsEqualTo(expected);
+    }
 }

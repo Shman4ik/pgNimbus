@@ -18,14 +18,12 @@ namespace PgNimbus.App.Tests;
 /// completion test puts the caret into finished text; these type the text the
 /// way a person does, which is where the popup can get in the way.
 ///
-/// Explicit, so a normal run skips them: the literal replay is the acceptance
-/// test of the audit's package K and fails until K lands (51 divergences at
-/// the audit's revision). Run them with
+/// The literal replay runs in every build: it is the acceptance test of the
+/// audit's package K (51 divergences at the audit's revision, none since).
+/// The keystroke-saving measurement is explicit — it is a number to read, not
+/// a gate on every commit. Run both with
 /// <c>dotnet test --project PgNimbus.App.Tests -- --treenode-filter "/*/*/CompletionTypingReplayTests/*"</c>.
-/// Once K makes the replay pass, drop <see cref="ExplicitAttribute"/> from it
-/// so it guards every build.
 /// </summary>
-[Explicit]
 [NotInParallel]
 public class CompletionTypingReplayTests
 {
@@ -76,6 +74,12 @@ public class CompletionTypingReplayTests
             await Task.CompletedTask;
         });
 
+        Console.WriteLine($"auto-alias {(autoAlias ? "on" : "off")}: {divergences.Count} divergences");
+        foreach (var divergence in divergences)
+        {
+            Console.WriteLine(divergence);
+        }
+
         await Assert.That(divergences).IsEmpty();
     }
 
@@ -89,6 +93,7 @@ public class CompletionTypingReplayTests
     /// 25.6% with it on). A package that raises the saving raises the floor.
     /// </summary>
     [Test]
+    [Explicit]
     [Arguments(false)]
     [Arguments(true)]
     public async Task Keystroke_saving_of_a_user_who_always_picks_the_best_row(bool autoAlias)

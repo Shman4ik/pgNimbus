@@ -1513,14 +1513,25 @@ csproj / WiX / MSIX manifest reference them unchanged:
   `QueryEditorPanel.BackgroundCompletionThreshold` (50k) characters or more are
   read for completion on the thread pool; the answer is shown only when the
   request number, `_documentEdits` and the caret are all unchanged.
-  **Enter accepts only what was chosen** (the §6.1 rule, decided 2026-09-22).
-  Enter takes the highlighted row when the list was asked for (Ctrl+Space,
-  `_completionExplicit`), when the user moved to a row with the arrows or the
-  mouse (`_userPickedCompletion`), or when the typed text is the row's name or
-  its start. A list that opened by itself (after FROM/WHERE/a comma/a dot) with
-  nothing typed, or holding only a loose fuzzy match, closes on Enter and the
-  editor writes the newline — finishing a line used to insert a column nobody
-  asked for. Tab always accepts. The two states look different: a highlight
+  **Enter accepts only what was chosen, and only if it changes the text** (the
+  §6.1 rule, decided 2026-09-22 and tightened by the second audit on
+  2026-09-27; `Text/CompletionAcceptance`, Core-pure, unit-tested). Two
+  conditions, both required: the accept must change the text — a row whose name
+  is already written in full (`customer_id⏎`, `DESC⏎`, `true⏎` against `TRUE`:
+  letter case is no change for anything unquoted) is left alone, and a name
+  typed in full is not schema-qualified behind the user's back either (that is
+  what kept `UPDATE customers⏎` from becoming `commerce.customers`); and the row
+  must have been chosen (Ctrl+Space, `_completionExplicit`; arrows or mouse,
+  `_userPickedCompletion`) or be the one whose name starts with what was typed.
+  In a **new-name position** (`SqlCompletionContext.IsNewNamePosition`: an alias
+  after a FROM/JOIN/UPDATE/MERGE item or after AS, a CTE name, the object a
+  CREATE names, a column in a table definition, ADD COLUMN, RENAME … TO) and for
+  a **guess** (`SqlCompletionData.IsGuess`: a catalog-wide column of a relation
+  the statement doesn't name — `SELECT query⏎` was becoming `query_string`) only
+  a chosen row is taken. Chosen but unchanged is still a newline; a chosen
+  callable still gets its parens. A list that opened by itself with nothing
+  typed, or holding only a loose fuzzy match, closes on Enter and the editor
+  writes the newline. Tab always accepts. The two states look different: a highlight
   Enter would not take gets the `tentative` class on the list (an outline, not
   the fill; `Theme.axaml`). That style must target the row's
   `/template/ ContentPresenter#PART_ContentPresenter`, not the `ListBoxItem`:
@@ -1566,8 +1577,19 @@ csproj / WiX / MSIX manifest reference them unchanged:
   `UPDATE commerce.customers`) and `IS NULL` for `nullif(`. The stand is
   `tools/CompletionBench/Audit` (catalog snapshot, corpus, SaaS schema); the
   measures are `CompletionBench quality|cases|hints|dump` and
-  `CompletionTypingReplayTests`, which stays `[Explicit]` until package K makes
-  the literal replay pass.
+  `CompletionTypingReplayTests`. **Package K made the literal replay pass and
+  it now runs in every build** (0 divergences with the auto-alias off and on);
+  only the keystroke-saving oracle stays `[Explicit]`, being a number to read
+  rather than a gate. Besides the Enter rule above, K ranks a name equal to
+  what was typed first whatever its fuzzy score (`CompletionRanker`: `NULL`
+  over `nullif`, `DESC` over `description`), and makes table position write a
+  relation bare when its bare name finds it along the search_path
+  (`TableRefItem`: `customers`, not `public.customers`), ranking it above
+  same-named relations elsewhere (`PathTablePriority`) — schema-qualified
+  otherwise, and under `SessionSearchPathChanged` only a name exactly one schema
+  has goes bare (`TableRefItemsUnknownPath`). An FK-neighbour table no longer
+  counts the relation being typed as "already joined", which had hidden the
+  path's own table from the JOIN list.
 - `SqlFormatter` follows <https://www.sqlstyle.guide/> ("river" layout: root
   keywords right-aligned to a common column, content to its right). The tests
   in `PgNimbus.Core.Tests` assert exact spacing — a deliberate layout change
