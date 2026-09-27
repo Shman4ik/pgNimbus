@@ -125,7 +125,7 @@ Three rules about it:
    (heap/index split), per-table seq-vs-index scan usage, and unused
    non-constraint indexes. Human-readable byte counts go through
    `PgNimbus.Core.ByteSize` (base-1024, unit-tested, shared by both) rather
-   than being formatted ad hoc in the App. All three monitoring windows follow
+   than being formatted ad hoc in the App. All four monitoring windows follow
    the same shape: one-live-instance, opened from the command palette (and the
    macOS Query native menu), no new toolbar button. The **Server Activity**
    window (backed by `ActivityService`) is two tabs: the flat
@@ -172,6 +172,38 @@ Three rules about it:
    `pg_notify(@channel, @payload)` on a pooled connection (the listening one is
    parked in a wait, and `NOTIFY` takes literals rather than parameters). pgAdmin
    needs a second session to produce a test event; this is one button.
+   The fourth is the **slow-query shortlist** (`Monitoring/StatementStatsService` +
+   `SlowQueriesWindow`, ROADMAP Q2, 2026-09): pg_stat_statements for the current
+   database. Four things are load-bearing. (a) **The column set is read from the
+   catalog, not guessed from the server version**: it belongs to the *extension*
+   version, which pg_upgrade leaves behind until `ALTER EXTENSION … UPDATE`
+   (`total_exec_time` replaced `total_time` in 1.8; `toplevel` and
+   `pg_stat_statements_info` came in 1.9, per-entry `stats_since` in 1.11), so
+   `ReadAsync` asks `pg_attribute` which columns exist and finds the extension's
+   schema through `pg_extension`. (b) **Three "unavailable" states are told
+   apart**: not created in this database (`NotInstalled`), created but not in
+   `shared_preload_libraries` (the view raises 55000, `NotLoaded`), and rows of
+   other roles without `pg_read_all_stats` (text shown as `<insufficient
+   privilege>` and a NULL queryid; counted as hidden, never listed). The window
+   explains each, and the setup steps open as a script in a new tab; nothing
+   ever creates the extension, changes a setting, or calls
+   `pg_stat_statements_reset()` (that would reset everybody's numbers). (c) **An
+   interval is a subtraction until an entry starts over**, and the Core-pure,
+   unit-tested `StatementStatsInterval.Between` (a sibling of `BlockingTree`)
+   catches all three ways: the whole view reset (`stats_reset` moved), one entry
+   reset or evicted and back (`stats_since` moved, or its calls went *down* where
+   the server doesn't report it), or a new entry. In each the later counters are
+   the interval's work, and the row is marked ↺. The baseline is the window's
+   first read, moved only by "Restart interval", so it measures "what did my
+   workload just do" without touching the server. A query preview is cut to
+   `StatementStatsService.PreviewLength` server-side (up to 5,000 entries per
+   refresh), and the whole text is fetched per statement when it is opened.
+   (d) **Nothing runs from it**: a statement opens in a new tab under a comment
+   saying where it came from, with its `$1` placeholders intact. Typed-value
+   prompting is #138's job. The live tests split by server kind: CI's plain
+   `postgres:17` covers `NotInstalled`/`NotLoaded`, and a server started with
+   `-c shared_preload_libraries=pg_stat_statements` covers the reads
+   (`StatementStatsServiceTests`, `SlowQueriesTests`); each skips on the other.
 4. **No passwords on `ConnectionProfile`.** Passwords come from
    `ICredentialStore` (DPAPI-encrypted files on Windows, macOS Keychain via
    SecItem APIs, Linux Secret Service via libsecret's non-variadic APIs), never
@@ -1127,6 +1159,25 @@ csproj / WiX / MSIX manifest reference them unchanged:
   (right, or left when the last tab closes) *before* `Tabs.RemoveAt`, so the
   removal never touches the selection.
 
+- **A read-only connection is the server's to enforce** (2026-09, ROADMAP T3,
+  first slice). `ConnectionProfile.ReadOnly` adds
+  `Options=-c default_transaction_read_only=on` to the connection string and
+  nothing else: no statement is inspected client-side, because a keyword check
+  misses the import's `COPY`, a schema action's DDL and a function that writes,
+  and the server catches all of them (25006). As a *startup* option it is the
+  session default, so the pool's `DISCARD ALL` restores it on every reuse even
+  after a session turned it off (`ReadOnlyConnectionTests` pins that). What the
+  window shows comes from the server, not the profile:
+  `SchemaService.GetWriteStateAsync` (`pg_is_in_recovery()` and
+  `default_transaction_read_only`) runs once when the window opens, so a
+  read-only role and a standby replica get the same `ReadOnlyMark` beside
+  host › database; the profile's flag only seeds it (read in `BuildMainWindow`
+  from the data source's `Options`) so no tab is ever briefly editable on a
+  read-only profile. Tabs read `MainViewModel.ConnectionReadOnlyHint` through a
+  `Func` and refuse an `EditContext` while it is set (`ApplyConnectionReadOnly`
+  withdraws one already on screen when the server's answer lands late). It is
+  deliberately not in the connection-string preview, like the accent colour:
+  it is this app's setting, not part of the target.
 - **json/jsonb are a first-class editable type.** `ColumnValueEditorClassifier`
   maps them to `ColumnValueEditor.Json` (jsonpath isn't JSON-shaped so it takes
   the plain-cast `CastText` path below; hstore stays `Text` — its display needs
@@ -1344,6 +1395,25 @@ csproj / WiX / MSIX manifest reference them unchanged:
   (that also closed the pre-existing hole where inline-editing a large `bytea`
   committed its 24-byte hex preview). Everything else — sorting, copy, export,
   the commit path itself — reads the raw row values and is untouched by the cap.
+- **Export writes every row, not the grid's** (2026-09, ROADMAP D1). It used to
+  write `Rows`: one 100-row page when browsing, at most `MaxDisplayRows` for a
+  query, silently. `QueryViewModel.ChooseExportSource` now decides: a grid that
+  holds the whole result is written as is; otherwise the statement runs again
+  with no limit (`_resultSql`, or `TableBrowseViewModel.BuildExportSql` — the
+  page query minus `LIMIT/OFFSET`) and `ResultExporter.WriteStreamingAsync`
+  (Core-pure, unit-tested) writes batch by batch, flushing each before the next
+  is read, so memory holds one batch. A hand-written query runs again only if
+  `SqlStatementInspector.IsSafeToReExecute` vouches for it — the same guard as
+  the text fallback below, for the same reason — and a script section or any
+  query in an explicit transaction (where the engine materializes) never does;
+  those write the grid and say "Exported only the N rows shown". The export
+  runs like a query (`IsRunning`, its own CTS, so Cancel works) and the view
+  deletes the file unless `ExportAsync` reports it complete. Two landmines:
+  no token on the `Task.Run` around the writer (a task cancelled before it
+  starts never enumerates the batches, and only enumerating them closes the
+  engine's connection), and a progress tick still queued at the end must not
+  overwrite the final status line (`finished`). Live coverage is
+  `PgNimbus.App.Tests/ResultExportTests`, gated on `PGNIMBUS_TEST_CONN`.
 - **A type Npgsql can't materialize must never fail a whole result set.** An
   unmapped composite (or an array/domain/range over one), an extension type with
   no plugin loaded (pgvector, PostGIS), `bit`/`hstore` whose CLR mapping has a
@@ -1972,6 +2042,13 @@ artifact nobody opens is not a check:
    `NEW` and doesn't fail — a developer adding a scenario can't render a Linux
    baseline without Docker, and blocking that would only teach people to skip
    the check.
+   **Four scenarios deliberately have no baseline**: the tabbed security
+   window (`security-window`, `-permissions`, `-default-privileges`, `-rls`).
+   Its segmented tab strip animates the selected tab and the harness catches it
+   at a different moment each render (0.3–0.4% on CI), so a baseline only makes
+   false `CHANGED` reports. `update-baselines.sh` leaves them out after a
+   wholesale refresh; one refresh that didn't (#261) turned `main` red (2026-09).
+   Give them baselines back only once that render is deterministic.
 3. **Publishing** (`--publish`) — `Marketing.cs` maps scenarios to the images
    that face users: `docs/screenshots/` (README + docs site) and
    `design/store/screenshots/` (Store listing, padded to the Store's 1366×768

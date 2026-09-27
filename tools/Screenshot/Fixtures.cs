@@ -59,6 +59,7 @@ public static class Fixtures
             new NotifyMonitorViewModel(new NotificationListener(dataSource)),
             new ActivityService(dataSource),
             new DatabaseStatsService(dataSource),
+            new StatementStatsService(dataSource),
             new RoleService(dataSource),
             new PrivilegeService(dataSource),
             new SecurityEditor(dataSource),
@@ -191,7 +192,7 @@ public static class Fixtures
     [
         new(Guid.Parse("aaaaaaaa-0000-0000-0000-000000000001"), "Local shop", "localhost", 5432, "shop", "pgnimbus", SslMode.Prefer),
         new(Guid.Parse("aaaaaaaa-0000-0000-0000-000000000002"), "Staging", "db.staging.example", 5432, "shop", "app", SslMode.Require, AccentColor: "#F0A030"),
-        new(Guid.Parse("aaaaaaaa-0000-0000-0000-000000000003"), "Production (read-only)", "db.example.com", 6432, "shop", "reporting", SslMode.VerifyFull, AccentColor: "#E05252"),
+        new(Guid.Parse("aaaaaaaa-0000-0000-0000-000000000003"), "Production", "db.example.com", 6432, "shop", "reporting", SslMode.VerifyFull, AccentColor: "#E05252", ReadOnly: true),
     ];
 
     // --- Result sets ------------------------------------------------------
@@ -304,6 +305,35 @@ public static class Fixtures
         new("analytics", "sessions", "sessions_started_at_idx", 20_971_520),
         new("public", "customers", "customers_full_name_idx", 8_388_608),
     ];
+
+    /// <summary>
+    /// pg_stat_statements for the shop database: the usual shape of a real one,
+    /// where one statement is most of the time, a slow report runs rarely, and a
+    /// cheap lookup runs constantly. Times are Unspecified-kind so the window
+    /// shows them as written rather than converted to the renderer's time zone.
+    /// </summary>
+    public static StatementStatsSnapshot SlowQueriesSnapshot()
+    {
+        var since = new DateTime(2026, 7, 28, 8, 0, 0, DateTimeKind.Unspecified);
+        StatementStat Stat(long id, string role, string query, long calls, double totalMs, long rows, long hit, long read) =>
+            new(10, role, id, true, query, calls, totalMs, rows, hit, read, since);
+
+        return new StatementStatsSnapshot(
+            new DateTime(2026, 7, 30, 9, 41, 2, DateTimeKind.Unspecified),
+            since,
+            Deallocations: 0,
+            [
+                Stat(1, "app", "SELECT o.id, o.status, o.total, o.placed_at FROM orders o WHERE o.customer_id = $1 ORDER BY o.placed_at DESC LIMIT $2", 482_311, 1_734_500, 9_646_220, 91_200_000, 1_850_000),
+                Stat(2, "reporting", "SELECT date_trunc($1, placed_at) AS day, sum(total), count(*) FROM orders WHERE placed_at >= now() - $2::interval GROUP BY 1 ORDER BY 1", 96, 612_400, 8_640, 1_210_000, 3_480_000),
+                Stat(3, "app", "UPDATE orders SET status = $1, updated_at = now() WHERE id = $2", 61_027, 298_800, 61_027, 4_900_000, 38_000),
+                Stat(4, "app", "SELECT c.id, c.full_name, c.email FROM customers c WHERE lower(c.email) = lower($1)", 1_203_554, 212_600, 1_203_554, 7_220_000, 4_100),
+                Stat(5, "app", "INSERT INTO order_items (order_id, product_id, quantity, unit_price) VALUES ($1, $2, $3, $4)", 144_907, 96_300, 144_907, 2_310_000, 11_900),
+                Stat(6, "etl", "COPY analytics.events FROM STDIN WITH (FORMAT csv)", 24, 71_900, 5_760_000, 380_000, 910_000),
+                Stat(7, "reporting", "SELECT p.id, p.name, sum(oi.quantity) AS sold FROM products p JOIN order_items oi ON oi.product_id = p.id GROUP BY p.id, p.name ORDER BY sold DESC LIMIT $1", 310, 44_020, 3_100, 690_000, 240_000),
+                Stat(8, "app", "SELECT id, name, price FROM products WHERE id = ANY($1)", 88_412, 18_300, 353_648, 1_420_000, 900),
+            ],
+            HiddenStatements: 0);
+    }
 
     /// <summary>
     /// A LISTEN/NOTIFY feed: the JSON payloads an application's event plumbing

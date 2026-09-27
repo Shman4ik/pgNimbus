@@ -1,6 +1,6 @@
 # Monitoring
 
-All three monitoring windows open from the command palette, and on macOS from
+All four monitoring windows open from the command palette, and on macOS from
 the native Query menu. Each one opens at most a single live instance; asking
 again focuses the window you already have.
 
@@ -53,6 +53,43 @@ A read-only health panel over the `pg_stat_*` and `pg_statio_*` views:
   flagged
 - unused indexes that are not backing a constraint, with the disk they are
   wasting
+
+## Slow queries
+
+Command palette: **Slow queries (pg_stat_statements)**
+
+The statements that cost this database the most time, read from
+[`pg_stat_statements`](https://www.postgresql.org/docs/current/pgstatstatements.html).
+Each row is one normalized statement, with its constants replaced by `$1`,
+`$2` and so on, and shows its calls, total and mean time, its share of all the
+time, rows, and buffer cache hit ratio. Rank by **Total time** to see where
+the server's time went, **Mean** for the slowest single calls, or **Calls**
+for the chattiest statements.
+
+Two scopes:
+
+- **Since reset** counts everything since the statistics were last reset.
+- **Since** *time* counts only what ran after the window opened. To measure
+  one piece of work, press **Restart interval**, run the workload, then
+  **Refresh**. This never resets the server's counters, so nobody else's
+  numbers change.
+
+If an entry was reset or evicted during the interval, its row is marked ↺, and
+the status line says so. A reset of the whole view is reported the same way,
+and the numbers then count from that reset.
+
+Double-click a statement to open it in a new tab. It doesn't run. The tab
+starts with a comment that says where the statement came from, and its `$1`
+placeholders are still there: put real values back before you run it, or wrap
+it in `EXPLAIN`.
+
+pg_stat_statements has to be switched on by a superuser. It must be in
+`shared_preload_libraries`, which needs a server restart, and it must be
+created in the database with `CREATE EXTENSION pg_stat_statements`. If either
+step is missing, the window says which one and offers the steps as a script to
+review in a new tab. pgNimbus never runs them for you. Without
+`pg_read_all_stats`, other roles' statements are hidden, and the status line
+counts them.
 
 ## LISTEN / NOTIFY monitor
 

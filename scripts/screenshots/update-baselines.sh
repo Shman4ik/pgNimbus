@@ -40,5 +40,17 @@ rm -rf "$baseline_dir"
 mkdir -p "$baseline_dir"
 find "$staging" -name '*.png' -not -name '*.diff.png' -exec cp {} "$baseline_dir/" \;
 
+# Rendered (the smoke check still runs them) but never given a baseline:
+# their frames differ from one render to the next, so a baseline only
+# produces false CHANGED reports. The security window's segmented tab strip
+# animates the selected tab, and the harness catches it at a different
+# moment each time (0.3-0.4 % on CI; commit 3b222bb). A wholesale refresh
+# put them back once (#261) and main went red; this keeps them out until
+# the render is made deterministic.
+for unstable in security-window security-window-permissions \
+                security-window-default-privileges security-window-rls; do
+    rm -f "$baseline_dir/$unstable.light.png" "$baseline_dir/$unstable.dark.png"
+done
+
 echo "Updated $rendered baselines in $baseline_dir"
 echo "Review them with: git status --short tools/Screenshot/baselines"

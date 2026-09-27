@@ -51,6 +51,9 @@
                                         <Ellipse Width="8" Height="8" VerticalAlignment="Center"
                                                  Fill="{Binding AccentColor, Converter={x:Static converters:HexToBrushConverter.Instance}}" />
                                         <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                        <PathIcon Data="{StaticResource LockIconGeometry}" Width="10" Height="10" Opacity="0.6"
+                                                  VerticalAlignment="Center" IsVisible="{Binding ReadOnly}"
+                                                  ToolTip.Tip="Read-only session" />
                                     </StackPanel>
                                     <!-- user@host[:port]/database - enough to tell two
                                          profiles on the same server apart without
@@ -171,9 +174,16 @@
                 <TextBox Name="PasswordBox" Text="{Binding Password}" PasswordChar="•" Classes="revealPasswordButton" />
             </StackPanel>
 
-            <StackPanel Grid.Row="8" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
-                <ToggleSwitch IsChecked="{Binding UseSshTunnel}" OnContent="" OffContent="" />
-                <TextBlock Text="Connect through an SSH tunnel" VerticalAlignment="Center" />
+            <StackPanel Grid.Row="8" Margin="0,0,0,8">
+                <StackPanel Orientation="Horizontal" Spacing="8"
+                            ToolTip.Tip="Every statement runs in a read-only transaction, so the server refuses INSERT, UPDATE, DELETE and DDL. It guards against mistakes; to make writes impossible, use a role without write privileges.">
+                    <ToggleSwitch IsChecked="{Binding ReadOnly}" OnContent="" OffContent="" />
+                    <TextBlock Text="Read-only session" VerticalAlignment="Center" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <ToggleSwitch IsChecked="{Binding UseSshTunnel}" OnContent="" OffContent="" />
+                    <TextBlock Text="Connect through an SSH tunnel" VerticalAlignment="Center" />
+                </StackPanel>
             </StackPanel>
 
             <Border Grid.Row="9" IsVisible="{Binding UseSshTunnel}"

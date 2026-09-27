@@ -507,6 +507,7 @@ public partial class App : Application
         var ddlService = new DdlService(dataSource);
         var activityService = new ActivityService(dataSource);
         var databaseStatsService = new DatabaseStatsService(dataSource);
+        var statementStatsService = new StatementStatsService(dataSource);
         var roleService = new RoleService(dataSource);
         var privilegeService = new PrivilegeService(dataSource);
         var securityEditor = new SecurityEditor(dataSource);
@@ -536,10 +537,13 @@ public partial class App : Application
             persistChannels: workspaceKey is null ? null : channels => PersistNotifyChannels(workspaceKey, channels));
 
         var viewModel = new MainViewModel(
-            engine, explainService, schemaTree, schemaService, schemaEditor, ddlService, completionProvider, notifyMonitor, activityService, databaseStatsService, roleService, privilegeService, securityEditor, importService,
+            engine, explainService, schemaTree, schemaService, schemaEditor, ddlService, completionProvider, notifyMonitor, activityService, databaseStatsService, statementStatsService, roleService, privilegeService, securityEditor, importService,
             accentColor,
             connectionHost: connectionHost,
             connectionDatabase: connectionDatabase,
+            // The server's own answer follows once the window is up
+            // (DetectWriteStateAsync below); the profile's is known now.
+            readOnlyConnection: csb.Options?.Contains(ConnectionProfile.ReadOnlySessionOption, StringComparison.Ordinal) == true,
             autoAliasTables: SettingsStore.Load().AutoAliasTables,
             persistAutoAliasTables: PersistAutoAliasTables,
             safeModeEdits: SettingsStore.Load().SafeModeEdits,
@@ -606,6 +610,7 @@ public partial class App : Application
 
         _ = schemaTree.RefreshCommand.ExecuteAsync(null);
         _ = completionProvider.RefreshAsync(CancellationToken.None);
+        _ = viewModel.DetectWriteStateAsync();
 
         return window;
     }
