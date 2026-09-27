@@ -38,6 +38,11 @@ public sealed record SqlKeywordAdvice(SqlKeywordPosition Position, IReadOnlyList
 /// it holds up on half-typed text, and says <see cref="SqlKeywordPosition.Unknown"/>
 /// rather than guess where it can't tell (DDL, table positions: those are
 /// read elsewhere).
+/// A keyword that is never written alone is offered with the words that
+/// always follow it, as one row (<c>ORDER BY</c>, <c>IS NOT NULL</c>,
+/// <c>LEFT JOIN</c>, <c>DO UPDATE SET</c> — finding C02): accepting it writes
+/// all of them, and its initials find it (<c>ob</c>, <c>inn</c>, <c>lj</c>)
+/// because the ranker reads each word as a part of the name.
 /// </summary>
 public static class SqlKeywordGrammar
 {
@@ -52,6 +57,16 @@ public static class SqlKeywordGrammar
         "REASSIGN", "RESET", "LOAD", "DECLARE", "FETCH", "MOVE", "CLOSE", "SECURITY",
     ];
 
+    // The two commands whose next word is fixed, offered whole too — first
+    // among the equally good prefixes, so "ins" takes INSERT INTO.
+    private static readonly IReadOnlyList<string> StatementStartsWithPhrases =
+        [.. StatementStarts.SelectMany<string, string>(s => s switch
+        {
+            "INSERT" => ["INSERT INTO", s],
+            "DELETE" => ["DELETE FROM", s],
+            _ => [s],
+        })];
+
     /// <summary>Keywords that begin an expression.</summary>
     public static readonly IReadOnlyList<string> OperandStarts =
     [
@@ -60,38 +75,50 @@ public static class SqlKeywordGrammar
         "CURRENT_USER", "SESSION_USER", "CURRENT_ROLE", "CURRENT_SCHEMA", "CURRENT_CATALOG",
     ];
 
+    // "IS" and the two tests it is most often the start of, so "inn" finds
+    // IS NOT NULL in one row.
+    private static readonly string[] IsTests = ["IS", "IS NOT NULL", "IS NULL"];
+
     // What can continue a finished expression inside a predicate.
     private static readonly string[] PredicateOperators =
-        ["AND", "OR", "IS", "IN", "NOT", "LIKE", "ILIKE", "BETWEEN", "SIMILAR", "ISNULL", "NOTNULL", "COLLATE", "AT"];
+        ["AND", "OR", .. IsTests, "IN", "NOT", "LIKE", "ILIKE", "BETWEEN", "SIMILAR TO", "ISNULL", "NOTNULL", "COLLATE", "AT TIME ZONE"];
 
     // Operators that make sense after a value that isn't a predicate yet
     // (a select-list item, an ORDER BY key, an assigned value).
-    private static readonly string[] ValueOperators = ["IS", "IN", "NOT", "LIKE", "ILIKE", "BETWEEN", "COLLATE", "AT", "AND", "OR"];
+    private static readonly string[] ValueOperators = [.. IsTests, "IN", "NOT", "LIKE", "ILIKE", "BETWEEN", "COLLATE", "AT TIME ZONE", "AND", "OR"];
 
-    private static readonly string[] SetOperations = ["UNION", "EXCEPT", "INTERSECT"];
+    private static readonly string[] SetOperations = ["UNION", "UNION ALL", "EXCEPT", "INTERSECT"];
+
+    // A SELECT's row-locking clause.
+    private static readonly string[] Locking = ["FOR UPDATE", "FOR SHARE", "FOR NO KEY UPDATE", "FOR KEY SHARE"];
+
+    private static readonly string[] Joins =
+        ["JOIN", "LEFT JOIN", "INNER JOIN", "RIGHT JOIN", "FULL JOIN", "CROSS JOIN", "NATURAL JOIN", "LEFT OUTER JOIN"];
 
     // The words that can follow a finished expression, per governing clause.
     private static readonly Dictionary<string, string[]> AfterOperandByClause = new(StringComparer.Ordinal)
     {
-        ["select"] = ["FROM", "AS", .. ValueOperators, "INTO", .. SetOperations, "ORDER", "LIMIT", "WHERE", "GROUP"],
-        ["distinct"] = ["FROM", "AS", .. ValueOperators, "INTO", .. SetOperations, "ORDER", "LIMIT"],
-        ["where"] = ["AND", "OR", "ORDER", "GROUP", "LIMIT", "IS", "IN", "NOT", "LIKE", "ILIKE", "BETWEEN",
-            "RETURNING", "OFFSET", "HAVING", "WINDOW", .. SetOperations, "FOR", "FETCH", "SIMILAR", "ISNULL", "NOTNULL", "COLLATE", "AT"],
-        ["on"] = ["AND", "OR", "JOIN", "LEFT", "WHERE", "INNER", "RIGHT", "FULL", "CROSS", "NATURAL", "GROUP", "ORDER",
-            "LIMIT", "IS", "IN", "NOT", "LIKE", "ILIKE", "BETWEEN", .. SetOperations, "OFFSET", "WINDOW", "FOR", "SIMILAR", "ISNULL", "NOTNULL"],
-        ["having"] = ["AND", "OR", "ORDER", "LIMIT", "IS", "IN", "NOT", "LIKE", "ILIKE", "BETWEEN", "OFFSET", "WINDOW", .. SetOperations, "FOR", "FETCH"],
-        ["group"] = ["HAVING", "ORDER", "LIMIT", "OFFSET", "WINDOW", .. SetOperations, "FOR", "FETCH"],
-        ["order"] = ["DESC", "ASC", "LIMIT", "NULLS", "OFFSET", "FETCH", "FOR", "USING", .. SetOperations],
-        ["orderdir"] = ["LIMIT", "NULLS", "OFFSET", "FETCH", "FOR", .. SetOperations],
+        ["select"] = ["FROM", "AS", .. ValueOperators, "INTO", .. SetOperations, "ORDER BY", "LIMIT", "WHERE", "GROUP BY"],
+        ["distinct"] = ["FROM", "AS", .. ValueOperators, "INTO", .. SetOperations, "ORDER BY", "LIMIT"],
+        ["where"] = ["AND", "OR", "ORDER BY", "GROUP BY", "LIMIT", .. IsTests, "IN", "NOT", "LIKE", "ILIKE", "BETWEEN",
+            "RETURNING", "OFFSET", "HAVING", "WINDOW", .. SetOperations, .. Locking, "FETCH", "SIMILAR TO", "ISNULL", "NOTNULL", "COLLATE", "AT TIME ZONE"],
+        ["on"] = ["AND", "OR", .. Joins, "WHERE", "GROUP BY", "ORDER BY",
+            "LIMIT", .. IsTests, "IN", "NOT", "LIKE", "ILIKE", "BETWEEN", .. SetOperations, "OFFSET", "WINDOW", .. Locking, "SIMILAR TO", "ISNULL", "NOTNULL"],
+        ["having"] = ["AND", "OR", "ORDER BY", "LIMIT", .. IsTests, "IN", "NOT", "LIKE", "ILIKE", "BETWEEN", "OFFSET", "WINDOW", .. SetOperations, .. Locking, "FETCH"],
+        ["group"] = ["HAVING", "ORDER BY", "LIMIT", "OFFSET", "WINDOW", .. SetOperations, .. Locking, "FETCH"],
+        ["order"] = ["DESC", "ASC", "LIMIT", "NULLS FIRST", "NULLS LAST", "OFFSET", "FETCH", .. Locking, "USING", .. SetOperations],
+        ["orderdir"] = ["LIMIT", "NULLS FIRST", "NULLS LAST", "OFFSET", "FETCH", .. Locking, .. SetOperations],
         ["nulls"] = ["FIRST", "LAST"],
-        ["limit"] = ["OFFSET", "FOR", "FETCH", .. SetOperations],
-        ["offset"] = ["LIMIT", "ROWS", "ROW", "FETCH", "FOR", .. SetOperations],
+        ["limit"] = ["OFFSET", .. Locking, "FETCH", .. SetOperations],
+        ["offset"] = ["LIMIT", "ROWS", "ROW", "FETCH", .. Locking, .. SetOperations],
         ["set"] = ["WHERE", "FROM", "RETURNING", .. ValueOperators],
         ["returning"] = ["AS", .. ValueOperators],
-        ["values"] = ["RETURNING", "ON", .. SetOperations, "ORDER", "LIMIT"],
-        ["partition"] = ["ORDER", "ROWS", "RANGE", "GROUPS"],
+        ["values"] = ["RETURNING", "ON CONFLICT", .. SetOperations, "ORDER BY", "LIMIT"],
+        ["partition"] = ["ORDER BY", "ROWS", "RANGE", "GROUPS"],
         ["over"] = ["ROWS", "RANGE", "GROUPS"],
         ["when"] = ["THEN", .. PredicateOperators],
+        ["conflict"] = ["DO NOTHING", "DO UPDATE SET", "WHERE"],
+        ["merge"] = ["WHEN MATCHED", "WHEN NOT MATCHED", "AND", "OR", .. IsTests, "IN", "NOT", "LIKE", "BETWEEN"],
         ["then"] = ["WHEN", "ELSE", "END", .. ValueOperators],
         ["else"] = ["END", .. ValueOperators],
         ["case"] = ["WHEN", .. ValueOperators],
@@ -110,26 +137,29 @@ public static class SqlKeywordGrammar
         ["partition"] = ["BY"],
         ["insert"] = ["INTO"],
         ["delete"] = ["FROM"],
-        ["is"] = ["NULL", "NOT", "TRUE", "FALSE", "DISTINCT", "UNKNOWN", "JSON", "NORMALIZED"],
+        ["merge"] = ["INTO"],
+        ["is"] = ["NULL", "NOT NULL", "TRUE", "FALSE", "DISTINCT FROM", "NOT", "NOT DISTINCT FROM", "UNKNOWN", "JSON", "NORMALIZED"],
         ["nulls"] = ["FIRST", "LAST"],
-        ["left"] = ["JOIN", "OUTER"],
-        ["right"] = ["JOIN", "OUTER"],
-        ["full"] = ["JOIN", "OUTER"],
+        ["left"] = ["JOIN", "OUTER JOIN"],
+        ["right"] = ["JOIN", "OUTER JOIN"],
+        ["full"] = ["JOIN", "OUTER JOIN"],
         ["inner"] = ["JOIN"],
         ["cross"] = ["JOIN"],
         ["outer"] = ["JOIN"],
-        ["natural"] = ["JOIN", "LEFT", "INNER", "RIGHT", "FULL"],
+        ["natural"] = ["JOIN", "LEFT JOIN", "INNER JOIN", "RIGHT JOIN", "FULL JOIN"],
         ["union"] = ["SELECT", "ALL", "DISTINCT", "VALUES", "TABLE"],
         ["except"] = ["SELECT", "ALL", "DISTINCT", "VALUES", "TABLE"],
         ["intersect"] = ["SELECT", "ALL", "DISTINCT", "VALUES", "TABLE"],
         ["similar"] = ["TO"],
-        ["do"] = ["NOTHING", "UPDATE"],
-        ["conflict"] = ["DO", "ON"],
+        ["do"] = ["NOTHING", "UPDATE SET"],
+        ["conflict"] = ["DO NOTHING", "DO UPDATE SET", "ON CONSTRAINT"],
+        ["matched"] = ["THEN", "AND"],
+        ["within"] = ["GROUP"],
         ["explain"] = ["ANALYZE", "VERBOSE", "SELECT", "WITH", "INSERT", "UPDATE", "DELETE", "MERGE", "VALUES", "TABLE", "CREATE", "EXECUTE", "DECLARE"],
     };
 
     // Keywords after "IS NOT".
-    private static readonly string[] AfterIsNot = ["NULL", "TRUE", "FALSE", "DISTINCT", "UNKNOWN", "JSON", "NORMALIZED"];
+    private static readonly string[] AfterIsNot = ["NULL", "TRUE", "FALSE", "DISTINCT FROM", "UNKNOWN", "JSON", "NORMALIZED"];
 
     // Keywords after an expression's NOT (a NOT IN / NOT LIKE …).
     private static readonly string[] AfterInfixNot = ["IN", "LIKE", "ILIKE", "BETWEEN", "SIMILAR", "NULL"];
@@ -155,7 +185,7 @@ public static class SqlKeywordGrammar
     {
         "select", "distinct", "where", "on", "having", "group", "order", "limit", "offset", "set", "returning",
         "values", "partition", "over", "when", "then", "else", "case", "using", "between", "from", "join", "into",
-        "update", "table", "window", "fetch", "nulls", "and",
+        "update", "table", "window", "fetch", "nulls", "and", "merge",
     };
 
     // Words a relation name can't be read as: the rest of the grammar would
@@ -169,8 +199,13 @@ public static class SqlKeywordGrammar
     /// The advice for the word at <paramref name="caret"/> in
     /// <paramref name="statement"/> (the text of one statement). The word
     /// being typed is not read: it is what the list filters on.
+    /// <paramref name="callKind"/> tells what a called name is, as
+    /// <c>pg_proc.prokind</c> would: <c>w</c> a window function (only OVER can
+    /// follow its call), <c>a</c> an aggregate (FILTER and OVER can), <c>f</c>
+    /// a plain function (neither), <c>'\0'</c> unknown (both are offered, last).
+    /// Without it every call is unknown.
     /// </summary>
-    public static SqlKeywordAdvice At(string statement, int caret)
+    public static SqlKeywordAdvice At(string statement, int caret, Func<string, char>? callKind = null)
     {
         caret = Math.Clamp(caret, 0, statement.Length);
         var wordStart = caret;
@@ -195,7 +230,7 @@ public static class SqlKeywordGrammar
 
         if (tokens.Count == 0)
         {
-            return new SqlKeywordAdvice(SqlKeywordPosition.StatementStart, StatementStarts);
+            return new SqlKeywordAdvice(SqlKeywordPosition.StatementStart, StatementStartsWithPhrases);
         }
 
         var last = tokens[^1];
@@ -214,6 +249,18 @@ public static class SqlKeywordGrammar
 
         if (lastWord is not null)
         {
+            // "… DO UPDATE |", "WHEN MATCHED THEN UPDATE |": the SET of the action.
+            if (lastWord == "update" && tokens.Count >= 2 && WordOf(statement, tokens[^2]) is "do" or "then")
+            {
+                return KeywordsOnly(["SET"]);
+            }
+
+            // "INSERT … VALUES (…) ON |": the conflict clause.
+            if (lastWord == "on" && WordOf(statement, tokens[0]) == "insert" && Governing(statement, tokens[..^1]) == "values")
+            {
+                return KeywordsOnly(["CONFLICT"]);
+            }
+
             // "IS NOT |"
             if (lastWord == "not" && tokens.Count >= 2 && WordOf(statement, tokens[^2]) == "is")
             {
@@ -246,6 +293,23 @@ public static class SqlKeywordGrammar
             if (lastWord == "do" && !HasWord(statement, tokens, "conflict"))
             {
                 return SqlKeywordAdvice.None;
+            }
+
+            // "MERGE … WHEN [NOT] MATCHED [AND …] THEN |": what to do with the row.
+            if (lastWord == "then" && WordOf(statement, tokens[0]) == "merge" && MergeWhen(statement, tokens) is { } notMatched)
+            {
+                return KeywordsOnly(notMatched ? ["INSERT", "DO NOTHING"] : ["UPDATE SET", "DELETE", "DO NOTHING"]);
+            }
+
+            if (lastWord == "matched" && tokens.Count >= 2 && WordOf(statement, tokens[^2]) is "when" or "not")
+            {
+                return KeywordsOnly(["THEN", "AND"]);
+            }
+
+            // "CASE |": a simple CASE's operand, or straight to WHEN.
+            if (lastWord == "case")
+            {
+                return new SqlKeywordAdvice(SqlKeywordPosition.Operand, ["WHEN", .. OperandStarts]);
             }
 
             if (KeywordsAfter.TryGetValue(lastWord, out var only))
@@ -286,7 +350,7 @@ public static class SqlKeywordGrammar
 
         if (EndsOperand(statement, tokens, tokens.Count - 1))
         {
-            return AfterOperand(statement, tokens);
+            return AfterOperand(statement, tokens, callKind);
         }
 
         return SqlKeywordAdvice.None;
@@ -327,7 +391,8 @@ public static class SqlKeywordGrammar
 
         if (introducer == "select")
         {
-            return new SqlKeywordAdvice(SqlKeywordPosition.Operand, ["DISTINCT", .. OperandStarts, "ALL"]);
+            // The star first: "SELECT *" is the most written select list there is (C03).
+            return new SqlKeywordAdvice(SqlKeywordPosition.Operand, ["*", "DISTINCT", .. OperandStarts, "ALL"]);
         }
 
         if (governing is "set" or "values")
@@ -348,14 +413,14 @@ public static class SqlKeywordGrammar
                 or "and" or "or" or "not" or "where" or "on" or "select" or "values" or "over" or "filter" or "within" or "using"
                 or "into" or "table" or "conflict" or "with" or "when" or "then" or "else" or "case" or "between" or "like" or "ilike"))
         {
-            // A function call: its arguments. (count(*) and friends: the
-            // star is punctuation, not offered as a keyword.)
-            return new SqlKeywordAdvice(SqlKeywordPosition.Operand, ["DISTINCT", .. OperandStarts, "ALL"]);
+            // A function call: its arguments — for count, most often the star (C03).
+            IReadOnlyList<string> arguments = ["DISTINCT", .. OperandStarts, "ALL"];
+            return new SqlKeywordAdvice(SqlKeywordPosition.Operand, word == "count" ? ["*", .. arguments] : arguments);
         }
 
         if (word is "over")
         {
-            return KeywordsOnly(["PARTITION", "ORDER", "ROWS", "RANGE"]);
+            return KeywordsOnly(["PARTITION BY", "ORDER BY", "ROWS", "RANGE", "GROUPS"]);
         }
 
         if (word is "filter")
@@ -363,9 +428,9 @@ public static class SqlKeywordGrammar
             return KeywordsOnly(["WHERE"]);
         }
 
-        if (word is "within")
+        if (word is "group" && tokens.Count >= 3 && WordOf(statement, tokens[^3]) == "within")
         {
-            return KeywordsOnly(["ORDER"]);
+            return KeywordsOnly(["ORDER BY"]);
         }
 
         if (word is "as")
@@ -389,7 +454,7 @@ public static class SqlKeywordGrammar
     }
 
     // Right after a finished expression.
-    private static SqlKeywordAdvice AfterOperand(string statement, List<SqlToken> tokens)
+    private static SqlKeywordAdvice AfterOperand(string statement, List<SqlToken> tokens, Func<string, char>? callKind)
     {
         var governing = Governing(statement, tokens);
         var lastWord = WordOf(statement, tokens[^1]);
@@ -402,7 +467,7 @@ public static class SqlKeywordGrammar
 
         if (governing == "nulls")
         {
-            return new SqlKeywordAdvice(SqlKeywordPosition.AfterOperand, AfterOperandByClause["orderdir"][1..]);
+            return new SqlKeywordAdvice(SqlKeywordPosition.AfterOperand, [.. AfterOperandByClause["orderdir"].Where(k => !k.StartsWith("NULLS", StringComparison.Ordinal))]);
         }
 
         if (governing == "and")
@@ -413,7 +478,13 @@ public static class SqlKeywordGrammar
         // "INSERT INTO t |", "INSERT INTO t (a, b) |": the rows come next.
         if (governing == "into" && WordOf(statement, tokens[0]) == "insert" && DepthOf(tokens) == 0)
         {
-            return KeywordsOnly(["VALUES", "SELECT", "DEFAULT", "OVERRIDING", "WITH", "AS"]);
+            return KeywordsOnly(["VALUES", "SELECT", "DEFAULT VALUES", "OVERRIDING", "WITH", "AS"]);
+        }
+
+        // "MERGE INTO t [alias] |": the source; "… USING s [alias] |": its join condition.
+        if (WordOf(statement, tokens[0]) == "merge" && DepthOf(tokens) == 0 && governing is "into" or "using")
+        {
+            return KeywordsOnly(governing == "into" ? ["USING", "AS"] : ["ON", "AS"]);
         }
 
         // "UPDATE t |": SET (or the alias, a new name).
@@ -444,9 +515,28 @@ public static class SqlKeywordGrammar
             return new SqlKeywordAdvice(SqlKeywordPosition.AfterOperand, AfterOperandByClause["values"]);
         }
 
+        // "row_number() |": a window function's call takes OVER and nothing
+        // else; an aggregate's may take FILTER or OVER; a plain function's neither.
+        var kind = CalledName(statement, tokens) is { } called ? callKind?.Invoke(called) ?? '\0' : 'f';
+        if (kind == 'w')
+        {
+            return KeywordsOnly(["OVER"]);
+        }
+
+        // MERGE … ON <condition> |
+        if (governing == "on" && WordOf(statement, tokens[0]) == "merge")
+        {
+            governing = "merge";
+        }
+
         if (!AfterOperandByClause.TryGetValue(governing, out var keywords))
         {
             return SqlKeywordAdvice.None;
+        }
+
+        if (kind is 'a' or '\0')
+        {
+            keywords = [.. keywords, "FILTER", "OVER"];
         }
 
         // Inside parentheses with no clause of their own: an expression group.
@@ -526,6 +616,62 @@ public static class SqlKeywordGrammar
     private static bool HasWord(string statement, List<SqlToken> tokens, string word) =>
         tokens.Any(t => WordOf(statement, t) == word);
 
+    // The last WHEN of a MERGE: true for WHEN NOT MATCHED, false for WHEN
+    // MATCHED, null when the last WHEN is something else (a CASE's).
+    private static bool? MergeWhen(string statement, List<SqlToken> tokens)
+    {
+        for (var i = tokens.Count - 1; i >= 0; i--)
+        {
+            if (WordOf(statement, tokens[i]) != "when")
+            {
+                continue;
+            }
+
+            var next = i + 1 < tokens.Count ? WordOf(statement, tokens[i + 1]) : null;
+            var after = i + 2 < tokens.Count ? WordOf(statement, tokens[i + 2]) : null;
+            return next == "matched" ? false : next == "not" && after == "matched" ? true : null;
+        }
+
+        return null;
+    }
+
+    // The name whose call the last token (a ")") closes: "row_number" for
+    // "row_number()", "count" for "pg_catalog.count(*)". Null when the
+    // parentheses are no call — a subquery, a list, IN (…), VALUES (…).
+    private static string? CalledName(string statement, List<SqlToken> tokens)
+    {
+        if (tokens[^1].Kind != SqlTokenKind.CloseParen)
+        {
+            return null;
+        }
+
+        var depth = 0;
+        for (var i = tokens.Count - 1; i >= 0; i--)
+        {
+            if (tokens[i].Kind == SqlTokenKind.CloseParen)
+            {
+                depth++;
+            }
+            else if (tokens[i].Kind == SqlTokenKind.OpenParen && --depth == 0)
+            {
+                if (i == 0)
+                {
+                    return null;
+                }
+
+                var name = tokens[i - 1];
+                return name.Kind switch
+                {
+                    SqlTokenKind.QuotedIdentifier when !name.IsIncomplete => SqlLexer.IdentifierName(statement, name),
+                    SqlTokenKind.Word when WordOf(statement, name) is { } word && !IsKeyword(word) => word,
+                    _ => null,
+                };
+            }
+        }
+
+        return null;
+    }
+
     // The paren depth after the last token.
     private static int DepthOf(List<SqlToken> tokens)
     {
@@ -568,7 +714,14 @@ public static class SqlKeywordGrammar
                     return ParenGoverning(statement, tokens, i);
                 }
 
-                depth--;
+                // "row_number() OVER (…) |": OVER (FILTER, WITHIN GROUP) governs
+                // only the inside of its parentheses; out here the select list goes on.
+                if (--depth == 0 && i > 0 && WordOf(statement, tokens[i - 1]) is "over" or "filter" or "group"
+                    && (WordOf(statement, tokens[i - 1]) != "group" || (i > 1 && WordOf(statement, tokens[i - 2]) == "within")))
+                {
+                    i -= WordOf(statement, tokens[i - 1]) == "group" ? 2 : 1;
+                }
+
                 continue;
             }
 

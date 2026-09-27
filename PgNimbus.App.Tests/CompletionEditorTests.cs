@@ -585,6 +585,9 @@ public class CompletionEditorTests
     [Arguments("SELECT count(*) AS n", false)] // A06: not notifications
     [Arguments("SELECT c.email\nFROM customers c\nWHERE c.is_active = true", false)] // A07: not TRUE
     [Arguments("SELECT o.id\nFROM orders o\nJOIN customers c ON c.id = o.customer_id", false)] // A01
+    [Arguments("SELECT o.id\nFROM orders o\nWHERE o.status IS NOT NULL", false)] // M: not IS NOT IS NOT NULL
+    [Arguments("SELECT *", false)] // M: not "**" (the star row)
+    [Arguments("SELECT o.id\nFROM orders o\nORDER BY o.id DESC NULLS LAST", false)]
     public async Task Enter_at_the_end_of_a_typed_line_is_a_newline(string line, bool autoAlias)
     {
         await Ui.Run(async () =>
@@ -606,6 +609,41 @@ public class CompletionEditorTests
             Ui.Press(window, Key.Enter);
 
             await Assert.That(Lf(Marked(editor))).IsEqualTo(line + "\n|");
+            window.Close();
+        });
+    }
+
+    [Test]
+    [Arguments("SELECT * FROM orders o WHERE o.id = 1 ob", "SELECT * FROM orders o WHERE o.id = 1 ORDER BY|")]
+    [Arguments("SELECT * FROM orders o lj", "SELECT * FROM orders o LEFT JOIN|")]
+    [Arguments("SELECT * FROM orders o WHERE o.status inn", "SELECT * FROM orders o WHERE o.status IS NOT NULL|")]
+    [Arguments("SELECT row_number() OVER (pb", "SELECT row_number() OVER (PARTITION BY|)")]
+    public async Task Tab_on_a_phrase_row_writes_the_whole_phrase(string typed, string expected)
+    {
+        // C02: the initials find the phrase, and one accept writes all of it.
+        await Ui.Run(async () =>
+        {
+            var (window, editor) = OpenAuditStand(autoAlias: false);
+            TypeKeys(window, typed);
+            Ui.Press(window, Key.Tab);
+
+            await Assert.That(Marked(editor)).IsEqualTo(expected);
+            window.Close();
+        });
+    }
+
+    [Test]
+    public async Task Punctuation_closes_the_list_and_a_space_does_not_filter_a_phrase()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, editor) = OpenAuditStand(autoAlias: false);
+            TypeKeys(window, "SELECT * FROM orders o WHERE o.status IS");
+            await Assert.That(PopupIsOpen(window)).IsTrue();
+
+            // The space ends "IS": no list keeps filtering "IS …" across it.
+            TypeKeys(window, " ");
+            await Assert.That(PopupIsOpen(window)).IsFalse();
             window.Close();
         });
     }
@@ -674,6 +712,9 @@ public class CompletionEditorTests
 
         return row.GetVisualDescendants().OfType<ContentPresenter>().First(c => c.Name == "PART_ContentPresenter").Background;
     }
+
+    private static bool PopupIsOpen(Avalonia.Controls.Window window) =>
+        window.GetVisualDescendants().OfType<CompletionListBox>().Any(l => l.IsEffectivelyVisible);
 
     private static bool Paints(IBrush? brush) =>
         brush is ISolidColorBrush solid && solid.Color.A > 0 && solid.Opacity > 0;

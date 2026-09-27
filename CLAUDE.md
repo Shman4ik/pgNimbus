@@ -1633,6 +1633,27 @@ csproj / WiX / MSIX manifest reference them unchanged:
   kind kept in a byte array beside it, because `Merge` reading `Kind` off a
   hundred thousand rows was a cache miss per row (1–2 ms per open on the
   million-column bench; now an array copy, 0.1–0.8 ms).
+  **Package M: a keyword never written alone is offered with the words that
+  follow it** (C01–C03). `ORDER BY`, `GROUP BY`, `IS NOT NULL`, `LEFT JOIN`,
+  `NULLS LAST`, `DO UPDATE SET`, `INSERT INTO` … are one row each (the lone
+  `ORDER`/`GROUP` rows are gone), and their initials find them because the
+  ranker's part starts split at spaces (`ob`, `inn`, `lj`). That forced one
+  editor rule: **a character that can't be part of a name closes the popup**
+  (`OnSqlTextEntered`; inside a quoted name it doesn't). Before it, the list
+  kept filtering across the space — `IS N` still matched the `IS NULL` row —
+  and an accept, which replaces only the word under the caret, wrote
+  `IS IS NULL`; and a typed `*` matched the new star row and Enter wrote `**`.
+  The grammar also reads what a call is (`SqlKeywordGrammar.At`'s `callKind`,
+  prokind from the snapshot, `Snapshot.CallKindOf`): after a window function's
+  call only OVER, after an aggregate's FILTER and OVER too, after a plain
+  function's neither; `OVER (…)`, `FILTER (…)` and `WITHIN GROUP (…)` govern
+  only their own parentheses. `*` is offered first after SELECT and inside
+  `count(`; CASE, `ON CONFLICT` (`ON |` after VALUES → CONFLICT, `DO UPDATE |`
+  → SET) and MERGE (`INTO`, `USING`, `ON`, `WHEN [NOT] MATCHED`, the action
+  after THEN) are read; a MERGE's or DELETE's own `USING` is table position
+  (`SqlCompletionContext.ClauseBefore`). The C01 table is
+  `CompletionProviderTests.C01_…` row by row. `CompletionBench quality` credits
+  a phrase row for its first word when the query goes on with the rest.
 - `SqlFormatter` follows <https://www.sqlstyle.guide/> ("river" layout: root
   keywords right-aligned to a common column, content to its right). The tests
   in `PgNimbus.Core.Tests` assert exact spacing — a deliberate layout change

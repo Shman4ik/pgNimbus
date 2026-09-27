@@ -151,7 +151,7 @@ public class CompletionProviderTests
     [Arguments("SELECT * FROM public.users w|", "WHERE")]
     [Arguments("SELECT * FROM public.users u |", "WHERE")]
     [Arguments("SELECT * FROM public.users u j|", "JOIN")]
-    [Arguments("SELECT * FROM public.users u o|", "ORDER")]
+    [Arguments("SELECT * FROM public.users u o|", "ORDER BY")]
     [Arguments("SELECT * FROM public.users u, public.orders o w|", "WHERE")]
     [Arguments("DELETE FROM public.users u w|", "WHERE")]
     public async Task After_a_finished_from_item_the_next_clause_is_preselected(string marked, string expected)
@@ -250,7 +250,8 @@ public class CompletionProviderTests
     // stands where a test put them: it only shows while the statement is being
     // written. So each statement below is replayed word by word: with the text
     // up to a word (and then its first letter) in the editor, that word must
-    // be on offer. Aliases, literals and operators are the user's to type.
+    // be on offer — alone, or as the start of a phrase row (ORDER BY).
+    // Aliases, literals and operators are the user's to type.
 
     public static IEnumerable<string> TypedStatements() =>
     [
@@ -304,7 +305,8 @@ public class CompletionProviderTests
             {
                 var ranked = CompletionRanker.Rank(
                     provider.GetCompletionData(text, caret), text[token.Start..caret], d => d.Text, d => d.Priority, _ => int.MaxValue);
-                if (!ranked.Items.Any(i => string.Equals(i.Text, word, StringComparison.OrdinalIgnoreCase)))
+                if (!ranked.Items.Any(i => string.Equals(i.Text, word, StringComparison.OrdinalIgnoreCase)
+                    || i.Text.StartsWith(word + " ", StringComparison.OrdinalIgnoreCase)))
                 {
                     missing.Add($"{how}: {text.Insert(caret, "|")}  (expected {word})");
                 }
@@ -638,6 +640,113 @@ public class CompletionProviderTests
         var second = PreselectedItem(Stand(),
             "SELECT * FROM saas.issues i JOIN saas.users a ON a.id = i.assignee_id JOIN saas.users r ON r.id = i.|");
         await Assert.That(second.Text).IsEqualTo("reporter_id");
+    }
+
+    // --- Second audit, package M: the keyword grammar (table C01, C02, C03) ---
+
+    /// <summary>
+    /// Table C01 of the audit, row by row: after each position the list is the
+    /// keywords the "needed" column names — every one of them offered, nothing
+    /// that isn't a keyword, and one of them preselected with nothing typed.
+    /// </summary>
+    [Test]
+    [Arguments("SELECT * FROM public.customers c WHERE c.id = 1 |", "AND|OR|ORDER BY|GROUP BY|LIMIT|IS|IN|LIKE")]
+    [Arguments("SELECT * FROM public.customers c WHERE c.email IS |", "NULL|NOT NULL|TRUE|FALSE|DISTINCT FROM")]
+    [Arguments("SELECT * FROM public.customers c ORDER BY c.id |", "ASC|DESC|NULLS FIRST|NULLS LAST|LIMIT")]
+    [Arguments("SELECT * FROM public.customers LIMIT 10 |", "OFFSET|FOR UPDATE")]
+    [Arguments("SELECT id FROM public.customers UNION |", "SELECT|ALL|VALUES")]
+    [Arguments("SELECT * FROM public.orders WHERE total_amount BETWEEN 1 |", "AND")]
+    [Arguments("SELECT c.id, c.email |", "AS|FROM")]
+    [Arguments("SELECT * FROM public.orders GROUP |", "BY")]
+    [Arguments("SELECT * FROM public.orders ORDER |", "BY")]
+    [Arguments("SELECT * FROM public.orders o WHERE EXISTS (|", "SELECT")]
+    [Arguments("SELECT row_number() |", "OVER")]
+    [Arguments("SELECT row_number() OVER (|", "PARTITION BY|ORDER BY")]
+    [Arguments("SELECT count(*) FILTER (|", "WHERE")]
+    [Arguments("SELECT CASE WHEN x THEN 1 |", "WHEN|ELSE|END")]
+    [Arguments("INSERT INTO public.customers |", "VALUES|SELECT|DEFAULT VALUES")]
+    [Arguments("INSERT INTO public.customers (first_name, email) |", "VALUES|SELECT")]
+    [Arguments("INSERT INTO public.customers (id) VALUES (1) ON CONFLICT |", "DO NOTHING|DO UPDATE SET|ON CONSTRAINT")]
+    [Arguments("INSERT INTO public.customers (id) VALUES (1) ON CONFLICT (id) DO |", "NOTHING|UPDATE SET")]
+    public async Task C01_after_a_finished_expression_the_keywords_that_continue_it(string marked, string needed)
+    {
+        var items = At(Stand(), marked);
+        var texts = items.Select(i => i.Text).ToList();
+        var expected = needed.Split('|');
+
+        foreach (var keyword in expected)
+        {
+            await Assert.That(texts).Contains(keyword);
+        }
+
+        await Assert.That(items.All(i => i.Kind == SqlCompletionKind.Keyword)).IsTrue();
+        await Assert.That(expected).Contains(PreselectedItem(Stand(), marked).Text);
+    }
+
+    [Test]
+    public async Task C01_merge_using_takes_a_relation()
+    {
+        var items = At(Stand(), "MERGE INTO public.customers c USING |");
+
+        await Assert.That(items.Any(i => i.Kind == SqlCompletionKind.Table && i.Text == "orders")).IsTrue();
+        await Assert.That(items.Any(i => i.Kind == SqlCompletionKind.Column)).IsFalse();
+    }
+
+    [Test]
+    [Arguments("SELECT * FROM public.customers c WHERE c.id = 1 ob|", "ORDER BY")]
+    [Arguments("SELECT status FROM public.orders WHERE total_amount > 1 gb|", "GROUP BY")]
+    [Arguments("SELECT * FROM public.customers c lj|", "LEFT JOIN")]
+    [Arguments("SELECT * FROM public.customers c WHERE c.email inn|", "IS NOT NULL")]
+    [Arguments("SELECT * FROM public.customers c ORDER BY c.id nl|", "NULLS LAST")]
+    [Arguments("SELECT row_number() OVER (pb|", "PARTITION BY")]
+    [Arguments("ii|", "INSERT INTO")]
+    [Arguments("df|", "DELETE FROM")]
+    public async Task C02_a_multi_word_keyword_is_one_row_and_its_initials_find_it(string marked, string expected)
+    {
+        var item = PreselectedItem(Stand(), marked);
+
+        await Assert.That(item.Text).IsEqualTo(expected);
+        await Assert.That(item.InsertText).IsEqualTo(expected);
+    }
+
+    [Test]
+    [Arguments("SELECT |")]
+    [Arguments("SELECT count(|")]
+    public async Task C03_the_star_is_offered_where_it_can_go(string marked)
+    {
+        await Assert.That(At(Stand(), marked).Any(i => i.Text == "*")).IsTrue();
+    }
+
+    [Test]
+    [Arguments("SELECT * FROM public.orders WHERE |")]
+    [Arguments("SELECT sum(|")]
+    [Arguments("SELECT id, |")]
+    public async Task C03_the_star_is_not_offered_where_it_cannot(string marked)
+    {
+        await Assert.That(At(Stand(), marked).Any(i => i.Text == "*")).IsFalse();
+    }
+
+    [Test]
+    public async Task C03_with_sources_the_star_comes_after_their_columns()
+    {
+        var ranked = CompletionRanker.Rank(At(Stand(), "SELECT | FROM public.customers c"), "", d => d.Text, d => d.Priority, _ => int.MaxValue)
+            .Items.Select(i => i.Text).ToList();
+
+        await Assert.That(ranked.IndexOf("*")).IsGreaterThan(ranked.IndexOf("email"));
+        await Assert.That(ranked.IndexOf("*")).IsLessThan(ranked.IndexOf("count"));
+    }
+
+    [Test]
+    public async Task C01_an_aggregate_call_can_be_followed_by_filter_or_over_a_plain_function_cannot()
+    {
+        var afterCount = At(Stand(), "SELECT count(*) |").Select(i => i.Text).ToList();
+        var afterLower = At(Stand(), "SELECT lower(email) |").Select(i => i.Text).ToList();
+
+        await Assert.That(afterCount).Contains("OVER");
+        await Assert.That(afterCount).Contains("FILTER");
+        await Assert.That(afterCount).Contains("FROM");
+        await Assert.That(afterLower).DoesNotContain("OVER");
+        await Assert.That(afterLower).Contains("FROM");
     }
 
     [Test]
