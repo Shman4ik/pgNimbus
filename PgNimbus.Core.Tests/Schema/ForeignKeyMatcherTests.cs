@@ -27,7 +27,8 @@ public class ForeignKeyMatcherTests
 
         var condition = ForeignKeyMatcher.BuildJoinCondition(tables, [OrderToCustomer]);
 
-        await Assert.That(condition).IsEqualTo("o.customer_id = c.id");
+        // The joined table (customers) first.
+        await Assert.That(condition).IsEqualTo("c.id = o.customer_id");
     }
 
     [Test]
@@ -41,7 +42,7 @@ public class ForeignKeyMatcherTests
 
         var condition = ForeignKeyMatcher.BuildJoinCondition(tables, [OrderToCustomer]);
 
-        await Assert.That(condition).IsEqualTo("orders.customer_id = customers.id");
+        await Assert.That(condition).IsEqualTo("customers.id = orders.customer_id");
     }
 
     [Test]
@@ -128,7 +129,7 @@ public class ForeignKeyMatcherTests
 
         var condition = ForeignKeyMatcher.BuildJoinCondition(tables, [OrderToCustomer]);
 
-        await Assert.That(condition).IsEqualTo("\"MyOrders\".customer_id = c.id");
+        await Assert.That(condition).IsEqualTo("c.id = \"MyOrders\".customer_id");
     }
 
     [Test]
@@ -144,7 +145,7 @@ public class ForeignKeyMatcherTests
         var condition = ForeignKeyMatcher.BuildJoinCondition(
             tables, [new ForeignKeyInfo("sales", "Orders", ["customer_id"], "public", "customers", ["id"])]);
 
-        await Assert.That(condition).IsEqualTo("\"Orders\".customer_id = c.id");
+        await Assert.That(condition).IsEqualTo("c.id = \"Orders\".customer_id");
     }
 
     [Test]

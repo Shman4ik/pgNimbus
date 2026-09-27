@@ -29,6 +29,7 @@ internal static class CompletionKindVisuals
         [SqlCompletionKind.Type] = Fixed("#C2527A"),
         [SqlCompletionKind.Value] = Fixed("#B5642A"),
         [SqlCompletionKind.Sequence] = Fixed("#4F8A8B"),
+        [SqlCompletionKind.Snippet] = Fixed("#3E8ED0"),
     };
 
     public static IBrush Brush(SqlCompletionKind kind) => Brushes[kind];
@@ -60,6 +61,7 @@ internal static class CompletionKindVisuals
         SqlCompletionKind.Type => "ShapeIconGeometry",
         SqlCompletionKind.Value => "FlagIconGeometry",
         SqlCompletionKind.Sequence => "SequenceIconGeometry",
+        SqlCompletionKind.Snippet => "AutoFixIconGeometry",
         _ => "TableIconGeometry",
     };
 

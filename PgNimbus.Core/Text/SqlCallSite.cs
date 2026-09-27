@@ -68,6 +68,71 @@ public sealed record SqlCallSite(IReadOnlyList<string> Name, int ArgumentIndex, 
         return null;
     }
 
+    /// <summary>
+    /// The row of a <c>VALUES</c> list the caret is directly inside —
+    /// <c>VALUES ('a', |</c>, or the second row of <c>VALUES (…), (|</c> —
+    /// as a call site named <c>VALUES</c> whose argument index is the value's
+    /// position, so the argument hint can name the column it goes into
+    /// (sql-completion-audit-2.md §6.4). Null anywhere else, including inside a
+    /// call nested in the row.
+    /// </summary>
+    public static SqlCallSite? ValuesRowAt(string sql, int caret)
+    {
+        caret = Math.Clamp(caret, 0, sql.Length);
+        var (statementStart, _) = SqlCompletionContext.CompletionStatementSpan(sql, caret);
+        var tokens = SqlLexer.Tokenize(sql, statementStart, caret);
+        if (tokens.Count > 0 && tokens[^1] is { IsProse: true } last && (last.IsIncomplete || last.Kind == SqlTokenKind.LineComment))
+        {
+            return null;
+        }
+
+        var frames = new List<(bool Row, int Open, int Commas)>();
+        SqlToken? previous = null;
+        // A row just closed at this depth, and then a comma after it: the
+        // next "(" opens another row ("VALUES (…), (").
+        var rowClosed = false;
+        var nextIsRow = false;
+        foreach (var token in tokens)
+        {
+            if (token.IsTrivia)
+            {
+                continue;
+            }
+
+            switch (token.Kind)
+            {
+                case SqlTokenKind.OpenParen:
+                    var afterValues = previous is { Kind: SqlTokenKind.Word } p && SqlLexer.FoldCase(sql.AsSpan(p.Start, p.Length)) == "values";
+                    frames.Add((afterValues || nextIsRow, token.Start, 0));
+                    break;
+                case SqlTokenKind.OpenBracket:
+                    frames.Add((false, token.Start, 0));
+                    break;
+                case SqlTokenKind.CloseParen or SqlTokenKind.CloseBracket when frames.Count > 0:
+                    var closedRow = frames[^1].Row;
+                    frames.RemoveAt(frames.Count - 1);
+                    previous = token;
+                    nextIsRow = false;
+                    rowClosed = closedRow;
+                    continue;
+                case SqlTokenKind.Comma when frames.Count > 0:
+                    frames[^1] = frames[^1] with { Commas = frames[^1].Commas + 1 };
+                    break;
+                case SqlTokenKind.Comma when rowClosed:
+                    previous = token;
+                    rowClosed = false;
+                    nextIsRow = true;
+                    continue;
+            }
+
+            previous = token;
+            rowClosed = false;
+            nextIsRow = false;
+        }
+
+        return frames.Count > 0 && frames[^1].Row ? new SqlCallSite(["VALUES"], frames[^1].Commas, null, frames[^1].Open) : null;
+    }
+
     private sealed class Frame(IReadOnlyList<string>? name, int open, int argumentStart)
     {
         public IReadOnlyList<string>? Name { get; } = name;

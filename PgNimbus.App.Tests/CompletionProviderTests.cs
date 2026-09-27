@@ -438,7 +438,8 @@ public class CompletionProviderTests
         var items = At(Provider(), "SELECT * FROM public.orders o JOIN public.users u ON | JOIN audit.users a ON true");
         var condition = items.First(i => i.Kind == SqlCompletionKind.JoinCondition);
 
-        await Assert.That(condition.InsertText).IsEqualTo("o.user_id = u.id");
+        // The joined table (u) first.
+        await Assert.That(condition.InsertText).IsEqualTo("u.id = o.user_id");
     }
 
     // --- T10 / T11: literals and quoted identifiers ---
@@ -671,8 +672,10 @@ public class CompletionProviderTests
             await Assert.That(texts).Contains(keyword);
         }
 
-        await Assert.That(items.All(i => i.Kind == SqlCompletionKind.Keyword)).IsTrue();
-        await Assert.That(expected).Contains(PreselectedItem(Stand(), marked).Text);
+        // Keywords, and (package P) a whole construct where one fits: the
+        // column list after INSERT INTO t.
+        await Assert.That(items.All(i => i.Kind is SqlCompletionKind.Keyword or SqlCompletionKind.Snippet)).IsTrue();
+        await Assert.That(expected.Contains(PreselectedItem(Stand(), marked).Text) || PreselectedItem(Stand(), marked).Kind == SqlCompletionKind.Snippet).IsTrue();
     }
 
     [Test]
@@ -853,6 +856,121 @@ public class CompletionProviderTests
         await Assert.That(hint.Parameters[1].HasDefault).IsTrue();
         await Assert.That(hint.Parameters[1].Text).Contains("DEFAULT");
         await Assert.That(hint.Parameters[0].HasDefault).IsFalse();
+    }
+
+    // --- Second audit, package P: whole constructs (§6.4) ---
+
+    [Test]
+    [Arguments("SELECT * FROM public.orders o JOIN |", "customers c ON c.id = o.customer_id")]
+    [Arguments("SELECT * FROM public.orders o JOIN cu|", "customers c ON c.id = o.customer_id")]
+    [Arguments("SELECT * FROM saas.issues i JOIN saas.|", "users u ON u.id = i.assignee_id")]
+    [Arguments("SELECT * FROM saas.issues i JOIN |", "saas.users u ON u.id = i.reporter_id")]
+    public async Task After_join_a_table_comes_with_its_alias_and_foreign_key_condition(string marked, string insert)
+    {
+        var items = At(Stand(), marked);
+
+        await Assert.That(items.Any(i => i.Kind == SqlCompletionKind.Snippet && i.InsertText == insert)).IsTrue();
+    }
+
+    [Test]
+    public async Task A_join_row_sits_right_under_its_table_and_the_plain_table_stays_first()
+    {
+        var ranked = CompletionRanker.Rank(At(Stand(), "SELECT * FROM public.orders o JOIN |"), "", d => d.Text, d => d.Priority, _ => int.MaxValue).Items;
+        var customers = ranked.ToList().FindIndex(i => i.Kind == SqlCompletionKind.Table && i.Text == "customers");
+
+        await Assert.That(ranked[customers + 1].InsertText).IsEqualTo("customers c ON c.id = o.customer_id");
+        await Assert.That(PreselectedItem(Stand(), "SELECT * FROM public.orders o JOIN cust|").Kind).IsEqualTo(SqlCompletionKind.Table);
+    }
+
+    [Test]
+    public async Task After_insert_into_a_table_its_column_list_comes_whole()
+    {
+        var items = At(Stand(), "INSERT INTO public.customers |");
+        var list = items.First(i => i.Kind == SqlCompletionKind.Snippet);
+
+        await Assert.That(list.InsertText).StartsWith("(first_name, last_name, email");
+        await Assert.That(list.InsertText).EndsWith(") VALUES ()");
+        await Assert.That(list.CaretIndex).IsEqualTo(list.InsertText.Length - 1);
+        await Assert.That(list.InsertText).DoesNotContain("(id,"); // an identity/serial key isn't the row's to give
+    }
+
+    [Test]
+    [Arguments("SELECT c.email, count(*) FROM public.customers c GROUP BY |", "c.email")]
+    [Arguments("SELECT status, c.email, sum(total_amount) AS s FROM public.orders o JOIN public.customers c ON c.id = o.customer_id GROUP BY |", "status, c.email")]
+    [Arguments("SELECT i.status, count(*) FILTER (WHERE i.priority <= 2) AS urgent FROM saas.issues i GROUP BY |", "i.status")]
+    public async Task After_group_by_the_select_lists_non_aggregates_come_whole(string marked, string expected)
+    {
+        var item = PreselectedItem(Stand(), marked);
+
+        await Assert.That(item.Kind).IsEqualTo(SqlCompletionKind.Snippet);
+        await Assert.That(item.InsertText).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async Task Group_by_offers_no_list_when_nothing_is_aggregated()
+    {
+        await Assert.That(At(Stand(), "SELECT status FROM public.orders GROUP BY |").Any(i => i.Kind == SqlCompletionKind.Snippet)).IsFalse();
+    }
+
+    [Test]
+    public async Task After_select_every_column_of_the_sources_comes_as_one_row()
+    {
+        var items = At(Stand(), "SELECT | FROM public.orders o");
+
+        await Assert.That(items.Any(i => i.Kind == SqlCompletionKind.Snippet
+            && i.InsertText == "o.id, o.customer_id, o.order_date, o.status, o.total_amount")).IsTrue();
+    }
+
+    [Test]
+    public async Task Right_after_a_star_the_star_spelled_out_replaces_it()
+    {
+        var sql = "SELECT * FROM public.orders";
+        var items = Stand().GetCompletionData(sql, "SELECT *".Length);
+        var expansion = items.First(i => i.Kind == SqlCompletionKind.Snippet);
+
+        await Assert.That(expansion.InsertText).IsEqualTo("id, customer_id, order_date, status, total_amount");
+        await Assert.That(expansion.ReplaceFrom).IsEqualTo("SELECT ".Length);
+    }
+
+    [Test]
+    [Arguments("SELECT row_num|", "row_number() OVER ()", 19)]
+    [Arguments("SELECT la|", "lag() OVER ()", 4)]
+    public async Task A_window_function_comes_with_its_window(string marked, string insert, int caret)
+    {
+        var item = PreselectedItem(Stand(), marked);
+
+        await Assert.That(item.InsertText).IsEqualTo(insert);
+        await Assert.That(item.CaretIndex).IsEqualTo(caret);
+    }
+
+    [Test]
+    public async Task After_an_aggregate_over_and_filter_come_with_their_parentheses()
+    {
+        var items = At(Stand(), "SELECT count(*) |");
+
+        await Assert.That(items.Single(i => i.Text == "FILTER").InsertText).IsEqualTo("FILTER (WHERE )");
+        await Assert.That(items.Single(i => i.Text == "OVER").InsertText).IsEqualTo("OVER ()");
+    }
+
+    [Test]
+    public async Task Do_update_set_offers_the_excluded_assignment()
+    {
+        var items = At(Stand(), "INSERT INTO public.customers (email, first_name) VALUES ('a', 'b') ON CONFLICT (email) DO UPDATE SET |");
+
+        await Assert.That(items.Any(i => i.InsertText == "first_name = excluded.first_name")).IsTrue();
+    }
+
+    [Test]
+    [Arguments("INSERT INTO public.customers (first_name, email) VALUES ('Ada', |", 1, "email")]
+    [Arguments("INSERT INTO public.customers (first_name, email) VALUES ('Ada', 'x'), (|", 0, "first_name")]
+    [Arguments("INSERT INTO public.customers VALUES (1, |", 1, "first_name")]
+    public async Task A_values_row_hints_the_column_its_value_goes_into(string marked, int active, string column)
+    {
+        var hint = HintsAt(Stand(), marked)!.Value.Hints.Single();
+
+        await Assert.That(hint.Name).IsEqualTo("VALUES");
+        await Assert.That(hint.ActiveParameter).IsEqualTo(active);
+        await Assert.That(hint.Parameters[active].Name).IsEqualTo(column);
     }
 
     [Test]

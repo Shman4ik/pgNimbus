@@ -94,7 +94,9 @@ public class CompletionTypingReplayTests
     /// getting worse than the last package delivered (the audit's baseline was
     /// 24.4% with the auto-alias off, 25.6% with it on; package L 32.9% /
     /// 33.9%; package M, on the corpus it grew to 30 queries, 35.3% / 36.4%;
-    /// package O 38.5% / 38.9%, 36.9% / 37.9% over the snapshot before it).
+    /// package O 38.5% / 38.9%, 36.9% / 37.9% over the snapshot before it;
+    /// package P 42.3% / 42.3%). Set PGNIMBUS_ORACLE_TRACE=1 to see, per
+    /// query, what was typed by hand and what was accepted (⟨…⟩).
     /// A package that raises the saving raises the floor, and one that adds
     /// queries to the corpus measures the base branch on them first.
     /// </summary>
@@ -116,6 +118,10 @@ public class CompletionTypingReplayTests
                 var tally = TypeLikeAnOracle(window, editor, target, autoAlias);
                 total.Add(tally);
                 report.AppendLine($"Q{q + 1}: {target.Length} characters, {tally.Keys} keys, saved {1 - (double)tally.Keys / target.Length:P0}");
+                if (Environment.GetEnvironmentVariable("PGNIMBUS_ORACLE_TRACE") == "1")
+                {
+                    report.AppendLine($"    {tally.Trace}");
+                }
             }
 
             window.Close();
@@ -126,11 +132,14 @@ public class CompletionTypingReplayTests
         Console.WriteLine($"auto-alias {(autoAlias ? "on" : "off")}: {total.Characters} characters, {total.Keys} keys, saved {saved:P1}; "
             + $"{total.Accepts} accepts, {total.Downs} Downs, {total.Escapes} Escapes before an Enter");
         Console.WriteLine(report);
-        await Assert.That(saved).IsGreaterThanOrEqualTo(0.38);
+        await Assert.That(saved).IsGreaterThanOrEqualTo(0.42);
     }
 
     private sealed class OracleTally
     {
+        // What was typed by hand and what was accepted (⟨…⟩), for
+        // PGNIMBUS_ORACLE_TRACE=1: where the keys still go.
+        public readonly StringBuilder Trace = new();
         public long Characters;
         public long Keys;
         public long Accepts;
@@ -167,6 +176,7 @@ public class CompletionTypingReplayTests
                 tally.Accepts++;
                 if (TextBeforeCaret(editor) == target[..pick.NewPos])
                 {
+                    tally.Trace.Append('⟨').Append(target[pos..pick.NewPos]).Append('⟩');
                     pos = pick.NewPos;
                     continue;
                 }
@@ -185,6 +195,7 @@ public class CompletionTypingReplayTests
 
             TypeKey(window, ch);
             tally.Keys++;
+            tally.Trace.Append(ch == '\n' ? "⏎" : ch.ToString());
             pos++;
             if (TextBeforeCaret(editor) != target[..pos])
             {
@@ -212,7 +223,7 @@ public class CompletionTypingReplayTests
         for (var r = selectedIndex; r >= 0 && r < rows.Count && r - selectedIndex <= 4; r++)
         {
             var item = rows[r];
-            var edit = CompletionEdits.Plan(text, pos, item.InsertText, item.InsertKind, autoAlias ? item.AliasTable : null);
+            var edit = CompletionEdits.Plan(text, pos, item.InsertText, item.InsertKind, autoAlias ? item.AliasTable : null, item.CaretIndex, item.ReplaceFrom);
             var after = text[..edit.ReplaceStart] + edit.InsertText + text[(edit.ReplaceStart + edit.ReplaceLength)..];
             var newPos = edit.CaretOffset;
             if (newPos <= pos || newPos > target.Length || after[..newPos] != target[..newPos])
