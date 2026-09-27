@@ -1080,6 +1080,13 @@ csproj / WiX / MSIX manifest reference them unchanged:
   "Benchmarks pipeline" below.
 - `AvaloniaUseCompiledBindingsByDefault` is on — don't add uncompiled
   (reflection) bindings.
+- **A RID-less build keeps native assets for the host RID only, and no native
+  `.pdb`s** (repo-root `Directory.Build.targets`, 2026-09). Without it every
+  `dotnet build` copied SkiaSharp/HarfBuzz for all 17 RIDs plus 100 MB of
+  Windows symbols per architecture into each executable's `bin/` (~575 MB →
+  ~42 MB), and a built worktree weighed ~4.6 GB. Consequence: a Debug `bin/`
+  isn't portable across OS/arch — publish with `-r` for that, as the release
+  pipeline already does.
 
 ## Coding conventions
 

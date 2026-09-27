@@ -1,0 +1,37 @@
+<Project>
+
+  <!-- Keep native package assets for this machine only, and never their
+       symbols. A build without a RuntimeIdentifier (every `dotnet build`,
+       `dotnet run` and `dotnet test`) copies SkiaSharp's and HarfBuzzSharp's
+       native libraries for all 17 RIDs the packages ship, and the Windows ones
+       carry their .pdb files: 100 MB per architecture. That made each
+       executable's bin/ ~575 MB; the App, App.Tests, Screenshot and
+       CompletionBench each hold a copy, in Debug and Release, so one built
+       worktree came to ~4.6 GB. The host only ever loads the assets for its
+       own RID, so the rest were dead weight. A RID-specific build (every
+       publish) already gets one RID's assets and is only affected by the .pdb
+       removal. The price: a Debug bin/ no longer runs when copied to another
+       OS or architecture; publish with -r for that. -->
+  <PropertyGroup>
+    <_PgNimbusHostRid>$(NETCoreSdkRuntimeIdentifier)</_PgNimbusHostRid>
+    <_PgNimbusHostOs>$(_PgNimbusHostRid.Split('-')[0])</_PgNimbusHostOs>
+  </PropertyGroup>
+
+  <Target Name="PgNimbusTrimNativeRuntimeAssets" AfterTargets="ResolvePackageAssets">
+    <ItemGroup>
+      <RuntimeTargetsCopyLocalItems Remove="@(RuntimeTargetsCopyLocalItems)"
+                                    Condition="'%(Extension)' == '.pdb'" />
+      <NativeCopyLocalItems Remove="@(NativeCopyLocalItems)"
+                            Condition="'%(Extension)' == '.pdb'" />
+
+      <!-- Assets for the host's exact RID and its generic parents (win, linux,
+           osx, unix) survive; linux-musl-x64 on Alpine is an exact match. -->
+      <RuntimeTargetsCopyLocalItems Remove="@(RuntimeTargetsCopyLocalItems)"
+                                    Condition="'$(RuntimeIdentifier)' == ''
+                                               and '%(RuntimeIdentifier)' != '$(_PgNimbusHostRid)'
+                                               and '%(RuntimeIdentifier)' != '$(_PgNimbusHostOs)'
+                                               and !('%(RuntimeIdentifier)' == 'unix' and '$(_PgNimbusHostOs)' != 'win')" />
+    </ItemGroup>
+  </Target>
+
+</Project>
