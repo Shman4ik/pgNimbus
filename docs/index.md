@@ -1,11 +1,12 @@
 # pgNimbus documentation
 
-pgNimbus is a fast, open-source PostgreSQL GUI client with a modern, native UI.
-It launches in about 100 ms, streams results before your query finishes, and
-sends no telemetry.
+pgNimbus is a fast, open-source PostgreSQL client that talks to your database
+and nothing else. It is on screen in about 0.2 s, streams results while the
+query runs, and sends no telemetry.
 
-These pages cover how to use it. For why it exists, the benchmark numbers, and
-the roadmap, see the [README on GitHub](https://github.com/Shman4ik/pgNimbus).
+These pages cover how to use it. For why it exists and the benchmark numbers,
+see the [README on GitHub](https://github.com/Shman4ik/pgNimbus); for what may
+come next, the [roadmap](https://github.com/Shman4ik/pgNimbus/blob/main/ROADMAP.md).
 
 <div class="grid cards" markdown>
 

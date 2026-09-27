@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Please skim the [README backlog](https://github.com/Shman4ik/pgNimbus#backlog)
+        Please skim the [roadmap](https://github.com/Shman4ik/pgNimbus/blob/main/ROADMAP.md)
         first — a lot of planned work is already listed there. If your idea is
         on it, an issue is still welcome as a place to discuss specifics or
         register demand; just link the backlog line.

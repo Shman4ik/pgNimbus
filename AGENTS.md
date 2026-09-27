@@ -1163,7 +1163,7 @@ csproj / WiX / MSIX manifest reference them unchanged:
   `QueryEngineStagedConflictTests` (gated on `PGNIMBUS_TEST_CONN`, drives a real
   second session, including the lock case).
 - **Row details stage; browse filters compose; neither touches a query someone
-  wrote** (2026-09, README roadmap T4). Three pieces, and the rule each holds:
+  wrote** (2026-09, ROADMAP.md T4). Three pieces, and the rule each holds:
   (a) **One set of type-aware inputs.** `Views/ColumnValueEditorView` (bound to a
   `NewRowField`) is the Add-row dialog's editor stack pulled out whole, and it is
   also the row-detail sidebar's field editor and a browse filter's value box.
@@ -1537,6 +1537,13 @@ Numbers are machine-relative (this sandbox: ~160 ms AOT / ~2 s JIT to first
 frame; CI runners differ) — the point is the trend per commit, not the
 absolute value. If a change renames a metric in `benchmarks.json`, its
 gh-pages history starts over under the new name.
+
+**User-facing copy quotes the CI number, never a local one** (2026-09). The
+README, the docs home page and the landing page say "about 0.2 s", which is what
+the GitHub runner has recorded for NativeAOT startup on every release since late
+July. They used to say "~100 ms", a figure from a development sandbox that no
+public chart backed, which is exactly the kind of number a Show HN thread asks
+about first. If the CI figure moves for good, change all three together.
 
 ## Release pipeline
 

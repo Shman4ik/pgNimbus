@@ -2,13 +2,13 @@
 
 Thanks for your interest! pgNimbus is a fast, open-source PostgreSQL GUI
 client (.NET 10 + Avalonia 12, MIT). Contributions of all sizes are
-welcome — the [README backlog](README.md#backlog) is intentionally scoped
+welcome — the [roadmap](ROADMAP.md) is intentionally scoped
 as individually shippable pieces, and issues labeled `good first issue`
 are a fine place to start.
 
 ## Building
 
-See [Building and running](README.md#building-and-running) in the README.
+See [Building and running](README.md#-building-and-running) in the README.
 Short version: install the .NET 10 SDK, then
 
 ```bash
