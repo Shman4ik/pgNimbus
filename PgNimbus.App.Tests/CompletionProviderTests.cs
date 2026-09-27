@@ -1425,4 +1425,76 @@ public class CompletionProviderTests
         await Assert.That(items.Select(i => i.InsertText)).Contains("integer");
         await Assert.That(items.Select(i => i.InsertText)).Contains("jsonb");
     }
+
+    // --- Second audit, package R (E08): columns typed before their FROM ---
+
+    [Test]
+    [Arguments("SELECT c.fi|", "first_name", "customers")]
+    [Arguments("SELECT oi.qu|", "quantity", "order_items")]
+    [Arguments("SELECT inv.nu|", "number", "saas.invoices")]
+    [Arguments("SELECT tm.ro|", "role", "saas.team_members")]
+    [Arguments("SELECT p.ke|", "key", "saas.projects")]
+    [Arguments("SELECT i.number, i.ti|", "title", "saas.issues")]
+    [Arguments("SELECT count(u.id|", "id", "saas.users")]
+    [Arguments("SELECT row_number() OVER (PARTITION BY o.cu|", "customer_id", "orders")]
+    [Arguments("SELECT c.email, c.fi| FROM orders o", "first_name", "customers")] // editing: c still undeclared
+    public async Task An_alias_declared_later_offers_the_columns_of_what_it_shortens(string marked, string column, string table)
+    {
+        var items = At(Stand(), marked);
+
+        await Assert.That(items.Any(i => i.Text == column && i.Detail == table && i.IsGuess)).IsTrue();
+        await Assert.That(PreselectedItem(Stand(), marked).Text).IsEqualTo(column);
+    }
+
+    [Test]
+    public async Task The_table_the_path_finds_comes_before_one_it_does_not()
+    {
+        // "c" fits public.customers and saas.* tables starting with c; both have an email.
+        var ranked = CompletionRanker.Rank(At(Stand(), "SELECT c.em|"), "em", d => d.Text, d => d.Priority, _ => int.MaxValue);
+
+        await Assert.That(ranked.Items[ranked.SelectedIndex].Detail).IsEqualTo("customers");
+    }
+
+    [Test]
+    public async Task A_cte_the_alias_shortens_is_read_too()
+    {
+        const string marked = "WITH recent AS (SELECT customer_id, max(order_date) AS last_order FROM orders GROUP BY customer_id)\nSELECT c.email, r.la|";
+
+        await Assert.That(PreselectedItem(Stand(), marked) is { Text: "last_order", Detail: "recent" }).IsTrue();
+    }
+
+    [Test]
+    [Arguments("SELECT * FROM customers c WHERE x.|")] // a predicate: the FROM is written, x is a typo
+    [Arguments("SELECT c.| FROM customers c")] // declared: its own columns, not guesses
+    [Arguments("SELECT public.|")] // a schema
+    public async Task Only_an_undeclared_name_in_a_select_list_is_guessed(string marked)
+    {
+        await Assert.That(At(Stand(), marked).Any(i => i.IsGuess && i.Kind == SqlCompletionKind.Column)).IsFalse();
+    }
+
+    [Test]
+    public async Task A_bare_column_before_any_from_names_its_table_and_brings_the_from()
+    {
+        var items = At(Stand(), "SELECT first_n|");
+        var row = items.First(i => i.Text == "first_name" && i.Detail == "customers");
+
+        await Assert.That(row.AppendClause).IsEqualTo("FROM customers");
+        // It stands in for the catalog-wide row of the same name.
+        await Assert.That(items.Any(i => i.Text == "first_name" && i.AppendClause is null)).IsFalse();
+        await Assert.That(items.Any(i => i.Text == "email" && i.Detail == "saas.users" && i.AppendClause == "FROM saas.users")).IsFalse();
+        await Assert.That(At(Stand(), "SELECT em|").Any(i => i.Text == "email" && i.AppendClause == "FROM saas.users")).IsTrue();
+        // The list opens by itself after "SELECT ", before a letter: the path's tables are in it already.
+        await Assert.That(At(Stand(), "SELECT |").Any(i => i.Text == "first_name" && i.AppendClause == "FROM customers")).IsTrue();
+    }
+
+    [Test]
+    [Arguments("SELECT first_n| FROM customers")]
+    [Arguments("SELECT (SELECT first_n|)")]
+    [Arguments("SELECT 1 UNION SELECT first_n|")]
+    [Arguments("SELECT|")]
+    [Arguments("SELECT count(*) AS ord|")] // a name being made up
+    public async Task No_from_is_brought_where_one_is_written_or_would_not_fit(string marked)
+    {
+        await Assert.That(At(Stand(), marked).Any(i => i.AppendClause is not null)).IsFalse();
+    }
 }

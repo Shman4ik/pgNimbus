@@ -179,6 +179,49 @@ public static class CompletionEdits
         return TableAliaser.Derive(seed, taken);
     }
 
+    /// <summary>
+    /// <paramref name="edit"/> with <paramref name="clause"/> (<c>FROM customers</c>)
+    /// written on a line of its own at the end of the statement the edit is in,
+    /// as the same single edit (one Undo step): the replaced range grows to the
+    /// statement's last character, the text between is kept, and the caret stays
+    /// where the edit put it. The statement ends at its <c>;</c>, or at a blank
+    /// line when none was typed — nothing past either is touched.
+    /// </summary>
+    public static CompletionEdit AppendClause(string text, CompletionEdit edit, string clause)
+    {
+        var editEnd = edit.ReplaceStart + edit.ReplaceLength;
+        var (_, end) = SqlCompletionContext.CompletionStatementSpan(text, edit.ReplaceStart);
+        for (var i = editEnd; i < end; i++)
+        {
+            if (text[i] != '\n')
+            {
+                continue;
+            }
+
+            var next = i + 1;
+            while (next < end && text[next] is ' ' or '\t' or '\r')
+            {
+                next++;
+            }
+
+            if (next < end && text[next] == '\n')
+            {
+                end = i;
+                break;
+            }
+        }
+
+        while (end > editEnd && char.IsWhiteSpace(text[end - 1]))
+        {
+            end--;
+        }
+
+        end = Math.Max(end, editEnd);
+        var newline = text.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
+        return new CompletionEdit(edit.ReplaceStart, end - edit.ReplaceStart,
+            string.Concat(edit.InsertText, text.AsSpan(editEnd, end - editEnd), newline, clause), edit.CaretOffset);
+    }
+
     // True when the next word after `end` (same line) is an alias — AS, or an
     // identifier that isn't a keyword a table reference can be followed by.
     private static bool AliasFollows(string text, int end)

@@ -726,6 +726,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         }
 
         var sequences = catalog.Sequences.Where(s => !excluded.Contains(s.Schema)).ToList();
+        var columnsByName = ColumnIndex.Build(tables.Where(t => !t.IsPartition && !IsSystemSchema(t.Schema)));
 
         return new Snapshot(
             tables,
@@ -750,6 +751,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
             References = references,
             Sequences = sequences,
             Catalog = catalog,
+            ColumnsByName = columnsByName,
         };
     }
 
@@ -1806,6 +1808,64 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
             }
         }
 
+        // Nothing is called that: a select list typed before its FROM (E08).
+        if (items.Count == 0 && scope.Block is { Kind: SqlBlockKind.Select } selectBlock && selectBlock.ClauseAt(scope.Caret) == "select"
+            && snapshot.Catalog?.Schemas.Contains(qualifier) != true)
+        {
+            return FutureAliasColumns(snapshot, selectBlock, qualifier);
+        }
+
+        return items;
+    }
+
+    // How many relations an undeclared alias is read as at most: "c" fits every
+    // table starting with c, and the list is for the likeliest few.
+    private const int FutureAliasTables = 12;
+
+    // "SELECT c.fi|" before "FROM customers c" (E08, "columns first"): nothing
+    // declares c yet, so offer the columns of what it would stand for — a CTE
+    // the statement defines, or a table whose name it shortens (AliasGuess) —
+    // each row naming its relation on the right. The likeliest fit first, one
+    // the search_path finds before one it doesn't. All guesses: Enter takes one
+    // only when it was chosen.
+    private List<SqlCompletionData> FutureAliasColumns(Snapshot snapshot, SqlBlock block, string alias)
+    {
+        var relations = new List<(int Fit, bool OnPath, string Label, IReadOnlyList<SourceColumn> Columns)>();
+        foreach (var cte in SqlScopeModel.VisibleCtes(block))
+        {
+            if (AliasGuess.Fit(alias, cte.Name) is { } fit && CteOutput(snapshot, cte, []) is { Count: > 0 } output)
+            {
+                relations.Add((fit, true, cte.Name, output));
+            }
+        }
+
+        foreach (var table in snapshot.Tables)
+        {
+            if (table.IsPartition || IsSystemSchema(table.Schema) || AliasGuess.Fit(alias, table.Name) is not { } fit)
+            {
+                continue;
+            }
+
+            var onPath = Resolve(snapshot, "", table.Name) == table;
+            relations.Add((fit, onPath, onPath ? table.Name : $"{table.Schema}.{table.Name}", [.. CatalogColumns(snapshot, table)]));
+        }
+
+        var items = new List<SqlCompletionData>();
+        var index = 0;
+        foreach (var relation in relations.OrderBy(r => r.Fit).ThenBy(r => !r.OnPath).ThenBy(r => r.Label, StringComparer.Ordinal).Take(FutureAliasTables))
+        {
+            var priority = CurrentColumnPriority - (relation.Fit * 2) - (relation.OnPath ? 0 : 1) - (index++ * 0.01);
+            foreach (var column in relation.Columns)
+            {
+                items.Add(new SqlCompletionData(column.Name, SqlCompletionKind.Column, SqlIdentifier.QuoteIfNeeded(column.Name), priority)
+                {
+                    Detail = relation.Label,
+                    DescriptionText = ColumnDescription(column, $"if {alias} is {relation.Label}"),
+                    IsGuess = true,
+                });
+            }
+        }
+
         return items;
     }
 
@@ -2039,8 +2099,149 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
     // Bare identifier: the whole catalog, with the statement's own columns
     // hoisted to the front (and top priority), plus its aliases and CTE names.
     // At a statement-start caret the leading keywords go in front of even those.
-    private IReadOnlyList<SqlCompletionData> GetGeneralCompletions(Snapshot snapshot, string statement, Scope scope, IReadOnlyList<string>? operandKeywords) =>
-        WithCatalog(CollectStatementItems(snapshot, statement, scope, out _), operandKeywords, snapshot.BaseItems, snapshot.BaseItemsWithoutKeywords);
+    private IReadOnlyList<SqlCompletionData> GetGeneralCompletions(Snapshot snapshot, string statement, Scope scope, IReadOnlyList<string>? operandKeywords)
+    {
+        var items = CollectStatementItems(snapshot, statement, scope, out _);
+        if (scope.Block is { Kind: SqlBlockKind.Select, Sources.Count: 0, Query: { Owner: null, WithOwner: null, Branches.Count: 1 } } block
+            && block.ClauseAt(scope.Caret) == "select" && !block.Clauses.Any(c => c.Keyword == "from")
+            && !SqlCompletionContext.IsNewNamePosition(statement, scope.Caret))
+        {
+            items.AddRange(ColumnsWithTheirFrom(snapshot, statement[scope.WordStart(statement)..scope.Caret]));
+        }
+
+        return WithCatalog(items, operandKeywords, snapshot.BaseItems, snapshot.BaseItemsWithoutKeywords);
+    }
+
+    // How many "column · table" rows a select list with no FROM gets at most:
+    // a letter can start thousands of columns in a big catalog, and past this
+    // the catalog-wide rows (no table, no FROM) still stand for the rest. With
+    // nothing typed yet (the list opens by itself after "SELECT ") the rows are
+    // the search_path's tables' columns, and there can be more of those: the
+    // popup filters the list it opened with as the name is typed, it doesn't ask again.
+    private const int FromlessColumnRows = 200;
+    private const int FromlessPathColumnRows = 2000;
+
+    // "SELECT first|" with no FROM anywhere (E08): one row per table having a
+    // column that starts with the word, the table on the right, and accepting
+    // it writes the FROM too ("SELECT first_name\nFROM customers"). The
+    // catalog-wide row of the same name steps aside for them (Merge). Guesses,
+    // like the row they stand in for.
+    private List<SqlCompletionData> ColumnsWithTheirFrom(Snapshot snapshot, string word)
+    {
+        var items = new List<SqlCompletionData>();
+        if (word.Length == 0)
+        {
+            foreach (var table in snapshot.Tables)
+            {
+                if (table.IsPartition || IsSystemSchema(table.Schema) || Resolve(snapshot, "", table.Name) != table)
+                {
+                    continue;
+                }
+
+                foreach (var column in table.Columns)
+                {
+                    if (items.Count == FromlessPathColumnRows)
+                    {
+                        return items;
+                    }
+
+                    items.Add(ColumnWithItsFrom(snapshot, table, column, onPath: true));
+                }
+            }
+
+            return items;
+        }
+
+        var index = snapshot.ColumnsByName;
+        for (var i = index.First(word); i < index.Names.Length && items.Count < FromlessColumnRows
+            && index.Names[i].StartsWith(word, StringComparison.OrdinalIgnoreCase); i++)
+        {
+            var (table, column) = index.Owners[i];
+            items.Add(ColumnWithItsFrom(snapshot, table, column, Resolve(snapshot, "", table.Name) == table));
+        }
+
+        return items;
+    }
+
+    // The user's columns (no system schema, no partition) sorted by name,
+    // ignoring case, for "SELECT first|" with no FROM: a prefix is a binary
+    // search, not a pass over a million columns per keystroke. Two parallel
+    // arrays of references to what the catalog already holds — no string is
+    // copied — sorted once, off the UI thread, with the snapshot.
+    private sealed class ColumnIndex
+    {
+        public static readonly ColumnIndex Empty = new([], []);
+
+        private ColumnIndex(string[] names, (CompletionTable, TableColumn)[] owners)
+        {
+            Names = names;
+            Owners = owners;
+        }
+
+        public string[] Names { get; }
+
+        public (CompletionTable Table, TableColumn Column)[] Owners { get; }
+
+        public static ColumnIndex Build(IEnumerable<CompletionTable> tables)
+        {
+            var names = new List<string>();
+            var owners = new List<(CompletionTable, TableColumn)>();
+            foreach (var table in tables)
+            {
+                foreach (var column in table.Columns)
+                {
+                    names.Add(column.Column);
+                    owners.Add((table, column));
+                }
+            }
+
+            var nameArray = names.ToArray();
+            var ownerArray = owners.ToArray();
+            Array.Sort(nameArray, ownerArray, StringComparer.OrdinalIgnoreCase);
+            return new ColumnIndex(nameArray, ownerArray);
+        }
+
+        // The first name at or after `prefix`, ignoring case.
+        public int First(string prefix)
+        {
+            var low = 0;
+            var high = Names.Length;
+            while (low < high)
+            {
+                var mid = (low + high) / 2;
+                if (string.Compare(Names[mid], prefix, StringComparison.OrdinalIgnoreCase) < 0)
+                {
+                    low = mid + 1;
+                }
+                else
+                {
+                    high = mid;
+                }
+            }
+
+            return low;
+        }
+    }
+
+    private SqlCompletionData ColumnWithItsFrom(Snapshot snapshot, CompletionTable table, TableColumn column, bool onPath)
+    {
+        var label = onPath && !AlwaysQualifyTables
+            ? SqlIdentifier.QuoteIfNeeded(table.Name)
+            : $"{SqlIdentifier.QuoteIfNeeded(table.Schema)}.{SqlIdentifier.QuoteIfNeeded(table.Name)}";
+        var source = new SourceColumn(column.Column, column.DataType, table.Name)
+        {
+            Facts = column,
+            Reference = snapshot.References.GetValueOrDefault((table.Schema, table.Name, column.Column)),
+        };
+        return new SqlCompletionData(column.Column, SqlCompletionKind.Column, SqlIdentifier.QuoteIfNeeded(column.Column),
+            ColumnPriority + (onPath ? 0.4 : 0.2))
+        {
+            Detail = onPath ? table.Name : $"{table.Schema}.{table.Name}",
+            DescriptionText = ColumnDescription(source, $"adds FROM {label}"),
+            IsGuess = true,
+            AppendClause = $"FROM {label}",
+        };
+    }
 
     // Predicate/row position (WHERE, ON, HAVING, GROUP/ORDER BY, USING): only the
     // statement's sources' columns can be named here. When the statement has
@@ -2888,6 +3089,11 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
             {
                 result.Add(item);
                 headKinds |= 1 << (int)item.Kind;
+                if (item is { Kind: SqlCompletionKind.Column, AppendClause: not null })
+                {
+                    // "first_name · customers" stands for the bare catalog-wide row.
+                    seen.Add($"{(int)item.Kind}{item.InsertText}");
+                }
             }
         }
 
@@ -2957,6 +3163,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
     private static string DedupeKey(SqlCompletionData item) => item.Kind switch
     {
         SqlCompletionKind.Table or SqlCompletionKind.Function => $"{(int)item.Kind}{item.Text}{item.Detail}",
+        SqlCompletionKind.Column when item.AppendClause is { } clause => $"{(int)item.Kind}{item.InsertText}{clause}",
         SqlCompletionKind.Column => $"{(int)item.Kind}{item.InsertText}",
         SqlCompletionKind.Keyword => $"{(int)item.Kind}{item.Text.ToUpperInvariant()}",
         _ => $"{(int)item.Kind}{item.Text}",
@@ -2986,6 +3193,8 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         public IReadOnlyDictionary<(string, string, string), string> References { get; init; } = new Dictionary<(string, string, string), string>();
 
         public IReadOnlyList<SequenceName> Sequences { get; init; } = [];
+
+        public ColumnIndex ColumnsByName { get; init; } = ColumnIndex.Empty;
 
         public CompletionCatalog? Catalog { get; init; }
 

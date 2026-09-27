@@ -32,7 +32,7 @@ public static class TableAliaser
     // First letter of each word, splitting on underscores/digits/punctuation
     // and on lowercase→uppercase transitions ("OrderItems" → "oi"), lowercased.
     // Falls back to "t" when the name yields no letters (e.g. all digits).
-    private static string Initials(string table)
+    internal static string Initials(string table)
     {
         Span<char> initials = stackalloc char[table.Length];
         var count = 0;

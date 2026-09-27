@@ -174,12 +174,14 @@ public class SqlCommandGrammarTests
         const string pieces = "create alter drop table index on ( ) , . references grant to set = ' \" if not exists x";
         var words = pieces.Split(' ');
         var random = new Random(3);
+        var read = 0;
         for (var n = 0; n < 3000; n++)
         {
             var text = string.Join(' ', Enumerable.Range(0, random.Next(1, 9)).Select(_ => words[random.Next(words.Length)]));
             _ = SqlCommandGrammar.At(text, random.Next(text.Length + 1));
+            read++;
         }
 
-        await Assert.That(true).IsTrue();
+        await Assert.That(read).IsEqualTo(3000);
     }
 }
