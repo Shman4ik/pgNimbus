@@ -18,11 +18,13 @@ namespace PgNimbus.App.Tests;
 /// completion test puts the caret into finished text; these type the text the
 /// way a person does, which is where the popup can get in the way.
 ///
-/// The literal replay runs in every build: it is the acceptance test of the
-/// audit's package K (51 divergences at the audit's revision, none since).
-/// The keystroke-saving measurement is explicit — it is a number to read, not
-/// a gate on every commit. Run both with
-/// <c>dotnet test --project PgNimbus.App.Tests -- --treenode-filter "/*/*/CompletionTypingReplayTests/*"</c>.
+/// Both run in every build. The literal replay is the acceptance test of the
+/// audit's package K (51 divergences at the audit's revision, none since); the
+/// keystroke saving has a floor each package that raises it raises too, so a
+/// ranking change that costs keystrokes fails the build instead of going
+/// unnoticed. Run just these with
+/// <c>dotnet test --project PgNimbus.App.Tests -- --treenode-filter "/*/*/CompletionTypingReplayTests/*"</c>;
+/// the saving is printed into the test report (TestResults/*.tunit-report.json).
 /// </summary>
 [NotInParallel]
 public class CompletionTypingReplayTests
@@ -88,12 +90,12 @@ public class CompletionTypingReplayTests
     /// type the corpus and take a row with Tab (after up to four Downs)
     /// whenever it writes the next stretch of the target and saves keys, and
     /// press Escape before their own Enter when Enter would otherwise take a
-    /// row. The number goes to the test output; the floor only stops it from
-    /// getting worse than the audit's baseline (24.4% with the auto-alias off,
-    /// 25.6% with it on). A package that raises the saving raises the floor.
+    /// row. The number goes to the test output; the floor stops it from
+    /// getting worse than the last package delivered (the audit's baseline was
+    /// 24.4% with the auto-alias off, 25.6% with it on; package L 32.9% /
+    /// 33.9%). A package that raises the saving raises the floor.
     /// </summary>
     [Test]
-    [Explicit]
     [Arguments(false)]
     [Arguments(true)]
     public async Task Keystroke_saving_of_a_user_who_always_picks_the_best_row(bool autoAlias)
@@ -121,7 +123,7 @@ public class CompletionTypingReplayTests
         Console.WriteLine($"auto-alias {(autoAlias ? "on" : "off")}: {total.Characters} characters, {total.Keys} keys, saved {saved:P1}; "
             + $"{total.Accepts} accepts, {total.Downs} Downs, {total.Escapes} Escapes before an Enter");
         Console.WriteLine(report);
-        await Assert.That(saved).IsGreaterThanOrEqualTo(0.24);
+        await Assert.That(saved).IsGreaterThanOrEqualTo(0.32);
     }
 
     private sealed class OracleTally

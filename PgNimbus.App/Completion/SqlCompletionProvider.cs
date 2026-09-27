@@ -5,7 +5,14 @@ using PgNimbus.Core.Text;
 namespace PgNimbus.App.Completion;
 
 /// <summary>A relation the completion catalog knows, with its columns in ordinal order.</summary>
-public sealed record CompletionTable(string Schema, string Name, IReadOnlyList<TableColumn> Columns);
+public sealed record CompletionTable(string Schema, string Name, IReadOnlyList<TableColumn> Columns)
+{
+    /// <summary>pg_class.relkind: <c>r</c> table, <c>v</c> view, <c>m</c> materialized view, <c>p</c> partitioned table, <c>f</c> foreign table.</summary>
+    public char Kind { get; init; } = 'r';
+
+    /// <summary>A partition of another relation: reached through its parent, not offered on its own.</summary>
+    public bool IsPartition { get; init; }
+}
 
 /// <summary>A catalog function, procedure or aggregate, with the schema that owns it.</summary>
 public sealed record CompletionFunction(string Schema, FunctionInfo Function);
@@ -92,19 +99,15 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         "KEY", "REFERENCES", "CASCADE", "IF",
     ];
 
-    // What can legally open a statement, ordered by how often one actually does.
-    // Only consulted at a statement-start caret (see SqlCompletionContext.
-    // IsAtStatementStart); the order is the ranking, so SELECT outranks SET on a
-    // typed "se" even though SET is the shorter match. A few of these aren't in
-    // Keywords above (they're only ever leading words) — the rest dedupe against
-    // it, the boosted copy winning because it is prepended.
-    private static readonly string[] StatementStartKeywords =
-    [
-        "SELECT", "WITH", "INSERT", "UPDATE", "DELETE", "CREATE", "ALTER",
-        "DROP", "EXPLAIN", "TRUNCATE", "BEGIN", "COMMIT", "ROLLBACK", "SET",
-        "SHOW", "ANALYZE", "VACUUM", "REFRESH", "COMMENT", "GRANT", "REVOKE",
-        "COPY", "CALL", "DO",
-    ];
+    // The only keywords a relation's position can hold (FROM |, JOIN |).
+    private static readonly string[] TablePositionKeywords = ["LATERAL", "ONLY", "ROWS"];
+
+    // The everyday functions, ranked a little over the rest of the curated list.
+    private static readonly HashSet<string> CommonFunctions = new(StringComparer.Ordinal)
+    {
+        "count", "sum", "avg", "min", "max", "coalesce", "now", "date_trunc", "lower", "upper", "length",
+        "round", "string_agg", "array_agg", "row_number", "to_char", "jsonb_build_object", "nullif", "extract",
+    };
 
     // Everyday Postgres functions, curated rather than read from pg_proc — the
     // full catalog is thousands of overloads of noise. Inserted as "name()"
@@ -163,14 +166,31 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
     private const double CurrentColumnPriority = 100;
     private const double AliasPriority = 90;
     private const double FkTablePriority = 15;
+    // A relation the statement already joins, after "schema." in a JOIN.
+    private const double JoinedTablePriority = 5;
+    // An ON condition's column tied by a foreign key to the other side, over
+    // the relation's other columns — more when the statement doesn't use it yet.
+    private const double ForeignKeyBoost = 10;
+    private const double UsedForeignKeyBoost = 5;
     private const double CtePriority = 20;
     // A relation its bare name finds along the search_path, over a same-named
     // one in another schema.
     private const double PathTablePriority = 12;
     private const double TablePriority = 10;
-    private const double ColumnPriority = 5;
+    // Keywords that can begin an expression, where one is being started:
+    // under the statement's own columns, over the catalog.
+    private const double OperandKeywordPriority = 40;
+    // The everyday functions (count, sum, now …) a little over the rest.
+    private const double CommonFunctionPriority = 3.5;
     private const double FunctionPriority = 3;
+    // A catalog-wide column the statement has no source for: a guess, under
+    // the functions (docs/design/sql-completion-audit-2.md §6.2 step 3).
+    private const double ColumnPriority = 2;
+    // A table named in an expression (only ever as a qualifier there).
+    private const double GeneralTablePriority = 1.5;
     private const double SchemaPriority = 1;
+    // A partition, after its schema's "."; under its parent.
+    private const double PartitionPriority = 0.5;
     // Types after "::": a user's own domains and enums before the built-ins.
     private const double UserTypePriority = 12;
     private const double TypePriority = 11;
@@ -324,13 +344,17 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
             }
 
             schemaNames.Add(schema.Name);
-            var names = await schemaService.GetRelationNamesAsync(schema.Name, ct);
+            var relations = await schemaService.GetCompletionRelationsAsync(schema.Name, ct);
             var columns = (await schemaService.GetAllColumnsAsync(schema.Name, ct))
                 .GroupBy(c => c.Table, StringComparer.Ordinal)
                 .ToDictionary(g => g.Key, g => (IReadOnlyList<TableColumn>)[.. g], StringComparer.Ordinal);
-            foreach (var name in names)
+            foreach (var relation in relations)
             {
-                tables.Add(new CompletionTable(schema.Name, name, columns.GetValueOrDefault(name) ?? []));
+                tables.Add(new CompletionTable(schema.Name, relation.Name, columns.GetValueOrDefault(relation.Name) ?? [])
+                {
+                    Kind = relation.Kind,
+                    IsPartition = relation.IsPartition,
+                });
             }
 
             foreach (var function in await schemaService.GetFunctionsAsync(schema.Name, ct))
@@ -382,15 +406,34 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
 
         var keywordItems = Keywords.Select(k => new SqlCompletionData(k, SqlCompletionKind.Keyword)).ToList();
         var builtinFunctionItems = Functions
-            .Select(f => new SqlCompletionData(f, SqlCompletionKind.Function, $"{f}()", FunctionPriority))
+            .Select(f => new SqlCompletionData(f, SqlCompletionKind.Function, $"{f}()", CommonFunctions.Contains(f) ? CommonFunctionPriority : FunctionPriority))
             .ToList();
+
+        // A name pg_catalog already has is what an unqualified call reaches
+        // (pg_catalog is searched first, whatever the path says), so an
+        // on-path schema's same-named function — pgcrypto's gen_random_uuid in
+        // public — is one row too many (E04). Off the path it stays: it is
+        // inserted qualified and reaches something else.
+        var builtinNames = new HashSet<string>(Functions, StringComparer.Ordinal);
+        foreach (var builtin in catalog.BuiltinFunctions)
+        {
+            if (!builtin.Function.IsInternal)
+            {
+                builtinNames.Add(builtin.Function.Name);
+            }
+        }
 
         // Overloads collapse into one row per schema-qualified name, with every
         // signature in the tooltip; procedures are kept apart because they are
-        // only callable after CALL, never inside an expression.
+        // only callable after CALL, never inside an expression. A function the
+        // catalog marks as machinery (FunctionInfo.IsInternal: a type's I/O, an
+        // operator's implementation …) is never a candidate.
         var callableItems = new List<SqlCompletionData>();
         var procedureItems = new List<SqlCompletionData>();
-        foreach (var group in functions.GroupBy(f => (f.Schema, f.Function.Name, IsProcedure: f.Function.Kind == 'p')))
+        foreach (var group in functions
+            .Where(f => !f.Function.IsInternal)
+            .Where(f => !(builtinNames.Contains(f.Function.Name) && (searchPath?.Contains(f.Schema) ?? f.Schema == "public")))
+            .GroupBy(f => (f.Schema, f.Function.Name, IsProcedure: f.Function.Kind == 'p')))
         {
             var item = FunctionItem(group.Key.Schema, group.Key.Name, [.. group.Select(f => f.Function)], searchPath);
             (group.Key.IsProcedure ? procedureItems : callableItems).Add(item);
@@ -434,7 +477,14 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
             // means the relation that was picked (sql-completion-audit-2.md F01).
             // The second list is for a session whose search_path the catalog
             // can't know (SessionSearchPathChanged).
-            baseItems.Add(TableItem(table.Schema, table.Name, qualified: false));
+            // A partition is reached through its parent: offered only after
+            // "schema.", below everything else there (E05).
+            if (table.IsPartition)
+            {
+                continue;
+            }
+
+            baseItems.Add(TableItem(table.Schema, table.Name, qualified: false, GeneralTablePriority));
             tableRefItems.Add(TableRefItem(table,
                 ResolveShort(tablesByKey, tablesByName, excluded, searchPath, table.Name) == table));
             tableRefItemsUnknownPath.Add(TableRefItem(table,
@@ -447,8 +497,10 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
             }
         }
 
-        tableRefItems.AddRange(keywordItems);
-        tableRefItemsUnknownPath.AddRange(keywordItems);
+        // In table position only a relation or one of these can be written.
+        var tableKeywordItems = TablePositionKeywords.Select(k => new SqlCompletionData(k, SqlCompletionKind.Keyword)).ToList();
+        tableRefItems.AddRange(tableKeywordItems);
+        tableRefItemsUnknownPath.AddRange(tableKeywordItems);
         baseItems.AddRange(callableItems);
 
         var predicateBase = keywordItems.Concat(builtinFunctionItems).Concat(callableItems).ToList();
@@ -479,10 +531,12 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
             foreignKeys,
             searchPath,
             new HashSet<string>(excluded, StringComparer.Ordinal),
-            Dedupe(baseItems),
-            Dedupe(tableRefItems),
-            Dedupe(tableRefItemsUnknownPath),
-            Dedupe(predicateBase),
+            new CandidateList(Dedupe(baseItems)),
+            new CandidateList(Dedupe(baseItems.Where(i => i.Kind != SqlCompletionKind.Keyword))),
+            new CandidateList(Dedupe(tableRefItems)),
+            new CandidateList(Dedupe(tableRefItemsUnknownPath)),
+            new CandidateList(Dedupe(predicateBase)),
+            new CandidateList(Dedupe(predicateBase.Where(i => i.Kind != SqlCompletionKind.Keyword))),
             hintFunctions,
             typeItems);
     }
@@ -656,27 +710,63 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
             return columnList;
         }
 
+        // Which keywords are legal here (sql-completion-audit-2.md §6.2 step 1):
+        // where only keywords fit — a statement's start, right after a finished
+        // expression, after IS / ORDER / INSERT … — they are the whole list;
+        // where an expression starts, the ones that can start it join the
+        // columns and functions; anywhere else the keywords stay as they are.
+        var advice = context.InQuotedIdentifier ? SqlKeywordAdvice.None : SqlKeywordGrammar.At(statement, caret);
+        if (advice.KeywordsOnly)
+        {
+            return KeywordItems(advice.Keywords, StatementKeywordPriority);
+        }
+
+        // Where an expression starts, the keywords that can start one replace
+        // every other keyword; they go in with the per-caret items, and the
+        // catalog-wide tail is the one without keywords, so a million-row list
+        // is still copied once.
+        var operandKeywords = advice.Position == SqlKeywordPosition.Operand ? advice.Keywords : null;
         return context.Clause switch
         {
-            SqlClause.JoinTableRef when SqlCompletionContext.IsAfterCompleteJoinTarget(statement, caret) =>
-                BuildTableRefCompletions(snapshot, statement, scope, JoinKeywordBoostItems),
-            // A finished FROM item: the clause words that can follow it. (A
-            // finished JOIN target owes its ON/USING first, above.)
+            // A finished JOIN target owes ON/USING; a finished FROM item is
+            // followed by a clause. No relation can come next in either (only
+            // a comma brings one back), so the list is those words alone.
+            SqlClause.JoinTableRef when SqlCompletionContext.IsAfterCompleteJoinTarget(statement, caret) => JoinKeywordBoostItems,
             SqlClause.TableRef or SqlClause.FromTableRef
-                when SqlCompletionContext.IsAfterCompleteFromItem(statement, caret) =>
-                BuildTableRefCompletions(snapshot, statement, scope, FromItemFollowItems),
+                when SqlCompletionContext.IsAfterCompleteFromItem(statement, caret) => FromItemFollowItems,
             SqlClause.TableRef or SqlClause.FromTableRef => BuildTableRefCompletions(snapshot, statement, scope, boosted: []),
             SqlClause.JoinTableRef => BuildTableRefCompletions(snapshot, statement, scope, FkNeighborItems(snapshot, statement, scope)),
             SqlClause.Predicate when SqlCompletionContext.IsAfterOnKeyword(statement, caret) =>
-                GetJoinConditionCompletions(snapshot, statement, caret, scope),
-            SqlClause.Predicate => GetPredicateCompletions(snapshot, statement, scope),
+                GetJoinConditionCompletions(snapshot, statement, caret, scope, operandKeywords),
+            SqlClause.Predicate => GetPredicateCompletions(snapshot, statement, scope, operandKeywords),
             // A select list whose block already names its sources can only
             // reference those (and what is around it): not another branch's
             // tables, not the rest of the catalog.
             SqlClause.ColumnRef when scope.Block is { Kind: not SqlBlockKind.Values, Sources.Count: > 0 } =>
-                GetPredicateCompletions(snapshot, statement, scope),
-            _ => GetGeneralCompletions(snapshot, statement, scope, SqlCompletionContext.IsAtStatementStart(statement, caret)),
+                GetPredicateCompletions(snapshot, statement, scope, operandKeywords),
+            _ => GetGeneralCompletions(snapshot, statement, scope, operandKeywords),
         };
+    }
+
+    // The keywords `keywords`, ranked by their order: the first gets `top`.
+    private static List<SqlCompletionData> KeywordItems(IReadOnlyList<string> keywords, double top) =>
+        [.. keywords.Select((k, i) => new SqlCompletionData(k, SqlCompletionKind.Keyword, k, top - (i * 0.01)))];
+
+    // The per-caret items plus, where an expression starts, the keywords that
+    // can start one — ranked above the catalog, not above the statement's own
+    // columns — merged in front of the catalog-wide `tail`, which then leaves
+    // its own keywords out (IN, ORDER, WHEN can't start an expression).
+    private static IReadOnlyList<SqlCompletionData> WithCatalog(
+        List<SqlCompletionData> items, IReadOnlyList<string>? operandKeywords,
+        CandidateList tail, CandidateList tailWithoutKeywords)
+    {
+        if (operandKeywords is null)
+        {
+            return Merge(items, tail);
+        }
+
+        items.AddRange(KeywordItems(operandKeywords, OperandKeywordPriority));
+        return Merge(items, tailWithoutKeywords);
     }
 
     // Where only a type name can go: right after "::", or after AS inside
@@ -738,7 +828,10 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
             {
                 if ((level.FirstOrDefault(s => s.Alias == qualifier) ?? level.FirstOrDefault(s => s.Alias is null && s.Name == qualifier)) is { } source)
                 {
-                    return ColumnItems(ColumnsOf(snapshot, block, source, []) ?? []);
+                    var columns = ColumnItems(ColumnsOf(snapshot, block, source, []) ?? []);
+                    return JoinConditionSides(snapshot, statement, block, source, scope.Caret) is { } sides
+                        ? RankByForeignKeys(snapshot, statement, qualifier, columns, sides.Qualified, sides.Others)
+                        : columns;
                 }
             }
 
@@ -767,13 +860,29 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
             return ColumnItems(direct.Columns.Select(c => new SourceColumn(c.Column, c.DataType, direct.Name)));
         }
 
-        // schema. → the schema's tables and functions
+        // schema. → the schema's tables and functions. After JOIN, the tables
+        // an FK connects to the statement's first and the ones it already
+        // joins last; a partition always last (it is reached through its parent).
         var items = new List<SqlCompletionData>();
+        HashSet<(string, string)>? neighbours = null;
+        HashSet<(string, string)>? joined = null;
+        if (SqlCompletionContext.GetCaretContext(statement, scope.Caret).Clause == SqlClause.JoinTableRef)
+        {
+            var statementTables = ResolvedReferences(snapshot, scope.Relations(statement, int.MaxValue, exceptAt: QualifiedNameStart(statement, scope.Caret)));
+            neighbours = [.. ForeignKeyMatcher.FindJoinCandidates(statementTables, snapshot.ForeignKeys)];
+            joined = [.. statementTables.Select(t => (t.Schema, t.Table))];
+        }
+
         foreach (var table in snapshot.Tables)
         {
             if (table.Schema == qualifier)
             {
-                items.Add(TableItem(table.Schema, table.Name, qualified: false));
+                var key = (table.Schema, table.Name);
+                var priority = table.IsPartition ? PartitionPriority
+                    : neighbours?.Contains(key) == true ? FkTablePriority
+                    : joined?.Contains(key) == true ? JoinedTablePriority
+                    : TablePriority;
+                items.Add(TableItem(table.Schema, table.Name, qualified: false, priority));
             }
         }
 
@@ -792,13 +901,6 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
 
         return items;
     }
-
-    // Ranked copies of StatementStartKeywords: priority falls by one per position
-    // so the list's own order decides ties among equally-good prefix matches.
-    private static readonly IReadOnlyList<SqlCompletionData> StatementStartItems =
-        StatementStartKeywords
-            .Select((keyword, index) => new SqlCompletionData(keyword, SqlCompletionKind.Keyword, keyword, StatementKeywordPriority - index))
-            .ToList();
 
     private static readonly IReadOnlyList<SqlCompletionData> JoinKeywordBoostItems =
     [
@@ -861,14 +963,107 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         return items;
     }
 
+    // Where the dotted name under the caret starts ("saas.te|" → at "saas").
+    private static int QualifiedNameStart(string statement, int caret)
+    {
+        var start = Math.Clamp(caret, 0, statement.Length);
+        while (start > 0 && (SqlLexer.IsIdentPart(statement[start - 1]) || statement[start - 1] is '.' or '"'))
+        {
+            start--;
+        }
+
+        return start;
+    }
+
+    // When the caret is in a JOIN's ON condition, the two sides a column of
+    // `qualified` would be compared with: the joined relation itself, or (for
+    // a column of the joined relation) every relation before it. Null outside
+    // an ON, or when a side is not a catalog relation.
+    private (CompletionTable Qualified, IReadOnlyList<CompletionTable> Others)? JoinConditionSides(
+        Snapshot snapshot, string statement, SqlBlock block, SqlSource qualified, int caret)
+    {
+        if (!SqlKeywordGrammar.IsInJoinCondition(statement, caret)
+            || qualified.Derived is not null || qualified.IsFunction
+            || Resolve(snapshot, qualified.Schema, qualified.Name) is not { } table)
+        {
+            return null;
+        }
+
+        var joinedIndex = block.Sources.FindLastIndex(s => s.Start < caret);
+        if (joinedIndex < 0)
+        {
+            return null;
+        }
+
+        var joinedSource = block.Sources[joinedIndex];
+        var others = new List<CompletionTable>();
+        IEnumerable<SqlSource> otherSources = joinedSource == qualified ? block.Sources.Take(joinedIndex) : [joinedSource];
+        foreach (var source in otherSources)
+        {
+            if (source.Derived is null && !source.IsFunction && Resolve(snapshot, source.Schema, source.Name) is { } other)
+            {
+                others.Add(other);
+            }
+        }
+
+        return others.Count == 0 ? null : (table, others);
+    }
+
+    // A column of `table` that a foreign key ties to one of `others` (either
+    // direction) is what the ON most likely compares: it goes first — and an
+    // FK the statement doesn't use yet before one it does, which is what the
+    // second JOIN of the same table needs (B07: "u.id = i." → assignee_id,
+    // reporter_id, not id).
+    private static List<SqlCompletionData> RankByForeignKeys(
+        Snapshot snapshot, string statement, string qualifier, List<SqlCompletionData> columns,
+        CompletionTable table, IReadOnlyList<CompletionTable> others)
+    {
+        var linked = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var fk in snapshot.ForeignKeys)
+        {
+            foreach (var other in others)
+            {
+                if (fk.FromSchema == table.Schema && fk.FromTable == table.Name && fk.ToSchema == other.Schema && fk.ToTable == other.Name)
+                {
+                    linked.UnionWith(fk.FromColumns);
+                }
+
+                if (fk.ToSchema == table.Schema && fk.ToTable == table.Name && fk.FromSchema == other.Schema && fk.FromTable == other.Name)
+                {
+                    linked.UnionWith(fk.ToColumns);
+                }
+            }
+        }
+
+        if (linked.Count == 0)
+        {
+            return columns;
+        }
+
+        return [.. columns.Select(c =>
+        {
+            if (!linked.Contains(c.Text))
+            {
+                return c;
+            }
+
+            var used = statement.Contains($"{qualifier}.{c.InsertText}", StringComparison.OrdinalIgnoreCase);
+            return new SqlCompletionData(c.Text, c.Kind, c.InsertText, CurrentColumnPriority + (used ? UsedForeignKeyBoost : ForeignKeyBoost))
+            {
+                Detail = c.Detail,
+                DescriptionText = $"{c.DescriptionText} · foreign key",
+            };
+        })];
+    }
+
     // The join condition suggestion after ON: pairs the table this ON belongs
     // to — the last one joined *before the caret*, so editing an early ON
     // ignores the JOINs written after it — with the closest earlier table it has
     // a direct FK to, and offers "child.fk_col = parent.pk_col" as the single
     // top item.
-    private IReadOnlyList<SqlCompletionData> GetJoinConditionCompletions(Snapshot snapshot, string statement, int caret, Scope scope)
+    private IReadOnlyList<SqlCompletionData> GetJoinConditionCompletions(Snapshot snapshot, string statement, int caret, Scope scope, IReadOnlyList<string>? operandKeywords)
     {
-        var predicateItems = GetPredicateCompletions(snapshot, statement, scope);
+        var predicateItems = GetPredicateCompletions(snapshot, statement, scope, operandKeywords);
         var statementTables = ResolvedReferences(snapshot, scope.Relations(statement, caret));
         var conditions = ForeignKeyMatcher.BuildJoinConditions(statementTables, snapshot.ForeignKeys);
         if (conditions.Count == 0)
@@ -904,28 +1099,20 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
     // Bare identifier: the whole catalog, with the statement's own columns
     // hoisted to the front (and top priority), plus its aliases and CTE names.
     // At a statement-start caret the leading keywords go in front of even those.
-    private IReadOnlyList<SqlCompletionData> GetGeneralCompletions(Snapshot snapshot, string statement, Scope scope, bool atStatementStart)
-    {
-        var items = CollectStatementItems(snapshot, statement, scope, out _);
-        if (atStatementStart)
-        {
-            // Prepended, so the merge below keeps these ranked copies over the
-            // flat-priority ones already in BaseItems.
-            items.InsertRange(0, StatementStartItems);
-        }
-
-        return Merge(items, snapshot.BaseItems);
-    }
+    private IReadOnlyList<SqlCompletionData> GetGeneralCompletions(Snapshot snapshot, string statement, Scope scope, IReadOnlyList<string>? operandKeywords) =>
+        WithCatalog(CollectStatementItems(snapshot, statement, scope, out _), operandKeywords, snapshot.BaseItems, snapshot.BaseItemsWithoutKeywords);
 
     // Predicate/row position (WHERE, ON, HAVING, GROUP/ORDER BY, USING): only the
     // statement's sources' columns can be named here. When the statement has
     // sources but none of them resolves, the catalog's columns still stay out —
     // an unknown table is no reason to offer every column in the database; the
     // full catalog is the fallback only for a statement with no sources at all.
-    private IReadOnlyList<SqlCompletionData> GetPredicateCompletions(Snapshot snapshot, string statement, Scope scope)
+    private IReadOnlyList<SqlCompletionData> GetPredicateCompletions(Snapshot snapshot, string statement, Scope scope, IReadOnlyList<string>? operandKeywords)
     {
         var items = CollectStatementItems(snapshot, statement, scope, out var sourceCount);
-        return Merge(items, sourceCount == 0 ? snapshot.BaseItems : snapshot.PredicateBaseItems);
+        return sourceCount == 0
+            ? WithCatalog(items, operandKeywords, snapshot.BaseItems, snapshot.BaseItemsWithoutKeywords)
+            : WithCatalog(items, operandKeywords, snapshot.PredicateBaseItems, snapshot.PredicateBaseItemsWithoutKeywords);
     }
 
     // A column as one source exposes it.
@@ -1597,7 +1784,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
 
     // The table list for table position under the session's current idea of
     // the search_path.
-    private IReadOnlyList<SqlCompletionData> TableRefItemsOf(Snapshot snapshot) =>
+    private CandidateList TableRefItemsOf(Snapshot snapshot) =>
         SessionSearchPathChanged ? snapshot.TableRefItemsUnknownPath : snapshot.TableRefItems;
 
     private static CompletionTable? ResolveShort(
@@ -1664,27 +1851,75 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
     // stands for. Same result as Dedupe(head ++ tail), without regrouping the
     // whole catalog on every popup open — that regrouping was most of the
     // cost of opening the list over a million-column catalog.
-    private static IReadOnlyList<SqlCompletionData> Merge(List<SqlCompletionData> head, IReadOnlyList<SqlCompletionData> tail)
+    private static IReadOnlyList<SqlCompletionData> Merge(List<SqlCompletionData> head, CandidateList tail)
     {
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var result = new List<SqlCompletionData>(head.Count + tail.Count);
+        // The kinds the head holds: a tail row of any other kind can't be a
+        // duplicate (the key starts with the kind), so it is never looked up.
+        var headKinds = 0;
         foreach (var item in head)
         {
             if (seen.Add(KeyOf(item)))
             {
                 result.Add(item);
+                headKinds |= 1 << (int)item.Kind;
             }
         }
 
-        foreach (var item in tail)
+        // No kind in common (keywords over a list of tables): the whole tail
+        // goes in as one array copy. Otherwise the kinds come from the list's
+        // own byte array, not from the rows, so a row is dereferenced only when
+        // it might be a duplicate — reading every row's Kind was a cache miss
+        // per row, milliseconds over a hundred thousand tables.
+        if ((headKinds & tail.KindMask) == 0)
         {
-            if (seen.Count == 0 || !seen.Contains(KeyOf(item)))
+            result.AddRange(tail.Items);
+            return result;
+        }
+
+        var items = tail.Items;
+        var kinds = tail.Kinds;
+        for (var i = 0; i < items.Length; i++)
+        {
+            if ((headKinds & (1 << kinds[i])) == 0 || !seen.Contains(KeyOf(items[i])))
             {
-                result.Add(item);
+                result.Add(items[i]);
             }
         }
 
         return result;
+    }
+
+    // One of the snapshot's catalog-wide lists, with each row's kind kept
+    // beside it in a byte array (and all of them in one mask), so Merge can
+    // tell what to skip without touching a hundred thousand objects.
+    private sealed class CandidateList : IReadOnlyList<SqlCompletionData>
+    {
+        public CandidateList(IReadOnlyList<SqlCompletionData> items)
+        {
+            Items = [.. items];
+            Kinds = new byte[Items.Length];
+            for (var i = 0; i < Items.Length; i++)
+            {
+                Kinds[i] = (byte)Items[i].Kind;
+                KindMask |= 1 << Kinds[i];
+            }
+        }
+
+        public SqlCompletionData[] Items { get; }
+
+        public byte[] Kinds { get; }
+
+        public int KindMask { get; }
+
+        public int Count => Items.Length;
+
+        public SqlCompletionData this[int index] => Items[index];
+
+        public IEnumerator<SqlCompletionData> GetEnumerator() => ((IEnumerable<SqlCompletionData>)Items).GetEnumerator();
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
     }
 
     // DedupeKey, computed once per item: snapshot items are reused by every
@@ -1712,10 +1947,12 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         IReadOnlyList<ForeignKeyInfo> ForeignKeys,
         IReadOnlyList<string>? SearchPath,
         IReadOnlySet<string> Excluded,
-        IReadOnlyList<SqlCompletionData> BaseItems,
-        IReadOnlyList<SqlCompletionData> TableRefItems,
-        IReadOnlyList<SqlCompletionData> TableRefItemsUnknownPath,
-        IReadOnlyList<SqlCompletionData> PredicateBaseItems,
+        CandidateList BaseItems,
+        CandidateList BaseItemsWithoutKeywords,
+        CandidateList TableRefItems,
+        CandidateList TableRefItemsUnknownPath,
+        CandidateList PredicateBaseItems,
+        CandidateList PredicateBaseItemsWithoutKeywords,
         IReadOnlyDictionary<string, List<CompletionFunction>> HintFunctions,
         IReadOnlyList<SqlCompletionData> TypeItems);
 }

@@ -95,7 +95,9 @@ public sealed class SqlCompletionData(string text, SqlCompletionKind kind, strin
     /// what it writes, so accepting <c>u.id</c> doesn't promote every other
     /// <c>id</c>, and <c>public.users</c> isn't <c>audit.users</c>.
     /// </summary>
-    public string StableId => $"{(int)Kind}:{Detail}:{InsertText}";
+    public string StableId => _stableId ??= $"{(int)Kind}:{Detail}:{InsertText}";
+
+    private string? _stableId;
 
     /// <summary>How accepting writes the item — a callable's parens, a table's optional alias.</summary>
     public CompletionInsertKind InsertKind => Kind switch

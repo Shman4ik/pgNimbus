@@ -224,6 +224,10 @@ public static partial class SqlCompletionContext
         || tokens[index - 1].Kind == SqlTokenKind.OpenParen
         || WordOf(sql, tokens[index - 1]) is "as" or "explain" or "analyze" or "verbose";
 
+    /// <summary>True when <paramref name="tokens"/> (significant, of one statement) end with a CTE body's closing paren.</summary>
+    internal static bool IsAfterCteBody(string sql, List<SqlToken> tokens) =>
+        CteStateBefore(sql, tokens, tokens.Count) == CteState.AfterBody;
+
     // "WITH |", "WITH RECURSIVE |", "WITH a AS (…), |".
     private static bool IsCteName(string sql, List<SqlToken> tokens) =>
         CteStateBefore(sql, tokens, tokens.Count) == CteState.ExpectName;

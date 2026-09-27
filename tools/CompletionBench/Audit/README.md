@@ -32,9 +32,11 @@ dotnet test --project PgNimbus.App.Tests -- --treenode-filter "/*/*/CompletionTy
   caret.
 - `CompletionTypingReplayTests` (headless editor, real keys): the corpus typed
   without looking at the popup must come out unchanged; and the keystroke
-  saving of a user who always picks the best row. The first runs in every
-  build (package K made it pass); the second is `[Explicit]` and prints its
-  numbers into the test report (`TestResults/*.tunit-report.json`).
+  saving of a user who always picks the best row. Both run in every build
+  (package K made the first pass; the second has a floor each package raises
+  with the saving) and print their numbers into the test report
+  (`TestResults/*.tunit-report.json`; a passing test's output isn't printed
+  to the console).
 
 The audit's numbers (section 3 of the design doc) are these tools' output at
 the audited revision. Compare a change against a run of the same tools on the

@@ -76,6 +76,7 @@ public static class Audit
     private static string Quality(SqlCompletionProvider provider, IReadOnlyList<string> corpus)
     {
         var groups = new Dictionary<string, Tally>(StringComparer.Ordinal);
+        var offeredWords = new Tally();
         var misses = new List<string>();
         foreach (var query in corpus)
         {
@@ -101,15 +102,18 @@ public static class Audit
 
                 tally.Words++;
                 var offered = false;
+                var ranks = new int[3];
                 for (var typed = 1; typed <= 3; typed++)
                 {
                     if (typed > word.Length)
                     {
+                        ranks[typed - 1] = 0;
                         tally.Count(typed, 0); // typed in full: nothing left to complete
                         continue;
                     }
 
                     var rank = RankOf(provider, query, token.Start + typed, word);
+                    ranks[typed - 1] = rank;
                     offered |= rank >= 0;
                     tally.Count(typed, rank);
                     if (typed == 2 && rank != 0)
@@ -123,6 +127,14 @@ public static class Audit
                 if (!offered)
                 {
                     tally.NeverOffered++;
+                }
+                else
+                {
+                    offeredWords.Words++;
+                    for (var typed = 1; typed <= 3; typed++)
+                    {
+                        offeredWords.Count(typed, ranks[typed - 1]);
+                    }
                 }
             }
         }
@@ -140,6 +152,7 @@ public static class Audit
         }
 
         output.AppendLine(all.Row("**all**"));
+        output.AppendLine(offeredWords.Row("**offered**"));
         output.AppendLine();
         output.AppendLine("Not first after two characters:");
         foreach (var miss in misses)
