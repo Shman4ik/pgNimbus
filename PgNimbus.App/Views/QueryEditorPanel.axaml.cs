@@ -607,6 +607,18 @@ public partial class QueryEditorPanel : UserControl
             return;
         }
 
+        // A character that can't be part of a name ends the word the popup was
+        // filtering on, so the popup closes: punctuation must never match a row
+        // itself (typed "*" would pick the star row, whose accept writes a
+        // second "*"), and a phrase row must never be filtered across a space
+        // ("IS N" matching IS NULL), since an accept replaces only the word under
+        // the caret. Inside a quoted identifier the name goes on. A comma or a
+        // space may then reopen it below, for the next item.
+        if (_completionWindow is { } open && !SqlLexer.IsIdentPart(c) && !FiltersQuotedName(open))
+        {
+            open.Close();
+        }
+
         if (_completionWindow is not null)
         {
             return;
@@ -679,6 +691,12 @@ public partial class QueryEditorPanel : UserControl
             }
         });
     }
+
+    // True when the popup is filtering on the inside of a "quoted name", which
+    // may hold spaces and punctuation.
+    private bool FiltersQuotedName(CompletionWindow window) =>
+        window.StartOffset > 0 && window.StartOffset <= SqlEditor.Document.TextLength
+        && SqlEditor.Document.GetCharAt(window.StartOffset - 1) == '"';
 
     // True when the caret sits in a recognized clause (table position, select
     // list, predicate…) outside strings/comments — the contexts where the

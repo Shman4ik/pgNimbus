@@ -91,6 +91,9 @@ public static partial class SqlCompletionContext
     {
         var clause = SqlClause.None;
         var stack = new Stack<SqlClause>();
+        // The statement's first word: a MERGE's or a DELETE's own USING names
+        // relations (the source, the extra tables), not a join's columns.
+        string? command = null;
         foreach (var token in tokens)
         {
             if (token.End > end)
@@ -98,11 +101,21 @@ public static partial class SqlCompletionContext
                 break;
             }
 
+            if (token.Kind == SqlTokenKind.Word && command is null)
+            {
+                command = SqlLexer.FoldCase(sql.AsSpan(token.Start, token.Length));
+            }
+
             switch (token.Kind)
             {
                 case SqlTokenKind.Semicolon:
                     clause = SqlClause.None;
                     stack.Clear();
+                    command = null;
+                    break;
+                case SqlTokenKind.Word when stack.Count == 0 && command is "merge" or "delete"
+                    && sql.AsSpan(token.Start, token.Length).Equals("using", StringComparison.OrdinalIgnoreCase):
+                    clause = SqlClause.FromTableRef;
                     break;
                 case SqlTokenKind.OpenParen:
                     stack.Push(clause);

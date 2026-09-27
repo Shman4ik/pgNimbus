@@ -94,7 +94,7 @@ public static class Audit
                 var group = afterDot
                     ? "member"
                     : provider.GetCompletionData(query[..(token.Start + 1)], token.Start + 1)
-                        .FirstOrDefault(i => Names(i, word))?.Kind.ToString() ?? "absent";
+                        .FirstOrDefault(i => Names(i, word, query, token.Start))?.Kind.ToString() ?? "absent";
                 if (!groups.TryGetValue(group, out var tally))
                 {
                     groups[group] = tally = new Tally();
@@ -112,7 +112,7 @@ public static class Audit
                         continue;
                     }
 
-                    var rank = RankOf(provider, query, token.Start + typed, word);
+                    var rank = RankOf(provider, query, token.Start, token.Start + typed, word);
                     ranks[typed - 1] = rank;
                     offered |= rank >= 0;
                     tally.Count(typed, rank);
@@ -163,20 +163,33 @@ public static class Audit
         return output.ToString();
     }
 
-    private static bool Names(SqlCompletionData item, string word) =>
-        string.Equals(item.Text, word, StringComparison.OrdinalIgnoreCase)
-        || string.Equals(item.Label, word, StringComparison.OrdinalIgnoreCase);
+    // True when accepting `item` writes `word` (the word at `start` in
+    // `query`): its name is the word, or it is a phrase row (ORDER BY, IS NOT
+    // NULL) whose words are the ones the query goes on with.
+    private static bool Names(SqlCompletionData item, string word, string query, int start)
+    {
+        if (string.Equals(item.Text, word, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(item.Label, word, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
 
-    // Where `word` lands in the list the popup would show with the caret at
-    // `caret` (the word's first characters typed); -1 when it isn't there.
-    private static int RankOf(SqlCompletionProvider provider, string query, int caret, string word)
+        var end = start + item.Text.Length;
+        return item.Kind == SqlCompletionKind.Keyword && item.Text.Contains(' ', StringComparison.Ordinal)
+            && end <= query.Length && string.Compare(query, start, item.Text, 0, item.Text.Length, StringComparison.OrdinalIgnoreCase) == 0
+            && (end == query.Length || !SqlLexer.IsIdentPart(query[end]));
+    }
+
+    // Where the word at `start` lands in the list the popup would show with
+    // the caret at `caret` (its first characters typed); -1 when it isn't there.
+    private static int RankOf(SqlCompletionProvider provider, string query, int start, int caret, string word)
     {
         var text = query[..caret];
         var filter = text[CompletionEdits.TokenAt(text, caret).FilterStart..];
         var ranked = CompletionRanker.Rank(provider.GetCompletionData(text, caret), filter, d => d.Text, d => d.Priority, _ => int.MaxValue);
         for (var i = 0; i < ranked.Items.Count; i++)
         {
-            if (Names(ranked.Items[i], word))
+            if (Names(ranked.Items[i], word, query, start))
             {
                 return i;
             }

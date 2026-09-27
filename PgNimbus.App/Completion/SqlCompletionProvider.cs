@@ -518,6 +518,21 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
             overloads.Add(function);
         }
 
+        // What each callable name is, for the keywords after its call (only
+        // OVER after a window function; FILTER / OVER after an aggregate).
+        var callKinds = new Dictionary<string, char>(StringComparer.Ordinal);
+        foreach (var function in catalog.BuiltinFunctions.Concat(functions))
+        {
+            if (function.Function.Kind is not ('f' or 'a' or 'w'))
+            {
+                continue;
+            }
+
+            callKinds[function.Function.Name] = callKinds.TryGetValue(function.Function.Name, out var seen)
+                ? CombineCallKinds(seen, function.Function.Kind)
+                : function.Function.Kind;
+        }
+
         var typeItems = catalog.Types.Count == 0
             ? FallbackTypeItems
             : Dedupe(catalog.Types.Where(t => !excluded.Contains(t.Schema)).Select(t => TypeItem(t, searchPath)));
@@ -538,8 +553,24 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
             new CandidateList(Dedupe(predicateBase)),
             new CandidateList(Dedupe(predicateBase.Where(i => i.Kind != SqlCompletionKind.Keyword))),
             hintFunctions,
-            typeItems);
+            typeItems,
+            callKinds);
     }
+
+    // One name, two overloads: a window function only when every overload is
+    // one (rank is also an aggregate, WITHIN GROUP); any aggregate or window
+    // overload makes FILTER/OVER possible.
+    private static char CombineCallKinds(char a, char b) =>
+        a == b ? a : a is 'a' or 'w' || b is 'a' or 'w' ? 'a' : 'f';
+
+    // The call kinds of the everyday functions, for a catalog not read yet.
+    private static readonly Dictionary<string, char> FallbackCallKinds = new(StringComparer.Ordinal)
+    {
+        ["row_number"] = 'w', ["rank"] = 'w', ["dense_rank"] = 'w', ["percent_rank"] = 'w', ["cume_dist"] = 'w',
+        ["ntile"] = 'w', ["lag"] = 'w', ["lead"] = 'w', ["first_value"] = 'w', ["last_value"] = 'w', ["nth_value"] = 'w',
+        ["count"] = 'a', ["sum"] = 'a', ["avg"] = 'a', ["min"] = 'a', ["max"] = 'a', ["array_agg"] = 'a',
+        ["string_agg"] = 'a', ["json_agg"] = 'a', ["jsonb_agg"] = 'a', ["bool_and"] = 'a', ["bool_or"] = 'a',
+    };
 
     // A type as a cast writes it: pg_catalog's by the name format_type gives
     // when that is one word ("integer", "jsonb"), else by pg_type's own
@@ -715,7 +746,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         // expression, after IS / ORDER / INSERT … — they are the whole list;
         // where an expression starts, the ones that can start it join the
         // columns and functions; anywhere else the keywords stay as they are.
-        var advice = context.InQuotedIdentifier ? SqlKeywordAdvice.None : SqlKeywordGrammar.At(statement, caret);
+        var advice = context.InQuotedIdentifier ? SqlKeywordAdvice.None : SqlKeywordGrammar.At(statement, caret, snapshot.CallKindOf);
         if (advice.KeywordsOnly)
         {
             return KeywordItems(advice.Keywords, StatementKeywordPriority);
@@ -912,11 +943,14 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
     // should preselect WHERE, not WHEN/WITH, which can't go there at all.
     // Ranked by position like StatementStartItems, above the tables (which
     // can't follow an item either, only a comma can bring one back).
+    // A keyword never written alone comes with the words that always follow it
+    // (JOIN with its kind, BY), as one row that its initials find: "lj".
     private static readonly IReadOnlyList<SqlCompletionData> FromItemFollowItems =
         new[]
         {
-            "WHERE", "JOIN", "LEFT", "INNER", "GROUP", "ORDER", "LIMIT", "CROSS",
-            "RIGHT", "FULL", "NATURAL", "HAVING", "OFFSET", "UNION", "EXCEPT", "INTERSECT",
+            "WHERE", "JOIN", "LEFT JOIN", "INNER JOIN", "GROUP BY", "ORDER BY", "LIMIT", "CROSS JOIN",
+            "RIGHT JOIN", "FULL JOIN", "LEFT OUTER JOIN", "NATURAL JOIN", "LEFT", "RIGHT", "FULL", "NATURAL",
+            "HAVING", "OFFSET", "UNION", "EXCEPT", "INTERSECT",
         }
         .Select((keyword, index) => new SqlCompletionData(keyword, SqlCompletionKind.Keyword, keyword, StatementKeywordPriority - index))
         .ToList();
@@ -1954,5 +1988,12 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         CandidateList PredicateBaseItems,
         CandidateList PredicateBaseItemsWithoutKeywords,
         IReadOnlyDictionary<string, List<CompletionFunction>> HintFunctions,
-        IReadOnlyList<SqlCompletionData> TypeItems);
+        IReadOnlyList<SqlCompletionData> TypeItems,
+        IReadOnlyDictionary<string, char> CallKinds)
+    {
+        // pg_proc.prokind of a called name, for SqlKeywordGrammar; '\0' when
+        // no callable of that name is known.
+        public char CallKindOf(string name) =>
+            CallKinds.TryGetValue(name, out var kind) || FallbackCallKinds.TryGetValue(name, out kind) ? kind : '\0';
+    }
 }

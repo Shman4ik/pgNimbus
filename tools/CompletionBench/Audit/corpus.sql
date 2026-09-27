@@ -131,3 +131,26 @@ FROM pg_class
 WHERE relkind = 'r'
 ORDER BY pg_total_relation_size(oid) DESC
 LIMIT 20
+---
+SELECT o.customer_id, o.total_amount, row_number() OVER (PARTITION BY o.customer_id ORDER BY o.order_date DESC) AS rn
+FROM orders o
+WHERE o.status IS NOT NULL
+ORDER BY o.customer_id, rn
+---
+SELECT i.status, count(*) FILTER (WHERE i.priority <= 2) AS urgent, count(*) AS total
+FROM saas.issues i
+GROUP BY i.status
+ORDER BY total DESC NULLS LAST
+---
+SELECT p.title, CASE WHEN p.stock_quantity > 0 THEN 'in stock' ELSE 'sold out' END AS availability
+FROM products p
+ORDER BY p.title
+---
+INSERT INTO customers (email, first_name)
+VALUES ('grace@example.com', 'Grace')
+ON CONFLICT (email) DO UPDATE SET first_name = excluded.first_name
+---
+MERGE INTO customers c
+USING saas.users u ON u.email = c.email
+WHEN MATCHED THEN UPDATE SET is_active = true
+WHEN NOT MATCHED THEN DO NOTHING

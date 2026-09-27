@@ -9,7 +9,7 @@ snapshot below; a server is needed only to take a new snapshot.
 | File | What it is |
 | --- | --- |
 | `catalog.json` | The stand's completion catalog, read by `SqlCompletionProvider.ReadCatalogAsync` (the read the editor's catalog refresh does) |
-| `corpus.sql` | 25 everyday queries, one clause per line, separated by a line holding only `---` |
+| `corpus.sql` | Everyday queries, one clause per line, separated by a line holding only `---`: the audit's 25, then the ones each package added for the grammar it taught completion (package M: a window function, FILTER, CASE, ON CONFLICT, MERGE) |
 | `saas.sql` | A SaaS-style schema loaded after `scripts/demo` 01–06: shared column names, two FKs to one table, a composite FK, enums, a domain, views, functions, a procedure, a quoted mixed-case table |
 | `cases.txt` | Caret positions (`|`) for the `cases` report, grouped by `##` headings |
 | `hints.txt` | Calls for the argument-hint report |
