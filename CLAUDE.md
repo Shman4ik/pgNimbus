@@ -18,6 +18,41 @@ stale `CLAUDE.md` (e.g. it still saying "Avalonia 11" after an upgrade to
 12) as a bug, not a nitpick: it's the first thing a fresh session reads,
 and wrong project memory is worse than none.
 
+## Pull requests: dependent work goes in a GitHub stack
+
+`main` is protected and the owner reviews every PR, often several in a row, so
+the order PRs merge in is not something to rely on. When one change builds on
+another that isn't in `main` yet, make them a **native stacked pull request**
+([GitHub docs](https://docs.github.com/en/pull-requests/how-tos/stacked-pull-requests)),
+never a PR whose base is picked by hand as another PR's branch.
+
+Why this is a rule (2026-09-27): #262 and #265 were opened with #260's branch
+as their base. #260 was squash-merged first, and the repo keeps merged branches
+(`delete_branch_on_merge` is off), so nothing retargeted the two. They were
+merged into a branch that led nowhere and showed *Merged* while neither
+change was in `main`, until #263 carried them in. In a GitHub stack that can't
+happen: when the bottom PR merges, GitHub rebases the rest and retargets the
+next one onto `main` (squash included), and merging the top PR merges the whole
+stack, bottom up. Branch protection, required checks and CODEOWNERS apply to
+every PR in the stack.
+
+How, with the `gh stack` extension (`gh extension install github/gh-stack`,
+gh ≥ 2.90; installed on the dev machine):
+
+- New work: `gh stack init <bottom-branch>`, commit, `gh stack add <next-branch>`,
+  … then `gh stack submit` (pushes and opens or updates every PR with the right
+  bases; `--auto` skips the editor and makes drafts unless `--open`).
+- Branches that already exist: `gh stack init <bottom> <next> …` adopts them
+  bottom to top.
+- PRs that already exist: `gh stack link <pr-or-branch> <pr-or-branch> …`
+  (bottom to top) creates or grows the stack on GitHub without local tracking.
+- After something below merges: `gh stack sync` fetches, rebases the rest,
+  pushes. `gh stack view` shows where each PR stands.
+
+Independent changes don't need a stack; base them on `main` and accept a small
+doc conflict later rather than chaining them. Limits: stacks are same-repo only
+(no forks), and the feature is in public preview.
+
 ## The sibling project, and what is shared with it
 
 kubeNimbus (`X:\source\kubeNimbus`, normally checked out beside this repo) is the
