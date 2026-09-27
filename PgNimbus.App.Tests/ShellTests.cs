@@ -70,7 +70,14 @@ public class ShellTests
 
             var wrapBefore = vm.WordWrapEditor;
 
-            await vm.OpenCommandPaletteAsync();
+            // Not awaited, the same as the palette screenshot scenario: the
+            // palette opens synchronously and then waits for the catalog's table
+            // list, which the fixture data source never delivers (TEST-NET-3
+            // never answers). Awaiting it held this one test until the OS gave
+            // up on the TCP connect: ~21 s on Windows, ~127 s on Linux, which
+            // was most of CI's UI-test step. Once the palette is accepted the
+            // late failure lands on a closed palette and is dropped.
+            _ = vm.OpenCommandPaletteAsync();
             vm.CommandPalette.SearchText = "word wrap";
             Ui.Settle();
 

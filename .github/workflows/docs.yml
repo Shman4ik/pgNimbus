@@ -35,8 +35,9 @@ jobs:
       - uses: actions/checkout@v7
         with:
           # publish-docs.sh adds a gh-pages worktree, which needs that branch
-          # fetchable — a shallow single-branch clone can't provide it.
-          fetch-depth: 0
+          # fetchable — a shallow single-branch clone can't provide it. A PR
+          # only builds, so it skips the full-history clone.
+          fetch-depth: ${{ github.event_name == 'pull_request' && 1 || 0 }}
 
       - uses: actions/setup-python@v7
         with:

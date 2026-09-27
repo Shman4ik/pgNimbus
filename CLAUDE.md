@@ -1744,7 +1744,7 @@ tab (UI design rule 3), that the results grid builds a column per result column
 and re-points on a tab switch, and that every window opens **and closes** — the
 detach path a render-and-exit pass never runs.
 
-Two landmines, both load-bearing:
+Three landmines, all load-bearing:
 
 - **`Ui.Run(async () => …)` is deliberately the only overload.** Avalonia's
   `HeadlessUnitTestSession` has a `Dispatch<T>(Func<T>)` that an async lambda
@@ -1758,6 +1758,13 @@ Two landmines, both load-bearing:
 - **Gestures come from the catalog**, via `Ui.Press(window, CommandId.X)`, never
   typed in — otherwise a test keeps passing after a chord moves, and fails on
   macOS where the same entry resolves to Cmd (UI design rule 5).
+
+- **Never await a catalog fetch against the fixture data source.** It points at
+  TEST-NET-3 so nothing ever answers, which means an awaited fetch (e.g.
+  `OpenCommandPaletteAsync`, which waits for the table list) returns only when
+  the OS abandons the TCP connect: ~21 s on Windows, ~127 s on a Linux runner
+  (six SYN retries). One such `await` was two of CI's five minutes until
+  2026-09. Fire it and move on (`_ = …`), as the screenshot scenarios do.
 
 The session runs the app with **no lifetime**, asserted by a test: with one,
 `App.OnFrameworkInitializationCompleted` would read the developer's real
