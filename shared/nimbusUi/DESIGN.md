@@ -143,7 +143,7 @@ The gutter is not free — nine columns × 10px comes out of a fixed width — s
 
 ### 13. A panel you open, use and dismiss is an overlay, not a window
 
-`Nimbus.Ui.Controls.OverlayPanel`: dimmed backdrop, centred `layer` card, title row
+`Nimbus.Ui.Controls.OverlayPanel`: dimmed backdrop (`scrim`), centred `overlayCard`, title row
 with a ✕, dismissed by the backdrop, the ✕ or Esc. The cheat sheet, the About box and
 the preferences page are all one of these in both apps.
 
@@ -180,10 +180,62 @@ the hand-built one on sight: its header read as a caption rather than as a row, 
 nothing ruled its rows into boxes. The grid's rules were `BaseLow`, which in the dark
 theme is the brightest line on the page. And its header row was painted by Fluent in
 `AltHigh` — pure black in the dark theme — which nobody had seen because the grid sat
-on a `layer`, which is the same black. Moved onto a `card`, it was a black band.
+on a `layer`, which was the same black then (rule 15 made it grey). Moved onto a
+`card`, it was a black band.
 
 The cell text size stays in each app, beside rule 12's gutter: it moves column widths,
 and those are the app's own.
+
+### 15. A raised surface is lighter than what it sits on, and nothing is Fluent's page black
+
+Four surfaces, one direction (`Theme/Tokens.axaml`, all theme-split, so always
+`DynamicResource`):
+
+| Surface | Light | Dark | What sits on it |
+|---|---|---|---|
+| Shell (`SystemControlBackgroundChromeMediumLowBrush`, Mica where the OS has it) | `#F2F2F2` | `#2B2B2B` | the command bar, the sidebar, **every secondary window** |
+| `AppLayerBrush` — `layer`, `overlayCard` | white | `#2E2E2E` | a work area, an overlay's card |
+| `card` (6% grey) | a shade under its parent | a shade over it | a group inside any of the above |
+| `AppPopupBrush` | white | `#3A3A3A` | what floats over a layer: completion, hints, the find bar |
+
+Behind a modal overlay, `scrim` (`AppScrimBrush`) — one dim for all of them.
+
+Fluent's own page brush (`SystemControlPageBackgroundAltHighBrush`) is white in the
+light theme and **pure black** in the dark one, and it was the default for all four
+jobs: `layer`, every popup, every overlay card and — as `Window`'s default background —
+every dialog. So the dark theme had a `#000` work area inside a `#2B2B2B` shell (a
+raised surface darker than its base, the opposite of how Windows 11 layers a dark UI),
+dialogs that were a grey title bar on a black body, and a completion list that was a
+black hole in the editor. Light never showed it: white over `#F2F2F2` already reads as
+raised. Two more of the same, found in the same pass: Fluent fills a *focused* text box
+with `ChromeBlackHigh` (black again, so the dark tokens pin `TextControlBackgroundFocused`
+to the resting well), and it paints a selected `ListBoxItem` with the OS accent at
+60–80% on the template part, which is why the list rule now targets
+`/template/ ContentPresenter#PART_ContentPresenter` (rule 11).
+
+Never paint a surface with `SystemControlPageBackgroundAltHighBrush` or a hand-set hex;
+pick the row of the table it is.
+
+### 16. A dialog's button row: primary first, Cancel last, on the right
+
+`[Primary] [secondary…] [Cancel/Close]`, right-aligned, 8px apart, 16px below the
+content — the Windows order, and the one kubeNimbus's inline confirm strips already
+used. The primary is `accent` (`danger` when it destroys), everything else `soft`.
+pgNimbus's dialogs had drifted to both orders (Import and the role dialogs put Cancel
+first, nine others put it last), so the same button moved from one corner to the other
+between two dialogs of one app. Pair it with `IsDefault` on the primary and `IsCancel`
+on Cancel.
+
+### 17. Secondary text is dimmed to 0.6, not below
+
+A caption, an empty-state hint, a size or a type beside a name, a footer: text that
+says something is dimmed with `Opacity="0.6"` (or `BaseMedium`, the same tone) and no
+further. At 0.4–0.5 it comes out `#8C8C8C`–`#808080` on white, about 3:1 against the
+4.5:1 that small text needs, and pgNimbus had 28 of them — "No matches", "Queries you
+run will appear here", the relation sizes in the schema tree. The dark theme hid how
+faint they were; the light theme is where they failed. Lower opacities stay for what
+is not read: a separator glyph, a decorative icon, a disabled control (which Fluent
+dims on purpose), or a state the dimming itself announces (an excluded schema).
 
 ---
 
@@ -212,6 +264,10 @@ mechanism — a rule nobody tracks is a rule that decays.
       shared `Theme/Theme.axaml` (rule 5).
 - [x] One-bar window chrome on Windows → pgNimbus (rule 9). It previously extended
       the client area on macOS only, with a hand-rolled `BeginMoveDrag`.
+- [x] **Surfaces off Fluent's page black → both** (rule 15). `layer`, `OverlayPanel` and
+      the list-selection rule changed here; pgNimbus's dialogs, popups and palette and
+      kubeNimbus's command palettes moved onto `overlayCard`/`scrim`/`AppPopupBrush`.
+- [ ] Secondary text at 0.6 (rule 17) → kubeNimbus: audit its `hint` class and inline opacities.
 - [ ] `AppSuccessBrush` → pgNimbus. The status trio was two-thirds defined there.
 - [x] **The Fluent control layer → `Theme/Controls.axaml`.** Inputs, lists, trees,
       grids and the `.soft`/`.danger` button families were defined in pgNimbus only,

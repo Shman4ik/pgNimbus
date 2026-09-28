@@ -178,11 +178,29 @@
     </Style>
 
     <Style Selector="Border.layer">
-        <Setter Property="Background" Value="{DynamicResource SystemControlPageBackgroundAltHighBrush}" />
+        <Setter Property="Background" Value="{DynamicResource AppLayerBrush}" />
         <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="CornerRadius" Value="{StaticResource CardCornerRadius}" />
         <Setter Property="Padding" Value="12" />
+    </Style>
+
+    <!-- The card a modal overlay is drawn on (OverlayPanel, the command palette, a
+         cell inspector): a layer with the overlay radius and a shadow, over
+         AppScrimBrush. One class, because four hand-set copies had drifted to two
+         radii, two scrims and a shadow on only some of them. -->
+    <Style Selector="Border.overlayCard">
+        <Setter Property="Background" Value="{DynamicResource AppLayerBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource OverlayCornerRadius}" />
+        <Setter Property="BoxShadow" Value="0 12 32 0 #40000000" />
+    </Style>
+
+    <!-- The dim behind an overlay card. Its background is also the hit target that
+         closes the overlay, so it must never be null (DESIGN.md rule 5). -->
+    <Style Selector="Border.scrim">
+        <Setter Property="Background" Value="{DynamicResource AppScrimBrush}" />
     </Style>
 
     <Style Selector="Border.statusBar">

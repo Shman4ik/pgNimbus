@@ -152,7 +152,7 @@
                     <Grid ColumnDefinitions="Auto,*,Auto">
                         <PathIcon Grid.Column="0" Data="{StaticResource MagnifyIconGeometry}" Width="11" Height="11" Opacity="0.55" VerticalAlignment="Center" />
                         <TextBlock Grid.Column="1" Text="Search tables, queries, actions…" FontSize="12" Opacity="0.55" Margin="7,0,0,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                        <TextBlock Grid.Column="2" Name="PaletteSearchShortcut" FontSize="11" Opacity="0.4" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="2" Name="PaletteSearchShortcut" FontSize="11" Opacity="0.6" VerticalAlignment="Center" />
                     </Grid>
                 </Button>
 
@@ -656,13 +656,11 @@
     -->
     <Border Name="PaletteOverlay"
             IsVisible="{Binding CommandPalette.IsOpen}"
-            Background="#66000000"
+            Classes="scrim"
             PointerPressed="OnPaletteScrimPressed">
         <Border Width="560" MaxHeight="440" Margin="0,90,0,0"
                 VerticalAlignment="Top" HorizontalAlignment="Center"
-                Background="{DynamicResource SystemControlPageBackgroundAltHighBrush}"
-                BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
-                CornerRadius="10" BoxShadow="0 12 32 0 #40000000"
+                Classes="overlayCard"
                 PointerPressed="OnPaletteCardPressed"
                 x:DataType="vm:CommandPaletteViewModel" DataContext="{Binding CommandPalette}">
             <Grid RowDefinitions="Auto,*">
@@ -697,14 +695,14 @@
                                                    FontSize="11" Opacity="0.55" VerticalAlignment="Center"
                                                    Margin="12,0,0,0" />
                                         <TextBlock Grid.Column="3" Text="{Binding Category}"
-                                                   FontSize="11" Opacity="0.45" VerticalAlignment="Center"
+                                                   FontSize="11" Opacity="0.6" VerticalAlignment="Center"
                                                    Margin="12,0,0,0" />
                                     </Grid>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>
                         <TextBlock IsVisible="{Binding !Results.Count}" IsHitTestVisible="False"
-                                   Text="No matches" Opacity="0.4" FontSize="13"
+                                   Text="No matches" Opacity="0.6" FontSize="13"
                                    HorizontalAlignment="Center" VerticalAlignment="Center" Margin="16" />
                     </Grid>
                 </Border>

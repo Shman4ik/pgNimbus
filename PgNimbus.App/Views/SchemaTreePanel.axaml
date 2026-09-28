@@ -63,7 +63,7 @@
                           ToolTip.ShowDelay="300" />
                 <TextBlock Text="{Binding Name}" />
                 <!-- Dim on-disk size hint (heap + indexes + TOAST); blank for views/partitioned parents -->
-                <TextBlock Text="{Binding SizeText}" Opacity="0.5" FontSize="11" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding SizeText}" Opacity="0.6" FontSize="11" VerticalAlignment="Center" />
             </StackPanel>
         </DataTemplate>
         <DataTemplate DataType="vm:ColumnNode">
@@ -121,7 +121,7 @@
                 </Panel>
                 <TextBlock Text="{Binding Name}" IsVisible="{Binding IsInstalled}" />
                 <TextBlock Text="{Binding Name}" Opacity="0.55" IsVisible="{Binding !IsInstalled}" />
-                <TextBlock Text="{Binding VersionLabel}" Opacity="0.5" FontSize="11" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding VersionLabel}" Opacity="0.6" FontSize="11" VerticalAlignment="Center" />
             </StackPanel>
         </DataTemplate>
         <DataTemplate DataType="vm:RolesGroupNode">
@@ -210,10 +210,10 @@
             </StackPanel>
         </DataTemplate>
         <DataTemplate DataType="vm:EmptyNode">
-            <TextBlock Text="{Binding Name}" Opacity="0.45" FontStyle="Italic" />
+            <TextBlock Text="{Binding Name}" Opacity="0.6" FontStyle="Italic" />
         </DataTemplate>
         <DataTemplate DataType="vm:PlaceholderNode">
-            <TextBlock Text="Loading..." Opacity="0.5" FontStyle="Italic" />
+            <TextBlock Text="Loading..." Opacity="0.6" FontStyle="Italic" />
         </DataTemplate>
         <DataTemplate DataType="vm:ErrorNode">
             <TextBlock Text="{Binding Name}" Foreground="{StaticResource AppDangerBrush}" TextWrapping="Wrap" />

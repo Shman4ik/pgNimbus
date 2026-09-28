@@ -90,7 +90,7 @@
             <Setter Property="Template">
                 <ControlTemplate>
                     <Border Margin="4,2,10,14"
-                            Background="{DynamicResource SystemControlPageBackgroundAltHighBrush}"
+                            Background="{DynamicResource AppPopupBrush}"
                             BorderBrush="{StaticResource CardBorderBrush}"
                             BorderThickness="1"
                             CornerRadius="{StaticResource CardCornerRadius}"
@@ -123,7 +123,7 @@
                     <Border Name="PART_Border"
                             HorizontalAlignment="Right"
                             VerticalAlignment="Top"
-                            Background="{DynamicResource SystemControlPageBackgroundAltHighBrush}"
+                            Background="{DynamicResource AppPopupBrush}"
                             BorderBrush="{StaticResource CardBorderBrush}"
                             BorderThickness="1,0,1,1"
                             CornerRadius="0,0,8,8"
@@ -403,7 +403,7 @@
 
     <!-- The argument hint above a call: the same card language as the completion tip -->
     <Style Selector="Border.signatureHint">
-        <Setter Property="Background" Value="{DynamicResource SystemControlPageBackgroundAltHighBrush}" />
+        <Setter Property="Background" Value="{DynamicResource AppPopupBrush}" />
         <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="CornerRadius" Value="{StaticResource ControlCornerRadius}" />
@@ -414,12 +414,53 @@
 
     <!-- The description tip beside the popup, restyled to the same card language -->
     <Style Selector="cc|CompletionTipContentControl">
-        <Setter Property="Background" Value="{DynamicResource SystemControlPageBackgroundAltHighBrush}" />
+        <Setter Property="Background" Value="{DynamicResource AppPopupBrush}" />
         <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="CornerRadius" Value="{StaticResource ControlCornerRadius}" />
         <Setter Property="Padding" Value="10,5" />
         <Setter Property="FontSize" Value="12" />
+    </Style>
+
+    <!-- ==================================================================
+         Secondary windows and dialogs
+         ================================================================== -->
+
+    <!-- Every window the app opens besides the main one sits on the shell tone.
+         Fluent's default is the page brush, pure black in the dark theme, under a
+         caption ThemedWindowChrome pins to this same tone - so each dialog was a
+         grey title bar on a black body, and the main window's own shell (this
+         tone) never matched anything it opened. MainWindow sets its own
+         Background locally, which wins over this. Content that needs grouping
+         goes in a `card`, exactly as in the shell. -->
+    <Style Selector="Window">
+        <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}" />
+        <!-- Three windows (the connection dialog, Alter table, the crash reporter)
+             never set the app font, so they alone drew in the platform's. -->
+        <Setter Property="FontFamily" Value="{DynamicResource InterFont}" />
+    </Style>
+
+    <!-- One vocabulary for a dialog's parts, so the next dialog is assembled rather
+         than re-invented: they had drifted to three heading sizes, two hint
+         styles (0.55 and 0.7 opacity) and three button-row margins. -->
+    <Style Selector="TextBlock.dialogTitle">
+        <Setter Property="FontSize" Value="15" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+
+    <Style Selector="TextBlock.dialogHint">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+    </Style>
+
+    <!-- The button row: primary first, then secondary actions, Cancel/Close last. -->
+    <Style Selector="StackPanel.dialogButtons">
+        <Setter Property="Orientation" Value="Horizontal" />
+        <Setter Property="Spacing" Value="8" />
+        <Setter Property="HorizontalAlignment" Value="Right" />
+        <Setter Property="Margin" Value="0,16,0,0" />
     </Style>
 
 </Styles>

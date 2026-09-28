@@ -27,19 +27,19 @@
                 CornerRadius="{StaticResource CardCornerRadius}" Padding="16,12" Margin="0,0,0,10">
             <StackPanel Orientation="Horizontal" Spacing="36">
                 <StackPanel Spacing="2">
-                    <TextBlock Text="DATABASE" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
+                    <TextBlock Text="DATABASE" Classes="sectionHeader" />
                     <TextBlock Text="{Binding DatabaseName}" FontSize="16" FontWeight="SemiBold" />
                 </StackPanel>
                 <StackPanel Spacing="2">
-                    <TextBlock Text="SIZE ON DISK" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
+                    <TextBlock Text="SIZE ON DISK" Classes="sectionHeader" />
                     <TextBlock Text="{Binding DatabaseSizeText}" FontSize="16" FontWeight="SemiBold" />
                 </StackPanel>
                 <StackPanel Spacing="2" ToolTip.Tip="Fraction of table block reads served from shared_buffers rather than disk">
-                    <TextBlock Text="TABLE CACHE HIT" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
+                    <TextBlock Text="TABLE CACHE HIT" Classes="sectionHeader" />
                     <TextBlock Text="{Binding TableCacheHitText}" FontSize="16" FontWeight="SemiBold" />
                 </StackPanel>
                 <StackPanel Spacing="2" ToolTip.Tip="Fraction of index block reads served from shared_buffers rather than disk">
-                    <TextBlock Text="INDEX CACHE HIT" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
+                    <TextBlock Text="INDEX CACHE HIT" Classes="sectionHeader" />
                     <TextBlock Text="{Binding IndexCacheHitText}" FontSize="16" FontWeight="SemiBold" />
                 </StackPanel>
             </StackPanel>

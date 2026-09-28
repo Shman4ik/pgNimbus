@@ -263,8 +263,24 @@
         <Setter Property="Margin" Value="0,1" />
     </Style>
 
-    <Style Selector="ListBoxItem:selected">
+    <!-- Row states are pinned on the template part. Fluent's ListBoxItem theme paints
+         the selected fill on PART_ContentPresenter from the OS accent at 60-80%
+         opacity, so a Background set on the item itself is never drawn: this rule
+         used to be `ListBoxItem:selected { Background }` and every list in both apps
+         (pgNimbus's query tabs and saved connections among them) showed a saturated
+         OS-blue slab instead of the brand wash, the one selection surface that broke
+         DESIGN.md rule 11. kubeNimbus had worked around it per list, three times. -->
+    <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter, ComboBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource HoverBackgroundBrush}" />
+    </Style>
+
+    <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter, ComboBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+    </Style>
+
+    <Style Selector="ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter, ComboBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource AppSelectionHoverBrush}" />
     </Style>
 
     <Style Selector="TreeViewItem">

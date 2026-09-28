@@ -7,9 +7,9 @@
         WindowStartupLocation="CenterOwner"
         FontFamily="{StaticResource InterFont}">
 
-    <StackPanel Margin="20" Spacing="16">
+    <StackPanel Margin="20">
         <TextBlock Name="MessageText" TextWrapping="Wrap" FontSize="13" />
-        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+        <StackPanel Classes="dialogButtons">
             <Button Name="ConfirmButton" Classes="danger" Content="Delete" Click="OnConfirmClick" />
             <Button Classes="soft" Content="Cancel" Click="OnCancelClick" />
         </StackPanel>

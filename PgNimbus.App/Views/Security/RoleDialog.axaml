@@ -9,7 +9,7 @@
         WindowStartupLocation="CenterOwner"
         FontFamily="{StaticResource InterFont}">
 
-    <Grid RowDefinitions="*,Auto" Margin="16">
+    <Grid RowDefinitions="*,Auto" Margin="20">
 
         <!-- The scrollbar is an overlay in this theme, so the content needs a
              gutter of its own: without it the text boxes run underneath the bar
@@ -19,7 +19,7 @@
 
                 <!-- Identity -->
                 <StackPanel Spacing="6">
-                    <TextBlock Text="NAME" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
+                    <TextBlock Text="NAME" Classes="sectionHeader" />
                     <TextBox Text="{Binding Name}" IsEnabled="{Binding CanEditName}" PlaceholderText="app_ro" />
                 </StackPanel>
 
@@ -31,11 +31,11 @@
                         <CheckBox Content="Can log in" IsChecked="{Binding CanLogin}" />
                         <Grid ColumnDefinitions="*,12,*" IsVisible="{Binding CanLogin}">
                             <StackPanel Grid.Column="0" Spacing="4">
-                                <TextBlock Text="PASSWORD" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
+                                <TextBlock Text="PASSWORD" Classes="sectionHeader" />
                                 <TextBox Text="{Binding Password}" PasswordChar="•" />
                             </StackPanel>
                             <StackPanel Grid.Column="2" Spacing="4">
-                                <TextBlock Text="CONFIRM" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
+                                <TextBlock Text="CONFIRM" Classes="sectionHeader" />
                                 <TextBox Text="{Binding PasswordConfirm}" PasswordChar="•" />
                             </StackPanel>
                         </Grid>
@@ -44,7 +44,7 @@
 
                 <!-- Attributes -->
                 <StackPanel Spacing="6">
-                    <TextBlock Text="ATTRIBUTES" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
+                    <TextBlock Text="ATTRIBUTES" Classes="sectionHeader" />
                     <WrapPanel Orientation="Horizontal">
                         <CheckBox Content="Inherit" IsChecked="{Binding Inherit}" Margin="0,0,18,4"
                                   ToolTip.Tip="Off means the role must SET ROLE before a group's privileges apply" />
@@ -59,12 +59,12 @@
 
                 <Grid ColumnDefinitions="*,12,*">
                     <StackPanel Grid.Column="0" Spacing="4">
-                        <TextBlock Text="CONNECTION LIMIT" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
+                        <TextBlock Text="CONNECTION LIMIT" Classes="sectionHeader" />
                         <NumericUpDown Value="{Binding ConnectionLimitValue}" Minimum="0" Increment="1"
                                        PlaceholderText="no limit" FormatString="0" />
                     </StackPanel>
                     <StackPanel Grid.Column="2" Spacing="4">
-                        <TextBlock Text="VALID UNTIL" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
+                        <TextBlock Text="VALID UNTIL" Classes="sectionHeader" />
                         <!-- CalendarDatePicker, not Fluent's segmented DatePicker:
                              the segmented one is a three-box month/day/year control
                              that the shared input styling does not reach, so it
@@ -80,7 +80,7 @@
                 <!-- Predefined roles first: on PG14+ this is the whole answer to
                      "make a read-only user", instead of a per-schema grant script. -->
                 <StackPanel Spacing="6" IsVisible="{Binding HasPredefinedMemberships}">
-                    <TextBlock Text="BUILT-IN ROLES" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
+                    <TextBlock Text="BUILT-IN ROLES" Classes="sectionHeader" />
                     <ItemsControl ItemsSource="{Binding PredefinedMemberships}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:RoleMembershipOption">
@@ -102,7 +102,7 @@
                 </StackPanel>
 
                 <StackPanel Spacing="6">
-                    <TextBlock Text="MEMBER OF" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
+                    <TextBlock Text="MEMBER OF" Classes="sectionHeader" />
                     <!-- No inner scroll: a capped, scrolling list inside a dialog
                          that already scrolls gives two bars competing for the
                          same wheel, and on a server with a handful of roles the
@@ -136,14 +136,14 @@
                 </StackPanel>
 
                 <StackPanel Spacing="4">
-                    <TextBlock Text="COMMENT" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
+                    <TextBlock Text="COMMENT" Classes="sectionHeader" />
                     <TextBox Text="{Binding Comment}" PlaceholderText="what this role is for" />
                 </StackPanel>
 
                 <!-- The preview is always the masked build. The real password goes
                      straight to SecurityEditor and is never rendered anywhere. -->
                 <StackPanel Spacing="4">
-                    <TextBlock Text="GENERATED SQL" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
+                    <TextBlock Text="GENERATED SQL" Classes="sectionHeader" />
                     <Border Background="{StaticResource CardBackgroundBrush}"
                             BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
                             CornerRadius="{StaticResource CardCornerRadius}" Padding="12,10">
@@ -155,16 +155,16 @@
             </StackPanel>
         </ScrollViewer>
 
-        <StackPanel Grid.Row="1" Margin="0,14,0,0" Spacing="8">
+        <StackPanel Grid.Row="1" Margin="0,16,0,0" Spacing="8">
             <TextBlock Text="{Binding ValidationMessage}" IsVisible="{Binding HasValidationMessage}"
                        Foreground="{StaticResource AppDangerBrush}" FontSize="12" TextWrapping="Wrap" />
             <TextBlock Text="{Binding WarningMessage}" IsVisible="{Binding HasWarningMessage}"
                        Foreground="{StaticResource AppWarningBrush}" FontSize="12" TextWrapping="Wrap" />
             <TextBlock Text="{Binding ErrorMessage}" IsVisible="{Binding HasErrorMessage}"
                        Foreground="{StaticResource AppDangerBrush}" FontSize="12" TextWrapping="Wrap" />
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-                <Button Classes="soft" Content="Cancel" Click="OnCancelClick" IsCancel="True" />
+            <StackPanel Classes="dialogButtons" Margin="0">
                 <Button Classes="accent" Content="Apply" Command="{Binding ApplyCommand}" IsDefault="True" />
+                <Button Classes="soft" Content="Cancel" Click="OnCancelClick" IsCancel="True" />
             </StackPanel>
         </StackPanel>
 

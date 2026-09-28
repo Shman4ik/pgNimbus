@@ -3,7 +3,7 @@
         xmlns:vm="using:PgNimbus.App.ViewModels.Security"
         x:Class="PgNimbus.App.Views.Security.BulkGrantDialog"
         x:DataType="vm:BulkGrantViewModel"
-        Title="Bulk grant"
+        Title="pgNimbus — Bulk grant"
         Width="660" Height="640"
         MinWidth="520" MinHeight="480"
         WindowStartupLocation="CenterOwner"
@@ -12,8 +12,8 @@
     <Grid Margin="20" RowDefinitions="Auto,Auto,*,Auto">
 
         <StackPanel Grid.Row="0" Spacing="4" Margin="0,0,0,12">
-            <TextBlock Text="Give a role access to a whole schema" FontWeight="SemiBold" FontSize="14" />
-            <TextBlock TextWrapping="Wrap" FontSize="12" Opacity="0.7"
+            <TextBlock Classes="dialogTitle" Text="Give a role access to a whole schema" />
+            <TextBlock Classes="dialogHint"
                        Text="The script always starts with USAGE on the schema itself — without it every table grant below is inert. Nothing runs from here: the script opens in the editor for you to read and run." />
         </StackPanel>
 
@@ -85,8 +85,7 @@
                      BorderThickness="0" Background="Transparent" />
         </Border>
 
-        <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="8"
-                    HorizontalAlignment="Right" Margin="0,14,0,0">
+        <StackPanel Grid.Row="3" Classes="dialogButtons">
             <Button Classes="accent" Content="Open in editor" Click="OnOpenClick"
                     IsEnabled="{Binding CanOpen}" />
             <Button Classes="soft" Content="Cancel" Click="OnCancelClick" />

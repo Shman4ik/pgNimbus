@@ -16,8 +16,7 @@
         <TextBlock Text="The application hit a critical error and has to close. Nothing you were doing was necessarily lost — reopen pgNimbus to carry on."
                    FontSize="13" Opacity="0.8" TextWrapping="Wrap" />
 
-        <Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
-                CornerRadius="4" Padding="12,10">
+        <Border Classes="card" Padding="12,10">
             <TextBox Name="ErrorText" IsReadOnly="True" BorderThickness="0"
                      Background="Transparent" TextWrapping="Wrap"
                      FontFamily="Consolas, Menlo, monospace" FontSize="12"
@@ -33,10 +32,10 @@
         <TextBlock Text="Please report this so it can be fixed — the button below opens a pre-filled GitHub issue. Attaching the log file above helps a lot."
                    FontSize="12" Opacity="0.8" TextWrapping="Wrap" />
 
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-            <Button Content="Open Log File" Click="OnOpenLogClick" />
+        <StackPanel Classes="dialogButtons" Margin="0">
             <Button Content="Report on GitHub" Click="OnReportClick" Classes="accent" />
-            <Button Content="Close" Click="OnCloseClick" IsDefault="True" />
+            <Button Content="Open log file" Click="OnOpenLogClick" Classes="soft" />
+            <Button Content="Close" Click="OnCloseClick" Classes="soft" IsDefault="True" />
         </StackPanel>
     </StackPanel>
 </Window>

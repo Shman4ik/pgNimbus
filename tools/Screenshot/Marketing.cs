@@ -50,13 +50,16 @@ internal static class Marketing
 
         // Microsoft Store listing. Numbered because Partner Center orders
         // screenshots by upload and the numbering is the only way to keep the
-        // intended sequence across a re-upload.
-        new("main-window.light.png", "design/store/screenshots/01-query-results.png", StoreMinimum),
-        new("main-window.dark.png", "design/store/screenshots/02-dark-theme.png", StoreMinimum),
-        new("main-window-plan-tree.light.png", "design/store/screenshots/03-query-plan.png", StoreMinimum),
-        new("main-window-palette.light.png", "design/store/screenshots/04-command-palette.png", StoreMinimum),
-        new("activity-window.light.png", "design/store/screenshots/05-server-activity.png", StoreMinimum),
-        new("database-overview-window.light.png", "design/store/screenshots/06-database-overview.png", StoreMinimum),
+        // intended sequence across a re-upload. Half light and half dark,
+        // alternating, and each file names its theme: the set used to be five
+        // light shots and one labelled "dark theme", which sold the dark theme
+        // as an option rather than showing the app in it.
+        new("main-window.light.png", "design/store/screenshots/01-query-results.light.png", StoreMinimum),
+        new("main-window-plan-tree.dark.png", "design/store/screenshots/02-query-plan.dark.png", StoreMinimum),
+        new("main-window-palette.light.png", "design/store/screenshots/03-command-palette.light.png", StoreMinimum),
+        new("main-window-completion.dark.png", "design/store/screenshots/04-completion.dark.png", StoreMinimum),
+        new("activity-window.light.png", "design/store/screenshots/05-server-activity.light.png", StoreMinimum),
+        new("database-overview-window.dark.png", "design/store/screenshots/06-database-overview.dark.png", StoreMinimum),
     ];
 
     /// <summary>

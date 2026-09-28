@@ -5,33 +5,35 @@
 # (design/store/screenshots). The mapping from scenario to published file lives
 # in tools/Screenshot/Marketing.cs.
 #
-# Run this before cutting a release, so the shots on the README and in the Store
+# Run this in any PR that changes what they show (CLAUDE.md UI rule 9) and
+# before cutting a release, so the shots on the README and in the Store
 # listing show the version being released rather than whichever one somebody
 # last captured by hand.
 #
 # The animated GIFs in the README are not covered — they show motion and are
 # still recorded by hand (see the screen-recording notes in the repo).
 #
-# On Linux this renders directly; anywhere else it goes through Docker, so the
-# published images match what CI produces.
+# Rendered on the host, not in the CI container, and meant to be run on
+# Windows: the SQL editor, the plan and every other monospace pane ask for
+# Cascadia Code or Consolas, which only Windows ships. The Linux container has
+# neither, and the Store listing went out with its SQL set in a proportional
+# font until 2026-09. The visual-regression baselines are a different matter
+# and still come from the container (update-baselines.sh), because they have
+# to match CI pixel for pixel; these only have to look right.
 
 set -euo pipefail
 
 repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 
+case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*) ;;
+    *) echo "Warning: not on Windows - monospace panes will fall back to another font." >&2 ;;
+esac
+
 staging=$(mktemp -d)
 trap 'rm -rf "$staging"' EXIT
 
-if [ "$(uname -s)" = "Linux" ] && [ -z "${PGNIMBUS_FORCE_DOCKER:-}" ]; then
-    dotnet run --project "$repo_root/tools/Screenshot" -c Release -- "$staging" --publish "$repo_root"
-else
-    echo "Not on Linux — rendering in a container so the output matches CI."
-    # The container only ever sees the repo read-only, so it publishes into a
-    # tree of repo-relative paths under the output mount and the host copies
-    # that over the working tree.
-    "$repo_root/scripts/screenshots/render-linux.sh" "$staging" --publish /out/published
-    cp -R "$staging/published/." "$repo_root/"
-fi
+dotnet run --project "$repo_root/tools/Screenshot" -c Release -- "$staging" --publish "$repo_root"
 
 echo
 echo "Review them with: git status --short docs/screenshots design/store/screenshots"

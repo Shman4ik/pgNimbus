@@ -41,7 +41,7 @@
                      a user with an empty list will look for one. -->
                 <TextBlock IsVisible="{Binding HasNoSavedQueries}" IsHitTestVisible="False"
                            Text="Nothing saved yet. Right-click a query tab and choose Save query, or press the Save shortcut."
-                           TextWrapping="Wrap" TextAlignment="Center" Opacity="0.4" FontSize="12"
+                           TextWrapping="Wrap" TextAlignment="Center" Opacity="0.6" FontSize="12"
                            Margin="12" HorizontalAlignment="Center" VerticalAlignment="Center" />
             </Grid>
         </Border>
@@ -90,7 +90,7 @@
                                     <TextBlock Text="{Binding Sql}" TextTrimming="CharacterEllipsis" MaxLines="2" TextWrapping="Wrap" FontSize="12" />
                                     <StackPanel Orientation="Horizontal" Spacing="6">
                                         <TextBlock Text="{Binding ExecutedAt}" Opacity="0.6" FontSize="10" />
-                                        <TextBlock Text="{Binding Connection}" Opacity="0.45" FontSize="10"
+                                        <TextBlock Text="{Binding Connection}" Opacity="0.6" FontSize="10"
                                                    IsVisible="{Binding Connection, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
                                     </StackPanel>
                                 </StackPanel>
@@ -100,11 +100,11 @@
                 </ListBox>
                 <TextBlock IsVisible="{Binding HasNoHistory}" IsHitTestVisible="False"
                            Text="Queries you run will appear here"
-                           TextWrapping="Wrap" TextAlignment="Center" Opacity="0.4" FontSize="12"
+                           TextWrapping="Wrap" TextAlignment="Center" Opacity="0.6" FontSize="12"
                            Margin="12" HorizontalAlignment="Center" VerticalAlignment="Center" />
                 <TextBlock IsVisible="{Binding HasNoHistoryMatches}" IsHitTestVisible="False"
                            Text="Nothing in history matches"
-                           TextWrapping="Wrap" TextAlignment="Center" Opacity="0.4" FontSize="12"
+                           TextWrapping="Wrap" TextAlignment="Center" Opacity="0.6" FontSize="12"
                            Margin="12" HorizontalAlignment="Center" VerticalAlignment="Center" />
             </Grid>
         </Border>

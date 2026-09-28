@@ -76,6 +76,11 @@ public static class Scenarios
         ("security-drop-role-dialog", SecurityDropRoleDialog),
         ("save-query-dialog", SaveQueryDialogShot),
         ("staged-conflict-dialog", StagedConflictDialogShot),
+        ("confirm-dialog", ConfirmDialogShot),
+        ("pending-changes-dialog", PendingChangesDialogShot),
+        ("import-plan-dialog", ImportPlanDialogShot),
+        ("import-dialog", ImportDialogShot),
+        ("bulk-grant-dialog", BulkGrantDialogShot),
         ("shortcuts-window", Shortcuts),
         ("preferences-window", Preferences),
         ("about-window", About),
@@ -405,6 +410,48 @@ public static class Scenarios
             Width = 420,
             Height = 260,
         };
+    }
+
+    // The modal dialogs below exist so every dialog has a frame to compare: the
+    // same margins, title and hint type, and button row (primary first, Cancel
+    // last) are only a convention until something shows them side by side.
+
+    /// <summary>The shared destructive confirm, as the grid's Delete raises it.</summary>
+    public static Window ConfirmDialogShot() =>
+        new ConfirmDialog("Delete 3 rows? This can't be undone.", "Delete") { Width = 380, Height = 150 };
+
+    /// <summary>Safe mode's review before a commit, with one unchecked column named.</summary>
+    public static Window PendingChangesDialogShot() =>
+        new PendingChangesDialog(
+            "2 staged changes to public.orders",
+            """
+            BEGIN;
+            UPDATE public.orders SET status = 'shipped' WHERE id = 4802;
+            DELETE FROM public.orders WHERE id = 4803;
+            COMMIT;
+            """,
+            2,
+            ["shipping_box"])
+        { Width = 620, Height = 460 };
+
+    /// <summary>Paste-a-plan, empty, as the command palette opens it.</summary>
+    public static Window ImportPlanDialogShot() => new ImportPlanDialog { Width = 640, Height = 520 };
+
+    /// <summary>A parsed CSV on its way into a new table.</summary>
+    public static Window ImportDialogShot()
+    {
+        var data = new PgNimbus.Core.Import.TabularData(
+            ["sku", "name", "price", "in_stock"],
+            [["NIM-1", "Cloud mug", "12.50", "true"], ["NIM-2", "Elephant plush", "24.00", "false"]]);
+        var vm = new ImportViewModel(new PgNimbus.Core.Import.ImportService(Fixtures.DataSource), data, "products_import", ["public", "analytics"]);
+        return new ImportDialog { DataContext = vm, Width = 560, Height = 520 };
+    }
+
+    /// <summary>Granting a role a whole schema, the Security window's Bulk grant.</summary>
+    public static Window BulkGrantDialogShot()
+    {
+        var vm = new BulkGrantViewModel(["public", "analytics", "billing"], ["app_ro", "app_rw", "readers"], "public", "postgres");
+        return new BulkGrantDialog { DataContext = vm, Width = 660, Height = 640 };
     }
 
     /// <summary>Selects a tab by index once the window's template is up.</summary>
