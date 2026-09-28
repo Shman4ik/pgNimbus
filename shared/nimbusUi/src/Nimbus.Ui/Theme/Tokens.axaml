@@ -72,6 +72,23 @@
         family on a machine whose accent is orange.
     -->
     <SolidColorBrush x:Key="AppAccentBrush" Color="#2D7FF9" />
+    <!--
+        The same blue as Fluent's accent palette. Fluent reads SystemAccentColor (and
+        its three lighter and three darker steps) from the OS, and paints with it
+        wherever an app has not pinned a template part: an `accent` button at rest,
+        a checked box, a toggle switch that is on, a focus ring. So a DESIGN.md
+        rule 11 app still followed the Windows accent on those, and nobody saw it
+        because the headless renders use Avalonia's default blue: on a machine whose
+        accent is grey, Connect and Run were grey buttons (found 2026-09-28).
+        Defined here, after FluentTheme, these win every DynamicResource lookup.
+    -->
+    <Color x:Key="SystemAccentColor">#2D7FF9</Color>
+    <Color x:Key="SystemAccentColorLight1">#4A93FA</Color>
+    <Color x:Key="SystemAccentColorLight2">#74ABFB</Color>
+    <Color x:Key="SystemAccentColorLight3">#A0C6FD</Color>
+    <Color x:Key="SystemAccentColorDark1">#1E63D6</Color>
+    <Color x:Key="SystemAccentColorDark2">#1850AE</Color>
+    <Color x:Key="SystemAccentColorDark3">#123C83</Color>
     <SolidColorBrush x:Key="AppAccentHoverBrush" Color="#4A93FA" />
     <SolidColorBrush x:Key="AppAccentPressedBrush" Color="#1E63D6" />
     <!-- Low-alpha accent for row/pill selection washes; reads on both themes. -->

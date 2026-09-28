@@ -127,6 +127,16 @@ and every selection/hover/primary surface would then have to stay legible agains
 an unknown hue. It is also what keeps the two apps looking like one family on a
 machine whose accent is orange.
 
+Pinning `AppAccentBrush` on our own styles is not enough, because Fluent keeps
+painting with the OS accent wherever a template part draws from its own resources:
+an `accent` button at rest, a checked box, a toggle that is on. `Theme/Tokens.axaml`
+therefore also overrides `SystemAccentColor` and its six light and dark steps, and
+`Button.accent` / `Button.danger` pin their states on `PART_ContentPresenter`. Until
+2026-09 every primary button was the OS accent on a real machine (grey on the
+owner's) while the headless renders, which use Avalonia's default blue, looked right,
+so no screenshot caught it. **Check a colour change live on a machine whose accent
+is not blue.**
+
 ### 12. A `DataGridCell` needs a gutter on both sides
 
 Fluent's cell padding is left-only, which is invisible while every column is

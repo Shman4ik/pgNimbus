@@ -66,6 +66,18 @@
         <Setter Property="Foreground" Value="{DynamicResource SystemControlDisabledBaseMediumLowBrush}" />
     </Style>
 
+    <!-- Fluent repaints PART_ContentPresenter on hover and press from its own
+         ButtonBackground* resources, so the item-level states above never drew: a
+         red button went grey under the pointer. Pinned on the part, as .accent is. -->
+    <Style Selector="Button.danger:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource AppDangerHoverBrush}" />
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.danger:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource AppDangerPressedBrush}" />
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+
     <!-- Checked state for chip-styled ToggleButtons. Fluent paints the checked fill
          on PART_ContentPresenter via its ControlTheme, which outranks a plain
          Background setter, so the wash has to override that template part; hover and

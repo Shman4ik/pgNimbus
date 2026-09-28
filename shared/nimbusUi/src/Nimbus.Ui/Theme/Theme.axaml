@@ -87,6 +87,27 @@
         <Setter Property="Foreground" Value="{DynamicResource SystemControlDisabledBaseMediumLowBrush}" />
     </Style>
 
+    <!-- Fluent's own `accent` class paints PART_ContentPresenter from its
+         AccentButton* resources, which outranks the item-level Background above:
+         the rest state followed the OS accent and pressed went lighter, not darker.
+         Pinned on the part so the brand blue is what draws in every state. -->
+    <Style Selector="Button.accent /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource AppAccentBrush}" />
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.accent:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource AppAccentHoverBrush}" />
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.accent:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource AppAccentPressedBrush}" />
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.accent:disabled /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SystemControlDisabledBaseLowBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlDisabledBaseMediumLowBrush}" />
+    </Style>
+
     <Style Selector="Button.chip, ToggleButton.chip">
         <Setter Property="CornerRadius" Value="10" />
         <Setter Property="Padding" Value="4,0" />

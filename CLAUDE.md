@@ -906,6 +906,18 @@ Three rules about it:
   bar (`BuildMacNativeMenu`) is the file-command home there, so it would be a
   second copy of the same commands. The sidebar toggle icon is platform-picked
   via `{OnPlatform}` (SF-style geometry on macOS).
+
+  **The connection dialog has the same one bar** (2026-09). It is the app's first
+  screen and a resizable, maximizable window like the main one, yet it arrived
+  under an OS caption reading "pgNimbus — Connect" beside the app icon, so the
+  first thing anyone saw was the one window that did not look like the app.
+  `ConnectionDialog` attaches `NimbusWindowChrome` to its own 40px `ConnectBar`,
+  which repeats the form's two columns: the "Saved connections" heading over the
+  list, and the paste-a-connection-string box over the fields, in the place the
+  main window keeps its search pill (it already behaves like an address bar, rule
+  2). The form lost that row in exchange. The window `Title` stays set: the
+  taskbar and Alt+Tab still read it. The modal dialogs keep their OS captions;
+  they are not places, and a drawn caption on each is chrome for nothing.
 - **The connected window opens in the display mode the connect form was left
   in (2026-08).** `App.CarryWindowState`, called from the dialog's `Connected`
   handler before `Show()`. Connecting reads as one continuous act — the form is
@@ -957,8 +969,8 @@ Three rules about it:
   exit through their own teardown cleanly.
 - **Windows** — every remaining window still calls `ThemedWindowChrome.Attach(this)`
   for the **icon** (details in the icon section below). Its caption-colour half is
-  moot on `MainWindow`, whose caption is ours, and still applies to the dialogs and
-  the two reference windows. kubeNimbus deleted its copy outright once its last two
+  moot on `MainWindow` and `ConnectionDialog`, whose captions are ours, and still
+  applies to the dialogs and the reference windows. kubeNimbus deleted its copy outright once its last two
   secondary windows became overlays; ours stays because the connection dialog and the
   crash reporter exist *before* or *instead of* a main window and can never be one.
 - **macOS native menu bar (2026-07)** — two layers. App-level (`App.axaml`,
