@@ -22,40 +22,14 @@
 
     <!-- The one bar of chrome, as in the main window (NimbusWindowChrome,
          DESIGN.md rule 9): no icon and no "pgNimbus - Connect" caption over the
-         form, and the caption buttons are the same drawn ones. The bar repeats the
-         form's two columns: the list's heading over the list, the connection
-         string over the fields, where the main window has its search pill. The
-         TitleBar role gives it drag, double-click, the window menu and Snap;
-         everything interactive opts back out with the User role. Padding comes
-         from the chrome, which adds the caption-button reserve on top of 16. -->
+         form, and the caption buttons are the same drawn ones. It carries the
+         list's heading, over the list. The TitleBar role gives it drag,
+         double-click, the window menu and Snap. Padding comes from the chrome,
+         which adds the caption-button reserve on top of 16. -->
     <Border Name="ConnectBar" Grid.Row="0" Height="40" Background="Transparent"
             chrome:WindowDecorationProperties.ElementRole="TitleBar"
             BorderThickness="0,0,0,1" BorderBrush="{StaticResource CardBorderBrush}">
-        <Grid ColumnDefinitions="240,*">
-            <TextBlock Grid.Column="0" Text="Saved connections" FontWeight="SemiBold" VerticalAlignment="Center" />
-
-            <!-- Paste-anything import: URI / JDBC / Key=Value / libpq / psql command line.
-                 Parses automatically as you paste/type, and mirrors the fields below
-                 as a postgres:// URI whenever you edit them by hand. Because of that
-                 mirroring the box is usually already full, so it behaves like a
-                 browser address bar - focusing it selects everything (see
-                 ConnectionDialog.axaml.cs). -->
-            <Grid Grid.Column="1" ColumnDefinitions="*,Auto" Margin="20,0,0,0" VerticalAlignment="Center"
-                  IsEnabled="{Binding CredentialsReady}"
-                  chrome:WindowDecorationProperties.ElementRole="User">
-                <TextBox Name="ImportBox" Grid.Column="0" Text="{Binding ImportText}" Margin="0,0,6,0"
-                         PlaceholderText="Paste a connection string (postgres://…, jdbc:…, Key=Value;…, psql …)"
-                         ToolTip.Tip="Paste a postgres:// URI, JDBC URL, Npgsql Key=Value string, libpq keyword string or psql command line and the fields fill in by themselves">
-                    <TextBox.KeyBindings>
-                        <KeyBinding Gesture="Enter" Command="{Binding ImportConnectionStringCommand}" />
-                    </TextBox.KeyBindings>
-                </TextBox>
-                <Button Grid.Column="1" Classes="chip" Padding="7" Click="OnCopyConnectionStringClick"
-                        ToolTip.Tip="Copy connection string to clipboard (includes the password)">
-                    <PathIcon Data="{StaticResource ClipboardIconGeometry}" Width="14" Height="14" />
-                </Button>
-            </Grid>
-        </Grid>
+        <TextBlock Text="Saved connections" FontWeight="SemiBold" VerticalAlignment="Center" />
     </Border>
 
     <Grid Grid.Row="1" Margin="16" RowDefinitions="*,Auto,Auto,Auto">
@@ -111,9 +85,46 @@
             </Border>
         </Grid>
 
-        <Grid Grid.Column="1" Margin="20,0,0,0">
+        <Grid Grid.Column="1" Margin="20,0,0,0" RowDefinitions="Auto,*">
 
-        <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+        <!-- Paste-anything import: URI / JDBC / Key=Value / libpq / psql command line.
+             Parses automatically as you paste/type, and mirrors the fields below
+             as a postgres:// URI whenever you edit them by hand. Because of that
+             mirroring the box is usually already full, so it behaves like a
+             browser address bar - focusing it selects everything (see
+             ConnectionDialog.axaml.cs). -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,14,12">
+            <TextBox Name="ImportBox" Grid.Column="0" Text="{Binding ImportText}" Margin="0,0,6,0"
+                     PlaceholderText="Paste a connection string (postgres://…, jdbc:…, Key=Value;…, psql …)"
+                     ToolTip.Tip="Paste a postgres:// URI, JDBC URL, Npgsql Key=Value string, libpq keyword string or psql command line and the fields fill in by themselves">
+                <TextBox.KeyBindings>
+                    <KeyBinding Gesture="Enter" Command="{Binding ImportConnectionStringCommand}" />
+                </TextBox.KeyBindings>
+            </TextBox>
+            <Button Grid.Column="1" Classes="chip" Padding="7" Click="OnCopyConnectionStringClick"
+                    ToolTip.Tip="Copy connection string to clipboard (includes the password)">
+                <PathIcon Data="{StaticResource ClipboardIconGeometry}" Width="14" Height="14" />
+            </Button>
+        </Grid>
+
+        <!-- The brand lockup sits in whatever the form leaves empty below itself,
+             the way the GitHub social card does it: mark, name, one line of
+             tagline. It shows only while it fits whole in that space (code-behind,
+             UpdateBrandFit), so a taller form - the SSH section expanded, a short
+             window - takes the room back and nothing is ever covered or cropped. -->
+        <Grid Name="BrandHost" Grid.Row="1" RowDefinitions="0,*" IsHitTestVisible="False">
+            <StackPanel Name="BrandBlock" Grid.Row="1" Spacing="6" Margin="0,0,14,0"
+                        HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0">
+                <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center">
+                    <Image Source="{StaticResource LogoMarkImage}" Width="44" Height="44" VerticalAlignment="Center" />
+                    <TextBlock Text="pgNimbus" FontSize="26" FontWeight="Bold" VerticalAlignment="Center" />
+                </StackPanel>
+                <TextBlock Text="A fast, open-source PostgreSQL client" FontSize="12" Opacity="0.6"
+                           HorizontalAlignment="Center" />
+            </StackPanel>
+        </Grid>
+
+        <ScrollViewer Name="FormScroller" Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
         <!-- Right margin keeps the scrollbar (shown once the SSH section expands) off the field edges -->
         <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" Margin="0,0,14,0">
 

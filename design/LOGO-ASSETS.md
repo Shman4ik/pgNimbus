@@ -14,6 +14,7 @@ design/logo.af                     Affinity, the editable master
   → scripts/design/dump-af.js      geometry out to JSON (run via the Affinity MCP)
   → scripts/design/af-to-svg.py    design/logo.svg
   → scripts/design/make-masters.ps1        design/masters/**
+  → scripts/design/svg-to-axaml.py         PgNimbus.App/Styles/LogoMark.axaml
   → scripts/windows/make-app-icons.ps1     PgNimbus.App/Assets/**
   → scripts/windows/make-store-logos.ps1   design/store/**
 ```
@@ -187,6 +188,14 @@ Windows to actually resolve them (see Part 3).
 ### `scripts/design/af-to-svg.py` (any OS, stdlib only)
 Run after `scripts/design/dump-af.js` in Affinity. Bakes every node transform
 into the path data and writes `design/logo.svg`.
+
+### `scripts/design/svg-to-axaml.py` (any OS, stdlib only)
+Run after any change to `design/logo.svg`. Transcribes it into
+`PgNimbus.App/Styles/LogoMark.axaml`, a `DrawingImage` keyed `LogoMarkImage` that
+the app draws wherever it shows the mark itself (the connect window's lockup), so
+it is sharp at any size instead of being one more raster to keep in step. Like
+`af-to-svg.py` it relies on the SVG being flat; it stops on any element it does not
+handle rather than guessing.
 
 ### `scripts/design/make-masters.ps1` (Windows, Inkscape + System.Drawing)
 Run after any change to `design/logo.svg`. Renders every file under

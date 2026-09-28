@@ -912,12 +912,19 @@ Three rules about it:
   under an OS caption reading "pgNimbus — Connect" beside the app icon, so the
   first thing anyone saw was the one window that did not look like the app.
   `ConnectionDialog` attaches `NimbusWindowChrome` to its own 40px `ConnectBar`,
-  which repeats the form's two columns: the "Saved connections" heading over the
-  list, and the paste-a-connection-string box over the fields, in the place the
-  main window keeps its search pill (it already behaves like an address bar, rule
-  2). The form lost that row in exchange. The window `Title` stays set: the
-  taskbar and Alt+Tab still read it. The modal dialogs keep their OS captions;
-  they are not places, and a drawn caption on each is chrome for nothing.
+  which carries only the "Saved connections" heading over the list. The
+  connection-string box stays at the top of the form: it was tried in the bar,
+  where the main window keeps its search pill, and the owner rejected it on
+  sight. The window `Title` stays set for the taskbar and Alt+Tab. The modal
+  dialogs keep their OS captions; they are not places.
+  **The identity moved into the form's empty space instead**: the mark, the name
+  and the About tagline, laid out like the GitHub social card, centred below the
+  fields. It shows only while it fits whole there (`UpdateBrandFit`, hidden by opacity so it never leaves layout, on the
+  scroller's `LayoutUpdated`, measuring the form's *desired* height — the
+  scroller's `Extent` is stretched to the viewport and never reports free space),
+  so the SSH section or a short window takes the room back rather than covering or
+  cropping it. The mark is vector: `Styles/LogoMark.axaml`, generated from
+  `design/logo.svg` (see the icon section's chain).
 - **The connected window opens in the display mode the connect form was left
   in (2026-08).** `App.CarryWindowState`, called from the dialog's `Connected`
   handler before `Show()`. Connecting reads as one continuous act — the form is
@@ -1053,6 +1060,7 @@ design/logo.af                     Affinity, the editable master
   → scripts/design/dump-af.js      geometry out to JSON (run via the Affinity MCP)
   → scripts/design/af-to-svg.py    design/logo.svg
   → scripts/design/make-masters.ps1        design/masters/**
+  → scripts/design/svg-to-axaml.py         PgNimbus.App/Styles/LogoMark.axaml
   → scripts/windows/make-app-icons.ps1     PgNimbus.App/Assets/**
   → scripts/windows/make-store-logos.ps1   design/store/**
 ```
