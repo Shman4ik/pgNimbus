@@ -46,6 +46,12 @@ public sealed partial class SavedQueriesViewModel : ObservableObject
     /// <summary>What the history list actually shows: filter + scope applied, pinned entries floated to the top.</summary>
     public ObservableCollection<QueryHistoryEntry> FilteredHistory { get; } = [];
 
+    /// <summary>
+    /// The label ("host/database") of the connection this window is on. A
+    /// history row names its connection only when it is a different one.
+    /// </summary>
+    public string? CurrentConnection => _getConnectionLabel();
+
     /// <summary>Drives the empty-state hint under an empty saved-queries list.</summary>
     public bool HasNoSavedQueries => SavedQueries.Count == 0;
 

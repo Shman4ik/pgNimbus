@@ -377,7 +377,7 @@ public class MenuTests
     /// </summary>
     private static ContextMenu ContextMenuFor(Window window, Func<object?, bool> node)
     {
-        var panel = window.GetVisualDescendants().OfType<StackPanel>()
+        var panel = window.GetVisualDescendants().OfType<Panel>()
             .First(p => p.ContextMenu is not null && node(p.DataContext));
         var menu = panel.ContextMenu!;
         menu.Open(panel);

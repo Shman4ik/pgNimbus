@@ -243,21 +243,81 @@
          base Button.chip rule): kubeNimbus needs exactly the same vocabulary and was
          rendering stock Fluent without it. Nothing about them was Postgres-specific. -->
 
-    <!-- Left-nav style TabItem: pill highlight instead of the classic underline tab
-         strip. TabControl's own transparent background is shared; TabItem is NOT —
-         DESIGN.md keeps it per-app, because kubeNimbus styles the same selector for
-         its compact inspector strip. -->
-    <Style Selector="TabItem">
-        <Setter Property="Padding" Value="12,9" />
-        <Setter Property="Margin" Value="3,2" />
-        <Setter Property="CornerRadius" Value="{StaticResource ControlCornerRadius}" />
-        <Setter Property="HorizontalContentAlignment" Value="Left" />
-        <Setter Property="FontSize" Value="13" />
-        <Setter Property="MinWidth" Value="0" />
+    <!-- The sidebar's Schemas / Queries switch: one full-width capsule, the height
+         of the filter box under it, split into equal segments. It replaced a pair of
+         tall left-nav pills (44px, with a 12px gutter around them) that took the
+         sidebar's first 60px to say which of two lists was showing. Its own class,
+         not TabControl.segmented: that strip hugs its segments and sits beside a
+         window's actions, and its selection fades in on a transition, which a
+         screenshot baseline of the main window must never catch half-way (the
+         security window's shots have no baseline for exactly that reason). -->
+    <Style Selector="TabControl.sidebar">
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="ItemsPanel">
+            <ItemsPanelTemplate>
+                <UniformGrid Rows="1" />
+            </ItemsPanelTemplate>
+        </Setter>
+        <Setter Property="Template">
+            <ControlTemplate>
+                <DockPanel>
+                    <Border DockPanel.Dock="Top"
+                            Background="{StaticResource CardBackgroundBrush}"
+                            BorderBrush="{StaticResource CardBorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="2">
+                        <ItemsPresenter Name="PART_ItemsPresenter"
+                                        ItemsPanel="{TemplateBinding ItemsPanel}" />
+                    </Border>
+                    <ContentPresenter Name="PART_SelectedContentHost"
+                                      Content="{TemplateBinding SelectedContent}"
+                                      ContentTemplate="{TemplateBinding SelectedContentTemplate}"
+                                      Padding="{TemplateBinding Padding}" />
+                </DockPanel>
+            </ControlTemplate>
+        </Setter>
     </Style>
-    <Style Selector="TabItem:selected">
+    <Style Selector="TabControl.sidebar > TabItem">
+        <Setter Property="Padding" Value="8,4" />
+        <Setter Property="Margin" Value="0" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Name="PART_LayoutRoot"
+                        Background="{TemplateBinding Background}"
+                        CornerRadius="{TemplateBinding CornerRadius}"
+                        Padding="{TemplateBinding Padding}">
+                    <ContentPresenter Name="PART_ContentPresenter"
+                                      Content="{TemplateBinding Header}"
+                                      ContentTemplate="{TemplateBinding HeaderTemplate}"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center" />
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="TabControl.sidebar > TabItem /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Opacity" Value="0.7" />
+    </Style>
+    <Style Selector="TabControl.sidebar > TabItem:pointerover /template/ Border#PART_LayoutRoot">
+        <Setter Property="Background" Value="{StaticResource HoverBackgroundBrush}" />
+    </Style>
+    <Style Selector="TabControl.sidebar > TabItem:selected">
         <Setter Property="Foreground" Value="{StaticResource AppAccentBrush}" />
         <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="TabControl.sidebar > TabItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Opacity" Value="1" />
+    </Style>
+    <Style Selector="TabControl.sidebar > TabItem:selected /template/ Border#PART_LayoutRoot, TabControl.sidebar > TabItem:selected:pointerover /template/ Border#PART_LayoutRoot">
+        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
     </Style>
 
     <!-- Segmented control: an elegant horizontal tab strip (macOS-style) for

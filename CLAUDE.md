@@ -75,8 +75,9 @@ of [nimbusUi](https://github.com/Shman4ik/nimbusUi), referenced as an ordinary
   `Styles/Theme.axaml`**, where they had been defined for pgNimbus alone: kubeNimbus
   had none of them and was drawing stock Fluent inputs, lists and grids next to
   these, which is what made the two apps stop looking like one family. Change them
-  there, not here. What is left in this app's own `Styles/Theme.axaml` is `TabItem`,
-  `TabControl.segmented` and the AvaloniaEdit completion/search themes — all
+  there, not here. What is left in this app's own `Styles/Theme.axaml` is
+  `TabControl.sidebar`, `TabControl.segmented` and the AvaloniaEdit
+  completion/search themes — all
   genuinely pgNimbus's (see DESIGN.md's not-shared table).
   **Load order is the only precedence, and the move broke it once** (2026-09).
   Avalonia styles have no specificity: for one property, the later style wins,
@@ -555,6 +556,40 @@ Three rules about it:
    walking into each table's own sub-groups would multiply that by every table
    in the database.
 
+   **The compact pass** (2026-09-28). The sidebar spent its first 60px on two
+   44px left-nav pills saying which of two lists was showing, indented the tree
+   a further 12px past its own filter box, and on the Queries tab gave an empty
+   saved list half the height, printed each history entry's formatting as a
+   staircase and its timestamp as `07/30/2026 09:41:00 +00:00`, and ended in two
+   stock grey buttons. Now: (a) the tabs are one full-width capsule the filter
+   box's height, `TabControl.sidebar` in `Styles/Theme.axaml` — not
+   `segmented`, which hugs its segments and fades its selection in on a
+   transition that a main-window baseline must never catch half-way (the
+   security window has no baselines for exactly that). (b) The tree's chevron
+   column is 2+12+4px instead of Fluent's 12+12+12, and its root lines up with
+   the filter box. **Landmine:** Fluent sets that margin in the template, at
+   Template priority, which beats any plain style — the setter only lands from a
+   selector with an activator (`TreeViewItem:not(:disabled) /template/ …`, which
+   has StyleTrigger priority); a resource override of
+   `TreeViewItemExpandCollapseChevronMargin` does nothing either. The header
+   presenter is stretched the same way. (c) Metrics are a right-hand column: a
+   table's size and a column's type (with its family glyph) dock right, the name
+   trims with an ellipsis, and the tree no longer scrolls sideways
+   (`HorizontalScrollBarVisibility="Disabled"`) — which also lets an error row
+   wrap. Leaf rows with a trailing detail (functions, indexes, sequences, types,
+   triggers, roles, extensions) are `DockPanel`s whose detail trims. (d) The
+   Queries tab lost its cards (the tree beside it never had one); the saved
+   list sizes to its rows up to 240px; a history row is the statement folded
+   onto one line and a `09:41 · 18 ms · 50 rows` line under it (the Core-pure,
+   unit-tested `Query/HistoryLabel`: invariant culture, "Yesterday"/weekday/
+   `Jul 18`/ISO by age, the connection named only when it isn't this window's,
+   the full timestamp on hover; `HistoryText.Now` is the clock seam the harness
+   pins); the pin shows on a pinned row and on hover/selection only, in the
+   row's own foreground so it survives the accent-filled selected row; and the
+   Load selected / Clear history buttons became the list's right-click menu
+   (Open in New Tab, Copy SQL, Pin/Unpin, Clear History). Tests:
+   `SidebarTests`; scenario `main-window-queries`.
+
    **Completion ranks by what can legally be typed at the caret**, and the
    statement-start caret is its own context (2026-08):
    `SqlCompletionContext.IsAtStatementStart` (Core-pure, unit-tested) is true
@@ -913,8 +948,9 @@ Three rules about it:
    segmented strip beside it already means.
    Horizontal tab strips use `TabControl.segmented` — a retemplated
    macOS-style segmented capsule (the monitoring windows' Backends/Blocking
-   and Database Overview's tabs); the bare global `TabItem` style is the
-   *vertical* left-nav look and must stay untouched. Its header line also
+   and Database Overview's tabs); the sidebar's Schemas/Queries switch is its
+   own `TabControl.sidebar` (UI rule 1's compact pass has why it is not
+   `segmented`), and there is no bare global `TabItem` style any more. Its header line also
    carries a **trailing actions region**: whatever a window puts in the
    `TabControl`'s `Tag` is presented right-aligned on the tab baseline (hosted
    by a `ContentPresenter` inside the template, so it inherits the
@@ -1489,7 +1525,10 @@ csproj / WiX / MSIX manifest reference them unchanged:
   Windows symbols per architecture into each executable's `bin/` (~575 MB →
   ~42 MB), and a built worktree weighed ~4.6 GB. Consequence: a Debug `bin/`
   isn't portable across OS/arch — publish with `-r` for that, as the release
-  pipeline already does.
+  pipeline already does. The host RID is `NETCoreSdkPortableRuntimeIdentifier`:
+  a distro-built SDK (the apt `dotnet-sdk-10.0` the sandbox bootstrap installs)
+  reports `ubuntu.24.04-x64` as its own RID, which matches no package asset, so
+  every native library was trimmed and nothing that draws could start.
 
 ## Coding conventions
 
@@ -2409,6 +2448,11 @@ artifact nobody opens is not a check:
    request resolves to depends on what earlier scenarios loaded: baselines from a
    run filtered to `connection` drew every bold label heavier than CI's full run
    and failed it by 1.3%. A filter is for looking, not for committing.
+   **A new scenario goes at the end of `Scenarios.All`** (2026-09-28): the
+   headless clock advances with every frame rendered, so one inserted mid-list
+   moves the moment every later window's transitions are caught at. Below the
+   diff tolerance, but `update-baselines.sh` replaces files wholesale and
+   rewrote a dozen untouched windows' baselines anyway.
 3. **Publishing** (`--publish`) — `Marketing.cs` maps scenarios to the images
    that face users: `docs/screenshots/` (README + docs site) and
    `design/store/screenshots/` (Store listing, padded to the Store's 1366×768

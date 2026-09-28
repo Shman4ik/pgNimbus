@@ -386,7 +386,7 @@ reasons:
 
 | Thing | Why it stays per-app |
 |---|---|
-| `TabItem` styling | pgNimbus styles it for the query tab strip (12,9 padding, a margin, a corner radius), kubeNimbus for the compact inspector strip (12,6, `MinHeight` 0). Same selector, genuinely different jobs. |
+| `TabItem` styling | pgNimbus styles only its sidebar's Schemas/Queries switch, under its own `TabControl.sidebar` class (a full-width capsule of equal segments); kubeNimbus styles the bare selector for the compact inspector strip (12,6, `MinHeight` 0). Genuinely different jobs. |
 | `TabControl.segmented` | pgNimbus's segmented strip. kubeNimbus does the same job with `ListBox.segmented` + `TabControl.headerless` on purpose — a `TabControl` cannot host a panel's own tools on its header row, and its inspector dock needs exactly that (its rule 10). Sharing a mechanism the sibling has explicitly rejected buys nothing. |
 | Domain icons | A Kubernetes cube and a Postgres elephant are not shared vocabulary. `Theme/Icons.axaml` holds only glyphs both apps actually use. |
 | Everything in `*.Core` | Both engines are UI-free by their own hard rule and share nothing but coincidence. This is why each app has its own copy of the command catalog and chord types: they are UI-free by design, so they cannot live in a library that references Avalonia. |
