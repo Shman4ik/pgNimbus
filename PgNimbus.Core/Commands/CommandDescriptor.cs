@@ -80,6 +80,10 @@ public enum CommandId
     ToggleTheme,
     Preferences,
     ShortcutsWindow,
+
+    // Appended rather than filed under "Tabs & files" above so the existing
+    // members keep their values; the catalog files it with the tab commands.
+    ReopenClosedTab,
 }
 
 /// <summary>

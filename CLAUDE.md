@@ -670,7 +670,36 @@ Three rules about it:
    **Closing the last tab empties it** rather than being refused
    (Notepad++): `CloseTab` creates the replacement scratch tab *before*
    removing the old one, so the strip is never momentarily empty and no
-   binding sees a null `ActiveTab`.
+   binding sees a null `ActiveTab`. **Except on macOS once it is already
+   empty** (2026-09, the Mac audit): there Cmd+W on the window's only tab, when
+   that tab is an untouched scratch tab (`QueryViewModel.IsUntouchedScratch`:
+   the scratch text or nothing, no file, no saved-query link, no chosen name,
+   no browsed table), closes the *window*, as in every Mac app — before that,
+   Cmd+W could never close a window at all. The app keeps running (see
+   "closing the last window does not quit" below). A tab with content is still
+   emptied first, so the window only closes on a second Cmd+W, after the work is
+   on the reopen stack. `MainViewModel.CloseWindowWithLastEmptyTab` (defaults
+   to `OperatingSystem.IsMacOS()`, settable for the tests) raises
+   `CloseWindowRequested`, which `MainWindow` answers with `Close()`. Windows
+   and Linux are unchanged, since closing the last window quits there.
+   **Close is undoable** (2026-09, same audit). Cmd+W took a tab holding
+   unsaved typed SQL with no prompt and no way back. `CommandId.ReopenClosedTab`
+   (Cmd/Ctrl+Shift+T, the browser gesture; palette, ☰ menu and the macOS File
+   menu) brings back the most recently closed tab from a session-only stack of
+   `MainViewModel.MaxClosedTabs` (20) `ClosedTab` records: text, title and
+   override, file path *and the file baseline* (so the dirty dot comes back
+   without reading the disk), saved-query link, browsed table, caret, and the
+   strip position it returns to. The caret is put back through
+   `QueryViewModel.PendingCaretOffset`, which `QueryEditorPanel.AttachQuery`
+   consumes once, so the reopened tab is filled in (`CreateTab`) *before* it
+   becomes active, or the editor attaches to it half-built. Every close pushes
+   (Close others / to the right included, via `RemoveTab`), except an untouched
+   scratch tab, which has nothing to bring back; and a lone untouched scratch
+   tab (usually the one that replaced the closed last tab) gives way to the
+   reopened one instead of staying beside it. A close that took SQL saved
+   nowhere (a scratch tab with text, a dirty file tab, a saved query that
+   differs from its entry) says so on the status line with the reopen gesture,
+   read from the catalog, one line for a bulk close. Tests: `ClosedTabTests`.
    **A tab's name is either a label or an override, and the difference is the
    bug this fixed**: `QueryViewModel.TitleOverride` is for names a *person*
    chose (the backing file, a saved query, a rename) and survives every later
@@ -682,7 +711,7 @@ Three rules about it:
    override. Only `TitleOverride` rides the workspace snapshot.
    The ☰ button (top-left, 2026-07) opens the one discoverable menu for file/tab-level commands: New tab,
    Open .sql / Open recent, Save / Save as / Save query to Saved Queries /
-   Save tab to a .sql file, Close tab, Switch connection,
+   Save tab to a .sql file, Close tab, Reopen closed tab, Switch connection,
    New window, Preferences, **Keyboard shortcuts and About pgNimbus**. Those last
    two were reachable only from the macOS native menu (About) or a single unlabelled
    `?` button (shortcuts), so on Windows and Linux the About box had no entry point
@@ -726,7 +755,12 @@ Three rules about it:
    it. And a save that already has an entry **skips the dialog entirely**; the
    naming modal (`SaveQueryDialog`, shared with the list's Rename) appears only
    the first time, which is what keeps Ctrl+S feeling like Ctrl+S rather than
-   like a prompt. Its name-collision check is case-insensitive on purpose: the
+   like a prompt. That first time it opens holding the tab's title, selected,
+   so Enter saves (`SaveQueryDialog.SuggestName`, 2026-09): it used to open
+   empty for a "Query N" tab, which left Save disabled until something was
+   typed. A title already in the list gets a number (`orders 2`), because a
+   taken name turns Save into Replace and Enter on a suggestion must never
+   overwrite a saved query. Its name-collision check is case-insensitive on purpose: the
    list is read by eye, so "Daily report" and "daily report" as two rows is the
    duplicate bug wearing a different hat.
 
@@ -1536,6 +1570,30 @@ csproj / WiX / MSIX manifest reference them unchanged:
   (that also closed the pre-existing hole where inline-editing a large `bytea`
   committed its 24-byte hex preview). Everything else — sorting, copy, export,
   the commit path itself — reads the raw row values and is untouched by the cap.
+- **Dates and times in the grid are ISO, whatever the region** (2026-09, the
+  Mac audit: a Czech Mac saw US `03/23/2026 02:03:29`, because `CellText`
+  passed `DateTime` through to the binding's culture). `CellText.Temporal`
+  writes what Postgres prints with `DateStyle = ISO`: `2026-03-23`,
+  `2026-03-23 02:03:29`, `02:03:29`, fractional seconds only when non-zero (up
+  to six digits), and `infinity`/`-infinity` for the Min/Max values Npgsql maps
+  those to. **timestamptz shows the UTC instant with `+00`**, exactly what psql
+  prints in a UTC session: Npgsql converts every timestamptz to UTC and does not
+  say which zone the session used, and the suffix stops anyone reading it as
+  local time. timetz keeps its own offset (`+01`, `+05:30`). Intervals are left
+  as they were. **The column's type is load-bearing**: Npgsql hands a `date` and
+  a `timestamp` over as one `DateTime`, and a `time` and an `interval` as one
+  `TimeSpan`, so `Preview`/`Full` take the wire type name (`RowIndexConverter`,
+  the cell inspector's `Open` and row details pass `ColumnTypeName(i)`); without
+  it a UTC `DateTime` is still marked `+00` by its Kind. **Every rendering must
+  read back**, since the grid pre-fills its inline editor from it:
+  `QueryViewModel.ParseEditedText` (the static half of `ConvertEditedValue`,
+  public so `TemporalCellTextTests` can hold the round trip) reads `+00` back to
+  a UTC `DateTime` for timestamptz, an offset-less wall clock to `Unspecified`
+  for timestamp, `24:00:00` and the infinity words too. Export and copy are
+  untouched: `ResultExporter` already writes invariant round-trip (`"O"`) text
+  for `DateTime`/`DateTimeOffset` and never read `CellText`. Still culture-bound,
+  and not part of this change: numbers in the grid (`55,75` on a Czech Mac)
+  and the row-details date picker.
 - **Export writes every row, not the grid's** (2026-09, ROADMAP D1). It used to
   write `Rows`: one 100-row page when browsing, at most `MaxDisplayRows` for a
   query, silently. `QueryViewModel.ChooseExportSource` now decides: a grid that

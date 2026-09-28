@@ -181,6 +181,7 @@ public partial class MainWindow : Window
                 CommandItem("Save Tab to a .sql File…", CommandId.SaveFile),
                 new NativeMenuItemSeparator(),
                 CommandItem("Close Tab", CommandId.CloseTab),
+                CommandItem("Reopen Closed Tab", CommandId.ReopenClosedTab),
                 new NativeMenuItemSeparator(),
                 CommandItem("Switch Connection…", CommandId.SwitchConnection),
                 CommandItem("New Connection Window…", CommandId.NewWindow),
@@ -354,6 +355,7 @@ public partial class MainWindow : Window
         MenuSaveFile.InputGesture = CommandBindings.GestureFor(CommandId.Save);
         MenuSaveFileAs.InputGesture = CommandBindings.GestureFor(CommandId.SaveAs);
         MenuCloseTab.InputGesture = CommandBindings.GestureFor(CommandId.CloseTab);
+        MenuReopenClosedTab.InputGesture = CommandBindings.GestureFor(CommandId.ReopenClosedTab);
         MenuPreferences.InputGesture = CommandBindings.GestureFor(CommandId.Preferences);
         MenuShortcuts.InputGesture = CommandBindings.GestureFor(CommandId.ShortcutsWindow);
         MenuSwitchConnection.InputGesture = CommandBindings.GestureFor(CommandId.SwitchConnection);
@@ -477,6 +479,7 @@ public partial class MainWindow : Window
             _viewModel.SaveFileRequested -= OnSaveFileRequested;
             _viewModel.SaveQueryRequested -= OnSaveQueryRequested;
             _viewModel.OpenRecentFileRequested -= OnOpenRecentFileRequested;
+            _viewModel.CloseWindowRequested -= Close;
         }
 
         _viewModel = vm;
@@ -497,6 +500,8 @@ public partial class MainWindow : Window
         _viewModel.SaveFileRequested += OnSaveFileRequested;
         _viewModel.SaveQueryRequested += OnSaveQueryRequested;
         _viewModel.OpenRecentFileRequested += OnOpenRecentFileRequested;
+        // macOS: Cmd+W on the only tab, once it is empty, closes the window.
+        _viewModel.CloseWindowRequested += Close;
 
         // The results grid tracks the active tab itself, inside ResultsGridPanel
         // (off its own DataContext), same as the editor does in QueryEditorPanel.
@@ -1456,7 +1461,7 @@ public partial class MainWindow : Window
 
         var dialog = new SaveQueryDialog(
             saveAsNew ? "Save as a new query" : "Save query",
-            SuggestQueryName(tab),
+            SaveQueryDialog.SuggestName(tab.TabTitle, saved.FindByName),
             currentId: null,
             saved.FindByName);
 
@@ -1469,18 +1474,6 @@ public partial class MainWindow : Window
         tab.MarkSavedAsQuery(entry.Id, entry.Name);
         tab.Status = $"Saved query “{entry.Name}”";
         tab.HasError = false;
-    }
-
-    /// <summary>
-    /// What to pre-fill the name box with. The tab's title is the best guess
-    /// available — it is either a name a person already chose or one derived
-    /// from the SQL — except for the "Query N" placeholders, which would name
-    /// every saved query after its tab position and tell the user nothing.
-    /// </summary>
-    private static string SuggestQueryName(QueryViewModel tab)
-    {
-        var title = tab.TabTitle;
-        return title.StartsWith("Query ", StringComparison.Ordinal) ? string.Empty : title;
     }
 
     /// <summary>A usable file-name stem from a tab title: strips characters the filesystem would reject.</summary>

@@ -145,8 +145,11 @@ public sealed partial class CellInspectorViewModel : ObservableObject
     /// or an error message); <paramref name="columnIndex"/> identifies the grid
     /// column that delegate targets. <paramref name="validatesAsJson"/> is set when the
     /// column's declared type is json/jsonb, gating client-side JSON validation.
+    /// <paramref name="dataTypeName"/> is the column's wire type, which the text
+    /// needs to agree with the grid cell's (a date and a timestamp arrive as one
+    /// CLR type; see <see cref="CellText.Preview"/>).
     /// </summary>
-    public void Open(string columnName, object? value, int columnIndex, bool canEdit, Func<int, string, Task<string?>>? commit, bool validatesAsJson = false, bool startEditing = false)
+    public void Open(string columnName, object? value, int columnIndex, bool canEdit, Func<int, string, Task<string?>>? commit, bool validatesAsJson = false, bool startEditing = false, string? dataTypeName = null)
     {
         ColumnName = columnName;
         _columnIndex = columnIndex;
@@ -159,7 +162,7 @@ public sealed partial class CellInspectorViewModel : ObservableObject
         SaveError = null;
         _editSeeded = false;
 
-        (DisplayText, IsJson) = Format(value);
+        (DisplayText, IsJson) = Format(value, dataTypeName);
         TreeRoots = [];
         IsOpen = true;
 
@@ -255,7 +258,7 @@ public sealed partial class CellInspectorViewModel : ObservableObject
 
         // Persisted. Reflect the saved value (pretty-printed, same as the grid's
         // stored text) and drop back to the read view, tree cache invalidated.
-        (DisplayText, IsJson) = Format(EditText);
+        (DisplayText, IsJson) = Format(EditText, null);
         TreeRoots = [];
         SaveError = null;
         IsEditing = false;
@@ -288,13 +291,13 @@ public sealed partial class CellInspectorViewModel : ObservableObject
         return Encoding.UTF8.GetString(buffer.WrittenSpan);
     }
 
-    private static (string Text, bool IsJson) Format(object? value)
+    private static (string Text, bool IsJson) Format(object? value, string? dataTypeName)
     {
         // Exactly what the grid cell renders, minus the length cap: the two must
         // agree on what a value *is* (bytea as \x-hex, an array as a Postgres
         // literal, hstore as "k"=>"v"), and this is the view that shows all of
         // it. See CellText.
-        var text = CellText.Full(value);
+        var text = CellText.Full(value, dataTypeName);
 
         return TryPrettyPrintJson(text, out var pretty) ? (pretty, true) : (text, false);
     }

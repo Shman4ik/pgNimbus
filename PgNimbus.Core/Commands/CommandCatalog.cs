@@ -168,6 +168,19 @@ public static class CommandCatalog
             Chord = new(CommandKey.W, Cmd),
             Surfaces = Everywhere,
         },
+        // Close's undo, on the browser gesture because that is where everyone
+        // learned it. The session keeps the last few closed tabs (text, name,
+        // file, saved-query link, caret): a tab closed with unsaved SQL in it
+        // used to be simply gone.
+        new()
+        {
+            Id = CommandId.ReopenClosedTab,
+            Title = "Reopen closed tab",
+            Category = CommandCategory.Tabs,
+            Glyph = "↶",
+            Chord = new(CommandKey.T, CmdShift),
+            Surfaces = Everywhere,
+        },
         // The bulk-close pair: no chord (three tab commands already own one),
         // reachable from the tab strip's right-click menu and the palette.
         new()

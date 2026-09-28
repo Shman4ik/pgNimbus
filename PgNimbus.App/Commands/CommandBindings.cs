@@ -163,6 +163,7 @@ public static class CommandBindings
 
         [CommandId.NewTab] = vm => vm.AddTabCommand,
         [CommandId.CloseTab] = vm => vm.CloseTabCommand,
+        [CommandId.ReopenClosedTab] = vm => vm.ReopenClosedTabCommand,
         [CommandId.CloseOtherTabs] = vm => vm.CloseOtherTabsCommand,
         [CommandId.CloseTabsToTheRight] = vm => vm.CloseTabsToTheRightCommand,
         [CommandId.RenameTab] = vm => vm.RenameTabCommand,

@@ -268,6 +268,25 @@ public class CommandCatalogTests
             .IsEqualTo("⌘F in the results grid while browsing a table");
     }
 
+    /// <summary>
+    /// Close's undo sits on the browser gesture (Cmd+Shift+T on a Mac, Ctrl+Shift+T
+    /// elsewhere) and on every surface, since the status line names it after a
+    /// close and has to name something the user can actually press or find.
+    /// </summary>
+    [Test]
+    public async Task ReopenClosedTabIsTheBrowserGestureEverywhere()
+    {
+        var descriptor = CommandCatalog.Get(CommandId.ReopenClosedTab);
+
+        await Assert.That(descriptor.Chord).IsEqualTo(new Chord(CommandKey.T, ChordModifiers.Command | ChordModifiers.Shift));
+        await Assert.That(descriptor.Category).IsEqualTo(CommandCategory.Tabs);
+        await Assert.That(descriptor.In(CommandSurface.WindowBinding)).IsTrue();
+        await Assert.That(descriptor.In(CommandSurface.Palette)).IsTrue();
+        await Assert.That(descriptor.In(CommandSurface.CheatSheet)).IsTrue();
+        await Assert.That(descriptor.ShortcutLabel(ChordScheme.Cmd)).IsEqualTo("⇧⌘T");
+        await Assert.That(descriptor.ShortcutLabel(ChordScheme.Ctrl)).IsEqualTo("Ctrl+Shift+T");
+    }
+
     [Test]
     [Arguments("Escape", CommandKey.Escape, ChordModifiers.None)]
     [Arguments("Shift+Enter", CommandKey.Enter, ChordModifiers.Shift)]

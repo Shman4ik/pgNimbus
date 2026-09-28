@@ -18,12 +18,14 @@ namespace PgNimbus.App.Converters;
 /// How each value reads — and how much of a long one a cell shows — is
 /// <see cref="CellText"/>'s business, shared with the cell inspector.
 /// </summary>
-public sealed class RowIndexConverter(int index) : IValueConverter
+/// <param name="index">The column's position in the row.</param>
+/// <param name="dataTypeName">The column's wire type, which is what tells a date from a timestamp (see <see cref="CellText.Preview"/>).</param>
+public sealed class RowIndexConverter(int index, string? dataTypeName = null) : IValueConverter
 {
     private readonly int _index = index;
 
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
-        value is object?[] row && _index < row.Length ? CellText.Preview(row[_index]) : null;
+        value is object?[] row && _index < row.Length ? CellText.Preview(row[_index], dataTypeName) : null;
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
         throw new NotSupportedException();
