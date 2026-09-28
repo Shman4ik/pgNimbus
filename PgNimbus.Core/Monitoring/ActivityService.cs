@@ -48,7 +48,7 @@ public sealed class ActivityService(NpgsqlDataSource dataSource)
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         await using var reader = await command.ExecuteReaderAsync(ct);
 
         var results = new List<BackendActivity>();
@@ -127,7 +127,7 @@ public sealed class ActivityService(NpgsqlDataSource dataSource)
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         await using var reader = await command.ExecuteReaderAsync(ct);
 
         var results = new List<BlockingBackend>();

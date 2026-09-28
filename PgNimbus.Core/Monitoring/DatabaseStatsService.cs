@@ -87,7 +87,7 @@ public sealed class DatabaseStatsService(NpgsqlDataSource dataSource)
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         await using var reader = await command.ExecuteReaderAsync(ct);
         await reader.ReadAsync(ct);
 
@@ -122,7 +122,7 @@ public sealed class DatabaseStatsService(NpgsqlDataSource dataSource)
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         command.Parameters.AddWithValue("limit", limit);
         await using var reader = await command.ExecuteReaderAsync(ct);
 
@@ -157,7 +157,7 @@ public sealed class DatabaseStatsService(NpgsqlDataSource dataSource)
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         await using var reader = await command.ExecuteReaderAsync(ct);
 
         var results = new List<TableScanUsage>();
@@ -198,7 +198,7 @@ public sealed class DatabaseStatsService(NpgsqlDataSource dataSource)
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         await using var reader = await command.ExecuteReaderAsync(ct);
 
         var results = new List<UnusedIndex>();

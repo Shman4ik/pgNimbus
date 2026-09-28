@@ -130,8 +130,12 @@
         <Setter Property="Opacity" Value="1" />
     </Style>
 
+    <!-- Fluent's checked state also sets the text to the accent-fill foreground
+         (white), which was drawn on this light wash: an "on" chip (Wrap, the filter
+         pin) was the one you could not read. The chip keeps its ordinary text. -->
     <Style Selector="ToggleButton.chip:checked /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource ToggleButtonForeground}" />
     </Style>
 
     <!-- The same wash for plain chip Buttons acting as a segmented pair, where a

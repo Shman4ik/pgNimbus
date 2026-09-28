@@ -114,7 +114,7 @@ public sealed class PrivilegeService(NpgsqlDataSource dataSource)
         };
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         if (sql.Contains("@schema", StringComparison.Ordinal))
         {
             AddSchemaParameter(command, schema);
@@ -184,7 +184,7 @@ public sealed class PrivilegeService(NpgsqlDataSource dataSource)
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         AddOidParameter(command, obj.Oid);
         await using var reader = await command.ExecuteReaderAsync(ct);
 
@@ -256,7 +256,7 @@ public sealed class PrivilegeService(NpgsqlDataSource dataSource)
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         AddOidParameter(command, table.Oid);
         await using var reader = await command.ExecuteReaderAsync(ct);
 
@@ -316,7 +316,7 @@ public sealed class PrivilegeService(NpgsqlDataSource dataSource)
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         await using var reader = await command.ExecuteReaderAsync(ct);
 
         var order = new List<(string Role, string? Schema, SecurableKind Kind)>();
@@ -412,7 +412,7 @@ public sealed class PrivilegeService(NpgsqlDataSource dataSource)
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         AddSchemaParameter(command, schema);
         await using var reader = await command.ExecuteReaderAsync(ct);
 
@@ -503,7 +503,7 @@ public sealed class PrivilegeService(NpgsqlDataSource dataSource)
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         AddOidParameter(command, obj.Oid);
         command.Parameters.Add(new NpgsqlParameter("roles", NpgsqlDbType.Array | NpgsqlDbType.Text)
         {
@@ -552,7 +552,7 @@ public sealed class PrivilegeService(NpgsqlDataSource dataSource)
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         command.Parameters.AddWithValue("role", role);
         command.Parameters.AddWithValue("schema", schema);
 

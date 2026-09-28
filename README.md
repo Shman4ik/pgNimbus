@@ -126,6 +126,8 @@ pgNimbus sends zero telemetry: no usage analytics, no automatic crash uploads, n
 
 Two things to know. Query history, workspace SQL and the local crash log can contain sensitive data and are stored on disk unencrypted. And if the OS store is unavailable, a warning says so and the password is kept only for the current session. Details, including migration from older unencrypted files, are in [where your password goes](https://shman4ik.github.io/pgNimbus/docs/getting-started/connecting/#where-your-password-goes).
 
+Building from source is the one place anything is reported, and it isn't the app: Avalonia's build tooling sends anonymous build statistics to Avalonia while the project compiles. Nothing of it ships in the binaries you download.
+
 ## 🗺️ Roadmap
 
 Next up (a direction, not a commitment):

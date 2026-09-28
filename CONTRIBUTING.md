@@ -33,6 +33,12 @@ display and no database.
 (Both use TUnit on Microsoft.Testing.Platform. Never add
 `Microsoft.NET.Test.Sdk` to either, that breaks test discovery.)
 
+A build sends something the app never does: Avalonia's build tooling
+(`Avalonia.BuildServices`, pulled in by the Avalonia packages) reports anonymous
+build statistics to Avalonia while the project compiles, and the publish log
+says so ("Avalonia Accelerate Community requires telemetry"). It runs on the
+build machine only; nothing of it ships in pgNimbus.
+
 ## The two hard architectural rules
 
 Every PR is gated on these — they're what keeps the project's thesis

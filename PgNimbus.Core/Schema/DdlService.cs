@@ -60,7 +60,7 @@ public sealed class DdlService(NpgsqlDataSource dataSource)
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         command.Parameters.AddWithValue("schema", schema);
         command.Parameters.AddWithValue("name", name);
         command.Parameters.AddWithValue("arguments", arguments);
@@ -79,7 +79,7 @@ public sealed class DdlService(NpgsqlDataSource dataSource)
             WHERE n.nspname = @schema AND c.relname = @name
             """;
 
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         command.Parameters.AddWithValue("schema", schema);
         command.Parameters.AddWithValue("name", name);
         await using var reader = await command.ExecuteReaderAsync(ct);
@@ -97,7 +97,7 @@ public sealed class DdlService(NpgsqlDataSource dataSource)
     {
         // oid is a numeric value read from pg_class (never user input), so it's
         // inlined directly: Npgsql has no parameter mapping for the oid type.
-        await using var command = new NpgsqlCommand($"SELECT pg_get_viewdef({oid}, true)", connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag($"SELECT pg_get_viewdef({oid}, true)"), connection);
         var definition = (await command.ExecuteScalarAsync(ct) as string ?? string.Empty).TrimEnd();
 
         var keyword = materialized ? "CREATE MATERIALIZED VIEW" : "CREATE VIEW";
@@ -145,7 +145,7 @@ public sealed class DdlService(NpgsqlDataSource dataSource)
             ORDER BY a.attnum
             """;
 
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         await using var reader = await command.ExecuteReaderAsync(ct);
 
         var lines = new List<string>();
@@ -196,7 +196,7 @@ public sealed class DdlService(NpgsqlDataSource dataSource)
                      END, conname
             """;
 
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         await using var reader = await command.ExecuteReaderAsync(ct);
 
         var lines = new List<string>();
@@ -223,7 +223,7 @@ public sealed class DdlService(NpgsqlDataSource dataSource)
             ORDER BY i.indexrelid
             """;
 
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         await using var reader = await command.ExecuteReaderAsync(ct);
 
         var indexes = new List<string>();
@@ -237,7 +237,7 @@ public sealed class DdlService(NpgsqlDataSource dataSource)
 
     private static async Task<string?> ReadPartitionClauseAsync(NpgsqlConnection connection, uint oid, CancellationToken ct)
     {
-        await using var command = new NpgsqlCommand($"SELECT pg_get_partkeydef({oid})", connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag($"SELECT pg_get_partkeydef({oid})"), connection);
         return await command.ExecuteScalarAsync(ct) as string;
     }
 }

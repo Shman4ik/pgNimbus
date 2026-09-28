@@ -85,7 +85,11 @@ of [nimbusUi](https://github.com/Shman4ik/nimbusUi), referenced as an ordinary
   the cell inspector's View/Edit showed no selected segment until then. The wash
   now sits after the base rule in `Theme.axaml`, and
   `ChipActiveStateTests` renders an active chip and reads its brush. The rule
-  this taught is nimbusUi's `CLAUDE.md` hard rule 7.
+  this taught is nimbusUi's `CLAUDE.md` hard rule 7. A checked `ToggleButton.chip`
+  also sets its own `Foreground` (`ToggleButtonForeground`) on the template part in
+  all three states: Fluent's checked foreground is the accent-fill white, drawn on
+  the chip's light wash, and the Wrap toggle and the filter pin were unreadable
+  whenever they were on (`ChipActiveStateTests` reads that brush too).
 - `Chrome/` — the one-bar window chrome and its drawn caption buttons.
 - `Hotkeys.cs` — Ctrl/Cmd resolution; `PgNimbus.App.Hotkeys` forwards to it.
 - **[`DESIGN.md`](shared/nimbusUi/DESIGN.md) — the UI rules, single source.**
@@ -234,7 +238,15 @@ Three rules about it:
    `StatementStatsService.PreviewLength` server-side (up to 5,000 entries per
    refresh), and the whole text is fetched per statement when it is opened.
    (d) **Nothing runs from it**: a statement opens in a new tab under a comment
-   saying where it came from, with its `$1` placeholders intact. Typed-value
+   saying where it came from, with its `$1` placeholders intact. (e) **The app's
+   own reads are left out** (2026-09, 0.14.0 release pass: the top rows were
+   pgNimbus's completion-catalog reads). Every statement the app sends on its
+   own behalf, from `SchemaService`, `DdlService`, the permission and monitoring
+   services, starts with `InternalSql.Marker` (`/* pgNimbus */`, via
+   `InternalSql.Tag`); pg_stat_statements keeps that leading comment, and
+   `ReadAsync` counts those rows as `OwnStatements` instead of listing them. What
+   the user wrote or asked for (their queries, browse pages, EXPLAIN, imports,
+   schema and security actions, cancel/terminate) stays unmarked. Typed-value
    prompting is #138's job. The live tests split by server kind: CI's plain
    `postgres:17` covers `NotInstalled`/`NotLoaded`, and a server started with
    `-c shared_preload_libraries=pg_stat_statements` covers the reads
@@ -338,7 +350,13 @@ Three rules about it:
    header's "Export ▾" flyout copies/saves the plan as JSON or rendered text —
    `ExplainService.ExplainAsync` returns an `ExplainRun` that keeps the raw
    server JSON, carried on `QueryViewModel.PlanJson` (null, and the JSON actions
-   hidden, for a text import). **Re-color by metric**: the plan header (tree view)
+   hidden, for a text import). **Text or tree, and the tree open** (2026-09, 0.14.0 release pass): the plan
+   opens as text by default (#108's deliberate classic reading), but the last
+   Text/Tree choice is remembered (`AppSettings.PlanTreeView`, carried by
+   `MainViewModel.PlanTreeView` into every new tab), and the tree opens fully
+   expanded (a `TreeViewItem` style in `ResultsGridPanel`, as the Blocking tree
+   does): it used to open as one collapsed root, which hid the heat bars.
+   **Re-color by metric**: the plan header (tree view)
    has a "Color:" segmented toggle — Time / Rows / Cost / Buffers — that rescales
    the heat bars. `ExplainNodeViewModel` is observable and holds each node's
    exclusive self-time, self-cost, output rows, and self-buffers (buffer counts
@@ -537,7 +555,12 @@ Three rules about it:
    history entry → open in a new tab, connection profile → connect, result
    cell → inline edit when the result set is editable, inspector when it's
    read-only (Space quick-peeks the current cell in the inspector in both
-   modes, 2026-07). Apply the same rule to any new list-like UI.
+   modes, 2026-07). Apply the same rule to any new list-like UI. The default
+   action is *all* a double-click does: a `TreeViewItem` toggles its own
+   expansion on a double tap before the tree's handler sees it, so
+   `SchemaTreePanel.OnSchemaTreeDoubleTapped` puts the expansion back after
+   browsing a table or opening a function's source (it used to leave the
+   table's columns open in the sidebar every time).
    The connection dialog goes further, because reconnecting to the same database
    is the most repeated action in the app (2026-07): the profile from last
    session is preselected on open (`AppSettings.LastConnectionProfileId`, written

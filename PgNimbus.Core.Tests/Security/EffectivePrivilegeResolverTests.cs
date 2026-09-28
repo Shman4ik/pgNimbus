@@ -377,7 +377,38 @@ public class EffectivePrivilegeResolverTests
             "app_ro", Table(), effective, hasSchemaUsage: false);
 
         await Assert.That(sentence).IsEqualTo(
-            "app_ro can SELECT, INSERT, UPDATE and DELETE sales.orders — granted directly by postgres. "
+            "app_ro holds SELECT, INSERT, UPDATE and DELETE on sales.orders — granted directly by postgres — "
+            + "but cannot use them: it lacks USAGE on schema sales, which every object in it needs first.");
+    }
+
+    [Test]
+    public async Task ExplainSentenceNeverSaysCanWhenTheSchemaBlocksIt()
+    {
+        // One privilege held, the rest not, and no USAGE on the schema: the answer
+        // has to lead with "cannot use it", never "can SELECT".
+        var acl = Acl(Table(), "postgres", Grant("app_ro", PrivilegeKind.Select));
+        var effective = EffectivePrivilegeResolver.Resolve(acl, ["app_ro"], Crud, new FakeLookup());
+
+        var sentence = EffectivePrivilegeResolver.ExplainSentence(
+            "app_ro", Table(), effective, hasSchemaUsage: false);
+
+        await Assert.That(sentence).IsEqualTo(
+            "app_ro holds SELECT on sales.orders — granted directly by postgres — "
+            + "but cannot use it: it lacks USAGE on schema sales, which every object in it needs first. "
+            + "It has no INSERT, UPDATE or DELETE grant either.");
+    }
+
+    [Test]
+    public async Task ExplainSentenceWithNoPrivilegesStillNamesTheMissingUsage()
+    {
+        var effective = EffectivePrivilegeResolver.Resolve(
+            Acl(Table(), "postgres"), ["app_ro"], Crud, new FakeLookup());
+
+        var sentence = EffectivePrivilegeResolver.ExplainSentence(
+            "app_ro", Table(), effective, hasSchemaUsage: false);
+
+        await Assert.That(sentence).IsEqualTo(
+            "app_ro has no privileges on sales.orders. "
             + "app_ro also lacks USAGE on schema sales, which blocks access to everything in it.");
     }
 

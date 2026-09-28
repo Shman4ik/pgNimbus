@@ -86,10 +86,12 @@
          alongside the other chip rules.) -->
     <Style Selector="ToggleButton.chip:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource ToggleButtonForeground}" />
     </Style>
 
     <Style Selector="ToggleButton.chip:checked:pressed /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource ToggleButtonForeground}" />
     </Style>
 
     <!-- The `Button.chip.active` wash is NOT here, though it belongs beside these.

@@ -233,18 +233,31 @@ public static class EffectivePrivilegeResolver
         var granted = mine.Where(e => e.Granted).ToList();
         var denied = mine.Where(e => !e.Granted).ToList();
 
-        var sentence = granted.Count == 0
-            ? $"{role} has no privileges on {obj.Display}."
-            : $"{role} can {Join(granted, "and")} {obj.Display} — {granted[0].Explanation}.";
+        var blockedBySchema = !hasSchemaUsage && obj.Schema is { Length: > 0 };
 
-        if (granted.Count > 0 && denied.Count > 0)
+        if (granted.Count == 0)
         {
-            sentence += $" It cannot {Join(denied, "or")}.";
+            var none = $"{role} has no privileges on {obj.Display}.";
+            return blockedBySchema
+                ? none + $" {role} also lacks USAGE on schema {obj.Schema}, which blocks access to everything in it."
+                : none;
         }
 
-        if (!hasSchemaUsage && obj.Schema is { Length: > 0 } schema)
+        // Granted but inert: lead with that. "can SELECT", followed a sentence later
+        // by "which blocks access", told the reader two opposite things about the
+        // same privilege (found in the 0.14.0 release pass).
+        if (blockedBySchema)
         {
-            sentence += $" {role} also lacks USAGE on schema {schema}, which blocks access to everything in it.";
+            var them = granted.Count == 1 ? "it" : "them";
+            var blocked = $"{role} holds {Join(granted, "and")} on {obj.Display} — {granted[0].Explanation} — "
+                + $"but cannot use {them}: it lacks USAGE on schema {obj.Schema}, which every object in it needs first.";
+            return denied.Count > 0 ? blocked + $" It has no {Join(denied, "or")} grant either." : blocked;
+        }
+
+        var sentence = $"{role} can {Join(granted, "and")} {obj.Display} — {granted[0].Explanation}.";
+        if (denied.Count > 0)
+        {
+            sentence += $" It cannot {Join(denied, "or")}.";
         }
 
         return sentence;
