@@ -357,6 +357,15 @@
          them and rendered every input, list and grid as raw Fluent. Change them
          there, not here — and rebuild both apps (nimbusUi/CLAUDE.md rule 5). -->
 
+    <!-- Grid cell text and row height stay per app (DESIGN.md rules 12 and 14: they
+         move column widths). Fluent's DataGridCell is 15px text in a 32px row, which
+         read a size larger than the 13px lists beside it and fit a third fewer rows
+         on screen; this is the native table density (rule 20), ~25px a row. -->
+    <Style Selector="DataGridCell">
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="MinHeight" Value="25" />
+    </Style>
+
     <!--
         SQL completion popup rows (the card shell is the CompletionList
         ControlTheme in Styles.Resources above). The list itself goes
@@ -394,6 +403,18 @@
         <Setter Property="Padding" Value="8,4" />
         <Setter Property="MinHeight" Value="0" />
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    </Style>
+
+    <!-- The selected row keeps the light accent wash. The shared list rule draws a
+         selected row grey unless its list holds keyboard focus (DESIGN.md rule 20),
+         and this list never does: the editor keeps focus while it is open. A solid
+         accent slab here would also leave nothing for the `tentative` outline below
+         to be told apart from. -->
+    <Style Selector="cc|CompletionListBox ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
+    </Style>
+    <Style Selector="cc|CompletionListBox ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource AppSelectionHoverBrush}" />
     </Style>
 
     <!-- The row under the pointer: a faint wash, well short of the selected

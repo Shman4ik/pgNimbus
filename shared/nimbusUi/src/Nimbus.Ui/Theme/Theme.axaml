@@ -41,6 +41,7 @@
                 <ResourceInclude Source="avares://Nimbus.Ui/Theme/Icons.axaml" />
                 <ResourceInclude Source="avares://Nimbus.Ui/Chrome/Decorations.axaml" />
                 <ResourceInclude Source="avares://Nimbus.Ui/Theme/Overlay.axaml" />
+                <ResourceInclude Source="avares://Nimbus.Ui/Theme/ToggleSwitch.axaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Styles.Resources>
@@ -126,14 +127,32 @@
         <Setter Property="Opacity" Value="1" />
     </Style>
 
+    <!-- The hover and press washes are pinned on the template part, where Fluent
+         paints them, rather than left to Fluent's ButtonBackgroundPointerOver: the
+         command bar's icon chips (activity, theme, settings, help) read as having no
+         hover state at all on macOS. AppToolbarHoverBrush is a step stronger than the
+         list-row HoverBackgroundBrush, since a 24px icon button has far less area to
+         show it on. These must stay BEFORE the checked/active rules below, which
+         set the same property on the same part and have to win (hard rule 7). -->
+    <Style Selector="Button.chip:pointerover /template/ ContentPresenter#PART_ContentPresenter, ToggleButton.chip:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.toolbar:pointerover /template/ ContentPresenter#PART_ContentPresenter, ToggleButton.toolbar:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AppToolbarHoverBrush}" />
+    </Style>
+
+    <Style Selector="Button.chip:pressed /template/ ContentPresenter#PART_ContentPresenter, ToggleButton.chip:pressed /template/ ContentPresenter#PART_ContentPresenter, Button.toolbar:pressed /template/ ContentPresenter#PART_ContentPresenter, ToggleButton.toolbar:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AppToolbarPressedBrush}" />
+    </Style>
+
     <Style Selector="ToggleButton.chip:checked">
         <Setter Property="Opacity" Value="1" />
     </Style>
 
     <!-- Fluent's checked state also sets the text to the accent-fill foreground
          (white), which was drawn on this light wash: an "on" chip (Wrap, the filter
-         pin) was the one you could not read. The chip keeps its ordinary text. -->
-    <Style Selector="ToggleButton.chip:checked /template/ ContentPresenter#PART_ContentPresenter">
+         pin) was the one you could not read. The chip keeps its ordinary text.
+         Hover and press included: the pinned chip washes above would otherwise
+         turn an "on" chip grey under the pointer. (Controls.axaml has the same pair,
+         but it loads first, so the washes above override it; hard rule 7.) -->
+    <Style Selector="ToggleButton.chip:checked /template/ ContentPresenter#PART_ContentPresenter, ToggleButton.chip:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter, ToggleButton.chip:checked:pressed /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource ToggleButtonForeground}" />
     </Style>
@@ -152,7 +171,7 @@
         <Setter Property="Opacity" Value="1" />
     </Style>
 
-    <Style Selector="Button.chip.active:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Style Selector="Button.chip.active:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.chip.active:pressed /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
     </Style>
 

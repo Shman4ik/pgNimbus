@@ -88,6 +88,7 @@ public static class Scenarios
         ("connection-dialog", ConnectionDialog),
         ("connection-dialog-ssh-agent", ConnectionDialogSshAgent),
         ("connection-credential-warning", ConnectionCredentialWarning),
+        ("controls-gallery", ControlsGallery.Build),
     ];
 
     // --- Main window ------------------------------------------------------
