@@ -61,16 +61,18 @@ public class ResultExportTests
     }
 
     [Test]
-    public async Task A_cut_off_read_query_is_run_again_for_every_row()
+    public async Task A_cut_off_query_the_user_wrote_is_not_run_again_even_when_it_reads()
     {
         await Ui.Run(async () =>
         {
+            // It reads by its keyword; whether the function it calls writes is
+            // nothing a client can tell (security audit 2026-09, finding 1).
             var tab = OfflineTab();
-            tab.SeedResult(Columns, ThreeRows, executedSql: "SELECT id, name FROM big", capText: "capped");
+            tab.SeedResult(Columns, ThreeRows, executedSql: "SELECT id, name FROM create_orders()", capText: "capped");
 
             var source = tab.ChooseExportSource();
-            await Assert.That(source.Sql).IsEqualTo("SELECT id, name FROM big");
-            await Assert.That(source.Vouched).IsFalse();
+            await Assert.That(source.Sql).IsNull();
+            await Assert.That(source.Shortfall).IsNotNull();
         });
     }
 
@@ -183,13 +185,16 @@ public class ResultExportTests
     }
 
     [Test]
-    public async Task Exporting_a_query_past_the_grid_cap_writes_every_row()
+    public async Task Exporting_a_query_past_the_grid_cap_writes_the_grid_and_says_so()
     {
         SkipIfNoConnection();
         await using var dataSource = NpgsqlDataSource.Create(ConnectionString!);
 
         await Ui.Run(async () =>
         {
+            // A hand-written query is never run a second time, however plain it
+            // looks (security audit 2026-09, finding 1), so the export is what the
+            // grid holds, and the status line does not let it pass for the whole.
             const int total = QueryViewModel.MaxDisplayRows + 25;
             var tab = new QueryViewModel(new QueryEngine(dataSource), new ExplainService(dataSource))
             {
@@ -201,12 +206,8 @@ public class ResultExportTests
 
             var (complete, text) = await Export(tab);
             await Assert.That(complete).IsTrue();
-            var lines = Lines(text);
-            await Assert.That(lines.Length).IsEqualTo(total + 1);
-            await Assert.That(lines[^1]).IsEqualTo(total.ToString(System.Globalization.CultureInfo.InvariantCulture));
-
-            // The grid is left as it was.
-            await Assert.That(tab.Rows.Count).IsEqualTo(QueryViewModel.MaxDisplayRows);
+            await Assert.That(Lines(text).Length).IsEqualTo(QueryViewModel.MaxDisplayRows + 1);
+            await Assert.That(tab.Status).StartsWith($"Exported only the {QueryViewModel.MaxDisplayRows:N0} rows shown to out.csv: ");
         });
     }
 
@@ -215,26 +216,31 @@ public class ResultExportTests
     {
         SkipIfNoConnection();
         await using var dataSource = NpgsqlDataSource.Create(ConnectionString!);
-
-        await Ui.Run(async () =>
+        await SeedTableAsync(dataSource, 2_000_000);
+        try
         {
-            var tab = new QueryViewModel(new QueryEngine(dataSource), new ExplainService(dataSource))
+            await Ui.Run(async () =>
             {
-                Sql = "SELECT g AS n FROM generate_series(1, 5000000) g",
-            };
-            await tab.RunCommand.ExecuteAsync(null);
+                var schema = new SchemaService(dataSource);
+                var tab = new QueryViewModel(new QueryEngine(dataSource), new ExplainService(dataSource), schemaService: schema);
+                await tab.StartBrowseAsync("public", Table, await schema.GetColumnsAsync("public", Table, CancellationToken.None));
 
-            // Cancel the moment the first bytes reach the file, the way a user
-            // presses Cancel while the status line counts up.
-            using var stream = new FirstWriteStream(() => Dispatcher.UIThread.Post(() => tab.CancelCommand.Execute(null)));
-            var complete = await tab.ExportAsync(ExportFormat.Csv, stream, "out.csv");
+                // Cancel the moment the first bytes reach the file, the way a user
+                // presses Cancel while the status line counts up.
+                using var stream = new FirstWriteStream(() => Dispatcher.UIThread.Post(() => tab.CancelCommand.Execute(null)));
+                var complete = await tab.ExportAsync(ExportFormat.Csv, stream, "out.csv");
 
-            await Assert.That(complete).IsFalse();
-            await Assert.That(tab.Status).IsEqualTo("Export cancelled");
-            await Assert.That(tab.IsRunning).IsFalse();
-            // The whole result is ~43 MB of CSV.
-            await Assert.That(stream.Length).IsLessThan(20_000_000L);
-        });
+                await Assert.That(complete).IsFalse();
+                await Assert.That(tab.Status).IsEqualTo("Export cancelled");
+                await Assert.That(tab.IsRunning).IsFalse();
+                // The whole table is ~30 MB of CSV.
+                await Assert.That(stream.Length).IsLessThan(15_000_000L);
+            });
+        }
+        finally
+        {
+            await DropTableAsync(dataSource);
+        }
     }
 
     // A MemoryStream that runs an action on its first write.

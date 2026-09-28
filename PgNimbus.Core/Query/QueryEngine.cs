@@ -441,20 +441,13 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
             foreach (var statement in check.LockStatements)
             {
                 await using var command = CreateCommand(statement, connection, transaction);
+                // Same text-format request as the grid's reads, so a composite
+                // column compares literal against literal — found by describing
+                // first, like every other statement the engine runs.
+                command.UnknownResultTypeList = await DescribeAsync(command, ct);
                 var reader = await command.ExecuteReaderAsync(CommandBehavior.Default, ct);
                 try
                 {
-                    // Same text-format fallback as the grid's browse reads, so a
-                    // composite column compares literal against literal. The
-                    // re-execution is harmless: re-locking rows this transaction
-                    // already holds changes nothing.
-                    if (BuildTextFallbackMask(reader) is { } textFallback)
-                    {
-                        await reader.DisposeAsync();
-                        command.UnknownResultTypeList = textFallback;
-                        reader = await command.ExecuteReaderAsync(CommandBehavior.Default, ct);
-                    }
-
                     columnNames ??= Enumerable.Range(0, reader.FieldCount).Select(reader.GetName).ToList();
                     while (await reader.ReadAsync(ct))
                     {
@@ -518,18 +511,16 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
     /// unbounded SELECT would still pull every row over the wire. An explicit
     /// backend cancel makes the drain a no-op.
     /// </param>
-    /// <param name="allowTextFallback">
-    /// The caller's guarantee that <paramref name="sql"/> is side-effect-free, which
-    /// permits re-executing it with unreadable columns (unmapped composites)
-    /// re-requested in text format. Pass true only for SQL the app itself composed —
-    /// the browse-mode SELECTs — where the guarantee holds by construction and no
-    /// lexical check is needed. Leaving it false does not disable the fallback: SQL
-    /// that <see cref="SqlStatementInspector.IsSafeToReExecute"/> vouches for gets it
-    /// too. Everything else falls back per cell instead (see <see cref="ReadValue"/>),
-    /// so a second execution can never apply an <c>INSERT … RETURNING</c> — or any
-    /// volatile call — twice.
-    /// </param>
-    public async Task<StatementResult> ExecuteAsync(string sql, CancellationToken ct, int? maxRows = null, bool allowTextFallback = false)
+    /// <remarks>
+    /// The statement is executed exactly once, whatever it is. Columns Npgsql
+    /// can't materialize as objects (unmapped composites, extension types with no
+    /// plugin, bit, hstore) are found out beforehand by describing the statement
+    /// (<see cref="DescribeAsync"/>: Parse/Describe with no Execute), so they can be
+    /// requested in text format on the one real execution. There is no second run
+    /// and nothing to vouch for: a <c>SELECT</c> of a VOLATILE function that writes
+    /// runs its side effect once, like everything else.
+    /// </remarks>
+    public async Task<StatementResult> ExecuteAsync(string sql, CancellationToken ct, int? maxRows = null)
     {
         // Inside a transaction the statement runs on the shared session
         // connection and its result is fully materialized: a lazily-streaming
@@ -537,7 +528,7 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
         // in the transaction until the grid finished consuming it.
         if (_transactionConnection is not null)
         {
-            return await ExecuteInTransactionAsync(sql, maxRows, allowTextFallback, ct);
+            return await ExecuteInTransactionAsync(sql, maxRows, ct);
         }
 
         var stopwatch = Stopwatch.StartNew();
@@ -558,6 +549,10 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
             {
                 connection = await _dataSource.OpenConnectionAsync(ct);
                 command = new NpgsqlCommand(sql, connection);
+
+                // Describe before executing: the one round trip that finds the
+                // columns to request as text, so the statement itself runs once.
+                command.UnknownResultTypeList = await DescribeAsync(command, ct);
                 reader = await command.ExecuteReaderAsync(CommandBehavior.Default, ct);
 
                 if (reader.FieldCount == 0)
@@ -575,17 +570,6 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
                         RowsAffected = rowsAffected < 0 ? 0 : rowsAffected,
                         CommandTag = tag,
                     };
-                }
-
-                // Columns Npgsql can't materialize as objects (unmapped composites
-                // and containers of them) are re-requested in text format — one
-                // extra round trip, and only for result sets that contain such a
-                // column.
-                if (MayReExecute(sql, allowTextFallback) && BuildTextFallbackMask(reader) is { } textFallback)
-                {
-                    await reader.DisposeAsync();
-                    command.UnknownResultTypeList = textFallback;
-                    reader = await command.ExecuteReaderAsync(CommandBehavior.Default, ct);
                 }
 
                 var columns = BuildColumns(reader);
@@ -699,7 +683,7 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
                 ct.ThrowIfCancellationRequested();
 
                 var statement = statements[i];
-                var result = await ExecuteOnConnectionAsync(connection, statement, maxRowsPerStatement, allowTextFallback: false, ct);
+                var result = await ExecuteOnConnectionAsync(connection, statement, maxRowsPerStatement, ct);
 
                 // A connection loss on the very first statement means nothing in
                 // the script has run yet — no session state (SET, temp tables)
@@ -738,7 +722,7 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
                         yield break;
                     }
 
-                    result = await ExecuteOnConnectionAsync(connection, statement, maxRowsPerStatement, allowTextFallback: false, ct);
+                    result = await ExecuteOnConnectionAsync(connection, statement, maxRowsPerStatement, ct);
                 }
 
                 if (result is QueryError error)
@@ -780,7 +764,7 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
     // its result (see ExecuteAsync for why streaming is avoided here). A failure
     // auto-rolls-back the transaction and comes back flagged so the UI can note
     // that the block is gone.
-    private async Task<StatementResult> ExecuteInTransactionAsync(string sql, int? maxRows, bool allowTextFallback, CancellationToken ct)
+    private async Task<StatementResult> ExecuteInTransactionAsync(string sql, int? maxRows, CancellationToken ct)
     {
         var connection = _transactionConnection!;
         var stopwatch = Stopwatch.StartNew();
@@ -791,7 +775,7 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
             // ExecuteOnConnectionAsync converts PostgresExceptions to QueryError
             // but lets other failures (e.g. a dropped connection) escape; ExecuteAsync
             // promises never to throw those, so translate them here too.
-            result = await ExecuteOnConnectionAsync(connection, sql, maxRows, allowTextFallback, ct);
+            result = await ExecuteOnConnectionAsync(connection, sql, maxRows, ct);
         }
         catch (OperationCanceledException)
         {
@@ -833,7 +817,6 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
         NpgsqlConnection connection,
         string sql,
         int? maxRows,
-        bool allowTextFallback,
         CancellationToken ct)
     {
         var stopwatch = Stopwatch.StartNew();
@@ -843,6 +826,8 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
         var truncated = false;
         try
         {
+            // Same describe-then-execute as ExecuteAsync: the statement runs once.
+            command.UnknownResultTypeList = await DescribeAsync(command, ct);
             reader = await command.ExecuteReaderAsync(CommandBehavior.Default, ct);
 
             if (reader.FieldCount == 0)
@@ -854,16 +839,6 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
                     RowsAffected = rowsAffected < 0 ? 0 : rowsAffected,
                     CommandTag = BuildCommandTag(sql),
                 };
-            }
-
-            // Same unmapped-composite text fallback as ExecuteAsync. Script
-            // statements never vouch — they're arbitrary SQL — so here it's
-            // IsSafeToReExecute alone that decides, per statement.
-            if (MayReExecute(sql, allowTextFallback) && BuildTextFallbackMask(reader) is { } textFallback)
-            {
-                await reader.DisposeAsync();
-                command.UnknownResultTypeList = textFallback;
-                reader = await command.ExecuteReaderAsync(CommandBehavior.Default, ct);
             }
 
             var columns = BuildColumns(reader);
@@ -946,12 +921,40 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
     }
 
     /// <summary>
-    /// Whether the text-format fallback — which costs a second execution of
-    /// <paramref name="sql"/> — is permitted: either the caller vouched for the
-    /// statement, or it's lexically provable that running it twice changes nothing.
+    /// Asks the server to describe <paramref name="command"/> without running it —
+    /// <see cref="CommandBehavior.SchemaOnly"/> sends Parse and Describe and no
+    /// Execute — and returns the <see cref="NpgsqlCommand.UnknownResultTypeList"/>
+    /// mask for the columns that have to be requested in text format (see
+    /// <see cref="NeedsTextFormat(PostgresType)"/>), or null when every column
+    /// materializes as-is. This replaced a second execution of the statement
+    /// (2026-09 security audit, finding 1): the old "re-run it with the mask set"
+    /// path was gated on a lexical read-only check that no lexical check can make
+    /// true — <c>SELECT create_order()</c> is a read by its keyword and a write by
+    /// its function, and it ran twice. A describe costs one round trip and runs
+    /// nothing, whatever the statement is.
     /// </summary>
-    private static bool MayReExecute(string sql, bool callerVouched) =>
-        callerVouched || SqlStatementInspector.IsSafeToReExecute(sql);
+    /// <remarks>
+    /// The mask is only returned for a single-statement command: Npgsql applies
+    /// <see cref="NpgsqlCommand.UnknownResultTypeList"/> to every statement in the
+    /// command, and its length has to match each one's column count, so a
+    /// <c>SELECT a, b; SELECT 1</c> keeps its per-cell placeholders instead.
+    /// </remarks>
+    private static async Task<bool[]?> DescribeAsync(NpgsqlCommand command, CancellationToken ct)
+    {
+        await using var description = await command.ExecuteReaderAsync(CommandBehavior.SchemaOnly, ct);
+        if (description.FieldCount == 0)
+        {
+            return null;
+        }
+
+        var mask = BuildTextFallbackMask(description);
+        if (mask is null)
+        {
+            return null;
+        }
+
+        return await description.NextResultAsync(ct) ? null : mask;
+    }
 
     /// <summary>
     /// Renders a cell no client-side mapping can materialize, e.g.
