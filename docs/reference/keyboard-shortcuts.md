@@ -37,7 +37,7 @@ by default and can be forced either way in Preferences → Hotkey scheme.
 | Next tab | Ctrl+PgDn / Ctrl+Tab | ⇧⌘] / ⌘⇟ / ⌃⇥ |
 | Previous tab | Ctrl+PgUp / Ctrl+Shift+Tab | ⇧⌘[ / ⌘⇞ / ⌃⇧⇥ |
 | Go to tab 1…9 | Ctrl+1 … Ctrl+9 | ⌘1 … ⌘9 |
-| Open .sql file… | Ctrl+O | ⌘O |
+| Open file… | Ctrl+O | ⌘O |
 | Save — to the tab's file, or to Saved Queries | Ctrl+S | ⌘S |
 | Save as — a new file, or a new saved query | Ctrl+Shift+S | ⇧⌘S |
 

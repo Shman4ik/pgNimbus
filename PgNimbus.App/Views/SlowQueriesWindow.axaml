@@ -70,8 +70,8 @@
                       GridLinesVisibility="Horizontal" HeadersVisibility="Column">
                 <DataGrid.ContextMenu>
                     <ContextMenu>
-                        <MenuItem Header="Open in new tab" Command="{Binding OpenInNewTabCommand}" CommandParameter="{x:Null}" />
-                        <MenuItem Header="Copy query" Click="OnCopyQueryClick" />
+                        <MenuItem Header="Open in New Tab" Command="{Binding OpenInNewTabCommand}" CommandParameter="{x:Null}" />
+                        <MenuItem Header="Copy Query" Click="OnCopyQueryClick" />
                     </ContextMenu>
                 </DataGrid.ContextMenu>
                 <DataGrid.Columns>

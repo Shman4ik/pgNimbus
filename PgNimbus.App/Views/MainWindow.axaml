@@ -75,9 +75,9 @@
                         <PathIcon Data="{StaticResource MenuIconGeometry}" Width="14" Height="14" />
                         <Button.Flyout>
                             <MenuFlyout Placement="BottomEdgeAlignedLeft">
-                                <MenuItem Name="MenuNewTab" Header="New query tab" Command="{Binding AddTabCommand}" />
-                                <MenuItem Name="MenuOpenFile" Header="Open .sql file…" Command="{Binding OpenFileCommand}" />
-                                <MenuItem Name="MenuOpenRecent" Header="Open recent" />
+                                <MenuItem Name="MenuNewTab" Header="New Query Tab" Command="{Binding AddTabCommand}" />
+                                <MenuItem Name="MenuOpenFile" Header="Open…" Command="{Binding OpenFileCommand}" />
+                                <MenuItem Name="MenuOpenRecent" Header="Open Recent" />
                                 <Separator />
                                 <!-- Save and Save as… follow the active tab (see
                                      MainViewModel.Save); the two rows under them name a
@@ -85,15 +85,15 @@
                                      can find it again" is answerable without knowing
                                      which kind of tab is open. -->
                                 <MenuItem Name="MenuSaveFile" Header="Save" Command="{Binding SaveCommand}" />
-                                <MenuItem Name="MenuSaveFileAs" Header="Save as…" Command="{Binding SaveAsCommand}" />
-                                <MenuItem Name="MenuSaveQuery" Header="Save query to Saved Queries…" Command="{Binding SaveQueryCommand}" />
-                                <MenuItem Name="MenuSaveToFile" Header="Save tab to a .sql file…" Command="{Binding SaveFileCommand}" />
+                                <MenuItem Name="MenuSaveFileAs" Header="Save As…" Command="{Binding SaveAsCommand}" />
+                                <MenuItem Name="MenuSaveQuery" Header="Save to Saved Queries…" Command="{Binding SaveQueryCommand}" />
+                                <MenuItem Name="MenuSaveToFile" Header="Save to File…" Command="{Binding SaveFileCommand}" />
                                 <Separator />
-                                <MenuItem Name="MenuCloseTab" Header="Close tab" Command="{Binding CloseTabCommand}" />
-                                <MenuItem Name="MenuReopenClosedTab" Header="Reopen closed tab" Command="{Binding ReopenClosedTabCommand}" />
+                                <MenuItem Name="MenuCloseTab" Header="Close Tab" Command="{Binding CloseTabCommand}" />
+                                <MenuItem Name="MenuReopenClosedTab" Header="Reopen Closed Tab" Command="{Binding ReopenClosedTabCommand}" />
                                 <Separator />
-                                <MenuItem Name="MenuSwitchConnection" Header="Switch connection…" Command="{Binding SwitchConnectionCommand}" />
-                                <MenuItem Name="MenuNewWindow" Header="Open connection in new window…" Command="{Binding OpenNewWindowCommand}" />
+                                <MenuItem Name="MenuSwitchConnection" Header="Switch Connection…" Command="{Binding SwitchConnectionCommand}" />
+                                <MenuItem Name="MenuNewWindow" Header="New Connection Window…" Command="{Binding OpenNewWindowCommand}" />
                                 <Separator />
                                 <MenuItem Name="MenuPreferences" Header="Preferences…" Command="{Binding ShowPreferencesCommand}" />
                                 <!-- The cheat sheet and the About box, in the same
@@ -101,7 +101,7 @@
                                      macOS app menu has About too, but this is the
                                      only route to it on Windows and Linux, where
                                      there is no native menu bar to hold it. -->
-                                <MenuItem Name="MenuShortcuts" Header="Keyboard shortcuts" Command="{Binding ShowShortcutsCommand}" />
+                                <MenuItem Name="MenuShortcuts" Header="Keyboard Shortcuts" Command="{Binding ShowShortcutsCommand}" />
                                 <MenuItem Name="MenuAbout" Header="About pgNimbus" Command="{Binding ShowAboutCommand}" />
                             </MenuFlyout>
                         </Button.Flyout>
@@ -411,8 +411,8 @@
                         </StackPanel>
                         <Button.Flyout>
                             <MenuFlyout>
-                                <MenuItem Name="MenuExplain" Header="Explain — estimated plan" Click="OnExplainClick" />
-                                <MenuItem Name="MenuExplainAnalyze" Header="Explain Analyze — runs the query" Click="OnExplainAnalyzeClick" />
+                                <MenuItem Name="MenuExplain" Header="Explain — Estimated Plan" Click="OnExplainClick" />
+                                <MenuItem Name="MenuExplainAnalyze" Header="Explain Analyze — Runs the Query" Click="OnExplainAnalyzeClick" />
                             </MenuFlyout>
                         </Button.Flyout>
                     </Button>
@@ -426,8 +426,8 @@
                         </StackPanel>
                         <Button.Flyout>
                             <MenuFlyout>
-                                <MenuItem Header="Export as CSV..." Click="OnExportCsvClick" />
-                                <MenuItem Header="Export as JSON..." Click="OnExportJsonClick" />
+                                <MenuItem Header="Export as CSV…" Click="OnExportCsvClick" />
+                                <MenuItem Header="Export as JSON…" Click="OnExportJsonClick" />
                             </MenuFlyout>
                         </Button.Flyout>
                     </Button>

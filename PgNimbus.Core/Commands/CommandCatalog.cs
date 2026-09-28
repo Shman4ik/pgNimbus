@@ -254,7 +254,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.OpenFile,
-            Title = "Open .sql file…",
+            Title = "Open file…",
             Category = CommandCategory.Tabs,
             Glyph = "↥",
             Chord = new(CommandKey.O, Cmd),
@@ -293,7 +293,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.SaveQuery,
-            Title = "Save query to Saved Queries…",
+            Title = "Save to Saved Queries…",
             Category = CommandCategory.Tabs,
             Glyph = "☆",
             Surfaces = PaletteOnly,
@@ -301,7 +301,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.SaveFile,
-            Title = "Save tab to a .sql file…",
+            Title = "Save to file…",
             Category = CommandCategory.Tabs,
             Glyph = "↧",
             Surfaces = PaletteOnly,

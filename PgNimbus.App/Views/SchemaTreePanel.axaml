@@ -27,16 +27,16 @@
             <StackPanel Orientation="Horizontal" Spacing="6" Classes.excludedSchema="{Binding ExcludedFromCompletion}">
                 <StackPanel.ContextMenu>
                     <ContextMenu>
-                        <MenuItem Header="New table..." Tag="{Binding}" Click="OnNewTableClick" />
-                        <MenuItem Header="Copy name" Tag="{Binding}" Click="OnCopySchemaNameClick" />
+                        <MenuItem Header="New Table…" Tag="{Binding}" Click="OnNewTableClick" />
+                        <MenuItem Header="Copy Name" Tag="{Binding}" Click="OnCopySchemaNameClick" />
                         <MenuItem Header="Refresh" Tag="{Binding}" Click="OnRefreshSchemaClick" />
                         <Separator />
-                        <MenuItem Header="Exclude from autocomplete" Tag="{Binding}" Click="OnToggleSchemaExcludedClick"
+                        <MenuItem Header="Exclude from Autocomplete" Tag="{Binding}" Click="OnToggleSchemaExcludedClick"
                                   ToggleType="CheckBox" IsChecked="{Binding ExcludedFromCompletion, Mode=OneWay}"
                                   ToolTip.Tip="Keep this schema's tables, columns and functions out of editor completion. It stays in the tree." />
                         <Separator />
-                        <MenuItem Header="Drop schema..." Tag="{Binding}" Click="OnDropSchemaClick" />
-                        <MenuItem Header="Drop schema (cascade)..." Tag="{Binding}" Click="OnDropSchemaCascadeClick" />
+                        <MenuItem Header="Drop Schema…" Tag="{Binding}" Click="OnDropSchemaClick" />
+                        <MenuItem Header="Drop Schema (Cascade)…" Tag="{Binding}" Click="OnDropSchemaCascadeClick" />
                     </ContextMenu>
                 </StackPanel.ContextMenu>
                 <PathIcon Data="{StaticResource DatabaseIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
@@ -49,9 +49,16 @@
         <DataTemplate DataType="vm:TableNode">
             <StackPanel Orientation="Horizontal" Spacing="6">
                 <StackPanel.ContextMenu>
+                    <!-- The default action first (the same browse a double-click
+                         runs, UI design rule 2), then Copy Name like the schema
+                         and role menus. Alter Table… is for relations ALTER TABLE
+                         can change, so views and materialized views leave it out. -->
                     <ContextMenu>
+                        <MenuItem Header="Browse Rows" Tag="{Binding}" Click="OnBrowseTableClick" />
+                        <MenuItem Header="Copy Name" Tag="{Binding}" Click="OnCopyTableNameClick" />
+                        <Separator />
                         <MenuItem Header="Source (DDL)" Tag="{Binding}" Click="OnShowSourceClick" />
-                        <MenuItem Header="Alter Table..." Tag="{Binding}" Click="OnAlterTableClick" />
+                        <MenuItem Header="Alter Table…" Tag="{Binding}" Click="OnAlterTableClick" IsVisible="{Binding CanAlter}" />
                     </ContextMenu>
                 </StackPanel.ContextMenu>
                 <!-- One family icon per relation kind (table/view/matview/partitioned)
@@ -112,7 +119,7 @@
                 <StackPanel.ContextMenu>
                     <ContextMenu>
                         <MenuItem Header="Install" Tag="{Binding}" Click="OnInstallExtensionClick" IsVisible="{Binding !IsInstalled}" />
-                        <MenuItem Header="Drop..." Tag="{Binding}" Click="OnDropExtensionClick" IsVisible="{Binding IsInstalled}" />
+                        <MenuItem Header="Drop…" Tag="{Binding}" Click="OnDropExtensionClick" IsVisible="{Binding IsInstalled}" />
                     </ContextMenu>
                 </StackPanel.ContextMenu>
                 <!-- Green dot = installed; the fixed-width panel keeps names aligned either way -->
@@ -128,7 +135,7 @@
             <StackPanel Orientation="Horizontal" Spacing="6">
                 <StackPanel.ContextMenu>
                     <ContextMenu>
-                        <MenuItem Header="Roles and permissions..." Click="OnManageRolesClick" />
+                        <MenuItem Header="Roles and Permissions…" Click="OnManageRolesClick" />
                         <MenuItem Header="Refresh" Tag="{Binding}" Click="OnRefreshNodeClick" />
                     </ContextMenu>
                 </StackPanel.ContextMenu>
@@ -143,8 +150,8 @@
                      which is where the effective-privilege answer lives. -->
                 <StackPanel.ContextMenu>
                     <ContextMenu>
-                        <MenuItem Header="Roles and permissions..." Tag="{Binding}" Click="OnManageRoleClick" />
-                        <MenuItem Header="Copy name" Tag="{Binding}" Click="OnCopyRoleNameClick" />
+                        <MenuItem Header="Roles and Permissions…" Tag="{Binding}" Click="OnManageRoleClick" />
+                        <MenuItem Header="Copy Name" Tag="{Binding}" Click="OnCopyRoleNameClick" />
                     </ContextMenu>
                 </StackPanel.ContextMenu>
                 <Panel Width="14" VerticalAlignment="Center">
@@ -239,19 +246,19 @@
                     <MenuFlyout Placement="BottomEdgeAlignedRight">
                         <!-- Off = schemas/tables + Roles only; on adds Functions/Sequences/Types
                              groups, per-table Indexes/Triggers, and Extensions -->
-                        <MenuItem Header="Show advanced objects"
+                        <MenuItem Header="Show Advanced Objects"
                                   ToggleType="CheckBox"
                                   IsChecked="{Binding ShowAdvancedObjects, Mode=TwoWay}"
                                   ToolTip.Tip="Also show functions, sequences, types, indexes, triggers and extensions" />
                         <Separator />
                         <!-- Expand is one level deep on purpose: a schema fetches its
                              tables on first open, so this already costs a query per schema. -->
-                        <MenuItem Header="Expand all schemas" Command="{Binding ExpandAllCommand}">
+                        <MenuItem Header="Expand All Schemas" Command="{Binding ExpandAllCommand}">
                             <MenuItem.Icon>
                                 <PathIcon Data="{StaticResource UnfoldMoreIconGeometry}" Width="14" Height="14" />
                             </MenuItem.Icon>
                         </MenuItem>
-                        <MenuItem Header="Collapse all" Command="{Binding CollapseAllCommand}">
+                        <MenuItem Header="Collapse All" Command="{Binding CollapseAllCommand}">
                             <MenuItem.Icon>
                                 <PathIcon Data="{StaticResource UnfoldLessIconGeometry}" Width="14" Height="14" />
                             </MenuItem.Icon>

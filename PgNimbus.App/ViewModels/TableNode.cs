@@ -39,6 +39,13 @@ public sealed class TableNode : SchemaTreeNode
     /// <summary>Re-evaluate <see cref="SizeText"/> after the sidebar's "show sizes" toggle flips.</summary>
     public void NotifySizeVisibilityChanged() => OnPropertyChanged(nameof(SizeText));
 
+    /// <summary>
+    /// Whether the Alter Table dialog applies: tables and partitioned parents.
+    /// A view or materialized view is changed by recreating it, and the dialog's
+    /// ADD/DROP COLUMN would only fail against one.
+    /// </summary>
+    public bool CanAlter => Kind is RelationKind.Table or RelationKind.PartitionedTable;
+
     /// <summary>Only relations with real storage carry indexes (tables, matviews, partitioned parents) — not plain views.</summary>
     private bool CanHaveIndexes => Kind is RelationKind.Table or RelationKind.MaterializedView or RelationKind.PartitionedTable;
 

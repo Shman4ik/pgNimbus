@@ -54,7 +54,7 @@ other shape runs as a plain query, and pgNimbus never rewrites it.
 ## Row details
 
 <kbd>Ctrl</kbd>+<kbd>I</kbd> (<kbd>Cmd</kbd>+<kbd>I</kbd> on macOS), the form
-icon at the right end of the status bar, or **Row details** on the grid's
+icon at the right end of the status bar, or **Row Details** on the grid's
 right-click menu opens the selected row as a form over the window: one line per
 column, name above value. <kbd>Tab</kbd> moves between fields, the ‹ › buttons
 move to the previous or next row, and <kbd>Esc</kbd> closes it.

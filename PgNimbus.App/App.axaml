@@ -7,7 +7,8 @@
     <!-- macOS app menu (ignored elsewhere). Name above is what the menu bar
          and the "Hide ..." item display - without it, Avalonia's exporter
          falls back to "Avalonia Application". The standard Services / Hide /
-         Quit block is appended automatically by Avalonia. -->
+         Quit block is appended automatically by Avalonia, and two of its items
+         are corrected in App.OnFrameworkInitializationCompleted (MacAppMenu). -->
     <NativeMenu.Menu>
         <NativeMenu>
             <NativeMenuItem Header="About pgNimbus" Click="OnAboutMenuItemClicked" />

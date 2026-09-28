@@ -99,6 +99,33 @@ public partial class SchemaTreePanel : UserControl
 
     // --- Context-menu actions ---------------------------------------------
 
+    // "Browse Rows" - the double-click's default action, offered by name.
+    private void OnBrowseTableClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem { Tag: TableNode table } && Model?.PreviewTableRequested is { } preview)
+        {
+            _ = preview(table);
+        }
+    }
+
+    // "Copy Name" - the bare relation name, like the schema and role menus copy theirs.
+    private async void OnCopyTableNameClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem { Tag: TableNode table } || TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard)
+        {
+            return;
+        }
+
+        try
+        {
+            await clipboard.SetTextAsync(table.Name);
+        }
+        catch (Exception)
+        {
+            // Another app holding the clipboard locked is not worth a crash.
+        }
+    }
+
     private void OnAlterTableClick(object? sender, RoutedEventArgs e)
     {
         if (sender is not MenuItem { Tag: TableNode table } || Model?.AlterTableViewModelFactory is not { } factory)

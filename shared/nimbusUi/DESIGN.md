@@ -261,6 +261,48 @@ faint they were; the light theme is where they failed. Lower opacities stay for 
 is not read: a separator glyph, a decorative icon, a disabled control (which Fluent
 dims on purpose), or a state the dimming itself announces (an excluded schema).
 
+### 18. Menu items are in Title Case, and a row's menu starts with its default action
+
+Every menu label — the macOS menu bar, the ☰ menu, every context menu and every
+`MenuFlyout` — uses Apple's title-style capitalization, on all platforms: capitalize
+every word except articles, coordinating conjunctions and prepositions of four
+letters or fewer, unless the word comes first or last ("Copy Name", "Close to the
+Right", "Exclude from Autocomplete", "Save As…", "Copy As ▸"). A label that opens
+something needing more input ends in `…` (the character, not three dots). Identifiers
+and SQL keywords keep their own case ("Set Cell to NULL", "CREATE ROLE Script"), and
+a label built from data (a column name, a filter expression) is data, not a label.
+
+pgNimbus had both conventions at once: the native menu bar said "Alter Table…" while
+the context menu one row below it said "Copy name" and "Drop schema...", so the same
+app read as two. Microsoft's guidance leans to sentence case and Apple's HIG requires
+title case; the choice (2026-09) was one convention on every platform rather than a
+per-OS switch, and the Mac's, since it is the one platform where the other looks wrong.
+
+A row's context menu opens with the action a double-click performs (rule 2), by
+name: a table's menu used to offer only its DDL and Alter Table, so the one thing
+most people right-click a table for was reachable only by knowing to double-click.
+
+### 19. On macOS the menu bar is the app's, and the Edit menu goes to what has focus
+
+A window that is key on macOS brings a full menu bar: the window's own menus plus
+**Edit** (Undo, Redo, Cut, Copy, Paste, Select All, and Find where there is something
+to search) and **Window** (Minimize, Zoom, Bring All to Front, the open windows). A
+window with no menu of its own leaves AppKit showing the app menu alone, which reads
+as a broken app and takes Cmd+W and Cmd+M with it.
+
+The Edit items are not decoration. AppKit matches a menu item's key equivalent
+*before* the key reaches the window, so the moment Edit carries Cmd+C, the text box,
+editor or grid that used to receive Cmd+C as a key press receives a menu click
+instead. Each verb therefore has to be routed to the focused control — walk up from
+focus, let a view that means something else by the verb (a grid's copy of its rows)
+answer first, then a text box or code editor — or adding the menu breaks copy and
+paste everywhere. Don't add a Help menu (AppKit inserts a search field into one) or
+an Enter Full Screen item (AppKit adds its own to View).
+
+Avalonia 12.1's standard app-menu block has two defects, fixed in place after
+setup: Hide Others is bound to ⌥⌘Q (one key from Quit) instead of ⌥⌘H, and Quit
+does not name the app.
+
 ---
 
 ## What is deliberately *not* shared
@@ -292,6 +334,10 @@ mechanism — a rule nobody tracks is a rule that decays.
       the list-selection rule changed here; pgNimbus's dialogs, popups and palette and
       kubeNimbus's command palettes moved onto `overlayCard`/`scrim`/`AppPopupBrush`.
 - [ ] Secondary text at 0.6 (rule 17) → kubeNimbus: audit its `hint` class and inline opacities.
+- [ ] Title Case menus and default-action-first context menus (rule 18) → kubeNimbus.
+- [ ] The macOS Edit and Window menus, their focus routing, and the app-menu fix
+      (rule 19) → kubeNimbus. pgNimbus's `EditCommands`, `MacMenus` and `MacAppMenu`
+      name no Postgres and are the candidates to lift into this library.
 - [ ] `AppSuccessBrush` → pgNimbus. The status trio was two-thirds defined there.
 - [x] **The Fluent control layer → `Theme/Controls.axaml`.** Inputs, lists, trees,
       grids and the `.soft`/`.danger` button families were defined in pgNimbus only,
