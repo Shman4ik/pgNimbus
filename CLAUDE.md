@@ -136,22 +136,41 @@ Three rules about it:
    auto-rolls-back the block (so the connection never lingers in Postgres's
    aborted-transaction state), and `TransactionStateChanged` is how the App's
    "in transaction" indicator stays in sync no matter which path changed it.
-   Auto-reconnect (2026-07): `QueryEngine` classifies a failure as connection
-   loss (Postgres class-08 `SqlState`s / an admin or crash shutdown, or an
-   `NpgsqlException` wrapping a socket/IO exception — deliberately not
-   `TimeoutException`, which Npgsql also uses for command timeouts and pool
-   exhaustion where a silent re-run could double-apply work) versus an
-   ordinary statement error, and on loss flushes the whole pool before
-   silently retrying once on a fresh connection — runs, single-statement
-   edits, and pre-commit batches all get this; a script retries only its
-   first statement, since session state from earlier statements can't be
-   resurrected. A failure mid-stream (rows already delivered) or after a
-   batch's `COMMIT` was attempted never retries. An explicit transaction is
-   never silently re-established: a lost connection there clears
+   Auto-reconnect (2026-07, reshaped 2026-09): `QueryEngine` classifies a
+   failure as connection loss (Postgres class-08 `SqlState`s / an admin or
+   crash shutdown, or an `NpgsqlException` wrapping a socket/IO exception —
+   deliberately not `TimeoutException`, which Npgsql also uses for command
+   timeouts and pool exhaustion) versus an ordinary statement error, and on
+   loss flushes the whole pool so the next rent opens a fresh socket. **What
+   is retried is only what ran nothing.** Every path describes the statement
+   before sending it (`DescribeAsync`; see "Describe first, execute once"
+   under coding conventions), and a loss during open or describe — the dead pooled
+   socket a laptop sleep, a dropped tunnel or a backend terminated *while
+   idle* leaves behind — is retried once on a fresh connection, invisibly.
+   A loss after the send is never retried, on any path: the statement is
+   reported with `QueryError.ConnectionLost` and `OutcomeUnknown` set and a
+   message saying it was not run again and may or may not have taken effect.
+   The 2026-09 security audit (finding 2) reproduced why: an `INSERT` a DBA
+   killed with `pg_terminate_backend` mid-run came back as 57P01, which
+   `ConnectionFailure.IsLoss` rightly calls a loss, and the old retry
+   re-sent it — the row was there and no error was shown. The same 57P01
+   arrives for a backend killed while idle, so the classifier cannot tell the
+   two apart; the *timing* of the failure can, which is what the `sent` flag
+   keys on. `ExecuteNonQueryAsync` (grid edits and the Add-row INSERT) throws
+   the loss instead of re-sending; a script retries its first statement only
+   when it never went out. The one place a statement that went out is sent
+   again is the pre-commit staged batch, which is safe for a reason the
+   single-statement paths lack: it ran inside its own transaction, a
+   connection that dies before `COMMIT` takes the whole transaction with it
+   server-side, so nothing from the first attempt can have landed; once
+   `COMMIT` was attempted it never retries either. A failure mid-stream (rows
+   already delivered) never retries. An explicit transaction is never
+   silently re-established: a lost connection there clears
    `_transactionConnection` without sending `ROLLBACK` (no live socket to
    send it down) and returns a `QueryError` with `ConnectionLost`/`RolledBack`
    set, stating plainly that the transaction is gone and nothing from it
-   committed.
+   committed. `QueryEngineReconnectTests` holds both halves: the idle kill is
+   transparent, the mid-run kill is reported with the table still empty.
    The classification itself lives in `Query/ConnectionFailure.IsLoss`, not in
    `QueryEngine` (2026-08): the LISTEN/NOTIFY listener holds a connection open
    for hours and has to answer the same question when its wait loop throws, and
