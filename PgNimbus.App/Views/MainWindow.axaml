@@ -90,6 +90,7 @@
                                 <MenuItem Name="MenuSaveToFile" Header="Save tab to a .sql file…" Command="{Binding SaveFileCommand}" />
                                 <Separator />
                                 <MenuItem Name="MenuCloseTab" Header="Close tab" Command="{Binding CloseTabCommand}" />
+                                <MenuItem Name="MenuReopenClosedTab" Header="Reopen closed tab" Command="{Binding ReopenClosedTabCommand}" />
                                 <Separator />
                                 <MenuItem Name="MenuSwitchConnection" Header="Switch connection…" Command="{Binding SwitchConnectionCommand}" />
                                 <MenuItem Name="MenuNewWindow" Header="Open connection in new window…" Command="{Binding OpenNewWindowCommand}" />

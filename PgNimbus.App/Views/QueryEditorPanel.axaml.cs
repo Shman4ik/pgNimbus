@@ -397,6 +397,13 @@ public partial class QueryEditorPanel : UserControl
         SqlEditor.Text = _activeQuery.Sql;
         _suppressEditorSync = false;
 
+        // A reopened closed tab asks for its caret back, once.
+        if (_activeQuery.PendingCaretOffset is { } caret)
+        {
+            _activeQuery.PendingCaretOffset = null;
+            SqlEditor.CaretOffset = Math.Clamp(caret, 0, SqlEditor.Document.TextLength);
+        }
+
         // Seed the newly-attached tab's caret copy from where the editor actually sits,
         // so Explain doesn't target a statement based on the previous tab's offset.
         _activeQuery.CaretOffset = SqlEditor.CaretOffset;

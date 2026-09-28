@@ -60,9 +60,10 @@ public class CellTextTests
     }
 
     /// <summary>
-    /// Numbers, dates and booleans are handed to the binding untouched, so the
-    /// grid keeps formatting them with the current culture. Turning them into
-    /// strings here would quietly change how every numeric column reads.
+    /// Numbers and booleans are handed to the binding untouched. Turning them
+    /// into strings here would quietly change how every numeric column reads.
+    /// Dates and times are the exception: those are written ISO whatever the
+    /// region (<see cref="TemporalCellTextTests"/>), and never shortened.
     /// </summary>
     [Test]
     public async Task Values_that_read_correctly_already_are_passed_through()
@@ -71,7 +72,7 @@ public class CellTextTests
 
         await Assert.That(CellText.Preview(42)).IsEqualTo(42);
         await Assert.That(CellText.Preview(12.5m)).IsEqualTo(12.5m);
-        await Assert.That(CellText.Preview(timestamp)).IsEqualTo(timestamp);
+        await Assert.That(CellText.Preview(timestamp)).IsEqualTo("2026-09-08 12:00:00+00");
         await Assert.That(CellText.IsShortened(timestamp)).IsFalse();
     }
 

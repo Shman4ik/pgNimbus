@@ -1063,7 +1063,7 @@ public partial class ResultsGridPanel : UserControl
             : null;
 
         var validatesAsJson = editorMeta?.Editor == ColumnValueEditor.Json;
-        _model.CellInspector.Open(name, row[columnIndex], columnIndex, canEdit, commit, validatesAsJson, startEditing && canEdit);
+        _model.CellInspector.Open(name, row[columnIndex], columnIndex, canEdit, commit, validatesAsJson, startEditing && canEdit, query.ColumnTypeName(columnIndex));
     }
 
     private async void OnCellInspectorCopyClick(object? sender, RoutedEventArgs e)
@@ -1479,7 +1479,7 @@ public partial class ResultsGridPanel : UserControl
                 // resolve via reflection, which trips NativeAOT/trimming.
                 Binding = new Binding
                 {
-                    Converter = new Converters.RowIndexConverter(i),
+                    Converter = new Converters.RowIndexConverter(i, query.ColumnTypeName(i)),
                     Mode = BindingMode.OneWay,
                 },
                 // No binding path also means no stock sort key - header-click

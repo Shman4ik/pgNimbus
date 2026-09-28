@@ -57,6 +57,33 @@ public partial class SaveQueryDialog : Window
         };
     }
 
+    /// <summary>
+    /// What the name box opens with when a tab is saved for the first time: the
+    /// tab's own title, selected, so Enter alone saves it. That includes the
+    /// "Query N" placeholder — an empty box, which is what it used to open with,
+    /// left Save disabled and made the most common save (Cmd/Ctrl+S, Enter) a
+    /// dead end until something was typed. A title already in the list gets a
+    /// number (" 2", " 3", …) instead, because the dialog turns a taken name into
+    /// Replace, and Enter on a suggestion must never overwrite a saved query.
+    /// </summary>
+    public static string SuggestName(string title, Func<string, SavedQuery?> findByName)
+    {
+        var name = title.Trim();
+        if (name.Length == 0 || findByName(name) is null)
+        {
+            return name;
+        }
+
+        for (var n = 2; ; n++)
+        {
+            var candidate = $"{name} {n}";
+            if (findByName(candidate) is null)
+            {
+                return candidate;
+            }
+        }
+    }
+
     private void UpdateConflictState()
     {
         var name = (NameBox.Text ?? string.Empty).Trim();

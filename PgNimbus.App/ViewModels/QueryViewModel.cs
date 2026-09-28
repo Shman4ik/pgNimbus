@@ -41,8 +41,11 @@ public sealed partial class QueryViewModel : ObservableObject
     private readonly Stopwatch _runClock = new();
     private DispatcherTimer? _runClockTimer;
 
+    /// <summary>What a fresh scratch tab's editor holds before anyone types in it.</summary>
+    public const string ScratchSql = "SELECT 1;";
+
     [ObservableProperty]
-    private string _sql = "SELECT 1;";
+    private string _sql = ScratchSql;
 
     /// <summary>
     /// The SQL editor's current selection, pushed from the view on every
@@ -60,6 +63,28 @@ public sealed partial class QueryViewModel : ObservableObject
     /// view→VM input state, like <see cref="SelectedSql"/>.
     /// </summary>
     public int CaretOffset { get; set; }
+
+    /// <summary>
+    /// A caret position the editor should put back the next time it shows this
+    /// tab, then forget — set when a closed tab is reopened, so the caret lands
+    /// where the user left it rather than at the top. Null the rest of the time,
+    /// which leaves tab switching exactly as it was.
+    /// </summary>
+    public int? PendingCaretOffset { get; set; }
+
+    /// <summary>
+    /// True for a tab nobody has put anything into: the scratch text a new tab
+    /// opens with (or nothing), no file, no saved-query entry, no chosen name,
+    /// no browsed table. Closing one loses nothing, so it is never kept for
+    /// Reopen Closed Tab, and on macOS closing the window's only tab when it is
+    /// in this state closes the window (MainViewModel.CloseTab).
+    /// </summary>
+    public bool IsUntouchedScratch =>
+        FilePath is null
+        && SavedQueryId is null
+        && TitleOverride is null
+        && BrowsedTableName is null
+        && (string.IsNullOrWhiteSpace(Sql) || string.Equals(Sql, ScratchSql, StringComparison.Ordinal));
 
     [ObservableProperty]
     private string _status = "Ready";
@@ -232,6 +257,13 @@ public sealed partial class QueryViewModel : ObservableObject
     // The buffer content as of the last load-from/save-to disk for a
     // file-backed tab; the dirty comparison baseline while FilePath is set.
     private string? _lastSavedSql;
+
+    /// <summary>
+    /// The file content the dirty dot compares against (null for a scratch tab),
+    /// kept with a closed tab so reopening it can re-attach the file without
+    /// reading the disk and still show the dot honestly.
+    /// </summary>
+    public string? FileBaseline => FilePath is null ? null : _lastSavedSql;
 
     /// <summary>
     /// The Saved Queries entry this tab was last saved to, or null if it has
@@ -1858,9 +1890,22 @@ public sealed partial class QueryViewModel : ObservableObject
     /// Postgres type-mismatch error, since text isn't assignment-castable to
     /// most non-text types).
     /// </summary>
-    private object ConvertEditedValue(string text, int columnIndex)
+    private object ConvertEditedValue(string text, int columnIndex) =>
+        columnIndex < _columns.Count
+            ? ParseEditedText(text, _columns[columnIndex].ClrType, _columns[columnIndex].DataTypeName)
+            : text;
+
+    /// <summary>
+    /// The conversion behind <see cref="ConvertEditedValue"/>, on its own so the
+    /// round trip with the grid's text (<c>CellText.Preview</c>, which pre-fills
+    /// the inline editor) can be tested without a result set: whatever the grid
+    /// shows for a value must read back as that same value.
+    /// </summary>
+    /// <param name="text">What the editor holds.</param>
+    /// <param name="targetType">The CLR type Npgsql reads the column as.</param>
+    /// <param name="dataTypeName">The column's wire type ("timestamp with time zone", …).</param>
+    public static object ParseEditedText(string text, Type targetType, string? dataTypeName)
     {
-        var targetType = columnIndex < _columns.Count ? _columns[columnIndex].ClrType : typeof(string);
         var underlying = Nullable.GetUnderlyingType(targetType) ?? targetType;
 
         if (underlying == typeof(string))
@@ -1884,7 +1929,9 @@ public sealed partial class QueryViewModel : ObservableObject
 
         if (underlying == typeof(DateOnly))
         {
-            return DateOnly.Parse(text, CultureInfo.InvariantCulture);
+            return IsInfinity(text, out var positive)
+                ? positive ? DateOnly.MaxValue : DateOnly.MinValue
+                : DateOnly.Parse(text, CultureInfo.InvariantCulture);
         }
 
         if (underlying == typeof(TimeOnly))
@@ -1894,7 +1941,11 @@ public sealed partial class QueryViewModel : ObservableObject
 
         if (underlying == typeof(TimeSpan))
         {
-            return TimeSpan.Parse(text, CultureInfo.InvariantCulture);
+            // Postgres allows time '24:00:00', which the grid shows as such;
+            // TimeSpan.Parse reads a 24 in the hours place as out of range.
+            return text.Trim() == "24:00:00"
+                ? TimeSpan.FromHours(24)
+                : TimeSpan.Parse(text, CultureInfo.InvariantCulture);
         }
 
         // Npgsql is strict about DateTime.Kind: timestamptz only accepts Utc,
@@ -1902,7 +1953,16 @@ public sealed partial class QueryViewModel : ObservableObject
         // flavors also interpret the text differently, so handle them apart.
         if (underlying == typeof(DateTime))
         {
-            var isTimestampTz = _columns[columnIndex].DataTypeName.Contains("with time zone", StringComparison.OrdinalIgnoreCase);
+            // The grid shows Npgsql's infinities as Postgres spells them
+            // (CellText.Temporal); these are the values Npgsql writes back as
+            // 'infinity' and '-infinity'.
+            var isTimestampTz = dataTypeName?.Contains("with time zone", StringComparison.OrdinalIgnoreCase) == true;
+            if (IsInfinity(text, out var positive))
+            {
+                var edge = positive ? DateTime.MaxValue : DateTime.MinValue;
+                return DateTime.SpecifyKind(edge, isTimestampTz ? DateTimeKind.Utc : DateTimeKind.Unspecified);
+            }
+
             if (isTimestampTz)
             {
                 // timestamptz: an offset-less value is taken as UTC (what the
@@ -1923,6 +1983,15 @@ public sealed partial class QueryViewModel : ObservableObject
         }
 
         return text;
+    }
+
+    private static bool IsInfinity(string text, out bool positive)
+    {
+        var word = text.Trim();
+        positive = !word.StartsWith('-');
+        return word.Equals("infinity", StringComparison.OrdinalIgnoreCase)
+               || word.Equals("+infinity", StringComparison.OrdinalIgnoreCase)
+               || word.Equals("-infinity", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>

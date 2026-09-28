@@ -939,6 +939,17 @@ public sealed partial class MainViewModel : ObservableObject
     // Creates a query tab, wires its history hook, and makes it active.
     private QueryViewModel NewTab()
     {
+        var tab = CreateTab();
+        Tabs.Add(tab);
+        ActiveTab = tab;
+        NotifyTabCommands();
+        return tab;
+    }
+
+    // A tab wired to this window but not yet in the strip, for callers that
+    // must finish setting it up before the editor attaches to it.
+    private QueryViewModel CreateTab()
+    {
         var tab = new QueryViewModel(_engine, _explainService, GetReconcilerAsync, () => SafeModeEdits, _schemaService, () => ShowFilterBar, () => ConnectionReadOnlyHint)
         {
             DefaultTitle = $"Query {Tabs.Count + 1}",
@@ -953,9 +964,6 @@ public sealed partial class MainViewModel : ObservableObject
         };
         tab.Executed += SavedQueries.RecordExecution;
         tab.Executed += entry => OnTabExecuted(tab, entry);
-        Tabs.Add(tab);
-        ActiveTab = tab;
-        NotifyTabCommands();
         return tab;
     }
 
@@ -1166,17 +1174,200 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
+    /// <summary>How many closed tabs Reopen Closed Tab can bring back; the oldest drops off past this.</summary>
+    public const int MaxClosedTabs = 20;
+
+    // Most recently closed last. Session-only on purpose: it belongs to this
+    // window's run, like undo, and the workspace snapshot already carries the
+    // tabs that were open at exit.
+    private readonly List<ClosedTab> _closedTabs = [];
+
+    /// <summary>The tabs Reopen Closed Tab can bring back, most recently closed last.</summary>
+    public IReadOnlyList<ClosedTab> ClosedTabs => _closedTabs;
+
+    /// <summary>
+    /// Whether Close Tab on the window's only tab, when that tab is an untouched
+    /// scratch tab, closes the window instead of emptying the tab again. The Mac
+    /// convention: Cmd+W with nothing left to close closes the window, and the
+    /// app keeps running (App.KeepRunningWithNoWindowsOnMac). Windows and Linux
+    /// keep "closing the last tab empties it", where closing the last window
+    /// would quit. Settable so the headless tests can exercise both.
+    /// </summary>
+    public bool CloseWindowWithLastEmptyTab { get; set; } = OperatingSystem.IsMacOS();
+
+    /// <summary>Raised when Close Tab means "close this window" (see <see cref="CloseWindowWithLastEmptyTab"/>).</summary>
+    public event Action? CloseWindowRequested;
+
     /// <summary>
     /// Closes <paramref name="tab"/> (the active one when invoked with no
     /// parameter). Closing the *last* tab empties it rather than refusing:
     /// a fresh scratch tab takes its place, Notepad++-style, so "close" always
     /// does something and the window is never left tab-less (every binding
-    /// under <c>ActiveTab</c> depends on there being one).
+    /// under <c>ActiveTab</c> depends on there being one). On macOS, closing
+    /// that tab again once it is empty closes the window instead.
+    /// <para>
+    /// Every tab with something in it is kept for <see cref="ReopenClosedTab"/>,
+    /// and closing one that holds work saved nowhere says so on the status line,
+    /// with the gesture that brings it back.
+    /// </para>
     /// </summary>
     [RelayCommand(CanExecute = nameof(CanCloseTab))]
     private void CloseTab(QueryViewModel? tab)
     {
         tab ??= ActiveTab;
+        if (tab is null)
+        {
+            return;
+        }
+
+        if (CloseWindowWithLastEmptyTab && Tabs.Count == 1 && ReferenceEquals(Tabs[0], tab) && tab.IsUntouchedScratch)
+        {
+            CloseWindowRequested?.Invoke();
+            return;
+        }
+
+        var unsaved = RemoveTab(tab);
+        if (unsaved is not null)
+        {
+            AnnounceClosed([unsaved]);
+        }
+    }
+
+    /// <summary>
+    /// Brings back the most recently closed tab (Cmd/Ctrl+Shift+T), in the place
+    /// it had in the strip, with its text, name, file, saved-query link and
+    /// caret. A lone untouched scratch tab gives way to it: that is usually the
+    /// one that replaced the very tab being reopened, and keeping it would leave
+    /// an empty "Query 1" beside the work the user came back for.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanReopenClosedTab))]
+    private void ReopenClosedTab()
+    {
+        if (_closedTabs.Count == 0)
+        {
+            return;
+        }
+
+        var closed = _closedTabs[^1];
+        _closedTabs.RemoveAt(_closedTabs.Count - 1);
+
+        var placeholder = Tabs is [{ IsUntouchedScratch: true, IsRunning: false } only] ? only : null;
+
+        // Filled in before it joins the strip: the editor attaches to a tab the
+        // moment it becomes active, and that is when it reads the caret to put back.
+        var tab = CreateTab();
+        tab.DefaultTitle = closed.DefaultTitle;
+        tab.Sql = closed.Sql;
+        if (closed.FilePath is { } path)
+        {
+            // AttachFile names the tab after the file; a rename made on top of
+            // that is put back just below.
+            tab.AttachFile(path, closed.FileBaseline ?? closed.Sql);
+        }
+
+        tab.TitleOverride = closed.TitleOverride;
+        tab.SavedQueryId = closed.SavedQueryId;
+        if (closed.BrowsedTable is { } browsed)
+        {
+            // Same as a workspace restore: nothing is fetched now, and the next
+            // run of the page query resumes browse mode.
+            tab.RestoreBrowsedTable(browsed.Schema, browsed.Name);
+        }
+
+        tab.CaretOffset = closed.CaretOffset;
+        tab.PendingCaretOffset = closed.CaretOffset;
+        tab.Status = $"Reopened “{tab.TabTitle}”";
+
+        Tabs.Insert(Math.Clamp(closed.Index, 0, Tabs.Count), tab);
+        ActiveTab = tab;
+
+        if (placeholder is not null)
+        {
+            // The reopened tab is already active, so this removal never touches
+            // the strip's selection (see CloseTabCore for why that matters).
+            DetachTab(placeholder);
+            Tabs.Remove(placeholder);
+        }
+
+        NotifyTabCommands();
+    }
+
+    private bool CanReopenClosedTab() => _closedTabs.Count > 0;
+
+    // Takes the tab out of the strip and keeps it for Reopen Closed Tab when it
+    // has anything in it. Returns the kept entry when that something is saved
+    // nowhere else (the case worth a status-line note), null otherwise.
+    private ClosedTab? RemoveTab(QueryViewModel tab)
+    {
+        var index = Tabs.IndexOf(tab);
+        if (index < 0)
+        {
+            return null;
+        }
+
+        ClosedTab? kept = null;
+        if (!tab.IsUntouchedScratch)
+        {
+            kept = ClosedTab.From(tab, index);
+            _closedTabs.Add(kept);
+            if (_closedTabs.Count > MaxClosedTabs)
+            {
+                _closedTabs.RemoveAt(0);
+            }
+        }
+
+        var unsaved = kept is not null && HoldsUnsavedWork(tab) ? kept : null;
+        CloseTabCore(tab);
+        return unsaved;
+    }
+
+    // "Saved nowhere": a scratch tab with anything typed in it, a file tab that
+    // differs from its file, a saved query that differs from its entry.
+    private bool HoldsUnsavedWork(QueryViewModel tab)
+    {
+        if (string.IsNullOrWhiteSpace(tab.Sql))
+        {
+            return false;
+        }
+
+        if (tab.FilePath is not null)
+        {
+            return tab.IsDirty;
+        }
+
+        if (tab.SavedQueryId is { } id && SavedQueries.FindById(id) is { } entry)
+        {
+            return !string.Equals(entry.Sql, tab.Sql, StringComparison.Ordinal);
+        }
+
+        return true;
+    }
+
+    // One status line for however many tabs a close just took with unsaved
+    // work in them, naming the gesture from the catalog (never typed in, so it
+    // follows the Ctrl/Cmd scheme and any later change to the chord).
+    private void AnnounceClosed(IReadOnlyList<ClosedTab> unsaved)
+    {
+        if (unsaved.Count == 0 || ActiveTab is null)
+        {
+            return;
+        }
+
+        var how = CommandCatalog.ChordFor(CommandId.ReopenClosedTab, Hotkeys.Scheme) is { } chord
+            ? chord.Label(Hotkeys.Scheme)
+            : "Reopen closed tab";
+        var what = unsaved.Count == 1
+            ? $"Closed “{unsaved[0].Title}”, which had unsaved SQL."
+            : $"Closed {unsaved.Count} tabs with unsaved SQL.";
+        ActiveTab.Status = unsaved.Count == 1
+            ? $"{what} {how} reopens it."
+            : $"{what} {how} reopens them one at a time.";
+        ActiveTab.HasError = false;
+    }
+
+    // The mechanics of taking a tab out of the strip, shared by every close.
+    private void CloseTabCore(QueryViewModel tab)
+    {
         if (Tabs.Count == 1)
         {
             if (!ReferenceEquals(Tabs[0], tab))
@@ -1211,15 +1402,20 @@ public sealed partial class MainViewModel : ObservableObject
             ActiveTab = Tabs[index < Tabs.Count - 1 ? index + 1 : index - 1];
         }
 
+        DetachTab(tab);
+        Tabs.RemoveAt(index);
+
+        NotifyTabCommands();
+    }
+
+    private void DetachTab(QueryViewModel tab)
+    {
         // A query still running in the closed tab would otherwise keep streaming
         // in the background, holding a pool connection and server-side work for a
         // result nothing will show — cancel it as the tab goes away.
         tab.CancelCommand.Execute(null);
 
         tab.Executed -= SavedQueries.RecordExecution;
-        Tabs.RemoveAt(index);
-
-        NotifyTabCommands();
     }
 
     /// <summary>
@@ -1236,19 +1432,33 @@ public sealed partial class MainViewModel : ObservableObject
 
     /// <summary>
     /// Closes every tab except <paramref name="tab"/> (the active one when the
-    /// palette invokes this with no parameter). Goes through <see cref="CloseTab"/>
-    /// per tab so each one still cancels its running query and unhooks its
-    /// history handler; the snapshot is taken first because that mutates
-    /// <see cref="Tabs"/> underneath the enumeration.
+    /// palette invokes this with no parameter). Goes through the same removal as
+    /// <see cref="CloseTab"/> per tab so each one still cancels its running
+    /// query, unhooks its history handler and is kept for Reopen Closed Tab; the
+    /// snapshot is taken first because that mutates <see cref="Tabs"/>
+    /// underneath the enumeration.
     /// </summary>
     [RelayCommand(CanExecute = nameof(CanCloseOtherTabs))]
     private void CloseOtherTabs(QueryViewModel? tab)
     {
         tab ??= ActiveTab;
-        foreach (var other in Tabs.Where(t => !ReferenceEquals(t, tab)).ToList())
+        CloseAll(Tabs.Where(t => !ReferenceEquals(t, tab)).ToList());
+    }
+
+    // The bulk closes: every tab kept for reopening in strip order (so the
+    // first reopen brings back the rightmost), one status line for all of them.
+    private void CloseAll(IReadOnlyList<QueryViewModel> tabs)
+    {
+        var unsaved = new List<ClosedTab>();
+        foreach (var tab in tabs)
         {
-            CloseTab(other);
+            if (RemoveTab(tab) is { } kept)
+            {
+                unsaved.Add(kept);
+            }
         }
+
+        AnnounceClosed(unsaved);
     }
 
     private bool CanCloseTabsToTheRight(QueryViewModel? tab)
@@ -1268,20 +1478,19 @@ public sealed partial class MainViewModel : ObservableObject
             return;
         }
 
-        foreach (var right in Tabs.Skip(index + 1).ToList())
-        {
-            CloseTab(right);
-        }
+        CloseAll(Tabs.Skip(index + 1).ToList());
     }
 
     // Every close command's CanExecute reads the tab count or a tab's position,
-    // so all three re-evaluate together whenever the strip's contents or order
-    // change — one call site instead of three easy-to-forget ones.
+    // and reopen's reads the closed-tab stack, which every close feeds — so all
+    // four re-evaluate together whenever the strip's contents or order change,
+    // one call site instead of four easy-to-forget ones.
     private void NotifyTabCommands()
     {
         CloseTabCommand.NotifyCanExecuteChanged();
         CloseOtherTabsCommand.NotifyCanExecuteChanged();
         CloseTabsToTheRightCommand.NotifyCanExecuteChanged();
+        ReopenClosedTabCommand.NotifyCanExecuteChanged();
     }
 
     [RelayCommand]

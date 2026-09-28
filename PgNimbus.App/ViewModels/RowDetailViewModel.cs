@@ -18,13 +18,13 @@ public sealed partial class RowDetailField : ObservableObject
     private readonly string _baselineValue;
     private readonly bool _baselineNull;
 
-    public RowDetailField(int columnIndex, string name, string typeLabel, object? value, NewRowField? editor, string? readOnlyReason)
+    public RowDetailField(int columnIndex, string name, string typeLabel, object? value, NewRowField? editor, string? readOnlyReason, string? dataTypeName = null)
     {
         ColumnIndex = columnIndex;
         Name = name;
         TypeLabel = typeLabel;
         IsNull = value is null;
-        DisplayText = CellText.Preview(value)?.ToString() ?? string.Empty;
+        DisplayText = CellText.Preview(value, dataTypeName)?.ToString() ?? string.Empty;
         ReadOnlyReason = readOnlyReason;
         Editor = editor;
 
@@ -251,8 +251,8 @@ public sealed partial class RowDetailViewModel : ObservableObject
             }
 
             var field = reason is null && editable && meta is not null
-                ? new RowDetailField(i, name, typeLabel, value, NewRowField.For(meta, placeholder: "empty string"), null)
-                : new RowDetailField(i, name, typeLabel, value, null, reason is { Length: 0 } ? null : reason) { CanInspect = CellText.IsShortened(value) };
+                ? new RowDetailField(i, name, typeLabel, value, NewRowField.For(meta, placeholder: "empty string"), null, _owner.ColumnTypeName(i))
+                : new RowDetailField(i, name, typeLabel, value, null, reason is { Length: 0 } ? null : reason, _owner.ColumnTypeName(i)) { CanInspect = CellText.IsShortened(value) };
             field.PropertyChanged += OnFieldChanged;
             Fields.Add(field);
         }
