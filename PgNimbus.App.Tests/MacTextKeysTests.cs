@@ -15,10 +15,26 @@ namespace PgNimbus.App.Tests;
 /// The macOS text-editing keys (<see cref="MacTextKeys"/>) in the real SQL
 /// editor and a real TextBox, driven with key input. The macOS path is forced
 /// per window through <see cref="MacTextKeys.ForceProperty"/>, so these run on
-/// every OS and never touch the process-wide Ctrl/Cmd scheme other tests read.
+/// every OS. The Cmd scheme is set too, because that is the only scheme the
+/// keys are live under in the app: on the Ctrl scheme the window's own chords
+/// (⌃T new tab, ⌃F find, ⌃E explain) take the keys first, which is how these
+/// passed on a Mac and failed on the Linux runner. It is set when each window
+/// opens (<see cref="UseTheCmdScheme"/>), not in a hook: the session's first
+/// start runs <c>App.Initialize</c>, which re-reads the saved scheme. Hence
+/// <c>[NotInParallel]</c>: the scheme is process-wide.
 /// </summary>
+[NotInParallel]
 public class MacTextKeysTests
 {
+    private static void UseTheCmdScheme() => Hotkeys.Initialize("mac");
+
+    [After(Test)]
+    public Task RestoreTheScheme() => Ui.Run(() =>
+    {
+        Hotkeys.Initialize("auto");
+        return Task.CompletedTask;
+    });
+
     public const KeyModifiers Ctrl = KeyModifiers.Control;
     public const KeyModifiers Cmd = KeyModifiers.Meta;
     public const KeyModifiers Opt = KeyModifiers.Alt;
@@ -26,6 +42,7 @@ public class MacTextKeysTests
 
     private static (Window Window, ViewModels.MainViewModel Vm, TextEditor Editor) OpenEditor(string marked, bool mac = true)
     {
+        UseTheCmdScheme();
         var (window, vm) = Scenarios.Shell();
         vm.CompletionProvider.Load(new CompletionCatalog(
             ["public"],
@@ -283,6 +300,7 @@ public class MacTextKeysTests
 
     private static (Window Window, TextBox Box) OpenTextBox(string marked, bool multiline = false)
     {
+        UseTheCmdScheme();
         var box = new TextBox { AcceptsReturn = multiline, Width = 300 };
         var window = new Window { Width = 400, Height = 200, Content = box };
         MacTextKeys.SetForce(window, true);
