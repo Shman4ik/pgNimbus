@@ -15,7 +15,7 @@ using PgNimbus.Core.Query;
 
 namespace PgNimbus.App.Views;
 
-public partial class MainWindow : Window
+public partial class MainWindow : Window, IEditCommandTarget
 {
     private MainViewModel? _viewModel;
 
@@ -148,14 +148,12 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// macOS-only: the real menu bar — File / Query / View / Help — wired to
-    /// the same commands as the (hidden there) in-window ☰ menu, palette, and
-    /// key bindings. Rebuilt from BuildKeyBindings so the displayed gestures
-    /// track the live Ctrl/Cmd scheme; a fresh NativeMenu each time, so no
-    /// handler ever double-subscribes. The app-level menu (About / Settings…)
-    /// lives in App.axaml — this covers the window-scoped menus. Commands go
-    /// through DelegatedCommand: macOS re-validates items each time a menu
-    /// opens, which is when CanExecute is read.
+    /// macOS-only: the real menu bar, wired to the same commands as the (hidden
+    /// there) in-window ☰ menu, palette, and key bindings. Rebuilt from
+    /// BuildKeyBindings so the displayed gestures track the live Ctrl/Cmd scheme;
+    /// a fresh NativeMenu each time, so no handler ever double-subscribes. The
+    /// app-level menu (About / Settings… / Hide / Quit) lives in App.axaml — this
+    /// covers the window-scoped menus.
     /// </summary>
     private void BuildMacNativeMenu()
     {
@@ -164,21 +162,30 @@ public partial class MainWindow : Window
             return;
         }
 
-        var cmd = Hotkeys.Command;
+        NativeMenu.SetMenu(this, CreateNativeMenuBar());
+    }
 
+    /// <summary>
+    /// The window's menu bar: File / Edit / Query / View / Window. Built on every
+    /// platform so the tests can read it; only macOS ever shows it. Catalog
+    /// commands go through <see cref="CommandItem(string, CommandId)"/>, which
+    /// checks CanExecute at click time.
+    /// </summary>
+    public NativeMenu CreateNativeMenuBar()
+    {
         var recentMenu = new NativeMenu();
         var fileMenu = new NativeMenu
         {
             Items =
             {
                 CommandItem("New Query Tab", CommandId.NewTab),
-                CommandItem("Open .sql File…", CommandId.OpenFile),
+                CommandItem("Open…", CommandId.OpenFile),
                 new NativeMenuItem("Open Recent") { Menu = recentMenu },
                 new NativeMenuItemSeparator(),
                 CommandItem("Save", CommandId.Save),
                 CommandItem("Save As…", CommandId.SaveAs),
-                CommandItem("Save Query to Saved Queries…", CommandId.SaveQuery),
-                CommandItem("Save Tab to a .sql File…", CommandId.SaveFile),
+                CommandItem("Save to Saved Queries…", CommandId.SaveQuery),
+                CommandItem("Save to File…", CommandId.SaveFile),
                 new NativeMenuItemSeparator(),
                 CommandItem("Close Tab", CommandId.CloseTab),
                 CommandItem("Reopen Closed Tab", CommandId.ReopenClosedTab),
@@ -219,44 +226,53 @@ public partial class MainWindow : Window
         // Finder-style Show/Hide phrasing, re-resolved every time the menu
         // opens. AppKit appends its own "Enter Full Screen" item to the menu
         // titled "View", so full screen isn't added here.
-        var sidebarItem = ActionItem("Hide Sidebar", ToggleSidebar, CommandBindings.GestureFor(CommandId.ToggleSidebar));
+        var sidebarItem = MacMenus.Action("Hide Sidebar", ToggleSidebar, CommandBindings.GestureFor(CommandId.ToggleSidebar));
+        var appearanceMenu = MacMenus.Appearance();
         var viewMenu = new NativeMenu
         {
             Items =
             {
-                ActionItem("Command Palette…", OpenCommandPalette, CommandBindings.GestureFor(CommandId.CommandPalette)),
+                MacMenus.Action("Command Palette…", OpenCommandPalette, CommandBindings.GestureFor(CommandId.CommandPalette)),
                 new NativeMenuItemSeparator(),
                 sidebarItem,
-                ActionItem("Toggle Light/Dark Theme", ToggleTheme),
+                new NativeMenuItem("Appearance") { Menu = appearanceMenu },
                 new NativeMenuItemSeparator(),
-                ActionItem("Keyboard Shortcuts", () => _viewModel?.ShowShortcutsCommand.Execute(null), CommandBindings.GestureFor(CommandId.ShortcutsWindow)),
+                MacMenus.Action("Keyboard Shortcuts", () => _viewModel?.ShowShortcutsCommand.Execute(null), CommandBindings.GestureFor(CommandId.ShortcutsWindow)),
             },
         };
-        viewMenu.NeedsUpdate += (_, _) => sidebarItem.Header = _sidebarCollapsed ? "Show Sidebar" : "Hide Sidebar";
-
-        var windowMenu = new NativeMenu
+        viewMenu.NeedsUpdate += (_, _) =>
         {
-            Items =
-            {
-                ActionItem("Minimize", () => WindowState = WindowState.Minimized, new KeyGesture(Key.M, cmd)),
-                ActionItem("Zoom", () => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized),
-            },
+            sidebarItem.Header = _sidebarCollapsed ? "Show Sidebar" : "Hide Sidebar";
+            // The palette's theme toggle and the preferences page change the
+            // theme too, so the checkmark is re-read here as well as when the
+            // submenu itself opens.
+            MacMenus.RefreshAppearance(appearanceMenu);
         };
+
+        // Tab switching sits in Window, where Safari and Terminal keep it; the
+        // gestures are the catalog's, so the menu can't advertise a chord the
+        // window doesn't bind.
+        var windowMenu = MacMenus.Window(this,
+        [
+            CommandItem("Show Previous Tab", CommandId.PreviousTab),
+            CommandItem("Show Next Tab", CommandId.NextTab),
+        ]);
 
         // No Help menu on purpose: AppKit force-inserts a search field into
         // any menu named "Help" (it searches a help book this app doesn't
         // have), so its would-be items live in View (shortcuts) and the app
         // menu (GitHub link) instead.
-        NativeMenu.SetMenu(this, new NativeMenu
+        return new NativeMenu
         {
             Items =
             {
                 new NativeMenuItem("File") { Menu = fileMenu },
+                new NativeMenuItem("Edit") { Menu = MacMenus.Edit(this, includeFind: true) },
                 new NativeMenuItem("Query") { Menu = queryMenu },
                 new NativeMenuItem("View") { Menu = viewMenu },
                 new NativeMenuItem("Window") { Menu = windowMenu },
             },
-        });
+        };
     }
 
     /// <summary>
@@ -284,13 +300,6 @@ public partial class MainWindow : Window
                 command.Execute(null);
             }
         };
-        return item;
-    }
-
-    private static NativeMenuItem ActionItem(string header, Action action, KeyGesture? gesture = null)
-    {
-        var item = new NativeMenuItem(header) { Gesture = gesture };
-        item.Click += (_, _) => action();
         return item;
     }
 
@@ -377,6 +386,22 @@ public partial class MainWindow : Window
     /// <summary>The catalog's command, bound to this window's view model.</summary>
     private System.Windows.Input.ICommand? ResolveCommand(CommandId id) =>
         _viewModel is null ? null : CommandBindings.Resolve(id, _viewModel);
+
+    /// <summary>
+    /// The end of the Edit menu's routing walk (<see cref="EditCommands"/>): Find
+    /// that nothing closer to focus took opens the SQL editor's search, which is
+    /// what the Find chord does from anywhere in the window (see OnKeyDown).
+    /// </summary>
+    bool IEditCommandTarget.TryExecute(EditCommand command)
+    {
+        if (command != EditCommand.Find)
+        {
+            return false;
+        }
+
+        QueryEditor.OpenSearch(replaceMode: false);
+        return true;
+    }
 
     // F6 hops focus between the SQL editor and the results grid (the two
     // keyboard workspaces). Done in code because the target depends on where
@@ -684,7 +709,7 @@ public partial class MainWindow : Window
         // reported gap, not by being one more thing that could go here.
         _tabMenuSaveQuery = new MenuItem
         {
-            Header = "Save query…",
+            Header = "Save Query…",
             Command = viewModel.SaveQueryCommand,
         };
         _tabMenuRename = new MenuItem
@@ -700,12 +725,12 @@ public partial class MainWindow : Window
         };
         _tabMenuCloseOthers = new MenuItem
         {
-            Header = "Close others",
+            Header = "Close Others",
             Command = viewModel.CloseOtherTabsCommand,
         };
         _tabMenuCloseRight = new MenuItem
         {
-            Header = "Close to the right",
+            Header = "Close to the Right",
             Command = viewModel.CloseTabsToTheRightCommand,
         };
 
@@ -1259,7 +1284,7 @@ public partial class MainWindow : Window
         {
             MenuOpenRecent.Items.Add(new MenuItem
             {
-                Header = new TextBlock { Text = "No recent files" },
+                Header = new TextBlock { Text = "No Recent Files" },
                 IsEnabled = false,
             });
             return;
@@ -1282,7 +1307,7 @@ public partial class MainWindow : Window
 
     private void OnOpenRecentFileRequested(string path) => _ = OpenRecentFileAsync(path);
 
-    /// <summary>Ctrl+O / palette "Open .sql file…": pick a file and load it into a new tab (or focus it if already open).</summary>
+    /// <summary>Ctrl+O / palette "Open file…": pick a file and load it into a new tab (or focus it if already open).</summary>
     private async Task OpenSqlFileAsync()
     {
         if (_viewModel is null)

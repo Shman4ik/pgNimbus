@@ -50,7 +50,35 @@ public partial class ConnectionDialog : Window
         // way an address bar does.
         ImportBox.AddHandler(PointerPressedEvent, OnImportBoxPointerPressed, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         ImportBox.GotFocus += OnImportBoxGotFocus;
+
+        if (OperatingSystem.IsMacOS())
+        {
+            NativeMenu.SetMenu(this, CreateNativeMenuBar());
+        }
     }
+
+    /// <summary>
+    /// The menu bar while this window is key on macOS. It used to have none, so
+    /// the bar showed the app menu alone: no Close for Cmd+W, no Edit menu for
+    /// the connection-string box and the form's fields, no Minimize. File, Edit
+    /// and Window carry the basics; Edit has no Find, since the form has nothing
+    /// to search. Built on every platform so the tests can read it.
+    /// </summary>
+    public NativeMenu CreateNativeMenuBar() => new()
+    {
+        Items =
+        {
+            new NativeMenuItem("File")
+            {
+                Menu = new NativeMenu
+                {
+                    Items = { MacMenus.Action("Close Window", Close, new KeyGesture(Key.W, Hotkeys.Command)) },
+                },
+            },
+            new NativeMenuItem("Edit") { Menu = MacMenus.Edit(this, includeFind: false) },
+            new NativeMenuItem("Window") { Menu = MacMenus.Window(this) },
+        },
+    };
 
     /// <summary>
     /// The click that brings focus to the paste box selects its whole content;

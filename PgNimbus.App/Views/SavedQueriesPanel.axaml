@@ -30,7 +30,7 @@
                     </ListBox.ItemTemplate>
                     <ListBox.ContextFlyout>
                         <MenuFlyout>
-                            <MenuItem Header="Open in a new tab" Click="OnOpenSavedQueryClick" />
+                            <MenuItem Header="Open in New Tab" Click="OnOpenSavedQueryClick" />
                             <MenuItem Header="Rename…" Click="OnRenameSavedQueryClick" />
                             <Separator />
                             <MenuItem Header="Delete" Click="OnDeleteSavedQueryClick" />

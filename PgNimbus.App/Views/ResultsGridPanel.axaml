@@ -110,30 +110,30 @@
                             <ContextMenu x:DataType="vm:MainViewModel">
                                 <MenuItem Name="CopyMenuItem" Header="Copy" Click="OnCopyCells" />
                                 <Separator />
-                                <MenuItem Header="Copy as">
+                                <MenuItem Header="Copy As">
                                     <MenuItem Header="CSV" Click="OnCopyAsCsv" />
                                     <MenuItem Header="JSON" Click="OnCopyAsJson" />
-                                    <MenuItem Header="Markdown table" Click="OnCopyAsMarkdown" />
-                                    <MenuItem Header="INSERT statements" Click="OnCopyAsInsert" />
+                                    <MenuItem Header="Markdown Table" Click="OnCopyAsMarkdown" />
+                                    <MenuItem Header="INSERT Statements" Click="OnCopyAsInsert" />
                                 </MenuItem>
                                 <Separator />
-                                <MenuItem Header="Inspect cell…" Click="OnInspectCellClick" />
-                                <MenuItem x:Name="RowDetailsMenuItem" Header="Row details" Click="OnRowDetailsClick" />
+                                <MenuItem Header="Inspect Cell…" Click="OnInspectCellClick" />
+                                <MenuItem x:Name="RowDetailsMenuItem" Header="Row Details" Click="OnRowDetailsClick" />
                                 <!-- Browse mode only: = / ≠ / is null for the pressed cell, composed
                                      per cell in OnResultsGridMenuOpening. -->
                                 <MenuItem x:Name="FilterByValueMenuItem" Header="Filter" IsVisible="False" />
-                                <MenuItem Header="Set cell to NULL" Click="OnSetCellNullClick"
+                                <MenuItem Header="Set Cell to NULL" Click="OnSetCellNullClick"
                                           IsEnabled="{Binding ActiveTab.IsEditable}" />
                                 <!-- FK navigation: headers/sub-items are composed per-cell in
                                      OnResultsGridMenuOpening; hidden when the cell has no key. -->
-                                <MenuItem x:Name="FollowFkMenuItem" Header="Follow foreign key"
+                                <MenuItem x:Name="FollowFkMenuItem" Header="Follow Foreign Key"
                                           IsVisible="False" Click="OnFollowFkClick" />
-                                <MenuItem x:Name="ReferencingRowsMenuItem" Header="Referencing rows"
+                                <MenuItem x:Name="ReferencingRowsMenuItem" Header="Referencing Rows"
                                           IsVisible="False" />
                                 <Separator />
-                                <MenuItem Header="Add row…" Click="OnAddRowClick"
+                                <MenuItem Header="Add Row…" Click="OnAddRowClick"
                                           IsEnabled="{Binding ActiveTab.IsEditable}" />
-                                <MenuItem Header="Delete selected row(s)" InputGesture="Delete" Click="OnDeleteRowsClick"
+                                <MenuItem Header="Delete Selected Rows" InputGesture="Delete" Click="OnDeleteRowsClick"
                                           IsEnabled="{Binding ActiveTab.IsEditable}" />
                             </ContextMenu>
                         </DataGrid.ContextMenu>
@@ -240,7 +240,7 @@
                                         <MenuFlyout>
                                             <MenuItem Header="Copy as JSON" Click="OnCopyPlanJson"
                                                       IsVisible="{Binding ActiveTab.HasPlanJson}" />
-                                            <MenuItem Header="Copy as text" Click="OnCopyPlanText" />
+                                            <MenuItem Header="Copy as Text" Click="OnCopyPlanText" />
                                             <Separator />
                                             <MenuItem Header="Save as .json…" Click="OnSavePlanJson"
                                                       IsVisible="{Binding ActiveTab.HasPlanJson}" />

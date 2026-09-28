@@ -41,15 +41,17 @@ schema offers:
 
 | Item | What it does |
 | --- | --- |
-| New table... | Opens a `CREATE TABLE` starter statement for that schema in a new tab |
-| Copy name | Puts the schema name on the clipboard |
+| New Table… | Opens a `CREATE TABLE` starter statement for that schema in a new tab |
+| Copy Name | Puts the schema name on the clipboard |
 | Refresh | Reloads just that schema's contents |
-| Exclude from autocomplete | See [below](#leaving-a-schema-out) |
-| Drop schema... | Drops it, after a confirmation. Fails if the schema still holds objects |
-| Drop schema (cascade)... | Drops it together with everything inside, after a confirmation that says so |
+| Exclude from Autocomplete | See [below](#leaving-a-schema-out) |
+| Drop Schema… | Drops it, after a confirmation. Fails if the schema still holds objects |
+| Drop Schema (Cascade)… | Drops it together with everything inside, after a confirmation that says so |
 
-A table offers its reconstructed DDL and the Alter Table dialog; a function
-offers its source; an extension offers install or drop.
+A table, view or materialized view offers **Browse Rows** (what a double-click
+does), **Copy Name** and its reconstructed DDL; a table also offers the Alter
+Table dialog. A function offers its source, and an extension offers install or
+drop.
 
 ## Completion
 
@@ -120,7 +122,7 @@ condition, `oi.order_id = o.id`, is the top suggestion, one keystroke away.
 
 A database with dozens of schemas usually has a few that belong to another team,
 and their tables only ever get in the way of yours. Right-click the schema in the
-sidebar and pick **Exclude from autocomplete**. Its tables, columns and functions
+sidebar and pick **Exclude from Autocomplete**. Its tables, columns and functions
 stop appearing in every suggestion list, and the refresh gets a little faster too,
 because those catalog queries are skipped.
 
@@ -204,7 +206,7 @@ searchable, pinnable, and scoped per connection. Double-click any entry to open
 it in a new tab.
 
 To save the query you are looking at, right-click its tab and choose **Save
-query**, or press <kbd>Ctrl</kbd>+<kbd>S</kbd>. You are asked for a name once.
+Query**, or press <kbd>Ctrl</kbd>+<kbd>S</kbd>. You are asked for a name once.
 After that, <kbd>Ctrl</kbd>+<kbd>S</kbd> writes straight through to the same
 entry, so a query you keep editing stays one row in the list instead of becoming
 a pile of copies. If you type a name that is already taken, pgNimbus says so and
@@ -213,7 +215,7 @@ offers to replace that entry.
 <kbd>Ctrl</kbd>+<kbd>S</kbd> follows the tab. A tab you opened from a `.sql` file
 saves back to that file; any other tab goes to the Saved Queries list. When you
 want a specific destination, the command palette and the ☰ menu carry both by
-name: **Save query to Saved Queries** and **Save tab to a .sql file**.
+name: **Save to Saved Queries** and **Save to File**.
 
 Right-click a row in the list to open it in a new tab, rename it, or delete it.
 

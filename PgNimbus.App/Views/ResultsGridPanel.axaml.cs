@@ -43,7 +43,7 @@ namespace PgNimbus.App.Views;
 /// focus hand-off, and the Export/Import command-bar buttons (which live on the
 /// toolbar, not this card, and delegate to the public methods here).
 /// </summary>
-public partial class ResultsGridPanel : UserControl
+public partial class ResultsGridPanel : UserControl, IEditCommandTarget
 {
     private MainViewModel? _model;
     // The tab the shared grid currently reflects. Each tab keeps its own
@@ -667,6 +667,38 @@ public partial class ResultsGridPanel : UserControl
     }
 
     // --- Key handling ------------------------------------------------------
+
+    /// <summary>
+    /// The Edit menu's verbs as the grid means them — the same three things its
+    /// own key handler below does for the keys: Copy is the TSV copy, Select All
+    /// selects every row, and Find in a browsed grid opens a filter. Only while
+    /// focus is in the grid itself: a text box elsewhere in this panel (a filter
+    /// chip's editor, a row-details field) was already given the verb by
+    /// <see cref="EditCommands"/> before the walk reached here, and a verb from
+    /// anywhere else in the panel is not the grid's.
+    /// </summary>
+    bool IEditCommandTarget.TryExecute(EditCommand command)
+    {
+        if (!ResultsGrid.IsKeyboardFocusWithin)
+        {
+            return false;
+        }
+
+        switch (command)
+        {
+            case EditCommand.Copy:
+                _ = CopySelectionAsync(QueryViewModel.CopyFormat.Tsv);
+                return true;
+            case EditCommand.SelectAll:
+                ResultsGrid.SelectAll();
+                return true;
+            case EditCommand.Find when _activeQuery?.Browse is not null && !_isCellEditing:
+                OpenFilterEditorForCurrentColumn();
+                return true;
+            default:
+                return false;
+        }
+    }
 
     // Ctrl+C copies the selection as TSV (spreadsheet-friendly). ClipboardCopyMode
     // is None on the grid because our columns bind through a converter with no

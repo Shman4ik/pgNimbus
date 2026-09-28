@@ -433,9 +433,11 @@ Three rules about it:
 > Several of these are shared with kubeNimbus, and their canonical statement is in
 > [`shared/nimbusUi/DESIGN.md`](shared/nimbusUi/DESIGN.md): minimalism (1),
 > double-click as the default action (2), never overwriting the active tab (3),
-> drag-reorderable tabs (4), the Ctrl/Cmd resolver (5), and the merged title bar
+> drag-reorderable tabs (4), the Ctrl/Cmd resolver (5), the merged title bar
 > (DESIGN.md rule 9, adopted on Windows in the same change that created that
-> file). What is kept below is the pgNimbus-specific evidence behind each — the
+> file), Title Case menus that open with the default action (DESIGN.md rule 18)
+> and the macOS Edit/Window menus with focus routing (DESIGN.md rule 19, see
+> "macOS native menu bar" below). What is kept below is the pgNimbus-specific evidence behind each — the
 > concrete failure is why the rule is believed. Change a shared rule in DESIGN.md,
 > not here.
 
@@ -449,10 +451,18 @@ Three rules about it:
    alongside the accent-colour row collapsing into one swatch button + flyout
    next to the Name field). **A context menu is not a dumping ground either**
    (2026-08): pgAdmin answers a right-click on a schema with 15 items plus an
-   18-item Create submenu; pgNimbus's schema menu is six — New table…, Copy
-   name, Refresh, Exclude from autocomplete, Drop schema…, Drop schema
-   (cascade)… — and each earns its place the same way a toolbar button would.
-   "New table…" is deliberately a `CREATE TABLE` template opened in a new tab
+   18-item Create submenu; pgNimbus's schema menu is six — New Table…, Copy
+   Name, Refresh, Exclude from Autocomplete, Drop Schema…, Drop Schema
+   (Cascade)… — and each earns its place the same way a toolbar button would.
+   A relation's menu is four (2026-09): **Browse Rows** first, because it is what
+   a double-click does and the menu used to offer only Source (DDL) and Alter
+   Table…, so the commonest reason to right-click a table had no row; then Copy
+   Name, Source (DDL), and Alter Table… for tables and partitioned parents only
+   (`TableNode.CanAlter` — the dialog's ADD/DROP COLUMN only fails on a view).
+   Every menu label is Title Case on every platform (DESIGN.md rule 18): the
+   native menu bar already was, and the context menus under it said "Copy name"
+   and "Drop schema...". `MenuTests` pins the schema and relation menus.
+   "New Table…" is deliberately a `CREATE TABLE` template opened in a new tab
    (`Schema/DdlTemplates`, Core-pure and unit-tested), not a dialog: a form that
    can only express the column types a combo box lists is a worse tool than the
    statement itself, sitting in the editor where it can be edited and run. The
@@ -532,8 +542,8 @@ Three rules about it:
    **Expand all / collapse all live in the tree-options menu, not on the bar.**
    Four chips beside the filter box left it too narrow to read what was typed in
    it, so the advanced-objects toggle joined them under one ☰-style button
-   (`Tree options`): a checkbox for advanced objects, then Expand all schemas /
-   Collapse all. Expand is one level deep on purpose — a schema fetches its
+   (`Tree options`): a checkbox for advanced objects, then Expand All Schemas /
+   Collapse All. Expand is one level deep on purpose — a schema fetches its
    tables on first open, so it already costs a catalog query per schema, and
    walking into each table's own sub-groups would multiply that by every table
    in the database.
@@ -636,15 +646,15 @@ Three rules about it:
    tab strip reorders by dragging (live, browser-style — pointer handlers in
    `MainWindow.axaml.cs`; the order persists via the workspace snapshot, which
    serializes `Tabs` in collection order). Right-clicking a tab opens a
-   five-item flyout — Save query… / Rename… / Close / Close others / Close to
-   the right —
+   five-item flyout — Save Query… / Rename… / Close / Close Others / Close to
+   the Right —
    built and shown from `MainWindow.OnTabStripContextRequested` (code, not XAML: the
    handler has to resolve the clicked `ListBoxItem` and re-target the menu
    before it opens, and a `ContextFlyout` on the strip would also fire on its
    empty space). Deliberately save plus rename plus the close family, and of the
    closes
    only the two verbs a tab bar can't express by pointing at one tab — the strip's own ✕, its ▾
-   finder and drag-reorder cover the rest. **Save query… is first, and it is
+   finder and drag-reorder cover the rest. **Save Query… is first, and it is
    there because it was missing** (2026-08): the only route into the Saved
    Queries list was a `Query name` text box parked *under* the sidebar list, in
    a button row with Load and Delete — which act on the list *selection*, so
@@ -709,10 +719,13 @@ Three rules about it:
    `customers` and then typing a query against `products` used to leave the
    tab named `customers` forever, because the label had been written as an
    override. Only `TitleOverride` rides the workspace snapshot.
-   The ☰ button (top-left, 2026-07) opens the one discoverable menu for file/tab-level commands: New tab,
-   Open .sql / Open recent, Save / Save as / Save query to Saved Queries /
-   Save tab to a .sql file, Close tab, Reopen closed tab, Switch connection,
-   New window, Preferences, **Keyboard shortcuts and About pgNimbus**. Those last
+   The ☰ button (top-left, 2026-07) opens the one discoverable menu for file/tab-level commands: New Query Tab,
+   Open… / Open Recent, Save / Save As… / Save to Saved Queries… /
+   Save to File…, Close Tab, Reopen Closed Tab, Switch Connection…,
+   New Connection Window…, Preferences…, **Keyboard Shortcuts and About pgNimbus**
+   (Title Case and the macOS menu bar's own names since 2026-09, DESIGN.md
+   rule 18; the palette rows of the same commands say "Open file…", "Save to
+   Saved Queries…" and "Save to file…" in the palette's sentence case). Those last
    two were reachable only from the macOS native menu (About) or a single unlabelled
    `?` button (shortcuts), so on Windows and Linux the About box had no entry point
    at all; the menu's tail now matches kubeNimbus's, which is the whole argument for
@@ -1085,12 +1098,49 @@ Three rules about it:
   One consequence to keep: `ConnectAsync` returns early while that overlay is
   open, since the profiles list binds Enter to Connect and the Connect button is
   the window's `IsDefault`, so Escape-the-overlay's sibling gesture would
-  otherwise connect instead of dismissing. Settings… keeps the no-op — the
-  preferences page hangs off a connected window's view model, so there is
-  nothing for it to show. Window-level:
-  `MainWindow.BuildMacNativeMenu()` builds File / Query / View / Window via
-  `NativeMenu.SetMenu`, rebuilt from `BuildKeyBindings` so gestures track
-  the live Ctrl/Cmd scheme. Landmines, all learned the hard way: (a) menu
+  otherwise connect instead of dismissing. Settings… has no such fallback — the
+  preferences page hangs off a connected window's view model — so it is
+  **disabled** while no main window is open (2026-09; it used to sit there
+  enabled and do nothing): `App.TrackAppMenuState` re-reads it on every window
+  open/close (posted, so a closing window has left the lifetime's list first)
+  and when the menu opens, through `MacAppMenu.UpdateSettingsItem`.
+  **Avalonia's own Services / Hide / Hide Others / Show All / Quit block is
+  corrected in place** (`MacAppMenu.FixStandardItems`, same method): Avalonia
+  12.1 binds Hide Others to ⌥⌘Q, one key from Quit, and labels Quit without the
+  app's name. Replacing the block (`MacOSPlatformOptions.DisableDefaultApplicationMenuItems`)
+  is not an option because the hide/show commands and the Services-submenu flag
+  are internal to Avalonia.Native; its items are ordinary `NativeMenuItem`s added
+  to our app menu during `AfterSetup`, before `OnFrameworkInitializationCompleted`,
+  and the exporter watches their Header and Gesture. Window-level:
+  `MainWindow.BuildMacNativeMenu()` installs `CreateNativeMenuBar()` — File /
+  Edit / Query / View / Window — via `NativeMenu.SetMenu`, rebuilt from
+  `BuildKeyBindings` so gestures track the live Ctrl/Cmd scheme; the builder
+  runs on every platform so `MenuTests` can read the menus. The shared pieces are
+  `Views/MacMenus` (Edit, Window, Appearance), and `ConnectionDialog` builds its
+  own File (Close Window ⌘W) / Edit / Window bar from them — it had no menu at
+  all, so the bar showed the app menu alone and Cmd+W did nothing there.
+  **The Edit menu routes to focus, and must** (2026-09, DESIGN.md rule 19):
+  AppKit matches a menu item's key equivalent before the key reaches the
+  window, so once Edit carries Cmd+C/V/X/Z/A/F, those presses arrive as menu
+  clicks. `EditCommands.Execute` walks up from the focused element: an
+  `IEditCommandTarget` answers first (`ResultsGridPanel`: Copy is the grid's TSV
+  copy, Select All selects every row, Find in a browsed grid opens a filter —
+  the same three things its key handler does; `MainWindow`: Find opens the SQL
+  editor's search, as the Find chord does from anywhere), then a `TextBox` (the
+  palette box, every field, a grid cell being edited), then an AvaloniaEdit
+  `TextEditor` (the SQL editor, the cell inspector's JSON editor). The gestures
+  come from `EditCommands.GestureFor` (Undo/Copy/Find from the catalog, the rest
+  the standard text keys on the live modifier). The dialog's Edit has no Find.
+  **The Window menu** is Minimize / Zoom, then (main window only) Show Previous
+  Tab / Show Next Tab on the catalog's `PreviousTab`/`NextTab` chords, then Bring
+  All to Front and a list of the open windows, checked on the active one and
+  rebuilt on `NeedsUpdate`: AppKit keeps its own list only for the menu set as
+  `NSApp.windowsMenu`, which Avalonia neither sets nor exposes. **View → Appearance**
+  is System / Light / Dark radio items through `App.SetTheme`, replacing a "Toggle
+  Light/Dark Theme" item that could not return to following the system; the
+  checkmark is read on `NeedsUpdate`, never at build time, so building a menu
+  bar never reads the settings file. File uses the Mac names: Open…, Save to
+  Saved Queries…, Save to File…, New Connection Window…. Landmines, all learned the hard way: (a) menu
   items use `Click` + a CanExecute check, **not** `NativeMenuItem.Command` —
   the exporter snapshots enabled-state from `CanExecute` at assignment time
   (before the DataContext exists), and a wrapper that never raises
@@ -1101,7 +1151,10 @@ Three rules about it:
   (c) don't add an "Enter Full Screen" item — AppKit appends its own to the
   menu titled "View"; (d) the File → Open Recent submenu rebuilds on the
   menu's `NeedsUpdate`, same contract as the ☰ menu's, and View's
-  Show/Hide Sidebar header re-resolves the same way.
+  Show/Hide Sidebar header re-resolves the same way; (e) a `NativeMenuItem` in
+  `App.axaml` can't take `x:Name` (AVLN2000), so the Settings item is found by
+  its header; (f) AppKit appends Emoji & Symbols and Dictation to the menu titled
+  "Edit" by itself — expected, not a bug.
 - **Results-grid columns resize by dragging, and the drag lifts the auto-width
   cap.** Every generated column is `Width=Auto` with `MaxWidth=AutoWidthCap`
   (560), so one long value can't blow a column past the viewport — but
@@ -1383,7 +1436,7 @@ csproj / WiX / MSIX manifest reference them unchanged:
   json is unusable in a one-line inline editor; `MainWindow.OnResultsGridBeginningEdit`
   cancels the grid's own inline edit for that gesture. Other editable types keep
   their fast inline double-click; the inspector's Edit tab is reached via Space /
-  "Inspect cell…". Completion carries the jsonb function
+  "Inspect Cell…". Completion carries the jsonb function
   family (`SqlCompletionProvider.Functions`); JSON operators (`->`, `@>`, `?`,
   `@?`, …) are punctuation, out of the identifier-triggered completion model.
 - **Cell edits round-trip through a server-side cast, not a CLR conversion, for

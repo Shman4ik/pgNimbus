@@ -243,8 +243,9 @@ public partial class App : Application
     /// <summary>
     /// "Settings…" in the macOS app menu: opens preferences for the active
     /// main window (or the first one — the app menu is global, windows aren't).
-    /// A no-op while only the connection dialog is up; preferences hang off a
-    /// connected window's view model.
+    /// Disabled while only the connection dialog is up (see
+    /// <see cref="TrackAppMenuState"/>); preferences hang off a connected
+    /// window's view model.
     /// </summary>
     private void OnSettingsMenuItemClicked(object? sender, EventArgs e) =>
         ActiveMainViewModel()?.ShowPreferencesCommand.Execute(null);
@@ -292,6 +293,7 @@ public partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             KeepRunningWithNoWindowsOnMac(desktop);
+            TrackAppMenuState();
 
             // macOS: quitting must not hand the process back to AppKit's exit()
             // — it aborts on the way out (see MacShutdown).
@@ -351,6 +353,32 @@ public partial class App : Application
                 }
             };
         }
+    }
+
+    /// <summary>
+    /// macOS only: puts right what Avalonia's standard app-menu block gets wrong
+    /// (<see cref="MacAppMenu.FixStandardItems"/>), and keeps Settings… enabled
+    /// only while there is a main window for it to open preferences on. The
+    /// enabled state follows windows opening and closing, and is re-read when
+    /// the menu opens; posted, so a closing window has left the lifetime's list
+    /// before it is counted.
+    /// </summary>
+    private void TrackAppMenuState()
+    {
+        if (!OperatingSystem.IsMacOS() || NativeMenu.GetMenu(this) is not { } appMenu)
+        {
+            return;
+        }
+
+        MacAppMenu.FixStandardItems(appMenu, Name ?? "pgNimbus");
+
+        void Update() => MacAppMenu.UpdateSettingsItem(appMenu, ActiveMainViewModel() is not null);
+        void Post() => Avalonia.Threading.Dispatcher.UIThread.Post(Update);
+
+        Window.WindowOpenedEvent.AddClassHandler<Window>((_, _) => Post());
+        Window.WindowClosedEvent.AddClassHandler<Window>((_, _) => Post());
+        appMenu.NeedsUpdate += (_, _) => Update();
+        Update();
     }
 
     /// <summary>

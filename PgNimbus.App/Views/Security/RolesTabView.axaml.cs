@@ -96,7 +96,7 @@ public partial class RolesTabView : UserControl
 
     private MenuFlyout BuildRoleMenu(RolesTabViewModel vm)
     {
-        var copyName = new MenuItem { Header = "Copy name" };
+        var copyName = new MenuItem { Header = "Copy Name" };
         copyName.Click += OnCopyRoleNameClick;
 
         return new MenuFlyout
@@ -105,9 +105,9 @@ public partial class RolesTabView : UserControl
             {
                 new MenuItem { Header = "Edit…", Command = vm.EditRoleCommand },
                 copyName,
-                new MenuItem { Header = "CREATE ROLE script", Command = vm.CopyCreateScriptCommand },
+                new MenuItem { Header = "CREATE ROLE Script", Command = vm.CopyCreateScriptCommand },
                 new Separator(),
-                new MenuItem { Header = "Drop role…", Command = vm.DropRoleCommand },
+                new MenuItem { Header = "Drop Role…", Command = vm.DropRoleCommand },
             },
         };
     }
