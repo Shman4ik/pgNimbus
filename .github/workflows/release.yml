@@ -369,9 +369,7 @@ jobs:
       # Software bill of materials: every NuGet package (direct + transitive)
       # baked into the shipped app, as CycloneDX JSON. Generated once on the
       # x64 leg — the NuGet dependency graph is RID-independent. -c Release
-      # matters: it keeps the Debug-only AvaloniaUI.DiagnosticsSupport
-      # reference (conditional PackageReference) out of the SBOM, matching
-      # what release binaries actually contain.
+      # matches the configuration the release binaries are built in.
       - name: Generate SBOM (CycloneDX)
         if: matrix.rid == 'linux-x64'
         run: |

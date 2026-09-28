@@ -270,10 +270,6 @@ public partial class App : Application
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
-        // DevTools are attached once, via .WithDeveloperTools() on the AppBuilder
-        // in Program.cs (the MCP discovery hook documented in CLAUDE.md).
-        // Attaching again here throws "already been attached" and crashes Debug
-        // startup, so it must not be duplicated.
     }
 
     public override void OnFrameworkInitializationCompleted()
