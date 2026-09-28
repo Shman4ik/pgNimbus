@@ -56,6 +56,8 @@ public static class CommandCatalog
             Category = CommandCategory.Query,
             Glyph = "■",
             Chord = new(CommandKey.Escape),
+            // ⌘. is the Mac's "stop" (Terminal, Xcode, every sheet's Cancel).
+            MoreChords = [new(new(CommandKey.Period, Cmd), ChordScheme.Cmd)],
             Surfaces = Everywhere,
         },
         new()
@@ -202,6 +204,14 @@ public static class CommandCatalog
             Category = CommandCategory.Tabs,
             Glyph = "›",
             Chord = new(CommandKey.PageDown, Cmd),
+            MoreChords =
+            [
+                // A Mac keyboard has no PgDn key (it is Fn+↓), so ⇧⌘] — what
+                // Safari, Terminal and Xcode use — leads there.
+                new(new(CommandKey.CloseBracket, CmdShift), ChordScheme.Cmd, Primary: true),
+                // Literal Ctrl on both: browsers and editors agree on it everywhere.
+                new(new(CommandKey.Tab, LiteralCtrl)),
+            ],
             Surfaces = Everywhere,
         },
         new()
@@ -211,6 +221,11 @@ public static class CommandCatalog
             Category = CommandCategory.Tabs,
             Glyph = "‹",
             Chord = new(CommandKey.PageUp, Cmd),
+            MoreChords =
+            [
+                new(new(CommandKey.OpenBracket, CmdShift), ChordScheme.Cmd, Primary: true),
+                new(new(CommandKey.Tab, LiteralCtrl | ChordModifiers.Shift)),
+            ],
             Surfaces = Everywhere,
         },
         new()
@@ -654,6 +669,9 @@ public static class CommandCatalog
             Category = CommandCategory.Navigation,
             Glyph = "?",
             Chord = new(CommandKey.F1),
+            // ⌘? (⇧⌘/) is a Mac's Help key, and F1 there needs Fn. Not ⌘/:
+            // that is the editor's line comment.
+            MoreChords = [new(new(CommandKey.Slash, CmdShift), ChordScheme.Cmd, Primary: true)],
             Surfaces = PaletteAndSheet,
         },
     ];
@@ -664,8 +682,8 @@ public static class CommandCatalog
     /// <summary>The descriptor for <paramref name="id"/>; throws if the catalog has no such entry.</summary>
     public static CommandDescriptor Get(CommandId id) => ById[id];
 
-    /// <summary>The primary chord for <paramref name="id"/>, if it has one.</summary>
-    public static Chord? ChordFor(CommandId id) => ById[id].Chord;
+    /// <summary>The chord <paramref name="id"/> is named by on <paramref name="scheme"/>, if it has one.</summary>
+    public static Chord? ChordFor(CommandId id, ChordScheme scheme) => ById[id].PrimaryChordFor(scheme);
 
     /// <summary>Everything that surfaces on <paramref name="surface"/>, in catalog order.</summary>
     public static IEnumerable<CommandDescriptor> On(CommandSurface surface) =>

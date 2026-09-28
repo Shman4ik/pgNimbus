@@ -1399,7 +1399,7 @@ public sealed partial class MainViewModel : ObservableObject
             "Action",
             descriptor.Glyph,
             Invoke(() => CommandBindings.Resolve(descriptor.Id, this)),
-            descriptor.ShortcutLabel(Hotkeys.CommandLabel)));
+            descriptor.ShortcutLabel(Hotkeys.Scheme)));
 
     private IEnumerable<PaletteItem> BuildSavedQueryItems() =>
         SavedQueries.SavedQueries.Select(q => new PaletteItem(

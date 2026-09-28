@@ -30,9 +30,12 @@ public static class ShortcutDocs
         sb.AppendLine("Every shortcut below is also discoverable in the app: press <kbd>F1</kbd> for the");
         sb.AppendLine("cheat sheet, or <kbd>Ctrl</kbd>+<kbd>K</kbd> to search commands by name.");
         sb.AppendLine();
-        sb.AppendLine("The **Windows / Linux** and **macOS** columns differ only in the primary");
-        sb.AppendLine("modifier. That choice follows the platform by default and can be forced either");
-        sb.AppendLine("way in Preferences → Hotkey scheme.");
+        sb.AppendLine("The **Windows / Linux** column uses Ctrl as the main modifier and spells keys");
+        sb.AppendLine("out. The **macOS** column uses Command and writes keys with Apple's symbols:");
+        sb.AppendLine("⌘ Command, ⌥ Option, ⇧ Shift, ⌃ Control, ↩ Return, ⌫ Delete, ⌦ Forward Delete,");
+        sb.AppendLine("⎋ Escape, ⇥ Tab, ⇞ ⇟ Page Up and Page Down. A few commands also answer the Mac's");
+        sb.AppendLine("own shortcut there, and list it first. Which column applies follows the platform");
+        sb.AppendLine("by default and can be forced either way in Preferences → Hotkey scheme.");
         sb.AppendLine();
 
         foreach (var (category, items) in CommandCatalog.CheatSheetSections())
@@ -43,8 +46,8 @@ public static class ShortcutDocs
             sb.AppendLine("| --- | --- | --- |");
             foreach (var item in items)
             {
-                var windows = item.ShortcutLabel("Ctrl") ?? "—";
-                var mac = item.ShortcutLabel("Cmd") ?? "—";
+                var windows = item.ShortcutLabel(ChordScheme.Ctrl) ?? "—";
+                var mac = item.ShortcutLabel(ChordScheme.Cmd) ?? "—";
                 sb.AppendLine($"| {Escape(item.DisplayName)} | {Escape(windows)} | {Escape(mac)} |");
             }
 

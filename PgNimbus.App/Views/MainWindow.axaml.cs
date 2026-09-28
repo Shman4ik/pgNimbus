@@ -325,10 +325,9 @@ public partial class MainWindow : Window
         foreach (var descriptor in CommandCatalog.On(CommandSurface.WindowBinding))
         {
             var id = descriptor.Id;
-            Add(CommandBindings.ToGesture(descriptor.Chord!.Value), () => ResolveCommand(id));
-            if (descriptor.AltChord is { } alt)
+            foreach (var gesture in CommandBindings.GesturesFor(id))
             {
-                Add(CommandBindings.ToGesture(alt), () => ResolveCommand(id));
+                Add(gesture, () => ResolveCommand(id));
             }
         }
 
@@ -367,7 +366,7 @@ public partial class MainWindow : Window
 
         // And the search pill's caption (the palette itself opens from
         // OnKeyDown, which reads the catalog's chord live).
-        PaletteSearchShortcut.Text = Label(CommandId.CommandPalette);
+        PaletteSearchShortcut.Text = CommandBindings.LabelFor(CommandId.CommandPalette);
 
         void Add(KeyGesture gesture, Func<System.Windows.Input.ICommand?> resolve) =>
             KeyBindings.Add(new KeyBinding { Gesture = gesture, Command = new DelegatedCommand(resolve) });
@@ -376,10 +375,6 @@ public partial class MainWindow : Window
     /// <summary>The catalog's command, bound to this window's view model.</summary>
     private System.Windows.Input.ICommand? ResolveCommand(CommandId id) =>
         _viewModel is null ? null : CommandBindings.Resolve(id, _viewModel);
-
-    /// <summary>"Ctrl+K" — a command's primary chord in the live Ctrl/Cmd scheme.</summary>
-    private static string Label(CommandId id) =>
-        CommandCatalog.ChordFor(id)?.Label(Hotkeys.CommandLabel) ?? string.Empty;
 
     // F6 hops focus between the SQL editor and the results grid (the two
     // keyboard workspaces). Done in code because the target depends on where

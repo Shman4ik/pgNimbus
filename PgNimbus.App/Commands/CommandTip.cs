@@ -11,15 +11,19 @@ namespace PgNimbus.App;
 /// markup. Same contract as the key bindings and the F1 sheet: a gesture is
 /// stated once in Core and every surface is a projection of it — a tooltip
 /// that hardcodes "(Ctrl+Shift+R)" goes stale the moment the chord moves or
-/// the user picks the Cmd scheme.
+/// the user picks the Cmd scheme, where it reads "(⇧⌘R)".
 ///
 /// <code>
 ///   &lt;Button cmd:CommandTip.Text="Refresh the schema" cmd:CommandTip.Command="RefreshSchema" /&gt;
+///   &lt;Button cmd:CommandTip.Text="Close" cmd:CommandTip.Keys="Escape" /&gt;
 /// </code>
 ///
 /// <c>Text</c> alone is a plain tooltip; <c>Command</c> alone falls back to
-/// the catalog's own title. The label re-renders live when the Ctrl/Cmd scheme
-/// preference changes, so open windows never show the other platform's chord.
+/// the catalog's own title. <c>Keys</c> is for a key that isn't a catalog
+/// command (a search box's Enter, a close button's Esc): the chord is named
+/// with the catalog's key names ("Shift+Enter") and spelled per scheme like
+/// any other. The label re-renders live when the Ctrl/Cmd scheme preference
+/// changes, so open windows never show the other platform's chord.
 /// </summary>
 public static class CommandTip
 {
@@ -36,6 +40,14 @@ public static class CommandTip
     public static readonly AttachedProperty<CommandId?> CommandProperty =
         AvaloniaProperty.RegisterAttached<Control, CommandId?>("Command", typeof(CommandTip));
 
+    /// <summary>
+    /// A literal chord to append, for keys no catalog command owns —
+    /// "Escape", "Shift+Enter" (see <see cref="Chord.TryParse"/>). Ignored
+    /// when <see cref="CommandProperty"/> is set.
+    /// </summary>
+    public static readonly AttachedProperty<string?> KeysProperty =
+        AvaloniaProperty.RegisterAttached<Control, string?>("Keys", typeof(CommandTip));
+
     // Guards the one-time Hotkeys.Changed wiring: both properties are usually
     // set on the same control, and each set runs through Apply.
     private static readonly AttachedProperty<bool> HookedProperty =
@@ -45,6 +57,7 @@ public static class CommandTip
     {
         TextProperty.Changed.AddClassHandler<Control>((control, _) => Apply(control));
         CommandProperty.Changed.AddClassHandler<Control>((control, _) => Apply(control));
+        KeysProperty.Changed.AddClassHandler<Control>((control, _) => Apply(control));
     }
 
     public static void SetText(Control control, string? value) => control.SetValue(TextProperty, value);
@@ -55,6 +68,10 @@ public static class CommandTip
 
     public static CommandId? GetCommand(Control control) => control.GetValue(CommandProperty);
 
+    public static void SetKeys(Control control, string? value) => control.SetValue(KeysProperty, value);
+
+    public static string? GetKeys(Control control) => control.GetValue(KeysProperty);
+
     private static void Apply(Control control)
     {
         ToolTip.SetTip(control, Compose(control));
@@ -64,18 +81,25 @@ public static class CommandTip
     private static string? Compose(Control control)
     {
         var text = control.GetValue(TextProperty);
+        var scheme = Hotkeys.Scheme;
 
-        if (control.GetValue(CommandProperty) is not { } id)
+        if (control.GetValue(CommandProperty) is { } id)
         {
-            return text;
+            var descriptor = CommandCatalog.Get(id);
+            text ??= descriptor.Title;
+
+            // A command with no chord of its own can still have a gesture
+            // worth naming ("⌘F in the results grid while browsing a table").
+            var keys = descriptor.PrimaryChordFor(scheme)?.Label(scheme) ?? descriptor.GestureNoteFor(scheme);
+            return keys is { Length: > 0 } ? $"{text} ({keys})" : text;
         }
 
-        var descriptor = CommandCatalog.Get(id);
-        text ??= descriptor.Title;
+        if (Chord.TryParse(control.GetValue(KeysProperty), out var chord))
+        {
+            return text is null ? chord.Label(scheme) : $"{text} ({chord.Label(scheme)})";
+        }
 
-        return descriptor.Chord is { } chord
-            ? $"{text} ({chord.Label(Hotkeys.CommandLabel)})"
-            : text;
+        return text;
     }
 
     // Subscribed only while the control is on screen, so a closed window's

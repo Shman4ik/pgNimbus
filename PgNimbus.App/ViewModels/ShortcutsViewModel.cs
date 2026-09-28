@@ -26,16 +26,22 @@ public sealed class ShortcutsViewModel
 
     private static IReadOnlyList<ShortcutSection> Build()
     {
-        var label = Hotkeys.CommandLabel;
+        var scheme = Hotkeys.Scheme;
 
         return CommandCatalog.CheatSheetSections()
             .Select(section => new ShortcutSection(
                 CommandCatalog.CategoryTitle(section.Category).ToUpperInvariant(),
-                section.Items.Select(item => new ShortcutRow(item.DisplayName, Tokenize(item, label))).ToList()))
+                section.Items.Select(item => new ShortcutRow(item.DisplayName, Tokenize(item, scheme))).ToList()))
             .ToList();
     }
 
-    private static IReadOnlyList<ShortcutToken> Tokenize(CommandDescriptor descriptor, string commandLabel)
+    /// <summary>
+    /// A row's key caps: one chip per key, each chord's chips separated by a
+    /// quiet "/". The chips carry the scheme's own spelling — "Ctrl" "Enter"
+    /// on the Ctrl scheme, "⌘" "↩" on the Cmd scheme — and the scheme's
+    /// primary chord comes first (⇧⌘] for the next tab on a Mac).
+    /// </summary>
+    public static IReadOnlyList<ShortcutToken> Tokenize(CommandDescriptor descriptor, ChordScheme scheme)
     {
         // The one note that is a range of chords rather than prose: draw it as keys
         // like every row around it, not as grey text (0.14.0 release pass).
@@ -46,18 +52,13 @@ public sealed class ShortcutsViewModel
 
         var tokens = new List<ShortcutToken>(6);
 
-        if (descriptor.Chord is { } chord)
-        {
-            tokens.AddRange(chord.Caps(commandLabel).Select(cap => new ShortcutToken(cap, IsKey: true)));
-        }
-
-        if (descriptor.AltChord is { } alt)
+        foreach (var chord in descriptor.ChordsFor(scheme))
         {
             Separate();
-            tokens.AddRange(alt.Caps(commandLabel).Select(cap => new ShortcutToken(cap, IsKey: true)));
+            tokens.AddRange(chord.Caps(scheme).Select(cap => new ShortcutToken(cap, IsKey: true)));
         }
 
-        if (descriptor.GestureNoteFor(commandLabel) is { Length: > 0 } note)
+        if (descriptor.GestureNoteFor(scheme) is { Length: > 0 } note)
         {
             Separate();
             tokens.Add(new ShortcutToken(note, IsKey: false));

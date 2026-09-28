@@ -39,6 +39,20 @@ derive from it. This includes gestures built in a loop — Ctrl/Cmd+1…9 for ta
 jumps are registered from `Hotkeys.Primary` in code-behind, not as nine XAML
 `KeyBinding`s.
 
+The scheme decides the **spelling** as well as the key. On the Ctrl scheme a chord
+is words joined by "+" (`Ctrl+Shift+F`). On the Cmd scheme it is what every Mac app
+prints: Apple's glyphs, modifiers in the order ⌃ ⌥ ⇧ ⌘, then the key, run together
+(`⇧⌘F`, `⌘↩`, `⌥⇧F`, `⎋`, `⇥`, `⌫`, `⌦`, `⇞`/`⇟`; `⌘?` for ⇧⌘/). "Alt", "Cmd",
+"Shift", "Enter" never appear as words there. That covers every place a gesture is
+written: palette rows, cheat-sheet keycaps, tooltips, the search pill, hints. The
+glyphs need a font that carries them at text size (Inter doesn't, and macOS's
+fallback draws them at half height), so text spelling a gesture names one
+explicitly. And where the Mac has its own convention for a command the other
+platforms don't share (⇧⌘] / ⇧⌘[ for the next and previous tab, ⌘. to stop, ⌘? for
+help), the Cmd scheme answers it too and names it first; the cross-platform chord
+stays a synonym. pgNimbus implements this in its command catalog; kubeNimbus's
+`Hotkeys.Label`/`Describe` callers still spell words and are the open half.
+
 ### 5. A click target hit-tests across its whole area, and says it is one
 
 In Avalonia a `Panel` or `Border` with a **null** `Background` does not hit-test

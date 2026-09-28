@@ -2,7 +2,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:cc="clr-namespace:AvaloniaEdit.CodeCompletion;assembly=AvaloniaEdit"
         xmlns:search="clr-namespace:AvaloniaEdit.Search;assembly=AvaloniaEdit"
-        xmlns:completion="using:PgNimbus.App.Completion">
+        xmlns:completion="using:PgNimbus.App.Completion"
+        xmlns:cmd="using:PgNimbus.App">
 
     <!--
         PowerToys-inspired design tokens: soft rounded cards, pill-shaped nav
@@ -21,6 +22,17 @@
                 <ResourceInclude Source="avares://Nimbus.Ui/Theme/Tokens.axaml" />
                 <ResourceInclude Source="avares://Nimbus.Ui/Theme/Icons.axaml" />
             </ResourceDictionary.MergedDictionaries>
+
+        <!--
+            For text that spells a shortcut. On the Cmd scheme that is Apple's key
+            glyphs (⌘ ⇧ ⌥ ⌃ ↩ ⎋ ⌫ ⇥ ⇟), which Inter doesn't carry, and the system's
+            own fallback on macOS is Apple Symbols, whose glyphs sit at half the
+            height of the letters beside them ("⌘K" read as a speck and a K).
+            Lucida Grande (macOS) and Segoe UI Symbol (Windows) draw them at text
+            size. Inter stays first, so letters and the Ctrl scheme's words are
+            unchanged.
+        -->
+        <FontFamily x:Key="KeyCapFont">fonts:Inter#Inter, Lucida Grande, Segoe UI Symbol</FontFamily>
 
         <!--
             Vector icons (Material Design Icons, Apache-2.0, pictogrammers.com).
@@ -178,15 +190,15 @@
                                                VerticalAlignment="Center" />
                                 </StackPanel>
                                 <Button Name="PART_FindPreviousButton" Classes="chip" Focusable="False"
-                                        VerticalAlignment="Center" ToolTip.Tip="Previous match (Shift+Enter)">
+                                        VerticalAlignment="Center" cmd:CommandTip.Text="Previous match" cmd:CommandTip.Keys="Shift+Enter">
                                     <PathIcon Data="{StaticResource ArrowUpIconGeometry}" Width="12" Height="12" />
                                 </Button>
                                 <Button Name="PART_FindNextButton" Classes="chip" Focusable="False"
-                                        VerticalAlignment="Center" ToolTip.Tip="Next match (Enter)">
+                                        VerticalAlignment="Center" cmd:CommandTip.Text="Next match" cmd:CommandTip.Keys="Enter">
                                     <PathIcon Data="{StaticResource ArrowDownIconGeometry}" Width="12" Height="12" />
                                 </Button>
                                 <Button Name="PART_CloseButton" Classes="chip" Focusable="False"
-                                        VerticalAlignment="Center" ToolTip.Tip="Close (Esc)">
+                                        VerticalAlignment="Center" cmd:CommandTip.Text="Close" cmd:CommandTip.Keys="Escape">
                                     <PathIcon Data="{StaticResource CloseIconGeometry}" Width="12" Height="12" />
                                 </Button>
                             </StackPanel>
@@ -433,6 +445,11 @@
          tone) never matched anything it opened. MainWindow sets its own
          Background locally, which wins over this. Content that needs grouping
          goes in a `card`, exactly as in the shell. -->
+    <!-- Tooltips name gestures ("Run (⌘↩)", via CommandTip); see KeyCapFont. -->
+    <Style Selector="ToolTip">
+        <Setter Property="FontFamily" Value="{DynamicResource KeyCapFont}" />
+    </Style>
+
     <Style Selector="Window">
         <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}" />
         <!-- Three windows (the connection dialog, Alter table, the crash reporter)

@@ -3,6 +3,7 @@
              xmlns:vm="using:PgNimbus.App.ViewModels"
              xmlns:views="using:PgNimbus.App.Views"
              xmlns:conv="using:Avalonia.Data.Converters"
+             xmlns:cmd="using:PgNimbus.App"
              x:Class="PgNimbus.App.Views.RowDetailPanel"
              x:DataType="vm:RowDetailViewModel">
     <!-- Row details: the grid's current row as a name/value form (Ctrl/Cmd+I),
@@ -73,7 +74,7 @@
                         AutomationProperties.Name="Next row" />
                 <Button Name="CloseButton" Classes="chip" Content="✕" FontSize="10"
                         Width="24" Height="24" Padding="0" Margin="6,0,0,0"
-                        ToolTip.Tip="Close (Esc)"
+                        cmd:CommandTip.Text="Close" cmd:CommandTip.Keys="Escape"
                         AutomationProperties.Name="Close row details" />
             </StackPanel>
         </Grid>
@@ -173,7 +174,7 @@
                                ToolTip.Tip="Staged changes are listed, checked for conflicts and committed from the status bar" />
                     <Button Grid.Column="1" Classes="soft" Content="Revert" FontSize="12" Padding="10,3"
                             Command="{Binding RevertCommand}"
-                            ToolTip.Tip="Put every field back to the row's values (Esc)" />
+                            cmd:CommandTip.Text="Put every field back to the row's values" cmd:CommandTip.Keys="Escape" />
                     <Button Grid.Column="2" Classes="accent" Content="{Binding StageLabel}" FontSize="12" Padding="12,3"
                             Margin="6,0,0,0"
                             Command="{Binding StageCommand}"

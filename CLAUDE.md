@@ -735,9 +735,34 @@ Three rules about it:
    unit-tested `PgNimbus.Core.Commands.CommandCatalog` (a read-only sibling of
    `Json/JsonTree` and `Monitoring/BlockingTree`): id, palette title, cheat-sheet
    title, category, glyph, `Chord`, and which surfaces it appears on. Chords are
-   abstract — `ChordModifiers.Command` renders as Ctrl or Cmd per platform or the
-   persisted scheme preference; `ChordModifiers.Control` is a literal Ctrl for the
-   one deliberate exception, completion's Ctrl+Space (Cmd+Space is Spotlight).
+   abstract — `ChordModifiers.Command` resolves to Ctrl or ⌘ per `ChordScheme`
+   (the platform, or the persisted scheme preference; `Hotkeys.Scheme` in the
+   App); `ChordModifiers.Control` is a literal Ctrl for the deliberate
+   exceptions, completion's Ctrl+Space (⌘Space is Spotlight) and Ctrl+Tab.
+   **The scheme also decides the spelling** (2026-09, Mac audit): the Ctrl
+   scheme writes words, "Ctrl+Shift+F", exactly as before; the Cmd scheme writes
+   Apple's glyphs in Apple's order, ⌃⌥⇧⌘ then the key — `⇧⌘F`, `⌘↩`, `⇧⌘⌫`,
+   `⌥⇧F`, `⎋`, `⇥`, `⌦`, `⇞`/`⇟`, and `⌘?` rather than `⇧⌘/` (`Chord.Caps` /
+   `Chord.Label(scheme)`). A Mac user was reading "Cmd+Enter / F5" in the
+   palette, "Alt+Shift+F" for a key the keyboard labels ⌥, and keycaps saying
+   "Cmd" "Shift" "Enter" in F1. `CommandCatalogTests` holds the Cmd scheme to no
+   modifier or special key spelled as a word. Inter has none of those glyphs and
+   macOS's own fallback (Apple Symbols) draws them at half height, so every text
+   that spells a gesture uses the `KeyCapFont` resource in `Styles/Theme.axaml`
+   (Inter, then Lucida Grande / Segoe UI Symbol): the F1 keycaps, the palette's
+   shortcut column, the search pill, the empty grid's hint and every `ToolTip`.
+   **A platform's own convention is a scheme-only chord** (`MoreChords`, a list
+   of `SchemeChord`s): Next/Previous tab answer ⇧⌘] / ⇧⌘[ on the Cmd scheme (a
+   Mac keyboard has no PgUp/PgDn; the sheet used to advertise ⌘PgDn), Cancel
+   answers ⌘., and the cheat sheet ⌘? (F1 needs Fn there; not ⌘/, which is line
+   comment). One marked `Primary` is listed first on its scheme and is what
+   `CommandBindings.GestureFor`, tooltips and menus name, while `Chord` stays a
+   synonym; Ctrl+Tab / Ctrl+Shift+Tab are unscoped synonyms on both.
+   `ChordsFor(scheme)` is the display list, `SynonymsFor(scheme)` what
+   `CommandBindings.Matches` accepts (everything but `AltChord`, which can be
+   the other half of a pair, Escape beside Enter). The duplicate and shadowing
+   tests compare chords *resolved to physical keys, per scheme*, since a
+   literal-Ctrl chord and a Command chord are one gesture on the Ctrl scheme.
    Everything downstream is a *projection* of that list, never a second copy:
    `MainWindow.BuildKeyBindings` loops the `WindowBinding` entries,
    `MainViewModel.BuildActionItems` loops the `Palette` entries, the F1 window
@@ -765,7 +790,13 @@ Three rules about it:
    `ToolTip.Tip` string. `CommandTip.Command` is deliberately `CommandId?`:
    the enum's zero value is a real command (`Run`), so a non-nullable property
    reads a set of `Run` as "no change", raises nothing, and silently drops the
-   chord. Where the gestures differ per menu item (the Explain flyout), set
+   chord. A key no command owns (a search box's Enter, a close button's Esc)
+   goes through `cmd:CommandTip.Keys="Shift+Enter"`, parsed by `Chord.TryParse`
+   and spelled per scheme the same way; other text that names a gesture is
+   composed from `CommandBindings.LabelFor`/`LabelsFor` — the empty grid's
+   "Run a query with ⌘↩ or F5" (`ResultsGridPanel.UpdateRunHint`, re-spelled on
+   `Hotkeys.Changed`) used to be typed into the XAML as Ctrl+Enter.
+   Where the gestures differ per menu item (the Explain flyout), set
    `MenuItem.InputGesture` from `CommandBindings.GestureFor` instead of listing
    both in one tooltip. Two documented exceptions:
    Ctrl/Cmd+1…9 (`CommandId.GoToTabByNumber`) is bound in a loop because nine
