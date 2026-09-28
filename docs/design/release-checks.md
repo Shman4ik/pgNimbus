@@ -132,7 +132,11 @@ sampled from the shot's own chrome, so the padding matches its theme).
 scripts/screenshots/update-published.sh
 ```
 
-Run it before cutting a release. The previous shots were captured by hand
+Run it in any PR that changes a screen these show (CLAUDE.md UI rule 9), and
+before cutting a release. Run it on Windows: unlike the baselines, these render
+on the host rather than in the CI container, because the SQL editor and the other
+monospace panes need Cascadia Code or Consolas, and the container has neither. The
+previous shots were captured by hand
 against a live database, which made them go stale silently and leaked real
 detail into public assets — the old main-window screenshot published a live Neon
 hostname.

@@ -2114,7 +2114,10 @@ artifact nobody opens is not a check:
    `design/store/screenshots/` (Store listing, padded to the Store's 1366×768
    minimum on a backdrop sampled from the shot's own chrome so it matches its
    theme). Run `scripts/screenshots/update-published.sh` in any PR that changes
-   what they show (UI design rule 9), and before a release.
+   what they show (UI design rule 9), and before a release — **on Windows**:
+   unlike the baselines it renders on the host, because the monospace panes need
+   Cascadia Code or Consolas and the CI container has neither (until 2026-09 the
+   Store listing showed its SQL in a proportional font).
    These used to be hand-captured against a live database, which made them go
    stale silently and leaked real detail — the old main-window shot published a
    live Neon hostname. The README's animated GIFs are deliberately **not**
