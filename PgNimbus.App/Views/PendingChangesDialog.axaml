@@ -26,9 +26,9 @@
         </Border>
 
         <StackPanel Grid.Row="4" Classes="dialogButtons">
-            <Button Name="CommitButton" Classes="accent" Content="Commit" Click="OnCommitClick" />
             <Button Classes="soft danger" Content="Discard all" Click="OnDiscardClick" />
             <Button Classes="soft" Content="Cancel" Click="OnCancelClick" />
+            <Button Name="CommitButton" Classes="accent" Content="Commit" Click="OnCommitClick" />
         </StackPanel>
 
     </Grid>

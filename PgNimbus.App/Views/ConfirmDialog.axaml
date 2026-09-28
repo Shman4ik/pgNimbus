@@ -10,8 +10,8 @@
     <StackPanel Margin="20">
         <TextBlock Name="MessageText" TextWrapping="Wrap" FontSize="13" />
         <StackPanel Classes="dialogButtons">
-            <Button Name="ConfirmButton" Classes="danger" Content="Delete" Click="OnConfirmClick" />
             <Button Classes="soft" Content="Cancel" Click="OnCancelClick" />
+            <Button Name="ConfirmButton" Classes="danger" Content="Delete" Click="OnConfirmClick" />
         </StackPanel>
     </StackPanel>
 

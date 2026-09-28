@@ -24,8 +24,8 @@
         <TextBlock Name="ConflictText" Classes="statusText warn" FontSize="12"
                    TextWrapping="Wrap" IsVisible="False" />
         <StackPanel Classes="dialogButtons" Margin="0,4,0,0">
-            <Button Name="SaveButton" Classes="accent" Content="Save" IsDefault="True" Click="OnSaveClick" />
             <Button Classes="soft" Content="Cancel" IsCancel="True" Click="OnCancelClick" />
+            <Button Name="SaveButton" Classes="accent" Content="Save" IsDefault="True" Click="OnSaveClick" />
         </StackPanel>
     </StackPanel>
 

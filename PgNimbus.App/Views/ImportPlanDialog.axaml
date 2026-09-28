@@ -29,8 +29,8 @@
                    TextWrapping="Wrap" FontSize="12" />
 
         <StackPanel Grid.Row="3" Classes="dialogButtons">
-            <Button Classes="accent" Content="Import" Click="OnImportClick" />
             <Button Classes="soft" Content="Cancel" Click="OnCancelClick" />
+            <Button Classes="accent" Content="Import" Click="OnImportClick" />
         </StackPanel>
     </Grid>
 

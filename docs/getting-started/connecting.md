@@ -148,7 +148,7 @@ new one and leaving you to guess what happened, pgNimbus surfaces a clear
     export PGNIMBUS_CONN="postgres://postgres:secret@localhost:5432/mydb"
     ```
 
-    For everyday use there is a switch in Preferences, **Open the last
+    For everyday use there is a switch in Settings, **Open the last
     connection on startup**, which goes straight to whatever you connected to
     last. The dialog stays one Switch connection away, and a connect that fails
     lands back in it with the error.

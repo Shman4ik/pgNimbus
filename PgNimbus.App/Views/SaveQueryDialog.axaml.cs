@@ -33,7 +33,7 @@ public partial class SaveQueryDialog : Window
     public SaveQueryDialog()
     {
         InitializeComponent();
-        ThemedWindowChrome.Attach(this);
+        DialogChrome.Attach(this);
     }
 
     public SaveQueryDialog(string heading, string initialName, Guid? currentId, Func<string, SavedQuery?> findByName)

@@ -18,7 +18,7 @@ public partial class BulkGrantDialog : Window
     public BulkGrantDialog()
     {
         InitializeComponent();
-        ThemedWindowChrome.Attach(this);
+        DialogChrome.Attach(this);
     }
 
     private void OnOpenClick(object? sender, RoutedEventArgs e) => Close(true);

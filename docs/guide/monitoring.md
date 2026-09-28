@@ -121,7 +121,7 @@ The feed keeps the most recent 500 notifications.
 ## Relation sizes in the schema tree
 
 A dimmed size hint next to each relation in the schema tree. It is off by
-default; turn on "Show relation sizes" in Preferences, under Appearance.
+default; turn on "Show relation sizes" in Settings, under Appearance.
 
 Views and partitioned parents show no size, because they have no storage of their
 own worth reporting.

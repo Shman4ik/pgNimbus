@@ -35,7 +35,7 @@ public static class ShortcutDocs
         sb.AppendLine("⌘ Command, ⌥ Option, ⇧ Shift, ⌃ Control, ↩ Return, ⌫ Delete, ⌦ Forward Delete,");
         sb.AppendLine("⎋ Escape, ⇥ Tab, ⇞ ⇟ Page Up and Page Down. A few commands also answer the Mac's");
         sb.AppendLine("own shortcut there, and list it first. Which column applies follows the platform");
-        sb.AppendLine("by default and can be forced either way in Preferences → Hotkey scheme.");
+        sb.AppendLine("by default and can be forced either way in Settings → Hotkey scheme.");
         sb.AppendLine();
 
         foreach (var (category, items) in CommandCatalog.CheatSheetSections())

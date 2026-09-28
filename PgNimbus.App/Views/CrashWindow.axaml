@@ -33,9 +33,9 @@
                    FontSize="12" Opacity="0.8" TextWrapping="Wrap" />
 
         <StackPanel Classes="dialogButtons" Margin="0">
-            <Button Content="Report on GitHub" Click="OnReportClick" Classes="accent" />
             <Button Content="Open log file" Click="OnOpenLogClick" Classes="soft" />
             <Button Content="Close" Click="OnCloseClick" Classes="soft" IsDefault="True" />
+            <Button Content="Report on GitHub" Click="OnReportClick" Classes="accent" />
         </StackPanel>
     </StackPanel>
 </Window>

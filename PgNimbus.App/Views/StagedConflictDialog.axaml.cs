@@ -48,7 +48,7 @@ public partial class StagedConflictDialog : Window
     public StagedConflictDialog()
     {
         InitializeComponent();
-        ThemedWindowChrome.Attach(this);
+        DialogChrome.Attach(this);
     }
 
     public StagedConflictDialog(StagedChangesConflictException conflict) : this()

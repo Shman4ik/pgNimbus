@@ -76,9 +76,9 @@
             <TextBlock Grid.Column="0" Classes="dialogHint" VerticalAlignment="Center" Margin="0,0,12,0"
                        Text="Nothing was committed. Restaging reloads the rows and keeps your values on top of the current ones, for you to review and commit again." />
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                <Button Name="RestageButton" Classes="accent" Content="Reload and restage" Click="OnRestageClick" />
                 <Button Name="UnstageButton" Classes="soft" Content="Unstage these rows" Click="OnUnstageClick" />
                 <Button Classes="soft" Content="Close" Click="OnCloseClick" IsCancel="True" />
+                <Button Name="RestageButton" Classes="accent" Content="Reload and restage" Click="OnRestageClick" />
             </StackPanel>
         </Grid>
 

@@ -32,9 +32,22 @@
         <TextBlock Text="Saved connections" FontWeight="SemiBold" VerticalAlignment="Center" />
     </Border>
 
-    <Grid Grid.Row="1" Margin="16" RowDefinitions="*,Auto,Auto">
+    <!-- The form stops widening at the second column's MaxWidth (list 240 + gap 20 +
+         fields and the scrollbar gutter 14, so the fields top out near 690px).
+         Maximized, the host box used to run ~1500px with the port box at its far
+         end. The third, near-zero star column takes whatever is left once the
+         form is capped, which keeps everything left-aligned under the bar's
+         "Saved connections" heading rather than centred away from it. Every row
+         spans the first two columns, so the button row's right edge (Connect)
+         stays under the form's. -->
+    <Grid Name="FormLayout" Grid.Row="1" Margin="16" RowDefinitions="*,Auto,Auto">
+    <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="240" />
+        <ColumnDefinition Width="1000*" MaxWidth="720" />
+        <ColumnDefinition Width="*" />
+    </Grid.ColumnDefinitions>
 
-    <Grid Grid.Row="0" ColumnDefinitions="240,*" IsEnabled="{Binding CredentialsReady}">
+    <Grid Grid.Row="0" Grid.ColumnSpan="2" ColumnDefinitions="240,*" IsEnabled="{Binding CredentialsReady}">
 
         <Grid Grid.Column="0">
             <Border Classes="card">
@@ -187,16 +200,19 @@
                 <TextBox Name="PasswordBox" Text="{Binding Password}" PasswordChar="•" Classes="revealPasswordButton" />
             </StackPanel>
 
+            <!-- Label left, switch right: the Settings page's layout, so a switch
+                 means the same thing wherever it sits. They used to lead their
+                 labels, which is a checkbox's shape, not a switch's. -->
             <StackPanel Grid.Row="8" Margin="0,0,0,8">
-                <StackPanel Orientation="Horizontal" Spacing="8"
-                            ToolTip.Tip="Every statement runs in a read-only transaction, so the server refuses INSERT, UPDATE, DELETE and DDL. It guards against mistakes; to make writes impossible, use a role without write privileges.">
-                    <ToggleSwitch IsChecked="{Binding ReadOnly}" OnContent="" OffContent="" />
-                    <TextBlock Text="Read-only session" VerticalAlignment="Center" />
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <ToggleSwitch IsChecked="{Binding UseSshTunnel}" OnContent="" OffContent="" />
-                    <TextBlock Text="Connect through an SSH tunnel" VerticalAlignment="Center" />
-                </StackPanel>
+                <Grid ColumnDefinitions="*,Auto" Background="Transparent"
+                      ToolTip.Tip="Every statement runs in a read-only transaction, so the server refuses INSERT, UPDATE, DELETE and DDL. It guards against mistakes; to make writes impossible, use a role without write privileges.">
+                    <TextBlock Grid.Column="0" Text="Read-only session" VerticalAlignment="Center" Margin="0,0,12,0" />
+                    <ToggleSwitch Name="ReadOnlySwitch" Grid.Column="1" IsChecked="{Binding ReadOnly}" OnContent="" OffContent="" />
+                </Grid>
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Text="Connect through an SSH tunnel" VerticalAlignment="Center" Margin="0,0,12,0" />
+                    <ToggleSwitch Name="SshTunnelSwitch" Grid.Column="1" IsChecked="{Binding UseSshTunnel}" OnContent="" OffContent="" />
+                </Grid>
             </StackPanel>
 
             <Border Grid.Row="9" IsVisible="{Binding UseSshTunnel}"
@@ -261,21 +277,29 @@
 
     </Grid>
 
-    <StackPanel Grid.Row="1">
+    <StackPanel Grid.Row="1" Grid.ColumnSpan="2">
         <TextBlock Text="Accessing password store…" IsVisible="{Binding IsCredentialBusy}" Margin="0,8,0,0" />
         <TextBlock Text="{Binding CredentialWarning}" TextWrapping="Wrap" Margin="0,8,0,0"
                    IsVisible="{Binding CredentialWarning, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
     </StackPanel>
 
     <!-- All action buttons on one row: New (scoped to the saved-connections
-         column) on the left, the current form's actions on the right. Delete
-         lives in the list's right-click menu — it acts on a saved row, not on
-         the form, and a destructive button does not belong next to Connect.
+         column) on the left, the current form's actions on the right. New is a
+         compact + under the list, where a Mac list keeps it; it used to be a
+         240px bar, the widest button in the window for the least-used action.
+         There is deliberately no - beside it: Delete lives in the list's
+         right-click menu (UI rule 1) - it acts on a saved row, not on the form,
+         and a destructive button does not belong in this row.
          There is no Save: the form saves itself as it is edited (see
          ConnectionDialogViewModel.OnFormEdited). -->
 
-    <Grid Grid.Row="2" ColumnDefinitions="240,*,Auto" Margin="0,8,0,0">
-        <Button Grid.Column="0" Classes="soft" Content="New" Command="{Binding NewCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+    <Grid Grid.Row="2" Grid.ColumnSpan="2" ColumnDefinitions="240,*,Auto" Margin="0,8,0,0">
+        <Button Name="NewConnectionButton" Grid.Column="0" Classes="soft" Width="32" Height="32" Padding="0"
+                HorizontalAlignment="Left" HorizontalContentAlignment="Center"
+                Command="{Binding NewCommand}" ToolTip.Tip="New Connection"
+                AutomationProperties.Name="New Connection">
+            <PathIcon Data="{StaticResource PlusIconGeometry}" Width="14" Height="14" />
+        </Button>
 
         <!-- The app's identity, in the one strip of the window that is always
              there and always empty: mark, name, version, centred between New and
@@ -293,13 +317,17 @@
             </StackPanel>
         </Button>
 
-        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+        <!-- Right margin: the form's scrollbar gutter, so Connect's edge lines up
+             with the fields' edge above it. -->
+        <StackPanel Name="FormButtons" Grid.Column="2" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right"
+                    Margin="0,0,14,0">
             <!-- IsDefault: Enter anywhere in the dialog connects, so a preselected
-                 profile needs no click at all. Primary first, as in every dialog. -->
-            <Button Classes="accent" Content="Connect" Command="{Binding ConnectCommand}" IsEnabled="{Binding !IsConnecting}"
-                    IsDefault="True" />
+                 profile needs no click at all. Primary last, as in every dialog
+                 (DESIGN.md rule 16). -->
             <Button Classes="soft" Content="Test" Command="{Binding TestConnectionCommand}" IsEnabled="{Binding !IsTesting}"
                     ToolTip.Tip="Verify the connection (and SSH tunnel, if enabled) without opening it" />
+            <Button Name="ConnectButton" Classes="accent" Content="Connect" Command="{Binding ConnectCommand}" IsEnabled="{Binding !IsConnecting}"
+                    IsDefault="True" />
         </StackPanel>
     </Grid>
 

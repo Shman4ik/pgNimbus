@@ -15,7 +15,7 @@ public partial class ImportPlanDialog : Window
     public ImportPlanDialog()
     {
         InitializeComponent();
-        ThemedWindowChrome.Attach(this);
+        DialogChrome.Attach(this);
         Opened += (_, _) => PlanInput.Focus();
     }
 

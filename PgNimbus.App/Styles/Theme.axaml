@@ -72,6 +72,8 @@
              The other kinds reuse the shared icons above (table, database, function, swap);
              CompletionKindVisuals maps kind → resource key + fixed color. -->
         <StreamGeometry x:Key="LockIconGeometry">M12,17A2,2 0 0,0 14,15C14,13.89 13.1,13 12,13A2,2 0 0,0 10,15A2,2 0 0,0 12,17M18,8A2,2 0 0,1 20,10V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V10C4,8.89 4.9,8 6,8H7V6A5,5 0 0,1 12,1A5,5 0 0,1 17,6V8H18M12,3A3,3 0 0,0 9,6V8H15V6A3,3 0 0,0 12,3Z</StreamGeometry>
+        <!-- MDI plus: the connection dialog's New Connection button under the list. -->
+        <StreamGeometry x:Key="PlusIconGeometry">M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z</StreamGeometry>
         <!-- MDI filter-outline: the status bar's filter-bar toggle. -->
         <StreamGeometry x:Key="FilterIconGeometry">M15,19.88C15.04,20.18 14.94,20.5 14.71,20.71C14.32,21.1 13.69,21.1 13.3,20.71L9.29,16.7C9.06,16.47 8.96,16.16 9,15.87V10.75L4.21,4.62C3.87,4.19 3.95,3.56 4.38,3.22C4.57,3.08 4.78,3 5,3V3H19V3C19.22,3 19.43,3.08 19.62,3.22C20.05,3.56 20.13,4.19 19.79,4.62L15,10.75V19.88M7.04,5L11,10.06V15.58L13,17.58V10.05L16.96,5H7.04Z</StreamGeometry>
         <!-- MDI card-text-outline: the status bar's row-details button. -->
@@ -472,7 +474,9 @@
         <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
     </Style>
 
-    <!-- The button row: primary first, then secondary actions, Cancel/Close last. -->
+    <!-- The button row, in the order macOS uses and on every platform (DESIGN.md
+         rule 16): other secondary actions first, then Cancel/Close, then the
+         primary last - so the affirmative is always the rightmost button. -->
     <Style Selector="StackPanel.dialogButtons">
         <Setter Property="Orientation" Value="Horizontal" />
         <Setter Property="Spacing" Value="8" />

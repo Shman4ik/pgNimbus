@@ -21,7 +21,7 @@ public partial class PendingChangesDialog : Window
     public PendingChangesDialog()
     {
         InitializeComponent();
-        ThemedWindowChrome.Attach(this);
+        DialogChrome.Attach(this);
     }
 
     public PendingChangesDialog(string summary, string sqlScript, int changeCount, IReadOnlyList<string>? uncheckedColumns = null) : this()

@@ -240,15 +240,29 @@ to the resting well), and it paints a selected `ListBoxItem` with the OS accent 
 Never paint a surface with `SystemControlPageBackgroundAltHighBrush` or a hand-set hex;
 pick the row of the table it is.
 
-### 16. A dialog's button row: primary first, Cancel last, on the right
+### 16. A dialog's button row: primary last, Cancel just before it, on the right
 
-`[Primary] [secondary…] [Cancel/Close]`, right-aligned, 8px apart, 16px below the
-content — the Windows order, and the one kubeNimbus's inline confirm strips already
-used. The primary is `accent` (`danger` when it destroys), everything else `soft`.
-pgNimbus's dialogs had drifted to both orders (Import and the role dialogs put Cancel
-first, nine others put it last), so the same button moved from one corner to the other
-between two dialogs of one app. Pair it with `IsDefault` on the primary and `IsCancel`
-on Cancel.
+`[secondary…] [Cancel/Close] [Primary]`, right-aligned, 8px apart, 16px below the
+content — the macOS order, on every platform. The primary is `accent` (`danger` when
+it destroys), everything else `soft`; a secondary that destroys (`soft danger`: Discard
+all, Drop column) goes furthest left, away from the primary. A dialog with no primary
+ends on Close.
+
+It used to be the Windows order, `[Primary] [secondary…] [Cancel]`, and that is the
+one a Mac user noticed first (2026-09): "Save | Cancel" and "Connect | Test" put the
+affirmative where every native Mac dialog puts Cancel, so the hand went to the wrong
+corner in every dialog. One order everywhere rather than one per platform, because
+the rule before this one was already a fix for the same button moving corners between
+two dialogs of one app (pgNimbus had drifted to both orders), and a per-OS flip is
+that drift again, made deliberate. Windows users meet primary-rightmost in wizards
+and the Store's own dialogs; macOS users meet the other order nowhere. Pair it with
+`IsDefault` on the primary and `IsCancel` on Cancel, so Enter and Esc never depend on
+where either sits.
+
+The same pass made **modal dialogs non-minimizable and non-maximizable** on every
+platform, and on macOS hid their caption text (the client area extends under the
+title bar, the window keeps its `Title` for VoiceOver and Mission Control), because
+the body already opens with `dialogTitle` and AppKit printed the same words above it.
 
 ### 17. Secondary text is dimmed to 0.6, not below
 

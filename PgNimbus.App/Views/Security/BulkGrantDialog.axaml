@@ -86,9 +86,9 @@
         </Border>
 
         <StackPanel Grid.Row="3" Classes="dialogButtons">
+            <Button Classes="soft" Content="Cancel" Click="OnCancelClick" />
             <Button Classes="accent" Content="Open in editor" Click="OnOpenClick"
                     IsEnabled="{Binding CanOpen}" />
-            <Button Classes="soft" Content="Cancel" Click="OnCancelClick" />
         </StackPanel>
 
     </Grid>

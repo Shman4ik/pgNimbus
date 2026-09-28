@@ -50,8 +50,8 @@
                    IsVisible="{Binding StatusMessage, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
 
         <StackPanel Grid.Row="4" Classes="dialogButtons">
-            <Button Classes="accent" Content="{Binding InsertButtonText}" Command="{Binding InsertCommand}" IsEnabled="{Binding !IsBusy}" />
             <Button Classes="soft" Content="Close" Click="OnCloseClick" />
+            <Button Classes="accent" Content="{Binding InsertButtonText}" Command="{Binding InsertCommand}" IsEnabled="{Binding !IsBusy}" />
         </StackPanel>
 
     </Grid>
