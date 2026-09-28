@@ -851,6 +851,43 @@ Three rules about it:
    accepts Alt+Shift+F whatever the scheme. User-facing settings live on the
    preferences page (`PreferencesWindow`, opened from the palette), persisted in
    `AppSettings`.
+   **The platform-text exception: macOS text keys are not catalog commands**
+   (2026-09). Measured on a real Mac, the SQL editor ignored ⌥⌫, ⌘⌫, ⌘↑/⌘↓ and
+   every Cocoa ⌃ key (⌃A/⌃E/⌃K …), and the TextBoxes ignored ⌘⌫ and ⌃A/⌃E.
+   Those are how text behaves on the platform, not things pgNimbus does, so
+   `Platform/MacTextKeys` answers them outside the catalog — no palette row, no
+   cheat-sheet line, no window binding: ⌥⌫/⌥⌦ (word), ⌘⌫/⌘⌦ (to the line's
+   start/end; at the edge, the line break), ⌘↑/⌘↓ (document, ⇧ selects), ⌃A/⌃E
+   (line, ⇧ selects), ⌃K (kill to line end) and ⌃Y (yank it back), ⌃D/⌃H, ⌃F/⌃B,
+   ⌃N/⌃P (lines; in an open completion list, its rows), ⌃T (transpose). It is two
+   tunnelled **class** handlers, on `TextArea` and `TextBox`, registered once from
+   `App.Initialize` (not `OnFrameworkInitializationCompleted`, which the headless
+   tests never reach) — so every editor (SQL, the cell inspector's JSON editor)
+   and every text box (sidebar filter, connection form, find box, grid cell
+   editors) gets them with no view opting in, and a class handler runs before the
+   element's own handlers, which is why ⌘↑ moves the caret rather than an open
+   completion list's selection. Four things keep it safe: modifiers match
+   exactly (⌘⇧⌫ is still Rollback); `MacTextKeysTests.No_command_chord_on_the_cmd_scheme_is_a_text_key`
+   checks every catalog chord against the table; it is active only on macOS
+   *under the Cmd scheme* (`Hotkeys.Command == Meta`) — with the Windows scheme
+   on a Mac, Ctrl is the command key and ⌃A is Select All; and every edit is one
+   undo step (the editor's own `EditingCommands` where AvaloniaEdit has the
+   action, a selection deleted through its Delete where it does not — ⌥⌦ is
+   ours, since AvaloniaEdit's `DeleteNextWord` stops at the *next* word's start;
+   `SelectedText = ""` on a TextBox). The TextBox keeps its own ⌥⌫/⌥⌦ and ⌘↑/⌘↓,
+   which already worked there. Tests force the macOS path per window with the
+   inherited `MacTextKeys.ForceProperty` rather than flipping the process-wide
+   scheme under tests running beside them.
+   **Typing undoes a word at a time** (same change, all platforms,
+   `Platform/EditorTypingUndo`). AvaloniaEdit gives each `TextInput` its own
+   undo group, so one ⌘Z took back one character (`EditorTypingUndoTests`
+   measured `select abc` → `select ab`). A tunnelled `TextInput` class handler
+   on `TextArea` opens a group before the insert — continuing the previous one
+   through `UndoStack.StartContinuedUndoGroup` when the stack's last group is
+   this editor's typing run and the caret has not moved — and the event's
+   `RouteFinished` closes it. A run is a word plus the spaces after it; any
+   other character starts a new one, so a completion accepted on `(` and an
+   auto-closed bracket stay their own steps.
 6. **Shared control vocabulary — don't hand-roll button/tab looks.** Every
    button uses one of the style classes in `Styles/Theme.axaml`, never an
    ad-hoc `Background`/`Foreground`: `accent` (filled brand-blue, the one

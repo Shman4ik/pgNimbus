@@ -274,6 +274,12 @@ public partial class App : Application
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
+
+        // Class handlers, so every editor and text box gets them without opting
+        // in. Here rather than in OnFrameworkInitializationCompleted so the
+        // headless tests (which never get a lifetime) run the same wiring.
+        Platform.MacTextKeys.Install();
+        Platform.EditorTypingUndo.Install();
     }
 
     public override void OnFrameworkInitializationCompleted()
