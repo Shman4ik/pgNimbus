@@ -47,7 +47,7 @@ public sealed class ShortcutsViewModel
         // like every row around it, not as grey text (0.14.0 release pass).
         if (descriptor.Id == CommandId.GoToTabByNumber)
         {
-            return [new ShortcutToken(commandLabel, IsKey: true), new ShortcutToken("1…9", IsKey: true)];
+            return [new ShortcutToken(scheme == ChordScheme.Cmd ? "⌘" : "Ctrl", IsKey: true), new ShortcutToken("1…9", IsKey: true)];
         }
 
         var tokens = new List<ShortcutToken>(6);
