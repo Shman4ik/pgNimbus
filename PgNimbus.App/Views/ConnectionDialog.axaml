@@ -29,23 +29,20 @@
     <Border Name="ConnectBar" Grid.Row="0" Height="40" Background="Transparent"
             chrome:WindowDecorationProperties.ElementRole="TitleBar"
             BorderThickness="0,0,0,1" BorderBrush="{StaticResource CardBorderBrush}">
-        <TextBlock Text="Saved connections" FontWeight="SemiBold" VerticalAlignment="Center" />
+        <TextBlock Name="BarHeading" Text="Saved connections" FontWeight="SemiBold" VerticalAlignment="Center" />
     </Border>
 
-    <!-- The form stops widening at the second column's MaxWidth (list 240 + gap 20 +
-         fields and the scrollbar gutter 14, so the fields top out near 690px).
-         Maximized, the host box used to run ~1500px with the port box at its far
-         end. The third, near-zero star column takes whatever is left once the
-         form is capped, which keeps everything left-aligned under the bar's
-         "Saved connections" heading rather than centred away from it. Every row
-         spans the first two columns, so the button row's right edge (Connect)
-         stays under the form's. -->
-    <Grid Name="FormLayout" Grid.Row="1" Margin="16" RowDefinitions="*,Auto,Auto">
-    <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="240" />
-        <ColumnDefinition Width="1000*" MaxWidth="720" />
-        <ColumnDefinition Width="*" />
-    </Grid.ColumnDefinitions>
+    <!-- The list and the form are one block, capped at 1000 x 760 and centred in
+         whatever room the window has (a Stretch element past its MaxWidth is
+         centred, not left-aligned). Below the cap, which covers the default
+         720 x 600, it fills the window as before. Maximized or full screen it
+         used to stretch the list to the window's full height and park the form,
+         capped at 720px, against the left edge, with the buttons a screen's
+         height below the last field and half the window empty to its right.
+         The bar's "Saved connections" heading follows the block's left edge
+         (AlignBarHeading in code-behind), so it stays over the list. -->
+    <Grid Name="FormLayout" Grid.Row="1" Margin="16" MaxWidth="1000" MaxHeight="760"
+          RowDefinitions="*,Auto,Auto" ColumnDefinitions="240,*">
 
     <Grid Grid.Row="0" Grid.ColumnSpan="2" ColumnDefinitions="240,*" IsEnabled="{Binding CredentialsReady}">
 

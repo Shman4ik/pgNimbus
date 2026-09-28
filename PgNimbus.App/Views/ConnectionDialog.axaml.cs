@@ -32,6 +32,23 @@ public partial class ConnectionDialog : Window
         Opened += OnDialogOpened;
         Closing += OnDialogClosing;
 
+        // The form block is centred once the window outgrows it; keep the bar's
+        // heading over the list rather than at the bar's own left edge.
+        FormLayout.PropertyChanged += (_, e) =>
+        {
+            if (e.Property == BoundsProperty)
+            {
+                AlignBarHeading();
+            }
+        };
+        ConnectBar.PropertyChanged += (_, e) =>
+        {
+            if (e.Property == Border.PaddingProperty || e.Property == BoundsProperty)
+            {
+                AlignBarHeading();
+            }
+        };
+
         // Reorder saved connections by dragging rows. Live-moves the row while
         // the pointer travels (the list itself is the drop preview), then
         // persists the order on release. Tunneled press so the row is known
@@ -54,6 +71,22 @@ public partial class ConnectionDialog : Window
         if (OperatingSystem.IsMacOS())
         {
             NativeMenu.SetMenu(this, CreateNativeMenuBar());
+        }
+    }
+
+    /// <summary>
+    /// Moves "Saved connections" to sit over the list: the bar spans the window,
+    /// the list starts wherever the centred form block does. Below the block's
+    /// cap the two coincide and the heading stays at the bar's padding (past the
+    /// traffic lights on macOS).
+    /// </summary>
+    private void AlignBarHeading()
+    {
+        var listLeft = FormLayout.Bounds.X - ConnectBar.Bounds.X - ConnectBar.Padding.Left;
+        var left = Math.Max(0, Math.Round(listLeft));
+        if (BarHeading.Margin.Left != left)
+        {
+            BarHeading.Margin = new Thickness(left, 0, 0, 0);
         }
     }
 

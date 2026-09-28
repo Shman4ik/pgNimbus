@@ -87,6 +87,7 @@ public static class Scenarios
         ("crash-window", Crash),
         ("connection-dialog", ConnectionDialog),
         ("connection-dialog-ssh-agent", ConnectionDialogSshAgent),
+        ("connection-dialog-wide", ConnectionDialogWide),
         ("connection-credential-warning", ConnectionCredentialWarning),
         ("controls-gallery", ControlsGallery.Build),
     ];
@@ -725,6 +726,18 @@ public static class Scenarios
         vm.SshHost = "bastion.example.com";
         vm.SshUsername = "deploy";
         vm.SshAuthMethod = SshAuthMethod.Agent;
+        return window;
+    }
+
+    /// <summary>
+    /// The connect form in a maximized-sized window: the list and the form stay one
+    /// centred block, with the bar's heading over the list.
+    /// </summary>
+    public static Window ConnectionDialogWide()
+    {
+        var window = ConnectionDialog();
+        window.Width = 1440;
+        window.Height = 900;
         return window;
     }
 

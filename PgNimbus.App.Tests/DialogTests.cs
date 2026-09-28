@@ -113,9 +113,9 @@ public class DialogTests
 
     /// <summary>
     /// Maximized, the form used to stretch every field across the screen, with
-    /// the port box ~1500px from the host it belongs to. The form column now stops
-    /// at 720px and the rest of the width is left empty; in a narrow window the
-    /// column still takes all of it.
+    /// the port box ~1500px from the host it belongs to. The list and the form now
+    /// stop at 1000px together and are centred, with the bar's heading over the
+    /// list; in a narrow window the form column still takes all the width.
     /// </summary>
     [Test]
     public async Task The_connection_form_stops_widening_in_a_wide_window()
@@ -126,13 +126,21 @@ public class DialogTests
             window.Width = 1600;
             Ui.Show(window);
 
+            // The list and the form are one block, capped and centred.
             var layout = window.FindControl<Grid>("FormLayout")!;
-            await Assert.That(layout.ColumnDefinitions[1].ActualWidth).IsEqualTo(720);
+            await Assert.That(layout.Bounds.Width).IsEqualTo(1000);
+            await Assert.That(layout.Bounds.X).IsEqualTo((1600 - 1000) / 2.0);
+            await Assert.That(layout.ColumnDefinitions[1].ActualWidth).IsEqualTo(1000 - 240);
 
             // Connect stays under the form's right edge, not in the window's corner.
             var connect = window.FindControl<Button>("ConnectButton")!;
             var connectRight = connect.TranslatePoint(new Point(connect.Bounds.Width, 0), window)!.Value.X;
-            await Assert.That(connectRight).IsLessThanOrEqualTo(16 + 240 + 720);
+            await Assert.That(connectRight).IsLessThanOrEqualTo(layout.Bounds.Right);
+
+            // The bar's heading moved with the block and sits over the list.
+            var heading = window.FindControl<TextBlock>("BarHeading")!;
+            var headingLeft = heading.TranslatePoint(new Point(0, 0), window)!.Value.X;
+            await Assert.That(Math.Abs(headingLeft - layout.Bounds.X)).IsLessThanOrEqualTo(1);
 
             window.Width = 640;
             Ui.Settle();

@@ -476,6 +476,17 @@
         <Setter Property="SelectionBrush" Value="{StaticResource AppTextSelectionBrush}" />
     </Style>
 
+    <!-- A one-line box centres its text and placeholder. Fluent leaves them at the
+         top of the padding (6 over, 5 under) and gives the box a fixed MinHeight,
+         so any box whose font is smaller than the one that MinHeight was sized for
+         showed its text a few pixels high: the 12px sidebar filter's placeholder
+         sat visibly above its magnifier, and the 13px body text did the same in
+         every field of the connect form on macOS. A multi-line box keeps its text
+         at the top, where the first line belongs. -->
+    <Style Selector="TextBox[AcceptsReturn=False]">
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
     <!-- Read-only selectable text shares the same wash. Otherwise it falls back to
          Fluent's grey OS-accent default and selection reads differently there than
          in an editable box two inches away. -->
