@@ -22,7 +22,7 @@
              parts come up. The child chain (row > ContentControl > template root)
              reaches the selected node's own header only; a descendant selector would
              also brighten every row of its expanded children. -->
-        <Style Selector="TreeView:focus-within TreeViewItem:selected > ContentControl > StackPanel > TextBlock.secondary, TreeView:focus-within TreeViewItem:selected > ContentControl > TextBlock.secondary">
+        <Style Selector="TreeView:focus-within TreeViewItem:selected > ContentControl > :is(Panel) > TextBlock.secondary, TreeView:focus-within TreeViewItem:selected > ContentControl > TextBlock.secondary">
             <Setter Property="Opacity" Value="0.85" />
         </Style>
         <Style Selector="TreeView:focus-within TreeViewItem:selected > ContentControl > StackPanel.excludedSchema">
@@ -58,8 +58,12 @@
             </StackPanel>
         </DataTemplate>
         <DataTemplate DataType="vm:TableNode">
-            <StackPanel Orientation="Horizontal" Spacing="6">
-                <StackPanel.ContextMenu>
+            <!-- A DockPanel rather than a row of inline runs: the size hint is a
+                 metric, so it lines up in a right-hand column where sizes can be
+                 compared at a glance, and a long name trims before it instead of
+                 pushing it off the edge. -->
+            <DockPanel>
+                <DockPanel.ContextMenu>
                     <!-- The default action first (the same browse a double-click
                          runs, UI design rule 2), then Copy Name like the schema
                          and role menus. Alter Table… is for relations ALTER TABLE
@@ -71,36 +75,41 @@
                         <MenuItem Header="Source (DDL)" Tag="{Binding}" Click="OnShowSourceClick" />
                         <MenuItem Header="Alter Table…" Tag="{Binding}" Click="OnAlterTableClick" IsVisible="{Binding CanAlter}" />
                     </ContextMenu>
-                </StackPanel.ContextMenu>
+                </DockPanel.ContextMenu>
                 <!-- One family icon per relation kind (table/view/matview/partitioned)
                      with the exact kind on hover — same one-glyph-plus-tooltip
                      language the column type family uses -->
-                <PathIcon Data="{Binding Kind, Converter={x:Static conv2:RelationKindIconConverter.Instance}}"
+                <PathIcon DockPanel.Dock="Left" Margin="0,0,6,0"
+                          Data="{Binding Kind, Converter={x:Static conv2:RelationKindIconConverter.Instance}}"
                           Width="12" Height="12" VerticalAlignment="Center" Opacity="0.75"
                           ToolTip.Tip="{Binding Kind, Converter={x:Static conv2:RelationKindLabelConverter.Instance}}"
                           ToolTip.ShowDelay="300" />
-                <TextBlock Text="{Binding Name}" />
                 <!-- Dim on-disk size hint (heap + indexes + TOAST); blank for views/partitioned parents -->
-                <TextBlock Text="{Binding SizeText}" Classes="secondary" FontSize="11" VerticalAlignment="Center" />
-            </StackPanel>
+                <TextBlock DockPanel.Dock="Right" Margin="8,0,4,0"
+                           Text="{Binding SizeText}" Classes="secondary" FontSize="11" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+            </DockPanel>
         </DataTemplate>
         <DataTemplate DataType="vm:ColumnNode">
-            <StackPanel Orientation="Horizontal" Spacing="6">
-                <Panel Width="14" VerticalAlignment="Center">
+            <DockPanel>
+                <Panel DockPanel.Dock="Left" Width="14" Margin="0,0,6,0" VerticalAlignment="Center">
                     <PathIcon Data="{StaticResource KeyIconGeometry}" Width="12" Height="12" IsVisible="{Binding IsPrimaryKey}" />
                 </Panel>
-                <TextBlock Text="{Binding Name}" />
+                <!-- Abbreviated type (timestamptz, varchar…) with the full name on a brief
+                     hover, in the same right-hand column as a table's size -->
+                <TextBlock DockPanel.Dock="Right" Margin="0,0,4,0"
+                           Text="{Binding DataTypeShort}" Classes="secondary" FontSize="11" VerticalAlignment="Center"
+                           ToolTip.Tip="{Binding FullTypeTip}" ToolTip.ShowDelay="150" />
                 <!-- Category icon (numeric/text/date/json/enum…) — one glyph per type
                      family; enum/composite resolved from the catalog kind, domains
                      from their base type (see ColumnNode.Category) -->
-                <PathIcon Data="{Binding Category, Converter={x:Static conv2:PgTypeIconConverter.Instance}}"
+                <PathIcon DockPanel.Dock="Right" Margin="8,0,5,0"
+                          Data="{Binding Category, Converter={x:Static conv2:PgTypeIconConverter.Instance}}"
                           Width="11" Height="11" Opacity="0.5" VerticalAlignment="Center"
                           ToolTip.Tip="{Binding Category, Converter={x:Static conv2:PgTypeLabelConverter.Instance}}"
                           ToolTip.ShowDelay="300" />
-                <!-- Abbreviated type (timestamptz, varchar…) with the full name on a brief hover -->
-                <TextBlock Text="{Binding DataTypeShort}" Classes="secondary" FontSize="11" VerticalAlignment="Center"
-                           ToolTip.Tip="{Binding FullTypeTip}" ToolTip.ShowDelay="150" />
-            </StackPanel>
+                <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+            </DockPanel>
         </DataTemplate>
         <DataTemplate DataType="vm:FunctionsGroupNode">
             <StackPanel Orientation="Horizontal" Spacing="6">
@@ -109,15 +118,15 @@
             </StackPanel>
         </DataTemplate>
         <DataTemplate DataType="vm:FunctionNode">
-            <StackPanel Orientation="Horizontal" Spacing="6" ToolTip.Tip="{Binding Tooltip}" ToolTip.ShowDelay="150">
-                <StackPanel.ContextMenu>
+            <DockPanel HorizontalSpacing="6" ToolTip.Tip="{Binding Tooltip}" ToolTip.ShowDelay="150">
+                <DockPanel.ContextMenu>
                     <ContextMenu>
                         <MenuItem Header="Source (DDL)" Tag="{Binding}" Click="OnShowFunctionSourceClick" IsEnabled="{Binding HasSource}" />
                     </ContextMenu>
-                </StackPanel.ContextMenu>
-                <TextBlock Text="{Binding Name}" />
-                <TextBlock Text="{Binding Detail}" Classes="secondary" FontSize="11" VerticalAlignment="Center" />
-            </StackPanel>
+                </DockPanel.ContextMenu>
+                <TextBlock DockPanel.Dock="Left" Text="{Binding Name}" />
+                <TextBlock TextTrimming="CharacterEllipsis" Text="{Binding Detail}" Classes="secondary" FontSize="11" VerticalAlignment="Center" />
+            </DockPanel>
         </DataTemplate>
         <DataTemplate DataType="vm:ExtensionsGroupNode">
             <StackPanel Orientation="Horizontal" Spacing="6">
@@ -126,21 +135,21 @@
             </StackPanel>
         </DataTemplate>
         <DataTemplate DataType="vm:ExtensionNode">
-            <StackPanel Orientation="Horizontal" Spacing="6" ToolTip.Tip="{Binding Description}" ToolTip.ShowDelay="150">
-                <StackPanel.ContextMenu>
+            <DockPanel HorizontalSpacing="6" ToolTip.Tip="{Binding Description}" ToolTip.ShowDelay="150">
+                <DockPanel.ContextMenu>
                     <ContextMenu>
                         <MenuItem Header="Install" Tag="{Binding}" Click="OnInstallExtensionClick" IsVisible="{Binding !IsInstalled}" />
                         <MenuItem Header="Drop…" Tag="{Binding}" Click="OnDropExtensionClick" IsVisible="{Binding IsInstalled}" />
                     </ContextMenu>
-                </StackPanel.ContextMenu>
+                </DockPanel.ContextMenu>
                 <!-- Green dot = installed; the fixed-width panel keeps names aligned either way -->
-                <Panel Width="9" VerticalAlignment="Center">
+                <Panel DockPanel.Dock="Left" Width="9" VerticalAlignment="Center">
                     <Ellipse Width="7" Height="7" Fill="#46A758" IsVisible="{Binding IsInstalled}" />
                 </Panel>
-                <TextBlock Text="{Binding Name}" IsVisible="{Binding IsInstalled}" />
-                <TextBlock Text="{Binding Name}" Classes="secondary" IsVisible="{Binding !IsInstalled}" />
-                <TextBlock Text="{Binding VersionLabel}" Classes="secondary" FontSize="11" VerticalAlignment="Center" />
-            </StackPanel>
+                <TextBlock DockPanel.Dock="Left" Text="{Binding Name}" IsVisible="{Binding IsInstalled}" />
+                <TextBlock DockPanel.Dock="Left" Text="{Binding Name}" Classes="secondary" IsVisible="{Binding !IsInstalled}" />
+                <TextBlock TextTrimming="CharacterEllipsis" Text="{Binding VersionLabel}" Classes="secondary" FontSize="11" VerticalAlignment="Center" />
+            </DockPanel>
         </DataTemplate>
         <DataTemplate DataType="vm:RolesGroupNode">
             <StackPanel Orientation="Horizontal" Spacing="6">
@@ -155,22 +164,22 @@
             </StackPanel>
         </DataTemplate>
         <DataTemplate DataType="vm:RoleNode">
-            <StackPanel Orientation="Horizontal" Spacing="6">
+            <DockPanel HorizontalSpacing="6">
                 <!-- The tree can only ever show a role's headline attributes.
                      "Roles and permissions..." opens the window on this role,
                      which is where the effective-privilege answer lives. -->
-                <StackPanel.ContextMenu>
+                <DockPanel.ContextMenu>
                     <ContextMenu>
                         <MenuItem Header="Roles and Permissions…" Tag="{Binding}" Click="OnManageRoleClick" />
                         <MenuItem Header="Copy Name" Tag="{Binding}" Click="OnCopyRoleNameClick" />
                     </ContextMenu>
-                </StackPanel.ContextMenu>
-                <Panel Width="14" VerticalAlignment="Center">
+                </DockPanel.ContextMenu>
+                <Panel DockPanel.Dock="Left" Width="14" VerticalAlignment="Center">
                     <PathIcon Data="{StaticResource KeyIconGeometry}" Width="11" Height="11" IsVisible="{Binding IsSuperuser}" ToolTip.Tip="Superuser" />
                 </Panel>
-                <TextBlock Text="{Binding Name}" />
-                <TextBlock Text="{Binding AttributesLabel}" Classes="secondary" FontSize="11" VerticalAlignment="Center" />
-            </StackPanel>
+                <TextBlock DockPanel.Dock="Left" Text="{Binding Name}" />
+                <TextBlock TextTrimming="CharacterEllipsis" Text="{Binding AttributesLabel}" Classes="secondary" FontSize="11" VerticalAlignment="Center" />
+            </DockPanel>
         </DataTemplate>
         <DataTemplate DataType="vm:SequencesGroupNode">
             <StackPanel Orientation="Horizontal" Spacing="6">
@@ -179,11 +188,11 @@
             </StackPanel>
         </DataTemplate>
         <DataTemplate DataType="vm:SequenceNode">
-            <StackPanel Orientation="Horizontal" Spacing="6" ToolTip.Tip="{Binding Tooltip}" ToolTip.ShowDelay="200">
-                <PathIcon Data="{StaticResource SequenceIconGeometry}" Width="11" Height="11" Opacity="0.5" VerticalAlignment="Center" />
-                <TextBlock Text="{Binding Name}" />
-                <TextBlock Text="{Binding Detail}" Classes="secondary" FontSize="11" VerticalAlignment="Center" />
-            </StackPanel>
+            <DockPanel HorizontalSpacing="6" ToolTip.Tip="{Binding Tooltip}" ToolTip.ShowDelay="200">
+                <PathIcon DockPanel.Dock="Left" Data="{StaticResource SequenceIconGeometry}" Width="11" Height="11" Opacity="0.5" VerticalAlignment="Center" />
+                <TextBlock DockPanel.Dock="Left" Text="{Binding Name}" />
+                <TextBlock TextTrimming="CharacterEllipsis" Text="{Binding Detail}" Classes="secondary" FontSize="11" VerticalAlignment="Center" />
+            </DockPanel>
         </DataTemplate>
         <DataTemplate DataType="vm:TypesGroupNode">
             <StackPanel Orientation="Horizontal" Spacing="6">
@@ -192,14 +201,14 @@
             </StackPanel>
         </DataTemplate>
         <DataTemplate DataType="vm:UserTypeNode">
-            <StackPanel Orientation="Horizontal" Spacing="6" ToolTip.Tip="{Binding Tooltip}" ToolTip.ShowDelay="200">
+            <DockPanel HorizontalSpacing="6" ToolTip.Tip="{Binding Tooltip}" ToolTip.ShowDelay="200">
                 <!-- Reuse the column type-family icon language: enum/composite have
                      their own glyph; a domain shows its base type's family icon -->
-                <PathIcon Data="{Binding Category, Converter={x:Static conv2:PgTypeIconConverter.Instance}}"
+                <PathIcon DockPanel.Dock="Left" Data="{Binding Category, Converter={x:Static conv2:PgTypeIconConverter.Instance}}"
                           Width="11" Height="11" Opacity="0.55" VerticalAlignment="Center" />
-                <TextBlock Text="{Binding Name}" />
-                <TextBlock Text="{Binding Detail}" Classes="secondary" FontSize="11" VerticalAlignment="Center" />
-            </StackPanel>
+                <TextBlock DockPanel.Dock="Left" Text="{Binding Name}" />
+                <TextBlock TextTrimming="CharacterEllipsis" Text="{Binding Detail}" Classes="secondary" FontSize="11" VerticalAlignment="Center" />
+            </DockPanel>
         </DataTemplate>
         <DataTemplate DataType="vm:IndexesGroupNode">
             <StackPanel Orientation="Horizontal" Spacing="6">
@@ -208,11 +217,11 @@
             </StackPanel>
         </DataTemplate>
         <DataTemplate DataType="vm:IndexNode">
-            <StackPanel Orientation="Horizontal" Spacing="6" ToolTip.Tip="{Binding Tooltip}" ToolTip.ShowDelay="200">
-                <PathIcon Data="{StaticResource SortIconGeometry}" Width="11" Height="11" Opacity="0.5" VerticalAlignment="Center" />
-                <TextBlock Text="{Binding Name}" />
-                <TextBlock Text="{Binding Detail}" Classes="secondary" FontSize="11" VerticalAlignment="Center" />
-            </StackPanel>
+            <DockPanel HorizontalSpacing="6" ToolTip.Tip="{Binding Tooltip}" ToolTip.ShowDelay="200">
+                <PathIcon DockPanel.Dock="Left" Data="{StaticResource SortIconGeometry}" Width="11" Height="11" Opacity="0.5" VerticalAlignment="Center" />
+                <TextBlock DockPanel.Dock="Left" Text="{Binding Name}" />
+                <TextBlock TextTrimming="CharacterEllipsis" Text="{Binding Detail}" Classes="secondary" FontSize="11" VerticalAlignment="Center" />
+            </DockPanel>
         </DataTemplate>
         <DataTemplate DataType="vm:TriggersGroupNode">
             <StackPanel Orientation="Horizontal" Spacing="6">
@@ -221,11 +230,11 @@
             </StackPanel>
         </DataTemplate>
         <DataTemplate DataType="vm:TriggerNode">
-            <StackPanel Orientation="Horizontal" Spacing="6" ToolTip.Tip="{Binding Tooltip}" ToolTip.ShowDelay="200">
-                <PathIcon Data="{StaticResource FlashIconGeometry}" Width="11" Height="11" Opacity="0.5" VerticalAlignment="Center" />
-                <TextBlock Text="{Binding Name}" />
-                <TextBlock Text="{Binding Detail}" Classes="secondary" FontSize="11" VerticalAlignment="Center" />
-            </StackPanel>
+            <DockPanel HorizontalSpacing="6" ToolTip.Tip="{Binding Tooltip}" ToolTip.ShowDelay="200">
+                <PathIcon DockPanel.Dock="Left" Data="{StaticResource FlashIconGeometry}" Width="11" Height="11" Opacity="0.5" VerticalAlignment="Center" />
+                <TextBlock DockPanel.Dock="Left" Text="{Binding Name}" />
+                <TextBlock TextTrimming="CharacterEllipsis" Text="{Binding Detail}" Classes="secondary" FontSize="11" VerticalAlignment="Center" />
+            </DockPanel>
         </DataTemplate>
         <DataTemplate DataType="vm:EmptyNode">
             <TextBlock Text="{Binding Name}" Classes="secondary" FontStyle="Italic" />
@@ -240,7 +249,7 @@
 
     <Grid RowDefinitions="Auto,*,Auto" Margin="0,8,0,0">
         <!-- Filter box + a refresh button that reloads the tree, autocomplete, and palette from the server -->
-        <DockPanel Grid.Row="0" Margin="4,0,4,8">
+        <DockPanel Grid.Row="0" Margin="0,0,0,6">
             <Button DockPanel.Dock="Right" Classes="chip" Padding="5" Margin="6,0,0,0"
                     VerticalAlignment="Center" Command="{Binding RefreshAllCommand}"
                     cmd:CommandTip.Text="Reload the tree, autocomplete and palette from the server"
@@ -301,16 +310,35 @@
         <!-- Sidebar content sits directly on the shell tone, Files-style - no card chrome -->
         <Border Grid.Row="1">
             <Grid>
-                <TreeView Name="SchemaTreeView" ItemsSource="{Binding Schemas}">
+                <!-- No horizontal scrolling: a long name trims inside the sidebar's
+                     width (widen the sidebar to read it) rather than sliding the
+                     whole tree sideways, which also let an error row wrap. -->
+                <TreeView Name="SchemaTreeView" ItemsSource="{Binding Schemas}"
+                          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                     <TreeView.Styles>
                         <Style Selector="TreeViewItem">
                             <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay, DataType=vm:SchemaTreeNode}" />
                             <Setter Property="IsVisible" Value="{Binding IsFilteredIn, Mode=OneWay, DataType=vm:SchemaTreeNode}" />
                         </Style>
+                        <!-- Fluent sets these template parts' values at Template
+                             priority, which a plain style never beats; a selector with
+                             an activator (:not(:disabled)) is StyleTrigger priority and
+                             does. Overriding the TreeViewItemExpandCollapseChevronMargin
+                             resource does nothing: the template resolves it statically.
+                             The header presenter stretches so a row's DockPanel can put
+                             a size or a type in a right-hand column. -->
+                        <Style Selector="TreeViewItem:not(:disabled) /template/ ContentPresenter#PART_HeaderPresenter">
+                            <Setter Property="HorizontalAlignment" Value="Stretch" />
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                        </Style>
+                        <!-- The chevron column: 2+12+4px instead of Fluent's 12+12+12, so
+                             the root row lines up with the filter box above it. -->
+                        <Style Selector="TreeViewItem:not(:disabled) /template/ Panel#PART_ExpandCollapseChevronContainer">
+                            <Setter Property="Margin" Value="2,0,4,0" />
+                        </Style>
                         <!-- Compact per-level indent: the header's own indent is Level*16px,
-                             set at Template priority (unbeatable from a style), but each
-                             nested items presenter's Margin is NOT template-set, so a
-                             -8px counter-offset here nets out to 8px per level. -->
+                             but each nested items presenter's Margin is not template-set,
+                             so a -8px counter-offset here nets out to 8px per level. -->
                         <Style Selector="TreeViewItem /template/ ItemsPresenter#PART_ItemsPresenter">
                             <Setter Property="Margin" Value="-8,0,0,0" />
                         </Style>

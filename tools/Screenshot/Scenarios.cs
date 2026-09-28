@@ -90,6 +90,10 @@ public static class Scenarios
         ("connection-dialog-wide", ConnectionDialogWide),
         ("connection-credential-warning", ConnectionCredentialWarning),
         ("controls-gallery", ControlsGallery.Build),
+        // Last on purpose: the headless clock advances with every frame rendered,
+        // so a scenario inserted mid-list shifts the transitions caught in every
+        // window after it and churns baselines that did not change.
+        ("main-window-queries", QueriesSidebar),
     ];
 
     // --- Main window ------------------------------------------------------
@@ -471,7 +475,41 @@ public static class Scenarios
         var vm = Fixtures.MainWindowViewModel();
         SeedOrdersResult(vm.ActiveTab);
         vm.SchemaTree.FilterText = "order";
+        // One table open too, so a column row (key, name, the type column) is seen.
+        var orders = vm.SchemaTree.Schemas.OfType<SchemaNode>().First(s => s.Name == "public")
+            .Children.OfType<TableNode>().First(t => t.Name == "orders");
+        orders.IsExpanded = true;
         return HostMainWindow(vm);
+    }
+
+    /// <summary>
+    /// The sidebar's Queries tab: a few saved queries over a history that mixes
+    /// a pinned entry, today's runs and older ones, so the row layout and the
+    /// time labels are both seen.
+    /// </summary>
+    public static Window QueriesSidebar()
+    {
+        var vm = Fixtures.MainWindowViewModel();
+        SeedOrdersResult(vm.ActiveTab);
+        var queries = vm.SavedQueries;
+
+        // Older entries at the end of the list: yesterday, earlier this week, and
+        // one run on another connection, which is the only row that names it.
+        var now = new DateTimeOffset(2026, 7, 30, 9, 41, 0, TimeSpan.Zero);
+        queries.History.Add(new QueryHistoryEntry(SampleSql, now.AddDays(-1).AddHours(4), 21.7, "20 rows") { Connection = "localhost/shop" });
+        queries.History.Add(new QueryHistoryEntry("SELECT * FROM customers WHERE email ILIKE '%@example.com' ORDER BY created_at DESC;", now.AddDays(-3), 12.4, "48 rows") { Connection = "prod/shop" });
+        queries.History.Add(new QueryHistoryEntry("VACUUM (ANALYZE) orders;", now.AddDays(-12), 4_210, "VACUUM") { Connection = "localhost/shop" });
+        queries.TogglePinCommand.Execute(queries.History.First(e => e.Sql.Contains("analytics.events")));
+
+        var window = HostMainWindow(vm);
+        window.Opened += (_, _) =>
+        {
+            if (window.FindControl<TabControl>("SidebarTabs") is { } tabs)
+            {
+                tabs.SelectedIndex = 1;
+            }
+        };
+        return window;
     }
 
     /// <summary>The cell inspector over a jsonb value, in read mode.</summary>

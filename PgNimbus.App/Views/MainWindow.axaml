@@ -204,15 +204,15 @@
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
-        <TabControl Name="SidebarTabs" Grid.Column="0">
+        <TabControl Name="SidebarTabs" Grid.Column="0" Classes="sidebar">
             <!-- The tooltips say what each tab holds rather than repeating its
                  label — and they're the only clue left once a narrow sidebar
                  collapses the headers to icons. -->
             <TabItem ToolTip.Tip="Tables, views, functions and roles">
                 <TabItem.Header>
-                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
-                        <PathIcon Data="{StaticResource DatabaseIconGeometry}" Width="14" Height="14" VerticalAlignment="Center" />
-                        <!-- Label collapses to icon-only when the sidebar is too narrow to fit all three -->
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <PathIcon Data="{StaticResource DatabaseIconGeometry}" Width="13" Height="13" VerticalAlignment="Center" />
+                        <!-- Label collapses to icon-only when the sidebar is too narrow to fit both -->
                         <TextBlock Text="Schemas" VerticalAlignment="Center"
                                    IsVisible="{Binding $parent[TabControl].Bounds.Width, Converter={x:Static conv2:MinWidthVisibilityConverter.Instance}, ConverterParameter=210}" />
                     </StackPanel>
@@ -221,8 +221,8 @@
             </TabItem>
             <TabItem ToolTip.Tip="Saved queries and run history">
                 <TabItem.Header>
-                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
-                        <PathIcon Data="{StaticResource QueriesIconGeometry}" Width="14" Height="14" VerticalAlignment="Center" />
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <PathIcon Data="{StaticResource QueriesIconGeometry}" Width="13" Height="13" VerticalAlignment="Center" />
                         <TextBlock Text="Queries" VerticalAlignment="Center"
                                    IsVisible="{Binding $parent[TabControl].Bounds.Width, Converter={x:Static conv2:MinWidthVisibilityConverter.Instance}, ConverterParameter=210}" />
                     </StackPanel>

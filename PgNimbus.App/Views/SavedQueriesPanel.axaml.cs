@@ -2,6 +2,7 @@ using System;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using PgNimbus.App.ViewModels;
@@ -17,7 +18,8 @@ namespace PgNimbus.App.Views;
 /// saved (right-click it, or the Save shortcut) and this panel is the library
 /// you read back. The list's own verbs — open, rename, delete — are on its
 /// right-click menu rather than a button row, which is what stopped "Save" from
-/// reading as a fourth verb acting on the list selection.
+/// reading as a fourth verb acting on the list selection. The history list went
+/// the same way: open, copy, pin and clear are its right-click menu.
 /// </para></summary>
 public partial class SavedQueriesPanel : UserControl
 {
@@ -64,6 +66,46 @@ public partial class SavedQueriesPanel : UserControl
         if (Selected is { } query)
         {
             Model?.DeleteSavedQueryCommand.Execute(query);
+        }
+    }
+
+    private QueryHistoryEntry? SelectedHistoryEntry => HistoryList.SelectedItem as QueryHistoryEntry;
+
+    // Pin and Unpin are one item whose header follows the entry right-clicked.
+    private void OnHistoryMenuOpening(object? sender, EventArgs e) =>
+        PinHistoryMenuItem.Header = SelectedHistoryEntry is { Pinned: true } ? "Unpin" : "Pin";
+
+    private void OnOpenHistoryEntryClick(object? sender, RoutedEventArgs e)
+    {
+        if (SelectedHistoryEntry is { } entry)
+        {
+            Model?.LoadHistoryEntryCommand.Execute(entry);
+        }
+    }
+
+    private void OnTogglePinHistoryClick(object? sender, RoutedEventArgs e)
+    {
+        if (SelectedHistoryEntry is { } entry)
+        {
+            Model?.TogglePinCommand.Execute(entry);
+        }
+    }
+
+    private async void OnCopyHistorySqlClick(object? sender, RoutedEventArgs e)
+    {
+        if (SelectedHistoryEntry is not { } entry || TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard)
+        {
+            return;
+        }
+
+        try
+        {
+            await clipboard.SetTextAsync(entry.Sql);
+        }
+        catch (Exception)
+        {
+            // Clipboard access can throw if another app holds it locked; a
+            // failed copy is not worth surfacing, let alone crashing over.
         }
     }
 

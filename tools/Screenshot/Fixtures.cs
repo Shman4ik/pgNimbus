@@ -178,6 +178,9 @@ public static class Fixtures
         saved.SavedQueries.Add(new SavedQuery(Guid.Parse("33333333-3333-3333-3333-333333333333"), "Unshipped items", "SELECT o.id, count(*)\n  FROM orders o\n  JOIN order_items i ON i.order_id = o.id\n WHERE o.status = 'pending'\n GROUP BY o.id;"));
 
         var now = new DateTimeOffset(2026, 7, 30, 9, 41, 0, TimeSpan.Zero);
+        // History rows say "09:41", "Yesterday 14:02": relative to this, not to
+        // the day a baseline happens to be rendered.
+        App.Converters.HistoryText.Now = () => now.AddMinutes(4);
         saved.History.Add(new QueryHistoryEntry("SELECT * FROM orders ORDER BY placed_at DESC LIMIT 50;", now, 18.4, "50 rows") { Connection = "localhost/shop" });
         saved.History.Add(new QueryHistoryEntry("UPDATE orders SET status = 'shipped' WHERE id = 4821;", now.AddMinutes(-6), 4.1, "1 row affected") { Connection = "localhost/shop" });
         saved.History.Add(new QueryHistoryEntry("SELECT count(*) FROM analytics.events;", now.AddMinutes(-22), 942.0, "1 row") { Connection = "localhost/shop" });

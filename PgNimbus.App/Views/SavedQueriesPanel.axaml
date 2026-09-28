@@ -9,44 +9,70 @@
     <!-- Saved queries + run history sidebar tab. DataContext is the
          MainViewModel's SavedQueries, supplied by the host. Double-tapping a
          list row opens it in a new tab (wired in code-behind). -->
-    <Grid RowDefinitions="Auto,*,Auto,Auto,*,Auto" Margin="0,8,0,0">
-        <TextBlock Grid.Row="0" Classes="sectionHeader" Text="SAVED QUERIES" Margin="4,0,4,6" />
-        <Border Grid.Row="1" Classes="card" MinHeight="80">
-            <Grid>
-                <!-- No name box and no Save button under this list anymore. They
-                     were the reported confusion: the box sat *below* the list and
-                     Save sat in a row with Load and Delete, which act on the list
-                     selection - so Save read as acting on the selection too, not on
-                     the open tab, and the one route to saving a query was a control
-                     nobody recognised as one. Saving now starts where the query is
-                     (right-click the tab, Ctrl+S, or the palette) and this list is
-                     just the list. Load and Delete moved to the right-click menu, the
-                     same trade the connection dialog's button row made. -->
-                <ListBox Name="SavedQueriesList" ItemsSource="{Binding SavedQueries}">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate x:DataType="query:SavedQuery">
-                            <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Sql}" />
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                    <ListBox.ContextFlyout>
-                        <MenuFlyout>
-                            <MenuItem Header="Open in New Tab" Click="OnOpenSavedQueryClick" />
-                            <MenuItem Header="Rename…" Click="OnRenameSavedQueryClick" />
-                            <Separator />
-                            <MenuItem Header="Delete" Click="OnDeleteSavedQueryClick" />
-                        </MenuFlyout>
-                    </ListBox.ContextFlyout>
-                </ListBox>
-                <!-- The empty state names the gesture, since it is the only place
-                     a user with an empty list will look for one. -->
-                <TextBlock IsVisible="{Binding HasNoSavedQueries}" IsHitTestVisible="False"
-                           Text="Nothing saved yet. Right-click a query tab and choose Save query, or press the Save shortcut."
-                           TextWrapping="Wrap" TextAlignment="Center" Opacity="0.6" FontSize="12"
-                           Margin="12" HorizontalAlignment="Center" VerticalAlignment="Center" />
-            </Grid>
-        </Border>
-        <TextBlock Grid.Row="2" Classes="sectionHeader" Text="HISTORY" Margin="4,16,4,6" />
-        <!-- Search + per-connection scope toggle -->
+    <UserControl.Styles>
+        <!-- A history row's pin: always shown on a pinned entry, and on the row under
+             the pointer or selected, where it is how an entry gets pinned. A faint pin
+             on every row was the list's loudest texture. Opacity rather than
+             IsVisible, so a row doesn't reflow as the pointer crosses it. The glyph
+             takes the row's own foreground (no accent), so it stays readable on a
+             focused list's accent-filled selected row. -->
+        <Style Selector="Button.historyPin">
+            <Setter Property="Opacity" Value="0" />
+        </Style>
+        <Style Selector="ListBoxItem:pointerover Button.historyPin, ListBoxItem:selected Button.historyPin">
+            <Setter Property="Opacity" Value="0.45" />
+        </Style>
+        <Style Selector="Button.historyPin.pinned, ListBoxItem Button.historyPin.pinned">
+            <Setter Property="Opacity" Value="1" />
+        </Style>
+    </UserControl.Styles>
+
+    <!-- The lists sit on the shell tone like the schema tree beside them, with
+         no card around each: two cards stacked in a 300px column were two more
+         borders and 16px of padding for nothing a section header doesn't say. -->
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto,*" Margin="0,10,0,0">
+        <TextBlock Grid.Row="0" Classes="sectionHeader" Text="SAVED QUERIES" Margin="6,0,6,4" />
+        <!-- Sized to its rows, up to a cap: an equal half of the panel left a short
+             list floating over empty space while the history below it scrolled. -->
+        <Grid Grid.Row="1">
+            <!-- No name box and no Save button under this list anymore. They
+                 were the reported confusion: the box sat *below* the list and
+                 Save sat in a row with Load and Delete, which act on the list
+                 selection - so Save read as acting on the selection too, not on
+                 the open tab, and the one route to saving a query was a control
+                 nobody recognised as one. Saving now starts where the query is
+                 (right-click the tab, Ctrl+S, or the palette) and this list is
+                 just the list. Load and Delete moved to the right-click menu, the
+                 same trade the connection dialog's button row made. -->
+            <ListBox Name="SavedQueriesList" ItemsSource="{Binding SavedQueries}" MaxHeight="240"
+                     IsVisible="{Binding !HasNoSavedQueries}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="query:SavedQuery">
+                        <DockPanel ToolTip.Tip="{Binding Sql}">
+                            <PathIcon DockPanel.Dock="Left" Data="{StaticResource QueriesIconGeometry}"
+                                      Width="11" Height="11" Margin="0,0,8,0" Opacity="0.55" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                        </DockPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+                <ListBox.ContextFlyout>
+                    <MenuFlyout>
+                        <MenuItem Header="Open in New Tab" Click="OnOpenSavedQueryClick" />
+                        <MenuItem Header="Rename…" Click="OnRenameSavedQueryClick" />
+                        <Separator />
+                        <MenuItem Header="Delete" Click="OnDeleteSavedQueryClick" />
+                    </MenuFlyout>
+                </ListBox.ContextFlyout>
+            </ListBox>
+            <!-- The empty state names the gesture, since it is the only place
+                 a user with an empty list will look for one. -->
+            <TextBlock IsVisible="{Binding HasNoSavedQueries}"
+                       Text="Nothing saved yet. Right-click a query tab and choose Save query, or press the Save shortcut."
+                       TextWrapping="Wrap" Classes="secondary" FontSize="12" Margin="6,2,6,0" />
+        </Grid>
+        <TextBlock Grid.Row="2" Classes="sectionHeader" Text="HISTORY" Margin="6,16,6,6" />
+        <!-- Search + per-connection scope toggle, the same box-and-chip row as the
+             schema filter on the other tab -->
         <DockPanel Grid.Row="3" Margin="0,0,0,6">
             <ToggleButton DockPanel.Dock="Right" Classes="chip" Padding="5" Margin="6,0,0,0"
                           VerticalAlignment="Center" IsChecked="{Binding ScopeHistoryToConnection}"
@@ -69,49 +95,57 @@
                 </TextBox.InnerRightContent>
             </TextBox>
         </DockPanel>
-        <Border Grid.Row="4" Classes="card" MinHeight="80">
-            <Grid>
-                <ListBox Name="HistoryList" ItemsSource="{Binding FilteredHistory}">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate x:DataType="query:QueryHistoryEntry">
-                            <DockPanel>
-                                <Button DockPanel.Dock="Right" Classes="chip" Padding="4" VerticalAlignment="Center"
-                                        Command="{Binding $parent[ListBox].((vm:SavedQueriesViewModel)DataContext).TogglePinCommand}"
-                                        CommandParameter="{Binding}"
-                                        ToolTip.Tip="Pin this entry so it stays on top and survives Clear history">
-                                    <Panel>
-                                        <PathIcon Data="{StaticResource PinIconGeometry}" Width="11" Height="11"
-                                                  Foreground="{DynamicResource AppAccentBrush}" IsVisible="{Binding Pinned}" />
-                                        <PathIcon Data="{StaticResource PinIconGeometry}" Width="11" Height="11"
-                                                  Opacity="0.35" IsVisible="{Binding !Pinned}" />
-                                    </Panel>
-                                </Button>
-                                <StackPanel>
-                                    <TextBlock Text="{Binding Sql}" TextTrimming="CharacterEllipsis" MaxLines="2" TextWrapping="Wrap" FontSize="12" />
-                                    <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <TextBlock Text="{Binding ExecutedAt}" Opacity="0.6" FontSize="10" />
-                                        <TextBlock Text="{Binding Connection}" Opacity="0.6" FontSize="10"
-                                                   IsVisible="{Binding Connection, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
-                                    </StackPanel>
-                                </StackPanel>
-                            </DockPanel>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
-                <TextBlock IsVisible="{Binding HasNoHistory}" IsHitTestVisible="False"
-                           Text="Queries you run will appear here"
-                           TextWrapping="Wrap" TextAlignment="Center" Opacity="0.6" FontSize="12"
-                           Margin="12" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                <TextBlock IsVisible="{Binding HasNoHistoryMatches}" IsHitTestVisible="False"
-                           Text="Nothing in history matches"
-                           TextWrapping="Wrap" TextAlignment="Center" Opacity="0.6" FontSize="12"
-                           Margin="12" HorizontalAlignment="Center" VerticalAlignment="Center" />
-            </Grid>
-        </Border>
-        <StackPanel Grid.Row="5" Orientation="Horizontal" Spacing="6" Margin="0,8,0,0">
-            <Button Content="Load selected" Command="{Binding LoadHistoryEntryCommand}" CommandParameter="{Binding #HistoryList.SelectedItem}"
-                    ToolTip.Tip="Open the selected entry in a new tab (or double-click it)" />
-            <Button Content="Clear history" Command="{Binding ClearHistoryCommand}" />
-        </StackPanel>
+        <Grid Grid.Row="4">
+            <!-- Load and Clear used to be a row of stock buttons under this list.
+                 Load is the double-click (UI design rule 2) and the menu's first
+                 item; Clear, which keeps pinned entries, is the menu's last. -->
+            <ListBox Name="HistoryList" ItemsSource="{Binding FilteredHistory}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="query:QueryHistoryEntry">
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" Classes="chip historyPin" Classes.pinned="{Binding Pinned}"
+                                    Padding="4" Margin="4,0,0,0" VerticalAlignment="Top"
+                                    Command="{Binding $parent[ListBox].((vm:SavedQueriesViewModel)DataContext).TogglePinCommand}"
+                                    CommandParameter="{Binding}"
+                                    ToolTip.Tip="Pin this entry so it stays on top and survives Clear History">
+                                <PathIcon Data="{StaticResource PinIconGeometry}" Width="11" Height="11" />
+                            </Button>
+                            <StackPanel Spacing="1">
+                                <!-- Folded onto one line: a formatted query's own line
+                                     breaks and indentation turned into a staircase here -->
+                                <TextBlock Text="{Binding Sql, Converter={x:Static conv2:HistoryText.OneLine}}"
+                                           TextTrimming="CharacterEllipsis" MaxLines="2" TextWrapping="Wrap" FontSize="12"
+                                           ToolTip.Tip="{Binding Sql}" />
+                                <TextBlock Classes="secondary" FontSize="11" TextTrimming="CharacterEllipsis"
+                                           ToolTip.Tip="{Binding Converter={x:Static conv2:HistoryText.Detail}}">
+                                    <TextBlock.Text>
+                                        <MultiBinding Converter="{x:Static conv2:HistoryText.Meta}">
+                                            <Binding />
+                                            <Binding Path="$parent[ListBox].((vm:SavedQueriesViewModel)DataContext).CurrentConnection" />
+                                        </MultiBinding>
+                                    </TextBlock.Text>
+                                </TextBlock>
+                            </StackPanel>
+                        </DockPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+                <ListBox.ContextFlyout>
+                    <MenuFlyout Opening="OnHistoryMenuOpening">
+                        <MenuItem Header="Open in New Tab" Click="OnOpenHistoryEntryClick" />
+                        <MenuItem Header="Copy SQL" Click="OnCopyHistorySqlClick" />
+                        <MenuItem Name="PinHistoryMenuItem" Header="Pin" Click="OnTogglePinHistoryClick" />
+                        <Separator />
+                        <MenuItem Header="Clear History" Command="{Binding ClearHistoryCommand}"
+                                  ToolTip.Tip="Remove every entry that isn't pinned" />
+                    </MenuFlyout>
+                </ListBox.ContextFlyout>
+            </ListBox>
+            <TextBlock IsVisible="{Binding HasNoHistory}" IsHitTestVisible="False"
+                       Text="Queries you run will appear here"
+                       TextWrapping="Wrap" Classes="secondary" FontSize="12" Margin="6,2,6,0" />
+            <TextBlock IsVisible="{Binding HasNoHistoryMatches}" IsHitTestVisible="False"
+                       Text="Nothing in history matches"
+                       TextWrapping="Wrap" Classes="secondary" FontSize="12" Margin="6,2,6,0" />
+        </Grid>
     </Grid>
 </UserControl>
