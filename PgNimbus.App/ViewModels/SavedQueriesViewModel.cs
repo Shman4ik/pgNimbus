@@ -32,6 +32,12 @@ public sealed partial class SavedQueriesViewModel : ObservableObject
     [ObservableProperty]
     private bool _scopeHistoryToConnection;
 
+    /// <summary>Where the saved-query list is written. Exposed so tests can prove it isn't the user's real file.</summary>
+    public SavedQueryStore SavedQueryStore => _savedQueryStore;
+
+    /// <summary>Where the run history is written. Exposed for the same reason as <see cref="SavedQueryStore"/>.</summary>
+    public QueryHistoryStore HistoryStore => _historyStore;
+
     public ObservableCollection<SavedQuery> SavedQueries { get; } = [];
 
     /// <summary>The full history, most recent first — the source of truth the filtered view derives from.</summary>

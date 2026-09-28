@@ -692,7 +692,7 @@ public static class Scenarios
     /// </summary>
     public static Window ConnectionDialog()
     {
-        var scratch = Path.Combine(Path.GetTempPath(), "pgnimbus-fixtures", Guid.NewGuid().ToString("N"));
+        var scratch = IsolatedAppData.NewDirectory("connection-dialog");
         var viewModel = new ConnectionDialogViewModel(
             new ConnectionProfileStore(Path.Combine(scratch, "connections.json")),
             new MemoryCredentialStore());

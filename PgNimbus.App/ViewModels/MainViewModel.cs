@@ -619,7 +619,9 @@ public sealed partial class MainViewModel : ObservableObject
         Action<IReadOnlyList<string>>? persistExcludedSchemas = null,
         CompletionUsage? completionUsage = null,
         (KeywordCase KeywordCase, bool AlwaysQualifyTables, bool EnterAccepts)? completionSettings = null,
-        Action<KeywordCase, bool, bool>? persistCompletionSettings = null)
+        Action<KeywordCase, bool, bool>? persistCompletionSettings = null,
+        SavedQueryStore? savedQueryStore = null,
+        QueryHistoryStore? historyStore = null)
     {
         CompletionUsage = completionUsage ?? new CompletionUsage();
         ConnectionHost = connectionHost;
@@ -675,9 +677,12 @@ public sealed partial class MainViewModel : ObservableObject
         // stale copy; it reads it on each refresh.
         CompletionProvider.ExcludedSchemas = _excludedSchemas;
         CompletionProvider.StatusChanged += status => Dispatcher.UIThread.Post(() => OnCompletionCatalogStatus(status));
+        // The stores default to the app data directory; the screenshot fixtures
+        // and the UI tests pass their own, so a test that saves a query can
+        // never overwrite the user's real list.
         SavedQueries = new SavedQueriesViewModel(
-            new SavedQueryStore(),
-            new QueryHistoryStore(),
+            savedQueryStore ?? new SavedQueryStore(),
+            historyStore ?? new QueryHistoryStore(),
             (title, sql) =>
             {
                 var tab = NewTab();
