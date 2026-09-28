@@ -28,6 +28,17 @@ public static class Hotkeys
     /// <summary>"Ctrl" or "Cmd" — the display name of <see cref="Command"/>.</summary>
     public static string CommandLabel => Nimbus.Ui.Hotkeys.PrimaryLabel;
 
+    /// <summary>
+    /// The live scheme as the command catalog knows it: which key
+    /// <see cref="PgNimbus.Core.Commands.ChordModifiers.Command"/> is, and
+    /// whether chords are spelled "Ctrl+Shift+F" or "⇧⌘F". Follows the
+    /// hotkey-scheme preference, not the OS alone.
+    /// </summary>
+    public static PgNimbus.Core.Commands.ChordScheme Scheme =>
+        Command.HasFlag(KeyModifiers.Meta)
+            ? PgNimbus.Core.Commands.ChordScheme.Cmd
+            : PgNimbus.Core.Commands.ChordScheme.Ctrl;
+
     /// <summary>Re-resolves the modifier from the persisted scheme; notifies on an actual change.</summary>
     public static void Initialize(string scheme) => Nimbus.Ui.Hotkeys.Initialize(scheme);
 

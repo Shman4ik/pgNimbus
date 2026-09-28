@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Xml;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Documents;
 using Avalonia.Data;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
@@ -155,6 +156,24 @@ public partial class ResultsGridPanel : UserControl
         ApplyJsonHighlightingTheme();
         ApplyTextSelectionBrush();
         HoistCellInspectorToWindowRoot();
+        UpdateRunHint();
+        Hotkeys.Changed += UpdateRunHint;
+    }
+
+    // The empty grid's "Run a query with Ctrl+Enter or F5": the chords come
+    // from the catalog's Run entry in the live scheme ("⌘↩ or F5" on a Mac),
+    // re-spelled when the scheme preference changes.
+    private void UpdateRunHint()
+    {
+        var chords = CommandBindings.LabelsFor(CommandId.Run);
+        var inlines = new InlineCollection { new Run("Run a query") };
+        for (var i = 0; i < chords.Count; i++)
+        {
+            inlines.Add(new Run(i == 0 ? " with " : " or "));
+            inlines.Add(new Run(chords[i]) { FontWeight = FontWeight.SemiBold });
+        }
+
+        RunHintText.Inlines = inlines;
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
@@ -175,6 +194,7 @@ public partial class ResultsGridPanel : UserControl
         // re-hoists (it already reparents the overlay off whatever old parent it
         // still has).
         _inspectorOverlayHost = null;
+        Hotkeys.Changed -= UpdateRunHint;
 
         base.OnDetachedFromVisualTree(e);
     }
@@ -837,6 +857,11 @@ public partial class ResultsGridPanel : UserControl
         if (menu.Items.OfType<MenuItem>().FirstOrDefault(m => m.Name == "RowDetailsMenuItem") is { } rowDetails)
         {
             rowDetails.InputGesture = CommandBindings.GestureFor(CommandId.RowDetails);
+        }
+
+        if (menu.Items.OfType<MenuItem>().FirstOrDefault(m => m.Name == "CopyMenuItem") is { } copy)
+        {
+            copy.InputGesture = CommandBindings.GestureFor(CommandId.CopySelection);
         }
 
         _followFkItem ??= menu.Items.OfType<MenuItem>().FirstOrDefault(m => m.Name == "FollowFkMenuItem");

@@ -47,6 +47,9 @@ public static class CommandBindings
         CommandKey.Slash => Key.OemQuestion,
         CommandKey.Plus => Key.OemPlus,
         CommandKey.Minus => Key.OemMinus,
+        CommandKey.Period => Key.OemPeriod,
+        CommandKey.OpenBracket => Key.OemOpenBrackets,
+        CommandKey.CloseBracket => Key.OemCloseBrackets,
         _ => Enum.TryParse<Key>(key.ToString(), out var parsed)
             ? parsed
             : throw new InvalidOperationException($"No Avalonia Key mapping for CommandKey.{key}."),
@@ -57,27 +60,30 @@ public static class CommandBindings
     /// <see cref="ChordModifiers.Control"/> stays literal Ctrl on every
     /// platform (completion's Ctrl+Space — Cmd+Space is Spotlight).
     /// </summary>
-    public static KeyModifiers ToModifiers(ChordModifiers modifiers)
+    public static KeyModifiers ToModifiers(ChordModifiers modifiers) =>
+        ToModifiers(new Chord(CommandKey.A, modifiers).Resolve(Hotkeys.Scheme).Modifiers);
+
+    public static KeyModifiers ToModifiers(PhysicalModifiers modifiers)
     {
         var result = KeyModifiers.None;
-        if (modifiers.HasFlag(ChordModifiers.Command))
-        {
-            result |= Hotkeys.Command;
-        }
-
-        if (modifiers.HasFlag(ChordModifiers.Control))
+        if (modifiers.HasFlag(PhysicalModifiers.Control))
         {
             result |= KeyModifiers.Control;
         }
 
-        if (modifiers.HasFlag(ChordModifiers.Shift))
+        if (modifiers.HasFlag(PhysicalModifiers.Alt))
+        {
+            result |= KeyModifiers.Alt;
+        }
+
+        if (modifiers.HasFlag(PhysicalModifiers.Shift))
         {
             result |= KeyModifiers.Shift;
         }
 
-        if (modifiers.HasFlag(ChordModifiers.Alt))
+        if (modifiers.HasFlag(PhysicalModifiers.Meta))
         {
-            result |= KeyModifiers.Alt;
+            result |= KeyModifiers.Meta;
         }
 
         return result;
@@ -85,36 +91,48 @@ public static class CommandBindings
 
     public static KeyGesture ToGesture(Chord chord) => new(ToKey(chord.Key), ToModifiers(chord.Modifiers));
 
-    /// <summary>The primary gesture for a command, or null when it has none (palette-only actions).</summary>
+    /// <summary>
+    /// The gesture a command is named by in the live scheme — what a menu item
+    /// or tooltip shows — or null when it has none (palette-only actions). On
+    /// the Cmd scheme that can be the Mac's own chord (⇧⌘] for the next tab)
+    /// rather than the catalog's cross-platform one.
+    /// </summary>
     public static KeyGesture? GestureFor(CommandId id) =>
-        CommandCatalog.ChordFor(id) is { } chord ? ToGesture(chord) : null;
+        CommandCatalog.ChordFor(id, Hotkeys.Scheme) is { } chord ? ToGesture(chord) : null;
+
+    /// <summary>Every gesture that invokes a command in the live scheme, primary first.</summary>
+    public static IEnumerable<KeyGesture> GesturesFor(CommandId id) =>
+        CommandCatalog.Get(id).ChordsFor(Hotkeys.Scheme).Select(ToGesture);
+
+    /// <summary>Every chord of a command, primary first, spelled for the live scheme: "⌘↩", "F5".</summary>
+    public static IReadOnlyList<string> LabelsFor(CommandId id)
+    {
+        var scheme = Hotkeys.Scheme;
+        return CommandCatalog.Get(id).ChordsFor(scheme).Select(chord => chord.Label(scheme)).ToList();
+    }
+
+    /// <summary>"Ctrl+K" or "⌘K": a command's primary chord, spelled for the live scheme.</summary>
+    public static string LabelFor(CommandId id) =>
+        CommandCatalog.ChordFor(id, Hotkeys.Scheme)?.Label(Hotkeys.Scheme) ?? string.Empty;
 
     /// <summary>
-    /// Whether a key event is exactly this command's primary chord. Used by the
-    /// panels and by <c>MainWindow.OnKeyDown</c>, where behaviour that a
-    /// <c>KeyBinding</c> can't express (focus toggles, panels that bind the
-    /// physical key themselves) still has to match the catalog's gesture.
+    /// Whether a key event is one of this command's gestures: its chord and
+    /// every synonym the live scheme adds (⌘. for Cancel, ⌘? beside F1), but
+    /// not <see cref="CommandDescriptor.AltChord"/>, which can be a different
+    /// action (Escape beside Enter's commit) — see <see cref="MatchesAlt"/>.
+    /// Used by the panels and by <c>MainWindow.OnKeyDown</c>, where behaviour
+    /// that a <c>KeyBinding</c> can't express (focus toggles, panels that bind
+    /// the physical key themselves) still has to match the catalog's gesture.
     /// </summary>
-    public static bool Matches(CommandId id, KeyEventArgs e)
-    {
-        if (CommandCatalog.ChordFor(id) is not { } chord)
-        {
-            return false;
-        }
-
-        return e.Key == ToKey(chord.Key) && e.KeyModifiers == ToModifiers(chord.Modifiers);
-    }
+    public static bool Matches(CommandId id, KeyEventArgs e) =>
+        CommandCatalog.Get(id).SynonymsFor(Hotkeys.Scheme).Any(chord => Matches(chord, e));
 
     /// <summary>As <see cref="Matches(CommandId, KeyEventArgs)"/>, for a command's secondary gesture.</summary>
-    public static bool MatchesAlt(CommandId id, KeyEventArgs e)
-    {
-        if (CommandCatalog.Get(id).AltChord is not { } chord)
-        {
-            return false;
-        }
+    public static bool MatchesAlt(CommandId id, KeyEventArgs e) =>
+        CommandCatalog.Get(id).AltChord is { } chord && Matches(chord, e);
 
-        return e.Key == ToKey(chord.Key) && e.KeyModifiers == ToModifiers(chord.Modifiers);
-    }
+    private static bool Matches(Chord chord, KeyEventArgs e) =>
+        e.Key == ToKey(chord.Key) && e.KeyModifiers == ToModifiers(chord.Modifiers);
 
     /// <summary>The command a catalog entry invokes; null while its target isn't available yet.</summary>
     public static ICommand? Resolve(CommandId id, MainViewModel vm) =>

@@ -152,7 +152,8 @@
                     <Grid ColumnDefinitions="Auto,*,Auto">
                         <PathIcon Grid.Column="0" Data="{StaticResource MagnifyIconGeometry}" Width="11" Height="11" Opacity="0.55" VerticalAlignment="Center" />
                         <TextBlock Grid.Column="1" Text="Search tables, queries, actions…" FontSize="12" Opacity="0.55" Margin="7,0,0,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                        <TextBlock Grid.Column="2" Name="PaletteSearchShortcut" FontSize="11" Opacity="0.6" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="2" Name="PaletteSearchShortcut" FontSize="11" Opacity="0.6" VerticalAlignment="Center"
+                                   FontFamily="{DynamicResource KeyCapFont}" />
                     </Grid>
                 </Button>
 
@@ -594,7 +595,7 @@
                              no Command (DESIGN rule 6). -->
                         <ToggleButton Classes="chip" Padding="4" VerticalAlignment="Center"
                                       IsChecked="{Binding ShowFilterBar, Mode=TwoWay}"
-                                      ToolTip.Tip="Always show the filter bar (Ctrl/Cmd+F in the grid adds a condition)"
+                                      cmd:CommandTip.Text="Always show the filter bar" cmd:CommandTip.Command="FilterRows"
                                       AutomationProperties.Name="Always show the filter bar">
                             <PathIcon Data="{StaticResource FilterIconGeometry}" Width="11" Height="11" />
                         </ToggleButton>
@@ -693,6 +694,7 @@
                                         <TextBlock Grid.Column="2" Text="{Binding Shortcut}"
                                                    IsVisible="{Binding Shortcut, Converter={x:Static conv:ObjectConverters.IsNotNull}}"
                                                    FontSize="11" Opacity="0.55" VerticalAlignment="Center"
+                                                   FontFamily="{DynamicResource KeyCapFont}"
                                                    Margin="12,0,0,0" />
                                         <TextBlock Grid.Column="3" Text="{Binding Category}"
                                                    FontSize="11" Opacity="0.6" VerticalAlignment="Center"

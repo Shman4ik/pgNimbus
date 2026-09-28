@@ -108,7 +108,7 @@
                               CellPointerPressed="OnResultsGridCellPointerPressed">
                         <DataGrid.ContextMenu>
                             <ContextMenu x:DataType="vm:MainViewModel">
-                                <MenuItem Header="Copy" InputGesture="Ctrl+C" Click="OnCopyCells" />
+                                <MenuItem Name="CopyMenuItem" Header="Copy" Click="OnCopyCells" />
                                 <Separator />
                                 <MenuItem Header="Copy as">
                                     <MenuItem Header="CSV" Click="OnCopyAsCsv" />
@@ -151,9 +151,11 @@
                                   Opacity="0.28" HorizontalAlignment="Center" />
                         <TextBlock Text="No results yet" FontSize="14" FontWeight="SemiBold"
                                    Opacity="0.6" HorizontalAlignment="Center" />
-                        <TextBlock Opacity="0.6" FontSize="12" HorizontalAlignment="Center">
-                            Run a query with <Run FontWeight="SemiBold">Ctrl+Enter</Run> or <Run FontWeight="SemiBold">F5</Run>
-                        </TextBlock>
+                        <!-- "Run a query with Ctrl+Enter or F5" / "…with ⌘↩ or F5": the
+                             chords are the catalog's Run chords in the live scheme,
+                             composed in code (UpdateRunHint), never typed here. -->
+                        <TextBlock Name="RunHintText" Opacity="0.6" FontSize="12" HorizontalAlignment="Center"
+                                   FontFamily="{DynamicResource KeyCapFont}" />
                     </StackPanel>
                     <!-- Browsing and nothing came back: an empty table and a filter that
                          matched nothing send you looking for opposite problems, so they

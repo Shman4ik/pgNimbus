@@ -18,6 +18,7 @@
         <Style Selector="Border.kbd TextBlock">
             <Setter Property="FontSize" Value="11" />
             <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FontFamily" Value="{DynamicResource KeyCapFont}" />
         </Style>
         <Style Selector="TextBlock.combo">
             <Setter Property="FontSize" Value="11" />
