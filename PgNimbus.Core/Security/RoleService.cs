@@ -45,7 +45,7 @@ public sealed class RoleService(NpgsqlDataSource dataSource)
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         command.Parameters.AddWithValue("includePredefined", includePredefined);
         await using var reader = await command.ExecuteReaderAsync(ct);
 
@@ -105,7 +105,7 @@ public sealed class RoleService(NpgsqlDataSource dataSource)
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
         var sql = PgFeatures.SupportsRoleMemberOptions(connection.PostgreSqlVersion) ? modernSql : legacySql;
 
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         await using var reader = await command.ExecuteReaderAsync(ct);
 
         var results = new List<RoleMembership>();
@@ -242,7 +242,7 @@ public sealed class RoleService(NpgsqlDataSource dataSource)
     public async Task<string> GetCurrentRoleAsync(CancellationToken ct)
     {
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
-        await using var command = new NpgsqlCommand("SELECT current_user", connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag("SELECT current_user"), connection);
         await using var reader = await command.ExecuteReaderAsync(ct);
         await reader.ReadAsync(ct);
 
@@ -267,7 +267,7 @@ public sealed class RoleService(NpgsqlDataSource dataSource)
         CancellationToken ct)
     {
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         command.Parameters.AddWithValue("role", role);
         if (limit is { } cap)
         {

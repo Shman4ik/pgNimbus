@@ -292,6 +292,11 @@ public sealed partial class SlowQueriesViewModel(StatementStatsService service) 
             notes.Add($"{latest.HiddenStatements:N0} statements of other roles are hidden (needs pg_read_all_stats)");
         }
 
+        if (latest.OwnStatements > 0)
+        {
+            notes.Add($"{latest.OwnStatements:N0} of pgNimbus's own catalog reads left out");
+        }
+
         notes.Add($"read {Local(latest.TakenAt):HH:mm:ss}");
         Status = string.Join(" · ", notes);
     }

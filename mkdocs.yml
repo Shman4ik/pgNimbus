@@ -31,6 +31,7 @@ exclude_docs: |
   design/
   PROGRESS.md
   PRE-LAUNCH-CHECKLIST.md
+  RELEASE-CHECKLIST.md
 
 theme:
   name: material

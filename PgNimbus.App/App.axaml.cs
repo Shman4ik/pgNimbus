@@ -59,6 +59,9 @@ public partial class App : Application
     private static void PersistWordWrapEditor(bool value) =>
         SettingsStore.Save(SettingsStore.Load() with { WordWrapEditor = value });
 
+    private static void PersistPlanTreeView(bool value) =>
+        SettingsStore.Save(SettingsStore.Load() with { PlanTreeView = value });
+
     private static (KeywordCase, bool, bool) LoadCompletionSettings()
     {
         var settings = SettingsStore.Load();
@@ -548,6 +551,8 @@ public partial class App : Application
             persistShowFilterBar: PersistShowFilterBar,
             wordWrapEditor: SettingsStore.Load().WordWrapEditor,
             persistWordWrapEditor: PersistWordWrapEditor,
+            planTreeView: SettingsStore.Load().PlanTreeView,
+            persistPlanTreeView: PersistPlanTreeView,
             workspace: workspaceKey is null ? null : workspaceStore.GetEntry(workspaceKey),
             recentSqlFiles: SettingsStore.Load().RecentSqlFiles,
             persistRecentSqlFiles: PersistRecentSqlFiles,

@@ -299,16 +299,29 @@ public partial class SchemaTreePanel : UserControl
             return;
         }
 
+        var acted = false;
         switch (container?.DataContext)
         {
             case TableNode table when Model.PreviewTableRequested is { } preview:
                 _ = preview(table);
+                acted = true;
                 break;
             // A function's natural default action is its source - same as the
             // context menu's "Source (DDL)".
             case FunctionNode { HasSource: true } function when Model.ShowFunctionSourceRequested is { } showSource:
                 _ = showSource(function);
+                acted = true;
                 break;
+        }
+
+        // The double-click was the default action, not a request to expand. The
+        // TreeViewItem has already toggled itself by the time this bubbles here (it
+        // marks the event handled when it does), so put it back: browsing a table
+        // used to leave its column list open in the tree as well. The chevron still
+        // expands.
+        if (acted && e.Handled && container is not null)
+        {
+            container.SetCurrentValue(TreeViewItem.IsExpandedProperty, !container.IsExpanded);
         }
     }
 }

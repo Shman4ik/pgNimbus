@@ -293,6 +293,14 @@
                         </ScrollViewer>
                         <ScrollViewer Grid.Row="2" IsVisible="{Binding !ActiveTab.IsPlanTextView}">
                             <TreeView ItemsSource="{Binding ActiveTab.ExplainRoots}" Margin="4">
+                                <!-- Open all the way down: the heat bars only say something when
+                                     every node is on screen, and a plan opening as one collapsed
+                                     root hid the whole tree behind a chevron. -->
+                                <TreeView.Styles>
+                                    <Style Selector="TreeViewItem">
+                                        <Setter Property="IsExpanded" Value="True" />
+                                    </Style>
+                                </TreeView.Styles>
                                 <TreeView.ItemTemplate>
                                     <TreeDataTemplate DataType="vm:ExplainNodeViewModel" ItemsSource="{Binding Children}">
                                         <StackPanel Margin="0,2">

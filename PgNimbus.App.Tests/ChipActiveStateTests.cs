@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Presenters;
+using Avalonia.Controls.Primitives;
 using Avalonia.Media;
 using Avalonia.VisualTree;
 
@@ -85,6 +86,36 @@ public class ChipActiveStateTests
         });
     }
 
+    [Test]
+    public async Task A_checked_toggle_chip_keeps_its_ordinary_text_colour_on_the_wash()
+    {
+        await Ui.Run(async () =>
+        {
+            // Fluent's checked ToggleButton paints its text in the accent-fill
+            // foreground, white. On the chip's light wash that was unreadable
+            // (the plan inspector's Wrap, the filter pin) until the chip set its own.
+            var off = new ToggleButton { Content = "Tree", Classes = { "chip" } };
+            var on = new ToggleButton { Content = "Wrap", Classes = { "chip" }, IsChecked = true };
+            var window = new Window
+            {
+                Content = new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Children = { off, on } },
+                Width = 300,
+                Height = 100,
+            };
+            Ui.Show(window);
+
+            await Assert.That(ColorOf(Fill(on))).IsEqualTo(SelectionWash(on).Color);
+            await Assert.That(ColorOf(Text(on))).IsEqualTo(ColorOf(Text(off)));
+
+            ((IPseudoClasses)on.Classes).Add(":pointerover");
+            Ui.Settle();
+            await Assert.That(ColorOf(Text(on))).IsEqualTo(ColorOf(Text(off)));
+
+            window.Close();
+            Ui.Settle();
+        });
+    }
+
     private static (Window Window, Button Plain, Button Active) OpenPair()
     {
         var plain = new Button { Content = "Rows", Classes = { "chip" } };
@@ -99,8 +130,12 @@ public class ChipActiveStateTests
         return (window, plain, active);
     }
 
-    private static IBrush? Fill(Button chip) =>
-        chip.GetVisualDescendants().OfType<ContentPresenter>().First(c => c.Name == "PART_ContentPresenter").Background;
+    private static IBrush? Fill(Control chip) => Part(chip).Background;
+
+    private static IBrush? Text(Control chip) => Part(chip).Foreground;
+
+    private static ContentPresenter Part(Control chip) =>
+        chip.GetVisualDescendants().OfType<ContentPresenter>().First(c => c.Name == "PART_ContentPresenter");
 
     private static ISolidColorBrush SelectionWash(Control anchor) =>
         anchor.TryFindResource("AppSelectionBrush", anchor.ActualThemeVariant, out var value) && value is ISolidColorBrush brush

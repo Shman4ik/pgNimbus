@@ -37,6 +37,13 @@ public sealed class ShortcutsViewModel
 
     private static IReadOnlyList<ShortcutToken> Tokenize(CommandDescriptor descriptor, string commandLabel)
     {
+        // The one note that is a range of chords rather than prose: draw it as keys
+        // like every row around it, not as grey text (0.14.0 release pass).
+        if (descriptor.Id == CommandId.GoToTabByNumber)
+        {
+            return [new ShortcutToken(commandLabel, IsKey: true), new ShortcutToken("1…9", IsKey: true)];
+        }
+
         var tokens = new List<ShortcutToken>(6);
 
         if (descriptor.Chord is { } chord)

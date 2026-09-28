@@ -73,6 +73,14 @@ public sealed record AppSettings
     public bool WordWrapEditor { get; set; }
 
     /// <summary>
+    /// The plan pane's view the next plan opens in: false is the text layout
+    /// (the default, the classic <c>EXPLAIN</c> reading), true the heat-mapped
+    /// tree. Whatever the user last picked with the Text/Tree switch, so a
+    /// tree reader isn't sent back to text by every new plan.
+    /// </summary>
+    public bool PlanTreeView { get; set; }
+
+    /// <summary>
     /// The letter case completion writes keywords in: <c>"typed"</c> (the case
     /// being typed — <c>tr</c> gives <c>true</c>, the default), <c>"upper"</c>
     /// or <c>"lower"</c> (docs/design/sql-completion-audit-2.md F02, §6.7).

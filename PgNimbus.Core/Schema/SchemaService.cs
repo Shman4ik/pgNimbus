@@ -218,7 +218,7 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         await using var reader = await command.ExecuteReaderAsync(ct);
 
         var results = new List<SchemaInfo>();
@@ -249,7 +249,7 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         command.Parameters.AddWithValue("schema", schema);
         await using var reader = await command.ExecuteReaderAsync(ct);
 
@@ -278,7 +278,7 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
     public async Task<IReadOnlyList<string>> GetSearchPathAsync(CancellationToken ct)
     {
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
-        await using var command = new NpgsqlCommand("SELECT pg_catalog.current_schemas(false)", connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag("SELECT pg_catalog.current_schemas(false)"), connection);
         return await command.ExecuteScalarAsync(ct) is string[] path ? path : [];
     }
 
@@ -294,7 +294,7 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
     {
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
         await using var command = new NpgsqlCommand(
-            "SELECT pg_catalog.pg_is_in_recovery(), pg_catalog.current_setting('default_transaction_read_only') = 'on'",
+            InternalSql.Tag("SELECT pg_catalog.pg_is_in_recovery(), pg_catalog.current_setting('default_transaction_read_only') = 'on'"),
             connection);
         await using var reader = await command.ExecuteReaderAsync(ct);
         await reader.ReadAsync(ct);
@@ -321,7 +321,7 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         command.Parameters.AddWithValue("schema", schema);
         await using var reader = await command.ExecuteReaderAsync(ct);
 
@@ -364,7 +364,7 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         await using var reader = await command.ExecuteReaderAsync(ct);
 
         var results = new List<RelationInfo>();
@@ -449,7 +449,7 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         command.Parameters.AddWithValue("schema", schema);
         command.Parameters.AddWithValue("table", table);
         await using var reader = await command.ExecuteReaderAsync(ct);
@@ -494,7 +494,7 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         // uint has no implicit Npgsql parameter mapping — the oid type must be named.
         command.Parameters.Add(new NpgsqlParameter<uint>("oid", NpgsqlTypes.NpgsqlDbType.Oid) { TypedValue = tableOid });
         await using var reader = await command.ExecuteReaderAsync(ct);
@@ -546,7 +546,7 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         command.Parameters.AddWithValue("schema", schema);
         await using var reader = await command.ExecuteReaderAsync(ct);
 
@@ -594,7 +594,7 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         await using var reader = await command.ExecuteReaderAsync(ct);
 
         var results = new List<DataTypeInfo>();
@@ -620,7 +620,7 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         await using var reader = await command.ExecuteReaderAsync(ct);
 
         var results = new List<ExtensionInfo>();
@@ -647,7 +647,7 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         await using var reader = await command.ExecuteReaderAsync(ct);
 
         var results = new List<RoleInfo>();
@@ -693,7 +693,7 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         await using var reader = await command.ExecuteReaderAsync(ct);
 
         var results = new List<string>();
@@ -730,7 +730,7 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         command.Parameters.AddWithValue("schema", schema);
         await using var reader = await command.ExecuteReaderAsync(ct);
 
@@ -765,7 +765,7 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         await using var reader = await command.ExecuteReaderAsync(ct);
 
         var results = new List<SequenceName>();
@@ -791,7 +791,7 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         await using var reader = await command.ExecuteReaderAsync(ct);
 
         var results = new List<IndexName>();
@@ -813,7 +813,7 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         await using var reader = await command.ExecuteReaderAsync(ct);
 
         var results = new List<SettingInfo>();
@@ -856,7 +856,7 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         await using var reader = await command.ExecuteReaderAsync(ct);
 
         var results = new List<ForeignKeyInfo>();
@@ -882,7 +882,7 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         command.Parameters.AddWithValue("schema", schema);
         await using var reader = await command.ExecuteReaderAsync(ct);
 
@@ -935,7 +935,7 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         command.Parameters.AddWithValue("schema", schema);
         await using var reader = await command.ExecuteReaderAsync(ct);
 
@@ -968,7 +968,7 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         command.Parameters.AddWithValue("schema", schema);
         command.Parameters.AddWithValue("table", table);
         await using var reader = await command.ExecuteReaderAsync(ct);
@@ -999,7 +999,7 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
-        await using var command = new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         command.Parameters.AddWithValue("schema", schema);
         command.Parameters.AddWithValue("table", table);
         await using var reader = await command.ExecuteReaderAsync(ct);

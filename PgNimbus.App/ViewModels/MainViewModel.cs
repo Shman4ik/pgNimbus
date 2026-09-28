@@ -494,6 +494,17 @@ public sealed partial class MainViewModel : ObservableObject
 
     private readonly Action<bool>? _persistWordWrapEditor;
 
+    /// <summary>
+    /// Whether plans open as the tree rather than as text: the last Text/Tree
+    /// choice made on any tab, handed to every tab created after it and persisted.
+    /// </summary>
+    [ObservableProperty]
+    private bool _planTreeView;
+
+    private readonly Action<bool>? _persistPlanTreeView;
+
+    partial void OnPlanTreeViewChanged(bool value) => _persistPlanTreeView?.Invoke(value);
+
     /// <summary>The letter case completion writes keywords in (Preferences, §6.7 of the second completion audit).</summary>
     [ObservableProperty]
     private KeywordCase _completionKeywordCase;
@@ -599,6 +610,8 @@ public sealed partial class MainViewModel : ObservableObject
         Action<bool>? persistShowFilterBar = null,
         bool wordWrapEditor = false,
         Action<bool>? persistWordWrapEditor = null,
+        bool planTreeView = false,
+        Action<bool>? persistPlanTreeView = null,
         WorkspaceEntry? workspace = null,
         IReadOnlyList<string>? recentSqlFiles = null,
         Action<IReadOnlyList<string>>? persistRecentSqlFiles = null,
@@ -620,6 +633,8 @@ public sealed partial class MainViewModel : ObservableObject
         _persistShowFilterBar = persistShowFilterBar;
         _wordWrapEditor = wordWrapEditor;
         _persistWordWrapEditor = persistWordWrapEditor;
+        _planTreeView = planTreeView;
+        _persistPlanTreeView = persistPlanTreeView;
         _recentSqlFiles = recentSqlFiles is null ? [] : [.. recentSqlFiles];
         _persistRecentSqlFiles = persistRecentSqlFiles;
         _excludedSchemas = new HashSet<string>(excludedSchemas ?? [], StringComparer.Ordinal);
@@ -924,7 +939,18 @@ public sealed partial class MainViewModel : ObservableObject
     // Creates a query tab, wires its history hook, and makes it active.
     private QueryViewModel NewTab()
     {
-        var tab = new QueryViewModel(_engine, _explainService, GetReconcilerAsync, () => SafeModeEdits, _schemaService, () => ShowFilterBar, () => ConnectionReadOnlyHint) { DefaultTitle = $"Query {Tabs.Count + 1}" };
+        var tab = new QueryViewModel(_engine, _explainService, GetReconcilerAsync, () => SafeModeEdits, _schemaService, () => ShowFilterBar, () => ConnectionReadOnlyHint)
+        {
+            DefaultTitle = $"Query {Tabs.Count + 1}",
+            IsPlanTextView = !PlanTreeView,
+        };
+        tab.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(QueryViewModel.IsPlanTextView))
+            {
+                PlanTreeView = !tab.IsPlanTextView;
+            }
+        };
         tab.Executed += SavedQueries.RecordExecution;
         tab.Executed += entry => OnTabExecuted(tab, entry);
         Tabs.Add(tab);
@@ -1030,6 +1056,9 @@ public sealed partial class MainViewModel : ObservableObject
     public void OpenImportedPlan(ImportedPlan plan)
     {
         var tab = NewTab();
+        // Not the new tab's usual `SELECT 1;`: that read as the query the plan was
+        // made from, and one Ctrl+Enter replaced the plan with its result.
+        tab.Sql = "-- Imported plan: pasted, not run against this database.\n";
         tab.DefaultTitle = "Imported plan";
         tab.ShowImportedPlan(plan.Result, plan.DisplayText, plan.RawJson);
     }

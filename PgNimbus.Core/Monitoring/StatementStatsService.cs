@@ -37,12 +37,14 @@ public sealed record StatementStat(
 /// <param name="StatsReset">When the whole view was last reset (<c>pg_stat_statements_info</c>, extension 1.9+), or null.</param>
 /// <param name="Deallocations">How many entries the view has evicted to stay under <c>pg_stat_statements.max</c> (1.9+), or null.</param>
 /// <param name="HiddenStatements">Entries of other roles whose text this role may not read (no <c>pg_read_all_stats</c>).</param>
+/// <param name="OwnStatements">pgNimbus's own catalog and monitoring reads (<see cref="InternalSql"/>), left out of <paramref name="Statements"/>.</param>
 public sealed record StatementStatsSnapshot(
     DateTime TakenAt,
     DateTime? StatsReset,
     long? Deallocations,
     IReadOnlyList<StatementStat> Statements,
-    int HiddenStatements);
+    int HiddenStatements,
+    int OwnStatements = 0);
 
 /// <summary>Why pg_stat_statements can't be read here, if it can't.</summary>
 public enum StatementStatsProblem
@@ -109,9 +111,10 @@ public sealed class StatementStatsService(NpgsqlDataSource dataSource)
 
         var statements = new List<StatementStat>();
         var hidden = 0;
+        var own = 0;
         try
         {
-            await using var command = new NpgsqlCommand(sql, connection);
+            await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
             await using var reader = await command.ExecuteReaderAsync(ct);
             while (await reader.ReadAsync(ct))
             {
@@ -121,6 +124,15 @@ public sealed class StatementStatsService(NpgsqlDataSource dataSource)
                 if (reader.IsDBNull(2) || reader.GetString(4) == InsufficientPrivilege)
                 {
                     hidden++;
+                    continue;
+                }
+
+                // The app's own reads: counted, not listed. A user looking for
+                // what their workload costs doesn't want the client's catalog
+                // queries at the top of the list.
+                if (InternalSql.IsTagged(reader.GetString(4)))
+                {
+                    own++;
                     continue;
                 }
 
@@ -147,9 +159,9 @@ public sealed class StatementStatsService(NpgsqlDataSource dataSource)
         var info = $"{SqlIdentifier.Quote(schema)}.pg_stat_statements_info";
         var hasInfo = await RelationExistsAsync(connection, info, ct);
         await using var meta = new NpgsqlCommand(
-            hasInfo
+            InternalSql.Tag(hasInfo
                 ? $"SELECT pg_catalog.now(), stats_reset, dealloc FROM {info}"
-                : "SELECT pg_catalog.now(), NULL::timestamptz, NULL::int8",
+                : "SELECT pg_catalog.now(), NULL::timestamptz, NULL::int8"),
             connection);
         await using var metaReader = await meta.ExecuteReaderAsync(ct);
         await metaReader.ReadAsync(ct);
@@ -159,7 +171,8 @@ public sealed class StatementStatsService(NpgsqlDataSource dataSource)
             metaReader.IsDBNull(1) ? null : metaReader.GetDateTime(1),
             metaReader.IsDBNull(2) ? null : metaReader.GetInt64(2),
             statements,
-            hidden));
+            hidden,
+            own));
     }
 
     /// <summary>
@@ -175,12 +188,12 @@ public sealed class StatementStatsService(NpgsqlDataSource dataSource)
         }
 
         await using var command = new NpgsqlCommand(
-            $"""
+            InternalSql.Tag($"""
             SELECT s.query FROM {SqlIdentifier.Quote(schema)}.pg_stat_statements s
             WHERE s.queryid = @queryid AND s.userid = @userid::oid
               AND s.dbid = (SELECT oid FROM pg_catalog.pg_database WHERE datname = pg_catalog.current_database())
             LIMIT 1
-            """,
+            """),
             connection);
         command.Parameters.AddWithValue("queryid", statement.QueryId);
         command.Parameters.AddWithValue("userid", statement.UserId);
@@ -190,11 +203,11 @@ public sealed class StatementStatsService(NpgsqlDataSource dataSource)
     private static async Task<string?> FindExtensionSchemaAsync(NpgsqlConnection connection, CancellationToken ct)
     {
         await using var command = new NpgsqlCommand(
-            """
+            InternalSql.Tag("""
             SELECT n.nspname FROM pg_catalog.pg_extension e
             JOIN pg_catalog.pg_namespace n ON n.oid = e.extnamespace
             WHERE e.extname = 'pg_stat_statements'
-            """,
+            """),
             connection);
         return await command.ExecuteScalarAsync(ct) as string;
     }
@@ -202,10 +215,10 @@ public sealed class StatementStatsService(NpgsqlDataSource dataSource)
     private static async Task<HashSet<string>> ColumnsOfAsync(NpgsqlConnection connection, string relation, CancellationToken ct)
     {
         await using var command = new NpgsqlCommand(
-            """
+            InternalSql.Tag("""
             SELECT a.attname FROM pg_catalog.pg_attribute a
             WHERE a.attrelid = pg_catalog.to_regclass(@relation) AND a.attnum > 0 AND NOT a.attisdropped
-            """,
+            """),
             connection);
         command.Parameters.AddWithValue("relation", relation);
         await using var reader = await command.ExecuteReaderAsync(ct);
@@ -220,7 +233,7 @@ public sealed class StatementStatsService(NpgsqlDataSource dataSource)
 
     private static async Task<bool> RelationExistsAsync(NpgsqlConnection connection, string relation, CancellationToken ct)
     {
-        await using var command = new NpgsqlCommand("SELECT pg_catalog.to_regclass(@relation) IS NOT NULL", connection);
+        await using var command = new NpgsqlCommand(InternalSql.Tag("SELECT pg_catalog.to_regclass(@relation) IS NOT NULL"), connection);
         command.Parameters.AddWithValue("relation", relation);
         return await command.ExecuteScalarAsync(ct) is true;
     }

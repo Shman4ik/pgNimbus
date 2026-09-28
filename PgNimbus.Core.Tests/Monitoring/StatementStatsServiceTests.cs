@@ -1,5 +1,6 @@
 using Npgsql;
 using PgNimbus.Core.Monitoring;
+using PgNimbus.Core.Schema;
 
 namespace PgNimbus.Core.Tests.Monitoring;
 
@@ -141,5 +142,24 @@ public class StatementStatsServiceTests
         {
             await ExecuteAsync(dataSource, $"DROP ROLE IF EXISTS {LowRole}");
         }
+    }
+
+    [Test]
+    public async Task The_apps_own_catalog_reads_never_show_up_in_the_list()
+    {
+        await using var dataSource = await ServerAsync(needsPreload: true);
+        await ExecuteAsync(dataSource, "CREATE EXTENSION IF NOT EXISTS pg_stat_statements");
+        await ExecuteAsync(dataSource, "SELECT pg_stat_statements_reset()");
+
+        // A SchemaService read is exactly the kind of statement pgNimbus sends
+        // on its own behalf — it must carry the InternalSql marker and so be
+        // excluded from what the Slow Queries window shows.
+        await new SchemaService(dataSource).GetSchemasAsync(CancellationToken.None);
+
+        var read = await new StatementStatsService(dataSource).ReadAsync(CancellationToken.None);
+        var snapshot = read.Snapshot!;
+
+        await Assert.That(snapshot.Statements.Any(s => InternalSql.IsTagged(s.Query))).IsFalse();
+        await Assert.That(snapshot.OwnStatements).IsGreaterThan(0);
     }
 }
