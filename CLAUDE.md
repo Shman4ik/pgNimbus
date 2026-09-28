@@ -2260,6 +2260,10 @@ about first. If the CI figure moves for good, change all three together.
 
 ## Release pipeline
 
+What to walk before tagging, and what past release passes found, is
+[`docs/RELEASE-CHECKLIST.md`](docs/RELEASE-CHECKLIST.md) (living, one log row per
+release); this section is how the pipeline itself works.
+
 `.github/workflows/release.yml` runs on every `vX.Y.Z` tag push (or manually
 via `workflow_dispatch`, which builds everything but skips the "release"
 job so it never publishes).
@@ -2509,8 +2513,8 @@ the documentation site, `/dev/bench/` is the benchmark history.
 
 MkDocs Material, configured in the repo-root [`mkdocs.yml`](mkdocs.yml), built
 from `docs/`. `docs/` doubles as the repo's internal notes directory, so
-`exclude_docs` keeps `marketing/`, `design/`, `PROGRESS.md` and
-`PRE-LAUNCH-CHECKLIST.md` out of the published site — **only pages listed in
+`exclude_docs` keeps `marketing/`, `design/`, `PROGRESS.md`,
+`PRE-LAUNCH-CHECKLIST.md` and `RELEASE-CHECKLIST.md` out of the published site — **only pages listed in
 `nav` ship**. Published by
 [`scripts/website/publish-docs.sh`](scripts/website/publish-docs.sh), which
 replaces `gh-pages:/docs/` alone; `.github/workflows/docs.yml` builds it with

@@ -1,6 +1,7 @@
 # Pre-launch checklist — making pgNimbus public and promoting it
 
-A one-time working document. Ordered so that each phase gates the next:
+A one-time working document; the per-release list is
+[`RELEASE-CHECKLIST.md`](RELEASE-CHECKLIST.md). Ordered so that each phase gates the next:
 don't promote until the repo is public and installable; don't flip public
 until the hygiene and security items are done. Check items off in place;
 delete the file (or archive it into an issue) once the launch is behind us.
@@ -43,6 +44,8 @@ anything embarrassing or sensitive must be dealt with *before*, not after.
       (`dotnet run` is Debug by default). CLAUDE.md updated to match.
       (The `AVALONIA_TOOLS_LICENSE_KEY` itself is only in local MCP
       config, never committed — that part is fine.)
+      *Superseded 2026-09 (#271): the package and `.WithDeveloperTools()`
+      are gone from Debug builds too.*
 - [x] **Skim `docs/PROGRESS.md` and `CLAUDE.md` one last time** with
       "public reader" glasses. Done 2026-07-08: no secrets, no internal
       hostnames, nothing embarrassing — both read as engineering notes a
