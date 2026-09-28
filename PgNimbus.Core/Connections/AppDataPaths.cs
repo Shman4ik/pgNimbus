@@ -1,12 +1,32 @@
 namespace PgNimbus.Core.Connections;
 
-internal static class AppDataPaths
+/// <summary>Where pgNimbus keeps its local application data.</summary>
+public static class AppDataPaths
 {
     /// <summary>
-    /// Root directory for pgNimbus's local application data (saved connection
-    /// profiles, cached credentials, etc).
+    /// Redirects every store that falls back to <see cref="GetRootDirectory"/>
+    /// (settings, workspace, saved queries, history, completion usage,
+    /// connection profiles, the crash log, …) to another directory. The
+    /// headless UI tests and the screenshot harness set it for their own
+    /// process so nothing they do can reach the developer's real app data.
     /// </summary>
-    public static string GetRootDirectory() => Path.Combine(ResolveAppDataDirectory(), "pgNimbus");
+    public const string OverrideVariable = "PGNIMBUS_DATA_DIR";
+
+    /// <summary>
+    /// Root directory for pgNimbus's local application data (saved connection
+    /// profiles, cached credentials, etc): <see cref="OverrideVariable"/> when
+    /// it is set, else <see cref="GetDefaultRootDirectory"/>.
+    /// </summary>
+    public static string GetRootDirectory() =>
+        Environment.GetEnvironmentVariable(OverrideVariable) is { Length: > 0 } overridden
+            ? overridden
+            : GetDefaultRootDirectory();
+
+    /// <summary>
+    /// Where the app keeps its data when nothing redirects it — the user's real
+    /// data. Tests compare against this to prove they stay out of it.
+    /// </summary>
+    public static string GetDefaultRootDirectory() => Path.Combine(ResolveAppDataDirectory(), "pgNimbus");
 
     /// <summary>
     /// <see cref="Environment.SpecialFolder.ApplicationData"/> can resolve to an

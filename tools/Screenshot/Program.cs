@@ -18,6 +18,10 @@ using PgNimbus.Screenshot;
 // frame is compared against the committed baseline of the same name, and a
 // difference beyond tolerance fails the run and leaves a diff image behind.
 
+// Before anything builds a store: nothing a render does may reach the
+// developer's real settings, saved queries or history.
+IsolatedAppData.Enable();
+
 var positional = new List<string>();
 string? baselineDir = null;
 string? publishRoot = null;

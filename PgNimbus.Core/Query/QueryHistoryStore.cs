@@ -11,6 +11,9 @@ public sealed class QueryHistoryStore(string? filePath = null)
 
     private readonly string _filePath = filePath ?? Path.Combine(AppDataPaths.GetRootDirectory(), "history.json");
 
+    /// <summary>The file this store reads and writes.</summary>
+    public string FilePath => _filePath;
+
     public IReadOnlyList<QueryHistoryEntry> Load()
     {
         if (!File.Exists(_filePath))

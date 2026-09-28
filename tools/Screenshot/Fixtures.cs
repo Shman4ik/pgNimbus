@@ -41,9 +41,16 @@ public static class Fixtures
     /// one, minus the settings/workspace persistence (a screenshot run must not
     /// read or write the developer's real app data) and minus the catalog refresh
     /// it kicks off — the schema tree is seeded here instead.
+    ///
+    /// Its saved-query and history stores point at a fresh directory of their
+    /// own under <see cref="IsolatedAppData"/>, so each view model starts with
+    /// nothing on disk, and a test that saves a query writes there. They used
+    /// to be the default stores: the fixture cleared what they had loaded, but
+    /// the next save wrote the fixture list over the user's real file.
     /// </summary>
     public static MainViewModel MainWindowViewModel()
     {
+        var dataDirectory = IsolatedAppData.NewDirectory("main-window");
         var dataSource = DataSource;
         var schemaService = new SchemaService(dataSource);
         var schemaTree = new SchemaTreeViewModel(schemaService, showSizes: true);
@@ -65,14 +72,10 @@ public static class Fixtures
             new SecurityEditor(dataSource),
             new ImportService(dataSource),
             connectionHost: "localhost",
-            connectionDatabase: "shop");
+            connectionDatabase: "shop",
+            savedQueryStore: new SavedQueryStore(Path.Combine(dataDirectory, "saved-queries.json")),
+            historyStore: new QueryHistoryStore(Path.Combine(dataDirectory, "history.json")));
 
-        // SavedQueriesViewModel loads the real on-disk saved queries and history
-        // in its constructor (MainViewModel news up the stores itself, so there
-        // is nothing to inject). Drop whatever that pulled in before it can reach
-        // a screenshot, and seed the fixture lists instead.
-        viewModel.SavedQueries.SavedQueries.Clear();
-        viewModel.SavedQueries.History.Clear();
         SeedSavedQueries(viewModel.SavedQueries);
 
         SeedSchemaTree(schemaTree, schemaService);

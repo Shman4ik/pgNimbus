@@ -26,8 +26,9 @@ namespace PgNimbus.App.Tests;
 /// assembly, which points at <see cref="TestApp.BuildAvaloniaApp"/> — the app is
 /// set up but never given a lifetime, so
 /// <see cref="App.OnFrameworkInitializationCompleted"/> (which would read the
-/// developer's real settings and could auto-connect to their last database)
-/// never runs.
+/// settings and could auto-connect to the last database) never runs. The
+/// settings it would read are not the developer's anyway: the app data root is
+/// redirected for this process (<see cref="AppDataIsolation"/>).
 /// </summary>
 public static class Ui
 {

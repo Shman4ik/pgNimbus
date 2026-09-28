@@ -9,6 +9,9 @@ public sealed class SavedQueryStore(string? filePath = null)
 {
     private readonly string _filePath = filePath ?? Path.Combine(AppDataPaths.GetRootDirectory(), "saved-queries.json");
 
+    /// <summary>The file this store reads and writes.</summary>
+    public string FilePath => _filePath;
+
     public IReadOnlyList<SavedQuery> Load()
     {
         if (!File.Exists(_filePath))

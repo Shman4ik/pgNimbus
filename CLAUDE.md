@@ -2435,14 +2435,33 @@ How the fixtures work, and why they're shaped this way:
   expanding never reaches for the catalog) and `QueryViewModel.SeedResult`
   (points the grid at a result set that was never run). Both are documented as
   harness-only; production still goes through the lazy-load and run paths.
-- **Nothing reads or writes the developer's real app data.** No workspace is
-  restored and no settings are persisted, and because `MainViewModel` news up its
-  own `SavedQueryStore`/`QueryHistoryStore`, `Fixtures` clears what those loaded
-  before seeding its own — otherwise a screenshot would carry whatever is in the
-  running developer's saved queries and history. The connection-dialog scenario
-  points `ConnectionProfileStore` at a throwaway directory and uses
-  `MemoryCredentialStore`, so it never opens the developer's saved connections
-  or native password store.
+- **Nothing reads or writes the developer's real app data**, and two layers
+  make that hold. The claim used to rest on `Fixtures` clearing the lists the
+  default stores had loaded, which kept real entries out of a screenshot but did
+  nothing about writes: the save-query UI tests saved through those default
+  stores, and on 2026-09-28 the owner's real `saved-queries.json` was found
+  holding the fixture list. (1) **The whole app data root is redirected per
+  process.** Every store falls back to `AppDataPaths.GetRootDirectory()`, which
+  honours `PGNIMBUS_DATA_DIR` (`AppDataPaths.OverrideVariable`), and
+  `IsolatedAppData.Enable` (in `tools/Screenshot`) points it at a throwaway
+  temp directory, deleted on exit. That is what covers what a fixture can't
+  inject into: `App`'s static settings and completion-usage stores (the
+  Preferences page and the theme toggle write through them), the workspace,
+  window placement, the crash log. It must run before anything builds a store —
+  they resolve their path in their constructors, and `App`'s are static — so
+  the harness calls it on `Program`'s first line and `PgNimbus.App.Tests` from
+  a `[ModuleInitializer]`. It always overwrites the variable, so a developer
+  who set it to a directory they use still doesn't get test writes there.
+  (2) **`Fixtures.MainWindowViewModel` injects its own stores**:
+  `MainViewModel` takes optional `savedQueryStore`/`historyStore`, and each
+  fixture view model gets a fresh directory under the isolated root, so it
+  starts empty and one test's saves never show up in another's list.
+  `AppDataIsolationTests` fails if either layer goes (a fixture store under
+  `AppDataPaths.GetDefaultRootDirectory()`, two fixtures sharing a file, or a
+  Preferences write not landing in the redirected `settings.json`). The
+  connection-dialog scenario also points `ConnectionProfileStore` at an
+  isolated directory and uses `MemoryCredentialStore`, so it never opens the
+  developer's saved connections or native password store.
 
 ## Headless UI tests (`PgNimbus.App.Tests`)
 
@@ -2484,9 +2503,11 @@ Three landmines, all load-bearing:
   2026-09. Fire it and move on (`_ = …`), as the screenshot scenarios do.
 
 The session runs the app with **no lifetime**, asserted by a test: with one,
-`App.OnFrameworkInitializationCompleted` would read the developer's real
-`AppSettings` and, with `AutoConnectLastProfile` on, try to connect to their
-last database from a unit test.
+`App.OnFrameworkInitializationCompleted` would read the `AppSettings` and, with
+`AutoConnectLastProfile` on, try to connect to the last database from a unit
+test. Those settings are no longer the developer's own — the app data root is
+redirected for the test process (see the harness's "Nothing reads or writes
+the developer's real app data" above) — but the no-lifetime rule stays.
 
 ## Benchmarks pipeline
 
