@@ -4,6 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Xml;
 using Avalonia;
+using Avalonia.Collections;
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
 using Avalonia.Data;
@@ -397,7 +398,7 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
         _activeQuery.RowDetail.InspectRequested += OnRowDetailInspectRequested;
         _activeQuery.RowDetail.NavigateRequested += OnRowDetailNavigate;
 
-        ResultsGrid.ItemsSource = _activeQuery.Rows;
+        PointGridAt(_activeQuery.Rows);
         RebuildColumns(_activeQuery);
         // The new tab's staged set (if any) tints different rows than the old
         // tab's — repaint once its rows have realized.
@@ -418,7 +419,7 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
         // fresh ItemsSource costs a viewport) - re-point the grid each time.
         if (e.PropertyName == nameof(QueryViewModel.Rows))
         {
-            ResultsGrid.ItemsSource = _activeQuery.Rows;
+            PointGridAt(_activeQuery.Rows);
             // Rows realize after this returns; re-tint once they exist so a
             // reloaded page keeps its staged-row washes.
             Dispatcher.UIThread.Post(RefreshPendingRowHighlights, DispatcherPriority.Background);
@@ -646,14 +647,55 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
             ? query.GetRowStaging(values)
             : QueryViewModel.RowStagingState.None;
 
-        // Always assign: rows are recycled, so a formerly staged row must be
-        // washed back to the theme's transparent default.
-        row.Background = staging switch
+        // Zebra stripes (`DataGrid.zebra DataGridRow.odd`, DESIGN.md rule 20). The
+        // DataGrid has no alternating-row support of its own and recycles rows, so
+        // the class follows the index every time a row is (re)loaded.
+        row.Classes.Set("odd", row.Index % 2 == 1);
+
+        // Always assign: rows are recycled, so a formerly staged row must go back
+        // to the style's background. Cleared rather than set to Transparent: a
+        // local value would outrank the zebra style.
+        switch (staging)
         {
-            QueryViewModel.RowStagingState.Edited => StagedEditRowBrush,
-            QueryViewModel.RowStagingState.Deleted => StagedDeleteRowBrush,
-            _ => Brushes.Transparent,
-        };
+            case QueryViewModel.RowStagingState.Edited:
+                row.Background = StagedEditRowBrush;
+                break;
+            case QueryViewModel.RowStagingState.Deleted:
+                row.Background = StagedDeleteRowBrush;
+                break;
+            default:
+                row.ClearValue(DataGridRow.BackgroundProperty);
+                break;
+        }
+    }
+
+    private INotifyCollectionChanged? _gridRowsSource;
+
+    private void PointGridAt(AvaloniaList<object?[]> rows)
+    {
+        if (_gridRowsSource is not null)
+        {
+            _gridRowsSource.CollectionChanged -= OnGridRowsChanged;
+        }
+
+        _gridRowsSource = rows;
+        rows.CollectionChanged += OnGridRowsChanged;
+        ResultsGrid.ItemsSource = rows;
+    }
+
+    // A row inserted or removed mid-list shifts the index of every row after it,
+    // and the grid re-uses those rows without loading them again, so the zebra
+    // `odd` class would stay on the wrong ones. Appending (a result streaming in)
+    // shifts nothing and is left alone.
+    private void OnGridRowsChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        var isAppend = e.Action == NotifyCollectionChangedAction.Add
+            && sender is System.Collections.ICollection list
+            && e.NewStartingIndex + (e.NewItems?.Count ?? 0) == list.Count;
+        if (!isAppend)
+        {
+            Dispatcher.UIThread.Post(RefreshPendingRowHighlights, DispatcherPriority.Background);
+        }
     }
 
     // Re-tints every realized row; newly realized ones are handled by the

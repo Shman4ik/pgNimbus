@@ -124,6 +124,13 @@ things are easy to get wrong and three of them fail silently:
   78px on macOS) hole in the bar.
 - **Linux keeps its system decorations.** Extending there hands the app the whole
   frame, and CSD that matches GNOME is wrong on KDE and every tiling WM.
+- **The macOS traffic lights are ours to centre.** AppKit places them for its own
+  ~28pt title bar, about 5pt above the centre of a 40px command bar. Avalonia 12 has
+  no option for it (its title-bar height hint only sizes the backdrop, and its native
+  side always clears the `NSToolbar` that would make AppKit centre them), so
+  `Chrome/MacTrafficLights` moves the three buttons through the Objective-C runtime,
+  the way Electron's `trafficLightPosition` does, and again after every resize, state
+  change and activation, since AppKit puts them back. Full screen is left alone.
 
 The wordmark goes with it: the window title and the taskbar icon already carry the
 identity, and a bar under the title bar printing the title again is a row spent on
@@ -240,6 +247,9 @@ to the resting well), and it paints a selected `ListBoxItem` with the OS accent 
 Never paint a surface with `SystemControlPageBackgroundAltHighBrush` or a hand-set hex;
 pick the row of the table it is.
 
+A zebra grid's alternate row (`AppAltRowBrush`, rule 20) is the one tint below a card:
+4% black on a light surface, 4% white on a dark one.
+
 ### 16. A dialog's button row: primary last, Cancel just before it, on the right
 
 `[secondary…] [Cancel/Close] [Primary]`, right-aligned, 8px apart, 16px below the
@@ -274,6 +284,11 @@ run will appear here", the relation sizes in the schema tree. The dark theme hid
 faint they were; the light theme is where they failed. Lower opacities stay for what
 is not read: a separator glyph, a decorative icon, a disabled control (which Fluent
 dims on purpose), or a state the dimming itself announces (an excluded schema).
+
+Inside a list or tree row, give such text the `TextBlock.secondary` class (0.6) rather
+than a local `Opacity`: on a focused list's accent row (rule 20) it has to come up to
+0.85, since white at 0.6 over the brand blue is under 2.5:1, and a local value
+outranks every style that could raise it.
 
 ### 18. Menu items are in Title Case, and a row's menu starts with its default action
 
@@ -317,6 +332,51 @@ Avalonia 12.1's standard app-menu block has two defects, fixed in place after
 setup: Hide Others is bound to ⌥⌘Q (one key from Quit) instead of ⌥⌘H, and Quit
 does not name the app.
 
+### 20. Native density, and one look for focus and selection
+
+A macOS audit of pgNimbus (2026-09-28) found both apps reading a size larger and a
+shade heavier than every native app beside them, with Windows-95 focus boxes. Fluent's
+defaults were the cause each time; `Theme/Tokens.axaml`, `Theme/Controls.axaml` and
+`Theme/ToggleSwitch.axaml` replace them, on every platform:
+
+- **13px body text.** `ControlContentThemeFontSize` is 13, the macOS system size, so
+  every window and every control that does not set its own size draws at 13 (Fluent:
+  14). List and tree rows are ~24px (`ListBoxItem` padding 8,3; `TreeViewItem`
+  `MinHeight` 24; Fluent: 38 and 32). A tree's node names are regular weight;
+  semibold at most for a root group row.
+- **Selection has two faces.** The selected row of the list or tree that holds
+  keyboard focus is the solid accent with white text and icons; the selected row of
+  any other list is neutral grey (`AppSelectionInactiveBrush`) with ordinary text.
+  So the one list the keyboard is driving is the one that looks it, as in Finder or
+  Mail. Two classes adjust it: `ListBox.emphasized` for a list driven from a search
+  box beside it that never takes focus itself (a command palette), which is always
+  accent; and `ListBox.strip` for choices laid out as a list (a tab strip, a row of
+  result sections), where "selected" means "the one showing" and keeps the light
+  `AppSelectionBrush` wash. Rows draw no focus ring (below); the accent fill is the
+  focus indication.
+- **One focus ring.** `Controls/FocusRing` is every adorner layer's default focus
+  adorner: a 2px ring of semi-transparent brand accent (`AppFocusRingBrush`), 2px
+  outside the control and rounded to its own corner radius. Fluent drew a square 2px
+  black (white in dark) box with a 1px inner rule around everything, rows and round
+  chips included. The ring opts out of the adorner layer's clipping, which otherwise
+  cuts a ring drawn outside the control down to nothing.
+- **The switch is Apple's small one**: a 32x18 filled track with no outline and a
+  14px white knob, grey off and accent on, in both themes. It is a whole
+  `ControlTheme`, because the sizes in Fluent's template are set at Template priority
+  and no style can restyle them.
+- **Menus**: 13px items in ~24px rows, 6px-rounded menu, the highlighted item a
+  4px-rounded accent pill with white text, inset 4px from the edge.
+- **Flat icon buttons answer the pointer.** `chip` and `toolbar` pin a hover and a
+  press wash on the template part (`AppToolbarHoverBrush` / `AppToolbarPressedBrush`)
+  rather than leaving it to Fluent: the command bar's icon buttons read as having
+  no hover at all on macOS.
+- **Zebra tables, opt-in**: `DataGrid.zebra` draws every row the owner marks `odd`
+  in `AppAltRowBrush` and drops the horizontal rules. The DataGrid has no
+  alternating-row property or odd/even pseudo-class, and it recycles rows, so the
+  owner sets the class from the row's index in `LoadingRow`, and again after a row
+  is inserted or removed mid-list. The cell text size and row height stay per app
+  (rules 12 and 14).
+
 ---
 
 ## What is deliberately *not* shared
@@ -347,11 +407,18 @@ mechanism — a rule nobody tracks is a rule that decays.
 - [x] **Surfaces off Fluent's page black → both** (rule 15). `layer`, `OverlayPanel` and
       the list-selection rule changed here; pgNimbus's dialogs, popups and palette and
       kubeNimbus's command palettes moved onto `overlayCard`/`scrim`/`AppPopupBrush`.
-- [ ] Secondary text at 0.6 (rule 17) → kubeNimbus: audit its `hint` class and inline opacities.
+- [ ] Secondary text at 0.6 (rule 17) → kubeNimbus: audit its `hint` class and inline opacities,
+      and move the ones inside list rows to `TextBlock.secondary` so a focused list's accent
+      row can bring them up (rule 20).
 - [ ] Title Case menus and default-action-first context menus (rule 18) → kubeNimbus.
 - [ ] The macOS Edit and Window menus, their focus routing, and the app-menu fix
       (rule 19) → kubeNimbus. pgNimbus's `EditCommands`, `MacMenus` and `MacAppMenu`
       name no Postgres and are the candidates to lift into this library.
+- [ ] Rule 20 → kubeNimbus: its lists pick up the two selection faces from the shared rule;
+      check which of them are really strips (`ListBox.strip`) or palette-style lists
+      (`ListBox.emphasized`), and whether its resource grids want `DataGrid.zebra`. Its own
+      `ListBox.segmented` and switcher styles override the shared row rules and are unaffected.
+      Its window chrome gets the centred traffic lights for free through `NimbusWindowChrome`.
 - [ ] `AppSuccessBrush` → pgNimbus. The status trio was two-thirds defined there.
 - [x] **The Fluent control layer → `Theme/Controls.axaml`.** Inputs, lists, trees,
       grids and the `.soft`/`.danger` button families were defined in pgNimbus only,

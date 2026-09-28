@@ -90,6 +90,11 @@ of [nimbusUi](https://github.com/Shman4ik/nimbusUi), referenced as an ordinary
   all three states: Fluent's checked foreground is the accent-fill white, drawn on
   the chip's light wash, and the Wrap toggle and the filter pin were unreadable
   whenever they were on (`ChipActiveStateTests` reads that brush too).
+  Since DESIGN.md rule 20 (2026-09-28) the shared layer also carries the body text
+  size (13), row density, the two faces of a selected row, the focus ring
+  (`Controls/FocusRing`), the switch (`Theme/ToggleSwitch.axaml`), the menu look,
+  the flat buttons' hover and the opt-in `DataGrid.zebra`. See UI design rule 10
+  for where pgNimbus opts in.
 - `Chrome/` — the one-bar window chrome and its drawn caption buttons.
 - `Hotkeys.cs` — Ctrl/Cmd resolution; `PgNimbus.App.Hotkeys` forwards to it.
 - **[`DESIGN.md`](shared/nimbusUi/DESIGN.md) — the UI rules, single source.**
@@ -1049,6 +1054,39 @@ Three rules about it:
    half light and half dark, alternating, and each file names its theme (its
    README maps file to scenario); keep that balance when swapping a shot. If a PR
    cannot render them, it says so in its description.
+10. **Native density and one look for focus and selection** (2026-09-28, macOS
+   audit; canonical text is DESIGN.md rule 20). The audit found the app a size
+   larger and a shade heavier than every native app beside it: 15px grid text in
+   32px rows, 26px tree rows with bold schema names, Fluent's square black focus box
+   around tree rows and toolbar buttons, an outlined Windows switch, and title-bar
+   icon buttons with no hover. The shared layer fixed the defaults; what is
+   pgNimbus's own:
+   - **Where the selection faces are adjusted.** `TabsList` and the results panel's
+     script-section list are `ListBox.strip` (a tab strip is not a list of rows);
+     `PaletteList` and the tab finder's `TabSearchList` are `ListBox.emphasized`
+     (driven from a search box that keeps focus). The completion list keeps its
+     light wash in `Styles/Theme.axaml`: it never holds focus, and a solid accent
+     slab would leave the `tentative` outline nothing to be told apart from.
+   - **The schema tree** names schemas in regular weight (Roles/Extensions keep
+     semibold as root groups), and its secondary text is `TextBlock.secondary`, so
+     the focused tree's accent row can bring it (and a dimmed excluded schema) up.
+     That lift in `SchemaTreePanel.axaml` uses a child chain
+     (`TreeViewItem:selected > ContentControl > StackPanel > …`) on purpose: a
+     descendant selector would also brighten every row of the selected node's
+     expanded children.
+   - **The results grid is zebra-striped.** `ResultsGridPanel.ApplyRowStaging` sets
+     the `odd` class from the row's index as the grid loads each row, and *clears*
+     the row background instead of setting it Transparent (a local value outranks
+     the zebra style); staged rows still set their own wash. `OnGridRowsChanged`
+     re-stripes after a mid-list insert or remove, which shifts indexes without the
+     grid loading those rows again (`SharedControlStylingTests` removes a row to
+     prove it). Every pgNimbus `DataGridCell` is 13px in a 25px row
+     (`Styles/Theme.axaml`, per app by DESIGN.md rules 12 and 14).
+   - The command bar's theme button carries a `CommandTip` for `ToggleTheme` like
+     its three neighbours.
+   The scenario `controls-gallery` shows the focus ring, both selection faces, the
+   switches and a highlighted menu item together, since no app screen holds
+   keyboard focus; `SharedControlStylingTests` reads each painted part.
 
 ## Platform window chrome
 
@@ -1073,6 +1111,14 @@ Three rules about it:
   bar (`BuildMacNativeMenu`) is the file-command home there, so it would be a
   second copy of the same commands. The sidebar toggle icon is platform-picked
   via `{OnPlatform}` (SF-style geometry on macOS).
+
+  **The traffic lights are centred on the 40px bar** (2026-09-28). AppKit placed
+  them for its own ~28pt title bar, about 5pt above the centre line every other
+  control in the bar sits on. `NimbusWindowChrome.Attach` now also calls the
+  shared `MacTrafficLights`, which moves the three buttons through the Objective-C
+  runtime and re-applies after resizes, state changes and activation (DESIGN.md
+  rule 9 has why Avalonia 12 offers no way to ask for it). Headless tests cannot
+  see this; it is checked on a Mac.
 
   **The connection dialog has the same one bar** (2026-09). It is the app's first
   screen and a resizable, maximizable window like the main one, yet it arrived

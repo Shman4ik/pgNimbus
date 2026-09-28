@@ -28,6 +28,18 @@
             <SolidColorBrush x:Key="AppLayerBrush" Color="#FFFFFF" />
             <SolidColorBrush x:Key="AppPopupBrush" Color="#FFFFFF" />
             <SolidColorBrush x:Key="AppScrimBrush" Color="#4D000000" />
+            <!-- Every other row of a zebra table (`DataGrid.zebra`): a shade under the
+                 row it alternates with, the way a macOS table stripes. -->
+            <SolidColorBrush x:Key="AppAltRowBrush" Color="#0A000000" />
+            <!-- A flat icon button under the pointer (`chip`, `toolbar`): a visible
+                 grey, not the 5% HoverBackgroundBrush a list row uses. -->
+            <SolidColorBrush x:Key="AppToolbarHoverBrush" Color="#14000000" />
+            <SolidColorBrush x:Key="AppToolbarPressedBrush" Color="#24000000" />
+            <!-- A switch that is off: a filled grey track, not Fluent's outline. -->
+            <SolidColorBrush x:Key="ToggleSwitchFillOff" Color="#24000000" />
+            <SolidColorBrush x:Key="ToggleSwitchFillOffPointerOver" Color="#30000000" />
+            <SolidColorBrush x:Key="ToggleSwitchFillOffPressed" Color="#3D000000" />
+            <SolidColorBrush x:Key="ToggleSwitchFillOffDisabled" Color="#12000000" />
         </ResourceDictionary>
         <ResourceDictionary x:Key="Dark">
             <SolidColorBrush x:Key="ShellBackdropBrush" Color="#E6202020" />
@@ -39,6 +51,13 @@
                  multi-line box (a pasted plan, a script) went black while you typed.
                  Focus keeps the resting well's tone; the accent underline says focus. -->
             <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#66000000" />
+            <SolidColorBrush x:Key="AppAltRowBrush" Color="#0AFFFFFF" />
+            <SolidColorBrush x:Key="AppToolbarHoverBrush" Color="#1FFFFFFF" />
+            <SolidColorBrush x:Key="AppToolbarPressedBrush" Color="#2EFFFFFF" />
+            <SolidColorBrush x:Key="ToggleSwitchFillOff" Color="#33FFFFFF" />
+            <SolidColorBrush x:Key="ToggleSwitchFillOffPointerOver" Color="#40FFFFFF" />
+            <SolidColorBrush x:Key="ToggleSwitchFillOffPressed" Color="#4DFFFFFF" />
+            <SolidColorBrush x:Key="ToggleSwitchFillOffDisabled" Color="#1AFFFFFF" />
         </ResourceDictionary>
     </ResourceDictionary.ThemeDictionaries>
 
@@ -103,6 +122,69 @@
         here to make selection stronger/weaker across both apps.
     -->
     <SolidColorBrush x:Key="AppTextSelectionBrush" Color="#402D7FF9" />
+
+    <!--
+        Row selection, the macOS way (DESIGN.md rule 20). A list or tree that holds
+        keyboard focus shows its selected row as a solid accent fill with white text
+        (AppAccentBrush); the same row in a list that does not have focus is a neutral
+        grey (this brush) with the ordinary text colour, so the one list the keyboard
+        is driving is the one that looks it. Fixed-alpha grey, like the card brushes,
+        so it reads on the shell, a layer and a card in both themes.
+    -->
+    <SolidColorBrush x:Key="AppSelectionInactiveBrush" Color="#40808080" />
+
+    <!--
+        The keyboard focus ring (DESIGN.md rule 20): semi-transparent brand accent,
+        drawn by Nimbus.Ui.Controls.FocusRing around whatever holds focus and rounded
+        to that control's own corners. It replaced Fluent's default adorner, a 2px
+        black (white in dark) rectangle with a 1px inner rule, which is what a
+        focused tree row or toolbar button used to be drawn with.
+    -->
+    <SolidColorBrush x:Key="AppFocusRingBrush" Color="#8C2D7FF9" />
+    <!-- The same for the few templates that draw their own focus visual from these
+         (the DataGrid's current cell): the ring's colour, and no inner rule. -->
+    <StaticResource x:Key="SystemControlFocusVisualPrimaryBrush" ResourceKey="AppFocusRingBrush" />
+    <SolidColorBrush x:Key="SystemControlFocusVisualSecondaryBrush" Color="Transparent" />
+
+    <!--
+        Body text size: 13, the macOS system size, for everything Fluent sizes from
+        this key (every Window, and every control that does not set its own). Fluent's
+        14 made a list, a tree or a form read a size larger than any native app beside
+        it. Text that sets its own FontSize is unaffected.
+    -->
+    <x:Double x:Key="ControlContentThemeFontSize">13</x:Double>
+
+    <!--
+        ToggleSwitch, Apple-style (DESIGN.md rule 20): a filled track with no outline,
+        a white knob in both states, the accent track when on. The off track is
+        theme-split and lives in the theme dictionaries above; the geometry (32x18,
+        14px knob) is in Controls.axaml.
+    -->
+    <SolidColorBrush x:Key="ToggleSwitchStrokeOff" Color="Transparent" />
+    <SolidColorBrush x:Key="ToggleSwitchStrokeOffPointerOver" Color="Transparent" />
+    <SolidColorBrush x:Key="ToggleSwitchStrokeOffPressed" Color="Transparent" />
+    <SolidColorBrush x:Key="ToggleSwitchStrokeOffDisabled" Color="Transparent" />
+    <SolidColorBrush x:Key="ToggleSwitchStrokeOn" Color="Transparent" />
+    <SolidColorBrush x:Key="ToggleSwitchStrokeOnPointerOver" Color="Transparent" />
+    <SolidColorBrush x:Key="ToggleSwitchStrokeOnPressed" Color="Transparent" />
+    <SolidColorBrush x:Key="ToggleSwitchStrokeOnDisabled" Color="Transparent" />
+    <Thickness x:Key="ToggleSwitchOuterBorderStrokeThickness">0</Thickness>
+    <Thickness x:Key="ToggleSwitchOnStrokeThickness">0</Thickness>
+    <StaticResource x:Key="ToggleSwitchFillOn" ResourceKey="AppAccentBrush" />
+    <StaticResource x:Key="ToggleSwitchFillOnPointerOver" ResourceKey="AppAccentBrush" />
+    <StaticResource x:Key="ToggleSwitchFillOnPressed" ResourceKey="AppAccentPressedBrush" />
+    <SolidColorBrush x:Key="ToggleSwitchFillOnDisabled" Color="#662D7FF9" />
+    <SolidColorBrush x:Key="ToggleSwitchKnobFillOff" Color="White" />
+    <SolidColorBrush x:Key="ToggleSwitchKnobFillOffPointerOver" Color="White" />
+    <SolidColorBrush x:Key="ToggleSwitchKnobFillOffPressed" Color="White" />
+    <SolidColorBrush x:Key="ToggleSwitchKnobFillOffDisabled" Color="#CCFFFFFF" />
+    <SolidColorBrush x:Key="ToggleSwitchKnobFillOn" Color="White" />
+    <SolidColorBrush x:Key="ToggleSwitchKnobFillOnPointerOver" Color="White" />
+    <SolidColorBrush x:Key="ToggleSwitchKnobFillOnPressed" Color="White" />
+    <SolidColorBrush x:Key="ToggleSwitchKnobFillOnDisabled" Color="#CCFFFFFF" />
+    <SolidColorBrush x:Key="ToggleSwitchContainerBackground" Color="Transparent" />
+    <SolidColorBrush x:Key="ToggleSwitchContainerBackgroundPointerOver" Color="Transparent" />
+    <SolidColorBrush x:Key="ToggleSwitchContainerBackgroundPressed" Color="Transparent" />
 
     <!--
         Destructive action (drop a schema, delete a resource, terminate a session) and

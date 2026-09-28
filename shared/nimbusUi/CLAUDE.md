@@ -57,6 +57,14 @@ future move.
    `Theme.axaml`, after the rule it refines. Template-part rules
    (`/template/ ContentPresenter#PART_…`) don't collide with a control-level
    setter, so they can stay where they are.
+8. **A value written in a template beats every style.** Properties a Fluent
+   template sets on its own parts (`Width="40"` on a switch track, a
+   `{TemplateBinding CornerRadius}` on a menu item's highlight) sit at Template
+   priority, above any `Style`, so `X /template/ Border#Part { Width }` compiles,
+   loads and does nothing. Set the templated control's own property when the part
+   template-binds it (`MenuItem { CornerRadius }`), and replace the whole
+   `ControlTheme` when it hard-codes it (`Theme/ToggleSwitch.axaml`). Check the
+   rendered part in a headless test, not the style.
 
 ## Working on this from inside an app repo
 
@@ -81,14 +89,19 @@ src/Nimbus.Ui/
   Theme/Controls.axaml    Fluent control retheming: inputs, lists, trees, grids,
                           the .soft/.danger button families, TabControl.
   Theme/Overlay.axaml     The ControlTheme for OverlayPanel (DESIGN.md rule 13).
+  Theme/ToggleSwitch.axaml  The ControlTheme for ToggleSwitch (rule 20). A whole
+                          theme because Fluent sets the switch's sizes at Template
+                          priority, which no style can override.
   Theme/Theme.axaml       The include point. Merges the dictionaries, pulls in
                           Controls.axaml, and holds the shell vocabulary itself
                           (card, layer, overlayCard, scrim, chip, searchpill,
                           toolbar, statusBar, …).
   Controls/               The library's own controls. OverlayPanel is the first —
                           a dismissable panel over the shell, which is what both
-                          apps use instead of a secondary Window.
-  Chrome/                 One-bar window chrome + drawn caption buttons.
+                          apps use instead of a secondary Window. FocusRing is the
+                          default focus adorner (rule 20).
+  Chrome/                 One-bar window chrome + drawn caption buttons, and
+                          MacTrafficLights (centres the traffic lights on the bar).
   Hotkeys.cs              Ctrl/Cmd resolution, gesture labels.
 ```
 

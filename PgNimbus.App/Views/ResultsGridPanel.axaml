@@ -41,6 +41,7 @@
                              own lane below the chips instead of covering their text -->
                         <ListBox ItemsSource="{Binding ActiveTab.ResultSections}"
                                  SelectedItem="{Binding ActiveTab.SelectedSection, Mode=TwoWay}"
+                                 Classes="strip"
                                  Background="Transparent" Padding="0,0,0,10">
                             <ListBox.Styles>
                                 <Style Selector="TextBlock.err">
@@ -94,7 +95,7 @@
                          the last row, right of the last column — miss hit
                          testing, so wheel events there bypass the DataGrid's
                          own scroll handling entirely. -->
-                    <DataGrid Name="ResultsGrid"
+                    <DataGrid Name="ResultsGrid" Classes="zebra"
                               IsVisible="{Binding !ActiveTab.IsShowingPlan}"
                               IsReadOnly="{Binding !ActiveTab.IsEditable}"
                               Background="Transparent"

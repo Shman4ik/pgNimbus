@@ -1,5 +1,6 @@
 <Styles xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="using:Nimbus.Ui.Controls">
 
     <!--
         Fluent control retheming: the stock controls both apps use, toned to the
@@ -271,10 +272,20 @@
         <Setter Property="Padding" Value="4" />
     </Style>
 
+    <!-- Rows are ~24px, the density of a native list (DESIGN.md rule 20): Fluent's
+         12,9,12,12 item padding made a two-word row 38px tall. No focus ring on a
+         row either: the focused list says so with its accent selection below, the
+         way a macOS sidebar does, and a ring around the selected row on top of that
+         is the same fact drawn twice. -->
     <Style Selector="ListBoxItem">
         <Setter Property="CornerRadius" Value="{StaticResource ControlCornerRadius}" />
-        <Setter Property="Padding" Value="8,6" />
+        <Setter Property="Padding" Value="8,3" />
         <Setter Property="Margin" Value="0,1" />
+        <Setter Property="FocusAdorner">
+            <FocusAdornerTemplate>
+                <Panel />
+            </FocusAdornerTemplate>
+        </Setter>
     </Style>
 
     <!-- Row states are pinned on the template part. Fluent's ListBoxItem theme paints
@@ -288,24 +299,163 @@
         <Setter Property="Background" Value="{StaticResource HoverBackgroundBrush}" />
     </Style>
 
-    <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter, ComboBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+    <Style Selector="ComboBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}" />
     </Style>
 
-    <Style Selector="ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter, ComboBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Style Selector="ComboBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource AppSelectionHoverBrush}" />
+    </Style>
+
+    <!-- Selection has two faces (DESIGN.md rule 20). In a list that does not hold
+         keyboard focus, the selected row is neutral grey with ordinary text... -->
+    <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource AppSelectionInactiveBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+    </Style>
+
+    <!-- ...and in the list the keyboard is driving, it is the solid accent with white
+         text and icons. `emphasized` is for a list driven from a search box beside it
+         that never takes focus itself (a command palette): as far as the user can
+         tell, it is always the focused list. -->
+    <Style Selector="ListBox:focus-within ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter, ListBox.emphasized ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource AppAccentBrush}" />
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <!-- Secondary text in a row (`TextBlock.secondary`, rule 17's 0.6) comes up on the
+         accent fill: white at 0.6 over the brand blue is under 2.5:1. -->
+    <Style Selector="ListBox:focus-within ListBoxItem:selected TextBlock.secondary, ListBox.emphasized ListBoxItem:selected TextBlock.secondary">
+        <Setter Property="Opacity" Value="0.85" />
+    </Style>
+
+    <!-- A strip of choices laid out as a list (a tab strip, a row of result
+         sections) is not a list of rows: its selected item means "the one showing",
+         which a solid accent slab would overstate. It keeps the light wash whether
+         or not it has focus. Loaded after the two rules above, so it wins. -->
+    <Style Selector="ListBox.strip ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+    </Style>
+
+    <Style Selector="ListBox.strip ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{StaticResource AppSelectionHoverBrush}" />
     </Style>
 
     <Style Selector="TreeViewItem">
         <Setter Property="CornerRadius" Value="{StaticResource ControlCornerRadius}" />
-        <Setter Property="Padding" Value="4,3" />
-        <!-- Tighter rows than Fluent's ~30px default -->
-        <Setter Property="MinHeight" Value="26" />
+        <Setter Property="Padding" Value="4,2" />
+        <!-- ~24px rows, down from Fluent's 32 (and this file's own 26 before rule 20). -->
+        <Setter Property="MinHeight" Value="24" />
+        <Setter Property="FocusAdorner">
+            <FocusAdornerTemplate>
+                <Panel />
+            </FocusAdornerTemplate>
+        </Setter>
     </Style>
 
-    <Style Selector="TreeViewItem:selected /template/ Border#PART_LayoutRoot">
-        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
+    <Style Selector="TreeViewItem /template/ Border#PART_LayoutRoot:pointerover">
+        <Setter Property="Background" Value="{StaticResource HoverBackgroundBrush}" />
+    </Style>
+
+    <!-- The same two faces as a list row. The header presenter and the chevron are
+         coloured rather than the item, so a selected node's expanded children (which
+         sit inside the item) keep their own colours. -->
+    <Style Selector="TreeViewItem:selected /template/ Border#PART_LayoutRoot, TreeViewItem:selected /template/ Border#PART_LayoutRoot:pointerover">
+        <Setter Property="Background" Value="{StaticResource AppSelectionInactiveBrush}" />
+    </Style>
+
+    <Style Selector="TreeViewItem:selected /template/ ContentPresenter#PART_HeaderPresenter">
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+    </Style>
+
+    <Style Selector="TreeView:focus-within TreeViewItem:selected /template/ Border#PART_LayoutRoot, TreeView:focus-within TreeViewItem:selected /template/ Border#PART_LayoutRoot:pointerover">
+        <Setter Property="Background" Value="{StaticResource AppAccentBrush}" />
+    </Style>
+
+    <Style Selector="TreeView:focus-within TreeViewItem:selected /template/ ContentPresenter#PART_HeaderPresenter, TreeView:focus-within TreeViewItem:selected /template/ ToggleButton#PART_ExpandCollapseChevron">
+        <Setter Property="TextElement.Foreground" Value="White" />
+    </Style>
+
+    <!-- Secondary text, app-wide: rule 17's 0.6. A class rather than a local
+         Opacity so that a selected row can bring it up (above); a local value
+         outranks every style. -->
+    <Style Selector="TextBlock.secondary">
+        <Setter Property="Opacity" Value="0.6" />
+    </Style>
+
+    <!-- ==================================================================
+         Toggle switch
+         ================================================================== -->
+
+    <!-- ToggleSwitch is a whole ControlTheme, in Theme/ToggleSwitch.axaml (merged by
+         Theme.axaml): its sizes are set in Fluent's template at Template priority,
+         which no style here can override. -->
+
+    <!-- ==================================================================
+         Keyboard focus
+         ================================================================== -->
+
+    <!-- One rounded accent ring for everything that takes focus and does not draw
+         its own (DESIGN.md rule 20; Controls/FocusRing.cs). The adorner layer hands
+         this to any control whose FocusAdorner is unset. -->
+    <Style Selector="AdornerLayer">
+        <Setter Property="DefaultFocusAdorner">
+            <FocusAdornerTemplate>
+                <controls:FocusRing />
+            </FocusAdornerTemplate>
+        </Setter>
+    </Style>
+
+    <Style Selector="controls|FocusRing">
+        <Setter Property="BorderBrush" Value="{StaticResource AppFocusRingBrush}" />
+        <Setter Property="BorderThickness" Value="2" />
+        <Setter Property="Outset" Value="2" />
+    </Style>
+
+    <!-- ==================================================================
+         Menus
+         ================================================================== -->
+
+    <!-- Context menus and menu flyouts at native density (DESIGN.md rule 20): 13px
+         items in ~24px rows, the highlighted item a 4px-rounded accent pill inset
+         from the menu's 6px-rounded edge, with white text. Fluent's were 14px
+         items in 32px rows under a faint grey highlight running edge to edge. -->
+    <Style Selector="ContextMenu, MenuFlyoutPresenter">
+        <Setter Property="Background" Value="{DynamicResource AppPopupBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}" />
+        <Setter Property="CornerRadius" Value="{StaticResource ControlCornerRadius}" />
+        <Setter Property="Padding" Value="0,4" />
+    </Style>
+
+    <!-- The radius goes on the item, which Fluent template-binds to the highlight
+         border; set on the border itself it loses to that binding. -->
+    <Style Selector="MenuItem">
+        <Setter Property="Padding" Value="10,3,10,4" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="CornerRadius" Value="4" />
+    </Style>
+
+    <Style Selector="MenuItem /template/ Border#PART_LayoutRoot">
+        <Setter Property="Margin" Value="4,0" />
+    </Style>
+
+    <Style Selector="MenuItem:selected /template/ Border#PART_LayoutRoot, MenuItem:pressed /template/ Border#PART_LayoutRoot:pointerover">
+        <Setter Property="Background" Value="{StaticResource AppAccentBrush}" />
+    </Style>
+
+    <Style Selector="MenuItem:selected /template/ ContentPresenter#PART_HeaderPresenter, MenuItem:selected /template/ TextBlock#PART_InputGestureText, MenuItem:selected /template/ ContentControl#PART_IconPresenter, MenuItem:selected /template/ ContentControl#PART_ToggleIconPresenter">
+        <Setter Property="TextElement.Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="MenuItem:selected /template/ Path#PART_ChevronPath">
+        <Setter Property="Fill" Value="White" />
+    </Style>
+
+    <!-- Loaded after the highlight: a disabled item never lights up. -->
+    <Style Selector="MenuItem:disabled /template/ Border#PART_LayoutRoot">
+        <Setter Property="Background" Value="Transparent" />
     </Style>
 
     <!-- ==================================================================
@@ -348,6 +498,19 @@
         <Setter Property="HorizontalGridLinesBrush" Value="#1A808080" />
         <Setter Property="RowBackground" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <!-- Zebra rows (DESIGN.md rule 20), opt-in per grid: every other row a shade
+         off (AppAltRowBrush), and no rules, since the stripes already lead the eye
+         along a row. The DataGrid has no alternating-row property and no odd/even
+         pseudo-class, and it recycles rows, so the grid's owner sets the `odd` class
+         from the row's index as each row is loaded (DataGrid.LoadingRow). -->
+    <Style Selector="DataGrid.zebra">
+        <Setter Property="GridLinesVisibility" Value="None" />
+    </Style>
+
+    <Style Selector="DataGrid.zebra DataGridRow.odd">
+        <Setter Property="Background" Value="{DynamicResource AppAltRowBrush}" />
     </Style>
 
     <!-- Column headers in the section-header type: small, semibold, dimmed. And no

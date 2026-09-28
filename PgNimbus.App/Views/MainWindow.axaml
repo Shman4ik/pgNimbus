@@ -169,7 +169,9 @@
                     </Button>
                     <Button Name="ThemeToggleButton" Classes="chip" Padding="5"
                             Margin="0,0,4,0" VerticalAlignment="Center"
-                            Click="OnToggleThemeClick" ToolTip.Tip="Toggle light/dark theme">
+                            Click="OnToggleThemeClick"
+                            cmd:CommandTip.Text="Toggle light/dark theme"
+                            cmd:CommandTip.Command="ToggleTheme">
                         <PathIcon Name="ThemeIcon" Data="{StaticResource WeatherNightIconGeometry}" Width="14" Height="14" />
                     </Button>
                     <Button Name="PreferencesButton" Classes="chip" Padding="5"
@@ -257,7 +259,7 @@
                         <Flyout Placement="BottomEdgeAlignedRight">
                             <StackPanel Width="260" Spacing="6">
                                 <TextBox Name="TabSearchBox" PlaceholderText="Search tabs…" />
-                                <ListBox Name="TabSearchList" MaxHeight="320">
+                                <ListBox Name="TabSearchList" Classes="emphasized" MaxHeight="320">
                                     <ListBox.ItemTemplate>
                                         <DataTemplate x:DataType="vm:QueryViewModel">
                                             <StackPanel Orientation="Horizontal" Spacing="4">
@@ -285,7 +287,7 @@
                 <!-- Horizontal scroll (not clipping): with many tabs the strip
                      used to cut off mid-tab and hide the active tab entirely;
                      AutoScrollToSelectedItem keeps a newly added tab in view. -->
-                <ListBox Name="TabsList" ItemsSource="{Binding Tabs}" SelectedItem="{Binding ActiveTab, Mode=TwoWay}"
+                <ListBox Name="TabsList" Classes="strip" ItemsSource="{Binding Tabs}" SelectedItem="{Binding ActiveTab, Mode=TwoWay}"
                           SelectionMode="Single" AutoScrollToSelectedItem="True"
                           ScrollViewer.HorizontalScrollBarVisibility="Auto"
                           ScrollViewer.VerticalScrollBarVisibility="Disabled">
@@ -679,7 +681,7 @@
                 </TextBox>
                 <Border Grid.Row="1" BorderThickness="0,1,0,0" BorderBrush="{StaticResource CardBorderBrush}">
                     <Grid>
-                        <ListBox Name="PaletteList" ItemsSource="{Binding Results}"
+                        <ListBox Name="PaletteList" Classes="emphasized" ItemsSource="{Binding Results}"
                                  SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
                                  SelectionMode="Single" Padding="6"
                                  Tapped="OnPaletteListTapped"
@@ -688,17 +690,17 @@
                                 <DataTemplate x:DataType="vm:PaletteItem">
                                     <Grid ColumnDefinitions="Auto,*,Auto,Auto">
                                         <TextBlock Grid.Column="0" Text="{Binding Glyph}" Width="20"
-                                                   Opacity="0.7" VerticalAlignment="Center" />
+                                                   Classes="secondary" VerticalAlignment="Center" />
                                         <TextBlock Grid.Column="1" Text="{Binding Title}"
                                                    TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
                                         <!-- The action's hotkey, so the palette doubles as a way to learn them -->
                                         <TextBlock Grid.Column="2" Text="{Binding Shortcut}"
                                                    IsVisible="{Binding Shortcut, Converter={x:Static conv:ObjectConverters.IsNotNull}}"
-                                                   FontSize="11" Opacity="0.55" VerticalAlignment="Center"
+                                                   FontSize="11" Classes="secondary" VerticalAlignment="Center"
                                                    FontFamily="{DynamicResource KeyCapFont}"
                                                    Margin="12,0,0,0" />
                                         <TextBlock Grid.Column="3" Text="{Binding Category}"
-                                                   FontSize="11" Opacity="0.6" VerticalAlignment="Center"
+                                                   FontSize="11" Classes="secondary" VerticalAlignment="Center"
                                                    Margin="12,0,0,0" />
                                     </Grid>
                                 </DataTemplate>

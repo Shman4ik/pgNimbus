@@ -125,6 +125,9 @@ public static class NimbusWindowChrome
         ApplyCaptionReserve(window, commandBar, inset);
         ApplyOffScreenMargin(window, rootLayout);
 
+        // AppKit centres the traffic lights on its own ~28pt title bar, not on ours.
+        MacTrafficLights.Attach(window, commandBar.Height);
+
         window.PropertyChanged += (_, e) =>
         {
             if (e.Property == Window.OffScreenMarginProperty)
