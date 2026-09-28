@@ -1086,8 +1086,12 @@ csproj / WiX / MSIX manifest reference them unchanged:
 - Core: `Npgsql`, `System.Security.Cryptography.ProtectedData`, `SSH.NET`.
 - App: `Avalonia`, `Avalonia.Desktop`, `Avalonia.Themes.Fluent`,
   `Avalonia.Fonts.Inter`, `Avalonia.Controls.DataGrid`, `Avalonia.AvaloniaEdit`,
-  `CommunityToolkit.Mvvm`, `AvaloniaUI.DiagnosticsSupport` (DevTools/MCP —
-  Debug-only, wired via `.WithDeveloperTools()` in `Program.cs`, see below).
+  `CommunityToolkit.Mvvm`. No `AvaloniaUI.DiagnosticsSupport`: the Avalonia
+  DevTools MCP wiring (Debug-only `.WithDeveloperTools()`) was removed in
+  2026-09 (#264) — the MCP tool is not on the current subscription tier, it
+  could not reach the completion popup (its own top-level window) or a
+  `ContextMenu` anyway, and it cost CI a separate Debug build. Live checks
+  go through the headless UI tests, the screenshot harness and computer-use.
 - Tests: `PgNimbus.Core.Tests` — TUnit on Microsoft.Testing.Platform. Run
   `dotnet test --project PgNimbus.Core.Tests` (MTP mode comes from the
   `test.runner` opt-in in the repo-root `global.json`) or plain
@@ -1370,36 +1374,6 @@ csproj / WiX / MSIX manifest reference them unchanged:
   in `PgNimbus.Core.Tests` assert exact spacing — a deliberate layout change
   must update them, and every layout must survive the formatter's token
   round-trip safety net.
-
-## Avalonia DevTools MCP
-
-The app exposes its live visual tree / runtime state to an MCP client (Codex
-Code, VS, Rider) via the Avalonia DevTools MCP server. Two pieces make it work:
-
-1. **In the app** — `AvaloniaUI.DiagnosticsSupport` is referenced and
-   `.WithDeveloperTools()` is on the `AppBuilder` in `Program.cs`. Without
-   this, a running app can't be discovered by the MCP server. Both are
-   **Debug-only** (a `Condition` on the `PackageReference`, `#if DEBUG`
-   around the call): the package is part of AvaloniaUI's commercial
-   Developer Tools and ships no explicit redistribution license, so it must
-   not be linked into public Release/AOT binaries. Consequence: MCP
-   inspection only works against a Debug build — `dotnet run` (default
-   Debug) is fine, a `-c Release` or published AOT binary won't be
-   discoverable.
-2. **The MCP server** — the `avdt` global .NET tool runs as `avdt mcp`.
-   Register it once at user scope; it reads its license from the
-   `AVALONIA_TOOLS_LICENSE_KEY` env var (`ACCELERATE_LICENSE_KEY` on
-   Avalonia 11.x and earlier):
-
-   ```bash
-   Codex mcp add --scope user avalonia_devtools \
-     -e AVALONIA_TOOLS_LICENSE_KEY=<key> -- avdt mcp
-   Codex mcp list   # avalonia_devtools: avdt mcp - ✓ Connected
-   ```
-
-   The server only sees the app while it's running, so launch the app before
-   asking the MCP to inspect it. Docs:
-   https://docs.avaloniaui.net/tools/developer-tools/mcp
 
 ## Bootstrapping a fresh Linux/CI sandbox (no .NET, no display, no Postgres)
 
@@ -1830,9 +1804,7 @@ Unsigned binaries still get verifiable provenance, three layers:
   SmartScreen (the Store channel covers that).
 - **SBOM** — the build-linux x64 leg generates a CycloneDX JSON SBOM of the
   App's full NuGet graph (`dotnet-CycloneDX` on `PgNimbus.App.csproj`,
-  `-c Release` so the Debug-only conditional AvaloniaUI.DiagnosticsSupport
-  reference stays out — it's not in shipped binaries and must not appear in
-  the SBOM). Ships as the `pgNimbus-<ver>-sbom.cdx.json` release asset,
+  `-c Release`, the configuration the binaries ship in). Ships as the `pgNimbus-<ver>-sbom.cdx.json` release asset,
   checksummed and attested like the binaries. Generated once (x64 only) —
   the NuGet graph is RID-independent.
 - **Vulnerability gates** — the repo-root `Directory.Build.props` sets

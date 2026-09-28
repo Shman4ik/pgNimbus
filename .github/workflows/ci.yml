@@ -69,15 +69,6 @@ jobs:
         with:
           dotnet-version: "10.0.x"
 
-      # Debug first: it's the configuration that includes the Debug-only
-      # AvaloniaUI.DiagnosticsSupport reference, so both dependency graphs
-      # get compiled. Only the App project: that reference and the one
-      # `#if DEBUG` block (Program.cs) live there, and compiling the test and
-      # tool projects a second time in Debug proved nothing the Release build
-      # below doesn't.
-      - name: Build (Debug)
-        run: dotnet build PgNimbus.App -c Debug
-
       - name: Build (Release)
         run: dotnet build -c Release
 
