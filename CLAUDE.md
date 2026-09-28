@@ -2132,6 +2132,11 @@ artifact nobody opens is not a check:
    false `CHANGED` reports. `update-baselines.sh` leaves them out after a
    wholesale refresh; one refresh that didn't (#261) turned `main` red (2026-09).
    Give them baselines back only once that render is deterministic.
+   **Take baselines from a full render, never a filtered one** (2026-09). The
+   harness renders every scenario in one process, and which Inter face a SemiBold
+   request resolves to depends on what earlier scenarios loaded: baselines from a
+   run filtered to `connection` drew every bold label heavier than CI's full run
+   and failed it by 1.3%. A filter is for looking, not for committing.
 3. **Publishing** (`--publish`) — `Marketing.cs` maps scenarios to the images
    that face users: `docs/screenshots/` (README + docs site) and
    `design/store/screenshots/` (Store listing, padded to the Store's 1366×768
