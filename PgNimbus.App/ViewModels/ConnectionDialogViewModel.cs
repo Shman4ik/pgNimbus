@@ -74,12 +74,20 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
     /// </summary>
     public string FooterText { get; } = BuildFooterText();
 
+    /// <summary>
+    /// Just the version ("v0.4.5"), for the lockup in the button row; the full
+    /// <see cref="FooterText"/> is its tooltip, and the About box it opens has the rest.
+    /// </summary>
+    public string VersionLabel { get; } = BuildVersionLabel();
+
+    private static string BuildVersionLabel() =>
+        "v" + (Assembly.GetEntryAssembly()?.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+            .Split('+')[0] ?? "0.0.0");
+
     private static string BuildFooterText()
     {
-        var assembly = Assembly.GetEntryAssembly();
-        var version = "v" + (assembly?.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
-            .Split('+')[0] ?? "0.0.0");
-        var copyright = assembly?.GetCustomAttribute<AssemblyCopyrightAttribute>()?.Copyright;
+        var version = BuildVersionLabel();
+        var copyright = Assembly.GetEntryAssembly()?.GetCustomAttribute<AssemblyCopyrightAttribute>()?.Copyright;
         return string.IsNullOrEmpty(copyright) ? version : $"{version} · {copyright} · MIT";
     }
 
@@ -95,6 +103,14 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
     /// </summary>
     [ObservableProperty]
     private bool _isAboutOpen;
+
+    /// <summary>
+    /// The lockup in the button row opens the About box. On Windows and Linux it is
+    /// the only way to it from here: the ☰ menu belongs to the main window, and the
+    /// app-menu item that also sets this is macOS's.
+    /// </summary>
+    [RelayCommand]
+    private void ShowAbout() => IsAboutOpen = true;
 
     public IReadOnlyList<SslMode> SslModes { get; } = Enum.GetValues<SslMode>();
 

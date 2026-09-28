@@ -906,6 +906,28 @@ Three rules about it:
   bar (`BuildMacNativeMenu`) is the file-command home there, so it would be a
   second copy of the same commands. The sidebar toggle icon is platform-picked
   via `{OnPlatform}` (SF-style geometry on macOS).
+
+  **The connection dialog has the same one bar** (2026-09). It is the app's first
+  screen and a resizable, maximizable window like the main one, yet it arrived
+  under an OS caption reading "pgNimbus — Connect" beside the app icon, so the
+  first thing anyone saw was the one window that did not look like the app.
+  `ConnectionDialog` attaches `NimbusWindowChrome` to its own 40px `ConnectBar`,
+  which carries only the "Saved connections" heading over the list. The
+  connection-string box stays at the top of the form: it was tried in the bar,
+  where the main window keeps its search pill, and the owner rejected it on
+  sight. The window `Title` stays set for the taskbar and Alt+Tab. The modal
+  dialogs keep their OS captions; they are not places.
+  **The identity sits in the button row instead**: the mark, the name and the
+  version, centred between New and Connect, in the one strip of the window that
+  is always there and always empty. It replaced the separate "v1.0.0 · Copyright"
+  line below the buttons (the full text is its tooltip), so the window got that
+  row back, and it opens the About overlay, which from this window was otherwise
+  reachable only through macOS's app menu. A social-card lockup in the space under
+  the fields was tried first and moved: that space comes and goes with the SSH
+  section and the window's height, so the identity did too. It is a `chip` with a
+  local `Opacity="1"` (a chip rests at 0.6). The mark is vector:
+  `Styles/LogoMark.axaml`, generated from `design/logo.svg` (see the icon
+  section's chain).
 - **The connected window opens in the display mode the connect form was left
   in (2026-08).** `App.CarryWindowState`, called from the dialog's `Connected`
   handler before `Show()`. Connecting reads as one continuous act — the form is
@@ -957,8 +979,8 @@ Three rules about it:
   exit through their own teardown cleanly.
 - **Windows** — every remaining window still calls `ThemedWindowChrome.Attach(this)`
   for the **icon** (details in the icon section below). Its caption-colour half is
-  moot on `MainWindow`, whose caption is ours, and still applies to the dialogs and
-  the two reference windows. kubeNimbus deleted its copy outright once its last two
+  moot on `MainWindow` and `ConnectionDialog`, whose captions are ours, and still
+  applies to the dialogs and the reference windows. kubeNimbus deleted its copy outright once its last two
   secondary windows became overlays; ours stays because the connection dialog and the
   crash reporter exist *before* or *instead of* a main window and can never be one.
 - **macOS native menu bar (2026-07)** — two layers. App-level (`App.axaml`,
@@ -1041,6 +1063,7 @@ design/logo.af                     Affinity, the editable master
   → scripts/design/dump-af.js      geometry out to JSON (run via the Affinity MCP)
   → scripts/design/af-to-svg.py    design/logo.svg
   → scripts/design/make-masters.ps1        design/masters/**
+  → scripts/design/svg-to-axaml.py         PgNimbus.App/Styles/LogoMark.axaml
   → scripts/windows/make-app-icons.ps1     PgNimbus.App/Assets/**
   → scripts/windows/make-store-logos.ps1   design/store/**
 ```
@@ -2109,6 +2132,11 @@ artifact nobody opens is not a check:
    false `CHANGED` reports. `update-baselines.sh` leaves them out after a
    wholesale refresh; one refresh that didn't (#261) turned `main` red (2026-09).
    Give them baselines back only once that render is deterministic.
+   **Take baselines from a full render, never a filtered one** (2026-09). The
+   harness renders every scenario in one process, and which Inter face a SemiBold
+   request resolves to depends on what earlier scenarios loaded: baselines from a
+   run filtered to `connection` drew every bold label heavier than CI's full run
+   and failed it by 1.3%. A filter is for looking, not for committing.
 3. **Publishing** (`--publish`) — `Marketing.cs` maps scenarios to the images
    that face users: `docs/screenshots/` (README + docs site) and
    `design/store/screenshots/` (Store listing, padded to the Store's 1366×768

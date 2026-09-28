@@ -7,6 +7,7 @@ using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using PgNimbus.App.ViewModels;
+using Nimbus.Ui.Chrome;
 using PgNimbus.Core.Connections;
 
 namespace PgNimbus.App.Views;
@@ -23,7 +24,10 @@ public partial class ConnectionDialog : Window
     public ConnectionDialog()
     {
         InitializeComponent();
+        // The icon half still matters (taskbar, Alt+Tab); the caption it colours is
+        // gone on Windows and macOS, where the bar below is the title bar.
         ThemedWindowChrome.Attach(this);
+        NimbusWindowChrome.Attach(this, ConnectBar, RootLayout, inset: 16);
 
         Opened += OnDialogOpened;
         Closing += OnDialogClosing;

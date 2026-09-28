@@ -23,6 +23,15 @@
         </NativeMenu>
     </NativeMenu.Menu>
 
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- The mark as vector geometry, generated from design/logo.svg. -->
+                <ResourceInclude Source="avares://PgNimbus.App/Styles/LogoMark.axaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+
     <Application.Styles>
         <FluentTheme />
         <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />

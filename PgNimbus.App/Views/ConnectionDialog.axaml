@@ -7,6 +7,7 @@
         xmlns:views="using:PgNimbus.App.Views"
         xmlns:nui="using:Nimbus.Ui.Controls"
         xmlns:sys="using:System"
+        xmlns:chrome="using:Avalonia.Controls.Chrome"
         x:Class="PgNimbus.App.Views.ConnectionDialog"
         x:DataType="vm:ConnectionDialogViewModel"
         Title="pgNimbus — Connect"
@@ -15,16 +16,28 @@
         WindowStartupLocation="CenterScreen">
 
     <!-- Outer grid carries no margin so the About overlay's backdrop can reach the
-         window edges; the form keeps its own inset. -->
-    <Grid>
+         window edges; the form keeps its own inset. Named because
+         NimbusWindowChrome hangs the maximized window's OffScreenMargin on it. -->
+    <Grid Name="RootLayout" RowDefinitions="Auto,*">
 
-    <Grid Margin="16" RowDefinitions="*,Auto,Auto,Auto">
+    <!-- The one bar of chrome, as in the main window (NimbusWindowChrome,
+         DESIGN.md rule 9): no icon and no "pgNimbus - Connect" caption over the
+         form, and the caption buttons are the same drawn ones. It carries the
+         list's heading, over the list. The TitleBar role gives it drag,
+         double-click, the window menu and Snap. Padding comes from the chrome,
+         which adds the caption-button reserve on top of 16. -->
+    <Border Name="ConnectBar" Grid.Row="0" Height="40" Background="Transparent"
+            chrome:WindowDecorationProperties.ElementRole="TitleBar"
+            BorderThickness="0,0,0,1" BorderBrush="{StaticResource CardBorderBrush}">
+        <TextBlock Text="Saved connections" FontWeight="SemiBold" VerticalAlignment="Center" />
+    </Border>
+
+    <Grid Grid.Row="1" Margin="16" RowDefinitions="*,Auto,Auto">
 
     <Grid Grid.Row="0" ColumnDefinitions="240,*" IsEnabled="{Binding CredentialsReady}">
 
-        <Grid Grid.Column="0" RowDefinitions="Auto,*">
-            <TextBlock Grid.Row="0" Text="Saved Connections" FontWeight="SemiBold" Margin="0,0,0,8" />
-            <Border Grid.Row="1" Classes="card">
+        <Grid Grid.Column="0">
+            <Border Classes="card">
                 <Grid>
                     <!-- Rows reorder by drag (pointer handlers in code-behind);
                          the new order persists to connections.json on release. -->
@@ -261,9 +274,26 @@
          There is no Save: the form saves itself as it is edited (see
          ConnectionDialogViewModel.OnFormEdited). -->
 
-    <Grid Grid.Row="2" ColumnDefinitions="240,*" Margin="0,8,0,0">
+    <Grid Grid.Row="2" ColumnDefinitions="240,*,Auto" Margin="0,8,0,0">
         <Button Grid.Column="0" Classes="soft" Content="New" Command="{Binding NewCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
-        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" Margin="20,0,0,0">
+
+        <!-- The app's identity, in the one strip of the window that is always
+             there and always empty: mark, name, version, centred between New and
+             Connect. It replaced a separate "v1.0.0 · Copyright" line under the
+             buttons, so the window gained that row back. It opens About, which is
+             otherwise out of reach from this window outside macOS, and it steps
+             aside if the window is ever too narrow for it next to the buttons. -->
+        <Button Grid.Column="1" Classes="chip" Opacity="1" HorizontalAlignment="Center" Padding="8,4" Margin="12,0"
+                Command="{Binding ShowAboutCommand}" ToolTip.Tip="{Binding FooterText}"
+                IsVisible="{Binding $parent[Grid].Bounds.Width, Converter={x:Static converters:MinWidthVisibilityConverter.Instance}, ConverterParameter=580}">
+            <StackPanel Orientation="Horizontal" Spacing="7">
+                <Image Source="{StaticResource LogoMarkImage}" Width="22" Height="22" VerticalAlignment="Center" />
+                <TextBlock Text="pgNimbus" FontSize="14" FontWeight="Bold" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding VersionLabel}" FontSize="11" Opacity="0.6" VerticalAlignment="Center" Margin="1,2,0,0" />
+            </StackPanel>
+        </Button>
+
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
             <!-- IsDefault: Enter anywhere in the dialog connects, so a preselected
                  profile needs no click at all. Primary first, as in every dialog. -->
             <Button Classes="accent" Content="Connect" Command="{Binding ConnectCommand}" IsEnabled="{Binding !IsConnecting}"
@@ -273,16 +303,13 @@
         </StackPanel>
     </Grid>
 
-    <!-- Thin full-width footer strip, below the buttons like everything else. -->
-    <TextBlock Grid.Row="3" Text="{Binding FooterText}" FontSize="10" Opacity="0.6"
-               HorizontalAlignment="Center" Margin="0,10,0,0" />
 
     </Grid>
 
     <!-- The same About box the shell hosts, with the same sizing. Here because the
          connect form is often the only window open, and macOS's app-menu "About
          pgNimbus" has to land somewhere (see ConnectionDialogViewModel.IsAboutOpen). -->
-    <nui:OverlayPanel IsOpen="{Binding IsAboutOpen, Mode=TwoWay}"
+    <nui:OverlayPanel Grid.RowSpan="2" IsOpen="{Binding IsAboutOpen, Mode=TwoWay}"
                       Title="About" PanelWidth="340" PanelMaxHeight="400">
         <views:AboutView />
     </nui:OverlayPanel>
