@@ -9,7 +9,7 @@ public partial class ConfirmDialog : Window
     public ConfirmDialog()
     {
         InitializeComponent();
-        ThemedWindowChrome.Attach(this);
+        DialogChrome.Attach(this);
     }
 
     public ConfirmDialog(string message, string confirmLabel) : this()

@@ -669,7 +669,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.Preferences,
-            Title = "Preferences…",
+            Title = "Settings…",
             Category = CommandCategory.Navigation,
             Glyph = "⚙",
             Chord = new(CommandKey.Comma, Cmd),

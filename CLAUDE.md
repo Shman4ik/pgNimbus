@@ -722,7 +722,7 @@ Three rules about it:
    The ☰ button (top-left, 2026-07) opens the one discoverable menu for file/tab-level commands: New Query Tab,
    Open… / Open Recent, Save / Save As… / Save to Saved Queries… /
    Save to File…, Close Tab, Reopen Closed Tab, Switch Connection…,
-   New Connection Window…, Preferences…, **Keyboard Shortcuts and About pgNimbus**
+   New Connection Window…, Settings…, **Keyboard Shortcuts and About pgNimbus**
    (Title Case and the macOS menu bar's own names since 2026-09, DESIGN.md
    rule 18; the palette rows of the same commands say "Open file…", "Save to
    Saved Queries…" and "Save to file…" in the palette's sentence case). Those last
@@ -929,7 +929,8 @@ Three rules about it:
    `Styles/Theme.axaml` sets it, and the Inter font, so no window sets either —
    and groups its content in `card`s. A dialog is assembled from
    `TextBlock.dialogTitle`, `TextBlock.dialogHint` and `StackPanel.dialogButtons`
-   (primary first, Cancel last) on a 20px margin; an overlay over the shell is
+   (the macOS order on every platform: other secondaries, then Cancel, then the
+   primary rightmost) on a 20px margin; an overlay over the shell is
    `Border.scrim` holding `Border.overlayCard`; what floats over the editor paints
    with `AppPopupBrush`. **Never `SystemControlPageBackgroundAltHighBrush`**: it
    is pure black in the dark theme, and it was the work area, every popup, the
@@ -938,6 +939,26 @@ Three rules about it:
    heading sizes, two hint opacities and both button orders; the scenarios
    `confirm-dialog`, `pending-changes-dialog`, `import-plan-dialog`,
    `import-dialog` and `bulk-grant-dialog` exist so they are seen side by side.
+   **The button order flipped to Apple's** (2026-09, macOS UI audit): it had been
+   the Windows order, primary first, and on a Mac "Save | Cancel" and "Connect |
+   Test" put the affirmative where every native dialog keeps Cancel. It flipped
+   everywhere, not per OS, because a per-platform order is the very drift rule 16
+   was written to end; `IsDefault`/`IsCancel` carry Enter and Esc wherever the
+   buttons sit. **Every modal dialog attaches `DialogChrome`** (not
+   `ThemedWindowChrome`, which it wraps): no minimize or maximize on any platform
+   (a minimized modal leaves its owner blocked with nothing to answer), and on
+   macOS the caption text is hidden by extending the client area under the title
+   bar, so the body's `dialogTitle` is the only title on screen and AppKit no
+   longer repeats "pgNimbus — Save query" above it. `Window.Title` stays set for
+   VoiceOver, Mission Control and the Window menu. `DialogChrome` re-parents the
+   dialog's content under a `Panel` with a transparent `TitleBar`-role strip over
+   the band (drag) and pushes the content down by `WindowDecorationMargin.Top`,
+   so nothing sits under the traffic lights. **Not a sheet:** Avalonia 12 exposes
+   no sheet presentation, and driving `beginSheet:` through the native handle
+   under Avalonia's own modal loop is not a risk worth a dialog helper.
+   The reference windows (activity, overview, notify, slow queries, security) are
+   not modal and keep `ThemedWindowChrome`; so does `CrashWindow`, which is shown
+   with `Show` and must stay self-contained.
 7. **Views compose from focused `UserControl`s — no god-view.** Following
    Avalonia's MVVM guidance (<https://docs.avaloniaui.net/docs/fundamentals/architecture>):
    code-behind is the *right* home for purely visual interaction logic that
@@ -999,7 +1020,15 @@ Three rules about it:
    one. `ActivityWindow`, `DatabaseOverviewWindow` and `NotifyMonitorWindow` are
    reference views you read beside your query — the notify one is watched *while*
    the application under test runs, which is the clearest case in the list — and
-   are deliberately untouched. `ConnectionDialog` and
+   are deliberately untouched.
+   **The preferences page is titled "Settings"** (2026-09, macOS audit): the
+   overlay, its ☰ entry, the cog's tooltip and the palette row (`CommandId.Preferences`
+   keeps its name; only the catalog `Title` changed, and the generated shortcut
+   reference with it). macOS's app menu already said "Settings…" (Ventura renamed
+   Preferences), so the menu opened a page with another name. One name on every
+   platform, since the page is the same page. The About overlay carries the vector
+   mark (`LogoMarkImage`, 72px) above the name, the way a native About panel carries
+   the app icon. `ConnectionDialog` and
    `CrashWindow` cannot be overlays at all — both exist before, or instead of, a main
    window. The modal dialogs (`ConfirmDialog`, `AddRowDialog`, `AlterTableDialog`,
    `ImportDialog`, `ImportPlanDialog`, `PendingChangesDialog`, `StagedConflictDialog`)
@@ -1054,9 +1083,23 @@ Three rules about it:
   connection-string box stays at the top of the form: it was tried in the bar,
   where the main window keeps its search pill, and the owner rejected it on
   sight. The window `Title` stays set for the taskbar and Alt+Tab. The modal
-  dialogs keep their OS captions; they are not places.
+  dialogs keep their OS captions on Windows and Linux; they are not places (on
+  macOS `DialogChrome` hides the caption text, UI rule 6).
+  **The form stops widening at 720px** (2026-09, macOS audit): maximized, every
+  field used to run across the screen, the port box ~1500px from its host. The
+  second column of `FormLayout` is `1000*` with `MaxWidth="720"` and a plain `*`
+  column after it takes the rest, so the form stays left-aligned under the
+  "Saved connections" heading instead of being centred away from it, and in a
+  narrow window the near-zero third column leaves it all the width (a `Stretch`
+  element with a `MaxWidth` would have *centred*, and a `Left` one shrinks to its
+  content). Every row spans the first two columns, so Connect stays under the
+  fields' right edge. **New is a compact + under the list** (`NewConnectionButton`,
+  tooltip "New Connection") rather than a 240px bar; there is deliberately no −
+  beside it, Delete stays on the right-click menu (UI rule 1). **The switches sit
+  right of their labels**, a `*,Auto` grid as on the Settings page, rather than
+  leading them like checkboxes. Buttons read Test, Connect (DESIGN.md rule 16).
   **The identity sits in the button row instead**: the mark, the name and the
-  version, centred between New and Connect, in the one strip of the window that
+  version, centred between the + and Test, in the one strip of the window that
   is always there and always empty. It replaced the separate "v1.0.0 · Copyright"
   line below the buttons (the full text is its tooltip), so the window got that
   row back, and it opens the About overlay, which from this window was otherwise

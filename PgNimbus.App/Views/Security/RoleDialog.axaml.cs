@@ -15,7 +15,7 @@ public partial class RoleDialog : Window
     public RoleDialog()
     {
         InitializeComponent();
-        ThemedWindowChrome.Attach(this);
+        DialogChrome.Attach(this);
     }
 
     private void OnCancelClick(object? sender, RoutedEventArgs e) => Close(false);

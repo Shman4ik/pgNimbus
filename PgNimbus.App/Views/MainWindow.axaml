@@ -95,7 +95,7 @@
                                 <MenuItem Name="MenuSwitchConnection" Header="Switch Connection…" Command="{Binding SwitchConnectionCommand}" />
                                 <MenuItem Name="MenuNewWindow" Header="New Connection Window…" Command="{Binding OpenNewWindowCommand}" />
                                 <Separator />
-                                <MenuItem Name="MenuPreferences" Header="Preferences…" Command="{Binding ShowPreferencesCommand}" />
+                                <MenuItem Name="MenuPreferences" Header="Settings…" Command="{Binding ShowPreferencesCommand}" />
                                 <!-- The cheat sheet and the About box, in the same
                                      place kubeNimbus's ☰ menu carries them. The
                                      macOS app menu has About too, but this is the
@@ -175,7 +175,7 @@
                     <Button Name="PreferencesButton" Classes="chip" Padding="5"
                             Margin="0,0,4,0" VerticalAlignment="Center"
                             Command="{Binding ShowPreferencesCommand}"
-                            cmd:CommandTip.Text="Preferences"
+                            cmd:CommandTip.Text="Settings"
                             cmd:CommandTip.Command="Preferences">
                         <PathIcon Data="{StaticResource CogIconGeometry}" Width="14" Height="14" />
                     </Button>
@@ -734,7 +734,7 @@
     </nui:OverlayPanel>
 
     <nui:OverlayPanel IsOpen="{Binding IsPreferencesOpen, Mode=TwoWay}"
-                      Title="Preferences" PanelWidth="580" PanelMaxHeight="640"
+                      Title="Settings" PanelWidth="580" PanelMaxHeight="640"
                       Content="{Binding Preferences}">
         <nui:OverlayPanel.ContentTemplate>
             <DataTemplate DataType="vm:PreferencesViewModel">

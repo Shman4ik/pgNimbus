@@ -54,8 +54,8 @@
                    IsVisible="{Binding ErrorMessage, Converter={x:Static conv:ObjectConverters.IsNotNull}}" Margin="0,8,0,0" />
 
         <StackPanel Grid.Row="6" Classes="dialogButtons">
-            <Button Classes="accent" Content="Import" Command="{Binding ImportCommand}" IsEnabled="{Binding !IsImporting}" />
             <Button Classes="soft" Content="Cancel" Click="OnCancelClick" />
+            <Button Classes="accent" Content="Import" Command="{Binding ImportCommand}" IsEnabled="{Binding !IsImporting}" />
         </StackPanel>
 
     </Grid>

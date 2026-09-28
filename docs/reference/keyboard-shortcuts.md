@@ -10,7 +10,7 @@ out. The **macOS** column uses Command and writes keys with Apple's symbols:
 ⌘ Command, ⌥ Option, ⇧ Shift, ⌃ Control, ↩ Return, ⌫ Delete, ⌦ Forward Delete,
 ⎋ Escape, ⇥ Tab, ⇞ ⇟ Page Up and Page Down. A few commands also answer the Mac's
 own shortcut there, and list it first. Which column applies follows the platform
-by default and can be forced either way in Preferences → Hotkey scheme.
+by default and can be forced either way in Settings → Hotkey scheme.
 
 ## Query
 
@@ -90,6 +90,6 @@ by default and can be forced either way in Preferences → Hotkey scheme.
 | Roles and permissions | Ctrl+Shift+U | ⇧⌘U |
 | Switch connection… | Ctrl+Shift+O | ⇧⌘O |
 | Open connection in new window… | Ctrl+Shift+N | ⇧⌘N |
-| Preferences… | Ctrl+, | ⌘, |
+| Settings… | Ctrl+, | ⌘, |
 | Keyboard shortcuts | F1 | ⌘? / F1 |
 

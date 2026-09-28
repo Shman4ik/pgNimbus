@@ -163,8 +163,8 @@
             <TextBlock Text="{Binding ErrorMessage}" IsVisible="{Binding HasErrorMessage}"
                        Foreground="{StaticResource AppDangerBrush}" FontSize="12" TextWrapping="Wrap" />
             <StackPanel Classes="dialogButtons" Margin="0">
-                <Button Classes="accent" Content="Apply" Command="{Binding ApplyCommand}" IsDefault="True" />
                 <Button Classes="soft" Content="Cancel" Click="OnCancelClick" IsCancel="True" />
+                <Button Classes="accent" Content="Apply" Command="{Binding ApplyCommand}" IsDefault="True" />
             </StackPanel>
         </StackPanel>
 

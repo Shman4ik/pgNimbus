@@ -130,10 +130,10 @@
             <TextBlock Text="{Binding ErrorMessage}" IsVisible="{Binding HasErrorMessage}"
                        Foreground="{StaticResource AppDangerBrush}" FontSize="12" TextWrapping="Wrap" />
             <StackPanel Classes="dialogButtons" Margin="0">
-                <Button Classes="danger" Content="Run it" Command="{Binding RunCommand}" />
                 <Button Classes="soft" Content="Open in editor" Command="{Binding OpenInEditorCommand}"
                         ToolTip.Tip="Run it yourself — and re-run it in every other database this role owns objects in" />
                 <Button Classes="soft" Content="Cancel" Click="OnCancelClick" IsCancel="True" />
+                <Button Classes="danger" Content="Run it" Command="{Binding RunCommand}" />
             </StackPanel>
         </StackPanel>
 

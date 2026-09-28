@@ -1,10 +1,15 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="PgNimbus.App.Views.AboutView">
-    <!-- The macOS-style About box: name, version, license — nothing more.
+    <!-- The macOS-style About box: mark, name, version, license — nothing more.
          Version/copyright are filled in code-behind from the entry assembly,
-         so the release pipeline's -p:InformationalVersion is the only source. -->
+         so the release pipeline's -p:InformationalVersion is the only source.
+         The mark is the vector one (Styles/LogoMark.axaml, generated from
+         design/logo.svg), so it is sharp at any scale factor; it sits above the
+         name the way a native About panel carries the app icon. -->
     <StackPanel Margin="28,12,28,28" Spacing="4">
+        <Image Name="LogoImage" Source="{StaticResource LogoMarkImage}" Width="72" Height="72"
+               HorizontalAlignment="Center" Margin="0,0,0,8" />
         <TextBlock Text="pgNimbus" FontSize="24" FontWeight="SemiBold" HorizontalAlignment="Center" />
         <TextBlock Name="VersionText" FontSize="12" Opacity="0.6" HorizontalAlignment="Center" />
         <TextBlock Text="A fast, open-source PostgreSQL client"

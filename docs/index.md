@@ -58,7 +58,7 @@ one catalog in the source, so neither can drift from what the app does.
 ## Conventions in these pages
 
 Shortcuts are written with <kbd>Ctrl</kbd>. On macOS, <kbd>Cmd</kbd> takes its
-place automatically, and you can force either scheme in Preferences, under Hotkey
+place automatically, and you can force either scheme in Settings, under Hotkey
 scheme. The one exception is autocomplete, which stays on
 <kbd>Ctrl</kbd>+<kbd>Space</kbd> everywhere, because
 <kbd>Cmd</kbd>+<kbd>Space</kbd> is Spotlight on macOS.

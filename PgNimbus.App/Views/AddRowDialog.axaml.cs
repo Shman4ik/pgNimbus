@@ -9,7 +9,7 @@ public partial class AddRowDialog : Window
     public AddRowDialog()
     {
         InitializeComponent();
-        ThemedWindowChrome.Attach(this);
+        DialogChrome.Attach(this);
 
         Opened += async (_, _) =>
         {

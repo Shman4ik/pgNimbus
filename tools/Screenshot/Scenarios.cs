@@ -413,8 +413,8 @@ public static class Scenarios
     }
 
     // The modal dialogs below exist so every dialog has a frame to compare: the
-    // same margins, title and hint type, and button row (primary first, Cancel
-    // last) are only a convention until something shows them side by side.
+    // same margins, title and hint type, and button row (secondaries, Cancel, then
+    // the primary last) are only a convention until something shows them side by side.
 
     /// <summary>The shared destructive confirm, as the grid's Delete raises it.</summary>
     public static Window ConfirmDialogShot() =>
