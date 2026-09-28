@@ -66,7 +66,9 @@ of [nimbusUi](https://github.com/Shman4ik/nimbusUi), referenced as an ordinary
 - `Theme/Theme.axaml` — the shared style classes (`card`, `layer`, `chip`,
   `toolbar`, `searchpill`, `statusBar`, …).
 - `Theme/Controls.axaml` — the Fluent **control** retheming: `TextBox`/`ComboBox`/
-  `NumericUpDown` radius and brand text selection, `SelectableTextBlock`,
+  `NumericUpDown` radius and brand text selection, one-line `TextBox` text and
+  placeholder centred vertically (Fluent pins them under the top padding, so a
+  smaller font sat high: the sidebar filter's placeholder above its magnifier), `SelectableTextBlock`,
   `ListBox`/`ListBoxItem`/`TreeView`/`TreeViewItem` rounded rows, `DataGrid` soft
   rules, the `.soft` and `.soft.danger` button families, `ToggleButton.soft`, the
   chip checked-hover washes, `TabControl`. **These moved out of
@@ -1149,7 +1151,12 @@ Three rules about it:
   is always there and always empty. It replaced the separate "v1.0.0 · Copyright"
   line below the buttons (the full text is its tooltip), so the window got that
   row back, and it opens the About overlay, which from this window was otherwise
-  reachable only through macOS's app menu. A social-card lockup in the space under
+  reachable only through macOS's app menu.
+  **A big window centres the form instead of stretching it** (2026-09): the list
+  and the form are one block capped at 1000 x 760 and centred, and the bar's
+  heading follows the block's left edge (`AlignBarHeading`). Maximized on a Mac it
+  used to leave the form against the left edge with half the window empty and
+  the buttons a screen's height below the fields (`connection-dialog-wide`). A social-card lockup in the space under
   the fields was tried first and moved: that space comes and goes with the SSH
   section and the window's height, so the identity did too. It is a `chip` with a
   local `Opacity="1"` (a chip rests at 0.6). The mark is vector:
