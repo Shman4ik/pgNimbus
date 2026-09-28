@@ -917,14 +917,17 @@ Three rules about it:
   where the main window keeps its search pill, and the owner rejected it on
   sight. The window `Title` stays set for the taskbar and Alt+Tab. The modal
   dialogs keep their OS captions; they are not places.
-  **The identity moved into the form's empty space instead**: the mark, the name
-  and the About tagline, laid out like the GitHub social card, centred below the
-  fields. It shows only while it fits whole there (`UpdateBrandFit`, hidden by opacity so it never leaves layout, on the
-  scroller's `LayoutUpdated`, measuring the form's *desired* height — the
-  scroller's `Extent` is stretched to the viewport and never reports free space),
-  so the SSH section or a short window takes the room back rather than covering or
-  cropping it. The mark is vector: `Styles/LogoMark.axaml`, generated from
-  `design/logo.svg` (see the icon section's chain).
+  **The identity sits in the button row instead**: the mark, the name and the
+  version, centred between New and Connect, in the one strip of the window that
+  is always there and always empty. It replaced the separate "v1.0.0 · Copyright"
+  line below the buttons (the full text is its tooltip), so the window got that
+  row back, and it opens the About overlay, which from this window was otherwise
+  reachable only through macOS's app menu. A social-card lockup in the space under
+  the fields was tried first and moved: that space comes and goes with the SSH
+  section and the window's height, so the identity did too. It is a `chip` with a
+  local `Opacity="1"` (a chip rests at 0.6). The mark is vector:
+  `Styles/LogoMark.axaml`, generated from `design/logo.svg` (see the icon
+  section's chain).
 - **The connected window opens in the display mode the connect form was left
   in (2026-08).** `App.CarryWindowState`, called from the dialog's `Connected`
   handler before `Show()`. Connecting reads as one continuous act — the form is

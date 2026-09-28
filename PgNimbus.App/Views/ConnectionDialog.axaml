@@ -32,7 +32,7 @@
         <TextBlock Text="Saved connections" FontWeight="SemiBold" VerticalAlignment="Center" />
     </Border>
 
-    <Grid Grid.Row="1" Margin="16" RowDefinitions="*,Auto,Auto,Auto">
+    <Grid Grid.Row="1" Margin="16" RowDefinitions="*,Auto,Auto">
 
     <Grid Grid.Row="0" ColumnDefinitions="240,*" IsEnabled="{Binding CredentialsReady}">
 
@@ -107,24 +107,7 @@
             </Button>
         </Grid>
 
-        <!-- The brand lockup sits in whatever the form leaves empty below itself,
-             the way the GitHub social card does it: mark, name, one line of
-             tagline. It shows only while it fits whole in that space (code-behind,
-             UpdateBrandFit), so a taller form - the SSH section expanded, a short
-             window - takes the room back and nothing is ever covered or cropped. -->
-        <Grid Name="BrandHost" Grid.Row="1" RowDefinitions="0,*" IsHitTestVisible="False">
-            <StackPanel Name="BrandBlock" Grid.Row="1" Spacing="6" Margin="0,0,14,0"
-                        HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0">
-                <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center">
-                    <Image Source="{StaticResource LogoMarkImage}" Width="44" Height="44" VerticalAlignment="Center" />
-                    <TextBlock Text="pgNimbus" FontSize="26" FontWeight="Bold" VerticalAlignment="Center" />
-                </StackPanel>
-                <TextBlock Text="A fast, open-source PostgreSQL client" FontSize="12" Opacity="0.6"
-                           HorizontalAlignment="Center" />
-            </StackPanel>
-        </Grid>
-
-        <ScrollViewer Name="FormScroller" Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
         <!-- Right margin keeps the scrollbar (shown once the SSH section expands) off the field edges -->
         <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" Margin="0,0,14,0">
 
@@ -291,9 +274,26 @@
          There is no Save: the form saves itself as it is edited (see
          ConnectionDialogViewModel.OnFormEdited). -->
 
-    <Grid Grid.Row="2" ColumnDefinitions="240,*" Margin="0,8,0,0">
+    <Grid Grid.Row="2" ColumnDefinitions="240,*,Auto" Margin="0,8,0,0">
         <Button Grid.Column="0" Classes="soft" Content="New" Command="{Binding NewCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
-        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" Margin="20,0,0,0">
+
+        <!-- The app's identity, in the one strip of the window that is always
+             there and always empty: mark, name, version, centred between New and
+             Connect. It replaced a separate "v1.0.0 · Copyright" line under the
+             buttons, so the window gained that row back. It opens About, which is
+             otherwise out of reach from this window outside macOS, and it steps
+             aside if the window is ever too narrow for it next to the buttons. -->
+        <Button Grid.Column="1" Classes="chip" Opacity="1" HorizontalAlignment="Center" Padding="8,4" Margin="12,0"
+                Command="{Binding ShowAboutCommand}" ToolTip.Tip="{Binding FooterText}"
+                IsVisible="{Binding $parent[Grid].Bounds.Width, Converter={x:Static converters:MinWidthVisibilityConverter.Instance}, ConverterParameter=580}">
+            <StackPanel Orientation="Horizontal" Spacing="7">
+                <Image Source="{StaticResource LogoMarkImage}" Width="22" Height="22" VerticalAlignment="Center" />
+                <TextBlock Text="pgNimbus" FontSize="14" FontWeight="Bold" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding VersionLabel}" FontSize="11" Opacity="0.6" VerticalAlignment="Center" Margin="1,2,0,0" />
+            </StackPanel>
+        </Button>
+
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
             <!-- IsDefault: Enter anywhere in the dialog connects, so a preselected
                  profile needs no click at all. Primary first, as in every dialog. -->
             <Button Classes="accent" Content="Connect" Command="{Binding ConnectCommand}" IsEnabled="{Binding !IsConnecting}"
@@ -303,9 +303,6 @@
         </StackPanel>
     </Grid>
 
-    <!-- Thin full-width footer strip, below the buttons like everything else. -->
-    <TextBlock Grid.Row="3" Text="{Binding FooterText}" FontSize="10" Opacity="0.6"
-               HorizontalAlignment="Center" Margin="0,10,0,0" />
 
     </Grid>
 

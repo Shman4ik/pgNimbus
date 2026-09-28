@@ -32,10 +32,6 @@ public partial class ConnectionDialog : Window
         Opened += OnDialogOpened;
         Closing += OnDialogClosing;
 
-        // The brand lockup follows the room the form leaves: the form's own
-        // height moves with the SSH section and the window with the user.
-        FormScroller.LayoutUpdated += (_, _) => UpdateBrandFit();
-
         // Reorder saved connections by dragging rows. Live-moves the row while
         // the pointer travels (the list itself is the drop preview), then
         // persists the order on release. Tunneled press so the row is known
@@ -93,48 +89,6 @@ public partial class ConnectionDialog : Window
     /// the form is what needs filling in. Then, if startup armed it, connects
     /// on its own.
     /// </summary>
-    /// <summary>Breathing room the lockup keeps from the form above and the buttons below.</summary>
-    private const double BrandClearance = 16;
-
-    /// <summary>
-    /// Shows the lockup only where it fits whole below the form, and centres it in
-    /// that space. It is never scaled or cropped to fit: in a space too small for it
-    /// the form is what matters, so the lockup is simply not there.
-    /// </summary>
-    private void UpdateBrandFit()
-    {
-        // The form's own height, not the scroller's Extent: the content is
-        // stretched to the viewport, so Extent never reports free space.
-        if (FormScroller.Content is not Control form)
-        {
-            return;
-        }
-
-        var formHeight = form.DesiredSize.Height;
-        var free = FormScroller.Bounds.Height - formHeight;
-
-        // The lockup always takes part in layout and is hidden by opacity, so its
-        // DesiredSize is the layout's own. Measuring it here instead - it would
-        // measure to zero while hidden - made every pass disagree with the last,
-        // and the dialog's layout never settled.
-        var fits = free >= BrandBlock.DesiredSize.Height + 2 * BrandClearance
-            && FormScroller.Bounds.Width >= BrandBlock.DesiredSize.Width;
-
-        // Called from LayoutUpdated: only write what changed, or the write
-        // itself schedules another layout pass and this never settles.
-        var row = new GridLength(Math.Max(0, formHeight));
-        if (BrandHost.RowDefinitions[0].Height != row)
-        {
-            BrandHost.RowDefinitions[0].Height = row;
-        }
-
-        var opacity = fits ? 1d : 0d;
-        if (BrandBlock.Opacity != opacity)
-        {
-            BrandBlock.Opacity = opacity;
-        }
-    }
-
     private void OnDialogOpened(object? sender, EventArgs e)
     {
         if (DataContext is not ConnectionDialogViewModel vm)

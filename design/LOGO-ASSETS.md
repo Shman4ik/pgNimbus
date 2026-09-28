@@ -192,7 +192,7 @@ into the path data and writes `design/logo.svg`.
 ### `scripts/design/svg-to-axaml.py` (any OS, stdlib only)
 Run after any change to `design/logo.svg`. Transcribes it into
 `PgNimbus.App/Styles/LogoMark.axaml`, a `DrawingImage` keyed `LogoMarkImage` that
-the app draws wherever it shows the mark itself (the connect window's lockup), so
+the app draws wherever it shows the mark itself (the connect window's button row), so
 it is sharp at any size instead of being one more raster to keep in step. Like
 `af-to-svg.py` it relies on the SVG being flat; it stops on any element it does not
 handle rather than guessing.
