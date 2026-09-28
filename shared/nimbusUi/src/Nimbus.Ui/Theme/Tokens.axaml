@@ -25,11 +25,43 @@
         -->
         <ResourceDictionary x:Key="Light">
             <SolidColorBrush x:Key="ShellBackdropBrush" Color="#E6F3F3F3" />
+            <SolidColorBrush x:Key="AppLayerBrush" Color="#FFFFFF" />
+            <SolidColorBrush x:Key="AppPopupBrush" Color="#FFFFFF" />
+            <SolidColorBrush x:Key="AppScrimBrush" Color="#4D000000" />
         </ResourceDictionary>
         <ResourceDictionary x:Key="Dark">
             <SolidColorBrush x:Key="ShellBackdropBrush" Color="#E6202020" />
+            <SolidColorBrush x:Key="AppLayerBrush" Color="#2E2E2E" />
+            <SolidColorBrush x:Key="AppPopupBrush" Color="#3A3A3A" />
+            <SolidColorBrush x:Key="AppScrimBrush" Color="#80000000" />
+            <!-- Fluent fills a focused text box with ChromeBlackHigh: pure black, so
+                 clicking into a field punched a #000 hole in a grey dialog, and a
+                 multi-line box (a pasted plan, a script) went black while you typed.
+                 Focus keeps the resting well's tone; the accent underline says focus. -->
+            <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#66000000" />
         </ResourceDictionary>
     </ResourceDictionary.ThemeDictionaries>
+
+    <!--
+        The three raised surfaces, lightest last. Fluent's own "page" brush
+        (SystemControlPageBackgroundAltHighBrush) is what `layer`, every popup and
+        every secondary window used to paint with, and in the dark theme it is pure
+        black: a #000 work area inside a #2B2B2B shell, the harshest contrast in the
+        app, and the opposite of how Windows 11 layers a dark UI (a raised surface is
+        lighter than the base it sits on, in both themes). Light keeps white, which
+        already read as raised; dark gets greys that do.
+
+          AppLayerBrush  - `layer`: the work area and an overlay's card.
+          AppPopupBrush  - what floats over a layer (completion list, argument hint,
+                           command palette, the find bar), a step lighter again so it
+                           separates from the editor it sits on without leaning on its
+                           shadow alone.
+          AppScrimBrush  - the dim behind a modal overlay. One value for every
+                           overlay: the palette, the cell inspector and OverlayPanel
+                           had drifted to two different alphas.
+
+        All three are theme-split, so reference them with DynamicResource.
+    -->
 
     <!--
         Fixed brand accent, theme-independent. Deliberately NOT the OS
@@ -44,6 +76,8 @@
     <SolidColorBrush x:Key="AppAccentPressedBrush" Color="#1E63D6" />
     <!-- Low-alpha accent for row/pill selection washes; reads on both themes. -->
     <SolidColorBrush x:Key="AppSelectionBrush" Color="#282D7FF9" />
+    <!-- The same wash under the pointer: a selected row still answers a hover. -->
+    <SolidColorBrush x:Key="AppSelectionHoverBrush" Color="#3C2D7FF9" />
     <!--
         App-wide text-selection wash, shared by every TextBox and both apps' code
         editors. A bit more alpha than AppSelectionBrush (0x40 vs 0x28): a text run
@@ -86,6 +120,7 @@
     <CornerRadius x:Key="CardCornerRadius">8</CornerRadius>
     <CornerRadius x:Key="ControlCornerRadius">6</CornerRadius>
     <CornerRadius x:Key="PillCornerRadius">16</CornerRadius>
+    <CornerRadius x:Key="OverlayCornerRadius">10</CornerRadius>
 
     <!-- Fixed-alpha neutral grey so cards read the same, subtle weight in light and dark. -->
     <SolidColorBrush x:Key="CardBackgroundBrush" Color="#80808080" Opacity="0.06" />

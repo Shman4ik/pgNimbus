@@ -332,12 +332,10 @@
         -->
         <Border Name="RowDetailOverlay"
                 IsVisible="{Binding IsRowDetailOpen}"
-                Background="#66000000"
+                Classes="scrim"
                 PointerPressed="OnRowDetailScrimPressed">
             <Border Width="520" MaxHeight="680" MinHeight="200" VerticalAlignment="Center" Margin="0,40"
-                    Background="{DynamicResource SystemControlPageBackgroundAltHighBrush}"
-                    BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
-                    CornerRadius="10" BoxShadow="0 12 32 0 #40000000"
+                    Classes="overlayCard"
                     PointerPressed="OnCellInspectorCardPressed">
                 <views:RowDetailPanel Name="RowDetails" DataContext="{Binding ActiveTab.RowDetail}" />
             </Border>
@@ -359,12 +357,10 @@
         -->
         <Border Name="CellInspectorOverlay"
                 IsVisible="{Binding CellInspector.IsOpen}"
-                Background="#66000000"
+                Classes="scrim"
                 PointerPressed="OnCellInspectorScrimPressed">
             <Border Width="660" MaxHeight="580" MinHeight="120" VerticalAlignment="Center"
-                    Background="{DynamicResource SystemControlPageBackgroundAltHighBrush}"
-                    BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
-                    CornerRadius="10" BoxShadow="0 12 32 0 #40000000"
+                    Classes="overlayCard"
                     PointerPressed="OnCellInspectorCardPressed"
                     x:DataType="vm:CellInspectorViewModel" DataContext="{Binding CellInspector}">
                 <Grid RowDefinitions="Auto,*,Auto" Margin="14">

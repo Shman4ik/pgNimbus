@@ -83,7 +83,8 @@ src/Nimbus.Ui/
   Theme/Overlay.axaml     The ControlTheme for OverlayPanel (DESIGN.md rule 13).
   Theme/Theme.axaml       The include point. Merges the dictionaries, pulls in
                           Controls.axaml, and holds the shell vocabulary itself
-                          (card, layer, chip, searchpill, toolbar, statusBar, …).
+                          (card, layer, overlayCard, scrim, chip, searchpill,
+                          toolbar, statusBar, …).
   Controls/               The library's own controls. OverlayPanel is the first —
                           a dismissable panel over the shell, which is what both
                           apps use instead of a secondary Window.

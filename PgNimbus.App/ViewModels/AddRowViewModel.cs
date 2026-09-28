@@ -38,7 +38,7 @@ public sealed partial class AddRowViewModel(
     /// <summary>True when Insert stages the row for later commit instead of executing it — relabels the dialog's primary button.</summary>
     public bool IsStaging => _stageInsert is not null;
 
-    public string InsertButtonText => IsStaging ? "Stage Row" : "Insert Row";
+    public string InsertButtonText => IsStaging ? "Stage row" : "Insert row";
 
     public ObservableCollection<NewRowField> Fields { get; } = [];
 

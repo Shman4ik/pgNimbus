@@ -786,6 +786,20 @@ Three rules about it:
    vocabulary is app-wide across the secondary windows and dialogs; the main
    window's command bar deliberately keeps its flat minimalist `toolbar`
    buttons (rule 1) and is the one surface exempt.
+   **Surfaces and dialogs have a vocabulary too** (2026-09, DESIGN.md rules 15
+   and 16). Every secondary window sits on the shell tone — a `Window` style in
+   `Styles/Theme.axaml` sets it, and the Inter font, so no window sets either —
+   and groups its content in `card`s. A dialog is assembled from
+   `TextBlock.dialogTitle`, `TextBlock.dialogHint` and `StackPanel.dialogButtons`
+   (primary first, Cancel last) on a 20px margin; an overlay over the shell is
+   `Border.scrim` holding `Border.overlayCard`; what floats over the editor paints
+   with `AppPopupBrush`. **Never `SystemControlPageBackgroundAltHighBrush`**: it
+   is pure black in the dark theme, and it was the work area, every popup, the
+   palette, the cell inspector and every dialog's body until this pass, which is
+   most of why the dark theme read as harsh. The dialogs had also drifted to three
+   heading sizes, two hint opacities and both button orders; the scenarios
+   `confirm-dialog`, `pending-changes-dialog`, `import-plan-dialog`,
+   `import-dialog` and `bulk-grant-dialog` exist so they are seen side by side.
 7. **Views compose from focused `UserControl`s — no god-view.** Following
    Avalonia's MVVM guidance (<https://docs.avaloniaui.net/docs/fundamentals/architecture>):
    code-behind is the *right* home for purely visual interaction logic that
@@ -857,6 +871,17 @@ Three rules about it:
    The command palette and the cell inspector are also **not** OverlayPanels, and for
    a better reason than inertia: both are focus-driven surfaces with their own
    keyboard model, not panels you read.
+9. **A change to the UI updates the published screenshots in the same PR**
+   (2026-09, carried over from kubeNimbus's rule 21). The docs site and landing
+   page (`docs/screenshots/`) and the Microsoft Store listing
+   (`design/store/screenshots/`) are the first thing anyone judges the app by,
+   and they drift silently: nothing fails when a screen they show changes. So a
+   PR that changes what any of them shows — a surface, a control, a colour, a
+   column, a label — runs `scripts/screenshots/update-published.sh` and commits
+   the result with the change, not before the next release. The Store set is
+   half light and half dark, alternating, and each file names its theme (its
+   README maps file to scenario); keep that balance when swapping a shot. If a PR
+   cannot render them, it says so in its description.
 
 ## Platform window chrome
 
@@ -2088,7 +2113,8 @@ artifact nobody opens is not a check:
    that face users: `docs/screenshots/` (README + docs site) and
    `design/store/screenshots/` (Store listing, padded to the Store's 1366×768
    minimum on a backdrop sampled from the shot's own chrome so it matches its
-   theme). Run `scripts/screenshots/update-published.sh` before a release.
+   theme). Run `scripts/screenshots/update-published.sh` in any PR that changes
+   what they show (UI design rule 9), and before a release.
    These used to be hand-captured against a live database, which made them go
    stale silently and leaked real detail — the old main-window shot published a
    live Neon hostname. The README's animated GIFs are deliberately **not**

@@ -19,16 +19,16 @@
                 CornerRadius="{StaticResource CardCornerRadius}" Padding="16,12" Margin="0,0,0,10">
             <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto">
                 <StackPanel Grid.Column="0" Spacing="2" Margin="0,0,36,0">
-                    <TextBlock Text="DATABASE" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
+                    <TextBlock Text="DATABASE" Classes="sectionHeader" />
                     <TextBlock Text="{Binding DatabaseName}" FontSize="16" FontWeight="SemiBold" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Spacing="2" Margin="0,0,36,0"
                             ToolTip.Tip="The role this window reads the catalog as — it only ever sees what this role is allowed to see">
-                    <TextBlock Text="CONNECTED AS" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
+                    <TextBlock Text="CONNECTED AS" Classes="sectionHeader" />
                     <TextBlock Text="{Binding CurrentRole}" FontSize="16" FontWeight="SemiBold" />
                 </StackPanel>
                 <StackPanel Grid.Column="2" Spacing="2">
-                    <TextBlock Text="SERVER" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
+                    <TextBlock Text="SERVER" Classes="sectionHeader" />
                     <TextBlock Text="{Binding ServerVersionText}" FontSize="16" FontWeight="SemiBold" />
                 </StackPanel>
                 <Button Grid.Column="4" Classes="soft" VerticalAlignment="Center"

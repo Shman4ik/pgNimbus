@@ -90,7 +90,7 @@
                     <ScrollViewer HorizontalScrollBarVisibility="Auto">
                         <StackPanel>
                             <StackPanel Orientation="Horizontal" Margin="12,0,0,6">
-                                <TextBlock Text="ROLE" Width="150" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
+                                <TextBlock Text="ROLE" Width="150" Classes="sectionHeader" />
                                 <ItemsControl ItemsSource="{Binding PrivilegeColumns}">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
@@ -104,7 +104,7 @@
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
-                                <TextBlock Text="HOW" Width="120" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
+                                <TextBlock Text="HOW" Width="120" Classes="sectionHeader" />
                             </StackPanel>
 
                             <ListBox ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow, Mode=TwoWay}"
@@ -151,7 +151,7 @@
                 <!-- Column grants are additive on top of the table's, and no other
                      client surfaces them. A compact list is enough. -->
                 <StackPanel Grid.Row="3" Spacing="4" Margin="0,8,0,0" IsVisible="{Binding HasColumnGrants}">
-                    <TextBlock Text="COLUMN GRANTS" FontSize="10" Opacity="0.55" FontWeight="SemiBold" />
+                    <TextBlock Text="COLUMN GRANTS" Classes="sectionHeader" />
                     <ItemsControl ItemsSource="{Binding ColumnGrants}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:ColumnGrantRow">

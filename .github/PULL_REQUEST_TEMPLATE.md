@@ -24,8 +24,8 @@
 - [ ] UI changes: baselines refreshed via `scripts/screenshots/update-baselines.sh`
       (or the Screenshots workflow) and the image diff reviewed
       <!-- CI compares against tools/Screenshot/baselines and goes red on any change -->
-- [ ] Release-facing change: `scripts/screenshots/update-published.sh` for the
-      README / docs / Store shots
+- [ ] UI change that shows in a published screenshot: `scripts/screenshots/update-published.sh`
+      re-run and the docs / Store shots committed here (CLAUDE.md UI rule 9)
 
 Anything left unverified:
 

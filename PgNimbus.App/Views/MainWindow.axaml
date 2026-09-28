@@ -656,13 +656,11 @@
     -->
     <Border Name="PaletteOverlay"
             IsVisible="{Binding CommandPalette.IsOpen}"
-            Background="#66000000"
+            Classes="scrim"
             PointerPressed="OnPaletteScrimPressed">
         <Border Width="560" MaxHeight="440" Margin="0,90,0,0"
                 VerticalAlignment="Top" HorizontalAlignment="Center"
-                Background="{DynamicResource SystemControlPageBackgroundAltHighBrush}"
-                BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
-                CornerRadius="10" BoxShadow="0 12 32 0 #40000000"
+                Classes="overlayCard"
                 PointerPressed="OnPaletteCardPressed"
                 x:DataType="vm:CommandPaletteViewModel" DataContext="{Binding CommandPalette}">
             <Grid RowDefinitions="Auto,*">
