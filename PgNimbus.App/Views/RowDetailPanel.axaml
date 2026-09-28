@@ -97,7 +97,7 @@
                       Opacity="0.28" HorizontalAlignment="Center" />
             <TextBlock Text="No row selected" FontSize="13" FontWeight="SemiBold"
                        Opacity="0.6" HorizontalAlignment="Center" />
-            <TextBlock Text="{Binding Note}" FontSize="11.5" Opacity="0.45" TextWrapping="Wrap"
+            <TextBlock Text="{Binding Note}" FontSize="11.5" Opacity="0.6" TextWrapping="Wrap"
                        TextAlignment="Center" />
         </StackPanel>
 
@@ -112,7 +112,7 @@
                                     <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                                         <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12"
                                                    VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                                        <TextBlock Text="{Binding TypeLabel}" FontSize="10.5" Opacity="0.5"
+                                        <TextBlock Text="{Binding TypeLabel}" FontSize="10.5" Opacity="0.6"
                                                    VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                                     </StackPanel>
                                     <!-- Editor is null on read-only lines, so it's the DataContext
@@ -145,7 +145,7 @@
                                                 ToolTip.Tip="Open the full value in the cell inspector" />
                                     </Grid>
                                 </Border>
-                                <TextBlock Text="{Binding ReadOnlyReason}" FontSize="10.5" Opacity="0.5"
+                                <TextBlock Text="{Binding ReadOnlyReason}" FontSize="10.5" Opacity="0.6"
                                            IsVisible="{Binding ReadOnlyReason, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
                             </StackPanel>
                         </Border>
@@ -168,7 +168,7 @@
                            Foreground="{DynamicResource AppDangerBrush}"
                            IsVisible="{Binding Error, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
                 <Grid ColumnDefinitions="*,Auto,Auto">
-                    <TextBlock Text="Reviewed before commit" FontSize="10.5" Opacity="0.45"
+                    <TextBlock Text="Reviewed before commit" FontSize="10.5" Opacity="0.6"
                                VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                ToolTip.Tip="Staged changes are listed, checked for conflicts and committed from the status bar" />
                     <Button Grid.Column="1" Classes="soft" Content="Revert" FontSize="12" Padding="10,3"

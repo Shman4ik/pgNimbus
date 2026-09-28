@@ -54,7 +54,7 @@
         <Grid ColumnDefinitions="Auto,*,Auto">
             <Panel Grid.Column="0" VerticalAlignment="Center" Margin="4,0,10,0">
                 <TextBlock Text="Filtered by" FontSize="11" Opacity="0.55" IsVisible="{Binding IsFiltering}" />
-                <TextBlock Text="No conditions" FontSize="11" Opacity="0.45" IsVisible="{Binding !IsFiltering}" />
+                <TextBlock Text="No conditions" FontSize="11" Opacity="0.6" IsVisible="{Binding !IsFiltering}" />
             </Panel>
 
             <WrapPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">

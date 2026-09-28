@@ -226,6 +226,17 @@ first, nine others put it last), so the same button moved from one corner to the
 between two dialogs of one app. Pair it with `IsDefault` on the primary and `IsCancel`
 on Cancel.
 
+### 17. Secondary text is dimmed to 0.6, not below
+
+A caption, an empty-state hint, a size or a type beside a name, a footer: text that
+says something is dimmed with `Opacity="0.6"` (or `BaseMedium`, the same tone) and no
+further. At 0.4–0.5 it comes out `#8C8C8C`–`#808080` on white, about 3:1 against the
+4.5:1 that small text needs, and pgNimbus had 28 of them — "No matches", "Queries you
+run will appear here", the relation sizes in the schema tree. The dark theme hid how
+faint they were; the light theme is where they failed. Lower opacities stay for what
+is not read: a separator glyph, a decorative icon, a disabled control (which Fluent
+dims on purpose), or a state the dimming itself announces (an excluded schema).
+
 ---
 
 ## What is deliberately *not* shared
@@ -256,6 +267,7 @@ mechanism — a rule nobody tracks is a rule that decays.
 - [x] **Surfaces off Fluent's page black → both** (rule 15). `layer`, `OverlayPanel` and
       the list-selection rule changed here; pgNimbus's dialogs, popups and palette and
       kubeNimbus's command palettes moved onto `overlayCard`/`scrim`/`AppPopupBrush`.
+- [ ] Secondary text at 0.6 (rule 17) → kubeNimbus: audit its `hint` class and inline opacities.
 - [ ] `AppSuccessBrush` → pgNimbus. The status trio was two-thirds defined there.
 - [x] **The Fluent control layer → `Theme/Controls.axaml`.** Inputs, lists, trees,
       grids and the `.soft`/`.danger` button families were defined in pgNimbus only,

@@ -166,7 +166,7 @@
                                     </TreeDataTemplate>
                                 </TreeView.ItemTemplate>
                             </TreeView>
-                            <TextBlock Text="Belongs to no group." FontSize="12" Opacity="0.5"
+                            <TextBlock Text="Belongs to no group." FontSize="12" Opacity="0.6"
                                        IsVisible="{Binding !HasMemberOf}" />
                         </StackPanel>
 
@@ -191,7 +191,7 @@
                                     </TreeDataTemplate>
                                 </TreeView.ItemTemplate>
                             </TreeView>
-                            <TextBlock Text="No role belongs to this one." FontSize="12" Opacity="0.5"
+                            <TextBlock Text="No role belongs to this one." FontSize="12" Opacity="0.6"
                                        IsVisible="{Binding !HasMembers}" />
                         </StackPanel>
 

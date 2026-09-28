@@ -119,14 +119,14 @@
                                         </StackPanel>
 
                                         <StackPanel Orientation="Horizontal" Spacing="6">
-                                            <TextBlock Text="Applies to" FontSize="11" Opacity="0.5" VerticalAlignment="Center" />
+                                            <TextBlock Text="Applies to" FontSize="11" Opacity="0.6" VerticalAlignment="Center" />
                                             <TextBlock Text="{Binding RolesLabel}" FontSize="11" VerticalAlignment="Center"
                                                        TextWrapping="Wrap" />
                                         </StackPanel>
 
                                         <StackPanel Spacing="3" IsVisible="{Binding HasUsing}">
                                             <TextBlock Text="USING — which existing rows are visible"
-                                                       FontSize="10" Opacity="0.5" FontWeight="SemiBold" />
+                                                       FontSize="10" Opacity="0.6" FontWeight="SemiBold" />
                                             <SelectableTextBlock Text="{Binding Using}" TextWrapping="Wrap"
                                                                  FontFamily="Cascadia Code,Consolas,Menlo,monospace"
                                                                  FontSize="12" />
@@ -134,7 +134,7 @@
 
                                         <StackPanel Spacing="3" IsVisible="{Binding HasWithCheck}">
                                             <TextBlock Text="WITH CHECK — which new or updated rows are allowed"
-                                                       FontSize="10" Opacity="0.5" FontWeight="SemiBold" />
+                                                       FontSize="10" Opacity="0.6" FontWeight="SemiBold" />
                                             <SelectableTextBlock Text="{Binding WithCheck}" TextWrapping="Wrap"
                                                                  FontFamily="Cascadia Code,Consolas,Menlo,monospace"
                                                                  FontSize="12" />

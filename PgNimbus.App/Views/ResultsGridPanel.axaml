@@ -151,7 +151,7 @@
                                   Opacity="0.28" HorizontalAlignment="Center" />
                         <TextBlock Text="No results yet" FontSize="14" FontWeight="SemiBold"
                                    Opacity="0.6" HorizontalAlignment="Center" />
-                        <TextBlock Opacity="0.45" FontSize="12" HorizontalAlignment="Center">
+                        <TextBlock Opacity="0.6" FontSize="12" HorizontalAlignment="Center">
                             Run a query with <Run FontWeight="SemiBold">Ctrl+Enter</Run> or <Run FontWeight="SemiBold">F5</Run>
                         </TextBlock>
                     </StackPanel>

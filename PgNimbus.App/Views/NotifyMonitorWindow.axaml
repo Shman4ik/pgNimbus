@@ -86,7 +86,7 @@
                                             <TextBlock Text="{Binding ReceivedAt, StringFormat='{}{0:HH:mm:ss}'}"
                                                        Opacity="0.55" FontSize="11" VerticalAlignment="Center" />
                                             <TextBlock Text="{Binding ProcessId, StringFormat='pid {0}'}"
-                                                       Opacity="0.45" FontSize="11" VerticalAlignment="Center" />
+                                                       Opacity="0.6" FontSize="11" VerticalAlignment="Center" />
                                         </StackPanel>
                                         <!-- One line per notification: the whole payload is one click away
                                              in the pane beside it, so the feed stays scannable. -->
@@ -103,7 +103,7 @@
                                     Spacing="8" IsHitTestVisible="False">
                             <TextBlock Text="Nothing received yet" FontSize="13" FontWeight="SemiBold"
                                        Opacity="0.55" HorizontalAlignment="Center" />
-                            <TextBlock Opacity="0.45" FontSize="12" HorizontalAlignment="Center" TextAlignment="Center"
+                            <TextBlock Opacity="0.6" FontSize="12" HorizontalAlignment="Center" TextAlignment="Center"
                                        Text="Add a channel, press Start listening, and every NOTIFY on it lands here." />
                         </StackPanel>
                     </Panel>
@@ -161,7 +161,7 @@
                         </TreeView>
 
                         <TextBlock IsVisible="{Binding !IsOpen}" Text="Select a notification to see its payload."
-                                   Opacity="0.45" FontSize="12" TextWrapping="Wrap" TextAlignment="Center"
+                                   Opacity="0.6" FontSize="12" TextWrapping="Wrap" TextAlignment="Center"
                                    HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Panel>
                 </Border>
