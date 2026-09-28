@@ -411,7 +411,7 @@ public class MacTextKeysTests
 
                 if (MacTextKeys.Classify(CommandBindings.ToKey(c.Key), modifiers).Action != MacTextAction.None)
                 {
-                    clashes.Add($"{descriptor.Id} ({c.Label("Cmd")})");
+                    clashes.Add($"{descriptor.Id} ({c.Label(ChordScheme.Cmd)})");
                 }
             }
         }
