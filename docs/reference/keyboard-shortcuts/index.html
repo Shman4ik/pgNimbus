@@ -868,9 +868,12 @@
 
 <p>Every shortcut below is also discoverable in the app: press <kbd>F1</kbd> for the
 cheat sheet, or <kbd>Ctrl</kbd>+<kbd>K</kbd> to search commands by name.</p>
-<p>The <strong>Windows / Linux</strong> and <strong>macOS</strong> columns differ only in the primary
-modifier. That choice follows the platform by default and can be forced either
-way in Preferences → Hotkey scheme.</p>
+<p>The <strong>Windows / Linux</strong> column uses Ctrl as the main modifier and spells keys
+out. The <strong>macOS</strong> column uses Command and writes keys with Apple's symbols:
+⌘ Command, ⌥ Option, ⇧ Shift, ⌃ Control, ↩ Return, ⌫ Delete, ⌦ Forward Delete,
+⎋ Escape, ⇥ Tab, ⇞ ⇟ Page Up and Page Down. A few commands also answer the Mac's
+own shortcut there, and list it first. Which column applies follows the platform
+by default and can be forced either way in Settings → Hotkey scheme.</p>
 <h2 id="query">Query<a class="headerlink" href="#query" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -884,52 +887,52 @@ way in Preferences → Hotkey scheme.</p>
 <tr>
 <td>Run query</td>
 <td>Ctrl+Enter / F5</td>
-<td>Cmd+Enter / F5</td>
+<td>⌘↩ / F5</td>
 </tr>
 <tr>
 <td>Run just the statement under the cursor</td>
 <td>Shift+Enter</td>
-<td>Shift+Enter</td>
+<td>⇧↩</td>
 </tr>
 <tr>
 <td>Cancel query</td>
 <td>Esc</td>
-<td>Esc</td>
+<td>⎋ / ⌘.</td>
 </tr>
 <tr>
 <td>Explain — estimated plan</td>
 <td>Ctrl+E</td>
-<td>Cmd+E</td>
+<td>⌘E</td>
 </tr>
 <tr>
 <td>Explain Analyze — runs the query</td>
 <td>Ctrl+Shift+E</td>
-<td>Cmd+Shift+E</td>
+<td>⇧⌘E</td>
 </tr>
 <tr>
 <td>Format the statement under the cursor</td>
 <td>Ctrl+Shift+F / Alt+Shift+F</td>
-<td>Cmd+Shift+F / Alt+Shift+F</td>
+<td>⇧⌘F / ⌥⇧F</td>
 </tr>
 <tr>
 <td>Expand SELECT * into columns</td>
 <td>Ctrl+Shift+8</td>
-<td>Cmd+Shift+8</td>
+<td>⇧⌘8</td>
 </tr>
 <tr>
 <td>Begin transaction</td>
 <td>Ctrl+Shift+B</td>
-<td>Cmd+Shift+B</td>
+<td>⇧⌘B</td>
 </tr>
 <tr>
 <td>Commit transaction</td>
 <td>Ctrl+Shift+Enter</td>
-<td>Cmd+Shift+Enter</td>
+<td>⇧⌘↩</td>
 </tr>
 <tr>
 <td>Rollback transaction</td>
 <td>Ctrl+Shift+Backspace</td>
-<td>Cmd+Shift+Backspace</td>
+<td>⇧⌘⌫</td>
 </tr>
 </tbody>
 </table>
@@ -946,42 +949,47 @@ way in Preferences → Hotkey scheme.</p>
 <tr>
 <td>New query tab</td>
 <td>Ctrl+T</td>
-<td>Cmd+T</td>
+<td>⌘T</td>
 </tr>
 <tr>
 <td>Close tab</td>
 <td>Ctrl+W</td>
-<td>Cmd+W</td>
+<td>⌘W</td>
+</tr>
+<tr>
+<td>Reopen closed tab</td>
+<td>Ctrl+Shift+T</td>
+<td>⇧⌘T</td>
 </tr>
 <tr>
 <td>Next tab</td>
-<td>Ctrl+PgDn</td>
-<td>Cmd+PgDn</td>
+<td>Ctrl+PgDn / Ctrl+Tab</td>
+<td>⇧⌘] / ⌘⇟ / ⌃⇥</td>
 </tr>
 <tr>
 <td>Previous tab</td>
-<td>Ctrl+PgUp</td>
-<td>Cmd+PgUp</td>
+<td>Ctrl+PgUp / Ctrl+Shift+Tab</td>
+<td>⇧⌘[ / ⌘⇞ / ⌃⇧⇥</td>
 </tr>
 <tr>
 <td>Go to tab 1…9</td>
 <td>Ctrl+1 … Ctrl+9</td>
-<td>Cmd+1 … Cmd+9</td>
+<td>⌘1 … ⌘9</td>
 </tr>
 <tr>
-<td>Open .sql file…</td>
+<td>Open file…</td>
 <td>Ctrl+O</td>
-<td>Cmd+O</td>
+<td>⌘O</td>
 </tr>
 <tr>
 <td>Save — to the tab's file, or to Saved Queries</td>
 <td>Ctrl+S</td>
-<td>Cmd+S</td>
+<td>⌘S</td>
 </tr>
 <tr>
 <td>Save as — a new file, or a new saved query</td>
 <td>Ctrl+Shift+S</td>
-<td>Cmd+Shift+S</td>
+<td>⇧⌘S</td>
 </tr>
 </tbody>
 </table>
@@ -998,82 +1006,82 @@ way in Preferences → Hotkey scheme.</p>
 <tr>
 <td>Autocomplete (also triggers while typing)</td>
 <td>Ctrl+Space</td>
-<td>Ctrl+Space</td>
+<td>⌃Space</td>
 </tr>
 <tr>
 <td>Show the argument hint (also opens after typing "(")</td>
 <td>Ctrl+Shift+Space</td>
-<td>Ctrl+Shift+Space</td>
+<td>⌃⇧Space</td>
 </tr>
 <tr>
 <td>Find in editor</td>
 <td>Ctrl+F</td>
-<td>Cmd+F</td>
+<td>⌘F</td>
 </tr>
 <tr>
 <td>Find &amp; replace in editor</td>
 <td>Ctrl+H</td>
-<td>Cmd+H</td>
+<td>⌘H</td>
 </tr>
 <tr>
 <td>Next / previous match</td>
 <td>F3 / Shift+F3</td>
-<td>F3 / Shift+F3</td>
+<td>F3 / ⇧F3</td>
 </tr>
 <tr>
 <td>Toggle line comment</td>
 <td>Ctrl+/</td>
-<td>Cmd+/</td>
+<td>⌘/</td>
 </tr>
 <tr>
 <td>Duplicate line (or selection)</td>
 <td>Ctrl+Shift+D</td>
-<td>Cmd+Shift+D</td>
+<td>⇧⌘D</td>
 </tr>
 <tr>
 <td>Move line up</td>
 <td>Alt+↑</td>
-<td>Alt+↑</td>
+<td>⌥↑</td>
 </tr>
 <tr>
 <td>Move line down</td>
 <td>Alt+↓</td>
-<td>Alt+↓</td>
+<td>⌥↓</td>
 </tr>
 <tr>
 <td>Delete whole line</td>
 <td>Ctrl+D</td>
-<td>Cmd+D</td>
+<td>⌘D</td>
 </tr>
 <tr>
 <td>Undo / Redo</td>
 <td>Ctrl+Z / Ctrl+Y</td>
-<td>Cmd+Z / Cmd+Y</td>
+<td>⌘Z / ⌘Y</td>
 </tr>
 <tr>
 <td>Toggle word wrap</td>
 <td>Alt+Z</td>
-<td>Alt+Z</td>
+<td>⌥Z</td>
 </tr>
 <tr>
 <td>Toggle auto-alias on table completion</td>
 <td>Ctrl+Shift+A</td>
-<td>Cmd+Shift+A</td>
+<td>⇧⌘A</td>
 </tr>
 <tr>
 <td>Zoom font size in / out</td>
 <td>Ctrl++ / Ctrl+− / Ctrl+wheel</td>
-<td>Cmd++ / Cmd+− / Cmd+wheel</td>
+<td>⌘+ / ⌘− / ⌘ + wheel</td>
 </tr>
 <tr>
 <td>Reset font size</td>
 <td>Ctrl+0</td>
-<td>Cmd+0</td>
+<td>⌘0</td>
 </tr>
 <tr>
 <td>Move to word start / end</td>
 <td>Ctrl+← / Ctrl+→</td>
-<td>Cmd+← / Cmd+→</td>
+<td>⌘← / ⌘→</td>
 </tr>
 </tbody>
 </table>
@@ -1095,7 +1103,7 @@ way in Preferences → Hotkey scheme.</p>
 <tr>
 <td>Commit / cancel a cell edit; stage / revert row-detail edits</td>
 <td>Enter / Esc</td>
-<td>Enter / Esc</td>
+<td>↩ / ⎋</td>
 </tr>
 <tr>
 <td>Inspect cell (full value, pretty-printed JSON)</td>
@@ -1105,22 +1113,22 @@ way in Preferences → Hotkey scheme.</p>
 <tr>
 <td>Copy the selected cells</td>
 <td>Ctrl+C</td>
-<td>Cmd+C</td>
+<td>⌘C</td>
 </tr>
 <tr>
 <td>Delete the selected row (editable results)</td>
 <td>Delete</td>
-<td>Delete</td>
+<td>⌦</td>
 </tr>
 <tr>
 <td>Show / hide row details</td>
 <td>Ctrl+I</td>
-<td>Cmd+I</td>
+<td>⌘I</td>
 </tr>
 <tr>
 <td>Filter rows of the browsed table…</td>
 <td>Ctrl+F in the results grid while browsing a table</td>
-<td>Cmd+F in the results grid while browsing a table</td>
+<td>⌘F in the results grid while browsing a table</td>
 </tr>
 <tr>
 <td>Set cell to NULL</td>
@@ -1142,12 +1150,12 @@ way in Preferences → Hotkey scheme.</p>
 <tr>
 <td>Command palette (jump to table / query / action)</td>
 <td>Ctrl+K / Ctrl+P</td>
-<td>Cmd+K / Cmd+P</td>
+<td>⌘K / ⌘P</td>
 </tr>
 <tr>
 <td>Refresh database &amp; schema</td>
 <td>Ctrl+Shift+R</td>
-<td>Cmd+Shift+R</td>
+<td>⇧⌘R</td>
 </tr>
 <tr>
 <td>Switch focus: editor ↔ results grid</td>
@@ -1157,7 +1165,7 @@ way in Preferences → Hotkey scheme.</p>
 <tr>
 <td>Collapse / show the sidebar</td>
 <td>Ctrl+B</td>
-<td>Cmd+B</td>
+<td>⌘B</td>
 </tr>
 <tr>
 <td>Preview a table (in the schema tree)</td>
@@ -1167,42 +1175,42 @@ way in Preferences → Hotkey scheme.</p>
 <tr>
 <td>Server activity</td>
 <td>Ctrl+Shift+M</td>
-<td>Cmd+Shift+M</td>
+<td>⇧⌘M</td>
 </tr>
 <tr>
 <td>Database overview</td>
 <td>Ctrl+Shift+G</td>
-<td>Cmd+Shift+G</td>
+<td>⇧⌘G</td>
 </tr>
 <tr>
 <td>LISTEN / NOTIFY monitor</td>
 <td>Ctrl+Shift+L</td>
-<td>Cmd+Shift+L</td>
+<td>⇧⌘L</td>
 </tr>
 <tr>
 <td>Roles and permissions</td>
 <td>Ctrl+Shift+U</td>
-<td>Cmd+Shift+U</td>
+<td>⇧⌘U</td>
 </tr>
 <tr>
 <td>Switch connection…</td>
 <td>Ctrl+Shift+O</td>
-<td>Cmd+Shift+O</td>
+<td>⇧⌘O</td>
 </tr>
 <tr>
 <td>Open connection in new window…</td>
 <td>Ctrl+Shift+N</td>
-<td>Cmd+Shift+N</td>
+<td>⇧⌘N</td>
 </tr>
 <tr>
-<td>Preferences…</td>
+<td>Settings…</td>
 <td>Ctrl+,</td>
-<td>Cmd+,</td>
+<td>⌘,</td>
 </tr>
 <tr>
 <td>Keyboard shortcuts</td>
 <td>F1</td>
-<td>F1</td>
+<td>⌘? / F1</td>
 </tr>
 </tbody>
 </table>
