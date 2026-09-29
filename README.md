@@ -31,6 +31,12 @@
 
 ---
 
+## 🚀 pgNimbus 1.0
+
+pgNimbus reached 1.0 three months after its first commit on July 4, 2026, and 32 releases later. It started as a weekend experiment typed on a phone and grew, evening by evening, into the client its author keeps open at work all day.
+
+Before tagging 1.0, the whole codebase was read the way an attacker would read it, and the way a DBA connecting to production would. That review found 18 problems. The worst were a query that could run twice, a statement a DBA had just killed being sent again after a reconnect, and SSH host keys that were never checked. All of them are fixed in 1.0. The review was done in house, with the same Claude Code agents that write most of the code, so it isn't a third-party audit. [See what's in 1.0.](https://github.com/Shman4ik/pgNimbus/releases/tag/v1.0.0)
+
 ## 🎯 Why pgNimbus?
 
 pgNimbus is written by a developer who spends most working days in Postgres, for people who do the same. Three things don't bend:
@@ -91,13 +97,14 @@ On macOS, <kbd>Cmd</kbd> replaces <kbd>Ctrl</kbd>, except autocomplete, which st
 
 - Autocomplete that resolves names the way the server does: along `search_path`, per query block (subqueries, CTEs, `LATERAL`), with one `JOIN … ON` condition offered per foreign key, argument hints for functions and only types after `::`.
 - Formatting that only ever changes whitespace, `;`-separated scripts with a result section per statement, find and replace, `.sql` files, searchable query history and saved queries.
+- A closed tab comes back with <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd>, and on macOS the editor answers the usual text keys (<kbd>⌥</kbd>+<kbd>⌫</kbd>, <kbd>⌃</kbd>+<kbd>A</kbd>, <kbd>⌃</kbd>+<kbd>K</kbd> and the rest).
 
 **Results and editing** ([guide](https://shman4ik.github.io/pgNimbus/docs/guide/results/))
 
 - Streaming, virtualized grid. Browse a table without SQL; sorting, paging and filter chips run on the server.
 - Safe mode: edits, inserts and deletes are staged, you review the exact SQL, and everything commits as one transaction. At commit each staged row is re-read under a lock, and if another session changed it the batch rolls back and shows before, current and proposed values.
 - Type-aware editors (enum dropdowns, booleans, dates, arrays, composites, json/jsonb), a row-details form, a cell inspector, and follow-the-foreign-key from any key cell.
-- CSV/JSON import through `COPY`; copy results as CSV, TSV, JSON, Markdown or `INSERT` statements.
+- CSV/JSON import through `COPY`. Export writes every row of a browsed table, not only the page on screen. Copy results as CSV, TSV, JSON, Markdown or `INSERT` statements.
 
 **PostgreSQL tooling** ([plans](https://shman4ik.github.io/pgNimbus/docs/guide/explain/), [monitoring](https://shman4ik.github.io/pgNimbus/docs/guide/monitoring/))
 
@@ -112,13 +119,15 @@ On macOS, <kbd>Cmd</kbd> replaces <kbd>Ctrl</kbd>, except autocomplete, which st
 **Connections** ([guide](https://shman4ik.github.io/pgNimbus/docs/getting-started/connecting/))
 
 - Saved profiles with accent colours, so production never looks like staging.
-- SSH tunnels with agent, key file or password auth.
+- SSH tunnels with agent, key file or password auth. The jump host's key is checked against `known_hosts`, and a key pgNimbus has not seen before is shown with its fingerprint before you accept it.
+- TLS that verifies: new profiles start at Require, Verify full works through an SSH tunnel, and a profile can point at a provider's root certificate (RDS, Cloud SQL, Supabase).
+- Read-only profiles that the server enforces, so a stray `UPDATE` is refused rather than trusted to a keyword check.
 - Several databases side by side, each window with its own pool and tunnel. Auto-reconnect after sleep, without ever silently re-opening a transaction.
 - Tabs, including unsaved ones, come back after a restart.
 
 ## 📊 Benchmarks
 
-Every tagged release runs a benchmark job and publishes the history at **<https://shman4ik.github.io/pgNimbus/dev/bench/>**. At v0.13.1, on a GitHub Ubuntu runner:
+Every tagged release runs a benchmark job and publishes the history at **<https://shman4ik.github.io/pgNimbus/dev/bench/>**. At v1.0.0, on a GitHub Ubuntu runner:
 
 | Metric | Result |
 | --- | --- |

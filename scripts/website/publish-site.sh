@@ -23,10 +23,10 @@ assets=(
   docs/screenshots/main-dark.png
   docs/screenshots/cold-start.gif
   docs/screenshots/completion-demo.gif
-  docs/screenshots/explain-visualization.png
+  docs/screenshots/explain-tree-demo.gif
+  docs/screenshots/safe-mode-commit-demo.gif
   docs/screenshots/command-palette.png
   docs/screenshots/server-activity.png
-  docs/screenshots/connection-dialog.png
 )
 
 worktree="$(mktemp -d)"
