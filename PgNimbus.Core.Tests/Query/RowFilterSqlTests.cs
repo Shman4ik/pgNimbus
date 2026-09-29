@@ -73,7 +73,10 @@ public class RowFilterSqlTests
     {
         var sql = RowFilterSql.ToPredicate(new RowFilter("note", FilterOperator.Contains, @"50%_off\"), ColumnValueEditor.Text, "text");
 
-        await Assert.That(sql).IsEqualTo(@"""note"" ILIKE '%50\%\_off\\%'");
+        // An escape string: the pattern holds backslashes (LIKE's escapes), so
+        // SqlLiteral doubles them inside E'…' to read the same under either
+        // standard_conforming_strings setting.
+        await Assert.That(sql).IsEqualTo(@"""note"" ILIKE E'%50\\%\\_off\\\\%'");
     }
 
     [Test]

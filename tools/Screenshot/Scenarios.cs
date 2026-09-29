@@ -90,10 +90,13 @@ public static class Scenarios
         ("connection-dialog-wide", ConnectionDialogWide),
         ("connection-credential-warning", ConnectionCredentialWarning),
         ("controls-gallery", ControlsGallery.Build),
-        // Last on purpose: the headless clock advances with every frame rendered,
-        // so a scenario inserted mid-list shifts the transitions caught in every
-        // window after it and churns baselines that did not change.
+        // New scenarios go last, on purpose: the headless clock advances with
+        // every frame rendered, so a scenario inserted mid-list shifts the
+        // transitions caught in every window after it and churns baselines that
+        // did not change.
         ("main-window-queries", QueriesSidebar),
+        ("host-key-dialog", HostKeyDialogShot),
+        ("main-window-read-only-not-applied", ReadOnlyNotApplied),
     ];
 
     // --- Main window ------------------------------------------------------
@@ -116,6 +119,20 @@ public static class Scenarios
         vm.ConnectionReadOnlyHint = "the connection is read-only, so the server refuses writes.";
         SeedOrdersResult(vm.ActiveTab);
         vm.ActiveTab.ReadOnlyHint = vm.ConnectionReadOnlyHint;
+        return HostMainWindow(vm);
+    }
+
+    /// <summary>
+    /// A read-only profile the server didn't honour (a pooler dropped the
+    /// startup option): the mark turns amber and says so, the grid stays
+    /// read-only, and the status line carries the one-time warning.
+    /// </summary>
+    public static Window ReadOnlyNotApplied()
+    {
+        var vm = Fixtures.MainWindowViewModel(readOnlyProfile: true);
+        SeedOrdersResult(vm.ActiveTab);
+        vm.ActiveTab.ReadOnlyHint = vm.ConnectionReadOnlyHint;
+        _ = vm.DetectWriteStateAsync(_ => Task.FromResult(SessionWriteState.ReadWrite));
         return HostMainWindow(vm);
     }
 
@@ -421,6 +438,23 @@ public static class Scenarios
     // The modal dialogs below exist so every dialog has a frame to compare: the
     // same margins, title and hint type, and button row (secondaries, Cancel, then
     // the primary last) are only a convention until something shows them side by side.
+
+    /// <summary>
+    /// The first connect through an SSH jump host that neither known_hosts file
+    /// knows (security audit 2026-09, finding 4): host, key type and the SHA256
+    /// fingerprint, as ssh prints them.
+    /// </summary>
+    public static Window HostKeyDialogShot() =>
+        new HostKeyDialog(new SshHostKeyPrompt(
+            "bastion.example.com",
+            2222,
+            "ssh-ed25519",
+            "SHA256:N1SA3QGBX6UpjLt0OmRDWW3oayFMz/ZtKDZsysTgEag",
+            "/home/you/.config/pgNimbus/known_hosts"))
+        {
+            Width = 480,
+            Height = 360,
+        };
 
     /// <summary>The shared destructive confirm, as the grid's Delete raises it.</summary>
     public static Window ConfirmDialogShot() =>

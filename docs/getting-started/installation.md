@@ -115,14 +115,25 @@ x64 and arm64 builds, in three formats, all on the
 
 The direct downloads are unsigned, but every release asset carries
 [signed build provenance](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations).
-One command proves a file was built by this repository's release workflow from
-the tagged commit, rather than tampered with or rehosted:
+Plain `--repo` accepts an attestation from any workflow or ref in the
+repository, so pin the check to the release workflow and the tag you
+downloaded:
 
 ```bash
-gh attestation verify pgNimbus-<version>-win-x64.msi --repo Shman4ik/pgNimbus
+gh attestation verify pgNimbus-<version>-win-x64.msi --repo Shman4ik/pgNimbus \
+  --signer-workflow Shman4ik/pgNimbus/.github/workflows/release.yml \
+  --source-ref refs/tags/v<version>
 ```
 
-Each release also ships `SHA256SUMS.txt` and a CycloneDX SBOM
+Without the `gh` CLI, check the download against `SHA256SUMS.txt` from the
+same release instead. That file is attested too, so verifying the checksums
+still proves the release build produced them:
+
+```bash
+sha256sum -c SHA256SUMS.txt --ignore-missing
+```
+
+Each release also ships a CycloneDX SBOM
 (`pgNimbus-<version>-sbom.cdx.json`) listing every bundled dependency.
 
 ## Where pgNimbus keeps its files
@@ -131,6 +142,7 @@ Each release also ships `SHA256SUMS.txt` and a CycloneDX SBOM
 | --- | --- |
 | Connection profiles, saved queries, history, settings, workspace | `<appdata>/pgNimbus/` |
 | Crash log | `<appdata>/pgNimbus/logs/pgnimbus.log` |
+| SSH host keys you accepted | `<appdata>/pgNimbus/known_hosts`, in OpenSSH's format. See [host keys](connecting.md#host-keys). |
 | Passwords | DPAPI-encrypted files on Windows; Keychain on macOS; Secret Service via `libsecret-1.so.0` on Linux. Unavailable storage uses session memory with a visible warning. Never the profile file. Legacy unencrypted `.cred` files are migrated when profiles are opened, then removed only after verification. See [credential storage](connecting.md#where-your-password-goes). |
 
 On Windows `<appdata>` is `%AppData%`. On macOS and Linux it follows the

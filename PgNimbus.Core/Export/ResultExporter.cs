@@ -231,7 +231,11 @@ public static class ResultExporter
     /// <summary>
     /// Render a CLR value as a SQL literal: NULL, unquoted numbers/booleans,
     /// single-quoted and <c>''</c>-escaped text, <c>\x…</c> bytea. Shared by the
-    /// INSERT exporter and FK-follow filter composition.
+    /// INSERT exporter and FK-follow filter composition — the latter is
+    /// executed, as the browse page's WHERE, so like <see cref="SqlLiteral"/>
+    /// this relies on every session forcing <c>standard_conforming_strings</c>
+    /// on (<see cref="Connections.ConnectionProfile.StandardStringsSessionOption"/>):
+    /// only then is the doubled quote the whole escape.
     /// </summary>
     public static string FormatSqlLiteral(object? value) => value switch
     {
@@ -240,7 +244,7 @@ public static class ResultExporter
         byte or sbyte or short or ushort or int or uint or long or ulong => Convert.ToString(value, CultureInfo.InvariantCulture) ?? "NULL",
         float or double or decimal => ((IFormattable)value).ToString(null, CultureInfo.InvariantCulture),
         byte[] bytes => $"'\\x{Convert.ToHexString(bytes)}'",
-        _ => $"'{FormatCsvValue(value).Replace("'", "''")}'",
+        _ => Query.SqlLiteral.Quote(FormatCsvValue(value)),
     };
 
     private static void WriteJsonValue(Utf8JsonWriter writer, object? value)

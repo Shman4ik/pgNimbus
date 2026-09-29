@@ -82,13 +82,23 @@ chmod +x "$APP_DIR/Contents/MacOS/PgNimbus.App"
 # path actually clears. Ad-hoc signing is also what makes the arm64 binary
 # loadable at all, since Apple Silicon refuses to execute unsigned code.
 #
+# `--options runtime` turns on hardened runtime: without it, any same-user
+# process can launch pgNimbus with DYLD_INSERT_LIBRARIES and run arbitrary
+# code as it, inheriting whatever the app's code hash is trusted for (a
+# Keychain item's ACL included). Hardened runtime also turns on library
+# validation, which refuses to load a dylib unless it carries the main
+# executable's own Team ID; every dylib here is ad-hoc signed like the app
+# itself (no Team ID at all), so library validation would refuse them all at
+# launch. installer/macos/Entitlements.plist disables just that one check.
+#
 # It is not a substitute for a Developer ID signature plus notarization, which
 # would remove the warning entirely and still needs a paid Apple account.
+ENTITLEMENTS="$REPO_ROOT/installer/macos/Entitlements.plist"
 while IFS= read -r lib; do
-  codesign --force --timestamp=none --sign - "$lib"
+  codesign --force --options runtime --entitlements "$ENTITLEMENTS" --timestamp=none --sign - "$lib"
 done < <(find "$APP_DIR/Contents/MacOS" -type f -name '*.dylib')
 
-codesign --force --deep --timestamp=none --sign - "$APP_DIR"
+codesign --force --deep --options runtime --entitlements "$ENTITLEMENTS" --timestamp=none --sign - "$APP_DIR"
 codesign --verify --deep --strict --verbose=2 "$APP_DIR"
 
 # Drag-to-Applications: without this the .dmg holds the app alone, so the

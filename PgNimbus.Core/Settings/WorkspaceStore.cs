@@ -1,6 +1,6 @@
-using System.Text.Json;
 using System.Text.Json.Serialization;
 using PgNimbus.Core.Connections;
+using PgNimbus.Core.Security;
 
 namespace PgNimbus.Core.Settings;
 
@@ -18,6 +18,9 @@ namespace PgNimbus.Core.Settings;
 /// resume browse mode (filter chips included) instead of the tab being a plain
 /// query for good. Only the name is kept: the columns are read fresh from the
 /// catalog when it's needed, since the table may have changed in between.
+/// <paramref name="TextFromFile"/> means the snapshot kept no text for a
+/// file-backed tab and the restore reads it from <paramref name="FilePath"/>
+/// (see <see cref="WorkspaceStore.Save"/>).
 /// </summary>
 public sealed record WorkspaceTab(
     string Sql,
@@ -25,48 +28,44 @@ public sealed record WorkspaceTab(
     string? FilePath = null,
     Guid? SavedQueryId = null,
     string? BrowseSchema = null,
-    string? BrowseTable = null);
+    string? BrowseTable = null,
+    bool TextFromFile = false);
 
 /// <summary>A saved snapshot of one connection's open tabs, most-recently-saved entries kept first in the store.</summary>
 public sealed record WorkspaceEntry(string Connection, DateTimeOffset SavedAt, List<WorkspaceTab> Tabs, int ActiveTabIndex = 0);
 
-/// <summary>Persists the last <see cref="MaxEntries"/> per-connection workspaces, most recent first.</summary>
+/// <summary>Persists the last <see cref="MaxEntries"/> per-connection workspaces, most recent first, through <see cref="AppDataFile"/>.</summary>
 public sealed class WorkspaceStore(string? filePath = null)
 {
     private const int MaxEntries = 20;
 
-    private readonly string _filePath = filePath ?? Path.Combine(AppDataPaths.GetRootDirectory(), "workspace.json");
+    private readonly string? _filePath = filePath ?? AppDataPaths.Resolve("workspace.json");
 
-    private IReadOnlyList<WorkspaceEntry> Load()
-    {
-        if (!File.Exists(_filePath))
-        {
-            return [];
-        }
-
-        // A corrupt/empty/half-written file must never block startup - fall back
-        // to an empty list rather than throwing out of the constructor path.
-        try
-        {
-            var json = File.ReadAllText(_filePath);
-            return JsonSerializer.Deserialize(json, WorkspaceJsonContext.Default.ListWorkspaceEntry) ?? [];
-        }
-        catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException)
-        {
-            return [];
-        }
-    }
+    // A corrupt/empty/half-written file must never block startup: AppDataFile
+    // moves one it cannot parse aside and the list starts empty.
+    private IReadOnlyList<WorkspaceEntry> Load() =>
+        AppDataFile.ReadJson(_filePath, WorkspaceJsonContext.Default.ListWorkspaceEntry) ?? [];
 
     /// <summary>The most recently saved workspace for <paramref name="connection"/>, or null if none was ever saved.</summary>
     public WorkspaceEntry? GetEntry(string connection) =>
         Load().FirstOrDefault(e => string.Equals(e.Connection, connection, StringComparison.Ordinal));
 
-    /// <summary>Replaces the saved workspace for <paramref name="connection"/> with the current tabs.</summary>
+    /// <summary>
+    /// Replaces the saved workspace for <paramref name="connection"/> with the
+    /// current tabs. Every tab's text, this connection's and the other
+    /// connections' already in the file, goes through
+    /// <see cref="SecretRedactor"/> on the way: the snapshot is written on every
+    /// close and connection switch without the user asking, so an
+    /// <c>ALTER ROLE … PASSWORD 'p'</c> left in a tab must not land on disk as
+    /// typed (security audit 2026-09, finding 8). Doing it here rather than in
+    /// the App's close handler is what makes it hold for every caller. The
+    /// restored tab then shows the placeholder instead of the literal.
+    /// </summary>
     public void Save(string connection, IReadOnlyList<WorkspaceTab> tabs, int activeTabIndex)
     {
-        var entries = Load().ToList();
+        var entries = Load().Select(Redacted).ToList();
         entries.RemoveAll(e => string.Equals(e.Connection, connection, StringComparison.Ordinal));
-        entries.Insert(0, new WorkspaceEntry(connection, DateTimeOffset.UtcNow, [.. tabs], activeTabIndex));
+        entries.Insert(0, new WorkspaceEntry(connection, DateTimeOffset.UtcNow, [.. tabs.Select(Redacted)], activeTabIndex));
 
         // Trim oldest-first - the list is most-recent-first, so drop from the end.
         for (var i = entries.Count - 1; i >= 0 && entries.Count > MaxEntries; i--)
@@ -74,15 +73,28 @@ public sealed class WorkspaceStore(string? filePath = null)
             entries.RemoveAt(i);
         }
 
-        var directory = Path.GetDirectoryName(_filePath);
-        if (!string.IsNullOrEmpty(directory))
+        AppDataFile.WriteJson(_filePath, entries, WorkspaceJsonContext.Default.ListWorkspaceEntry);
+    }
+
+    // A tab backed by a file keeps no text when it holds a secret: restored,
+    // it reads the file again. Redacting it instead reopened a migration file
+    // holding CREATE ROLE … PASSWORD 'x' as a modified tab showing the
+    // placeholder, and one Ctrl+S wrote the placeholder over the real file
+    // (review of the 2026-09 audit fixes). Its unsaved edits are not kept.
+    private static WorkspaceTab Redacted(WorkspaceTab tab)
+    {
+        var redacted = SecretRedactor.Redact(tab.Sql);
+        if (string.Equals(redacted, tab.Sql, StringComparison.Ordinal))
         {
-            Directory.CreateDirectory(directory);
+            return tab;
         }
 
-        var json = JsonSerializer.Serialize(entries, WorkspaceJsonContext.Default.ListWorkspaceEntry);
-        File.WriteAllText(_filePath, json);
+        return tab.FilePath is not null
+            ? tab with { Sql = "", TextFromFile = true }
+            : tab with { Sql = redacted };
     }
+
+    private static WorkspaceEntry Redacted(WorkspaceEntry entry) => entry with { Tabs = [.. entry.Tabs.Select(Redacted)] };
 }
 
 [JsonSourceGenerationOptions(WriteIndented = true)]

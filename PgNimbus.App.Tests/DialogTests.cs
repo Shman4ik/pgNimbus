@@ -25,6 +25,7 @@ public class DialogTests
         "import-plan-dialog",
         "import-dialog",
         "bulk-grant-dialog",
+        "host-key-dialog",
     ];
 
     public static IEnumerable<Func<string>> ModalDialogNames() =>

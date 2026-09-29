@@ -67,6 +67,22 @@ public class BrowseSqlParserTests
     }
 
     [Test]
+    public async Task The_escape_string_browse_mode_writes_for_a_backslash_reads_back_typed()
+    {
+        // SqlLiteral writes E'…' with \\ and '' for text holding a backslash;
+        // that exact form is a value, any other escape keeps the string raw.
+        var shape = Parse("""
+            SELECT * FROM "analytics"."v_customer_spend"
+            WHERE full_name = E'C:\\temp\\o''brien' AND full_name <> E'line\nbreak'
+            LIMIT 100
+            """)!;
+
+        await Assert.That(shape.Conditions[0].Filter).IsEqualTo(new RowFilter("full_name", FilterOperator.Equals, @"C:\temp\o'brien"));
+        await Assert.That(shape.Conditions[1].Filter).IsNull();
+        await Assert.That(shape.Conditions[1].Text).IsEqualTo(@"full_name <> E'line\nbreak'");
+    }
+
+    [Test]
     public async Task Anything_else_in_the_where_is_kept_verbatim_as_a_raw_condition()
     {
         var shape = Parse("""

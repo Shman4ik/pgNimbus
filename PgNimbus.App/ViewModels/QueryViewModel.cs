@@ -615,15 +615,47 @@ public sealed partial class QueryViewModel : ObservableObject
             ShownBrowse = null;
         }
 
-        if (shape is not null && _browsedTable is { } browsed && !HasError && Browse is null)
+        if (shape is null || _browsedTable is not { } browsed || HasError || Browse is not null)
         {
-            _applyingBrowseSql = true;
-            Browse = TableBrowseViewModel.FromParsed(browsed.Schema, browsed.Name, browsed.Columns, shape, Rows.Count, RunBrowseSqlAsync);
-            Browse.AlwaysShowBar = _showFilterBar?.Invoke() ?? false;
-            _applyingBrowseSql = false;
-            EstablishBrowseEditContext();
+            return;
         }
+
+        if (!EditableResultDetector.ReadsOnlyTable(_columns, _browsedTableOid))
+        {
+            // The text has the browse shape but the rows didn't come from the
+            // browsed table: `FROM orders` in a tab browsing sales.orders
+            // resolves along search_path, and may find public.orders. Resuming
+            // browse mode here used to hand out an edit context for sales.orders
+            // over public.orders' rows, so an inline edit updated sales.orders
+            // by the other table's keys (security audit 2026-09, finding 14).
+            // It is an ordinary query, and a read-only one: whoever edits these
+            // rows believes they are editing the table this tab browsed.
+            ShownBrowse = null;
+            EditContext = null;
+            ReadOnlyHint = OtherTableHint(browsed.Schema, browsed.Name);
+            Status = $"This query doesn't read {browsed.Schema}.{browsed.Name}, the table this tab browsed, so it ran as an ordinary query: no filters, no editing.";
+            return;
+        }
+
+        _applyingBrowseSql = true;
+        Browse = TableBrowseViewModel.FromParsed(browsed.Schema, browsed.Name, browsed.Columns, shape, Rows.Count, RunBrowseSqlAsync);
+        Browse.AlwaysShowBar = _showFilterBar?.Invoke() ?? false;
+        _applyingBrowseSql = false;
+        EstablishBrowseEditContext();
     }
+
+    // Completes "Results are read-only: …" for a browse-shaped query whose rows
+    // came from somewhere other than the browsed table (or from a table nobody
+    // could confirm was it).
+    private static string OtherTableHint(string schema, string name) =>
+        $"the query doesn't read {schema}.{name}, the table this tab browsed. Write {schema}.{name} in full to browse and edit it.";
+
+    // The browsed table's pg_class OID, 0 while unknown. Learned from the
+    // browse page's own result (its composed query names the table in full,
+    // so the OID its columns carry is the table's) or, for a tab restored from
+    // the workspace, looked up by exact name. Only a result whose every column
+    // carries this OID resumes browse mode or gets the browse edit context.
+    private uint _browsedTableOid;
 
     // The table this tab was opened to browse, kept after a hand edit ends
     // browse mode so a run of an edited page query can resume it. Null for a
@@ -666,6 +698,11 @@ public sealed partial class QueryViewModel : ObservableObject
             if (columns.Count > 0)
             {
                 RememberBrowsedTable(schema, name, columns);
+
+                // No page of this table has run in this session, so its OID
+                // comes from the catalog, by exact name: a query naming it bare
+                // must still prove its rows came from this table.
+                _browsedTableOid = await _schemaService.GetRelationOidAsync(schema, name, CancellationToken.None) ?? 0;
             }
         }
         catch
@@ -681,6 +718,7 @@ public sealed partial class QueryViewModel : ObservableObject
         _browseColumns = columns;
         _browsePkColumns = columns.Where(c => c.IsPrimaryKey).Select(c => c.Name).ToList();
         _browsedTable = (schema, name, columns);
+        _browsedTableOid = 0;
     }
 
     // The status bar's "always show the filter bar" preference, read when a
@@ -771,11 +809,8 @@ public sealed partial class QueryViewModel : ObservableObject
 
             // Ask for one row past the cap: receiving it proves the result was
             // actually cut short, so an exactly-at-the-cap result isn't
-            // mislabeled as truncated. allowTextFallback is this tab vouching
-            // that the SQL is app-composed (a browse-mode page, side-effect-free
-            // by construction); hand-written SQL doesn't vouch, and the engine
-            // decides for itself whether re-executing it is provably harmless.
-            var result = await _engine.ExecuteAsync(executedSql, ct, MaxDisplayRows + 1, allowTextFallback: IsBrowsing, maxBytes: MaxDisplayBytes);
+            // mislabeled as truncated.
+            var result = await _engine.ExecuteAsync(executedSql, ct, MaxDisplayRows + 1, maxBytes: MaxDisplayBytes);
             if (result is ResultSet or MaterializedResultSet)
             {
                 _resultSql = executedSql;
@@ -912,7 +947,7 @@ public sealed partial class QueryViewModel : ObservableObject
             // metadata it already holds.
             else if (result is ResultSet or MaterializedResultSet && Browse is null)
             {
-                await TryEnableEditingForQueryAsync(ct);
+                await TryEnableEditingForQueryAsync(executedSql, ct);
             }
 
             Executed?.Invoke(new QueryHistoryEntry(executedSql, DateTimeOffset.UtcNow, stopwatch.Elapsed.TotalMilliseconds, StatusSummary()));
@@ -1280,7 +1315,13 @@ public sealed partial class QueryViewModel : ObservableObject
             ? SqlScriptSplitter.StatementAt(Sql, CaretOffset) ?? Sql
             : SelectedSql;
 
-        return SqlStatementInspector.StripExplain(candidate);
+        // A selection may hold several statements, and EXPLAIN plans only the
+        // first while the server runs them all (security audit 2026-09, finding
+        // 3: an explain of `SELECT 1; CREATE TABLE …` created the table). The
+        // service refuses that too; refusing here first keeps the message on
+        // the status line rather than in an exception, and unwraps a
+        // hand-written EXPLAIN only once the text is known to be one statement.
+        return SqlStatementInspector.StripExplain(ExplainService.SingleStatement(candidate));
     }
 
     private async Task RunExplainAsync(bool analyze)
@@ -1530,6 +1571,15 @@ public sealed partial class QueryViewModel : ObservableObject
         _applyingBrowseSql = false;
 
         await RunCommand.ExecuteAsync(null);
+
+        // The composed page names its table in full, so the OID its columns
+        // carry is the browsed table's: what a later hand-edited page query
+        // has to match before it may resume browse mode.
+        if (!HasError && EditableResultDetector.CheckSingleTable(_columns, out var oid) == EditBlocker.None)
+        {
+            _browsedTableOid = oid;
+        }
+
         EstablishBrowseEditContext();
         return Rows.Count;
     }
@@ -1540,12 +1590,25 @@ public sealed partial class QueryViewModel : ObservableObject
     /// Turns editing off on a result already on screen once the owner learns
     /// the connection can't write. The server's answer arrives a moment after
     /// the window opens, and a tab can have run in between.
+    /// <paramref name="previousHint"/> is the connection's reason before this
+    /// change: a result already read-only for that reason takes the new
+    /// wording (a read-only profile the server turned out not to enforce must
+    /// not keep saying "the server refuses writes").
     /// </summary>
-    public void ApplyConnectionReadOnly()
+    public void ApplyConnectionReadOnly(string? previousHint = null)
     {
-        if (_connectionReadOnlyHint?.Invoke() is { } readOnly && EditContext is not null)
+        if (_connectionReadOnlyHint?.Invoke() is not { } readOnly)
+        {
+            return;
+        }
+
+        if (EditContext is not null)
         {
             EditContext = null;
+            ReadOnlyHint = readOnly;
+        }
+        else if (previousHint is not null && ReadOnlyHint == previousHint)
+        {
             ReadOnlyHint = readOnly;
         }
     }
@@ -1555,6 +1618,16 @@ public sealed partial class QueryViewModel : ObservableObject
         if (_connectionReadOnlyHint?.Invoke() is { } readOnly)
         {
             ReadOnlyHint = readOnly;
+        }
+        else if (!EditableResultDetector.ReadsOnlyTable(_columns, _browsedTableOid))
+        {
+            // No rows from the browsed table on screen (the page failed), or rows
+            // from another one: an edit context names the browsed table, so it
+            // is only handed out over that table's own rows.
+            if (!HasError && _columns.Count > 0 && Browse is { } other)
+            {
+                ReadOnlyHint = OtherTableHint(other.Schema, other.Name);
+            }
         }
         else if (_browsePkColumns is { Count: > 0 } pk && Browse is { } browse)
         {
@@ -1617,7 +1690,7 @@ public sealed partial class QueryViewModel : ObservableObject
     /// <see cref="ReadOnlyHint"/> instead, so the status bar can say *why*
     /// instead of the grid silently ignoring edit gestures.
     /// </summary>
-    private async Task TryEnableEditingForQueryAsync(CancellationToken ct)
+    private async Task TryEnableEditingForQueryAsync(string executedSql, CancellationToken ct)
     {
         if (_schemaService is null)
         {
@@ -1633,6 +1706,14 @@ public sealed partial class QueryViewModel : ObservableObject
         if (EditableResultDetector.CheckSingleTable(_columns, out var tableOid) is not EditBlocker.None and var columnsBlocker)
         {
             ReadOnlyHint = ReadOnlyHintFor(columnsBlocker, table: null);
+            return;
+        }
+
+        // The metadata can't tell a self-join from a plain read: both sides
+        // carry the one table's OID. The text can.
+        if (EditableResultDetector.CheckRepeatedTable(executedSql) is not EditBlocker.None and var sourcesBlocker)
+        {
+            ReadOnlyHint = ReadOnlyHintFor(sourcesBlocker, table: null);
             return;
         }
 
@@ -1678,6 +1759,7 @@ public sealed partial class QueryViewModel : ObservableObject
         EditBlocker.NoPrimaryKey => $"{TableName(table)} has no primary key, so rows can't be targeted exactly.",
         EditBlocker.PrimaryKeyNotSelected => $"the primary key of {TableName(table)} isn't in the result — include it to edit.",
         EditBlocker.UnreadableKey => UnreadableKeyHint(table is null ? null : $"{table.Schema}.{table.Name}", key: null),
+        EditBlocker.RepeatedTable => "the query reads the same table more than once (a self-join), so an edit could change a different row than the one it shows.",
         _ => "this result set can't be mapped back to a table.",
     };
 
@@ -2613,51 +2695,47 @@ public sealed partial class QueryViewModel : ObservableObject
     }
 
     /// <summary>Where an export's rows come from; see <see cref="ChooseExportSource"/>.</summary>
-    /// <param name="Sql">The query to run again for every row, or null to write the rows the grid holds.</param>
-    /// <param name="Vouched">The SQL is app-composed (a browse query), so it's safe to run twice by construction.</param>
+    /// <param name="Sql">The browse query to run again for every row, or null to write the rows the grid holds.</param>
     /// <param name="Shortfall">Why the grid's rows are all an export can write although there are more; null when nothing is missing.</param>
-    public sealed record ExportSource(string? Sql, bool Vouched, string? Shortfall);
+    public sealed record ExportSource(string? Sql, string? Shortfall);
 
     /// <summary>
     /// Decides what an export writes. When the grid holds the whole result it is
-    /// written as is; no second round trip. When it doesn't (a browse page, or a
-    /// query cut off at <see cref="MaxDisplayRows"/>), the statement runs again
-    /// with no limit and streams to the file. A browse query is ours and safe to
-    /// run twice; a hand-written one must pass
-    /// <see cref="SqlStatementInspector.IsSafeToReExecute"/>, the same guard the
-    /// engine's text fallback uses, because running an <c>INSERT … RETURNING</c>
-    /// again to export it would insert its rows twice. Where the rest can't be
-    /// read, the export still writes what's shown and <see cref="ExportSource.Shortfall"/>
-    /// says so, rather than letting a partial file pass for a complete one.
+    /// written as is; no second round trip. When it doesn't, only a browse page
+    /// query is run again with no limit and streamed to the file: it is ours, a
+    /// plain <c>SELECT</c> of one table, and safe to run twice by construction. A
+    /// hand-written query is never run again, whatever it looks like (2026-09
+    /// security audit, finding 1): a <c>SELECT</c> of a function that writes reads
+    /// as harmless and is not, and no lexical check can tell the two apart. Where
+    /// the rest can't be read, the export still writes what's shown and
+    /// <see cref="ExportSource.Shortfall"/> says so, rather than letting a partial
+    /// file pass for a complete one.
     /// </summary>
     public ExportSource ChooseExportSource()
     {
         if (SelectedSection is { } section)
         {
-            return new ExportSource(null, false, section.CapText is null
+            return new ExportSource(null, section.CapText is null
                 ? null
                 : "a statement from a script can't be run again on its own.");
         }
 
         string? sql;
-        bool vouched;
         bool complete;
         if (ShownBrowse is { } browse)
         {
             sql = browse.BuildExportSql();
-            vouched = true;
             complete = browse.Offset == 0 && !browse.CanGoNext;
         }
         else
         {
-            sql = _resultSql;
-            vouched = false;
+            sql = null;
             complete = CapText is null;
         }
 
         if (complete)
         {
-            return new ExportSource(null, false, null);
+            return new ExportSource(null, null);
         }
 
         // Inside a transaction the engine reads everything into memory (see
@@ -2666,15 +2744,15 @@ public sealed partial class QueryViewModel : ObservableObject
         // transaction's own uncommitted rows.
         if (_engine.IsInTransaction)
         {
-            return new ExportSource(null, false, "inside a transaction the rest can't be read. Commit or roll back, then export again.");
+            return new ExportSource(null, "inside a transaction the rest can't be read. Commit or roll back, then export again.");
         }
 
-        if (sql is null || !(vouched || SqlStatementInspector.IsSafeToReExecute(sql)))
+        if (sql is null)
         {
-            return new ExportSource(null, false, "the query might change data, so it wasn't run again for the rest.");
+            return new ExportSource(null, "a query you wrote isn't run again for the rest. Browse the table to export every row.");
         }
 
-        return new ExportSource(sql, vouched, null);
+        return new ExportSource(sql, null);
     }
 
     /// <summary>
@@ -2715,7 +2793,7 @@ public sealed partial class QueryViewModel : ObservableObject
 
             if (source.Sql is { } sql)
             {
-                switch (await _engine.ExecuteAsync(sql, ct, maxRows: null, allowTextFallback: source.Vouched))
+                switch (await _engine.ExecuteAsync(sql, ct, maxRows: null))
                 {
                     case ResultSet set:
                         columns = [.. set.Columns.Select(c => c.Name)];
