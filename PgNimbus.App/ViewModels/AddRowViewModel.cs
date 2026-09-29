@@ -135,6 +135,12 @@ public sealed partial class AddRowViewModel(
             StatusMessage = "Row inserted.";
             Inserted?.Invoke();
         }
+        catch (StatementOutcomeUnknownException)
+        {
+            // Not "failed": the INSERT may have committed before the connection
+            // dropped, and Add again would insert the row twice.
+            StatusMessage = "The connection was lost after the row was sent, so it may or may not have been inserted. Check the table before adding it again.";
+        }
         catch (Exception ex)
         {
             StatusMessage = $"Insert failed: {ex.Message}";
