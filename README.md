@@ -26,7 +26,8 @@
   <a href="https://shman4ik.github.io/pgNimbus/docs/">Docs</a> ·
   <a href="#-installation">Install</a> ·
   <a href="#-features">Features</a> ·
-  <a href="ROADMAP.md">Roadmap</a>
+  <a href="ROADMAP.md">Roadmap</a> ·
+  <a href="#-support">Support</a>
 </p>
 
 ---
@@ -175,6 +176,14 @@ dotnet publish PgNimbus.App -c Release -r linux-x64 -p:PublishAot=true  # Linux 
 ```
 
 The docs site is MkDocs Material: `pip install -r docs/requirements.txt && mkdocs serve`.
+
+## ☕ Support
+
+pgNimbus is free and MIT licensed, and it stays that way. If it saves you time at work or you simply enjoy using it, you can support the work with a coffee:
+
+<a href="https://buymeacoffee.com/shman4ik"><img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=black" alt="Buy me a coffee"></a>
+
+A star, a bug report or a word to a colleague helps too.
 
 ## 📄 License
 

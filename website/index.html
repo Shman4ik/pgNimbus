@@ -253,7 +253,20 @@
     font-size: .9rem;
     text-align: center;
   }
-  footer .links { display: flex; gap: 22px; justify-content: center; margin-bottom: 12px; }
+  footer .links { display: flex; flex-wrap: wrap; gap: 10px 22px; justify-content: center; margin-bottom: 12px; }
+
+  /* ---- support ---- */
+  .support {
+    max-width: 640px; margin: 0 auto;
+    text-align: center;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 34px 28px 36px;
+  }
+  .support p { color: var(--ink-soft); margin: 0 auto 22px; max-width: 520px; }
+  .btn.coffee { background: #ffdd00; border-color: #ffdd00; color: #1c1c1c; }
+  .btn.coffee svg { width: 19px; height: 19px; }
 </style>
 </head>
 <body>
@@ -458,6 +471,16 @@
   </div>
 </section>
 
+<section id="support">
+  <div class="wrap">
+    <div class="support">
+      <h2>Like pgNimbus?</h2>
+      <p>pgNimbus is free and MIT licensed, and it stays that way. If it saves you time at work or you simply enjoy using it, you can support the work with a coffee.</p>
+      <a class="btn coffee" href="https://buymeacoffee.com/shman4ik"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2v2"/><path d="M14 2v2"/><path d="M6 2v2"/><path d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1"/></svg>Buy me a coffee</a>
+    </div>
+  </div>
+</section>
+
 <footer>
   <div class="wrap">
     <div class="links">
@@ -466,6 +489,7 @@
       <a href="dev/bench/">Benchmarks</a>
       <a href="docs/privacy/">Privacy</a>
       <a href="https://github.com/Shman4ik/pgNimbus/blob/main/LICENSE">MIT License</a>
+      <a href="https://buymeacoffee.com/shman4ik">Buy me a coffee</a>
     </div>
     <div>pgNimbus: open source, PostgreSQL-first, and fast enough to prove it.</div>
   </div>
