@@ -5,9 +5,13 @@ namespace PgNimbus.Core.Query;
 
 /// <summary>
 /// Tells "the connection itself is gone" apart from "the statement failed over
-/// a perfectly live connection". Only the first is safe to recover from by
-/// silently reaching for a fresh connection; everything else has to reach the
-/// user as-is.
+/// a perfectly live connection". Only the first is worth reaching for a fresh
+/// connection over; everything else has to reach the user as-is. What this
+/// does <em>not</em> decide is whether a statement may be sent again: a loss
+/// looks the same whether the socket died before the statement went out or
+/// while the server was running it (<c>pg_terminate_backend</c> produces the
+/// same 57P01 either way), so the engine keys the retry on when the failure
+/// happened, not on its shape (see <see cref="QueryEngine"/>).
 ///
 /// Lives here rather than inside <see cref="QueryEngine"/> because it is not
 /// only the query path that has to answer the question: the LISTEN/NOTIFY

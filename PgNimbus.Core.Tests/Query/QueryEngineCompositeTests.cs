@@ -6,10 +6,12 @@ namespace PgNimbus.Core.Tests.Query;
 /// <summary>
 /// Exercises reading a column type Npgsql has no client-side mapping for — an
 /// unmapped composite — against a real Postgres server. Both halves of the fix
-/// are covered: the text-format re-execution that produces a real Postgres
-/// literal for a statement it's provably harmless to run twice, and the
+/// are covered: the describe-first text-format request that produces a real
+/// Postgres literal without running the statement a second time, and the
 /// per-cell placeholder that keeps one such column from failing an entire
-/// result set when it isn't.
+/// result set where the request can't be made (a multi-statement command).
+/// It also holds the 2026-09 security audit's live check: a <c>SELECT</c> of a
+/// VOLATILE function that writes and returns the composite runs exactly once.
 ///
 /// Gated on <c>PGNIMBUS_TEST_CONN</c> exactly like
 /// <see cref="QueryEngineReconnectTests"/>: unset (a plain local `dotnet test`),
@@ -27,6 +29,7 @@ public class QueryEngineCompositeTests
     // of QueryEngine.UnreadableCell, which also constructs the actual value.
     private const string ExpectedUnreadableCell = "<unreadable public.pgnimbus_composite_scratch_addr>";
     private const string ScratchTable = "pgnimbus_composite_scratch";
+    private const string CreateOrderFunction = "pgnimbus_composite_scratch_create_order";
 
     private static readonly string? ConnectionString = Environment.GetEnvironmentVariable("PGNIMBUS_TEST_CONN");
 
@@ -54,6 +57,7 @@ public class QueryEngineCompositeTests
         await using var connection = await dataSource.OpenConnectionAsync();
         await using var command = new NpgsqlCommand(
             $"""
+             DROP FUNCTION IF EXISTS {CreateOrderFunction}();
              DROP TABLE IF EXISTS {ScratchTable};
              DROP TYPE IF EXISTS {CompositeType};
              CREATE TYPE {CompositeType} AS (street text, city text);
@@ -69,7 +73,7 @@ public class QueryEngineCompositeTests
         await using var dataSource = CreateDataSource();
         await using var connection = await dataSource.OpenConnectionAsync();
         await using var command = new NpgsqlCommand(
-            $"DROP TABLE IF EXISTS {ScratchTable}; DROP TYPE IF EXISTS {CompositeType};",
+            $"DROP FUNCTION IF EXISTS {CreateOrderFunction}(); DROP TABLE IF EXISTS {ScratchTable}; DROP TYPE IF EXISTS {CompositeType};",
             connection);
         await command.ExecuteNonQueryAsync();
     }
@@ -102,8 +106,8 @@ public class QueryEngineCompositeTests
         {
             var engine = new QueryEngine(dataSource);
 
-            // A plain SELECT is provably harmless to run twice, so the engine
-            // re-requests the composite column in text format on its own — no
+            // The engine describes the statement first and requests the
+            // composite column in text format on its single execution — no
             // caller opt-in, which is what a hand-written query gets.
             var rows = await DrainAsync(
                 await engine.ExecuteAsync($"SELECT ship_to FROM {ScratchTable}", CancellationToken.None));
@@ -128,9 +132,11 @@ public class QueryEngineCompositeTests
         {
             var engine = new QueryEngine(dataSource);
 
-            // Two statements in one command: re-executing would run both again, so
-            // the fallback is refused. Before the per-cell guard this surfaced as
-            // "Reading as 'System.Object' is not supported…" with no rows at all.
+            // Two statements in one command: UnknownResultTypeList would apply to
+            // both and has to match each one's column count, so the text request
+            // is skipped and the cell falls back per value. Before the per-cell
+            // guard this surfaced as "Reading as 'System.Object' is not
+            // supported…" with no rows at all.
             var rows = await DrainAsync(await engine.ExecuteAsync(
                 $"SELECT id, ship_to FROM {ScratchTable}; SELECT 1",
                 CancellationToken.None));
@@ -156,10 +162,9 @@ public class QueryEngineCompositeTests
         {
             var engine = new QueryEngine(dataSource);
 
-            // The script path never vouches for its statements (they're arbitrary
-            // SQL), so each one stands on its own: the SELECT earns the literal,
-            // while a data-modifying RETURNING of the same column must not be
-            // re-run and falls back per cell.
+            // Every script statement is described before its one execution, so
+            // the SELECT and the data-modifying RETURNING of the same column both
+            // come back as literals — and the UPDATE runs once.
             var results = new List<StatementResult>();
             await foreach (var result in engine.ExecuteScriptAsync(
                 [
@@ -176,12 +181,56 @@ public class QueryEngineCompositeTests
             var written = (MaterializedResultSet)results[1];
 
             await Assert.That(read.Rows[0][0]).IsEqualTo("(\"246 Oak St\",Milan)");
-            await Assert.That(written.Rows[0][0]).IsEqualTo(ExpectedUnreadableCell);
+            await Assert.That(written.Rows[0][0]).IsEqualTo("(\"246 Oak St\",Milan)");
 
-            // And the UPDATE ran exactly once — the whole point of refusing it.
+            // And the UPDATE ran exactly once — the whole point of describing first.
             var ids = await DrainAsync(
                 await engine.ExecuteAsync($"SELECT id FROM {ScratchTable}", CancellationToken.None));
             await Assert.That(ids[0][0]).IsEqualTo(2);
+        }
+        finally
+        {
+            await DropAsync();
+        }
+    }
+
+    [Test]
+    public async Task AVolatileFunctionReturningACompositeRunsExactlyOnce()
+    {
+        SkipIfNoConnection();
+
+        await SeedAsync();
+        await using var dataSource = CreateDataSource();
+        try
+        {
+            // The security audit's live reproduction (2026-09, finding 1): a
+            // SELECT whose only "read" is a call that inserts a row and returns
+            // the table's composite. The old text fallback re-executed it —
+            // one Run, two rows. Nothing about the statement says it writes, so
+            // the only correct engine behaviour is to never execute twice.
+            await using (var setup = await dataSource.OpenConnectionAsync())
+            await using (var create = new NpgsqlCommand(
+                $"""
+                 CREATE OR REPLACE FUNCTION {CreateOrderFunction}() RETURNS {CompositeType}
+                 LANGUAGE sql VOLATILE AS $$
+                     INSERT INTO {ScratchTable} VALUES (2, ROW('1 Main St', 'Turin')::{CompositeType})
+                     RETURNING ship_to;
+                 $$;
+                 """,
+                setup))
+            {
+                await create.ExecuteNonQueryAsync();
+            }
+
+            var engine = new QueryEngine(dataSource);
+            var rows = await DrainAsync(await engine.ExecuteAsync($"SELECT {CreateOrderFunction}()", CancellationToken.None));
+
+            await Assert.That(rows).Count().IsEqualTo(1);
+            await Assert.That(rows[0][0]).IsEqualTo("(\"1 Main St\",Turin)");
+
+            var inserted = await DrainAsync(await engine.ExecuteAsync(
+                $"SELECT count(*)::int FROM {ScratchTable} WHERE id = 2", CancellationToken.None));
+            await Assert.That(inserted[0][0]).IsEqualTo(1);
         }
         finally
         {
