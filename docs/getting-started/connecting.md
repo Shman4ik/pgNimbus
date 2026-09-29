@@ -140,7 +140,7 @@ terminated your session, the run ends with an error that says the statement
 was not run again and may or may not have taken effect. Check before you run
 it again. The next statement reconnects by itself. A statement that has
 already started on the server is out of the client's hands: an `UPDATE` that
-was half way through when the socket died keeps running there and commits,
+was halfway through when the socket died keeps running there and commits,
 and running it again would apply it twice.
 
 The other case pgNimbus deliberately does not paper over is an open explicit

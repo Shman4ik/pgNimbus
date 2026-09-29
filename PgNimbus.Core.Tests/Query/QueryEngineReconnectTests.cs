@@ -362,8 +362,12 @@ public class QueryEngineReconnectTests
                 CancellationToken.None);
             await TerminateSlowInsertAsync();
 
-            var thrown = await Assert.ThrowsAsync<PostgresException>(async () => await run);
-            await Assert.That(thrown.SqlState).IsEqualTo(PostgresErrorCodes.AdminShutdown);
+            // Reported as "may or may not have taken effect", not as a plain
+            // failure: an Add-row that says "failed" invites a second INSERT.
+            var thrown = await Assert.ThrowsAsync<StatementOutcomeUnknownException>(async () => await run);
+            await Assert.That(thrown!.InnerException).IsTypeOf<PostgresException>();
+            await Assert.That(((PostgresException)thrown.InnerException!).SqlState).IsEqualTo(PostgresErrorCodes.AdminShutdown);
+            await Assert.That(thrown.Message).Contains("may or may not have taken effect");
             await Assert.That(await KillTableRowsAsync()).IsEqualTo(0L);
         }
         finally

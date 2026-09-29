@@ -267,6 +267,11 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
                 // Whatever else happens, the next statement must not rent the
                 // same dead socket.
                 ClearPool();
+                if (sent)
+                {
+                    throw new StatementOutcomeUnknownException(LossMessage(sent: true, ex.Message), ex);
+                }
+
                 throw;
             }
         }

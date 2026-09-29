@@ -160,7 +160,10 @@ Three rules about it:
    arrives for a backend killed while idle, so the classifier cannot tell the
    two apart; the *timing* of the failure can, which is what the `sent` flag
    keys on. `ExecuteNonQueryAsync` (grid edits and the Add-row INSERT) throws
-   the loss instead of re-sending; a script retries its first statement only
+   the loss instead of re-sending, as `StatementOutcomeUnknownException` once
+   the statement was sent, so Add-row says the row may or may not have been
+   inserted rather than "Insert failed" (which invited a second, duplicate
+   INSERT); a script retries its first statement only
    when it never went out. The one place a statement that went out is sent
    again is the pre-commit staged batch, which is safe for a reason the
    single-statement paths lack: it ran inside its own transaction, a
