@@ -365,9 +365,13 @@ pinned NuGet sources):
   `dotnet build`/`restore` — local or CI — fails on a known advisory; ci.yml
   additionally runs `dependency-review-action` on PRs to block newly-added
   vulnerable packages at review time.
-- **Pinned SDK** — `global.json` carries an `sdk.version` (the exact patch a
-  release was built with is otherwise unknowable from the repo alone) with
-  `rollForward: latestFeature`, alongside the existing `test.runner` opt-in.
+- **Pinned SDK line** — `global.json` carries `sdk.version` `10.0.100` with
+  `rollForward: latestFeature`: any 10.0 SDK at or above it builds, so the
+  1xx-band SDK Ubuntu's apt package ships (the verify skill's sandbox recipe)
+  still works, while an 11.0 SDK does not pick the build up. It is a floor, not
+  the release's exact SDK (CI installs the newest `10.0.x`); the runtime pack a
+  release actually links is what the SBOM records (above), and
+  `sbom_add_runtime.py` reads the major.minor from this file.
 - **Pinned NuGet sources** — the repo-root `nuget.config` clears every
   package source but nuget.org and maps every package id to it with
   `packageSourceMapping`. Without it, a restore reads whatever sources a
