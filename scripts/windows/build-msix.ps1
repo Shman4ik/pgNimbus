@@ -102,7 +102,9 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "signtool failed with exit code $LASTEXITCODE" }
 }
 finally {
-    Remove-Item "Cert:\CurrentUser\My\$($cert.Thumbprint)" -Force -ErrorAction SilentlyContinue
+    # -DeleteKey takes the private key out of the CNG key store too; without it
+    # every local run left one behind (CI runners are thrown away anyway).
+    Remove-Item "Cert:\CurrentUser\My\$($cert.Thumbprint)" -DeleteKey -Force -ErrorAction SilentlyContinue
 }
 
 Write-Host "wrote $Output"

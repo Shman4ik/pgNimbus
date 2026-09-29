@@ -7,7 +7,9 @@ namespace PgNimbus.Core.Query;
 /// text the user typed — it executes as a parameter cast to the column's
 /// declared type server-side (<c>CAST(@p AS numeric(10,2))</c>), so Postgres
 /// does the parsing; null means an explicit SQL NULL. Columns the user left
-/// blank aren't staged at all, so their defaults apply.
+/// blank aren't staged at all, so their defaults apply. <see cref="DataType"/>
+/// is the cast target, schema-qualified outside pg_catalog
+/// (<see cref="Schema.ColumnDetail.CastTargetType"/>).
 /// </summary>
 public sealed record PendingInsertValue(string Column, string DataType, string? ValueText);
 

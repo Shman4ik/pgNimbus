@@ -139,22 +139,44 @@ Three rules about it:
    auto-rolls-back the block (so the connection never lingers in Postgres's
    aborted-transaction state), and `TransactionStateChanged` is how the App's
    "in transaction" indicator stays in sync no matter which path changed it.
-   Auto-reconnect (2026-07): `QueryEngine` classifies a failure as connection
-   loss (Postgres class-08 `SqlState`s / an admin or crash shutdown, or an
-   `NpgsqlException` wrapping a socket/IO exception — deliberately not
-   `TimeoutException`, which Npgsql also uses for command timeouts and pool
-   exhaustion where a silent re-run could double-apply work) versus an
-   ordinary statement error, and on loss flushes the whole pool before
-   silently retrying once on a fresh connection — runs, single-statement
-   edits, and pre-commit batches all get this; a script retries only its
-   first statement, since session state from earlier statements can't be
-   resurrected. A failure mid-stream (rows already delivered) or after a
-   batch's `COMMIT` was attempted never retries. An explicit transaction is
-   never silently re-established: a lost connection there clears
+   Auto-reconnect (2026-07, reshaped 2026-09): `QueryEngine` classifies a
+   failure as connection loss (Postgres class-08 `SqlState`s / an admin or
+   crash shutdown, or an `NpgsqlException` wrapping a socket/IO exception —
+   deliberately not `TimeoutException`, which Npgsql also uses for command
+   timeouts and pool exhaustion) versus an ordinary statement error, and on
+   loss flushes the whole pool so the next rent opens a fresh socket. **What
+   is retried is only what ran nothing.** Every path describes the statement
+   before sending it (`DescribeAsync`; see "Describe first, execute once"
+   under coding conventions), and a loss during open or describe — the dead pooled
+   socket a laptop sleep, a dropped tunnel or a backend terminated *while
+   idle* leaves behind — is retried once on a fresh connection, invisibly.
+   A loss after the send is never retried, on any path: the statement is
+   reported with `QueryError.ConnectionLost` and `OutcomeUnknown` set and a
+   message saying it was not run again and may or may not have taken effect.
+   The 2026-09 security audit (finding 2) reproduced why: an `INSERT` a DBA
+   killed with `pg_terminate_backend` mid-run came back as 57P01, which
+   `ConnectionFailure.IsLoss` rightly calls a loss, and the old retry
+   re-sent it — the row was there and no error was shown. The same 57P01
+   arrives for a backend killed while idle, so the classifier cannot tell the
+   two apart; the *timing* of the failure can, which is what the `sent` flag
+   keys on. `ExecuteNonQueryAsync` (grid edits and the Add-row INSERT) throws
+   the loss instead of re-sending, as `StatementOutcomeUnknownException` once
+   the statement was sent, so Add-row says the row may or may not have been
+   inserted rather than "Insert failed" (which invited a second, duplicate
+   INSERT); a script retries its first statement only
+   when it never went out. The one place a statement that went out is sent
+   again is the pre-commit staged batch, which is safe for a reason the
+   single-statement paths lack: it ran inside its own transaction, a
+   connection that dies before `COMMIT` takes the whole transaction with it
+   server-side, so nothing from the first attempt can have landed; once
+   `COMMIT` was attempted it never retries either. A failure mid-stream (rows
+   already delivered) never retries. An explicit transaction is never
+   silently re-established: a lost connection there clears
    `_transactionConnection` without sending `ROLLBACK` (no live socket to
    send it down) and returns a `QueryError` with `ConnectionLost`/`RolledBack`
    set, stating plainly that the transaction is gone and nothing from it
-   committed.
+   committed. `QueryEngineReconnectTests` holds both halves: the idle kill is
+   transparent, the mid-run kill is reported with the table still empty.
    The classification itself lives in `Query/ConnectionFailure.IsLoss`, not in
    `QueryEngine` (2026-08): the LISTEN/NOTIFY listener holds a connection open
    for hours and has to answer the same question when its wait loop throws, and
@@ -188,7 +210,17 @@ Three rules about it:
    `Json/JsonTree`) shapes those flat rows into a blocker→blocked forest,
    robust to chains, multi-blocker waiters, invisible (out-of-snapshot)
    blockers, and transient deadlock cycles (guarded against infinite
-   recursion). The tree's nodes auto-expand so the whole wait chain shows at a
+   recursion). **It is a spanning tree** (2026-09, security audit finding 16):
+   each backend appears once, under the first of its blockers a breadth-first
+   walk from the roots reaches (pid order, so every refresh has the same shape),
+   and `BlockingTreeNode.AlsoBlockedBy` names the rest, which the row shows as
+   "also blocked by …" (`BlockingNode.OtherBlockersLabel`; a root says "blocked
+   by …" for a blocker outside the snapshot or in a cycle). It used to repeat a
+   waiter under every blocker, subtree and all, and `pg_blocking_pids` reports
+   soft blocks too: N sessions queued on one hot row form a complete DAG with
+   about 2^(N-3) paths, so 30 waiters built ~134M nodes on the UI thread every
+   2 s, during exactly the incident the tab is for. `BlockingTreeTests` builds
+   that DAG under a timeout. The tree's nodes auto-expand so the whole wait chain shows at a
    glance and survives the 2s auto-refresh rebuild; cancel/terminate on the
    Blocking tab target the *selected* node's pid (aim at the root holder to
    release everyone beneath it).
@@ -218,7 +250,14 @@ Three rules about it:
    so pretty-printing and the collapsible `JsonTree` come for free rather than
    being reimplemented. The feed itself is capped at
    `NotifyMonitorViewModel.MaxNotifications` (500) — a chatty channel would
-   otherwise grow it all afternoon. (d) **It can publish**, through
+   otherwise grow it all afternoon. **A flood is coalesced before it reaches the
+   dispatcher** (2026-09, security audit finding 16): the listener's event used
+   to post one UI-thread item per notification, an unbounded queue with the cap
+   applied only as each item ran. `Receive` now queues under a lock (keeping at
+   most `MaxNotifications`, the rest could never be shown) and posts one drain
+   unless one is already waiting; the drain applies the cap before inserting.
+   The post is a constructor seam (`postToUi`), so `NotifyMonitorTests` raises
+   10,000 notifications and counts the posts. (d) **It can publish**, through
    `pg_notify(@channel, @payload)` on a pooled connection (the listening one is
    parked in a wait, and `NOTIFY` takes literals rather than parameters). pgAdmin
    needs a second session to produce a test event; this is one button.
@@ -237,7 +276,11 @@ Three rules about it:
    privilege>` and a NULL queryid; counted as hidden, never listed). The window
    explains each, and the setup steps open as a script in a new tab; nothing
    ever creates the extension, changes a setting, or calls
-   `pg_stat_statements_reset()` (that would reset everybody's numbers). (c) **An
+   `pg_stat_statements_reset()` (that would reset everybody's numbers). The
+   script's `ALTER SYSTEM SET shared_preload_libraries` line ships commented
+   out (security audit 2026-09, finding 18): it replaces the whole list, so a
+   tab run whole used to unload every other preloaded library at the next
+   restart. `SlowQueriesTests` checks the line stays a comment. (c) **An
    interval is a subtraction until an entry starts over**, and the Core-pure,
    unit-tested `StatementStatsInterval.Between` (a sibling of `BlockingTree`)
    catches all three ways: the whole view reset (`stats_reset` moved), one entry
@@ -267,10 +310,24 @@ Three rules about it:
    SecItem APIs, Linux Secret Service via libsecret's non-variadic APIs), never
    persisted on the profile record itself. `CredentialStore.Create` shares a
    process-lifetime `RecoverableCredentialStore`: failed writes retain credentials
-   only in session memory and expose a visible warning. Legacy non-Windows `.cred`
-   files are read on profile load and removed only after native write/read verification;
-   unopened profiles retain their old files. A different existing native value wins
-   until a password edit (which the dialog autosaves) resolves the legacy copy. No new base64 files are written.
+   only in session memory and expose a visible warning. **Memory holds nothing
+   else** (security audit 2026-09, finding 18): a password the OS store accepted
+   or returned is not cached (every load reads the store), a delete removes the
+   entry, a delete the store refused is remembered by id only (so the password
+   can't come back that session), and `ICredentialStore.Forget` drops a
+   session-only password when the last main window connected with that profile
+   closes (`App.ForgetSessionPasswordsOnClose`, keyed by
+   `ConnectionDialogViewModel.ConnectedProfileId`). Legacy non-Windows `.cred`
+   files move in **one pass at startup** (`MigrateLegacyFiles`, queued first on the
+   connection dialog's credential chain, once per process): each is removed only
+   after native write/read verification, or when the store already holds the same
+   value. The ones that can't move (store unavailable, unreadable file, a
+   different native value, which wins until a password edit resolves it) stay on
+   disk and are reported once, as one line in the dialog's credential warning
+   with their count. The first refusal from the store ends the pass (the rest
+   are reported, not tried): a hung Secret Service call waits out its 15 s, and
+   Connect waits on this pass. Before this a file moved only when its profile was opened,
+   so profiles nobody reopened kept a base64 password forever. No new base64 files are written.
    Connection-dialog store operations run off the UI thread; Connect awaits initial
    credential loading. Linux calls are cancellable after 15 seconds and require
    libsecret plus a running Secret Service. macOS disallows interactive Keychain
@@ -290,14 +347,118 @@ Three rules about it:
    reorder. `SshTunnel.Connect` throws `SshTunnelException` with a message
    written for the form (which step failed, what to check), connects with a
    15 s timeout rather than SSH.NET's 30 s (a jump host behind a VPN that is
-   off never answers), and sends keep-alives every 30 s. Host keys are still
-   not verified against `known_hosts`.
+   off never answers), and sends keep-alives every 30 s.
+   **The jump host's key is verified** (2026-09, security audit finding 4).
+   SSH.NET trusts every host key unless `HostKeyReceived` says otherwise, and
+   nothing subscribed, so anyone on the path to the bastion could terminate the
+   SSH session and relay it, owning the forwarded Postgres socket (and the SSH
+   password with password auth). `SshTunnel.Connect` now takes an
+   `SshHostKeyVerifier`, which reads the user's `~/.ssh/known_hosts` (never
+   written) and then pgNimbus's own `<appdata>/pgNimbus/known_hosts` (appended
+   in the line `ssh` writes, so `ssh-keygen -F/-R` work on it) through the
+   Core-pure `Connections/KnownHosts` (OpenSSH format: comma lists, `*`/`?`/`!`
+   patterns, `[host]:port`, `|1|salt|hash` HMAC-SHA1 hashed hosts, `@revoked`;
+   `@cert-authority` is recognised and skipped, host certificates are not
+   supported). The pure, unit-tested `SshHostKeyVerifier.Decide` applies
+   OpenSSH's precedence across both files: revoked anywhere refuses, a match
+   anywhere trusts, a mismatch refuses with a "host key changed" message
+   naming host:port, both `SHA256:` fingerprints and the file and line to
+   remove, and only a key neither file knows goes to the `ISshHostKeyPolicy`.
+   Three details are load-bearing. (a) The type compared is the one the key
+   blob names (`KnownHosts.KeyTypeOf`), not SSH.NET's `HostKeyName`, which is
+   the negotiated signature algorithm (`rsa-sha2-512` for an `ssh-rsa` line), so
+   every RSA host would otherwise read as unknown. (b) The verdict is stashed and
+   thrown from `Connect`, not from inside the event, where SSH.NET would bury it
+   under "Key exchange negotiation failed"; and a re-key later in the session
+   accepts only the key trusted at connect, never prompting again. (c) The prompt
+   is synchronous on SSH.NET's connect thread: the App's `HostKeyDialogPolicy`
+   posts `HostKeyDialog` to the UI thread and blocks that pool thread (the
+   connection dialog runs `Connect` under `Task.Run` and awaits it, so the UI
+   thread keeps pumping), and it throws rather than hang if ever called on the
+   UI thread. The view model's default policy (`RejectUnknownHostKeys`) refuses,
+   since it has no window to ask from; the view swaps in the dialog. Accept is
+   deliberately not `IsDefault`: the dialog opens a second after the Enter that
+   started the connect. Three more from the review of these fixes: (d) a host
+   the files already know is offered only the key types they know it by
+   (`SshHostKeyVerifier.KnownKeyTypes` → `SshTunnel.RestrictHostKeyAlgorithms`,
+   RSA as `rsa-sha2-512`/`-256`), as OpenSSH does, so a server presenting a key
+   of another type is refused ("did not offer a host key of the type
+   known_hosts knows it by") instead of falling through to a first-use prompt;
+   (e) the prompt's reading time counts against the 15 s `ConnectTimeout`, so a
+   connect that timed out after an accepted prompt is retried once, and trusts
+   the now-remembered key without asking (`Prompts` tells the two apart);
+   (f) accepted keys are also kept in memory, and with no app data root
+   (`DefaultOwnKnownHostsPath` is `AppDataPaths.Resolve`, null) that is the only
+   copy, for the session; the file is appended through `AppDataFile` (0600).
+   Tests: `KnownHostsTests` (real `ssh-keygen` keys and
+   `-H` hashes), `SshHostKeyVerifierTests`, `HostKeyDialogTests` (the pool-thread
+   round trip, headless), and `SshTunnelHostKeyLiveTests` against a real sshd,
+   gated on `PGNIMBUS_TEST_SSH` (`Host=…;Port=…;Username=…;Password=…`, optional
+   `Target=host:port` for a query through the tunnel; locally a
+   `linuxserver/openssh-server` container with `AllowTcpForwarding yes`).
+   **TLS: new profiles start at Require, and Verify full is usable everywhere**
+   (2026-09, security audit finding 9). Five defects, one fix each. (a) New
+   profiles defaulted to `Prefer`, which Npgsql (like libpq) drops to plaintext
+   whenever the server or anyone on the path declines TLS; the dialog's default
+   is now `ConnectionDialogViewModel.DefaultSslMode = Require`, saved profiles
+   keep their mode. A new form's mode follows its host until someone picks one
+   (`SslModes.DefaultFor`): Prefer for this machine (`IsLoopback`: localhost,
+   `*.localhost`, 127/8, `::1`, a socket directory), Require otherwise, because
+   a local Docker Postgres has TLS off and Require failed the first connect
+   anyone tried (review of these fixes). A loaded profile, a picker change or a
+   pasted `sslmode` counts as picked. (b) `SslMode` is persisted as a number and its zero value is
+   `Disable`, so a hand-edited `connections.json` without the field loaded as a
+   plaintext-only profile: the record's `SslMode` parameter now defaults to
+   `Require` (the source-generated reader honours a positional default; a test
+   loads such a file). Never renumber the enum. (c) The picker showed six bare
+   enum names and "Require" read as the safe one; the Core-pure `SslModes`
+   table gives each a label and one line saying what it checks ("Require:
+   encrypted, but the server's certificate is not checked"), marks Verify full
+   recommended, and the combo's closed box shows the label alone
+   (`SelectionBoxItemTemplate`) so it stays one line beside Username. Because Require
+   now fails against a server with no TLS (a local Docker Postgres), a connect
+   failure that says so gets `SslModes.ServerWithoutTlsHint` appended, naming
+   Prefer/Disable. (d) Provider CAs (RDS, Cloud SQL, Supabase) are in no OS
+   store, so Verify full could not pass against them and users fell back to
+   Require: `ConnectionProfile.RootCertificatePath` (a path, safe in JSON) is
+   the dialog's Root Certificate field, shown only for VerifyCa/VerifyFull,
+   parsed from `sslrootcert=`/`PGSSLROOTCERT`/`Root Certificate=` (libpq
+   `sslrootcert=system` clears it; a path on another machine, `\\host\…`,
+   `//host/…` or a URL, is refused from a paste, since reading it on Windows opens
+   an SMB session and its CA would vouch for its owner; `sslmode=require` with a
+   root certificate reads as VerifyCa, as libpq has it), and written as Npgsql's `RootCertificate`
+   only for those two modes (`UsesRootCertificate`; Npgsql ignores it under
+   Require, and a string naming a CA would read as checked). (e) Through the SSH
+   tunnel the socket is `127.0.0.1:<port>`, so Npgsql checked the certificate's
+   name against 127.0.0.1 and Verify full always failed. Every connect now
+   builds its pool with `ConnectionProfile.CreateDataSource`, which through a
+   tunnel adds `UseSslClientAuthenticationOptionsCallback` setting
+   `TargetHost = profile.Host` (the SNI and the name checked), everything else
+   identical to `BuildConnectionString`; the Test button goes through
+   `ConnectionTester.TestAsync(profile, …)` for the same reason.
+   `TlsSettingsTests` proves it end to end without a TLS Postgres: a local
+   listener answers the SSLRequest with a certificate for `db.example.test`
+   issued by a throwaway CA, and the client sends its startup message (i.e.
+   accepted the certificate) only with the callback. Two landmines found
+   writing it: SChannel validates the server certificate *after* the handshake,
+   so the server side "completing" proves nothing, and Npgsql retries a failed
+   open, so the listener has to keep accepting or the retry waits out the
+   connect timeout in the backlog. Not exercised: Verify full against a real
+   server certificate (CI's `postgres:17` has TLS off).
 5. **Crashes are logged and shown, never silent.** Critical/unhandled errors
    append to a plain-text log at `<appdata>/pgNimbus/logs/pgnimbus.log`
    (`PgNimbus.Core.Diagnostics.CrashLog` does the file I/O — directory-injectable
    and unit-tested — with the process-wide `CrashLogger` static as the facade;
    1 MiB rolling to `pgnimbus.log.old`, every write swallows its own failure so
-   logging a crash can never itself throw). The App wires three global hooks in
+   logging a crash can never itself throw). The log is appended through
+   `Settings/AppDataFile` like every store, so on Linux and macOS it is created
+   `0600` in a `0700` directory: it carries exception messages, which can quote
+   a statement. With no resolvable app data root there is **no log**:
+   `CrashLogger.LogFilePath` is null, `CrashWindow` says no log was written and
+   leaves the path out of the GitHub issue. It used to fall back to
+   `<temp>/pgNimbus/logs`, which on Linux is the shared `/tmp`, where another
+   user can pre-create the directory and read or plant the file (2026-09
+   security audit, finding 10). The App wires three global hooks in
    `PgNimbus.App/Diagnostics/CrashReporter.cs`: `AppDomain.UnhandledException`
    and `TaskScheduler.UnobservedTaskException` (log only — off the UI thread,
    the process is usually already terminating), plus
@@ -317,7 +478,12 @@ Three rules about it:
    touches no app services — it must render with the rest of the app broken):
    it shows the error, the on-disk log path, and a "Report on GitHub" button
    that opens a pre-filled new-issue URL (title/body/labels query params,
-   including version + OS).
+   including version + OS). **What leaves the machine is scrubbed** (security
+   audit 2026-09, finding 18): `CrashLog.FormatEntry` passes the context and
+   every exception message through `SecretRedactor.Redact` (a message can quote a
+   failed `ALTER ROLE … PASSWORD '…'`), the issue title and body are redacted the
+   same way, and the body names the log path through `CrashLog.HomeRelative`
+   (`~/…`), since the home directory carries the OS account name.
 6. **Query plans are parsed, analyzed, and heat-mapped — not dumped raw.**
    `ExplainService` runs `EXPLAIN (FORMAT JSON …)` and parses it into an
    `ExplainNode` tree; the ANALYZE path always asks for `BUFFERS` and
@@ -353,7 +519,25 @@ Three rules about it:
    shapes external tools emit (the `[{ "Plan": … }]` array, a lone
    `{ "Plan": … }` object, or a bare `{ "Node Type": … }` node); `FORMAT TEXT`
    is parsed best-effort by `Query/ExplainPlanTextParser` (another Core-pure,
-   unit-tested sibling of `PlanAnalyzer`, which also strips psql framing). The
+   unit-tested sibling of `PlanAnalyzer`, which also strips psql framing).
+   **Every way either parser can fail is one `FormatException`** (2026-09,
+   security audit finding 16): the dialog and `TryParsePlanOutput` catch that
+   type alone, and `EXPLAIN (FORMAT JSON, COSTS OFF)` output (no cost fields at
+   all → `KeyNotFoundException`), `[{"Plan": 5}]` (`InvalidOperationException`)
+   and a text `rows=` past 9.2e18 (`OverflowException`) each reached the crash
+   window instead. Now every figure is read by kind with a default (a COSTS OFF
+   plan is a tree of zeros), counts saturate (`ExplainService.ToLong`), and
+   `Parse`/`Import` translate whatever else escapes. The text parser is bounded
+   too: its numbers are `\d+(?:\.\d+)?` under `RegexOptions.NonBacktracking`
+   with a match timeout (the old `[\d.]+\.\.[\d.]+` backtracked O(n²) on
+   `(cost=` + a run of dots), nesting stops at `ExplainPlanTextParser.MaxDepth`
+   (128; JSON reads to `ExplainService.MaxJsonDepth`, 256, about the same number
+   of plan levels, since each level is an object and a `"Plans"` array:
+   `JsonDocument`'s default of 64 had stopped a plan at ~31 levels, a join of
+   that many tables) and input
+   at `MaxInputLength` (4 MiB), because the formatter, the analyzer and the view
+   models all walk the tree recursively. `ParserRobustnessTests` feeds both
+   parsers the hostile inputs. The
    command palette's "Import query plan…" opens `ImportPlanDialog` and, on a
    successful parse, shows the plan in a **new tab**
    (`MainViewModel.OpenImportedPlan` → `QueryViewModel.ShowImportedPlan`) — same
@@ -390,7 +574,21 @@ Three rules about it:
    `SqlScriptSplitter.StatementAt` + the view-pushed `QueryViewModel.CaretOffset`),
    with any existing `EXPLAIN` prefix removed by `SqlStatementInspector.StripExplain`.
    Both matter because `EXPLAIN` takes exactly one un-nested statement: handing it a
-   whole script failed at the second one ("syntax error at or near SET"). The design
+   whole script failed at the second one ("syntax error at or near SET").
+   **A selection of several statements is refused, not planned** (2026-09
+   security audit, finding 3). `EXPLAIN` plans only the first statement of the
+   text it is given, and Npgsql runs every statement in a command, so an explain
+   of a selection `SELECT 1; CREATE TABLE …` planned the SELECT and created the
+   table with no error (reproduced live), and a selection ending in `…; COMMIT;`
+   committed the write the ANALYZE path had promised to roll back.
+   `ExplainService.SingleStatement` splits with `SqlScriptSplitter` and throws
+   for anything but one statement; `ExplainTarget` calls it first so the refusal
+   lands on the status line, and `ExplainAsync` calls it again so the promise
+   holds for every caller. Plain EXPLAIN now also runs inside the same
+   always-rolled-back transaction as ANALYZE; it costs nothing and leaves no
+   path on which the planner could persist anything. `ExplainServiceTests`
+   holds the audit's live check (two statements are refused and the table is
+   not created). The design
    doc + competitive research is in
    [`docs/design/explain-improvements.md`](docs/design/explain-improvements.md).
 7. **Permissions are answered, not dumped — and never applied behind the user's
@@ -425,9 +623,73 @@ Three rules about it:
    `DdlTemplates` precedent. The single exception is a statement carrying a
    `PASSWORD` literal: Postgres has no parameter form for one, so it would land
    on screen and in the on-disk query history — those run through
-   `SecurityEditor` instead, are never shown, and `SecretRedactor` guards
-   `SavedQueriesViewModel.RecordExecution`, the one choke point into
-   `QueryHistoryStore`, for the case where a user types one by hand.
+   `SecurityEditor` instead, are never shown, and `Security/SecretRedactor`
+   covers the case where a user types one by hand. **It runs in the two stores
+   that write SQL nobody asked to save** (2026-09, security audit finding 8):
+   `QueryHistoryStore` redacts every entry it writes and scrubs the file once on
+   load (an entry from before the redactor, or in a shape it learned later, is
+   rewritten in place), and `WorkspaceStore.Save` redacts every tab's text on its
+   way into `workspace.json`, the other connections' snapshots included, except a
+   file-backed tab, which keeps no text at all (`WorkspaceTab.TextFromFile`) and
+   is read from its file on restore: redacted, it reopened modified and one
+   Ctrl+S wrote the placeholder over the real file (review of these fixes). It used
+   to guard only `SavedQueriesViewModel.RecordExecution`, and the workspace
+   snapshot, written on every close and connection switch, kept a typed
+   `ALTER ROLE x PASSWORD 'p'` as typed. A saved query and a `.sql` file are the
+   user's explicit saves and are written as is. The redactor reads the statement
+   with the shared `SqlLexer` and then reads *inside* every string, dollar body
+   and comment, because that is where the audit found the leaks: `DO $$ …
+   PASSWORD 's' … $$`, `EXECUTE 'ALTER ROLE … PASSWORD ''s'''` (a string's
+   escapes are decoded to read it and the replacement encoded back), conninfo
+   `password=s` in `CREATE SUBSCRIPTION`/`dblink_connect` and `user:s@` in a URI,
+   and a commented-out statement. Inside those it also scans loosely (PASSWORD
+   then any literal, whatever came before, so an apostrophe in `-- don't …`
+   can't hide it), and a string ending in a hanging PASSWORD (`'… PASSWORD '`, a
+   `format()` `%L`) redacts every later literal in the statement. Bias: redact
+   too much. The marker is `'<redacted>'::redacted`, not a bare literal: a
+   password slot takes only a string constant, so a restored or history-opened
+   statement run again is a syntax error instead of setting the password to the
+   text `<redacted>` (a live test asks the server). It must stay idempotent (a
+   literal already followed by the cast is left alone), or the
+   history's load-time scrub would rewrite the file on every launch.
+   **History can be turned off**: `AppSettings.RecordQueryHistory` (default on,
+   Settings' History section) gates `RecordExecution`, and the sidebar's history
+   list says history is off (`HistoryOffHint`) rather than silently not growing.
+   Tests: `SecretRedactorTests`, `QueryHistoryStoreTests`, `WorkspaceStoreTests`,
+   `QueryHistoryPreferenceTests`.
+   **The literal is a verifier, not the password** (2026-09, security audit
+   finding 7). The client side had been right and the server side wrong: the
+   cleartext went down the wire inside statement text, which lands in the
+   server log on any failure (`log_min_error_statement` writes `STATEMENT: …`,
+   and "permission denied to create role" is the ordinary failure on managed
+   Postgres), in every `log_statement = ddl` or pgaudit line, in
+   `pg_stat_activity` while it runs and in `pg_stat_statements` before PG 16.
+   `RoleScriptBuilder` now renders the executed `PASSWORD` as the SCRAM-SHA-256
+   secret `Security/ScramSha256Verifier` (Core-pure, `System.Security.Cryptography`
+   only, pinned to vectors computed with Python's hashlib) builds on this
+   machine, the way psql's `\password` does through `PQencryptPasswordConn`:
+   SASLprep as libpq applies it (an all-ASCII password as typed, a prohibited
+   one hashed raw rather than refused, mapping and NFKC otherwise), a random
+   16-byte salt, PBKDF2-HMAC-SHA-256 × 4096, then StoredKey and ServerKey. The
+   server stores a SCRAM secret in a `PASSWORD` literal as-is whatever
+   `password_encryption` says, and an `md5` pg_hba line authenticates one by
+   negotiating SCRAM, so the cleartext never leaves the machine and nothing
+   about the server changes. Two things to know. The App runs with
+   `InvariantGlobalization`, under which `string.Normalize` is the identity, so
+   NFKC happens only in the tests (`NormalizationAvailable` says which); a
+   non-ASCII password holding compatibility characters is hashed as typed
+   there, which is what Npgsql's own SCRAM client, normalising through the
+   same call, already sends at login from this app, but libpq and pgJDBC
+   clients normalise and would be refused: the role editor says so for any
+   non-ASCII password when normalisation is unavailable
+   (`RoleEditorViewModel.NonAsciiPasswordWarning`). A server before PG10 has no
+   SCRAM and would store the verifier as the password itself, so there the
+   editor refuses to set a password (`PgFeatures.SupportsScramVerifier`) and
+   points at psql's `\password`. And `SqlLiteral.Quote` on
+   the verifier is safe whatever `standard_conforming_strings` says (finding
+   13): base64, digits, `$` and `:` hold neither a quote nor a backslash.
+   `ScramPasswordServerTests` creates a role through the real path and logs in
+   as it with the cleartext, refusing the wrong one with 28P01.
    `GrantScriptBuilder.BuildBulk` is deliberately more correct than pgAdmin's
    Grant Wizard: `GRANT USAGE ON SCHEMA` comes first (theirs skips it and the
    user still gets `permission denied`), revoke is a preset rather than an
@@ -436,8 +698,39 @@ Three rules about it:
    nothing. `RoleScriptBuilder.Drop` emits the whole `REASSIGN OWNED` →
    `DROP OWNED` → `DROP ROLE` recipe with its "current database only" caveat —
    the answer to 2BP01, which Postgres reports without naming either the
-   blocking objects or the fix. The research and the plan are in
+   blocking objects or the fix. A function securable carries
+   `pg_get_function_identity_arguments` and is granted `ON ROUTINE` (PG11+;
+   security audit 2026-09, finding 18): `pg_get_function_arguments` includes
+   `DEFAULT …`, which made the generated GRANT a syntax error, and a procedure
+   fails under `ON FUNCTION`. `RoutineGrantTests` runs the script against a
+   function with a default and a procedure. The research and the plan are in
    [`docs/design/accounts-permissions.md`](docs/design/accounts-permissions.md).
+   **Two rules every script builder keeps** (2026-09, security audit findings
+   11 and 12; the RLS re-create and the default-privileges statement moved out
+   of their view models into the Core-pure `PolicyScriptBuilder` and
+   `DefaultPrivilegeScriptBuilder` so the rules are tested where the others
+   are). (a) **A value placed in a `--` comment goes through
+   `SqlComment.Safe`**, which strips `\r`/`\n` — the only characters that end a
+   comment. A schema or relation name may contain a newline (role names are
+   refused by current servers, table names are not), and every generated
+   script opens with a comment naming what it is about: a table named
+   `"x⏎ALTER ROLE eve SUPERUSER;--"` with an inert policy put a live `ALTER
+   ROLE` on the second line of the re-create script, which autocommit ran
+   before the `CREATE POLICY` failed. Quoting protects nothing inside a
+   comment. `RoleScriptBuilder.Drop` had a private copy of this guard; the
+   `GrantScriptBuilder` hint, `DdlService`'s not-found lines, the RLS and
+   default-privileges comments did not. The tests judge a script with
+   `SqlScriptSplitter` — an escaped comment adds a statement — not by eye.
+   (b) **PUBLIC is `null`, end to end, and nothing else is.** Only the
+   lowercase `public` is reserved, so `CREATE ROLE "PUBLIC"` is legal, and
+   `GrantScriptBuilder` used to match the grantee's *name* case-insensitively:
+   granting to that role granted to everyone, revoking from it left its access
+   in place. Now `aclexplode` grantee 0 and `polroles` oid 0 come back as
+   `null` (`AclEntry.Grantee`, `RlsPolicyInfo.Roles`), `GrantScriptBuilder.
+   GranteeSql` writes the keyword for `null` and `SqlIdentifier.QuoteIfNeeded`
+   for every name — so the role is `"PUBLIC"` — and `GranteeLabel` shows that
+   role quoted so the two are told apart on screen. `PublicRoleTests` creates
+   the role for real and revokes from it through the generated script.
 
 ## UI design rules
 
@@ -481,6 +774,29 @@ Three rules about it:
    `ConfirmDialog`; the plain one is Postgres's own RESTRICT (it fails on a
    non-empty schema, and that refusal lands in the sidebar's error strip), and
    CASCADE is a separate item with a confirm that says what it takes with it.
+   **Security audit 2026-09, finding 6, closed two gaps this same pattern had
+   missed** (2026-09-29): the Alter Table dialog's "Drop selected column" ran
+   straight from `DropColumnCommand` to `SchemaEditor.DropColumnAsync` with
+   nothing in between — one click after selecting a row destroyed the column's
+   data — and the Extensions group's "Install" confirmed nothing while "Drop…"
+   right beside it already did. Both now confirm the same way: `AlterTableViewModel.ConfirmDropColumnRequested`
+   is a `Func<ColumnDetail, Task<bool>>` that `AlterTableDialog` wires in its
+   `Opened` handler to a `ConfirmDialog` naming `schema.table.column`
+   (`AlterTableConfirmTests`), and `SchemaTreePanel.OnInstallExtensionClick`
+   confirms in code-behind exactly like `OnDropExtensionClick`, naming the
+   extension and the database (`SchemaTreeViewModel.DatabaseName`, wired from
+   `MainViewModel.ConnectionDatabase`; `ExtensionInstallConfirmTests`). The same
+   finding's third gap was a non-safe-mode multi-row delete
+   (`QueryViewModel.DeleteRowsAsync`) running one autocommit DELETE per row: a
+   mid-batch failure (a blocking trigger, a lost connection) left whatever had
+   already committed deleted and the rest untouched, and the status line even
+   said so ("Delete failed after N row(s)") instead of preventing it. It now
+   builds one `ParameterizedStatement` per row (`ExpectedRowsAffected: 1`, the
+   same shape safe mode's staged batch already used) and hands the list to
+   `QueryEngine.ApplyBatchAsync`, which runs them inside one transaction, so a
+   delete is all-or-nothing: "Deleted N rows" or "Delete failed, nothing
+   deleted: …" (`QueryViewModelDeleteRowsTests`, gated on `PGNIMBUS_TEST_CONN`,
+   a trigger blocking the second of three rows).
    **Exclude from autocomplete** is the answer to "this database has 40 schemas
    and 30 belong to other teams": the schema stays in the tree (dimmed, eye-off
    marked, so the exclusion is visible where it was made and one right-click
@@ -637,7 +953,11 @@ Three rules about it:
    (`host/database`, tracking those fields as they're typed) and is what an
    unnamed profile saves as, which is why nothing writes `Name` on import
    anymore. An untouched form also leaves the paste-a-connection-string box
-   empty rather than mirroring the defaults into it.
+   empty rather than mirroring the defaults into it. SSL Mode is the one real
+   value a blank form starts with: Require, not Prefer (hard rule 4's TLS
+   paragraph), so the preview of a new profile carries `?sslmode=require`; the
+   preview omits only Prefer, libpq's own default, and adds `sslrootcert=` when
+   a verifying mode has a root certificate.
    **The form saves itself; there is no Save button** (2026-09). Save was a
    separate button and Connect wrote nothing, so the two things users did — edit
    a port and connect, or type a new connection and connect — were each used once
@@ -685,6 +1005,23 @@ Three rules about it:
    would swallow the box's own cut/copy/paste menu), plus a `GotFocus` handler
    for Tab/arrow entry. Clicks after that place the caret normally, so the
    string stays editable by hand.
+   **The copy button beside it leaves the password out** (security audit
+   2026-09, finding 18): Windows clipboard history, cloud clipboard and every
+   clipboard manager keep what is copied, and the button used to copy the real
+   password. The copy *with* it is the button's right-click menu ("Copy With
+   Password"; no second button, rule 1), through `Platform/SecretClipboard`:
+   the text goes on the clipboard beside the platform's do-not-keep markers
+   (`ExcludeClipboardContentFromMonitorProcessing` and
+   `CanIncludeInClipboardHistory`/`CanUploadToCloudClipboard` = DWORD 0 on
+   Windows, nspasteboard.org's concealed/transient types on macOS, KDE's
+   `x-kde-passwordManagerHint` on Linux), set as Avalonia *platform* formats,
+   whose names reach the OS unchanged, so there is no P/Invoke; and it is cleared
+   after 30 s if the clipboard still holds that text. The URI parser behind the
+   paste box splits a URI's userinfo at its last '@' before anything else, so an
+   unencoded password keeps its '/', '?' and '#' (`postgres://admin:1234/abcd@db/app`
+   used to parse as host `admin`, port 1234, and autosave wrote the rest of the
+   password to `connections.json` as the database name), and no parser error
+   quotes a parsed value (`ConnectionStringParserTests`).
 3. **Loading a query never overwrites the active tab.** Saved queries,
    history entries, and generated DDL all open in a *new* tab.
 4. **Tabs drag-reorder; the ☰ app menu is the file-command home.** The query
@@ -763,7 +1100,9 @@ Three rules about it:
    to the SQL-derived name the moment the buffer says something else. Browsing
    `customers` and then typing a query against `products` used to leave the
    tab named `customers` forever, because the label had been written as an
-   override. Only `TitleOverride` rides the workspace snapshot.
+   override. Only `TitleOverride` rides the workspace snapshot. The tab's text
+   rides it through `SecretRedactor` (`WorkspaceStore.Save`, hard rule 7), so a
+   restored tab that held a password shows `'<redacted>'` in its place.
    The ☰ button (top-left, 2026-07) opens the one discoverable menu for file/tab-level commands: New Query Tab,
    Open… / Open Recent, Save / Save As… / Save to Saved Queries… /
    Save to File…, Close Tab, Reopen Closed Tab, Switch Connection…,
@@ -1218,6 +1557,54 @@ Moved to [`.claude/rules/logo-assets.md`](.claude/rules/logo-assets.md), which l
   withdraws one already on screen when the server's answer lands late). It is
   deliberately not in the connection-string preview, like the accent colour:
   it is this app's setting, not part of the target.
+  **Every profile also forces `standard_conforming_strings=on`** (2026-09,
+  security audit finding 13). `ConnectionProfile.BuildConnectionString` always
+  sets `Options` through `SessionOptions(readOnly)` — the standard-strings
+  option alone, or `-c default_transaction_read_only=on -c
+  standard_conforming_strings=on` for a read-only profile, and `BuildMainWindow`
+  still finds the read-only one by `Contains`. Why: `SqlLiteral.Quote` doubles
+  only the quote, and that text is *executed* — browse filters (including
+  filter-by-cell), the FK hop's seed, a role's `VALID UNTIL`/`COMMENT` — because
+  browse mode's WHERE round-trips through the editor as text (`BrowseSqlParser`
+  reads it back into chips), where a parameter cannot live, and `COMMENT ON` /
+  `VALID UNTIL` are utility statements, which take no bind parameters. With the setting
+  off (a database owner can `ALTER DATABASE … SET` it) a backslash escapes too,
+  and a stored `x\'' OR 1=1 --` filtered by cell ran as SQL. A startup option
+  beats the database's and the role's defaults and survives the pool's reset,
+  so `SqlLiteral`, `SqlLexer` and `SqlScriptSplitter` read literals the one
+  way the server does. The `PGNIMBUS_CONN` path adds the
+  same option through `ConnectionProfile.WithStandardStrings`, *appended* even
+  when the string already names the setting: the server applies `-c` switches
+  in order, so the last wins and a string carrying `=off` cannot keep it.
+  `StandardConformingStringsTests` turns the test database's default off and
+  proves a profile's session still says `on` and the hostile filter matches
+  only its row. **The option is not the only guard**: a pooler that drops
+  startup options (finding 17's PgBouncer case) leaves the database default in
+  place, so `SqlLiteral.Quote` writes text holding a backslash as `E'…'` with
+  the backslash doubled too, which reads the same under either setting (the
+  same test shows the old plain form returning every row without the option).
+  `BrowseSqlParser` reads that exact form back as a typed value (only `\\` and
+  `''` escapes), so a LIKE chip's escaped `%`/`_` survives the round trip; any
+  other `E'…'` stays a raw chip. `SqlLexer`, `SqlScriptSplitter` and #286's
+  Explain check still assume `on` for text the user types.
+  **A profile's read-only is never downgraded by the server's "writable"**
+  (2026-09 security audit, finding 17). The startup option travels through
+  whatever sits in front of the server, and PgBouncer with
+  `ignore_startup_parameters = options` (a common workaround for clients that
+  send options) drops it: the server then reports a writable session, and
+  `DetectWriteStateAsync` used to replace the profile's hint with that `null`,
+  so the lock left the title bar and the grid became editable on a profile the
+  user had marked read-only. Now a read-only profile that the server reports
+  writable keeps a (reworded) hint, so every tab still refuses an edit context,
+  sets `MainViewModel.IsReadOnlyNotEnforced`, which turns `ReadOnlyMark` amber
+  (`AppWarningBrush`, text "read-only not applied", the tooltip says typed SQL can
+  still write), and writes one status-line warning. Nothing blocks typed SQL:
+  the server is the only thing that could, and here it didn't get the option.
+  A pooler that *rejects* the option fails the connect, which is the right
+  outcome. A tab whose hint was the old wording takes the new one
+  (`ApplyConnectionReadOnly(previousHint)`), so no chip keeps saying "the server
+  refuses writes". The server query is replaceable for tests
+  (`DetectWriteStateAsync(probe)`); scenario `main-window-read-only-not-applied`.
 - **json/jsonb are a first-class editable type.** `ColumnValueEditorClassifier`
   maps them to `ColumnValueEditor.Json` (jsonpath isn't JSON-shaped so it takes
   the plain-cast `CastText` path below; hstore stays `Text` — its display needs
@@ -1267,7 +1654,17 @@ Moved to [`.claude/rules/logo-assets.md`](.claude/rules/logo-assets.md), which l
   every edit path (inline F2, staged edits, Add-row) routes them through
   `CAST(@value AS <declared type>)`, exactly as enum/array/composite/json already
   do — no client-side syntax check (Postgres is the parser; the cast surfaces a
-  precise error). `money` and `uuid` deliberately stay `Text` (they round-trip
+  precise error). **The cast target is `ColumnDetail.CastTargetType`, not
+  `DataType`** (security audit 2026-09, finding 18): `DataType` is `format_type`
+  for the connection's search_path, so a user type on the path came back bare
+  and a schema created later that shadowed the name changed what a tab's cached
+  cast resolved to. `SchemaService.GetColumnsAsync` also reads every column's
+  `format_type` inside a rolled-back transaction whose search_path is narrowed
+  to pg_catalog (`set_config(…, true)`), which qualifies exactly the non-built-in
+  types, arrays and typmods included (`public.mood[]`), and keeps `integer` or
+  `character varying(20)` bare. `DataType` stays the display spelling; the Add-row
+  dialog casts through `NewRowField.CastType` (`SchemaServiceCastTypeTests`).
+  `money` and `uuid` deliberately stay `Text` (they round-trip
   through decimal/Guid). The value shown in the grid must itself be a valid input
   literal for the cast to accept the round-trip, so `Converters/CellText` formats
   the CLR types whose `ToString` is useless: `byte[]`→`\x`-hex (capped preview),
@@ -1312,7 +1709,15 @@ Moved to [`.claude/rules/logo-assets.md`](.claude/rules/logo-assets.md), which l
   refused up front:** no primary key was already read-only; a key column whose
   type the client can't read (`EditBlocker.UnreadableKey`, CLR type `object`)
   now is too, with its own read-only hint, and a stray unreadable key cell is
-  refused at staging. Nothing offers an undo after a successful commit — the
+  refused at staging. **So is a relation read twice** (`EditBlocker.RepeatedTable`,
+  2026-09 security audit, finding 14): `SELECT c.id, p.name FROM items c JOIN
+  items p ON p.id = c.parent_id` passes `CheckSingleTable` (one OID, distinct
+  attnums), and an edit of `name`, the parent's, updated the child. The wire
+  metadata can't see it, so `EditableResultDetector.CheckRepeatedTable` reads
+  the text through `SqlScopeModel`: every relation of the blocks whose columns
+  can reach the result (branches, FROM subqueries, LATERAL, CTE bodies, each CTE
+  reference) counted by bare name, expression subqueries skipped (their columns
+  never carry an OID). Nothing offers an undo after a successful commit — the
   batch is then the server's. Real-server coverage is
   `QueryEngineStagedConflictTests` (gated on `PGNIMBUS_TEST_CONN`, drives a real
   second session, including the lock case).
@@ -1335,7 +1740,9 @@ Moved to [`.claude/rules/logo-assets.md`](.claude/rules/logo-assets.md), which l
   unit-tested). A browse tab's page query edited by hand drops browse mode on the
   first keystroke as always, but a *run* of it that still has the browse shape
   (`SELECT * FROM` the same table, optional `WHERE`, `ORDER BY` one column or the
-  key, `LIMIT` required) resumes browse mode via `TableBrowseViewModel.FromParsed`
+  key, `LIMIT` required, parentheses nested at most `MaxParenDepth` (64) deep: the
+  split is quadratic in nesting, and 12,000 levels cost 5 s after a Run) resumes
+  browse mode via `TableBrowseViewModel.FromParsed`
   — running exactly the text typed, recomposing nothing until a later explicit
   chip/page/sort action. The WHERE is split on top-level `AND` (not the one in
   `BETWEEN`); a part `RowFilterSql` could have written and the column's operator
@@ -1345,6 +1752,20 @@ Moved to [`.claude/rules/logo-assets.md`](.claude/rules/logo-assets.md), which l
   whole WHERE, and parsing never guesses at an expression it can't reproduce.
   The FK hop's seeded condition is a raw condition too (`FilterText` is now a
   wrapper over `RawConditions`).
+  **The shape is not the proof; the rows' OID is** (2026-09 security audit,
+  finding 14). The parser accepts `FROM orders` for a tab browsing
+  `sales.orders`, and `search_path` may resolve that to `public.orders`: the
+  resume used to hand out an edit context for `sales.orders` over
+  `public.orders`' rows, so an inline edit (safe mode off) updated
+  `sales.orders` by the other table's keys. Browse mode now resumes, and
+  `EstablishBrowseEditContext` hands out a context, only when every result
+  column's `TableOid` is the browsed table's (`EditableResultDetector.ReadsOnlyTable`).
+  That OID is learned for free from each composed page (it names the table in
+  full), or for a restored tab looked up by exact name
+  (`SchemaService.GetRelationOidAsync`) alongside its columns. A browse-shaped
+  query that fails the check is an ordinary, read-only query: no chips, no edit
+  context, and the status line and the read-only hint say it doesn't read the
+  browsed table. Live coverage is `BrowseEditTargetTests`.
   **It survives a restart.** `WorkspaceTab.BrowseSchema`/`BrowseTable` carry
   the name of the table a tab browses (`QueryViewModel.BrowsedTableName`); a
   restored tab gets `RestoreBrowsedTable`, and its *first run* reads the columns
@@ -1378,7 +1799,9 @@ Moved to [`.claude/rules/logo-assets.md`](.claude/rules/logo-assets.md), which l
   LIKE-wildcard escaping, untyped quoted literals so Postgres types each
   comparison by its column, `json` offered text search because it has no `=`);
   the editor shows the draft's SQL before it runs. The FK-seeded `FilterText`
-  stays a raw, removable chip, ANDed first.
+  stays a raw, removable chip, ANDed first. Those literals are executed as
+  text, and their `''` escape is complete only because every session forces
+  `standard_conforming_strings=on` (the read-only paragraph above, finding 13).
   (d) **Filters exist only in browse mode.** The strip's host is bound to
   `ActiveTab.IsBrowsing`, and `MainViewModel.FilterRows` on a non-browse tab only
   says where filters live — there is no path from a filter gesture to the text of
@@ -1466,11 +1889,12 @@ Moved to [`.claude/rules/logo-assets.md`](.claude/rules/logo-assets.md), which l
   with no limit (`_resultSql`, or `TableBrowseViewModel.BuildExportSql` — the
   page query minus `LIMIT/OFFSET`) and `ResultExporter.WriteStreamingAsync`
   (Core-pure, unit-tested) writes batch by batch, flushing each before the next
-  is read, so memory holds one batch. A hand-written query runs again only if
-  `SqlStatementInspector.IsSafeToReExecute` vouches for it — the same guard as
-  the text fallback below, for the same reason — and a script section or any
-  query in an explicit transaction (where the engine materializes) never does;
-  those write the grid and say "Exported only the N rows shown". The export
+  is read, so memory holds one batch. **Only the browse query is ever run
+  again** (2026-09 security audit, finding 1): a hand-written query, a script
+  section and any query in an explicit transaction (where the engine
+  materializes) write the grid and say "Exported only the N rows shown". A
+  lexical read-only check (`IsSafeToReExecute`, since deleted) used to vouch for
+  plain SELECTs, and `SELECT create_order()` passed it and ran twice. The export
   runs like a query (`IsRunning`, its own CTS, so Cancel works) and the view
   deletes the file unless `ExportAsync` reports it complete. Two landmines:
   no token on the `Task.Run` around the writer (a task cancelled before it
@@ -1478,6 +1902,55 @@ Moved to [`.claude/rules/logo-assets.md`](.claude/rules/logo-assets.md), which l
   engine's connection), and a progress tick still queued at the end must not
   overwrite the final status line (`finished`). Live coverage is
   `PgNimbus.App.Tests/ResultExportTests`, gated on `PGNIMBUS_TEST_CONN`.
+- **A result is bounded in rows, bytes and grid columns** (2026-09, security
+  audit finding 16). `MaxDisplayRows` (100,000) was the only bound, and a row
+  can be anything: `SELECT *` over the telemetry demo's 37 KB jsonb cells is
+  several GB, one `repeat('x', 500000000)` a gigabyte, and a script kept
+  100,000 rows per statement. Now `QueryViewModel.MaxDisplayBytes` (256 MiB) is
+  charged per row through the Core-pure `ResultBudget` (`EstimateRow`: UTF-16
+  strings, bytea, arrays by length, a slot per cell, cheap enough per row), and
+  `CollectRowsAsync` stops enumerating at the first row either limit refuses.
+  Four things make that hold: (a) **abandoning the stream cancels the query**:
+  `StreamBatches` marks each yield, and a consumer that stops mid-result gets
+  `command.Cancel()` in the finally instead of a reader disposal that drains
+  every remaining row (`ResultBudgetTests` holds it to 15 s on 50M rows; it took
+  21 s without); (b) a batch is also handed over at `BatchBytes` (8 MB), so a
+  few huge rows reach the budget one at a time instead of 200 at once; (c) a
+  materialized result (inside a transaction) takes `maxBytes` and stops like the
+  row cap; (d) **a script's sections share one `ResultBudget`**, and a
+  statement that starts after it is spent keeps nothing but is read to the end
+  rather than cancelled (`ResultCap.Shared`), because it may be a write whose
+  `RETURNING` rows nobody asked for and a cancel would abort it. The cap text
+  names the limit (`CapTextFor`). **The grid builds at most `MaxGridColumns`
+  (1,000)** and the status bar says "showing 1,000 of N columns"
+  (`CapStatusText`, which is `CapText` plus that; export still reads `CapText`
+  alone, since every column is in the rows). `ColumnNames` is a
+  `ResettableCollection` filled with one `ReplaceAll`: the grid rebuilds all
+  its columns on every change, so an `Add` per column had been building
+  n(n+1)/2 of them. Tests: `ResultLimitsTests` (in-memory batches, the column
+  cap, and a gated `repeat('x', 100000000)` × 3 that keeps one row).
+  **Not bounded yet**, as the audit also asked: a single cell is still read
+  whole by Npgsql before the budget can refuse its row (a 500 MB cell costs
+  500 MB), and `CellText.Preview` formats a whole array or hstore literal before
+  cutting it to 256 characters. Both want a per-cell cap with the full value
+  fetched on demand in the inspector.
+  **Safe for Spreadsheets** (security audit 2026-09, finding 18, CSV formula
+  injection) is a checkbox at the foot of the command bar's Export menu,
+  `AppSettings.SpreadsheetSafeExport`, off by default because the quote changes
+  the data for every reader that isn't a spreadsheet. On, CSV export and the
+  grid's TSV/CSV copies ("Copy" is TSV) put a `'` in front of a text cell or
+  header starting with `=`, `+`, `-`, `@`, tab or CR (`ResultExporter.NeutralizeFormula`);
+  numeric CLR values are never prefixed, since `-5` is a number to the
+  spreadsheet too. JSON, Markdown and INSERT copies are untouched.
+- **Import is capped and parsed off the UI thread** (security audit 2026-09,
+  finding 18). The file is read whole and becomes a rows × columns matrix, so a
+  20,000-object JSON file whose objects each had keys of their own was 400M
+  cells. `TabularFileParser.ReadTextAsync` refuses a file over `MaxFileBytes`
+  (512 MiB) before reading it when the length is known, and as the read passes
+  it otherwise; the parsers stop past `MaxRows` (1,000,000), `MaxColumns`
+  (1,000) and `MaxCells` (50M, the padded matrix: a wide header over many short
+  rows passes the first two) with an `ImportLimitException` whose message says
+  which. `ResultsGridPanel.ImportAsync` runs read and parse in `Task.Run`.
 - **A type Npgsql can't materialize must never fail a whole result set.** An
   unmapped composite (or an array/domain/range over one), an extension type with
   no plugin loaded (pgvector, PostGIS), `bit`/`hstore` whose CLR mapping has a
@@ -1485,26 +1958,30 @@ Moved to [`.claude/rules/logo-assets.md`](.claude/rules/logo-assets.md), which l
   'System.Object' is not supported for fields having DataTypeName …"*, and
   `GetFieldType` throws it too, before the first row is even read. `QueryEngine`
   answers in two layers, both required:
-  1. **Text-format re-execution** (`BuildTextFallbackMask` →
-     `NpgsqlCommand.UnknownResultTypeList`) re-requests just those columns as
-     Postgres literals (`("246 Oak St",Milan,MI,20918,IT)`) — the shape the grid
-     shows and the composite editor casts back on edit. It costs a second
-     execution, so it's gated on `MayReExecute`: either the caller vouched
-     (`allowTextFallback: true`, only for app-composed browse SELECTs) or
-     `SqlStatementInspector.IsSafeToReExecute` proves it lexically — a read-shaped
-     leading keyword, no data-modifying CTE, no `SELECT … INTO`, no
-     side-effecting function call (`nextval`, advisory locks, `dblink*`, …), and a
-     single statement (the simple query protocol would happily re-run
-     `SELECT 1; DROP TABLE t`). Deliberately conservative: a false negative costs
-     a placeholder, a false positive applies a side effect twice. Scripts and
-     transaction statements are vetted per statement this way and never vouch.
+  1. **Describe first, execute once** (`QueryEngine.DescribeAsync` →
+     `NpgsqlCommand.UnknownResultTypeList`). Every statement the engine runs is
+     first sent with `CommandBehavior.SchemaOnly` — Parse and Describe, no
+     Execute — which returns the row description without running anything; the
+     columns that need it are then requested as Postgres literals
+     (`("246 Oak St",Milan,MI,20918,IT)`, the shape the grid shows and the
+     composite editor casts back on edit) on the one real execution. **This
+     replaced a second execution** (2026-09 security audit, finding 1): the old
+     fallback re-ran the statement with the mask set, gated on a lexical
+     read-only check, and `SELECT create_order()` — a read by its keyword, a
+     write by its VOLATILE function — ran twice. No lexical check can tell what
+     a function does, so the rule now is that **user SQL is never executed
+     twice by the app, anywhere**; the describe costs one extra round trip per
+     statement and is also what finding 2's fix uses as its liveness check.
+     The mask is skipped for a multi-statement command (`SELECT a, b; SELECT 1`):
+     Npgsql applies it to every statement and its length must match each one.
   2. **The per-cell guard** (`QueryEngine.ReadValue` / `FieldType`) catches the
-     `InvalidCastException`/`NotSupportedException` for everything layer 1 refuses
-     and yields `QueryEngine.UnreadableCell(dataTypeName)` —
+     `InvalidCastException`/`NotSupportedException` for everything layer 1 can't
+     cover and yields `QueryEngine.UnreadableCell(dataTypeName)` —
      `<unreadable commerce.address>` — so the rest of the row still renders. Only
      those two exception types are caught; a dropped connection mid-row must stay
      an error. Integration coverage is `QueryEngineCompositeTests` (gated on
-     `PGNIMBUS_TEST_CONN` like the reconnect tests).
+     `PGNIMBUS_TEST_CONN` like the reconnect tests), which also holds the
+     audit's live check: a volatile composite-returning function runs once.
 - **SQL text, the lexer and completion** (packages A–R): see
   [`.claude/rules/sql-completion.md`](.claude/rules/sql-completion.md), which loads when working on
   `PgNimbus.Core/Text`, `PgNimbus.Core/Schema`, `PgNimbus.App/Completion`, `QueryEditorPanel` or
@@ -1513,7 +1990,10 @@ Moved to [`.claude/rules/logo-assets.md`](.claude/rules/logo-assets.md), which l
   keywords right-aligned to a common column, content to its right). The tests
   in `PgNimbus.Core.Tests` assert exact spacing — a deliberate layout change
   must update them, and every layout must survive the formatter's token
-  round-trip safety net.
+  round-trip safety net. Text nesting deeper than `SqlFormatter.MaxNestingDepth`
+  (64) parentheses is handed back as it is: indentation grows with depth, so the
+  output grows with its square, and 100,000 nested subqueries threw from the
+  StringBuilder on the Format gesture (2026-09, review of the audit fixes).
 
 ## NativeAOT constraints
 

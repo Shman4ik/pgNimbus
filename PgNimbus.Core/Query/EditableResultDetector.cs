@@ -1,4 +1,5 @@
 using PgNimbus.Core.Schema;
+using PgNimbus.Core.Text;
 
 namespace PgNimbus.Core.Query;
 
@@ -39,6 +40,14 @@ public enum EditBlocker
     /// staging against it would check nothing.
     /// </summary>
     UnreadableKey,
+
+    /// <summary>
+    /// The query reads one relation more than once (a self-join, or a derived
+    /// table or CTE over the same table), so two result columns can carry the
+    /// same table OID while belonging to different rows. Also returned when the
+    /// statement is nested too deeply to read, since then nobody can tell.
+    /// </summary>
+    RepeatedTable,
 }
 
 /// <summary>
@@ -89,6 +98,85 @@ public static class EditableResultDetector
 
         tableOid = oid;
         return EditBlocker.None;
+    }
+
+    /// <summary>
+    /// True when <paramref name="columns"/> is non-empty and every column reads
+    /// the table <paramref name="tableOid"/> (0 never matches). A browse tab
+    /// resumes browse mode, and hands out an edit context for its table, only
+    /// on this: a hand-edited page query that names the table without its
+    /// schema can resolve along <c>search_path</c> to a different table with
+    /// the same name, whose rows an edit context for the browsed one would
+    /// then update by the wrong table's keys.
+    /// </summary>
+    public static bool ReadsOnlyTable(IReadOnlyList<ColumnInfo> columns, uint tableOid) =>
+        tableOid != 0 && columns.Count > 0 && columns.All(c => c.TableOid == tableOid);
+
+    /// <summary>
+    /// Refuses a statement that reads one relation more than once, which the
+    /// wire metadata alone cannot see: in <c>SELECT c.id, p.name FROM items c
+    /// JOIN items p ON p.id = c.parent_id</c> both columns carry the OID of
+    /// <c>items</c> with distinct attribute numbers, so <see cref="CheckSingleTable"/>
+    /// accepts it, and an edit of <c>name</c> (the parent's) would update the
+    /// child row. Counts the relations of every block whose columns can reach
+    /// the result (the statement's branches, FROM subqueries, LATERAL items and
+    /// CTE bodies), and each CTE reference as a name of its own; a subquery
+    /// inside an expression (<c>EXISTS</c>, <c>IN</c>, a scalar subquery) is
+    /// skipped, because its columns come back as expressions and never carry a
+    /// table OID. Names are compared without their schema, so <c>a.items</c>
+    /// and <c>b.items</c> count as one: refusing a rare edit is cheaper than
+    /// guessing which is which. Anything the scope reader can't place (no
+    /// query in the text, more than one statement) is left to the metadata
+    /// checks and answers <see cref="EditBlocker.None"/>.
+    /// </summary>
+    public static EditBlocker CheckRepeatedTable(string sql)
+    {
+        var statements = SqlScriptSplitter.Split(sql);
+        if (statements.Count != 1 || SqlScopeModel.Parse(statements[0]).Root is not { } root)
+        {
+            return EditBlocker.None;
+        }
+
+        return ReadsEachRelationOnce(root, new HashSet<string>(StringComparer.Ordinal))
+            ? EditBlocker.None
+            : EditBlocker.RepeatedTable;
+    }
+
+    private static bool ReadsEachRelationOnce(SqlQuery query, HashSet<string> seen)
+    {
+        if (query.IsOpaque)
+        {
+            return false;
+        }
+
+        foreach (var cte in query.Ctes)
+        {
+            if (!ReadsEachRelationOnce(cte.Body, seen))
+            {
+                return false;
+            }
+        }
+
+        foreach (var block in query.Branches)
+        {
+            foreach (var source in block.Sources)
+            {
+                if (source.Derived is null && !source.IsFunction && source.Name.Length > 0 && !seen.Add(source.Name))
+                {
+                    return false;
+                }
+            }
+
+            foreach (var nested in block.Nested)
+            {
+                if (nested.Role != SqlQueryRole.Expression && !ReadsEachRelationOnce(nested, seen))
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 
     /// <summary>

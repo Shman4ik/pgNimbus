@@ -111,15 +111,26 @@
                     <KeyBinding Gesture="Enter" Command="{Binding ImportConnectionStringCommand}" />
                 </TextBox.KeyBindings>
             </TextBox>
-            <Button Grid.Column="1" Classes="chip" Padding="7" Click="OnCopyConnectionStringClick"
-                    ToolTip.Tip="Copy connection string to clipboard (includes the password)">
+            <!-- The click copies without the password (security audit 2026-09, finding 18:
+                 clipboard history keeps what is copied). The copy with it is the right-click
+                 menu's second item, marked for exclusion from history and cleared after 30 s
+                 (Platform/SecretClipboard). No second button: UI rule 1. -->
+            <Button Name="CopyConnectionStringButton" Grid.Column="1" Classes="chip" Padding="7" Click="OnCopyConnectionStringClick"
+                    ToolTip.Tip="Copy the connection string without the password. Right-click to copy it with the password.">
                 <PathIcon Data="{StaticResource ClipboardIconGeometry}" Width="14" Height="14" />
+                <Button.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Name="CopyWithoutPasswordMenuItem" Header="Copy Without Password" Click="OnCopyConnectionStringClick" />
+                        <MenuItem Name="CopyWithPasswordMenuItem" Header="Copy With Password" Click="OnCopyConnectionStringWithPasswordClick"
+                                  ToolTip.Tip="Includes the password. Kept out of clipboard history where the system allows it, and cleared from the clipboard after 30 seconds." />
+                    </ContextMenu>
+                </Button.ContextMenu>
             </Button>
         </Grid>
 
         <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
         <!-- Right margin keeps the scrollbar (shown once the SSH section expands) off the field edges -->
-        <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" Margin="0,0,14,0">
+        <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" Margin="0,0,14,0">
 
             <TextBlock Grid.Row="0" Text="Name" />
             <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
@@ -187,11 +198,46 @@
                 </StackPanel>
                 <StackPanel Grid.Column="1">
                     <TextBlock Text="SSL Mode" />
-                    <ComboBox ItemsSource="{Binding SslModes}" SelectedItem="{Binding SslMode}" HorizontalAlignment="Stretch" />
+                    <!-- Each mode says what it checks (audit 2026-09, finding 9): the
+                         bare enum names made Require read as the safe choice. The
+                         closed box shows the name alone, one line beside Username. -->
+                    <ComboBox Name="SslModeCombo" ItemsSource="{Binding SslModes}" SelectedItem="{Binding SslMode}" HorizontalAlignment="Stretch">
+                        <ComboBox.SelectionBoxItemTemplate>
+                            <DataTemplate x:DataType="conn:SslMode">
+                                <TextBlock Text="{Binding Converter={x:Static converters:SslModeText.Label}}" />
+                            </DataTemplate>
+                        </ComboBox.SelectionBoxItemTemplate>
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="conn:SslMode">
+                                <StackPanel MaxWidth="300" Margin="0,2">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <TextBlock Text="{Binding Converter={x:Static converters:SslModeText.Label}}" />
+                                        <TextBlock Text="Recommended" FontSize="11" VerticalAlignment="Center"
+                                                   Foreground="{StaticResource AppAccentBrush}"
+                                                   IsVisible="{Binding Converter={x:Static converters:SslModeText.IsRecommended}}" />
+                                    </StackPanel>
+                                    <TextBlock Classes="secondary" FontSize="11" TextWrapping="Wrap"
+                                               Text="{Binding Converter={x:Static converters:SslModeText.Description}}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
                 </StackPanel>
             </Grid>
 
-            <StackPanel Grid.Row="7" Margin="0,0,0,8">
+            <!-- A CA to trust instead of the OS store: the provider bundles RDS,
+                 Cloud SQL and Supabase publish. Only the modes that check the
+                 certificate read it, so only they show it. -->
+            <StackPanel Grid.Row="7" Margin="0,0,0,8" IsVisible="{Binding ShowsRootCertificate}">
+                <TextBlock Text="Root Certificate" />
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBox Name="RootCertificateBox" Grid.Column="0" Text="{Binding RootCertificatePath}" Margin="0,0,6,0"
+                             PlaceholderText="System trust store (default)" />
+                    <Button Grid.Column="1" Classes="soft" Content="Browse…" Click="OnBrowseRootCertificateClick" />
+                </Grid>
+            </StackPanel>
+
+            <StackPanel Grid.Row="8" Margin="0,0,0,8">
                 <TextBlock Text="Password" />
                 <!-- revealPasswordButton = Fluent's built-in eye toggle -->
                 <TextBox Name="PasswordBox" Text="{Binding Password}" PasswordChar="•" Classes="revealPasswordButton" />
@@ -200,7 +246,7 @@
             <!-- Label left, switch right: the Settings page's layout, so a switch
                  means the same thing wherever it sits. They used to lead their
                  labels, which is a checkbox's shape, not a switch's. -->
-            <StackPanel Grid.Row="8" Margin="0,0,0,8">
+            <StackPanel Grid.Row="9" Margin="0,0,0,8">
                 <Grid ColumnDefinitions="*,Auto" Background="Transparent"
                       ToolTip.Tip="Every statement runs in a read-only transaction, so the server refuses INSERT, UPDATE, DELETE and DDL. It guards against mistakes; to make writes impossible, use a role without write privileges.">
                     <TextBlock Grid.Column="0" Text="Read-only session" VerticalAlignment="Center" Margin="0,0,12,0" />
@@ -212,7 +258,7 @@
                 </Grid>
             </StackPanel>
 
-            <Border Grid.Row="9" IsVisible="{Binding UseSshTunnel}"
+            <Border Grid.Row="10" IsVisible="{Binding UseSshTunnel}"
                     Classes="card"
                     Padding="10" Margin="0,0,0,8">
                 <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
@@ -261,7 +307,7 @@
                 </Grid>
             </Border>
 
-            <StackPanel Grid.Row="10">
+            <StackPanel Grid.Row="11">
                 <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource AppDangerBrush}" TextWrapping="Wrap"
                            IsVisible="{Binding ErrorMessage, Converter={x:Static conv:ObjectConverters.IsNotNull}}" Margin="0,0,0,8" />
                 <TextBlock Text="{Binding StatusMessage}" Foreground="MediumSeaGreen" TextWrapping="Wrap"

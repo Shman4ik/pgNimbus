@@ -33,7 +33,8 @@ public sealed record ParsedConnectionString(
     string? Database = null,
     string? Username = null,
     string? Password = null,
-    SslMode? SslMode = null);
+    SslMode? SslMode = null,
+    string? RootCertificatePath = null);
 
 /// <summary>
 /// Accepts a connection string in any of the syntaxes people actually have
@@ -141,6 +142,11 @@ public static class ConnectionStringParser
             builder.SslMode = sslMode.ToNpgsql();
         }
 
+        if (!string.IsNullOrEmpty(parsed.RootCertificatePath))
+        {
+            builder.RootCertificate = parsed.RootCertificatePath;
+        }
+
         return builder.ConnectionString;
     }
 
@@ -152,8 +158,25 @@ public static class ConnectionStringParser
 
         var rest = text[(text.IndexOf("://", StringComparison.Ordinal) + 3)..];
 
-        // Split off ?query (and drop any #fragment) before touching the
-        // authority, so '@' or '/' inside parameter values can't confuse it.
+        // Userinfo first, split at its last '@' (security audit 2026-09,
+        // finding 18). A password pasted unencoded can hold '/', '?', '#' and
+        // '@', while a host holds none of them; splitting the query, fragment
+        // and path off first read postgres://admin:1234/abcd@db/app as host
+        // "admin", port 1234 and database "abcd@db/app" (autosave then wrote
+        // part of the password to connections.json), and u:p#ss@h failed with
+        // the password's first letter in the error.
+        string? user = null, password = null;
+        var atIndex = UserInfoEnd(rest);
+        if (atIndex >= 0)
+        {
+            var userInfo = rest[..atIndex];
+            rest = rest[(atIndex + 1)..];
+            var colonIndex = userInfo.IndexOf(':');
+            user = Decode(colonIndex >= 0 ? userInfo[..colonIndex] : userInfo);
+            password = colonIndex >= 0 ? Decode(userInfo[(colonIndex + 1)..]) : null;
+        }
+
+        // Then ?query (and any #fragment) off what follows the host.
         var fragmentIndex = rest.IndexOf('#');
         if (fragmentIndex >= 0)
         {
@@ -175,19 +198,6 @@ public static class ConnectionStringParser
         {
             path = rest[(pathIndex + 1)..];
             authority = rest[..pathIndex];
-        }
-
-        string? user = null, password = null;
-        // Last '@' splits userinfo from host: passwords pasted unencoded often
-        // contain '@' themselves, and hosts never do.
-        var atIndex = authority.LastIndexOf('@');
-        if (atIndex >= 0)
-        {
-            var userInfo = authority[..atIndex];
-            authority = authority[(atIndex + 1)..];
-            var colonIndex = userInfo.IndexOf(':');
-            user = Decode(colonIndex >= 0 ? userInfo[..colonIndex] : userInfo);
-            password = colonIndex >= 0 ? Decode(userInfo[(colonIndex + 1)..]) : null;
         }
 
         // Multi-host URIs (host1:5432,host2:5432) are valid libpq; take the
@@ -219,6 +229,28 @@ public static class ConnectionStringParser
 
         parsed = fields.ToRecord();
         return true;
+    }
+
+    /// <summary>
+    /// The index of the '@' that ends a URI's userinfo, or -1 when there is none:
+    /// the last '@' in the text, unless that one sits in a query parameter
+    /// (<c>?application_name=me@host</c>), in which case the one before it. A
+    /// candidate is in the query when what precedes it has a '?' followed by an
+    /// '=' — a key=value pair — which a password pasted unencoded would rarely
+    /// hold, and a query always does.
+    /// </summary>
+    private static int UserInfoEnd(string rest)
+    {
+        for (var at = rest.LastIndexOf('@'); at >= 0; at = at == 0 ? -1 : rest.LastIndexOf('@', at - 1))
+        {
+            var question = rest.IndexOf('?');
+            if (question < 0 || question > at || rest.IndexOf('=', question, at - question) < 0)
+            {
+                return at;
+            }
+        }
+
+        return -1;
     }
 
     // ---- jdbc:postgresql:... -----------------------------------------------
@@ -278,7 +310,7 @@ public static class ConnectionStringParser
             var equalsIndex = pair.IndexOf('=');
             if (equalsIndex <= 0)
             {
-                error = $"Malformed segment \"{pair}\" — expected Key=Value.";
+                error = "A segment is not in Key=Value form.";
                 return false;
             }
 
@@ -347,7 +379,7 @@ public static class ConnectionStringParser
             var equalsIndex = text.IndexOf('=', i);
             if (equalsIndex < 0)
             {
-                error = $"Malformed libpq segment near \"{text[i..]}\" — expected keyword=value.";
+                error = "Part of the string is not in keyword=value form.";
                 return false;
             }
 
@@ -389,7 +421,7 @@ public static class ConnectionStringParser
 
                 if (!closed)
                 {
-                    error = $"Unterminated quoted value for \"{key}\".";
+                    error = "A quoted value is missing its closing quote.";
                     return false;
                 }
 
@@ -448,6 +480,7 @@ public static class ConnectionStringParser
                     "PGUSER" => fields.TrySetByKeyword("user", value, out error),
                     "PGPASSWORD" => fields.TrySetByKeyword("password", value, out error),
                     "PGSSLMODE" => fields.TrySetByKeyword("sslmode", value, out error),
+                    "PGSSLROOTCERT" => fields.TrySetByKeyword("sslrootcert", value, out error),
                     _ => true, // unrelated env var (e.g. LANG=C) — skip
                 };
 
@@ -626,8 +659,16 @@ public static class ConnectionStringParser
         public string? Username;
         public string? Password;
         public SslMode? SslMode;
+        public string? RootCertificatePath;
 
-        public ParsedConnectionString ToRecord() => new(Host, Port, Database, Username, Password, SslMode);
+        // libpq treats sslmode=require with a root certificate as verify-ca
+        // (it checks the chain when it has a CA to check against); Npgsql
+        // ignores a root certificate under Require, so the pasted string would
+        // read as checked and not be (review of the 2026-09 audit fixes).
+        public ParsedConnectionString ToRecord() => new(
+            Host, Port, Database, Username, Password,
+            SslMode == Connections.SslMode.Require && !string.IsNullOrEmpty(RootCertificatePath) ? Connections.SslMode.VerifyCa : SslMode,
+            RootCertificatePath);
 
         public void Overlay(ParsedConnectionString other)
         {
@@ -637,6 +678,7 @@ public static class ConnectionStringParser
             Username = other.Username ?? Username;
             Password = other.Password ?? Password;
             SslMode = other.SslMode ?? SslMode;
+            RootCertificatePath = other.RootCertificatePath ?? RootCertificatePath;
         }
 
         /// <summary>
@@ -655,7 +697,7 @@ public static class ConnectionStringParser
                 case "port":
                     if (!int.TryParse(value, out var port) || port is < 1 or > 65535)
                     {
-                        error = $"Invalid port \"{value}\".";
+                        error = "The port is not a number from 1 to 65535.";
                         return false;
                     }
 
@@ -673,7 +715,7 @@ public static class ConnectionStringParser
                 case "sslmode":
                     if (!TryParseSslMode(value, out var mode))
                     {
-                        error = $"Unknown SSL mode \"{value}\".";
+                        error = "Unknown SSL mode. Use disable, allow, prefer, require, verify-ca or verify-full.";
                         return false;
                     }
 
@@ -690,6 +732,27 @@ public static class ConnectionStringParser
                     }
 
                     return true;
+                // libpq's and pgjdbc's sslrootcert, Npgsql's Root Certificate.
+                // libpq's special value "system" means the OS store, which is
+                // what an empty path means here (empty, not null: the string
+                // did say which CA to trust, and a form should clear its own).
+                case "sslrootcert" or "rootcertificate":
+                    // A path on another machine is not taken from a paste: on
+                    // Windows, reading \\host\share\ca.pem opens an SMB session to
+                    // that host, and the CA it serves would then vouch for
+                    // whatever certificate the same party presents (review of
+                    // the 2026-09 audit fixes). The field still takes one typed
+                    // or browsed to by hand.
+                    if (IsRemotePath(value.Trim()))
+                    {
+                        error = "A root certificate on another machine is not taken from a pasted connection string. Copy the file to this computer and choose it in the Root Certificate field.";
+                        return false;
+                    }
+
+                    RootCertificatePath = value.Trim().Equals("system", StringComparison.OrdinalIgnoreCase)
+                        ? string.Empty
+                        : value.Trim();
+                    return true;
                 default:
                     // Unknown keywords (Timeout, application_name, Pooling,
                     // channel_binding...) are legitimate in their dialects —
@@ -697,6 +760,11 @@ public static class ConnectionStringParser
                     return true;
             }
         }
+
+        // \\server\share\…, \\?\UNC\…, //server/share/… and any URL.
+        private static bool IsRemotePath(string path) =>
+            path.StartsWith(@"\\", StringComparison.Ordinal) || path.StartsWith("//", StringComparison.Ordinal)
+            || path.Contains("://", StringComparison.Ordinal);
 
         private static string Normalize(string key) =>
             key.Replace(" ", "").Replace("_", "").ToLowerInvariant();
@@ -767,7 +835,7 @@ public static class ConnectionStringParser
         {
             if (!int.TryParse(portPart, out var parsedPort) || parsedPort is < 1 or > 65535)
             {
-                error = $"Invalid port \"{portPart}\".";
+                error = "The port is not a number from 1 to 65535.";
                 return false;
             }
 

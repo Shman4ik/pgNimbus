@@ -1270,7 +1270,7 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
         }
 
         var selected = ResultsGrid.SelectedItems.OfType<object?[]>().ToList();
-        var text = _activeQuery.CopyRows(format, selected);
+        var text = _activeQuery.CopyRows(format, selected, _model?.SpreadsheetSafeExport == true);
         if (string.IsNullOrEmpty(text))
         {
             return;
@@ -1318,12 +1318,20 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
 
         try
         {
+            // Read and parsed off the UI thread, under the parser's size, row,
+            // column and cell caps (security audit 2026-09, finding 18): a big
+            // or hostile file used to freeze the window while it was read, and
+            // sparse JSON could build a matrix no machine has memory for.
+            var isJson = files[0].Name.EndsWith(".json", StringComparison.OrdinalIgnoreCase);
+            var previousStatus = _model.ActiveTab.Status;
+            _model.ActiveTab.Status = $"Reading {files[0].Name}…";
             await using var stream = await files[0].OpenReadAsync();
-            using var reader = new StreamReader(stream);
-            var text = await reader.ReadToEndAsync();
-            var data = files[0].Name.EndsWith(".json", StringComparison.OrdinalIgnoreCase)
-                ? TabularFileParser.ParseJson(text)
-                : TabularFileParser.ParseCsv(text);
+            var data = await Task.Run(async () =>
+            {
+                var text = await TabularFileParser.ReadTextAsync(stream);
+                return isJson ? TabularFileParser.ParseJson(text) : TabularFileParser.ParseCsv(text);
+            });
+            _model.ActiveTab.Status = previousStatus;
 
             if (data.Columns.Count == 0)
             {
@@ -1417,7 +1425,7 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
         bool complete;
         await using (stream)
         {
-            complete = await query.ExportAsync(format, stream, file.Name);
+            complete = await query.ExportAsync(format, stream, file.Name, _model?.SpreadsheetSafeExport == true);
         }
 
         if (!complete)
@@ -1520,7 +1528,10 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
         _builtColumnNames.Clear();
         _builtFor = query;
 
-        for (var i = 0; i < query.ColumnNames.Count; i++)
+        // Past MaxGridColumns the rest of the columns are not built (the status bar
+        // says so): each one is a column, a header and a realized cell per row.
+        var built = Math.Min(query.ColumnNames.Count, QueryViewModel.MaxGridColumns);
+        for (var i = 0; i < built; i++)
         {
             // In browse mode the edit context knows each column's Postgres
             // type — the column uses it to generate a type-aware cell editor

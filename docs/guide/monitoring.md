@@ -87,7 +87,10 @@ pg_stat_statements has to be switched on by a superuser. It must be in
 `shared_preload_libraries`, which needs a server restart, and it must be
 created in the database with `CREATE EXTENSION pg_stat_statements`. If either
 step is missing, the window says which one and offers the steps as a script to
-review in a new tab. pgNimbus never runs them for you. Without
+review in a new tab. pgNimbus never runs them for you. The
+`ALTER SYSTEM SET shared_preload_libraries` line in that script is commented
+out, because it replaces the whole list: add the libraries the server already
+loads to it before you uncomment and run it. Without
 `pg_read_all_stats`, other roles' statements are hidden, and the status line
 counts them.
 

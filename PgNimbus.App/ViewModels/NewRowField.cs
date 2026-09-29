@@ -27,6 +27,7 @@ public sealed partial class NewRowField : ObservableObject
     {
         Name = column.Name,
         DataType = column.DataType,
+        CastType = column.CastTargetType,
         NotNull = column.NotNull,
         IsPrimaryKey = column.IsPrimaryKey,
         Editor = column.Editor,
@@ -40,8 +41,21 @@ public sealed partial class NewRowField : ObservableObject
 
     public string Name { get; init; } = string.Empty;
 
-    /// <summary>The column's declared Postgres type (e.g. "integer", "numeric(10,2)"), used as the CAST target.</summary>
+    /// <summary>The column's declared Postgres type as the connection's search_path spells it (e.g. "integer", "numeric(10,2)"): what the field shows.</summary>
     public string DataType { get; init; } = string.Empty;
+
+    /// <summary>
+    /// The CAST target for this field's value: <see cref="ColumnDetail.CastTargetType"/>,
+    /// schema-qualified outside pg_catalog so a later search_path change can't
+    /// re-resolve it. Falls back to <see cref="DataType"/> when not set.
+    /// </summary>
+    public string CastType
+    {
+        get => string.IsNullOrEmpty(_castType) ? DataType : _castType;
+        init => _castType = value;
+    }
+
+    private readonly string? _castType;
 
     public bool NotNull { get; init; }
 

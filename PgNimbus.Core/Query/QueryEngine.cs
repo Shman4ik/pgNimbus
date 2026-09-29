@@ -14,6 +14,11 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
 {
     private const int BatchSize = 200;
 
+    // A batch is also handed over once its rows are estimated at this many bytes, so a
+    // consumer's byte budget (the grid's MaxDisplayBytes) sees a few huge rows one at a
+    // time rather than after 200 of them are already in memory.
+    private const long BatchBytes = 8L * 1024 * 1024;
+
     private readonly NpgsqlDataSource _dataSource = dataSource;
 
     // Non-null while an explicit user transaction is open. Every execution then
@@ -170,6 +175,18 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
         ConnectionLost = true,
     };
 
+    // The message for a lost connection depends on one thing: whether the
+    // statement had been sent. Before the send, nothing ran and the retry
+    // already happened, so "could not be re-established" is the whole story.
+    // After it, the outcome is unknown — the server may have applied the
+    // statement before the socket died, or a DBA may have terminated it — and
+    // the user has to be told that it was not run again and why.
+    private static string LossMessage(bool sent, string detail) => sent
+        ? "Connection to the server was lost while the statement was running: " + detail
+            + ". It was not run again, so it may or may not have taken effect; check before running it again. "
+            + "The next statement will reconnect automatically."
+        : $"Connection to the server was lost and could not be re-established: {detail}";
+
     // After a detected connection loss the pool may still be holding other
     // dead sockets — every connection that sat idle across the same laptop
     // sleep or tunnel drop — so a single retry could rent another corpse
@@ -220,15 +237,17 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
             return;
         }
 
-        // A dead socket from a stale pooled connection almost always fails on
-        // send, before the server ever saw the statement, so retrying once on
-        // a fresh connection (after flushing the pool) is safe for the common
-        // case. The residual risk — the server executed it but the
-        // acknowledgement never made it back — is accepted: callers of this
-        // method are PK-keyed UPDATE/DELETE grid edits, where a duplicate
-        // re-run is a no-op rather than a double-apply.
+        // The statement is sent once. What is retried, once, on a fresh
+        // connection after flushing the pool, is only the part that runs
+        // nothing: opening the connection and describing the statement (see
+        // DescribeAsync), which is where a dead pooled socket fails. A loss
+        // after the statement was sent surfaces as the exception it is — the
+        // caller cannot know whether the server applied it, and this method
+        // runs the Add-row INSERT as well as grid UPDATE/DELETEs, so a second
+        // send could insert twice (security audit 2026-09, finding 2).
         for (var attempt = 0; ; attempt++)
         {
+            var sent = false;
             try
             {
                 await using var connection = await _dataSource.OpenConnectionAsync(ct);
@@ -239,12 +258,26 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
                     command.Parameters.AddWithValue(name, value ?? DBNull.Value);
                 }
 
+                await DescribeAsync(command, ct);
+                sent = true;
                 await command.ExecuteNonQueryAsync(ct);
                 return;
             }
-            catch (Exception ex) when (attempt == 0 && IsConnectionLoss(ex))
+            catch (Exception ex) when (attempt == 0 && !sent && IsConnectionLoss(ex))
             {
                 ClearPool();
+            }
+            catch (Exception ex) when (IsConnectionLoss(ex))
+            {
+                // Whatever else happens, the next statement must not rent the
+                // same dead socket.
+                ClearPool();
+                if (sent)
+                {
+                    throw new StatementOutcomeUnknownException(LossMessage(sent: true, ex.Message), ex);
+                }
+
+                throw;
             }
         }
     }
@@ -336,11 +369,16 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
         }
 
         // Retried once, whole batch, on a fresh connection after flushing the
-        // pool — but only while `committing` is still false. Once CommitAsync
-        // has been attempted, a loss no longer means "nothing happened": the
-        // commit may have landed server-side before the acknowledgement was
-        // lost, so re-running every statement could double-apply. That case
-        // isn't retried; it surfaces as-is.
+        // pool — but only while `committing` is still false. This is the one
+        // place a statement that went out may be sent again, and it is safe
+        // for a reason the single-statement paths don't have: every statement
+        // ran inside this transaction, and a connection that dies before
+        // COMMIT takes the whole transaction with it server-side, so nothing
+        // from the first attempt can have landed. Once CommitAsync has been
+        // attempted, a loss no longer means "nothing happened": the commit may
+        // have landed before the acknowledgement was lost, so re-running every
+        // statement could double-apply. That case isn't retried; it surfaces
+        // as-is.
         for (var attempt = 0; ; attempt++)
         {
             NpgsqlConnection? connection = null;
@@ -441,20 +479,13 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
             foreach (var statement in check.LockStatements)
             {
                 await using var command = CreateCommand(statement, connection, transaction);
+                // Same text-format request as the grid's reads, so a composite
+                // column compares literal against literal — found by describing
+                // first, like every other statement the engine runs.
+                command.UnknownResultTypeList = await DescribeAsync(command, ct);
                 var reader = await command.ExecuteReaderAsync(CommandBehavior.Default, ct);
                 try
                 {
-                    // Same text-format fallback as the grid's browse reads, so a
-                    // composite column compares literal against literal. The
-                    // re-execution is harmless: re-locking rows this transaction
-                    // already holds changes nothing.
-                    if (BuildTextFallbackMask(reader) is { } textFallback)
-                    {
-                        await reader.DisposeAsync();
-                        command.UnknownResultTypeList = textFallback;
-                        reader = await command.ExecuteReaderAsync(CommandBehavior.Default, ct);
-                    }
-
                     columnNames ??= Enumerable.Range(0, reader.FieldCount).Select(reader.GetName).ToList();
                     while (await reader.ReadAsync(ct))
                     {
@@ -518,18 +549,23 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
     /// unbounded SELECT would still pull every row over the wire. An explicit
     /// backend cancel makes the drain a no-op.
     /// </param>
-    /// <param name="allowTextFallback">
-    /// The caller's guarantee that <paramref name="sql"/> is side-effect-free, which
-    /// permits re-executing it with unreadable columns (unmapped composites)
-    /// re-requested in text format. Pass true only for SQL the app itself composed —
-    /// the browse-mode SELECTs — where the guarantee holds by construction and no
-    /// lexical check is needed. Leaving it false does not disable the fallback: SQL
-    /// that <see cref="SqlStatementInspector.IsSafeToReExecute"/> vouches for gets it
-    /// too. Everything else falls back per cell instead (see <see cref="ReadValue"/>),
-    /// so a second execution can never apply an <c>INSERT … RETURNING</c> — or any
-    /// volatile call — twice.
+    /// <param name="maxBytes">
+    /// Inside a transaction only, where the result is materialized here rather than
+    /// streamed: stop keeping rows once they are estimated
+    /// (<see cref="ResultBudget.EstimateRow"/>) to exceed this many bytes, and cancel
+    /// the rest as the row cap does. A streamed result is bounded by its consumer, which
+    /// stops enumerating; abandoning the stream cancels the query (see <c>StreamBatches</c>).
     /// </param>
-    public async Task<StatementResult> ExecuteAsync(string sql, CancellationToken ct, int? maxRows = null, bool allowTextFallback = false)
+    /// <remarks>
+    /// The statement is executed exactly once, whatever it is. Columns Npgsql
+    /// can't materialize as objects (unmapped composites, extension types with no
+    /// plugin, bit, hstore) are found out beforehand by describing the statement
+    /// (<see cref="DescribeAsync"/>: Parse/Describe with no Execute), so they can be
+    /// requested in text format on the one real execution. There is no second run
+    /// and nothing to vouch for: a <c>SELECT</c> of a VOLATILE function that writes
+    /// runs its side effect once, like everything else.
+    /// </remarks>
+    public async Task<StatementResult> ExecuteAsync(string sql, CancellationToken ct, int? maxRows = null, long? maxBytes = null)
     {
         // Inside a transaction the statement runs on the shared session
         // connection and its result is fully materialized: a lazily-streaming
@@ -537,27 +573,39 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
         // in the transaction until the grid finished consuming it.
         if (_transactionConnection is not null)
         {
-            return await ExecuteInTransactionAsync(sql, maxRows, allowTextFallback, ct);
+            return await ExecuteInTransactionAsync(sql, maxRows, maxBytes, ct);
         }
 
         var stopwatch = Stopwatch.StartNew();
 
         // Retried once, on a fresh connection after flushing the pool, but
-        // only for the initial phase — open, ExecuteReader, column setup.
-        // Once a ResultSet with its streaming Batches enumerable has been
-        // returned, rows may already be in the caller's hands; a failure
-        // inside StreamBatches itself is a different, untouched code path
-        // that never retries.
+        // only for the phase that runs nothing: open and describe. That is
+        // where a dead pooled socket (laptop sleep, dropped tunnel, a backend
+        // terminated while idle) fails, and nothing of the statement has
+        // reached the server. Once ExecuteReader has been sent there is no
+        // retry: the server may have applied the statement and the
+        // acknowledgement been lost, or a DBA may have terminated it on
+        // purpose, and either way re-sending would apply it again (security
+        // audit 2026-09, finding 2 — an INSERT killed with pg_terminate_backend
+        // was silently re-run). A failure inside StreamBatches itself is a
+        // different, untouched code path that never retries either.
         for (var attempt = 0; ; attempt++)
         {
             NpgsqlConnection? connection = null;
             NpgsqlCommand? command = null;
             NpgsqlDataReader? reader = null;
+            var sent = false;
 
             try
             {
                 connection = await _dataSource.OpenConnectionAsync(ct);
                 command = new NpgsqlCommand(sql, connection);
+
+                // Describe before executing: the one round trip that finds the
+                // columns to request as text, so the statement itself runs once.
+                // It doubles as the liveness check the retry above relies on.
+                command.UnknownResultTypeList = await DescribeAsync(command, ct);
+                sent = true;
                 reader = await command.ExecuteReaderAsync(CommandBehavior.Default, ct);
 
                 if (reader.FieldCount == 0)
@@ -575,17 +623,6 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
                         RowsAffected = rowsAffected < 0 ? 0 : rowsAffected,
                         CommandTag = tag,
                     };
-                }
-
-                // Columns Npgsql can't materialize as objects (unmapped composites
-                // and containers of them) are re-requested in text format — one
-                // extra round trip, and only for result sets that contain such a
-                // column.
-                if (MayReExecute(sql, allowTextFallback) && BuildTextFallbackMask(reader) is { } textFallback)
-                {
-                    await reader.DisposeAsync();
-                    command.UnknownResultTypeList = textFallback;
-                    reader = await command.ExecuteReaderAsync(CommandBehavior.Default, ct);
                 }
 
                 var columns = BuildColumns(reader);
@@ -621,10 +658,15 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
                 }
 
                 var isLoss = IsConnectionLoss(ex);
-                if (attempt == 0 && isLoss)
+                if (isLoss)
                 {
+                    // Whether or not this attempt is retried, the next
+                    // statement must not rent the same dead socket.
                     ClearPool();
-                    continue;
+                    if (attempt == 0 && !sent)
+                    {
+                        continue;
+                    }
                 }
 
                 // A loss can also arrive as a PostgresException (admin/crash
@@ -637,14 +679,13 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
                     return new QueryError
                     {
                         Elapsed = stopwatch.Elapsed,
-                        Message = isLoss
-                            ? $"Connection to the server was lost and could not be re-established: {pg.MessageText}"
-                            : pg.MessageText,
+                        Message = isLoss ? LossMessage(sent, pg.MessageText) : pg.MessageText,
                         SqlState = pg.SqlState,
                         Detail = pg.Detail,
                         Hint = pg.Hint,
                         Position = ParsePosition(pg.Position),
                         ConnectionLost = isLoss,
+                        OutcomeUnknown = isLoss && sent,
                     };
                 }
 
@@ -653,8 +694,9 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
                     return new QueryError
                     {
                         Elapsed = stopwatch.Elapsed,
-                        Message = $"Connection to the server was lost and could not be re-established: {ex.Message}",
+                        Message = LossMessage(sent, ex.Message),
                         ConnectionLost = true,
+                        OutcomeUnknown = sent,
                     };
                 }
 
@@ -681,10 +723,19 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
     /// isn't enough).
     /// </param>
     /// <param name="ct">Cancels the script mid-flight, between or within statements.</param>
+    /// <param name="budget">
+    /// If set, what the whole script's results may hold together. Each statement is
+    /// also held to the budget's byte maximum on its own, which cancels it like the
+    /// row cap. Once the sections so far have spent the shared budget, a later
+    /// statement keeps what fits and reads the rest without keeping it
+    /// (<see cref="ResultCap.Shared"/>), deliberately not cancelled: it may be a write
+    /// whose rows nobody asked to keep, and cancelling it would abort it.
+    /// </param>
     public async IAsyncEnumerable<StatementResult> ExecuteScriptAsync(
         IReadOnlyList<string> statements,
         int? maxRowsPerStatement,
-        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default,
+        ResultBudget? budget = null)
     {
         // In a transaction the whole script runs on the shared session connection
         // (so it joins the open block); otherwise it gets its own pooled
@@ -699,16 +750,19 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
                 ct.ThrowIfCancellationRequested();
 
                 var statement = statements[i];
-                var result = await ExecuteOnConnectionAsync(connection, statement, maxRowsPerStatement, allowTextFallback: false, ct);
+                var result = await ExecuteOnConnectionAsync(connection, statement, maxRowsPerStatement, budget?.MaxBytes, budget, ct);
 
-                // A connection loss on the very first statement means nothing in
-                // the script has run yet — no session state (SET, temp tables)
-                // exists to lose — so it's safe to reconnect and retry just that
-                // one statement on a fresh connection. Any later statement is
-                // left as-is: a quiet mid-script reconnect there would silently
-                // drop whatever session state the earlier statements built up,
-                // which is worse than surfacing the error.
-                if (!inTransaction && i == 0 && result is QueryError { ConnectionLost: true } firstLoss)
+                // A connection loss on the very first statement, before it was
+                // sent (the describe failed on a dead pooled socket), means
+                // nothing in the script has run yet — no session state (SET,
+                // temp tables) exists to lose — so it's safe to reconnect and
+                // send that one statement on a fresh connection. A loss after
+                // the send is never retried (OutcomeUnknown: the server may have
+                // applied it), and any later statement is left as-is: a quiet
+                // mid-script reconnect there would silently drop whatever
+                // session state the earlier statements built up, which is worse
+                // than surfacing the error.
+                if (!inTransaction && i == 0 && result is QueryError { ConnectionLost: true, OutcomeUnknown: false } firstLoss)
                 {
                     await connection.DisposeAsync();
                     ClearPool();
@@ -738,7 +792,7 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
                         yield break;
                     }
 
-                    result = await ExecuteOnConnectionAsync(connection, statement, maxRowsPerStatement, allowTextFallback: false, ct);
+                    result = await ExecuteOnConnectionAsync(connection, statement, maxRowsPerStatement, budget?.MaxBytes, budget, ct);
                 }
 
                 if (result is QueryError error)
@@ -780,7 +834,7 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
     // its result (see ExecuteAsync for why streaming is avoided here). A failure
     // auto-rolls-back the transaction and comes back flagged so the UI can note
     // that the block is gone.
-    private async Task<StatementResult> ExecuteInTransactionAsync(string sql, int? maxRows, bool allowTextFallback, CancellationToken ct)
+    private async Task<StatementResult> ExecuteInTransactionAsync(string sql, int? maxRows, long? maxBytes, CancellationToken ct)
     {
         var connection = _transactionConnection!;
         var stopwatch = Stopwatch.StartNew();
@@ -791,7 +845,7 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
             // ExecuteOnConnectionAsync converts PostgresExceptions to QueryError
             // but lets other failures (e.g. a dropped connection) escape; ExecuteAsync
             // promises never to throw those, so translate them here too.
-            result = await ExecuteOnConnectionAsync(connection, sql, maxRows, allowTextFallback, ct);
+            result = await ExecuteOnConnectionAsync(connection, sql, maxRows, maxBytes, null, ct);
         }
         catch (OperationCanceledException)
         {
@@ -833,7 +887,8 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
         NpgsqlConnection connection,
         string sql,
         int? maxRows,
-        bool allowTextFallback,
+        long? maxBytes,
+        ResultBudget? shared,
         CancellationToken ct)
     {
         var stopwatch = Stopwatch.StartNew();
@@ -841,8 +896,14 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
 
         NpgsqlDataReader? reader = null;
         var truncated = false;
+        var sent = false;
+        var cancelled = false;
+        var cappedBy = ResultCap.None;
         try
         {
+            // Same describe-then-execute as ExecuteAsync: the statement runs once.
+            command.UnknownResultTypeList = await DescribeAsync(command, ct);
+            sent = true;
             reader = await command.ExecuteReaderAsync(CommandBehavior.Default, ct);
 
             if (reader.FieldCount == 0)
@@ -856,27 +917,26 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
                 };
             }
 
-            // Same unmapped-composite text fallback as ExecuteAsync. Script
-            // statements never vouch — they're arbitrary SQL — so here it's
-            // IsSafeToReExecute alone that decides, per statement.
-            if (MayReExecute(sql, allowTextFallback) && BuildTextFallbackMask(reader) is { } textFallback)
-            {
-                await reader.DisposeAsync();
-                command.UnknownResultTypeList = textFallback;
-                reader = await command.ExecuteReaderAsync(CommandBehavior.Default, ct);
-            }
-
             var columns = BuildColumns(reader);
             var fieldCount = reader.FieldCount;
             var rows = new List<object?[]>();
+            var bytes = 0L;
 
             while (await reader.ReadAsync(ct))
             {
+                if (truncated)
+                {
+                    // The shared budget ran out: read on without keeping anything.
+                    continue;
+                }
+
                 if (maxRows is { } cap && rows.Count >= cap)
                 {
                     // A row past the cap exists: keep exactly `cap` rows, flag the
                     // truncation, and cancel so disposal doesn't drain the rest.
                     truncated = true;
+                    cappedBy = ResultCap.Rows;
+                    cancelled = true;
                     command.Cancel();
                     break;
                 }
@@ -887,6 +947,25 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
                     row[i] = ReadValue(reader, i);
                 }
 
+                var size = ResultBudget.EstimateRow(row);
+                if (maxBytes is { } byteCap && bytes + size > byteCap)
+                {
+                    // Too big on its own: stopped like the row cap.
+                    truncated = true;
+                    cappedBy = ResultCap.Bytes;
+                    cancelled = true;
+                    command.Cancel();
+                    break;
+                }
+
+                if (shared is not null && !shared.TryTake(size))
+                {
+                    truncated = true;
+                    cappedBy = ResultCap.Shared;
+                    continue;
+                }
+
+                bytes += size;
                 rows.Add(row);
             }
 
@@ -896,19 +975,22 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
                 Columns = columns,
                 Rows = rows,
                 Truncated = truncated,
+                CappedBy = cappedBy,
             };
         }
         catch (PostgresException pg)
         {
+            var lost = IsConnectionLoss(pg);
             return new QueryError
             {
                 Elapsed = stopwatch.Elapsed,
-                Message = pg.MessageText,
+                Message = lost && sent ? LossMessage(sent: true, pg.MessageText) : pg.MessageText,
                 SqlState = pg.SqlState,
                 Detail = pg.Detail,
                 Hint = pg.Hint,
                 Position = ParsePosition(pg.Position),
-                ConnectionLost = IsConnectionLoss(pg),
+                ConnectionLost = lost,
+                OutcomeUnknown = lost && sent,
             };
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -920,8 +1002,16 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
             // ConnectionLost is set here — not just left to the caller to
             // re-derive — because it's the one signal ExecuteScriptAsync and
             // ExecuteInTransactionAsync need to tell "the connection is gone"
-            // apart from "this statement failed".
-            return new QueryError { Elapsed = stopwatch.Elapsed, Message = ex.Message, ConnectionLost = IsConnectionLoss(ex) };
+            // apart from "this statement failed"; OutcomeUnknown is what stops
+            // the script path from re-sending a first statement that went out.
+            var lost = IsConnectionLoss(ex);
+            return new QueryError
+            {
+                Elapsed = stopwatch.Elapsed,
+                Message = lost && sent ? LossMessage(sent: true, ex.Message) : ex.Message,
+                ConnectionLost = lost,
+                OutcomeUnknown = lost && sent,
+            };
         }
         finally
         {
@@ -931,7 +1021,7 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
                 {
                     await reader.DisposeAsync();
                 }
-                catch (PostgresException ex) when (truncated && ex.SqlState == PostgresErrorCodes.QueryCanceled)
+                catch (PostgresException ex) when (cancelled && ex.SqlState == PostgresErrorCodes.QueryCanceled)
                 {
                     // The backend acknowledged the row-cap cancel while draining;
                     // the rows already collected are still valid.
@@ -946,12 +1036,40 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
     }
 
     /// <summary>
-    /// Whether the text-format fallback — which costs a second execution of
-    /// <paramref name="sql"/> — is permitted: either the caller vouched for the
-    /// statement, or it's lexically provable that running it twice changes nothing.
+    /// Asks the server to describe <paramref name="command"/> without running it —
+    /// <see cref="CommandBehavior.SchemaOnly"/> sends Parse and Describe and no
+    /// Execute — and returns the <see cref="NpgsqlCommand.UnknownResultTypeList"/>
+    /// mask for the columns that have to be requested in text format (see
+    /// <see cref="NeedsTextFormat(PostgresType)"/>), or null when every column
+    /// materializes as-is. This replaced a second execution of the statement
+    /// (2026-09 security audit, finding 1): the old "re-run it with the mask set"
+    /// path was gated on a lexical read-only check that no lexical check can make
+    /// true — <c>SELECT create_order()</c> is a read by its keyword and a write by
+    /// its function, and it ran twice. A describe costs one round trip and runs
+    /// nothing, whatever the statement is.
     /// </summary>
-    private static bool MayReExecute(string sql, bool callerVouched) =>
-        callerVouched || SqlStatementInspector.IsSafeToReExecute(sql);
+    /// <remarks>
+    /// The mask is only returned for a single-statement command: Npgsql applies
+    /// <see cref="NpgsqlCommand.UnknownResultTypeList"/> to every statement in the
+    /// command, and its length has to match each one's column count, so a
+    /// <c>SELECT a, b; SELECT 1</c> keeps its per-cell placeholders instead.
+    /// </remarks>
+    private static async Task<bool[]?> DescribeAsync(NpgsqlCommand command, CancellationToken ct)
+    {
+        await using var description = await command.ExecuteReaderAsync(CommandBehavior.SchemaOnly, ct);
+        if (description.FieldCount == 0)
+        {
+            return null;
+        }
+
+        var mask = BuildTextFallbackMask(description);
+        if (mask is null)
+        {
+            return null;
+        }
+
+        return await description.NextResultAsync(ct) ? null : mask;
+    }
 
     /// <summary>
     /// Renders a cell no client-side mapping can materialize, e.g.
@@ -1108,10 +1226,17 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
     {
         var stoppedAtRowCap = false;
 
+        // True while a batch is out with the consumer. If the finally below runs
+        // then, the consumer stopped enumerating (the grid's byte budget, or any
+        // early break) and the rest of the result would otherwise be drained by the
+        // reader's disposal: every remaining row pulled over the wire for nothing.
+        var abandoned = false;
+
         try
         {
             var fieldCount = reader.FieldCount;
             var buffer = new List<object?[]>(BatchSize);
+            var bufferBytes = 0L;
             var produced = 0;
 
             while (await reader.ReadAsync(ct))
@@ -1127,6 +1252,7 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
                 }
 
                 buffer.Add(row);
+                bufferBytes += ResultBudget.EstimateRow(row);
                 produced++;
 
                 if (produced >= maxRows)
@@ -1140,10 +1266,13 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
                     yield break;
                 }
 
-                if (buffer.Count >= BatchSize)
+                if (buffer.Count >= BatchSize || bufferBytes >= BatchBytes)
                 {
+                    abandoned = true;
                     yield return new RowBatch(buffer);
+                    abandoned = false;
                     buffer = new List<object?[]>(BatchSize);
+                    bufferBytes = 0;
                 }
             }
 
@@ -1157,16 +1286,26 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
             // Only cancel when the cap cut the stream short. A cancel request
             // after normal completion could race a pooled-connection reuse and
             // kill an unrelated subsequent query on the same backend.
-            if (stoppedAtRowCap)
+            // Likewise a consumer that stopped mid-result (abandoned), but not one
+            // that stopped after the last batch, when nothing is left to cancel.
+            var cancelled = stoppedAtRowCap || abandoned;
+            if (cancelled)
             {
-                command.Cancel();
+                try
+                {
+                    command.Cancel();
+                }
+                catch
+                {
+                    // A connection that already failed has nothing left to cancel.
+                }
             }
 
             try
             {
                 await reader.DisposeAsync();
             }
-            catch (PostgresException ex) when (stoppedAtRowCap && ex.SqlState == PostgresErrorCodes.QueryCanceled)
+            catch (PostgresException ex) when (cancelled && ex.SqlState == PostgresErrorCodes.QueryCanceled)
             {
                 // The backend acknowledged the row-cap cancel while the reader
                 // was draining; the rows already yielded are still valid.

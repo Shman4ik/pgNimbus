@@ -72,6 +72,11 @@ public class SlowQueriesTests
             await Assert.That(main.Tabs.Count).IsEqualTo(tabs + 1);
             await Assert.That(main.ActiveTab.Sql).Contains("CREATE EXTENSION IF NOT EXISTS pg_stat_statements");
 
+            // Security audit 2026-09, finding 18: the ALTER SYSTEM line replaces
+            // the whole list, so running the tab whole must not run it.
+            var alter = main.ActiveTab.Sql.Split('\n').Single(l => l.Contains("ALTER SYSTEM SET shared_preload_libraries", StringComparison.Ordinal));
+            await Assert.That(alter.TrimStart()).StartsWith("--");
+
             vm.Load(new StatementStatsRead(StatementStatsProblem.NotLoaded, null));
             await Assert.That(vm.ProblemTitle).Contains("hasn't loaded it");
         });

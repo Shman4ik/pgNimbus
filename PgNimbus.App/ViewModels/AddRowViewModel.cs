@@ -93,7 +93,7 @@ public sealed partial class AddRowViewModel(
         // defaults apply. Same shape safe mode stages, so both paths agree.
         var values = Fields
             .Where(f => f.IsNull || !string.IsNullOrEmpty(f.Value))
-            .Select(f => new PendingInsertValue(f.Name, f.DataType, f.IsNull ? null : f.Value))
+            .Select(f => new PendingInsertValue(f.Name, f.CastType, f.IsNull ? null : f.Value))
             .ToList();
 
         if (_stageInsert is { } stage)
@@ -134,6 +134,12 @@ public sealed partial class AddRowViewModel(
             await _engine.ExecuteNonQueryAsync(sql, parameters, CancellationToken.None);
             StatusMessage = "Row inserted.";
             Inserted?.Invoke();
+        }
+        catch (StatementOutcomeUnknownException)
+        {
+            // Not "failed": the INSERT may have committed before the connection
+            // dropped, and Add again would insert the row twice.
+            StatusMessage = "The connection was lost after the row was sent, so it may or may not have been inserted. Check the table before adding it again.";
         }
         catch (Exception ex)
         {

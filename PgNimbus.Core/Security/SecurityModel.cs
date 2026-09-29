@@ -214,6 +214,13 @@ public static class PgFeatures
 
     /// <summary>The <c>pg_read_all_data</c> / <c>pg_write_all_data</c> predefined roles arrived in PG14.</summary>
     public static bool SupportsPredefinedDataRoles(Version? v) => v is null || v.Major >= 14;
+
+    /// <summary>
+    /// SCRAM-SHA-256 arrived in PG10. Before it, a <c>PASSWORD 'SCRAM-SHA-256$…'</c>
+    /// literal is not recognised as a verifier and becomes the password itself,
+    /// so the role editor, which sends only verifiers, refuses to set a password there.
+    /// </summary>
+    public static bool SupportsScramVerifier(Version? v) => v is null || v.Major >= 10;
 }
 
 /// <summary>
@@ -222,8 +229,11 @@ public static class PgFeatures
 /// search-path dance the catalog already did for us.
 /// </summary>
 /// <param name="Arguments">
-/// A function's argument list (<c>integer, text</c>) — part of its identity, so
-/// two overloads are two securables. Null for everything else.
+/// A function's identity argument list (<c>integer, text</c>) — part of its
+/// identity, so two overloads are two securables. Null for everything else.
+/// It must come from <c>pg_get_function_identity_arguments</c>, never
+/// <c>pg_get_function_arguments</c>: the latter carries <c>DEFAULT …</c>
+/// clauses, and a GRANT naming <c>f(a integer DEFAULT 1)</c> is a syntax error.
 /// </param>
 public sealed record SecurableRef(
     SecurableKind Kind,
@@ -246,7 +256,10 @@ public sealed record SecurableRef(
     /// <summary>
     /// The <c>ON …</c> clause of a GRANT/REVOKE for this object, keyword
     /// included: <c>TABLE "sales"."orders"</c>, <c>SCHEMA sales</c>,
-    /// <c>FUNCTION public.f(integer)</c>.
+    /// <c>ROUTINE public.f(integer)</c>. Functions are named as ROUTINE
+    /// (PG11+), which covers functions, aggregates and procedures alike: the
+    /// Function kind lists all three, and <c>ON FUNCTION</c> fails for a
+    /// procedure (security audit 2026-09, finding 18).
     /// </summary>
     public string GrantTarget => Kind switch
     {
@@ -254,7 +267,7 @@ public sealed record SecurableRef(
         SecurableKind.Sequence => $"SEQUENCE {QuotedName}",
         SecurableKind.Schema => $"SCHEMA {QuotedName}",
         SecurableKind.Database => $"DATABASE {QuotedName}",
-        SecurableKind.Function => $"FUNCTION {QuotedName}({Arguments ?? ""})",
+        SecurableKind.Function => $"ROUTINE {QuotedName}({Arguments ?? ""})",
         SecurableKind.Type => $"TYPE {QuotedName}",
         _ => throw new ArgumentOutOfRangeException(nameof(Kind), Kind, null),
     };
@@ -352,8 +365,8 @@ public sealed record AclEntry(
 {
     public bool IsPublic => Grantee is null;
 
-    /// <summary>What the UI shows in the grantee column.</summary>
-    public string GranteeLabel => Grantee ?? "PUBLIC";
+    /// <summary>What the UI shows in the grantee column (a role named PUBLIC is shown quoted, see <see cref="GrantScriptBuilder.GranteeLabel"/>).</summary>
+    public string GranteeLabel => GrantScriptBuilder.GranteeLabel(Grantee);
 }
 
 /// <summary>
@@ -391,17 +404,26 @@ public sealed record DefaultPrivilege(
     IReadOnlyList<AclEntry> Entries);
 
 /// <summary>One row-level security policy, as <c>pg_policies</c> describes it.</summary>
-/// <param name="Roles">The roles it applies to; a single "public" entry means everyone.</param>
+/// <param name="Roles">
+/// The roles it applies to. A <c>null</c> entry is PUBLIC (<c>polroles</c>
+/// holds oid 0, and the server keeps that as the only entry when it is named),
+/// the same spelling <see cref="AclEntry.Grantee"/> uses — never the string
+/// "public", which could not be told from a role of that name.
+/// </param>
 /// <param name="Command">ALL / SELECT / INSERT / UPDATE / DELETE.</param>
 public sealed record RlsPolicyInfo(
     string Schema,
     string Table,
     string Name,
     bool Permissive,
-    IReadOnlyList<string> Roles,
+    IReadOnlyList<string?> Roles,
     string Command,
     string? Using,
-    string? WithCheck);
+    string? WithCheck)
+{
+    /// <summary>True when the policy is <c>TO PUBLIC</c>: no role listed, or PUBLIC among them.</summary>
+    public bool AppliesToEveryone => Roles.Count == 0 || Roles.Contains(null);
+}
 
 /// <summary>
 /// A table's RLS state plus its policies. <paramref name="BypassedByCurrentRole"/>

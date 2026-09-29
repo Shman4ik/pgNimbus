@@ -85,6 +85,48 @@ release); this section is how the pipeline itself works.
 via `workflow_dispatch`, which builds everything but skips the "release"
 job so it never publishes).
 
+**What a tag is allowed to mean, and who holds the token** (2026-09, security
+audit findings 5 and 15). Four things the audit found, each now a rule:
+- **The built commit has to be on `main`.** A tag can be pushed on any commit,
+  and the attestation only ever proved "built by this workflow" — nothing said
+  "from a reviewed commit". The first step of every build job (and `sbom`) is
+  `.github/actions/require-on-main` (`git merge-base --is-ancestor "$GITHUB_SHA"
+  origin/main`, over a `fetch-depth: 0` checkout). It runs on every event, not
+  only tag pushes, so a `workflow_dispatch` rehearsal exercises the gate too —
+  which means a rehearsal has to start from a commit already on `main`. The
+  `release` job and the benchmark's `record_history` gate on
+  `github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')`: a
+  dispatch with a tag chosen under "Use workflow from" carries the same
+  `github.ref`, and used to publish while the file's header said it never would.
+  The repo-side half (a tag ruleset for `refs/tags/v*`, immutable releases)
+  is a setting, not a workflow change; the PR that added this listed the
+  commands.
+- **The workflow token is read-only.** Top-level `permissions: contents: read`;
+  only `release` (assets, attestations) and the `benchmark` call (gh-pages
+  history) get `contents: write`, and every checkout in `release.yml` and
+  `benchmark.yml` sets `persist-credentials: false` — the benchmark action
+  pushes through its own `github-token` input (it puts the token in the remote
+  URL itself), so nothing needs one left in `.git/config`. Before this, every
+  build job inherited a workflow-wide `contents: write`, and the MSBuild tasks
+  of ~35 packages, the packaging tools and the smoke-launched app all ran with
+  a token that could rewrite releases and `gh-pages`.
+- **Nothing user-influenced is spliced into a script.** `inputs.version`,
+  `github.ref_name` and `$VERSION` reach every `run:` as environment variables
+  (an expression inside `run:` is expanded before the shell sees it, so a tag
+  named `v1.2.3;id` would have run `id`), and
+  `.github/actions/version/action.yml` refuses anything that is not
+  `^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$`. Same shape in `screenshots.yml`.
+  `docs.yml` is split the same way: a read-only `build` job on every event, and
+  a `publish` job that only runs for `main` and is the only one with write.
+- **The release is created by `gh release create`**, the preinstalled
+  first-party CLI, not `softprops/action-gh-release`: that is the one step
+  holding `contents: write` beside `id-token: write`, and third-party code
+  there could upload different binaries *and mint valid provenance for them*.
+  Deliberately create-only — a re-run after the release exists fails rather
+  than quietly replacing assets someone may already have downloaded; delete
+  the release and re-run, or cut a new tag. Once immutable releases are on,
+  the latter is the only way.
+
 **Every package is launched before it ships.** Each build job runs
 `scripts/release/smoke-launch.sh` (or `Smoke-Launch.ps1` on Windows) against
 its own artifacts with `PGNIMBUS_STARTUP_PROBE=1`, asserting both a clean exit
@@ -105,8 +147,12 @@ It produces, per tag:
 
 - **Windows** — `dotnet publish -r win-x64 -p:PublishAot=true`, then a
   per-user WiX v5 MSI built from [`installer/windows/Product.wxs`](installer/windows/Product.wxs)
-  via the `wix` .NET global tool (`wix build ... -d PublishDir=... -d
-  Version=...`). Per-user (installs to `%LocalAppData%`, no elevation) is
+  via the `wix` .NET tool from the repo's tool manifest
+  (`.config/dotnet-tools.json`, restored with `dotnet tool restore`, run as
+  `dotnet wix build ... -d PublishDir=... -d Version=...`). The manifest
+  pins `wix` and `CycloneDX` to exact versions that Dependabot's nuget
+  ecosystem bumps; it replaced `dotnet tool install --global wix --version
+  5.*`, which floated (2026-09). Per-user (installs to `%LocalAppData%`, no elevation) is
   deliberate: the MSI is currently **unsigned** (no code-signing cert yet),
   and per-machine + unsigned is a much worse UAC/SmartScreen experience.
   The `UpgradeCode` GUID in `Product.wxs` is fixed forever — never
@@ -150,12 +196,32 @@ It produces, per tag:
   gates both: `Signature=adhoc` present after `hdiutil`, and the symlink there.
   None of this substitutes for a Developer ID signature plus notarization,
   which needs a paid Apple account and would remove the warning outright.
+  **Both `codesign` calls also pass `--options runtime`** (security audit
+  2026-09, finding 18): without hardened runtime, any process running as the
+  same user can launch pgNimbus with `DYLD_INSERT_LIBRARIES` and run
+  arbitrary code as it — inheriting whatever the app's ad-hoc code hash is
+  trusted for, a Keychain item's ACL included. Hardened runtime also turns on
+  library validation, which refuses to load a dylib unless it carries the
+  main executable's own Team ID; every dylib in the bundle is ad-hoc signed
+  alongside the app (no Team ID at all), so library validation would refuse
+  them all at launch. `installer/macos/Entitlements.plist` sets
+  `com.apple.security.cs.disable-library-validation` to allow exactly that
+  and nothing else, and both `codesign` calls pass `--entitlements` pointing
+  at it. Developer ID plus notarization (ROADMAP T5) is still the fix that
+  removes the Gatekeeper warning outright; this closes the arbitrary-code-
+  execution gap in the meantime, on the same ad-hoc signature.
 - **Linux** — `linux-x64` + `linux-arm64` (the arm64 leg runs natively on
   GitHub's free `ubuntu-24.04-arm` runners — no cross-compile toolchain).
   Each RID is packaged three ways by
   [`scripts/linux/build-packages.sh`](scripts/linux/build-packages.sh):
-  `.AppImage` (appimagetool downloaded at build time from its `continuous`
-  release, run with `--appimage-extract-and-run` since CI runners lack
+  `.AppImage` (appimagetool **1.9.1** and the type2 runtime release
+  **20251108** downloaded at build time, each checked against a hardcoded
+  sha256 — the `digest` GitHub publishes per release asset — and the runtime
+  handed over with `--runtime-file`, so appimagetool never fetches "latest"
+  on its own; it used to come from the moving `continuous` release with no
+  checksum, and the runtime it then downloaded is the first code that runs
+  when a user starts the AppImage (2026-09). Run with
+  `--appimage-extract-and-run` since CI runners lack
   FUSE; `AppRun` is a plain symlink to the binary — NativeAOT resolves the
   side-car `libSkiaSharp`/`libHarfBuzzSharp` next to `/proc/self/exe`, so
   no wrapper script), `.tar.gz` (the publish output under a versioned top
@@ -213,7 +279,7 @@ rules keep it there:
    Release assets don't count against the Actions allowance, and the `release`
    job consumes these in the same run — the artifact is a job-to-job hand-off,
    not storage. That covers `windows-msi`, `macos-dmg-arm64`,
-   `linux-packages-*`, `sbom`, `winget-manifests`, and `publish-linux-x64`
+   `linux-packages-*`, `sbom` (from its own job since 2026-09), `winget-manifests`, and `publish-linux-x64`
    (benchmark input). A day is still long enough for a human to grab a
    `workflow_dispatch` test build, where the `release` job never runs.
    `windows-msix` is the one exception at 14 days: Partner Center submission is
@@ -240,27 +306,79 @@ and run the whole job twice for one commit — which is also two artifacts.
 
 ### Supply-chain proofs (2026-07)
 
-Unsigned binaries still get verifiable provenance, three layers:
+Unsigned binaries still get verifiable provenance, six layers (security audit
+2026-09: finding 5 added the pinned inputs, finding 18 the pinned SDK and the
+pinned NuGet sources):
 
 - **SLSA attestations** — the release job runs
   `actions/attest-build-provenance` over every published asset (needs the
-  job's `id-token: write` + `attestations: write` permissions). Users
-  verify a download with
-  `gh attestation verify <file> --repo Shman4ik/pgNimbus` — proves it was
-  built by this workflow from a specific commit. This is the $0 substitute
-  for Authenticode on the direct-download channel; it does nothing for
-  SmartScreen (the Store channel covers that).
-- **SBOM** — the build-linux x64 leg generates a CycloneDX JSON SBOM of the
-  App's full NuGet graph (`dotnet-CycloneDX` on `PgNimbus.App.csproj`,
-  `-c Release`, the configuration the binaries ship in). Ships as the `pgNimbus-<ver>-sbom.cdx.json` release asset,
-  checksummed and attested like the binaries. Generated once (x64 only) —
-  the NuGet graph is RID-independent.
+  job's `id-token: write` + `attestations: write` permissions). Verify a
+  download with `gh attestation verify <file> --repo Shman4ik/pgNimbus
+  --signer-workflow Shman4ik/pgNimbus/.github/workflows/release.yml
+  --source-ref refs/tags/v<ver>` — plain `--repo` with no `--signer-workflow`/
+  `--source-ref` accepts an attestation from *any* workflow or ref in the
+  repo, which proves nothing about which build produced the file. Without
+  `gh`, `sha256sum -c SHA256SUMS.txt --ignore-missing` checks a download
+  against the same release's checksum file, which is attested too. This is
+  the $0 substitute for Authenticode on the direct-download channel; it does
+  nothing for SmartScreen (the Store channel covers that). What it does *not*
+  prove is that the workflow ran only reviewed inputs — which is the next
+  layer.
+- **Pinned inputs** (2026-09, audit finding 5). Every `uses:` in
+  `.github/workflows/` and `.github/actions/` is a full 40-character commit
+  SHA with a `# vX.Y.Z` comment; Dependabot's `github-actions` ecosystem
+  (`.github/dependabot.yml`, already configured) moves the SHA and the comment
+  together, so a pin is never a freeze. Two of the actions were pinned to
+  *branches* before this (`dependency-review-action@v5`,
+  `github-action-benchmark@v1`, the latter running with `contents: write`
+  during a release). The .NET tools (`wix`, `CycloneDX`) are exact versions in
+  `.config/dotnet-tools.json`; appimagetool and the AppImage runtime are fixed
+  releases with sha256 checks in `build-packages.sh` (see the Linux bullet
+  above). The repo-side lock — "Require actions to be pinned to a full-length
+  commit SHA" (`actions/permissions` `sha_pinning_required`) — is a setting for
+  the owner to turn on; without it a future `@v8` slips past review.
+- **SBOM** — its own `sbom` job (ubuntu, `contents: read`) generates a
+  CycloneDX JSON SBOM of the App's full NuGet graph (`dotnet dotnet-CycloneDX`
+  from the tool manifest on `PgNimbus.App.csproj`, `-c Release`, the
+  configuration the binaries ship in), then
+  `scripts/release/sbom_add_runtime.py` (stdlib-only, unit-tested in
+  `scripts/release/test_sbom_add_runtime.py`) patches in two components the
+  NuGet graph can't see: the `Microsoft.NETCore.App.Runtime.linux-x64`
+  runtime pack a NativeAOT publish statically links in (GC, TLS and crypto
+  code — exactly the code a security audit would want listed) and the
+  matching `Microsoft.DotNet.ILCompiler` toolchain pack. Neither is a
+  `<PackageReference>`; the SDK resolves them at publish time for the target
+  RID, so `dotnet-CycloneDX` never lists them on its own. The version is read
+  from `dotnet --list-runtimes`, filtered to the SDK's own major.minor (from
+  `global.json`'s pinned `sdk.version`) rather than the first line, since a
+  GitHub-hosted runner carries several side-by-side major versions; the
+  `sbom` job installs the same SDK the build legs do, so that is the runtime
+  build-linux's x64 leg links. Ships as the `pgNimbus-<ver>-sbom.cdx.json`
+  release asset, checksummed and attested like the binaries. Generated once —
+  the NuGet graph is RID-independent, and the one runtime component names
+  linux-x64 only (the Windows and macOS packs are not listed). It used to be a
+  step of the linux-x64 build leg, after the packages were built; moved out so
+  a third-party tool never shares a runner with the binaries that ship.
 - **Vulnerability gates** — the repo-root `Directory.Build.props` sets
   `NuGetAuditMode=all` (transitive packages too) and promotes
   moderate/high/critical audit warnings (NU1902–NU1904) to errors, so any
   `dotnet build`/`restore` — local or CI — fails on a known advisory; ci.yml
   additionally runs `dependency-review-action` on PRs to block newly-added
   vulnerable packages at review time.
+- **Pinned SDK line** — `global.json` carries `sdk.version` `10.0.100` with
+  `rollForward: latestFeature`: any 10.0 SDK at or above it builds, so the
+  1xx-band SDK Ubuntu's apt package ships (the verify skill's sandbox recipe)
+  still works, while an 11.0 SDK does not pick the build up. It is a floor, not
+  the release's exact SDK (CI installs the newest `10.0.x`); the runtime pack a
+  release actually links is what the SBOM records (above), and
+  `sbom_add_runtime.py` reads the major.minor from this file.
+- **Pinned NuGet sources** — the repo-root `nuget.config` clears every
+  package source but nuget.org and maps every package id to it with
+  `packageSourceMapping`. Without it, a restore reads whatever sources a
+  machine has accumulated (a corporate feed, a leftover from another
+  project), which is the opening `dotnet restore`/`build` needs for a
+  dependency-confusion attack: a package on an extra source, named like one
+  this repo already restores, silently wins.
 
 ### Microsoft Store (MSIX)
 

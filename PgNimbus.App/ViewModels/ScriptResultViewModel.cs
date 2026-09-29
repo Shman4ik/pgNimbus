@@ -87,7 +87,7 @@ public sealed class ScriptResultViewModel
                 var rowText = RowLabel(set.Rows.Count);
                 var timeText = $"{ms:F0} ms";
                 var capText = set.Truncated
-                    ? $"capped at {MaxDisplayRows:N0} rows — refine the query for the full set"
+                    ? QueryViewModel.CapTextFor(set.CappedBy == ResultCap.None ? ResultCap.Rows : set.CappedBy)
                     : null;
 
                 return new ScriptResultViewModel(

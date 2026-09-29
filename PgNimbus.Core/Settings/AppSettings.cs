@@ -81,6 +81,16 @@ public sealed record AppSettings
     public bool PlanTreeView { get; set; }
 
     /// <summary>
+    /// CSV export and the grid's TSV/CSV copies put a <c>'</c> in front of a
+    /// text cell starting with <c>=</c>, <c>+</c>, <c>-</c>, <c>@</c>, tab or
+    /// carriage return, so a spreadsheet shows it instead of running it as a
+    /// formula (security audit 2026-09, finding 18). Off by default: the quote
+    /// changes the data for every reader that isn't a spreadsheet. Toggled from
+    /// the command bar's Export menu.
+    /// </summary>
+    public bool SpreadsheetSafeExport { get; set; }
+
+    /// <summary>
     /// The letter case completion writes keywords in: <c>"typed"</c> (the case
     /// being typed — <c>tr</c> gives <c>true</c>, the default), <c>"upper"</c>
     /// or <c>"lower"</c> (docs/design/sql-completion-audit-2.md F02, §6.7).
@@ -119,6 +129,17 @@ public sealed record AppSettings
     /// deliberately.
     /// </summary>
     public bool AutoConnectLastProfile { get; set; }
+
+    /// <summary>
+    /// Whether every statement run is filed in the query history
+    /// (<c>history.json</c>). On by default. The file keeps each statement's
+    /// text as run, values included, unencrypted; passwords are masked by
+    /// <see cref="Security.SecretRedactor"/>, but a query that selects by an
+    /// email address keeps the address. Off, nothing new is recorded; what is
+    /// already there stays until Clear History. Security audit 2026-09,
+    /// finding 8: there used to be no way to turn it off.
+    /// </summary>
+    public bool RecordQueryHistory { get; set; } = true;
 
     /// <summary>
     /// Schemas kept out of editor autocomplete, keyed by connection

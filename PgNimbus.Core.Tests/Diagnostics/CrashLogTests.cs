@@ -29,7 +29,7 @@ public class CrashLogTests
             await Assert.That(returnedPath).IsEqualTo(log.FilePath);
             await Assert.That(File.Exists(log.FilePath)).IsTrue();
 
-            var contents = await File.ReadAllTextAsync(log.FilePath);
+            var contents = await File.ReadAllTextAsync(log.FilePath ?? throw new InvalidOperationException("a log with a directory has a file"));
             await Assert.That(contents).Contains("CRITICAL");
             await Assert.That(contents).Contains("Something failed");
             await Assert.That(contents).Contains("System.InvalidOperationException");
@@ -72,7 +72,7 @@ public class CrashLogTests
             log.LogCritical("first error", null);
             log.LogCritical("second error", null);
 
-            var contents = await File.ReadAllTextAsync(log.FilePath);
+            var contents = await File.ReadAllTextAsync(log.FilePath ?? throw new InvalidOperationException("a log with a directory has a file"));
             await Assert.That(contents).Contains("first error");
             await Assert.That(contents).Contains("second error");
         }
@@ -96,7 +96,7 @@ public class CrashLogTests
 
             log.LogCritical("faulted tasks", aggregate);
 
-            var contents = await File.ReadAllTextAsync(log.FilePath);
+            var contents = await File.ReadAllTextAsync(log.FilePath ?? throw new InvalidOperationException("a log with a directory has a file"));
             await Assert.That(contents).Contains("first branch");
             await Assert.That(contents).Contains("second branch");
             await Assert.That(contents).Contains("third branch");
@@ -118,7 +118,7 @@ public class CrashLogTests
 
             log.LogCritical("wrapped failure", exception);
 
-            var contents = await File.ReadAllTextAsync(log.FilePath);
+            var contents = await File.ReadAllTextAsync(log.FilePath ?? throw new InvalidOperationException("a log with a directory has a file"));
             await Assert.That(contents).Contains("outer");
             await Assert.That(contents).Contains("System.FormatException");
             await Assert.That(contents).Contains("inner cause");
@@ -127,5 +127,33 @@ public class CrashLogTests
         {
             Directory.Delete(dir, recursive: true);
         }
+    }
+
+    // Security audit 2026-09, finding 18: a message that quotes a failed
+    // CREATE ROLE … PASSWORD '…' must not put the password in the log.
+    [Test]
+    public async Task RedactsPasswordLiteralsInMessagesAndContext()
+    {
+        var exception = new InvalidOperationException(
+            "outer",
+            new FormatException("syntax error in: ALTER ROLE app PASSWORD 'hunter2' VALID UNTIL"));
+
+        var entry = CrashLog.FormatEntry("Running CREATE ROLE x PASSWORD 'swordfish'", exception);
+
+        await Assert.That(entry).DoesNotContain("hunter2");
+        await Assert.That(entry).DoesNotContain("swordfish");
+        await Assert.That(entry).Contains("PASSWORD '<redacted>'");
+        await Assert.That(entry).Contains("outer");
+    }
+
+    [Test]
+    [Arguments(@"C:\Users\alice\AppData\Roaming\pgNimbus\logs\pgnimbus.log", @"C:\Users\alice", @"~\AppData\Roaming\pgNimbus\logs\pgnimbus.log")]
+    [Arguments("/home/alice/.config/pgNimbus/logs/pgnimbus.log", "/home/alice/", "~/.config/pgNimbus/logs/pgnimbus.log")]
+    [Arguments("/home/alice", "/home/alice", "~")]
+    [Arguments("/home/alicebob/x.log", "/home/alice", "/home/alicebob/x.log")]
+    [Arguments("/tmp/pgNimbus/logs/pgnimbus.log", "/home/alice", "/tmp/pgNimbus/logs/pgnimbus.log")]
+    public async Task HomeRelativeHidesTheAccountName(string path, string home, string expected)
+    {
+        await Assert.That(CrashLog.HomeRelative(path, home)).IsEqualTo(expected);
     }
 }

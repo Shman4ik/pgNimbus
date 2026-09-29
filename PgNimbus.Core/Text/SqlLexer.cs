@@ -73,6 +73,8 @@ public readonly record struct SqlToken(SqlTokenKind Kind, int Start, int Length,
 /// </remarks>
 public static class SqlLexer
 {
+    private static readonly char[] LineEnds = ['\n', '\r'];
+
     public static List<SqlToken> Tokenize(string sql, bool standardConformingStrings = true) =>
         Tokenize(sql, 0, sql.Length, standardConformingStrings);
 
@@ -91,6 +93,15 @@ public static class SqlLexer
 
         return tokens;
     }
+
+    /// <summary>
+    /// The single token starting at <paramref name="i"/>, read as if the text
+    /// went on to the end of <paramref name="sql"/>. For a caller that scans
+    /// prose (a comment, a string's contents) and only needs to know what
+    /// literal starts at one position, without tokenizing everything after it.
+    /// </summary>
+    public static SqlToken TokenAt(string sql, int i, bool standardConformingStrings = true) =>
+        Next(sql, i, sql.Length, standardConformingStrings);
 
     /// <summary>First character of an unquoted identifier (or of a dollar-quote tag).</summary>
     public static bool IsIdentStart(char c) => char.IsLetter(c) || c == '_' || c >= '';
@@ -153,7 +164,13 @@ public static class SqlLexer
 
         if (c == '-' && Peek(sql, i + 1, end) == '-')
         {
-            var eol = sql.IndexOf('\n', i + 2, end - (i + 2));
+            // PostgreSQL's scanner ends a line comment at \n or \r (its
+            // non_newline class is [^\n\r]). Ending it at \n alone let a bare \r
+            // hide a statement from the splitter that the server then ran:
+            // "SELECT 1 --x\r; COMMIT; CREATE TABLE t()" passed Explain's
+            // one-statement check and created the table (review of the 2026-09
+            // audit fixes).
+            var eol = sql.IndexOfAny(LineEnds, i + 2, end - (i + 2));
             var stop = eol < 0 ? end : eol;
             return new SqlToken(SqlTokenKind.LineComment, i, stop - i);
         }

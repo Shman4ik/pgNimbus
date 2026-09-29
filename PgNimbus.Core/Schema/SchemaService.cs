@@ -57,6 +57,24 @@ public sealed record ColumnDetail(string Name, string DataType, bool NotNull, bo
     /// be checked against the table's real columns without trusting names.
     /// </summary>
     public short AttNum { get; init; }
+
+    /// <summary>
+    /// The declared type as a <c>CAST(@v AS …)</c> target: every type outside
+    /// pg_catalog schema-qualified (<c>sales.mood</c>, <c>public.vector(3)</c>),
+    /// the built-ins bare (<c>integer</c>, <c>character varying(20)</c>). Null
+    /// when it wasn't read; <see cref="CastTargetType"/> falls back to
+    /// <see cref="DataType"/> then.
+    /// </summary>
+    public string? QualifiedDataType { get; init; }
+
+    /// <summary>
+    /// The type edits are cast to. <see cref="DataType"/> is <c>format_type</c>'s
+    /// spelling for the connection's search_path, so a user type on the path
+    /// comes back bare, and the tab keeps it: a schema created later that
+    /// shadows the name would change what the cast resolves to (security audit
+    /// 2026-09, finding 18). The qualified spelling can't be re-resolved.
+    /// </summary>
+    public string CastTargetType => QualifiedDataType ?? DataType;
 }
 
 public sealed record TableColumn(string Table, string Column, string DataType)
@@ -449,31 +467,103 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
-        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
-        command.Parameters.AddWithValue("schema", schema);
-        command.Parameters.AddWithValue("table", table);
-        await using var reader = await command.ExecuteReaderAsync(ct);
-
         var results = new List<ColumnDetail>();
-        while (await reader.ReadAsync(ct))
+        await using (var command = new NpgsqlCommand(InternalSql.Tag(sql), connection))
         {
-            results.Add(new ColumnDetail(
-                reader.GetString(0),
-                reader.GetString(1),
-                reader.GetBoolean(2),
-                reader.GetBoolean(3))
+            command.Parameters.AddWithValue("schema", schema);
+            command.Parameters.AddWithValue("table", table);
+            await using var reader = await command.ExecuteReaderAsync(ct);
+
+            while (await reader.ReadAsync(ct))
             {
-                Editor = ColumnValueEditorClassifier.Classify(
-                    reader.GetString(5)[0],
-                    reader.GetString(6)[0],
-                    reader.GetString(4)),
-                DomainBaseType = reader.IsDBNull(7) ? null : reader.GetString(7),
-                EnumLabels = reader.IsDBNull(8) ? [] : reader.GetFieldValue<string[]>(8),
-                AttNum = reader.GetInt16(9),
-            });
+                results.Add(new ColumnDetail(
+                    reader.GetString(0),
+                    reader.GetString(1),
+                    reader.GetBoolean(2),
+                    reader.GetBoolean(3))
+                {
+                    Editor = ColumnValueEditorClassifier.Classify(
+                        reader.GetString(5)[0],
+                        reader.GetString(6)[0],
+                        reader.GetString(4)),
+                    DomainBaseType = reader.IsDBNull(7) ? null : reader.GetString(7),
+                    EnumLabels = reader.IsDBNull(8) ? [] : reader.GetFieldValue<string[]>(8),
+                    AttNum = reader.GetInt16(9),
+                });
+            }
         }
 
-        return results;
+        var qualified = await ReadQualifiedTypesAsync(connection, schema, table, ct);
+        return [.. results.Select(c => qualified.TryGetValue(c.AttNum, out var type) ? c with { QualifiedDataType = type } : c)];
+    }
+
+    /// <summary>
+    /// Each column's type spelled so no search_path can re-resolve it (see
+    /// <see cref="ColumnDetail.CastTargetType"/>), keyed by attnum.
+    /// <c>format_type</c> qualifies a type exactly when the search_path doesn't
+    /// reach it, so with the path narrowed to pg_catalog — for this one
+    /// transaction, rolled back — it qualifies every type but the built-ins,
+    /// arrays and type modifiers included (<c>sales.mood[]</c>,
+    /// <c>public.vector(3)</c>), which is more than a hand-built
+    /// <c>nspname || '.' || typname</c> could say.
+    /// </summary>
+    private static async Task<Dictionary<short, string>> ReadQualifiedTypesAsync(
+        NpgsqlConnection connection, string schema, string table, CancellationToken ct)
+    {
+        const string sql = """
+            SELECT a.attnum, pg_catalog.format_type(a.atttypid, a.atttypmod)
+            FROM pg_catalog.pg_attribute a
+            JOIN pg_catalog.pg_class c ON c.oid = a.attrelid
+            JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname = @schema
+              AND c.relname = @table
+              AND a.attnum > 0
+              AND NOT a.attisdropped
+            """;
+
+        await using var transaction = await connection.BeginTransactionAsync(ct);
+        await using (var narrow = new NpgsqlCommand(InternalSql.Tag("SELECT pg_catalog.set_config('search_path', 'pg_catalog', true)"), connection, transaction))
+        {
+            await narrow.ExecuteNonQueryAsync(ct);
+        }
+
+        var types = new Dictionary<short, string>();
+        await using (var command = new NpgsqlCommand(InternalSql.Tag(sql), connection, transaction))
+        {
+            command.Parameters.AddWithValue("schema", schema);
+            command.Parameters.AddWithValue("table", table);
+            await using var reader = await command.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+            {
+                types[reader.GetInt16(0)] = reader.GetString(1);
+            }
+        }
+
+        await transaction.RollbackAsync(ct);
+        return types;
+    }
+
+    /// <summary>
+    /// The pg_class OID of <paramref name="schema"/>.<paramref name="name"/>, or
+    /// null when no such relation exists. Matched by exact name, never through
+    /// <c>search_path</c>: this is how a browse tab restored from the workspace
+    /// learns which table it browses before its first run, so that a query
+    /// naming a same-named table in another schema isn't taken for it.
+    /// </summary>
+    public async Task<uint?> GetRelationOidAsync(string schema, string name, CancellationToken ct)
+    {
+        const string sql = """
+            SELECT c.oid
+            FROM pg_catalog.pg_class c
+            JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname = @schema AND c.relname = @name
+            """;
+
+        await using var connection = await _dataSource.OpenConnectionAsync(ct);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
+        command.Parameters.AddWithValue("schema", schema);
+        command.Parameters.AddWithValue("name", name);
+        return await command.ExecuteScalarAsync(ct) is uint oid ? oid : null;
     }
 
     /// <summary>

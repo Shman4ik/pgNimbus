@@ -20,7 +20,11 @@ paths:
   generative "tokens exactly tile any text" check — it runs per keystroke on the
   UI thread, so a zero-width token would hang the app) is the single definition
   of strings (`E'…'` backslash escapes, `U&`/`B`/`X`/`N` prefixes), quoted
-  identifiers, `$tag1$`/`$тег$` dollar quotes and nested comments.
+  identifiers, `$tag1$`/`$тег$` dollar quotes and nested comments. A `--`
+  comment ends at `\n` *or* `\r`, as the server's scanner has it: ending it at
+  `\n` alone let a bare `\r` hide `; COMMIT; CREATE …` from the splitter, and
+  Explain's one-statement check passed text the server then ran (2026-09,
+  review of the audit fixes).
   `SqlScriptSplitter` and `SqlCompletionContext`'s caret/mask scans ride it;
   before that each had its own scanner and they disagreed — `E'can\'t;stop'`
   split in two, and completion opened inside `$tag1$…$tag1$`. `SqlFormatter`
@@ -35,8 +39,7 @@ paths:
   E/B/X/N/U& strings, dollar quotes, `U&"…"` and `$1` stay raw, verbatim chips
   (its own scanner had closed a nested comment at the first `*/`, keeping the
   rest as a raw condition that would have gone back into the SQL broken, and
-  had read `0x1F` as a typed value). `IsSafeToReExecute` is untouched and must
-  not get less conservative.
+  had read `0x1F` as a typed value).
   Five rules the provider now keeps, each a reproduced bug in the audit:
   (a) **The statement is the unit** — `CompletionStatementSpan` is the text
   between the real `;` tokens around the caret, the part right of it included (a
@@ -90,10 +93,27 @@ paths:
   through that branch's own sources, a column alias list renaming positionally;
   a CTE reaching itself through a star stops (visited set) instead of recursing.
   A select list whose block has sources is scoped like a predicate: another
-  branch's or the catalog's columns aren't legal there. Three things to keep:
+  branch's or the catalog's columns aren't legal there.
+  `SqlCompletionContext.ExtractCteDefinitions`, the older whole-statement
+  reading, reads at most `MaxCteDefinitions` (32) CTEs and no body past
+  `MaxCteBodyLength` (32K characters; that CTE is known by name only): every body
+  was read on its own and a nested WITH's outer bodies hold all the inner ones,
+  so 2,000 nested CTEs (42k characters, still on the UI thread) cost 3.4 s per
+  popup (2026-09, review of the audit fixes). Three things to keep:
   the reader never guesses — past `SqlScopeModel.MaxDepth` (32) nested queries a
   query is `IsOpaque` and the caret inside it gets **no** columns, not the outer
-  ones; a statement with no query in it (DDL, SET) has `Root == null` and keeps
+  ones (since 2026-09, security audit finding 16, parenthesized expression groups
+  and nested join trees count against the same depth and go opaque the same way,
+  and `IsQueryStart` walks a paren run instead of recursing: `SELECT ` +
+  `(`×20000 used to overflow the stack, which .NET cannot catch, per keystroke
+  and after every Run; `SqlKeywordGrammar.Governing` had the same recursion per
+  unclosed group and is iterative now. `Text/HostileText` is the shared
+  generator and `ParserRobustnessTests` runs every UI-thread reader —
+  `SqlScriptSplitter`, `SqlFormatter`, `SqlCompletionContext`, `SqlCallSite`,
+  `SqlKeywordGrammar`, `SqlValueSlot`, `SqlStatementInspector`, the scope model
+  — over every printable character in every position and a hundred thousand
+  nested parens on a 256 KB stack, a quarter of a production thread's); a
+  statement with no query in it (DDL, SET) has `Root == null` and keeps
   the old whole-statement reading (`ExtractTables`), which is also still what
   `CompletionEdits`' alias picking and `ExpandSelectStar` use; and only EXPLAIN
   may be followed by DML — after `CREATE …`, `UPDATE`/`TABLE` are DDL words.

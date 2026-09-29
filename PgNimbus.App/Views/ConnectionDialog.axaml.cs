@@ -6,6 +6,7 @@ using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using PgNimbus.App.Platform;
 using PgNimbus.App.ViewModels;
 using Nimbus.Ui.Chrome;
 using PgNimbus.Core.Connections;
@@ -157,6 +158,10 @@ public partial class ConnectionDialog : Window
             return;
         }
 
+        // The view model's default refuses every unknown SSH host key; only a
+        // window can ask. Set here, once the window exists to own the dialog.
+        vm.HostKeys = SshHostKeyVerifier.ForApp(new HostKeyDialogPolicy(this));
+
         if (vm.SelectedProfile is not null)
         {
             ProfilesList.Focus();
@@ -270,6 +275,30 @@ public partial class ConnectionDialog : Window
         }
     }
 
+    private async void OnBrowseRootCertificateClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not ConnectionDialogViewModel vm)
+        {
+            return;
+        }
+
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Choose root certificate",
+            AllowMultiple = false,
+            FileTypeFilter =
+            [
+                new FilePickerFileType("Certificates") { Patterns = ["*.pem", "*.crt", "*.cer", "*.der"] },
+                FilePickerFileTypes.All,
+            ],
+        });
+
+        if (files.Count > 0 && files[0].TryGetLocalPath() is { } path)
+        {
+            vm.RootCertificatePath = path;
+        }
+    }
+
     private void OnAccentSwatchClick(object? sender, RoutedEventArgs e) =>
         Dispatcher.UIThread.Post(() => AccentButton.Flyout?.Hide());
 
@@ -343,7 +372,18 @@ public partial class ConnectionDialog : Window
         }
     }
 
-    private async void OnCopyConnectionStringClick(object? sender, RoutedEventArgs e)
+    // The button's click and the first menu item: no password. Clipboard
+    // history, cloud clipboard and clipboard managers keep whatever lands on
+    // the clipboard, so the everyday copy leaves the secret out.
+    private void OnCopyConnectionStringClick(object? sender, RoutedEventArgs e) =>
+        CopyConnectionString(includePassword: false);
+
+    // "Copy With Password": marked for exclusion from clipboard history and
+    // cleared after 30 s (SecretClipboard).
+    private void OnCopyConnectionStringWithPasswordClick(object? sender, RoutedEventArgs e) =>
+        CopyConnectionString(includePassword: true);
+
+    private async void CopyConnectionString(bool includePassword)
     {
         if (DataContext is not ConnectionDialogViewModel vm || TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard)
         {
@@ -352,13 +392,17 @@ public partial class ConnectionDialog : Window
 
         try
         {
-            // The visible preview masks the password - the clipboard gets the
-            // real, usable connection string.
-            await clipboard.SetTextAsync(vm.BuildClipboardConnectionString());
-            if (sender is Button button)
+            var text = vm.BuildClipboardConnectionString(includePassword);
+            if (includePassword && !string.IsNullOrEmpty(vm.Password))
             {
-                CopyFeedback.Show(button);
+                await SecretClipboard.SetAsync(clipboard, text);
             }
+            else
+            {
+                await clipboard.SetTextAsync(text);
+            }
+
+            CopyFeedback.Show(CopyConnectionStringButton);
         }
         catch
         {

@@ -132,8 +132,9 @@ string.
 
 ![Editing cells across two tabs in safe mode, then committing both staged changes together as one transaction](../screenshots/safe-mode-commit-demo.gif)
 
-Safe mode is for the "inline edit on production" nerves. With it on, grid edits,
-inserts and deletes are staged locally instead of being sent:
+Safe mode is on by default for every new connection. It is for the "inline
+edit on production" nerves. With it on, grid edits, inserts and deletes are
+staged locally instead of being sent:
 
 - dirty rows are highlighted, amber for edited and red for pending delete
 - "Review & commit…" shows the exact SQL that will be sent
@@ -220,23 +221,35 @@ inference on the incoming columns.
 Export results, or copy them straight to the clipboard, as TSV, CSV, JSON, a
 Markdown table, or `INSERT` statements.
 
-**Export writes every row, not just the ones on screen.** The grid holds at
-most 100,000 rows, and a browsed table shows one page at a time. When the grid
-doesn't hold the whole result, export runs the query again with no limit and
-streams the rows straight to the file, so a table of any size exports without
-filling memory. A browsed table exports with its filters and its sort order,
-whatever page you're on. The status bar counts the rows as they're written,
-and **Cancel** stops the export and deletes the unfinished file.
+**A browsed table exports every row, not just the page on screen.** A browsed
+table shows one page at a time. When you export it, pgNimbus runs its own page
+query again with no limit and streams the rows straight to the file, so a table
+of any size exports without filling memory, with its filters and its sort order,
+whatever page you're on. The status bar counts the rows as they're written, and
+**Cancel** stops the export and deletes the unfinished file.
 
-In two cases the query can't be run again, so the file gets only the rows in
-the grid, and the status bar says so:
-
-- The query might change data, such as `INSERT … RETURNING`. Running it again
-  would make the change twice.
-- The result comes from one statement of a multi-statement script, or from a
-  query inside an open transaction.
+**A query you wrote exports the rows in the grid.** The grid holds at most
+100,000 rows. When a query returns more, the file gets those rows and the
+status bar says so. pgNimbus never runs a query you wrote a second time on its
+own: a `SELECT` that calls a function may write, and nothing on the client can
+tell. To export every row of a large result, browse the table, or add an
+`OFFSET` and export in parts. The same applies to one statement of a
+multi-statement script, and to any query inside an open transaction.
 
 Copying to the clipboard always takes the rows in the grid.
+
+**Safe for Spreadsheets.** A text value that starts with `=`, `+`, `-` or `@`
+is a formula to Excel, LibreOffice and Google Sheets, and opening the file can
+run it. Turn on **Safe for Spreadsheets** at the bottom of the **Export** menu
+and pgNimbus puts a `'` in front of those values in CSV files and in copied
+cells (TSV and CSV), so the spreadsheet shows them as text. Numbers are left
+alone, negative ones included. The option is off by default, because the `'`
+is a change to the data for any program that isn't a spreadsheet, and
+pgNimbus remembers your choice.
+
+Import reads files up to 512 MB, with at most 1,000,000 rows and 1,000
+columns. A bigger file stops with a message that says which limit it passed;
+split it, or load it with psql's `\copy`.
 
 ## Next
 

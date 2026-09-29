@@ -24,6 +24,24 @@ public sealed partial class QueryViewModel : ObservableObject
     /// </summary>
     public const int MaxDisplayRows = 100_000;
 
+    /// <summary>
+    /// Ceiling on what those rows may weigh, estimated per row as batches arrive
+    /// (<see cref="ResultBudget.EstimateRow"/>). Rows were the only bound, and a row
+    /// can be anything: <c>SELECT *</c> over the telemetry demo's 37 KB jsonb cells is
+    /// several GB at <see cref="MaxDisplayRows"/>, one <c>repeat('x', 500000000)</c> a
+    /// gigabyte (security audit 2026-09, finding 16). Past it the query stops and is
+    /// cancelled the way the row cap is. A script's sections share one budget of both.
+    /// </summary>
+    public const long MaxDisplayBytes = 256L * 1024 * 1024;
+
+    /// <summary>
+    /// The most columns the results grid builds. A result can claim 1,664 columns
+    /// (a hostile server 65,535), and the grid realizes a column object, a header and
+    /// a cell per row for each. Rows still hold every value; copy, export and the
+    /// cell inspector see all of them.
+    /// </summary>
+    public const int MaxGridColumns = 1_000;
+
     private readonly QueryEngine _engine;
     private readonly ExplainService _explainService;
 
@@ -372,7 +390,75 @@ public sealed partial class QueryViewModel : ObservableObject
     /// <summary>True once a run produced more than one statement result — drives the section strip.</summary>
     public bool IsScriptResult => ResultSections.Count > 1;
 
-    public ObservableCollection<string> ColumnNames { get; } = [];
+    /// <summary>
+    /// The result's column names. Filled with <see cref="ResettableCollection{T}.ReplaceAll"/>,
+    /// never an <c>Add</c> per column: the grid rebuilds its columns on every change.
+    /// </summary>
+    public ResettableCollection<string> ColumnNames { get; } = [];
+
+    /// <summary>"showing 1,000 of 5,000 columns" when the grid builds fewer columns than the result has; null otherwise.</summary>
+    public string? ColumnCapText => ColumnNames.Count > MaxGridColumns
+        ? $"showing {MaxGridColumns:N0} of {ColumnNames.Count:N0} columns"
+        : null;
+
+    /// <summary>What the status bar's warning segment shows: the row or byte cap, the column cap, or both.</summary>
+    public string? CapStatusText => (CapText, ColumnCapText) switch
+    {
+        (null, null) => null,
+        ({ } rows, null) => rows,
+        (null, { } columns) => columns,
+        ({ } rows, { } columns) => $"{rows} · {columns}",
+    };
+
+    partial void OnCapTextChanged(string? value) => OnPropertyChanged(nameof(CapStatusText));
+
+    /// <summary>The status-bar text for a result a cap cut short.</summary>
+    public static string? CapTextFor(ResultCap cap) => cap switch
+    {
+        ResultCap.None => null,
+        ResultCap.Rows => $"capped at {MaxDisplayRows:N0} rows — refine the query for the full set",
+        ResultCap.Bytes => $"capped at {MaxDisplayBytes / (1024 * 1024):N0} MB of results, refine the query for the full set",
+        _ => $"later rows not kept: the script's results reached {MaxDisplayRows:N0} rows or {MaxDisplayBytes / (1024 * 1024):N0} MB",
+    };
+
+    /// <summary>
+    /// Adds each batch's rows to <paramref name="into"/> until <paramref name="budget"/>
+    /// refuses one, then stops enumerating, which makes the engine cancel the rest of
+    /// the query rather than drain it (<c>QueryEngine.StreamBatches</c>). Returns which
+    /// limit stopped it, or <see cref="ResultCap.None"/> for a result read to the end.
+    /// <paramref name="afterBatch"/> runs after each batch's rows are in, the last
+    /// (partial) one included. Public for the tests, which feed it batches from memory.
+    /// </summary>
+    public static async Task<ResultCap> CollectRowsAsync(
+        IAsyncEnumerable<RowBatch> batches,
+        List<object?[]> into,
+        ResultBudget budget,
+        Func<Task> afterBatch,
+        CancellationToken ct)
+    {
+        await foreach (var batch in batches.WithCancellation(ct))
+        {
+            var exhausted = false;
+            foreach (var row in batch.Rows)
+            {
+                if (!budget.TryTake(ResultBudget.EstimateRow(row)))
+                {
+                    exhausted = true;
+                    break;
+                }
+
+                into.Add(row);
+            }
+
+            await afterBatch();
+            if (exhausted)
+            {
+                return budget.Exhausted;
+            }
+        }
+
+        return ResultCap.None;
+    }
 
     /// <summary>
     /// Results-grid column widths the user dragged, by column name — the tab's
@@ -529,15 +615,47 @@ public sealed partial class QueryViewModel : ObservableObject
             ShownBrowse = null;
         }
 
-        if (shape is not null && _browsedTable is { } browsed && !HasError && Browse is null)
+        if (shape is null || _browsedTable is not { } browsed || HasError || Browse is not null)
         {
-            _applyingBrowseSql = true;
-            Browse = TableBrowseViewModel.FromParsed(browsed.Schema, browsed.Name, browsed.Columns, shape, Rows.Count, RunBrowseSqlAsync);
-            Browse.AlwaysShowBar = _showFilterBar?.Invoke() ?? false;
-            _applyingBrowseSql = false;
-            EstablishBrowseEditContext();
+            return;
         }
+
+        if (!EditableResultDetector.ReadsOnlyTable(_columns, _browsedTableOid))
+        {
+            // The text has the browse shape but the rows didn't come from the
+            // browsed table: `FROM orders` in a tab browsing sales.orders
+            // resolves along search_path, and may find public.orders. Resuming
+            // browse mode here used to hand out an edit context for sales.orders
+            // over public.orders' rows, so an inline edit updated sales.orders
+            // by the other table's keys (security audit 2026-09, finding 14).
+            // It is an ordinary query, and a read-only one: whoever edits these
+            // rows believes they are editing the table this tab browsed.
+            ShownBrowse = null;
+            EditContext = null;
+            ReadOnlyHint = OtherTableHint(browsed.Schema, browsed.Name);
+            Status = $"This query doesn't read {browsed.Schema}.{browsed.Name}, the table this tab browsed, so it ran as an ordinary query: no filters, no editing.";
+            return;
+        }
+
+        _applyingBrowseSql = true;
+        Browse = TableBrowseViewModel.FromParsed(browsed.Schema, browsed.Name, browsed.Columns, shape, Rows.Count, RunBrowseSqlAsync);
+        Browse.AlwaysShowBar = _showFilterBar?.Invoke() ?? false;
+        _applyingBrowseSql = false;
+        EstablishBrowseEditContext();
     }
+
+    // Completes "Results are read-only: …" for a browse-shaped query whose rows
+    // came from somewhere other than the browsed table (or from a table nobody
+    // could confirm was it).
+    private static string OtherTableHint(string schema, string name) =>
+        $"the query doesn't read {schema}.{name}, the table this tab browsed. Write {schema}.{name} in full to browse and edit it.";
+
+    // The browsed table's pg_class OID, 0 while unknown. Learned from the
+    // browse page's own result (its composed query names the table in full,
+    // so the OID its columns carry is the table's) or, for a tab restored from
+    // the workspace, looked up by exact name. Only a result whose every column
+    // carries this OID resumes browse mode or gets the browse edit context.
+    private uint _browsedTableOid;
 
     // The table this tab was opened to browse, kept after a hand edit ends
     // browse mode so a run of an edited page query can resume it. Null for a
@@ -580,6 +698,11 @@ public sealed partial class QueryViewModel : ObservableObject
             if (columns.Count > 0)
             {
                 RememberBrowsedTable(schema, name, columns);
+
+                // No page of this table has run in this session, so its OID
+                // comes from the catalog, by exact name: a query naming it bare
+                // must still prove its rows came from this table.
+                _browsedTableOid = await _schemaService.GetRelationOidAsync(schema, name, CancellationToken.None) ?? 0;
             }
         }
         catch
@@ -595,6 +718,7 @@ public sealed partial class QueryViewModel : ObservableObject
         _browseColumns = columns;
         _browsePkColumns = columns.Where(c => c.IsPrimaryKey).Select(c => c.Name).ToList();
         _browsedTable = (schema, name, columns);
+        _browsedTableOid = 0;
     }
 
     // The status bar's "always show the filter bar" preference, read when a
@@ -644,7 +768,7 @@ public sealed partial class QueryViewModel : ObservableObject
         TimingText = null;
         CapText = null;
         IsShowingPlan = false;
-        ColumnNames.Clear();
+        SetColumnNames([]);
         Rows = [];
         _columns = [];
         _resultSql = null;
@@ -685,11 +809,8 @@ public sealed partial class QueryViewModel : ObservableObject
 
             // Ask for one row past the cap: receiving it proves the result was
             // actually cut short, so an exactly-at-the-cap result isn't
-            // mislabeled as truncated. allowTextFallback is this tab vouching
-            // that the SQL is app-composed (a browse-mode page, side-effect-free
-            // by construction); hand-written SQL doesn't vouch, and the engine
-            // decides for itself whether re-executing it is provably harmless.
-            var result = await _engine.ExecuteAsync(executedSql, ct, MaxDisplayRows + 1, allowTextFallback: IsBrowsing);
+            // mislabeled as truncated.
+            var result = await _engine.ExecuteAsync(executedSql, ct, MaxDisplayRows + 1, maxBytes: MaxDisplayBytes);
             if (result is ResultSet or MaterializedResultSet)
             {
                 _resultSql = executedSql;
@@ -699,14 +820,11 @@ public sealed partial class QueryViewModel : ObservableObject
             {
                 case ResultSet resultSet:
                     _columns = resultSet.Columns;
-                    foreach (var column in resultSet.Columns)
-                    {
-                        ColumnNames.Add(column.Name);
-                    }
+                    SetColumnNames(resultSet.Columns.Select(c => c.Name));
 
                     var allRows = new List<object?[]>();
                     var firstByteMs = -1L;
-                    var truncated = false;
+                    var cap = ResultCap.None;
 
                     // Read and materialize batches on a background thread. NpgsqlDataReader.ReadAsync
                     // frequently completes synchronously once data is already buffered, so consuming
@@ -726,23 +844,18 @@ public sealed partial class QueryViewModel : ObservableObject
                             var firstScreenShown = false;
                             var lastStatusMs = 0L;
 
-                            await foreach (var batch in resultSet.Batches.WithCancellation(ct))
+                            // The engine streams at most MaxDisplayRows + 1 rows; the
+                            // budget holds MaxDisplayRows, so the sentinel row past the
+                            // cap is refused (ResultCap.Rows), as is the first row that
+                            // would take the estimate past MaxDisplayBytes.
+                            var budget = new ResultBudget(MaxDisplayRows, MaxDisplayBytes);
+                            cap = await CollectRowsAsync(resultSet.Batches, allRows, budget, async () =>
                             {
                                 if (firstByteMs < 0)
                                 {
                                     firstByteMs = stopwatch.ElapsedMilliseconds;
                                 }
 
-                                // The engine streams at most MaxDisplayRows + 1 rows;
-                                // the sentinel row past the cap is dropped, not shown.
-                                var rows = batch.Rows;
-                                if (allRows.Count + rows.Count > MaxDisplayRows)
-                                {
-                                    rows = rows.Take(MaxDisplayRows - allRows.Count).ToList();
-                                    truncated = true;
-                                }
-
-                                allRows.AddRange(rows);
                                 var rowText = RowLabel(allRows.Count);
                                 var timeText = $"{resultSet.Elapsed.TotalMilliseconds:F0} ms · first byte {firstByteMs} ms";
 
@@ -766,7 +879,7 @@ public sealed partial class QueryViewModel : ObservableObject
                                         TimingText = timeText;
                                     });
                                 }
-                            }
+                            }, ct);
                         }, ct);
                     }
                     finally
@@ -780,9 +893,7 @@ public sealed partial class QueryViewModel : ObservableObject
                     Status = "Done";
                     RowCountText = RowLabel(allRows.Count);
                     TimingText = $"{stopwatch.Elapsed.TotalMilliseconds:F0} ms · first byte {firstByteMs} ms";
-                    CapText = truncated
-                        ? $"capped at {MaxDisplayRows:N0} rows — refine the query for the full set"
-                        : null;
+                    CapText = CapTextFor(cap);
                     ReapplyPendingEditsToGrid();
                     break;
 
@@ -791,10 +902,7 @@ public sealed partial class QueryViewModel : ObservableObject
                     // transaction (see QueryEngine): no streaming, the rows are
                     // already in memory. Mirror the streaming path's cap handling.
                     _columns = materialized.Columns;
-                    foreach (var column in materialized.Columns)
-                    {
-                        ColumnNames.Add(column.Name);
-                    }
+                    SetColumnNames(materialized.Columns.Select(c => c.Name));
 
                     var overCap = materialized.Truncated || materialized.Rows.Count > MaxDisplayRows;
                     var shown = overCap
@@ -806,7 +914,7 @@ public sealed partial class QueryViewModel : ObservableObject
                     RowCountText = RowLabel(shown.Count);
                     TimingText = $"{materialized.Elapsed.TotalMilliseconds:F0} ms";
                     CapText = overCap
-                        ? $"capped at {MaxDisplayRows:N0} rows — refine the query for the full set"
+                        ? CapTextFor(materialized.CappedBy == ResultCap.None ? ResultCap.Rows : materialized.CappedBy)
                         : null;
                     ReapplyPendingEditsToGrid();
                     break;
@@ -839,7 +947,7 @@ public sealed partial class QueryViewModel : ObservableObject
             // metadata it already holds.
             else if (result is ResultSet or MaterializedResultSet && Browse is null)
             {
-                await TryEnableEditingForQueryAsync(ct);
+                await TryEnableEditingForQueryAsync(executedSql, ct);
             }
 
             Executed?.Invoke(new QueryHistoryEntry(executedSql, DateTimeOffset.UtcNow, stopwatch.Elapsed.TotalMilliseconds, StatusSummary()));
@@ -878,7 +986,10 @@ public sealed partial class QueryViewModel : ObservableObject
 
         await Task.Run(async () =>
         {
-            await foreach (var result in _engine.ExecuteScriptAsync(statements, MaxDisplayRows, ct).WithCancellation(ct))
+            // One budget for every section: a script of ten big SELECTs used to keep
+            // ten results' worth of rows (audit finding 16).
+            var budget = new ResultBudget(MaxDisplayRows, MaxDisplayBytes);
+            await foreach (var result in _engine.ExecuteScriptAsync(statements, MaxDisplayRows, ct, budget).WithCancellation(ct))
             {
                 index++;
                 var section = ScriptResultViewModel.From(index, statements[index - 1], result);
@@ -959,6 +1070,13 @@ public sealed partial class QueryViewModel : ObservableObject
 
     partial void OnFixSuggestionSqlChanged(string? value) => ApplyFixCommand.NotifyCanExecuteChanged();
 
+    private void SetColumnNames(IEnumerable<string> names)
+    {
+        ColumnNames.ReplaceAll(names);
+        OnPropertyChanged(nameof(ColumnCapText));
+        OnPropertyChanged(nameof(CapStatusText));
+    }
+
     // Selecting a script section re-points the shared grid and status-bar
     // segments at that statement's materialized result.
     partial void OnSelectedSectionChanged(ScriptResultViewModel? value)
@@ -969,11 +1087,7 @@ public sealed partial class QueryViewModel : ObservableObject
         }
 
         _columns = value.Columns;
-        ColumnNames.Clear();
-        foreach (var name in value.ColumnNames)
-        {
-            ColumnNames.Add(name);
-        }
+        SetColumnNames(value.ColumnNames);
 
         Rows = value.Rows;
         Status = value.StatusText;
@@ -1024,11 +1138,7 @@ public sealed partial class QueryViewModel : ObservableObject
         _resultSql = executedSql;
         CapText = capText;
         _columns = columns;
-        ColumnNames.Clear();
-        foreach (var column in columns)
-        {
-            ColumnNames.Add(column.Name);
-        }
+        SetColumnNames(columns.Select(c => c.Name));
 
         Rows = new AvaloniaList<object?[]>(rows);
         Status = status;
@@ -1205,7 +1315,13 @@ public sealed partial class QueryViewModel : ObservableObject
             ? SqlScriptSplitter.StatementAt(Sql, CaretOffset) ?? Sql
             : SelectedSql;
 
-        return SqlStatementInspector.StripExplain(candidate);
+        // A selection may hold several statements, and EXPLAIN plans only the
+        // first while the server runs them all (security audit 2026-09, finding
+        // 3: an explain of `SELECT 1; CREATE TABLE …` created the table). The
+        // service refuses that too; refusing here first keeps the message on
+        // the status line rather than in an exception, and unwraps a
+        // hand-written EXPLAIN only once the text is known to be one statement.
+        return SqlStatementInspector.StripExplain(ExplainService.SingleStatement(candidate));
     }
 
     private async Task RunExplainAsync(bool analyze)
@@ -1455,6 +1571,15 @@ public sealed partial class QueryViewModel : ObservableObject
         _applyingBrowseSql = false;
 
         await RunCommand.ExecuteAsync(null);
+
+        // The composed page names its table in full, so the OID its columns
+        // carry is the browsed table's: what a later hand-edited page query
+        // has to match before it may resume browse mode.
+        if (!HasError && EditableResultDetector.CheckSingleTable(_columns, out var oid) == EditBlocker.None)
+        {
+            _browsedTableOid = oid;
+        }
+
         EstablishBrowseEditContext();
         return Rows.Count;
     }
@@ -1465,12 +1590,25 @@ public sealed partial class QueryViewModel : ObservableObject
     /// Turns editing off on a result already on screen once the owner learns
     /// the connection can't write. The server's answer arrives a moment after
     /// the window opens, and a tab can have run in between.
+    /// <paramref name="previousHint"/> is the connection's reason before this
+    /// change: a result already read-only for that reason takes the new
+    /// wording (a read-only profile the server turned out not to enforce must
+    /// not keep saying "the server refuses writes").
     /// </summary>
-    public void ApplyConnectionReadOnly()
+    public void ApplyConnectionReadOnly(string? previousHint = null)
     {
-        if (_connectionReadOnlyHint?.Invoke() is { } readOnly && EditContext is not null)
+        if (_connectionReadOnlyHint?.Invoke() is not { } readOnly)
+        {
+            return;
+        }
+
+        if (EditContext is not null)
         {
             EditContext = null;
+            ReadOnlyHint = readOnly;
+        }
+        else if (previousHint is not null && ReadOnlyHint == previousHint)
+        {
             ReadOnlyHint = readOnly;
         }
     }
@@ -1480,6 +1618,16 @@ public sealed partial class QueryViewModel : ObservableObject
         if (_connectionReadOnlyHint?.Invoke() is { } readOnly)
         {
             ReadOnlyHint = readOnly;
+        }
+        else if (!EditableResultDetector.ReadsOnlyTable(_columns, _browsedTableOid))
+        {
+            // No rows from the browsed table on screen (the page failed), or rows
+            // from another one: an edit context names the browsed table, so it
+            // is only handed out over that table's own rows.
+            if (!HasError && _columns.Count > 0 && Browse is { } other)
+            {
+                ReadOnlyHint = OtherTableHint(other.Schema, other.Name);
+            }
         }
         else if (_browsePkColumns is { Count: > 0 } pk && Browse is { } browse)
         {
@@ -1542,7 +1690,7 @@ public sealed partial class QueryViewModel : ObservableObject
     /// <see cref="ReadOnlyHint"/> instead, so the status bar can say *why*
     /// instead of the grid silently ignoring edit gestures.
     /// </summary>
-    private async Task TryEnableEditingForQueryAsync(CancellationToken ct)
+    private async Task TryEnableEditingForQueryAsync(string executedSql, CancellationToken ct)
     {
         if (_schemaService is null)
         {
@@ -1558,6 +1706,14 @@ public sealed partial class QueryViewModel : ObservableObject
         if (EditableResultDetector.CheckSingleTable(_columns, out var tableOid) is not EditBlocker.None and var columnsBlocker)
         {
             ReadOnlyHint = ReadOnlyHintFor(columnsBlocker, table: null);
+            return;
+        }
+
+        // The metadata can't tell a self-join from a plain read: both sides
+        // carry the one table's OID. The text can.
+        if (EditableResultDetector.CheckRepeatedTable(executedSql) is not EditBlocker.None and var sourcesBlocker)
+        {
+            ReadOnlyHint = ReadOnlyHintFor(sourcesBlocker, table: null);
             return;
         }
 
@@ -1603,6 +1759,7 @@ public sealed partial class QueryViewModel : ObservableObject
         EditBlocker.NoPrimaryKey => $"{TableName(table)} has no primary key, so rows can't be targeted exactly.",
         EditBlocker.PrimaryKeyNotSelected => $"the primary key of {TableName(table)} isn't in the result — include it to edit.",
         EditBlocker.UnreadableKey => UnreadableKeyHint(table is null ? null : $"{table.Schema}.{table.Name}", key: null),
+        EditBlocker.RepeatedTable => "the query reads the same table more than once (a self-join), so an edit could change a different row than the one it shows.",
         _ => "this result set can't be mapped back to a table.",
     };
 
@@ -1995,11 +2152,18 @@ public sealed partial class QueryViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Deletes the given rows from the mapped table, one targeted
-    /// primary-key-keyed DELETE each. In browse mode the page is reloaded
-    /// afterward (so paging/counts stay correct and the page refills from the
-    /// server); otherwise the rows are dropped from the grid in place. Returns
-    /// how many rows were deleted.
+    /// Deletes the given rows from the mapped table as one atomic batch — a
+    /// primary-key-keyed DELETE per row, each checked for exactly one row
+    /// affected, run through <see cref="QueryEngine.ApplyBatchAsync(IReadOnlyList{ParameterizedStatement}, CancellationToken)"/>'s
+    /// own transaction. Before this, each row ran its own autocommit DELETE, so
+    /// a failure partway through (a blocking trigger, a lost connection) left
+    /// whatever had already committed deleted and the rest untouched (security
+    /// audit 2026-09, finding 6) — the status message even said so ("Delete
+    /// failed after N row(s)"). Now it is all-or-nothing: either every row goes
+    /// or none does. In browse mode the page is reloaded afterward either way
+    /// (so paging/counts stay correct and reflect the server, whether the
+    /// delete landed or not); otherwise the rows are dropped from the grid in
+    /// place, only on success. Returns how many rows were deleted.
     /// </summary>
     public async Task<int> DeleteRowsAsync(IReadOnlyList<object?[]> rows)
     {
@@ -2032,21 +2196,25 @@ public sealed partial class QueryViewModel : ObservableObject
 
         var sql = $"DELETE FROM {SqlIdentifier.Quote(context.Schema)}.{SqlIdentifier.Quote(context.Table)} WHERE {whereClause}";
 
+        var statements = rows.Select(row =>
+        {
+            var parameters = new Dictionary<string, object?>();
+            for (var n = 0; n < pkIndexes.Count; n++)
+            {
+                parameters[$"pk{n}"] = row[pkIndexes[n]];
+            }
+
+            return new ParameterizedStatement(sql, parameters, ExpectedRowsAffected: 1);
+        }).ToList();
+
         var deleted = 0;
         try
         {
-            foreach (var row in rows)
+            deleted = await _engine.ApplyBatchAsync(statements, CancellationToken.None);
+
+            if (Browse is null)
             {
-                var parameters = new Dictionary<string, object?>();
-                for (var n = 0; n < pkIndexes.Count; n++)
-                {
-                    parameters[$"pk{n}"] = row[pkIndexes[n]];
-                }
-
-                await _engine.ExecuteNonQueryAsync(sql, parameters, CancellationToken.None);
-                deleted++;
-
-                if (Browse is null)
+                foreach (var row in rows)
                 {
                     Rows.Remove(row);
                 }
@@ -2056,9 +2224,8 @@ public sealed partial class QueryViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            Status = deleted == 0
-                ? $"Delete failed: {ex.Message}"
-                : $"Delete failed after {deleted:N0} row(s): {ex.Message}";
+            deleted = 0;
+            Status = $"Delete failed, nothing deleted: {ex.Message}";
             HasError = true;
         }
 
@@ -2387,7 +2554,9 @@ public sealed partial class QueryViewModel : ObservableObject
     private static string? CastTypeFor(ColumnDetail? column) =>
         column?.Editor is ColumnValueEditor.Enum or ColumnValueEditor.Array or ColumnValueEditor.Composite
             or ColumnValueEditor.Json or ColumnValueEditor.CastText
-            ? column.DataType
+            // Qualified outside pg_catalog, so a schema created after the tab
+            // read the columns can't shadow the type (audit 2026-09, finding 18).
+            ? column.CastTargetType
             : null;
 
     // The row as the user sees it right now, limited to real columns of the
@@ -2538,51 +2707,47 @@ public sealed partial class QueryViewModel : ObservableObject
     }
 
     /// <summary>Where an export's rows come from; see <see cref="ChooseExportSource"/>.</summary>
-    /// <param name="Sql">The query to run again for every row, or null to write the rows the grid holds.</param>
-    /// <param name="Vouched">The SQL is app-composed (a browse query), so it's safe to run twice by construction.</param>
+    /// <param name="Sql">The browse query to run again for every row, or null to write the rows the grid holds.</param>
     /// <param name="Shortfall">Why the grid's rows are all an export can write although there are more; null when nothing is missing.</param>
-    public sealed record ExportSource(string? Sql, bool Vouched, string? Shortfall);
+    public sealed record ExportSource(string? Sql, string? Shortfall);
 
     /// <summary>
     /// Decides what an export writes. When the grid holds the whole result it is
-    /// written as is; no second round trip. When it doesn't (a browse page, or a
-    /// query cut off at <see cref="MaxDisplayRows"/>), the statement runs again
-    /// with no limit and streams to the file. A browse query is ours and safe to
-    /// run twice; a hand-written one must pass
-    /// <see cref="SqlStatementInspector.IsSafeToReExecute"/>, the same guard the
-    /// engine's text fallback uses, because running an <c>INSERT … RETURNING</c>
-    /// again to export it would insert its rows twice. Where the rest can't be
-    /// read, the export still writes what's shown and <see cref="ExportSource.Shortfall"/>
-    /// says so, rather than letting a partial file pass for a complete one.
+    /// written as is; no second round trip. When it doesn't, only a browse page
+    /// query is run again with no limit and streamed to the file: it is ours, a
+    /// plain <c>SELECT</c> of one table, and safe to run twice by construction. A
+    /// hand-written query is never run again, whatever it looks like (2026-09
+    /// security audit, finding 1): a <c>SELECT</c> of a function that writes reads
+    /// as harmless and is not, and no lexical check can tell the two apart. Where
+    /// the rest can't be read, the export still writes what's shown and
+    /// <see cref="ExportSource.Shortfall"/> says so, rather than letting a partial
+    /// file pass for a complete one.
     /// </summary>
     public ExportSource ChooseExportSource()
     {
         if (SelectedSection is { } section)
         {
-            return new ExportSource(null, false, section.CapText is null
+            return new ExportSource(null, section.CapText is null
                 ? null
                 : "a statement from a script can't be run again on its own.");
         }
 
         string? sql;
-        bool vouched;
         bool complete;
         if (ShownBrowse is { } browse)
         {
             sql = browse.BuildExportSql();
-            vouched = true;
             complete = browse.Offset == 0 && !browse.CanGoNext;
         }
         else
         {
-            sql = _resultSql;
-            vouched = false;
+            sql = null;
             complete = CapText is null;
         }
 
         if (complete)
         {
-            return new ExportSource(null, false, null);
+            return new ExportSource(null, null);
         }
 
         // Inside a transaction the engine reads everything into memory (see
@@ -2591,15 +2756,15 @@ public sealed partial class QueryViewModel : ObservableObject
         // transaction's own uncommitted rows.
         if (_engine.IsInTransaction)
         {
-            return new ExportSource(null, false, "inside a transaction the rest can't be read. Commit or roll back, then export again.");
+            return new ExportSource(null, "inside a transaction the rest can't be read. Commit or roll back, then export again.");
         }
 
-        if (sql is null || !(vouched || SqlStatementInspector.IsSafeToReExecute(sql)))
+        if (sql is null)
         {
-            return new ExportSource(null, false, "the query might change data, so it wasn't run again for the rest.");
+            return new ExportSource(null, "a query you wrote isn't run again for the rest. Browse the table to export every row.");
         }
 
-        return new ExportSource(sql, vouched, null);
+        return new ExportSource(sql, null);
     }
 
     /// <summary>
@@ -2612,7 +2777,8 @@ public sealed partial class QueryViewModel : ObservableObject
     /// True when the file is complete; false when the export was cancelled or
     /// failed, and the caller should delete the partial file.
     /// </returns>
-    public async Task<bool> ExportAsync(ExportFormat format, Stream destination, string fileName)
+    /// <param name="spreadsheetSafe">CSV only: neutralize text cells a spreadsheet would run as a formula (<see cref="ResultExporter.NeutralizeFormula"/>).</param>
+    public async Task<bool> ExportAsync(ExportFormat format, Stream destination, string fileName, bool spreadsheetSafe = false)
     {
         if (IsRunning)
         {
@@ -2640,7 +2806,7 @@ public sealed partial class QueryViewModel : ObservableObject
 
             if (source.Sql is { } sql)
             {
-                switch (await _engine.ExecuteAsync(sql, ct, maxRows: null, allowTextFallback: source.Vouched))
+                switch (await _engine.ExecuteAsync(sql, ct, maxRows: null))
                 {
                     case ResultSet set:
                         columns = [.. set.Columns.Select(c => c.Name)];
@@ -2679,7 +2845,7 @@ public sealed partial class QueryViewModel : ObservableObject
                         }
                     });
                 }
-            }, ct));
+            }, ct, spreadsheetSafe));
 
             Status = source.Shortfall is { } shortfall
                 ? $"Exported only the {RowLabel(written)} shown to {fileName}: {shortfall}"
@@ -2727,8 +2893,10 @@ public sealed partial class QueryViewModel : ObservableObject
     /// Renders the given rows (or the whole result set when <paramref name="selectedRows"/> is empty) in
     /// <paramref name="format"/> for the clipboard. Returns null when there's nothing to copy. INSERT statements
     /// target the edited table when the result set maps to one, otherwise a <c>table_name</c> placeholder.
+    /// <paramref name="spreadsheetSafe"/> applies to the TSV and CSV shapes, the two a spreadsheet takes a
+    /// paste of (<see cref="ResultExporter.NeutralizeFormula"/>).
     /// </summary>
-    public string? CopyRows(CopyFormat format, IReadOnlyList<object?[]> selectedRows)
+    public string? CopyRows(CopyFormat format, IReadOnlyList<object?[]> selectedRows, bool spreadsheetSafe = false)
     {
         var rows = selectedRows.Count > 0 ? selectedRows : (IReadOnlyList<object?[]>)Rows;
         if (rows.Count == 0 || ColumnNames.Count == 0)
@@ -2740,10 +2908,10 @@ public sealed partial class QueryViewModel : ObservableObject
         switch (format)
         {
             case CopyFormat.Tsv:
-                ResultExporter.WriteTsv(writer, ColumnNames, rows);
+                ResultExporter.WriteTsv(writer, ColumnNames, rows, spreadsheetSafe);
                 break;
             case CopyFormat.Csv:
-                ResultExporter.WriteCsv(writer, ColumnNames, rows);
+                ResultExporter.WriteCsv(writer, ColumnNames, rows, spreadsheetSafe);
                 break;
             case CopyFormat.Markdown:
                 ResultExporter.WriteMarkdown(writer, ColumnNames, rows);

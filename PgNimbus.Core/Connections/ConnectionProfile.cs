@@ -1,8 +1,15 @@
+using System.Net.Security;
 using System.Text.Json.Serialization;
 using Npgsql;
 
 namespace PgNimbus.Core.Connections;
 
+/// <summary>
+/// Persisted in connections.json as its number, so members are only ever
+/// appended: renumbering would silently change every saved profile's mode.
+/// The zero value is <see cref="Disable"/>, which is why the profile's
+/// parameter carries <see cref="Require"/> as its default instead.
+/// </summary>
 public enum SslMode
 {
     Disable,
@@ -39,6 +46,17 @@ internal static class SslModeExtensions
 /// <c>SET default_transaction_read_only = off</c>. A role without write
 /// privileges is the way to make writes impossible.
 /// </param>
+/// <param name="SslMode">
+/// Defaults to <see cref="SslMode.Require"/> rather than the enum's zero value
+/// (<see cref="SslMode.Disable"/>): the source-generated reader fills a field
+/// missing from a hand-edited connections.json with this default, and a
+/// profile that silently went plaintext-only is the worse failure.
+/// </param>
+/// <param name="RootCertificatePath">
+/// A CA certificate file (PEM or DER) to trust for this connection instead of
+/// the OS store: the provider bundles that RDS, Cloud SQL and Supabase publish,
+/// which no OS trusts. Only the verifying modes read it. A path, not a secret.
+/// </param>
 public sealed record ConnectionProfile(
     Guid Id,
     string Name,
@@ -46,10 +64,11 @@ public sealed record ConnectionProfile(
     int Port,
     string Database,
     string Username,
-    SslMode SslMode,
+    SslMode SslMode = SslMode.Require,
     string? AccentColor = null,
     SshTunnelOptions? SshTunnel = null,
-    bool ReadOnly = false)
+    bool ReadOnly = false,
+    string? RootCertificatePath = null)
 {
     public const int DefaultPort = 5432;
 
@@ -59,6 +78,54 @@ public sealed record ConnectionProfile(
     /// uses (<c>DISCARD ALL</c>) restores it rather than clearing it.
     /// </summary>
     public const string ReadOnlySessionOption = "-c default_transaction_read_only=on";
+
+    /// <summary>
+    /// The startup option every profile connects with. The app composes SQL
+    /// from values it inlines as <c>'…'</c> literals — browse filters, the FK
+    /// hop's seed, a role's comment and expiry — escaping only the quote, which
+    /// is the whole of what a standard string needs. With
+    /// <c>standard_conforming_strings</c> off (a database owner can
+    /// <c>ALTER DATABASE … SET</c> it, so can a role's settings) a backslash
+    /// escapes too, and a stored value such as <c>x\' OR … --</c> would run
+    /// as SQL the moment someone filtered by it. A startup option overrides
+    /// the database's and the role's defaults, and the pool's reset restores
+    /// it, so every session the app holds parses literals the one way
+    /// <see cref="Query.SqlLiteral"/>, the lexer and the script splitter read
+    /// them (security audit 2026-09, finding 13).
+    /// </summary>
+    public const string StandardStringsSessionOption = "-c standard_conforming_strings=on";
+
+    /// <summary>
+    /// The <c>Options</c> value for a session: the standard-strings option
+    /// always, preceded by <see cref="ReadOnlySessionOption"/> when
+    /// <paramref name="readOnly"/>. Space-separated, as libpq's <c>options</c>
+    /// takes several <c>-c</c> switches.
+    /// </summary>
+    public static string SessionOptions(bool readOnly) =>
+        readOnly ? $"{ReadOnlySessionOption} {StandardStringsSessionOption}" : StandardStringsSessionOption;
+
+    /// <summary>
+    /// <paramref name="connectionString"/> with <see cref="StandardStringsSessionOption"/>
+    /// appended to its <c>Options</c> — for the connection strings that do not
+    /// come from a profile (<c>PGNIMBUS_CONN</c>), so those sessions parse
+    /// literals the same way. Appended even when the string already names the
+    /// setting: the server applies <c>-c</c> switches in order, so the last one
+    /// wins, and a string carrying <c>=off</c> must not keep it. Only a string
+    /// that already ends with the option is returned as it is.
+    /// </summary>
+    public static string WithStandardStrings(string connectionString)
+    {
+        var builder = new NpgsqlConnectionStringBuilder(connectionString);
+        if (builder.Options?.TrimEnd().EndsWith(StandardStringsSessionOption, StringComparison.Ordinal) == true)
+        {
+            return connectionString;
+        }
+
+        builder.Options = string.IsNullOrWhiteSpace(builder.Options)
+            ? StandardStringsSessionOption
+            : $"{builder.Options} {StandardStringsSessionOption}";
+        return builder.ConnectionString;
+    }
 
     /// <summary>
     /// One-line "who and where" for the connection list —
@@ -98,11 +165,54 @@ public sealed record ConnectionProfile(
             ApplicationName = "pgNimbus",
         };
 
-        if (ReadOnly)
+        builder.Options = SessionOptions(ReadOnly);
+
+        if (UsesRootCertificate)
         {
-            builder.Options = ReadOnlySessionOption;
+            builder.RootCertificate = RootCertificatePath;
         }
 
         return builder.ConnectionString;
     }
+
+    /// <summary>
+    /// True when <see cref="RootCertificatePath"/> is set and the mode reads it.
+    /// Npgsql ignores a root certificate under Prefer and Require (they check
+    /// nothing), so it is not written there: a connection string naming a CA
+    /// would read as if the server were being checked against it.
+    /// </summary>
+    [JsonIgnore]
+    public bool UsesRootCertificate =>
+        !string.IsNullOrWhiteSpace(RootCertificatePath) && SslMode is SslMode.VerifyCa or SslMode.VerifyFull;
+
+    /// <summary>
+    /// The pool a connect goes through. Through an SSH tunnel the socket goes to
+    /// <c>127.0.0.1:&lt;port&gt;</c>, and Npgsql would check the server
+    /// certificate's name against that address, so VerifyFull could never pass
+    /// there. The callback puts the profile's real host back as the TLS target
+    /// (the SNI sent and the name the certificate must carry); every other
+    /// setting is exactly <see cref="BuildConnectionString"/>'s.
+    /// </summary>
+    public NpgsqlDataSource CreateDataSource(string? password, (string Host, int Port)? endpointOverride = null, bool pooling = true)
+    {
+        var connectionString = BuildConnectionString(password, endpointOverride);
+        if (!pooling)
+        {
+            connectionString = new NpgsqlConnectionStringBuilder(connectionString) { Pooling = false }.ConnectionString;
+        }
+
+        var builder = new NpgsqlDataSourceBuilder(connectionString);
+        if (endpointOverride is not null)
+        {
+            builder.UseSslClientAuthenticationOptionsCallback(ApplyTunnelTargetHost);
+        }
+
+        return builder.Build();
+    }
+
+    /// <summary>
+    /// The TLS half of <see cref="CreateDataSource"/> for a tunnelled connection:
+    /// names the profile's own host as the handshake's target.
+    /// </summary>
+    public void ApplyTunnelTargetHost(SslClientAuthenticationOptions options) => options.TargetHost = Host;
 }

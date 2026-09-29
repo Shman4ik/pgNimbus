@@ -23,27 +23,60 @@ public enum ExportFormat
 /// </summary>
 public static class ResultExporter
 {
-    public static void WriteCsv(TextWriter writer, IReadOnlyList<string> columns, IEnumerable<object?[]> rows)
+    /// <param name="spreadsheetSafe">
+    /// Put a <c>'</c> in front of every text cell a spreadsheet would read as a
+    /// formula (see <see cref="NeutralizeFormula"/>). Off by default: the quote
+    /// is a change to the data for every other reader of the file.
+    /// </param>
+    public static void WriteCsv(TextWriter writer, IReadOnlyList<string> columns, IEnumerable<object?[]> rows, bool spreadsheetSafe = false)
     {
-        WriteCsvHeader(writer, columns);
+        WriteCsvHeader(writer, columns, spreadsheetSafe);
 
         foreach (var row in rows)
         {
-            WriteCsvRow(writer, row);
+            WriteCsvRow(writer, row, spreadsheetSafe);
         }
     }
 
-    private static void WriteCsvHeader(TextWriter writer, IReadOnlyList<string> columns)
+    private static void WriteCsvHeader(TextWriter writer, IReadOnlyList<string> columns, bool spreadsheetSafe)
     {
-        writer.Write(string.Join(',', columns.Select(EscapeCsvField)));
+        writer.Write(string.Join(',', columns.Select(c => EscapeCsvField(spreadsheetSafe ? NeutralizeFormula(c) : c))));
         writer.Write("\r\n");
     }
 
-    private static void WriteCsvRow(TextWriter writer, object?[] row)
+    private static void WriteCsvRow(TextWriter writer, object?[] row, bool spreadsheetSafe)
     {
-        writer.Write(string.Join(',', row.Select(v => EscapeCsvField(FormatCsvValue(v)))));
+        writer.Write(string.Join(',', row.Select(v => EscapeCsvField(FormatCell(v, spreadsheetSafe)))));
         writer.Write("\r\n");
     }
+
+    /// <summary>
+    /// The characters that make Excel, LibreOffice and Google Sheets read a cell
+    /// as a formula (or, for tab and carriage return, hide one behind them): the
+    /// "CSV injection" list OWASP gives.
+    /// </summary>
+    private static readonly char[] FormulaTriggers = ['=', '+', '-', '@', '\t', '\r'];
+
+    /// <summary>
+    /// <paramref name="text"/> with a <c>'</c> in front when it starts with a
+    /// character a spreadsheet would take as the start of a formula, so a value
+    /// such as <c>=HYPERLINK(…)</c> shows as text instead of running. Anything
+    /// else comes back unchanged.
+    /// </summary>
+    public static string NeutralizeFormula(string text) =>
+        text.Length > 0 && Array.IndexOf(FormulaTriggers, text[0]) >= 0 ? "'" + text : text;
+
+    // A cell's text for CSV/TSV. Numbers are never prefixed: a negative number
+    // starts with '-', and it is a number to the spreadsheet too, not a formula.
+    private static string FormatCell(object? value, bool spreadsheetSafe)
+    {
+        var text = FormatCsvValue(value);
+        return spreadsheetSafe && !IsNumber(value) ? NeutralizeFormula(text) : text;
+    }
+
+    private static bool IsNumber(object? value) =>
+        value is byte or sbyte or short or ushort or int or uint or long or ulong
+            or float or double or decimal or System.Numerics.BigInteger;
 
     /// <summary>
     /// Writes a result as it arrives, for exports too big to hold in memory: the
@@ -62,19 +95,20 @@ public static class ResultExporter
         IReadOnlyList<string> columns,
         IAsyncEnumerable<RowBatch> batches,
         Action<long>? progress,
-        CancellationToken ct)
+        CancellationToken ct,
+        bool spreadsheetSafe = false)
     {
         long written = 0;
 
         if (format == ExportFormat.Csv)
         {
             await using var csv = new StreamWriter(stream, leaveOpen: true);
-            WriteCsvHeader(csv, columns);
+            WriteCsvHeader(csv, columns, spreadsheetSafe);
             await foreach (var batch in batches.WithCancellation(ct))
             {
                 foreach (var row in batch.Rows)
                 {
-                    WriteCsvRow(csv, row);
+                    WriteCsvRow(csv, row, spreadsheetSafe);
                 }
 
                 written += batch.Rows.Count;
@@ -109,15 +143,17 @@ public static class ResultExporter
     /// <summary>
     /// Tab-separated rows with a header line — the spreadsheet-friendly shape for a plain clipboard copy.
     /// Tabs and newlines inside a value are collapsed to spaces so the row/column grid stays intact on paste.
+    /// <paramref name="spreadsheetSafe"/> is <see cref="WriteCsv"/>'s; the formula check reads the value before
+    /// its tabs are collapsed, so a leading tab still counts.
     /// </summary>
-    public static void WriteTsv(TextWriter writer, IReadOnlyList<string> columns, IEnumerable<object?[]> rows)
+    public static void WriteTsv(TextWriter writer, IReadOnlyList<string> columns, IEnumerable<object?[]> rows, bool spreadsheetSafe = false)
     {
-        writer.Write(string.Join('\t', columns.Select(SanitizeTsv)));
+        writer.Write(string.Join('\t', columns.Select(c => SanitizeTsv(spreadsheetSafe ? NeutralizeFormula(c) : c))));
         writer.Write('\n');
 
         foreach (var row in rows)
         {
-            writer.Write(string.Join('\t', row.Select(v => SanitizeTsv(FormatCsvValue(v)))));
+            writer.Write(string.Join('\t', row.Select(v => SanitizeTsv(FormatCell(v, spreadsheetSafe)))));
             writer.Write('\n');
         }
     }
@@ -231,7 +267,11 @@ public static class ResultExporter
     /// <summary>
     /// Render a CLR value as a SQL literal: NULL, unquoted numbers/booleans,
     /// single-quoted and <c>''</c>-escaped text, <c>\x…</c> bytea. Shared by the
-    /// INSERT exporter and FK-follow filter composition.
+    /// INSERT exporter and FK-follow filter composition — the latter is
+    /// executed, as the browse page's WHERE, so like <see cref="SqlLiteral"/>
+    /// this relies on every session forcing <c>standard_conforming_strings</c>
+    /// on (<see cref="Connections.ConnectionProfile.StandardStringsSessionOption"/>):
+    /// only then is the doubled quote the whole escape.
     /// </summary>
     public static string FormatSqlLiteral(object? value) => value switch
     {
@@ -240,7 +280,7 @@ public static class ResultExporter
         byte or sbyte or short or ushort or int or uint or long or ulong => Convert.ToString(value, CultureInfo.InvariantCulture) ?? "NULL",
         float or double or decimal => ((IFormattable)value).ToString(null, CultureInfo.InvariantCulture),
         byte[] bytes => $"'\\x{Convert.ToHexString(bytes)}'",
-        _ => $"'{FormatCsvValue(value).Replace("'", "''")}'",
+        _ => Query.SqlLiteral.Quote(FormatCsvValue(value)),
     };
 
     private static void WriteJsonValue(Utf8JsonWriter writer, object? value)

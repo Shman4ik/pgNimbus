@@ -315,4 +315,106 @@ public class GrantScriptBuilderTests
 
         await Assert.That(sql).Contains("""GRANT USAGE ON SCHEMA "Sales Archive" TO PUBLIC;""");
     }
+
+    [Test]
+    public async Task AFunctionIsGrantedAsARoutineByItsIdentityArguments()
+    {
+        // Security audit 2026-09, finding 18: the argument list is the identity
+        // form (no DEFAULT clause, which made the GRANT a syntax error), and
+        // ROUTINE covers a procedure, which ON FUNCTION refuses.
+        var function = new SecurableRef(SecurableKind.Function, 16500, "sales", "total", "a integer, b text");
+
+        var sql = GrantScriptBuilder.Build(
+        [
+            new PrivilegeChange(function, "app_rw", PrivilegeKind.Execute, Grant: true),
+            new PrivilegeChange(function, "app_ro", PrivilegeKind.Execute, Grant: false),
+        ]);
+
+        await Assert.That(N(sql)).IsEqualTo(N("""
+            REVOKE ALL PRIVILEGES ON ROUTINE sales.total(a integer, b text) FROM app_ro;
+            GRANT ALL PRIVILEGES ON ROUTINE sales.total(a integer, b text) TO app_rw;
+            """));
+    }
+
+    // --- Finding 12: a role named "PUBLIC" is a role, not the keyword --------
+
+    [Test]
+    [Arguments("PUBLIC")]
+    [Arguments("Public")]
+    public async Task ARoleNamedPublicIsQuotedAndNeverBecomesTheKeyword(string role)
+    {
+        var sql = GrantScriptBuilder.Build(
+        [
+            new PrivilegeChange(Table("sales", "orders"), role, PrivilegeKind.Select, Grant: true),
+            new PrivilegeChange(Table("sales", "orders"), role, PrivilegeKind.Insert, Grant: false),
+        ]);
+
+        await Assert.That(N(sql)).IsEqualTo(N($"""
+            REVOKE INSERT ON TABLE sales.orders FROM "{role}";
+            GRANT SELECT ON TABLE sales.orders TO "{role}";
+            """));
+    }
+
+    [Test]
+    public async Task OnlyANullGranteeIsTheKeyword()
+    {
+        await Assert.That(GrantScriptBuilder.GranteeSql(null)).IsEqualTo("PUBLIC");
+        await Assert.That(GrantScriptBuilder.GranteeSql("PUBLIC")).IsEqualTo("\"PUBLIC\"");
+        await Assert.That(GrantScriptBuilder.GranteeSql("app_ro")).IsEqualTo("app_ro");
+        await Assert.That(GrantScriptBuilder.GranteeSql("App Reader")).IsEqualTo("\"App Reader\"");
+    }
+
+    [Test]
+    public async Task TheLabelTellsTheRoleNamedPublicFromTheKeyword()
+    {
+        await Assert.That(GrantScriptBuilder.GranteeLabel(null)).IsEqualTo("PUBLIC");
+        await Assert.That(GrantScriptBuilder.GranteeLabel("PUBLIC")).IsEqualTo("\"PUBLIC\"");
+        await Assert.That(GrantScriptBuilder.GranteeLabel("public")).IsEqualTo("\"public\"");
+        await Assert.That(GrantScriptBuilder.GranteeLabel("app_ro")).IsEqualTo("app_ro");
+        await Assert.That(new AclEntry("PUBLIC", null, PrivilegeKind.Select, false).GranteeLabel).IsEqualTo("\"PUBLIC\"");
+        await Assert.That(new AclEntry(null, null, PrivilegeKind.Select, false).GranteeLabel).IsEqualTo("PUBLIC");
+    }
+
+    [Test]
+    public async Task BulkGrantToARoleNamedPublicQuotesItThroughout()
+    {
+        var sql = GrantScriptBuilder.BuildBulk(new BulkGrantRequest(
+            "sales", "PUBLIC", BulkGrantPreset.RevokeAll, IncludeFutureObjects: true, FutureObjectsOwner: "postgres"));
+
+        await Assert.That(sql).Contains("""REVOKE ALL PRIVILEGES ON SCHEMA sales FROM "PUBLIC";""");
+        await Assert.That(sql).Contains("""ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA sales REVOKE ALL PRIVILEGES ON TABLES FROM "PUBLIC";""");
+        await Assert.That(sql).DoesNotContain(" FROM PUBLIC;");
+    }
+
+    // --- Finding 11: a name in the comment cannot end the comment -----------
+
+    [Test]
+    [Arguments("x\nALTER ROLE eve SUPERUSER;--")]
+    [Arguments("x\r\nALTER ROLE eve SUPERUSER;--")]
+    public async Task BulkCommentCannotBeBrokenOutOfByANewlineInTheGrantee(string role)
+    {
+        var sql = GrantScriptBuilder.BuildBulk(new BulkGrantRequest(
+            "sales", role, BulkGrantPreset.ReadOnly, IncludeFutureObjects: false, FutureObjectsOwner: null));
+
+        // Split the way the server's lexer ends a comment: at \n or \r.
+        var lines = sql.Split(['\n', '\r']);
+        var commentLines = lines.TakeWhile(l => l.StartsWith("--", StringComparison.Ordinal)).ToList();
+
+        // The ReadOnly preset's pg_read_all_data hint names the grantee inside
+        // a comment; with the line break intact, "ALTER ROLE eve SUPERUSER;--"
+        // would sit on a line of its own, live. The hint is the last of the
+        // five comment lines and holds the whole name.
+        await Assert.That(commentLines.Count).IsEqualTo(5);
+        await Assert.That(commentLines[3]).Contains("GRANT pg_read_all_data TO \"x ");
+
+        // The lexer-backed splitter is the judge of what would run: an escaped
+        // comment would add a statement, so the count is the proof.
+        var statements = PgNimbus.Core.Query.SqlScriptSplitter.Split(sql);
+        await Assert.That(statements.Count).IsEqualTo(3);
+        await Assert.That(statements.Any(s => ScriptText.FirstStatementLine(s).StartsWith("ALTER ROLE", StringComparison.Ordinal))).IsFalse();
+
+        // The statements keep the exact name, quoted — a quoted identifier may
+        // span lines, and inside the quotes it is only a name.
+        await Assert.That(sql).Contains($"GRANT USAGE ON SCHEMA sales TO \"{role}\";");
+    }
 }

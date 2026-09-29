@@ -1,5 +1,7 @@
 using System.Text;
 using PgNimbus.Core.Connections;
+using PgNimbus.Core.Security;
+using PgNimbus.Core.Settings;
 
 namespace PgNimbus.Core.Diagnostics;
 
@@ -10,8 +12,12 @@ namespace PgNimbus.Core.Diagnostics;
 /// exception hooks — including from a handler that runs while the process is
 /// already tearing down. Every operation swallows its own failures: a logger
 /// that throws while logging a crash would only mask the original error.
+/// A null <paramref name="directory"/> is the "no app data directory" state:
+/// nothing is written and <see cref="LogCritical"/> answers null, which the
+/// crash window shows as "no log", rather than logging into a shared temp
+/// directory.
 /// </summary>
-public sealed class CrashLog(string directory)
+public sealed class CrashLog(string? directory)
 {
     // Serializes appends across threads. A crash can surface on several threads
     // at once (UI + a faulted background task), and interleaved writes would
@@ -23,11 +29,11 @@ public sealed class CrashLog(string directory)
     // the next write starts a fresh file.
     private const long MaxLogBytes = 1024 * 1024; // 1 MiB
 
-    /// <summary>Directory that holds the log file(s). Created on demand.</summary>
-    public string Directory { get; } = directory;
+    /// <summary>Directory that holds the log file(s). Created on demand; null when there is nowhere to write.</summary>
+    public string? Directory { get; } = directory;
 
-    /// <summary>Full path to the current log file, shown to the user in the crash dialog.</summary>
-    public string FilePath { get; } = Path.Combine(directory, "pgnimbus.log");
+    /// <summary>Full path to the current log file, shown to the user in the crash dialog; null when there is nowhere to write.</summary>
+    public string? FilePath { get; } = directory is null ? null : Path.Combine(directory, "pgnimbus.log");
 
     /// <summary>
     /// Records a critical error with a short describing context and the
@@ -38,11 +44,11 @@ public sealed class CrashLog(string directory)
     public string? LogCritical(string context, Exception? exception) => Write(FormatEntry(context, exception));
 
     /// <summary>Formats a single log entry. Pure — no I/O — so it's unit-testable on its own.</summary>
-    internal static string FormatEntry(string context, Exception? exception)
+    public static string FormatEntry(string context, Exception? exception)
     {
         var entry = new StringBuilder();
         entry.Append('[').Append(DateTimeOffset.Now.ToString("yyyy-MM-dd HH:mm:ss.fff zzz")).Append("]  ");
-        entry.Append("CRITICAL  ").AppendLine(context);
+        entry.Append("CRITICAL  ").AppendLine(SecretRedactor.Redact(context));
 
         if (exception is not null)
         {
@@ -54,6 +60,35 @@ public sealed class CrashLog(string directory)
     }
 
     /// <summary>
+    /// <paramref name="path"/> with the user's home directory written as
+    /// <c>~</c>, for text that leaves the machine (the crash window's GitHub
+    /// issue body): the home path carries the OS account name, which a public
+    /// issue has no use for (security audit 2026-09, finding 18). A path
+    /// outside the home directory comes back unchanged.
+    /// </summary>
+    public static string HomeRelative(string path, string? home = null)
+    {
+        home ??= Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (string.IsNullOrEmpty(home))
+        {
+            return path;
+        }
+
+        home = home.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        if (path.Equals(home, comparison))
+        {
+            return "~";
+        }
+
+        return path.Length > home.Length
+               && path.StartsWith(home, comparison)
+               && path[home.Length] is '/' or '\\'
+            ? "~" + path[home.Length..]
+            : path;
+    }
+
+    /// <summary>
     /// Writes one exception and recurses into its cause(s). Handles
     /// <see cref="AggregateException"/> by unwinding every entry in
     /// <see cref="AggregateException.InnerExceptions"/> — the faulted-task and
@@ -62,7 +97,10 @@ public sealed class CrashLog(string directory)
     /// </summary>
     private static void AppendException(StringBuilder entry, Exception exception, string indent)
     {
-        entry.Append(indent).Append(exception.GetType().FullName).Append(": ").AppendLine(exception.Message);
+        // Redacted: a message can quote the statement that failed, and a
+        // CREATE/ALTER ROLE … PASSWORD '…' in it would put a live credential in
+        // a plain file (security audit 2026-09, finding 18).
+        entry.Append(indent).Append(exception.GetType().FullName).Append(": ").AppendLine(SecretRedactor.Redact(exception.Message));
         if (!string.IsNullOrEmpty(exception.StackTrace))
         {
             entry.AppendLine(exception.StackTrace);
@@ -83,13 +121,20 @@ public sealed class CrashLog(string directory)
 
     private string? Write(string text)
     {
+        if (FilePath is null)
+        {
+            return null;
+        }
+
         try
         {
             lock (_gate)
             {
-                System.IO.Directory.CreateDirectory(Directory);
+                // Owner-only directory and file (AppDataFile): the log carries
+                // exception messages, which can quote a statement.
+                AppDataFile.EnsureDirectory(Directory);
                 RollIfTooLarge();
-                File.AppendAllText(FilePath, text);
+                AppDataFile.AppendAllText(FilePath, text);
             }
 
             return FilePath;
@@ -104,6 +149,11 @@ public sealed class CrashLog(string directory)
 
     private void RollIfTooLarge()
     {
+        if (FilePath is null)
+        {
+            return;
+        }
+
         try
         {
             var info = new FileInfo(FilePath);
@@ -137,25 +187,27 @@ public static class CrashLogger
     // CrashLogger is touched from the global crash handlers, so a throw during
     // static initialization would surface as a TypeInitializationException
     // inside the very code meant to report the crash — silently killing it.
-    // Resolving the app-data root already falls back to $HOME/temp, but guard
-    // it anyway and drop to the OS temp directory as a last resort.
+    // Resolving the app-data root already falls back to $HOME, and to "no
+    // directory" (a log that writes nothing) after that; guard it anyway. It
+    // used to drop to the OS temp directory as a last resort, which on Linux
+    // is the shared /tmp — see AppDataPaths.ResolveDefaultRoot.
     private static CrashLog CreateInstance()
     {
         try
         {
-            return new CrashLog(Path.Combine(AppDataPaths.GetRootDirectory(), "logs"));
+            return new CrashLog(AppDataPaths.Resolve("logs"));
         }
         catch
         {
-            return new CrashLog(Path.Combine(Path.GetTempPath(), "pgNimbus", "logs"));
+            return new CrashLog(null);
         }
     }
 
-    /// <summary>Directory that holds the log file(s).</summary>
-    public static string LogDirectory => Instance.Directory;
+    /// <summary>Directory that holds the log file(s); null when the app has nowhere to write.</summary>
+    public static string? LogDirectory => Instance.Directory;
 
-    /// <summary>Full path to the current log file, shown to the user in the crash dialog.</summary>
-    public static string LogFilePath => Instance.FilePath;
+    /// <summary>Full path to the current log file, shown to the user in the crash dialog; null when the app has nowhere to write.</summary>
+    public static string? LogFilePath => Instance.FilePath;
 
     /// <inheritdoc cref="CrashLog.LogCritical"/>
     public static string? LogCritical(string context, Exception? exception) =>
