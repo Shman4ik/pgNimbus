@@ -38,7 +38,7 @@ Mode: descriptive body, imperative subject. Convention already matches STE: impe
 
 Mode: descriptive. One entry, one change, one sentence where possible. "Breaking:" entries follow the warning pattern — command first: "Update your calls to `v2/users`. The `name` field split into `first_name` and `last_name`."
 
-## Instructions for AI agents (prompts, AGENTS.md, skills)
+## Instructions for AI agents (prompts, CLAUDE.md, skills)
 
 Mode: procedural. A system prompt is a procedure executed by a reader with no ability to ask questions — the exact reader STE was designed for.
 
