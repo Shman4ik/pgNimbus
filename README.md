@@ -181,7 +181,7 @@ The docs site is MkDocs Material: `pip install -r docs/requirements.txt && mkdoc
 
 pgNimbus is free and MIT licensed, and it stays that way. If it saves you time at work or you simply enjoy using it, you can support the work with a coffee:
 
-<a href="https://buymeacoffee.com/shman4ik"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy me a coffee" height="50"></a>
+<a href="https://buymeacoffee.com/shman4ik"><img src="website/assets/bmc-button.svg" alt="Buy me a coffee" height="50"></a>
 
 A star, a bug report or a word to a colleague helps too.
 

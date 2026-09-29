@@ -19,6 +19,7 @@ assets=(
   design/masters/logo/wordmark-dark.png
   design/masters/logo/social-preview.png
   design/masters/icon/icon-256.png
+  website/assets/bmc-button.svg
   docs/screenshots/main-light.png
   docs/screenshots/main-dark.png
   docs/screenshots/cold-start.gif

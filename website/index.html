@@ -265,8 +265,9 @@
     padding: 34px 28px 36px;
   }
   .support p { color: var(--ink-soft); margin: 0 auto 22px; max-width: 520px; }
-  .btn.coffee { background: #ffdd00; border-color: #ffdd00; color: #1c1c1c; }
-  .btn.coffee svg { width: 19px; height: 19px; }
+  .coffee { display: inline-block; border-radius: 10px; transition: transform .08s ease, box-shadow .08s ease; }
+  .coffee:hover { transform: translateY(-1px); box-shadow: var(--shadow); }
+  .coffee img { display: block; height: 50px; width: auto; }
 </style>
 </head>
 <body>
@@ -476,7 +477,7 @@
     <div class="support">
       <h2>Like pgNimbus?</h2>
       <p>pgNimbus is free and MIT licensed, and it stays that way. If it saves you time at work or you simply enjoy using it, you can support the work with a coffee.</p>
-      <a class="btn coffee" href="https://buymeacoffee.com/shman4ik"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2v2"/><path d="M14 2v2"/><path d="M6 2v2"/><path d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1"/></svg>Buy me a coffee</a>
+      <a class="coffee" href="https://buymeacoffee.com/shman4ik"><img src="assets/bmc-button.svg" alt="Buy me a coffee" width="184" height="50"></a>
     </div>
   </div>
 </section>
