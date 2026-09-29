@@ -518,6 +518,7 @@ public static class BrowseSqlParser
 
             var start = token.Start;
             var end = token.End;
+            string? text = null;
             Kind kind;
             switch (token.Kind)
             {
@@ -527,8 +528,15 @@ public static class BrowseSqlParser
                 case SqlTokenKind.QuotedIdentifier:
                     kind = sql[start] == '"' ? Kind.QuotedId : Kind.OtherStr;
                     break;
+                case SqlTokenKind.String when sql[start] == '\'':
+                    kind = Kind.Str;
+                    break;
+                case SqlTokenKind.String when PlainFromEscapeString(sql, start, end) is { } plain:
+                    kind = Kind.Str;
+                    text = plain;
+                    break;
                 case SqlTokenKind.String:
-                    kind = sql[start] == '\'' ? Kind.Str : Kind.OtherStr;
+                    kind = Kind.OtherStr;
                     break;
                 case SqlTokenKind.DollarString or SqlTokenKind.Parameter:
                     kind = Kind.OtherStr;
@@ -569,9 +577,41 @@ public static class BrowseSqlParser
                     break;
             }
 
-            tokens.Add(new Token(kind, sql[start..end], start, end));
+            tokens.Add(new Token(kind, text ?? sql[start..end], start, end));
         }
 
         return tokens;
+    }
+
+    // The E'…' form SqlLiteral.Quote writes for text holding a backslash, whose
+    // only escapes are \\ and '': read back as the plain literal it stands for,
+    // so a chip's value (a LIKE pattern's escaped % and _ included) survives the
+    // round trip through the page query. Any other escape (\n, \x41, \') keeps
+    // the whole string a raw condition, as every other E-string is.
+    private static string? PlainFromEscapeString(string sql, int start, int end)
+    {
+        if (end - start < 3 || (sql[start] != 'E' && sql[start] != 'e') || sql[start + 1] != '\'' || sql[end - 1] != '\'')
+        {
+            return null;
+        }
+
+        var value = new System.Text.StringBuilder(end - start);
+        for (var i = start + 2; i < end - 1; i++)
+        {
+            var c = sql[i];
+            if (c is '\\' or '\'')
+            {
+                if (i + 1 >= end - 1 || sql[i + 1] != c)
+                {
+                    return null;
+                }
+
+                i++;
+            }
+
+            value.Append(c);
+        }
+
+        return "'" + value.ToString().Replace("'", "''") + "'";
     }
 }

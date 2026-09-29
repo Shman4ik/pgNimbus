@@ -244,7 +244,7 @@ public static class ResultExporter
         byte or sbyte or short or ushort or int or uint or long or ulong => Convert.ToString(value, CultureInfo.InvariantCulture) ?? "NULL",
         float or double or decimal => ((IFormattable)value).ToString(null, CultureInfo.InvariantCulture),
         byte[] bytes => $"'\\x{Convert.ToHexString(bytes)}'",
-        _ => $"'{FormatCsvValue(value).Replace("'", "''")}'",
+        _ => Query.SqlLiteral.Quote(FormatCsvValue(value)),
     };
 
     private static void WriteJsonValue(Utf8JsonWriter writer, object? value)

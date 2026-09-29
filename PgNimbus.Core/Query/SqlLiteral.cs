@@ -20,10 +20,12 @@ namespace PgNimbus.Core.Query;
 /// is why every session the app opens forces the setting on as a startup
 /// option (<see cref="Connections.ConnectionProfile.StandardStringsSessionOption"/>),
 /// which overrides a database's or a role's default and survives the pool's
-/// reset — this class is correct <em>because</em> of that, not on its own.
-/// Do not add backslash doubling here without also switching the output to
-/// <c>E'…'</c>: a plain literal with doubled backslashes reads back wrong
-/// under the very setting the app guarantees.</para>
+/// reset. It does not reach the server when a pooler drops startup options
+/// (the PgBouncer case of the audit's finding 17), so text holding a backslash
+/// is written as <c>E'…'</c> with the backslash doubled too: an escape string
+/// reads the same under either setting, and a stored <c>x\' OR … --</c> stays
+/// inside it (review of the 2026-09 audit fixes). Text without a backslash
+/// keeps the plain form, which is the same under both.</para>
 /// </summary>
 public static class SqlLiteral
 {
@@ -44,6 +46,12 @@ public static class SqlLiteral
         _ => Quote(Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty),
     };
 
-    /// <summary>Single-quotes a string, doubling embedded quotes (<c>'</c> → <c>''</c>).</summary>
-    public static string Quote(string text) => $"'{text.Replace("'", "''")}'";
+    /// <summary>
+    /// Single-quotes a string, doubling embedded quotes (<c>'</c> → <c>''</c>);
+    /// a string holding a backslash becomes <c>E'…'</c> with backslashes doubled
+    /// as well, so it means the same whatever <c>standard_conforming_strings</c> is.
+    /// </summary>
+    public static string Quote(string text) => text.Contains('\\')
+        ? $"E'{text.Replace("\\", "\\\\").Replace("'", "''")}'"
+        : $"'{text.Replace("'", "''")}'";
 }

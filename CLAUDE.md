@@ -1280,15 +1280,22 @@ Moved to [`.claude/rules/logo-assets.md`](.claude/rules/logo-assets.md), which l
   off (a database owner can `ALTER DATABASE … SET` it) a backslash escapes too,
   and a stored `x\'' OR 1=1 --` filtered by cell ran as SQL. A startup option
   beats the database's and the role's defaults and survives the pool's reset,
-  so `SqlLiteral`, `SqlLexer`, `SqlScriptSplitter` and `IsSafeToReExecute`
-  read literals the one way the server does. The `PGNIMBUS_CONN` path adds the
+  so `SqlLiteral`, `SqlLexer` and `SqlScriptSplitter` read literals the one
+  way the server does. The `PGNIMBUS_CONN` path adds the
   same option through `ConnectionProfile.WithStandardStrings`, *appended* even
   when the string already names the setting: the server applies `-c` switches
   in order, so the last wins and a string carrying `=off` cannot keep it.
   `StandardConformingStringsTests` turns the test database's default off and
   proves a profile's session still says `on` and the hostile filter matches
-  only its row (and, without the option, every row). Do not add backslash
-  doubling to `SqlLiteral` without also switching it to `E'…'`.
+  only its row. **The option is not the only guard**: a pooler that drops
+  startup options (finding 17's PgBouncer case) leaves the database default in
+  place, so `SqlLiteral.Quote` writes text holding a backslash as `E'…'` with
+  the backslash doubled too, which reads the same under either setting (the
+  same test shows the old plain form returning every row without the option).
+  `BrowseSqlParser` reads that exact form back as a typed value (only `\\` and
+  `''` escapes), so a LIKE chip's escaped `%`/`_` survives the round trip; any
+  other `E'…'` stays a raw chip. `SqlLexer`, `SqlScriptSplitter` and #286's
+  Explain check still assume `on` for text the user types.
 - **json/jsonb are a first-class editable type.** `ColumnValueEditorClassifier`
   maps them to `ColumnValueEditor.Json` (jsonpath isn't JSON-shaped so it takes
   the plain-cast `CastText` path below; hstore stays `Text` — its display needs

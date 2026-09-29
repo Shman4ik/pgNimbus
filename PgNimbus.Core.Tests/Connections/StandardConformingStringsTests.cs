@@ -109,15 +109,19 @@ public class StandardConformingStringsTests
             // A browse filter on the hostile value, as the filter bar composes it.
             var predicate = RowFilterSql.ToPredicate(
                 new RowFilter("note", FilterOperator.Equals, Hostile), ColumnValueEditor.Text, "text");
-            await Assert.That(predicate).IsEqualTo(@"""note"" = 'x\'''' OR 1=1 --'");
+            await Assert.That(predicate).IsEqualTo(@"""note"" = E'x\\'''' OR 1=1 --'");
 
             // Through the profile the literal is the value and only its row matches.
             await Assert.That(await MatchingIdsAsync(throughProfile, predicate)).IsEquivalentTo(new[] { 1 });
 
-            // Without the option the backslash escapes the quote, the literal ends
-            // early and " OR 1=1 --" runs: every row comes back. This is what the
-            // option exists to prevent.
-            await Assert.That(await MatchingIdsAsync(plain, predicate)).IsEquivalentTo(new[] { 1, 2 });
+            // Without the option too (a pooler that drops startup options): the
+            // value holds a backslash, so SqlLiteral wrote an escape string, which
+            // reads the same under either setting. A plain '…' literal here used to
+            // end early and run " OR 1=1 --", returning every row.
+            await Assert.That(await MatchingIdsAsync(plain, predicate)).IsEquivalentTo(new[] { 1 });
+
+            var plainForm = $"\"note\" = '{Hostile.Replace("'", "''")}'";
+            await Assert.That(await MatchingIdsAsync(plain, plainForm)).IsEquivalentTo(new[] { 1, 2 });
         }
         finally
         {
