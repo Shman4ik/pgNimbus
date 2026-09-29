@@ -425,6 +425,33 @@ Three rules about it:
    `SecurityEditor` instead, are never shown, and `SecretRedactor` guards
    `SavedQueriesViewModel.RecordExecution`, the one choke point into
    `QueryHistoryStore`, for the case where a user types one by hand.
+   **The literal is a verifier, not the password** (2026-09, security audit
+   finding 7). The client side had been right and the server side wrong: the
+   cleartext went down the wire inside statement text, which lands in the
+   server log on any failure (`log_min_error_statement` writes `STATEMENT: …`,
+   and "permission denied to create role" is the ordinary failure on managed
+   Postgres), in every `log_statement = ddl` or pgaudit line, in
+   `pg_stat_activity` while it runs and in `pg_stat_statements` before PG 16.
+   `RoleScriptBuilder` now renders the executed `PASSWORD` as the SCRAM-SHA-256
+   secret `Security/ScramSha256Verifier` (Core-pure, `System.Security.Cryptography`
+   only, pinned to vectors computed with Python's hashlib) builds on this
+   machine, the way psql's `\password` does through `PQencryptPasswordConn`:
+   SASLprep as libpq applies it (an all-ASCII password as typed, a prohibited
+   one hashed raw rather than refused, mapping and NFKC otherwise), a random
+   16-byte salt, PBKDF2-HMAC-SHA-256 × 4096, then StoredKey and ServerKey. The
+   server stores a SCRAM secret in a `PASSWORD` literal as-is whatever
+   `password_encryption` says, and an `md5` pg_hba line authenticates one by
+   negotiating SCRAM, so the cleartext never leaves the machine and nothing
+   about the server changes. Two things to know. The App runs with
+   `InvariantGlobalization`, under which `string.Normalize` is the identity, so
+   NFKC happens only in the tests (`NormalizationAvailable` says which); a
+   non-ASCII password holding compatibility characters is hashed as typed
+   there, which is what Npgsql's own SCRAM client, normalising through the
+   same call, already sends at login from this app. And `SqlLiteral.Quote` on
+   the verifier is safe whatever `standard_conforming_strings` says (finding
+   13): base64, digits, `$` and `:` hold neither a quote nor a backslash.
+   `ScramPasswordServerTests` creates a role through the real path and logs in
+   as it with the cleartext, refusing the wrong one with 28P01.
    `GrantScriptBuilder.BuildBulk` is deliberately more correct than pgAdmin's
    Grant Wizard: `GRANT USAGE ON SCHEMA` comes first (theirs skips it and the
    user still gets `permission denied`), revoke is a preset rather than an

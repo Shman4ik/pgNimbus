@@ -36,7 +36,10 @@ public sealed record RoleDefinition(
 ///
 /// Pure: no catalog access, no Npgsql. Identifiers go through
 /// <see cref="SqlIdentifier.QuoteIfNeeded"/> and literals through
-/// <see cref="SqlLiteral"/>; nothing is concatenated raw.
+/// <see cref="SqlLiteral"/>; nothing is concatenated raw. A password is
+/// never a literal at all: the executed statement carries the SCRAM-SHA-256
+/// verifier <see cref="ScramSha256Verifier"/> computes from it, so the
+/// cleartext stays on this machine (security audit 2026-09, finding 7).
 /// </summary>
 public static class RoleScriptBuilder
 {
@@ -56,10 +59,13 @@ public static class RoleScriptBuilder
     /// <para><paramref name="maskPassword"/> is a security property, not a
     /// formatting option. The same call produces the script the UI *shows* and
     /// the script it *runs*: the shown one passes true and renders
-    /// <c>PASSWORD '••••'</c>, the executed one passes false. That is what
-    /// keeps the real literal out of the preview pane, out of a screenshot, and
-    /// — via <see cref="SecretRedactor"/> on the executed text — out of the
-    /// query history file and the crash log.</para>
+    /// <c>PASSWORD '••••'</c>, the executed one passes false and renders
+    /// <c>PASSWORD 'SCRAM-SHA-256$4096:…'</c>, a verifier computed on this
+    /// machine (<see cref="ScramSha256Verifier"/>). The cleartext appears in
+    /// neither: not in the preview pane or a screenshot, not in the statement
+    /// the server logs, and — via <see cref="SecretRedactor"/> on the executed
+    /// text — not in the query history file or the crash log. The executed
+    /// text is not deterministic, since every call draws a fresh salt.</para>
     ///
     /// <para>The negative keywords (<c>NOSUPERUSER</c>, <c>NOCREATEDB</c>, …)
     /// are always written out rather than left to the server's defaults, so the
@@ -200,7 +206,8 @@ public static class RoleScriptBuilder
     /// <summary>
     /// <c>ALTER ROLE … WITH PASSWORD '…'</c>. <paramref name="maskPassword"/>
     /// carries the same meaning as on <see cref="Create"/>: the preview gets
-    /// the mask, the execution gets the literal.
+    /// the mask, the execution gets the SCRAM verifier, and the cleartext
+    /// appears in neither.
     /// </summary>
     public static string SetPassword(string role, string password, bool maskPassword = false) =>
         $"ALTER ROLE {SqlIdentifier.QuoteIfNeeded(role)} WITH PASSWORD {RenderPassword(password, maskPassword)};";
@@ -320,8 +327,24 @@ public static class RoleScriptBuilder
     private static string CommentOn(string role, string? comment) =>
         $"COMMENT ON ROLE {SqlIdentifier.QuoteIfNeeded(role)} IS {(comment is null ? "NULL" : SqlLiteral.Quote(comment))};";
 
+    /// <summary>
+    /// The preview gets the mask; the executed statement gets a SCRAM-SHA-256
+    /// verifier computed here (<see cref="ScramSha256Verifier"/>), never the
+    /// cleartext. The server stores the verifier as-is, exactly as it would
+    /// have stored what it computed from the cleartext, so the role
+    /// authenticates the same; what changes is that the password itself never
+    /// appears in statement text, and so never in the server log,
+    /// <c>pg_stat_activity</c> or <c>pg_stat_statements</c>.
+    ///
+    /// <para><see cref="SqlLiteral.Quote"/> doubles single quotes only and
+    /// assumes <c>standard_conforming_strings = on</c>, which a database owner
+    /// can turn off (security audit 2026-09, finding 13). That is safe here
+    /// whatever the setting: the verifier is base64, digits, <c>$</c> and
+    /// <c>:</c>, so it holds neither a quote nor a backslash. The masked form
+    /// is four bullets, which hold neither either.</para>
+    /// </summary>
     private static string RenderPassword(string password, bool mask) =>
-        SqlLiteral.Quote(mask ? Mask : password);
+        SqlLiteral.Quote(mask ? Mask : ScramSha256Verifier.Build(password));
 
     /// <summary>
     /// Strips the characters that would let a name break out of a <c>--</c>

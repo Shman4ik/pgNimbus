@@ -12,15 +12,18 @@ namespace PgNimbus.App.ViewModels.Security;
 /// and that difference is the whole point of showing the script at all — create
 /// emits the full statement, alter emits only what actually changed.
 ///
-/// <para><b>The preview is masked and the execution is not.</b> Postgres has no
-/// parameter form for <c>PASSWORD</c>, so a new password has to be interpolated
-/// into statement text. <see cref="LivePreview"/> is built with
-/// <c>maskPassword: true</c> and <see cref="ApplyAsync"/> with false — the real
-/// literal exists only inside that one call and the connection it goes down. It
-/// is never bound to a <c>TextBlock</c>, never handed to the editor tab (which
-/// would file it in the on-disk query history), and never logged. This is a
-/// security property, not a formatting choice: change it and the password ends
-/// up in a screenshot and in <c>queries.json</c>.</para>
+/// <para><b>The preview is masked and the execution carries a verifier.</b>
+/// Postgres has no parameter form for <c>PASSWORD</c>, so the statement has to
+/// carry something in its text; since finding 7 of the 2026-09 security audit
+/// that something is the SCRAM-SHA-256 secret <c>ScramSha256Verifier</c>
+/// computes on this machine, never the cleartext, so the password reaches
+/// neither the server log nor <c>pg_stat_activity</c>. <see cref="LivePreview"/>
+/// is built with <c>maskPassword: true</c> and <see cref="ApplyAsync"/> with
+/// false — the verifier exists only inside that one call and the connection it
+/// goes down. Neither it nor the cleartext is ever bound to a <c>TextBlock</c>,
+/// handed to the editor tab (which would file it in the on-disk query history),
+/// or logged. This is a security property, not a formatting choice: change it
+/// and the secret ends up in a screenshot and in <c>queries.json</c>.</para>
 /// </summary>
 public sealed partial class RoleEditorViewModel : ObservableObject
 {
@@ -382,8 +385,9 @@ public sealed partial class RoleEditorViewModel : ObservableObject
 
         try
         {
-            // The only place maskPassword is false. The result is not stored,
-            // shown or logged - it goes straight down the connection.
+            // The only place maskPassword is false. The result carries the
+            // SCRAM verifier, not the password, and is not stored, shown or
+            // logged - it goes straight down the connection.
             await _editor.ExecuteScriptAsync(BuildScript(maskPassword: false), CancellationToken.None);
             CloseRequested?.Invoke(true);
         }
