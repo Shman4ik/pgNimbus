@@ -24,14 +24,15 @@ public sealed record RlsPolicyRow(RlsPolicyInfo Policy, bool RowSecurityEnabled)
 
     public string Command => Policy.Command;
 
-    /// <summary>A lone "public" entry is not a role — it is every role.</summary>
+    /// <summary>
+    /// A null entry is PUBLIC, not a role — it is every role. A role that is
+    /// merely <em>named</em> PUBLIC is shown quoted, as the ACL grid shows it.
+    /// </summary>
     public string RolesLabel => IsForEveryone
         ? "public (every role)"
-        : string.Join(", ", Policy.Roles);
+        : string.Join(", ", Policy.Roles.Select(GrantScriptBuilder.GranteeLabel));
 
-    public bool IsForEveryone =>
-        Policy.Roles.Count == 0
-        || Policy.Roles.Any(r => r.Equals("public", StringComparison.OrdinalIgnoreCase));
+    public bool IsForEveryone => Policy.AppliesToEveryone;
 
     public string? Using => Policy.Using;
 
@@ -47,46 +48,10 @@ public sealed record RlsPolicyRow(RlsPolicyInfo Policy, bool RowSecurityEnabled)
     /// The <c>CREATE POLICY</c> this row was read back from, which is how a
     /// policy gets edited: Postgres has no way to change a policy's command or
     /// its permissiveness in place, so re-creating it is the real workflow.
+    /// Built by the Core-pure <see cref="PolicyScriptBuilder"/>, which is
+    /// where the comment-safety and PUBLIC rules are tested.
     /// </summary>
-    public string Sql
-    {
-        get
-        {
-            var table = $"{SqlIdentifier.QuoteIfNeeded(Policy.Schema)}.{SqlIdentifier.QuoteIfNeeded(Policy.Table)}";
-            var roles = IsForEveryone
-                ? GrantScriptBuilder.PublicGrantee
-                : string.Join(", ", Policy.Roles.Select(SqlIdentifier.QuoteIfNeeded));
-
-            var lines = new List<string>();
-
-            // A policy on a table with row security switched off is inert, and
-            // re-creating it changes nothing until that is fixed. Say so where
-            // the statement is about to be edited.
-            if (!RowSecurityEnabled)
-            {
-                lines.Add($"-- {Policy.Schema}.{Policy.Table} does not have row-level security enabled, so this");
-                lines.Add("-- policy is not applied to anyone. It takes effect only after:");
-                lines.Add($"--   ALTER TABLE {table} ENABLE ROW LEVEL SECURITY;");
-            }
-
-            lines.Add($"CREATE POLICY {SqlIdentifier.QuoteIfNeeded(Policy.Name)} ON {table}");
-            lines.Add($"    AS {Kind}");
-            lines.Add($"    FOR {Policy.Command}");
-            lines.Add($"    TO {roles}");
-
-            if (HasUsing)
-            {
-                lines.Add($"    USING ({Policy.Using})");
-            }
-
-            if (HasWithCheck)
-            {
-                lines.Add($"    WITH CHECK ({Policy.WithCheck})");
-            }
-
-            return string.Join("\n", lines) + ";";
-        }
-    }
+    public string Sql => PolicyScriptBuilder.Create(Policy, RowSecurityEnabled);
 }
 
 /// <summary>

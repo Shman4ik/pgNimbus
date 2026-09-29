@@ -3,11 +3,27 @@ using System.Globalization;
 namespace PgNimbus.Core.Query;
 
 /// <summary>
-/// Renders a CLR value as a PostgreSQL literal for *display* — the review
-/// script safe mode shows before committing staged changes. Execution never
-/// interpolates these strings: the staged statements run parameterized, so a
-/// value this formatter renders imperfectly (an exotic composite, say) can at
-/// worst mislead the preview, never break or inject into the real statement.
+/// Renders a CLR value as a PostgreSQL string literal, <c>'…'</c> with the
+/// quote doubled and nothing else escaped.
+///
+/// <para>This text is <em>executed</em>, not only shown. Safe mode's review
+/// script is display (the staged statements run parameterized), but browse
+/// filters (<see cref="RowFilterSql"/>, including filter-by-cell), the FK hop's
+/// seed and a role's <c>VALID UNTIL</c> and <c>COMMENT</c> (run by
+/// <c>SecurityEditor</c>) all go to the server as this text, because browse
+/// mode's WHERE lands in the editor as SQL the user reads and edits, and a
+/// parameter would not survive that round trip.</para>
+///
+/// <para>Doubling the quote is the whole escape only under
+/// <c>standard_conforming_strings = on</c>: off, a backslash escapes as well,
+/// and a stored value <c>x\' OR … --</c> would close the literal early. That
+/// is why every session the app opens forces the setting on as a startup
+/// option (<see cref="Connections.ConnectionProfile.StandardStringsSessionOption"/>),
+/// which overrides a database's or a role's default and survives the pool's
+/// reset — this class is correct <em>because</em> of that, not on its own.
+/// Do not add backslash doubling here without also switching the output to
+/// <c>E'…'</c>: a plain literal with doubled backslashes reads back wrong
+/// under the very setting the app guarantees.</para>
 /// </summary>
 public static class SqlLiteral
 {
