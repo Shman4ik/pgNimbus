@@ -1,27 +1,27 @@
-using System.Text.Json;
 using System.Text.Json.Serialization;
 using PgNimbus.Core.Connections;
 using PgNimbus.Core.Security;
+using PgNimbus.Core.Settings;
 
 namespace PgNimbus.Core.Query;
 
 /// <summary>
-/// Persists the last <see cref="MaxEntries"/> executions, most recent first.
-/// Every statement's text is kept as run, values included, in a plain file;
-/// the one thing taken out is secrets: every write passes each entry through
-/// <see cref="SecretRedactor"/>, and so does every read, which rewrites the
-/// file when an entry written before the redactor (or before it knew a shape)
-/// still held one. That makes the store itself the choke point, not the view
-/// model that happens to call it today.
+/// Persists the last <see cref="MaxEntries"/> executions, most recent first,
+/// through <see cref="AppDataFile"/>. Every statement's text is kept as run,
+/// values included, in a plain file; the one thing taken out is secrets: every
+/// write passes each entry through <see cref="SecretRedactor"/>, and so does
+/// every read, which rewrites the file when an entry written before the
+/// redactor (or before it knew a shape) still held one. That makes the store
+/// itself the choke point, not the view model that happens to call it today.
 /// </summary>
 public sealed class QueryHistoryStore(string? filePath = null)
 {
     private const int MaxEntries = 200;
 
-    private readonly string _filePath = filePath ?? Path.Combine(AppDataPaths.GetRootDirectory(), "history.json");
+    private readonly string? _filePath = filePath ?? AppDataPaths.Resolve("history.json");
 
-    /// <summary>The file this store reads and writes.</summary>
-    public string FilePath => _filePath;
+    /// <summary>The file this store reads and writes; null when the app has no data directory (then nothing is kept between sessions).</summary>
+    public string? FilePath => _filePath;
 
     /// <summary>
     /// The history, secrets redacted. When the file held an entry that still
@@ -59,25 +59,11 @@ public sealed class QueryHistoryStore(string? filePath = null)
         return entries;
     }
 
-    private List<QueryHistoryEntry> Read()
-    {
-        if (!File.Exists(_filePath))
-        {
-            return [];
-        }
-
-        // A corrupt/empty/half-written file must never block startup - fall back
-        // to an empty history rather than throwing out of the constructor path.
-        try
-        {
-            var json = File.ReadAllText(_filePath);
-            return JsonSerializer.Deserialize(json, QueryHistoryJsonContext.Default.ListQueryHistoryEntry) ?? [];
-        }
-        catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException)
-        {
-            return [];
-        }
-    }
+    // No file, an unreadable one, or one that does not parse (moved aside
+    // first by AppDataFile) all read as an empty history: a store must never
+    // block startup over its own file.
+    private List<QueryHistoryEntry> Read() =>
+        AppDataFile.ReadJson(_filePath, QueryHistoryJsonContext.Default.ListQueryHistoryEntry) ?? [];
 
     public void Append(QueryHistoryEntry entry)
     {
@@ -103,17 +89,8 @@ public sealed class QueryHistoryStore(string? filePath = null)
     public void Save(IReadOnlyList<QueryHistoryEntry> entries) =>
         Write([.. entries.Select(e => e with { Sql = SecretRedactor.Redact(e.Sql) })]);
 
-    private void Write(List<QueryHistoryEntry> entries)
-    {
-        var directory = Path.GetDirectoryName(_filePath);
-        if (!string.IsNullOrEmpty(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
-
-        var json = JsonSerializer.Serialize(entries, QueryHistoryJsonContext.Default.ListQueryHistoryEntry);
-        File.WriteAllText(_filePath, json);
-    }
+    private void Write(List<QueryHistoryEntry> entries) =>
+        AppDataFile.WriteJson(_filePath, entries, QueryHistoryJsonContext.Default.ListQueryHistoryEntry);
 }
 
 [JsonSourceGenerationOptions(WriteIndented = true)]

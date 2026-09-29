@@ -198,6 +198,52 @@ public class ConnectionCredentialTests
         });
     }
 
+    // Security audit 2026-09, finding 18: legacy .cred files move when the
+    // dialog opens, for every profile, not just the one selected, and what
+    // can't move is reported in the dialog's warning.
+    [Test]
+    public async Task Opening_the_dialog_migrates_every_legacy_file_and_warns_about_the_rest()
+    {
+        await Ui.Run(async () =>
+        {
+            var directory = NewDirectory();
+            var legacy = Path.Combine(directory, "credentials");
+            Directory.CreateDirectory(legacy);
+            Guid moved = Guid.NewGuid(), stuck = Guid.NewGuid();
+            File.WriteAllText(Path.Combine(legacy, $"{moved:N}.cred"), Convert.ToBase64String("moved-pw"u8.ToArray()));
+            File.WriteAllText(Path.Combine(legacy, $"{stuck:N}.cred"), Convert.ToBase64String("old-pw"u8.ToArray()));
+            var native = new MemoryCredentialStore();
+            native.SavePassword(stuck, "newer-pw");
+
+            var vm = new ConnectionDialogViewModel(
+                new ConnectionProfileStore(Path.Combine(directory, "profiles.json")),
+                new RecoverableCredentialStore(native, legacy));
+            try
+            {
+                await vm.FlushAsync();
+
+                await Assert.That(native.LoadPassword(moved)).IsEqualTo("moved-pw");
+                await Assert.That(File.Exists(Path.Combine(legacy, $"{moved:N}.cred"))).IsFalse();
+                await Assert.That(File.Exists(Path.Combine(legacy, $"{stuck:N}.cred"))).IsTrue();
+                await Assert.That(vm.CredentialWarning).IsNotNull();
+                await Assert.That(vm.CredentialWarning!).Contains("old unencrypted credential file");
+                await Assert.That(vm.CredentialWarning!).DoesNotContain("old-pw");
+            }
+            finally { Directory.Delete(directory, true); }
+        });
+    }
+
+    [Test]
+    public async Task Credential_ids_for_a_profile_cover_the_database_and_ssh_secrets()
+    {
+        var id = Guid.NewGuid();
+        var ids = ConnectionDialogViewModel.CredentialIdsFor(id);
+
+        await Assert.That(ids.Count).IsEqualTo(2);
+        await Assert.That(ids[0]).IsEqualTo(id);
+        await Assert.That(ids[1]).IsNotEqualTo(id);
+    }
+
     private static ConnectionProfile Profile(string name, string host) =>
         new(Guid.NewGuid(), name, host, 5432, "postgres", "postgres", SslMode.Prefer, null, null);
 

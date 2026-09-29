@@ -1,48 +1,24 @@
-using System.Text.Json;
 using System.Text.Json.Serialization;
 using PgNimbus.Core.Connections;
 
 namespace PgNimbus.Core.Settings;
 
-/// <summary>Persists <see cref="AppSettings"/> to a single JSON file under the app data root.</summary>
+/// <summary>Persists <see cref="AppSettings"/> to a single JSON file under the app data root, through <see cref="AppDataFile"/>.</summary>
 public sealed class AppSettingsStore(string? filePath = null)
 {
-    private readonly string _filePath = filePath ?? Path.Combine(AppDataPaths.GetRootDirectory(), "settings.json");
+    private readonly string? _filePath = filePath ?? AppDataPaths.Resolve("settings.json");
 
     /// <summary>
     /// Reads the saved settings, or returns defaults when there is no file yet.
     /// A missing/unreadable/corrupt file must never block startup, so any failure
-    /// here falls back to defaults rather than throwing.
+    /// here falls back to defaults rather than throwing (a corrupt file is moved
+    /// aside first).
     /// </summary>
-    public AppSettings Load()
-    {
-        if (!File.Exists(_filePath))
-        {
-            return new AppSettings();
-        }
+    public AppSettings Load() =>
+        AppDataFile.ReadJson(_filePath, AppSettingsJsonContext.Default.AppSettings) ?? new AppSettings();
 
-        try
-        {
-            var json = File.ReadAllText(_filePath);
-            return JsonSerializer.Deserialize(json, AppSettingsJsonContext.Default.AppSettings) ?? new AppSettings();
-        }
-        catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException)
-        {
-            return new AppSettings();
-        }
-    }
-
-    public void Save(AppSettings settings)
-    {
-        var directory = Path.GetDirectoryName(_filePath);
-        if (!string.IsNullOrEmpty(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
-
-        var json = JsonSerializer.Serialize(settings, AppSettingsJsonContext.Default.AppSettings);
-        File.WriteAllText(_filePath, json);
-    }
+    public void Save(AppSettings settings) =>
+        AppDataFile.WriteJson(_filePath, settings, AppSettingsJsonContext.Default.AppSettings);
 }
 
 [JsonSourceGenerationOptions(WriteIndented = true)]

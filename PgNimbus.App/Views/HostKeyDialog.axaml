@@ -1,0 +1,52 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="PgNimbus.App.Views.HostKeyDialog"
+        Title="pgNimbus — Unknown SSH host"
+        Width="480" SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        FontFamily="{StaticResource InterFont}">
+
+    <!-- The first connect through an SSH jump host nobody has recorded: what
+         ssh prints as "The authenticity of host … can't be established", as a
+         dialog. It shows what ssh shows (host, key type, the SHA256 fingerprint
+         in the form ssh-keygen -l prints, so it can be compared by eye with one
+         the server's administrator sent) and says where an accepted key is
+         kept, since a changed key will later point at that file. -->
+    <StackPanel Margin="20" Spacing="12">
+        <StackPanel Spacing="4">
+            <TextBlock Classes="dialogTitle" Text="Unknown SSH host" />
+            <TextBlock Name="HintText" Classes="dialogHint" />
+        </StackPanel>
+
+        <Border Classes="card" Padding="12,10">
+            <Grid ColumnDefinitions="Auto,16,*" RowDefinitions="Auto,6,Auto,6,Auto">
+                <TextBlock Grid.Row="0" Grid.Column="0" Classes="dialogHint" Text="Host" VerticalAlignment="Center" />
+                <SelectableTextBlock Grid.Row="0" Grid.Column="2" Name="HostText" FontSize="13" VerticalAlignment="Center" />
+
+                <TextBlock Grid.Row="2" Grid.Column="0" Classes="dialogHint" Text="Key type" VerticalAlignment="Center" />
+                <SelectableTextBlock Grid.Row="2" Grid.Column="2" Name="KeyTypeText" FontSize="13" VerticalAlignment="Center" />
+
+                <TextBlock Grid.Row="4" Grid.Column="0" Classes="dialogHint" Text="Fingerprint" VerticalAlignment="Center" />
+                <!-- Monospace and selectable: a fingerprint is compared character by
+                     character, or pasted next to the one in the admin's message. -->
+                <SelectableTextBlock Grid.Row="4" Grid.Column="2" Name="FingerprintText"
+                                     FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="12.5"
+                                     TextWrapping="Wrap" VerticalAlignment="Center" />
+            </Grid>
+        </Border>
+
+        <TextBlock Name="StoreText" Classes="dialogHint" />
+
+        <!-- Accept is deliberately not IsDefault (the one departure from
+             DESIGN.md rule 16): this dialog opens about a second after the Enter
+             that started the connect, and a second reflexive Enter must not
+             vouch for a key nobody looked at. ssh makes the user type "yes" for
+             the same reason. Esc still cancels. -->
+        <StackPanel Classes="dialogButtons">
+            <Button Classes="soft" Content="Cancel" IsCancel="True" Click="OnCancelClick" />
+            <Button Name="AcceptButton" Classes="accent" Content="Accept" Click="OnAcceptClick" />
+        </StackPanel>
+    </StackPanel>
+
+</Window>

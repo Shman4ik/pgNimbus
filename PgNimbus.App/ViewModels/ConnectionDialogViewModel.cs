@@ -114,6 +114,15 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
 
     public IReadOnlyList<SslMode> SslModes { get; } = Enum.GetValues<SslMode>();
 
+    /// <summary>
+    /// Decides whether the SSH jump host is the one it claims to be (security
+    /// audit 2026-09, finding 4). The default refuses every host neither
+    /// <c>~/.ssh/known_hosts</c> nor pgNimbus's own list knows: the safe
+    /// answer for a view model with no window to ask from. The connection
+    /// dialog's view swaps in the verifier that asks through a dialog.
+    /// </summary>
+    public SshHostKeyVerifier HostKeys { get; set; } = SshHostKeyVerifier.ForApp(RejectUnknownHostKeys.Instance);
+
     // Agent first: it is what `ssh` itself tries first, and the one that needs nothing typed.
     public IReadOnlyList<SshAuthMethod> SshAuthMethods { get; } = [SshAuthMethod.Agent, SshAuthMethod.PrivateKey, SshAuthMethod.Password];
 
@@ -284,6 +293,13 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
     /// </summary>
     public event Action<NpgsqlDataSource, string?, SshTunnel?>? Connected;
 
+    /// <summary>
+    /// The profile the last <see cref="Connected"/> was raised for, set just
+    /// before it. The host uses it to drop that profile's session-only
+    /// passwords from the credential store's memory when the window closes.
+    /// </summary>
+    public Guid? ConnectedProfileId { get; private set; }
+
     /// <param name="lastProfileId">
     /// The profile connected to last session, preselected here so the common
     /// case — reconnect to the same database — needs no clicking at all: the
@@ -302,6 +318,12 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         _persistLastProfileId = persistLastProfileId;
 
         Profiles.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasNoProfiles));
+
+        // Old base64 .cred files (non-Windows) move into the OS store in one pass,
+        // queued first so every read below sees the result, and whatever can't
+        // move shows in the dialog's credential warning (security audit 2026-09,
+        // finding 18). The store does it once per process; later dialogs no-op.
+        _ = EnqueueCredentialWork(_credentialStore.MigrateLegacyFiles);
 
         foreach (var profile in _store.Load())
         {
@@ -840,7 +862,7 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
             string connectionString;
             if (profile.SshTunnel is { } sshOptions)
             {
-                tunnel = await Task.Run(() => SshTunnel.Connect(sshOptions, SshPassword, profile.Host, profile.Port));
+                tunnel = await Task.Run(() => SshTunnel.Connect(sshOptions, SshPassword, profile.Host, profile.Port, HostKeys));
                 connectionString = profile.BuildConnectionString(
                     string.IsNullOrEmpty(Password) ? null : Password,
                     (tunnel.LocalHost, tunnel.LocalPort));
@@ -904,7 +926,7 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
             string connectionString;
             if (profile.SshTunnel is { } sshOptions)
             {
-                tunnel = await Task.Run(() => SshTunnel.Connect(sshOptions, SshPassword, profile.Host, profile.Port));
+                tunnel = await Task.Run(() => SshTunnel.Connect(sshOptions, SshPassword, profile.Host, profile.Port, HostKeys));
                 connectionString = profile.BuildConnectionString(
                     string.IsNullOrEmpty(Password) ? null : Password,
                     (tunnel.LocalHost, tunnel.LocalPort));
@@ -937,6 +959,7 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
             // The dialog closes inside the hand-off; the passwords go first.
             await FlushAsync();
 
+            ConnectedProfileId = profile.Id;
             Connected?.Invoke(dataSource, profile.AccentColor, tunnel);
             dataSource = null; // handed off; the main window owns it now
             RememberLastProfile();
@@ -1028,4 +1051,7 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
 
         return new Guid(bytes);
     }
+
+    /// <summary>Every credential-store id a profile uses: its database password and its SSH secret.</summary>
+    public static IReadOnlyList<Guid> CredentialIdsFor(Guid profileId) => [profileId, DeriveSshCredentialId(profileId)];
 }

@@ -1,9 +1,11 @@
 name: Docs
 
-# Builds the MkDocs site. On a pull request it only builds (--strict, so a
-# broken link or a page missing from the nav fails the check); on main it also
-# publishes to gh-pages under /docs/, leaving the landing page at the root and
-# dev/bench/ untouched.
+# Builds the MkDocs site. Two jobs, and the split is the point: "build" runs on
+# every event with a read-only token (--strict, so a broken link or a page
+# missing from the nav fails the check); "publish" runs only for main, is the
+# only job with contents: write, and pushes the built site to gh-pages under
+# /docs/, leaving the landing page at the root and dev/bench/ untouched. A
+# pull request never reaches a token that can write, whatever the build runs.
 on:
   push:
     branches:
@@ -25,21 +27,14 @@ permissions:
   contents: read
 
 jobs:
-  docs:
+  build:
     runs-on: ubuntu-latest
-    # Write is only needed for the publish step below; a PR build never reaches
-    # it, and a fork PR gets a read-only token regardless.
-    permissions:
-      contents: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # publish-docs.sh adds a gh-pages worktree, which needs that branch
-          # fetchable — a shallow single-branch clone can't provide it. A PR
-          # only builds, so it skips the full-history clone.
-          fetch-depth: ${{ github.event_name == 'pull_request' && 1 || 0 }}
+          persist-credentials: false
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
           cache: pip
@@ -51,10 +46,40 @@ jobs:
       - name: Build
         run: mkdocs build --strict
 
-      - name: Publish to gh-pages
-        if: github.event_name != 'pull_request'
+  publish:
+    needs: build
+    # main only: a push to it, or a manual re-publish started from it. A pull
+    # request or a dispatch from any other branch stops at "build".
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # publish-docs.sh adds a gh-pages worktree, which needs that branch
+          # fetchable — a shallow single-branch clone can't provide it.
+          fetch-depth: 0
+          # The script pushes with git, so this is the one checkout that keeps
+          # the token; the job's token is the only one with write access.
+          persist-credentials: true
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: docs/requirements.txt
+
+      - name: Install MkDocs
+        run: pip install -r docs/requirements.txt
+
+      # Builds again rather than downloading "build"'s output: the site is a
+      # few seconds of mkdocs, and an artifact round-trip would cost storage
+      # (CLAUDE.md, "Actions storage is a 0.5 GB budget") for nothing.
+      - name: Build and publish to gh-pages
         env:
-          # The default GITHUB_TOKEN needs write access to push the branch.
           GIT_AUTHOR_NAME: github-actions[bot]
           GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
           GIT_COMMITTER_NAME: github-actions[bot]

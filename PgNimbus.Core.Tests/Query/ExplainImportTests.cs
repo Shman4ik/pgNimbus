@@ -92,6 +92,28 @@ public class ExplainImportTests
     }
 
     [Test]
+    public async Task A_plan_deeper_than_json_documents_default_depth_still_parses()
+    {
+        // Each plan level is an object and a "Plans" array, so JsonDocument's
+        // default depth of 64 stopped a plan at about 31 levels: a join of that
+        // many tables. 40 levels reads now, in JSON and in text alike.
+        const int levels = 40;
+        var node = """{"Node Type": "Result", "Startup Cost": 0, "Total Cost": 1, "Plan Rows": 1, "Plan Width": 4}""";
+        for (var i = 0; i < levels - 1; i++)
+        {
+            node = $$"""{"Node Type": "Nested Loop", "Startup Cost": 0, "Total Cost": 1, "Plan Rows": 1, "Plan Width": 4, "Plans": [{{node}}]}""";
+        }
+
+        var json = ExplainService.Parse($$"""[{"Plan": {{node}}}]""");
+        var text = ExplainPlanTextParser.Parse(ExplainTextFormatter.Format(json));
+
+        await Assert.That(Depth(json.Root)).IsEqualTo(levels);
+        await Assert.That(Depth(text.Root)).IsEqualTo(levels);
+
+        static int Depth(ExplainNode n) => 1 + (n.Children.Count == 0 ? 0 : n.Children.Max(Depth));
+    }
+
+    [Test]
     public async Task TextPlanBuildsTreeCostAndActual()
     {
         var text =
@@ -227,5 +249,85 @@ public class ExplainImportTests
     {
         await Assert.That(() => ExplainService.Import("hello world, this is not a plan"))
             .Throws<FormatException>();
+    }
+
+    // --- Security audit 2026-09, finding 16: every parse failure is a FormatException ---
+
+    [Test]
+    public async Task CostsOffJsonParsesWithZeroFigures()
+    {
+        // EXPLAIN (FORMAT JSON, COSTS OFF) carries no Startup Cost / Total Cost /
+        // Plan Rows / Plan Width at all; GetProperty on them was a KeyNotFoundException
+        // that reached the crash window.
+        const string costsOff = """
+            [
+              {
+                "Plan": {
+                  "Node Type": "Hash Join",
+                  "Join Type": "Inner",
+                  "Plans": [
+                    { "Node Type": "Seq Scan", "Relation Name": "t", "Alias": "t" },
+                    { "Node Type": "Hash", "Plans": [ { "Node Type": "Seq Scan", "Relation Name": "u", "Alias": "u" } ] }
+                  ]
+                }
+              }
+            ]
+            """;
+
+        var imported = ExplainService.Import(costsOff);
+
+        await Assert.That(imported.Result.Root.NodeType).IsEqualTo("Hash Join");
+        await Assert.That(imported.Result.Root.TotalCost).IsEqualTo(0);
+        await Assert.That(imported.Result.Root.PlanRows).IsEqualTo(0);
+        await Assert.That(imported.Result.Root.Children.Count).IsEqualTo(2);
+        await Assert.That(imported.Result.Root.Children[1].Children[0].RelationName).IsEqualTo("u");
+        // The text view and the analyzer take the figure-less tree in their stride.
+        await Assert.That(imported.DisplayText).StartsWith("Hash Join");
+        _ = PlanAnalyzer.Analyze(imported.Result);
+    }
+
+    [Test]
+    [Arguments("""[{"Plan": 5}]""")]
+    [Arguments("""[{"Plan": {"Startup Cost": 1}}]""")]
+    [Arguments("""[{"Plan": {"Node Type": 7}}]""")]
+    [Arguments("""[{"Plan": {"Node Type": "Result", "Plans": 3}}]""")]
+    [Arguments("""{"Plan": []}""")]
+    [Arguments("""[5]""")]
+    [Arguments("""[]""")]
+    [Arguments("""[{"Plan": {"Node Type": "Result"}""")]
+    [Arguments("Seq Scan on t  (cost=0.00..1.00 rows=99999999999999999999 width=4)\n  ->  Bogus line with no cost")]
+    [Arguments("  ->  Seq Scan on t  (cost=0.00..1.00 rows=1 width=4)\n->  Seq Scan on t  (cost=0.00..1.00 rows=1 width=4)")]
+    public async Task WrongShapedInputIsAFormatException(string raw)
+    {
+        // [{"Plan": 5}] was an InvalidOperationException, a node without "Node Type" a
+        // KeyNotFoundException, rows= past 9.2e18 an OverflowException — each escaped
+        // the import dialog's catch (FormatException only) and shut the app down.
+        await Assert.That(() => ExplainService.Import(raw)).Throws<FormatException>();
+    }
+
+    [Test]
+    public async Task RowCountsPastALongSaturateInsteadOfOverflowing()
+    {
+        var json = ExplainService.Parse("""{ "Node Type": "Result", "Plan Rows": 1e30, "Plan Width": 1e12, "Actual Loops": -1e30, "Actual Rows": "many" }""");
+        await Assert.That(json.Root.PlanRows).IsEqualTo(long.MaxValue);
+        await Assert.That(json.Root.PlanWidth).IsEqualTo(int.MaxValue);
+        await Assert.That(json.Root.ActualLoops).IsEqualTo(long.MinValue);
+        // A number written as a string is not a number.
+        await Assert.That(json.Root.ActualRows).IsNull();
+
+        var text = ExplainService.Import("Seq Scan on t  (cost=0.00..1.00 rows=99999999999999999999 width=4)");
+        await Assert.That(text.Result.Root.PlanRows).IsEqualTo(long.MaxValue);
+    }
+
+    [Test]
+    public async Task JsonNestedPastTheReadersDepthIsAFormatException()
+    {
+        // Parse reads JSON to ExplainService.MaxJsonDepth (256, about 127 plan nodes
+        // deep); past it JsonDocument throws a JsonException, which used to escape
+        // Parse (only Import translated it). 130 levels is 260 JSON levels.
+        var deep = string.Concat(Enumerable.Repeat("""{"Node Type": "Result", "Plans": [""", 130)) + "{\"Node Type\": \"Result\"}" + string.Concat(Enumerable.Repeat("]}", 130));
+
+        await Assert.That(() => ExplainService.Parse(deep)).Throws<FormatException>();
+        await Assert.That(() => ExplainService.Import(deep)).Throws<FormatException>();
     }
 }

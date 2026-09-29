@@ -1,4 +1,3 @@
-using System.Text.Json;
 using System.Text.Json.Serialization;
 using PgNimbus.Core.Connections;
 using PgNimbus.Core.Text;
@@ -13,13 +12,13 @@ namespace PgNimbus.Core.Settings;
 /// settings.json, which is rewritten by every preference toggle and would carry
 /// up to a thousand rows per connection along. The last <see cref="MaxConnections"/>
 /// connections are kept. Serialized through a source-generated context, as
-/// NativeAOT requires.
+/// NativeAOT requires, and written through <see cref="AppDataFile"/>.
 /// </summary>
 public sealed class CompletionUsageStore(string? filePath = null)
 {
     private const int MaxConnections = 20;
 
-    private readonly string _filePath = filePath ?? Path.Combine(AppDataPaths.GetRootDirectory(), "completion-usage.json");
+    private readonly string? _filePath = filePath ?? AppDataPaths.Resolve("completion-usage.json");
 
     /// <summary>The usage remembered for <paramref name="connection"/>; empty for one never seen, or for a file that can't be read.</summary>
     public IReadOnlyList<CompletionUsageEntry> Load(string connection) =>
@@ -36,32 +35,13 @@ public sealed class CompletionUsageStore(string? filePath = null)
             all.RemoveRange(MaxConnections, all.Count - MaxConnections);
         }
 
-        var directory = Path.GetDirectoryName(_filePath);
-        if (!string.IsNullOrEmpty(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
-
-        File.WriteAllText(_filePath, JsonSerializer.Serialize(all, CompletionUsageJsonContext.Default.ListConnectionUsage));
+        AppDataFile.WriteJson(_filePath, all, CompletionUsageJsonContext.Default.ListConnectionUsage);
     }
 
-    private List<ConnectionUsage> LoadAll()
-    {
-        if (!File.Exists(_filePath))
-        {
-            return [];
-        }
-
-        // A corrupt or half-written file costs the ranking its memory, never startup.
-        try
-        {
-            return JsonSerializer.Deserialize(File.ReadAllText(_filePath), CompletionUsageJsonContext.Default.ListConnectionUsage) ?? [];
-        }
-        catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException)
-        {
-            return [];
-        }
-    }
+    // A corrupt or half-written file costs the ranking its memory, never
+    // startup: AppDataFile moves it aside and the list starts empty.
+    private List<ConnectionUsage> LoadAll() =>
+        AppDataFile.ReadJson(_filePath, CompletionUsageJsonContext.Default.ListConnectionUsage) ?? [];
 }
 
 /// <summary>One connection's remembered accepts.</summary>

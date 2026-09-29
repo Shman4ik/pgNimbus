@@ -9,10 +9,13 @@ namespace PgNimbus.Core.Security;
 /// changes are handed to the SQL editor as a script, because a GRANT the user
 /// can read, edit and run beats one applied behind their back. The exception is
 /// any statement carrying a <c>PASSWORD</c> literal. Postgres has no parameter
-/// form for it, so the secret has to be interpolated into statement text — and
+/// form for it, so a secret has to be interpolated into statement text — and
 /// routing that through a query tab would file it in the on-disk query history
 /// and put it on screen. Those statements run here instead: composed, executed,
-/// and dropped, never shown and never persisted.
+/// and dropped, never shown and never persisted. What they carry is the
+/// SCRAM-SHA-256 verifier <see cref="ScramSha256Verifier"/> computes on this
+/// machine, not the cleartext, so the statement text the server logs or shows
+/// in <c>pg_stat_activity</c> holds no password either.
 ///
 /// Everything runs inside one transaction. DDL is transactional in Postgres, so
 /// a three-statement drop-role recipe that fails on its second statement leaves
