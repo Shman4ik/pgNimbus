@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790101741476,
+  "lastUpdate": 1790706987733,
   "repoUrl": "https://github.com/Shman4ik/pgNimbus",
   "entries": {
     "pgNimbus benchmarks": [
@@ -1926,6 +1926,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "Stream 100000 rows",
             "value": 150,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shman4ik@gmail.com",
+            "name": "Dmitrii Shmanev",
+            "username": "Shman4ik"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4e9ef0ba59a11ba28f6c9eda5883005f0d6d5841",
+          "message": "Fix/mac release pass (#314)\n\n* fix(credentials): a missing credentials directory is not a storage failure\n\nA new install has no <appdata>/pgNimbus/credentials directory, and\nRecoverableCredentialStore.DeleteLegacy called File.Delete on a path inside it.\nFile.Delete throws DirectoryNotFoundException, an IOException, which\nIsStorageFailure counts as the OS store refusing. So the first saved password on\nany fresh macOS or Linux install stored fine in the Keychain and then showed\n\"Password storage is unavailable or migration could not finish\", kept the\npassword in session memory, and a delete showed \"an old unencrypted credential\nfile could not be moved\". Found on a real Mac with the 1.0.0 bundle.\n\nGuard the delete with File.Exists (false for a missing directory too). The tests'\nfixture always created the directory, which is why nothing caught it; the new\nones use a directory that does not exist and fail without the fix.\n\nCo-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>\n\n* fix(ui): an overlay takes focus when it opens and gives it back when it closes\n\nOpening Settings from the macOS app menu (or its key equivalent) left focus in the\nSQL editor under the scrim. The editor answered Escape before it could bubble to\nthe top level where OverlayPanel listens, so the page could not be dismissed from\nthe keyboard, and text typed with it open went into the query behind it. Opened\nfrom the gear button it worked, because a click moves focus.\n\nOverlayPanel is now focusable, remembers what held focus when IsOpen turns true,\ntakes focus, and restores it on close unless focus has gone somewhere else on\npurpose. It re-asserts once after the dispatcher settles because a native menu\nclick hands focus back to the window as it closes. The test reproduces the\neditor-focused case (it fails without the change).\n\nThis is in shared/nimbusUi, so kubeNimbus needs the same subtree update.\n\nCo-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>\n\n* fix(release): ship no debug symbols in the macOS bundle and state the real minimum macOS\n\nTwo packaging defects found in the 1.0.0 .dmg on a real Mac.\n\nbuild-app-bundle.sh removed `*.dsym`, but NativeAOT writes `PgNimbus.App.dSYM` and\nbash matches globs case-sensitively, so nothing was removed: 130 MB of symbols\n(and the .pdb files) shipped inside the .app, 189 MB installed instead of 58 MB,\n48 MB .dmg instead of 29 MB. It now uses `find -iname` for the dSYM and drops\n*.pdb like the Windows and Linux packages do.\n\nInfo.plist said LSMinimumSystemVersion 11.0 while the NativeAOT binary is built\nfor macOS 12 (`vtool -show-build`: minos 12.0), so a macOS 11 Mac would fail in\ndyld instead of being told it needs macOS 12. The key is now 12.0.\n\nrelease.yml's mounted-.dmg step now fails if any debug symbols are in the bundle,\nor if LSMinimumSystemVersion is older than the highest minos of any Mach-O in it.\nA Core test keeps the template from being lowered under 12.\n\nCo-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>\n\n* test: pin the two cap-text tests to the culture the app runs with\n\nThe app is InvariantGlobalization, so its N0 text is \"100,000\". The test host is\nnot, and on a Mac set to a Czech region the same call writes \"100 000\", which\nfailed Each_cap_says_which_limit_it_was and\nThe_grid_builds_at_most_a_thousand_columns_and_says_so for reasons unrelated to\nthe code. Both now run under the invariant culture and restore it. The full App\nsuite passes on that Mac without DOTNET_SYSTEM_GLOBALIZATION_INVARIANT.\n\nCo-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>\n\n* docs: macOS minimum version, the update and Keychain caveat, and a macOS release pass\n\nmacOS 12 or later is now stated in the installation guide, README and website (the\nbundle asks for 12.0). The installation guide, the connecting page, the README and\nthe website card say that saved passwords can stop loading after an update while\nbuilds are ad-hoc signed, and how to fix it (delete the pgNimbus items in Keychain\nAccess); measured on 2026-09-29, and the first notarized build needs the same reset\nonce. The website's link to a README anchor that never existed now points at the\ninstallation guide.\n\nRELEASE-CHECKLIST gains a macOS pass (live Postgres in Docker, building and checking\nthe real bundle, an isolated data directory, the Mac-only gestures, Keychain) and the\ncaveat and a log row for what this pass found. release-ci.md and CLAUDE.md record the\nnew CI gates, the missing-credentials-directory bug, the ad-hoc Keychain limit and\nthe overlay focus rule; DESIGN.md rule 13 states the focus contract for both apps.\n\nCo-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>\n\n---------\n\nCo-authored-by: Claude Sonnet 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-09-29T20:07:15+02:00",
+          "tree_id": "18691b49864ce343d21612ec01addda60f23d045",
+          "url": "https://github.com/Shman4ik/pgNimbus/commit/4e9ef0ba59a11ba28f6c9eda5883005f0d6d5841"
+        },
+        "date": 1790706986533,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Startup, launch to first frame (NativeAOT)",
+            "value": 210,
+            "unit": "ms"
+          },
+          {
+            "name": "Memory at first frame (NativeAOT)",
+            "value": 167,
+            "unit": "MB"
+          },
+          {
+            "name": "Binary size (NativeAOT)",
+            "value": 46,
+            "unit": "MB"
+          },
+          {
+            "name": "Publish size (NativeAOT, shipped files)",
+            "value": 59.4,
+            "unit": "MB"
+          },
+          {
+            "name": "Startup, launch to first frame (JIT)",
+            "value": 2107,
+            "unit": "ms"
+          },
+          {
+            "name": "Connect, cold pool",
+            "value": 145.9,
+            "unit": "ms"
+          },
+          {
+            "name": "Round-trip, SELECT 1 warm",
+            "value": 0.53,
+            "unit": "ms"
+          },
+          {
+            "name": "First row batch of a 100000-row SELECT",
+            "value": 10.2,
+            "unit": "ms"
+          },
+          {
+            "name": "Stream 100000 rows",
+            "value": 145.2,
             "unit": "ms"
           }
         ]
