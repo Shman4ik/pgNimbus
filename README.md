@@ -19,6 +19,7 @@
   <img src="https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet" alt=".NET 10">
   <img src="https://img.shields.io/badge/Avalonia-12-8B44AC" alt="Avalonia 12">
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey" alt="Platforms">
+  <a href="https://buymeacoffee.com/shman4ik"><img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?logo=buymeacoffee&logoColor=black" alt="Buy me a coffee"></a>
 </p>
 
 <p align="center">
@@ -26,8 +27,7 @@
   <a href="https://shman4ik.github.io/pgNimbus/docs/">Docs</a> ·
   <a href="#-installation">Install</a> ·
   <a href="#-features">Features</a> ·
-  <a href="ROADMAP.md">Roadmap</a> ·
-  <a href="#-support">Support</a>
+  <a href="ROADMAP.md">Roadmap</a>
 </p>
 
 ---
