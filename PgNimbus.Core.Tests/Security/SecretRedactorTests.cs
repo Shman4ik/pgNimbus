@@ -126,6 +126,19 @@ public class SecretRedactorTests
     }
 
     [Test]
+    public async Task AHandTypedScramVerifierIsRedactedLikeAnyOtherLiteral()
+    {
+        // What the role editor sends since finding 7 of the 2026-09 audit, and
+        // what a user pastes from pg_authid. The $ inside the quotes is not a
+        // dollar-quote opener; the literal follows PASSWORD, so it goes.
+        const string sql =
+            "ALTER ROLE app PASSWORD 'SCRAM-SHA-256$4096:AAECAwQFBgcICQoLDA0ODw==$THoPhoTAuqyoQsK4dUHncUzgfD8fdmhsgKZhWVqNP5U=:7YiHMMi2OcXGRogub03Ek06JRZ9bkhTOdCzHa5iPLiQ=';";
+
+        await Assert.That(SecretRedactor.Redact(sql)).IsEqualTo("ALTER ROLE app PASSWORD '<redacted>';");
+        await Assert.That(SecretRedactor.ContainsSecret(sql)).IsTrue();
+    }
+
+    [Test]
     public async Task AnUnterminatedLiteralIsSwallowedRatherThanTrusted()
     {
         // Truncated statement text (a crash log capture). Err toward redacting.

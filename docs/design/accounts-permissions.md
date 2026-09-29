@@ -98,9 +98,14 @@ Same shape as the plan analyzer, and the same reason it worked:
   `BlockingTree` / `JsonTree`. No Avalonia types.
 - **UI rule 1 still applies.** Zero new toolbar buttons. Entry points are the
   schema tree context menu and the command palette.
-- **Never let a password reach disk.** `QueryHistoryStore` and `CrashLog` both
-  persist statement text. Any `PASSWORD` literal must be redacted before it can
-  reach either, and password entry must not flow through the normal query path.
+- **Never let a password reach disk, here or on the server.** `QueryHistoryStore`
+  and `CrashLog` both persist statement text. Any `PASSWORD` literal must be
+  redacted before it can reach either, and password entry must not flow through
+  the normal query path. The server keeps statement text too: the log on any
+  failure, `pg_stat_activity` while it runs, `pg_stat_statements` before PG 16.
+  So the executed statement carries a SCRAM-SHA-256 verifier computed on the
+  client (`ScramSha256Verifier`, as psql's `\password` does), never the
+  cleartext.
 
 ## Proposed plan
 
@@ -155,7 +160,8 @@ The differentiator, and the lowest-risk half.
     `CONNECTION LIMIT`, memberships. Password handling: never interpolated into
     history-visible text; redacted in query history and the crash log; the
     generated-SQL preview shows `PASSWORD '••••'` while the executed statement
-    carries the real value. Offer the predefined roles (`pg_read_all_data`,
+    carries the SCRAM-SHA-256 verifier computed on the client, so the cleartext
+    is sent to nobody. Offer the predefined roles (`pg_read_all_data`,
     `pg_write_all_data`, `pg_monitor`) as one-click memberships, since that is
     now the sane answer to "make a read-only user".
 12. **Drop role, done properly** — detect 2BP01 up front by listing what the

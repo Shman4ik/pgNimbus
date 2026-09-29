@@ -61,14 +61,36 @@ public class RoleScriptBuilderTests
                 validUntil: Expiry,
                 memberOf: ["readers", "Report Writers"],
                 comment: "the application role"),
-            password: "hunter2");
+            password: null);
 
         await Assert.That(N(sql)).IsEqualTo(N("""
-            CREATE ROLE app_rw WITH LOGIN NOSUPERUSER INHERIT NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS CONNECTION LIMIT 10 VALID UNTIL '2027-01-01 00:00:00+00:00' PASSWORD 'hunter2';
+            CREATE ROLE app_rw WITH LOGIN NOSUPERUSER INHERIT NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS CONNECTION LIMIT 10 VALID UNTIL '2027-01-01 00:00:00+00:00';
             GRANT readers TO app_rw;
             GRANT "Report Writers" TO app_rw;
             COMMENT ON ROLE app_rw IS 'the application role';
             """));
+    }
+
+    [Test]
+    public async Task CreateEmitsAVerifierNotTheCleartext()
+    {
+        // The executed statement carries the SCRAM-SHA-256 secret the server
+        // would otherwise have computed from the cleartext, so the password
+        // itself never reaches the server log, pg_stat_activity or
+        // pg_stat_statements (security audit 2026-09, finding 7).
+        var sql = RoleScriptBuilder.Create(Definition(connectionLimit: 10), password: "hunter2");
+
+        await Assert.That(sql).DoesNotContain("hunter2");
+        await Assert.That(sql).StartsWith("CREATE ROLE app_rw WITH LOGIN NOSUPERUSER INHERIT NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS CONNECTION LIMIT 10 PASSWORD 'SCRAM-SHA-256$4096:");
+        await Assert.That(sql).EndsWith("';");
+
+        var literal = sql[(sql.IndexOf("PASSWORD '", StringComparison.Ordinal) + "PASSWORD '".Length)..^2];
+        await Assert.That(ScramSha256Verifier.TryParse(literal, out var secret)).IsTrue();
+        await Assert.That(secret!.Salt).Count().IsEqualTo(ScramSha256Verifier.SaltLength);
+
+        // A fresh salt per call: the same form applied twice sends two different
+        // secrets for one password.
+        await Assert.That(RoleScriptBuilder.Create(Definition(), password: "hunter2")).IsNotEqualTo(sql);
     }
 
     [Test]
@@ -173,10 +195,13 @@ public class RoleScriptBuilderTests
     }
 
     [Test]
-    public async Task SetPasswordMasksOnRequest()
+    public async Task SetPasswordMasksOnRequestAndSendsAVerifierOtherwise()
     {
-        await Assert.That(RoleScriptBuilder.SetPassword("app_rw", "hunter2"))
-            .IsEqualTo("ALTER ROLE app_rw WITH PASSWORD 'hunter2';");
+        var executed = RoleScriptBuilder.SetPassword("app_rw", "hunter2");
+        await Assert.That(executed).StartsWith("ALTER ROLE app_rw WITH PASSWORD 'SCRAM-SHA-256$4096:");
+        await Assert.That(executed).EndsWith("';");
+        await Assert.That(executed).DoesNotContain("hunter2");
+        await Assert.That(ScramSha256Verifier.TryParse(executed["ALTER ROLE app_rw WITH PASSWORD '".Length..^2], out _)).IsTrue();
 
         await Assert.That(RoleScriptBuilder.SetPassword("app_rw", "hunter2", maskPassword: true))
             .IsEqualTo("ALTER ROLE app_rw WITH PASSWORD '••••';");
