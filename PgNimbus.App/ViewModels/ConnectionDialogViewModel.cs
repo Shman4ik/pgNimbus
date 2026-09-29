@@ -194,8 +194,35 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
     [ObservableProperty]
     private string _username = string.Empty;
 
+    /// <summary>
+    /// Require for a new profile (security audit 2026-09, finding 9): Prefer, the
+    /// old default and libpq's, falls back to plaintext whenever the server or
+    /// anyone on the path declines TLS. Require at least always encrypts; the
+    /// picker says it checks nothing and marks Verify full as the one to use.
+    /// A new form's host picks between the two (<see cref="SslModes.DefaultFor"/>)
+    /// until the mode is chosen: Prefer for this machine, Require for the rest.
+    /// </summary>
+    public const SslMode DefaultSslMode = SslMode.Require;
+
+    // Whether the SSL mode was chosen: a loaded profile's, a change in the
+    // picker, a pasted string that names one. Until then a new form follows
+    // its host (ApplySslModeDefault).
+    private bool _sslModeChosen;
+    private bool _defaultingSslMode;
+
     [ObservableProperty]
-    private SslMode _sslMode = SslMode.Prefer;
+    [NotifyPropertyChangedFor(nameof(ShowsRootCertificate))]
+    private SslMode _sslMode = PgNimbus.Core.Connections.SslModes.DefaultFor(DefaultHost);
+
+    /// <summary>
+    /// A CA file to trust instead of the OS store (<see cref="ConnectionProfile.RootCertificatePath"/>).
+    /// Blank means the OS store. Shown only for the modes that check the
+    /// certificate; the others would ignore it.
+    /// </summary>
+    [ObservableProperty]
+    private string _rootCertificatePath = string.Empty;
+
+    public bool ShowsRootCertificate => SslMode is SslMode.VerifyCa or SslMode.VerifyFull;
 
     [ObservableProperty]
     private string? _accentColor;
@@ -358,12 +385,14 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         try
         {
             _editingId = value?.Id;
+            _sslModeChosen = value is not null;
             Name = value?.Name ?? string.Empty;
             Host = value?.Host ?? string.Empty;
             Port = value?.Port;
             Database = value?.Database ?? string.Empty;
             Username = value?.Username ?? string.Empty;
-            SslMode = value?.SslMode ?? SslMode.Prefer;
+            SslMode = value?.SslMode ?? PgNimbus.Core.Connections.SslModes.DefaultFor(EffectiveHost);
+            RootCertificatePath = value?.RootCertificatePath ?? string.Empty;
             AccentColor = value?.AccentColor;
             ReadOnly = value?.ReadOnly ?? false;
             Password = string.Empty;
@@ -656,12 +685,44 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         }
     }
 
-    partial void OnHostChanged(string value) => OnConnectionFieldChanged();
+    partial void OnHostChanged(string value)
+    {
+        ApplySslModeDefault();
+        OnConnectionFieldChanged();
+    }
     partial void OnPortChanged(int? value) => OnConnectionFieldChanged();
     partial void OnDatabaseChanged(string value) => OnConnectionFieldChanged();
     partial void OnUsernameChanged(string value) => OnConnectionFieldChanged();
     partial void OnPasswordChanged(string value) => OnConnectionFieldChanged(credentials: true);
-    partial void OnSslModeChanged(SslMode value) => OnConnectionFieldChanged();
+    partial void OnSslModeChanged(SslMode value)
+    {
+        if (!_loadingForm && !_defaultingSslMode)
+        {
+            _sslModeChosen = true;
+        }
+
+        OnConnectionFieldChanged();
+    }
+
+    // A new form's mode follows its host until someone chooses one.
+    private void ApplySslModeDefault()
+    {
+        if (_sslModeChosen || _loadingForm)
+        {
+            return;
+        }
+
+        _defaultingSslMode = true;
+        try
+        {
+            SslMode = PgNimbus.Core.Connections.SslModes.DefaultFor(EffectiveHost);
+        }
+        finally
+        {
+            _defaultingSslMode = false;
+        }
+    }
+    partial void OnRootCertificatePathChanged(string value) => OnConnectionFieldChanged();
 
     private void OnConnectionFieldChanged(bool credentials = false)
     {
@@ -709,6 +770,11 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
             if (parsed.SslMode is { } sslMode)
             {
                 SslMode = sslMode;
+            }
+
+            if (parsed.RootCertificatePath is not null)
+            {
+                RootCertificatePath = parsed.RootCertificatePath;
             }
 
             // No name is written here: a blank Name field already reads as
@@ -781,13 +847,25 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
 
         builder.Append('/').Append(Uri.EscapeDataString(EffectiveDatabase));
 
+        // Prefer is libpq's own default, so a URI without sslmode means it.
+        var separator = '?';
         if (SslMode != SslMode.Prefer)
         {
-            builder.Append("?sslmode=").Append(SslModeToQueryValue(SslMode));
+            builder.Append(separator).Append("sslmode=").Append(SslModeToQueryValue(SslMode));
+            separator = '&';
+        }
+
+        // Only where the profile would pass it on (ConnectionProfile.UsesRootCertificate).
+        if (ShowsRootCertificate && !Blank(RootCertificatePath))
+        {
+            builder.Append(separator).Append("sslrootcert=").Append(Uri.EscapeDataString(RootCertificatePath.Trim()));
         }
 
         return builder.ToString();
     }
+
+    private static string WithTlsHint(string message, Exception failure, SslMode mode) =>
+        Core.Connections.SslModes.ServerWithoutTlsHint(failure, mode) is { } hint ? $"{message} {hint}" : message;
 
     private static string SslModeToQueryValue(SslMode mode) => mode switch
     {
@@ -859,25 +937,20 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         SshTunnel? tunnel = null;
         try
         {
-            string connectionString;
+            (string Host, int Port)? endpoint = null;
             if (profile.SshTunnel is { } sshOptions)
             {
                 tunnel = await Task.Run(() => SshTunnel.Connect(sshOptions, SshPassword, profile.Host, profile.Port, HostKeys));
-                connectionString = profile.BuildConnectionString(
-                    string.IsNullOrEmpty(Password) ? null : Password,
-                    (tunnel.LocalHost, tunnel.LocalPort));
-            }
-            else
-            {
-                connectionString = profile.BuildConnectionString(string.IsNullOrEmpty(Password) ? null : Password);
+                endpoint = (tunnel.LocalHost, tunnel.LocalPort);
             }
 
-            var serverVersion = await ConnectionTester.TestAsync(connectionString);
+            var serverVersion = await ConnectionTester.TestAsync(
+                profile, string.IsNullOrEmpty(Password) ? null : Password, endpoint);
             StatusMessage = $"Connection successful — PostgreSQL {serverVersion}";
         }
         catch (Exception ex)
         {
-            ErrorMessage = $"Connection test failed: {ex.Message}";
+            ErrorMessage = WithTlsHint($"Connection test failed: {ex.Message}", ex, profile.SslMode);
         }
         finally
         {
@@ -923,17 +996,11 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         NpgsqlDataSource? dataSource = null;
         try
         {
-            string connectionString;
+            (string Host, int Port)? endpoint = null;
             if (profile.SshTunnel is { } sshOptions)
             {
                 tunnel = await Task.Run(() => SshTunnel.Connect(sshOptions, SshPassword, profile.Host, profile.Port, HostKeys));
-                connectionString = profile.BuildConnectionString(
-                    string.IsNullOrEmpty(Password) ? null : Password,
-                    (tunnel.LocalHost, tunnel.LocalPort));
-            }
-            else
-            {
-                connectionString = profile.BuildConnectionString(string.IsNullOrEmpty(Password) ? null : Password);
+                endpoint = (tunnel.LocalHost, tunnel.LocalPort);
             }
 
             // Open one real connection before handing anything off. Creating an
@@ -942,8 +1009,10 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
             // up, in a schema-tree error far from the password field that caused
             // it. The connection goes straight back to the pool, so the main
             // window inherits it warm — this costs a round-trip only in the sense
-            // that it moves the first one earlier.
-            dataSource = NpgsqlDataSource.Create(connectionString);
+            // that it moves the first one earlier. Through a tunnel the pool also
+            // names the real host as the TLS target (CreateDataSource), so
+            // Verify full checks the certificate against it, not 127.0.0.1.
+            dataSource = profile.CreateDataSource(string.IsNullOrEmpty(Password) ? null : Password, endpoint);
             await using (await dataSource.OpenConnectionAsync())
             {
             }
@@ -976,7 +1045,7 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
             }
 
             tunnel?.Dispose();
-            ErrorMessage = $"Connection failed: {ex.Message}";
+            ErrorMessage = WithTlsHint($"Connection failed: {ex.Message}", ex, profile.SslMode);
         }
         finally
         {
@@ -1033,7 +1102,8 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
             SslMode,
             AccentColor,
             sshTunnel,
-            ReadOnly);
+            ReadOnly,
+            Blank(RootCertificatePath) ? null : RootCertificatePath.Trim());
     }
 
     /// <summary>

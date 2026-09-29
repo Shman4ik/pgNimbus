@@ -204,7 +204,8 @@ public static class Fixtures
     [
         new(Guid.Parse("aaaaaaaa-0000-0000-0000-000000000001"), "Local shop", "localhost", 5432, "shop", "pgnimbus", SslMode.Prefer),
         new(Guid.Parse("aaaaaaaa-0000-0000-0000-000000000002"), "Staging", "db.staging.example", 5432, "shop", "app", SslMode.Require, AccentColor: "#F0A030"),
-        new(Guid.Parse("aaaaaaaa-0000-0000-0000-000000000003"), "Production", "db.example.com", 6432, "shop", "reporting", SslMode.VerifyFull, AccentColor: "#E05252", ReadOnly: true),
+        new(Guid.Parse("aaaaaaaa-0000-0000-0000-000000000003"), "Production", "db.example.com", 6432, "shop", "reporting", SslMode.VerifyFull, AccentColor: "#E05252", ReadOnly: true,
+            RootCertificatePath: "/etc/ssl/certs/example-ca.pem"),
     ];
 
     // --- Result sets ------------------------------------------------------

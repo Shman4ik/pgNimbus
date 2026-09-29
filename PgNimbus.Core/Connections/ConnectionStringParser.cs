@@ -33,7 +33,8 @@ public sealed record ParsedConnectionString(
     string? Database = null,
     string? Username = null,
     string? Password = null,
-    SslMode? SslMode = null);
+    SslMode? SslMode = null,
+    string? RootCertificatePath = null);
 
 /// <summary>
 /// Accepts a connection string in any of the syntaxes people actually have
@@ -139,6 +140,11 @@ public static class ConnectionStringParser
         if (parsed.SslMode is { } sslMode)
         {
             builder.SslMode = sslMode.ToNpgsql();
+        }
+
+        if (!string.IsNullOrEmpty(parsed.RootCertificatePath))
+        {
+            builder.RootCertificate = parsed.RootCertificatePath;
         }
 
         return builder.ConnectionString;
@@ -448,6 +454,7 @@ public static class ConnectionStringParser
                     "PGUSER" => fields.TrySetByKeyword("user", value, out error),
                     "PGPASSWORD" => fields.TrySetByKeyword("password", value, out error),
                     "PGSSLMODE" => fields.TrySetByKeyword("sslmode", value, out error),
+                    "PGSSLROOTCERT" => fields.TrySetByKeyword("sslrootcert", value, out error),
                     _ => true, // unrelated env var (e.g. LANG=C) — skip
                 };
 
@@ -626,8 +633,16 @@ public static class ConnectionStringParser
         public string? Username;
         public string? Password;
         public SslMode? SslMode;
+        public string? RootCertificatePath;
 
-        public ParsedConnectionString ToRecord() => new(Host, Port, Database, Username, Password, SslMode);
+        // libpq treats sslmode=require with a root certificate as verify-ca
+        // (it checks the chain when it has a CA to check against); Npgsql
+        // ignores a root certificate under Require, so the pasted string would
+        // read as checked and not be (review of the 2026-09 audit fixes).
+        public ParsedConnectionString ToRecord() => new(
+            Host, Port, Database, Username, Password,
+            SslMode == Connections.SslMode.Require && !string.IsNullOrEmpty(RootCertificatePath) ? Connections.SslMode.VerifyCa : SslMode,
+            RootCertificatePath);
 
         public void Overlay(ParsedConnectionString other)
         {
@@ -637,6 +652,7 @@ public static class ConnectionStringParser
             Username = other.Username ?? Username;
             Password = other.Password ?? Password;
             SslMode = other.SslMode ?? SslMode;
+            RootCertificatePath = other.RootCertificatePath ?? RootCertificatePath;
         }
 
         /// <summary>
@@ -690,6 +706,27 @@ public static class ConnectionStringParser
                     }
 
                     return true;
+                // libpq's and pgjdbc's sslrootcert, Npgsql's Root Certificate.
+                // libpq's special value "system" means the OS store, which is
+                // what an empty path means here (empty, not null: the string
+                // did say which CA to trust, and a form should clear its own).
+                case "sslrootcert" or "rootcertificate":
+                    // A path on another machine is not taken from a paste: on
+                    // Windows, reading \\host\share\ca.pem opens an SMB session to
+                    // that host, and the CA it serves would then vouch for
+                    // whatever certificate the same party presents (review of
+                    // the 2026-09 audit fixes). The field still takes one typed
+                    // or browsed to by hand.
+                    if (IsRemotePath(value.Trim()))
+                    {
+                        error = "A root certificate on another machine is not taken from a pasted connection string. Copy the file to this computer and choose it in the Root Certificate field.";
+                        return false;
+                    }
+
+                    RootCertificatePath = value.Trim().Equals("system", StringComparison.OrdinalIgnoreCase)
+                        ? string.Empty
+                        : value.Trim();
+                    return true;
                 default:
                     // Unknown keywords (Timeout, application_name, Pooling,
                     // channel_binding...) are legitimate in their dialects —
@@ -697,6 +734,11 @@ public static class ConnectionStringParser
                     return true;
             }
         }
+
+        // \\server\share\…, \\?\UNC\…, //server/share/… and any URL.
+        private static bool IsRemotePath(string path) =>
+            path.StartsWith(@"\\", StringComparison.Ordinal) || path.StartsWith("//", StringComparison.Ordinal)
+            || path.Contains("://", StringComparison.Ordinal);
 
         private static string Normalize(string key) =>
             key.Replace(" ", "").Replace("_", "").ToLowerInvariant();

@@ -392,6 +392,55 @@ Three rules about it:
    gated on `PGNIMBUS_TEST_SSH` (`Host=…;Port=…;Username=…;Password=…`, optional
    `Target=host:port` for a query through the tunnel; locally a
    `linuxserver/openssh-server` container with `AllowTcpForwarding yes`).
+   **TLS: new profiles start at Require, and Verify full is usable everywhere**
+   (2026-09, security audit finding 9). Five defects, one fix each. (a) New
+   profiles defaulted to `Prefer`, which Npgsql (like libpq) drops to plaintext
+   whenever the server or anyone on the path declines TLS; the dialog's default
+   is now `ConnectionDialogViewModel.DefaultSslMode = Require`, saved profiles
+   keep their mode. A new form's mode follows its host until someone picks one
+   (`SslModes.DefaultFor`): Prefer for this machine (`IsLoopback`: localhost,
+   `*.localhost`, 127/8, `::1`, a socket directory), Require otherwise, because
+   a local Docker Postgres has TLS off and Require failed the first connect
+   anyone tried (review of these fixes). A loaded profile, a picker change or a
+   pasted `sslmode` counts as picked. (b) `SslMode` is persisted as a number and its zero value is
+   `Disable`, so a hand-edited `connections.json` without the field loaded as a
+   plaintext-only profile: the record's `SslMode` parameter now defaults to
+   `Require` (the source-generated reader honours a positional default; a test
+   loads such a file). Never renumber the enum. (c) The picker showed six bare
+   enum names and "Require" read as the safe one; the Core-pure `SslModes`
+   table gives each a label and one line saying what it checks ("Require:
+   encrypted, but the server's certificate is not checked"), marks Verify full
+   recommended, and the combo's closed box shows the label alone
+   (`SelectionBoxItemTemplate`) so it stays one line beside Username. Because Require
+   now fails against a server with no TLS (a local Docker Postgres), a connect
+   failure that says so gets `SslModes.ServerWithoutTlsHint` appended, naming
+   Prefer/Disable. (d) Provider CAs (RDS, Cloud SQL, Supabase) are in no OS
+   store, so Verify full could not pass against them and users fell back to
+   Require: `ConnectionProfile.RootCertificatePath` (a path, safe in JSON) is
+   the dialog's Root Certificate field, shown only for VerifyCa/VerifyFull,
+   parsed from `sslrootcert=`/`PGSSLROOTCERT`/`Root Certificate=` (libpq
+   `sslrootcert=system` clears it; a path on another machine, `\\host\…`,
+   `//host/…` or a URL, is refused from a paste, since reading it on Windows opens
+   an SMB session and its CA would vouch for its owner; `sslmode=require` with a
+   root certificate reads as VerifyCa, as libpq has it), and written as Npgsql's `RootCertificate`
+   only for those two modes (`UsesRootCertificate`; Npgsql ignores it under
+   Require, and a string naming a CA would read as checked). (e) Through the SSH
+   tunnel the socket is `127.0.0.1:<port>`, so Npgsql checked the certificate's
+   name against 127.0.0.1 and Verify full always failed. Every connect now
+   builds its pool with `ConnectionProfile.CreateDataSource`, which through a
+   tunnel adds `UseSslClientAuthenticationOptionsCallback` setting
+   `TargetHost = profile.Host` (the SNI and the name checked), everything else
+   identical to `BuildConnectionString`; the Test button goes through
+   `ConnectionTester.TestAsync(profile, …)` for the same reason.
+   `TlsSettingsTests` proves it end to end without a TLS Postgres: a local
+   listener answers the SSLRequest with a certificate for `db.example.test`
+   issued by a throwaway CA, and the client sends its startup message (i.e.
+   accepted the certificate) only with the callback. Two landmines found
+   writing it: SChannel validates the server certificate *after* the handshake,
+   so the server side "completing" proves nothing, and Npgsql retries a failed
+   open, so the listener has to keep accepting or the retry waits out the
+   connect timeout in the backlog. Not exercised: Verify full against a real
+   server certificate (CI's `postgres:17` has TLS off).
 5. **Crashes are logged and shown, never silent.** Critical/unhandled errors
    append to a plain-text log at `<appdata>/pgNimbus/logs/pgnimbus.log`
    (`PgNimbus.Core.Diagnostics.CrashLog` does the file I/O — directory-injectable
@@ -890,7 +939,11 @@ Three rules about it:
    (`host/database`, tracking those fields as they're typed) and is what an
    unnamed profile saves as, which is why nothing writes `Name` on import
    anymore. An untouched form also leaves the paste-a-connection-string box
-   empty rather than mirroring the defaults into it.
+   empty rather than mirroring the defaults into it. SSL Mode is the one real
+   value a blank form starts with: Require, not Prefer (hard rule 4's TLS
+   paragraph), so the preview of a new profile carries `?sslmode=require`; the
+   preview omits only Prefer, libpq's own default, and adds `sslrootcert=` when
+   a verifying mode has a root certificate.
    **The form saves itself; there is no Save button** (2026-09). Save was a
    separate button and Connect wrote nothing, so the two things users did — edit
    a port and connect, or type a new connection and connect — were each used once

@@ -1,8 +1,15 @@
+using System.Net.Security;
 using System.Text.Json.Serialization;
 using Npgsql;
 
 namespace PgNimbus.Core.Connections;
 
+/// <summary>
+/// Persisted in connections.json as its number, so members are only ever
+/// appended: renumbering would silently change every saved profile's mode.
+/// The zero value is <see cref="Disable"/>, which is why the profile's
+/// parameter carries <see cref="Require"/> as its default instead.
+/// </summary>
 public enum SslMode
 {
     Disable,
@@ -39,6 +46,17 @@ internal static class SslModeExtensions
 /// <c>SET default_transaction_read_only = off</c>. A role without write
 /// privileges is the way to make writes impossible.
 /// </param>
+/// <param name="SslMode">
+/// Defaults to <see cref="SslMode.Require"/> rather than the enum's zero value
+/// (<see cref="SslMode.Disable"/>): the source-generated reader fills a field
+/// missing from a hand-edited connections.json with this default, and a
+/// profile that silently went plaintext-only is the worse failure.
+/// </param>
+/// <param name="RootCertificatePath">
+/// A CA certificate file (PEM or DER) to trust for this connection instead of
+/// the OS store: the provider bundles that RDS, Cloud SQL and Supabase publish,
+/// which no OS trusts. Only the verifying modes read it. A path, not a secret.
+/// </param>
 public sealed record ConnectionProfile(
     Guid Id,
     string Name,
@@ -46,10 +64,11 @@ public sealed record ConnectionProfile(
     int Port,
     string Database,
     string Username,
-    SslMode SslMode,
+    SslMode SslMode = SslMode.Require,
     string? AccentColor = null,
     SshTunnelOptions? SshTunnel = null,
-    bool ReadOnly = false)
+    bool ReadOnly = false,
+    string? RootCertificatePath = null)
 {
     public const int DefaultPort = 5432;
 
@@ -148,6 +167,52 @@ public sealed record ConnectionProfile(
 
         builder.Options = SessionOptions(ReadOnly);
 
+        if (UsesRootCertificate)
+        {
+            builder.RootCertificate = RootCertificatePath;
+        }
+
         return builder.ConnectionString;
     }
+
+    /// <summary>
+    /// True when <see cref="RootCertificatePath"/> is set and the mode reads it.
+    /// Npgsql ignores a root certificate under Prefer and Require (they check
+    /// nothing), so it is not written there: a connection string naming a CA
+    /// would read as if the server were being checked against it.
+    /// </summary>
+    [JsonIgnore]
+    public bool UsesRootCertificate =>
+        !string.IsNullOrWhiteSpace(RootCertificatePath) && SslMode is SslMode.VerifyCa or SslMode.VerifyFull;
+
+    /// <summary>
+    /// The pool a connect goes through. Through an SSH tunnel the socket goes to
+    /// <c>127.0.0.1:&lt;port&gt;</c>, and Npgsql would check the server
+    /// certificate's name against that address, so VerifyFull could never pass
+    /// there. The callback puts the profile's real host back as the TLS target
+    /// (the SNI sent and the name the certificate must carry); every other
+    /// setting is exactly <see cref="BuildConnectionString"/>'s.
+    /// </summary>
+    public NpgsqlDataSource CreateDataSource(string? password, (string Host, int Port)? endpointOverride = null, bool pooling = true)
+    {
+        var connectionString = BuildConnectionString(password, endpointOverride);
+        if (!pooling)
+        {
+            connectionString = new NpgsqlConnectionStringBuilder(connectionString) { Pooling = false }.ConnectionString;
+        }
+
+        var builder = new NpgsqlDataSourceBuilder(connectionString);
+        if (endpointOverride is not null)
+        {
+            builder.UseSslClientAuthenticationOptionsCallback(ApplyTunnelTargetHost);
+        }
+
+        return builder.Build();
+    }
+
+    /// <summary>
+    /// The TLS half of <see cref="CreateDataSource"/> for a tunnelled connection:
+    /// names the profile's own host as the handshake's target.
+    /// </summary>
+    public void ApplyTunnelTargetHost(SslClientAuthenticationOptions options) => options.TargetHost = Host;
 }

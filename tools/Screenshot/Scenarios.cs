@@ -97,6 +97,7 @@ public static class Scenarios
         ("main-window-queries", QueriesSidebar),
         ("host-key-dialog", HostKeyDialogShot),
         ("main-window-read-only-not-applied", ReadOnlyNotApplied),
+        ("connection-dialog-verify-full", ConnectionDialogVerifyFull),
     ];
 
     // --- Main window ------------------------------------------------------
@@ -810,6 +811,25 @@ public static class Scenarios
         var window = ConnectionDialog();
         window.Width = 1440;
         window.Height = 900;
+        return window;
+    }
+
+    /// <summary>
+    /// The production profile: Verify full, with the provider CA it trusts in the
+    /// root certificate field that only the verifying modes show.
+    /// </summary>
+    public static Window ConnectionDialogVerifyFull()
+    {
+        var window = ConnectionDialog();
+        var vm = (ConnectionDialogViewModel)window.DataContext!;
+        vm.SelectedProfile = vm.Profiles.Single(p => p.SslMode == SslMode.VerifyFull);
+        var deadline = Environment.TickCount64 + 5000;
+        while (vm.IsCredentialBusy && Environment.TickCount64 < deadline)
+        {
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            Thread.Sleep(1);
+        }
+        if (vm.IsCredentialBusy) throw new TimeoutException("Credential fixture did not finish loading.");
         return window;
     }
 

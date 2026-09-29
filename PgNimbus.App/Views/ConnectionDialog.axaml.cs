@@ -274,6 +274,30 @@ public partial class ConnectionDialog : Window
         }
     }
 
+    private async void OnBrowseRootCertificateClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not ConnectionDialogViewModel vm)
+        {
+            return;
+        }
+
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Choose root certificate",
+            AllowMultiple = false,
+            FileTypeFilter =
+            [
+                new FilePickerFileType("Certificates") { Patterns = ["*.pem", "*.crt", "*.cer", "*.der"] },
+                FilePickerFileTypes.All,
+            ],
+        });
+
+        if (files.Count > 0 && files[0].TryGetLocalPath() is { } path)
+        {
+            vm.RootCertificatePath = path;
+        }
+    }
+
     private void OnAccentSwatchClick(object? sender, RoutedEventArgs e) =>
         Dispatcher.UIThread.Post(() => AccentButton.Flyout?.Hide());
 
