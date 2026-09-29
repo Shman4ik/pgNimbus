@@ -1812,6 +1812,11 @@ Moved to [`.claude/rules/logo-assets.md`](.claude/rules/logo-assets.md), which l
   its columns on every change, so an `Add` per column had been building
   n(n+1)/2 of them. Tests: `ResultLimitsTests` (in-memory batches, the column
   cap, and a gated `repeat('x', 100000000)` × 3 that keeps one row).
+  **Not bounded yet**, as the audit also asked: a single cell is still read
+  whole by Npgsql before the budget can refuse its row (a 500 MB cell costs
+  500 MB), and `CellText.Preview` formats a whole array or hstore literal before
+  cutting it to 256 characters. Both want a per-cell cap with the full value
+  fetched on demand in the inspector.
 - **A type Npgsql can't materialize must never fail a whole result set.** An
   unmapped composite (or an array/domain/range over one), an extension type with
   no plugin loaded (pgvector, PostGIS), `bit`/`hstore` whose CLR mapping has a
