@@ -152,6 +152,44 @@ public class CredentialStoreTests
         await Assert.That(f.Store.Warning).IsNull();
     }
 
+    // A new install has no <appdata>/credentials directory: nothing ever wrote a
+    // legacy file. File.Delete on such a path throws DirectoryNotFoundException,
+    // which read as "the OS store failed" and warned on every first save.
+
+    [Test]
+    public async Task A_save_with_no_legacy_directory_is_not_a_failure()
+    {
+        var missing = Path.Combine(Path.GetTempPath(), "pgnimbus-credential-tests", Guid.NewGuid().ToString("N"));
+        var native = new FakeStore();
+        var store = new RecoverableCredentialStore(native, missing);
+        var id = Guid.NewGuid();
+
+        store.SavePassword(id, "secret");
+
+        await Assert.That(store.Warning).IsNull();
+        await Assert.That(native.Values[id]).IsEqualTo("secret");
+        // Stored natively and not kept in memory: with the store gone there is no copy.
+        native.Unavailable = true;
+        await Assert.That(store.LoadPassword(id)).IsNull();
+        await Assert.That(System.IO.Directory.Exists(missing)).IsFalse();
+    }
+
+    [Test]
+    public async Task A_load_and_a_delete_with_no_legacy_directory_do_not_warn()
+    {
+        var missing = Path.Combine(Path.GetTempPath(), "pgnimbus-credential-tests", Guid.NewGuid().ToString("N"));
+        var native = new FakeStore();
+        var store = new RecoverableCredentialStore(native, missing);
+        var id = Guid.NewGuid();
+        native.Values[id] = "secret";
+
+        await Assert.That(store.LoadPassword(id)).IsEqualTo("secret");
+        store.DeletePassword(id);
+
+        await Assert.That(store.Warning).IsNull();
+        await Assert.That(native.Values.ContainsKey(id)).IsFalse();
+    }
+
     // Security audit 2026-09, finding 18: memory holds only what the OS store refused.
 
     [Test]
