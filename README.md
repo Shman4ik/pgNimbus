@@ -62,10 +62,18 @@ Where it sits among the alternatives: pgAdmin and DBeaver are powerful but heavy
 | macOS (beta) | `pgNimbus-<version>-macos-arm64.dmg`, Apple Silicon only. Ad-hoc signed and not notarized: the first launch needs **Open Anyway**. |
 | Linux (beta) | AppImage, `.deb` or `.tar.gz` for x64 and arm64 from [Releases](https://github.com/Shman4ik/pgNimbus/releases). |
 
-The [installation guide](https://shman4ik.github.io/pgNimbus/docs/getting-started/installation/) has the step-by-step for each platform, the macOS Gatekeeper dialogs, and where pgNimbus keeps its files. Every release asset carries signed build provenance, so you can check where a download came from:
+The [installation guide](https://shman4ik.github.io/pgNimbus/docs/getting-started/installation/) has the step-by-step for each platform, the macOS Gatekeeper dialogs, and where pgNimbus keeps its files. Every release asset carries signed build provenance, so you can check where a download came from. Pass `--signer-workflow` and `--source-ref`, or the check also accepts an attestation from any other workflow or ref in the repo:
 
 ```bash
-gh attestation verify pgNimbus-<version>-win-x64.msi --repo Shman4ik/pgNimbus
+gh attestation verify pgNimbus-<version>-win-x64.msi --repo Shman4ik/pgNimbus \
+  --signer-workflow Shman4ik/pgNimbus/.github/workflows/release.yml \
+  --source-ref refs/tags/v<version>
+```
+
+Without the `gh` CLI, check the download against `SHA256SUMS.txt` from the same release, which is attested too:
+
+```bash
+sha256sum -c SHA256SUMS.txt --ignore-missing
 ```
 
 ## 🚀 Quick start
@@ -124,7 +132,7 @@ The numbers are machine-relative; the point of the chart is that a regression sh
 
 pgNimbus sends zero telemetry: no usage analytics, no automatic crash uploads, no update pings. There's no account and no cloud sync, and nothing you query, browse or type is sent anywhere except the servers you configure. Saved passwords go to the OS store (DPAPI on Windows, Keychain on macOS, Secret Service on Linux), never into the profile file.
 
-Two things to know. Query history, workspace SQL and the local crash log can contain sensitive data and are stored on disk unencrypted. And if the OS store is unavailable, a warning says so and the password is kept only for the current session. Details, including migration from older unencrypted files, are in [where your password goes](https://shman4ik.github.io/pgNimbus/docs/getting-started/connecting/#where-your-password-goes).
+Two things to know. Query history, workspace SQL and the local crash log can contain sensitive data and are stored on disk unencrypted. Passwords found in that SQL are masked before it is saved, and history can be turned off in Settings. And if the OS store is unavailable, a warning says so and the password is kept only for the current session. Details, including migration from older unencrypted files, are in [where your password goes](https://shman4ik.github.io/pgNimbus/docs/getting-started/connecting/#where-your-password-goes).
 
 Building from source is the one place anything is reported, and it isn't the app: Avalonia's build tooling sends anonymous build statistics to Avalonia while the project compiles. Nothing of it ships in the binaries you download.
 

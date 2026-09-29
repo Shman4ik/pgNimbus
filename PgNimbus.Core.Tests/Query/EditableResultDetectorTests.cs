@@ -186,4 +186,67 @@ public class EditableResultDetectorTests
         await Assert.That(fullPk).IsEquivalentTo(["order_id", "line_no"], CollectionOrdering.Matching);
         await Assert.That(partial).IsEqualTo(EditBlocker.PrimaryKeyNotSelected);
     }
+
+    // --- A relation read more than once (security audit 2026-09, finding 14) ---
+
+    [Test]
+    public async Task A_self_join_passes_the_metadata_check_so_the_text_has_to_refuse_it()
+    {
+        // The audit's case: both columns carry items' OID with distinct attnums,
+        // and name is the parent's, so an edit of it would update the child.
+        const string sql = "SELECT c.id, p.name FROM items c JOIN items p ON p.id = c.parent_id";
+
+        var metadata = EditableResultDetector.CheckSingleTable([Col("id", attNum: 1), Col("name", attNum: 2)], out _);
+
+        await Assert.That(metadata).IsEqualTo(EditBlocker.None);
+        await Assert.That(EditableResultDetector.CheckRepeatedTable(sql)).IsEqualTo(EditBlocker.RepeatedTable);
+    }
+
+    [Test]
+    [Arguments("SELECT c.id, p.name FROM items c, items p WHERE p.id = c.parent_id")]
+    [Arguments("SELECT c.id, p.name FROM public.items c JOIN items p ON p.id = c.parent_id;")]
+    [Arguments("SELECT c.id, p.name FROM items c JOIN (SELECT * FROM items) p ON p.id = c.parent_id")]
+    [Arguments("SELECT c.id, p.name FROM items c CROSS JOIN LATERAL (SELECT * FROM items x WHERE x.id = c.parent_id) p")]
+    [Arguments("WITH p AS (SELECT * FROM items) SELECT c.id, p.name FROM items c JOIN p ON p.id = c.parent_id")]
+    [Arguments("WITH q AS (SELECT * FROM items) SELECT a.id, b.name FROM q a JOIN q b ON b.id = a.parent_id")]
+    [Arguments("SELECT c.id, p.name FROM \"Items\" c JOIN \"Items\" p ON p.id = c.parent_id")]
+    public async Task A_relation_read_twice_where_its_columns_can_reach_the_result_is_refused(string sql)
+    {
+        await Assert.That(EditableResultDetector.CheckRepeatedTable(sql)).IsEqualTo(EditBlocker.RepeatedTable);
+    }
+
+    [Test]
+    [Arguments("SELECT id, name FROM items")]
+    [Arguments("SELECT id, name FROM items;")]
+    [Arguments("SELECT o.id, o.status FROM orders o JOIN customers c ON c.id = o.customer_id")]
+    [Arguments("SELECT id, name FROM items WHERE parent_id IN (SELECT id FROM items WHERE name = 'root')")]
+    [Arguments("SELECT id, name FROM items i WHERE EXISTS (SELECT 1 FROM items p WHERE p.id = i.parent_id)")]
+    [Arguments("SELECT c.id, c.name FROM \"Items\" c JOIN items p ON p.id = c.parent_id")]
+    [Arguments("CREATE TABLE t (id int)")]
+    public async Task One_read_per_relation_is_left_to_the_metadata_checks(string sql)
+    {
+        // A join of two different tables is still the metadata's call (it
+        // reports MultipleTables when both contribute columns), and a subquery
+        // inside an expression never contributes a table column.
+        await Assert.That(EditableResultDetector.CheckRepeatedTable(sql)).IsEqualTo(EditBlocker.None);
+    }
+
+    [Test]
+    public async Task Only_rows_every_column_of_which_reads_the_browsed_table_count_as_its_rows()
+    {
+        const uint otherOid = 16500;
+
+        await Assert.That(EditableResultDetector.ReadsOnlyTable([Col("id", attNum: 1), Col("status", attNum: 3)], OrdersOid)).IsTrue();
+
+        // `FROM orders` in a tab browsing sales.orders, resolved along
+        // search_path to public.orders: same names, another OID.
+        await Assert.That(EditableResultDetector.ReadsOnlyTable(
+            [Col("id", tableOid: otherOid, attNum: 1), Col("status", tableOid: otherOid, attNum: 3)], OrdersOid)).IsFalse();
+        await Assert.That(EditableResultDetector.ReadsOnlyTable([Col("id", attNum: 1), Col("upper", tableOid: 0)], OrdersOid)).IsFalse();
+
+        // Nothing to prove it with: no columns, or a browsed table whose OID
+        // was never learned.
+        await Assert.That(EditableResultDetector.ReadsOnlyTable([], OrdersOid)).IsFalse();
+        await Assert.That(EditableResultDetector.ReadsOnlyTable([Col("id", tableOid: 0)], 0)).IsFalse();
+    }
 }

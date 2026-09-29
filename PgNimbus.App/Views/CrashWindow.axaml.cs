@@ -19,13 +19,17 @@ public partial class CrashWindow : Window
 {
     private const string RepositoryUrl = "https://github.com/Shman4ik/pgNimbus";
 
-    private readonly string _logPath;
+    private const string NoLogText = "No log was written: pgNimbus found no application data directory.";
+
+    // Null when the app has no data directory to write a log into (see
+    // CrashLogger): the window then says so instead of pointing at a file.
+    private readonly string? _logPath;
     private readonly string _errorSummary;
 
     // Parameterless ctor for the XAML designer / Avalonia's loader only.
     public CrashWindow() : this(null, CrashLoggerLogPathFallback()) { }
 
-    public CrashWindow(Exception? exception, string logPath)
+    public CrashWindow(Exception? exception, string? logPath)
     {
         InitializeComponent();
         ThemedWindowChrome.Attach(this);
@@ -34,7 +38,7 @@ public partial class CrashWindow : Window
         _errorSummary = DescribeException(exception);
 
         ErrorText.Text = _errorSummary;
-        LogPathText.Text = _logPath;
+        LogPathText.Text = _logPath ?? NoLogText;
 
         KeyDown += (_, e) =>
         {
@@ -45,7 +49,7 @@ public partial class CrashWindow : Window
         };
     }
 
-    private static string CrashLoggerLogPathFallback() =>
+    private static string? CrashLoggerLogPathFallback() =>
         PgNimbus.Core.Diagnostics.CrashLogger.LogFilePath;
 
     /// <summary>A short, human-readable one/two-line summary of the failure for the window.</summary>
@@ -68,6 +72,11 @@ public partial class CrashWindow : Window
 
     private void OnOpenLogClick(object? sender, RoutedEventArgs e)
     {
+        if (_logPath is null)
+        {
+            return;
+        }
+
         try
         {
             // Open the containing folder rather than the file itself: there's no
@@ -127,7 +136,7 @@ public partial class CrashWindow : Window
             $"**OS:** {Environment.OSVersion}\n\n" +
             "**Steps to reproduce**\n\n" +
             "1. \n2. \n\n" +
-            $"_Please attach the log file: `{_logPath}`_\n";
+            (_logPath is null ? "" : $"_Please attach the log file: `{_logPath}`_\n");
 
         return $"{RepositoryUrl}/issues/new" +
                $"?labels=crash" +

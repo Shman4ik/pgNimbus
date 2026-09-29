@@ -743,11 +743,35 @@ public static class SqlKeywordGrammar
     // The clause keyword governing the caret: the last governing word at the
     // caret's own paren depth, not inside a group closed since. ON CONFLICT
     // reads as "conflict"; a SELECT's DISTINCT as the select list.
-    private static string? Governing(string statement, List<SqlToken> tokens)
+    private static string? Governing(string statement, List<SqlToken> tokens) => Governing(statement, tokens, tokens.Count);
+
+    // Reads tokens[..end] backwards. An expression group's "(" hands over to the
+    // clause around it, which is read by looping from before the "(" — never by
+    // recursing, since "SELECT (((((" nests as deep as the paste is long and the
+    // grammar runs per keystroke (a hundred thousand of them was a stack overflow).
+    private static string? Governing(string statement, List<SqlToken> tokens, int end)
+    {
+        var inGroup = false;
+        while (true)
+        {
+            var (word, outer) = GoverningBefore(statement, tokens, end);
+            if (outer < 0)
+            {
+                return word ?? (inGroup ? "paren" : null);
+            }
+
+            inGroup = true;
+            end = outer;
+        }
+    }
+
+    // The governing word of tokens[..end], or the index of an enclosing "(" whose
+    // surroundings decide instead (Outer ≥ 0, Word null).
+    private static (string? Word, int Outer) GoverningBefore(string statement, List<SqlToken> tokens, int end)
     {
         var depth = 0;
         var cases = 0;
-        for (var i = tokens.Count - 1; i >= 0; i--)
+        for (var i = end - 1; i >= 0; i--)
         {
             var token = tokens[i];
             if (token.Kind == SqlTokenKind.CloseParen)
@@ -798,60 +822,61 @@ public static class SqlKeywordGrammar
 
             if (word == "conflict")
             {
-                return "conflict";
+                return ("conflict", -1);
             }
 
             if (word == "distinct" && i > 0 && WordOf(statement, tokens[i - 1]) == "select")
             {
-                return "select";
+                return ("select", -1);
             }
 
             if (word == "set" && i > 0 && WordOf(statement, tokens[i - 1]) == "update")
             {
-                return "set"; // DO UPDATE SET
+                return ("set", -1); // DO UPDATE SET
             }
 
             if (GoverningWords.Contains(word))
             {
-                return word;
+                return (word, -1);
             }
         }
 
-        return null;
+        return (null, -1);
     }
 
     // What governs the inside of the "(" at `open`, when no clause keyword
     // follows it: a function's arguments read as a select list would, an
-    // expression group as the clause around it.
-    private static string? ParenGoverning(string statement, List<SqlToken> tokens, int open)
+    // expression group as the clause around it (Outer = open: read on from
+    // before the paren; "paren" if nothing out there governs).
+    private static (string? Word, int Outer) ParenGoverning(string statement, List<SqlToken> tokens, int open)
     {
         if (open == 0)
         {
-            return null;
+            return (null, -1);
         }
 
         var before = WordOf(statement, tokens[open - 1]);
         if (before is "over")
         {
-            return "over";
+            return ("over", -1);
         }
 
         if (before is "values" or "in")
         {
-            return before == "values" ? "values" : "paren";
+            return (before == "values" ? "values" : "paren", -1);
         }
 
         if (before == "cast")
         {
-            return "cast";
+            return ("cast", -1);
         }
 
         if (tokens[open - 1].Kind is SqlTokenKind.Word or SqlTokenKind.QuotedIdentifier && before is null or not ("and" or "or" or "not" or "where" or "on" or "having" or "when" or "exists"))
         {
-            return "call"; // a call's argument
+            return ("call", -1); // a call's argument
         }
 
-        return Governing(statement, tokens[..open]) is { } outer ? outer : "paren";
+        return (null, open);
     }
 
     // An open "(" whose contents are an expression group (not a call, not a
@@ -893,7 +918,8 @@ public static class SqlKeywordGrammar
             {
                 if (depth == 0)
                 {
-                    return ParenGoverning(statement, tokens, i);
+                    var (inner, outer) = ParenGoverning(statement, tokens, i);
+                    return outer < 0 ? inner : Governing(statement, tokens, outer) ?? "paren";
                 }
 
                 depth--;

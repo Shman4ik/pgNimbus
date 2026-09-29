@@ -214,6 +214,13 @@ public static class PgFeatures
 
     /// <summary>The <c>pg_read_all_data</c> / <c>pg_write_all_data</c> predefined roles arrived in PG14.</summary>
     public static bool SupportsPredefinedDataRoles(Version? v) => v is null || v.Major >= 14;
+
+    /// <summary>
+    /// SCRAM-SHA-256 arrived in PG10. Before it, a <c>PASSWORD 'SCRAM-SHA-256$…'</c>
+    /// literal is not recognised as a verifier and becomes the password itself,
+    /// so the role editor, which sends only verifiers, refuses to set a password there.
+    /// </summary>
+    public static bool SupportsScramVerifier(Version? v) => v is null || v.Major >= 10;
 }
 
 /// <summary>
@@ -352,8 +359,8 @@ public sealed record AclEntry(
 {
     public bool IsPublic => Grantee is null;
 
-    /// <summary>What the UI shows in the grantee column.</summary>
-    public string GranteeLabel => Grantee ?? "PUBLIC";
+    /// <summary>What the UI shows in the grantee column (a role named PUBLIC is shown quoted, see <see cref="GrantScriptBuilder.GranteeLabel"/>).</summary>
+    public string GranteeLabel => GrantScriptBuilder.GranteeLabel(Grantee);
 }
 
 /// <summary>
@@ -391,17 +398,26 @@ public sealed record DefaultPrivilege(
     IReadOnlyList<AclEntry> Entries);
 
 /// <summary>One row-level security policy, as <c>pg_policies</c> describes it.</summary>
-/// <param name="Roles">The roles it applies to; a single "public" entry means everyone.</param>
+/// <param name="Roles">
+/// The roles it applies to. A <c>null</c> entry is PUBLIC (<c>polroles</c>
+/// holds oid 0, and the server keeps that as the only entry when it is named),
+/// the same spelling <see cref="AclEntry.Grantee"/> uses — never the string
+/// "public", which could not be told from a role of that name.
+/// </param>
 /// <param name="Command">ALL / SELECT / INSERT / UPDATE / DELETE.</param>
 public sealed record RlsPolicyInfo(
     string Schema,
     string Table,
     string Name,
     bool Permissive,
-    IReadOnlyList<string> Roles,
+    IReadOnlyList<string?> Roles,
     string Command,
     string? Using,
-    string? WithCheck);
+    string? WithCheck)
+{
+    /// <summary>True when the policy is <c>TO PUBLIC</c>: no role listed, or PUBLIC among them.</summary>
+    public bool AppliesToEveryone => Roles.Count == 0 || Roles.Contains(null);
+}
 
 /// <summary>
 /// A table's RLS state plus its policies. <paramref name="BypassedByCurrentRole"/>

@@ -31,8 +31,10 @@ public class CredentialStoreTests
             if (Unavailable) throw new CredentialStoreException();
             if (!IgnoreWrites) Values[id] = password;
         }
+        public int Loads { get; private set; }
         public string? LoadPassword(Guid id)
         {
+            Loads++;
             if (Unavailable) throw new CredentialStoreException();
             return Values.GetValueOrDefault(id);
         }
@@ -148,6 +150,162 @@ public class CredentialStoreTests
         await Assert.That(f.Store.Warning).IsNotNull();
         f.Store.SavePassword(f.Id, "db");
         await Assert.That(f.Store.Warning).IsNull();
+    }
+
+    // Security audit 2026-09, finding 18: memory holds only what the OS store refused.
+
+    [Test]
+    public async Task A_successful_write_is_not_kept_in_memory()
+    {
+        using var f = new Fixture();
+        f.Store.SavePassword(f.Id, "stored");
+        await Assert.That(f.Store.LoadPassword(f.Id)).IsEqualTo("stored");
+
+        // Read from the store every time: a change made elsewhere shows...
+        f.Native.Values[f.Id] = "changed elsewhere";
+        await Assert.That(f.Store.LoadPassword(f.Id)).IsEqualTo("changed elsewhere");
+
+        // ...and with the store gone there is no copy left to hand out.
+        f.Native.Unavailable = true;
+        await Assert.That(f.Store.LoadPassword(f.Id)).IsNull();
+    }
+
+    [Test]
+    public async Task A_failed_write_is_kept_until_forgotten()
+    {
+        using var f = new Fixture();
+        f.Native.Unavailable = true;
+        f.Store.SavePassword(f.Id, "session only");
+        await Assert.That(f.Store.LoadPassword(f.Id)).IsEqualTo("session only");
+
+        f.Store.Forget(f.Id);
+
+        await Assert.That(f.Store.LoadPassword(f.Id)).IsNull();
+    }
+
+    [Test]
+    public async Task A_failed_write_leaves_memory_once_a_later_write_succeeds()
+    {
+        using var f = new Fixture();
+        f.Native.Unavailable = true;
+        f.Store.SavePassword(f.Id, "first");
+        f.Native.Unavailable = false;
+        f.Store.SavePassword(f.Id, "second");
+        await Assert.That(f.Native.Values[f.Id]).IsEqualTo("second");
+
+        f.Native.Unavailable = true;
+        await Assert.That(f.Store.LoadPassword(f.Id)).IsNull();
+    }
+
+    [Test]
+    public async Task A_delete_removes_the_session_entry_and_a_later_save_works()
+    {
+        using var f = new Fixture();
+        f.Native.Unavailable = true;
+        f.Store.SavePassword(f.Id, "session only");
+        f.Store.DeletePassword(f.Id);
+        await Assert.That(f.Store.LoadPassword(f.Id)).IsNull();
+
+        // The failed delete blocks the id only until the next save.
+        f.Store.SavePassword(f.Id, "again");
+        await Assert.That(f.Store.LoadPassword(f.Id)).IsEqualTo("again");
+        f.Native.Unavailable = false;
+        f.Store.SavePassword(f.Id, "stored");
+        await Assert.That(f.Store.LoadPassword(f.Id)).IsEqualTo("stored");
+    }
+
+    private static void SeedFile(string directory, Guid id, string password) =>
+        File.WriteAllText(Path.Combine(directory, $"{id:N}.cred"), Convert.ToBase64String(Encoding.UTF8.GetBytes(password)));
+
+    [Test]
+    public async Task Migration_moves_every_legacy_file_in_one_pass_and_reports_the_rest_once()
+    {
+        using var f = new Fixture();
+        Guid moved = Guid.NewGuid(), same = Guid.NewGuid(), different = Guid.NewGuid(), corrupt = Guid.NewGuid();
+        SeedFile(f.Directory, moved, "moved");
+        SeedFile(f.Directory, same, "same");
+        SeedFile(f.Directory, different, "old");
+        File.WriteAllText(Path.Combine(f.Directory, $"{corrupt:N}.cred"), "not base64!");
+        File.WriteAllText(Path.Combine(f.Directory, "not-a-profile.cred"), "eA==");
+        f.Native.Values[same] = "same";
+        f.Native.Values[different] = "new";
+
+        f.Store.MigrateLegacyFiles();
+
+        await Assert.That(f.Native.Values[moved]).IsEqualTo("moved");
+        await Assert.That(File.Exists(Path.Combine(f.Directory, $"{moved:N}.cred"))).IsFalse();
+        await Assert.That(File.Exists(Path.Combine(f.Directory, $"{same:N}.cred"))).IsFalse();
+        await Assert.That(File.Exists(Path.Combine(f.Directory, $"{different:N}.cred"))).IsTrue();
+        await Assert.That(File.Exists(Path.Combine(f.Directory, $"{corrupt:N}.cred"))).IsTrue();
+        await Assert.That(f.Native.Values[different]).IsEqualTo("new");
+
+        // One message for both files left, and never a password in it.
+        await Assert.That(f.Store.Warning).IsEqualTo(
+            "2 old unencrypted credential files could not be moved into your OS credential store and are still on disk. Open the connections they belong to and save their passwords again to remove them.");
+
+        // Saving one of them again removes its file and shrinks the message.
+        f.Store.SavePassword(different, "new");
+        await Assert.That(File.Exists(Path.Combine(f.Directory, $"{different:N}.cred"))).IsFalse();
+        await Assert.That(f.Store.Warning!.StartsWith("An old unencrypted credential file", StringComparison.Ordinal)).IsTrue();
+    }
+
+    [Test]
+    public async Task Migration_runs_once_per_store()
+    {
+        using var f = new Fixture();
+        f.Store.MigrateLegacyFiles();
+        f.Seed("late");
+
+        f.Store.MigrateLegacyFiles();
+
+        await Assert.That(File.Exists(f.Legacy)).IsTrue();
+        await Assert.That(f.Native.Values.ContainsKey(f.Id)).IsFalse();
+    }
+
+    [Test]
+    public async Task Migration_with_the_store_unavailable_keeps_every_file()
+    {
+        using var f = new Fixture();
+        f.Seed("kept");
+        f.Native.Unavailable = true;
+
+        f.Store.MigrateLegacyFiles();
+
+        await Assert.That(File.Exists(f.Legacy)).IsTrue();
+        await Assert.That(f.Store.Warning).IsNotNull();
+        await Assert.That(f.Store.Warning!.Contains("kept")).IsFalse();
+    }
+
+    [Test]
+    public async Task Migration_stops_asking_a_store_that_refused_and_reports_the_rest()
+    {
+        // A locked or hung Secret Service costs up to 15 s a call, and the first
+        // connect waits on this pass: after one refusal the rest are reported,
+        // not tried (review of the 2026-09 audit fixes).
+        using var f = new Fixture();
+        for (var i = 0; i < 5; i++)
+        {
+            SeedFile(f.Directory, Guid.NewGuid(), $"p{i}");
+        }
+
+        f.Native.Unavailable = true;
+
+        f.Store.MigrateLegacyFiles();
+
+        await Assert.That(f.Native.Loads).IsEqualTo(1);
+        await Assert.That(System.IO.Directory.GetFiles(f.Directory, "*.cred")).Count().IsEqualTo(5);
+        await Assert.That(f.Store.Warning).StartsWith("5 old unencrypted credential files");
+    }
+
+    [Test]
+    public async Task Migration_without_a_legacy_directory_does_nothing()
+    {
+        var native = new FakeStore();
+        var store = new RecoverableCredentialStore(native);
+
+        store.MigrateLegacyFiles();
+
+        await Assert.That(store.Warning).IsNull();
     }
 
     [Test]

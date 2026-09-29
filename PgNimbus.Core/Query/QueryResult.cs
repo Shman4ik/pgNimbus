@@ -47,8 +47,11 @@ public sealed record MaterializedResultSet : StatementResult
     public required IReadOnlyList<ColumnInfo> Columns { get; init; }
     public required IReadOnlyList<object?[]> Rows { get; init; }
 
-    /// <summary>True when the row cap cut this statement's result short.</summary>
+    /// <summary>True when a cap cut this statement's result short (see <see cref="CappedBy"/>).</summary>
     public bool Truncated { get; init; }
+
+    /// <summary>Which cap cut it short: its row cap, its byte budget, or a budget shared with the script's other statements.</summary>
+    public ResultCap CappedBy { get; init; }
 }
 
 /// <summary>A non-result statement (INSERT/UPDATE/DDL/etc).</summary>
@@ -79,9 +82,19 @@ public sealed record QueryError : StatementResult
     /// True when this failure is the server-side connection itself going away
     /// (dead socket after a laptop sleep, a dropped SSH tunnel, or the server
     /// terminating the backend) rather than an ordinary statement failure. The
-    /// engine already retried once on a fresh connection before surfacing
-    /// this — a second loss means the caller should treat the connection (and,
-    /// if one was open, the transaction on it) as gone rather than retry again.
+    /// engine has already flushed its pool, so the next statement reconnects;
+    /// what it has not done, when <see cref="OutcomeUnknown"/> is set, is run
+    /// the statement again.
     /// </summary>
     public bool ConnectionLost { get; init; }
+
+    /// <summary>
+    /// True when the connection was lost after the statement had been sent, so
+    /// nobody on this side knows whether the server applied it: it may have
+    /// run to completion with the acknowledgement lost, or a DBA may have
+    /// terminated it. The engine deliberately never re-sends such a statement
+    /// (security audit 2026-09, finding 2). False for a loss detected before
+    /// the send, which the engine already retried once on a fresh connection.
+    /// </summary>
+    public bool OutcomeUnknown { get; init; }
 }

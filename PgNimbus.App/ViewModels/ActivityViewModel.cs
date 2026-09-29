@@ -97,6 +97,18 @@ public sealed class BlockingNode(BlockingTreeNode node)
         }
     }
 
+    /// <summary>
+    /// The blockers this node doesn't sit under: "also blocked by 4822, 4823" for a
+    /// waiter with several (the tree shows each backend once, under the first), or
+    /// "blocked by 999" for a root whose blocker is outside the snapshot or in a
+    /// deadlock cycle. Empty for the ordinary one-blocker waiter.
+    /// </summary>
+    public string OtherBlockersLabel { get; } = node.AlsoBlockedBy.Count == 0
+        ? ""
+        : $"{(node.Backend.BlockedByPids.Count > node.AlsoBlockedBy.Count ? "also blocked by" : "blocked by")} {string.Join(", ", node.AlsoBlockedBy)}";
+
+    public bool HasOtherBlockers => OtherBlockersLabel.Length > 0;
+
     /// <summary>"blocking 3" — only when other backends wait behind this one.</summary>
     public string BlockingLabel =>
         _node.BlockedDescendants > 0 ? $"blocking {_node.BlockedDescendants}" : "";

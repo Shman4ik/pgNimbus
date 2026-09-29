@@ -55,18 +55,48 @@ public sealed partial class SavedQueriesViewModel : ObservableObject
     /// <summary>Drives the empty-state hint under an empty saved-queries list.</summary>
     public bool HasNoSavedQueries => SavedQueries.Count == 0;
 
+    /// <summary>
+    /// Whether <see cref="RecordExecution"/> files anything (the Preferences
+    /// page's "Record query history", persisted as
+    /// <c>AppSettings.RecordQueryHistory</c>). Off, nothing new reaches the
+    /// list or the file; what is already there stays until Clear History.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsHistoryOff), nameof(ShowHistoryEmptyHint))]
+    private bool _recordHistory = true;
+
+    private readonly Action<bool>? _persistRecordHistory;
+
+    /// <summary>Drives the line that says why no new queries appear in the history.</summary>
+    public bool IsHistoryOff => !RecordHistory;
+
     /// <summary>Drives the empty-state hint under an empty history list.</summary>
     public bool HasNoHistory => History.Count == 0;
+
+    /// <summary>
+    /// The "queries you run will appear here" hint: only while history is
+    /// being recorded, since with it off they won't, and <see cref="IsHistoryOff"/>'s
+    /// line says so instead.
+    /// </summary>
+    public bool ShowHistoryEmptyHint => HasNoHistory && RecordHistory;
 
     /// <summary>True when history exists but the filter/scope hides all of it — drives a "no matches" hint.</summary>
     public bool HasNoHistoryMatches => History.Count > 0 && FilteredHistory.Count == 0;
 
-    public SavedQueriesViewModel(SavedQueryStore savedQueryStore, QueryHistoryStore historyStore, Action<string?, string> openInNewTab, Func<string?>? getConnectionLabel = null)
+    public SavedQueriesViewModel(
+        SavedQueryStore savedQueryStore,
+        QueryHistoryStore historyStore,
+        Action<string?, string> openInNewTab,
+        Func<string?>? getConnectionLabel = null,
+        bool recordHistory = true,
+        Action<bool>? persistRecordHistory = null)
     {
         _savedQueryStore = savedQueryStore;
         _historyStore = historyStore;
         _openInNewTab = openInNewTab;
         _getConnectionLabel = getConnectionLabel ?? (() => null);
+        _recordHistory = recordHistory;
+        _persistRecordHistory = persistRecordHistory;
 
         foreach (var saved in _savedQueryStore.Load())
         {
@@ -82,26 +112,35 @@ public sealed partial class SavedQueriesViewModel : ObservableObject
         History.CollectionChanged += (_, _) =>
         {
             OnPropertyChanged(nameof(HasNoHistory));
+            OnPropertyChanged(nameof(ShowHistoryEmptyHint));
             ApplyHistoryFilter();
         };
         ApplyHistoryFilter();
     }
 
     /// <summary>
-    /// Files an executed statement in the history — the single choke point for
-    /// it, which is why the password redaction lives here rather than at a call
-    /// site. Nothing in the Roles &amp; Permissions window routes a PASSWORD
-    /// literal through a query tab (see <c>SecurityEditor</c>), but a user can
-    /// always type <c>ALTER ROLE … PASSWORD 'x'</c> into the editor themselves,
-    /// and <see cref="QueryHistoryStore"/> writes what it is given to disk in
-    /// the clear.
+    /// Files an executed statement in the history, unless the user turned
+    /// history off (<see cref="RecordHistory"/>). Nothing in the Roles &amp;
+    /// Permissions window routes a PASSWORD literal through a query tab (see
+    /// <c>SecurityEditor</c>), but a user can always type
+    /// <c>ALTER ROLE … PASSWORD 'x'</c> into the editor themselves. The text is
+    /// redacted here as well as in <see cref="QueryHistoryStore"/> (which
+    /// redacts everything it writes) because the in-memory list is what the
+    /// sidebar shows and what Save writes back.
     /// </summary>
     public void RecordExecution(QueryHistoryEntry entry)
     {
+        if (!RecordHistory)
+        {
+            return;
+        }
+
         entry = entry with { Sql = SecretRedactor.Redact(entry.Sql), Connection = _getConnectionLabel() };
         History.Insert(0, entry);
         _historyStore.Append(entry);
     }
+
+    partial void OnRecordHistoryChanged(bool value) => _persistRecordHistory?.Invoke(value);
 
     partial void OnHistoryFilterChanged(string value) => ApplyHistoryFilter();
 

@@ -43,17 +43,10 @@ public sealed record DefaultPrivilegeRow(
     };
 
     /// <summary>The <c>ON …</c> keyword of the statement — plural, unlike <c>GRANT</c>'s.</summary>
-    public string ObjectClassKeyword => AppliesTo switch
-    {
-        SecurableKind.Table => "TABLES",
-        SecurableKind.Sequence => "SEQUENCES",
-        SecurableKind.Function => "FUNCTIONS",
-        SecurableKind.Type => "TYPES",
-        SecurableKind.Schema => "SCHEMAS",
-        _ => AppliesTo.ToString().ToUpperInvariant(),
-    };
+    public string ObjectClassKeyword => DefaultPrivilegeScriptBuilder.ObjectClassKeyword(AppliesTo);
 
-    public string GranteeLabel => Grantee ?? GrantScriptBuilder.PublicGrantee;
+    /// <summary>PUBLIC for a null grantee; a role merely named PUBLIC is shown quoted.</summary>
+    public string GranteeLabel => GrantScriptBuilder.GranteeLabel(Grantee);
 
     /// <summary>
     /// What makes this the same row across a re-read. Record equality is no use
@@ -73,34 +66,12 @@ public sealed record DefaultPrivilegeRow(
 
     /// <summary>
     /// The statement this row represents, ready to be edited into a REVOKE or
-    /// re-pointed at another creating role. The two comment lines are the two
-    /// things people get wrong about default privileges, kept with the SQL
-    /// because that is where they will be read.
+    /// re-pointed at another creating role. Built by the Core-pure
+    /// <see cref="DefaultPrivilegeScriptBuilder"/>, which is where the
+    /// comment-safety and PUBLIC rules are tested.
     /// </summary>
-    public string Sql
-    {
-        get
-        {
-            var owner = SqlIdentifier.QuoteIfNeeded(OwnerRole);
-            var scope = Schema is null ? "" : $" IN SCHEMA {SqlIdentifier.QuoteIfNeeded(Schema)}";
-            var grantee = Grantee is null
-                ? GrantScriptBuilder.PublicGrantee
-                : SqlIdentifier.QuoteIfNeeded(Grantee);
-            var option = WithGrantOption ? " WITH GRANT OPTION" : "";
-
-            var where = Schema is null ? "in any schema" : $"in schema {Schema}";
-            return $"""
-                -- Applies to {ObjectClassKeyword.ToLowerInvariant()} created from now on by {OwnerRole} {where}.
-                -- Objects that already exist are untouched: those need
-                -- GRANT … ON ALL {ObjectClassKeyword} IN SCHEMA …, which this does not replace.
-                --
-                -- The key is the CREATING role, not the schema. Pointed at the wrong creator
-                -- this statement runs fine and does nothing.
-                ALTER DEFAULT PRIVILEGES FOR ROLE {owner}{scope}
-                    GRANT {PrivilegesText} ON {ObjectClassKeyword} TO {grantee}{option};
-                """;
-        }
-    }
+    public string Sql =>
+        DefaultPrivilegeScriptBuilder.Build(OwnerRole, Schema, AppliesTo, Grantee, WithGrantOption, GrantedPrivileges);
 }
 
 /// <summary>

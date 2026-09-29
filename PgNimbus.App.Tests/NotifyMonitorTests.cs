@@ -119,6 +119,90 @@ public class NotifyMonitorTests
     }
 
     /// <summary>
+    /// A NOTIFY flood (security audit 2026-09, finding 16): the listener used to
+    /// post one dispatcher item per notification, an unbounded queue whose 500-row
+    /// cap applied only once each item had run. Ten thousand notifications raised
+    /// from a background thread now cost a handful of posts and leave at most
+    /// MaxNotifications on the feed, newest first.
+    /// </summary>
+    [Test]
+    public async Task A_flood_of_notifications_is_coalesced_into_few_posts()
+    {
+        await Ui.Run(async () =>
+        {
+            var posted = new List<Action>();
+            var postCount = 0;
+            var vm = new NotifyMonitorViewModel(
+                new NotificationListener(Fixtures.DataSource),
+                postToUi: action =>
+                {
+                    lock (posted)
+                    {
+                        posted.Add(action);
+                        postCount++;
+                    }
+                });
+
+            const int total = 10_000;
+            await Task.Run(() =>
+            {
+                for (var i = 0; i < total; i++)
+                {
+                    vm.Receive(Notification(payload: i.ToString()));
+
+                    // The UI thread gets a turn now and then, as it would in the app.
+                    if (i % 2_500 == 2_499)
+                    {
+                        RunPosted();
+                    }
+                }
+            });
+            RunPosted();
+
+            await Assert.That(postCount).IsLessThanOrEqualTo(10);
+            await Assert.That(vm.Notifications).Count().IsEqualTo(NotifyMonitorViewModel.MaxNotifications);
+            await Assert.That(vm.Notifications[0].Payload).IsEqualTo((total - 1).ToString());
+            await Assert.That(vm.Notifications[^1].Payload).IsEqualTo((total - NotifyMonitorViewModel.MaxNotifications).ToString());
+
+            void RunPosted()
+            {
+                Action[] actions;
+                lock (posted)
+                {
+                    actions = [.. posted];
+                    posted.Clear();
+                }
+
+                foreach (var action in actions)
+                {
+                    action();
+                }
+            }
+        });
+    }
+
+    [Test]
+    public async Task Notifications_drained_in_several_turns_keep_their_order()
+    {
+        await Ui.Run(async () =>
+        {
+            var posted = new Queue<Action>();
+            var vm = new NotifyMonitorViewModel(new NotificationListener(Fixtures.DataSource), postToUi: posted.Enqueue);
+
+            vm.Receive(Notification(payload: "1"));
+            vm.Receive(Notification(payload: "2"));
+            await Assert.That(posted).Count().IsEqualTo(1);
+            posted.Dequeue()();
+
+            vm.Receive(Notification(payload: "3"));
+            await Assert.That(posted).Count().IsEqualTo(1);
+            posted.Dequeue()();
+
+            await Assert.That(string.Join(",", vm.Notifications.Select(n => n.Payload))).IsEqualTo("3,2,1");
+        });
+    }
+
+    /// <summary>
     /// The reason the window has a detail pane: a JSON payload arrives as one
     /// long line and has to read as a document. Both halves of the cell
     /// inspector apply — the pretty-print and the collapsible tree.

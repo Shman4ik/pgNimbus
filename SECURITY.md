@@ -31,6 +31,17 @@ Things especially worth reporting:
 Unsigned release binaries (SmartScreen/Gatekeeper warnings) are a known,
 documented limitation — not a vulnerability report.
 
+## Dependencies
+
+Every restore checks the full NuGet dependency graph against known advisories
+(`NuGetAuditMode=all` in `Directory.Build.props`) and a moderate, high or
+critical finding fails the build instead of only warning (NU1902 through
+NU1904 are promoted to errors). Dependabot keeps both NuGet packages and
+GitHub Actions current. SSH.NET ships `ScpClient` and `SftpClient`, which have
+carried advisories of their own; pgNimbus never constructs either type, so
+those advisories do not reach the app regardless of the package version in
+use.
+
 ## Supported versions
 
 Pre-1.0, only the latest release receives fixes.
