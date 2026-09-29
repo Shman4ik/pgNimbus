@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>pgNimbus — a fast, open-source PostgreSQL GUI client</title>
-<meta name="description" content="pgNimbus is a fast, open-source PostgreSQL GUI client for Windows (and macOS beta). On screen in about 0.2 s, PostgreSQL-first, and it talks to your database and nothing else: zero telemetry. MIT licensed.">
+<meta name="description" content="pgNimbus 1.0 is a fast, open-source PostgreSQL GUI client for Windows (and macOS beta). On screen in about 0.2 s, PostgreSQL-first, and it talks to your database and nothing else: zero telemetry. MIT licensed.">
 <link rel="icon" type="image/png" href="assets/icon-256.png">
 <link rel="canonical" href="https://shman4ik.github.io/pgNimbus/">
 <meta property="og:type" content="website">
 <meta property="og:title" content="pgNimbus — a fast, open-source PostgreSQL GUI client">
-<meta property="og:description" content="A fast PostgreSQL client that talks to your database and nothing else. On screen in about 0.2 s, zero telemetry, MIT licensed.">
+<meta property="og:description" content="pgNimbus 1.0: a fast PostgreSQL client that talks to your database and nothing else. On screen in about 0.2 s, zero telemetry, MIT licensed.">
 <meta property="og:url" content="https://shman4ik.github.io/pgNimbus/">
 <meta property="og:image" content="https://shman4ik.github.io/pgNimbus/assets/social-preview.png">
 <meta name="twitter:card" content="summary_large_image">
@@ -80,6 +80,29 @@
     line-height: 1.2;
     max-width: 760px;
     margin: 0 auto 16px;
+  }
+  .release {
+    display: inline-flex; align-items: center; gap: 9px;
+    max-width: 100%;
+    margin-bottom: 22px;
+    padding: 5px 14px 5px 5px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--ink-soft);
+    font-size: .9rem;
+    text-align: left;
+  }
+  .release:hover { color: var(--ink); text-decoration: none; box-shadow: var(--shadow); }
+  @media (max-width: 480px) { .release { border-radius: 14px; } }
+  .release b {
+    flex: none;
+    padding: 1px 10px;
+    border-radius: 999px;
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-size: .82rem;
+    font-weight: 600;
   }
   .hero p.sub {
     color: var(--ink-soft);
@@ -185,6 +208,31 @@
   .stat .lbl { color: var(--ink-soft); font-size: .86rem; }
   .center { text-align: center; }
 
+  /* ---- road to 1.0 ---- */
+  .road {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px;
+    list-style: none;
+  }
+  .road li {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--accent);
+    border-radius: 12px;
+    padding: 18px 18px 20px;
+    color: var(--ink-soft);
+    font-size: .9rem;
+  }
+  .road .when {
+    display: block;
+    color: var(--accent);
+    font-size: .8rem;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .road strong { display: block; color: var(--ink); font-size: 1rem; margin-bottom: 6px; }
+
   /* ---- downloads ---- */
   .dl-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; max-width: 960px; margin: 0 auto; }
   .dl {
@@ -227,6 +275,7 @@
 
 <section class="hero">
   <div class="wrap">
+    <a class="release" href="https://github.com/Shman4ik/pgNimbus/releases/tag/v1.0.0"><b>1.0</b> Out now, 33 releases and a security review after the first commit</a>
     <h1>A fast, open-source PostgreSQL&nbsp;GUI client</h1>
     <p class="sub">
       It talks to your database and nothing else: no telemetry, no account, no cloud.
@@ -280,6 +329,21 @@
         <p>Zero telemetry: no analytics, no automatic crash reports, no update pings. Passwords are encrypted by the OS (DPAPI, Keychain, Secret Service). MIT-licensed, so you can verify it, not trust it. <a href="docs/privacy/">Privacy details</a>.</p>
       </div>
     </div>
+  </div>
+</section>
+
+<section id="road">
+  <div class="wrap">
+    <h2>The road to 1.0</h2>
+    <p class="section-sub">Three months from the first commit to 1.0, with the benchmark run on every release along the way.</p>
+    <ol class="road">
+      <li><span class="when">July 4</span><strong>First commit</strong>A weekend experiment, typed on a phone on holiday. By Sunday evening it connected, drew the schema and streamed rows.</li>
+      <li><span class="when">July</span><strong>23 releases in a month</strong>A Microsoft Store listing, macOS and Linux builds, and signed build provenance on every release.</li>
+      <li><span class="when">August</span><strong>Roles and permissions</strong>A window that asks the server whether a role can do something, and explains where the answer comes from.</li>
+      <li><span class="when">September</span><strong>A tool for every day</strong>Safe mode that notices someone else's edit, completion that reads SQL the way the server does, and a macOS pass.</li>
+      <li><span class="when">1.0</span><strong>Reviewed before the tag</strong>18 findings, from a query that could run twice to unchecked SSH host keys. All of them are fixed in 1.0.</li>
+    </ol>
+    <p class="center" style="margin-top:30px"><a class="btn" href="https://github.com/Shman4ik/pgNimbus/releases/tag/v1.0.0">What's in 1.0 →</a></p>
   </div>
 </section>
 

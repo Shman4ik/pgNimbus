@@ -31,6 +31,12 @@
 
 ---
 
+## 🚀 pgNimbus 1.0
+
+pgNimbus reached 1.0 three months after its first commit on July 4, 2026, and 32 releases later. It started as a weekend experiment typed on a phone and grew, evening by evening, into the client its author keeps open at work all day.
+
+Before tagging 1.0, the whole codebase was read the way an attacker would read it, and the way a DBA connecting to production would. That review found 18 problems. The worst were a query that could run twice, a statement a DBA had just killed being sent again after a reconnect, and SSH host keys that were never checked. All of them are fixed in 1.0. The review was done in house, with the same Claude Code agents that write most of the code, so it isn't a third-party audit. [See what's in 1.0.](https://github.com/Shman4ik/pgNimbus/releases/tag/v1.0.0)
+
 ## 🎯 Why pgNimbus?
 
 pgNimbus is written by a developer who spends most working days in Postgres, for people who do the same. Three things don't bend:
