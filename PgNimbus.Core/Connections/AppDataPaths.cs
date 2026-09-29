@@ -20,10 +20,19 @@ public static class AppDataPaths
     /// <summary>
     /// Test seam: stands in for the environment when set, so a test can make
     /// the root unavailable (return null) without blanking the process's
-    /// <c>HOME</c> under the tests running beside it. Mark such a test
-    /// <c>[NotInParallel]</c>: the seam is process-wide.
+    /// <c>HOME</c> under the tests running beside it. It is an
+    /// <see cref="AsyncLocal{T}"/>, so it reaches only the setting test's own
+    /// flow: a process-wide static, even under <c>[NotInParallel]</c>, handed a
+    /// null root to an unrelated test that ran at the same moment (it failed
+    /// the SSH host-key test once the two PRs were merged).
     /// </summary>
-    internal static Func<string?>? RootResolverForTests { get; set; }
+    internal static Func<string?>? RootResolverForTests
+    {
+        get => RootResolver.Value;
+        set => RootResolver.Value = value;
+    }
+
+    private static readonly AsyncLocal<Func<string?>?> RootResolver = new();
 
     /// <summary>
     /// Root directory for pgNimbus's local application data (saved connection

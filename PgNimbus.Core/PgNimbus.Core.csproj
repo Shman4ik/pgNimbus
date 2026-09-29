@@ -17,7 +17,7 @@
 
   <ItemGroup>
     <!-- The tests reach one seam: AppDataPaths.RootResolverForTests, which
-         makes the app data root unavailable for one [NotInParallel] test. -->
+         makes the app data root unavailable for the one test flow that sets it. -->
     <InternalsVisibleTo Include="PgNimbus.Core.Tests" />
   </ItemGroup>
 

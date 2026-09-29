@@ -144,8 +144,10 @@ How the fixtures work, and why they're shaped this way:
   when neither `ApplicationData` nor `HOME` resolves, `Resolve(name)` is then
   null, and a null path reads as "nothing saved" and drops writes, so the
   session runs from memory. Core tests reach that state through the internal
-  `AppDataPaths.RootResolverForTests` seam in a `[NotInParallel]` class, never
-  by blanking `HOME` for the whole process. The mode tests skip on Windows;
+  `AppDataPaths.RootResolverForTests` seam, never by blanking `HOME` for the
+  whole process. The seam is an `AsyncLocal`, so it reaches only the test that
+  set it: as a plain static it once handed a null root to the SSH host-key test
+  running at the same moment, `[NotInParallel]` notwithstanding. The mode tests skip on Windows;
   they were run in the .NET SDK Linux container through `wslc`.
 - **Workspace restore reads files off the UI thread** (same audit, finding
   18). Reattaching a restored tab to its `.sql` file was a synchronous
