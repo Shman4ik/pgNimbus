@@ -42,6 +42,28 @@ public static class SqlFormatter
     // columns stays on one line instead of breaking one item per line.
     private const int MaxCompactWidth = 80;
 
+    /// <summary>How deep parentheses may nest in text <see cref="Format"/> lays out; deeper text is returned as it is.</summary>
+    public const int MaxNestingDepth = 64;
+
+    private static bool NestsDeeperThan(List<Tok> tokens, int limit)
+    {
+        var depth = 0;
+        foreach (var token in tokens)
+        {
+            if (token.Kind == Kind.OpenParen && ++depth > limit)
+            {
+                return true;
+            }
+
+            if (token.Kind == Kind.CloseParen && depth > 0)
+            {
+                depth--;
+            }
+        }
+
+        return false;
+    }
+
     /// <summary>
     /// Formats a single SQL statement. Returns the input unchanged when it is empty,
     /// comment-only, or when the formatted output wouldn't round-trip to the same
@@ -56,6 +78,15 @@ public static class SqlFormatter
 
         var tokens = Tokenize(sql);
         if (tokens.Count == 0)
+        {
+            return sql;
+        }
+
+        // Indentation grows with nesting, so the output grows with its square:
+        // 100,000 nested subqueries threw ArgumentOutOfRangeException from the
+        // StringBuilder, uncaught, on the Format gesture (review of the 2026-09
+        // audit fixes). Nobody formats SQL nested this deep; hand it back.
+        if (NestsDeeperThan(tokens, MaxNestingDepth))
         {
             return sql;
         }
