@@ -5,19 +5,25 @@ namespace PgNimbus.Core.Query;
 /// <summary>
 /// Lightweight, lexical inspection of a single SQL statement — enough to tell a
 /// data-modifying statement from a read so the App can note that an
-/// <c>EXPLAIN ANALYZE</c> was rolled back, to recognize/unwrap a hand-written
-/// <c>EXPLAIN</c>, and to tell whether re-running a statement is provably harmless.
-/// Deliberately not a full parser: it strips leading
+/// <c>EXPLAIN ANALYZE</c> was rolled back, and to recognize/unwrap a hand-written
+/// <c>EXPLAIN</c>. Deliberately not a full parser: it strips leading
 /// comments/whitespace and looks at the leading keyword (and, for a CTE, whether a
 /// data-modifying keyword appears at all).
 /// </summary>
+/// <remarks>
+/// What this type must never be asked again (2026-09 security audit, finding 1):
+/// whether a statement is safe to run twice. It used to answer that for the
+/// engine's text-format fallback and the export re-run with a leading-keyword
+/// check plus a denylist of side-effecting built-ins, and <c>SELECT
+/// create_order()</c> — a read by its keyword, a write by its VOLATILE function —
+/// passed and ran twice. No lexical check can tell what a function does, so
+/// nothing in the app runs user SQL a second time anymore: the engine describes a
+/// statement before its single execution, and an export re-runs only the app's
+/// own browse query.
+/// </remarks>
 public static partial class SqlStatementInspector
 {
     private static readonly string[] ModifyingKeywords = ["insert", "update", "delete", "merge"];
-
-    // Leading keywords that produce a result set without writing. WITH is included but
-    // still has to clear the data-modifying-CTE check; SHOW/TABLE/VALUES read only.
-    private static readonly string[] ReadKeywords = ["select", "with", "table", "values", "show"];
 
     // The only options the pre-9.0 `EXPLAIN [ANALYZE] [VERBOSE] stmt` form accepts, in
     // the order it accepts them — everything else requires the parenthesized list.
@@ -49,52 +55,6 @@ public static partial class SqlStatementInspector
         }
 
         return false;
-    }
-
-    /// <summary>
-    /// True when running the statement a second time is provably harmless: it reads,
-    /// it writes nothing, and it calls nothing whose side effect would be applied
-    /// twice. Used to decide whether a result set containing a column Npgsql can't
-    /// materialize may be re-executed with those columns requested in text format
-    /// (see <see cref="QueryEngine"/>'s text fallback).
-    /// </summary>
-    /// <remarks>
-    /// Deliberately conservative, and lexical like the rest of this type — a false
-    /// negative only costs the placeholder rendering of an unreadable cell, while a
-    /// false positive would run a side effect twice. So: the statement must lead with
-    /// a read keyword, must not be a data-modifying CTE, must not be <c>SELECT … INTO</c>
-    /// (which creates a table), must not name a function known to have a side effect,
-    /// and must be a single statement — Postgres's simple query protocol happily runs
-    /// <c>SELECT 1; DROP TABLE t</c> as one command. A side-effecting name hiding inside
-    /// a string literal or a comment is treated as if it were real, since being wrong
-    /// in that direction is free.
-    /// </remarks>
-    public static bool IsSafeToReExecute(string sql)
-    {
-        var stripped = StripLeading(sql);
-        if (stripped.Length == 0 || ContainsStatementSeparator(stripped))
-        {
-            return false;
-        }
-
-        var leading = LeadingWord(stripped);
-        if (!Array.Exists(ReadKeywords, k => k.Equals(leading, StringComparison.OrdinalIgnoreCase)))
-        {
-            return false;
-        }
-
-        return !IsDataModifying(stripped)
-            && !SelectIntoRegex().IsMatch(stripped)
-            && !SideEffectingCallRegex().IsMatch(stripped);
-    }
-
-    // A ';' with anything but whitespace/comments after it means a second statement
-    // could ride along. Cheap and quote-blind on purpose: a ';' inside a literal just
-    // makes the answer "no", which is the safe direction.
-    private static bool ContainsStatementSeparator(string sql)
-    {
-        var semicolon = sql.IndexOf(';');
-        return semicolon >= 0 && StripLeading(sql[(semicolon + 1)..]).Length > 0;
     }
 
     /// <summary>
@@ -242,21 +202,4 @@ public static partial class SqlStatementInspector
     // leading-keyword path; only used for the (already WITH-gated) CTE case.
     [GeneratedRegex(@"\b(insert|update|delete|merge)\b", RegexOptions.IgnoreCase)]
     private static partial Regex WriteKeywordRegex();
-
-    // SELECT … INTO new_table creates a table; only INSERT's INTO is a write this
-    // type already catches by its leading keyword. "into" is reserved, so it can't
-    // be a bare column alias here.
-    [GeneratedRegex(@"\binto\b", RegexOptions.IgnoreCase)]
-    private static partial Regex SelectIntoRegex();
-
-    // Functions whose second call would be a second side effect: sequence advances,
-    // session/transaction locks, replication-stream writes, backend signals, and
-    // dblink's arbitrary remote execution. Not exhaustive — no lexical check can be,
-    // since any user-defined VOLATILE function may write — which is why this gate
-    // only ever permits an *extra* read, never suppresses the per-cell guard that
-    // renders an unreadable value as a placeholder.
-    [GeneratedRegex(
-        @"\b(nextval|setval|pg_advisory_\w+|pg_logical_emit_message|pg_create_restore_point|pg_terminate_backend|pg_cancel_backend|dblink\w*)\s*\(",
-        RegexOptions.IgnoreCase)]
-    private static partial Regex SideEffectingCallRegex();
 }

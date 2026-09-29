@@ -221,21 +221,20 @@ inference on the incoming columns.
 Export results, or copy them straight to the clipboard, as TSV, CSV, JSON, a
 Markdown table, or `INSERT` statements.
 
-**Export writes every row, not just the ones on screen.** The grid holds at
-most 100,000 rows, and a browsed table shows one page at a time. When the grid
-doesn't hold the whole result, export runs the query again with no limit and
-streams the rows straight to the file, so a table of any size exports without
-filling memory. A browsed table exports with its filters and its sort order,
-whatever page you're on. The status bar counts the rows as they're written,
-and **Cancel** stops the export and deletes the unfinished file.
+**A browsed table exports every row, not just the page on screen.** A browsed
+table shows one page at a time. When you export it, pgNimbus runs its own page
+query again with no limit and streams the rows straight to the file, so a table
+of any size exports without filling memory, with its filters and its sort order,
+whatever page you're on. The status bar counts the rows as they're written, and
+**Cancel** stops the export and deletes the unfinished file.
 
-In two cases the query can't be run again, so the file gets only the rows in
-the grid, and the status bar says so:
-
-- The query might change data, such as `INSERT … RETURNING`. Running it again
-  would make the change twice.
-- The result comes from one statement of a multi-statement script, or from a
-  query inside an open transaction.
+**A query you wrote exports the rows in the grid.** The grid holds at most
+100,000 rows. When a query returns more, the file gets those rows and the
+status bar says so. pgNimbus never runs a query you wrote a second time on its
+own: a `SELECT` that calls a function may write, and nothing on the client can
+tell. To export every row of a large result, browse the table, or add an
+`OFFSET` and export in parts. The same applies to one statement of a
+multi-statement script, and to any query inside an open transaction.
 
 Copying to the clipboard always takes the rows in the grid.
 

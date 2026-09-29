@@ -1,7 +1,24 @@
 name: Release
 
-# Tag pushes (v1.2.3) cut a real GitHub Release; workflow_dispatch runs the
-# whole pipeline without publishing anything, for testing.
+# A tag push (v1.2.3) cuts a real GitHub Release. A workflow_dispatch run builds
+# and smoke-tests every package but publishes nothing, whichever ref it is
+# started from: the "release" job and the benchmark history both gate on the
+# event being a push, because a dispatch with a tag chosen under "Use workflow
+# from" also carries github.ref = refs/tags/v…, and used to publish.
+#
+# Trust boundaries (security audit 2026-09, findings 5 and 15):
+#   - The workflow token is read-only. Only the "release" job (assets,
+#     attestations) and the benchmark call (gh-pages history) get
+#     contents: write, and no checkout persists the token into .git/config, so
+#     the MSBuild tasks of ~35 packages, the packaging tools and the
+#     smoke-launched app never hold one.
+#   - Every action is pinned to a commit SHA; the "# vX.Y.Z" comment beside
+#     each is what Dependabot (github-actions ecosystem) bumps. The release
+#     itself is created with the preinstalled gh CLI, so no third-party code
+#     runs next to id-token: write.
+#   - Each build job first checks that the built commit is on main: a tag can
+#     be pushed on any commit, and the attestation only proves "built by this
+#     workflow", not "built from a reviewed commit".
 #
 # Each build job resolves the version itself via .github/actions/version
 # (a composite action) — no dedicated "prepare" job, so no extra runner
@@ -18,7 +35,7 @@ on:
         type: string
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   DOTNET_VERSION: "10.0.x"
@@ -32,36 +49,48 @@ jobs:
   benchmark:
     needs: build-linux
     uses: ./.github/workflows/benchmark.yml
+    # The one job besides "release" with write access: the gh-pages history
+    # push. The benchmark action pushes through its github-token input, not a
+    # persisted checkout credential.
     permissions:
       contents: write
     with:
-      # Only append to the gh-pages trend history on a real tag-triggered
-      # release, not a workflow_dispatch test run.
-      record_history: ${{ startsWith(github.ref, 'refs/tags/v') }}
+      # Only append to the gh-pages trend history on a real tag push, never on
+      # a workflow_dispatch run (even one started from a tag).
+      record_history: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
       publish_artifact: publish-linux-x64
 
   build-windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Full history so the on-main check below can see origin/main. Nothing
+          # in this job pushes, so the token has no business in .git/config.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Require the built commit to be on main
+        uses: ./.github/actions/require-on-main
 
       - name: Determine version
         uses: ./.github/actions/version
         with:
           version: ${{ inputs.version }}
 
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
       - name: Publish NativeAOT (win-x64)
+        shell: bash
         run: >
           dotnet publish PgNimbus.App -c Release -r win-x64
           --self-contained true
           -p:PublishAot=true
-          -p:Version=${{ env.VERSION }}
-          -p:FileVersion=${{ env.VERSION }}
-          -p:InformationalVersion=${{ env.VERSION }}
+          -p:Version="$VERSION"
+          -p:FileVersion="$VERSION"
+          -p:InformationalVersion="$VERSION"
           -o publish/win-x64
 
       # Smoke the binary before packaging it, so a NativeAOT failure is
@@ -73,19 +102,22 @@ jobs:
           -Label "win-x64 publish output"
           -Executable publish/win-x64/PgNimbus.App.exe
 
-      - name: Install WiX
-        run: dotnet tool install --global wix --version 5.*
+      # WiX comes from the tool manifest (.config/dotnet-tools.json), pinned to
+      # an exact version that Dependabot bumps — not a floating "5.*" install.
+      - name: Restore .NET tools (WiX)
+        run: dotnet tool restore
 
       - name: Build MSI
         # PublishDir/IconFile must be absolute: WiX resolves relative -d
         # paths against the .wxs file's own directory, not the cwd.
+        shell: pwsh
         run: >
-          wix build installer/windows/Product.wxs
-          -d PublishDir=${{ github.workspace }}\publish\win-x64
-          -d Version=${{ env.VERSION }}
-          -d IconFile=${{ github.workspace }}\PgNimbus.App\Assets\app.ico
+          dotnet wix build installer/windows/Product.wxs
+          -d PublishDir=${env:GITHUB_WORKSPACE}\publish\win-x64
+          -d Version=${env:VERSION}
+          -d IconFile=${env:GITHUB_WORKSPACE}\PgNimbus.App\Assets\app.ico
           -arch x64
-          -o pgNimbus-${{ env.VERSION }}-win-x64.msi
+          -o pgNimbus-${env:VERSION}-win-x64.msi
 
       # The MSI is the artifact most people actually download, and nothing else
       # in the pipeline proves it installs. Per-user (no elevation), so this
@@ -93,7 +125,7 @@ jobs:
       - name: Smoke test (install the MSI, launch it, uninstall)
         shell: pwsh
         run: |
-          $msi = (Resolve-Path "pgNimbus-${{ env.VERSION }}-win-x64.msi").Path
+          $msi = (Resolve-Path "pgNimbus-${env:VERSION}-win-x64.msi").Path
           $log = "msi-install.log"
 
           $install = Start-Process msiexec -ArgumentList "/i", "`"$msi`"", "/qn", "/l*v", $log -Wait -PassThru
@@ -117,10 +149,10 @@ jobs:
         id: sha
         shell: pwsh
         run: |
-          $hash = (Get-FileHash "pgNimbus-${{ env.VERSION }}-win-x64.msi" -Algorithm SHA256).Hash.ToLower()
+          $hash = (Get-FileHash "pgNimbus-${env:VERSION}-win-x64.msi" -Algorithm SHA256).Hash.ToLower()
           "sha256=$hash" >> $env:GITHUB_OUTPUT
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: windows-msi
           path: pgNimbus-${{ env.VERSION }}-win-x64.msi
@@ -143,10 +175,10 @@ jobs:
         run: >
           scripts/windows/build-msix.ps1
           -PublishDir publish/win-x64
-          -Version ${{ env.VERSION }}
-          -Output pgNimbus-${{ env.VERSION }}-win-x64.msix
+          -Version ${env:VERSION}
+          -Output pgNimbus-${env:VERSION}-win-x64.msix
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: windows-msix
           path: pgNimbus-${{ env.VERSION }}-win-x64.msix
@@ -163,9 +195,11 @@ jobs:
       # to sit on the critical path before "release".
       - name: Render winget manifests
         shell: bash
+        env:
+          MSI_SHA256: ${{ steps.sha.outputs.sha256 }}
         run: |
-          RELEASE_URL="https://github.com/${{ github.repository }}/releases/download/v${VERSION}/pgNimbus-${VERSION}-win-x64.msi"
-          bash scripts/winget/render-manifest.sh "$VERSION" "${{ steps.sha.outputs.sha256 }}" "$RELEASE_URL" manifests
+          RELEASE_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/v${VERSION}/pgNimbus-${VERSION}-win-x64.msi"
+          bash scripts/winget/render-manifest.sh "$VERSION" "$MSI_SHA256" "$RELEASE_URL" manifests
 
       - name: Validate winget manifests
         shell: pwsh
@@ -175,7 +209,7 @@ jobs:
         shell: pwsh
         run: Compress-Archive -Path manifests\* -DestinationPath winget-manifests.zip
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: winget-manifests
           path: winget-manifests.zip
@@ -190,14 +224,20 @@ jobs:
     # sold since 2020 are Apple Silicon anyway.
     runs-on: macos-14
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Require the built commit to be on main
+        uses: ./.github/actions/require-on-main
 
       - name: Determine version
         uses: ./.github/actions/version
         with:
           version: ${{ inputs.version }}
 
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
@@ -237,9 +277,9 @@ jobs:
           dotnet publish PgNimbus.App -c Release -r osx-arm64
           --self-contained true
           -p:PublishAot=true
-          -p:Version=${{ env.VERSION }}
-          -p:FileVersion=${{ env.VERSION }}
-          -p:InformationalVersion=${{ env.VERSION }}
+          -p:Version="$VERSION"
+          -p:FileVersion="$VERSION"
+          -p:InformationalVersion="$VERSION"
           -o publish/osx-arm64
 
       - name: Smoke test (publish output)
@@ -289,7 +329,7 @@ jobs:
 
           ./scripts/release/smoke-launch.sh "mounted .dmg" "$app/Contents/MacOS/PgNimbus.App"
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: macos-dmg-arm64
           path: dist/*.dmg
@@ -307,15 +347,23 @@ jobs:
           - runner: ubuntu-24.04-arm
             rid: linux-arm64
     runs-on: ${{ matrix.runner }}
+    env:
+      RID: ${{ matrix.rid }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Require the built commit to be on main
+        uses: ./.github/actions/require-on-main
 
       - name: Determine version
         uses: ./.github/actions/version
         with:
           version: ${{ inputs.version }}
 
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
@@ -326,18 +374,20 @@ jobs:
 
       - name: Publish NativeAOT (${{ matrix.rid }})
         run: >
-          dotnet publish PgNimbus.App -c Release -r ${{ matrix.rid }}
+          dotnet publish PgNimbus.App -c Release -r "$RID"
           --self-contained true
           -p:PublishAot=true
-          -p:Version=${{ env.VERSION }}
-          -p:FileVersion=${{ env.VERSION }}
-          -p:InformationalVersion=${{ env.VERSION }}
-          -o publish/${{ matrix.rid }}
+          -p:Version="$VERSION"
+          -p:FileVersion="$VERSION"
+          -p:InformationalVersion="$VERSION"
+          -o "publish/$RID"
 
+      # appimagetool and the AppImage runtime it embeds are pinned releases
+      # with sha256 checks inside the script — see scripts/linux/build-packages.sh.
       - name: Build tar.gz + AppImage + .deb
         run: |
           chmod +x scripts/linux/build-packages.sh
-          ./scripts/linux/build-packages.sh publish/${{ matrix.rid }} "$VERSION" ${{ matrix.rid }} dist
+          ./scripts/linux/build-packages.sh "publish/$RID" "$VERSION" "$RID" dist
 
       - name: Install a virtual display
         run: sudo apt-get install -y xvfb
@@ -349,10 +399,10 @@ jobs:
       - name: Smoke test (all three packages)
         run: |
           chmod +x scripts/release/smoke-launch.sh
-          arch=$(echo "${{ matrix.rid }}" | sed 's/linux-//')
+          arch="${RID#linux-}"
           base="pgNimbus-${VERSION}-linux-${arch}"
 
-          ./scripts/release/smoke-launch.sh "publish output" "publish/${{ matrix.rid }}/PgNimbus.App"
+          ./scripts/release/smoke-launch.sh "publish output" "publish/${RID}/PgNimbus.App"
 
           tar -xzf "dist/${base}.tar.gz" -C "$RUNNER_TEMP"
           ./scripts/release/smoke-launch.sh "tar.gz" "$RUNNER_TEMP/${base}/PgNimbus.App"
@@ -366,37 +416,7 @@ jobs:
           ./scripts/release/smoke-launch.sh ".deb" /usr/bin/pgnimbus
           sudo apt-get remove -y pgnimbus
 
-      # Software bill of materials: every NuGet package (direct + transitive)
-      # baked into the shipped app, as CycloneDX JSON. Generated once on the
-      # x64 leg — the NuGet dependency graph is RID-independent. -c Release
-      # matches the configuration the release binaries are built in.
-      - name: Generate SBOM (CycloneDX)
-        if: matrix.rid == 'linux-x64'
-        run: |
-          dotnet tool install --global CycloneDX
-          dotnet-CycloneDX PgNimbus.App/PgNimbus.App.csproj -c Release -F Json \
-            -o sbom -fn "pgNimbus-${VERSION}-sbom.cdx.json" \
-            -sn pgNimbus -sv "$VERSION" -ed
-
-      # dotnet-CycloneDX only walks the NuGet graph, so the .NET runtime pack
-      # a NativeAOT publish statically links in (GC, TLS and crypto code)
-      # never shows up on its own. This runner is the linux-x64 leg, which is
-      # exactly the runtime pack this SBOM is missing.
-      - name: Add the .NET runtime pack to the SBOM
-        if: matrix.rid == 'linux-x64'
-        run: |
-          python3 scripts/release/sbom_add_runtime.py \
-            "sbom/pgNimbus-${VERSION}-sbom.cdx.json" --rid linux-x64
-
-      - uses: actions/upload-artifact@v7
-        if: matrix.rid == 'linux-x64'
-        with:
-          name: sbom
-          path: sbom/*.cdx.json
-          # Same-run hand-off to "release" (see windows-msi above).
-          retention-days: 1
-
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: linux-packages-${{ matrix.rid }}
           path: dist/*
@@ -411,7 +431,7 @@ jobs:
         if: matrix.rid == 'linux-x64'
         run: tar -C publish -czf publish-linux-x64.tar.gz linux-x64
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: matrix.rid == 'linux-x64'
         with:
           name: publish-linux-x64
@@ -419,13 +439,73 @@ jobs:
           # Consumed by the benchmark job in this same run and by nothing else.
           retention-days: 1
 
+  # Software bill of materials: every NuGet package (direct + transitive)
+  # baked into the shipped app, as CycloneDX JSON. Its own job rather than a
+  # step of the linux-x64 build leg (where it used to run, after the packages
+  # were built): the SBOM tool is a third party, and this way it never shares a
+  # runner with the binaries that ship. The NuGet dependency graph is
+  # RID-independent, so one run is enough; -c Release matches the configuration
+  # the release binaries are built in.
+  sbom:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Require the built commit to be on main
+        uses: ./.github/actions/require-on-main
+
+      - name: Determine version
+        uses: ./.github/actions/version
+        with:
+          version: ${{ inputs.version }}
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      # CycloneDX comes from the tool manifest (.config/dotnet-tools.json),
+      # pinned to an exact version that Dependabot bumps.
+      - name: Restore .NET tools (CycloneDX)
+        run: dotnet tool restore
+
+      - name: Generate SBOM (CycloneDX)
+        run: |
+          dotnet dotnet-CycloneDX PgNimbus.App/PgNimbus.App.csproj -c Release -F Json \
+            -o sbom -fn "pgNimbus-${VERSION}-sbom.cdx.json" \
+            -sn pgNimbus -sv "$VERSION" -ed
+
+      # dotnet-CycloneDX only walks the NuGet graph, so the .NET runtime pack
+      # a NativeAOT publish statically links in (GC, TLS and crypto code)
+      # never shows up on its own. This job runs no publish, so the script
+      # names the linux-x64 pack (the one build-linux's x64 leg links) and
+      # reads its version from the runtime that setup-dotnet installed above,
+      # which is the same pinned SDK the build legs use.
+      - name: Add the .NET runtime pack to the SBOM
+        run: |
+          python3 scripts/release/sbom_add_runtime.py \
+            "sbom/pgNimbus-${VERSION}-sbom.cdx.json" --rid linux-x64
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sbom
+          path: sbom/*.cdx.json
+          # Same-run hand-off to "release" (see windows-msi above).
+          retention-days: 1
+
   # The publish gate. Each build job smoke-launches its own artifacts before
   # uploading them, so "needs" already means "every package started and drew a
   # window" — a broken build cannot reach a GitHub Release without someone
   # deliberately re-running past a red job.
   release:
-    needs: [build-windows, build-macos, build-linux]
-    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-windows, build-macos, build-linux, sbom]
+    # A push of a v* tag, and nothing else: a workflow_dispatch started from a
+    # tag has the same github.ref and must not publish.
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -437,7 +517,7 @@ jobs:
       # windows-msix (Store-submission-only, see build-windows),
       # publish-linux-x64 (benchmark input — its .tar.gz would otherwise
       # leak into the checksum globs below), bench-results.
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           path: artifacts
           merge-multiple: true
@@ -452,25 +532,40 @@ jobs:
       # Signed SLSA build provenance (Sigstore) for every shipped file — the
       # $0 substitute for code signing on the direct-download channel: proves
       # a download was built by this workflow from this commit. Verify with:
-      #   gh attestation verify <file> --repo ${{ github.repository }}
+      #   gh attestation verify <file> --repo Shman4ik/pgNimbus
       - name: Attest build provenance
-        uses: actions/attest-build-provenance@v4
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: artifacts/*
 
+      # The preinstalled, first-party gh CLI rather than a third-party action:
+      # this is the one step holding contents: write next to id-token: write,
+      # and nothing outside GitHub's own tooling should run here.
+      #
+      # Deliberately create-only: a re-run after the release exists fails
+      # instead of quietly replacing assets that may already have been
+      # downloaded. Delete the release and re-run, or cut a new tag.
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v3
-        with:
-          files: |
-            artifacts/*.msi
-            artifacts/*.dmg
-            artifacts/*.zip
-            artifacts/*.AppImage
-            artifacts/*.tar.gz
-            artifacts/*.deb
-            artifacts/*.cdx.json
-            artifacts/SHA256SUMS.txt
-          generate_release_notes: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          cd artifacts
           # Every build is unsigned until a code-signing cert / Apple
-          # Developer account is added — flip this off once that lands.
-          prerelease: true
+          # Developer account is added — drop --prerelease once that lands.
+          # An unmatched glob stays literal and fails the upload, which is
+          # right: a missing package is a broken release, not a smaller one.
+          gh release create "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --title "$TAG" \
+            --generate-notes \
+            --prerelease \
+            ./*.msi \
+            ./*.dmg \
+            ./*.zip \
+            ./*.AppImage \
+            ./*.tar.gz \
+            ./*.deb \
+            ./*.cdx.json \
+            ./SHA256SUMS.txt

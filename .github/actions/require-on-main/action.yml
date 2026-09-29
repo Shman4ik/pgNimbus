@@ -1,0 +1,26 @@
+name: Require the built commit to be on main
+description: >-
+  Fails unless the commit being built is reachable from origin/main. A v* tag
+  can be pushed on any commit, and the release attestation only proves "built
+  by this workflow", not "built from a reviewed commit" — this is what makes
+  the tag mean the latter. Needs a checkout with fetch-depth: 0, so that
+  origin/main exists locally. It runs on every event, not only tag pushes,
+  so that the gate is exercised by every workflow_dispatch rehearsal and
+  cannot rot unnoticed until the next release; a rehearsal therefore has to
+  start from a commit that is already on main.
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        git rev-parse --verify --quiet origin/main >/dev/null || {
+          echo "::error::origin/main is not available; check out with fetch-depth: 0" >&2
+          exit 1
+        }
+        if git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+          echo "$GITHUB_SHA is on main"
+        else
+          echo "::error::$GITHUB_SHA is not reachable from main; only commits on main are built for release" >&2
+          exit 1
+        fi
