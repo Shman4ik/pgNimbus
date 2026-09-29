@@ -1,0 +1,47 @@
+Privacy Policy for pgNimbus
+
+Last updated: 29 September 2026
+
+pgNimbus is a desktop PostgreSQL client. It has no account, no cloud service and no telemetry. It does not send any data to the developer or to any third party. The data it keeps stays on your computer, as described below.
+
+NETWORK
+
+pgNimbus connects only to the PostgreSQL servers and SSH jump hosts that you configure. It has no update check, usage analytics, automatic crash reporting or remote configuration, and it downloads nothing while it runs. It contains no analytics, crash-reporting or telemetry SDKs.
+
+Two buttons open a page in your web browser when you click them. "pgNimbus on GitHub" opens the project page. "Report on GitHub" in the crash window opens a GitHub issue form filled in with the error message (passwords masked), the app version and the Windows version. Your browser sends that text to GitHub in the page address. Nothing is published until you submit the form yourself.
+
+WHAT YOUR DATABASE SERVER SEES
+
+Your IP address (or your SSH jump host's), your user name and database, the application name "pgNimbus", the statements you run, and the catalog queries pgNimbus runs for itself, which start with the comment /* pgNimbus */. An SSH jump host sees your IP address, your SSH user name and sign-in, and the database host and port you forward to.
+
+WHAT IS STORED ON YOUR COMPUTER
+
+All files are in %AppData%\pgNimbus. The Microsoft Store version may keep them in %LocalAppData%\Packages\DmitriiShmanev.pgNimbus_5cjm84wd2pj14\LocalCache\Roaming\pgNimbus instead.
+
+- Connection profiles: name, host, port, database, user name, SSL settings, SSH host, user name and key file path. No passwords.
+- Passwords (database, SSH, key passphrase): encrypted with Windows DPAPI for your Windows account, one file per password in the credentials folder. pgNimbus does not use Windows Credential Manager. If a password cannot be saved, the app warns you and keeps it in memory for that session only.
+- Query history (not encrypted): the text of up to 200 statements you ran, with the values in them, when each ran, its row count or the server's error message, and the host and database. Passwords written in SQL (for example ALTER ROLE ... PASSWORD) are masked before saving. You can turn history off in Settings and clear it from the history list.
+- Open tabs (not encrypted): the text of your open query tabs, so they reopen next time, with passwords masked the same way.
+- Saved queries (not encrypted): the queries you save, as you saved them.
+- Settings, recently opened file paths, names you picked from autocomplete, window positions, and SSH host keys you accepted (not encrypted).
+- Crash log (not encrypted): unexpected errors, with the error message (passwords masked) and a stack trace. It stays on your computer.
+
+Query results are not stored. They go to a file or the clipboard only when you export or copy them.
+
+DELETING YOUR DATA
+
+Uninstalling does not remove these files. Delete the folder above to remove all of them, including the saved passwords. Deleting a connection profile in the app also deletes its saved passwords.
+
+MICROSOFT STORE
+
+Microsoft handles the download and updates under the Microsoft Privacy Statement, and may show the developer aggregate install and crash numbers in Partner Center, based on your Windows diagnostic data settings. These contain nothing from your databases.
+
+SOURCE CODE
+
+pgNimbus is open source under the MIT license. You can check every statement here in the code: https://github.com/Shman4ik/pgNimbus
+
+Full details, including macOS and Linux: https://shman4ik.github.io/pgNimbus/docs/privacy/
+
+CONTACT
+
+Questions or concerns: https://github.com/Shman4ik/pgNimbus/issues

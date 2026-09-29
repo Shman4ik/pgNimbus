@@ -98,6 +98,7 @@ nav:
       - Monitoring: guide/monitoring.md
   - Reference:
       - Keyboard shortcuts: reference/keyboard-shortcuts.md
+  - Privacy: privacy.md
 
 extra:
   social:
