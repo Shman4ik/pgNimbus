@@ -14,6 +14,11 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
 {
     private const int BatchSize = 200;
 
+    // A batch is also handed over once its rows are estimated at this many bytes, so a
+    // consumer's byte budget (the grid's MaxDisplayBytes) sees a few huge rows one at a
+    // time rather than after 200 of them are already in memory.
+    private const long BatchBytes = 8L * 1024 * 1024;
+
     private readonly NpgsqlDataSource _dataSource = dataSource;
 
     // Non-null while an explicit user transaction is open. Every execution then
@@ -529,7 +534,14 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
     /// so a second execution can never apply an <c>INSERT … RETURNING</c> — or any
     /// volatile call — twice.
     /// </param>
-    public async Task<StatementResult> ExecuteAsync(string sql, CancellationToken ct, int? maxRows = null, bool allowTextFallback = false)
+    /// <param name="maxBytes">
+    /// Inside a transaction only, where the result is materialized here rather than
+    /// streamed: stop keeping rows once they are estimated
+    /// (<see cref="ResultBudget.EstimateRow"/>) to exceed this many bytes, and cancel
+    /// the rest as the row cap does. A streamed result is bounded by its consumer, which
+    /// stops enumerating; abandoning the stream cancels the query (see <c>StreamBatches</c>).
+    /// </param>
+    public async Task<StatementResult> ExecuteAsync(string sql, CancellationToken ct, int? maxRows = null, bool allowTextFallback = false, long? maxBytes = null)
     {
         // Inside a transaction the statement runs on the shared session
         // connection and its result is fully materialized: a lazily-streaming
@@ -537,7 +549,7 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
         // in the transaction until the grid finished consuming it.
         if (_transactionConnection is not null)
         {
-            return await ExecuteInTransactionAsync(sql, maxRows, allowTextFallback, ct);
+            return await ExecuteInTransactionAsync(sql, maxRows, maxBytes, allowTextFallback, ct);
         }
 
         var stopwatch = Stopwatch.StartNew();
@@ -681,10 +693,19 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
     /// isn't enough).
     /// </param>
     /// <param name="ct">Cancels the script mid-flight, between or within statements.</param>
+    /// <param name="budget">
+    /// If set, what the whole script's results may hold together. Each statement is
+    /// also held to the budget's byte maximum on its own, which cancels it like the
+    /// row cap. Once the sections so far have spent the shared budget, a later
+    /// statement keeps what fits and reads the rest without keeping it
+    /// (<see cref="ResultCap.Shared"/>), deliberately not cancelled: it may be a write
+    /// whose rows nobody asked to keep, and cancelling it would abort it.
+    /// </param>
     public async IAsyncEnumerable<StatementResult> ExecuteScriptAsync(
         IReadOnlyList<string> statements,
         int? maxRowsPerStatement,
-        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default,
+        ResultBudget? budget = null)
     {
         // In a transaction the whole script runs on the shared session connection
         // (so it joins the open block); otherwise it gets its own pooled
@@ -699,7 +720,7 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
                 ct.ThrowIfCancellationRequested();
 
                 var statement = statements[i];
-                var result = await ExecuteOnConnectionAsync(connection, statement, maxRowsPerStatement, allowTextFallback: false, ct);
+                var result = await ExecuteOnConnectionAsync(connection, statement, maxRowsPerStatement, budget?.MaxBytes, budget, allowTextFallback: false, ct);
 
                 // A connection loss on the very first statement means nothing in
                 // the script has run yet — no session state (SET, temp tables)
@@ -738,7 +759,7 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
                         yield break;
                     }
 
-                    result = await ExecuteOnConnectionAsync(connection, statement, maxRowsPerStatement, allowTextFallback: false, ct);
+                    result = await ExecuteOnConnectionAsync(connection, statement, maxRowsPerStatement, budget?.MaxBytes, budget, allowTextFallback: false, ct);
                 }
 
                 if (result is QueryError error)
@@ -780,7 +801,7 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
     // its result (see ExecuteAsync for why streaming is avoided here). A failure
     // auto-rolls-back the transaction and comes back flagged so the UI can note
     // that the block is gone.
-    private async Task<StatementResult> ExecuteInTransactionAsync(string sql, int? maxRows, bool allowTextFallback, CancellationToken ct)
+    private async Task<StatementResult> ExecuteInTransactionAsync(string sql, int? maxRows, long? maxBytes, bool allowTextFallback, CancellationToken ct)
     {
         var connection = _transactionConnection!;
         var stopwatch = Stopwatch.StartNew();
@@ -791,7 +812,7 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
             // ExecuteOnConnectionAsync converts PostgresExceptions to QueryError
             // but lets other failures (e.g. a dropped connection) escape; ExecuteAsync
             // promises never to throw those, so translate them here too.
-            result = await ExecuteOnConnectionAsync(connection, sql, maxRows, allowTextFallback, ct);
+            result = await ExecuteOnConnectionAsync(connection, sql, maxRows, maxBytes, null, allowTextFallback, ct);
         }
         catch (OperationCanceledException)
         {
@@ -833,6 +854,8 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
         NpgsqlConnection connection,
         string sql,
         int? maxRows,
+        long? maxBytes,
+        ResultBudget? shared,
         bool allowTextFallback,
         CancellationToken ct)
     {
@@ -841,6 +864,8 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
 
         NpgsqlDataReader? reader = null;
         var truncated = false;
+        var cancelled = false;
+        var cappedBy = ResultCap.None;
         try
         {
             reader = await command.ExecuteReaderAsync(CommandBehavior.Default, ct);
@@ -869,14 +894,23 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
             var columns = BuildColumns(reader);
             var fieldCount = reader.FieldCount;
             var rows = new List<object?[]>();
+            var bytes = 0L;
 
             while (await reader.ReadAsync(ct))
             {
+                if (truncated)
+                {
+                    // The shared budget ran out: read on without keeping anything.
+                    continue;
+                }
+
                 if (maxRows is { } cap && rows.Count >= cap)
                 {
                     // A row past the cap exists: keep exactly `cap` rows, flag the
                     // truncation, and cancel so disposal doesn't drain the rest.
                     truncated = true;
+                    cappedBy = ResultCap.Rows;
+                    cancelled = true;
                     command.Cancel();
                     break;
                 }
@@ -887,6 +921,25 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
                     row[i] = ReadValue(reader, i);
                 }
 
+                var size = ResultBudget.EstimateRow(row);
+                if (maxBytes is { } byteCap && bytes + size > byteCap)
+                {
+                    // Too big on its own: stopped like the row cap.
+                    truncated = true;
+                    cappedBy = ResultCap.Bytes;
+                    cancelled = true;
+                    command.Cancel();
+                    break;
+                }
+
+                if (shared is not null && !shared.TryTake(size))
+                {
+                    truncated = true;
+                    cappedBy = ResultCap.Shared;
+                    continue;
+                }
+
+                bytes += size;
                 rows.Add(row);
             }
 
@@ -896,6 +949,7 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
                 Columns = columns,
                 Rows = rows,
                 Truncated = truncated,
+                CappedBy = cappedBy,
             };
         }
         catch (PostgresException pg)
@@ -931,7 +985,7 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
                 {
                     await reader.DisposeAsync();
                 }
-                catch (PostgresException ex) when (truncated && ex.SqlState == PostgresErrorCodes.QueryCanceled)
+                catch (PostgresException ex) when (cancelled && ex.SqlState == PostgresErrorCodes.QueryCanceled)
                 {
                     // The backend acknowledged the row-cap cancel while draining;
                     // the rows already collected are still valid.
@@ -1108,10 +1162,17 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
     {
         var stoppedAtRowCap = false;
 
+        // True while a batch is out with the consumer. If the finally below runs
+        // then, the consumer stopped enumerating (the grid's byte budget, or any
+        // early break) and the rest of the result would otherwise be drained by the
+        // reader's disposal: every remaining row pulled over the wire for nothing.
+        var abandoned = false;
+
         try
         {
             var fieldCount = reader.FieldCount;
             var buffer = new List<object?[]>(BatchSize);
+            var bufferBytes = 0L;
             var produced = 0;
 
             while (await reader.ReadAsync(ct))
@@ -1127,6 +1188,7 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
                 }
 
                 buffer.Add(row);
+                bufferBytes += ResultBudget.EstimateRow(row);
                 produced++;
 
                 if (produced >= maxRows)
@@ -1140,10 +1202,13 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
                     yield break;
                 }
 
-                if (buffer.Count >= BatchSize)
+                if (buffer.Count >= BatchSize || bufferBytes >= BatchBytes)
                 {
+                    abandoned = true;
                     yield return new RowBatch(buffer);
+                    abandoned = false;
                     buffer = new List<object?[]>(BatchSize);
+                    bufferBytes = 0;
                 }
             }
 
@@ -1157,16 +1222,26 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
             // Only cancel when the cap cut the stream short. A cancel request
             // after normal completion could race a pooled-connection reuse and
             // kill an unrelated subsequent query on the same backend.
-            if (stoppedAtRowCap)
+            // Likewise a consumer that stopped mid-result (abandoned), but not one
+            // that stopped after the last batch, when nothing is left to cancel.
+            var cancelled = stoppedAtRowCap || abandoned;
+            if (cancelled)
             {
-                command.Cancel();
+                try
+                {
+                    command.Cancel();
+                }
+                catch
+                {
+                    // A connection that already failed has nothing left to cancel.
+                }
             }
 
             try
             {
                 await reader.DisposeAsync();
             }
-            catch (PostgresException ex) when (stoppedAtRowCap && ex.SqlState == PostgresErrorCodes.QueryCanceled)
+            catch (PostgresException ex) when (cancelled && ex.SqlState == PostgresErrorCodes.QueryCanceled)
             {
                 // The backend acknowledged the row-cap cancel while the reader
                 // was draining; the rows already yielded are still valid.

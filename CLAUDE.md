@@ -185,7 +185,17 @@ Three rules about it:
    `Json/JsonTree`) shapes those flat rows into a blocker→blocked forest,
    robust to chains, multi-blocker waiters, invisible (out-of-snapshot)
    blockers, and transient deadlock cycles (guarded against infinite
-   recursion). The tree's nodes auto-expand so the whole wait chain shows at a
+   recursion). **It is a spanning tree** (2026-09, security audit finding 16):
+   each backend appears once, under the first of its blockers a breadth-first
+   walk from the roots reaches (pid order, so every refresh has the same shape),
+   and `BlockingTreeNode.AlsoBlockedBy` names the rest, which the row shows as
+   "also blocked by …" (`BlockingNode.OtherBlockersLabel`; a root says "blocked
+   by …" for a blocker outside the snapshot or in a cycle). It used to repeat a
+   waiter under every blocker, subtree and all, and `pg_blocking_pids` reports
+   soft blocks too: N sessions queued on one hot row form a complete DAG with
+   about 2^(N-3) paths, so 30 waiters built ~134M nodes on the UI thread every
+   2 s, during exactly the incident the tab is for. `BlockingTreeTests` builds
+   that DAG under a timeout. The tree's nodes auto-expand so the whole wait chain shows at a
    glance and survives the 2s auto-refresh rebuild; cancel/terminate on the
    Blocking tab target the *selected* node's pid (aim at the root holder to
    release everyone beneath it).
@@ -215,7 +225,14 @@ Three rules about it:
    so pretty-printing and the collapsible `JsonTree` come for free rather than
    being reimplemented. The feed itself is capped at
    `NotifyMonitorViewModel.MaxNotifications` (500) — a chatty channel would
-   otherwise grow it all afternoon. (d) **It can publish**, through
+   otherwise grow it all afternoon. **A flood is coalesced before it reaches the
+   dispatcher** (2026-09, security audit finding 16): the listener's event used
+   to post one UI-thread item per notification, an unbounded queue with the cap
+   applied only as each item ran. `Receive` now queues under a lock (keeping at
+   most `MaxNotifications`, the rest could never be shown) and posts one drain
+   unless one is already waiting; the drain applies the cap before inserting.
+   The post is a constructor seam (`postToUi`), so `NotifyMonitorTests` raises
+   10,000 notifications and counts the posts. (d) **It can publish**, through
    `pg_notify(@channel, @payload)` on a pooled connection (the listening one is
    parked in a wait, and `NOTIFY` takes literals rather than parameters). pgAdmin
    needs a second session to produce a test event; this is one button.
@@ -1838,6 +1855,33 @@ csproj / WiX / MSIX manifest reference them unchanged:
   engine's connection), and a progress tick still queued at the end must not
   overwrite the final status line (`finished`). Live coverage is
   `PgNimbus.App.Tests/ResultExportTests`, gated on `PGNIMBUS_TEST_CONN`.
+- **A result is bounded in rows, bytes and grid columns** (2026-09, security
+  audit finding 16). `MaxDisplayRows` (100,000) was the only bound, and a row
+  can be anything: `SELECT *` over the telemetry demo's 37 KB jsonb cells is
+  several GB, one `repeat('x', 500000000)` a gigabyte, and a script kept
+  100,000 rows per statement. Now `QueryViewModel.MaxDisplayBytes` (256 MiB) is
+  charged per row through the Core-pure `ResultBudget` (`EstimateRow`: UTF-16
+  strings, bytea, arrays by length, a slot per cell, cheap enough per row), and
+  `CollectRowsAsync` stops enumerating at the first row either limit refuses.
+  Four things make that hold: (a) **abandoning the stream cancels the query**:
+  `StreamBatches` marks each yield, and a consumer that stops mid-result gets
+  `command.Cancel()` in the finally instead of a reader disposal that drains
+  every remaining row (`ResultBudgetTests` holds it to 15 s on 50M rows; it took
+  21 s without); (b) a batch is also handed over at `BatchBytes` (8 MB), so a
+  few huge rows reach the budget one at a time instead of 200 at once; (c) a
+  materialized result (inside a transaction) takes `maxBytes` and stops like the
+  row cap; (d) **a script's sections share one `ResultBudget`**, and a
+  statement that starts after it is spent keeps nothing but is read to the end
+  rather than cancelled (`ResultCap.Shared`), because it may be a write whose
+  `RETURNING` rows nobody asked for and a cancel would abort it. The cap text
+  names the limit (`CapTextFor`). **The grid builds at most `MaxGridColumns`
+  (1,000)** and the status bar says "showing 1,000 of N columns"
+  (`CapStatusText`, which is `CapText` plus that; export still reads `CapText`
+  alone, since every column is in the rows). `ColumnNames` is a
+  `ResettableCollection` filled with one `ReplaceAll`: the grid rebuilds all
+  its columns on every change, so an `Add` per column had been building
+  n(n+1)/2 of them. Tests: `ResultLimitsTests` (in-memory batches, the column
+  cap, and a gated `repeat('x', 100000000)` × 3 that keeps one row).
 - **A type Npgsql can't materialize must never fail a whole result set.** An
   unmapped composite (or an array/domain/range over one), an extension type with
   no plugin loaded (pgvector, PostGIS), `bit`/`hstore` whose CLR mapping has a
