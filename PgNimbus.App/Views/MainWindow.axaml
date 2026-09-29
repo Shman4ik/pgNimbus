@@ -455,6 +455,13 @@
                             <MenuFlyout>
                                 <MenuItem Header="Export as CSV…" Click="OnExportCsvClick" />
                                 <MenuItem Header="Export as JSON…" Click="OnExportJsonClick" />
+                                <Separator />
+                                <!-- Security audit 2026-09, finding 18 (CSV formula injection).
+                                     Off by default and remembered: the quote it adds changes the
+                                     data for anything that isn't a spreadsheet. -->
+                                <MenuItem Name="SpreadsheetSafeMenuItem" Header="Safe for Spreadsheets"
+                                          ToggleType="CheckBox" IsChecked="{Binding SpreadsheetSafeExport, Mode=TwoWay}"
+                                          ToolTip.Tip="Put a ' in front of text that starts with =, +, -, or @ in CSV files and copied cells, so a spreadsheet shows it instead of running it as a formula" />
                             </MenuFlyout>
                         </Button.Flyout>
                     </Button>

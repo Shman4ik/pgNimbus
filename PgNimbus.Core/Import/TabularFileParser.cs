@@ -6,6 +6,9 @@ namespace PgNimbus.Core.Import;
 /// <summary>Parsed file contents: header names (deduplicated, never empty) and rows of nullable cell strings.</summary>
 public sealed record TabularData(IReadOnlyList<string> Columns, IReadOnlyList<string?[]> Rows);
 
+/// <summary>An import file past one of <see cref="TabularFileParser"/>'s caps; the message says which, for the user.</summary>
+public sealed class ImportLimitException(string message) : FormatException(message);
+
 /// <summary>
 /// Parses CSV (RFC 4180-style quoting, delimiter sniffed among comma /
 /// semicolon / tab) and JSON (an array of flat objects) into one tabular
@@ -15,6 +18,80 @@ public sealed record TabularData(IReadOnlyList<string> Columns, IReadOnlyList<st
 /// </summary>
 public static class TabularFileParser
 {
+    // Caps on what an import reads (security audit 2026-09, finding 18). The
+    // file is held in memory whole and becomes a rows × columns matrix, so a
+    // file with 20,000 objects each carrying its own keys was 400M cells and an
+    // out-of-memory crash. Past a cap the import stops with a message, before
+    // the matrix is built.
+
+    /// <summary>The largest file an import reads: 512 MiB.</summary>
+    public const long MaxFileBytes = 512L * 1024 * 1024;
+
+    /// <summary>The most data rows an import takes.</summary>
+    public const int MaxRows = 1_000_000;
+
+    /// <summary>The most columns an import takes (Postgres allows 1,600 per table).</summary>
+    public const int MaxColumns = 1_000;
+
+    /// <summary>
+    /// The most cells (rows × columns) an import builds. Each row is padded to
+    /// the full width, so a wide header over many short rows, or sparse JSON
+    /// objects, can pass both caps above and still not fit in memory.
+    /// </summary>
+    public const long MaxCells = 50_000_000;
+
+    /// <summary>
+    /// Reads a file for import, refusing one larger than
+    /// <paramref name="maxBytes"/> before any of it is held: at once when the
+    /// stream knows its length, otherwise as soon as the read passes the cap.
+    /// The encoding comes from a byte-order mark, UTF-8 otherwise.
+    /// </summary>
+    public static async Task<string> ReadTextAsync(Stream stream, long maxBytes = MaxFileBytes, CancellationToken ct = default)
+    {
+        if (stream.CanSeek && stream.Length - stream.Position > maxBytes)
+        {
+            throw TooLarge(maxBytes);
+        }
+
+        using var buffer = new MemoryStream();
+        var chunk = new byte[81920];
+        int read;
+        while ((read = await stream.ReadAsync(chunk, ct)) > 0)
+        {
+            if (buffer.Length + read > maxBytes)
+            {
+                throw TooLarge(maxBytes);
+            }
+
+            buffer.Write(chunk, 0, read);
+        }
+
+        buffer.Position = 0;
+        using var reader = new StreamReader(buffer);
+        return await reader.ReadToEndAsync(ct);
+    }
+
+    private static ImportLimitException TooLarge(long maxBytes) => new(
+        $"The file is larger than {maxBytes / (1024 * 1024):N0} MB, the most pgNimbus imports at once. Split it into smaller files, or load it with psql's \\copy.");
+
+    private static ImportLimitException TooManyRows() => new(
+        $"The file has more than {MaxRows:N0} rows, the most pgNimbus imports at once. Split it into smaller files.");
+
+    private static ImportLimitException TooManyColumns() => new(
+        $"The file has more than {MaxColumns:N0} columns, the most pgNimbus imports into one table.");
+
+    private static ImportLimitException TooManyCells(long cells) => new(
+        $"The file would make {cells:N0} cells (rows × columns), more than the {MaxCells:N0} pgNimbus imports at once. Import fewer rows or columns at a time.");
+
+    private static void CheckCells(int width, int rows)
+    {
+        var cells = (long)width * rows;
+        if (cells > MaxCells)
+        {
+            throw TooManyCells(cells);
+        }
+    }
+
     public static TabularData ParseCsv(string text)
     {
         var delimiter = SniffDelimiter(text);
@@ -31,6 +108,10 @@ public static class TabularFileParser
             record.Add(value.Length == 0 && !fieldWasQuoted ? null : value);
             field.Clear();
             fieldWasQuoted = false;
+            if (record.Count > MaxColumns)
+            {
+                throw TooManyColumns();
+            }
         }
 
         void EndRecord()
@@ -39,6 +120,12 @@ public static class TabularFileParser
             // Skip blank lines (a single null field).
             if (record.Count > 1 || record[0] is not null)
             {
+                // The header is a row here too, hence the + 1.
+                if (rows.Count == MaxRows + 1)
+                {
+                    throw TooManyRows();
+                }
+
                 rows.Add([.. record]);
             }
 
@@ -103,6 +190,7 @@ public static class TabularFileParser
 
         var columns = MakeColumnNames(rows[0]);
         var width = columns.Count;
+        CheckCells(width, rows.Count - 1);
         var data = rows.Skip(1)
             .Select(r => r.Length == width ? r : [.. r.Take(width).Concat(Enumerable.Repeat<string?>(null, Math.Max(0, width - r.Length)))])
             .ToList();
@@ -129,11 +217,21 @@ public static class TabularFileParser
                 throw new FormatException("Expected every array element to be a JSON object.");
             }
 
+            if (objects.Count == MaxRows)
+            {
+                throw TooManyRows();
+            }
+
             var values = new Dictionary<int, string?>();
             foreach (var property in element.EnumerateObject())
             {
                 if (!index.TryGetValue(property.Name, out var i))
                 {
+                    if (columns.Count == MaxColumns)
+                    {
+                        throw TooManyColumns();
+                    }
+
                     i = columns.Count;
                     index.Add(property.Name, i);
                     columns.Add(property.Name);
@@ -153,6 +251,7 @@ public static class TabularFileParser
             objects.Add(values);
         }
 
+        CheckCells(columns.Count, objects.Count);
         var rows = objects
             .Select(values => Enumerable.Range(0, columns.Count).Select(i => values.GetValueOrDefault(i)).ToArray())
             .ToList();

@@ -1,5 +1,6 @@
 using System.Text;
 using PgNimbus.Core.Connections;
+using PgNimbus.Core.Security;
 using PgNimbus.Core.Settings;
 
 namespace PgNimbus.Core.Diagnostics;
@@ -43,11 +44,11 @@ public sealed class CrashLog(string? directory)
     public string? LogCritical(string context, Exception? exception) => Write(FormatEntry(context, exception));
 
     /// <summary>Formats a single log entry. Pure — no I/O — so it's unit-testable on its own.</summary>
-    internal static string FormatEntry(string context, Exception? exception)
+    public static string FormatEntry(string context, Exception? exception)
     {
         var entry = new StringBuilder();
         entry.Append('[').Append(DateTimeOffset.Now.ToString("yyyy-MM-dd HH:mm:ss.fff zzz")).Append("]  ");
-        entry.Append("CRITICAL  ").AppendLine(context);
+        entry.Append("CRITICAL  ").AppendLine(SecretRedactor.Redact(context));
 
         if (exception is not null)
         {
@@ -59,6 +60,35 @@ public sealed class CrashLog(string? directory)
     }
 
     /// <summary>
+    /// <paramref name="path"/> with the user's home directory written as
+    /// <c>~</c>, for text that leaves the machine (the crash window's GitHub
+    /// issue body): the home path carries the OS account name, which a public
+    /// issue has no use for (security audit 2026-09, finding 18). A path
+    /// outside the home directory comes back unchanged.
+    /// </summary>
+    public static string HomeRelative(string path, string? home = null)
+    {
+        home ??= Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (string.IsNullOrEmpty(home))
+        {
+            return path;
+        }
+
+        home = home.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        if (path.Equals(home, comparison))
+        {
+            return "~";
+        }
+
+        return path.Length > home.Length
+               && path.StartsWith(home, comparison)
+               && path[home.Length] is '/' or '\\'
+            ? "~" + path[home.Length..]
+            : path;
+    }
+
+    /// <summary>
     /// Writes one exception and recurses into its cause(s). Handles
     /// <see cref="AggregateException"/> by unwinding every entry in
     /// <see cref="AggregateException.InnerExceptions"/> — the faulted-task and
@@ -67,7 +97,10 @@ public sealed class CrashLog(string? directory)
     /// </summary>
     private static void AppendException(StringBuilder entry, Exception exception, string indent)
     {
-        entry.Append(indent).Append(exception.GetType().FullName).Append(": ").AppendLine(exception.Message);
+        // Redacted: a message can quote the statement that failed, and a
+        // CREATE/ALTER ROLE … PASSWORD '…' in it would put a live credential in
+        // a plain file (security audit 2026-09, finding 18).
+        entry.Append(indent).Append(exception.GetType().FullName).Append(": ").AppendLine(SecretRedactor.Redact(exception.Message));
         if (!string.IsNullOrEmpty(exception.StackTrace))
         {
             entry.AppendLine(exception.StackTrace);

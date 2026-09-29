@@ -20,6 +20,17 @@ PGPASSWORD=s3cret psql -h db.example.com -p 5433 -U alice appdb
 That last one means you can copy a `psql` command straight out of a runbook or a
 hosting provider's dashboard and paste it in.
 
+A password with `/`, `?`, `#` or `@` in it doesn't have to be percent-encoded
+in a `postgres://` URI: everything before the last `@` is read as the user name
+and password.
+
+The copy button next to the box copies the form as a `postgres://` URI without
+the password, because clipboard history and clipboard managers keep what you
+copy. To copy it with the password, right-click the button and choose **Copy
+With Password**. pgNimbus then asks Windows clipboard history (and clipboard
+managers on macOS and Linux that honor the hint) not to keep it, and clears the
+clipboard after 30 seconds if the string is still there.
+
 ## Where your password goes
 
 Database and SSH passwords are kept separately from the connection profile:

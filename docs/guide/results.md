@@ -238,6 +238,19 @@ multi-statement script, and to any query inside an open transaction.
 
 Copying to the clipboard always takes the rows in the grid.
 
+**Safe for Spreadsheets.** A text value that starts with `=`, `+`, `-` or `@`
+is a formula to Excel, LibreOffice and Google Sheets, and opening the file can
+run it. Turn on **Safe for Spreadsheets** at the bottom of the **Export** menu
+and pgNimbus puts a `'` in front of those values in CSV files and in copied
+cells (TSV and CSV), so the spreadsheet shows them as text. Numbers are left
+alone, negative ones included. The option is off by default, because the `'`
+is a change to the data for any program that isn't a spreadsheet, and
+pgNimbus remembers your choice.
+
+Import reads files up to 512 MB, with at most 1,000,000 rows and 1,000
+columns. A bigger file stops with a message that says which limit it passed;
+split it, or load it with psql's `\copy`.
+
 ## Next
 
 [Read a query plan](explain.md)

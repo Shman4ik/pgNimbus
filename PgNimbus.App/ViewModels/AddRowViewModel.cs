@@ -93,7 +93,7 @@ public sealed partial class AddRowViewModel(
         // defaults apply. Same shape safe mode stages, so both paths agree.
         var values = Fields
             .Where(f => f.IsNull || !string.IsNullOrEmpty(f.Value))
-            .Select(f => new PendingInsertValue(f.Name, f.DataType, f.IsNull ? null : f.Value))
+            .Select(f => new PendingInsertValue(f.Name, f.CastType, f.IsNull ? null : f.Value))
             .ToList();
 
         if (_stageInsert is { } stage)

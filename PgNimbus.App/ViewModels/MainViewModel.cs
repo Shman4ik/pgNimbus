@@ -544,6 +544,18 @@ public sealed partial class MainViewModel : ObservableObject
 
     partial void OnPlanTreeViewChanged(bool value) => _persistPlanTreeView?.Invoke(value);
 
+    /// <summary>
+    /// CSV export and the grid's TSV/CSV copies neutralize text cells a
+    /// spreadsheet would run as a formula (<see cref="Core.Export.ResultExporter.NeutralizeFormula"/>).
+    /// A checkbox in the command bar's Export menu; persisted, off by default.
+    /// </summary>
+    [ObservableProperty]
+    private bool _spreadsheetSafeExport;
+
+    private readonly Action<bool>? _persistSpreadsheetSafeExport;
+
+    partial void OnSpreadsheetSafeExportChanged(bool value) => _persistSpreadsheetSafeExport?.Invoke(value);
+
     /// <summary>The letter case completion writes keywords in (Preferences, §6.7 of the second completion audit).</summary>
     [ObservableProperty]
     private KeywordCase _completionKeywordCase;
@@ -653,6 +665,8 @@ public sealed partial class MainViewModel : ObservableObject
         Action<bool>? persistWordWrapEditor = null,
         bool planTreeView = false,
         Action<bool>? persistPlanTreeView = null,
+        bool spreadsheetSafeExport = false,
+        Action<bool>? persistSpreadsheetSafeExport = null,
         WorkspaceEntry? workspace = null,
         IReadOnlyList<string>? recentSqlFiles = null,
         Action<IReadOnlyList<string>>? persistRecentSqlFiles = null,
@@ -679,6 +693,8 @@ public sealed partial class MainViewModel : ObservableObject
         _persistWordWrapEditor = persistWordWrapEditor;
         _planTreeView = planTreeView;
         _persistPlanTreeView = persistPlanTreeView;
+        _spreadsheetSafeExport = spreadsheetSafeExport;
+        _persistSpreadsheetSafeExport = persistSpreadsheetSafeExport;
         _recentSqlFiles = recentSqlFiles is null ? [] : [.. recentSqlFiles];
         _persistRecentSqlFiles = persistRecentSqlFiles;
         _excludedSchemas = new HashSet<string>(excludedSchemas ?? [], StringComparer.Ordinal);

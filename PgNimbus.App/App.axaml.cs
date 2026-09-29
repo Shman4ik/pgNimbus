@@ -66,6 +66,9 @@ public partial class App : Application
     private static void PersistPlanTreeView(bool value) =>
         SettingsStore.Save(SettingsStore.Load() with { PlanTreeView = value });
 
+    private static void PersistSpreadsheetSafeExport(bool value) =>
+        SettingsStore.Save(SettingsStore.Load() with { SpreadsheetSafeExport = value });
+
     private static (KeywordCase, bool, bool) LoadCompletionSettings()
     {
         var settings = SettingsStore.Load();
@@ -669,6 +672,8 @@ public partial class App : Application
             persistWordWrapEditor: PersistWordWrapEditor,
             planTreeView: SettingsStore.Load().PlanTreeView,
             persistPlanTreeView: PersistPlanTreeView,
+            spreadsheetSafeExport: SettingsStore.Load().SpreadsheetSafeExport,
+            persistSpreadsheetSafeExport: PersistSpreadsheetSafeExport,
             workspace: workspaceKey is null ? null : workspaceStore.GetEntry(workspaceKey),
             recentSqlFiles: SettingsStore.Load().RecentSqlFiles,
             persistRecentSqlFiles: PersistRecentSqlFiles,
