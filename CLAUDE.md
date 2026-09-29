@@ -412,7 +412,21 @@ Three rules about it:
    `SqlScriptSplitter.StatementAt` + the view-pushed `QueryViewModel.CaretOffset`),
    with any existing `EXPLAIN` prefix removed by `SqlStatementInspector.StripExplain`.
    Both matter because `EXPLAIN` takes exactly one un-nested statement: handing it a
-   whole script failed at the second one ("syntax error at or near SET"). The design
+   whole script failed at the second one ("syntax error at or near SET").
+   **A selection of several statements is refused, not planned** (2026-09
+   security audit, finding 3). `EXPLAIN` plans only the first statement of the
+   text it is given, and Npgsql runs every statement in a command, so an explain
+   of a selection `SELECT 1; CREATE TABLE …` planned the SELECT and created the
+   table with no error (reproduced live), and a selection ending in `…; COMMIT;`
+   committed the write the ANALYZE path had promised to roll back.
+   `ExplainService.SingleStatement` splits with `SqlScriptSplitter` and throws
+   for anything but one statement; `ExplainTarget` calls it first so the refusal
+   lands on the status line, and `ExplainAsync` calls it again so the promise
+   holds for every caller. Plain EXPLAIN now also runs inside the same
+   always-rolled-back transaction as ANALYZE; it costs nothing and leaves no
+   path on which the planner could persist anything. `ExplainServiceTests`
+   holds the audit's live check (two statements are refused and the table is
+   not created). The design
    doc + competitive research is in
    [`docs/design/explain-improvements.md`](docs/design/explain-improvements.md).
 7. **Permissions are answered, not dumped — and never applied behind the user's

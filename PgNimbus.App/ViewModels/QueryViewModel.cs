@@ -1202,7 +1202,13 @@ public sealed partial class QueryViewModel : ObservableObject
             ? SqlScriptSplitter.StatementAt(Sql, CaretOffset) ?? Sql
             : SelectedSql;
 
-        return SqlStatementInspector.StripExplain(candidate);
+        // A selection may hold several statements, and EXPLAIN plans only the
+        // first while the server runs them all (security audit 2026-09, finding
+        // 3: an explain of `SELECT 1; CREATE TABLE …` created the table). The
+        // service refuses that too; refusing here first keeps the message on
+        // the status line rather than in an exception, and unwraps a
+        // hand-written EXPLAIN only once the text is known to be one statement.
+        return SqlStatementInspector.StripExplain(ExplainService.SingleStatement(candidate));
     }
 
     private async Task RunExplainAsync(bool analyze)

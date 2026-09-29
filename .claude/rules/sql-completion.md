@@ -20,7 +20,11 @@ paths:
   generative "tokens exactly tile any text" check — it runs per keystroke on the
   UI thread, so a zero-width token would hang the app) is the single definition
   of strings (`E'…'` backslash escapes, `U&`/`B`/`X`/`N` prefixes), quoted
-  identifiers, `$tag1$`/`$тег$` dollar quotes and nested comments.
+  identifiers, `$tag1$`/`$тег$` dollar quotes and nested comments. A `--`
+  comment ends at `\n` *or* `\r`, as the server's scanner has it: ending it at
+  `\n` alone let a bare `\r` hide `; COMMIT; CREATE …` from the splitter, and
+  Explain's one-statement check passed text the server then ran (2026-09,
+  review of the audit fixes).
   `SqlScriptSplitter` and `SqlCompletionContext`'s caret/mask scans ride it;
   before that each had its own scanner and they disagreed — `E'can\'t;stop'`
   split in two, and completion opened inside `$tag1$…$tag1$`. `SqlFormatter`
