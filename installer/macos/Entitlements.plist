@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  Hardened runtime (--options runtime) locks the process down the way
+	  notarization requires, but it also turns on library validation: a
+	  loaded dylib must carry the same Team ID as the main executable, or
+	  come from the system. Every dylib in the bundle (libSkiaSharp,
+	  libHarfBuzzSharp, the NativeAOT runtime's own native libraries) is
+	  ad-hoc signed alongside the app (see build-app-bundle.sh) rather than
+	  signed by a real Team ID, so library validation would refuse every one
+	  of them at launch. Disabling it is what NativeAOT needs to load its own
+	  dylibs at all under hardened runtime; it does not disable the rest of
+	  hardened runtime's protections (no arbitrary code execution via
+	  environment variables such as DYLD_INSERT_LIBRARIES, no unsigned
+	  executable memory, no debugger attach by another process).
+	-->
+	<key>com.apple.security.cs.disable-library-validation</key>
+	<true/>
+</dict>
+</plist>

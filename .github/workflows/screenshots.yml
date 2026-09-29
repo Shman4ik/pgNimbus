@@ -41,10 +41,21 @@ env:
 jobs:
   refresh:
     runs-on: ubuntu-latest
+    # Workflow inputs and the ref name reach the scripts below as environment
+    # variables, never spliced into `run:` text: an expression there is
+    # expanded before bash sees it, so a value holding `;` or `$(…)` would run
+    # as code. `target` is a fixed choice today, but the habit is what keeps
+    # the next free-text input safe.
+    env:
+      TARGET: ${{ inputs.target }}
+      REF_NAME: ${{ github.ref_name }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        # The default (persist-credentials: true) is wanted here: the push and
+        # the PR below use the checkout's token, and the workflow's write
+        # scope is the point of this job.
 
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: "10.0.x"
 
@@ -54,7 +65,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/shots"
 
           publish=()
-          if [ "${{ inputs.target }}" != "baselines" ]; then
+          if [ "$TARGET" != "baselines" ]; then
             publish=(--publish "$PWD")
           fi
 
@@ -89,25 +100,25 @@ jobs:
             exit 0
           fi
 
-          branch="screenshots/refresh-${{ github.run_id }}"
+          branch="screenshots/refresh-${GITHUB_RUN_ID}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -b "$branch"
           git add -A
-          git commit -m "Refresh screenshots (${{ inputs.target }})
+          git commit -m "Refresh screenshots (${TARGET})
 
-          Rendered by .github/workflows/screenshots.yml from ${{ github.sha }}."
+          Rendered by .github/workflows/screenshots.yml from ${GITHUB_SHA}."
           git push origin "$branch"
 
           gh pr create \
-            --title "Refresh screenshots (${{ inputs.target }})" \
-            --body "Rendered on \`ubuntu-latest\` by the Screenshots workflow from ${{ github.sha }}.
+            --title "Refresh screenshots (${TARGET})" \
+            --body "Rendered on \`ubuntu-latest\` by the Screenshots workflow from ${GITHUB_SHA}.
 
           Review the image diff: a baseline change is where the new look gets signed off, and a published change is what the README and the Store listing will show." \
-            --base "${{ github.ref_name }}" \
+            --base "$REF_NAME" \
             --head "$branch"
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
           name: screenshots

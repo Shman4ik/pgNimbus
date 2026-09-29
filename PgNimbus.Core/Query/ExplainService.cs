@@ -53,8 +53,29 @@ public sealed class ExplainService(NpgsqlDataSource dataSource)
 {
     private readonly NpgsqlDataSource _dataSource = dataSource;
 
+    /// <summary>
+    /// Runs <c>EXPLAIN</c> over exactly one statement. <paramref name="sql"/> may carry
+    /// leading comments and a trailing semicolon, but not a second statement: that is
+    /// refused with <see cref="ArgumentException"/> before anything reaches the server.
+    /// </summary>
+    /// <remarks>
+    /// The refusal is the fix for the 2026-09 security audit's finding 3. <c>EXPLAIN</c>
+    /// plans only the first statement of the text it is given, and Npgsql runs every
+    /// statement in a command, so an explain of <c>SELECT 1; CREATE TABLE …</c> planned
+    /// the SELECT and created the table (reproduced live); a selection ending in
+    /// <c>…; COMMIT;</c> committed the write the ANALYZE path had promised to roll
+    /// back. The caller (<c>QueryViewModel.ExplainTarget</c>) splits first and says so
+    /// on the status line; this check is what makes the promise hold for every caller.
+    /// Both paths also run inside a transaction that is always rolled back: plain
+    /// EXPLAIN only plans, but the transaction costs nothing and leaves no path on
+    /// which a statement the planner has to run (a <c>CREATE TABLE … AS</c> is
+    /// planned; an <c>EXPLAIN</c> of a <c>DO</c> block is a syntax error) could
+    /// persist anything.
+    /// </remarks>
     public async Task<ExplainRun> ExplainAsync(string sql, bool analyze, CancellationToken ct)
     {
+        var statement = SingleStatement(sql);
+
         // Plain EXPLAIN omits "Planning Time" unless SUMMARY is requested explicitly
         // (ANALYZE defaults SUMMARY to true already, so it's fine either way there).
         // BUFFERS (I/O counters) is the most-requested EXPLAIN option and is what the
@@ -63,29 +84,39 @@ public sealed class ExplainService(NpgsqlDataSource dataSource)
         var options = analyze
             ? "ANALYZE, FORMAT JSON, BUFFERS true, TIMING true, SETTINGS"
             : "FORMAT JSON, SUMMARY, SETTINGS";
-        var explainSql = $"EXPLAIN ({options}) {sql}";
+        var explainSql = $"EXPLAIN ({options}) {statement}";
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
-
-        // Plain EXPLAIN only plans — it never executes the statement, so no guard is needed.
-        if (!analyze)
-        {
-            await using var command = new NpgsqlCommand(explainSql, connection);
-            var planJson = (string)(await command.ExecuteScalarAsync(ct))!;
-            return new ExplainRun(Parse(planJson), planJson);
-        }
 
         // EXPLAIN ANALYZE *runs* the statement. Wrap it in a transaction we always
         // roll back, so an ANALYZE of an INSERT/UPDATE/DELETE/MERGE (or a
         // data-modifying CTE) never persists its changes — harmless for reads, since
         // a read-only statement has nothing to commit either way. (Non-transactional
         // side effects like nextval() still can't be undone; that's inherent to
-        // EXPLAIN ANALYZE.)
+        // EXPLAIN ANALYZE.) Plain EXPLAIN rides the same transaction, see the remarks.
         await using var transaction = await connection.BeginTransactionAsync(ct);
-        await using var analyzeCommand = new NpgsqlCommand(explainSql, connection, transaction);
-        var json = (string)(await analyzeCommand.ExecuteScalarAsync(ct))!;
+        await using var command = new NpgsqlCommand(explainSql, connection, transaction);
+        var json = (string)(await command.ExecuteScalarAsync(ct))!;
         await transaction.RollbackAsync(ct);
         return new ExplainRun(Parse(json), json);
+    }
+
+    /// <summary>
+    /// The one statement in <paramref name="sql"/>, trimmed and without its trailing
+    /// semicolon, or an <see cref="ArgumentException"/> naming how many there are.
+    /// Public so the App can refuse with the same words before it calls the server.
+    /// </summary>
+    public static string SingleStatement(string sql)
+    {
+        var statements = SqlScriptSplitter.Split(sql);
+        return statements.Count switch
+        {
+            1 => statements[0],
+            // No parameter name: the message goes to the status line as it is.
+            0 => throw new ArgumentException("Nothing to explain: select or write one statement first."),
+            var n => throw new ArgumentException(
+                $"EXPLAIN takes one statement, and {n} were given. Select a single statement."),
+        };
     }
 
     /// <summary>

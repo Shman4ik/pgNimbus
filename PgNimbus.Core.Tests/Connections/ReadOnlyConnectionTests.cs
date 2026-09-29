@@ -21,10 +21,38 @@ public class ReadOnlyConnectionTests
     public async Task A_read_only_profile_starts_every_session_read_only()
     {
         var builder = new NpgsqlConnectionStringBuilder(Profile(readOnly: true).BuildConnectionString("pw"));
-        await Assert.That(builder.Options).IsEqualTo(ConnectionProfile.ReadOnlySessionOption);
+        await Assert.That(builder.Options).IsEqualTo(
+            "-c default_transaction_read_only=on -c standard_conforming_strings=on");
+
+        // The read-only flag is read back out of Options by the window builder,
+        // so it has to stay findable beside the option every profile carries.
+        await Assert.That(builder.Options!.Contains(ConnectionProfile.ReadOnlySessionOption, StringComparison.Ordinal)).IsTrue();
 
         var plain = new NpgsqlConnectionStringBuilder(Profile(readOnly: false).BuildConnectionString("pw"));
-        await Assert.That(string.IsNullOrEmpty(plain.Options)).IsTrue();
+        await Assert.That(plain.Options).IsEqualTo("-c standard_conforming_strings=on");
+        await Assert.That(plain.Options!.Contains(ConnectionProfile.ReadOnlySessionOption, StringComparison.Ordinal)).IsFalse();
+    }
+
+    [Test]
+    public async Task A_connection_string_from_outside_a_profile_gets_the_standard_strings_option_once()
+    {
+        // PGNIMBUS_CONN never passes through a profile; the option is added there.
+        var bare = ConnectionProfile.WithStandardStrings("Host=h;Database=d;Username=u");
+        await Assert.That(new NpgsqlConnectionStringBuilder(bare).Options).IsEqualTo(ConnectionProfile.StandardStringsSessionOption);
+
+        var withOthers = ConnectionProfile.WithStandardStrings("Host=h;Database=d;Username=u;Options=-c search_path=app");
+        await Assert.That(new NpgsqlConnectionStringBuilder(withOthers).Options)
+            .IsEqualTo("-c search_path=app -c standard_conforming_strings=on");
+
+        // Already last: left alone.
+        var already = "Host=h;Database=d;Username=u;Options=-c standard_conforming_strings=on";
+        await Assert.That(ConnectionProfile.WithStandardStrings(already)).IsEqualTo(already);
+
+        // Turned off by the string itself: the option is appended after it, and
+        // the server applies -c switches in order, so the last one wins.
+        var off = ConnectionProfile.WithStandardStrings("Host=h;Database=d;Username=u;Options=-c standard_conforming_strings=off");
+        await Assert.That(new NpgsqlConnectionStringBuilder(off).Options)
+            .IsEqualTo("-c standard_conforming_strings=off -c standard_conforming_strings=on");
     }
 
     [Test]

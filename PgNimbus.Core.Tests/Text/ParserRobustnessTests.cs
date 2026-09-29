@@ -271,7 +271,6 @@ public class ParserRobustnessTests
         Exercise((sql, caret) =>
         {
             _ = SqlStatementInspector.IsDataModifying(sql);
-            _ = SqlStatementInspector.IsSafeToReExecute(sql);
             _ = SqlStatementInspector.IsExplain(sql);
             _ = SqlStatementInspector.StripExplain(sql);
             _ = SqlStatementInspector.ChangesCatalog(sql);
@@ -290,7 +289,6 @@ public class ParserRobustnessTests
         var ran = ExerciseDeep((sql, caret) =>
         {
             _ = SqlStatementInspector.IsDataModifying(sql);
-            _ = SqlStatementInspector.IsSafeToReExecute(sql);
             _ = SqlStatementInspector.IsExplain(sql);
             _ = SqlStatementInspector.StripExplain(sql);
             _ = SqlStatementInspector.ChangesCatalog(sql);
