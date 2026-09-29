@@ -919,6 +919,10 @@ CTE. pgNimbus runs every analyze inside a transaction it then rolls back, so
 nothing persists. When the statement was data-modifying, the warnings strip
 says so explicitly rather than leaving you to trust it.</p>
 </div>
+<p>Explain takes one statement. With nothing selected it explains the statement
+the caret sits in. A selection that holds several statements is refused, and
+the status line says so, because the server would run every statement in it
+while planning only the first. Select a single statement and try again.</p>
 <p>The analyze path always requests <code>BUFFERS</code> and <code>SETTINGS</code>. Buffer counts are what
 the spill and lossy-bitmap analysis reads, and they are the most useful thing
 missing from a bare plan.</p>

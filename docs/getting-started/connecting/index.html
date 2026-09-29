@@ -475,6 +475,45 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#encryption-tls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Encryption (TLS)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Encryption (TLS)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#root-certificate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Root certificate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#through-an-ssh-tunnel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Through an SSH tunnel
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#ssh-tunnels" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -482,6 +521,23 @@
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="SSH tunnels">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#host-keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Host keys
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -863,6 +919,45 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#encryption-tls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Encryption (TLS)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Encryption (TLS)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#root-certificate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Root certificate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#through-an-ssh-tunnel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Through an SSH tunnel
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#ssh-tunnels" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -870,6 +965,23 @@
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="SSH tunnels">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#host-keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Host keys
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -945,6 +1057,15 @@ already have, and fills the form out for you. All of these work:</p>
 </code></pre></div>
 <p>That last one means you can copy a <code>psql</code> command straight out of a runbook or a
 hosting provider's dashboard and paste it in.</p>
+<p>A password with <code>/</code>, <code>?</code>, <code>#</code> or <code>@</code> in it doesn't have to be percent-encoded
+in a <code>postgres://</code> URI: everything before the last <code>@</code> is read as the user name
+and password.</p>
+<p>The copy button next to the box copies the form as a <code>postgres://</code> URI without
+the password, because clipboard history and clipboard managers keep what you
+copy. To copy it with the password, right-click the button and choose <strong>Copy
+With Password</strong>. pgNimbus then asks Windows clipboard history (and clipboard
+managers on macOS and Linux that honor the hint) not to keep it, and clears the
+clipboard after 30 seconds if the string is still there.</p>
 <h2 id="where-your-password-goes">Where your password goes<a class="headerlink" href="#where-your-password-goes" title="Permanent link">&para;</a></h2>
 <p>Database and SSH passwords are kept separately from the connection profile:
 DPAPI-encrypted files on Windows, Keychain on macOS, and Secret Service through
@@ -956,14 +1077,45 @@ GNOME Keyring. If storage is unavailable or access is denied, the dialog warns
 and keeps entered passwords in memory for this app session. Unlock/configure
 the OS store and edit the password again to retry. On macOS, Keychain access must be available
 without an interactive authorization prompt; resolve restrictions in Keychain Access.</p>
-<p>When an old macOS/Linux profile is opened, pgNimbus attempts to migrate its
-unencrypted base64 <code>.cred</code> files. It deletes an old file only after reading the
-saved password back from the OS store. On failure the old file stays and a warning
-appears; unopened profiles are not migrated yet. If a different OS-store value
+<p>On macOS and Linux, older versions kept passwords in unencrypted base64 <code>.cred</code>
+files. When the connection dialog first opens, pgNimbus moves all of them into
+the OS store at once. It deletes an old file only after reading the saved
+password back from the OS store. Files it can't move stay where they are, and
+the dialog shows one warning with their count. If a different OS-store value
 already exists, it takes precedence; editing the password resolves the old copy.
+Passwords that the OS store refused are kept in memory only until the last
+window using that connection closes.
 Deleting a profile attempts to remove database and SSH credentials from both
-locations and reports failures. Query history and workspace SQL remain local,
-unencrypted data; credential protection does not encrypt them.</p>
+locations and reports failures.</p>
+<p>Credential protection does not cover your queries. Two files keep SQL text on
+disk, unencrypted, in <code>&lt;appdata&gt;/pgNimbus/</code> (on Windows, <code>%AppData%\pgNimbus</code>;
+see <a href="../installation/#where-pgnimbus-keeps-its-files">where pgNimbus keeps its files</a>):</p>
+<ul>
+<li><code>history.json</code> keeps the text of every statement you run, with the values in
+  it. A query that looks up a customer by email keeps the email address.</li>
+<li><code>workspace.json</code> keeps the text of your open tabs, so the next session can
+  reopen them.</li>
+</ul>
+<p>Before either file is written, pgNimbus masks passwords it finds in the SQL:
+<code>PASSWORD '…'</code> in <code>CREATE ROLE</code> and <code>ALTER ROLE</code>, including inside a <code>DO</code> block,
+an <code>EXECUTE</code> string or a comment, and <code>password=…</code> in a connection string such
+such as <code>CREATE SUBSCRIPTION … CONNECTION '…'</code> or <code>dblink_connect('…')</code>. The
+password is replaced with <code>'&lt;redacted&gt;'::redacted</code>, so a restored tab or a history
+entry shows that instead. If you run such a statement again, PostgreSQL rejects
+it as a syntax error rather than setting the password to the placeholder. Other
+values are kept as you typed them. A tab opened from a <code>.sql</code> file that holds a
+password is not copied at all: next time it opens from the file itself, so any
+changes you had not saved to that file are gone.</p>
+<p>Masking needs a word next to the secret that says what it is. A key passed as an
+ordinary argument, such as <code>pgp_sym_encrypt(data, 'key')</code>, or a password kept in
+a variable inside a <code>DO</code> block, is stored as you typed it.</p>
+<p>To stop recording history, turn off <strong>Record query history</strong> in Settings. Queries
+you run after that are not written anywhere, and the history list says that
+history is off. Entries already recorded stay until you right-click the list and
+choose <strong>Clear History</strong>; pinned entries survive that, so unpin them first.</p>
+<p>On macOS and Linux, pgNimbus makes its data folder and every file in it readable
+by your user account only, including files an older version left open to other
+users.</p>
 <p>That is a design rule rather than a setting. The profile record has no field to
 put a password in, so a profile file cannot leak one even if you copy it
 somewhere.</p>
@@ -998,10 +1150,101 @@ and the results grid doesn't offer editing. pgNimbus asks the server when the
 window opens, so the mark also appears when the server makes the session
 read-only on its own: a role or database with <code>default_transaction_read_only</code>
 set, or a standby replica.</p>
+<p>A connection pooler can drop the read-only option before it reaches the server.
+PgBouncer does this when <code>ignore_startup_parameters</code> includes <code>options</code>. If the
+profile asks for read-only and the server still accepts writes, the mark turns
+amber and reads <strong>read-only not applied</strong>. The results grid stays read-only,
+but SQL you run can change data, so don't count on the profile's protection
+for that session.</p>
 <p>This guards against mistakes. It isn't a permission. A statement can still
 switch it off for its own session with <code>SET default_transaction_read_only =
 off</code>. To make writes impossible, connect as a role that has no write
 privileges.</p>
+<h2 id="encryption-tls">Encryption (TLS)<a class="headerlink" href="#encryption-tls" title="Permanent link">&para;</a></h2>
+<p><strong>SSL Mode</strong> decides whether the connection is encrypted and what pgNimbus
+checks about the server. The list describes each mode. In short:</p>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Encrypted</th>
+<th>Checks the certificate</th>
+<th>Checks the host name</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Disable</td>
+<td>No</td>
+<td>No</td>
+<td>No</td>
+</tr>
+<tr>
+<td>Allow</td>
+<td>Only if the server insists</td>
+<td>No</td>
+<td>No</td>
+</tr>
+<tr>
+<td>Prefer</td>
+<td>If the server offers it</td>
+<td>No</td>
+<td>No</td>
+</tr>
+<tr>
+<td>Require</td>
+<td>Yes</td>
+<td>No</td>
+<td>No</td>
+</tr>
+<tr>
+<td>Verify CA</td>
+<td>Yes</td>
+<td>Yes</td>
+<td>No</td>
+</tr>
+<tr>
+<td>Verify full</td>
+<td>Yes</td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+</tbody>
+</table>
+<p>New profiles start at <strong>Require</strong> for a server on the network. It always encrypts, but it does not check
+who is on the other end: anyone who can intercept the connection can present
+their own certificate and read everything, the password included. Prefer and
+Allow are weaker still, because an attacker can make them fall back to
+plaintext. Use <strong>Verify full</strong> for any server you reach over a network you do
+not control. It is marked as recommended in the list.</p>
+<p>A server on this machine (<code>localhost</code>, <code>127.0.0.1</code>, <code>::1</code>) starts at <strong>Prefer</strong>
+instead: there is no network path to intercept, and a local Postgres, such as
+the <code>postgres</code> Docker image, has no TLS unless you set it up. The mode follows
+the host you type until you pick one yourself. If Require meets a server
+without TLS, the connection fails with a message saying so.</p>
+<h3 id="root-certificate">Root certificate<a class="headerlink" href="#root-certificate" title="Permanent link">&para;</a></h3>
+<p>Verify CA and Verify full trust the certificate authorities your operating
+system trusts. Managed Postgres services often sign their servers with their
+own CA, which no operating system trusts, so verification fails until you point
+pgNimbus at that CA. Choosing Verify CA or Verify full shows a <strong>Root
+Certificate</strong> field. Give it the provider's CA file, with <strong>Browse…</strong> or by
+typing the path:</p>
+<ul>
+<li><strong>Amazon RDS and Aurora:</strong> the global bundle, <code>global-bundle.pem</code>, from
+  <code>https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem</code>.</li>
+<li><strong>Google Cloud SQL:</strong> the server CA certificate (<code>server-ca.pem</code>) from the
+  instance's Connections page, under Security. If the instance's certificate
+  does not name the host you connect to, use Verify CA.</li>
+<li><strong>Supabase:</strong> the certificate from the project's database settings, under
+  SSL Configuration.</li>
+</ul>
+<p>Leave the field empty to use the operating system's store. The path is saved
+with the profile. It is not a secret. A pasted connection string fills it from
+<code>sslrootcert=</code> (libpq, URIs, JDBC) or <code>Root Certificate=</code> (Npgsql).</p>
+<h3 id="through-an-ssh-tunnel">Through an SSH tunnel<a class="headerlink" href="#through-an-ssh-tunnel" title="Permanent link">&para;</a></h3>
+<p>Verify full works through an SSH tunnel. The tunnel connects pgNimbus to a
+local port, but the certificate is still checked against the database host you
+typed in the form, which is the name the server's certificate carries.</p>
 <h2 id="ssh-tunnels">SSH tunnels<a class="headerlink" href="#ssh-tunnels" title="Permanent link">&para;</a></h2>
 <p>A profile can carry SSH tunnel settings, so a database that is only reachable
 from a bastion host connects like any other. The tunnel is owned by the window,
@@ -1020,6 +1263,41 @@ so closing the window tears it down.</p>
 </ul>
 <p>For the database host and port, give them as the SSH host sees them. A Postgres
 that only listens locally on the server is <code>127.0.0.1</code> and <code>5432</code>.</p>
+<h3 id="host-keys">Host keys<a class="headerlink" href="#host-keys" title="Permanent link">&para;</a></h3>
+<p>Before it signs in, pgNimbus checks that the SSH host is the server it claims
+to be, the same way <code>ssh</code> does. It looks the host's key up in your own
+<code>~/.ssh/known_hosts</code> first (hashed entries, <code>[host]:port</code> entries and
+<code>@revoked</code> lines included) and then in its own list at
+<code>&lt;appdata&gt;/pgNimbus/known_hosts</code>. It never writes to your <code>~/.ssh/known_hosts</code>.</p>
+<ul>
+<li><strong>A known key</strong> connects with no question.</li>
+<li><strong>An unknown host</strong> opens a dialog with the host, the key type and the key's
+  <code>SHA256:</code> fingerprint, written the way <code>ssh</code> and <code>ssh-keygen -l</code> write it.
+  Compare it with the fingerprint the server's administrator gave you.
+  <strong>Accept</strong> connects and adds the key to pgNimbus's list; <strong>Cancel</strong> does not
+  connect. Enter does not accept, so a key is never trusted by a stray key
+  press.</li>
+<li><strong>A changed key</strong> stops the connection. The message names the host, the
+  stored key's fingerprint, the new one, and the file and line that hold the
+  old key. A server that was reinstalled or had its keys regenerated causes
+  this, and so does someone intercepting the connection. If you know the key
+  really changed, remove that line (<code>ssh-keygen -R</code> with <code>-f</code> pointing at that
+  file does it for you) and connect again to be asked about the new key.</li>
+<li><strong>A key of a different type</strong> for a host already in either file stops the
+  connection too. pgNimbus asks the server only for the key types the files
+  know the host by, as <code>ssh</code> does, so a server that suddenly offers only a new
+  type of key is refused rather than treated as a new host. If its keys really
+  changed, remove its lines and connect again.</li>
+<li><strong>A revoked key</strong> (an <code>@revoked</code> line in either file) always stops the
+  connection.</li>
+</ul>
+<p>Take your time with the dialog: if reading the fingerprint outlasts the
+connection's timeout, pgNimbus connects again once you accept, without asking
+a second time.</p>
+<p>The <strong>Test</strong> button runs the same check, so a key you accept there is already
+known when you connect. SSH host certificates (<code>@cert-authority</code> lines) are not
+supported yet: a host that relies on one is treated as unknown and asks about
+its key.</p>
 <h2 id="several-connections-at-once">Several connections at once<a class="headerlink" href="#several-connections-at-once" title="Permanent link">&para;</a></h2>
 <p>Two different things, for two different needs.</p>
 <p>Open a connection in a new window (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>N</kbd>)
@@ -1031,13 +1309,23 @@ current window at a different server without restarting the app.</p>
 <p>Both are also in the menu behind the ☰ button and in the command palette.</p>
 <h2 id="if-the-connection-drops">If the connection drops<a class="headerlink" href="#if-the-connection-drops" title="Permanent link">&para;</a></h2>
 <p>A connection dropped by laptop sleep, a network blip or an SSH tunnel hiccup is
-reopened quietly on your next run. pgNimbus flushes the dead pool and retries
-once on a fresh connection, so you usually will not notice.</p>
-<p>The one case it deliberately does not paper over is an open explicit transaction.
-A transaction lives on one held connection; if that connection dies, the
-transaction is gone and nothing in it committed. Rather than silently starting a
-new one and leaving you to guess what happened, pgNimbus surfaces a clear
-"connection lost, nothing committed" error.</p>
+reopened quietly on your next run. Before it sends a statement, pgNimbus asks
+the server to describe it, which runs nothing. If that fails because the
+connection is dead, pgNimbus flushes the pool and opens a fresh connection, so
+you usually will not notice.</p>
+<p>pgNimbus never sends a statement a second time on its own. If the connection
+drops while a statement is running, whether the network went away or a DBA
+terminated your session, the run ends with an error that says the statement
+was not run again and may or may not have taken effect. Check before you run
+it again. The next statement reconnects by itself. A statement that has
+already started on the server is out of the client's hands: an <code>UPDATE</code> that
+was halfway through when the socket died keeps running there and commits,
+and running it again would apply it twice.</p>
+<p>The other case pgNimbus deliberately does not paper over is an open explicit
+transaction. A transaction lives on one held connection; if that connection
+dies, the transaction is gone and nothing in it committed. Rather than silently
+starting a new one and leaving you to guess what happened, pgNimbus surfaces a
+clear "connection lost, nothing committed" error.</p>
 <div class="admonition tip">
 <p class="admonition-title">Skipping the dialog</p>
 <p>Set the <code>PGNIMBUS_CONN</code> environment variable to any of the formats above and
@@ -1045,6 +1333,12 @@ pgNimbus connects straight to it, skipping the dialog. Handy for scripted or
 repeated local testing:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">PGNIMBUS_CONN</span><span class="o">=</span><span class="s2">"postgres://postgres:secret@localhost:5432/mydb"</span>
 </code></pre></div>
+<p>The example above puts the password in the environment. Any other process
+running as you can read it (<code>/proc/&lt;pid&gt;/environ</code> on Linux, a process
+inspector on Windows or macOS), and if you type the <code>export</code> line directly
+at a shell, it usually lands in shell history too. Prefer a connection
+string with no password and let pgNimbus prompt, or keep this variable to
+a throwaway local database.</p>
 <p>For everyday use there is a switch in Settings, <strong>Open the last
 connection on startup</strong>, which goes straight to whatever you connected to
 last. The dialog stays one Switch connection away, and a connect that fails

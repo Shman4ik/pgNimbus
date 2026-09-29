@@ -1058,11 +1058,19 @@ itself is bundled.</p>
 <h2 id="verifying-a-download">Verifying a download<a class="headerlink" href="#verifying-a-download" title="Permanent link">&para;</a></h2>
 <p>The direct downloads are unsigned, but every release asset carries
 <a href="https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations">signed build provenance</a>.
-One command proves a file was built by this repository's release workflow from
-the tagged commit, rather than tampered with or rehosted:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>gh<span class="w"> </span>attestation<span class="w"> </span>verify<span class="w"> </span>pgNimbus-&lt;version&gt;-win-x64.msi<span class="w"> </span>--repo<span class="w"> </span>Shman4ik/pgNimbus
+Plain <code>--repo</code> accepts an attestation from any workflow or ref in the
+repository, so pin the check to the release workflow and the tag you
+downloaded:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>gh<span class="w"> </span>attestation<span class="w"> </span>verify<span class="w"> </span>pgNimbus-&lt;version&gt;-win-x64.msi<span class="w"> </span>--repo<span class="w"> </span>Shman4ik/pgNimbus<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span>--signer-workflow<span class="w"> </span>Shman4ik/pgNimbus/.github/workflows/release.yml<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span>--source-ref<span class="w"> </span>refs/tags/v&lt;version&gt;
 </code></pre></div>
-<p>Each release also ships <code>SHA256SUMS.txt</code> and a CycloneDX SBOM
+<p>Without the <code>gh</code> CLI, check the download against <code>SHA256SUMS.txt</code> from the
+same release instead. That file is attested too, so verifying the checksums
+still proves the release build produced them:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>sha256sum<span class="w"> </span>-c<span class="w"> </span>SHA256SUMS.txt<span class="w"> </span>--ignore-missing
+</code></pre></div>
+<p>Each release also ships a CycloneDX SBOM
 (<code>pgNimbus-&lt;version&gt;-sbom.cdx.json</code>) listing every bundled dependency.</p>
 <h2 id="where-pgnimbus-keeps-its-files">Where pgNimbus keeps its files<a class="headerlink" href="#where-pgnimbus-keeps-its-files" title="Permanent link">&para;</a></h2>
 <table>
@@ -1080,6 +1088,10 @@ the tagged commit, rather than tampered with or rehosted:</p>
 <tr>
 <td>Crash log</td>
 <td><code>&lt;appdata&gt;/pgNimbus/logs/pgnimbus.log</code></td>
+</tr>
+<tr>
+<td>SSH host keys you accepted</td>
+<td><code>&lt;appdata&gt;/pgNimbus/known_hosts</code>, in OpenSSH's format. See <a href="../connecting/#host-keys">host keys</a>.</td>
 </tr>
 <tr>
 <td>Passwords</td>
