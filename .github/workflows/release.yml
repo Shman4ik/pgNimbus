@@ -378,6 +378,16 @@ jobs:
             -o sbom -fn "pgNimbus-${VERSION}-sbom.cdx.json" \
             -sn pgNimbus -sv "$VERSION" -ed
 
+      # dotnet-CycloneDX only walks the NuGet graph, so the .NET runtime pack
+      # a NativeAOT publish statically links in (GC, TLS and crypto code)
+      # never shows up on its own. This runner is the linux-x64 leg, which is
+      # exactly the runtime pack this SBOM is missing.
+      - name: Add the .NET runtime pack to the SBOM
+        if: matrix.rid == 'linux-x64'
+        run: |
+          python3 scripts/release/sbom_add_runtime.py \
+            "sbom/pgNimbus-${VERSION}-sbom.cdx.json" --rid linux-x64
+
       - uses: actions/upload-artifact@v7
         if: matrix.rid == 'linux-x64'
         with:

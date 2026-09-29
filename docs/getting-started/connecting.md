@@ -148,6 +148,13 @@ new one and leaving you to guess what happened, pgNimbus surfaces a clear
     export PGNIMBUS_CONN="postgres://postgres:secret@localhost:5432/mydb"
     ```
 
+    The example above puts the password in the environment. Any other process
+    running as you can read it (`/proc/<pid>/environ` on Linux, a process
+    inspector on Windows or macOS), and if you type the `export` line directly
+    at a shell, it usually lands in shell history too. Prefer a connection
+    string with no password and let pgNimbus prompt, or keep this variable to
+    a throwaway local database.
+
     For everyday use there is a switch in Settings, **Open the last
     connection on startup**, which goes straight to whatever you connected to
     last. The dialog stays one Switch connection away, and a connect that fails
