@@ -24,6 +24,24 @@ public sealed partial class QueryViewModel : ObservableObject
     /// </summary>
     public const int MaxDisplayRows = 100_000;
 
+    /// <summary>
+    /// Ceiling on what those rows may weigh, estimated per row as batches arrive
+    /// (<see cref="ResultBudget.EstimateRow"/>). Rows were the only bound, and a row
+    /// can be anything: <c>SELECT *</c> over the telemetry demo's 37 KB jsonb cells is
+    /// several GB at <see cref="MaxDisplayRows"/>, one <c>repeat('x', 500000000)</c> a
+    /// gigabyte (security audit 2026-09, finding 16). Past it the query stops and is
+    /// cancelled the way the row cap is. A script's sections share one budget of both.
+    /// </summary>
+    public const long MaxDisplayBytes = 256L * 1024 * 1024;
+
+    /// <summary>
+    /// The most columns the results grid builds. A result can claim 1,664 columns
+    /// (a hostile server 65,535), and the grid realizes a column object, a header and
+    /// a cell per row for each. Rows still hold every value; copy, export and the
+    /// cell inspector see all of them.
+    /// </summary>
+    public const int MaxGridColumns = 1_000;
+
     private readonly QueryEngine _engine;
     private readonly ExplainService _explainService;
 
@@ -372,7 +390,75 @@ public sealed partial class QueryViewModel : ObservableObject
     /// <summary>True once a run produced more than one statement result — drives the section strip.</summary>
     public bool IsScriptResult => ResultSections.Count > 1;
 
-    public ObservableCollection<string> ColumnNames { get; } = [];
+    /// <summary>
+    /// The result's column names. Filled with <see cref="ResettableCollection{T}.ReplaceAll"/>,
+    /// never an <c>Add</c> per column: the grid rebuilds its columns on every change.
+    /// </summary>
+    public ResettableCollection<string> ColumnNames { get; } = [];
+
+    /// <summary>"showing 1,000 of 5,000 columns" when the grid builds fewer columns than the result has; null otherwise.</summary>
+    public string? ColumnCapText => ColumnNames.Count > MaxGridColumns
+        ? $"showing {MaxGridColumns:N0} of {ColumnNames.Count:N0} columns"
+        : null;
+
+    /// <summary>What the status bar's warning segment shows: the row or byte cap, the column cap, or both.</summary>
+    public string? CapStatusText => (CapText, ColumnCapText) switch
+    {
+        (null, null) => null,
+        ({ } rows, null) => rows,
+        (null, { } columns) => columns,
+        ({ } rows, { } columns) => $"{rows} · {columns}",
+    };
+
+    partial void OnCapTextChanged(string? value) => OnPropertyChanged(nameof(CapStatusText));
+
+    /// <summary>The status-bar text for a result a cap cut short.</summary>
+    public static string? CapTextFor(ResultCap cap) => cap switch
+    {
+        ResultCap.None => null,
+        ResultCap.Rows => $"capped at {MaxDisplayRows:N0} rows — refine the query for the full set",
+        ResultCap.Bytes => $"capped at {MaxDisplayBytes / (1024 * 1024):N0} MB of results, refine the query for the full set",
+        _ => $"later rows not kept: the script's results reached {MaxDisplayRows:N0} rows or {MaxDisplayBytes / (1024 * 1024):N0} MB",
+    };
+
+    /// <summary>
+    /// Adds each batch's rows to <paramref name="into"/> until <paramref name="budget"/>
+    /// refuses one, then stops enumerating, which makes the engine cancel the rest of
+    /// the query rather than drain it (<c>QueryEngine.StreamBatches</c>). Returns which
+    /// limit stopped it, or <see cref="ResultCap.None"/> for a result read to the end.
+    /// <paramref name="afterBatch"/> runs after each batch's rows are in, the last
+    /// (partial) one included. Public for the tests, which feed it batches from memory.
+    /// </summary>
+    public static async Task<ResultCap> CollectRowsAsync(
+        IAsyncEnumerable<RowBatch> batches,
+        List<object?[]> into,
+        ResultBudget budget,
+        Func<Task> afterBatch,
+        CancellationToken ct)
+    {
+        await foreach (var batch in batches.WithCancellation(ct))
+        {
+            var exhausted = false;
+            foreach (var row in batch.Rows)
+            {
+                if (!budget.TryTake(ResultBudget.EstimateRow(row)))
+                {
+                    exhausted = true;
+                    break;
+                }
+
+                into.Add(row);
+            }
+
+            await afterBatch();
+            if (exhausted)
+            {
+                return budget.Exhausted;
+            }
+        }
+
+        return ResultCap.None;
+    }
 
     /// <summary>
     /// Results-grid column widths the user dragged, by column name — the tab's
@@ -682,7 +768,7 @@ public sealed partial class QueryViewModel : ObservableObject
         TimingText = null;
         CapText = null;
         IsShowingPlan = false;
-        ColumnNames.Clear();
+        SetColumnNames([]);
         Rows = [];
         _columns = [];
         _resultSql = null;
@@ -724,7 +810,7 @@ public sealed partial class QueryViewModel : ObservableObject
             // Ask for one row past the cap: receiving it proves the result was
             // actually cut short, so an exactly-at-the-cap result isn't
             // mislabeled as truncated.
-            var result = await _engine.ExecuteAsync(executedSql, ct, MaxDisplayRows + 1);
+            var result = await _engine.ExecuteAsync(executedSql, ct, MaxDisplayRows + 1, maxBytes: MaxDisplayBytes);
             if (result is ResultSet or MaterializedResultSet)
             {
                 _resultSql = executedSql;
@@ -734,14 +820,11 @@ public sealed partial class QueryViewModel : ObservableObject
             {
                 case ResultSet resultSet:
                     _columns = resultSet.Columns;
-                    foreach (var column in resultSet.Columns)
-                    {
-                        ColumnNames.Add(column.Name);
-                    }
+                    SetColumnNames(resultSet.Columns.Select(c => c.Name));
 
                     var allRows = new List<object?[]>();
                     var firstByteMs = -1L;
-                    var truncated = false;
+                    var cap = ResultCap.None;
 
                     // Read and materialize batches on a background thread. NpgsqlDataReader.ReadAsync
                     // frequently completes synchronously once data is already buffered, so consuming
@@ -761,23 +844,18 @@ public sealed partial class QueryViewModel : ObservableObject
                             var firstScreenShown = false;
                             var lastStatusMs = 0L;
 
-                            await foreach (var batch in resultSet.Batches.WithCancellation(ct))
+                            // The engine streams at most MaxDisplayRows + 1 rows; the
+                            // budget holds MaxDisplayRows, so the sentinel row past the
+                            // cap is refused (ResultCap.Rows), as is the first row that
+                            // would take the estimate past MaxDisplayBytes.
+                            var budget = new ResultBudget(MaxDisplayRows, MaxDisplayBytes);
+                            cap = await CollectRowsAsync(resultSet.Batches, allRows, budget, async () =>
                             {
                                 if (firstByteMs < 0)
                                 {
                                     firstByteMs = stopwatch.ElapsedMilliseconds;
                                 }
 
-                                // The engine streams at most MaxDisplayRows + 1 rows;
-                                // the sentinel row past the cap is dropped, not shown.
-                                var rows = batch.Rows;
-                                if (allRows.Count + rows.Count > MaxDisplayRows)
-                                {
-                                    rows = rows.Take(MaxDisplayRows - allRows.Count).ToList();
-                                    truncated = true;
-                                }
-
-                                allRows.AddRange(rows);
                                 var rowText = RowLabel(allRows.Count);
                                 var timeText = $"{resultSet.Elapsed.TotalMilliseconds:F0} ms · first byte {firstByteMs} ms";
 
@@ -801,7 +879,7 @@ public sealed partial class QueryViewModel : ObservableObject
                                         TimingText = timeText;
                                     });
                                 }
-                            }
+                            }, ct);
                         }, ct);
                     }
                     finally
@@ -815,9 +893,7 @@ public sealed partial class QueryViewModel : ObservableObject
                     Status = "Done";
                     RowCountText = RowLabel(allRows.Count);
                     TimingText = $"{stopwatch.Elapsed.TotalMilliseconds:F0} ms · first byte {firstByteMs} ms";
-                    CapText = truncated
-                        ? $"capped at {MaxDisplayRows:N0} rows — refine the query for the full set"
-                        : null;
+                    CapText = CapTextFor(cap);
                     ReapplyPendingEditsToGrid();
                     break;
 
@@ -826,10 +902,7 @@ public sealed partial class QueryViewModel : ObservableObject
                     // transaction (see QueryEngine): no streaming, the rows are
                     // already in memory. Mirror the streaming path's cap handling.
                     _columns = materialized.Columns;
-                    foreach (var column in materialized.Columns)
-                    {
-                        ColumnNames.Add(column.Name);
-                    }
+                    SetColumnNames(materialized.Columns.Select(c => c.Name));
 
                     var overCap = materialized.Truncated || materialized.Rows.Count > MaxDisplayRows;
                     var shown = overCap
@@ -841,7 +914,7 @@ public sealed partial class QueryViewModel : ObservableObject
                     RowCountText = RowLabel(shown.Count);
                     TimingText = $"{materialized.Elapsed.TotalMilliseconds:F0} ms";
                     CapText = overCap
-                        ? $"capped at {MaxDisplayRows:N0} rows — refine the query for the full set"
+                        ? CapTextFor(materialized.CappedBy == ResultCap.None ? ResultCap.Rows : materialized.CappedBy)
                         : null;
                     ReapplyPendingEditsToGrid();
                     break;
@@ -913,7 +986,10 @@ public sealed partial class QueryViewModel : ObservableObject
 
         await Task.Run(async () =>
         {
-            await foreach (var result in _engine.ExecuteScriptAsync(statements, MaxDisplayRows, ct).WithCancellation(ct))
+            // One budget for every section: a script of ten big SELECTs used to keep
+            // ten results' worth of rows (audit finding 16).
+            var budget = new ResultBudget(MaxDisplayRows, MaxDisplayBytes);
+            await foreach (var result in _engine.ExecuteScriptAsync(statements, MaxDisplayRows, ct, budget).WithCancellation(ct))
             {
                 index++;
                 var section = ScriptResultViewModel.From(index, statements[index - 1], result);
@@ -994,6 +1070,13 @@ public sealed partial class QueryViewModel : ObservableObject
 
     partial void OnFixSuggestionSqlChanged(string? value) => ApplyFixCommand.NotifyCanExecuteChanged();
 
+    private void SetColumnNames(IEnumerable<string> names)
+    {
+        ColumnNames.ReplaceAll(names);
+        OnPropertyChanged(nameof(ColumnCapText));
+        OnPropertyChanged(nameof(CapStatusText));
+    }
+
     // Selecting a script section re-points the shared grid and status-bar
     // segments at that statement's materialized result.
     partial void OnSelectedSectionChanged(ScriptResultViewModel? value)
@@ -1004,11 +1087,7 @@ public sealed partial class QueryViewModel : ObservableObject
         }
 
         _columns = value.Columns;
-        ColumnNames.Clear();
-        foreach (var name in value.ColumnNames)
-        {
-            ColumnNames.Add(name);
-        }
+        SetColumnNames(value.ColumnNames);
 
         Rows = value.Rows;
         Status = value.StatusText;
@@ -1059,11 +1138,7 @@ public sealed partial class QueryViewModel : ObservableObject
         _resultSql = executedSql;
         CapText = capText;
         _columns = columns;
-        ColumnNames.Clear();
-        foreach (var column in columns)
-        {
-            ColumnNames.Add(column.Name);
-        }
+        SetColumnNames(columns.Select(c => c.Name));
 
         Rows = new AvaloniaList<object?[]>(rows);
         Status = status;

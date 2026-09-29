@@ -47,8 +47,11 @@ public sealed record MaterializedResultSet : StatementResult
     public required IReadOnlyList<ColumnInfo> Columns { get; init; }
     public required IReadOnlyList<object?[]> Rows { get; init; }
 
-    /// <summary>True when the row cap cut this statement's result short.</summary>
+    /// <summary>True when a cap cut this statement's result short (see <see cref="CappedBy"/>).</summary>
     public bool Truncated { get; init; }
+
+    /// <summary>Which cap cut it short: its row cap, its byte budget, or a budget shared with the script's other statements.</summary>
+    public ResultCap CappedBy { get; init; }
 }
 
 /// <summary>A non-result statement (INSERT/UPDATE/DDL/etc).</summary>

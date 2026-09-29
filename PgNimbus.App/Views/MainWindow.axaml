@@ -594,11 +594,11 @@
                         <TextBlock Classes="statusText dim" Text="{Binding ActiveTab.TimingText}" VerticalAlignment="Center" />
                     </StackPanel>
                     <StackPanel Grid.Column="8" Orientation="Horizontal" Spacing="10" Margin="10,0,0,0"
-                                IsVisible="{Binding ActiveTab.CapText, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
+                                IsVisible="{Binding ActiveTab.CapStatusText, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
                         <Rectangle Classes="statusSeparator" />
-                        <TextBlock Classes="statusText warn" Text="{Binding ActiveTab.CapText}" VerticalAlignment="Center"
+                        <TextBlock Classes="statusText warn" Text="{Binding ActiveTab.CapStatusText}" VerticalAlignment="Center"
                                    MaxWidth="320" TextTrimming="CharacterEllipsis"
-                                   ToolTip.Tip="{Binding ActiveTab.CapText}" />
+                                   ToolTip.Tip="{Binding ActiveTab.CapStatusText}" />
                     </StackPanel>
                     <!-- Browse-mode paging: the one piece of the old browse bar that
                          couldn't move into the SQL editor. Disabled while a query is

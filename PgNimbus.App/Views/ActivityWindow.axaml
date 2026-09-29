@@ -137,6 +137,10 @@
                                             <TextBlock Text="{Binding WaitLabel}" VerticalAlignment="Center"
                                                        Foreground="{StaticResource AppWarningBrush}" FontSize="12"
                                                        IsVisible="{Binding IsBlocked}" />
+                                            <!-- Each backend is shown once; its other blockers are named here -->
+                                            <TextBlock Text="{Binding OtherBlockersLabel}" VerticalAlignment="Center"
+                                                       Opacity="0.6" FontSize="12"
+                                                       IsVisible="{Binding HasOtherBlockers}" />
                                             <TextBlock Text="{Binding BlockingLabel}" VerticalAlignment="Center"
                                                        Opacity="0.6" FontSize="12"
                                                        IsVisible="{Binding IsBlocker}" />

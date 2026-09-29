@@ -27,6 +27,14 @@ public sealed partial class NotifyMonitorViewModel : ObservableObject, IAsyncDis
 
     private readonly NotificationListener _listener;
     private readonly Action<IReadOnlyList<string>>? _persistChannels;
+    private readonly Action<Action> _post;
+
+    // Notifications received but not yet on the feed, oldest first, and whether a
+    // drain is already queued on the UI thread. Guarded by _pendingLock: the
+    // listener raises from Npgsql's wait loop, the drain runs on the UI thread.
+    private readonly object _pendingLock = new();
+    private readonly Queue<DatabaseNotification> _pending = new();
+    private bool _drainPosted;
 
     [ObservableProperty]
     private string _channelName = string.Empty;
@@ -76,13 +84,19 @@ public sealed partial class NotifyMonitorViewModel : ObservableObject, IAsyncDis
 
     /// <param name="channels">Channels remembered for this connection, restored on open.</param>
     /// <param name="persistChannels">Writes the list back when it changes; null for a connection with nowhere to persist to.</param>
+    /// <param name="postToUi">
+    /// How work reaches the UI thread; <see cref="Dispatcher.UIThread"/>'s <c>Post</c>
+    /// unless a test supplies its own, to count the posts and run them when it likes.
+    /// </param>
     public NotifyMonitorViewModel(
         NotificationListener listener,
         IEnumerable<string>? channels = null,
-        Action<IReadOnlyList<string>>? persistChannels = null)
+        Action<IReadOnlyList<string>>? persistChannels = null,
+        Action<Action>? postToUi = null)
     {
+        _post = postToUi ?? (action => Dispatcher.UIThread.Post(action));
         _listener = listener;
-        _listener.NotificationReceived += OnNotificationReceived;
+        _listener.NotificationReceived += Receive;
         _listener.Stopped += OnListenerStopped;
         _listener.Reconnected += OnListenerReconnected;
         _persistChannels = persistChannels;
@@ -98,8 +112,48 @@ public sealed partial class NotifyMonitorViewModel : ObservableObject, IAsyncDis
         SelectedChannel = Channels.FirstOrDefault();
     }
 
-    private void OnNotificationReceived(DatabaseNotification notification) =>
-        Dispatcher.UIThread.Post(() => Add(notification));
+    /// <summary>
+    /// What the listener's <c>NotificationReceived</c> runs, on any thread. It
+    /// queues the notification and posts one drain to the UI thread unless one is
+    /// already waiting, so a flood costs a post per UI-thread turn rather than one
+    /// per notification — which used to be an unbounded dispatcher queue, with the
+    /// 500-row cap applied only after each post had run (security audit 2026-09,
+    /// finding 16). A backlog longer than the feed keeps only its newest
+    /// <see cref="MaxNotifications"/>: the rest could never be shown anyway.
+    /// </summary>
+    public void Receive(DatabaseNotification notification)
+    {
+        lock (_pendingLock)
+        {
+            _pending.Enqueue(notification);
+            while (_pending.Count > MaxNotifications)
+            {
+                _pending.Dequeue();
+            }
+
+            if (_drainPosted)
+            {
+                return;
+            }
+
+            _drainPosted = true;
+        }
+
+        _post(Drain);
+    }
+
+    private void Drain()
+    {
+        DatabaseNotification[] batch;
+        lock (_pendingLock)
+        {
+            batch = [.. _pending];
+            _pending.Clear();
+            _drainPosted = false;
+        }
+
+        Add(batch);
+    }
 
     /// <summary>
     /// Adds a notification to the feed as if the listener had raised it, with no
@@ -107,15 +161,23 @@ public sealed partial class NotifyMonitorViewModel : ObservableObject, IAsyncDis
     /// the screenshot fixtures and the UI tests use it, production always
     /// arrives through the listener's event.
     /// </summary>
-    public void SeedNotification(DatabaseNotification notification) => Add(notification);
+    public void SeedNotification(DatabaseNotification notification) => Add([notification]);
 
-    private void Add(DatabaseNotification notification)
+    // batch is oldest first; the feed is newest first. The cap is applied before
+    // anything is inserted, so the feed never holds more than MaxNotifications
+    // rows even for a moment.
+    private void Add(IReadOnlyList<DatabaseNotification> batch)
     {
-        Notifications.Insert(0, notification);
-
-        while (Notifications.Count > MaxNotifications)
+        var incoming = Math.Min(batch.Count, MaxNotifications);
+        var overflow = Notifications.Count + incoming - MaxNotifications;
+        for (var i = 0; i < overflow; i++)
         {
             Notifications.RemoveAt(Notifications.Count - 1);
+        }
+
+        for (var i = batch.Count - incoming; i < batch.Count; i++)
+        {
+            Notifications.Insert(0, batch[i]);
         }
     }
 
@@ -123,7 +185,7 @@ public sealed partial class NotifyMonitorViewModel : ObservableObject, IAsyncDis
     // The point of this handler is that the UI stops claiming to listen — before
     // it, a dead wait loop left the dot green and the status line lying.
     private void OnListenerStopped(Exception error) =>
-        Dispatcher.UIThread.Post(() =>
+        _post(() =>
         {
             IsListening = false;
             Notice = null;
@@ -131,7 +193,7 @@ public sealed partial class NotifyMonitorViewModel : ObservableObject, IAsyncDis
         });
 
     private void OnListenerReconnected() =>
-        Dispatcher.UIThread.Post(() =>
+        _post(() =>
         {
             ErrorMessage = null;
             Notice = $"Reconnected at {DateTime.Now:HH:mm:ss} — notifications published while the connection was down were not delivered.";
@@ -261,7 +323,7 @@ public sealed partial class NotifyMonitorViewModel : ObservableObject, IAsyncDis
 
     public async ValueTask DisposeAsync()
     {
-        _listener.NotificationReceived -= OnNotificationReceived;
+        _listener.NotificationReceived -= Receive;
         _listener.Stopped -= OnListenerStopped;
         _listener.Reconnected -= OnListenerReconnected;
         await _listener.DisposeAsync();
