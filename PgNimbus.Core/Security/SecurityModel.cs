@@ -214,6 +214,13 @@ public static class PgFeatures
 
     /// <summary>The <c>pg_read_all_data</c> / <c>pg_write_all_data</c> predefined roles arrived in PG14.</summary>
     public static bool SupportsPredefinedDataRoles(Version? v) => v is null || v.Major >= 14;
+
+    /// <summary>
+    /// SCRAM-SHA-256 arrived in PG10. Before it, a <c>PASSWORD 'SCRAM-SHA-256$…'</c>
+    /// literal is not recognised as a verifier and becomes the password itself,
+    /// so the role editor, which sends only verifiers, refuses to set a password there.
+    /// </summary>
+    public static bool SupportsScramVerifier(Version? v) => v is null || v.Major >= 10;
 }
 
 /// <summary>

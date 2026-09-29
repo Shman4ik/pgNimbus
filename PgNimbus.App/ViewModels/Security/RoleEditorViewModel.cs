@@ -51,6 +51,9 @@ public sealed partial class RoleEditorViewModel : ObservableObject
     /// </summary>
     private readonly IReadOnlyList<string> _currentMemberOf;
 
+    // Null in the fixtures (no server to ask): treated as modern, like PgFeatures.
+    private readonly Version? _serverVersion;
+
     private bool _loaded;
 
     /// <summary>
@@ -128,6 +131,7 @@ public sealed partial class RoleEditorViewModel : ObservableObject
         _editor = editor;
         _current = current;
         _currentMemberOf = currentMemberOf;
+        _serverVersion = host.ServerVersion;
 
         var existing = new HashSet<string>(currentMemberOf, StringComparer.Ordinal);
         var graph = host.Graph;
@@ -247,6 +251,20 @@ public sealed partial class RoleEditorViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// The warning for a password other clients may not log in with, or null.
+    /// The verifier is built from the password's NFKC form, as libpq and pgJDBC
+    /// build theirs before they log in, but the shipped app runs without
+    /// normalisation tables (<c>InvariantGlobalization</c>): a password NFKC
+    /// would change (decomposed accents, full-width letters, ligatures) then gets
+    /// a verifier those clients can't match. ASCII is never affected. Review of
+    /// the 2026-09 audit fixes.
+    /// </summary>
+    public static string? NonAsciiPasswordWarning(string password, bool normalizationAvailable) =>
+        normalizationAvailable || System.Text.Ascii.IsValid(password)
+            ? null
+            : "This password has characters outside ASCII. Some PostgreSQL clients normalize those before they log in, and pgNimbus can't do the same here, so they may be refused. An ASCII password always works.";
+
     public static RoleEditorViewModel ForCreate(SecurityEditor editor, SecurityViewModel host) =>
         new(editor, host, current: null, currentMemberOf: []);
 
@@ -301,6 +319,11 @@ public sealed partial class RoleEditorViewModel : ObservableObject
         ValidationMessage =
             Name.Trim().Length == 0 ? "A role needs a name."
             : Password != PasswordConfirm ? "The two passwords do not match."
+            // The password is sent as a SCRAM verifier, which a server before
+            // PG10 would store as the password itself (review of the 2026-09
+            // audit fixes): refused rather than silently locking the role out.
+            : Password.Length > 0 && !PgFeatures.SupportsScramVerifier(_serverVersion)
+                ? "Setting a password needs PostgreSQL 10 or later. Set it with psql's \\password on this server."
             : LivePreview.Length == 0 ? "Nothing has changed yet."
             : "";
 
@@ -308,7 +331,7 @@ public sealed partial class RoleEditorViewModel : ObservableObject
         // peer, trust or an external method. So it is said out loud, not refused.
         WarningMessage = IsCreate && CanLogin && Password.Length == 0
             ? "This role can log in but has no password. That works only if pg_hba.conf authenticates it another way."
-            : "";
+            : NonAsciiPasswordWarning(Password, ScramSha256Verifier.NormalizationAvailable) ?? "";
 
         OnPropertyChanged(nameof(HasValidationMessage));
         OnPropertyChanged(nameof(HasWarningMessage));

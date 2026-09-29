@@ -504,7 +504,13 @@ Three rules about it:
    NFKC happens only in the tests (`NormalizationAvailable` says which); a
    non-ASCII password holding compatibility characters is hashed as typed
    there, which is what Npgsql's own SCRAM client, normalising through the
-   same call, already sends at login from this app. And `SqlLiteral.Quote` on
+   same call, already sends at login from this app, but libpq and pgJDBC
+   clients normalise and would be refused: the role editor says so for any
+   non-ASCII password when normalisation is unavailable
+   (`RoleEditorViewModel.NonAsciiPasswordWarning`). A server before PG10 has no
+   SCRAM and would store the verifier as the password itself, so there the
+   editor refuses to set a password (`PgFeatures.SupportsScramVerifier`) and
+   points at psql's `\password`. And `SqlLiteral.Quote` on
    the verifier is safe whatever `standard_conforming_strings` says (finding
    13): base64, digits, `$` and `:` hold neither a quote nor a backslash.
    `ScramPasswordServerTests` creates a role through the real path and logs in
