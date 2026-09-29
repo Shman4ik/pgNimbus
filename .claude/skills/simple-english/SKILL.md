@@ -11,7 +11,7 @@ description: |
   well. Enforces the standard's 53 rules: 20/25-word sentence limits, one word
   one meaning, simple tenses, active voice, condition before command.
 license: MIT
-compatibility: claude-code cursor codex gemini-cli opencode
+compatibility: claude-code cursor gemini-cli opencode
 metadata:
   standard: ASD-STE100 Issue 9 (2025-01-15)
 ---
@@ -284,7 +284,7 @@ Same rules, different targets. Full adaptations in `references/use-cases.md`:
 - **Runbooks**: STE's home turf. Imperative steps, conditions first, warnings before the step.
 - **Incident reports**: simple past only. "We have identified an issue that may have impacted" becomes "Between 14:02 and 14:31 UTC, 12% of requests failed."
 - **Release notes**: breaking changes follow the warning pattern — command first, risk second.
-- **Agent instructions (prompts, AGENTS.md)**: a system prompt is a procedure for a reader that cannot ask questions. One instruction per sentence, no "should", condition first.
+- **Agent instructions (prompts, CLAUDE.md)**: a system prompt is a procedure for a reader that cannot ask questions. One instruction per sentence, no "should", condition first.
 - **Translation prep**: STE's original job. One meaning per word plus complete grammar removes most translation ambiguity.
 
 ## Self-Check Before You Deliver

@@ -39,6 +39,14 @@ public sealed record RowFilter(string Column, FilterOperator Operator, string? V
 /// the column it is compared with, which makes the comparison typed without
 /// making the text noisy. Postgres stays the parser of record; <see cref="Validate"/>
 /// only front-runs the mistakes a client can catch cheaply.
+///
+/// <para>Because the text is executed, the literal's escape has to be the one
+/// the server applies: every session forces <c>standard_conforming_strings</c>
+/// on (<see cref="Connections.ConnectionProfile.StandardStringsSessionOption"/>),
+/// so <see cref="SqlLiteral.Quote"/>'s doubled quote is complete and a value
+/// holding <c>\'</c> is a value, not the end of the literal. A parameter would
+/// be the usual answer; it cannot be here, since the WHERE round-trips through
+/// the editor as text (<c>BrowseSqlParser</c> reads it back into chips).</para>
 /// </summary>
 public static class RowFilterSql
 {
@@ -177,8 +185,9 @@ public static class RowFilterSql
 
     // Escapes LIKE's wildcards so a typed "50%" matches the text "50%" and not
     // everything starting with "50". Backslash is LIKE's default escape
-    // character, and with standard_conforming_strings on (the default since 9.1)
-    // it reaches LIKE unchanged inside a plain literal.
+    // character, and with standard_conforming_strings on (forced for every
+    // session by the connection options) it reaches LIKE unchanged inside a
+    // plain literal.
     private static string EscapeLike(string value) =>
         value.Replace(@"\", @"\\").Replace("%", @"\%").Replace("_", @"\_");
 

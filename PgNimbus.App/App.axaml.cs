@@ -289,6 +289,8 @@ public partial class App : Application
         // surface in the crash window instead of taking the app down silently.
         Diagnostics.CrashReporter.AttachToDispatcher();
 
+        TightenAppDataOnce();
+
         // Restore the saved light/dark choice before any window resolves its
         // ActualThemeVariant, so the first frame already paints in the right theme.
         ApplyPersistedTheme();
@@ -322,6 +324,38 @@ public partial class App : Application
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    /// <summary>
+    /// Restricts the app data directory and the files already in it to the
+    /// current user (0700/0600), once per launch and off the UI thread: what
+    /// this version writes is created that way (<see cref="AppDataFile"/>), but
+    /// everything an earlier version wrote sat at 0644 under a home directory
+    /// that is often 0755, readable by every other local user (security audit
+    /// 2026-09, finding 10). A handful of <c>chmod</c> calls; a failure goes to
+    /// the crash log rather than the screen, since nothing the user can do in
+    /// the app would fix it. No-op on Windows.
+    /// </summary>
+    private static void TightenAppDataOnce()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                AppDataFile.TightenExisting(AppDataPaths.GetRootDirectory());
+            }
+            catch (Exception e)
+            {
+                // Swallowed on purpose (a background task nobody awaits): the
+                // app works either way, only less privately.
+                PgNimbus.Core.Diagnostics.CrashLogger.LogCritical("Could not restrict the app data directory to the current user", e);
+            }
+        });
     }
 
     /// <summary>
@@ -468,6 +502,11 @@ public partial class App : Application
         viewModel.Connected += (dataSource, accentColor, tunnel) =>
         {
             var mainWindow = BuildMainWindow(dataSource, accentColor, tunnel);
+            if (viewModel.ConnectedProfileId is { } profileId)
+            {
+                ForgetSessionPasswordsOnClose(mainWindow, profileId);
+            }
+
             CarryWindowState(dialog, mainWindow);
             mainWindow.Show();
             dialog.Close();
@@ -480,6 +519,39 @@ public partial class App : Application
         };
 
         return dialog;
+    }
+
+    // The profile each open main window was connected with.
+    private static readonly Dictionary<Window, Guid> WindowProfiles = [];
+
+    /// <summary>
+    /// When <paramref name="window"/> closes, drops its profile's session-only
+    /// passwords (the ones the OS store refused) from the credential store's
+    /// memory, unless another open window is still connected with that profile
+    /// (security audit 2026-09, finding 18). Stored passwords are untouched.
+    /// </summary>
+    private static void ForgetSessionPasswordsOnClose(Window window, Guid profileId)
+    {
+        WindowProfiles[window] = profileId;
+        window.Closed += (_, _) =>
+        {
+            WindowProfiles.Remove(window);
+            if (WindowProfiles.ContainsValue(profileId))
+            {
+                return;
+            }
+
+            // Off the UI thread: the store's lock can be held by a native call
+            // waiting on the OS (a Keychain or Secret Service unlock).
+            var store = CredentialStore.Create();
+            _ = Task.Run(() =>
+            {
+                foreach (var id in ConnectionDialogViewModel.CredentialIdsFor(profileId))
+                {
+                    store.Forget(id);
+                }
+            });
+        };
     }
 
     /// <summary>
@@ -521,7 +593,11 @@ public partial class App : Application
     /// for it when nobody is sitting in a connect form.
     /// </summary>
     internal static MainWindow BuildMainWindow(string connectionString) =>
-        BuildMainWindow(NpgsqlDataSource.Create(connectionString));
+        // A profile forces standard_conforming_strings on in its Options; this
+        // string comes from nowhere near a profile, so the same option is added
+        // here, or the literals the app composes would parse differently on
+        // this one path (finding 13).
+        BuildMainWindow(NpgsqlDataSource.Create(ConnectionProfile.WithStandardStrings(connectionString)));
 
     /// <summary>
     /// Builds a connected window around an existing <paramref name="dataSource"/>

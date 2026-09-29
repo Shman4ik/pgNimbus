@@ -1,48 +1,23 @@
-using System.Text.Json;
 using System.Text.Json.Serialization;
 using PgNimbus.Core.Connections;
+using PgNimbus.Core.Settings;
 
 namespace PgNimbus.Core.Query;
 
-/// <summary>Persists user-named saved queries (no cap - the user manages these explicitly).</summary>
+/// <summary>Persists user-named saved queries (no cap - the user manages these explicitly), through <see cref="AppDataFile"/>.</summary>
 public sealed class SavedQueryStore(string? filePath = null)
 {
-    private readonly string _filePath = filePath ?? Path.Combine(AppDataPaths.GetRootDirectory(), "saved-queries.json");
+    private readonly string? _filePath = filePath ?? AppDataPaths.Resolve("saved-queries.json");
 
-    /// <summary>The file this store reads and writes.</summary>
-    public string FilePath => _filePath;
+    /// <summary>The file this store reads and writes; null when the app has no data directory (then nothing is kept between sessions).</summary>
+    public string? FilePath => _filePath;
 
-    public IReadOnlyList<SavedQuery> Load()
-    {
-        if (!File.Exists(_filePath))
-        {
-            return [];
-        }
+    /// <summary>The saved list, or empty when there is no file, it cannot be read, or it cannot be parsed (then it is moved aside first).</summary>
+    public IReadOnlyList<SavedQuery> Load() =>
+        AppDataFile.ReadJson(_filePath, SavedQueryJsonContext.Default.ListSavedQuery) ?? [];
 
-        // A corrupt/empty/half-written file must never block startup - fall back
-        // to an empty list rather than throwing out of the constructor path.
-        try
-        {
-            var json = File.ReadAllText(_filePath);
-            return JsonSerializer.Deserialize(json, SavedQueryJsonContext.Default.ListSavedQuery) ?? [];
-        }
-        catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException)
-        {
-            return [];
-        }
-    }
-
-    public void Save(IEnumerable<SavedQuery> queries)
-    {
-        var directory = Path.GetDirectoryName(_filePath);
-        if (!string.IsNullOrEmpty(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
-
-        var json = JsonSerializer.Serialize([.. queries], SavedQueryJsonContext.Default.ListSavedQuery);
-        File.WriteAllText(_filePath, json);
-    }
+    public void Save(IEnumerable<SavedQuery> queries) =>
+        AppDataFile.WriteJson(_filePath, [.. queries], SavedQueryJsonContext.Default.ListSavedQuery);
 }
 
 [JsonSourceGenerationOptions(WriteIndented = true)]

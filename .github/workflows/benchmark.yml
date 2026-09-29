@@ -60,9 +60,14 @@ jobs:
           --health-retries 10
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The gh-pages push below goes through the benchmark action's own
+          # github-token input (it puts the token in the remote URL itself), so
+          # nothing here needs the token left behind in .git/config.
+          persist-credentials: false
 
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: "10.0.x"
 
@@ -79,7 +84,7 @@ jobs:
       # because artifact zips drop the executable bit.
       - name: Download prebuilt AOT publish
         if: inputs.publish_artifact != ''
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: ${{ inputs.publish_artifact }}
 
@@ -96,7 +101,7 @@ jobs:
           PGNIMBUS_BENCH_CONN: "Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=postgres"
 
       - name: Upload results
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: bench-results
           path: bench-results/
@@ -113,10 +118,14 @@ jobs:
       # point of the job — a gh-pages push hiccup (e.g. a race between two
       # concurrent releases) shouldn't mark the whole benchmark job failed
       # when the actual measurements above already succeeded.
+      #
+      # Pinned to a release commit: "v1" is a branch of this third-party
+      # action, and it runs with contents: write at the same time as the
+      # release job. The "# vX.Y.Z" comment is what Dependabot bumps.
       - name: Record benchmark history
         if: inputs.record_history
         continue-on-error: true
-        uses: benchmark-action/github-action-benchmark@v1
+        uses: benchmark-action/github-action-benchmark@4322e5726e6334590d251fc4f92bec0efafc45dc # v1.22.2
         with:
           name: pgNimbus benchmarks
           tool: customSmallerIsBetter

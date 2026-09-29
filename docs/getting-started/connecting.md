@@ -34,14 +34,19 @@ and keeps entered passwords in memory for this app session. Unlock/configure
 the OS store and edit the password again to retry. On macOS, Keychain access must be available
 without an interactive authorization prompt; resolve restrictions in Keychain Access.
 
-When an old macOS/Linux profile is opened, pgNimbus attempts to migrate its
-unencrypted base64 `.cred` files. It deletes an old file only after reading the
-saved password back from the OS store. On failure the old file stays and a warning
-appears; unopened profiles are not migrated yet. If a different OS-store value
+On macOS and Linux, older versions kept passwords in unencrypted base64 `.cred`
+files. When the connection dialog first opens, pgNimbus moves all of them into
+the OS store at once. It deletes an old file only after reading the saved
+password back from the OS store. Files it can't move stay where they are, and
+the dialog shows one warning with their count. If a different OS-store value
 already exists, it takes precedence; editing the password resolves the old copy.
+Passwords that the OS store refused are kept in memory only until the last
+window using that connection closes.
 Deleting a profile attempts to remove database and SSH credentials from both
 locations and reports failures. Query history and workspace SQL remain local,
-unencrypted data; credential protection does not encrypt them.
+unencrypted data; credential protection does not encrypt them. On macOS and
+Linux, pgNimbus makes its data folder and every file in it readable by your
+user account only, including files an older version left open to other users.
 
 That is a design rule rather than a setting. The profile record has no field to
 put a password in, so a profile file cannot leak one even if you copy it
@@ -158,14 +163,25 @@ Both are also in the menu behind the ☰ button and in the command palette.
 ## If the connection drops
 
 A connection dropped by laptop sleep, a network blip or an SSH tunnel hiccup is
-reopened quietly on your next run. pgNimbus flushes the dead pool and retries
-once on a fresh connection, so you usually will not notice.
+reopened quietly on your next run. Before it sends a statement, pgNimbus asks
+the server to describe it, which runs nothing. If that fails because the
+connection is dead, pgNimbus flushes the pool and opens a fresh connection, so
+you usually will not notice.
 
-The one case it deliberately does not paper over is an open explicit transaction.
-A transaction lives on one held connection; if that connection dies, the
-transaction is gone and nothing in it committed. Rather than silently starting a
-new one and leaving you to guess what happened, pgNimbus surfaces a clear
-"connection lost, nothing committed" error.
+pgNimbus never sends a statement a second time on its own. If the connection
+drops while a statement is running, whether the network went away or a DBA
+terminated your session, the run ends with an error that says the statement
+was not run again and may or may not have taken effect. Check before you run
+it again. The next statement reconnects by itself. A statement that has
+already started on the server is out of the client's hands: an `UPDATE` that
+was halfway through when the socket died keeps running there and commits,
+and running it again would apply it twice.
+
+The other case pgNimbus deliberately does not paper over is an open explicit
+transaction. A transaction lives on one held connection; if that connection
+dies, the transaction is gone and nothing in it committed. Rather than silently
+starting a new one and leaving you to guess what happened, pgNimbus surfaces a
+clear "connection lost, nothing committed" error.
 
 !!! tip "Skipping the dialog"
 
@@ -176,6 +192,13 @@ new one and leaving you to guess what happened, pgNimbus surfaces a clear
     ```bash
     export PGNIMBUS_CONN="postgres://postgres:secret@localhost:5432/mydb"
     ```
+
+    The example above puts the password in the environment. Any other process
+    running as you can read it (`/proc/<pid>/environ` on Linux, a process
+    inspector on Windows or macOS), and if you type the `export` line directly
+    at a shell, it usually lands in shell history too. Prefer a connection
+    string with no password and let pgNimbus prompt, or keep this variable to
+    a throwaway local database.
 
     For everyday use there is a switch in Settings, **Open the last
     connection on startup**, which goes straight to whatever you connected to
