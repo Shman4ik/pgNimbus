@@ -59,14 +59,10 @@ paths:
   dialogs keep their OS captions on Windows and Linux; they are not places (on
   macOS `DialogChrome` hides the caption text, UI rule 6).
   **The form stops widening at 720px** (2026-09, macOS audit): maximized, every
-  field used to run across the screen, the port box ~1500px from its host. The
-  second column of `FormLayout` is `1000*` with `MaxWidth="720"` and a plain `*`
-  column after it takes the rest, so the form stays left-aligned under the
-  "Saved connections" heading instead of being centred away from it, and in a
-  narrow window the near-zero third column leaves it all the width (a `Stretch`
-  element with a `MaxWidth` would have *centred*, and a `Left` one shrinks to its
-  content). Every row spans the first two columns, so Connect stays under the
-  fields' right edge. **New is a compact + under the list** (`NewConnectionButton`,
+  field used to run across the screen, the port box ~1500px from its host. It
+  was first a `1000*` column with `MaxWidth="720"`; since #281 the whole block's
+  1000px cap (below) bounds it, at 740. Every row spans both columns, so Connect
+  stays under the fields' right edge. **New is a compact + under the list** (`NewConnectionButton`,
   tooltip "New Connection") rather than a 240px bar; there is deliberately no −
   beside it, Delete stays on the right-click menu (UI rule 1). **The switches sit
   right of their labels**, a `*,Auto` grid as on the Settings page, rather than
@@ -77,27 +73,33 @@ paths:
   line below the buttons (the full text is its tooltip), so the window got that
   row back, and it opens the About overlay, which from this window was otherwise
   reachable only through macOS's app menu.
-  **A big window centres the form instead of stretching it** (2026-09): the list
-  and the form are one block capped at 1000 x 760 and centred, and the bar's
-  heading follows the block's left edge (`AlignBarHeading`). Maximized on a Mac it
-  used to leave the form against the left edge with half the window empty and
-  the buttons a screen's height below the fields (`connection-dialog-wide`). A social-card lockup in the space under
+  **The window stops at the size the form fills, on every platform** (2026-09,
+  1.0 release pass): `CanMaximize = false` and `MaxWidth`/`MaxHeight` =
+  `ConnectionDialog.MaxFormWidth`/`MaxFormHeight` (1032 x 832, the block below
+  plus its margins and the bar). Maximized on a 1080p Windows screen, or full
+  screen on a MacBook, it was a 400px form in a screen of empty window, with the
+  bar's heading 160px above the list it names. A form is not a workspace; the
+  connect windows of TablePlus and Postico don't go full screen either. The cap
+  alone was not enough on Windows, which maximizes a capped window into a box
+  pinned to the screen's top-left corner, hence no maximize at all: no caption
+  button (the drawn theme hides it), no double-click or Snap maximize, a greyed
+  macOS green button and a greyed Window → Zoom (`MacMenus.ZoomItem`). A saved
+  placement from before is clamped to the cap and never restored maximized
+  (`WindowPlacementPersistence.Restore`). This also retired
+  `App.CarryWindowState`, which carried a maximized or full-screen form's state
+  over to the connected window. Inside the window, the list and the form are
+  still one block capped at 1000 x 760, centred across and kept under the bar,
+  whose heading follows the block's left edge (`AlignBarHeading`): an Auto bar
+  row and a `*` row with `MaxHeight` in `RootLayout`'s inner grid, with the
+  About overlay kept out of that grid, since spanning it, its window-high size
+  pushed the row past its max. That now matters only where a window manager
+  ignores size hints, as tiling ones do. `DialogTests` holds both.
+  A social-card lockup in the space under
   the fields was tried first and moved: that space comes and goes with the SSH
   section and the window's height, so the identity did too. It is a `chip` with a
   local `Opacity="1"` (a chip rests at 0.6). The mark is vector:
   `Styles/LogoMark.axaml`, generated from `design/logo.svg` (see
   `.claude/rules/logo-assets.md` for the chain).
-- **The connected window opens in the display mode the connect form was left
-  in (2026-08).** `App.CarryWindowState`, called from the dialog's `Connected`
-  handler before `Show()`. Connecting reads as one continuous act — the form is
-  the app's first screen, not a separate program — so a full-screen (macOS
-  green button) or maximized dialog handing off to a small window on the
-  desktop behind it reads as the app losing the user's place. It only ever
-  *promotes*: a normal-state dialog leaves the window on its own restored
-  placement (`WindowPlacementPersistence`, which may itself be maximized).
-  macOS enters full screen through an animated Space transition that a window
-  which has not been shown yet can drop, so the state is re-asserted once from
-  `Opened`.
 - **macOS: closing the last window does not quit the app (2026-08).** Closing a
   window and quitting are two separate actions there, and the app that exits
   when its last window closes is the one Mac users report as a bug. So

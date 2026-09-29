@@ -80,9 +80,29 @@ public class MenuTests
 
             await Assert.That(headers).Contains("Minimize");
             await Assert.That(headers).Contains("Zoom");
+            await Assert.That(Item(menu, "Zoom").IsEnabled).IsTrue();
             await Assert.That(headers).Contains("Bring All to Front");
             await Assert.That(Item(menu, "Show Previous Tab").Gesture).IsEqualTo(CommandBindings.GestureFor(CommandId.PreviousTab));
             await Assert.That(Item(menu, "Show Next Tab").Gesture).IsEqualTo(CommandBindings.GestureFor(CommandId.NextTab));
+        });
+    }
+
+    /// <summary>
+    /// The connect window can't be maximized, so its Zoom is greyed out as AppKit
+    /// greys it, instead of maximizing the window past its size cap.
+    /// </summary>
+    [Test]
+    public async Task Connection_window_menu_greys_out_Zoom()
+    {
+        await Ui.Run(async () =>
+        {
+            var window = Scenarios.ConnectionDialog();
+            var menu = Submenu(((ConnectionDialog)window).CreateNativeMenuBar(), "Window");
+            var zoom = Item(menu, "Zoom");
+
+            await Assert.That(zoom.IsEnabled).IsFalse();
+            Click(zoom);
+            await Assert.That(window.WindowState).IsEqualTo(WindowState.Normal);
         });
     }
 

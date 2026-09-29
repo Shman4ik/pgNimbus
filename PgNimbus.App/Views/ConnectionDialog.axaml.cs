@@ -22,6 +22,16 @@ public partial class ConnectionDialog : Window
     private Avalonia.Point _dragStartPoint;
     private bool _isReordering;
 
+    /// <summary>
+    /// The window size at which the form block reaches its cap: FormLayout's
+    /// 1000px plus its 16px margins across, the 40px bar plus the block's 792px
+    /// row down (ConnectionDialog.axaml).
+    /// </summary>
+    public const double MaxFormWidth = 1032;
+
+    /// <inheritdoc cref="MaxFormWidth"/>
+    public const double MaxFormHeight = 832;
+
     public ConnectionDialog()
     {
         InitializeComponent();
@@ -29,6 +39,16 @@ public partial class ConnectionDialog : Window
         // gone on Windows and macOS, where the bar below is the title bar.
         ThemedWindowChrome.Attach(this);
         NimbusWindowChrome.Attach(this, ConnectBar, RootLayout, inset: 16);
+
+        // The window stops at the size the form block can use, and can't be
+        // maximized or made full screen: either way it was a 400px form in a
+        // screen of empty window, on a 1080p monitor and on a MacBook alike. A
+        // form is not a workspace, and the connect windows of TablePlus and
+        // Postico don't go full screen either. The cap alone would have let
+        // Windows maximize into a box pinned to the screen's top-left corner.
+        CanMaximize = false;
+        MaxWidth = MaxFormWidth;
+        MaxHeight = MaxFormHeight;
 
         Opened += OnDialogOpened;
         Closing += OnDialogClosing;
