@@ -86,6 +86,13 @@ window opens, so the mark also appears when the server makes the session
 read-only on its own: a role or database with `default_transaction_read_only`
 set, or a standby replica.
 
+A connection pooler can drop the read-only option before it reaches the server.
+PgBouncer does this when `ignore_startup_parameters` includes `options`. If the
+profile asks for read-only and the server still accepts writes, the mark turns
+amber and reads **read-only not applied**. The results grid stays read-only,
+but SQL you run can change data, so don't count on the profile's protection
+for that session.
+
 This guards against mistakes. It isn't a permission. A statement can still
 switch it off for its own session with `SET default_transaction_read_only =
 off`. To make writes impossible, connect as a role that has no write

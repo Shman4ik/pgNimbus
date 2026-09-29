@@ -1154,6 +1154,24 @@ csproj / WiX / MSIX manifest reference them unchanged:
   withdraws one already on screen when the server's answer lands late). It is
   deliberately not in the connection-string preview, like the accent colour:
   it is this app's setting, not part of the target.
+  **A profile's read-only is never downgraded by the server's "writable"**
+  (2026-09 security audit, finding 17). The startup option travels through
+  whatever sits in front of the server, and PgBouncer with
+  `ignore_startup_parameters = options` (a common workaround for clients that
+  send options) drops it: the server then reports a writable session, and
+  `DetectWriteStateAsync` used to replace the profile's hint with that `null`,
+  so the lock left the title bar and the grid became editable on a profile the
+  user had marked read-only. Now a read-only profile that the server reports
+  writable keeps a (reworded) hint, so every tab still refuses an edit context,
+  sets `MainViewModel.IsReadOnlyNotEnforced`, which turns `ReadOnlyMark` amber
+  (`AppWarningBrush`, text "read-only not applied", the tooltip says typed SQL can
+  still write), and writes one status-line warning. Nothing blocks typed SQL:
+  the server is the only thing that could, and here it didn't get the option.
+  A pooler that *rejects* the option fails the connect, which is the right
+  outcome. A tab whose hint was the old wording takes the new one
+  (`ApplyConnectionReadOnly(previousHint)`), so no chip keeps saying "the server
+  refuses writes". The server query is replaceable for tests
+  (`DetectWriteStateAsync(probe)`); scenario `main-window-read-only-not-applied`.
 - **json/jsonb are a first-class editable type.** `ColumnValueEditorClassifier`
   maps them to `ColumnValueEditor.Json` (jsonpath isn't JSON-shaped so it takes
   the plain-cast `CastText` path below; hstore stays `Text` — its display needs
@@ -1248,7 +1266,18 @@ csproj / WiX / MSIX manifest reference them unchanged:
   refused up front:** no primary key was already read-only; a key column whose
   type the client can't read (`EditBlocker.UnreadableKey`, CLR type `object`)
   now is too, with its own read-only hint, and a stray unreadable key cell is
-  refused at staging. Nothing offers an undo after a successful commit — the
+  refused at staging. **So is a relation read twice** (`EditBlocker.RepeatedTable`,
+  2026-09 security audit, finding 14): `SELECT c.id, p.name FROM items c JOIN
+  items p ON p.id = c.parent_id` passes `CheckSingleTable` (one OID, distinct
+  attnums), and an edit of `name`, the parent's, updated the child. The wire
+  metadata can't see it, so `EditableResultDetector.CheckRepeatedTable` reads
+  the text through `SqlScopeModel`: every relation of the blocks whose columns
+  can reach the result (branches, FROM subqueries, LATERAL, CTE bodies, each CTE
+  reference) counted by bare name, expression subqueries skipped (their columns
+  never carry an OID). Browse mode resumes after a hand edit, and hands out its
+  edit context, only when every result column carries the browsed table's OID
+  (`ReadsOnlyTable`): a bare `FROM orders` can find another schema's `orders`
+  along `search_path`. Nothing offers an undo after a successful commit — the
   batch is then the server's. Real-server coverage is
   `QueryEngineStagedConflictTests` (gated on `PGNIMBUS_TEST_CONN`, drives a real
   second session, including the lock case).

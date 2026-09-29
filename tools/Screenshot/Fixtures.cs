@@ -48,7 +48,7 @@ public static class Fixtures
     /// to be the default stores: the fixture cleared what they had loaded, but
     /// the next save wrote the fixture list over the user's real file.
     /// </summary>
-    public static MainViewModel MainWindowViewModel()
+    public static MainViewModel MainWindowViewModel(bool readOnlyProfile = false)
     {
         var dataDirectory = IsolatedAppData.NewDirectory("main-window");
         var dataSource = DataSource;
@@ -73,6 +73,7 @@ public static class Fixtures
             new ImportService(dataSource),
             connectionHost: "localhost",
             connectionDatabase: "shop",
+            readOnlyConnection: readOnlyProfile,
             savedQueryStore: new SavedQueryStore(Path.Combine(dataDirectory, "saved-queries.json")),
             historyStore: new QueryHistoryStore(Path.Combine(dataDirectory, "history.json")));
 

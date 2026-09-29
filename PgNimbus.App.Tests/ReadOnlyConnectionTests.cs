@@ -64,6 +64,100 @@ public class ReadOnlyConnectionTests
         });
     }
 
+    // --- The profile's wish against the server's answer (audit finding 17) ---
+
+    private static Func<CancellationToken, Task<SessionWriteState>> Server(SessionWriteState state) =>
+        _ => Task.FromResult(state);
+
+    private static (Window Window, MainViewModel ViewModel) ShellFor(bool readOnlyProfile)
+    {
+        var vm = Fixtures.MainWindowViewModel(readOnlyProfile);
+        var window = new MainWindow { DataContext = vm };
+        return (window, vm);
+    }
+
+    [Test]
+    public async Task A_writable_profile_on_a_writable_server_shows_no_mark()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, vm) = ShellFor(readOnlyProfile: false);
+            Ui.Show(window);
+
+            await vm.DetectWriteStateAsync(Server(SessionWriteState.ReadWrite));
+            Ui.Settle();
+
+            await Assert.That(vm.ConnectionReadOnlyHint).IsNull();
+            await Assert.That(vm.IsReadOnlyNotEnforced).IsFalse();
+            await Assert.That(window.FindControl<StackPanel>("ReadOnlyMark")!.IsEffectivelyVisible).IsFalse();
+            window.Close();
+        });
+    }
+
+    [Test]
+    public async Task A_read_only_profile_the_server_honours_shows_the_plain_mark()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, vm) = ShellFor(readOnlyProfile: true);
+            Ui.Show(window);
+
+            await vm.DetectWriteStateAsync(Server(SessionWriteState.ReadOnly));
+            Ui.Settle();
+
+            var mark = window.FindControl<StackPanel>("ReadOnlyMark")!;
+            await Assert.That(vm.ConnectionReadOnlyHint).IsEqualTo(Hint);
+            await Assert.That(vm.IsReadOnlyNotEnforced).IsFalse();
+            await Assert.That(mark.IsEffectivelyVisible).IsTrue();
+            await Assert.That(mark.Classes.Contains("warn")).IsFalse();
+            await Assert.That(window.FindControl<TextBlock>("ReadOnlyNotEnforcedText")!.IsEffectivelyVisible).IsFalse();
+            window.Close();
+        });
+    }
+
+    [Test]
+    public async Task A_read_only_profile_the_server_ignores_keeps_the_grid_read_only_and_warns()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, vm) = ShellFor(readOnlyProfile: true);
+            Ui.Show(window);
+
+            // A result already on screen, read-only for the profile's reason,
+            // and a second one that somehow holds an edit context.
+            var tab = vm.ActiveTab;
+            tab.ReadOnlyHint = vm.ConnectionReadOnlyHint;
+            vm.AddTabCommand.Execute(null);
+            var other = vm.ActiveTab;
+            other.EditContext = new EditableTableContext("public", "orders", ["id"], []);
+
+            // PgBouncer with ignore_startup_parameters = options: the option
+            // never reached the server, which reports a writable session.
+            await vm.DetectWriteStateAsync(Server(SessionWriteState.ReadWrite));
+            Ui.Settle();
+
+            // The hint is kept (reworded), so every tab still refuses editing...
+            await Assert.That(vm.IsReadOnlyNotEnforced).IsTrue();
+            await Assert.That(vm.ConnectionReadOnlyHint).IsNotNull();
+            await Assert.That(vm.ConnectionReadOnlyHint!).Contains("did not apply");
+            await Assert.That(other.EditContext).IsNull();
+            await Assert.That(other.ReadOnlyHint).IsEqualTo(vm.ConnectionReadOnlyHint);
+
+            // ...and a result that was read-only for the old reason no longer
+            // claims the server refuses writes.
+            await Assert.That(tab.ReadOnlyHint).IsEqualTo(vm.ConnectionReadOnlyHint);
+
+            // The mark is amber and says what happened; the status line says it once.
+            var mark = window.FindControl<StackPanel>("ReadOnlyMark")!;
+            await Assert.That(mark.IsEffectivelyVisible).IsTrue();
+            await Assert.That(mark.Classes.Contains("warn")).IsTrue();
+            await Assert.That(window.FindControl<TextBlock>("ReadOnlyNotEnforcedText")!.IsEffectivelyVisible).IsTrue();
+            await Assert.That(ToolTip.GetTip(mark) as string).Contains("SQL you run can still change data");
+            await Assert.That(vm.ActiveTab.Status).Contains("Read-only was not applied");
+            window.Close();
+        });
+    }
+
     // --- Against a real server ----------------------------------------------
 
     private static readonly string? ConnectionString = Environment.GetEnvironmentVariable("PGNIMBUS_TEST_CONN");

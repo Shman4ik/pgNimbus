@@ -529,15 +529,47 @@ public sealed partial class QueryViewModel : ObservableObject
             ShownBrowse = null;
         }
 
-        if (shape is not null && _browsedTable is { } browsed && !HasError && Browse is null)
+        if (shape is null || _browsedTable is not { } browsed || HasError || Browse is not null)
         {
-            _applyingBrowseSql = true;
-            Browse = TableBrowseViewModel.FromParsed(browsed.Schema, browsed.Name, browsed.Columns, shape, Rows.Count, RunBrowseSqlAsync);
-            Browse.AlwaysShowBar = _showFilterBar?.Invoke() ?? false;
-            _applyingBrowseSql = false;
-            EstablishBrowseEditContext();
+            return;
         }
+
+        if (!EditableResultDetector.ReadsOnlyTable(_columns, _browsedTableOid))
+        {
+            // The text has the browse shape but the rows didn't come from the
+            // browsed table: `FROM orders` in a tab browsing sales.orders
+            // resolves along search_path, and may find public.orders. Resuming
+            // browse mode here used to hand out an edit context for sales.orders
+            // over public.orders' rows, so an inline edit updated sales.orders
+            // by the other table's keys (security audit 2026-09, finding 14).
+            // It is an ordinary query, and a read-only one: whoever edits these
+            // rows believes they are editing the table this tab browsed.
+            ShownBrowse = null;
+            EditContext = null;
+            ReadOnlyHint = OtherTableHint(browsed.Schema, browsed.Name);
+            Status = $"This query doesn't read {browsed.Schema}.{browsed.Name}, the table this tab browsed, so it ran as an ordinary query: no filters, no editing.";
+            return;
+        }
+
+        _applyingBrowseSql = true;
+        Browse = TableBrowseViewModel.FromParsed(browsed.Schema, browsed.Name, browsed.Columns, shape, Rows.Count, RunBrowseSqlAsync);
+        Browse.AlwaysShowBar = _showFilterBar?.Invoke() ?? false;
+        _applyingBrowseSql = false;
+        EstablishBrowseEditContext();
     }
+
+    // Completes "Results are read-only: …" for a browse-shaped query whose rows
+    // came from somewhere other than the browsed table (or from a table nobody
+    // could confirm was it).
+    private static string OtherTableHint(string schema, string name) =>
+        $"the query doesn't read {schema}.{name}, the table this tab browsed. Write {schema}.{name} in full to browse and edit it.";
+
+    // The browsed table's pg_class OID, 0 while unknown. Learned from the
+    // browse page's own result (its composed query names the table in full,
+    // so the OID its columns carry is the table's) or, for a tab restored from
+    // the workspace, looked up by exact name. Only a result whose every column
+    // carries this OID resumes browse mode or gets the browse edit context.
+    private uint _browsedTableOid;
 
     // The table this tab was opened to browse, kept after a hand edit ends
     // browse mode so a run of an edited page query can resume it. Null for a
@@ -580,6 +612,11 @@ public sealed partial class QueryViewModel : ObservableObject
             if (columns.Count > 0)
             {
                 RememberBrowsedTable(schema, name, columns);
+
+                // No page of this table has run in this session, so its OID
+                // comes from the catalog, by exact name: a query naming it bare
+                // must still prove its rows came from this table.
+                _browsedTableOid = await _schemaService.GetRelationOidAsync(schema, name, CancellationToken.None) ?? 0;
             }
         }
         catch
@@ -595,6 +632,7 @@ public sealed partial class QueryViewModel : ObservableObject
         _browseColumns = columns;
         _browsePkColumns = columns.Where(c => c.IsPrimaryKey).Select(c => c.Name).ToList();
         _browsedTable = (schema, name, columns);
+        _browsedTableOid = 0;
     }
 
     // The status bar's "always show the filter bar" preference, read when a
@@ -839,7 +877,7 @@ public sealed partial class QueryViewModel : ObservableObject
             // metadata it already holds.
             else if (result is ResultSet or MaterializedResultSet && Browse is null)
             {
-                await TryEnableEditingForQueryAsync(ct);
+                await TryEnableEditingForQueryAsync(executedSql, ct);
             }
 
             Executed?.Invoke(new QueryHistoryEntry(executedSql, DateTimeOffset.UtcNow, stopwatch.Elapsed.TotalMilliseconds, StatusSummary()));
@@ -1455,6 +1493,15 @@ public sealed partial class QueryViewModel : ObservableObject
         _applyingBrowseSql = false;
 
         await RunCommand.ExecuteAsync(null);
+
+        // The composed page names its table in full, so the OID its columns
+        // carry is the browsed table's: what a later hand-edited page query
+        // has to match before it may resume browse mode.
+        if (!HasError && EditableResultDetector.CheckSingleTable(_columns, out var oid) == EditBlocker.None)
+        {
+            _browsedTableOid = oid;
+        }
+
         EstablishBrowseEditContext();
         return Rows.Count;
     }
@@ -1465,12 +1512,25 @@ public sealed partial class QueryViewModel : ObservableObject
     /// Turns editing off on a result already on screen once the owner learns
     /// the connection can't write. The server's answer arrives a moment after
     /// the window opens, and a tab can have run in between.
+    /// <paramref name="previousHint"/> is the connection's reason before this
+    /// change: a result already read-only for that reason takes the new
+    /// wording (a read-only profile the server turned out not to enforce must
+    /// not keep saying "the server refuses writes").
     /// </summary>
-    public void ApplyConnectionReadOnly()
+    public void ApplyConnectionReadOnly(string? previousHint = null)
     {
-        if (_connectionReadOnlyHint?.Invoke() is { } readOnly && EditContext is not null)
+        if (_connectionReadOnlyHint?.Invoke() is not { } readOnly)
+        {
+            return;
+        }
+
+        if (EditContext is not null)
         {
             EditContext = null;
+            ReadOnlyHint = readOnly;
+        }
+        else if (previousHint is not null && ReadOnlyHint == previousHint)
+        {
             ReadOnlyHint = readOnly;
         }
     }
@@ -1480,6 +1540,16 @@ public sealed partial class QueryViewModel : ObservableObject
         if (_connectionReadOnlyHint?.Invoke() is { } readOnly)
         {
             ReadOnlyHint = readOnly;
+        }
+        else if (!EditableResultDetector.ReadsOnlyTable(_columns, _browsedTableOid))
+        {
+            // No rows from the browsed table on screen (the page failed), or rows
+            // from another one: an edit context names the browsed table, so it
+            // is only handed out over that table's own rows.
+            if (!HasError && _columns.Count > 0 && Browse is { } other)
+            {
+                ReadOnlyHint = OtherTableHint(other.Schema, other.Name);
+            }
         }
         else if (_browsePkColumns is { Count: > 0 } pk && Browse is { } browse)
         {
@@ -1542,7 +1612,7 @@ public sealed partial class QueryViewModel : ObservableObject
     /// <see cref="ReadOnlyHint"/> instead, so the status bar can say *why*
     /// instead of the grid silently ignoring edit gestures.
     /// </summary>
-    private async Task TryEnableEditingForQueryAsync(CancellationToken ct)
+    private async Task TryEnableEditingForQueryAsync(string executedSql, CancellationToken ct)
     {
         if (_schemaService is null)
         {
@@ -1558,6 +1628,14 @@ public sealed partial class QueryViewModel : ObservableObject
         if (EditableResultDetector.CheckSingleTable(_columns, out var tableOid) is not EditBlocker.None and var columnsBlocker)
         {
             ReadOnlyHint = ReadOnlyHintFor(columnsBlocker, table: null);
+            return;
+        }
+
+        // The metadata can't tell a self-join from a plain read: both sides
+        // carry the one table's OID. The text can.
+        if (EditableResultDetector.CheckRepeatedTable(executedSql) is not EditBlocker.None and var sourcesBlocker)
+        {
+            ReadOnlyHint = ReadOnlyHintFor(sourcesBlocker, table: null);
             return;
         }
 
@@ -1603,6 +1681,7 @@ public sealed partial class QueryViewModel : ObservableObject
         EditBlocker.NoPrimaryKey => $"{TableName(table)} has no primary key, so rows can't be targeted exactly.",
         EditBlocker.PrimaryKeyNotSelected => $"the primary key of {TableName(table)} isn't in the result — include it to edit.",
         EditBlocker.UnreadableKey => UnreadableKeyHint(table is null ? null : $"{table.Schema}.{table.Name}", key: null),
+        EditBlocker.RepeatedTable => "the query reads the same table more than once (a self-join), so an edit could change a different row than the one it shows.",
         _ => "this result set can't be mapped back to a table.",
     };
 
