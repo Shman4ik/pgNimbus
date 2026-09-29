@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<!--
-	  Hardened runtime (--options runtime) locks the process down the way
+	  Hardened runtime (codesign's runtime option) locks the process down the way
 	  notarization requires, but it also turns on library validation: a
 	  loaded dylib must carry the same Team ID as the main executable, or
 	  come from the system. Every dylib in the bundle (libSkiaSharp,
