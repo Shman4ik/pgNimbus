@@ -131,7 +131,7 @@ public partial class CrashWindow : Window
         // impose on Process.Start, or a long message would make the button a
         // silent no-op. The full detail is in the attached log anyway.
         var errorDetails = summary.Length > 1000
-            ? summary[..1000] + "\n… (truncated — see the attached log)"
+            ? summary[..1000] + "\n… (truncated, see the attached log)"
             : summary;
 
         var body =
