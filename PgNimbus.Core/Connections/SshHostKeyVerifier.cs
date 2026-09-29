@@ -8,8 +8,8 @@ namespace PgNimbus.Core.Connections;
 /// <param name="Port">The SSH port.</param>
 /// <param name="KeyType">The key's wire name: <c>ssh-ed25519</c>, <c>ssh-rsa</c>, …</param>
 /// <param name="Fingerprint">The <c>SHA256:…</c> fingerprint, exactly as <c>ssh</c> and <c>ssh-keygen -l</c> print it.</param>
-/// <param name="KnownHostsPath">The file an accepted key is written to, so the prompt can say where it will be remembered.</param>
-public sealed record SshHostKeyPrompt(string Host, int Port, string KeyType, string Fingerprint, string KnownHostsPath)
+/// <param name="KnownHostsPath">The file an accepted key is written to, so the prompt can say where it will be remembered; null when the app has no data folder and the key is kept for the session only.</param>
+public sealed record SshHostKeyPrompt(string Host, int Port, string KeyType, string Fingerprint, string? KnownHostsPath)
 {
     /// <summary><c>host</c> or <c>host:port</c> for a non-22 port, the way the messages name the server.</summary>
     public string Server => Port == KnownHosts.DefaultPort ? Host : $"{Host}:{Port}";
@@ -75,8 +75,8 @@ public sealed class SshHostKeyVerifier
 
     /// <param name="policy">Asked about a key neither file knows.</param>
     /// <param name="userKnownHostsPath">The user's own file, consulted read-only; null to consult none.</param>
-    /// <param name="ownKnownHostsPath">pgNimbus's file: consulted, and where an accepted key is written.</param>
-    public SshHostKeyVerifier(ISshHostKeyPolicy policy, string? userKnownHostsPath, string ownKnownHostsPath)
+    /// <param name="ownKnownHostsPath">pgNimbus's file: consulted, and where an accepted key is written; null when the app has no data folder (keys are then kept for the session only).</param>
+    public SshHostKeyVerifier(ISshHostKeyPolicy policy, string? userKnownHostsPath, string? ownKnownHostsPath)
     {
         _policy = policy;
         UserKnownHostsPath = userKnownHostsPath;
@@ -85,7 +85,37 @@ public sealed class SshHostKeyVerifier
 
     public string? UserKnownHostsPath { get; }
 
-    public string OwnKnownHostsPath { get; }
+    public string? OwnKnownHostsPath { get; }
+
+    // Every key accepted in this process, file or not: the session copy that
+    // stands in when there is no file to write (no app data folder, or the
+    // write failed), and what lets a connect retried after a slow prompt
+    // trust the key without asking again.
+    private readonly List<KnownHostEntry> _remembered = [];
+    private readonly Lock _gate = new();
+    private int _prompts;
+
+    /// <summary>How many times the policy has been asked, so a caller can tell a connect that waited on a person.</summary>
+    public int Prompts => Volatile.Read(ref _prompts);
+
+    /// <summary>
+    /// The key types the known_hosts files (and this session) hold for the host,
+    /// revoked and CA lines aside. A connect restricts the server's host key
+    /// algorithms to these, as OpenSSH does, so a server that suddenly presents
+    /// a key of another type is refused instead of being put to a first-use prompt.
+    /// </summary>
+    public IReadOnlySet<string> KnownKeyTypes(string host, int port)
+    {
+        var types = new HashSet<string>(StringComparer.Ordinal);
+        types.UnionWith(KnownHosts.KeyTypesInFile(UserKnownHostsPath, host, port));
+        types.UnionWith(KnownHosts.KeyTypesInFile(OwnKnownHostsPath, host, port));
+        lock (_gate)
+        {
+            types.UnionWith(KnownHosts.KeyTypesFor(_remembered, host, port));
+        }
+
+        return types;
+    }
 
     /// <summary>The verifier the app uses: <c>~/.ssh/known_hosts</c> plus <c>known_hosts</c> under <see cref="AppDataPaths.GetRootDirectory"/>.</summary>
     public static SshHostKeyVerifier ForApp(ISshHostKeyPolicy policy) =>
@@ -94,8 +124,11 @@ public sealed class SshHostKeyVerifier
     public static string DefaultUserKnownHostsPath() =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".ssh", "known_hosts");
 
-    public static string DefaultOwnKnownHostsPath() =>
-        Path.Combine(AppDataPaths.GetRootDirectory(), "known_hosts");
+    /// <summary>
+    /// <c>known_hosts</c> under the app data root, or null when there is none
+    /// (then accepted keys are kept for the session only, like every other store).
+    /// </summary>
+    public static string? DefaultOwnKnownHostsPath() => AppDataPaths.Resolve("known_hosts");
 
     /// <summary>
     /// The pure decision, with OpenSSH's precedence across both files: a
@@ -144,10 +177,18 @@ public sealed class SshHostKeyVerifier
 
         var user = KnownHosts.LookupFile(UserKnownHostsPath, host, port, keyType, key);
         var own = KnownHosts.LookupFile(OwnKnownHostsPath, host, port, keyType, key);
+        if (own.Result == KnownHostsResult.Unknown)
+        {
+            lock (_gate)
+            {
+                own = KnownHosts.Lookup(_remembered, host, port, keyType, key, "the keys accepted this session");
+            }
+        }
 
         Exception? askFailure = null;
         bool Ask()
         {
+            Interlocked.Increment(ref _prompts);
             try
             {
                 return _policy.AcceptUnknown(new SshHostKeyPrompt(host, port, keyType, fingerprint, OwnKnownHostsPath));
@@ -202,6 +243,19 @@ public sealed class SshHostKeyVerifier
     /// </summary>
     private void Remember(string host, int port, string keyType, byte[] key)
     {
+        lock (_gate)
+        {
+            if (KnownHosts.ParseLine(KnownHosts.FormatEntry(host, port, keyType, key), _remembered.Count + 1) is { } entry)
+            {
+                _remembered.Add(entry);
+            }
+        }
+
+        if (OwnKnownHostsPath is null)
+        {
+            return;
+        }
+
         try
         {
             KnownHosts.Append(OwnKnownHostsPath, host, port, keyType, key);

@@ -201,6 +201,82 @@ public class SshTunnelHostKeyLiveTests
         await Assert.That(failure.Message).Contains("@revoked");
     }
 
+    /// <summary>
+    /// A host known_hosts knows by one key type, presenting a key of another,
+    /// used to be "unknown" and got a first-use prompt, which is exactly what an
+    /// interceptor with a fresh key would want. The connect is now offered only
+    /// the known types, as OpenSSH does, so it is refused with no prompt (review
+    /// of the 2026-09 audit fixes). The sshd has no P-521 key.
+    /// </summary>
+    [Test]
+    public async Task A_server_with_no_key_of_the_known_type_is_refused_without_a_prompt()
+    {
+        var server = Require();
+        using var files = new Files();
+        File.WriteAllText(files.User, KnownHosts.FormatEntry(server.Options.Host, server.Options.Port, "ecdsa-sha2-nistp521", Nistp521Blob()) + "\n");
+        var policy = new Policy(answer: true);
+
+        var failure = Assert.Throws<SshTunnelException>(() => Connect(server, new SshHostKeyVerifier(policy, files.User, files.Own)));
+
+        await Assert.That(failure.Message).Contains("did not offer a host key of the type known_hosts knows it by (ecdsa-sha2-nistp521)");
+        await Assert.That(policy.Asked).IsEmpty();
+        await Assert.That(File.Exists(files.Own)).IsFalse();
+    }
+
+    /// <summary>
+    /// The prompt runs inside the key exchange, so a person reading the
+    /// fingerprint for longer than <see cref="SshTunnel.ConnectTimeout"/> used to
+    /// get "could not reach the SSH server". The accepted key is remembered, and
+    /// the connect is tried once more without asking.
+    /// </summary>
+    [Test]
+    [Timeout(120_000)]
+    public async Task A_key_accepted_after_the_connect_timeout_still_connects(CancellationToken ct)
+    {
+        var server = Require();
+        using var files = new Files();
+        var slow = new SlowPolicy(SshTunnel.ConnectTimeout + TimeSpan.FromSeconds(3));
+        var verifier = new SshHostKeyVerifier(slow, files.User, files.Own);
+
+        using (Connect(server, verifier))
+        {
+        }
+
+        await Assert.That(verifier.Prompts).IsEqualTo(1);
+        await Assert.That(File.ReadAllLines(files.Own)).Count().IsEqualTo(1);
+    }
+
+    private sealed class SlowPolicy(TimeSpan delay) : ISshHostKeyPolicy
+    {
+        public bool AcceptUnknown(SshHostKeyPrompt prompt)
+        {
+            Thread.Sleep(delay);
+            return true;
+        }
+    }
+
+    // An ecdsa-sha2-nistp521 public key blob, in the SSH wire format known_hosts stores.
+    private static byte[] Nistp521Blob()
+    {
+        using var ec = System.Security.Cryptography.ECDsa.Create(System.Security.Cryptography.ECCurve.NamedCurves.nistP521);
+        var q = ec.ExportParameters(includePrivateParameters: false).Q;
+        var point = new byte[1 + q.X!.Length + q.Y!.Length];
+        point[0] = 4;
+        q.X.CopyTo(point, 1);
+        q.Y.CopyTo(point, 1 + q.X.Length);
+
+        using var blob = new MemoryStream();
+        foreach (var part in new[] { "ecdsa-sha2-nistp521"u8.ToArray(), "nistp521"u8.ToArray(), point })
+        {
+            var length = new byte[4];
+            System.Buffers.Binary.BinaryPrimitives.WriteInt32BigEndian(length, part.Length);
+            blob.Write(length);
+            blob.Write(part);
+        }
+
+        return blob.ToArray();
+    }
+
     /// <summary>The whole point of the tunnel: a query reaches Postgres through it once the key is trusted.</summary>
     [Test]
     public async Task A_query_runs_through_a_tunnel_whose_key_was_accepted()

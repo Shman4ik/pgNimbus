@@ -138,8 +138,17 @@ to be, the same way `ssh` does. It looks the host's key up in your own
   this, and so does someone intercepting the connection. If you know the key
   really changed, remove that line (`ssh-keygen -R` with `-f` pointing at that
   file does it for you) and connect again to be asked about the new key.
+- **A key of a different type** for a host already in either file stops the
+  connection too. pgNimbus asks the server only for the key types the files
+  know the host by, as `ssh` does, so a server that suddenly offers only a new
+  type of key is refused rather than treated as a new host. If its keys really
+  changed, remove its lines and connect again.
 - **A revoked key** (an `@revoked` line in either file) always stops the
   connection.
+
+Take your time with the dialog: if reading the fingerprint outlasts the
+connection's timeout, pgNimbus connects again once you accept, without asking
+a second time.
 
 The **Test** button runs the same check, so a key you accept there is already
 known when you connect. SSH host certificates (`@cert-authority` lines) are not

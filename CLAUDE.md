@@ -357,7 +357,19 @@ Three rules about it:
    UI thread. The view model's default policy (`RejectUnknownHostKeys`) refuses,
    since it has no window to ask from; the view swaps in the dialog. Accept is
    deliberately not `IsDefault`: the dialog opens a second after the Enter that
-   started the connect. Tests: `KnownHostsTests` (real `ssh-keygen` keys and
+   started the connect. Three more from the review of these fixes: (d) a host
+   the files already know is offered only the key types they know it by
+   (`SshHostKeyVerifier.KnownKeyTypes` → `SshTunnel.RestrictHostKeyAlgorithms`,
+   RSA as `rsa-sha2-512`/`-256`), as OpenSSH does, so a server presenting a key
+   of another type is refused ("did not offer a host key of the type
+   known_hosts knows it by") instead of falling through to a first-use prompt;
+   (e) the prompt's reading time counts against the 15 s `ConnectTimeout`, so a
+   connect that timed out after an accepted prompt is retried once, and trusts
+   the now-remembered key without asking (`Prompts` tells the two apart);
+   (f) accepted keys are also kept in memory, and with no app data root
+   (`DefaultOwnKnownHostsPath` is `AppDataPaths.Resolve`, null) that is the only
+   copy, for the session; the file is appended through `AppDataFile` (0600).
+   Tests: `KnownHostsTests` (real `ssh-keygen` keys and
    `-H` hashes), `SshHostKeyVerifierTests`, `HostKeyDialogTests` (the pool-thread
    round trip, headless), and `SshTunnelHostKeyLiveTests` against a real sshd,
    gated on `PGNIMBUS_TEST_SSH` (`Host=…;Port=…;Username=…;Password=…`, optional

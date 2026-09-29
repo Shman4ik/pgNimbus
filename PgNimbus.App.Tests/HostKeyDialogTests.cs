@@ -52,6 +52,20 @@ public class HostKeyDialogTests
     }
 
     [Test]
+    public async Task With_no_file_to_remember_it_in_the_dialog_says_the_key_is_trusted_for_the_session()
+    {
+        await Ui.Run(async () =>
+        {
+            var dialog = new HostKeyDialog(Prompt with { KnownHostsPath = null });
+            Ui.Show(dialog);
+
+            await Assert.That(dialog.FindControl<TextBlock>("StoreText")!.Text).Contains("until pgNimbus closes");
+
+            dialog.Close();
+        });
+    }
+
+    [Test]
     public async Task The_dialog_shows_the_host_the_key_type_and_the_fingerprint_ssh_prints()
     {
         await Ui.Run(async () =>
@@ -62,7 +76,7 @@ public class HostKeyDialogTests
             await Assert.That(dialog.FindControl<SelectableTextBlock>("HostText")!.Text).IsEqualTo("bastion.example.com:2222");
             await Assert.That(dialog.FindControl<SelectableTextBlock>("KeyTypeText")!.Text).IsEqualTo("ssh-ed25519");
             await Assert.That(dialog.FindControl<SelectableTextBlock>("FingerprintText")!.Text).IsEqualTo(Prompt.Fingerprint);
-            await Assert.That(dialog.FindControl<TextBlock>("StoreText")!.Text).Contains(Prompt.KnownHostsPath);
+            await Assert.That(dialog.FindControl<TextBlock>("StoreText")!.Text).Contains(Prompt.KnownHostsPath!);
             await Assert.That(dialog.FindControl<TextBlock>("HintText")!.Text).Contains("bastion.example.com:2222");
 
             dialog.Close();

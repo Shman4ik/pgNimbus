@@ -206,11 +206,41 @@ public class SshHostKeyVerifierTests
     }
 
     [Test]
+    public async Task With_no_file_to_write_an_accepted_key_is_trusted_for_the_session()
+    {
+        // No app data folder (AppDataPaths.Resolve is null): the key cannot be
+        // written, and used to throw before the prompt. It is kept in memory, so
+        // the next check (a reconnect, a retry after a slow prompt) trusts it.
+        var policy = new Policy(answer: true);
+        var verifier = new SshHostKeyVerifier(policy, userKnownHostsPath: null, ownKnownHostsPath: null);
+
+        await Assert.That(verifier.Check("bastion", 22, "ssh-ed25519", Key)).IsNull();
+        await Assert.That(verifier.Check("bastion", 22, "ssh-ed25519", Key)).IsNull();
+        await Assert.That(verifier.Prompts).IsEqualTo(1);
+        await Assert.That(verifier.KnownKeyTypes("bastion", 22)).Contains("ssh-ed25519");
+        await Assert.That(verifier.Check("bastion", 22, "ssh-ed25519", OtherKey)).IsNotNull();
+    }
+
+    [Test]
+    public async Task The_known_key_types_come_from_both_files_and_skip_revoked_and_ca_lines()
+    {
+        using var files = new Files();
+        files.WriteUser($"@revoked bastion ssh-ed25519 {OtherKeyBase64}", $"@cert-authority bastion ssh-ed25519 {KeyBase64}", $"other ssh-ed25519 {KeyBase64}");
+        files.WriteOwn($"[bastion]:2222 ssh-ed25519 {KeyBase64}");
+        var verifier = new SshHostKeyVerifier(new Policy(answer: false), files.User, files.Own);
+
+        // Revoked and CA lines say nothing about which key type the host uses.
+        await Assert.That(verifier.KnownKeyTypes("bastion", 22)).IsEmpty();
+        await Assert.That(verifier.KnownKeyTypes("other", 22)).IsEquivalentTo(new[] { "ssh-ed25519" });
+        await Assert.That(verifier.KnownKeyTypes("bastion", 2222)).IsEquivalentTo(new[] { "ssh-ed25519" });
+    }
+
+    [Test]
     public async Task The_app_default_puts_its_own_file_under_the_app_data_root()
     {
         var verifier = SshHostKeyVerifier.ForApp(RejectUnknownHostKeys.Instance);
 
-        await Assert.That(verifier.OwnKnownHostsPath).IsEqualTo(Path.Combine(AppDataPaths.GetRootDirectory(), "known_hosts"));
+        await Assert.That(verifier.OwnKnownHostsPath).IsEqualTo(AppDataPaths.Resolve("known_hosts"));
         await Assert.That(verifier.UserKnownHostsPath).IsEqualTo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".ssh", "known_hosts"));
         await Assert.That(RejectUnknownHostKeys.Instance.AcceptUnknown(new SshHostKeyPrompt("h", 22, "ssh-ed25519", "SHA256:x", "p"))).IsFalse();
     }

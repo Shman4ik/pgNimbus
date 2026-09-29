@@ -28,7 +28,9 @@ public partial class HostKeyDialog : Window
         HostText.Text = prompt.Server;
         KeyTypeText.Text = prompt.KeyType;
         FingerprintText.Text = prompt.Fingerprint;
-        StoreText.Text = $"Accept remembers this key in {prompt.KnownHostsPath}. If the server later presents a different key, the connection is refused until that line is removed.";
+        StoreText.Text = prompt.KnownHostsPath is { } path
+            ? $"Accept remembers this key in {path}. If the server later presents a different key, the connection is refused until that line is removed."
+            : "Accept trusts this key until pgNimbus closes: there is no app data folder to remember it in, so you will be asked again next time.";
     }
 
     private void OnAcceptClick(object? sender, RoutedEventArgs e) => Close(true);

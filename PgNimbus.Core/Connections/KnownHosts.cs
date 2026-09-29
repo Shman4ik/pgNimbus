@@ -258,6 +258,28 @@ public static class KnownHosts
     /// that does not exist or cannot be read answers <see cref="KnownHostsResult.Unknown"/>:
     /// the user's own <c>~/.ssh/known_hosts</c> is consulted, never required.
     /// </summary>
+    /// <summary>The key types of the plain (not revoked, not CA) entries for the host.</summary>
+    public static IEnumerable<string> KeyTypesFor(IEnumerable<KnownHostEntry> entries, string host, int port) =>
+        entries.Where(e => e.Marker is null && e.MatchesHost(host, port)).Select(e => e.KeyType);
+
+    /// <summary><see cref="KeyTypesFor"/> over a file; none when it is missing or unreadable.</summary>
+    public static IReadOnlyList<string> KeyTypesInFile(string? path, string host, int port)
+    {
+        if (string.IsNullOrEmpty(path))
+        {
+            return [];
+        }
+
+        try
+        {
+            return File.Exists(path) ? [.. KeyTypesFor(Parse(File.ReadAllLines(path)), host, port)] : [];
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return [];
+        }
+    }
+
     public static KnownHostsAnswer LookupFile(string? path, string host, int port, string keyType, byte[] key)
     {
         if (string.IsNullOrEmpty(path))
@@ -295,11 +317,6 @@ public static class KnownHosts
     /// </summary>
     public static void Append(string path, string host, int port, string keyType, byte[] key)
     {
-        if (Path.GetDirectoryName(path) is { Length: > 0 } directory)
-        {
-            Directory.CreateDirectory(directory);
-        }
-
         // A file whose last line has no newline would otherwise get the new
         // entry glued onto it, which corrupts both lines.
         var prefix = string.Empty;
@@ -316,7 +333,9 @@ public static class KnownHosts
             }
         }
 
-        File.AppendAllText(path, prefix + FormatEntry(host, port, keyType, key) + "\n");
+        // Through AppDataFile like every store: created 0600 in a 0700 folder on
+        // Linux and macOS, since the file lists every bastion the user reaches.
+        Settings.AppDataFile.AppendAllText(path, prefix + FormatEntry(host, port, keyType, key) + "\n");
     }
 
     /// <summary>Whether a line's host field names <paramref name="host"/>:<paramref name="port"/>.</summary>

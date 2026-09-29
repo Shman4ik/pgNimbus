@@ -59,10 +59,23 @@ public sealed class SshTunnel : IDisposable
     /// inside the event, where SSH.NET would wrap it into a bare
     /// "connection failed".
     /// </summary>
-    public static SshTunnel Connect(SshTunnelOptions options, string password, string targetHost, int targetPort, SshHostKeyVerifier hostKeys)
+    public static SshTunnel Connect(SshTunnelOptions options, string password, string targetHost, int targetPort, SshHostKeyVerifier hostKeys) =>
+        Connect(options, password, targetHost, targetPort, hostKeys, retryAfterPrompt: true);
+
+    private static SshTunnel Connect(
+        SshTunnelOptions options, string password, string targetHost, int targetPort, SshHostKeyVerifier hostKeys, bool retryAfterPrompt)
     {
         var connectionInfo = BuildConnectionInfo(options, password);
         connectionInfo.Timeout = ConnectTimeout;
+
+        // A host known_hosts already knows is only offered the key types it is
+        // known by, as OpenSSH does. Otherwise a server (or an interceptor)
+        // presenting a key of another type fell through to "unknown host" and
+        // a first-use prompt (review of the 2026-09 audit fixes); now the key
+        // exchange finds no common algorithm and the connect is refused.
+        var knownTypes = hostKeys.KnownKeyTypes(options.Host, options.Port);
+        var restricted = RestrictHostKeyAlgorithms(connectionInfo, knownTypes);
+        var promptsBefore = hostKeys.Prompts;
 
         var client = new SshClient(connectionInfo) { KeepAliveInterval = KeepAliveInterval };
         SshTunnelException? hostKeyFailure = null;
@@ -94,6 +107,26 @@ public sealed class SshTunnel : IDisposable
         catch (Exception ex)
         {
             client.Dispose();
+
+            // The prompt runs inside the key exchange, so its reading time counts
+            // against ConnectTimeout: accepting after 20 s used to end in "could
+            // not reach the SSH server" (review of the 2026-09 audit fixes). The
+            // key is remembered by now, so one more attempt trusts it at once.
+            if (retryAfterPrompt && ex is SshOperationTimeoutException && hostKeyFailure is null
+                && trustedKey is not null && hostKeys.Prompts > promptsBefore)
+            {
+                return Connect(options, password, targetHost, targetPort, hostKeys, retryAfterPrompt: false);
+            }
+
+            if (restricted && hostKeyFailure is null && trustedKey is null && ex is SshConnectionException)
+            {
+                throw new SshTunnelException(
+                    $"{options.Host}:{options.Port} did not offer a host key of the type known_hosts knows it by ({string.Join(", ", knownTypes.Order(StringComparer.Ordinal))}). "
+                    + "This happens when the server's keys were replaced, and also when someone between you and the server is intercepting the connection. pgNimbus did not connect. "
+                    + "If you know the server's keys really changed, remove its lines from known_hosts and connect again; you will be asked to confirm the new key.",
+                    ex);
+            }
+
             throw hostKeyFailure ?? Describe(ex, options);
         }
 
@@ -203,6 +236,34 @@ public sealed class SshTunnel : IDisposable
         }
 
         return new SshAgentKeySource(agent, identities);
+    }
+
+    // Keeps only the host key algorithms whose key type known_hosts holds for
+    // the host (RSA keys are stored as ssh-rsa and negotiated as rsa-sha2-512 or
+    // -256). Nothing is removed when nothing is known, or when none of the known
+    // types is one SSH.NET can negotiate (a security-key host key, say): the
+    // verifier's own prompt or refusal then stands as before.
+    private static bool RestrictHostKeyAlgorithms(ConnectionInfo info, IReadOnlySet<string> knownTypes)
+    {
+        if (knownTypes.Count == 0)
+        {
+            return false;
+        }
+
+        var drop = info.HostKeyAlgorithms.Keys.Where(a => !knownTypes.Contains(KeyTypeOf(a))).ToList();
+        if (drop.Count == info.HostKeyAlgorithms.Count)
+        {
+            return false;
+        }
+
+        foreach (var algorithm in drop)
+        {
+            info.HostKeyAlgorithms.Remove(algorithm);
+        }
+
+        return true;
+
+        static string KeyTypeOf(string algorithm) => algorithm is "rsa-sha2-512" or "rsa-sha2-256" ? "ssh-rsa" : algorithm;
     }
 
     private static SshTunnelException Describe(Exception ex, SshTunnelOptions options)
