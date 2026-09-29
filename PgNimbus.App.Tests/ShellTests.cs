@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Input;
 using Avalonia.VisualTree;
+using AvaloniaEdit;
 using PgNimbus.App.ViewModels;
 using PgNimbus.App.Views;
 using PgNimbus.Core.Commands;
@@ -112,6 +113,44 @@ public class ShellTests
 
             Ui.Press(window, Key.Escape);
             await Assert.That(vm.IsShortcutsOpen).IsFalse();
+
+            window.Close();
+        });
+    }
+
+    /// <summary>
+    /// Opening an overlay from a menu (the macOS app menu's Settings, ⌘,) leaves focus
+    /// where it was, and where it was is the SQL editor. Found on a Mac: Escape never
+    /// closed the page, because the editor sits before the top level in the bubble
+    /// and answered the key, and text typed with the page open landed in the query
+    /// behind it. The panel now takes focus when it opens and gives it back when it
+    /// closes.
+    /// </summary>
+    [Test]
+    public async Task An_overlay_takes_focus_from_the_editor_and_gives_it_back()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, vm) = Scenarios.Shell();
+            Ui.Show(window);
+            var editor = window.GetVisualDescendants().OfType<TextEditor>().First(e => e.Name == "SqlEditor");
+            editor.TextArea.Focus();
+            Ui.Settle();
+            await Assert.That(editor.TextArea.IsFocused).IsTrue();
+            var before = editor.Text;
+
+            vm.IsPreferencesOpen = true;
+            Ui.Settle();
+            await Assert.That(editor.TextArea.IsFocused).IsFalse();
+
+            // What was typed with the page open must not reach the document under it.
+            Ui.Type(window, "QQQ");
+            await Assert.That(editor.Text).IsEqualTo(before);
+
+            Ui.Press(window, Key.Escape);
+            Ui.Settle();
+            await Assert.That(vm.IsPreferencesOpen).IsFalse();
+            await Assert.That(editor.TextArea.IsFocused).IsTrue();
 
             window.Close();
         });
