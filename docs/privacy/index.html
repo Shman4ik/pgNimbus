@@ -1189,7 +1189,7 @@ account. On Windows they have the normal permissions of your profile folder.</p>
 </tr>
 <tr>
 <td><code>history.json</code></td>
-<td>Up to 200 statements you ran (the oldest go first, pinned ones stay): the SQL, when it ran, how long it took, the result line (row count, or the server's error message), and the <code>host/database</code> it ran on.</td>
+<td>Up to 200 statements you ran (the oldest go first, pinned ones stay): the SQL, when it ran, how long it took, the result line (row count, or the server's error message; none for a statement that held a password), and the <code>host/database</code> it ran on.</td>
 <td>No</td>
 </tr>
 <tr>
@@ -1255,10 +1255,12 @@ not move stays, and the dialog shows a warning with the count.</p>
 replaces passwords it recognizes with <code>'&lt;redacted&gt;'::redacted</code>: <code>PASSWORD '…'</code>
 in <code>CREATE ROLE</code> and <code>ALTER ROLE</code> (also inside a <code>DO</code> block, an <code>EXECUTE</code> string
 or a comment), <code>password=…</code> in a connection string, and <code>user:password@</code> in a
-URI. The crash log masks error messages the same way. Masking misses a secret
-that is not labelled as one, such as a key passed to <code>pgp_sym_encrypt</code>, and
-it does not apply to the result line in the history or to saved queries. Everything else
-in your SQL, such as an email address in a <code>WHERE</code> clause, is stored as you
+URI. The crash log masks error messages the same way. When a statement held a
+password, its history entry keeps no result line, because the server's error
+message can quote part of the statement where masking can't find it. Masking
+misses a secret that is not labelled as one, such as a key passed to
+<code>pgp_sym_encrypt</code>, and it does not apply to saved queries. Everything else in
+your SQL, such as an email address in a <code>WHERE</code> clause, is stored as you
 typed it. <a href="../getting-started/connecting/#where-your-password-goes">Where your password goes</a>
 has the details.</p>
 <h3 id="files-you-create-yourself">Files you create yourself<a class="headerlink" href="#files-you-create-yourself" title="Permanent link">&para;</a></h3>
