@@ -91,6 +91,58 @@ switch it off for its own session with `SET default_transaction_read_only =
 off`. To make writes impossible, connect as a role that has no write
 privileges.
 
+## Encryption (TLS)
+
+**SSL Mode** decides whether the connection is encrypted and what pgNimbus
+checks about the server. The list describes each mode. In short:
+
+| Mode | Encrypted | Checks the certificate | Checks the host name |
+|---|---|---|---|
+| Disable | No | No | No |
+| Allow | Only if the server insists | No | No |
+| Prefer | If the server offers it | No | No |
+| Require | Yes | No | No |
+| Verify CA | Yes | Yes | No |
+| Verify full | Yes | Yes | Yes |
+
+New profiles start at **Require**. It always encrypts, but it does not check
+who is on the other end: anyone who can intercept the connection can present
+their own certificate and read everything, the password included. Prefer and
+Allow are weaker still, because an attacker can make them fall back to
+plaintext. Use **Verify full** for any server you reach over a network you do
+not control. It is marked as recommended in the list.
+
+A local Postgres, such as the `postgres` Docker image, has no TLS unless you set
+it up. Require then fails with a message saying so. Set SSL Mode to Prefer or
+Disable for that server.
+
+### Root certificate
+
+Verify CA and Verify full trust the certificate authorities your operating
+system trusts. Managed Postgres services often sign their servers with their
+own CA, which no operating system trusts, so verification fails until you point
+pgNimbus at that CA. Choosing Verify CA or Verify full shows a **Root
+Certificate** field. Give it the provider's CA file, with **Browse…** or by
+typing the path:
+
+- **Amazon RDS and Aurora:** the global bundle, `global-bundle.pem`, from
+  `https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem`.
+- **Google Cloud SQL:** the server CA certificate (`server-ca.pem`) from the
+  instance's Connections page, under Security. If the instance's certificate
+  does not name the host you connect to, use Verify CA.
+- **Supabase:** the certificate from the project's database settings, under
+  SSL Configuration.
+
+Leave the field empty to use the operating system's store. The path is saved
+with the profile. It is not a secret. A pasted connection string fills it from
+`sslrootcert=` (libpq, URIs, JDBC) or `Root Certificate=` (Npgsql).
+
+### Through an SSH tunnel
+
+Verify full works through an SSH tunnel. The tunnel connects pgNimbus to a
+local port, but the certificate is still checked against the database host you
+typed in the form, which is the name the server's certificate carries.
+
 ## SSH tunnels
 
 A profile can carry SSH tunnel settings, so a database that is only reachable
