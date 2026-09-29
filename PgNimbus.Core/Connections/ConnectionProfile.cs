@@ -80,6 +80,54 @@ public sealed record ConnectionProfile(
     public const string ReadOnlySessionOption = "-c default_transaction_read_only=on";
 
     /// <summary>
+    /// The startup option every profile connects with. The app composes SQL
+    /// from values it inlines as <c>'…'</c> literals — browse filters, the FK
+    /// hop's seed, a role's comment and expiry — escaping only the quote, which
+    /// is the whole of what a standard string needs. With
+    /// <c>standard_conforming_strings</c> off (a database owner can
+    /// <c>ALTER DATABASE … SET</c> it, so can a role's settings) a backslash
+    /// escapes too, and a stored value such as <c>x\' OR … --</c> would run
+    /// as SQL the moment someone filtered by it. A startup option overrides
+    /// the database's and the role's defaults, and the pool's reset restores
+    /// it, so every session the app holds parses literals the one way
+    /// <see cref="Query.SqlLiteral"/>, the lexer and the script splitter read
+    /// them (security audit 2026-09, finding 13).
+    /// </summary>
+    public const string StandardStringsSessionOption = "-c standard_conforming_strings=on";
+
+    /// <summary>
+    /// The <c>Options</c> value for a session: the standard-strings option
+    /// always, preceded by <see cref="ReadOnlySessionOption"/> when
+    /// <paramref name="readOnly"/>. Space-separated, as libpq's <c>options</c>
+    /// takes several <c>-c</c> switches.
+    /// </summary>
+    public static string SessionOptions(bool readOnly) =>
+        readOnly ? $"{ReadOnlySessionOption} {StandardStringsSessionOption}" : StandardStringsSessionOption;
+
+    /// <summary>
+    /// <paramref name="connectionString"/> with <see cref="StandardStringsSessionOption"/>
+    /// appended to its <c>Options</c> — for the connection strings that do not
+    /// come from a profile (<c>PGNIMBUS_CONN</c>), so those sessions parse
+    /// literals the same way. Appended even when the string already names the
+    /// setting: the server applies <c>-c</c> switches in order, so the last one
+    /// wins, and a string carrying <c>=off</c> must not keep it. Only a string
+    /// that already ends with the option is returned as it is.
+    /// </summary>
+    public static string WithStandardStrings(string connectionString)
+    {
+        var builder = new NpgsqlConnectionStringBuilder(connectionString);
+        if (builder.Options?.TrimEnd().EndsWith(StandardStringsSessionOption, StringComparison.Ordinal) == true)
+        {
+            return connectionString;
+        }
+
+        builder.Options = string.IsNullOrWhiteSpace(builder.Options)
+            ? StandardStringsSessionOption
+            : $"{builder.Options} {StandardStringsSessionOption}";
+        return builder.ConnectionString;
+    }
+
+    /// <summary>
     /// One-line "who and where" for the connection list —
     /// <c>postgres@db.example.com/analytics</c>, with the port shown only when
     /// it isn't 5432 (the default is noise on every row). Enough to tell two
@@ -117,10 +165,7 @@ public sealed record ConnectionProfile(
             ApplicationName = "pgNimbus",
         };
 
-        if (ReadOnly)
-        {
-            builder.Options = ReadOnlySessionOption;
-        }
+        builder.Options = SessionOptions(ReadOnly);
 
         if (UsesRootCertificate)
         {

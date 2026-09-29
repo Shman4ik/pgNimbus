@@ -477,6 +477,29 @@ public sealed class SchemaService(NpgsqlDataSource dataSource)
     }
 
     /// <summary>
+    /// The pg_class OID of <paramref name="schema"/>.<paramref name="name"/>, or
+    /// null when no such relation exists. Matched by exact name, never through
+    /// <c>search_path</c>: this is how a browse tab restored from the workspace
+    /// learns which table it browses before its first run, so that a query
+    /// naming a same-named table in another schema isn't taken for it.
+    /// </summary>
+    public async Task<uint?> GetRelationOidAsync(string schema, string name, CancellationToken ct)
+    {
+        const string sql = """
+            SELECT c.oid
+            FROM pg_catalog.pg_class c
+            JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname = @schema AND c.relname = @name
+            """;
+
+        await using var connection = await _dataSource.OpenConnectionAsync(ct);
+        await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
+        command.Parameters.AddWithValue("schema", schema);
+        command.Parameters.AddWithValue("name", name);
+        return await command.ExecuteScalarAsync(ct) is uint oid ? oid : null;
+    }
+
+    /// <summary>
     /// Resolves a pg_class OID (as the wire protocol reports per result column)
     /// to its schema-qualified name — but only for relations whose rows can be
     /// UPDATEd by primary key directly: ordinary and partitioned tables. Views,

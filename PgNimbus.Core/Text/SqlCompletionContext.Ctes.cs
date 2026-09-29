@@ -2,6 +2,12 @@ namespace PgNimbus.Core.Text;
 
 public static partial class SqlCompletionContext
 {
+    /// <summary>How many CTEs <see cref="ExtractCteDefinitions"/> reads before it stops.</summary>
+    public const int MaxCteDefinitions = 32;
+
+    /// <summary>A CTE body longer than this (in characters) is known by name only.</summary>
+    public const int MaxCteBodyLength = 32 * 1024;
+
     /// <summary>
     /// A CTE with the output columns completion could derive for it.
     /// <paramref name="Columns"/> is what the CTE's declared column list or its
@@ -41,10 +47,27 @@ public static partial class SqlCompletionContext
 
         foreach (System.Text.RegularExpressions.Match match in CteNameRegex().Matches(masked))
         {
+            // Every body is read on its own, and a nested WITH's outer bodies
+            // hold all the inner ones, so the work grew with the square of the
+            // nesting (2,000 nested CTEs, 42k characters: 3.4 s per completion
+            // popup, on the UI thread). Real statements stay far under both
+            // limits; past them a CTE is known by name only.
+            if (defs.Count >= MaxCteDefinitions)
+            {
+                break;
+            }
+
             var name = Unquote(match.Groups["name"].Value);
             // The regex ends at the body's opening paren; find its balanced close.
             var bodyStart = match.Index + match.Length;
-            var body = masked[bodyStart..FindBalancedClose(masked, bodyStart)];
+            var bodyEnd = FindBalancedClose(masked, bodyStart);
+            if (bodyEnd - bodyStart > MaxCteBodyLength)
+            {
+                defs.Add(new CteDefinition(name, [], false, []));
+                continue;
+            }
+
+            var body = masked[bodyStart..bodyEnd];
 
             List<string> columns;
             var selectsStar = false;

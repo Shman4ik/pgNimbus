@@ -34,14 +34,49 @@ and keeps entered passwords in memory for this app session. Unlock/configure
 the OS store and edit the password again to retry. On macOS, Keychain access must be available
 without an interactive authorization prompt; resolve restrictions in Keychain Access.
 
-When an old macOS/Linux profile is opened, pgNimbus attempts to migrate its
-unencrypted base64 `.cred` files. It deletes an old file only after reading the
-saved password back from the OS store. On failure the old file stays and a warning
-appears; unopened profiles are not migrated yet. If a different OS-store value
+On macOS and Linux, older versions kept passwords in unencrypted base64 `.cred`
+files. When the connection dialog first opens, pgNimbus moves all of them into
+the OS store at once. It deletes an old file only after reading the saved
+password back from the OS store. Files it can't move stay where they are, and
+the dialog shows one warning with their count. If a different OS-store value
 already exists, it takes precedence; editing the password resolves the old copy.
+Passwords that the OS store refused are kept in memory only until the last
+window using that connection closes.
 Deleting a profile attempts to remove database and SSH credentials from both
-locations and reports failures. Query history and workspace SQL remain local,
-unencrypted data; credential protection does not encrypt them.
+locations and reports failures.
+
+Credential protection does not cover your queries. Two files keep SQL text on
+disk, unencrypted, in `<appdata>/pgNimbus/` (on Windows, `%AppData%\pgNimbus`;
+see [where pgNimbus keeps its files](installation.md#where-pgnimbus-keeps-its-files)):
+
+- `history.json` keeps the text of every statement you run, with the values in
+  it. A query that looks up a customer by email keeps the email address.
+- `workspace.json` keeps the text of your open tabs, so the next session can
+  reopen them.
+
+Before either file is written, pgNimbus masks passwords it finds in the SQL:
+`PASSWORD '…'` in `CREATE ROLE` and `ALTER ROLE`, including inside a `DO` block,
+an `EXECUTE` string or a comment, and `password=…` in a connection string such
+such as `CREATE SUBSCRIPTION … CONNECTION '…'` or `dblink_connect('…')`. The
+password is replaced with `'<redacted>'::redacted`, so a restored tab or a history
+entry shows that instead. If you run such a statement again, PostgreSQL rejects
+it as a syntax error rather than setting the password to the placeholder. Other
+values are kept as you typed them. A tab opened from a `.sql` file that holds a
+password is not copied at all: next time it opens from the file itself, so any
+changes you had not saved to that file are gone.
+
+Masking needs a word next to the secret that says what it is. A key passed as an
+ordinary argument, such as `pgp_sym_encrypt(data, 'key')`, or a password kept in
+a variable inside a `DO` block, is stored as you typed it.
+
+To stop recording history, turn off **Record query history** in Settings. Queries
+you run after that are not written anywhere, and the history list says that
+history is off. Entries already recorded stay until you right-click the list and
+choose **Clear History**; pinned entries survive that, so unpin them first.
+
+On macOS and Linux, pgNimbus makes its data folder and every file in it readable
+by your user account only, including files an older version left open to other
+users.
 
 That is a design rule rather than a setting. The profile record has no field to
 put a password in, so a profile file cannot leak one even if you copy it
@@ -85,6 +120,13 @@ and the results grid doesn't offer editing. pgNimbus asks the server when the
 window opens, so the mark also appears when the server makes the session
 read-only on its own: a role or database with `default_transaction_read_only`
 set, or a standby replica.
+
+A connection pooler can drop the read-only option before it reaches the server.
+PgBouncer does this when `ignore_startup_parameters` includes `options`. If the
+profile asks for read-only and the server still accepts writes, the mark turns
+amber and reads **read-only not applied**. The results grid stays read-only,
+but SQL you run can change data, so don't count on the profile's protection
+for that session.
 
 This guards against mistakes. It isn't a permission. A statement can still
 switch it off for its own session with `SET default_transaction_read_only =
@@ -164,6 +206,44 @@ Pick how pgNimbus signs in to the SSH host with **Auth Method**:
 For the database host and port, give them as the SSH host sees them. A Postgres
 that only listens locally on the server is `127.0.0.1` and `5432`.
 
+### Host keys
+
+Before it signs in, pgNimbus checks that the SSH host is the server it claims
+to be, the same way `ssh` does. It looks the host's key up in your own
+`~/.ssh/known_hosts` first (hashed entries, `[host]:port` entries and
+`@revoked` lines included) and then in its own list at
+`<appdata>/pgNimbus/known_hosts`. It never writes to your `~/.ssh/known_hosts`.
+
+- **A known key** connects with no question.
+- **An unknown host** opens a dialog with the host, the key type and the key's
+  `SHA256:` fingerprint, written the way `ssh` and `ssh-keygen -l` write it.
+  Compare it with the fingerprint the server's administrator gave you.
+  **Accept** connects and adds the key to pgNimbus's list; **Cancel** does not
+  connect. Enter does not accept, so a key is never trusted by a stray key
+  press.
+- **A changed key** stops the connection. The message names the host, the
+  stored key's fingerprint, the new one, and the file and line that hold the
+  old key. A server that was reinstalled or had its keys regenerated causes
+  this, and so does someone intercepting the connection. If you know the key
+  really changed, remove that line (`ssh-keygen -R` with `-f` pointing at that
+  file does it for you) and connect again to be asked about the new key.
+- **A key of a different type** for a host already in either file stops the
+  connection too. pgNimbus asks the server only for the key types the files
+  know the host by, as `ssh` does, so a server that suddenly offers only a new
+  type of key is refused rather than treated as a new host. If its keys really
+  changed, remove its lines and connect again.
+- **A revoked key** (an `@revoked` line in either file) always stops the
+  connection.
+
+Take your time with the dialog: if reading the fingerprint outlasts the
+connection's timeout, pgNimbus connects again once you accept, without asking
+a second time.
+
+The **Test** button runs the same check, so a key you accept there is already
+known when you connect. SSH host certificates (`@cert-authority` lines) are not
+supported yet: a host that relies on one is treated as unknown and asks about
+its key.
+
 ## Several connections at once
 
 Two different things, for two different needs.
@@ -181,14 +261,25 @@ Both are also in the menu behind the ☰ button and in the command palette.
 ## If the connection drops
 
 A connection dropped by laptop sleep, a network blip or an SSH tunnel hiccup is
-reopened quietly on your next run. pgNimbus flushes the dead pool and retries
-once on a fresh connection, so you usually will not notice.
+reopened quietly on your next run. Before it sends a statement, pgNimbus asks
+the server to describe it, which runs nothing. If that fails because the
+connection is dead, pgNimbus flushes the pool and opens a fresh connection, so
+you usually will not notice.
 
-The one case it deliberately does not paper over is an open explicit transaction.
-A transaction lives on one held connection; if that connection dies, the
-transaction is gone and nothing in it committed. Rather than silently starting a
-new one and leaving you to guess what happened, pgNimbus surfaces a clear
-"connection lost, nothing committed" error.
+pgNimbus never sends a statement a second time on its own. If the connection
+drops while a statement is running, whether the network went away or a DBA
+terminated your session, the run ends with an error that says the statement
+was not run again and may or may not have taken effect. Check before you run
+it again. The next statement reconnects by itself. A statement that has
+already started on the server is out of the client's hands: an `UPDATE` that
+was halfway through when the socket died keeps running there and commits,
+and running it again would apply it twice.
+
+The other case pgNimbus deliberately does not paper over is an open explicit
+transaction. A transaction lives on one held connection; if that connection
+dies, the transaction is gone and nothing in it committed. Rather than silently
+starting a new one and leaving you to guess what happened, pgNimbus surfaces a
+clear "connection lost, nothing committed" error.
 
 !!! tip "Skipping the dialog"
 
@@ -199,6 +290,13 @@ new one and leaving you to guess what happened, pgNimbus surfaces a clear
     ```bash
     export PGNIMBUS_CONN="postgres://postgres:secret@localhost:5432/mydb"
     ```
+
+    The example above puts the password in the environment. Any other process
+    running as you can read it (`/proc/<pid>/environ` on Linux, a process
+    inspector on Windows or macOS), and if you type the `export` line directly
+    at a shell, it usually lands in shell history too. Prefer a connection
+    string with no password and let pgNimbus prompt, or keep this variable to
+    a throwaway local database.
 
     For everyday use there is a switch in Settings, **Open the last
     connection on startup**, which goes straight to whatever you connected to

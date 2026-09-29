@@ -4,7 +4,11 @@ description: >-
   push, the explicit workflow_dispatch input when given, else a dev version
   from the run number. Exports it as $VERSION via GITHUB_ENV and as a step
   output. Runs inline in each build job so no dedicated "prepare" runner has
-  to boot ahead of them.
+  to boot ahead of them. Whatever the source, the value has to be
+  MAJOR.MINOR.PATCH with an optional -prerelease suffix: it is spliced into
+  file names, MSBuild properties and package metadata by every job, so a tag
+  or input carrying anything else fails here rather than somewhere down the
+  line.
 
 inputs:
   version:
@@ -22,14 +26,27 @@ runs:
   steps:
     - id: version
       shell: bash
+      # The input and the ref name reach the shell as environment variables,
+      # never spliced into the script text: an expression inside `run:` is
+      # expanded before bash sees it, so a value holding `;` or `$(…)` would
+      # run as code.
+      env:
+        INPUT_VERSION: ${{ inputs.version }}
       run: |
         if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
           VERSION="${GITHUB_REF_NAME#v}"
-        elif [[ -n "${{ inputs.version }}" ]]; then
-          VERSION="${{ inputs.version }}"
+        elif [[ -n "$INPUT_VERSION" ]]; then
+          VERSION="$INPUT_VERSION"
         else
           VERSION="0.0.0-ci.$GITHUB_RUN_NUMBER"
         fi
+
+        pattern='^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'
+        if [[ ! "$VERSION" =~ $pattern ]]; then
+          echo "::error::Version '$VERSION' is not MAJOR.MINOR.PATCH[-prerelease] (tag as v1.2.3 or v1.2.3-rc.1)" >&2
+          exit 1
+        fi
+
         echo "version=$VERSION" >> "$GITHUB_OUTPUT"
         echo "VERSION=$VERSION" >> "$GITHUB_ENV"
         echo "Building version $VERSION"

@@ -128,12 +128,37 @@
                     <!-- Read-only mark: only on a connection that can't write (a
                          read-only profile or role, or a standby), so the write state
                          is on screen before anything runs (ROADMAP T3). Not a control. -->
+                    <!-- Amber (".warn") when the profile asked for read-only and the
+                         server reports a writable session: a pooler dropped the
+                         startup option (security audit 2026-09, finding 17). The
+                         grid stays read-only; typed SQL can write, which the
+                         tooltip says. -->
                     <StackPanel Name="ReadOnlyMark" Orientation="Horizontal" Spacing="4" Margin="10,0,0,0" VerticalAlignment="Center"
                                 Background="Transparent"
                                 IsVisible="{Binding IsReadOnlyConnection}"
+                                Classes.warn="{Binding IsReadOnlyNotEnforced}"
                                 ToolTip.Tip="{Binding ConnectionReadOnlyHint, StringFormat='Read-only: {0}'}">
-                        <PathIcon Data="{StaticResource LockIconGeometry}" Width="11" Height="11" Opacity="0.75" />
-                        <TextBlock Text="read-only" FontSize="12" Opacity="0.75" VerticalAlignment="Center" />
+                        <StackPanel.Styles>
+                            <Style Selector="StackPanel#ReadOnlyMark > PathIcon">
+                                <Setter Property="Opacity" Value="0.75" />
+                            </Style>
+                            <Style Selector="StackPanel#ReadOnlyMark > TextBlock">
+                                <Setter Property="Opacity" Value="0.75" />
+                            </Style>
+                            <Style Selector="StackPanel#ReadOnlyMark.warn > PathIcon">
+                                <Setter Property="Opacity" Value="1" />
+                                <Setter Property="Foreground" Value="{StaticResource AppWarningBrush}" />
+                            </Style>
+                            <Style Selector="StackPanel#ReadOnlyMark.warn > TextBlock">
+                                <Setter Property="Opacity" Value="1" />
+                                <Setter Property="Foreground" Value="{StaticResource AppWarningBrush}" />
+                            </Style>
+                        </StackPanel.Styles>
+                        <PathIcon Data="{StaticResource LockIconGeometry}" Width="11" Height="11" />
+                        <TextBlock Text="read-only" FontSize="12" VerticalAlignment="Center"
+                                   IsVisible="{Binding !IsReadOnlyNotEnforced}" />
+                        <TextBlock Name="ReadOnlyNotEnforcedText" Text="read-only not applied" FontSize="12" VerticalAlignment="Center"
+                                   IsVisible="{Binding IsReadOnlyNotEnforced}" />
                     </StackPanel>
                     <Button Classes="chip" Padding="5" VerticalAlignment="Center" Margin="10,0,0,0"
                             Click="OnSwitchConnectionClick"
@@ -569,11 +594,11 @@
                         <TextBlock Classes="statusText dim" Text="{Binding ActiveTab.TimingText}" VerticalAlignment="Center" />
                     </StackPanel>
                     <StackPanel Grid.Column="8" Orientation="Horizontal" Spacing="10" Margin="10,0,0,0"
-                                IsVisible="{Binding ActiveTab.CapText, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
+                                IsVisible="{Binding ActiveTab.CapStatusText, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
                         <Rectangle Classes="statusSeparator" />
-                        <TextBlock Classes="statusText warn" Text="{Binding ActiveTab.CapText}" VerticalAlignment="Center"
+                        <TextBlock Classes="statusText warn" Text="{Binding ActiveTab.CapStatusText}" VerticalAlignment="Center"
                                    MaxWidth="320" TextTrimming="CharacterEllipsis"
-                                   ToolTip.Tip="{Binding ActiveTab.CapText}" />
+                                   ToolTip.Tip="{Binding ActiveTab.CapStatusText}" />
                     </StackPanel>
                     <!-- Browse-mode paging: the one piece of the old browse bar that
                          couldn't move into the SQL editor. Disabled while a query is

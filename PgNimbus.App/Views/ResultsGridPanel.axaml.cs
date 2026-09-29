@@ -1520,7 +1520,10 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
         _builtColumnNames.Clear();
         _builtFor = query;
 
-        for (var i = 0; i < query.ColumnNames.Count; i++)
+        // Past MaxGridColumns the rest of the columns are not built (the status bar
+        // says so): each one is a column, a header and a realized cell per row.
+        var built = Math.Min(query.ColumnNames.Count, QueryViewModel.MaxGridColumns);
+        for (var i = 0; i < built; i++)
         {
             // In browse mode the edit context knows each column's Postgres
             // type — the column uses it to generate a type-aware cell editor

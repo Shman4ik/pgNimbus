@@ -105,14 +105,20 @@ public class AppDataIsolationTests
         });
     }
 
-    private static string Full(string path) =>
-        Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+    private static string? Full(string? path) =>
+        path is null ? null : Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
 
-    /// <summary>Case-insensitively, since macOS and Windows file systems are.</summary>
-    private static bool IsUnder(string path, string root)
+    /// <summary>
+    /// Case-insensitively, since macOS and Windows file systems are. A null
+    /// path or root (the "no app data directory" state) is under nothing.
+    /// </summary>
+    private static bool IsUnder(string? path, string? root)
     {
-        var full = Full(path);
-        var fullRoot = Full(root);
+        if (Full(path) is not { } full || Full(root) is not { } fullRoot)
+        {
+            return false;
+        }
+
         return string.Equals(full, fullRoot, StringComparison.OrdinalIgnoreCase)
             || full.StartsWith(fullRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
     }

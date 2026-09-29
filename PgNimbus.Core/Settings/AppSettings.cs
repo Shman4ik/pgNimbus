@@ -121,6 +121,17 @@ public sealed record AppSettings
     public bool AutoConnectLastProfile { get; set; }
 
     /// <summary>
+    /// Whether every statement run is filed in the query history
+    /// (<c>history.json</c>). On by default. The file keeps each statement's
+    /// text as run, values included, unencrypted; passwords are masked by
+    /// <see cref="Security.SecretRedactor"/>, but a query that selects by an
+    /// email address keeps the address. Off, nothing new is recorded; what is
+    /// already there stays until Clear History. Security audit 2026-09,
+    /// finding 8: there used to be no way to turn it off.
+    /// </summary>
+    public bool RecordQueryHistory { get; set; } = true;
+
+    /// <summary>
     /// Schemas kept out of editor autocomplete, keyed by connection
     /// (<c>host/database</c>, the same key the workspace snapshot uses). A big
     /// database routinely carries schemas another team owns; excluding them

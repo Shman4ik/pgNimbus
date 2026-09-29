@@ -117,6 +117,15 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
 
     public ObservableCollection<SchemaTreeNode> Schemas { get; } = [];
 
+    /// <summary>
+    /// The connected database's name, wired by <see cref="MainViewModel"/> from
+    /// the same value it shows in the title-bar breadcrumb. Read only for the
+    /// "Install extension" confirm (security audit 2026-09, finding 6), which
+    /// names the database a <c>CREATE EXTENSION</c> is about to run against —
+    /// null only where nothing wires it (design time, a test that doesn't care).
+    /// </summary>
+    public string? DatabaseName { get; set; }
+
     // --- Host-supplied actions --------------------------------------------
     // The schema tree's context-menu / double-click / refresh actions are
     // window-level orchestration — opening query and browse tabs, refreshing
