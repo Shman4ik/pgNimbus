@@ -210,6 +210,10 @@ It produces, per tag:
   at it. Developer ID plus notarization (ROADMAP T5) is still the fix that
   removes the Gatekeeper warning outright; this closes the arbitrary-code-
   execution gap in the meantime, on the same ad-hoc signature.
+  The plist is only read by `codesign` on the release runner, so `MacOSEntitlementsTests`
+  parses it as XML in every build: the first 1.0.0 tag run failed there with "Failed to
+  parse entitlements: AMFIUnserializeXML: syntax error near line 6", because a comment said
+  `(--options runtime)` and `--` may not appear inside an XML comment.
 - **Linux** — `linux-x64` + `linux-arm64` (the arm64 leg runs natively on
   GitHub's free `ubuntu-24.04-arm` runners — no cross-compile toolchain).
   Each RID is packaged three ways by
