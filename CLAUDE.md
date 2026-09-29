@@ -264,10 +264,22 @@ Three rules about it:
    SecItem APIs, Linux Secret Service via libsecret's non-variadic APIs), never
    persisted on the profile record itself. `CredentialStore.Create` shares a
    process-lifetime `RecoverableCredentialStore`: failed writes retain credentials
-   only in session memory and expose a visible warning. Legacy non-Windows `.cred`
-   files are read on profile load and removed only after native write/read verification;
-   unopened profiles retain their old files. A different existing native value wins
-   until a password edit (which the dialog autosaves) resolves the legacy copy. No new base64 files are written.
+   only in session memory and expose a visible warning. **Memory holds nothing
+   else** (security audit 2026-09, finding 18): a password the OS store accepted
+   or returned is not cached (every load reads the store), a delete removes the
+   entry, a delete the store refused is remembered by id only (so the password
+   can't come back that session), and `ICredentialStore.Forget` drops a
+   session-only password when the last main window connected with that profile
+   closes (`App.ForgetSessionPasswordsOnClose`, keyed by
+   `ConnectionDialogViewModel.ConnectedProfileId`). Legacy non-Windows `.cred`
+   files move in **one pass at startup** (`MigrateLegacyFiles`, queued first on the
+   connection dialog's credential chain, once per process): each is removed only
+   after native write/read verification, or when the store already holds the same
+   value. The ones that can't move (store unavailable, unreadable file, a
+   different native value, which wins until a password edit resolves it) stay on
+   disk and are reported once, as one line in the dialog's credential warning
+   with their count. Before this a file moved only when its profile was opened,
+   so profiles nobody reopened kept a base64 password forever. No new base64 files are written.
    Connection-dialog store operations run off the UI thread; Connect awaits initial
    credential loading. Linux calls are cancellable after 15 seconds and require
    libsecret plus a running Secret Service. macOS disallows interactive Keychain

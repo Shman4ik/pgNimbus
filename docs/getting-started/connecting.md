@@ -34,11 +34,14 @@ and keeps entered passwords in memory for this app session. Unlock/configure
 the OS store and edit the password again to retry. On macOS, Keychain access must be available
 without an interactive authorization prompt; resolve restrictions in Keychain Access.
 
-When an old macOS/Linux profile is opened, pgNimbus attempts to migrate its
-unencrypted base64 `.cred` files. It deletes an old file only after reading the
-saved password back from the OS store. On failure the old file stays and a warning
-appears; unopened profiles are not migrated yet. If a different OS-store value
+On macOS and Linux, older versions kept passwords in unencrypted base64 `.cred`
+files. When the connection dialog first opens, pgNimbus moves all of them into
+the OS store at once. It deletes an old file only after reading the saved
+password back from the OS store. Files it can't move stay where they are, and
+the dialog shows one warning with their count. If a different OS-store value
 already exists, it takes precedence; editing the password resolves the old copy.
+Passwords that the OS store refused are kept in memory only until the last
+window using that connection closes.
 Deleting a profile attempts to remove database and SSH credentials from both
 locations and reports failures. Query history and workspace SQL remain local,
 unencrypted data; credential protection does not encrypt them.
