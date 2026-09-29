@@ -326,6 +326,10 @@ public class TlsSettingsTests
     /// because the profile's host is the TLS target, and without that it fails.
     /// </summary>
     [Test]
+    // A real TLS handshake against a fake server under the profile's 8 s connect
+    // timeout, while the rest of the suite loads the machine: one more try
+    // before a timing miss fails the build.
+    [Retry(2)]
     public async Task Verify_full_passes_through_a_tunnel_and_fails_without_the_real_host()
     {
         const string serverName = "db.example.test";
@@ -369,9 +373,12 @@ public class TlsSettingsTests
         var first = new TaskCompletionSource<HandshakeResult>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         // Npgsql tries a failed open a second time, so the listener keeps
-        // accepting: the first connection is the one measured, and any later
-        // one is closed at once rather than left in the backlog, where it would
-        // wait out the whole connect timeout for an answer.
+        // accepting, and the handshake counts as completed if any connection
+        // completes it. Measuring only the first failed on a loaded CI runner:
+        // with ~1,900 tests running beside it, the first attempt ran out of the
+        // profile's 8 s connect timeout and the retry was never looked at. Once
+        // one has completed, later connections are closed at once rather than
+        // left in the backlog, where they would wait out the connect timeout.
         var server = Task.Run(async () =>
         {
             while (true)
@@ -388,9 +395,9 @@ public class TlsSettingsTests
 
                 using (client)
                 {
-                    if (!first.Task.IsCompleted)
+                    if (!first.Task.IsCompleted && await ServeAsync(client, certificate, timeout.Token) is { Completed: true } completed)
                     {
-                        first.TrySetResult(await ServeAsync(client, certificate, timeout.Token));
+                        first.TrySetResult(completed);
                     }
                 }
             }
@@ -408,10 +415,12 @@ public class TlsSettingsTests
             }
         }
 
-        var result = await first.Task.WaitAsync(timeout.Token);
+        // The client has given up or got through; whatever it opened is closed.
+        // No completed connection by now means none completed at all.
         await stopAccepting.CancelAsync();
         await server;
-        return result;
+        first.TrySetResult(new HandshakeResult(false, null));
+        return await first.Task;
     }
 
     private static async Task<HandshakeResult> ServeAsync(TcpClient client, X509Certificate2 certificate, CancellationToken cancellationToken)
