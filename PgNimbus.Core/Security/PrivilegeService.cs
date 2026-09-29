@@ -394,7 +394,7 @@ public sealed class PrivilegeService(NpgsqlDataSource dataSource)
                    p.polname,
                    p.polpermissive,
                    p.polcmd::text,
-                   ARRAY(SELECT CASE WHEN ro = 0 THEN 'public'
+                   ARRAY(SELECT CASE WHEN ro = 0 THEN NULL
                                      ELSE pg_catalog.pg_get_userbyid(ro) END
                          FROM unnest(p.polroles) AS ro),
                    pg_catalog.pg_get_expr(p.polqual, p.polrelid),
@@ -442,7 +442,10 @@ public sealed class PrivilegeService(NpgsqlDataSource dataSource)
                 table,
                 reader.GetString(5),
                 reader.GetBoolean(6),
-                reader.GetFieldValue<string[]>(8),
+                // Oid 0 (PUBLIC) is a NULL element, never the string "public":
+                // a role may be named "PUBLIC", and the string form could not
+                // tell it from the keyword (finding 12).
+                reader.GetFieldValue<string?[]>(8),
                 PolicyCommand(reader.GetString(7)),
                 reader.IsDBNull(9) ? null : reader.GetString(9),
                 reader.IsDBNull(10) ? null : reader.GetString(10)));

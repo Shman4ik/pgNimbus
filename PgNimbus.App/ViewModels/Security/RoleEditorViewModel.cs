@@ -12,15 +12,18 @@ namespace PgNimbus.App.ViewModels.Security;
 /// and that difference is the whole point of showing the script at all — create
 /// emits the full statement, alter emits only what actually changed.
 ///
-/// <para><b>The preview is masked and the execution is not.</b> Postgres has no
-/// parameter form for <c>PASSWORD</c>, so a new password has to be interpolated
-/// into statement text. <see cref="LivePreview"/> is built with
-/// <c>maskPassword: true</c> and <see cref="ApplyAsync"/> with false — the real
-/// literal exists only inside that one call and the connection it goes down. It
-/// is never bound to a <c>TextBlock</c>, never handed to the editor tab (which
-/// would file it in the on-disk query history), and never logged. This is a
-/// security property, not a formatting choice: change it and the password ends
-/// up in a screenshot and in <c>queries.json</c>.</para>
+/// <para><b>The preview is masked and the execution carries a verifier.</b>
+/// Postgres has no parameter form for <c>PASSWORD</c>, so the statement has to
+/// carry something in its text; since finding 7 of the 2026-09 security audit
+/// that something is the SCRAM-SHA-256 secret <c>ScramSha256Verifier</c>
+/// computes on this machine, never the cleartext, so the password reaches
+/// neither the server log nor <c>pg_stat_activity</c>. <see cref="LivePreview"/>
+/// is built with <c>maskPassword: true</c> and <see cref="ApplyAsync"/> with
+/// false — the verifier exists only inside that one call and the connection it
+/// goes down. Neither it nor the cleartext is ever bound to a <c>TextBlock</c>,
+/// handed to the editor tab (which would file it in the on-disk query history),
+/// or logged. This is a security property, not a formatting choice: change it
+/// and the secret ends up in a screenshot and in <c>queries.json</c>.</para>
 /// </summary>
 public sealed partial class RoleEditorViewModel : ObservableObject
 {
@@ -47,6 +50,9 @@ public sealed partial class RoleEditorViewModel : ObservableObject
     /// it is what makes a membership removable at all.
     /// </summary>
     private readonly IReadOnlyList<string> _currentMemberOf;
+
+    // Null in the fixtures (no server to ask): treated as modern, like PgFeatures.
+    private readonly Version? _serverVersion;
 
     private bool _loaded;
 
@@ -125,6 +131,7 @@ public sealed partial class RoleEditorViewModel : ObservableObject
         _editor = editor;
         _current = current;
         _currentMemberOf = currentMemberOf;
+        _serverVersion = host.ServerVersion;
 
         var existing = new HashSet<string>(currentMemberOf, StringComparer.Ordinal);
         var graph = host.Graph;
@@ -244,6 +251,20 @@ public sealed partial class RoleEditorViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// The warning for a password other clients may not log in with, or null.
+    /// The verifier is built from the password's NFKC form, as libpq and pgJDBC
+    /// build theirs before they log in, but the shipped app runs without
+    /// normalisation tables (<c>InvariantGlobalization</c>): a password NFKC
+    /// would change (decomposed accents, full-width letters, ligatures) then gets
+    /// a verifier those clients can't match. ASCII is never affected. Review of
+    /// the 2026-09 audit fixes.
+    /// </summary>
+    public static string? NonAsciiPasswordWarning(string password, bool normalizationAvailable) =>
+        normalizationAvailable || System.Text.Ascii.IsValid(password)
+            ? null
+            : "This password has characters outside ASCII. Some PostgreSQL clients normalize those before they log in, and pgNimbus can't do the same here, so they may be refused. An ASCII password always works.";
+
     public static RoleEditorViewModel ForCreate(SecurityEditor editor, SecurityViewModel host) =>
         new(editor, host, current: null, currentMemberOf: []);
 
@@ -298,6 +319,11 @@ public sealed partial class RoleEditorViewModel : ObservableObject
         ValidationMessage =
             Name.Trim().Length == 0 ? "A role needs a name."
             : Password != PasswordConfirm ? "The two passwords do not match."
+            // The password is sent as a SCRAM verifier, which a server before
+            // PG10 would store as the password itself (review of the 2026-09
+            // audit fixes): refused rather than silently locking the role out.
+            : Password.Length > 0 && !PgFeatures.SupportsScramVerifier(_serverVersion)
+                ? "Setting a password needs PostgreSQL 10 or later. Set it with psql's \\password on this server."
             : LivePreview.Length == 0 ? "Nothing has changed yet."
             : "";
 
@@ -305,7 +331,7 @@ public sealed partial class RoleEditorViewModel : ObservableObject
         // peer, trust or an external method. So it is said out loud, not refused.
         WarningMessage = IsCreate && CanLogin && Password.Length == 0
             ? "This role can log in but has no password. That works only if pg_hba.conf authenticates it another way."
-            : "";
+            : NonAsciiPasswordWarning(Password, ScramSha256Verifier.NormalizationAvailable) ?? "";
 
         OnPropertyChanged(nameof(HasValidationMessage));
         OnPropertyChanged(nameof(HasWarningMessage));
@@ -382,8 +408,9 @@ public sealed partial class RoleEditorViewModel : ObservableObject
 
         try
         {
-            // The only place maskPassword is false. The result is not stored,
-            // shown or logged - it goes straight down the connection.
+            // The only place maskPassword is false. The result carries the
+            // SCRAM verifier, not the password, and is not stored, shown or
+            // logged - it goes straight down the connection.
             await _editor.ExecuteScriptAsync(BuildScript(maskPassword: false), CancellationToken.None);
             CloseRequested?.Invoke(true);
         }

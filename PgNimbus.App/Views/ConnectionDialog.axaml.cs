@@ -158,6 +158,10 @@ public partial class ConnectionDialog : Window
             return;
         }
 
+        // The view model's default refuses every unknown SSH host key; only a
+        // window can ask. Set here, once the window exists to own the dialog.
+        vm.HostKeys = SshHostKeyVerifier.ForApp(new HostKeyDialogPolicy(this));
+
         if (vm.SelectedProfile is not null)
         {
             ProfilesList.Focus();
@@ -268,6 +272,30 @@ public partial class ConnectionDialog : Window
         if (files.Count > 0 && files[0].TryGetLocalPath() is { } path)
         {
             vm.SshPrivateKeyPath = path;
+        }
+    }
+
+    private async void OnBrowseRootCertificateClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not ConnectionDialogViewModel vm)
+        {
+            return;
+        }
+
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Choose root certificate",
+            AllowMultiple = false,
+            FileTypeFilter =
+            [
+                new FilePickerFileType("Certificates") { Patterns = ["*.pem", "*.crt", "*.cer", "*.der"] },
+                FilePickerFileTypes.All,
+            ],
+        });
+
+        if (files.Count > 0 && files[0].TryGetLocalPath() is { } path)
+        {
+            vm.RootCertificatePath = path;
         }
     }
 

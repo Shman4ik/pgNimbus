@@ -1,48 +1,25 @@
-using System.Text.Json;
 using System.Text.Json.Serialization;
+using PgNimbus.Core.Settings;
 
 namespace PgNimbus.Core.Connections;
 
 /// <summary>
 /// Persists the saved connection list as JSON. Safe by construction: since
 /// <see cref="ConnectionProfile"/> has no password property, there is
-/// nothing sensitive for this store to ever write to disk.
+/// nothing sensitive for this store to ever write to disk. Reads and writes
+/// go through <see cref="AppDataFile"/>: a file this store cannot parse is
+/// moved aside rather than read as "no profiles" — the connection dialog
+/// autosaves on every edit, and one torn file used to cost every profile.
 /// </summary>
 public sealed class ConnectionProfileStore(string? filePath = null)
 {
-    private readonly string _filePath = filePath ?? Path.Combine(AppDataPaths.GetRootDirectory(), "connections.json");
+    private readonly string? _filePath = filePath ?? AppDataPaths.Resolve("connections.json");
 
-    public IReadOnlyList<ConnectionProfile> Load()
-    {
-        if (!File.Exists(_filePath))
-        {
-            return [];
-        }
+    public IReadOnlyList<ConnectionProfile> Load() =>
+        AppDataFile.ReadJson(_filePath, ConnectionProfileJsonContext.Default.ListConnectionProfile) ?? [];
 
-        // A corrupt/empty/half-written file must never block the connection
-        // dialog - fall back to an empty list rather than throwing at startup.
-        try
-        {
-            var json = File.ReadAllText(_filePath);
-            return JsonSerializer.Deserialize(json, ConnectionProfileJsonContext.Default.ListConnectionProfile) ?? [];
-        }
-        catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException)
-        {
-            return [];
-        }
-    }
-
-    public void Save(IEnumerable<ConnectionProfile> profiles)
-    {
-        var directory = Path.GetDirectoryName(_filePath);
-        if (!string.IsNullOrEmpty(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
-
-        var json = JsonSerializer.Serialize([.. profiles], ConnectionProfileJsonContext.Default.ListConnectionProfile);
-        File.WriteAllText(_filePath, json);
-    }
+    public void Save(IEnumerable<ConnectionProfile> profiles) =>
+        AppDataFile.WriteJson(_filePath, [.. profiles], ConnectionProfileJsonContext.Default.ListConnectionProfile);
 }
 
 [JsonSourceGenerationOptions(WriteIndented = true)]

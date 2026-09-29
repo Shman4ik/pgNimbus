@@ -43,7 +43,9 @@ Notes and caveats:
 - No display on CI, so the Linux legs run under `xvfb-run`. macOS runners have a
   real window server; that leg is the one least proven, since it cannot be
   rehearsed anywhere but a macOS runner. A `workflow_dispatch` run of
-  `release.yml` exercises the whole pipeline without publishing anything.
+  `release.yml` exercises the whole pipeline without publishing anything, even
+  when started from a tag. Start it from a commit that is already on `main`:
+  every build job first checks that, and refuses any other commit.
 - `PgNimbus.App` is a `WinExe`, so it has no console of its own. The probe line
   is still readable because redirecting stdout gives the process a handle to
   write to — verified, not assumed.
@@ -152,8 +154,9 @@ recorded by hand.
 2. If a UI change was intended, run the Screenshots workflow (or
    `update-baselines.sh`) and review the image diff.
 3. Before tagging, refresh the published screenshots the same way.
-4. Push the `vX.Y.Z` tag. `release.yml` builds every package, smoke-launches each
-   one, and only then publishes.
+4. Push the `vX.Y.Z` tag on a commit that is on `main`. `release.yml` refuses
+   any other commit, builds every package, smoke-launches each one, and only
+   then publishes.
 
 What is still manual, deliberately: anything needing a real server (SSH
 tunnelling, a huge result set, an actual `EXPLAIN ANALYZE` against production

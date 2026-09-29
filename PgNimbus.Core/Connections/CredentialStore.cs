@@ -7,7 +7,7 @@ public static class CredentialStore
         OperatingSystem.IsWindows() ? new WindowsDpapiCredentialStore()
         : OperatingSystem.IsMacOS() ? new MacKeychainCredentialStore()
         : new LinuxSecretServiceCredentialStore(),
-        OperatingSystem.IsWindows() ? null : Path.Combine(AppDataPaths.GetRootDirectory(), "credentials")));
+        OperatingSystem.IsWindows() ? null : AppDataPaths.Resolve("credentials")));
 
     // Keep session-only passwords when the user reopens the connection dialog.
     public static ICredentialStore Create() => Instance.Value;

@@ -287,9 +287,28 @@ public partial class SchemaTreePanel : UserControl
 
     // --- Extension actions -------------------------------------------------
 
+    // CREATE EXTENSION runs against the live database with no undo, same as
+    // the drop just below — confirmed for the same reason (security audit
+    // 2026-09, finding 6), naming the extension and the database it lands in.
     private async void OnInstallExtensionClick(object? sender, RoutedEventArgs e)
     {
-        if (sender is MenuItem { Tag: ExtensionNode extension } && Model?.SetExtensionInstalledRequested is { } setInstalled)
+        if (sender is not MenuItem { Tag: ExtensionNode extension } || Model?.SetExtensionInstalledRequested is not { } setInstalled)
+        {
+            return;
+        }
+
+        if (TopLevel.GetTopLevel(this) is not Window owner)
+        {
+            return;
+        }
+
+        var database = Model.DatabaseName;
+        var message = string.IsNullOrEmpty(database)
+            ? $"Install extension \"{extension.Name}\"? This runs against the connected database."
+            : $"Install extension \"{extension.Name}\" in database \"{database}\"? This runs against it directly.";
+
+        var confirm = new ConfirmDialog(message, "Install");
+        if (await confirm.ShowDialog<bool>(owner))
         {
             await setInstalled(extension, true);
         }

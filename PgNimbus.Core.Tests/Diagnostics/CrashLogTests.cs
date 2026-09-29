@@ -29,7 +29,7 @@ public class CrashLogTests
             await Assert.That(returnedPath).IsEqualTo(log.FilePath);
             await Assert.That(File.Exists(log.FilePath)).IsTrue();
 
-            var contents = await File.ReadAllTextAsync(log.FilePath);
+            var contents = await File.ReadAllTextAsync(log.FilePath ?? throw new InvalidOperationException("a log with a directory has a file"));
             await Assert.That(contents).Contains("CRITICAL");
             await Assert.That(contents).Contains("Something failed");
             await Assert.That(contents).Contains("System.InvalidOperationException");
@@ -72,7 +72,7 @@ public class CrashLogTests
             log.LogCritical("first error", null);
             log.LogCritical("second error", null);
 
-            var contents = await File.ReadAllTextAsync(log.FilePath);
+            var contents = await File.ReadAllTextAsync(log.FilePath ?? throw new InvalidOperationException("a log with a directory has a file"));
             await Assert.That(contents).Contains("first error");
             await Assert.That(contents).Contains("second error");
         }
@@ -96,7 +96,7 @@ public class CrashLogTests
 
             log.LogCritical("faulted tasks", aggregate);
 
-            var contents = await File.ReadAllTextAsync(log.FilePath);
+            var contents = await File.ReadAllTextAsync(log.FilePath ?? throw new InvalidOperationException("a log with a directory has a file"));
             await Assert.That(contents).Contains("first branch");
             await Assert.That(contents).Contains("second branch");
             await Assert.That(contents).Contains("third branch");
@@ -118,7 +118,7 @@ public class CrashLogTests
 
             log.LogCritical("wrapped failure", exception);
 
-            var contents = await File.ReadAllTextAsync(log.FilePath);
+            var contents = await File.ReadAllTextAsync(log.FilePath ?? throw new InvalidOperationException("a log with a directory has a file"));
             await Assert.That(contents).Contains("outer");
             await Assert.That(contents).Contains("System.FormatException");
             await Assert.That(contents).Contains("inner cause");
