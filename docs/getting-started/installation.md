@@ -38,7 +38,7 @@ installer: it writes to `%LocalAppData%` and needs no administrator rights.
 
 ## macOS
 
-Apple Silicon only. Download `pgNimbus-<version>-macos-arm64.dmg` from the
+Apple Silicon only, on macOS 12 Monterey or later. Download `pgNimbus-<version>-macos-arm64.dmg` from the
 [releases page](https://github.com/Shman4ik/pgNimbus/releases). Open the disk
 image, drag pgNimbus onto the Applications folder beside it, then eject the
 image. Running the app from the mounted image works, but it disappears the
@@ -59,6 +59,21 @@ macOS asks about it the first time you open it:
     and click **Open Anyway** next to the message about pgNimbus.
 
 You do this once per installed version. Later launches open normally.
+
+!!! warning "Saved passwords and updates"
+
+    macOS ties a Keychain item to the app that created it. Every ad-hoc signed
+    version counts as a different app, and pgNimbus does not show the Keychain
+    permission prompt. After an update, a password saved by the earlier version
+    can stop loading. The connection stays in your list, its password field is
+    empty and the connection dialog shows a password storage warning. Typing the
+    password again does not fix it.
+
+    To fix it, open **Keychain Access**, search for `pgNimbus`, delete the items
+    with that name, then enter each password again in pgNimbus. Builds signed
+    with an Apple Developer ID keep one identity across versions, so this stops
+    once notarized builds ship. The first notarized version is a new identity
+    too, so expect to do this one more time when you move to it.
 
 !!! warning "If macOS says the app is damaged"
 

@@ -333,6 +333,26 @@ Three rules about it:
    libsecret plus a running Secret Service. macOS disallows interactive Keychain
    authorization prompts and reports denied/locked access as unavailable storage.
    Tests/previews use `MemoryCredentialStore`, never the user's real keychain.
+   **A missing `credentials` directory is not a store failure** (2026-09-29, found
+   on a real Mac): `DeleteLegacy` called `File.Delete`, which throws
+   `DirectoryNotFoundException` (an `IOException`, so `IsStorageFailure`) when the
+   directory does not exist, which is every new install. The first saved password
+   stored fine in the Keychain and then showed "Password storage is unavailable",
+   kept a copy in session memory, and a delete showed "an old unencrypted credential
+   file could not be moved". It is guarded with `File.Exists`; the tests' fixture
+   always created the directory, so the new ones use one that does not exist.
+   **On macOS a Keychain item belongs to the code signature that made it, and an
+   ad-hoc signature changes with every build** (same date). The store suppresses
+   interactive prompts, so a build with another signature (a new release, or the
+   `dotnet` host that ran a Debug build against the same profiles) gets
+   `CredentialStoreException` on load, and a write does not fix it: measured with two
+   binaries, create by A, load by B fails, update by B reports success, then neither
+   can read it; only A's delete clears it. Users see an empty password field and the
+   storage warning after every update. It ends with Developer ID signing (ROADMAP T5),
+   and the first such build is one more identity change, so its release notes must say
+   to delete the old `pgNimbus` Keychain items. Until then it is documented in
+   `docs/getting-started/installation.md`. Nothing tests the real Keychain in CI: the
+   store tests use a fake, which is why this and the missing directory went unseen.
    **SSH agent auth stores nothing at all** (2026-09). SSH.NET has no agent
    support, so `Connections/SshAgentClient` speaks the agent protocol itself
    (list identities, sign; Windows' `\\.\pipe\openssh-ssh-agent` unless
@@ -1420,6 +1440,13 @@ Three rules about it:
    each return a result through `ShowDialog`, which an overlay would have to
    re-express as an awaited completion; that is a real change to seven call sites
    and has not been made.
+   **An overlay takes focus when it opens and gives it back when it closes**
+   (2026-09-29). Opened from the macOS app menu (⌘,) it used to leave focus in the SQL
+   editor: Escape, which `OverlayPanel` handles at the `TopLevel` in the bubble phase,
+   was answered by the editor first, so Settings could not be dismissed from the
+   keyboard, and typed text went into the query behind it. Through the gear button it
+   worked, because a click moves focus. `ShellTests.An_overlay_takes_focus_from_the_editor_and_gives_it_back`
+   holds it; the rule text is DESIGN.md rule 13.
    The command palette and the cell inspector are also **not** OverlayPanels, and for
    a better reason than inertia: both are focus-driven surfaces with their own
    keyboard model, not panels you read.

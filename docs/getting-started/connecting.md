@@ -44,6 +44,9 @@ GNOME Keyring. If storage is unavailable or access is denied, the dialog warns
 and keeps entered passwords in memory for this app session. Unlock/configure
 the OS store and edit the password again to retry. On macOS, Keychain access must be available
 without an interactive authorization prompt; resolve restrictions in Keychain Access.
+Builds that are signed ad hoc change identity with every version, so after an update the
+Keychain can refuse the passwords an earlier version saved. The
+[macOS installation notes](installation.md#macos) have the fix.
 
 On macOS and Linux, older versions kept passwords in unencrypted base64 `.cred`
 files. When the connection dialog first opens, pgNimbus moves all of them into
