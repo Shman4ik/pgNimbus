@@ -502,6 +502,11 @@ public partial class App : Application
         viewModel.Connected += (dataSource, accentColor, tunnel) =>
         {
             var mainWindow = BuildMainWindow(dataSource, accentColor, tunnel);
+            if (viewModel.ConnectedProfileId is { } profileId)
+            {
+                ForgetSessionPasswordsOnClose(mainWindow, profileId);
+            }
+
             CarryWindowState(dialog, mainWindow);
             mainWindow.Show();
             dialog.Close();
@@ -514,6 +519,39 @@ public partial class App : Application
         };
 
         return dialog;
+    }
+
+    // The profile each open main window was connected with.
+    private static readonly Dictionary<Window, Guid> WindowProfiles = [];
+
+    /// <summary>
+    /// When <paramref name="window"/> closes, drops its profile's session-only
+    /// passwords (the ones the OS store refused) from the credential store's
+    /// memory, unless another open window is still connected with that profile
+    /// (security audit 2026-09, finding 18). Stored passwords are untouched.
+    /// </summary>
+    private static void ForgetSessionPasswordsOnClose(Window window, Guid profileId)
+    {
+        WindowProfiles[window] = profileId;
+        window.Closed += (_, _) =>
+        {
+            WindowProfiles.Remove(window);
+            if (WindowProfiles.ContainsValue(profileId))
+            {
+                return;
+            }
+
+            // Off the UI thread: the store's lock can be held by a native call
+            // waiting on the OS (a Keychain or Secret Service unlock).
+            var store = CredentialStore.Create();
+            _ = Task.Run(() =>
+            {
+                foreach (var id in ConnectionDialogViewModel.CredentialIdsFor(profileId))
+                {
+                    store.Forget(id);
+                }
+            });
+        };
     }
 
     /// <summary>
