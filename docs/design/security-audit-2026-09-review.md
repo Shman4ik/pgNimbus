@@ -699,3 +699,43 @@ Recorded as found, no action taken: `Claude Fable 5.1` on #283, #284, #286, #293
 #298 and one of #288's two commits; `Claude Opus 5.5 (1M context)` on #287,
 #288, #289, #290, #291, #292, #295, #296, #299, #300, #301; `Claude Sonnet 5` on
 #294.
+
+## After the review (2026-09-29)
+
+The fixes were made on each PR's own branch, and the 17 branches were stacked
+as one GitHub stack, bottom to top: #283, #284, #288, #294, #290, #286, #289,
+#287, #291, #301, #292, #296, #293, #295, #298, #299, #300, then this document.
+The order is the proposed merge order with the existing #283 → #284 stack kept
+at the bottom (a stack can grow at the top but not be reordered). Each branch
+merges the one below it, so every conflict above (and #302's move of CLAUDE.md
+sections into `.claude/rules/`) was resolved once, in the branch where it first
+appears, and every push was a fast-forward.
+
+| PR | What was done |
+|---|---|
+| #283 | The stale `IsSafeToReExecute` sentence removed (now in `sql-completion.md`). |
+| #284 | A loss after the send of a non-query throws `StatementOutcomeUnknownException`; Add-row says the row may already be there. "halfway". |
+| #288 | Its CLAUDE.md edits moved to `release-ci.md`. No code change. |
+| #294 | Its SBOM step moved into #288's `sbom` job; `global.json` floor lowered to 10.0.100. |
+| #290 | `SqlLiteral` writes `E'…'` for text with a backslash, so a pooler dropping the startup option no longer reopens finding 13; `BrowseSqlParser` reads that form back as a typed chip. |
+| #286 | **Blocker fixed**: `SqlLexer` ends a `--` comment at `\r` too; the live Explain test covers the `\r` and `COMMIT` shapes. |
+| #289 | CTE extraction capped (3.4 s to 10 ms at 2,000 nested CTEs), browse parser and formatter decline past 64 levels, JSON plans read to depth 256. |
+| #287 | The role editor refuses a password before PG10 and warns on a non-ASCII password without NFKC. |
+| #291 | The app-data root seam is an `AsyncLocal`, which fixed the merged tree's one failing test. |
+| #301 | The `.cred` migration stops at the first store refusal. |
+| #292 | Known key types restrict the host key algorithms; a slow accept is retried once; no app-data folder keeps keys in memory; `known_hosts` written through `AppDataFile`. |
+| #296 | **Blocker fixed**: a file-backed tab holding a secret keeps no text and reopens from its file; the marker is `'<redacted>'::redacted`, a syntax error if run. |
+| #293 | `AGENTS.md` dropped; `Fixtures` takes both parameters. |
+| #295 | CLAUDE.md names the two bounds still missing. |
+| #298 | Merge only. |
+| #299 | A pasted remote `sslrootcert` is refused; `require` + root certificate reads as VerifyCa; a new form defaults to Prefer for this machine. |
+| #300 | The crash report's truncation note lost its em dash. |
+
+Both suites passed at the top of the stack against a live PostgreSQL 17 and the
+sshd (Core 1,914 passed, 10 skipped; App 699 passed, 1 skipped). Left for
+follow-up issues: #283's export of a hand-written query past the display cap
+(offer a re-run inside `BEGIN READ ONLY`), #290's runtime warning when
+`standard_conforming_strings` is off, #289's `ExpandSelectStar` on a pasted
+deep nest (runs on the explicit star expansion only), and the nits (#288's gate
+on dispatch rehearsals, #291's fsync per history write, #298's red Install
+button, #293's truncated status line).
