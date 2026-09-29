@@ -76,6 +76,7 @@ public class SqlStatementInspectorTests
     [Arguments("SELECT 1")]              // not an EXPLAIN at all
     [Arguments("EXPLAIN")]               // nothing left to hand back
     [Arguments("EXPLAIN (ANALYZE)")]
+    [Arguments("EXPLAIN (FORMAT 'json")]   // an unterminated quote in the option list ran the scan one past the end (audit 2026-09, finding 16)
     public async Task NonWrappingStatementsAreReturnedUnchanged(string sql)
     {
         await Assert.That(SqlStatementInspector.StripExplain(sql)).IsEqualTo(sql);

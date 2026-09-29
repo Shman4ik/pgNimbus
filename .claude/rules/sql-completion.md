@@ -93,10 +93,27 @@ paths:
   through that branch's own sources, a column alias list renaming positionally;
   a CTE reaching itself through a star stops (visited set) instead of recursing.
   A select list whose block has sources is scoped like a predicate: another
-  branch's or the catalog's columns aren't legal there. Three things to keep:
+  branch's or the catalog's columns aren't legal there.
+  `SqlCompletionContext.ExtractCteDefinitions`, the older whole-statement
+  reading, reads at most `MaxCteDefinitions` (32) CTEs and no body past
+  `MaxCteBodyLength` (32K characters; that CTE is known by name only): every body
+  was read on its own and a nested WITH's outer bodies hold all the inner ones,
+  so 2,000 nested CTEs (42k characters, still on the UI thread) cost 3.4 s per
+  popup (2026-09, review of the audit fixes). Three things to keep:
   the reader never guesses — past `SqlScopeModel.MaxDepth` (32) nested queries a
   query is `IsOpaque` and the caret inside it gets **no** columns, not the outer
-  ones; a statement with no query in it (DDL, SET) has `Root == null` and keeps
+  ones (since 2026-09, security audit finding 16, parenthesized expression groups
+  and nested join trees count against the same depth and go opaque the same way,
+  and `IsQueryStart` walks a paren run instead of recursing: `SELECT ` +
+  `(`×20000 used to overflow the stack, which .NET cannot catch, per keystroke
+  and after every Run; `SqlKeywordGrammar.Governing` had the same recursion per
+  unclosed group and is iterative now. `Text/HostileText` is the shared
+  generator and `ParserRobustnessTests` runs every UI-thread reader —
+  `SqlScriptSplitter`, `SqlFormatter`, `SqlCompletionContext`, `SqlCallSite`,
+  `SqlKeywordGrammar`, `SqlValueSlot`, `SqlStatementInspector`, the scope model
+  — over every printable character in every position and a hundred thousand
+  nested parens on a 256 KB stack, a quarter of a production thread's); a
+  statement with no query in it (DDL, SET) has `Root == null` and keeps
   the old whole-statement reading (`ExtractTables`), which is also still what
   `CompletionEdits`' alias picking and `ExpandSelectStar` use; and only EXPLAIN
   may be followed by DML — after `CREATE …`, `UPDATE`/`TABLE` are DDL words.

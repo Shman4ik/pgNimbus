@@ -40,6 +40,28 @@ public sealed record BrowseQueryShape(
 /// </summary>
 public static class BrowseSqlParser
 {
+    /// <summary>How deep parentheses may nest in a query <see cref="TryParse"/> reads as a browse page.</summary>
+    public const int MaxParenDepth = 64;
+
+    private static bool NestsDeeperThan(List<Token> tokens, int limit)
+    {
+        var depth = 0;
+        foreach (var token in tokens)
+        {
+            if (token.Kind == Kind.LParen && ++depth > limit)
+            {
+                return true;
+            }
+
+            if (token.Kind == Kind.RParen && depth > 0)
+            {
+                depth--;
+            }
+        }
+
+        return false;
+    }
+
     public static BrowseQueryShape? TryParse(string sql, string schema, string table, IReadOnlyList<ColumnDetail> columns)
     {
         if (Tokenize(sql) is not { } tokens)
@@ -55,6 +77,15 @@ public static class BrowseSqlParser
         if (tokens.Any(t => t.Kind == Kind.Semicolon))
         {
             return null; // more than one statement
+        }
+
+        if (NestsDeeperThan(tokens, MaxParenDepth))
+        {
+            // Nothing browse mode writes nests; a pasted WHERE that does is
+            // kept as an ordinary query rather than split level by level
+            // (quadratic: 12,000 nested parentheses took 5 s on the UI thread
+            // after a Run; review of the 2026-09 audit fixes).
+            return null;
         }
 
         var i = 0;

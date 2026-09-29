@@ -125,9 +125,36 @@ public sealed class ExplainService(NpgsqlDataSource dataSource)
     /// standard <c>[{ "Plan": … }]</c> array, a single <c>{ "Plan": … }</c> object, or a
     /// bare plan node (<c>{ "Node Type": … }</c>, with or without the array wrapper).
     /// </summary>
+    /// <summary>
+    /// The JSON depth a plan may reach. Every plan level is an object and a
+    /// <c>"Plans"</c> array, so <c>JsonDocument</c>'s default of 64 held a plan to
+    /// about 31 levels, and a join of that many tables failed to show (review of
+    /// the 2026-09 audit fixes). 256 is about 127 levels, in line with
+    /// <see cref="ExplainPlanTextParser.MaxDepth"/>.
+    /// </summary>
+    public const int MaxJsonDepth = 256;
+
     public static ExplainResult Parse(string json)
     {
-        using var document = JsonDocument.Parse(json);
+        try
+        {
+            return ParseCore(json);
+        }
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException or KeyNotFoundException
+                                   or OverflowException or ArgumentException)
+        {
+            // Every way the payload can be wrong — not JSON, nested past JsonDocument's
+            // depth limit, a property of the wrong kind ("Plan": 5, "Plans": {}), a
+            // missing one, a number a long can't hold — is one readable error at the
+            // boundary: the import dialog and the Run path catch FormatException only,
+            // and anything else used to reach the crash window.
+            throw new FormatException($"That doesn't look like valid EXPLAIN JSON: {ex.Message}", ex);
+        }
+    }
+
+    private static ExplainResult ParseCore(string json)
+    {
+        using var document = JsonDocument.Parse(json, new JsonDocumentOptions { MaxDepth = MaxJsonDepth });
         var root = document.RootElement;
         var entry = root.ValueKind == JsonValueKind.Array
             ? (root.GetArrayLength() > 0 ? root[0] : throw new FormatException("The EXPLAIN JSON array is empty."))
@@ -149,10 +176,12 @@ public sealed class ExplainService(NpgsqlDataSource dataSource)
             throw new FormatException("Unrecognized EXPLAIN JSON: no \"Plan\" or \"Node Type\" element found.");
         }
 
-        var planningTime = entry.TryGetProperty("Planning Time", out var pt) ? pt.GetDouble() : (double?)null;
-        var executionTime = entry.TryGetProperty("Execution Time", out var et) ? et.GetDouble() : (double?)null;
+        if (planElement.ValueKind != JsonValueKind.Object)
+        {
+            throw new FormatException("The \"Plan\" element is not an object.");
+        }
 
-        return new ExplainResult(ParseNode(planElement), planningTime, executionTime);
+        return new ExplainResult(ParseNode(planElement), GetDouble(entry, "Planning Time"), GetDouble(entry, "Execution Time"));
     }
 
     /// <summary>
@@ -174,16 +203,7 @@ public sealed class ExplainService(NpgsqlDataSource dataSource)
         var trimmed = raw.TrimStart();
         if (trimmed.StartsWith('[') || trimmed.StartsWith('{'))
         {
-            ExplainResult result;
-            try
-            {
-                result = Parse(trimmed);
-            }
-            catch (JsonException ex)
-            {
-                throw new FormatException($"That doesn't look like valid EXPLAIN JSON: {ex.Message}", ex);
-            }
-
+            var result = Parse(trimmed);
             return new ImportedPlan(result, ExplainTextFormatter.Format(result), trimmed);
         }
 
@@ -211,8 +231,18 @@ public sealed class ExplainService(NpgsqlDataSource dataSource)
         var children = new List<ExplainNode>();
         if (element.TryGetProperty("Plans", out var childPlans))
         {
+            if (childPlans.ValueKind != JsonValueKind.Array)
+            {
+                throw new FormatException("A node's \"Plans\" is not an array.");
+            }
+
             foreach (var child in childPlans.EnumerateArray())
             {
+                if (child.ValueKind != JsonValueKind.Object)
+                {
+                    throw new FormatException("A child plan is not an object.");
+                }
+
                 children.Add(ParseNode(child));
             }
         }
@@ -246,8 +276,11 @@ public sealed class ExplainService(NpgsqlDataSource dataSource)
             }
         }
 
+        // A COSTS OFF plan has no cost, rows or width at all, and a hand-edited paste
+        // may hold anything, so every figure is optional and read by kind: a missing
+        // or wrong-kind value is its zero, never an exception.
         return new ExplainNode(
-            element.GetProperty("Node Type").GetString()!,
+            GetString(element, "Node Type") ?? throw new FormatException("A plan node has no \"Node Type\"."),
             GetString(element, "Relation Name") ?? GetString(element, "Function Name") ?? GetString(element, "CTE Name"),
             GetString(element, "Alias"),
             GetString(element, "Index Name"),
@@ -258,20 +291,36 @@ public sealed class ExplainService(NpgsqlDataSource dataSource)
             GetString(element, "Partial Mode"),
             GetString(element, "Operation"),
             element.TryGetProperty("Parallel Aware", out var pa) && pa.ValueKind == JsonValueKind.True,
-            element.GetProperty("Startup Cost").GetDouble(),
-            element.GetProperty("Total Cost").GetDouble(),
+            GetDouble(element, "Startup Cost") ?? 0,
+            GetDouble(element, "Total Cost") ?? 0,
             // Row counts read as double then truncated / kept fractional deliberately:
             // PostgreSQL 18 reports actual rows averaged over loops with two decimals
             // ("Actual Rows": 7.00) — GetInt64() throws FormatException on those.
-            (long)element.GetProperty("Plan Rows").GetDouble(),
-            element.GetProperty("Plan Width").GetInt32(),
-            element.TryGetProperty("Actual Startup Time", out var ast) ? ast.GetDouble() : null,
-            element.TryGetProperty("Actual Total Time", out var att) ? att.GetDouble() : null,
-            element.TryGetProperty("Actual Rows", out var ar) ? ar.GetDouble() : null,
-            element.TryGetProperty("Actual Loops", out var al) ? (long)al.GetDouble() : null,
+            ToLong(GetDouble(element, "Plan Rows")) ?? 0,
+            (int)Math.Clamp(ToLong(GetDouble(element, "Plan Width")) ?? 0, int.MinValue, int.MaxValue),
+            GetDouble(element, "Actual Startup Time"),
+            GetDouble(element, "Actual Total Time"),
+            GetDouble(element, "Actual Rows"),
+            ToLong(GetDouble(element, "Actual Loops")),
             details,
             children);
     }
+
+    /// <summary>A number property, or null when absent or not a number (a string "850" is not one).</summary>
+    private static double? GetDouble(JsonElement element, string name) =>
+        element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number && value.TryGetDouble(out var d)
+            ? d
+            : null;
+
+    /// <summary>Truncates to a long, saturating instead of overflowing on 1e30 (shared with the text parser).</summary>
+    internal static long? ToLong(double? value) => value switch
+    {
+        null => null,
+        { } d when double.IsNaN(d) => 0,
+        { } d when d >= long.MaxValue => long.MaxValue,
+        { } d when d <= long.MinValue => long.MinValue,
+        { } d => (long)d,
+    };
 
     private static string? GetString(JsonElement element, string name) =>
         element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String

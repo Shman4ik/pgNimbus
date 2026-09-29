@@ -375,7 +375,25 @@ Three rules about it:
    shapes external tools emit (the `[{ "Plan": … }]` array, a lone
    `{ "Plan": … }` object, or a bare `{ "Node Type": … }` node); `FORMAT TEXT`
    is parsed best-effort by `Query/ExplainPlanTextParser` (another Core-pure,
-   unit-tested sibling of `PlanAnalyzer`, which also strips psql framing). The
+   unit-tested sibling of `PlanAnalyzer`, which also strips psql framing).
+   **Every way either parser can fail is one `FormatException`** (2026-09,
+   security audit finding 16): the dialog and `TryParsePlanOutput` catch that
+   type alone, and `EXPLAIN (FORMAT JSON, COSTS OFF)` output (no cost fields at
+   all → `KeyNotFoundException`), `[{"Plan": 5}]` (`InvalidOperationException`)
+   and a text `rows=` past 9.2e18 (`OverflowException`) each reached the crash
+   window instead. Now every figure is read by kind with a default (a COSTS OFF
+   plan is a tree of zeros), counts saturate (`ExplainService.ToLong`), and
+   `Parse`/`Import` translate whatever else escapes. The text parser is bounded
+   too: its numbers are `\d+(?:\.\d+)?` under `RegexOptions.NonBacktracking`
+   with a match timeout (the old `[\d.]+\.\.[\d.]+` backtracked O(n²) on
+   `(cost=` + a run of dots), nesting stops at `ExplainPlanTextParser.MaxDepth`
+   (128; JSON reads to `ExplainService.MaxJsonDepth`, 256, about the same number
+   of plan levels, since each level is an object and a `"Plans"` array:
+   `JsonDocument`'s default of 64 had stopped a plan at ~31 levels, a join of
+   that many tables) and input
+   at `MaxInputLength` (4 MiB), because the formatter, the analyzer and the view
+   models all walk the tree recursively. `ParserRobustnessTests` feeds both
+   parsers the hostile inputs. The
    command palette's "Import query plan…" opens `ImportPlanDialog` and, on a
    successful parse, shows the plan in a **new tab**
    (`MainViewModel.OpenImportedPlan` → `QueryViewModel.ShowImportedPlan`) — same
@@ -1427,7 +1445,9 @@ Moved to [`.claude/rules/logo-assets.md`](.claude/rules/logo-assets.md), which l
   unit-tested). A browse tab's page query edited by hand drops browse mode on the
   first keystroke as always, but a *run* of it that still has the browse shape
   (`SELECT * FROM` the same table, optional `WHERE`, `ORDER BY` one column or the
-  key, `LIMIT` required) resumes browse mode via `TableBrowseViewModel.FromParsed`
+  key, `LIMIT` required, parentheses nested at most `MaxParenDepth` (64) deep: the
+  split is quadratic in nesting, and 12,000 levels cost 5 s after a Run) resumes
+  browse mode via `TableBrowseViewModel.FromParsed`
   — running exactly the text typed, recomposing nothing until a later explicit
   chip/page/sort action. The WHERE is split on top-level `AND` (not the one in
   `BETWEEN`); a part `RowFilterSql` could have written and the column's operator
@@ -1612,7 +1632,10 @@ Moved to [`.claude/rules/logo-assets.md`](.claude/rules/logo-assets.md), which l
   keywords right-aligned to a common column, content to its right). The tests
   in `PgNimbus.Core.Tests` assert exact spacing — a deliberate layout change
   must update them, and every layout must survive the formatter's token
-  round-trip safety net.
+  round-trip safety net. Text nesting deeper than `SqlFormatter.MaxNestingDepth`
+  (64) parentheses is handed back as it is: indentation grows with depth, so the
+  output grows with its square, and 100,000 nested subqueries threw from the
+  StringBuilder on the Format gesture (2026-09, review of the audit fixes).
 
 ## NativeAOT constraints
 
