@@ -131,7 +131,8 @@ way, or by hand, before it goes in the log.
 
 ## 5. Ship
 
-- [ ] Tag `vX.Y.Z` on `main` and push it. Watch `release.yml`: every package is
+- [ ] Tag `vX.Y.Z` on `main` and push it. The pipeline refuses a tag on any
+      commit that is not on `main`. Watch `release.yml`: every package is
       launched before it ships, so a red smoke step is a real failure.
 - [ ] Paste the release notes into the GitHub release.
 - [ ] Microsoft Store: download the `windows-msix` artifact (kept 14 days) and
