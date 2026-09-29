@@ -22,6 +22,11 @@ Both are also on the toolbar's Explain button and in the command palette.
     nothing persists. When the statement was data-modifying, the warnings strip
     says so explicitly rather than leaving you to trust it.
 
+Explain takes one statement. With nothing selected it explains the statement
+the caret sits in. A selection that holds several statements is refused, and
+the status line says so, because the server would run every statement in it
+while planning only the first. Select a single statement and try again.
+
 The analyze path always requests `BUFFERS` and `SETTINGS`. Buffer counts are what
 the spill and lossy-bitmap analysis reads, and they are the most useful thing
 missing from a bare plan.

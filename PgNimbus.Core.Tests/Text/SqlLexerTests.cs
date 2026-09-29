@@ -73,6 +73,17 @@ public class SqlLexerTests
     }
 
     [Test]
+    public async Task A_line_comment_ends_at_a_carriage_return_as_it_does_for_the_server()
+    {
+        // PostgreSQL's scanner: non_newline is [^\n\r]. A comment that ran on
+        // past a bare \r hid what followed from every consumer of this lexer.
+        var tokens = Lex("-- x\ry");
+
+        await Assert.That(tokens[0]).IsEqualTo((SqlTokenKind.LineComment, "-- x"));
+        await Assert.That(tokens[^1]).IsEqualTo((SqlTokenKind.Word, "y"));
+    }
+
+    [Test]
     public async Task Block_comments_nest()
     {
         var tokens = Lex("/* a /* b */ c */ x");
@@ -188,6 +199,14 @@ public class SqlLexerTests
     }
 
     // --- The splitter rides the lexer ---
+
+    [Test]
+    public async Task Splitter_sees_the_statement_after_a_comment_ended_by_a_carriage_return()
+    {
+        var statements = SqlScriptSplitter.Split("SELECT 1 --x\r; COMMIT; CREATE TABLE t()");
+
+        await Assert.That(statements).Count().IsEqualTo(3);
+    }
 
     [Test]
     public async Task Splitter_does_not_split_inside_an_escape_string()

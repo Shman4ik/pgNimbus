@@ -71,7 +71,7 @@ public class ReadOnlyConnectionTests
 
     private static (Window Window, MainViewModel ViewModel) ShellFor(bool readOnlyProfile)
     {
-        var vm = Fixtures.MainWindowViewModel(readOnlyProfile);
+        var vm = Fixtures.MainWindowViewModel(readOnlyProfile: readOnlyProfile);
         var window = new MainWindow { DataContext = vm };
         return (window, vm);
     }

@@ -33,6 +33,7 @@ public sealed partial class PreferencesViewModel : ObservableObject
         _autoConnectLastProfile = settings.AutoConnectLastProfile;
         _main.PropertyChanged += OnMainPropertyChanged;
         _main.SchemaTree.PropertyChanged += OnSchemaTreePropertyChanged;
+        _main.SavedQueries.PropertyChanged += OnSavedQueriesPropertyChanged;
     }
 
     /// <summary>
@@ -92,11 +93,31 @@ public sealed partial class PreferencesViewModel : ObservableObject
         set => _main.SchemaTree.ShowSizes = value;
     }
 
+    /// <summary>
+    /// Whether run statements are filed in the query history. Proxies the
+    /// history list's own flag (which persists it), same pattern as
+    /// <see cref="AutoAliasTables"/>.
+    /// </summary>
+    public bool RecordQueryHistory
+    {
+        get => _main.SavedQueries.RecordHistory;
+        set => _main.SavedQueries.RecordHistory = value;
+    }
+
     /// <summary>Unhooks from the main view-model when the window closes.</summary>
     public void Detach()
     {
         _main.PropertyChanged -= OnMainPropertyChanged;
         _main.SchemaTree.PropertyChanged -= OnSchemaTreePropertyChanged;
+        _main.SavedQueries.PropertyChanged -= OnSavedQueriesPropertyChanged;
+    }
+
+    private void OnSavedQueriesPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(SavedQueriesViewModel.RecordHistory))
+        {
+            OnPropertyChanged(nameof(RecordQueryHistory));
+        }
     }
 
     private void OnMainPropertyChanged(object? sender, PropertyChangedEventArgs e)
