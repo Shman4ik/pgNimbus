@@ -62,10 +62,18 @@ Where it sits among the alternatives: pgAdmin and DBeaver are powerful but heavy
 | macOS (beta) | `pgNimbus-<version>-macos-arm64.dmg`, Apple Silicon only. Ad-hoc signed and not notarized: the first launch needs **Open Anyway**. |
 | Linux (beta) | AppImage, `.deb` or `.tar.gz` for x64 and arm64 from [Releases](https://github.com/Shman4ik/pgNimbus/releases). |
 
-The [installation guide](https://shman4ik.github.io/pgNimbus/docs/getting-started/installation/) has the step-by-step for each platform, the macOS Gatekeeper dialogs, and where pgNimbus keeps its files. Every release asset carries signed build provenance, so you can check where a download came from:
+The [installation guide](https://shman4ik.github.io/pgNimbus/docs/getting-started/installation/) has the step-by-step for each platform, the macOS Gatekeeper dialogs, and where pgNimbus keeps its files. Every release asset carries signed build provenance, so you can check where a download came from. Pass `--signer-workflow` and `--source-ref`, or the check also accepts an attestation from any other workflow or ref in the repo:
 
 ```bash
-gh attestation verify pgNimbus-<version>-win-x64.msi --repo Shman4ik/pgNimbus
+gh attestation verify pgNimbus-<version>-win-x64.msi --repo Shman4ik/pgNimbus \
+  --signer-workflow Shman4ik/pgNimbus/.github/workflows/release.yml \
+  --source-ref refs/tags/v<version>
+```
+
+Without the `gh` CLI, check the download against `SHA256SUMS.txt` from the same release, which is attested too:
+
+```bash
+sha256sum -c SHA256SUMS.txt --ignore-missing
 ```
 
 ## 🚀 Quick start

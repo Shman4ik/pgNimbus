@@ -84,3 +84,7 @@ site/
 
 # Affinity's per-document lock file, present while design/logo.af is open
 *.af~lock~
+
+# Python bytecode cache from running/testing scripts/*.py locally
+__pycache__/
+*.pyc
