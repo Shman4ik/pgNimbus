@@ -140,8 +140,9 @@
                     <TextBox Text="{Binding Comment}" PlaceholderText="what this role is for" />
                 </StackPanel>
 
-                <!-- The preview is always the masked build. The real password goes
-                     straight to SecurityEditor and is never rendered anywhere. -->
+                <!-- The preview is always the masked build. The executed statement
+                     carries a SCRAM verifier computed from the password; neither it
+                     nor the password is rendered anywhere. -->
                 <StackPanel Spacing="4">
                     <TextBlock Text="GENERATED SQL" Classes="sectionHeader" />
                     <Border Background="{StaticResource CardBackgroundBrush}"

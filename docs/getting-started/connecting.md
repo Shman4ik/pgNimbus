@@ -131,14 +131,25 @@ Both are also in the menu behind the ☰ button and in the command palette.
 ## If the connection drops
 
 A connection dropped by laptop sleep, a network blip or an SSH tunnel hiccup is
-reopened quietly on your next run. pgNimbus flushes the dead pool and retries
-once on a fresh connection, so you usually will not notice.
+reopened quietly on your next run. Before it sends a statement, pgNimbus asks
+the server to describe it, which runs nothing. If that fails because the
+connection is dead, pgNimbus flushes the pool and opens a fresh connection, so
+you usually will not notice.
 
-The one case it deliberately does not paper over is an open explicit transaction.
-A transaction lives on one held connection; if that connection dies, the
-transaction is gone and nothing in it committed. Rather than silently starting a
-new one and leaving you to guess what happened, pgNimbus surfaces a clear
-"connection lost, nothing committed" error.
+pgNimbus never sends a statement a second time on its own. If the connection
+drops while a statement is running, whether the network went away or a DBA
+terminated your session, the run ends with an error that says the statement
+was not run again and may or may not have taken effect. Check before you run
+it again. The next statement reconnects by itself. A statement that has
+already started on the server is out of the client's hands: an `UPDATE` that
+was halfway through when the socket died keeps running there and commits,
+and running it again would apply it twice.
+
+The other case pgNimbus deliberately does not paper over is an open explicit
+transaction. A transaction lives on one held connection; if that connection
+dies, the transaction is gone and nothing in it committed. Rather than silently
+starting a new one and leaving you to guess what happened, pgNimbus surfaces a
+clear "connection lost, nothing committed" error.
 
 !!! tip "Skipping the dialog"
 
@@ -149,6 +160,13 @@ new one and leaving you to guess what happened, pgNimbus surfaces a clear
     ```bash
     export PGNIMBUS_CONN="postgres://postgres:secret@localhost:5432/mydb"
     ```
+
+    The example above puts the password in the environment. Any other process
+    running as you can read it (`/proc/<pid>/environ` on Linux, a process
+    inspector on Windows or macOS), and if you type the `export` line directly
+    at a shell, it usually lands in shell history too. Prefer a connection
+    string with no password and let pgNimbus prompt, or keep this variable to
+    a throwaway local database.
 
     For everyday use there is a switch in Settings, **Open the last
     connection on startup**, which goes straight to whatever you connected to

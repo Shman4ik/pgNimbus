@@ -215,7 +215,12 @@ public sealed class SqlBlock
 /// </remarks>
 public sealed class SqlScopeModel
 {
-    /// <summary>How deep queries may nest before the rest is left unread (and reported unknown).</summary>
+    /// <summary>
+    /// How deep queries — and, since 2026-09, parenthesized expression groups and join
+    /// trees, which cost the same stack frames — may nest before the rest is left
+    /// unread (and reported unknown). Every recursive step of the reader passes
+    /// <c>depth + 1</c>; nothing walks a paren run by recursion.
+    /// </summary>
     public const int MaxDepth = 32;
 
     private SqlScopeModel(SqlQuery? root) => Root = root;
@@ -496,9 +501,18 @@ public sealed class SqlScopeModel
 
         private string NameAt(int i) => SqlLexer.IdentifierName(_sql, _t[i]);
 
-        private bool IsQueryStart(int i) =>
-            Kw(i, "select") || Kw(i, "with") || Kw(i, "values") || Kw(i, "table")
-            || (Is(i, SqlTokenKind.OpenParen) && IsQueryStart(i + 1));
+        // A query may start behind any number of "(": walked, not recursed — a paste
+        // of a hundred thousand of them used to be a stack overflow, which .NET
+        // cannot catch, and this runs per keystroke.
+        private bool IsQueryStart(int i)
+        {
+            while (Is(i, SqlTokenKind.OpenParen))
+            {
+                i++;
+            }
+
+            return Kw(i, "select") || Kw(i, "with") || Kw(i, "values") || Kw(i, "table");
+        }
 
         private bool IsDmlStart(int i) => Kw(i, "insert") || Kw(i, "update") || Kw(i, "delete") || Kw(i, "merge");
 
@@ -982,6 +996,12 @@ public sealed class SqlScopeModel
 
         private void ReadFromList(SqlBlock block, int s, int e, int depth)
         {
+            if (depth > MaxDepth)
+            {
+                // A join tree nested in parentheses past the cap (ScanGroup's rule): skipped, not read.
+                return;
+            }
+
             var join = SqlJoinKind.None;
             var expectItem = true;
             var i = s;
@@ -1022,7 +1042,7 @@ public sealed class SqlScopeModel
                         else
                         {
                             // A parenthesized join tree: its items belong to this block.
-                            ReadFromList(block, i + 1, Math.Min(_close[i], e), depth);
+                            ReadFromList(block, i + 1, Math.Min(_close[i], e), depth + 1);
                             i = Next(i);
                             _ = ReadAlias(ref i, e);
                         }
@@ -1208,13 +1228,27 @@ public sealed class SqlScopeModel
         // A paren group in an expression: a subquery, or a group whose inside may hold one.
         private void ScanGroup(SqlBlock block, int open, int depth)
         {
+            if (depth > MaxDepth)
+            {
+                // Groups count against the same depth as queries: each level is a few
+                // stack frames, and the reader runs per keystroke on whatever was
+                // pasted. Past the cap the group is opaque, like a query would be —
+                // a caret inside it is reported unknown rather than given the outer
+                // block's columns.
+                block.Nested.Add(new SqlQuery
+                {
+                    Role = SqlQueryRole.Expression, Owner = block, Start = _t[open].End, End = InnerEnd(open), IsOpaque = true,
+                });
+                return;
+            }
+
             if (Is(open, SqlTokenKind.OpenParen) && IsQueryStart(open + 1))
             {
                 block.Nested.Add(ReadQuery(open + 1, _close[open], _t[open].End, InnerEnd(open), SqlQueryRole.Expression, block, null, depth + 1));
                 return;
             }
 
-            ScanExpressions(block, open + 1, Math.Min(_close[open], _t.Count), depth);
+            ScanExpressions(block, open + 1, Math.Min(_close[open], _t.Count), depth + 1);
         }
 
         private void ScanExpressions(SqlBlock block, int s, int e, int depth)

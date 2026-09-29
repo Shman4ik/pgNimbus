@@ -76,7 +76,13 @@ public sealed record BulkGrantRequest(
 /// </summary>
 public static class GrantScriptBuilder
 {
-    /// <summary>The pseudo-role every role is a member of. A keyword — never quoted.</summary>
+    /// <summary>
+    /// The pseudo-role every role is a member of, as SQL and the UI spell it. A
+    /// keyword, written by <see cref="GranteeSql"/> for a <c>null</c> grantee
+    /// and for nothing else: only the lowercase <c>public</c> is reserved by the
+    /// server, so <c>CREATE ROLE "PUBLIC"</c> is legal, and a name that merely
+    /// reads as PUBLIC is that role — quoted, like any other name.
+    /// </summary>
     public const string PublicGrantee = "PUBLIC";
 
     private const string Newline = "\n";
@@ -205,7 +211,9 @@ public static class GrantScriptBuilder
         if (request.Preset == BulkGrantPreset.ReadOnly)
         {
             Line("-- On PostgreSQL 14+ a cluster-wide read-only role is one membership instead");
-            Line($"-- of this whole script: GRANT pg_read_all_data TO {grantee}; the role editor");
+            // Inside a comment the quotes protect nothing; a line break in the
+            // name would, so SqlComment.Safe strips it (finding 11).
+            Line($"-- of this whole script: GRANT pg_read_all_data TO {SqlComment.Safe(grantee)}; the role editor");
             Line("-- offers it.");
         }
 
@@ -260,11 +268,30 @@ public static class GrantScriptBuilder
         return sb.ToString().TrimEnd('\n');
     }
 
-    /// <summary>The grantee as it is written in SQL: a keyword for PUBLIC, a quoted identifier otherwise.</summary>
-    private static string Label(string? grantee) =>
-        grantee is null || grantee.Equals(PublicGrantee, StringComparison.OrdinalIgnoreCase)
-            ? PublicGrantee
-            : SqlIdentifier.QuoteIfNeeded(grantee);
+    /// <summary>
+    /// The grantee as it is written in SQL: the <c>PUBLIC</c> keyword for
+    /// <c>null</c>, a (quoted where needed) identifier for everything else.
+    /// <c>null</c> is the only spelling of PUBLIC end to end — the catalog reads
+    /// return it for grantee oid 0 — so a role literally named <c>PUBLIC</c>
+    /// comes out as <c>"PUBLIC"</c> and never as the keyword. Written the other
+    /// way (a case-insensitive match on the name), granting to that role
+    /// granted to everyone, and revoking from it left the role's access in
+    /// place (security audit 2026-09, finding 12).
+    /// </summary>
+    public static string GranteeSql(string? grantee) =>
+        grantee is null ? PublicGrantee : SqlIdentifier.QuoteIfNeeded(grantee);
+
+    /// <summary>
+    /// The grantee as the UI names it: <c>PUBLIC</c> for <c>null</c>, the role's
+    /// own name otherwise — except a role whose name reads as PUBLIC, which is
+    /// shown quoted (<c>"PUBLIC"</c>) so the two can be told apart on screen.
+    /// </summary>
+    public static string GranteeLabel(string? grantee) =>
+        grantee is null ? PublicGrantee
+        : grantee.Equals(PublicGrantee, StringComparison.OrdinalIgnoreCase) ? SqlIdentifier.Quote(grantee)
+        : grantee;
+
+    private static string Label(string? grantee) => GranteeSql(grantee);
 
     private static string RenderStatement(CellKey key, IReadOnlyList<PrivilegeKind> privileges, IReadOnlyList<string>? columns)
     {

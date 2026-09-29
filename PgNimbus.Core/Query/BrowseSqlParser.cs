@@ -40,6 +40,28 @@ public sealed record BrowseQueryShape(
 /// </summary>
 public static class BrowseSqlParser
 {
+    /// <summary>How deep parentheses may nest in a query <see cref="TryParse"/> reads as a browse page.</summary>
+    public const int MaxParenDepth = 64;
+
+    private static bool NestsDeeperThan(List<Token> tokens, int limit)
+    {
+        var depth = 0;
+        foreach (var token in tokens)
+        {
+            if (token.Kind == Kind.LParen && ++depth > limit)
+            {
+                return true;
+            }
+
+            if (token.Kind == Kind.RParen && depth > 0)
+            {
+                depth--;
+            }
+        }
+
+        return false;
+    }
+
     public static BrowseQueryShape? TryParse(string sql, string schema, string table, IReadOnlyList<ColumnDetail> columns)
     {
         if (Tokenize(sql) is not { } tokens)
@@ -55,6 +77,15 @@ public static class BrowseSqlParser
         if (tokens.Any(t => t.Kind == Kind.Semicolon))
         {
             return null; // more than one statement
+        }
+
+        if (NestsDeeperThan(tokens, MaxParenDepth))
+        {
+            // Nothing browse mode writes nests; a pasted WHERE that does is
+            // kept as an ordinary query rather than split level by level
+            // (quadratic: 12,000 nested parentheses took 5 s on the UI thread
+            // after a Run; review of the 2026-09 audit fixes).
+            return null;
         }
 
         var i = 0;
@@ -518,6 +549,7 @@ public static class BrowseSqlParser
 
             var start = token.Start;
             var end = token.End;
+            string? text = null;
             Kind kind;
             switch (token.Kind)
             {
@@ -527,8 +559,15 @@ public static class BrowseSqlParser
                 case SqlTokenKind.QuotedIdentifier:
                     kind = sql[start] == '"' ? Kind.QuotedId : Kind.OtherStr;
                     break;
+                case SqlTokenKind.String when sql[start] == '\'':
+                    kind = Kind.Str;
+                    break;
+                case SqlTokenKind.String when PlainFromEscapeString(sql, start, end) is { } plain:
+                    kind = Kind.Str;
+                    text = plain;
+                    break;
                 case SqlTokenKind.String:
-                    kind = sql[start] == '\'' ? Kind.Str : Kind.OtherStr;
+                    kind = Kind.OtherStr;
                     break;
                 case SqlTokenKind.DollarString or SqlTokenKind.Parameter:
                     kind = Kind.OtherStr;
@@ -569,9 +608,41 @@ public static class BrowseSqlParser
                     break;
             }
 
-            tokens.Add(new Token(kind, sql[start..end], start, end));
+            tokens.Add(new Token(kind, text ?? sql[start..end], start, end));
         }
 
         return tokens;
+    }
+
+    // The E'…' form SqlLiteral.Quote writes for text holding a backslash, whose
+    // only escapes are \\ and '': read back as the plain literal it stands for,
+    // so a chip's value (a LIKE pattern's escaped % and _ included) survives the
+    // round trip through the page query. Any other escape (\n, \x41, \') keeps
+    // the whole string a raw condition, as every other E-string is.
+    private static string? PlainFromEscapeString(string sql, int start, int end)
+    {
+        if (end - start < 3 || (sql[start] != 'E' && sql[start] != 'e') || sql[start + 1] != '\'' || sql[end - 1] != '\'')
+        {
+            return null;
+        }
+
+        var value = new System.Text.StringBuilder(end - start);
+        for (var i = start + 2; i < end - 1; i++)
+        {
+            var c = sql[i];
+            if (c is '\\' or '\'')
+            {
+                if (i + 1 >= end - 1 || sql[i + 1] != c)
+                {
+                    return null;
+                }
+
+                i++;
+            }
+
+            value.Append(c);
+        }
+
+        return "'" + value.ToString().Replace("'", "''") + "'";
     }
 }

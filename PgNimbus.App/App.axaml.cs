@@ -555,7 +555,11 @@ public partial class App : Application
     /// for it when nobody is sitting in a connect form.
     /// </summary>
     internal static MainWindow BuildMainWindow(string connectionString) =>
-        BuildMainWindow(NpgsqlDataSource.Create(connectionString));
+        // A profile forces standard_conforming_strings on in its Options; this
+        // string comes from nowhere near a profile, so the same option is added
+        // here, or the literals the app composes would parse differently on
+        // this one path (finding 13).
+        BuildMainWindow(NpgsqlDataSource.Create(ConnectionProfile.WithStandardStrings(connectionString)));
 
     /// <summary>
     /// Builds a connected window around an existing <paramref name="dataSource"/>

@@ -13,7 +13,10 @@ speed with TablePlus's polish, PostgreSQL-first.
 
 Whenever a change touches something this file documents — tech stack
 versions, architectural rules, coding conventions, the sandbox bootstrap
-steps — update the corresponding section in the same commit/PR. Treat a
+steps — update the corresponding section in the same commit/PR. That
+includes the path-scoped files in `.claude/rules/` (completion, window
+chrome, logo assets, headless tests, release/CI) and the `verify` skill,
+which hold what used to be sections here. Treat a
 stale `CLAUDE.md` (e.g. it still saying "Avalonia 11" after an upgrade to
 12) as a bug, not a nitpick: it's the first thing a fresh session reads,
 and wrong project memory is worse than none.
@@ -136,22 +139,44 @@ Three rules about it:
    auto-rolls-back the block (so the connection never lingers in Postgres's
    aborted-transaction state), and `TransactionStateChanged` is how the App's
    "in transaction" indicator stays in sync no matter which path changed it.
-   Auto-reconnect (2026-07): `QueryEngine` classifies a failure as connection
-   loss (Postgres class-08 `SqlState`s / an admin or crash shutdown, or an
-   `NpgsqlException` wrapping a socket/IO exception — deliberately not
-   `TimeoutException`, which Npgsql also uses for command timeouts and pool
-   exhaustion where a silent re-run could double-apply work) versus an
-   ordinary statement error, and on loss flushes the whole pool before
-   silently retrying once on a fresh connection — runs, single-statement
-   edits, and pre-commit batches all get this; a script retries only its
-   first statement, since session state from earlier statements can't be
-   resurrected. A failure mid-stream (rows already delivered) or after a
-   batch's `COMMIT` was attempted never retries. An explicit transaction is
-   never silently re-established: a lost connection there clears
+   Auto-reconnect (2026-07, reshaped 2026-09): `QueryEngine` classifies a
+   failure as connection loss (Postgres class-08 `SqlState`s / an admin or
+   crash shutdown, or an `NpgsqlException` wrapping a socket/IO exception —
+   deliberately not `TimeoutException`, which Npgsql also uses for command
+   timeouts and pool exhaustion) versus an ordinary statement error, and on
+   loss flushes the whole pool so the next rent opens a fresh socket. **What
+   is retried is only what ran nothing.** Every path describes the statement
+   before sending it (`DescribeAsync`; see "Describe first, execute once"
+   under coding conventions), and a loss during open or describe — the dead pooled
+   socket a laptop sleep, a dropped tunnel or a backend terminated *while
+   idle* leaves behind — is retried once on a fresh connection, invisibly.
+   A loss after the send is never retried, on any path: the statement is
+   reported with `QueryError.ConnectionLost` and `OutcomeUnknown` set and a
+   message saying it was not run again and may or may not have taken effect.
+   The 2026-09 security audit (finding 2) reproduced why: an `INSERT` a DBA
+   killed with `pg_terminate_backend` mid-run came back as 57P01, which
+   `ConnectionFailure.IsLoss` rightly calls a loss, and the old retry
+   re-sent it — the row was there and no error was shown. The same 57P01
+   arrives for a backend killed while idle, so the classifier cannot tell the
+   two apart; the *timing* of the failure can, which is what the `sent` flag
+   keys on. `ExecuteNonQueryAsync` (grid edits and the Add-row INSERT) throws
+   the loss instead of re-sending, as `StatementOutcomeUnknownException` once
+   the statement was sent, so Add-row says the row may or may not have been
+   inserted rather than "Insert failed" (which invited a second, duplicate
+   INSERT); a script retries its first statement only
+   when it never went out. The one place a statement that went out is sent
+   again is the pre-commit staged batch, which is safe for a reason the
+   single-statement paths lack: it ran inside its own transaction, a
+   connection that dies before `COMMIT` takes the whole transaction with it
+   server-side, so nothing from the first attempt can have landed; once
+   `COMMIT` was attempted it never retries either. A failure mid-stream (rows
+   already delivered) never retries. An explicit transaction is never
+   silently re-established: a lost connection there clears
    `_transactionConnection` without sending `ROLLBACK` (no live socket to
    send it down) and returns a `QueryError` with `ConnectionLost`/`RolledBack`
    set, stating plainly that the transaction is gone and nothing from it
-   committed.
+   committed. `QueryEngineReconnectTests` holds both halves: the idle kill is
+   transparent, the mid-run kill is reported with the table still empty.
    The classification itself lives in `Query/ConnectionFailure.IsLoss`, not in
    `QueryEngine` (2026-08): the LISTEN/NOTIFY listener holds a connection open
    for hours and has to answer the same question when its wait loop throws, and
@@ -358,7 +383,25 @@ Three rules about it:
    shapes external tools emit (the `[{ "Plan": … }]` array, a lone
    `{ "Plan": … }` object, or a bare `{ "Node Type": … }` node); `FORMAT TEXT`
    is parsed best-effort by `Query/ExplainPlanTextParser` (another Core-pure,
-   unit-tested sibling of `PlanAnalyzer`, which also strips psql framing). The
+   unit-tested sibling of `PlanAnalyzer`, which also strips psql framing).
+   **Every way either parser can fail is one `FormatException`** (2026-09,
+   security audit finding 16): the dialog and `TryParsePlanOutput` catch that
+   type alone, and `EXPLAIN (FORMAT JSON, COSTS OFF)` output (no cost fields at
+   all → `KeyNotFoundException`), `[{"Plan": 5}]` (`InvalidOperationException`)
+   and a text `rows=` past 9.2e18 (`OverflowException`) each reached the crash
+   window instead. Now every figure is read by kind with a default (a COSTS OFF
+   plan is a tree of zeros), counts saturate (`ExplainService.ToLong`), and
+   `Parse`/`Import` translate whatever else escapes. The text parser is bounded
+   too: its numbers are `\d+(?:\.\d+)?` under `RegexOptions.NonBacktracking`
+   with a match timeout (the old `[\d.]+\.\.[\d.]+` backtracked O(n²) on
+   `(cost=` + a run of dots), nesting stops at `ExplainPlanTextParser.MaxDepth`
+   (128; JSON reads to `ExplainService.MaxJsonDepth`, 256, about the same number
+   of plan levels, since each level is an object and a `"Plans"` array:
+   `JsonDocument`'s default of 64 had stopped a plan at ~31 levels, a join of
+   that many tables) and input
+   at `MaxInputLength` (4 MiB), because the formatter, the analyzer and the view
+   models all walk the tree recursively. `ParserRobustnessTests` feeds both
+   parsers the hostile inputs. The
    command palette's "Import query plan…" opens `ImportPlanDialog` and, on a
    successful parse, shows the plan in a **new tab**
    (`MainViewModel.OpenImportedPlan` → `QueryViewModel.ShowImportedPlan`) — same
@@ -395,7 +438,21 @@ Three rules about it:
    `SqlScriptSplitter.StatementAt` + the view-pushed `QueryViewModel.CaretOffset`),
    with any existing `EXPLAIN` prefix removed by `SqlStatementInspector.StripExplain`.
    Both matter because `EXPLAIN` takes exactly one un-nested statement: handing it a
-   whole script failed at the second one ("syntax error at or near SET"). The design
+   whole script failed at the second one ("syntax error at or near SET").
+   **A selection of several statements is refused, not planned** (2026-09
+   security audit, finding 3). `EXPLAIN` plans only the first statement of the
+   text it is given, and Npgsql runs every statement in a command, so an explain
+   of a selection `SELECT 1; CREATE TABLE …` planned the SELECT and created the
+   table with no error (reproduced live), and a selection ending in `…; COMMIT;`
+   committed the write the ANALYZE path had promised to roll back.
+   `ExplainService.SingleStatement` splits with `SqlScriptSplitter` and throws
+   for anything but one statement; `ExplainTarget` calls it first so the refusal
+   lands on the status line, and `ExplainAsync` calls it again so the promise
+   holds for every caller. Plain EXPLAIN now also runs inside the same
+   always-rolled-back transaction as ANALYZE; it costs nothing and leaves no
+   path on which the planner could persist anything. `ExplainServiceTests`
+   holds the audit's live check (two statements are refused and the table is
+   not created). The design
    doc + competitive research is in
    [`docs/design/explain-improvements.md`](docs/design/explain-improvements.md).
 7. **Permissions are answered, not dumped — and never applied behind the user's
@@ -433,6 +490,39 @@ Three rules about it:
    `SecurityEditor` instead, are never shown, and `SecretRedactor` guards
    `SavedQueriesViewModel.RecordExecution`, the one choke point into
    `QueryHistoryStore`, for the case where a user types one by hand.
+   **The literal is a verifier, not the password** (2026-09, security audit
+   finding 7). The client side had been right and the server side wrong: the
+   cleartext went down the wire inside statement text, which lands in the
+   server log on any failure (`log_min_error_statement` writes `STATEMENT: …`,
+   and "permission denied to create role" is the ordinary failure on managed
+   Postgres), in every `log_statement = ddl` or pgaudit line, in
+   `pg_stat_activity` while it runs and in `pg_stat_statements` before PG 16.
+   `RoleScriptBuilder` now renders the executed `PASSWORD` as the SCRAM-SHA-256
+   secret `Security/ScramSha256Verifier` (Core-pure, `System.Security.Cryptography`
+   only, pinned to vectors computed with Python's hashlib) builds on this
+   machine, the way psql's `\password` does through `PQencryptPasswordConn`:
+   SASLprep as libpq applies it (an all-ASCII password as typed, a prohibited
+   one hashed raw rather than refused, mapping and NFKC otherwise), a random
+   16-byte salt, PBKDF2-HMAC-SHA-256 × 4096, then StoredKey and ServerKey. The
+   server stores a SCRAM secret in a `PASSWORD` literal as-is whatever
+   `password_encryption` says, and an `md5` pg_hba line authenticates one by
+   negotiating SCRAM, so the cleartext never leaves the machine and nothing
+   about the server changes. Two things to know. The App runs with
+   `InvariantGlobalization`, under which `string.Normalize` is the identity, so
+   NFKC happens only in the tests (`NormalizationAvailable` says which); a
+   non-ASCII password holding compatibility characters is hashed as typed
+   there, which is what Npgsql's own SCRAM client, normalising through the
+   same call, already sends at login from this app, but libpq and pgJDBC
+   clients normalise and would be refused: the role editor says so for any
+   non-ASCII password when normalisation is unavailable
+   (`RoleEditorViewModel.NonAsciiPasswordWarning`). A server before PG10 has no
+   SCRAM and would store the verifier as the password itself, so there the
+   editor refuses to set a password (`PgFeatures.SupportsScramVerifier`) and
+   points at psql's `\password`. And `SqlLiteral.Quote` on
+   the verifier is safe whatever `standard_conforming_strings` says (finding
+   13): base64, digits, `$` and `:` hold neither a quote nor a backslash.
+   `ScramPasswordServerTests` creates a role through the real path and logs in
+   as it with the cleartext, refusing the wrong one with 28P01.
    `GrantScriptBuilder.BuildBulk` is deliberately more correct than pgAdmin's
    Grant Wizard: `GRANT USAGE ON SCHEMA` comes first (theirs skips it and the
    user still gets `permission denied`), revoke is a preset rather than an
@@ -443,6 +533,32 @@ Three rules about it:
    the answer to 2BP01, which Postgres reports without naming either the
    blocking objects or the fix. The research and the plan are in
    [`docs/design/accounts-permissions.md`](docs/design/accounts-permissions.md).
+   **Two rules every script builder keeps** (2026-09, security audit findings
+   11 and 12; the RLS re-create and the default-privileges statement moved out
+   of their view models into the Core-pure `PolicyScriptBuilder` and
+   `DefaultPrivilegeScriptBuilder` so the rules are tested where the others
+   are). (a) **A value placed in a `--` comment goes through
+   `SqlComment.Safe`**, which strips `\r`/`\n` — the only characters that end a
+   comment. A schema or relation name may contain a newline (role names are
+   refused by current servers, table names are not), and every generated
+   script opens with a comment naming what it is about: a table named
+   `"x⏎ALTER ROLE eve SUPERUSER;--"` with an inert policy put a live `ALTER
+   ROLE` on the second line of the re-create script, which autocommit ran
+   before the `CREATE POLICY` failed. Quoting protects nothing inside a
+   comment. `RoleScriptBuilder.Drop` had a private copy of this guard; the
+   `GrantScriptBuilder` hint, `DdlService`'s not-found lines, the RLS and
+   default-privileges comments did not. The tests judge a script with
+   `SqlScriptSplitter` — an escaped comment adds a statement — not by eye.
+   (b) **PUBLIC is `null`, end to end, and nothing else is.** Only the
+   lowercase `public` is reserved, so `CREATE ROLE "PUBLIC"` is legal, and
+   `GrantScriptBuilder` used to match the grantee's *name* case-insensitively:
+   granting to that role granted to everyone, revoking from it left its access
+   in place. Now `aclexplode` grantee 0 and `polroles` oid 0 come back as
+   `null` (`AclEntry.Grantee`, `RlsPolicyInfo.Roles`), `GrantScriptBuilder.
+   GranteeSql` writes the keyword for `null` and `SqlIdentifier.QuoteIfNeeded`
+   for every name — so the role is `"PUBLIC"` — and `GranteeLabel` shows that
+   role quoted so the two are told apart on screen. `PublicRoleTests` creates
+   the role for real and revokes from it through the generated script.
 
 ## UI design rules
 
@@ -453,7 +569,7 @@ Three rules about it:
 > (DESIGN.md rule 9, adopted on Windows in the same change that created that
 > file), Title Case menus that open with the default action (DESIGN.md rule 18)
 > and the macOS Edit/Window menus with focus routing (DESIGN.md rule 19, see
-> "macOS native menu bar" below). What is kept below is the pgNimbus-specific evidence behind each — the
+> "macOS native menu bar" in `.claude/rules/window-chrome.md`). What is kept below is the pgNimbus-specific evidence behind each — the
 > concrete failure is why the rule is believed. Change a shared rule in DESIGN.md,
 > not here.
 
@@ -736,7 +852,7 @@ Three rules about it:
    the scratch text or nothing, no file, no saved-query link, no chosen name,
    no browsed table), closes the *window*, as in every Mac app — before that,
    Cmd+W could never close a window at all. The app keeps running (see
-   "closing the last window does not quit" below). A tab with content is still
+   "closing the last window does not quit" in `.claude/rules/window-chrome.md`). A tab with content is still
    emptied first, so the window only closes on a second Cmd+W, after the work is
    on the reopen stack. `MainViewModel.CloseWindowWithLastEmptyTab` (defaults
    to `OperatingSystem.IsMacOS()`, settable for the tests) raises
@@ -1136,379 +1252,16 @@ Three rules about it:
 
 ## Platform window chrome
 
-- **The command bar IS the title bar, on Windows and macOS.**
-  `MainWindow.SetUpTitleBar()` calls `NimbusWindowChrome.Attach` (shared with
-  kubeNimbus — `shared/nimbusUi/Chrome/`, and DESIGN.md rule 9 states the four
-  platform traps, three of which fail silently). Linux keeps its system
-  decorations deliberately.
-
-  This replaced a **macOS-only** version that hand-rolled the drag from
-  `BeginMoveDrag` plus a `ClickCount == 2` zoom: that reproduced two of the four
-  gestures a title bar owes the user (drag, double-click-maximize) and lost the
-  right-click window menu and Win11 Snap Layouts, all four of which now come from
-  the OS via `WindowDecorationProperties.ElementRole="TitleBar"` on the bar. It
-  also returned early on Windows, so Windows carried two bars until 2026-08.
-  On Windows the caption buttons are now **ours to draw** — Avalonia 12's Win32
-  backend disables the system ones under an extended client area — from the
-  `CommandBarWindowDecorations` theme in `shared/nimbusUi/Chrome/Decorations.axaml`.
-
-  The "pgNimbus" wordmark is gone on every platform (rule 9), not just macOS. The
-  ☰ button is still hidden on macOS only, and that is not chrome: the native menu
-  bar (`BuildMacNativeMenu`) is the file-command home there, so it would be a
-  second copy of the same commands. The sidebar toggle icon is platform-picked
-  via `{OnPlatform}` (SF-style geometry on macOS).
-
-  **The traffic lights are centred on the 40px bar** (2026-09-28). AppKit placed
-  them for its own ~28pt title bar, about 5pt above the centre line every other
-  control in the bar sits on. `NimbusWindowChrome.Attach` now also calls the
-  shared `MacTrafficLights`, which moves the three buttons through the Objective-C
-  runtime and re-applies after resizes, state changes and activation (DESIGN.md
-  rule 9 has why Avalonia 12 offers no way to ask for it). Headless tests cannot
-  see this; it is checked on a Mac.
-
-  **The connection dialog has the same one bar** (2026-09). It is the app's first
-  screen and a resizable, maximizable window like the main one, yet it arrived
-  under an OS caption reading "pgNimbus — Connect" beside the app icon, so the
-  first thing anyone saw was the one window that did not look like the app.
-  `ConnectionDialog` attaches `NimbusWindowChrome` to its own 40px `ConnectBar`,
-  which carries only the "Saved connections" heading over the list. The
-  connection-string box stays at the top of the form: it was tried in the bar,
-  where the main window keeps its search pill, and the owner rejected it on
-  sight. The window `Title` stays set for the taskbar and Alt+Tab. The modal
-  dialogs keep their OS captions on Windows and Linux; they are not places (on
-  macOS `DialogChrome` hides the caption text, UI rule 6).
-  **The form stops widening at 720px** (2026-09, macOS audit): maximized, every
-  field used to run across the screen, the port box ~1500px from its host. The
-  second column of `FormLayout` is `1000*` with `MaxWidth="720"` and a plain `*`
-  column after it takes the rest, so the form stays left-aligned under the
-  "Saved connections" heading instead of being centred away from it, and in a
-  narrow window the near-zero third column leaves it all the width (a `Stretch`
-  element with a `MaxWidth` would have *centred*, and a `Left` one shrinks to its
-  content). Every row spans the first two columns, so Connect stays under the
-  fields' right edge. **New is a compact + under the list** (`NewConnectionButton`,
-  tooltip "New Connection") rather than a 240px bar; there is deliberately no −
-  beside it, Delete stays on the right-click menu (UI rule 1). **The switches sit
-  right of their labels**, a `*,Auto` grid as on the Settings page, rather than
-  leading them like checkboxes. Buttons read Test, Connect (DESIGN.md rule 16).
-  **The identity sits in the button row instead**: the mark, the name and the
-  version, centred between the + and Test, in the one strip of the window that
-  is always there and always empty. It replaced the separate "v1.0.0 · Copyright"
-  line below the buttons (the full text is its tooltip), so the window got that
-  row back, and it opens the About overlay, which from this window was otherwise
-  reachable only through macOS's app menu.
-  **A big window centres the form instead of stretching it** (2026-09): the list
-  and the form are one block capped at 1000 x 760 and centred, and the bar's
-  heading follows the block's left edge (`AlignBarHeading`). Maximized on a Mac it
-  used to leave the form against the left edge with half the window empty and
-  the buttons a screen's height below the fields (`connection-dialog-wide`). A social-card lockup in the space under
-  the fields was tried first and moved: that space comes and goes with the SSH
-  section and the window's height, so the identity did too. It is a `chip` with a
-  local `Opacity="1"` (a chip rests at 0.6). The mark is vector:
-  `Styles/LogoMark.axaml`, generated from `design/logo.svg` (see the icon
-  section's chain).
-- **The connected window opens in the display mode the connect form was left
-  in (2026-08).** `App.CarryWindowState`, called from the dialog's `Connected`
-  handler before `Show()`. Connecting reads as one continuous act — the form is
-  the app's first screen, not a separate program — so a full-screen (macOS
-  green button) or maximized dialog handing off to a small window on the
-  desktop behind it reads as the app losing the user's place. It only ever
-  *promotes*: a normal-state dialog leaves the window on its own restored
-  placement (`WindowPlacementPersistence`, which may itself be maximized).
-  macOS enters full screen through an animated Space transition that a window
-  which has not been shown yet can drop, so the state is re-asserted once from
-  `Opened`.
-- **macOS: closing the last window does not quit the app (2026-08).** Closing a
-  window and quitting are two separate actions there, and the app that exits
-  when its last window closes is the one Mac users report as a bug. So
-  `App.KeepRunningWithNoWindowsOnMac` sets `ShutdownMode.OnExplicitShutdown` on
-  macOS only — Windows and Linux keep Avalonia's default `OnLastWindowClose`,
-  where a windowless background app would read as "close did nothing" — and
-  subscribes to `IActivatableLifetime.Activated` (via
-  `Application.TryGetFeature`) for `ActivationKind.Reopen`, the Dock-icon click.
-  Reopen raises an existing window if there is one, and otherwise builds a fresh
-  connection dialog: the closed `MainWindow`'s `Closed` handler already disposed
-  its data source and SSH tunnel, so there is nothing to resurrect. What still
-  quits, and why `OnExplicitShutdown` is safe: Cmd+Q and the app menu's Quit
-  arrive as a platform shutdown request, which
-  `ClassicDesktopStyleApplicationLifetime` routes straight to `DoShutdown`
-  without consulting `ShutdownMode`, as does the `Shutdown()` that
-  `CrashReporter` and `StartupProbe` call directly.
-- **macOS: the app ends its own process, and must (2026-08).** Shipped 0.7.5
-  aborted with SIGABRT on every quit, *after* the shutdown had already run
-  cleanly (windows closed, workspace and placement saved). AppKit's
-  `-[NSApplication terminate:]` asks Avalonia's delegate first — that is the
-  whole managed shutdown, answering `NSTerminateNow` — and then calls C's
-  `exit()`, which runs libAvaloniaNative's C++ static destructors. One of them
-  releases a `ComPtr<IAvnDispatcher>` whose vtable is a managed MicroCom proxy,
-  so `__cxa_finalize` reverse-P/Invokes into managed code on a main thread whose
-  NativeAOT runtime state is already torn down: a `RhFailFast`, not a catchable
-  exception (`ThreadStore::AttachCurrentThread` → "Attempt to execute managed
-  code after the .NET runtime thread state has been destroyed";
-  AvaloniaUI/Avalonia#12459). No frame in that trace is ours, so the fix is to
-  never reach `__cxa_finalize`: `MacShutdown.ExitProcessOnShutdown` hooks the
-  lifetime's `Exit` event — raised after every window has closed and only when
-  the shutdown really goes through — and calls libc `_exit(2)`, which skips
-  atexit handlers and static destructors entirely. Consequences to keep in mind:
-  an `Exit` handler registered after that one never runs, nothing `Program.Main`
-  would do on the way out runs either, and `_exit` flushes nothing — hence the
-  explicit `Console` flush, without which `StartupProbe`'s single line (the
-  release smoke gate) can be lost. `Environment.Exit` is not a substitute: it
-  runs the very `exit()` teardown this avoids. macOS-only; Windows and Linux
-  exit through their own teardown cleanly.
-- **Windows** — every remaining window still calls `ThemedWindowChrome.Attach(this)`
-  for the **icon** (details in the icon section below). Its caption-colour half is
-  moot on `MainWindow` and `ConnectionDialog`, whose captions are ours, and still
-  applies to the dialogs and the reference windows. kubeNimbus deleted its copy outright once its last two
-  secondary windows became overlays; ours stays because the connection dialog and the
-  crash reporter exist *before* or *instead of* a main window and can never be one.
-- **macOS native menu bar (2026-07)** — two layers. App-level (`App.axaml`,
-  needs `Name="pgNimbus"` or Avalonia shows "Avalonia Application"): About
-  pgNimbus, pgNimbus on GitHub, and Settings… (Cmd+,). The first and last both
-  route to the *active* MainWindow's view model through
-  `App.ActiveMainViewModel()`, because both are overlays on a window now rather
-  than free-standing boxes. **About falls back to the connection dialog** when
-  there is no main window yet (2026-08): `ConnectionDialog` hosts its own
-  `AboutView` overlay against `ConnectionDialogViewModel.IsAboutOpen`, because
-  the connect form is the app's first screen and often its only one — with the
-  ☰ menu absent there and no window for the overlay to land on, the menu item
-  used to do nothing exactly where a Mac user is most likely to reach for it.
-  One consequence to keep: `ConnectAsync` returns early while that overlay is
-  open, since the profiles list binds Enter to Connect and the Connect button is
-  the window's `IsDefault`, so Escape-the-overlay's sibling gesture would
-  otherwise connect instead of dismissing. Settings… has no such fallback — the
-  preferences page hangs off a connected window's view model — so it is
-  **disabled** while no main window is open (2026-09; it used to sit there
-  enabled and do nothing): `App.TrackAppMenuState` re-reads it on every window
-  open/close (posted, so a closing window has left the lifetime's list first)
-  and when the menu opens, through `MacAppMenu.UpdateSettingsItem`.
-  **Avalonia's own Services / Hide / Hide Others / Show All / Quit block is
-  corrected in place** (`MacAppMenu.FixStandardItems`, same method): Avalonia
-  12.1 binds Hide Others to ⌥⌘Q, one key from Quit, and labels Quit without the
-  app's name. Replacing the block (`MacOSPlatformOptions.DisableDefaultApplicationMenuItems`)
-  is not an option because the hide/show commands and the Services-submenu flag
-  are internal to Avalonia.Native; its items are ordinary `NativeMenuItem`s added
-  to our app menu during `AfterSetup`, before `OnFrameworkInitializationCompleted`,
-  and the exporter watches their Header and Gesture. Window-level:
-  `MainWindow.BuildMacNativeMenu()` installs `CreateNativeMenuBar()` — File /
-  Edit / Query / View / Window — via `NativeMenu.SetMenu`, rebuilt from
-  `BuildKeyBindings` so gestures track the live Ctrl/Cmd scheme; the builder
-  runs on every platform so `MenuTests` can read the menus. The shared pieces are
-  `Views/MacMenus` (Edit, Window, Appearance), and `ConnectionDialog` builds its
-  own File (Close Window ⌘W) / Edit / Window bar from them — it had no menu at
-  all, so the bar showed the app menu alone and Cmd+W did nothing there.
-  **The Edit menu routes to focus, and must** (2026-09, DESIGN.md rule 19):
-  AppKit matches a menu item's key equivalent before the key reaches the
-  window, so once Edit carries Cmd+C/V/X/Z/A/F, those presses arrive as menu
-  clicks. `EditCommands.Execute` walks up from the focused element: an
-  `IEditCommandTarget` answers first (`ResultsGridPanel`: Copy is the grid's TSV
-  copy, Select All selects every row, Find in a browsed grid opens a filter —
-  the same three things its key handler does; `MainWindow`: Find opens the SQL
-  editor's search, as the Find chord does from anywhere), then a `TextBox` (the
-  palette box, every field, a grid cell being edited), then an AvaloniaEdit
-  `TextEditor` (the SQL editor, the cell inspector's JSON editor). The gestures
-  come from `EditCommands.GestureFor` (Undo/Copy/Find from the catalog, the rest
-  the standard text keys on the live modifier). The dialog's Edit has no Find.
-  **The Window menu** is Minimize / Zoom, then (main window only) Show Previous
-  Tab / Show Next Tab on the catalog's `PreviousTab`/`NextTab` chords, then Bring
-  All to Front and a list of the open windows, checked on the active one and
-  rebuilt on `NeedsUpdate`: AppKit keeps its own list only for the menu set as
-  `NSApp.windowsMenu`, which Avalonia neither sets nor exposes. **View → Appearance**
-  is System / Light / Dark radio items through `App.SetTheme`, replacing a "Toggle
-  Light/Dark Theme" item that could not return to following the system; the
-  checkmark is read on `NeedsUpdate`, never at build time, so building a menu
-  bar never reads the settings file. File uses the Mac names: Open…, Save to
-  Saved Queries…, Save to File…, New Connection Window…. Landmines, all learned the hard way: (a) menu
-  items use `Click` + a CanExecute check, **not** `NativeMenuItem.Command` —
-  the exporter snapshots enabled-state from `CanExecute` at assignment time
-  (before the DataContext exists), and a wrapper that never raises
-  `CanExecuteChanged` leaves every item permanently grayed out; (b) there is
-  deliberately **no Help menu** — AppKit force-inserts a search field into
-  any menu named "Help" (searching a help book the app doesn't have), so
-  Keyboard Shortcuts lives in View and the GitHub link in the app menu;
-  (c) don't add an "Enter Full Screen" item — AppKit appends its own to the
-  menu titled "View"; (d) the File → Open Recent submenu rebuilds on the
-  menu's `NeedsUpdate`, same contract as the ☰ menu's, and View's
-  Show/Hide Sidebar header re-resolves the same way; (e) a `NativeMenuItem` in
-  `App.axaml` can't take `x:Name` (AVLN2000), so the Settings item is found by
-  its header; (f) AppKit appends Emoji & Symbols and Dictation to the menu titled
-  "Edit" by itself — expected, not a bug.
-- **Results-grid columns resize by dragging, and the drag lifts the auto-width
-  cap.** Every generated column is `Width=Auto` with `MaxWidth=AutoWidthCap`
-  (560), so one long value can't blow a column past the viewport — but
-  `DataGridColumnHeader` clamps *every* step of a resize drag to the column's
-  `ActualMaxWidth` too, so with the cap left on, widening a capped column stops
-  dead with nothing on screen saying why. `ResultsGridPanel` therefore lifts the
-  cap for the column a press is about to resize. Three things make that work:
-  the handler is **tunneled** (the header marks a resize press handled before it
-  bubbles, so `DataGridColumn.HeaderPointerPressed` — an ordinary bubbling
-  subscription — never fires for the very presses that matter); it repeats the
-  grid's own 5px-edge test to decide *which* column the press resizes (the right
-  grip resizes this column, the left one its neighbour); and it pins
-  `Width = ActualWidth` **before** raising `MaxWidth`, because
-  `DataGrid.OnColumnMaxWidthChanged` re-expands a column sitting exactly at its
-  cap to the full width its content wants — without the pin the column jumps on
-  mouse-down, before the drag. The header→column mapping rides on the header
-  content's `Tag` (`DataGridColumnHeader.OwningColumn` is internal). Dragged
-  widths are handed back to the tab in `QueryViewModel.ColumnWidths`, keyed by
-  column name, because the grid is window-central and rebuilds its columns from
-  scratch on every re-run, page turn, `EditContext` arrival and tab switch;
-  only dragged columns are saved, so an untouched column keeps growing with the
-  values that scroll into view.
-- **Results-grid scrolling is the DataGrid's own.** Avalonia 12's DataGrid
-  handles both wheel axes natively (`UpdateScroll`). Don't reintroduce a
-  tunneled wheel handler that writes `ScrollBar.Value` directly — the
-  DataGrid only reacts to user `Scroll` events, so that moves the bar
-  without the content (the 2026-07 macOS "scrollbar moves, results don't"
-  bug, since removed).
+Moved to [`.claude/rules/window-chrome.md`](.claude/rules/window-chrome.md), which loads when working on the window chrome, menus, `MainWindow`, `ConnectionDialog`, `App.axaml` or `Platform/`.
 
 ## App icon / logo assets
 
-Full reference: [`design/LOGO-ASSETS.md`](design/LOGO-ASSETS.md); the
-designer hand-off brief is [`design/DESIGNER-BRIEF.md`](design/DESIGNER-BRIEF.md).
-**Keep both current** when assets or the pipeline change.
-
-**One drawing feeds everything** (2026-08). `design/logo.af` is where the mark
-is drawn; `design/logo.svg` is generated from it; every raster below is
-generated from that. **There is one colourway** (2026-08): the mark is plated,
-a dark disc holding a light field, so it carries its own contrast and reads on
-white, on a light UI, on GitHub dark and on black alike — a second SVG would be
-a second thing to keep in step for no gain. Nothing in `design/masters/**` or
-`PgNimbus.App/Assets/**` is hand-edited any more — regenerate, don't retouch.
-The chain, each step a script:
-
-```
-design/logo.af                     Affinity, the editable master
-  → scripts/design/dump-af.js      geometry out to JSON (run via the Affinity MCP)
-  → scripts/design/af-to-svg.py    design/logo.svg
-  → scripts/design/make-masters.ps1        design/masters/**
-  → scripts/design/svg-to-axaml.py         PgNimbus.App/Styles/LogoMark.axaml
-  → scripts/windows/make-app-icons.ps1     PgNimbus.App/Assets/**
-  → scripts/windows/make-store-logos.ps1   design/store/**
-```
-
-What this replaced: masters that were **hand-drawn per size**, because the mark
-was a traced raster whose downscale turned to mud below 32px. The modular
-vector master rasterises cleanly, so the six icon tiles are now six renders of
-one file rather than six drawings that drift apart. If a size ever does stop
-reading, the fix is a simplified *mark* fed into `make-masters.ps1` (a
-`logo-small.svg`, the way kubeNimbus does it) — never a hand-painted PNG that
-nothing can regenerate. Layout:
-
-- `design/masters/icon/icon-{16,24,32,48,256,1024}.png` — the app tile, every
-  size rendered from `logo.svg`. All of them keep the plate: these feed
-  `app.ico`, which Windows hands the taskbar, Alt+Tab and the title bar
-  through one `WM_SETICON` slot, so it cannot be theme-aware, and unplated
-  dark line art vanishes on a dark taskbar. The corners outside the plate are
-  transparent, which is fine — what must not be transparent is the middle.
-- `design/masters/window/window-{light,dark}-256.png` — the same plated mark,
-  written out twice (2026-08). It used to be theme-tinted transparent line art
-  (the full-bleed plate stripped, `window-light` cut from a palette-inverted
-  copy so dark lines would still read on a light Start menu with no plate
-  behind them) — two more hand-maintained colourways of a mark that, every
-  other place it ships, needs exactly one because the plate already carries
-  its own contrast. `make-masters.ps1` now just renders `design/logo.svg` at
-  256px for both file names. These feed `window-icon-{light,dark}.ico` (now
-  byte-identical, kept as two files only because `ThemedWindowChrome` still
-  picks between two names by theme) and the MSIX "unplated" altforms — which,
-  since Windows backplates an unplated tile on its own, now show a plate
-  inside a plate there. Accepted deliberately: one mark everywhere beat a
-  transparent-only cut that only that one Store surface used.
-- **`design/logo.svg` — the committed vector master**, generated from the
-  `.af` and never hand-edited (`af-to-svg.py` overwrites it). `viewBox="0 0
-  1024 1024"`; three modules (`#base`, `#mascot-elephant`, `#brand-broom`) as
-  plain `<path>` geometry in the root coordinate system — no `transform`, no
-  `mask`, no `<use>`, no CSS variables — which is what makes it survive
-  Inkscape / Illustrator / Figma and what lets a module be lifted whole into a
-  sibling mark. Colour is two classes, `.ink` and `.paper`, with the value
-  repeated as a plain attribute so tools that ignore `<style>` still render, so
-  a host page can retheme the mark without touching the geometry. Two rules
-  hold it together. **Nothing changes colour where it crosses the field's rim**: the
-  broom's handle and the tip of the trunk both carry on past the light field
-  onto the plate and stay ink the whole way, carried by a `.paper` clearance
-  halo drawn underneath — the raster-era master flipped them to white instead,
-  which is the same drawing but a different object every time the rim crosses
-  it. And **each module carries its own clearance**, so hiding `#base` leaves a
-  whole elephant and a whole broom rather than a heap of fragments. That halo
-  is 39.451 in both modules, the width kubeNimbus's broom already used: at the
-  trunk it has to *fill* the hollow between the trunk's two walls out on the
-  plate, not merely outline them, or the trunk ends with a black wedge inside
-  it. What this replaced is `design/archive/logo-raster-era.svg` — one compound
-  path with seven subpaths, in which neither the elephant nor the broom was an
-  object: both were white showing through a solid ink disc, so hiding the disc
-  left nothing.
-  **The `.af` mirrors this structure exactly** — same three groups, same
-  clearance subgroups, one node per `<path>` — which is what lets `af-to-svg.py`
-  be a transcription rather than an interpretation. Keep it that way: a node
-  renamed or regrouped in Affinity changes the generated SVG's ids, and those
-  ids are load-bearing (`make-masters.ps1` finds the plate by radius, kubeNimbus
-  lifts `#brand-broom` by id).
-- `design/masters/logo/` — README/website assets: `logo.png`
-  (the mark at 1024 on transparency, one file), `wordmark-{light,dark}.{svg,png}` (the
-  mark at 240px beside "pgNimbus" in Segoe UI Bold, text baked to paths by
-  Inkscape so it renders on a machine without that font), and
-  `social-preview.png` (1280×640, the dark navy card the raster-era mark
-  used: the "pgNimbus" wordmark plus the one-line tagline, not the bare mark
-  — a bare-mark version shipped briefly in 2026-08 on the theory that link
-  unfurlers crop this to wildly different aspect ratios and a square survives
-  that better than a lockup, but GitHub itself renders the card uncropped at
-  its native 2:1, so the crop-safety argument gave up a legible product name
-  for a benefit that mostly wasn't there; reuses the generated
-  `wordmark-dark.svg` rather than re-deriving the mark+text lockup a third
-  time). The wordmark is the one
-  asset that still ships in two colourways, and only because of the type:
-  "pgNimbus" set in ink is unreadable on a dark README. Both lockups carry the
-  same mark. All of these come out of `make-masters.ps1`.
-- `design/store/` — **generated**, not hand-edited: Microsoft Partner Center
-  listing images from `icon-1024.png`, via
-  `scripts/windows/make-store-logos.ps1`. Checked into git so a Partner
-  Center re-upload doesn't depend on someone remembering to run the script.
-- `design/archive/` — superseded concepts (old `icon-tile.png`, `simple/`, …).
-
-Everything in `PgNimbus.App/Assets/` is **generated** by
-`scripts/windows/make-app-icons.ps1` (Windows-only, System.Drawing) —
-regenerate via that script, don't hand-edit. Output filenames are stable so
-csproj / WiX / MSIX manifest reference them unchanged:
-
-- `app.ico` — 16–256px multi-size tile; the exe (`ApplicationIcon`) and the
-  MSI icon only. Windows don't set `Icon` in XAML; the runtime window icon is
-  the next bullet, not this file.
-- `window-icon-light.ico` / `window-icon-dark.ico` — what
-  `ThemedWindowChrome.Attach(this)` (called from every window's constructor)
-  actually sets at runtime: `Window.Icon` (always from the `-dark` file — a
-  quirk that stopped mattering once both files became the same plated mark,
-  2026-08) and, via a direct `WM_SETICON` P/Invoke built from the same `.ico`
-  bytes, the small/big taskbar HICONs (still picked by theme, `-light` or
-  `-dark`, though now visually identical too — that branch is harmless,
-  redundant, and hasn't been collapsed). The P/Invoke exists because
-  Avalonia's `Window.Icon` reliably updates the title bar but not the
-  Windows 11 taskbar button (a known Avalonia/Win32 gap). One plated icon
-  everywhere is the same reasoning `app.ico` already applied: the title bar,
-  taskbar and Alt+Tab all read the same `WM_SETICON` slots (they cannot
-  diverge), and theme-swapped transparent line art was unreadable on the
-  (almost always dark) taskbar whenever the app ran the light theme — which
-  is also why these two files are no longer transparent line art themselves
-  (see `design/masters/window/` above).
-- `Assets/Msix/*` — MSIX tiles, packaging-time-only. Each of
-  `Square44x44Logo`/`Square150x150Logo`/`StoreLogo` ships as
-  `.scale-{100,125,150,200,400}.png` (not one flat file — Windows will
-  backplate/blur a lone unqualified asset when a surface asks for a size it
-  doesn't have), plus `Square44x44Logo.targetsize-{16,24,32,48,256}_altform-
-  {unplated,lightunplated}.png` (reused from the `window/` masters, which are
-  the plated mark rather than transparent line art as of 2026-08 — see
-  `design/masters/window/` above for why that's a deliberate plate-inside-a-
-  plate on this one surface) for the taskbar/Start/Alt+Tab/install-dialog
-  surfaces that expect an unplated icon. `build-msix.ps1` compiles these into
-  `resources.pri` via
-  `makepri` — see "Microsoft Store (MSIX)" below; the qualified filenames do
-  nothing on their own without that resource index.
+Moved to [`.claude/rules/logo-assets.md`](.claude/rules/logo-assets.md), which loads when working on `design/`, `scripts/design/` or `PgNimbus.App/Assets/`.
 
 ## Tech stack
 
-- `net10.0` for all projects.
-- Core: `Npgsql`, `System.Security.Cryptography.ProtectedData`, `SSH.NET`.
-- App: `Avalonia`, `Avalonia.Desktop`, `Avalonia.Themes.Fluent`,
-  `Avalonia.Fonts.Inter`, `Avalonia.Controls.DataGrid`, `Avalonia.AvaloniaEdit`,
-  `CommunityToolkit.Mvvm`. No `AvaloniaUI.DiagnosticsSupport`: the Avalonia
+- Packages: see the `.csproj` files (Core's three are hard rule 1).
+- No `AvaloniaUI.DiagnosticsSupport` in the App: the Avalonia
   DevTools MCP wiring (Debug-only `.WithDeveloperTools()`) was removed in
   2026-09 (#264) — the MCP tool is not on the current subscription tier, it
   could not reach the completion popup (its own top-level window) or a
@@ -1520,11 +1273,11 @@ csproj / WiX / MSIX manifest reference them unchanged:
   `dotnet run --project PgNimbus.Core.Tests`. Never add
   `Microsoft.NET.Test.Sdk` to a TUnit project — it breaks test discovery.
 - UI tests: `PgNimbus.App.Tests` — same platform, plus `Avalonia.Headless`.
-  Real windows, real key input, no display and no Postgres; see "Headless UI
-  tests" below.
+  Real windows, real key input, no display and no Postgres; see
+  `.claude/rules/headless-tests.md`.
 - Benchmarks: `PgNimbus.Benchmarks` — a plain console project (Core-only, no
   UI deps) measuring the query engine through its streaming API; see
-  "Benchmarks pipeline" below.
+  `.claude/rules/release-ci.md`.
 - `AvaloniaUseCompiledBindingsByDefault` is on — don't add uncompiled
   (reflection) bindings.
 - **A RID-less build keeps native assets for the host RID only, and no native
@@ -1586,6 +1339,36 @@ csproj / WiX / MSIX manifest reference them unchanged:
   withdraws one already on screen when the server's answer lands late). It is
   deliberately not in the connection-string preview, like the accent colour:
   it is this app's setting, not part of the target.
+  **Every profile also forces `standard_conforming_strings=on`** (2026-09,
+  security audit finding 13). `ConnectionProfile.BuildConnectionString` always
+  sets `Options` through `SessionOptions(readOnly)` — the standard-strings
+  option alone, or `-c default_transaction_read_only=on -c
+  standard_conforming_strings=on` for a read-only profile, and `BuildMainWindow`
+  still finds the read-only one by `Contains`. Why: `SqlLiteral.Quote` doubles
+  only the quote, and that text is *executed* — browse filters (including
+  filter-by-cell), the FK hop's seed, a role's `VALID UNTIL`/`COMMENT` — because
+  browse mode's WHERE round-trips through the editor as text (`BrowseSqlParser`
+  reads it back into chips), where a parameter cannot live, and `COMMENT ON` /
+  `VALID UNTIL` are utility statements, which take no bind parameters. With the setting
+  off (a database owner can `ALTER DATABASE … SET` it) a backslash escapes too,
+  and a stored `x\'' OR 1=1 --` filtered by cell ran as SQL. A startup option
+  beats the database's and the role's defaults and survives the pool's reset,
+  so `SqlLiteral`, `SqlLexer` and `SqlScriptSplitter` read literals the one
+  way the server does. The `PGNIMBUS_CONN` path adds the
+  same option through `ConnectionProfile.WithStandardStrings`, *appended* even
+  when the string already names the setting: the server applies `-c` switches
+  in order, so the last wins and a string carrying `=off` cannot keep it.
+  `StandardConformingStringsTests` turns the test database's default off and
+  proves a profile's session still says `on` and the hostile filter matches
+  only its row. **The option is not the only guard**: a pooler that drops
+  startup options (finding 17's PgBouncer case) leaves the database default in
+  place, so `SqlLiteral.Quote` writes text holding a backslash as `E'…'` with
+  the backslash doubled too, which reads the same under either setting (the
+  same test shows the old plain form returning every row without the option).
+  `BrowseSqlParser` reads that exact form back as a typed value (only `\\` and
+  `''` escapes), so a LIKE chip's escaped `%`/`_` survives the round trip; any
+  other `E'…'` stays a raw chip. `SqlLexer`, `SqlScriptSplitter` and #286's
+  Explain check still assume `on` for text the user types.
 - **json/jsonb are a first-class editable type.** `ColumnValueEditorClassifier`
   maps them to `ColumnValueEditor.Json` (jsonpath isn't JSON-shaped so it takes
   the plain-cast `CastText` path below; hstore stays `Text` — its display needs
@@ -1703,7 +1486,9 @@ csproj / WiX / MSIX manifest reference them unchanged:
   unit-tested). A browse tab's page query edited by hand drops browse mode on the
   first keystroke as always, but a *run* of it that still has the browse shape
   (`SELECT * FROM` the same table, optional `WHERE`, `ORDER BY` one column or the
-  key, `LIMIT` required) resumes browse mode via `TableBrowseViewModel.FromParsed`
+  key, `LIMIT` required, parentheses nested at most `MaxParenDepth` (64) deep: the
+  split is quadratic in nesting, and 12,000 levels cost 5 s after a Run) resumes
+  browse mode via `TableBrowseViewModel.FromParsed`
   — running exactly the text typed, recomposing nothing until a later explicit
   chip/page/sort action. The WHERE is split on top-level `AND` (not the one in
   `BETWEEN`); a part `RowFilterSql` could have written and the column's operator
@@ -1746,7 +1531,9 @@ csproj / WiX / MSIX manifest reference them unchanged:
   LIKE-wildcard escaping, untyped quoted literals so Postgres types each
   comparison by its column, `json` offered text search because it has no `=`);
   the editor shows the draft's SQL before it runs. The FK-seeded `FilterText`
-  stays a raw, removable chip, ANDed first.
+  stays a raw, removable chip, ANDed first. Those literals are executed as
+  text, and their `''` escape is complete only because every session forces
+  `standard_conforming_strings=on` (the read-only paragraph above, finding 13).
   (d) **Filters exist only in browse mode.** The strip's host is bound to
   `ActiveTab.IsBrowsing`, and `MainViewModel.FilterRows` on a non-browse tab only
   says where filters live — there is no path from a filter gesture to the text of
@@ -1834,11 +1621,12 @@ csproj / WiX / MSIX manifest reference them unchanged:
   with no limit (`_resultSql`, or `TableBrowseViewModel.BuildExportSql` — the
   page query minus `LIMIT/OFFSET`) and `ResultExporter.WriteStreamingAsync`
   (Core-pure, unit-tested) writes batch by batch, flushing each before the next
-  is read, so memory holds one batch. A hand-written query runs again only if
-  `SqlStatementInspector.IsSafeToReExecute` vouches for it — the same guard as
-  the text fallback below, for the same reason — and a script section or any
-  query in an explicit transaction (where the engine materializes) never does;
-  those write the grid and say "Exported only the N rows shown". The export
+  is read, so memory holds one batch. **Only the browse query is ever run
+  again** (2026-09 security audit, finding 1): a hand-written query, a script
+  section and any query in an explicit transaction (where the engine
+  materializes) write the grid and say "Exported only the N rows shown". A
+  lexical read-only check (`IsSafeToReExecute`, since deleted) used to vouch for
+  plain SELECTs, and `SELECT create_order()` passed it and ran twice. The export
   runs like a query (`IsRunning`, its own CTS, so Cancel works) and the view
   deletes the file unless `ExportAsync` reports it complete. Two landmines:
   no token on the `Task.Run` around the writer (a task cancelled before it
@@ -1853,494 +1641,44 @@ csproj / WiX / MSIX manifest reference them unchanged:
   'System.Object' is not supported for fields having DataTypeName …"*, and
   `GetFieldType` throws it too, before the first row is even read. `QueryEngine`
   answers in two layers, both required:
-  1. **Text-format re-execution** (`BuildTextFallbackMask` →
-     `NpgsqlCommand.UnknownResultTypeList`) re-requests just those columns as
-     Postgres literals (`("246 Oak St",Milan,MI,20918,IT)`) — the shape the grid
-     shows and the composite editor casts back on edit. It costs a second
-     execution, so it's gated on `MayReExecute`: either the caller vouched
-     (`allowTextFallback: true`, only for app-composed browse SELECTs) or
-     `SqlStatementInspector.IsSafeToReExecute` proves it lexically — a read-shaped
-     leading keyword, no data-modifying CTE, no `SELECT … INTO`, no
-     side-effecting function call (`nextval`, advisory locks, `dblink*`, …), and a
-     single statement (the simple query protocol would happily re-run
-     `SELECT 1; DROP TABLE t`). Deliberately conservative: a false negative costs
-     a placeholder, a false positive applies a side effect twice. Scripts and
-     transaction statements are vetted per statement this way and never vouch.
+  1. **Describe first, execute once** (`QueryEngine.DescribeAsync` →
+     `NpgsqlCommand.UnknownResultTypeList`). Every statement the engine runs is
+     first sent with `CommandBehavior.SchemaOnly` — Parse and Describe, no
+     Execute — which returns the row description without running anything; the
+     columns that need it are then requested as Postgres literals
+     (`("246 Oak St",Milan,MI,20918,IT)`, the shape the grid shows and the
+     composite editor casts back on edit) on the one real execution. **This
+     replaced a second execution** (2026-09 security audit, finding 1): the old
+     fallback re-ran the statement with the mask set, gated on a lexical
+     read-only check, and `SELECT create_order()` — a read by its keyword, a
+     write by its VOLATILE function — ran twice. No lexical check can tell what
+     a function does, so the rule now is that **user SQL is never executed
+     twice by the app, anywhere**; the describe costs one extra round trip per
+     statement and is also what finding 2's fix uses as its liveness check.
+     The mask is skipped for a multi-statement command (`SELECT a, b; SELECT 1`):
+     Npgsql applies it to every statement and its length must match each one.
   2. **The per-cell guard** (`QueryEngine.ReadValue` / `FieldType`) catches the
-     `InvalidCastException`/`NotSupportedException` for everything layer 1 refuses
-     and yields `QueryEngine.UnreadableCell(dataTypeName)` —
+     `InvalidCastException`/`NotSupportedException` for everything layer 1 can't
+     cover and yields `QueryEngine.UnreadableCell(dataTypeName)` —
      `<unreadable commerce.address>` — so the rest of the row still renders. Only
      those two exception types are caught; a dropped connection mid-row must stay
      an error. Integration coverage is `QueryEngineCompositeTests` (gated on
-     `PGNIMBUS_TEST_CONN` like the reconnect tests).
-- **SQL text has one lexer, and completion reads one statement the way the
-  server would** (2026-09, first delivery of
-  [`docs/design/sql-editing-experience.md`](docs/design/sql-editing-experience.md),
-  packages A–E). `Text/SqlLexer` (Core-pure, unit-tested, including a
-  generative "tokens exactly tile any text" check — it runs per keystroke on the
-  UI thread, so a zero-width token would hang the app) is the single definition
-  of strings (`E'…'` backslash escapes, `U&`/`B`/`X`/`N` prefixes), quoted
-  identifiers, `$tag1$`/`$тег$` dollar quotes and nested comments.
-  `SqlScriptSplitter` and `SqlCompletionContext`'s caret/mask scans ride it;
-  before that each had its own scanner and they disagreed — `E'can\'t;stop'`
-  split in two, and completion opened inside `$tag1$…$tag1$`. `SqlFormatter`
-  reads it too (its `Tokenize` is an adapter: runs of operator characters are one
-  operator, `$1` a word, brackets operators); its own scanner had formatted
-  `1_000` as `1 _000` and `N'x'` as `N 'x'`, both changes of meaning. Its
-  round-trip check still compares two runs of one tokenizer, which a misreading
-  tokenizer passes on both sides, so `SqlFormatterLexicalTests` pins literal
-  expected output for the lexically tricky inputs. `BrowseSqlParser` reads it
-  as well, keeping its contract: any still-open token means "not a browse
-  query", and only a plain `'…'` string is a literal a typed chip may take —
-  E/B/X/N/U& strings, dollar quotes, `U&"…"` and `$1` stay raw, verbatim chips
-  (its own scanner had closed a nested comment at the first `*/`, keeping the
-  rest as a raw condition that would have gone back into the SQL broken, and
-  had read `0x1F` as a typed value). `IsSafeToReExecute` is untouched and must
-  not get less conservative.
-  Five rules the provider now keeps, each a reproduced bug in the audit:
-  (a) **The statement is the unit** — `CompletionStatementSpan` is the text
-  between the real `;` tokens around the caret, the part right of it included (a
-  FROM typed after the select list names the list's sources); a caret right after
-  `;` is a new, empty statement. That is deliberately *not* `StatementSpanAt`,
-  which picks the previous statement from a trailing gap so Run/Format have
-  something to act on. (b) **Names fold like the server folds them**: a bare
-  identifier is ASCII-lowercased, a quoted one kept exact (`TableRef` and
-  qualifier chains carry the folded name), and a short table name resolves along
-  `search_path` (`SchemaService.GetSearchPathAsync`, from a pooled connection, so
-  the connection *default*); unknown path → only a name exactly one schema has.
-  `missing.users` never borrows `public.users`' columns and `public.users.` never
-  lists `audit.users`' — the old cache merged same-named tables under the short
-  name. (c) **A column two sources share is offered per source, qualified**
-  (`u.id` / `o.id`, `SqlCompletionData.DisplayText`), unless USING/NATURAL merged
-  it; a self-join is two sources. (d) **An accept is one edit**:
-  `Text/CompletionEdits.Plan` (Core-pure) decides the replaced range — the whole
-  token, past the caret and including a quoted identifier's quotes — a callable's
-  parens (reusing a `(` already there), and the auto-alias (skipped when one is
-  already typed), and `SqlCompletionData.Complete` applies it as a single
-  `Document.Replace`. The alias used to be `Dispatcher.Post`ed a frame later: two
-  Undo steps, and a quick tab switch could land it in another document. The
-  popup's filter starts at the word start (`CompletionToken.FilterStart`), so
-  Ctrl+Space after `sel` filters on `sel`; a word that matches nothing *closes*
-  the popup (a hidden one still sat on the keyboard) and Backspace reopens it.
-  (e) **Expand `*` declines rather than change the result**: a bare `*` over
-  `USING`/`NATURAL` or a FROM item it can't read (subquery, function, LATERAL)
-  refuses, and the reason goes to the tab's status line. The catalog behind all
-  of this is one immutable snapshot (`SqlCompletionProvider.Load(CompletionCatalog)`
-  — also the test seam: `PgNimbus.App.Tests/CompletionProviderTests` runs the
-  audit's catalog in memory), a refresh that finishes after a newer one started
-  is dropped, relation names come without `pg_total_relation_size`
-  (`GetRelationNamesAsync`), and foreign keys touching an excluded schema are
-  dropped with it.
-  **What a name can refer to is decided per block, not per statement**
-  (package F). `Text/SqlScopes.cs` (`SqlScopeModel`, Core-pure, unit-tested in
-  `SqlScopeModelTests`) reads the statement's tokens into queries and blocks: a
-  query is an optional WITH list plus its set-operation branches, a block is one
-  SELECT / VALUES / INSERT / UPDATE / DELETE / MERGE with its sources, its output
-  items (select list, RETURNING, `column1…N`) and the queries nested in it. Each
-  nested query carries a role, and the role *is* the visibility rule, taken from
-  PostgreSQL: `Expression` (EXISTS/IN/scalar) sees every level around it,
-  `Derived` (a FROM subquery, an INSERT's source query) sees the levels above its
-  block but never its FROM siblings, `Lateral` also sees the FROM items before
-  it, `Cte` sees what its owning query sees plus the CTEs before it (all of them
-  under RECURSIVE). The provider asks `BlockAt(caret)` and resolves only through
-  `VisibleSources` (innermost level first; an inner name hides an outer one) and
-  `VisibleCtes`. Outer-level columns are offered *qualified* (`u.name`), since a
-  bare name that also exists inside would bind to the inner column. A derived
-  table or CTE is resolved through its first branch's output, stars spelled out
-  through that branch's own sources, a column alias list renaming positionally;
-  a CTE reaching itself through a star stops (visited set) instead of recursing.
-  A select list whose block has sources is scoped like a predicate: another
-  branch's or the catalog's columns aren't legal there. Three things to keep:
-  the reader never guesses — past `SqlScopeModel.MaxDepth` (32) nested queries a
-  query is `IsOpaque` and the caret inside it gets **no** columns, not the outer
-  ones; a statement with no query in it (DDL, SET) has `Root == null` and keeps
-  the old whole-statement reading (`ExtractTables`), which is also still what
-  `CompletionEdits`' alias picking and `ExpandSelectStar` use; and only EXPLAIN
-  may be followed by DML — after `CREATE …`, `UPDATE`/`TABLE` are DDL words.
-  **Some positions take exactly one relation's bare columns, and nothing else**
-  (package G). A block also records its top-level clause keywords
-  (`SqlBlock.Clauses` / `ClauseAt`) and the insides of `INSERT INTO t (…)`,
-  `ON CONFLICT (…)` and each `JOIN … USING (…)`; the provider's
-  `ColumnListCompletions` answers those before any clause logic: the target's
-  columns in the INSERT list, the conflict target and a SET assignment's left
-  side (`SqlScopeModel.IsAssignmentTarget`: after SET or a top-level comma,
-  before `=`; unqualified, since `SET t.col` is an error), and in USING only the
-  columns *that* join's right item shares with the items before it. A column
-  already written in the list is left out. `excluded` (the proposed row) is
-  offered from `DO` to RETURNING and never in RETURNING (`SqlBlock.SeesExcluded`).
-  Output aliases are offered in ORDER BY / GROUP BY and not in WHERE/HAVING — the
-  clause, not the block, decides. A select-list/RETURNING/SET-value caret in any
-  block with sources is scoped like a predicate. JOIN … ON offers **one condition
-  per FK constraint** (`ForeignKeyMatcher.BuildJoinConditions`, closest table
-  first, the constraint name in the row's detail): two FKs between one pair are
-  two different joins, and the old "first edge found" picked one at random.
-  `ForeignKeyInfo.ConstraintName` carries the name (`con.conname`; the query
-  groups by it, so a composite key stays one row).
-  **Argument hints and cast types** (package H). `Text/SqlCallSite.At`
-  (Core-pure, `SqlCallSiteTests`) reads the innermost call around the caret
-  from lexer tokens — commas inside strings, `ARRAY[…]`, nested calls and
-  subqueries don't count; a `(` after a keyword (`IN`, `VALUES`, `EXISTS` …)
-  is not a call; `arg => …` / `arg := …` names the argument — and
-  `Schema/SignatureHints.For` picks the overloads that can still take that
-  argument (enough parameters, or a VARIADIC last), falling back to all of them
-  unmarked rather than hiding the hint. Overloads come from pg_catalog *and*
-  the schemas: `CompletionCatalog.BuiltinFunctions` is pg_catalog's list, read
-  at refresh for hints only and never offered as candidates (thousands of
-  internal overloads). The hint is a `Popup` in `QueryEditorPanel.axaml` (no
-  new permanent control, UI rule 1) anchored just above the call's line so the
-  completion list below the caret never covers it — except when the editor
-  has no room above that line (a call on its first visible line), where it
-  opens below the line instead: the popup lives in the window's overlay layer,
-  which nothing clips to the editor, so it used to open over the toolbar
-  (found live 2026-09-22; test `A_signature_hint_on_the_first_line_…`, screenshot
-  scenario `main-window-signature-hint`). It opens on `(`, on
-  accepting a function, or on Ctrl+Shift+Space (`CommandId.ParameterHints`,
-  literal Ctrl like completion), follows the caret while live, and closes when
-  the caret leaves every call or on Escape. One landmine: the auto-closed `)`
-  is inserted *at* the caret, which moves the caret past it for a moment — that
-  reads as leaving the call, so the hint is opened only after the caret is put
-  back. Casts: after `::` or `CAST(… AS`, the list is types only —
-  `SchemaService.GetTypesAsync` (base/enum/range/multirange types, domains and
-  free-standing composites; not table row types, arrays or pseudo-types), a
-  built-in inserted by its `format_type` spelling when that is one word
-  (`integer`) else by pg_type's name (`timestamptz`), a user type
-  schema-qualified off the search_path; a short built-in list stands in until
-  the catalog is read. The record is `DataTypeInfo` — `TypeInfo` collides with
-  TUnit's and System.Reflection's.
-  **The catalog has a lifecycle, and the keystroke path is measured**
-  (package I; numbers in the design doc's §8.1, from `tools/CompletionBench`).
-  `RefreshAsync` never throws: a failed read keeps the previous snapshot and
-  sets `Status` stale, which `MainViewModel` shows on the tab's status line;
-  a newer refresh cancels an older one mid-read, `Dispose` (called first in the
-  window's `Closed`, which is also the switch-connection path) cancels
-  everything, and the snapshot is built on the thread pool — 0.5 s for a
-  million columns that used to land on the UI thread. After a run that got
-  through, `SqlStatementInspector.ChangesCatalog` (CREATE/ALTER/DROP/IMPORT,
-  `SELECT … INTO`) triggers a refresh; inside an explicit transaction it waits
-  for the transaction's end (the DDL is invisible to the pooled connection the
-  catalog is read from until then), and a `SET search_path` there
-  (`SetsSearchPath`) sets `SessionSearchPathChanged`, under which short names
-  resolve as if the path were unknown until the transaction ends — a SET
-  outside one does not outlive its statement, because the pool resets the
-  session. Two performance rules that the numbers forced: the snapshot's lists
-  are never regrouped per popup (`Merge` puts the per-caret items in front of
-  an already-unique list; the dedupe key is cached on the item) — regrouping a
-  million-column catalog cost 35 ms per open; and each keystroke ranks only
-  the previous keystroke's matches (`CompletionRanker.Rank(…, within, out
-  matched)`, exact because a subsequence of the longer query is one of the
-  shorter — a generative test holds it to ranking everything). Documents of
-  `QueryEditorPanel.BackgroundCompletionThreshold` (50k) characters or more are
-  read for completion on the thread pool; the answer is shown only when the
-  request number, `_documentEdits` and the caret are all unchanged.
-  **Enter accepts only what was chosen, and only if it changes the text** (the
-  §6.1 rule, decided 2026-09-22 and tightened by the second audit on
-  2026-09-27; `Text/CompletionAcceptance`, Core-pure, unit-tested). Two
-  conditions, both required: the accept must change the text — a row whose name
-  is already written in full (`customer_id⏎`, `DESC⏎`, `true⏎` against `TRUE`:
-  letter case is no change for anything unquoted) is left alone, and a name
-  typed in full is not schema-qualified behind the user's back either (that is
-  what kept `UPDATE customers⏎` from becoming `commerce.customers`); and the row
-  must have been chosen (Ctrl+Space, `_completionExplicit`; arrows or mouse,
-  `_userPickedCompletion`) or be the one whose name starts with what was typed.
-  In a **new-name position** (`SqlCompletionContext.IsNewNamePosition`: an alias
-  after a FROM/JOIN/UPDATE/MERGE item or after AS, a CTE name, the object a
-  CREATE names, a column in a table definition, ADD COLUMN, RENAME … TO) only
-  a chosen row is taken. (A third case, rows marked as guesses — catalog-wide
-  columns, pg_catalog's rarer functions — was dropped on 2026-09-27: with the
-  exact name ranked first, `SELECT query⏎` keeps `query` and the literal
-  replay stays at 0 divergences without it.) Chosen but unchanged is still a newline; a chosen
-  callable still gets its parens. A list that opened by itself with nothing
-  typed, or holding only a loose fuzzy match, closes on Enter and the editor
-  writes the newline. Tab always accepts. The two states look different: a highlight
-  Enter would not take gets the `tentative` class on the list (an outline, not
-  the fill; `Theme.axaml`). That style must target the row's
-  `/template/ ContentPresenter#PART_ContentPresenter`, not the `ListBoxItem`:
-  Fluent paints the selected fill on the template part, so a `Background` on the
-  item is never drawn — which is how every tentative row shipped filled anyway,
-  class set and all (found live 2026-09-22; the test reads the part's brush,
-  not the class). The interception is in the tunneled
-  `OnSqlEditorKeyDown`, which runs before the completion window's own Enter.
-  **A finished FROM item is followed by a clause, not a relation** (2026-09-22):
-  `SqlCompletionContext.IsAfterCompleteFromItem` (read up to the *start* of the
-  word being typed, since the popup opens on its first letter) boosts
-  `FromItemFollowItems` — WHERE, JOIN, LEFT, … in that order — so
-  `FROM customers c w` preselects WHERE, not WHEN/WITH, which can't go there.
-  A finished JOIN target still gets ON/USING first, and keeps it once a word is
-  under way *if the alias is already written* (`JOIN customers c o` → ON; it
-  used to fall back to FK-neighbour tables and Tab wrote a table), but not
-  without one, where that word may be the alias. **The stock `CompletionWindow`
-  re-selects a row on every caret move** (`SelectItem` on the typed prefix, by
-  its own rules), and the `SelectionChanged` handler used to record that as the
-  user's pick, which then outranked the ranking: `commerce.orde` kept
-  `order_items` highlighted under `orders` and Tab wrote it.
-  `_completionCaretMoving` — set by the editor's caret handler, which is
-  subscribed before any popup exists and so runs ahead of the window's — makes
-  that move not count; arrows and the mouse still do. Related landmine, fixed the
-  same day: the scope reader used to read a dangling `FROM commerce.` as a
-  *table* named `commerce`, so the `commerce.|` qualifier resolved to that
-  columnless phantom source and the schema's tables never showed;
-  `ReadRelationName` now returns it as schema `commerce` with an empty name.
-  That bug predates 0.13 and outlived every test because each one put the caret
-  into already-finished text; `CompletionProviderTests.Every_word_of_a_statement_is_offered_while_it_is_typed`
-  replays statements word by word (left to right, and filling one word back in)
-  and is the check for that whole class — give it a statement when adding
-  grammar the provider has to follow.
-  Not done yet: a token cache per document version, the first full ranking
-  over a ~1M-row list (3.5 ms median), and package J.
-  **The second audit measured typing, not parsing** (2026-09-27,
-  [`docs/design/sql-completion-audit-2.md`](docs/design/sql-completion-audit-2.md),
-  packages K–R, J folded into them). Typed without looking at the popup, with
-  Enter at each line end, the 25-query corpus came out changed in 51 places:
-  Enter took a row identical to the typed word (swallowing the newline), turned
-  an end-of-line alias into a keyword or a table (`FROM customers c⏎` →
-  `CROSS`), swapped a bare table for another schema's (`UPDATE customers⏎` →
-  `UPDATE commerce.customers`) and `IS NULL` for `nullif(`. The stand is
-  `tools/CompletionBench/Audit` (catalog snapshot, corpus, SaaS schema); the
-  measures are `CompletionBench quality|cases|hints|dump` and
-  `CompletionTypingReplayTests`. **Package K made the literal replay pass and
-  it now runs in every build** (0 divergences with the auto-alias off and on);
-  since package L the keystroke-saving oracle does too, with a floor
-  (`IsGreaterThanOrEqualTo`) that every package raising the saving raises —
-  about a minute of CI, the price of a ranking change that costs keystrokes
-  failing the build instead of going unnoticed. Besides the Enter rule above, K ranks a name equal to
-  what was typed first whatever its fuzzy score (`CompletionRanker`: `NULL`
-  over `nullif`, `DESC` over `description`), and makes table position write a
-  relation bare when its bare name finds it along the search_path
-  (`TableRefItem`: `customers`, not `public.customers`), ranking it above
-  same-named relations elsewhere (`PathTablePriority`) — schema-qualified
-  otherwise, and under `SessionSearchPathChanged` only a name exactly one schema
-  has goes bare (`TableRefItemsUnknownPath`). An FK-neighbour table no longer
-  counts the relation being typed as "already joined", which had hidden the
-  path's own table from the JOIN list.
-  **Package L ranks in the order §6.2 of the audit sets** (2026-09-27).
-  `CompletionRanker` sorts by match tier first (`CompletionMatchTier`: the
-  exact name, then a prefix, then the starts of the name's parts — `oi` for
-  `order_items` — then a substring, then any subsequence), and only within a
-  tier by the context priority, then usage, then the fuzzy score and length:
-  `em` → `email` over `error_message`, whose abbreviation used to out-score the
-  real prefix. Which keywords may appear at all is `Text/SqlKeywordGrammar`
-  (Core-pure, `SqlKeywordGrammarTests`), a deliberately local reading — the
-  previous token and the clause word governing the caret at its paren depth —
-  that answers `StatementStart` (the commands alone), `AfterOperand` (only
-  what can continue a finished expression in that clause: `c.id = 1 |` →
-  AND/OR/ORDER/GROUP/…, never a column, never ON), `KeywordsOnly` (after IS,
-  ORDER, INSERT, UNION, a CTE body …), `Operand` (the keywords that can start
-  an expression join the columns and functions, above the catalog, and every
-  other keyword leaves the list) or `Unknown`, where the provider keeps its
-  old list — DDL and utility statements, table positions and new names, all
-  read elsewhere. It says Unknown rather than guess. The catalog marks
-  machinery instead of guessing it from names: `FunctionInfo.IsInternal` is
-  one EXISTS per place the server keeps it (a type's I/O and support
-  functions, an operator's selectivity estimators, a boolean operator's
-  implementation or one described as "implementation of …", `pg_amproc`, an
-  aggregate's state functions, an access-method handler, `internal`/`cstring`
-  and handler pseudo-types) — 372 of the stand's 379 extension functions, while
-  `similarity` and `l2_distance` stay; an on-path function pg_catalog also has
-  (pgcrypto's `gen_random_uuid`) is one row, not two; a partition
-  (`CompletionRelationInfo.IsPartition`, relispartition) is offered only after
-  its schema's `.`, under its parent. Usage is per connection:
-  `Text/CompletionUsage` (accept count, then recency; a thousand rows, the
-  least recently used dropped) replaced the session-only `CompletionRecency`,
-  and `Settings/CompletionUsageStore` keeps it in its own
-  `completion-usage.json` keyed `host/database` (the last 20 connections),
-  written off the UI thread after every accept — its own file because
-  settings.json is rewritten by every preference toggle. In a JOIN's ON, the
-  columns of `alias.` that a foreign key ties to the other side come first, an
-  FK the statement doesn't use yet before one it does (`u.id = i.` →
-  `assignee_id`, `reporter_id`); after `schema.` in a JOIN, the tables an FK
-  reaches first and the ones already joined last. One performance rule it
-  forced: the snapshot's catalog-wide lists are `CandidateList`s, each row's
-  kind kept in a byte array beside it, because `Merge` reading `Kind` off a
-  hundred thousand rows was a cache miss per row (1–2 ms per open on the
-  million-column bench; now an array copy, 0.1–0.8 ms).
-  **Package M: a keyword never written alone is offered with the words that
-  follow it** (C01–C03). `ORDER BY`, `GROUP BY`, `IS NOT NULL`, `LEFT JOIN`,
-  `NULLS LAST`, `DO UPDATE SET`, `INSERT INTO` … are one row each (the lone
-  `ORDER`/`GROUP` rows are gone), and their initials find them because the
-  ranker's part starts split at spaces (`ob`, `inn`, `lj`). That forced one
-  editor rule: **a character that can't be part of a name closes the popup**
-  (`OnSqlTextEntered`; inside a quoted name it doesn't). Before it, the list
-  kept filtering across the space — `IS N` still matched the `IS NULL` row —
-  and an accept, which replaces only the word under the caret, wrote
-  `IS IS NULL`; and a typed `*` matched the new star row and Enter wrote `**`.
-  The grammar also reads what a call is (`SqlKeywordGrammar.At`'s `callKind`,
-  prokind from the snapshot, `Snapshot.CallKindOf`): after a window function's
-  call only OVER, after an aggregate's FILTER and OVER too, after a plain
-  function's neither; `OVER (…)`, `FILTER (…)` and `WITHIN GROUP (…)` govern
-  only their own parentheses. `*` is offered first after SELECT and inside
-  `count(`; CASE, `ON CONFLICT` (`ON |` after VALUES → CONFLICT, `DO UPDATE |`
-  → SET) and MERGE (`INTO`, `USING`, `ON`, `WHEN [NOT] MATCHED`, the action
-  after THEN) are read; a MERGE's or DELETE's own `USING` is table position
-  (`SqlCompletionContext.ClauseBefore`). The C01 table is
-  `CompletionProviderTests.C01_…` row by row. `CompletionBench quality` credits
-  a phrase row for its first word when the query goes on with the rest.
-  **Package O widened the catalog** (E01–E07). The system catalogs are read like
-  a schema (`SqlCompletionProvider.SystemSchemas`: pg_catalog, information_schema
-  — relations and columns, not functions) and ranked under the user's own
-  (`SystemTablePriority`; a short list of everyday ones, pg_stat_activity first,
-  a little higher; information_schema's rarer views under its schema row and its
-  `_pg_*` plumbing not at all). **pg_catalog is searched first** unless the
-  search_path names it elsewhere — `ResolveShort` checks it before the path,
-  which is also what makes `pg_class` insert bare. pg_catalog's own functions
-  are candidates now, one row per name, what `IsInternal` marks left out, under
-  the curated list (which grew the everyday admin ones: pg_size_pretty,
-  pg_terminate_backend …). A thousand rarely typed names are the only longer
-  match for many a word typed in full (`query` → `querytree(`); the literal
-  replay found that over an old snapshot with no `query` column to match
-  exactly, and what holds it now is the exact name ranking first.
-  Rows describe what they name (E06): a column's PK / identity / generated /
-  default / NOT NULL / the FK it follows / comment (`TableColumn`'s new init
-  props, read by `GetAllColumnsAsync`, which now covers foreign tables too), a
-  relation's kind, row estimate and comment, a function's signatures **with
-  their DEFAULTs** (`FunctionInfo.FullArguments`, `pg_get_function_arguments`,
-  kept apart from the identity `Arguments` DROP FUNCTION needs) and comment; the
-  argument hint parses the full form, drops OUT parameters and marks
-  `SqlParameter.HasDefault`. **Values** (E07) come from `Text/SqlValueSlot`
-  (Core-pure, `SqlValueSlotTests`): the right side of `=`/`<>`/`!=`/`IN (…)` with
-  a column gets its enum's labels (quoted; bare inside the quotes — the one
-  place completion answers inside a string, and the editor opens the list on the
-  `'` itself) or TRUE/FALSE for a boolean, above everything (`ValuePriority`);
-  `nextval('`/`currval('`/`setval('` get the sequences (bare when on the path),
-  `date_trunc('` the units, `extract(` the fields alone. The column's type is
-  matched to an enum by format_type's spelling, which is what both the column's
-  `DataType` and `DataTypeInfo.DisplayName` hold. Sequences, roles, settings and
-  extensions are in the snapshot too (`CompletionCatalog.Sequences/Roles/Settings/
-  Extensions`, each read with `ReadOptionalAsync` so a server that refuses one
-  costs only those candidates); roles, settings and extensions are package N's.
-  `CompletionBench quality` now says why each never-offered word is: a new name,
-  one declared later in the query (package R), a DDL word (package N), or other
-  — O's criterion is the last, now 0.
-  **Package P offers whole constructs** (§6.4), all `SqlCompletionKind.Snippet`
-  rows except the window call: after JOIN, each FK neighbour's row is followed
-  by one row per foreign key tying it to the statement — `customers c ON c.id =
-  o.customer_id`, the alias the auto-alias would pick, inserted as is (no second
-  auto-alias) and after `schema.` too; neighbours keep their discovery order with
-  each one's joins right under it (`- 0.01 × index`), and the plain table row stays
-  first so a typed prefix + Enter still writes just the table. **Join conditions
-  now name the joined table first** (`ForeignKeyMatcher.BuildJoinConditions`,
-  also what the ON row writes): every JOIN in the corpus is written that way.
-  After `INSERT INTO t`, the column list with `VALUES ()` — every writable column
-  (no generated one, no GENERATED ALWAYS identity) and, if different, the
-  required ones — the caret in the first value (`SqlKeywordAdvice.AfterInsertTarget`
-  says where). After SELECT with sources, every column as one row; after
-  `GROUP BY`, the select list's non-aggregate items (`SqlOutputItem.Expression`,
-  the item's span without its alias; an aggregate or window call is told by the
-  snapshot's call kinds), only when there is an aggregate to group for; right
-  after a `*` (Ctrl+Space), the palette's star expansion as a row
-  (`SqlCompletionData.ReplaceFrom` starts the replaced range at the star). A
-  window-only function inserts with its window, `row_number() OVER (|)` or
-  `lag(|) OVER ()`; after a call, OVER and FILTER come with their parentheses
-  (`OVER (|)`, `FILTER (WHERE |)`); `CASE WHEN` is a phrase; in `DO UPDATE SET`,
-  `col = excluded.col` per column. Where the caret lands is
-  `SqlCompletionData.CaretIndex`, applied by `CompletionEdits.Plan`'s long
-  overload. Inside a VALUES row the argument hint names the column the value
-  goes into (`SqlCallSite.ValuesRowAt`, an INSERT's VALUES being its own block
-  whose `Query.Owner` is the INSERT). The popup also opens after `BY `.
-  `PGNIMBUS_ORACLE_TRACE=1` makes the oracle print, per query, what it typed and
-  what it accepted — how the remaining gap to §7's 45% was read: aliases used
-  before the FROM that declares them (package R) and keywords written in lower
-  case, which the uppercase rows can't write (F02, package Q).
-  **Package N reads DDL and utility statements through a slot grammar** (D01,
-  D02): `Text/SqlCommandGrammar` (Core-pure, `SqlCommandGrammarTests`, with a
-  generative "answers on any text" check since it runs per keystroke) takes the
-  statements `SqlKeywordGrammar` leaves alone — CREATE (table, index, view,
-  function, schema, extension, sequence, type/domain, trigger, role), ALTER
-  (table actions per clause, other objects' RENAME/OWNER/SET SCHEMA, SYSTEM),
-  DROP, COMMENT ON, GRANT/REVOKE, TRUNCATE, VACUUM, ANALYZE, REINDEX, CLUSTER,
-  REFRESH, SET/SHOW/RESET, COPY, LISTEN/NOTIFY, LOCK, BEGIN, REASSIGN and
-  EXPLAIN's `(…)` options — and answers a `SqlCommandAdvice`: the keywords that
-  come next and one `SqlObjectKind` (a relation or a kind of one, an index, a
-  sequence, a function overload, a schema, a type, a role, an installed or an
-  available extension, a setting or one setting's values, the columns of the
-  relation the statement names, an index method, a channel, a language). The
-  caret is always at the end of what it reads, so each rule is "what comes next
-  here"; where it can't tell it answers null and the provider keeps its general
-  list. The provider turns the kind into rows (`CommandObjects`): `DROP VIEW`
-  lists views only, `DROP FUNCTION` one row per overload with its identity
-  arguments (`saas.account_mrr(p_account_id bigint, p_at date)`), `SET
-  search_path TO` the schemas, an enum setting its values; after `schema.` in
-  such a slot, that schema's objects of the slot's kind, bare. A created
-  object's name offers the existing schemas (its qualifier), and
-  `NotifyChannels` (the monitor's channels, copied on the UI thread) feed
-  LISTEN. Index names are read into the snapshot (`GetIndexNamesAsync`,
-  `CompletionCatalog.Indexes`), and the everyday types rank first in a type
-  slot or a cast (`bi` → bigint, not bit). New row kinds: Role, Setting,
-  Extension, Index.
-  **Package Q: what the list shows, and three settings** (G01–G06, H01–H02,
-  F02, F05, §6.7). A row shows the letters the query matched in bold
-  (`CompletionRanker.MatchedPositions`, the same tier reading the ranker sorts
-  by — the prefix, the parts' starts, a substring, else the leftmost
-  subsequence; drawn by `Completion/CompletionLabel`, which reads the query off
-  the list's `Tag`, set where the editor filters). The detail column is
-  smaller and dimmer, the tip beside the selected row is a title and a body,
-  and a hovered row gets a light wash (`CompletionHoverBrush`, on the template
-  part for the same reason as `tentative`). Home/End close the list and move
-  the caret; the argument hint closes when the editor loses focus or the
-  command palette opens (in the headless session the palette never takes
-  focus, so the second is watched on `CommandPalette.IsOpen`). Hints put an
-  ordinary overload before a polymorphic one (`upper(text)` before
-  `upper(anyrange)`) and know SQL's own call forms that pg_proc lists without
-  their keywords or not at all (`SignatureHints.SpecialForms`: extract,
-  substring, position, trim, overlay, coalesce, greatest, least, nullif).
-  Typing `(` right after a function name being completed takes that function
-  (`coun(` → `count(|)`, F05). The Preferences page's **Completion** section
-  holds the three §6.7 settings, all in `AppSettings`: keyword case
-  (`CompletionKeywordCase`, `Text/KeywordCasing`: *as typed* by default — a
-  keyword started in lower case is written in lower case, `tr` → `true`,
-  anything else upper — or always UPPER / lower; applied in
-  `SqlCompletionData.InsertTextFor`, which the oracle uses too), always write
-  the table's schema (`CompletionAlwaysQualifyTables`, off: the provider
-  rebuilds its snapshot off the UI thread with every table row qualified), and
-  Enter accepts a suggestion (`CompletionEnterAccepts`, on: off leaves Tab as
-  the only accept). No new permanent control. Screenshot scenario
-  `main-window-completion`.
-  **Package R: columns before their FROM** (E08). Typed left to right, a
-  select list comes before the FROM that declares its aliases, and a third of
-  the corpus's dot references (`SELECT c.fi`) used to get nothing. Now, in a
-  SELECT block's select list, a qualifier nothing declares — no source, CTE,
-  table or schema of that name — is read as the alias it will be
-  (`FutureAliasColumns`): a CTE or table whose name it shortens
-  (`Text/AliasGuess.Fit`: the name itself, its initials as the auto-alias
-  writes them, those with a number, or the start of the name — `inv` →
-  `invoices`), the likeliest fit and the search_path's first, at most
-  `FutureAliasTables` (12) relations, each row naming its relation on the
-  right. Only in the select list: in WHERE the FROM is already written and an
-  unknown qualifier is a typo, not a plan. And in a top-level select list with
-  no FROM at all, a bare word gets one row per table having a column that
-  starts with it — `first_name · customers` — whose accept writes the FROM too
-  (`SqlCompletionData.AppendClause`, applied by `CompletionEdits.AppendClause`
-  as the same single edit: at the end of the statement, which is its `;` or a
-  blank line, the caret staying on the column). They stand in for the
-  catalog-wide row of the same name (Merge hides it), not at a new name (after
-  AS), not in a subquery or a UNION branch. The candidates come from a
-  `ColumnIndex` built with the snapshot (the user's columns sorted by name,
-  ignoring case, as two arrays of references): a prefix is a binary search,
-  capped at `FromlessColumnRows` (200); with nothing typed, which is how the
-  list opens after `SELECT `, it is the search_path's tables' columns, up to
-  2000, because the popup filters the list it opened with instead of asking
-  again. A name typed in full stays as typed (Enter's "must change the text"
-  rule doesn't count the FROM a row would bring). The oracle leaves the FROM-writing rows
-  alone (the corpus goes on with the select list where they write a FROM).
+     `PGNIMBUS_TEST_CONN` like the reconnect tests), which also holds the
+     audit's live check: a volatile composite-returning function runs once.
+- **SQL text, the lexer and completion** (packages A–R): see
+  [`.claude/rules/sql-completion.md`](.claude/rules/sql-completion.md), which loads when working on
+  `PgNimbus.Core/Text`, `PgNimbus.Core/Schema`, `PgNimbus.App/Completion`, `QueryEditorPanel` or
+  `tools/CompletionBench`.
 - `SqlFormatter` follows <https://www.sqlstyle.guide/> ("river" layout: root
   keywords right-aligned to a common column, content to its right). The tests
   in `PgNimbus.Core.Tests` assert exact spacing — a deliberate layout change
   must update them, and every layout must survive the formatter's token
-  round-trip safety net.
+  round-trip safety net. Text nesting deeper than `SqlFormatter.MaxNestingDepth`
+  (64) parentheses is handed back as it is: indentation grows with depth, so the
+  output grows with its square, and 100,000 nested subqueries threw from the
+  StringBuilder on the Format gesture (2026-09, review of the audit fixes).
 
-## Bootstrapping a fresh Linux/CI sandbox (no .NET, no display, no Postgres)
-
-A bare container has none of this preinstalled. All of it installs cleanly
-via `apt-get` (no external downloads needed — `dotnet-install.sh` /
-`dot.net` are typically blocked by sandboxed network policies, but the
-Ubuntu `dotnet-sdk-10.0` apt package works and is the reliable path):
-
-```bash
-apt-get update -qq
-apt-get install -y dotnet-sdk-10.0          # build/run the app
-apt-get install -y xvfb imagemagick xdotool # headless display + screenshot + input
-apt-get install -y postgresql               # a real DB to click through, not just mocks
-apt-get install -y clang zlib1g-dev         # only for NativeAOT publish (linux-x64)
-```
+## NativeAOT constraints
 
 The linux-x64 NativeAOT publish works and is the build to use for
 startup-time claims (`dotnet publish PgNimbus.App -c Release -r linux-x64
@@ -2368,588 +1706,12 @@ surfaces as IL2026/IL3050 on an ordinary `dotnet build` instead of as a crash
 in a shipped release. Both projects are currently at zero IL warnings — keep
 them there.
 
-Then, to actually see and drive the UI:
+The Linux sandbox bootstrap (apt packages, Xvfb, a seeded Postgres, driving the UI) is in the `verify` skill.
 
-```bash
-# 1. A virtual display, once per sandbox lifetime:
-Xvfb :99 -screen 0 1280x800x24 &
+## Headless screenshot harness and UI tests
 
-# 2. A local Postgres with seed data:
-service postgresql start
-su - postgres -c "psql -c \"ALTER USER postgres PASSWORD 'postgres';\""
-su - postgres -c "createdb demo"
-PGPASSWORD=postgres psql -h localhost -U postgres -d demo -c "CREATE TABLE ..."
+Moved to [`.claude/rules/headless-tests.md`](.claude/rules/headless-tests.md), which loads when working on `tools/Screenshot`, `PgNimbus.App.Tests` or `scripts/screenshots`.
 
-# 3. Build once, then run against DISPLAY=:99. Set PGNIMBUS_CONN so the
-#    app opens straight to MainWindow instead of the connection dialog —
-#    App.axaml.cs reads this env var and skips ConnectionDialog entirely.
-#    Any format ConnectionStringParser understands works here (postgres://
-#    URI, JDBC, Key=Value;, libpq keywords, psql command line):
-dotnet build
-DISPLAY=:99 PGNIMBUS_CONN="Host=localhost;Port=5432;Database=demo;Username=postgres;Password=postgres" \
-    timeout 15 dotnet run --project PgNimbus.App --no-build &
+## Benchmarks, release pipeline, Store, website
 
-# 4. Drive it (optional) and capture a screenshot:
-DISPLAY=:99 xdotool mousemove <x> <y> click 1   # click/expand/select
-DISPLAY=:99 xdotool key ctrl+a; xdotool type "SELECT * FROM t;"
-DISPLAY=:99 import -window root screenshot.png  # ImageMagick, captures the whole root window
-```
-
-Notes:
-- `dotnet run` under `timeout` is normal — the app has no natural exit, so
-  screenshot then let the timeout reap it.
-- Test both themes by toggling `RequestedThemeVariant` in `App.axaml`
-  (`Default`/`Dark`) between runs — revert it before committing.
-- This is how the Avalonia 11→12 upgrade and the PowerToys-style UI polish
-  were actually verified (not just built) in a Claude Code sandbox with no
-  prior .NET/GUI tooling.
-- For a *visual* check the live sandbox above is the heavy path — prefer the
-  headless harness below, which needs no display, no input tool and no
-  database. The live path is still the one for anything interactive
-  (completion popups, drag-reorder, real catalog shapes).
-
-## Headless screenshot harness (`tools/Screenshot`)
-
-Renders the real Views bound to fixture ViewModels through `Avalonia.Headless`
-(Skia software rendering, `UseHeadlessDrawing = false`) and writes PNGs — one
-`<scenario>.<light|dark>.png` per scenario × theme. Works on Windows, Linux and
-CI alike, with no display, no Xvfb/xdotool, and **no Postgres**:
-
-```bash
-dotnet run --project tools/Screenshot -- <outputDir> [scenario-substring]
-                                        [--baseline <dir>] [--publish <repo-root>]
-```
-
-Pass a scratch directory — nothing it writes is committed. Omit the filter to
-render every scenario in `Scenarios.All` (the single list: `Program` walks it,
-the baseline set is exactly its names × {light,dark}, and `Marketing` picks its
-sources out of it by name).
-
-The harness wears three hats, and the second and third were added because a PNG
-artifact nobody opens is not a check:
-
-1. **Smoke** — a view that throws while loading, or renders no frame at all,
-   fails the run.
-2. **Visual regression** (`--baseline`) — each frame is compared against the
-   committed baseline in `tools/Screenshot/baselines/`, and anything past
-   tolerance fails the run and leaves a `*.diff.png` (baseline desaturated,
-   changed pixels magenta) behind. `ci.yml` runs it this way on every PR.
-   **Baselines are OS-specific**: two renders of one commit on the same OS are
-   bit-identical, while the same frames on Windows vs Linux differ by 0.6–6%
-   from glyph rasterization alone — hence the 0.1%-of-pixels threshold, and
-   hence `scripts/screenshots/update-baselines.sh` reaching for the .NET SDK
-   container (plus `libfontconfig1`, which Skia links against and the image
-   lacks) when it isn't already on Linux. The `screenshots.yml` workflow does
-   the same on a real runner and opens a PR. A missing baseline is reported
-   `NEW` and doesn't fail — a developer adding a scenario can't render a Linux
-   baseline without Docker, and blocking that would only teach people to skip
-   the check.
-   **Four scenarios deliberately have no baseline**: the tabbed security
-   window (`security-window`, `-permissions`, `-default-privileges`, `-rls`).
-   Its segmented tab strip animates the selected tab and the harness catches it
-   at a different moment each render (0.3–0.4% on CI), so a baseline only makes
-   false `CHANGED` reports. `update-baselines.sh` leaves them out after a
-   wholesale refresh; one refresh that didn't (#261) turned `main` red (2026-09).
-   Give them baselines back only once that render is deterministic.
-   **Take baselines from a full render, never a filtered one** (2026-09). The
-   harness renders every scenario in one process, and which Inter face a SemiBold
-   request resolves to depends on what earlier scenarios loaded: baselines from a
-   run filtered to `connection` drew every bold label heavier than CI's full run
-   and failed it by 1.3%. A filter is for looking, not for committing.
-   **A new scenario goes at the end of `Scenarios.All`** (2026-09-28): the
-   headless clock advances with every frame rendered, so one inserted mid-list
-   moves the moment every later window's transitions are caught at. Below the
-   diff tolerance, but `update-baselines.sh` replaces files wholesale and
-   rewrote a dozen untouched windows' baselines anyway.
-3. **Publishing** (`--publish`) — `Marketing.cs` maps scenarios to the images
-   that face users: `docs/screenshots/` (README + docs site) and
-   `design/store/screenshots/` (Store listing, padded to the Store's 1366×768
-   minimum on a backdrop sampled from the shot's own chrome so it matches its
-   theme). Run `scripts/screenshots/update-published.sh` in any PR that changes
-   what they show (UI design rule 9), and before a release — **on Windows**:
-   unlike the baselines it renders on the host, because the monospace panes need
-   Cascadia Code or Consolas and the CI container has neither (until 2026-09 the
-   Store listing showed its SQL in a proportional font).
-   These used to be hand-captured against a live database, which made them go
-   stale silently and leaked real detail — the old main-window shot published a
-   live Neon hostname. The README's animated GIFs are deliberately **not**
-   covered: they show motion and are still recorded by hand.
-
-Full rationale, thresholds and the weekly-release loop:
-[`docs/design/release-checks.md`](docs/design/release-checks.md).
-
-How the fixtures work, and why they're shaped this way:
-
-- **The data source is offline but unroutable.** Every service takes an
-  `NpgsqlDataSource`, and `NpgsqlDataSource.Create` opens no socket, so the whole
-  graph constructs with no server. `Fixtures` points it at TEST-NET-3
-  (`203.0.113.1`) rather than a closed local port on purpose: windows that
-  refresh when they open (activity, database overview, schema tree) would get a
-  fast connection-refused back from a closed port and overwrite the seeded status
-  line with an error a fraction of a second after the window shows. An address
-  that never answers leaves the seeded state alone.
-- **Scenarios drive the public ViewModel surface**, the same properties and
-  commands production sets — not the views. Two seams exist purely for this:
-  `SchemaTreeNode.SeedChildren` (fills a node's children and marks it loaded, so
-  expanding never reaches for the catalog) and `QueryViewModel.SeedResult`
-  (points the grid at a result set that was never run). Both are documented as
-  harness-only; production still goes through the lazy-load and run paths.
-- **Nothing reads or writes the developer's real app data**, and two layers
-  make that hold. The claim used to rest on `Fixtures` clearing the lists the
-  default stores had loaded, which kept real entries out of a screenshot but did
-  nothing about writes: the save-query UI tests saved through those default
-  stores, and on 2026-09-28 the owner's real `saved-queries.json` was found
-  holding the fixture list. (1) **The whole app data root is redirected per
-  process.** Every store falls back to `AppDataPaths.GetRootDirectory()`, which
-  honours `PGNIMBUS_DATA_DIR` (`AppDataPaths.OverrideVariable`), and
-  `IsolatedAppData.Enable` (in `tools/Screenshot`) points it at a throwaway
-  temp directory, deleted on exit. That is what covers what a fixture can't
-  inject into: `App`'s static settings and completion-usage stores (the
-  Preferences page and the theme toggle write through them), the workspace,
-  window placement, the crash log. It must run before anything builds a store —
-  they resolve their path in their constructors, and `App`'s are static — so
-  the harness calls it on `Program`'s first line and `PgNimbus.App.Tests` from
-  a `[ModuleInitializer]`. It always overwrites the variable, so a developer
-  who set it to a directory they use still doesn't get test writes there.
-  (2) **`Fixtures.MainWindowViewModel` injects its own stores**:
-  `MainViewModel` takes optional `savedQueryStore`/`historyStore`, and each
-  fixture view model gets a fresh directory under the isolated root, so it
-  starts empty and one test's saves never show up in another's list.
-  `AppDataIsolationTests` fails if either layer goes (a fixture store under
-  `AppDataPaths.GetDefaultRootDirectory()`, two fixtures sharing a file, or a
-  Preferences write not landing in the redirected `settings.json`). The
-  connection-dialog scenario also points `ConnectionProfileStore` at an
-  isolated directory and uses `MemoryCredentialStore`, so it never opens the
-  developer's saved connections or native password store.
-- **Every app data file goes through `Core/Settings/AppDataFile`** (2026-09
-  security audit, finding 10 and the "non-atomic writes" item of 18). Before
-  it, each store called `File.WriteAllText`, which on Linux and macOS created
-  `0644` files under a home that is often `0755`, so any local user could read
-  the query history, the workspace SQL and the connection list; and a crash
-  mid-write left a torn `connections.json` that `Load` read as "no profiles",
-  after which the connection dialog's autosave wrote the empty list over every
-  profile. Now: (a) files are written to a temp file in the same directory
-  (`UnixCreateMode` 0600, never set on Windows, where it throws) and renamed
-  over the target, so a reader sees the old file or the new one; the crash log
-  is appended with the same create mode. (b) A directory the helper creates is
-  `0700`; an **existing** one is tightened only if it is the app data root or
-  inside it. A store handed an explicit path must never chmod a directory the
-  app does not own: the Core tests write into `/tmp`, and in a root container
-  that chmod would succeed. (c) A file that cannot be parsed is moved aside as
-  `<name>.corrupt-<UTC stamp>` before the store starts over, so the next save
-  cannot overwrite the only copy. (d) `App.TightenAppDataOnce` tightens the
-  root, its files and `logs/`/`credentials/` once per launch on the thread
-  pool, for what an older version left readable; a failure goes to the crash
-  log. (e) **No temp fallback**: `AppDataPaths.ResolveDefaultRoot` answers null
-  when neither `ApplicationData` nor `HOME` resolves, `Resolve(name)` is then
-  null, and a null path reads as "nothing saved" and drops writes, so the
-  session runs from memory. Core tests reach that state through the internal
-  `AppDataPaths.RootResolverForTests` seam in a `[NotInParallel]` class, never
-  by blanking `HOME` for the whole process. The mode tests skip on Windows;
-  they were run in the .NET SDK Linux container through `wslc`.
-- **Workspace restore reads files off the UI thread** (same audit, finding
-  18). Reattaching a restored tab to its `.sql` file was a synchronous
-  `File.ReadAllText` in `MainViewModel`'s constructor, so a file on a stale UNC
-  path held the window for the SMB timeout, and only IO/access errors were
-  caught, so a path with a NUL in it (`ArgumentException`) crashed every
-  launch. The reads now run on the thread pool, give up on
-  `ArgumentException`/`NotSupportedException`/`SecurityException` too, and
-  attach on the UI thread; `MainViewModel.WorkspaceFilesRestored` is the task a
-  test waits on (`WorkspaceRestoreTests`, via the fixture's `workspace`
-  parameter).
-
-## Headless UI tests (`PgNimbus.App.Tests`)
-
-Real windows on Avalonia's headless platform, driven with real key input — the
-layer that used to be a person clicking through the app. It reuses
-`tools/Screenshot`'s fixture graph (hence the `ProjectReference` to it) rather
-than growing a second set that would drift from what the screenshots show. It
-references `tools/CompletionBench` too, for the completion audit's stand
-(catalog snapshot and corpus) that `CompletionTypingReplayTests` types through
-the real editor — both of its measurements run in every build, about two
-minutes of the suite between them.
-
-What it covers that nothing else does: that a gesture reaches its command, that
-the palette invokes the entry it highlights, that a saved query opens a *new*
-tab (UI design rule 3), that the results grid builds a column per result column
-and re-points on a tab switch, and that every window opens **and closes** — the
-detach path a render-and-exit pass never runs.
-
-Three landmines, all load-bearing:
-
-- **`Ui.Run(async () => …)` is deliberately the only overload.** Avalonia's
-  `HeadlessUnitTestSession` has a `Dispatch<T>(Func<T>)` that an async lambda
-  binds to with `T = Task`, handing back a `Task<Task>` whose outer task
-  completes the moment the body *returns* its task. The dispatcher then stops
-  pumping and every assertion after the first `await` lands on a task nobody
-  observes — **the whole suite passes without running**. That is how this was
-  written the first time; it was caught only by deliberately breaking an
-  assertion to check the tests could still go red. Do that check when adding
-  tests here.
-- **Gestures come from the catalog**, via `Ui.Press(window, CommandId.X)`, never
-  typed in — otherwise a test keeps passing after a chord moves, and fails on
-  macOS where the same entry resolves to Cmd (UI design rule 5).
-
-- **Never await a catalog fetch against the fixture data source.** It points at
-  TEST-NET-3 so nothing ever answers, which means an awaited fetch (e.g.
-  `OpenCommandPaletteAsync`, which waits for the table list) returns only when
-  the OS abandons the TCP connect: ~21 s on Windows, ~127 s on a Linux runner
-  (six SYN retries). One such `await` was two of CI's five minutes until
-  2026-09. Fire it and move on (`_ = …`), as the screenshot scenarios do.
-
-The session runs the app with **no lifetime**, asserted by a test: with one,
-`App.OnFrameworkInitializationCompleted` would read the `AppSettings` and, with
-`AutoConnectLastProfile` on, try to connect to the last database from a unit
-test. Those settings are no longer the developer's own — the app data root is
-redirected for the test process (see the harness's "Nothing reads or writes
-the developer's real app data" above) — but the no-lifetime rule stays.
-
-## Benchmarks pipeline
-
-"Fast" is measured, not asserted. `.github/workflows/benchmark.yml` runs
-[`scripts/benchmarks/run-benchmarks.sh`](scripts/benchmarks/run-benchmarks.sh)
-(ubuntu runner + a `postgres:17` service container). It's a reusable
-workflow (`workflow_call`) invoked as a job from `release.yml` — it no
-longer runs on every PR or push to `main`, only as part of the release
-pipeline (tag push, or a manual `workflow_dispatch` test run of
-`release.yml`), so it measures a real tagged build rather than every commit.
-It's also directly `workflow_dispatch`-able on its own for ad hoc
-measurement. Results go to the job summary and a `bench-results` artifact;
-real tag-triggered releases also append to the gh-pages history via
-`benchmark-action/github-action-benchmark` (charts at
-`https://shman4ik.github.io/pgNimbus/dev/bench/`) — controlled by the
-`record_history` input, which `release.yml` sets from
-`startsWith(github.ref, 'refs/tags/v')` so `workflow_dispatch` test runs of
-the release pipeline don't pollute the trend history. Three moving parts:
-
-1. **Startup probe** — `PGNIMBUS_STARTUP_PROBE=1` makes the app print
-   `PGNIMBUS_STARTUP_PROBE window_ms=… rss_bytes=…` after its first window
-   renders its first frame, then exit (`PgNimbus.App/StartupProbe.cs`, armed
-   in `App.OnFrameworkInitializationCompleted`). `window_ms` is measured from
-   OS process start, so it captures AOT-vs-JIT differences honestly.
-2. **`PgNimbus.Benchmarks`** — console project measuring connect (cold pool),
-   `SELECT 1` round-trip, time-to-first-`RowBatch`, and full-stream
-   throughput of a 100k-row mixed-type SELECT, through `QueryEngine`'s
-   streaming path (the same API the UI uses). Prints `PGNIMBUS_BENCH
-   name=value` lines; config via `PGNIMBUS_BENCH_CONN/ROWS/ITERS`.
-3. **The script** — builds JIT Release, publishes linux-x64 NativeAOT (or
-   measures an existing publish dir given via `PGNIMBUS_BENCH_PUBLISH_DIR` —
-   the release pipeline passes build-linux's x64 output through the
-   `publish_artifact` workflow input this way, as a `.tar.gz` because
-   artifact zips drop the exec bit, so the slow AOT publish isn't done
-   twice), runs
-   the startup probe N times per mode under Xvfb (one discarded warm-up run,
-   then medians), runs the query benchmarks, and writes
-   `bench-results/benchmarks.json` (github-action-benchmark
-   `customSmallerIsBetter` format — keep every metric smaller-is-better, so
-   throughput is reported as stream *time*) plus `summary.md`.
-   `PGNIMBUS_BENCH_SKIP_AOT=1` skips the slow AOT publish for local runs. Also
-   tracks size: the AOT exe alone (`binary_size_mb`) and the shipped publish
-   files (`publish_size_mb` — the publish output minus `*.pdb`/`*.dbg` debug
-   symbols, mirroring the exclusion the MSI/MSIX packaging applies, so the
-   metric tracks what installers actually package rather than what publish
-   leaves on disk; the publish dir is wiped before publishing so repeated
-   local runs never count stale leftovers) — the latter is the more honest
-   "app size" number since side-car native libs bundled alongside the exe
-   (`libSkiaSharp`, `libHarfBuzzSharp`) dwarf it.
-
-Numbers are machine-relative (this sandbox: ~160 ms AOT / ~2 s JIT to first
-frame; CI runners differ) — the point is the trend per commit, not the
-absolute value. If a change renames a metric in `benchmarks.json`, its
-gh-pages history starts over under the new name.
-
-**User-facing copy quotes the CI number, never a local one** (2026-09). The
-README, the docs home page and the landing page say "about 0.2 s", which is what
-the GitHub runner has recorded for NativeAOT startup on every release since late
-July. They used to say "~100 ms", a figure from a development sandbox that no
-public chart backed, which is exactly the kind of number a Show HN thread asks
-about first. If the CI figure moves for good, change all three together.
-
-## Release pipeline
-
-What to walk before tagging, and what past release passes found, is
-[`docs/RELEASE-CHECKLIST.md`](docs/RELEASE-CHECKLIST.md) (living, one log row per
-release); this section is how the pipeline itself works.
-
-`.github/workflows/release.yml` runs on every `vX.Y.Z` tag push (or manually
-via `workflow_dispatch`, which builds everything but skips the "release"
-job so it never publishes).
-
-**Every package is launched before it ships.** Each build job runs
-`scripts/release/smoke-launch.sh` (or `Smoke-Launch.ps1` on Windows) against
-its own artifacts with `PGNIMBUS_STARTUP_PROBE=1`, asserting both a clean exit
-*and* the probe line — an app that quit before drawing anything also exits 0.
-Windows smokes the publish output and the MSI after a silent per-user install
-(uninstalled in the same step); macOS smokes the publish output and the binary
-inside the mounted `.dmg`; Linux smokes the publish output, the `.tar.gz`, the
-`.AppImage` (`--appimage-extract-and-run`, runners have no FUSE) and the `.deb`
-after `apt-get install` resolves its own `Depends` — that last one is how a
-missing runtime library gets caught here instead of on a user's machine. The
-Linux legs need `xvfb`; macOS runners have a real window server. `release`
-already `needs` all three jobs, so this is the publish gate. Note
-`PgNimbus.App` is a `WinExe` with no console of its own — the probe line is
-still readable because redirecting stdout gives the process a handle to write
-to (verified, not assumed).
-
-It produces, per tag:
-
-- **Windows** — `dotnet publish -r win-x64 -p:PublishAot=true`, then a
-  per-user WiX v5 MSI built from [`installer/windows/Product.wxs`](installer/windows/Product.wxs)
-  via the `wix` .NET global tool (`wix build ... -d PublishDir=... -d
-  Version=...`). Per-user (installs to `%LocalAppData%`, no elevation) is
-  deliberate: the MSI is currently **unsigned** (no code-signing cert yet),
-  and per-machine + unsigned is a much worse UAC/SmartScreen experience.
-  The `UpgradeCode` GUID in `Product.wxs` is fixed forever — never
-  regenerate it, that's what makes installing a newer tag upgrade in place
-  instead of side-by-side.
-- **macOS** — `osx-arm64` only, built on a `macos-14` runner. GitHub retired
-  the last Intel macOS runner image (`macos-13`) in December 2025 and has
-  said x86_64 macOS support ends entirely once the `macos-15` image retires
-  (Fall 2027) — there's no GitHub-hosted way to build `osx-x64` anymore, so
-  don't re-add an Intel matrix leg without a self-hosted Intel Mac runner.
-  Also pins to the newest pre-installed Xcode below major version 26:
-  Xcode 26 changed Swift auto-linking in a way that breaks NativeAOT's
-  static link of `libSystem.Security.Cryptography.Native.Apple.a`
-  ("symbol(s) not found for architecture arm64" / `pal_swiftbindings`),
-  closed "not planned" upstream
-  ([dotnet/runtime#116448](https://github.com/dotnet/runtime/issues/116448)).
-  The publish output is wrapped into an **ad-hoc signed** (`codesign --sign -`),
-  un-notarized `.app` + `.dmg` by
-  [`scripts/macos/build-app-bundle.sh`](scripts/macos/build-app-bundle.sh),
-  which also generates `.icns` directly from the `design/masters/icon/` tiles
-  via `sips`/`iconutil` (stock macOS tools, no extra dependency) — each
-  iconset slot uses the exact-size master when one exists, else downscales
-  from `icon-1024.png`.
-  **The ad-hoc signature is not decoration, it picks which Gatekeeper dialog a
-  user sees** (added 2026-08, after 0.11.1 shipped with none): a quarantined
-  bundle carrying *no* signature is reported as "pgNimbus is damaged and can't
-  be opened. You should eject the disk image", which reads as a corrupt
-  download, sends people back to Releases for the same bytes, and has no
-  right-click → Open escape. The same bundle ad-hoc signed fails the same
-  Gatekeeper check as "Apple cannot check it for malicious software" — true,
-  and clearable by right-click → Open (System Settings → Privacy & Security →
-  Open Anyway on Sequoia). It is also what makes an arm64 binary loadable at
-  all. Two consequences for the script: the NativeAOT `*.dsym` is deleted
-  before signing (a `.dsym` is itself a bundle directory, the one shape
-  `codesign --deep` won't seal inside `Contents/MacOS`, mirroring the Linux
-  packages' `*.dbg` exclusion), and dylibs are signed inside-out before the
-  bundle. The `.dmg` also carries the `/Applications` symlink it had always
-  claimed to (the volume used to hold the app alone, so the obvious gesture was
-  double-clicking it on the read-only image — that is where "the disk image
-  should be ejected" came from). `release.yml`'s mounted-`.dmg` smoke step
-  gates both: `Signature=adhoc` present after `hdiutil`, and the symlink there.
-  None of this substitutes for a Developer ID signature plus notarization,
-  which needs a paid Apple account and would remove the warning outright.
-- **Linux** — `linux-x64` + `linux-arm64` (the arm64 leg runs natively on
-  GitHub's free `ubuntu-24.04-arm` runners — no cross-compile toolchain).
-  Each RID is packaged three ways by
-  [`scripts/linux/build-packages.sh`](scripts/linux/build-packages.sh):
-  `.AppImage` (appimagetool downloaded at build time from its `continuous`
-  release, run with `--appimage-extract-and-run` since CI runners lack
-  FUSE; `AppRun` is a plain symlink to the binary — NativeAOT resolves the
-  side-car `libSkiaSharp`/`libHarfBuzzSharp` next to `/proc/self/exe`, so
-  no wrapper script), `.tar.gz` (the publish output under a versioned top
-  dir), and `.deb` (`dpkg-deb`, package id `pgnimbus`, binary at
-  `/usr/lib/pgnimbus/` + `/usr/bin/pgnimbus` symlink; `Depends` lists the
-  X11-family libs Avalonia's X11 backend uses at runtime plus fontconfig
-  for Skia — Skia/HarfBuzz themselves are bundled; a semver prerelease `-` becomes Debian `~` so CI test versions
-  sort before releases). The desktop entry comes from
-  [`installer/linux/pgnimbus.desktop.template`](installer/linux/pgnimbus.desktop.template)
-  (`__EXEC__` placeholder: the AppImage execs `PgNimbus.App`, the deb
-  `pgnimbus`), icons from the `design/masters/icon/` tiles. The NativeAOT
-  `*.dbg` symbols side-file is excluded from all three packages. Unsigned,
-  like the other direct-download channels.
-- **winget** — the `build-windows` job renders (via
-  [`scripts/winget/render-manifest.sh`](scripts/winget/render-manifest.sh)
-  and the templates in `packaging/winget/`) the three manifest files
-  winget requires and validates them with `winget validate` right after
-  building the MSI (same job — the MSI and its SHA256 are already at
-  hand, no separate runner), but does
-  **not** submit them anywhere, and that is now a decision rather than a
-  pending step (2026-09 backlog review, issue #134 closed): `winget install
-  pgNimbus` already resolves through the `msstore` source to the
-  Microsoft-signed Store package, so a community-source entry would only add
-  the unsigned MSI beside it. The generated `winget-manifests.zip` release
-  asset stays, so the first `winget-pkgs` PR (which registers the
-  `pgNimbus.pgNimbus` identifier) can still be filed by hand if the msstore
-  source turns out not to be enough — e.g. machines where it is disabled.
-
-The direct-download MSI is **unsigned** and stays that way — deliberately
-**not** pursuing a paid signing service (Azure Artifact Signing / a purchased
-Authenticode cert): pgNimbus is a free OSS project with no revenue. macOS is
-the one exception on the plan (ROADMAP T5, confirmed 2026-09-27): a Developer
-ID signature plus notarization for the `.dmg`, because there is no free
-equivalent of the Store's re-signing there and the ad-hoc signature above still
-leaves every Mac user at "Open Anyway". Until that lands the `.dmg` is ad-hoc
-signed only. Microsoft
-Store publishing gets the trust/SmartScreen benefit for $0 instead (Store
-re-signs an uploaded MSIX with its own trusted certificate during
-certification — the package only needs a throwaway self-signed cert to
-satisfy the upload requirement, not a purchased one), and Store apps are
-automatically discoverable via winget's built-in `msstore` source with no
-separate winget submission. It's an *additional* channel, not a replacement
-for the direct MSI, and the two coexist.
-
-### Actions storage is a 0.5 GB budget (2026-08)
-
-The account's included GitHub Actions storage is **0.5 GB**, and it is a
-*standing* budget, not a per-run one: an artifact counts for every day it
-stays alive. So **every `upload-artifact` must set `retention-days`** — the
-default is 90, and at 90 days this pipeline held ~6.8 GB (13x the allowance)
-in copies of things that were already stored for free somewhere else. Two
-rules keep it there:
-
-1. **An artifact that ships in the GitHub Release gets `retention-days: 1`.**
-   Release assets don't count against the Actions allowance, and the `release`
-   job consumes these in the same run — the artifact is a job-to-job hand-off,
-   not storage. That covers `windows-msi`, `macos-dmg-arm64`,
-   `linux-packages-*`, `sbom`, `winget-manifests`, and `publish-linux-x64`
-   (benchmark input). A day is still long enough for a human to grab a
-   `workflow_dispatch` test build, where the `release` job never runs.
-   `windows-msix` is the one exception at 14 days: Partner Center submission is
-   a manual download-and-upload, so it has to outlive the run.
-2. **Diagnostic artifacts upload on `failure()` only, for days not months.**
-   The CI `screenshots` artifact is worth looking at exactly when the visual
-   regression went red; on a green run it is a byte-for-byte re-render of
-   `tools/Screenshot/baselines/`, which is already in git. Pair the condition
-   with `if-no-files-found: ignore` — the usual failure is the render step
-   throwing, which leaves the directory empty, and a missing diagnostic must
-   not turn one red step into two.
-
-Retention is **not retroactive**: lowering it leaves already-uploaded artifacts
-on their original 90-day clock, so a change like this needs a one-time purge of
-the backlog (`gh api repos/OWNER/REPO/actions/artifacts` → `DELETE`) to actually
-free anything. The repo's default retention is set to 7 days as a backstop for
-uploads that forget rule 1.
-
-Runner *minutes* ride the same fix from the other side: every workflow that
-triggers on both `push` and `pull_request` keys its `concurrency` group on
-`github.event.pull_request.head.ref || github.ref`. Keyed on `github.ref` the
-two triggers land in different groups (`refs/heads/x` vs `refs/pull/N/merge`)
-and run the whole job twice for one commit — which is also two artifacts.
-
-### Supply-chain proofs (2026-07)
-
-Unsigned binaries still get verifiable provenance, three layers:
-
-- **SLSA attestations** — the release job runs
-  `actions/attest-build-provenance` over every published asset (needs the
-  job's `id-token: write` + `attestations: write` permissions). Users
-  verify a download with
-  `gh attestation verify <file> --repo Shman4ik/pgNimbus` — proves it was
-  built by this workflow from a specific commit. This is the $0 substitute
-  for Authenticode on the direct-download channel; it does nothing for
-  SmartScreen (the Store channel covers that).
-- **SBOM** — the build-linux x64 leg generates a CycloneDX JSON SBOM of the
-  App's full NuGet graph (`dotnet-CycloneDX` on `PgNimbus.App.csproj`,
-  `-c Release`, the configuration the binaries ship in). Ships as the `pgNimbus-<ver>-sbom.cdx.json` release asset,
-  checksummed and attested like the binaries. Generated once (x64 only) —
-  the NuGet graph is RID-independent.
-- **Vulnerability gates** — the repo-root `Directory.Build.props` sets
-  `NuGetAuditMode=all` (transitive packages too) and promotes
-  moderate/high/critical audit warnings (NU1902–NU1904) to errors, so any
-  `dotnet build`/`restore` — local or CI — fails on a known advisory; ci.yml
-  additionally runs `dependency-review-action` on PRs to block newly-added
-  vulnerable packages at review time.
-
-### Microsoft Store (MSIX)
-
-`build-windows` also packs `publish/win-x64` into a self-signed `.msix` via
-[`scripts/windows/build-msix.ps1`](scripts/windows/build-msix.ps1), uploaded
-as the `windows-msix` CI artifact — **not** attached to the public GitHub
-Release, since a self-signed MSIX can't be installed without the user
-manually trusting the cert first, and Store re-signing only happens after
-you upload it to Partner Center.
-
-- **Manifest**: [`installer/msix/Package.appxmanifest`](installer/msix/Package.appxmanifest)
-  is a template (`$VERSION$` placeholder) with `Identity/Publisher` hardcoded
-  to this repo's reserved Partner Center product identity
-  (`DmitriiShmanev.pgNimbus` / `CN=04FDF7B0-6D86-4EB7-B798-21CD434897BC`,
-  Store ID `9N6SZT42XJ24` — the listing is **live** as of 2026-07:
-  <https://apps.microsoft.com/detail/9N6SZT42XJ24>) — plain
-  Win32/Desktop Bridge (`runFullTrust`
-  capability, `EntryPoint="Windows.FullTrustApplication"`), not Windows App
-  SDK, since the app is a native AOT exe with no WinUI dependency.
-- **Tile assets**: `PgNimbus.App/Assets/Msix/*.png` (Square44x44Logo,
-  Square150x150Logo, StoreLogo — each as 5 DPI-scale files, plus
-  Square44x44Logo's 10 unplated targetsize files) are generated by
-  [`scripts/windows/make-app-icons.ps1`](scripts/windows/make-app-icons.ps1)
-  from the `design/masters/icon/` tiles (44/50/150 px scale-100 bases from the
-  48/48/256 px masters respectively; scale-200/400 sizes that exceed their
-  small master fall back to the 1024 px master to avoid upscale blur; the
-  unplated variants reuse the transparent `window-{dark,light}-256.png`
-  masters) — excluded from `AvaloniaResource` in the App csproj since they're
-  packaging-time-only. A single flat file per logo used to be enough for the
-  package to *build*, but Windows silently backplates/shrinks it on the
-  taskbar, Start, and the sideload "Install app?" dialog when it can't find a
-  qualifier-matched size — hence the scale/targetsize sets (fixed 2026-07).
-- **`build-msix.ps1`**: stages the publish output + tile assets + rendered
-  manifest, then runs `makepri.exe` (`createconfig` + `new`) to compile those
-  qualified filenames into a single `resources.pri` — without it, Windows
-  only ever resolves the scale-100/unqualified assets and the rest just sit
-  in the package unused. `createconfig`'s default `priconfig.xml` splits
-  scale-qualified resources into separate `resources.scale-*.pri` side files
-  (meant for `AppxBundle` resource packages with matching manifest
-  `<ResourcePackage>` entries); since this is one flat non-bundle package,
-  the script strips that `<autoResourcePackage>` splitting so everything
-  lands in the one `resources.pri` actually included in the package. Then
-  packs with `makeappx.exe`, signs with an ephemeral
-  `New-SelfSignedCertificate` (Subject matching the manifest's `Publisher`,
-  deleted from the cert store right after signing). Resolves `makeappx`/
-  `makepri`/`signtool` by globbing every installed Windows SDK's
-  `bin\<ver>\x64` dir and taking the newest, so it doesn't hardcode an SDK
-  version that'll drift on GitHub's runner images. MSIX versions are 4-part
-  with the last field forced to `0` (Store convention) —
-  `ConvertTo-MsixVersion` strips any prerelease suffix like `-ci.42` from
-  `VERSION` before padding.
-- **Submission** (manual, not automated yet): the first submission passed
-  certification and the listing is live. For updates: download the
-  `windows-msix` artifact from the release workflow run and upload it through
-  Partner Center → this product → Packages, then submit for certification.
-  Could move to the Microsoft Store submission API later (needs its own
-  Entra ID app registration under the Partner Center account — free,
-  unrelated to Azure Artifact Signing).
-
-## Project website + docs (GitHub Pages)
-
-The `gh-pages` branch hosts three independent things at three paths, and nothing
-that writes to one may touch the others: `/` is the landing page, `/docs/` is
-the documentation site, `/dev/bench/` is the benchmark history.
-
-### Documentation site (`/docs/`)
-
-MkDocs Material, configured in the repo-root [`mkdocs.yml`](mkdocs.yml), built
-from `docs/`. `docs/` doubles as the repo's internal notes directory, so
-`exclude_docs` keeps `marketing/`, `design/`, `PROGRESS.md`,
-`PRE-LAUNCH-CHECKLIST.md` and `RELEASE-CHECKLIST.md` out of the published site — **only pages listed in
-`nav` ship**. Published by
-[`scripts/website/publish-docs.sh`](scripts/website/publish-docs.sh), which
-replaces `gh-pages:/docs/` alone; `.github/workflows/docs.yml` builds it with
-`--strict` on every PR touching `docs/`/`mkdocs.yml` (so a broken link or a page
-missing from `nav` fails the check) and publishes on push to `main`. Local
-preview: `pip install -r docs/requirements.txt && mkdocs serve`.
-`docs/reference/keyboard-shortcuts.md` is **generated** — see UI design rule 5,
-don't hand-edit it. `docs/assets/{logo,favicon}.png` are copies of the
-`design/masters/icon/` tiles; refresh them if the masters change.
-
-**User-facing prose goes through the `humanizer` skill.** `.claude/skills/humanizer/`
-is vendored from <https://github.com/blader/humanizer> (MIT; see its `SOURCE.md`
-for the update procedure and the one standing deviation — the README keeps its
-emoji section headings). Apply it to the README, the `docs/` pages, release
-notes and website copy — its hardest rule is no em/en dashes in user-facing prose,
-which is why those files read differently from this one. `CLAUDE.md` and code
-comments are internal and keep their own voice.
-
-### Landing page (`/`)
-
-<https://shman4ik.github.io/pgNimbus/> is a hand-written static landing page.
-Source of truth is [`website/index.html`](website/index.html) (self-contained
-HTML+CSS, light/dark via `prefers-color-scheme`, no external requests);
-[`scripts/website/publish-site.sh`](scripts/website/publish-site.sh) assembles
-it with assets copied from `design/masters/` and `docs/screenshots/` into the
-**root of the `gh-pages` branch** and pushes. The same branch hosts the
-benchmark history under `dev/bench/` (written by benchmark-action from the
-release pipeline) — the publish script must never touch that directory.
-Publishing is manual: edit `website/index.html`, run the script. If the
-screenshots or download links change (e.g. a new install channel), update the
-page in the same PR.
+Moved to [`.claude/rules/release-ci.md`](.claude/rules/release-ci.md), which loads when working on `.github/`, `scripts/`, `installer/`, `packaging/`, `website/`, `docs/` or `PgNimbus.Benchmarks`.
