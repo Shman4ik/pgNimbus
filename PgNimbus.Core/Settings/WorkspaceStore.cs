@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using PgNimbus.Core.Connections;
+using PgNimbus.Core.Security;
 
 namespace PgNimbus.Core.Settings;
 
@@ -61,12 +62,22 @@ public sealed class WorkspaceStore(string? filePath = null)
     public WorkspaceEntry? GetEntry(string connection) =>
         Load().FirstOrDefault(e => string.Equals(e.Connection, connection, StringComparison.Ordinal));
 
-    /// <summary>Replaces the saved workspace for <paramref name="connection"/> with the current tabs.</summary>
+    /// <summary>
+    /// Replaces the saved workspace for <paramref name="connection"/> with the
+    /// current tabs. Every tab's text, this connection's and the other
+    /// connections' already in the file, goes through
+    /// <see cref="SecretRedactor"/> on the way: the snapshot is written on every
+    /// close and connection switch without the user asking, so an
+    /// <c>ALTER ROLE … PASSWORD 'p'</c> left in a tab must not land on disk as
+    /// typed (security audit 2026-09, finding 8). Doing it here rather than in
+    /// the App's close handler is what makes it hold for every caller. The
+    /// restored tab then shows the placeholder instead of the literal.
+    /// </summary>
     public void Save(string connection, IReadOnlyList<WorkspaceTab> tabs, int activeTabIndex)
     {
-        var entries = Load().ToList();
+        var entries = Load().Select(Redacted).ToList();
         entries.RemoveAll(e => string.Equals(e.Connection, connection, StringComparison.Ordinal));
-        entries.Insert(0, new WorkspaceEntry(connection, DateTimeOffset.UtcNow, [.. tabs], activeTabIndex));
+        entries.Insert(0, new WorkspaceEntry(connection, DateTimeOffset.UtcNow, [.. tabs.Select(Redacted)], activeTabIndex));
 
         // Trim oldest-first - the list is most-recent-first, so drop from the end.
         for (var i = entries.Count - 1; i >= 0 && entries.Count > MaxEntries; i--)
@@ -83,6 +94,10 @@ public sealed class WorkspaceStore(string? filePath = null)
         var json = JsonSerializer.Serialize(entries, WorkspaceJsonContext.Default.ListWorkspaceEntry);
         File.WriteAllText(_filePath, json);
     }
+
+    private static WorkspaceTab Redacted(WorkspaceTab tab) => tab with { Sql = SecretRedactor.Redact(tab.Sql) };
+
+    private static WorkspaceEntry Redacted(WorkspaceEntry entry) => entry with { Tabs = [.. entry.Tabs.Select(Redacted)] };
 }
 
 [JsonSourceGenerationOptions(WriteIndented = true)]

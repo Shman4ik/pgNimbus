@@ -608,6 +608,8 @@ public sealed partial class MainViewModel : ObservableObject
         Action<bool>? persistSafeModeEdits = null,
         bool showFilterBar = false,
         Action<bool>? persistShowFilterBar = null,
+        bool recordQueryHistory = true,
+        Action<bool>? persistRecordQueryHistory = null,
         bool wordWrapEditor = false,
         Action<bool>? persistWordWrapEditor = null,
         bool planTreeView = false,
@@ -690,7 +692,9 @@ public sealed partial class MainViewModel : ObservableObject
                 tab.Sql = sql;
             },
             // History entries are stamped with this label for per-connection scoping.
-            () => string.IsNullOrEmpty(ConnectionHost) ? null : $"{ConnectionHost}/{ConnectionDatabase}");
+            () => string.IsNullOrEmpty(ConnectionHost) ? null : $"{ConnectionHost}/{ConnectionDatabase}",
+            recordQueryHistory,
+            persistRecordQueryHistory);
         NotifyMonitor = notifyMonitor;
         // LISTEN / NOTIFY complete to the channels the monitor knows for this
         // connection; copied here, on the UI thread, because completion may

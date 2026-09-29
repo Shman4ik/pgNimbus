@@ -422,9 +422,33 @@ Three rules about it:
    `DdlTemplates` precedent. The single exception is a statement carrying a
    `PASSWORD` literal: Postgres has no parameter form for one, so it would land
    on screen and in the on-disk query history — those run through
-   `SecurityEditor` instead, are never shown, and `SecretRedactor` guards
-   `SavedQueriesViewModel.RecordExecution`, the one choke point into
-   `QueryHistoryStore`, for the case where a user types one by hand.
+   `SecurityEditor` instead, are never shown, and `Security/SecretRedactor`
+   covers the case where a user types one by hand. **It runs in the two stores
+   that write SQL nobody asked to save** (2026-09, security audit finding 8):
+   `QueryHistoryStore` redacts every entry it writes and scrubs the file once on
+   load (an entry from before the redactor, or in a shape it learned later, is
+   rewritten in place), and `WorkspaceStore.Save` redacts every tab's text on its
+   way into `workspace.json`, the other connections' snapshots included. It used
+   to guard only `SavedQueriesViewModel.RecordExecution`, and the workspace
+   snapshot, written on every close and connection switch, kept a typed
+   `ALTER ROLE x PASSWORD 'p'` as typed. A saved query and a `.sql` file are the
+   user's explicit saves and are written as is. The redactor reads the statement
+   with the shared `SqlLexer` and then reads *inside* every string, dollar body
+   and comment, because that is where the audit found the leaks: `DO $$ …
+   PASSWORD 's' … $$`, `EXECUTE 'ALTER ROLE … PASSWORD ''s'''` (a string's
+   escapes are decoded to read it and the replacement encoded back), conninfo
+   `password=s` in `CREATE SUBSCRIPTION`/`dblink_connect` and `user:s@` in a URI,
+   and a commented-out statement. Inside those it also scans loosely (PASSWORD
+   then any literal, whatever came before, so an apostrophe in `-- don't …`
+   can't hide it), and a string ending in a hanging PASSWORD (`'… PASSWORD '`, a
+   `format()` `%L`) redacts every later literal in the statement. Bias: redact
+   too much. It must stay idempotent (a redacted text reads as clean), or the
+   history's load-time scrub would rewrite the file on every launch.
+   **History can be turned off**: `AppSettings.RecordQueryHistory` (default on,
+   Settings' History section) gates `RecordExecution`, and the sidebar's history
+   list says history is off (`HistoryOffHint`) rather than silently not growing.
+   Tests: `SecretRedactorTests`, `QueryHistoryStoreTests`, `WorkspaceStoreTests`,
+   `QueryHistoryPreferenceTests`.
    `GrantScriptBuilder.BuildBulk` is deliberately more correct than pgAdmin's
    Grant Wizard: `GRANT USAGE ON SCHEMA` comes first (theirs skips it and the
    user still gets `permission denied`), revoke is a preset rather than an
@@ -760,7 +784,9 @@ Three rules about it:
    to the SQL-derived name the moment the buffer says something else. Browsing
    `customers` and then typing a query against `products` used to leave the
    tab named `customers` forever, because the label had been written as an
-   override. Only `TitleOverride` rides the workspace snapshot.
+   override. Only `TitleOverride` rides the workspace snapshot. The tab's text
+   rides it through `SecretRedactor` (`WorkspaceStore.Save`, hard rule 7), so a
+   restored tab that held a password shows `'<redacted>'` in its place.
    The ☰ button (top-left, 2026-07) opens the one discoverable menu for file/tab-level commands: New Query Tab,
    Open… / Open Recent, Save / Save As… / Save to Saved Queries… /
    Save to File…, Close Tab, Reopen Closed Tab, Switch Connection…,

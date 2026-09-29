@@ -47,6 +47,10 @@ public partial class App : Application
     private static void PersistShowFilterBar(bool value) =>
         SettingsStore.Save(SettingsStore.Load() with { ShowFilterBar = value });
 
+    /// <summary>Remembers the record-query-history preference so it survives a restart.</summary>
+    private static void PersistRecordQueryHistory(bool value) =>
+        SettingsStore.Save(SettingsStore.Load() with { RecordQueryHistory = value });
+
     /// <summary>Remembers the editor's auto-alias-tables toggle so it survives a restart.</summary>
     private static void PersistAutoAliasTables(bool value) =>
         SettingsStore.Save(SettingsStore.Load() with { AutoAliasTables = value });
@@ -583,6 +587,8 @@ public partial class App : Application
             persistSafeModeEdits: PersistSafeModeEdits,
             showFilterBar: SettingsStore.Load().ShowFilterBar,
             persistShowFilterBar: PersistShowFilterBar,
+            recordQueryHistory: SettingsStore.Load().RecordQueryHistory,
+            persistRecordQueryHistory: PersistRecordQueryHistory,
             wordWrapEditor: SettingsStore.Load().WordWrapEditor,
             persistWordWrapEditor: PersistWordWrapEditor,
             planTreeView: SettingsStore.Load().PlanTreeView,

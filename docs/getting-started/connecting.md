@@ -40,8 +40,28 @@ saved password back from the OS store. On failure the old file stays and a warni
 appears; unopened profiles are not migrated yet. If a different OS-store value
 already exists, it takes precedence; editing the password resolves the old copy.
 Deleting a profile attempts to remove database and SSH credentials from both
-locations and reports failures. Query history and workspace SQL remain local,
-unencrypted data; credential protection does not encrypt them.
+locations and reports failures.
+
+Credential protection does not cover your queries. Two files keep SQL text on
+disk, unencrypted, in `<appdata>/pgNimbus/` (on Windows, `%AppData%\pgNimbus`;
+see [where pgNimbus keeps its files](installation.md#where-pgnimbus-keeps-its-files)):
+
+- `history.json` keeps the text of every statement you run, with the values in
+  it. A query that looks up a customer by email keeps the email address.
+- `workspace.json` keeps the text of your open tabs, so the next session can
+  reopen them.
+
+Before either file is written, pgNimbus masks passwords it finds in the SQL:
+`PASSWORD '…'` in `CREATE ROLE` and `ALTER ROLE`, including inside a `DO` block,
+an `EXECUTE` string or a comment, and `password=…` in a connection string such
+as `CREATE SUBSCRIPTION … CONNECTION '…'` or `dblink_connect('…')`. The value is
+replaced with `<redacted>`, so a restored tab or a history entry shows that
+instead of the password. Other values are kept as you typed them.
+
+To stop recording history, turn off **Record query history** in Settings. Queries
+you run after that are not written anywhere, and the history list says that
+history is off. Entries already recorded stay until you right-click the list and
+choose **Clear History**; pinned entries survive that, so unpin them first.
 
 That is a design rule rather than a setting. The profile record has no field to
 put a password in, so a profile file cannot leak one even if you copy it
