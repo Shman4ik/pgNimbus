@@ -319,7 +319,15 @@ Three rules about it:
    (`PgNimbus.Core.Diagnostics.CrashLog` does the file I/O — directory-injectable
    and unit-tested — with the process-wide `CrashLogger` static as the facade;
    1 MiB rolling to `pgnimbus.log.old`, every write swallows its own failure so
-   logging a crash can never itself throw). The App wires three global hooks in
+   logging a crash can never itself throw). The log is appended through
+   `Settings/AppDataFile` like every store, so on Linux and macOS it is created
+   `0600` in a `0700` directory: it carries exception messages, which can quote
+   a statement. With no resolvable app data root there is **no log**:
+   `CrashLogger.LogFilePath` is null, `CrashWindow` says no log was written and
+   leaves the path out of the GitHub issue. It used to fall back to
+   `<temp>/pgNimbus/logs`, which on Linux is the shared `/tmp`, where another
+   user can pre-create the directory and read or plant the file (2026-09
+   security audit, finding 10). The App wires three global hooks in
    `PgNimbus.App/Diagnostics/CrashReporter.cs`: `AppDomain.UnhandledException`
    and `TaskScheduler.UnobservedTaskException` (log only — off the UI thread,
    the process is usually already terminating), plus

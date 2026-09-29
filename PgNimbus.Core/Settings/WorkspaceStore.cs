@@ -1,4 +1,3 @@
-using System.Text.Json;
 using System.Text.Json.Serialization;
 using PgNimbus.Core.Connections;
 
@@ -30,32 +29,17 @@ public sealed record WorkspaceTab(
 /// <summary>A saved snapshot of one connection's open tabs, most-recently-saved entries kept first in the store.</summary>
 public sealed record WorkspaceEntry(string Connection, DateTimeOffset SavedAt, List<WorkspaceTab> Tabs, int ActiveTabIndex = 0);
 
-/// <summary>Persists the last <see cref="MaxEntries"/> per-connection workspaces, most recent first.</summary>
+/// <summary>Persists the last <see cref="MaxEntries"/> per-connection workspaces, most recent first, through <see cref="AppDataFile"/>.</summary>
 public sealed class WorkspaceStore(string? filePath = null)
 {
     private const int MaxEntries = 20;
 
-    private readonly string _filePath = filePath ?? Path.Combine(AppDataPaths.GetRootDirectory(), "workspace.json");
+    private readonly string? _filePath = filePath ?? AppDataPaths.Resolve("workspace.json");
 
-    private IReadOnlyList<WorkspaceEntry> Load()
-    {
-        if (!File.Exists(_filePath))
-        {
-            return [];
-        }
-
-        // A corrupt/empty/half-written file must never block startup - fall back
-        // to an empty list rather than throwing out of the constructor path.
-        try
-        {
-            var json = File.ReadAllText(_filePath);
-            return JsonSerializer.Deserialize(json, WorkspaceJsonContext.Default.ListWorkspaceEntry) ?? [];
-        }
-        catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException)
-        {
-            return [];
-        }
-    }
+    // A corrupt/empty/half-written file must never block startup: AppDataFile
+    // moves one it cannot parse aside and the list starts empty.
+    private IReadOnlyList<WorkspaceEntry> Load() =>
+        AppDataFile.ReadJson(_filePath, WorkspaceJsonContext.Default.ListWorkspaceEntry) ?? [];
 
     /// <summary>The most recently saved workspace for <paramref name="connection"/>, or null if none was ever saved.</summary>
     public WorkspaceEntry? GetEntry(string connection) =>
@@ -74,14 +58,7 @@ public sealed class WorkspaceStore(string? filePath = null)
             entries.RemoveAt(i);
         }
 
-        var directory = Path.GetDirectoryName(_filePath);
-        if (!string.IsNullOrEmpty(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
-
-        var json = JsonSerializer.Serialize(entries, WorkspaceJsonContext.Default.ListWorkspaceEntry);
-        File.WriteAllText(_filePath, json);
+        AppDataFile.WriteJson(_filePath, entries, WorkspaceJsonContext.Default.ListWorkspaceEntry);
     }
 }
 

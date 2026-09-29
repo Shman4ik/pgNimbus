@@ -137,7 +137,7 @@ public static class CrashReporter
     /// A second <see cref="AppBuilder"/> is not an option — Avalonia allows
     /// exactly one setup per process.
     /// </summary>
-    private static void ShowCrashWindowNested(Exception exception, string logPath)
+    private static void ShowCrashWindowNested(Exception exception, string? logPath)
     {
         if (Application.Current is null)
         {
@@ -161,10 +161,12 @@ public static class CrashReporter
         }
     }
 
-    private static void LogToConsole(Exception original, string logPath, Exception dialogException)
+    private static void LogToConsole(Exception original, string? logPath, Exception dialogException)
     {
         CrashLogger.LogCritical("Failed to show the crash window", dialogException);
         Console.Error.WriteLine($"pgNimbus crashed: {original}");
-        Console.Error.WriteLine($"A log was written to: {logPath}");
+        Console.Error.WriteLine(logPath is null
+            ? "No log was written: pgNimbus found no application data directory."
+            : $"A log was written to: {logPath}");
     }
 }
