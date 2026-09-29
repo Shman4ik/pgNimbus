@@ -21,9 +21,11 @@ before public disclosure.
 
 Things especially worth reporting:
 
-- Credential handling: passwords are supposed to live only in the OS
-  credential store (DPAPI on Windows, the Keychain on macOS, Secret Service
-  on Linux), never in profile/settings JSON or logs.
+- Credential handling: passwords are supposed to live only in OS-encrypted
+  storage (DPAPI-encrypted files on Windows, the Keychain on macOS, Secret
+  Service on Linux), never in profile/settings JSON or logs. The full list of
+  what pgNimbus stores is on the
+  [privacy page](https://shman4ik.github.io/pgNimbus/docs/privacy/).
 - SSH tunnel handling (host key verification, key material).
 - Anything that lets a malicious *server* or a crafted query result
   execute code or corrupt the client.
