@@ -244,7 +244,7 @@ public static class RoleScriptBuilder
     public static string Drop(string role, string? reassignTo, bool grantMembershipFirst = false)
     {
         var name = SqlIdentifier.QuoteIfNeeded(role);
-        var display = CommentSafe(role);
+        var display = SqlComment.Safe(role);
         var sb = new StringBuilder();
 
         sb.Append("-- \"").Append(display).Append("\" may own objects or hold grants, and DROP ROLE alone").Append(Newline);
@@ -345,13 +345,4 @@ public static class RoleScriptBuilder
     /// </summary>
     private static string RenderPassword(string password, bool mask) =>
         SqlLiteral.Quote(mask ? Mask : ScramSha256Verifier.Build(password));
-
-    /// <summary>
-    /// Strips the characters that would let a name break out of a <c>--</c>
-    /// comment. A role name can legally contain a newline; the recipe comment
-    /// is the one place in this file where a name is not inside a quoted
-    /// identifier, so it is the one place that has to defend itself.
-    /// </summary>
-    private static string CommentSafe(string text) =>
-        text.Replace('\r', ' ').Replace('\n', ' ');
 }

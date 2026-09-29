@@ -317,14 +317,29 @@ public class RoleScriptBuilderTests
     }
 
     [Test]
-    public async Task DropCannotBeBrokenOutOfByANewlineInTheRoleName()
+    [Arguments("ap\np")]
+    [Arguments("ap\r\np")]
+    [Arguments("x\nALTER ROLE eve SUPERUSER;--")]
+    public async Task DropCannotBeBrokenOutOfByANewlineInTheRoleName(string role)
     {
         // A role name can legally contain a newline, and the recipe comment is
         // the one place a name is not inside a quoted identifier.
-        var sql = RoleScriptBuilder.Drop("ap\np", "postgres");
+        var sql = RoleScriptBuilder.Drop(role, "postgres");
 
-        var commentLines = N(sql).Split('\n').TakeWhile(l => l.StartsWith("--", StringComparison.Ordinal));
+        // Split the way the server's lexer ends a comment: at \n or \r.
+        var lines = sql.Split(['\n', '\r']);
+        var commentLines = lines.TakeWhile(l => l.StartsWith("--", StringComparison.Ordinal)).ToList();
 
-        await Assert.That(commentLines.Count()).IsEqualTo(6);
+        await Assert.That(commentLines.Count).IsEqualTo(6);
+
+        // The lexer-backed splitter is the judge of what would run: an escaped
+        // comment would add a statement, so the count is the proof.
+        var statements = PgNimbus.Core.Query.SqlScriptSplitter.Split(sql);
+        await Assert.That(statements.Count).IsEqualTo(3);
+        await Assert.That(statements.Any(s => ScriptText.FirstStatementLine(s).StartsWith("ALTER ROLE", StringComparison.Ordinal))).IsFalse();
+
+        // The statements still name the role exactly, quoted — a quoted
+        // identifier may span lines, and inside the quotes it is only a name.
+        await Assert.That(sql).Contains($"DROP ROLE \"{role}\";");
     }
 }
