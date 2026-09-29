@@ -73,6 +73,7 @@ public class ResultLimitsTests
     [Test]
     public async Task Each_cap_says_which_limit_it_was()
     {
+        using var invariant = InvariantCulture.Scope();
         await Assert.That(QueryViewModel.CapTextFor(ResultCap.Rows)).StartsWith("capped at 100,000 rows");
         await Assert.That(QueryViewModel.CapTextFor(ResultCap.Bytes)).StartsWith("capped at 256 MB");
         await Assert.That(QueryViewModel.CapTextFor(ResultCap.Shared)).Contains("the script's results reached");
@@ -96,6 +97,7 @@ public class ResultLimitsTests
         // the grid per column, so 5,000 columns used to build 12.5 million.
         await Ui.Run(async () =>
         {
+            using var invariant = InvariantCulture.Scope();
             var (window, vm) = Scenarios.Shell();
             Ui.Show(window);
 
@@ -177,6 +179,27 @@ public class ResultLimitsTests
             {
                 Disposed = true;
             }
+        }
+    }
+
+    /// <summary>
+    /// The app runs with InvariantGlobalization, so its <c>N0</c> text is always
+    /// "100,000". The test host does not: on a Mac set to a Czech region the same
+    /// call writes "100 000" and these assertions failed for reasons that have
+    /// nothing to do with the code. Pin the thread to the culture the app has.
+    /// </summary>
+    private static class InvariantCulture
+    {
+        public static IDisposable Scope()
+        {
+            var previous = System.Globalization.CultureInfo.CurrentCulture;
+            System.Globalization.CultureInfo.CurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
+            return new Restore(previous);
+        }
+
+        private sealed class Restore(System.Globalization.CultureInfo previous) : IDisposable
+        {
+            public void Dispose() => System.Globalization.CultureInfo.CurrentCulture = previous;
         }
     }
 }

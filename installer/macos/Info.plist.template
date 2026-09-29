@@ -21,7 +21,10 @@
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>LSMinimumSystemVersion</key>
-    <string>11.0</string>
+    <!-- Not lower than the highest minos of any Mach-O in the bundle: the NativeAOT
+         binary is built for macOS 12 (.NET 10's floor). 11.0 here made a macOS 11 Mac
+         fail in dyld instead of showing "requires macOS 12". release.yml checks it. -->
+    <string>12.0</string>
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSHumanReadableCopyright</key>

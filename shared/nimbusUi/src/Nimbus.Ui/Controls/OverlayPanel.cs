@@ -5,6 +5,7 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Data;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 
 namespace Nimbus.Ui.Controls;
 
@@ -44,6 +45,15 @@ namespace Nimbus.Ui.Controls;
 /// It is a <see cref="RoutingStrategies.Bubble"/> handler on purpose: bubbling reaches
 /// the top level *after* the focused control, so a search box inside another overlay
 /// still gets first refusal on the key.
+/// </para>
+/// <para>
+/// That only works if focus is not somewhere the overlay cannot see. Opening the panel
+/// from a menu (the macOS app menu's Settings, or a key equivalent) leaves focus where
+/// it was — in a code editor under the scrim — so Escape was consumed by the editor
+/// and never reached the top level, and typed text went into the document behind the
+/// panel (found on a Mac, 2026-09). So opening takes focus for the panel itself, and
+/// closing gives it back to whatever held it, unless focus has since gone somewhere
+/// else on purpose.
 /// </para>
 /// </remarks>
 [TemplatePart("PART_Backdrop", typeof(Border))]
@@ -100,6 +110,16 @@ public class OverlayPanel : ContentControl
     private Border? _backdrop;
     private Button? _closeButton;
     private TopLevel? _topLevel;
+    private WeakReference<IInputElement>? _returnFocusTo;
+
+    static OverlayPanel()
+    {
+        // The panel is the thing that holds focus while it is open, so it has to be
+        // focusable; it is not a Tab stop (its content is, and Tab must not land on
+        // an invisible "panel" before the first real control).
+        FocusableProperty.OverrideDefaultValue<OverlayPanel>(true);
+        IsTabStopProperty.OverrideDefaultValue<OverlayPanel>(false);
+    }
 
     protected override void OnApplyTemplate(TemplateAppliedEventArgs e)
     {
@@ -126,6 +146,64 @@ public class OverlayPanel : ContentControl
         if (_closeButton is not null)
         {
             _closeButton.Click += OnCloseClick;
+        }
+    }
+
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+
+        if (change.Property != IsOpenProperty)
+        {
+            return;
+        }
+
+        if (change.GetNewValue<bool>())
+        {
+            TakeFocus();
+        }
+        else
+        {
+            GiveFocusBack();
+        }
+    }
+
+    private void TakeFocus()
+    {
+        var focused = TopLevel.GetTopLevel(this)?.FocusManager?.GetFocusedElement();
+        _returnFocusTo = focused is not null && !ReferenceEquals(focused, this) && !IsKeyboardFocusWithin
+            ? new WeakReference<IInputElement>(focused)
+            : null;
+
+        Focus(NavigationMethod.Unspecified);
+
+        // A native menu click hands focus back to the window as it closes, after this
+        // handler has run, so say it once more when the dust has settled.
+        Dispatcher.UIThread.Post(
+            () =>
+            {
+                if (IsOpen && !IsFocused && !IsKeyboardFocusWithin)
+                {
+                    Focus(NavigationMethod.Unspecified);
+                }
+            },
+            DispatcherPriority.Input);
+    }
+
+    private void GiveFocusBack()
+    {
+        var target = _returnFocusTo is { } weak && weak.TryGetTarget(out var element) ? element : null;
+        _returnFocusTo = null;
+
+        var focused = TopLevel.GetTopLevel(this)?.FocusManager?.GetFocusedElement();
+        var focusIsOurs = focused is null || ReferenceEquals(focused, this) || IsKeyboardFocusWithin;
+
+        // Only if the panel still held focus: something that took it on purpose (a
+        // click into another control as the panel closed) keeps it.
+        if (target is { } && focusIsOurs && target is Visual { IsEffectivelyVisible: true } visual
+            && TopLevel.GetTopLevel(visual) is not null)
+        {
+            target.Focus(NavigationMethod.Unspecified);
         }
     }
 

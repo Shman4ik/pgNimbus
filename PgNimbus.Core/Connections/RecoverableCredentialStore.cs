@@ -223,7 +223,11 @@ public sealed class RecoverableCredentialStore(ICredentialStore persistent, stri
 
     private void DeleteLegacy(Guid id)
     {
-        if (LegacyPath(id) is { } path) File.Delete(path);
+        // File.Delete throws DirectoryNotFoundException, an IOException and so a
+        // "storage failure" here, when the directory itself is missing, which is
+        // the normal state of a new install (nothing ever wrote a legacy file).
+        // File.Exists is false for a missing directory too.
+        if (LegacyPath(id) is { } path && File.Exists(path)) File.Delete(path);
         if (_legacyLeft.Remove(id)) UpdateWarning();
     }
 

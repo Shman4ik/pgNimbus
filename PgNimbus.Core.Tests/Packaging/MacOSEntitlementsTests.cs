@@ -35,6 +35,29 @@ public class MacOSEntitlementsTests
         await Assert.That(keys).IsEquivalentTo(["com.apple.security.cs.disable-library-validation"]);
     }
 
+    /// <summary>
+    /// A NativeAOT app built with .NET 10 carries <c>minos 12.0</c>. The bundle said 11.0,
+    /// so a macOS 11 Mac got a dyld failure instead of Launch Services' "requires
+    /// macOS 12". The real gate is release.yml, which compares this key with the
+    /// binaries' minos; this keeps a hand edit from lowering it under that floor.
+    /// </summary>
+    [Test]
+    public async Task The_bundle_does_not_promise_a_macOS_older_than_12()
+    {
+        var path = Path.Combine(RepositoryRoot(), "installer", "macos", "Info.plist.template");
+        var doc = new XmlDocument { XmlResolver = null };
+        doc.Load(path);
+
+        var key = doc.SelectSingleNode("/plist/dict/key[text()='LSMinimumSystemVersion']")!;
+        var value = key.NextSibling;
+        while (value is not null && value.NodeType != XmlNodeType.Element)
+        {
+            value = value.NextSibling;
+        }
+
+        await Assert.That(Version.Parse(value!.InnerText)).IsGreaterThanOrEqualTo(new Version(12, 0));
+    }
+
     private static string RepositoryRoot()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);

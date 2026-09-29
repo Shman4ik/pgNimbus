@@ -61,11 +61,16 @@ done
 iconutil -c icns "$ICONSET_DIR" -o "$APP_DIR/Contents/Resources/app.icns"
 
 # Publish output -> Contents/MacOS. The NativeAOT debug symbols are dropped the
-# way the Linux packages drop *.dbg: nobody debugging a release build has the
-# .dmg to hand, and a .dsym is itself a bundle directory, which is the one shape
-# `codesign --deep` below refuses to seal inside Contents/MacOS.
+# way the Linux packages drop *.dbg (and the Windows ones *.pdb): nobody debugging
+# a release build has the .dmg to hand, and a .dSYM is itself a bundle directory,
+# which is the one shape `codesign --deep` below refuses to seal inside
+# Contents/MacOS. NativeAOT names it `PgNimbus.App.dSYM`; the first version of this
+# line globbed `*.dsym`, which bash matches case-sensitively, so 130 MB of symbols
+# shipped inside every .dmg (installed size 189 MB instead of ~60). Match the name
+# with `find -iname`, never a glob. release.yml's mounted-.dmg step fails if any
+# survive.
 cp -R "$PUBLISH_DIR/." "$APP_DIR/Contents/MacOS/"
-rm -rf "$APP_DIR"/Contents/MacOS/*.dsym
+find "$APP_DIR/Contents/MacOS" \( -iname '*.dsym' -o -name '*.pdb' \) -prune -exec rm -rf {} +
 chmod +x "$APP_DIR/Contents/MacOS/PgNimbus.App"
 
 # Ad-hoc code signature (`--sign -`), signed inside-out: nested Mach-O first,

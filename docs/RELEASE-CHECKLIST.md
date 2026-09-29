@@ -137,6 +137,41 @@ a flyout's Apply straight after `type` can land before the field commits (wait a
 second); and parking the pointer on a window's maximize button opens Windows'
 Snap Layouts over the app, so move the pointer away before reading the screen.
 
+### macOS pass (Apple Silicon Mac)
+
+The section above is Windows. The macOS build is a different artifact with its own
+failure modes (bundle layout, signature, Keychain, AppKit menus), so it gets its own
+pass. 1.0.0 found five defects here that no Windows step could have.
+
+- [ ] Live server: Docker Desktop, then
+      `docker run -d --name pgn-release -e POSTGRES_PASSWORD=postgres -p 5441:5432 pgvector/pgvector:pg17 postgres -c shared_preload_libraries=pg_stat_statements`,
+      create `pgn_tests` and `demo`, pipe `scripts/demo/0*.sql` into `demo`. Run both
+      test projects with `PGNIMBUS_TEST_CONN` set as in section 2.
+- [ ] Build what ships: `dotnet publish PgNimbus.App -c Release -r osx-arm64 -p:PublishAot=true -p:Version=X.Y.Z -o <dir>`,
+      then `scripts/macos/build-app-bundle.sh <dir> X.Y.Z osx-arm64 <out>`. Mount the
+      `.dmg` and check: no `*.dSYM` or `*.pdb` in the `.app` (~60 MB installed, not
+      190), `LSMinimumSystemVersion` is not below `vtool -show-build` `minos` of the
+      binary, `codesign --verify --deep --strict`, and
+      `scripts/release/smoke-launch.sh` on the binary inside the image. The first
+      launch of a freshly mounted image takes about 2 s (signature check); a second
+      launch is about 0.2 s, which is the number the public copy quotes.
+- [ ] Never test with your own data: `PGNIMBUS_DATA_DIR=<scratch>` and
+      `open -n --env PGNIMBUS_DATA_DIR=<scratch> pgNimbus.app`. Quit with
+      `osascript -e 'tell application id "com.pgnimbus.app" to quit'`.
+- [ ] Flows 1 to 6, 15, 16 and 19 from the table above, driven with real events
+      (`CGEvent`; AppleScript `keystroke` does not reach Avalonia, menu clicks
+      through System Events do).
+- [ ] Mac only, in this order: the menu bar matches `BuildMacNativeMenu`; ⌘, opens
+      Settings **while the SQL editor has focus** and Escape closes it; View,
+      Appearance in Light and Dark; Enter Full Screen from a connect form carries
+      over to the window it opens; close the last window, then click the Dock icon
+      (a connect form comes back); ⌘Q and a Dock "Quit" both end the process at once
+      and leave no `pgNimbus` report in `~/Library/Logs/DiagnosticReports`.
+- [ ] Keychain: on a **new** data directory the first saved password shows no
+      storage warning, and after a relaunch Enter reconnects without retyping it.
+- [ ] Not covered until notarization: the real Gatekeeper dialog, and an update from
+      the previous release's bundle. See "Known caveats".
+
 ## 4. Published media
 
 - [ ] Screenshots: `scripts/screenshots/update-published.sh` on Windows if any
@@ -177,6 +212,16 @@ are what gets asked in a launch thread.
   publish log). It does not run in the shipped app, which still makes no network
   connection except to your databases and SSH hosts. The publish log says an
   opt-out needs a paid Avalonia tier.
+- **macOS updates lose saved passwords (until notarized builds).** A Keychain item
+  belongs to the code signature that created it, and an ad-hoc signature is a hash
+  of the binary, so every release is a different app to the Keychain. The app asks
+  for Keychain access without a prompt (deliberately, see CLAUDE.md hard rule 4), so
+  the older item simply refuses to load, and writing it again does not help. Measured
+  on 2026-09-29 with two differently signed binaries: create by A, load by B fails,
+  update by B "succeeds", after which neither can read it. The user-side fix is in
+  `docs/getting-started/installation.md` (delete the `pgNimbus` items in Keychain
+  Access). The first Developer ID build is a new identity again, so it needs the
+  same one-time reset; say so in its release notes.
 - **Unsigned direct downloads.** MSI and Linux packages are unsigned, the dmg is
   ad-hoc signed. The Store package is signed by Microsoft.
 
@@ -186,3 +231,4 @@ are what gets asked in a launch thread.
 |---------|------|---------|---------------------|
 | 0.14.0 | 2026-09-28 | Claude Code (AOT build, Windows 11) | No blockers. Fixed in the checklist's own PR: plan tree opened collapsed and every plan opened as text; checked `ToggleButton.chip` (Wrap, filter pin, history scope) drew white text on the light wash (since at least 0.13); the permissions strip said "can SELECT" for a role blocked by missing schema USAGE; Slow queries listed pgNimbus's own catalog reads first; an imported plan's tab carried `SELECT 1;`; double-clicking a table also expanded its node; the F1 row for Ctrl+1…9 was grey text. Documented: Avalonia's build-time telemetry. A reported "Ctrl+, does nothing" was an input-tool artifact, not a bug. |
 | 1.0.0 | 2026-09-29 | Claude (Sonnet 5.5; AOT build stamped 1.0.0, Windows 11, PostgreSQL 17.11) | No blockers, no code changes. Rows 1 to 18 and 20 to 26 passed. The first launch showed the real profile list with a remote database preselected, so the pass moved to `PGNIMBUS_DATA_DIR` (now in the checklist); the real app data was byte-identical to its backup afterwards. Checklist wording fixed: relation sizes are off by default, and a healthy plan has no warnings strip. Observations, not failures: after Ctrl+S a renamed tab takes the saved query's name again; a failed staged commit's red status is cut to "Commit…" in a narrow window; the AOT publish prints IL2104/IL3053 for `Avalonia.Controls.DataGrid` (the package, not our code; zero IL2026/IL3050). Not fully exercised: row 19 covered about 20 chords (the punctuation four included; the rest are pinned by the catalog and binding tests), row 18 did not click into the read-only grid, and row 27 saw the host-key dialog only in the light theme. |
+| 1.0.0 (macOS) | 2026-09-29 | Claude Code (AOT bundle, macOS 27, arm64) | Core 1914 of 1926 pass (12 skips: SSH, no server), App tests 698 of 700 (two number-separator failures from the Mac's region only). No crash on ⌘Q, Dock reopen, full screen, menu bar as designed. Found and fixed in one PR: a fresh install's first saved password showed "Password storage is unavailable" because `File.Delete` on a missing `credentials` directory read as a store failure; Settings opened by ⌘, could not be closed with Escape and swallowed typing while the SQL editor held focus; 130 MB of `.dSYM` shipped in the `.app` (case-sensitive glob); Info.plist said macOS 11 for a macOS 12 binary. Documented, not fixed: saved passwords do not survive an update while builds are ad-hoc signed (Known caveats). Not done: TLS against a real server, SSH, Gatekeeper dialog, upgrade in place. |

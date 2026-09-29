@@ -194,6 +194,18 @@ It produces, per tag:
   double-clicking it on the read-only image — that is where "the disk image
   should be ejected" came from). `release.yml`'s mounted-`.dmg` smoke step
   gates both: `Signature=adhoc` present after `hdiutil`, and the symlink there.
+  **The bundle must not ship debug symbols, and must not promise an older macOS
+  than it was built for** (2026-09-29, first real-Mac pass of 1.0.0). The script's
+  `rm -rf *.dsym` never matched NativeAOT's `PgNimbus.App.dSYM` (bash globs are
+  case-sensitive), so 130 MB of symbols shipped in every `.dmg` (189 MB installed
+  instead of 58). It now removes `*.dSYM` and `*.pdb` with `find -iname`. The
+  Info.plist's `LSMinimumSystemVersion` said 11.0 for a binary whose `minos` is 12.0,
+  so macOS 11 failed in dyld instead of showing "requires macOS 12"; it is 12.0 now.
+  The mounted-`.dmg` step gates both (no `*.dsym`/`*.pdb` anywhere in the `.app`;
+  the plist value not older than the highest `vtool -show-build` `minos` of any
+  Mach-O), and `MacOSEntitlementsTests` keeps the template from going under 12.
+  **Ad-hoc signing has a Keychain cost** that only a Developer ID removes: see
+  hard rule 4 in `CLAUDE.md` and "Known caveats" in `docs/RELEASE-CHECKLIST.md`.
   None of this substitutes for a Developer ID signature plus notarization,
   which needs a paid Apple account and would remove the warning outright.
   **Both `codesign` calls also pass `--options runtime`** (security audit

@@ -193,6 +193,12 @@ Three things follow:
 - **Escape is handled on the `TopLevel`, bubbling.** Nothing inside a cheat sheet holds
   focus, so a handler on the panel would never see the key; bubbling from the top level
   still lets a focused search box in another overlay refuse it first.
+- **Opening takes focus, closing gives it back.** Bubbling only works if focus is not in
+  a control that answers Escape first. An overlay opened from a menu (macOS's app-menu
+  Settings and its key equivalent) left focus in the code editor under the scrim: Escape
+  never reached the top level, and typed text went into the document behind the panel.
+  `OverlayPanel` is focusable, remembers the focused element when `IsOpen` turns true,
+  takes focus, and restores it on close unless focus has gone elsewhere on purpose.
 - **Anything you need to *watch* while it is open stays a window.** An overlay covers
   the shell. That is the line: pgNimbus's server-activity and database-overview windows
   are reference views you read beside your work and are deliberately not converted, and
