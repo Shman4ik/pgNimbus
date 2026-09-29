@@ -2152,11 +2152,18 @@ public sealed partial class QueryViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Deletes the given rows from the mapped table, one targeted
-    /// primary-key-keyed DELETE each. In browse mode the page is reloaded
-    /// afterward (so paging/counts stay correct and the page refills from the
-    /// server); otherwise the rows are dropped from the grid in place. Returns
-    /// how many rows were deleted.
+    /// Deletes the given rows from the mapped table as one atomic batch — a
+    /// primary-key-keyed DELETE per row, each checked for exactly one row
+    /// affected, run through <see cref="QueryEngine.ApplyBatchAsync(IReadOnlyList{ParameterizedStatement}, CancellationToken)"/>'s
+    /// own transaction. Before this, each row ran its own autocommit DELETE, so
+    /// a failure partway through (a blocking trigger, a lost connection) left
+    /// whatever had already committed deleted and the rest untouched (security
+    /// audit 2026-09, finding 6) — the status message even said so ("Delete
+    /// failed after N row(s)"). Now it is all-or-nothing: either every row goes
+    /// or none does. In browse mode the page is reloaded afterward either way
+    /// (so paging/counts stay correct and reflect the server, whether the
+    /// delete landed or not); otherwise the rows are dropped from the grid in
+    /// place, only on success. Returns how many rows were deleted.
     /// </summary>
     public async Task<int> DeleteRowsAsync(IReadOnlyList<object?[]> rows)
     {
@@ -2189,21 +2196,25 @@ public sealed partial class QueryViewModel : ObservableObject
 
         var sql = $"DELETE FROM {SqlIdentifier.Quote(context.Schema)}.{SqlIdentifier.Quote(context.Table)} WHERE {whereClause}";
 
+        var statements = rows.Select(row =>
+        {
+            var parameters = new Dictionary<string, object?>();
+            for (var n = 0; n < pkIndexes.Count; n++)
+            {
+                parameters[$"pk{n}"] = row[pkIndexes[n]];
+            }
+
+            return new ParameterizedStatement(sql, parameters, ExpectedRowsAffected: 1);
+        }).ToList();
+
         var deleted = 0;
         try
         {
-            foreach (var row in rows)
+            deleted = await _engine.ApplyBatchAsync(statements, CancellationToken.None);
+
+            if (Browse is null)
             {
-                var parameters = new Dictionary<string, object?>();
-                for (var n = 0; n < pkIndexes.Count; n++)
-                {
-                    parameters[$"pk{n}"] = row[pkIndexes[n]];
-                }
-
-                await _engine.ExecuteNonQueryAsync(sql, parameters, CancellationToken.None);
-                deleted++;
-
-                if (Browse is null)
+                foreach (var row in rows)
                 {
                     Rows.Remove(row);
                 }
@@ -2213,9 +2224,8 @@ public sealed partial class QueryViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            Status = deleted == 0
-                ? $"Delete failed: {ex.Message}"
-                : $"Delete failed after {deleted:N0} row(s): {ex.Message}";
+            deleted = 0;
+            Status = $"Delete failed, nothing deleted: {ex.Message}";
             HasError = true;
         }
 

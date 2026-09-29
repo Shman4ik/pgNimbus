@@ -702,6 +702,7 @@ public sealed partial class MainViewModel : ObservableObject
         SchemaTree.ManageRolesRequested = ManageRolesAsync;
         SchemaTree.IsSchemaExcludedFromCompletion = _excludedSchemas.Contains;
         SchemaTree.AllRelationsRequested = GetRelationsAsync;
+        SchemaTree.DatabaseName = connectionDatabase;
         _schemaService = schemaService;
         _schemaEditor = schemaEditor;
         _ddlService = ddlService;
