@@ -397,7 +397,12 @@ Three rules about it:
    profiles defaulted to `Prefer`, which Npgsql (like libpq) drops to plaintext
    whenever the server or anyone on the path declines TLS; the dialog's default
    is now `ConnectionDialogViewModel.DefaultSslMode = Require`, saved profiles
-   keep their mode. (b) `SslMode` is persisted as a number and its zero value is
+   keep their mode. A new form's mode follows its host until someone picks one
+   (`SslModes.DefaultFor`): Prefer for this machine (`IsLoopback`: localhost,
+   `*.localhost`, 127/8, `::1`, a socket directory), Require otherwise, because
+   a local Docker Postgres has TLS off and Require failed the first connect
+   anyone tried (review of these fixes). A loaded profile, a picker change or a
+   pasted `sslmode` counts as picked. (b) `SslMode` is persisted as a number and its zero value is
    `Disable`, so a hand-edited `connections.json` without the field loaded as a
    plaintext-only profile: the record's `SslMode` parameter now defaults to
    `Require` (the source-generated reader honours a positional default; a test
@@ -414,7 +419,10 @@ Three rules about it:
    Require: `ConnectionProfile.RootCertificatePath` (a path, safe in JSON) is
    the dialog's Root Certificate field, shown only for VerifyCa/VerifyFull,
    parsed from `sslrootcert=`/`PGSSLROOTCERT`/`Root Certificate=` (libpq
-   `sslrootcert=system` clears it), and written as Npgsql's `RootCertificate`
+   `sslrootcert=system` clears it; a path on another machine, `\\host\…`,
+   `//host/…` or a URL, is refused from a paste, since reading it on Windows opens
+   an SMB session and its CA would vouch for its owner; `sslmode=require` with a
+   root certificate reads as VerifyCa, as libpq has it), and written as Npgsql's `RootCertificate`
    only for those two modes (`UsesRootCertificate`; Npgsql ignores it under
    Require, and a string naming a CA would read as checked). (e) Through the SSH
    tunnel the socket is `127.0.0.1:<port>`, so Npgsql checked the certificate's

@@ -149,6 +149,53 @@ public class TlsSettingsTests
     }
 
     [Test]
+    [Arguments(@"host=h sslmode=verify-full sslrootcert=\\attacker\share\ca.pem")]
+    [Arguments(@"host=h sslmode=verify-full sslrootcert=\\?\UNC\attacker\share\ca.pem")]
+    [Arguments("host=h sslmode=verify-full sslrootcert=//attacker/share/ca.pem")]
+    [Arguments("host=h sslmode=verify-full sslrootcert=file://attacker/share/ca.pem")]
+    [Arguments("postgres://me@h/app?sslmode=verify-full&sslrootcert=%5C%5Cattacker%5Cshare%5Cca.pem")]
+    public async Task A_pasted_root_certificate_on_another_machine_is_refused(string text)
+    {
+        // Reading \\host\share on Windows opens an SMB session to that host, and
+        // the CA it serves would vouch for its own certificate (review of the
+        // 2026-09 audit fixes). The paste box names the field to use instead.
+        await Assert.That(ConnectionStringParser.TryParse(text, out _, out var error)).IsFalse();
+        await Assert.That(error).Contains("Root Certificate field");
+    }
+
+    [Test]
+    public async Task Require_with_a_root_certificate_reads_as_verify_ca_as_libpq_has_it()
+    {
+        await Assert.That(ConnectionStringParser.TryParse("host=h sslmode=require sslrootcert=/certs/ca.pem", out var require, out _)).IsTrue();
+        await Assert.That(require.SslMode).IsEqualTo(SslMode.VerifyCa);
+
+        await Assert.That(ConnectionStringParser.TryParse("host=h sslmode=verify-full sslrootcert=/certs/ca.pem", out var full, out _)).IsTrue();
+        await Assert.That(full.SslMode).IsEqualTo(SslMode.VerifyFull);
+
+        await Assert.That(ConnectionStringParser.TryParse("host=h sslmode=require sslrootcert=system", out var system, out _)).IsTrue();
+        await Assert.That(system.SslMode).IsEqualTo(SslMode.Require);
+    }
+
+    [Test]
+    [Arguments("localhost", true)]
+    [Arguments("LOCALHOST", true)]
+    [Arguments("db.localhost", true)]
+    [Arguments("127.0.0.1", true)]
+    [Arguments("127.1.2.3", true)]
+    [Arguments("::1", true)]
+    [Arguments("[::1]", true)]
+    [Arguments("/var/run/postgresql", true)]
+    [Arguments("db.example.com", false)]
+    [Arguments("10.0.0.5", false)]
+    [Arguments("localhost,db.example.com", false)]
+    [Arguments("localhost.example.com", false)]
+    public async Task A_new_profile_prefers_tls_on_this_machine_and_requires_it_elsewhere(string host, bool loopback)
+    {
+        await Assert.That(SslModes.IsLoopback(host)).IsEqualTo(loopback);
+        await Assert.That(SslModes.DefaultFor(host)).IsEqualTo(loopback ? SslMode.Prefer : SslMode.Require);
+    }
+
+    [Test]
     public async Task Libpq_system_means_the_os_store()
     {
         await Assert.That(ConnectionStringParser.TryParse("host=h sslmode=verify-full sslrootcert=system", out var parsed, out _)).IsTrue();

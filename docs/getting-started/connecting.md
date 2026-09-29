@@ -147,16 +147,18 @@ checks about the server. The list describes each mode. In short:
 | Verify CA | Yes | Yes | No |
 | Verify full | Yes | Yes | Yes |
 
-New profiles start at **Require**. It always encrypts, but it does not check
+New profiles start at **Require** for a server on the network. It always encrypts, but it does not check
 who is on the other end: anyone who can intercept the connection can present
 their own certificate and read everything, the password included. Prefer and
 Allow are weaker still, because an attacker can make them fall back to
 plaintext. Use **Verify full** for any server you reach over a network you do
 not control. It is marked as recommended in the list.
 
-A local Postgres, such as the `postgres` Docker image, has no TLS unless you set
-it up. Require then fails with a message saying so. Set SSL Mode to Prefer or
-Disable for that server.
+A server on this machine (`localhost`, `127.0.0.1`, `::1`) starts at **Prefer**
+instead: there is no network path to intercept, and a local Postgres, such as
+the `postgres` Docker image, has no TLS unless you set it up. The mode follows
+the host you type until you pick one yourself. If Require meets a server
+without TLS, the connection fails with a message saying so.
 
 ### Root certificate
 

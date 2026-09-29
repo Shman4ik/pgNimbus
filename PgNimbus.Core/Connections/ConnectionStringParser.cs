@@ -635,7 +635,14 @@ public static class ConnectionStringParser
         public SslMode? SslMode;
         public string? RootCertificatePath;
 
-        public ParsedConnectionString ToRecord() => new(Host, Port, Database, Username, Password, SslMode, RootCertificatePath);
+        // libpq treats sslmode=require with a root certificate as verify-ca
+        // (it checks the chain when it has a CA to check against); Npgsql
+        // ignores a root certificate under Require, so the pasted string would
+        // read as checked and not be (review of the 2026-09 audit fixes).
+        public ParsedConnectionString ToRecord() => new(
+            Host, Port, Database, Username, Password,
+            SslMode == Connections.SslMode.Require && !string.IsNullOrEmpty(RootCertificatePath) ? Connections.SslMode.VerifyCa : SslMode,
+            RootCertificatePath);
 
         public void Overlay(ParsedConnectionString other)
         {
@@ -704,6 +711,18 @@ public static class ConnectionStringParser
                 // what an empty path means here (empty, not null: the string
                 // did say which CA to trust, and a form should clear its own).
                 case "sslrootcert" or "rootcertificate":
+                    // A path on another machine is not taken from a paste: on
+                    // Windows, reading \\host\share\ca.pem opens an SMB session to
+                    // that host, and the CA it serves would then vouch for
+                    // whatever certificate the same party presents (review of
+                    // the 2026-09 audit fixes). The field still takes one typed
+                    // or browsed to by hand.
+                    if (IsRemotePath(value.Trim()))
+                    {
+                        error = "A root certificate on another machine is not taken from a pasted connection string. Copy the file to this computer and choose it in the Root Certificate field.";
+                        return false;
+                    }
+
                     RootCertificatePath = value.Trim().Equals("system", StringComparison.OrdinalIgnoreCase)
                         ? string.Empty
                         : value.Trim();
@@ -715,6 +734,11 @@ public static class ConnectionStringParser
                     return true;
             }
         }
+
+        // \\server\share\…, \\?\UNC\…, //server/share/… and any URL.
+        private static bool IsRemotePath(string path) =>
+            path.StartsWith(@"\\", StringComparison.Ordinal) || path.StartsWith("//", StringComparison.Ordinal)
+            || path.Contains("://", StringComparison.Ordinal);
 
         private static string Normalize(string key) =>
             key.Replace(" ", "").Replace("_", "").ToLowerInvariant();

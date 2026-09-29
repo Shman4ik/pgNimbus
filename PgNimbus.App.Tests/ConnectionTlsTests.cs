@@ -17,8 +17,11 @@ namespace PgNimbus.App.Tests;
 public class ConnectionTlsTests
 {
     [Test]
-    public async Task A_new_profile_starts_at_require_with_no_root_certificate_field()
+    public async Task A_new_profile_starts_at_prefer_for_this_machine_and_at_require_for_a_remote_host()
     {
+        // Require by default (finding 9), except for this machine, where there is
+        // no network path to attack and a local Docker Postgres has TLS off, so
+        // Require failed on the first connect anyone tries (review of the fixes).
         await Ui.Run(async () =>
         {
             var directory = NewDirectory();
@@ -28,19 +31,32 @@ public class ConnectionTlsTests
             {
                 Ui.Show(window);
                 var combo = window.FindControl<ComboBox>("SslModeCombo")!;
-                await Assert.That(combo.SelectedItem).IsEqualTo(SslMode.Require);
-                // The closed box names the mode the way people write it.
-                await Assert.That(TextsUnder(combo)).Contains("Require");
+
+                // A blank host means the localhost placeholder.
+                await Assert.That(combo.SelectedItem).IsEqualTo(SslMode.Prefer);
                 await Assert.That(RootCertificateVisible(window)).IsFalse();
 
-                // The first edit creates the profile, at Require.
+                // A remote host moves it to Require; the first edit saves it so.
                 vm.Host = "db.example.com";
                 await vm.FlushAsync();
+                await Assert.That(vm.SslMode).IsEqualTo(SslMode.Require);
+                await Assert.That(TextsUnder(combo)).Contains("Require");
                 await Assert.That(vm.SelectedProfile!.SslMode).IsEqualTo(SslMode.Require);
 
-                // New after an existing profile goes back to Require too.
-                vm.SslMode = SslMode.Prefer;
+                // It follows the host while nobody has chosen a mode...
+                vm.Host = "127.0.0.1";
+                await Assert.That(vm.SslMode).IsEqualTo(SslMode.Prefer);
+
+                // ...and not once someone has.
+                vm.SslMode = SslMode.VerifyFull;
+                vm.Host = "db.example.com";
+                vm.Host = "localhost";
+                await Assert.That(vm.SslMode).IsEqualTo(SslMode.VerifyFull);
+
+                // New follows the host again.
                 vm.NewCommand.Execute(null);
+                await Assert.That(vm.SslMode).IsEqualTo(SslMode.Prefer);
+                vm.Host = "db.example.com";
                 await Assert.That(vm.SslMode).IsEqualTo(SslMode.Require);
             }
             finally { window.Close(); Directory.Delete(directory, true); }

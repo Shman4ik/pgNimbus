@@ -199,12 +199,20 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
     /// old default and libpq's, falls back to plaintext whenever the server or
     /// anyone on the path declines TLS. Require at least always encrypts; the
     /// picker says it checks nothing and marks Verify full as the one to use.
+    /// A new form's host picks between the two (<see cref="SslModes.DefaultFor"/>)
+    /// until the mode is chosen: Prefer for this machine, Require for the rest.
     /// </summary>
     public const SslMode DefaultSslMode = SslMode.Require;
 
+    // Whether the SSL mode was chosen: a loaded profile's, a change in the
+    // picker, a pasted string that names one. Until then a new form follows
+    // its host (ApplySslModeDefault).
+    private bool _sslModeChosen;
+    private bool _defaultingSslMode;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowsRootCertificate))]
-    private SslMode _sslMode = DefaultSslMode;
+    private SslMode _sslMode = PgNimbus.Core.Connections.SslModes.DefaultFor(DefaultHost);
 
     /// <summary>
     /// A CA file to trust instead of the OS store (<see cref="ConnectionProfile.RootCertificatePath"/>).
@@ -377,12 +385,13 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         try
         {
             _editingId = value?.Id;
+            _sslModeChosen = value is not null;
             Name = value?.Name ?? string.Empty;
             Host = value?.Host ?? string.Empty;
             Port = value?.Port;
             Database = value?.Database ?? string.Empty;
             Username = value?.Username ?? string.Empty;
-            SslMode = value?.SslMode ?? DefaultSslMode;
+            SslMode = value?.SslMode ?? PgNimbus.Core.Connections.SslModes.DefaultFor(EffectiveHost);
             RootCertificatePath = value?.RootCertificatePath ?? string.Empty;
             AccentColor = value?.AccentColor;
             ReadOnly = value?.ReadOnly ?? false;
@@ -676,12 +685,43 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         }
     }
 
-    partial void OnHostChanged(string value) => OnConnectionFieldChanged();
+    partial void OnHostChanged(string value)
+    {
+        ApplySslModeDefault();
+        OnConnectionFieldChanged();
+    }
     partial void OnPortChanged(int? value) => OnConnectionFieldChanged();
     partial void OnDatabaseChanged(string value) => OnConnectionFieldChanged();
     partial void OnUsernameChanged(string value) => OnConnectionFieldChanged();
     partial void OnPasswordChanged(string value) => OnConnectionFieldChanged(credentials: true);
-    partial void OnSslModeChanged(SslMode value) => OnConnectionFieldChanged();
+    partial void OnSslModeChanged(SslMode value)
+    {
+        if (!_loadingForm && !_defaultingSslMode)
+        {
+            _sslModeChosen = true;
+        }
+
+        OnConnectionFieldChanged();
+    }
+
+    // A new form's mode follows its host until someone chooses one.
+    private void ApplySslModeDefault()
+    {
+        if (_sslModeChosen || _loadingForm)
+        {
+            return;
+        }
+
+        _defaultingSslMode = true;
+        try
+        {
+            SslMode = PgNimbus.Core.Connections.SslModes.DefaultFor(EffectiveHost);
+        }
+        finally
+        {
+            _defaultingSslMode = false;
+        }
+    }
     partial void OnRootCertificatePathChanged(string value) => OnConnectionFieldChanged();
 
     private void OnConnectionFieldChanged(bool credentials = false)

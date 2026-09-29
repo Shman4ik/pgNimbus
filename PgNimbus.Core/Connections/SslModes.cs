@@ -35,6 +35,38 @@ public static class SslModes
     /// <summary>Every mode, in the enum's order.</summary>
     public static IReadOnlyList<SslModeInfo> All => Infos;
 
+    /// <summary>
+    /// The mode a new profile starts at for <paramref name="host"/>: Require,
+    /// except Prefer for this machine (<see cref="IsLoopback"/>), where there is
+    /// no network path to attack and the usual server (a local Docker Postgres)
+    /// has TLS off, so Require failed on the first connect anyone tries
+    /// (review of the 2026-09 audit fixes).
+    /// </summary>
+    public static SslMode DefaultFor(string host) => IsLoopback(host) ? SslMode.Prefer : SslMode.Require;
+
+    /// <summary>
+    /// <c>localhost</c>, a name under <c>.localhost</c>, a loopback address
+    /// (<c>127.0.0.0/8</c>, <c>::1</c>, bracketed or not) or a Unix-domain socket
+    /// directory. A host list (<c>a,b</c>) is never loopback.
+    /// </summary>
+    public static bool IsLoopback(string host)
+    {
+        var h = host.Trim();
+        if (h.Length == 0 || h.Contains(','))
+        {
+            return false;
+        }
+
+        if (h.StartsWith('/') || h.Equals("localhost", StringComparison.OrdinalIgnoreCase)
+            || h.EndsWith(".localhost", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return System.Net.IPAddress.TryParse(h.TrimStart('[').TrimEnd(']'), out var address)
+            && System.Net.IPAddress.IsLoopback(address);
+    }
+
     public static SslModeInfo Describe(SslMode mode) =>
         Array.Find(Infos, info => info.Mode == mode)
         ?? throw new ArgumentOutOfRangeException(nameof(mode), mode, "Unknown SSL mode.");
