@@ -194,7 +194,9 @@ public static partial class SqlStatementInspector
             index++;
         }
 
-        return index;
+        // An unterminated quote leaves index one past the end (the quote loop stops
+        // at Length, then the step below adds one); found by the any-text test.
+        return Math.Min(index, sql.Length);
     }
 
     /// <summary>Drops leading whitespace and SQL comments so the first real keyword is visible.</summary>

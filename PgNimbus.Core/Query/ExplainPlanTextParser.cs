@@ -19,20 +19,43 @@ namespace PgNimbus.Core.Query;
 /// </summary>
 public static class ExplainPlanTextParser
 {
+    /// <summary>
+    /// The most text <see cref="Parse"/> takes, in characters. A pasted plan is a few
+    /// hundred lines; a Run of <c>EXPLAIN</c> against a hostile server could return
+    /// anything, and every line below is matched by a regex on the UI thread.
+    /// </summary>
+    public const int MaxInputLength = 4 * 1024 * 1024;
+
+    /// <summary>
+    /// How deep "->" children may nest. Real plans stay under 30; the JSON form is
+    /// held to about the same by <c>JsonDocument</c>'s depth limit, and every consumer
+    /// of the tree (formatter, analyzer, the view models) walks it recursively.
+    /// </summary>
+    public const int MaxDepth = 64;
+
+    // Every number is `\d+(?:\.\d+)?`, never `[\d.]+`: the latter overlaps with the
+    // ".." that follows it, so "(cost=" + "."×n made the engine try O(n²) splits
+    // before giving up (the audit's hang). NonBacktracking bounds the match to
+    // linear time whatever the pattern, and the timeout is the belt to those braces.
+    private const RegexOptions Options = RegexOptions.NonBacktracking | RegexOptions.CultureInvariant;
+    private static readonly TimeSpan MatchTimeout = TimeSpan.FromSeconds(2);
+    private const string Number = @"\d+(?:\.\d+)?";
+
     // "  (cost=0.00..41.88 rows=850 width=4)"
     private static readonly Regex CostRegex = new(
-        @"\(cost=(?<startup>[\d.]+)\.\.(?<total>[\d.]+)\s+rows=(?<rows>\d+)\s+width=(?<width>\d+)\)",
-        RegexOptions.Compiled);
+        $@"\(cost=(?<startup>{Number})\.\.(?<total>{Number})\s+rows=(?<rows>\d+)\s+width=(?<width>\d+)\)",
+        Options, MatchTimeout);
 
     // "(actual time=0.009..0.021 rows=7.00 loops=1)" — the time= clause is absent
     // when ANALYZE ran with TIMING OFF, so it's optional here.
     private static readonly Regex ActualRegex = new(
-        @"\(actual\s+(?:time=(?<startup>[\d.]+)\.\.(?<total>[\d.]+)\s+)?rows=(?<rows>[\d.]+)\s+loops=(?<loops>\d+)\)",
-        RegexOptions.Compiled);
+        $@"\(actual\s+(?:time=(?<startup>{Number})\.\.(?<total>{Number})\s+)?rows=(?<rows>{Number})\s+loops=(?<loops>\d+)\)",
+        Options, MatchTimeout);
 
     // Lines that end the plan tree and carry summary figures rather than nodes.
-    private static readonly Regex PlanningTimeRegex = new(@"^Planning Time:\s*([\d.]+)\s*ms", RegexOptions.Compiled);
-    private static readonly Regex ExecutionTimeRegex = new(@"^Execution Time:\s*([\d.]+)\s*ms", RegexOptions.Compiled);
+    private static readonly Regex PlanningTimeRegex = new($@"^Planning Time:\s*({Number})\s*ms", Options, MatchTimeout);
+    private static readonly Regex ExecutionTimeRegex = new($@"^Execution Time:\s*({Number})\s*ms", Options, MatchTimeout);
+    private static readonly Regex RowCountRegex = new(@"^\(\d+\s+rows?\)$", Options, MatchTimeout);
 
     /// <summary>
     /// Strips psql's framing from pasted output so the bare plan lines remain:
@@ -67,7 +90,7 @@ public static class ExplainPlanTextParser
             lines.RemoveAt(lines.Count - 1);
         }
 
-        if (lines.Count > 0 && Regex.IsMatch(lines[^1].Trim(), @"^\(\d+\s+rows?\)$"))
+        if (lines.Count > 0 && RowCountRegex.IsMatch(lines[^1].Trim()))
         {
             lines.RemoveAt(lines.Count - 1);
         }
@@ -83,6 +106,23 @@ public static class ExplainPlanTextParser
     }
 
     public static ExplainResult Parse(string text)
+    {
+        if (text.Length > MaxInputLength)
+        {
+            throw new FormatException($"The plan is too large to import (over {MaxInputLength / (1024 * 1024)} MB of text).");
+        }
+
+        try
+        {
+            return ParseCore(text);
+        }
+        catch (RegexMatchTimeoutException ex)
+        {
+            throw new FormatException("A line of the plan took too long to read.", ex);
+        }
+    }
+
+    private static ExplainResult ParseCore(string text)
     {
         var lines = text.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
 
@@ -111,13 +151,13 @@ public static class ExplainPlanTextParser
             // Summary trailers close the tree.
             if (PlanningTimeRegex.Match(trimmedStart) is { Success: true } pt)
             {
-                planningTime = double.Parse(pt.Groups[1].Value, CultureInfo.InvariantCulture);
+                planningTime = Double(pt.Groups[1]);
                 continue;
             }
 
             if (ExecutionTimeRegex.Match(trimmedStart) is { Success: true } et)
             {
-                executionTime = double.Parse(et.Groups[1].Value, CultureInfo.InvariantCulture);
+                executionTime = Double(et.Groups[1]);
                 continue;
             }
 
@@ -160,6 +200,11 @@ public static class ExplainPlanTextParser
                 if (stack.Count == 0)
                 {
                     throw new FormatException("The plan's indentation is inconsistent — couldn't place a child node.");
+                }
+
+                if (stack.Count >= MaxDepth)
+                {
+                    throw new FormatException($"The plan nests deeper than {MaxDepth} levels, which is more than a plan can be.");
                 }
 
                 stack[^1].Node.Children.Add(node);
@@ -211,10 +256,12 @@ public static class ExplainPlanTextParser
             IndexName = indexName,
             ScanDirection = scanDirection,
             ParallelAware = parallelAware,
-            StartupCost = double.Parse(cost.Groups["startup"].Value, CultureInfo.InvariantCulture),
-            TotalCost = double.Parse(cost.Groups["total"].Value, CultureInfo.InvariantCulture),
-            PlanRows = long.Parse(cost.Groups["rows"].Value, CultureInfo.InvariantCulture),
-            PlanWidth = int.Parse(cost.Groups["width"].Value, CultureInfo.InvariantCulture),
+            StartupCost = Double(cost.Groups["startup"]),
+            TotalCost = Double(cost.Groups["total"]),
+            // Counts saturate rather than overflow: a text plan is whatever was pasted,
+            // and "rows=99999999999999999999" is a FormatException nobody wants, not a crash.
+            PlanRows = Long(cost.Groups["rows"]),
+            PlanWidth = (int)Math.Clamp(Long(cost.Groups["width"]), int.MinValue, int.MaxValue),
         };
 
         if (line.Contains("(never executed)", StringComparison.Ordinal))
@@ -225,16 +272,23 @@ public static class ExplainPlanTextParser
         {
             if (actual.Groups["total"].Success)
             {
-                node.ActualStartupTimeMs = double.Parse(actual.Groups["startup"].Value, CultureInfo.InvariantCulture);
-                node.ActualTotalTimeMs = double.Parse(actual.Groups["total"].Value, CultureInfo.InvariantCulture);
+                node.ActualStartupTimeMs = Double(actual.Groups["startup"]);
+                node.ActualTotalTimeMs = Double(actual.Groups["total"]);
             }
 
-            node.ActualRows = double.Parse(actual.Groups["rows"].Value, CultureInfo.InvariantCulture);
-            node.ActualLoops = long.Parse(actual.Groups["loops"].Value, CultureInfo.InvariantCulture);
+            node.ActualRows = Double(actual.Groups["rows"]);
+            node.ActualLoops = Long(actual.Groups["loops"]);
         }
 
         return node;
     }
+
+    // The patterns only ever capture digits with at most one dot, so these cannot fail
+    // to parse; a run of digits longer than a double reads as infinity, which Long saturates.
+    private static double Double(Group group) =>
+        double.TryParse(group.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) ? value : 0;
+
+    private static long Long(Group group) => ExplainService.ToLong(Double(group)) ?? 0;
 
     /// <summary>
     /// Reverses the display-name assembly <see cref="ExplainTextFormatter.HeaderFor"/>

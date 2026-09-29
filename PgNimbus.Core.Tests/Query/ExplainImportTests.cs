@@ -228,4 +228,83 @@ public class ExplainImportTests
         await Assert.That(() => ExplainService.Import("hello world, this is not a plan"))
             .Throws<FormatException>();
     }
+
+    // --- Security audit 2026-09, finding 16: every parse failure is a FormatException ---
+
+    [Test]
+    public async Task CostsOffJsonParsesWithZeroFigures()
+    {
+        // EXPLAIN (FORMAT JSON, COSTS OFF) carries no Startup Cost / Total Cost /
+        // Plan Rows / Plan Width at all; GetProperty on them was a KeyNotFoundException
+        // that reached the crash window.
+        const string costsOff = """
+            [
+              {
+                "Plan": {
+                  "Node Type": "Hash Join",
+                  "Join Type": "Inner",
+                  "Plans": [
+                    { "Node Type": "Seq Scan", "Relation Name": "t", "Alias": "t" },
+                    { "Node Type": "Hash", "Plans": [ { "Node Type": "Seq Scan", "Relation Name": "u", "Alias": "u" } ] }
+                  ]
+                }
+              }
+            ]
+            """;
+
+        var imported = ExplainService.Import(costsOff);
+
+        await Assert.That(imported.Result.Root.NodeType).IsEqualTo("Hash Join");
+        await Assert.That(imported.Result.Root.TotalCost).IsEqualTo(0);
+        await Assert.That(imported.Result.Root.PlanRows).IsEqualTo(0);
+        await Assert.That(imported.Result.Root.Children.Count).IsEqualTo(2);
+        await Assert.That(imported.Result.Root.Children[1].Children[0].RelationName).IsEqualTo("u");
+        // The text view and the analyzer take the figure-less tree in their stride.
+        await Assert.That(imported.DisplayText).StartsWith("Hash Join");
+        _ = PlanAnalyzer.Analyze(imported.Result);
+    }
+
+    [Test]
+    [Arguments("""[{"Plan": 5}]""")]
+    [Arguments("""[{"Plan": {"Startup Cost": 1}}]""")]
+    [Arguments("""[{"Plan": {"Node Type": 7}}]""")]
+    [Arguments("""[{"Plan": {"Node Type": "Result", "Plans": 3}}]""")]
+    [Arguments("""{"Plan": []}""")]
+    [Arguments("""[5]""")]
+    [Arguments("""[]""")]
+    [Arguments("""[{"Plan": {"Node Type": "Result"}""")]
+    [Arguments("Seq Scan on t  (cost=0.00..1.00 rows=99999999999999999999 width=4)\n  ->  Bogus line with no cost")]
+    [Arguments("  ->  Seq Scan on t  (cost=0.00..1.00 rows=1 width=4)\n->  Seq Scan on t  (cost=0.00..1.00 rows=1 width=4)")]
+    public async Task WrongShapedInputIsAFormatException(string raw)
+    {
+        // [{"Plan": 5}] was an InvalidOperationException, a node without "Node Type" a
+        // KeyNotFoundException, rows= past 9.2e18 an OverflowException — each escaped
+        // the import dialog's catch (FormatException only) and shut the app down.
+        await Assert.That(() => ExplainService.Import(raw)).Throws<FormatException>();
+    }
+
+    [Test]
+    public async Task RowCountsPastALongSaturateInsteadOfOverflowing()
+    {
+        var json = ExplainService.Parse("""{ "Node Type": "Result", "Plan Rows": 1e30, "Plan Width": 1e12, "Actual Loops": -1e30, "Actual Rows": "many" }""");
+        await Assert.That(json.Root.PlanRows).IsEqualTo(long.MaxValue);
+        await Assert.That(json.Root.PlanWidth).IsEqualTo(int.MaxValue);
+        await Assert.That(json.Root.ActualLoops).IsEqualTo(long.MinValue);
+        // A number written as a string is not a number.
+        await Assert.That(json.Root.ActualRows).IsNull();
+
+        var text = ExplainService.Import("Seq Scan on t  (cost=0.00..1.00 rows=99999999999999999999 width=4)");
+        await Assert.That(text.Result.Root.PlanRows).IsEqualTo(long.MaxValue);
+    }
+
+    [Test]
+    public async Task JsonNestedPastTheReadersDepthIsAFormatException()
+    {
+        // JsonDocument stops at 64 levels (about 30 plan nodes deep); that used to be a
+        // JsonException out of Parse, which only Import translated.
+        var deep = string.Concat(Enumerable.Repeat("""{"Node Type": "Result", "Plans": [""", 40)) + "{\"Node Type\": \"Result\"}" + string.Concat(Enumerable.Repeat("]}", 40));
+
+        await Assert.That(() => ExplainService.Parse(deep)).Throws<FormatException>();
+        await Assert.That(() => ExplainService.Import(deep)).Throws<FormatException>();
+    }
 }

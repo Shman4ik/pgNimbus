@@ -350,7 +350,22 @@ Three rules about it:
    shapes external tools emit (the `[{ "Plan": … }]` array, a lone
    `{ "Plan": … }` object, or a bare `{ "Node Type": … }` node); `FORMAT TEXT`
    is parsed best-effort by `Query/ExplainPlanTextParser` (another Core-pure,
-   unit-tested sibling of `PlanAnalyzer`, which also strips psql framing). The
+   unit-tested sibling of `PlanAnalyzer`, which also strips psql framing).
+   **Every way either parser can fail is one `FormatException`** (2026-09,
+   security audit finding 16): the dialog and `TryParsePlanOutput` catch that
+   type alone, and `EXPLAIN (FORMAT JSON, COSTS OFF)` output (no cost fields at
+   all → `KeyNotFoundException`), `[{"Plan": 5}]` (`InvalidOperationException`)
+   and a text `rows=` past 9.2e18 (`OverflowException`) each reached the crash
+   window instead. Now every figure is read by kind with a default (a COSTS OFF
+   plan is a tree of zeros), counts saturate (`ExplainService.ToLong`), and
+   `Parse`/`Import` translate whatever else escapes. The text parser is bounded
+   too: its numbers are `\d+(?:\.\d+)?` under `RegexOptions.NonBacktracking`
+   with a match timeout (the old `[\d.]+\.\.[\d.]+` backtracked O(n²) on
+   `(cost=` + a run of dots), nesting stops at `ExplainPlanTextParser.MaxDepth`
+   (64; JSON is held to about half that by `JsonDocument`'s own limit) and input
+   at `MaxInputLength` (4 MiB), because the formatter, the analyzer and the view
+   models all walk the tree recursively. `ParserRobustnessTests` feeds both
+   parsers the hostile inputs. The
    command palette's "Import query plan…" opens `ImportPlanDialog` and, on a
    successful parse, shows the plan in a **new tab**
    (`MainViewModel.OpenImportedPlan` → `QueryViewModel.ShowImportedPlan`) — same
@@ -1945,7 +1960,18 @@ csproj / WiX / MSIX manifest reference them unchanged:
   branch's or the catalog's columns aren't legal there. Three things to keep:
   the reader never guesses — past `SqlScopeModel.MaxDepth` (32) nested queries a
   query is `IsOpaque` and the caret inside it gets **no** columns, not the outer
-  ones; a statement with no query in it (DDL, SET) has `Root == null` and keeps
+  ones (since 2026-09, security audit finding 16, parenthesized expression groups
+  and nested join trees count against the same depth and go opaque the same way,
+  and `IsQueryStart` walks a paren run instead of recursing: `SELECT ` +
+  `(`×20000 used to overflow the stack, which .NET cannot catch, per keystroke
+  and after every Run; `SqlKeywordGrammar.Governing` had the same recursion per
+  unclosed group and is iterative now. `Text/HostileText` is the shared
+  generator and `ParserRobustnessTests` runs every UI-thread reader —
+  `SqlScriptSplitter`, `SqlFormatter`, `SqlCompletionContext`, `SqlCallSite`,
+  `SqlKeywordGrammar`, `SqlValueSlot`, `SqlStatementInspector`, the scope model
+  — over every printable character in every position and a hundred thousand
+  nested parens on a 256 KB stack, a quarter of a production thread's); a
+  statement with no query in it (DDL, SET) has `Root == null` and keeps
   the old whole-statement reading (`ExtractTables`), which is also still what
   `CompletionEdits`' alias picking and `ExpandSelectStar` use; and only EXPLAIN
   may be followed by DML — after `CREATE …`, `UPDATE`/`TABLE` are DDL words.
