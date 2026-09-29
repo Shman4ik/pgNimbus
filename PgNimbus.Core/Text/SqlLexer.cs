@@ -94,6 +94,15 @@ public static class SqlLexer
         return tokens;
     }
 
+    /// <summary>
+    /// The single token starting at <paramref name="i"/>, read as if the text
+    /// went on to the end of <paramref name="sql"/>. For a caller that scans
+    /// prose (a comment, a string's contents) and only needs to know what
+    /// literal starts at one position, without tokenizing everything after it.
+    /// </summary>
+    public static SqlToken TokenAt(string sql, int i, bool standardConformingStrings = true) =>
+        Next(sql, i, sql.Length, standardConformingStrings);
+
     /// <summary>First character of an unquoted identifier (or of a dollar-quote tag).</summary>
     public static bool IsIdentStart(char c) => char.IsLetter(c) || c == '_' || c >= '';
 

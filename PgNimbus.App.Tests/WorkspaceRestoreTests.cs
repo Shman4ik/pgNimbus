@@ -56,6 +56,37 @@ public class WorkspaceRestoreTests
     }
 
     [Test]
+    public async Task A_file_tab_whose_text_was_not_kept_is_read_from_the_file_and_opens_clean()
+    {
+        // The snapshot keeps no text for a file tab that held a password; the
+        // restore reads it back, so the tab is not modified and Save cannot
+        // write a placeholder over the file (review of the 2026-09 audit fixes).
+        await Ui.Run(async () =>
+        {
+            var dir = IsolatedAppData.NewDirectory("workspace-restore-secret");
+            Directory.CreateDirectory(dir);
+            var onDisk = Path.Combine(dir, "001_roles.sql");
+            await File.WriteAllTextAsync(onDisk, "CREATE ROLE app LOGIN PASSWORD 'hunter2';");
+
+            var vm = Fixtures.MainWindowViewModel(new WorkspaceEntry("localhost/shop", DateTimeOffset.UtcNow,
+            [
+                new WorkspaceTab("", "001_roles.sql", onDisk, TextFromFile: true),
+                new WorkspaceTab("", "gone.sql", Path.Combine(dir, "gone.sql"), TextFromFile: true),
+            ]));
+
+            await vm.WorkspaceFilesRestored.WaitAsync(TimeSpan.FromSeconds(10));
+            Ui.Settle();
+
+            await Assert.That(vm.Tabs[0].Sql).IsEqualTo("CREATE ROLE app LOGIN PASSWORD 'hunter2';");
+            await Assert.That(vm.Tabs[0].IsDirty).IsFalse();
+
+            // A file that is gone leaves a note saying why the tab is empty.
+            await Assert.That(vm.Tabs[1].Sql).Contains("did not keep a copy");
+            await Assert.That(vm.Tabs[1].FilePath).IsNull();
+        });
+    }
+
+    [Test]
     public async Task A_workspace_with_no_files_is_restored_at_once()
     {
         await Ui.Run(async () =>

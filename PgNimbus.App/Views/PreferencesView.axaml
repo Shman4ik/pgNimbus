@@ -74,6 +74,19 @@
                 </Grid>
             </Border>
 
+            <TextBlock Classes="sectionHeader" Text="HISTORY" Margin="4,10,4,4" />
+            <Border Classes="card" Padding="14,12">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Spacing="2" Margin="0,0,16,0">
+                        <TextBlock Classes="label" Text="Record query history" />
+                        <TextBlock Classes="hint" Text="Keeps the text of every query you run in a local file that is not encrypted. Passwords in statements are masked." />
+                    </StackPanel>
+                    <ToggleSwitch Name="RecordQueryHistorySwitch" Grid.Column="1" VerticalAlignment="Center"
+                                  OnContent="" OffContent=""
+                                  IsChecked="{Binding RecordQueryHistory}" />
+                </Grid>
+            </Border>
+
             <TextBlock Classes="sectionHeader" Text="COMPLETION" Margin="4,10,4,4" />
             <Border Classes="card" Padding="14,12">
                 <Grid ColumnDefinitions="*,Auto">

@@ -43,10 +43,40 @@ already exists, it takes precedence; editing the password resolves the old copy.
 Passwords that the OS store refused are kept in memory only until the last
 window using that connection closes.
 Deleting a profile attempts to remove database and SSH credentials from both
-locations and reports failures. Query history and workspace SQL remain local,
-unencrypted data; credential protection does not encrypt them. On macOS and
-Linux, pgNimbus makes its data folder and every file in it readable by your
-user account only, including files an older version left open to other users.
+locations and reports failures.
+
+Credential protection does not cover your queries. Two files keep SQL text on
+disk, unencrypted, in `<appdata>/pgNimbus/` (on Windows, `%AppData%\pgNimbus`;
+see [where pgNimbus keeps its files](installation.md#where-pgnimbus-keeps-its-files)):
+
+- `history.json` keeps the text of every statement you run, with the values in
+  it. A query that looks up a customer by email keeps the email address.
+- `workspace.json` keeps the text of your open tabs, so the next session can
+  reopen them.
+
+Before either file is written, pgNimbus masks passwords it finds in the SQL:
+`PASSWORD '…'` in `CREATE ROLE` and `ALTER ROLE`, including inside a `DO` block,
+an `EXECUTE` string or a comment, and `password=…` in a connection string such
+such as `CREATE SUBSCRIPTION … CONNECTION '…'` or `dblink_connect('…')`. The
+password is replaced with `'<redacted>'::redacted`, so a restored tab or a history
+entry shows that instead. If you run such a statement again, PostgreSQL rejects
+it as a syntax error rather than setting the password to the placeholder. Other
+values are kept as you typed them. A tab opened from a `.sql` file that holds a
+password is not copied at all: next time it opens from the file itself, so any
+changes you had not saved to that file are gone.
+
+Masking needs a word next to the secret that says what it is. A key passed as an
+ordinary argument, such as `pgp_sym_encrypt(data, 'key')`, or a password kept in
+a variable inside a `DO` block, is stored as you typed it.
+
+To stop recording history, turn off **Record query history** in Settings. Queries
+you run after that are not written anywhere, and the history list says that
+history is off. Entries already recorded stay until you right-click the list and
+choose **Clear History**; pinned entries survive that, so unpin them first.
+
+On macOS and Linux, pgNimbus makes its data folder and every file in it readable
+by your user account only, including files an older version left open to other
+users.
 
 That is a design rule rather than a setting. The profile record has no field to
 put a password in, so a profile file cannot leak one even if you copy it
