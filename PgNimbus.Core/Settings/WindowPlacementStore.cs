@@ -1,4 +1,3 @@
-using System.Text.Json;
 using System.Text.Json.Serialization;
 using PgNimbus.Core.Connections;
 
@@ -24,11 +23,11 @@ public sealed record WindowPlacement(int X, int Y, double Width, double Height, 
 /// state like the restored workspace, not a user preference like
 /// <see cref="AppSettings"/>). One placement per file: with several main
 /// windows open, the last one to close wins, same as the workspace store's
-/// per-connection snapshots.
+/// per-connection snapshots. Reads and writes go through <see cref="AppDataFile"/>.
 /// </summary>
 public sealed class WindowPlacementStore(string? filePath = null)
 {
-    private readonly string _filePath = filePath ?? Path.Combine(AppDataPaths.GetRootDirectory(), "window.json");
+    private readonly string? _filePath = filePath ?? AppDataPaths.Resolve("window.json");
 
     /// <summary>
     /// The connection dialog's own placement file. Separate from the main
@@ -36,40 +35,14 @@ public sealed class WindowPlacementStore(string? filePath = null)
     /// drag the main window's geometry along with it.
     /// </summary>
     public static WindowPlacementStore ForConnectionDialog() =>
-        new(Path.Combine(AppDataPaths.GetRootDirectory(), "connection-window.json"));
+        new(AppDataPaths.Resolve("connection-window.json"));
 
-    /// <summary>The saved placement, or null if none was ever saved (or the file is unreadable).</summary>
-    public WindowPlacement? Load()
-    {
-        if (!File.Exists(_filePath))
-        {
-            return null;
-        }
+    /// <summary>The saved placement, or null if none was ever saved, the file is unreadable, or it cannot be parsed (then it is moved aside first).</summary>
+    public WindowPlacement? Load() =>
+        AppDataFile.ReadJson(_filePath, WindowPlacementJsonContext.Default.WindowPlacement);
 
-        // A corrupt/empty/half-written file must never block startup - fall back
-        // to "no saved placement" rather than throwing out of the startup path.
-        try
-        {
-            var json = File.ReadAllText(_filePath);
-            return JsonSerializer.Deserialize(json, WindowPlacementJsonContext.Default.WindowPlacement);
-        }
-        catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException)
-        {
-            return null;
-        }
-    }
-
-    public void Save(WindowPlacement placement)
-    {
-        var directory = Path.GetDirectoryName(_filePath);
-        if (!string.IsNullOrEmpty(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
-
-        var json = JsonSerializer.Serialize(placement, WindowPlacementJsonContext.Default.WindowPlacement);
-        File.WriteAllText(_filePath, json);
-    }
+    public void Save(WindowPlacement placement) =>
+        AppDataFile.WriteJson(_filePath, placement, WindowPlacementJsonContext.Default.WindowPlacement);
 }
 
 [JsonSourceGenerationOptions(WriteIndented = true)]

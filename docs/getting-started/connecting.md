@@ -41,7 +41,9 @@ appears; unopened profiles are not migrated yet. If a different OS-store value
 already exists, it takes precedence; editing the password resolves the old copy.
 Deleting a profile attempts to remove database and SSH credentials from both
 locations and reports failures. Query history and workspace SQL remain local,
-unencrypted data; credential protection does not encrypt them.
+unencrypted data; credential protection does not encrypt them. On macOS and
+Linux, pgNimbus makes its data folder and every file in it readable by your
+user account only, including files an older version left open to other users.
 
 That is a design rule rather than a setting. The profile record has no field to
 put a password in, so a profile file cannot leak one even if you copy it

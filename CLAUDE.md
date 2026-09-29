@@ -294,7 +294,15 @@ Three rules about it:
    (`PgNimbus.Core.Diagnostics.CrashLog` does the file I/O — directory-injectable
    and unit-tested — with the process-wide `CrashLogger` static as the facade;
    1 MiB rolling to `pgnimbus.log.old`, every write swallows its own failure so
-   logging a crash can never itself throw). The App wires three global hooks in
+   logging a crash can never itself throw). The log is appended through
+   `Settings/AppDataFile` like every store, so on Linux and macOS it is created
+   `0600` in a `0700` directory: it carries exception messages, which can quote
+   a statement. With no resolvable app data root there is **no log**:
+   `CrashLogger.LogFilePath` is null, `CrashWindow` says no log was written and
+   leaves the path out of the GitHub issue. It used to fall back to
+   `<temp>/pgNimbus/logs`, which on Linux is the shared `/tmp`, where another
+   user can pre-create the directory and read or plant the file (2026-09
+   security audit, finding 10). The App wires three global hooks in
    `PgNimbus.App/Diagnostics/CrashReporter.cs`: `AppDomain.UnhandledException`
    and `TaskScheduler.UnobservedTaskException` (log only — off the UI thread,
    the process is usually already terminating), plus
@@ -2513,6 +2521,42 @@ How the fixtures work, and why they're shaped this way:
   connection-dialog scenario also points `ConnectionProfileStore` at an
   isolated directory and uses `MemoryCredentialStore`, so it never opens the
   developer's saved connections or native password store.
+- **Every app data file goes through `Core/Settings/AppDataFile`** (2026-09
+  security audit, finding 10 and the "non-atomic writes" item of 18). Before
+  it, each store called `File.WriteAllText`, which on Linux and macOS created
+  `0644` files under a home that is often `0755`, so any local user could read
+  the query history, the workspace SQL and the connection list; and a crash
+  mid-write left a torn `connections.json` that `Load` read as "no profiles",
+  after which the connection dialog's autosave wrote the empty list over every
+  profile. Now: (a) files are written to a temp file in the same directory
+  (`UnixCreateMode` 0600, never set on Windows, where it throws) and renamed
+  over the target, so a reader sees the old file or the new one; the crash log
+  is appended with the same create mode. (b) A directory the helper creates is
+  `0700`; an **existing** one is tightened only if it is the app data root or
+  inside it. A store handed an explicit path must never chmod a directory the
+  app does not own: the Core tests write into `/tmp`, and in a root container
+  that chmod would succeed. (c) A file that cannot be parsed is moved aside as
+  `<name>.corrupt-<UTC stamp>` before the store starts over, so the next save
+  cannot overwrite the only copy. (d) `App.TightenAppDataOnce` tightens the
+  root, its files and `logs/`/`credentials/` once per launch on the thread
+  pool, for what an older version left readable; a failure goes to the crash
+  log. (e) **No temp fallback**: `AppDataPaths.ResolveDefaultRoot` answers null
+  when neither `ApplicationData` nor `HOME` resolves, `Resolve(name)` is then
+  null, and a null path reads as "nothing saved" and drops writes, so the
+  session runs from memory. Core tests reach that state through the internal
+  `AppDataPaths.RootResolverForTests` seam in a `[NotInParallel]` class, never
+  by blanking `HOME` for the whole process. The mode tests skip on Windows;
+  they were run in the .NET SDK Linux container through `wslc`.
+- **Workspace restore reads files off the UI thread** (same audit, finding
+  18). Reattaching a restored tab to its `.sql` file was a synchronous
+  `File.ReadAllText` in `MainViewModel`'s constructor, so a file on a stale UNC
+  path held the window for the SMB timeout, and only IO/access errors were
+  caught, so a path with a NUL in it (`ArgumentException`) crashed every
+  launch. The reads now run on the thread pool, give up on
+  `ArgumentException`/`NotSupportedException`/`SecurityException` too, and
+  attach on the UI thread; `MainViewModel.WorkspaceFilesRestored` is the task a
+  test waits on (`WorkspaceRestoreTests`, via the fixture's `workspace`
+  parameter).
 
 ## Headless UI tests (`PgNimbus.App.Tests`)
 

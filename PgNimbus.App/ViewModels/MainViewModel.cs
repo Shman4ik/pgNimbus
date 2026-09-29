@@ -721,6 +721,7 @@ public sealed partial class MainViewModel : ObservableObject
         // resumes browse mode, filter chips included (RestoreBrowsedTable).
         if (workspace is { Tabs.Count: > 0 })
         {
+            var restoredFiles = new List<(QueryViewModel Tab, string Path)>();
             foreach (var saved in workspace.Tabs)
             {
                 var tab = NewTab();
@@ -739,35 +740,72 @@ public sealed partial class MainViewModel : ObservableObject
                     tab.RestoreBrowsedTable(browseSchema, browseTable);
                 }
 
-                // Best-effort reattach to the tab's saved file association. The
-                // restored buffer (saved.Sql, just set above) is kept as-is —
-                // AttachFile only sets the disk-comparison baseline, not Sql —
-                // so if the buffer and the file have since diverged (edited here
-                // but not saved, or the file changed elsewhere), the dirty dot
-                // honestly reflects that the moment the tab reopens. If the file
-                // is gone or unreadable, this just leaves the tab as a titled
-                // scratch tab — restore must never fail the whole session over it.
+                // The tab's saved file association is reattached once the file
+                // has been read off the UI thread (ReattachRestoredFilesAsync);
+                // until then the tab shows the title the snapshot saved for it.
                 if (saved.FilePath is { } filePath)
                 {
-                    try
-                    {
-                        var diskContent = File.ReadAllText(filePath);
-                        tab.AttachFile(filePath, diskContent);
-                    }
-                    catch (Exception e) when (e is IOException or UnauthorizedAccessException)
-                    {
-                        // Leave as a titled scratch tab (TitleOverride from above still applies).
-                    }
+                    restoredFiles.Add((tab, filePath));
                 }
             }
 
             var activeIndex = Math.Clamp(workspace.ActiveTabIndex, 0, Tabs.Count - 1);
             ActiveTab = Tabs[activeIndex];
+            WorkspaceFilesRestored = ReattachRestoredFilesAsync(restoredFiles);
         }
         else
         {
             AddTab();
         }
+    }
+
+    /// <summary>
+    /// Completes once every restored tab's file has been re-read and attached
+    /// (or given up on). Already complete when no restored tab had a file.
+    /// Public so a test can wait for it; nothing in the app needs to.
+    /// </summary>
+    public Task WorkspaceFilesRestored { get; } = Task.CompletedTask;
+
+    /// <summary>
+    /// Best-effort reattach of each restored tab to its saved file. The
+    /// restored buffer (the snapshot's SQL) is kept as-is — <see cref="QueryViewModel.AttachFile"/>
+    /// only sets the disk-comparison baseline, not the text — so if the buffer
+    /// and the file have since diverged (edited here but not saved, or the file
+    /// changed elsewhere), the dirty dot honestly reflects that the moment the
+    /// tab reopens. The read happens on the thread pool, all files at once: it
+    /// used to be a synchronous <c>File.ReadAllText</c> in this constructor, on
+    /// the UI thread, so a tab whose file sat on a stale UNC path held the
+    /// window for the whole SMB timeout at every launch (security audit 2026-09,
+    /// finding 18). And it gives up on <em>every</em> way a path that came out of
+    /// <c>workspace.json</c> can fail, not just IO and access errors: a NUL in
+    /// the path is an <c>ArgumentException</c>, a device path a
+    /// <c>NotSupportedException</c>, and either used to be a startup crash on
+    /// every launch until the snapshot was deleted by hand. A file that is gone
+    /// or unreadable leaves its tab a titled scratch tab — restore must never
+    /// fail the whole session over it.
+    /// </summary>
+    private static async Task ReattachRestoredFilesAsync(IReadOnlyList<(QueryViewModel Tab, string Path)> files)
+    {
+        if (files.Count == 0)
+        {
+            return;
+        }
+
+        await Task.WhenAll(files.Select(async file =>
+        {
+            string diskContent;
+            try
+            {
+                diskContent = await Task.Run(() => File.ReadAllTextAsync(file.Path)).ConfigureAwait(false);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException
+                                          or NotSupportedException or System.Security.SecurityException)
+            {
+                return; // Leave as a titled scratch tab (TitleOverride still applies).
+            }
+
+            await Dispatcher.UIThread.InvokeAsync(() => file.Tab.AttachFile(file.Path, diskContent));
+        }));
     }
 
     // DDL run inside the user's transaction: invisible to the pooled connection
