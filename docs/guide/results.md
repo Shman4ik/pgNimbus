@@ -132,8 +132,9 @@ string.
 
 ![Editing cells across two tabs in safe mode, then committing both staged changes together as one transaction](../screenshots/safe-mode-commit-demo.gif)
 
-Safe mode is for the "inline edit on production" nerves. With it on, grid edits,
-inserts and deletes are staged locally instead of being sent:
+Safe mode is on by default for every new connection. It is for the "inline
+edit on production" nerves. With it on, grid edits, inserts and deletes are
+staged locally instead of being sent:
 
 - dirty rows are highlighted, amber for edited and red for pending delete
 - "Review & commit…" shows the exact SQL that will be sent

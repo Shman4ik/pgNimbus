@@ -196,6 +196,20 @@ It produces, per tag:
   gates both: `Signature=adhoc` present after `hdiutil`, and the symlink there.
   None of this substitutes for a Developer ID signature plus notarization,
   which needs a paid Apple account and would remove the warning outright.
+  **Both `codesign` calls also pass `--options runtime`** (security audit
+  2026-09, finding 18): without hardened runtime, any process running as the
+  same user can launch pgNimbus with `DYLD_INSERT_LIBRARIES` and run
+  arbitrary code as it — inheriting whatever the app's ad-hoc code hash is
+  trusted for, a Keychain item's ACL included. Hardened runtime also turns on
+  library validation, which refuses to load a dylib unless it carries the
+  main executable's own Team ID; every dylib in the bundle is ad-hoc signed
+  alongside the app (no Team ID at all), so library validation would refuse
+  them all at launch. `installer/macos/Entitlements.plist` sets
+  `com.apple.security.cs.disable-library-validation` to allow exactly that
+  and nothing else, and both `codesign` calls pass `--entitlements` pointing
+  at it. Developer ID plus notarization (ROADMAP T5) is still the fix that
+  removes the Gatekeeper warning outright; this closes the arbitrary-code-
+  execution gap in the meantime, on the same ad-hoc signature.
 - **Linux** — `linux-x64` + `linux-arm64` (the arm64 leg runs natively on
   GitHub's free `ubuntu-24.04-arm` runners — no cross-compile toolchain).
   Each RID is packaged three ways by
@@ -292,17 +306,24 @@ and run the whole job twice for one commit — which is also two artifacts.
 
 ### Supply-chain proofs (2026-07)
 
-Unsigned binaries still get verifiable provenance, four layers:
+Unsigned binaries still get verifiable provenance, six layers (security audit
+2026-09: finding 5 added the pinned inputs, finding 18 the pinned SDK and the
+pinned NuGet sources):
 
 - **SLSA attestations** — the release job runs
   `actions/attest-build-provenance` over every published asset (needs the
-  job's `id-token: write` + `attestations: write` permissions). Users
-  verify a download with
-  `gh attestation verify <file> --repo Shman4ik/pgNimbus` — proves it was
-  built by this workflow from a specific commit. This is the $0 substitute
-  for Authenticode on the direct-download channel; it does nothing for
-  SmartScreen (the Store channel covers that). What it does *not* prove is
-  that the workflow ran only reviewed inputs — which is the next layer.
+  job's `id-token: write` + `attestations: write` permissions). Verify a
+  download with `gh attestation verify <file> --repo Shman4ik/pgNimbus
+  --signer-workflow Shman4ik/pgNimbus/.github/workflows/release.yml
+  --source-ref refs/tags/v<ver>` — plain `--repo` with no `--signer-workflow`/
+  `--source-ref` accepts an attestation from *any* workflow or ref in the
+  repo, which proves nothing about which build produced the file. Without
+  `gh`, `sha256sum -c SHA256SUMS.txt --ignore-missing` checks a download
+  against the same release's checksum file, which is attested too. This is
+  the $0 substitute for Authenticode on the direct-download channel; it does
+  nothing for SmartScreen (the Store channel covers that). What it does *not*
+  prove is that the workflow ran only reviewed inputs — which is the next
+  layer.
 - **Pinned inputs** (2026-09, audit finding 5). Every `uses:` in
   `.github/workflows/` and `.github/actions/` is a full 40-character commit
   SHA with a `# vX.Y.Z` comment; Dependabot's `github-actions` ecosystem
@@ -319,18 +340,45 @@ Unsigned binaries still get verifiable provenance, four layers:
 - **SBOM** — its own `sbom` job (ubuntu, `contents: read`) generates a
   CycloneDX JSON SBOM of the App's full NuGet graph (`dotnet dotnet-CycloneDX`
   from the tool manifest on `PgNimbus.App.csproj`, `-c Release`, the
-  configuration the binaries ship in). Ships as the
-  `pgNimbus-<ver>-sbom.cdx.json` release asset, checksummed and attested like
-  the binaries. Generated once — the NuGet graph is RID-independent. It used
-  to be a step of the linux-x64 build leg, after the packages were built;
-  moved out so a third-party tool never shares a runner with the binaries
-  that ship.
+  configuration the binaries ship in), then
+  `scripts/release/sbom_add_runtime.py` (stdlib-only, unit-tested in
+  `scripts/release/test_sbom_add_runtime.py`) patches in two components the
+  NuGet graph can't see: the `Microsoft.NETCore.App.Runtime.linux-x64`
+  runtime pack a NativeAOT publish statically links in (GC, TLS and crypto
+  code — exactly the code a security audit would want listed) and the
+  matching `Microsoft.DotNet.ILCompiler` toolchain pack. Neither is a
+  `<PackageReference>`; the SDK resolves them at publish time for the target
+  RID, so `dotnet-CycloneDX` never lists them on its own. The version is read
+  from `dotnet --list-runtimes`, filtered to the SDK's own major.minor (from
+  `global.json`'s pinned `sdk.version`) rather than the first line, since a
+  GitHub-hosted runner carries several side-by-side major versions; the
+  `sbom` job installs the same SDK the build legs do, so that is the runtime
+  build-linux's x64 leg links. Ships as the `pgNimbus-<ver>-sbom.cdx.json`
+  release asset, checksummed and attested like the binaries. Generated once —
+  the NuGet graph is RID-independent, and the one runtime component names
+  linux-x64 only (the Windows and macOS packs are not listed). It used to be a
+  step of the linux-x64 build leg, after the packages were built; moved out so
+  a third-party tool never shares a runner with the binaries that ship.
 - **Vulnerability gates** — the repo-root `Directory.Build.props` sets
   `NuGetAuditMode=all` (transitive packages too) and promotes
   moderate/high/critical audit warnings (NU1902–NU1904) to errors, so any
   `dotnet build`/`restore` — local or CI — fails on a known advisory; ci.yml
   additionally runs `dependency-review-action` on PRs to block newly-added
   vulnerable packages at review time.
+- **Pinned SDK line** — `global.json` carries `sdk.version` `10.0.100` with
+  `rollForward: latestFeature`: any 10.0 SDK at or above it builds, so the
+  1xx-band SDK Ubuntu's apt package ships (the verify skill's sandbox recipe)
+  still works, while an 11.0 SDK does not pick the build up. It is a floor, not
+  the release's exact SDK (CI installs the newest `10.0.x`); the runtime pack a
+  release actually links is what the SBOM records (above), and
+  `sbom_add_runtime.py` reads the major.minor from this file.
+- **Pinned NuGet sources** — the repo-root `nuget.config` clears every
+  package source but nuget.org and maps every package id to it with
+  `packageSourceMapping`. Without it, a restore reads whatever sources a
+  machine has accumulated (a corporate feed, a leftover from another
+  project), which is the opening `dotnet restore`/`build` needs for a
+  dependency-confusion attack: a package on an extra source, named like one
+  this repo already restores, silently wins.
 
 ### Microsoft Store (MSIX)
 
