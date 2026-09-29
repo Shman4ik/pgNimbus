@@ -732,10 +732,18 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
     /// <summary>Renders the current fields as a postgres:// URI — the most widely recognized connection string format. The password shows as mask bullets; <see cref="BuildClipboardConnectionString"/> carries the real one.</summary>
     private string BuildPreviewConnectionString() => BuildConnectionStringUri(maskPassword: true);
 
-    /// <summary>The full postgres:// URI with the real password, for the explicit copy-to-clipboard action only — never shown on screen.</summary>
-    public string BuildClipboardConnectionString() => BuildConnectionStringUri(maskPassword: false);
+    /// <summary>
+    /// The postgres:// URI for the clipboard, never shown on screen. The copy
+    /// button's default leaves the password out (security audit 2026-09,
+    /// finding 18: Windows clipboard history and cloud clipboard keep whatever
+    /// is copied); <paramref name="includePassword"/> is the right-click menu's
+    /// "Copy With Password", which the view puts on the clipboard marked for
+    /// exclusion from history and clears again after a while.
+    /// </summary>
+    public string BuildClipboardConnectionString(bool includePassword = false) =>
+        BuildConnectionStringUri(maskPassword: false, includePassword: includePassword);
 
-    private string BuildConnectionStringUri(bool maskPassword)
+    private string BuildConnectionStringUri(bool maskPassword, bool includePassword = true)
     {
         var builder = new StringBuilder("postgres://");
 
@@ -743,7 +751,7 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         // so a preview built from the raw text would describe a different
         // connection than the one Connect makes.
         builder.Append(Uri.EscapeDataString(EffectiveUsername));
-        if (!string.IsNullOrEmpty(Password))
+        if (includePassword && !string.IsNullOrEmpty(Password))
         {
             builder.Append(':').Append(maskPassword
                 ? PasswordMask

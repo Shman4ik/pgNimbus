@@ -234,7 +234,11 @@ Three rules about it:
    privilege>` and a NULL queryid; counted as hidden, never listed). The window
    explains each, and the setup steps open as a script in a new tab; nothing
    ever creates the extension, changes a setting, or calls
-   `pg_stat_statements_reset()` (that would reset everybody's numbers). (c) **An
+   `pg_stat_statements_reset()` (that would reset everybody's numbers). The
+   script's `ALTER SYSTEM SET shared_preload_libraries` line ships commented
+   out (security audit 2026-09, finding 18): it replaces the whole list, so a
+   tab run whole used to unload every other preloaded library at the next
+   restart. `SlowQueriesTests` checks the line stays a comment. (c) **An
    interval is a subtraction until an entry starts over**, and the Core-pure,
    unit-tested `StatementStatsInterval.Between` (a sibling of `BlockingTree`)
    catches all three ways: the whole view reset (`stats_reset` moved), one entry
@@ -314,7 +318,12 @@ Three rules about it:
    touches no app services — it must render with the rest of the app broken):
    it shows the error, the on-disk log path, and a "Report on GitHub" button
    that opens a pre-filled new-issue URL (title/body/labels query params,
-   including version + OS).
+   including version + OS). **What leaves the machine is scrubbed** (security
+   audit 2026-09, finding 18): `CrashLog.FormatEntry` passes the context and
+   every exception message through `SecretRedactor.Redact` (a message can quote a
+   failed `ALTER ROLE … PASSWORD '…'`), the issue title and body are redacted the
+   same way, and the body names the log path through `CrashLog.HomeRelative`
+   (`~/…`), since the home directory carries the OS account name.
 6. **Query plans are parsed, analyzed, and heat-mapped — not dumped raw.**
    `ExplainService` runs `EXPLAIN (FORMAT JSON …)` and parses it into an
    `ExplainNode` tree; the ANALYZE path always asks for `BUFFERS` and
@@ -433,7 +442,12 @@ Three rules about it:
    nothing. `RoleScriptBuilder.Drop` emits the whole `REASSIGN OWNED` →
    `DROP OWNED` → `DROP ROLE` recipe with its "current database only" caveat —
    the answer to 2BP01, which Postgres reports without naming either the
-   blocking objects or the fix. The research and the plan are in
+   blocking objects or the fix. A function securable carries
+   `pg_get_function_identity_arguments` and is granted `ON ROUTINE` (PG11+;
+   security audit 2026-09, finding 18): `pg_get_function_arguments` includes
+   `DEFAULT …`, which made the generated GRANT a syntax error, and a procedure
+   fails under `ON FUNCTION`. `RoutineGrantTests` runs the script against a
+   function with a default and a procedure. The research and the plan are in
    [`docs/design/accounts-permissions.md`](docs/design/accounts-permissions.md).
 
 ## UI design rules
@@ -682,6 +696,23 @@ Three rules about it:
    would swallow the box's own cut/copy/paste menu), plus a `GotFocus` handler
    for Tab/arrow entry. Clicks after that place the caret normally, so the
    string stays editable by hand.
+   **The copy button beside it leaves the password out** (security audit
+   2026-09, finding 18): Windows clipboard history, cloud clipboard and every
+   clipboard manager keep what is copied, and the button used to copy the real
+   password. The copy *with* it is the button's right-click menu ("Copy With
+   Password"; no second button, rule 1), through `Platform/SecretClipboard`:
+   the text goes on the clipboard beside the platform's do-not-keep markers
+   (`ExcludeClipboardContentFromMonitorProcessing` and
+   `CanIncludeInClipboardHistory`/`CanUploadToCloudClipboard` = DWORD 0 on
+   Windows, nspasteboard.org's concealed/transient types on macOS, KDE's
+   `x-kde-passwordManagerHint` on Linux), set as Avalonia *platform* formats,
+   whose names reach the OS unchanged, so there is no P/Invoke; and it is cleared
+   after 30 s if the clipboard still holds that text. The URI parser behind the
+   paste box splits a URI's userinfo at its last '@' before anything else, so an
+   unencoded password keeps its '/', '?' and '#' (`postgres://admin:1234/abcd@db/app`
+   used to parse as host `admin`, port 1234, and autosave wrote the rest of the
+   password to `connections.json` as the database name), and no parser error
+   quotes a parsed value (`ConnectionStringParserTests`).
 3. **Loading a query never overwrites the active tab.** Saved queries,
    history entries, and generated DDL all open in a *new* tab.
 4. **Tabs drag-reorder; the ☰ app menu is the file-command home.** The query
@@ -1627,7 +1658,17 @@ csproj / WiX / MSIX manifest reference them unchanged:
   every edit path (inline F2, staged edits, Add-row) routes them through
   `CAST(@value AS <declared type>)`, exactly as enum/array/composite/json already
   do — no client-side syntax check (Postgres is the parser; the cast surfaces a
-  precise error). `money` and `uuid` deliberately stay `Text` (they round-trip
+  precise error). **The cast target is `ColumnDetail.CastTargetType`, not
+  `DataType`** (security audit 2026-09, finding 18): `DataType` is `format_type`
+  for the connection's search_path, so a user type on the path came back bare
+  and a schema created later that shadowed the name changed what a tab's cached
+  cast resolved to. `SchemaService.GetColumnsAsync` also reads every column's
+  `format_type` inside a rolled-back transaction whose search_path is narrowed
+  to pg_catalog (`set_config(…, true)`), which qualifies exactly the non-built-in
+  types, arrays and typmods included (`public.mood[]`), and keeps `integer` or
+  `character varying(20)` bare. `DataType` stays the display spelling; the Add-row
+  dialog casts through `NewRowField.CastType` (`SchemaServiceCastTypeTests`).
+  `money` and `uuid` deliberately stay `Text` (they round-trip
   through decimal/Guid). The value shown in the grid must itself be a valid input
   literal for the cast to accept the round-trip, so `Converters/CellText` formats
   the CLR types whose `ToString` is useless: `byte[]`→`\x`-hex (capped preview),
@@ -1838,6 +1879,23 @@ csproj / WiX / MSIX manifest reference them unchanged:
   engine's connection), and a progress tick still queued at the end must not
   overwrite the final status line (`finished`). Live coverage is
   `PgNimbus.App.Tests/ResultExportTests`, gated on `PGNIMBUS_TEST_CONN`.
+  **Safe for Spreadsheets** (security audit 2026-09, finding 18, CSV formula
+  injection) is a checkbox at the foot of the command bar's Export menu,
+  `AppSettings.SpreadsheetSafeExport`, off by default because the quote changes
+  the data for every reader that isn't a spreadsheet. On, CSV export and the
+  grid's TSV/CSV copies ("Copy" is TSV) put a `'` in front of a text cell or
+  header starting with `=`, `+`, `-`, `@`, tab or CR (`ResultExporter.NeutralizeFormula`);
+  numeric CLR values are never prefixed, since `-5` is a number to the
+  spreadsheet too. JSON, Markdown and INSERT copies are untouched.
+- **Import is capped and parsed off the UI thread** (security audit 2026-09,
+  finding 18). The file is read whole and becomes a rows × columns matrix, so a
+  20,000-object JSON file whose objects each had keys of their own was 400M
+  cells. `TabularFileParser.ReadTextAsync` refuses a file over `MaxFileBytes`
+  (512 MiB) before reading it when the length is known, and as the read passes
+  it otherwise; the parsers stop past `MaxRows` (1,000,000), `MaxColumns`
+  (1,000) and `MaxCells` (50M, the padded matrix: a wide header over many short
+  rows passes the first two) with an `ImportLimitException` whose message says
+  which. `ResultsGridPanel.ImportAsync` runs read and parse in `Task.Run`.
 - **A type Npgsql can't materialize must never fail a whole result set.** An
   unmapped composite (or an array/domain/range over one), an extension type with
   no plugin loaded (pgvector, PostGIS), `bit`/`hstore` whose CLR mapping has a

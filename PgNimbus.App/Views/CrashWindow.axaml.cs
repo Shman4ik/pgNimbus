@@ -4,6 +4,8 @@ using System.Text;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using PgNimbus.Core.Diagnostics;
+using PgNimbus.Core.Security;
 
 namespace PgNimbus.App.Views;
 
@@ -110,14 +112,18 @@ public partial class CrashWindow : Window
             ?.GetCustomAttribute<AssemblyInformationalVersionAttribute>()
             ?.InformationalVersion.Split('+')[0] ?? "unknown";
 
-        var title = $"Crash: {_errorSummary.Split('\n')[0]}";
+        // What goes into a public issue is redacted the way the log is, and the
+        // log path loses its home-directory prefix (the OS account name): security
+        // audit 2026-09, finding 18.
+        var summary = SecretRedactor.Redact(_errorSummary);
+        var title = $"Crash: {summary.Split('\n')[0]}";
 
         // Keep the URL well under the ~2000-char limit browsers/the Windows shell
         // impose on Process.Start, or a long message would make the button a
         // silent no-op. The full detail is in the attached log anyway.
-        var errorDetails = _errorSummary.Length > 1000
-            ? _errorSummary[..1000] + "\n… (truncated — see the attached log)"
-            : _errorSummary;
+        var errorDetails = summary.Length > 1000
+            ? summary[..1000] + "\n… (truncated — see the attached log)"
+            : summary;
 
         var body =
             "**What happened**\n\n" +
@@ -127,7 +133,7 @@ public partial class CrashWindow : Window
             $"**OS:** {Environment.OSVersion}\n\n" +
             "**Steps to reproduce**\n\n" +
             "1. \n2. \n\n" +
-            $"_Please attach the log file: `{_logPath}`_\n";
+            $"_Please attach the log file: `{CrashLog.HomeRelative(_logPath)}`_\n";
 
         return $"{RepositoryUrl}/issues/new" +
                $"?labels=crash" +

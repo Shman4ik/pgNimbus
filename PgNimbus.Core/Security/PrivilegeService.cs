@@ -85,12 +85,12 @@ public sealed class PrivilegeService(NpgsqlDataSource dataSource)
 
             SecurableKind.Function => $"""
                 SELECT p.oid, n.nspname, p.proname,
-                       pg_catalog.pg_get_function_arguments(p.oid)
+                       pg_catalog.pg_get_function_identity_arguments(p.oid)
                 FROM pg_catalog.pg_proc p
                 JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
                 WHERE (@schema IS NULL OR n.nspname = @schema)
                 {HideSystemSchemas}
-                ORDER BY n.nspname, p.proname, pg_catalog.pg_get_function_arguments(p.oid)
+                ORDER BY n.nspname, p.proname, pg_catalog.pg_get_function_identity_arguments(p.oid)
                 """,
 
             // psql's \dT shape: drop the auto-generated array type of every base

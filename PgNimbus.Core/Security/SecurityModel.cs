@@ -222,8 +222,11 @@ public static class PgFeatures
 /// search-path dance the catalog already did for us.
 /// </summary>
 /// <param name="Arguments">
-/// A function's argument list (<c>integer, text</c>) — part of its identity, so
-/// two overloads are two securables. Null for everything else.
+/// A function's identity argument list (<c>integer, text</c>) — part of its
+/// identity, so two overloads are two securables. Null for everything else.
+/// It must come from <c>pg_get_function_identity_arguments</c>, never
+/// <c>pg_get_function_arguments</c>: the latter carries <c>DEFAULT …</c>
+/// clauses, and a GRANT naming <c>f(a integer DEFAULT 1)</c> is a syntax error.
 /// </param>
 public sealed record SecurableRef(
     SecurableKind Kind,
@@ -246,7 +249,10 @@ public sealed record SecurableRef(
     /// <summary>
     /// The <c>ON …</c> clause of a GRANT/REVOKE for this object, keyword
     /// included: <c>TABLE "sales"."orders"</c>, <c>SCHEMA sales</c>,
-    /// <c>FUNCTION public.f(integer)</c>.
+    /// <c>ROUTINE public.f(integer)</c>. Functions are named as ROUTINE
+    /// (PG11+), which covers functions, aggregates and procedures alike: the
+    /// Function kind lists all three, and <c>ON FUNCTION</c> fails for a
+    /// procedure (security audit 2026-09, finding 18).
     /// </summary>
     public string GrantTarget => Kind switch
     {
@@ -254,7 +260,7 @@ public sealed record SecurableRef(
         SecurableKind.Sequence => $"SEQUENCE {QuotedName}",
         SecurableKind.Schema => $"SCHEMA {QuotedName}",
         SecurableKind.Database => $"DATABASE {QuotedName}",
-        SecurableKind.Function => $"FUNCTION {QuotedName}({Arguments ?? ""})",
+        SecurableKind.Function => $"ROUTINE {QuotedName}({Arguments ?? ""})",
         SecurableKind.Type => $"TYPE {QuotedName}",
         _ => throw new ArgumentOutOfRangeException(nameof(Kind), Kind, null),
     };

@@ -233,10 +233,12 @@ public sealed partial class SlowQueriesViewModel(StatementStatsService service) 
         -- Setting up pg_stat_statements. Both steps need a superuser; review before running.
 
         -- 1. Load the library when the server starts, then restart the server.
-        --    This REPLACES the whole list: check what's there first and keep it.
         --    On a managed service (RDS, Cloud SQL, Azure …) set it in the parameter group instead.
         SHOW shared_preload_libraries;
-        ALTER SYSTEM SET shared_preload_libraries = 'pg_stat_statements';
+        --    The line below is commented out on purpose. It REPLACES the whole list,
+        --    so running this tab as it stands would unload every other library shown
+        --    above. Add those names to it, keep pg_stat_statements, then uncomment it.
+        -- ALTER SYSTEM SET shared_preload_libraries = 'pg_stat_statements';
 
         -- 2. After the restart, in each database you want to look at:
         CREATE EXTENSION IF NOT EXISTS pg_stat_statements;

@@ -111,9 +111,20 @@
                     <KeyBinding Gesture="Enter" Command="{Binding ImportConnectionStringCommand}" />
                 </TextBox.KeyBindings>
             </TextBox>
-            <Button Grid.Column="1" Classes="chip" Padding="7" Click="OnCopyConnectionStringClick"
-                    ToolTip.Tip="Copy connection string to clipboard (includes the password)">
+            <!-- The click copies without the password (security audit 2026-09, finding 18:
+                 clipboard history keeps what is copied). The copy with it is the right-click
+                 menu's second item, marked for exclusion from history and cleared after 30 s
+                 (Platform/SecretClipboard). No second button: UI rule 1. -->
+            <Button Name="CopyConnectionStringButton" Grid.Column="1" Classes="chip" Padding="7" Click="OnCopyConnectionStringClick"
+                    ToolTip.Tip="Copy the connection string without the password. Right-click to copy it with the password.">
                 <PathIcon Data="{StaticResource ClipboardIconGeometry}" Width="14" Height="14" />
+                <Button.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Name="CopyWithoutPasswordMenuItem" Header="Copy Without Password" Click="OnCopyConnectionStringClick" />
+                        <MenuItem Name="CopyWithPasswordMenuItem" Header="Copy With Password" Click="OnCopyConnectionStringWithPasswordClick"
+                                  ToolTip.Tip="Includes the password. Kept out of clipboard history where the system allows it, and cleared from the clipboard after 30 seconds." />
+                    </ContextMenu>
+                </Button.ContextMenu>
             </Button>
         </Grid>
 

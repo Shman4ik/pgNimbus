@@ -315,4 +315,24 @@ public class GrantScriptBuilderTests
 
         await Assert.That(sql).Contains("""GRANT USAGE ON SCHEMA "Sales Archive" TO PUBLIC;""");
     }
+
+    [Test]
+    public async Task AFunctionIsGrantedAsARoutineByItsIdentityArguments()
+    {
+        // Security audit 2026-09, finding 18: the argument list is the identity
+        // form (no DEFAULT clause, which made the GRANT a syntax error), and
+        // ROUTINE covers a procedure, which ON FUNCTION refuses.
+        var function = new SecurableRef(SecurableKind.Function, 16500, "sales", "total", "a integer, b text");
+
+        var sql = GrantScriptBuilder.Build(
+        [
+            new PrivilegeChange(function, "app_rw", PrivilegeKind.Execute, Grant: true),
+            new PrivilegeChange(function, "app_ro", PrivilegeKind.Execute, Grant: false),
+        ]);
+
+        await Assert.That(N(sql)).IsEqualTo(N("""
+            REVOKE ALL PRIVILEGES ON ROUTINE sales.total(a integer, b text) FROM app_ro;
+            GRANT ALL PRIVILEGES ON ROUTINE sales.total(a integer, b text) TO app_rw;
+            """));
+    }
 }

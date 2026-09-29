@@ -2387,7 +2387,9 @@ public sealed partial class QueryViewModel : ObservableObject
     private static string? CastTypeFor(ColumnDetail? column) =>
         column?.Editor is ColumnValueEditor.Enum or ColumnValueEditor.Array or ColumnValueEditor.Composite
             or ColumnValueEditor.Json or ColumnValueEditor.CastText
-            ? column.DataType
+            // Qualified outside pg_catalog, so a schema created after the tab
+            // read the columns can't shadow the type (audit 2026-09, finding 18).
+            ? column.CastTargetType
             : null;
 
     // The row as the user sees it right now, limited to real columns of the
@@ -2612,7 +2614,8 @@ public sealed partial class QueryViewModel : ObservableObject
     /// True when the file is complete; false when the export was cancelled or
     /// failed, and the caller should delete the partial file.
     /// </returns>
-    public async Task<bool> ExportAsync(ExportFormat format, Stream destination, string fileName)
+    /// <param name="spreadsheetSafe">CSV only: neutralize text cells a spreadsheet would run as a formula (<see cref="ResultExporter.NeutralizeFormula"/>).</param>
+    public async Task<bool> ExportAsync(ExportFormat format, Stream destination, string fileName, bool spreadsheetSafe = false)
     {
         if (IsRunning)
         {
@@ -2679,7 +2682,7 @@ public sealed partial class QueryViewModel : ObservableObject
                         }
                     });
                 }
-            }, ct));
+            }, ct, spreadsheetSafe));
 
             Status = source.Shortfall is { } shortfall
                 ? $"Exported only the {RowLabel(written)} shown to {fileName}: {shortfall}"
@@ -2727,8 +2730,10 @@ public sealed partial class QueryViewModel : ObservableObject
     /// Renders the given rows (or the whole result set when <paramref name="selectedRows"/> is empty) in
     /// <paramref name="format"/> for the clipboard. Returns null when there's nothing to copy. INSERT statements
     /// target the edited table when the result set maps to one, otherwise a <c>table_name</c> placeholder.
+    /// <paramref name="spreadsheetSafe"/> applies to the TSV and CSV shapes, the two a spreadsheet takes a
+    /// paste of (<see cref="ResultExporter.NeutralizeFormula"/>).
     /// </summary>
-    public string? CopyRows(CopyFormat format, IReadOnlyList<object?[]> selectedRows)
+    public string? CopyRows(CopyFormat format, IReadOnlyList<object?[]> selectedRows, bool spreadsheetSafe = false)
     {
         var rows = selectedRows.Count > 0 ? selectedRows : (IReadOnlyList<object?[]>)Rows;
         if (rows.Count == 0 || ColumnNames.Count == 0)
@@ -2740,10 +2745,10 @@ public sealed partial class QueryViewModel : ObservableObject
         switch (format)
         {
             case CopyFormat.Tsv:
-                ResultExporter.WriteTsv(writer, ColumnNames, rows);
+                ResultExporter.WriteTsv(writer, ColumnNames, rows, spreadsheetSafe);
                 break;
             case CopyFormat.Csv:
-                ResultExporter.WriteCsv(writer, ColumnNames, rows);
+                ResultExporter.WriteCsv(writer, ColumnNames, rows, spreadsheetSafe);
                 break;
             case CopyFormat.Markdown:
                 ResultExporter.WriteMarkdown(writer, ColumnNames, rows);
