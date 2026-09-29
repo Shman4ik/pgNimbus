@@ -52,7 +52,7 @@ public static class Fixtures
     /// <paramref name="workspace"/> is a snapshot to restore, handed over the
     /// way <c>App</c> hands over the one it read from <c>workspace.json</c>.
     /// </summary>
-    public static MainViewModel MainWindowViewModel(WorkspaceEntry? workspace = null)
+    public static MainViewModel MainWindowViewModel(WorkspaceEntry? workspace = null, bool readOnlyProfile = false)
     {
         var dataDirectory = IsolatedAppData.NewDirectory("main-window");
         var dataSource = DataSource;
@@ -78,6 +78,7 @@ public static class Fixtures
             connectionHost: "localhost",
             connectionDatabase: "shop",
             workspace: workspace,
+            readOnlyConnection: readOnlyProfile,
             savedQueryStore: new SavedQueryStore(Path.Combine(dataDirectory, "saved-queries.json")),
             historyStore: new QueryHistoryStore(Path.Combine(dataDirectory, "history.json")));
 

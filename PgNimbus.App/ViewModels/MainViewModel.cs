@@ -389,34 +389,73 @@ public sealed partial class MainViewModel : ObservableObject
 
     public bool IsReadOnlyConnection => ConnectionReadOnlyHint is not null;
 
+    /// <summary>
+    /// True when the profile asked for a read-only connection and the server
+    /// reports a writable session anyway: something between the two (PgBouncer
+    /// with <c>ignore_startup_parameters = options</c>, most often) dropped the
+    /// startup option. The read-only mark turns amber, and the grid stays
+    /// read-only, but nothing stops a statement the user runs from writing.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isReadOnlyNotEnforced;
+
+    // The connection profile asked for read-only (known before the window
+    // opens, from the data source's Options).
+    private readonly bool _profileReadOnly;
+
     private const string ReadOnlySessionHint = "the connection is read-only, so the server refuses writes.";
+
+    private const string ReadOnlyNotEnforcedHint =
+        "the profile asks for a read-only connection, but the server or a connection pooler did not apply that option, and the server accepts writes. " +
+        "pgNimbus keeps the grid read-only, but only pgNimbus blocks writes now: SQL you run can still change data. Don't rely on this profile's protection in this session.";
 
     /// <summary>
     /// Asks the server whether a session on this connection may write, once,
     /// when the window opens. A failure leaves the profile's answer in place:
     /// the mark is a courtesy, and the server enforces the rule either way.
+    /// <paramref name="probe"/> replaces the server query (the tests' seam);
+    /// production passes nothing.
     /// </summary>
-    public async Task DetectWriteStateAsync()
+    public async Task DetectWriteStateAsync(Func<CancellationToken, Task<SessionWriteState>>? probe = null)
     {
+        SessionWriteState state;
         try
         {
-            ConnectionReadOnlyHint = await _schemaService.GetWriteStateAsync(CancellationToken.None) switch
-            {
-                SessionWriteState.Standby => "the server is a standby replica, which refuses writes.",
-                SessionWriteState.ReadOnly => ReadOnlySessionHint,
-                _ => null,
-            };
+            state = await (probe ?? _schemaService.GetWriteStateAsync)(CancellationToken.None);
         }
         catch
         {
+            return;
         }
+
+        if (state == SessionWriteState.ReadWrite && _profileReadOnly)
+        {
+            // The profile's promise failed in transit (security audit 2026-09,
+            // finding 17). Replacing the hint with the server's "writable" made
+            // the grid editable on a profile the user had marked read-only, with
+            // the lock in the connection list as the only trace. The hint stays,
+            // reworded, and the tabs keep refusing edit contexts.
+            IsReadOnlyNotEnforced = true;
+            ConnectionReadOnlyHint = ReadOnlyNotEnforcedHint;
+            ActiveTab.Status = "Read-only was not applied: the server or a connection pooler ignored the profile's read-only option. " +
+                "The grid stays read-only, but SQL you run can write.";
+            return;
+        }
+
+        IsReadOnlyNotEnforced = false;
+        ConnectionReadOnlyHint = state switch
+        {
+            SessionWriteState.Standby => "the server is a standby replica, which refuses writes.",
+            SessionWriteState.ReadOnly => ReadOnlySessionHint,
+            _ => null,
+        };
     }
 
-    partial void OnConnectionReadOnlyHintChanged(string? value)
+    partial void OnConnectionReadOnlyHintChanged(string? oldValue, string? newValue)
     {
         foreach (var tab in Tabs)
         {
-            tab.ApplyConnectionReadOnly();
+            tab.ApplyConnectionReadOnly(oldValue);
         }
     }
 
@@ -629,6 +668,7 @@ public sealed partial class MainViewModel : ObservableObject
         ConnectionHost = connectionHost;
         ConnectionDatabase = connectionDatabase;
         _connectionReadOnlyHint = readOnlyConnection ? ReadOnlySessionHint : null;
+        _profileReadOnly = readOnlyConnection;
         _autoAliasTables = autoAliasTables;
         _persistAutoAliasTables = persistAutoAliasTables;
         _safeModeEdits = safeModeEdits;

@@ -96,6 +96,7 @@ public static class Scenarios
         // did not change.
         ("main-window-queries", QueriesSidebar),
         ("host-key-dialog", HostKeyDialogShot),
+        ("main-window-read-only-not-applied", ReadOnlyNotApplied),
     ];
 
     // --- Main window ------------------------------------------------------
@@ -118,6 +119,20 @@ public static class Scenarios
         vm.ConnectionReadOnlyHint = "the connection is read-only, so the server refuses writes.";
         SeedOrdersResult(vm.ActiveTab);
         vm.ActiveTab.ReadOnlyHint = vm.ConnectionReadOnlyHint;
+        return HostMainWindow(vm);
+    }
+
+    /// <summary>
+    /// A read-only profile the server didn't honour (a pooler dropped the
+    /// startup option): the mark turns amber and says so, the grid stays
+    /// read-only, and the status line carries the one-time warning.
+    /// </summary>
+    public static Window ReadOnlyNotApplied()
+    {
+        var vm = Fixtures.MainWindowViewModel(readOnlyProfile: true);
+        SeedOrdersResult(vm.ActiveTab);
+        vm.ActiveTab.ReadOnlyHint = vm.ConnectionReadOnlyHint;
+        _ = vm.DetectWriteStateAsync(_ => Task.FromResult(SessionWriteState.ReadWrite));
         return HostMainWindow(vm);
     }
 
