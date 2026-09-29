@@ -460,6 +460,32 @@ Three rules about it:
    the answer to 2BP01, which Postgres reports without naming either the
    blocking objects or the fix. The research and the plan are in
    [`docs/design/accounts-permissions.md`](docs/design/accounts-permissions.md).
+   **Two rules every script builder keeps** (2026-09, security audit findings
+   11 and 12; the RLS re-create and the default-privileges statement moved out
+   of their view models into the Core-pure `PolicyScriptBuilder` and
+   `DefaultPrivilegeScriptBuilder` so the rules are tested where the others
+   are). (a) **A value placed in a `--` comment goes through
+   `SqlComment.Safe`**, which strips `\r`/`\n` — the only characters that end a
+   comment. A schema or relation name may contain a newline (role names are
+   refused by current servers, table names are not), and every generated
+   script opens with a comment naming what it is about: a table named
+   `"x⏎ALTER ROLE eve SUPERUSER;--"` with an inert policy put a live `ALTER
+   ROLE` on the second line of the re-create script, which autocommit ran
+   before the `CREATE POLICY` failed. Quoting protects nothing inside a
+   comment. `RoleScriptBuilder.Drop` had a private copy of this guard; the
+   `GrantScriptBuilder` hint, `DdlService`'s not-found lines, the RLS and
+   default-privileges comments did not. The tests judge a script with
+   `SqlScriptSplitter` — an escaped comment adds a statement — not by eye.
+   (b) **PUBLIC is `null`, end to end, and nothing else is.** Only the
+   lowercase `public` is reserved, so `CREATE ROLE "PUBLIC"` is legal, and
+   `GrantScriptBuilder` used to match the grantee's *name* case-insensitively:
+   granting to that role granted to everyone, revoking from it left its access
+   in place. Now `aclexplode` grantee 0 and `polroles` oid 0 come back as
+   `null` (`AclEntry.Grantee`, `RlsPolicyInfo.Roles`), `GrantScriptBuilder.
+   GranteeSql` writes the keyword for `null` and `SqlIdentifier.QuoteIfNeeded`
+   for every name — so the role is `"PUBLIC"` — and `GranteeLabel` shows that
+   role quoted so the two are told apart on screen. `PublicRoleTests` creates
+   the role for real and revokes from it through the generated script.
 
 ## UI design rules
 
@@ -1240,6 +1266,36 @@ Moved to [`.claude/rules/logo-assets.md`](.claude/rules/logo-assets.md), which l
   withdraws one already on screen when the server's answer lands late). It is
   deliberately not in the connection-string preview, like the accent colour:
   it is this app's setting, not part of the target.
+  **Every profile also forces `standard_conforming_strings=on`** (2026-09,
+  security audit finding 13). `ConnectionProfile.BuildConnectionString` always
+  sets `Options` through `SessionOptions(readOnly)` — the standard-strings
+  option alone, or `-c default_transaction_read_only=on -c
+  standard_conforming_strings=on` for a read-only profile, and `BuildMainWindow`
+  still finds the read-only one by `Contains`. Why: `SqlLiteral.Quote` doubles
+  only the quote, and that text is *executed* — browse filters (including
+  filter-by-cell), the FK hop's seed, a role's `VALID UNTIL`/`COMMENT` — because
+  browse mode's WHERE round-trips through the editor as text (`BrowseSqlParser`
+  reads it back into chips), where a parameter cannot live, and `COMMENT ON` /
+  `VALID UNTIL` are utility statements, which take no bind parameters. With the setting
+  off (a database owner can `ALTER DATABASE … SET` it) a backslash escapes too,
+  and a stored `x\'' OR 1=1 --` filtered by cell ran as SQL. A startup option
+  beats the database's and the role's defaults and survives the pool's reset,
+  so `SqlLiteral`, `SqlLexer` and `SqlScriptSplitter` read literals the one
+  way the server does. The `PGNIMBUS_CONN` path adds the
+  same option through `ConnectionProfile.WithStandardStrings`, *appended* even
+  when the string already names the setting: the server applies `-c` switches
+  in order, so the last wins and a string carrying `=off` cannot keep it.
+  `StandardConformingStringsTests` turns the test database's default off and
+  proves a profile's session still says `on` and the hostile filter matches
+  only its row. **The option is not the only guard**: a pooler that drops
+  startup options (finding 17's PgBouncer case) leaves the database default in
+  place, so `SqlLiteral.Quote` writes text holding a backslash as `E'…'` with
+  the backslash doubled too, which reads the same under either setting (the
+  same test shows the old plain form returning every row without the option).
+  `BrowseSqlParser` reads that exact form back as a typed value (only `\\` and
+  `''` escapes), so a LIKE chip's escaped `%`/`_` survives the round trip; any
+  other `E'…'` stays a raw chip. `SqlLexer`, `SqlScriptSplitter` and #286's
+  Explain check still assume `on` for text the user types.
 - **json/jsonb are a first-class editable type.** `ColumnValueEditorClassifier`
   maps them to `ColumnValueEditor.Json` (jsonpath isn't JSON-shaped so it takes
   the plain-cast `CastText` path below; hstore stays `Text` — its display needs
@@ -1400,7 +1456,9 @@ Moved to [`.claude/rules/logo-assets.md`](.claude/rules/logo-assets.md), which l
   LIKE-wildcard escaping, untyped quoted literals so Postgres types each
   comparison by its column, `json` offered text search because it has no `=`);
   the editor shows the draft's SQL before it runs. The FK-seeded `FilterText`
-  stays a raw, removable chip, ANDed first.
+  stays a raw, removable chip, ANDed first. Those literals are executed as
+  text, and their `''` escape is complete only because every session forces
+  `standard_conforming_strings=on` (the read-only paragraph above, finding 13).
   (d) **Filters exist only in browse mode.** The strip's host is bound to
   `ActiveTab.IsBrowsing`, and `MainViewModel.FilterRows` on a non-browse tab only
   says where filters live — there is no path from a filter gesture to the text of

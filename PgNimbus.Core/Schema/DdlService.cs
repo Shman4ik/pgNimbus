@@ -28,7 +28,7 @@ public sealed class DdlService(NpgsqlDataSource dataSource)
         var (oid, relkind) = await ResolveRelationAsync(connection, schema, name, ct);
         if (oid == 0)
         {
-            return $"-- {schema}.{name} not found";
+            return RelationNotFoundComment(schema, name);
         }
 
         var qualified = $"{SqlIdentifier.Quote(schema)}.{SqlIdentifier.Quote(name)}";
@@ -66,8 +66,21 @@ public sealed class DdlService(NpgsqlDataSource dataSource)
         command.Parameters.AddWithValue("arguments", arguments);
 
         return await command.ExecuteScalarAsync(ct) as string
-            ?? $"-- function {schema}.{name}({arguments}) not found";
+            ?? FunctionNotFoundComment(schema, name, arguments);
     }
+
+    /// <summary>
+    /// The one-line comment a source tab shows for a relation that is gone.
+    /// The names go through <see cref="SqlComment.Safe"/>: this text opens in
+    /// an editor, and a relation name with a line break in it would otherwise
+    /// end the comment and leave whatever follows as a runnable statement.
+    /// </summary>
+    public static string RelationNotFoundComment(string schema, string name) =>
+        $"-- {SqlComment.Safe(schema)}.{SqlComment.Safe(name)} not found";
+
+    /// <summary>The same, for a function or procedure (its identity arguments name types, which are identifiers too).</summary>
+    public static string FunctionNotFoundComment(string schema, string name, string arguments) =>
+        $"-- function {SqlComment.Safe(schema)}.{SqlComment.Safe(name)}({SqlComment.Safe(arguments)}) not found";
 
     private static async Task<(uint Oid, char RelKind)> ResolveRelationAsync(
         NpgsqlConnection connection, string schema, string name, CancellationToken ct)

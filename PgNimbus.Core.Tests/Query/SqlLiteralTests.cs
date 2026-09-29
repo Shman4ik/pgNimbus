@@ -18,6 +18,19 @@ public class SqlLiteralTests
     }
 
     [Test]
+    public async Task A_backslash_makes_an_escape_string_that_reads_the_same_under_either_setting()
+    {
+        // Plain text keeps the plain form.
+        await Assert.That(SqlLiteral.Quote("plain")).IsEqualTo("'plain'");
+
+        // With standard_conforming_strings off (a pooler that dropped the
+        // startup option), '\'' in a plain literal would end it early; an
+        // E-string with the backslash doubled means the same text either way.
+        await Assert.That(SqlLiteral.Quote(@"a\b")).IsEqualTo(@"E'a\\b'");
+        await Assert.That(SqlLiteral.Quote(@"x\'' OR 1=1 --")).IsEqualTo(@"E'x\\'''' OR 1=1 --'");
+    }
+
+    [Test]
     public async Task BooleansRenderBare()
     {
         await Assert.That(SqlLiteral.Format(true)).IsEqualTo("true");
