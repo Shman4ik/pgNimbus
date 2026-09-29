@@ -2,7 +2,6 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PgNimbus.Core.Query;
-using PgNimbus.Core.Security;
 
 namespace PgNimbus.App.ViewModels;
 
@@ -123,10 +122,11 @@ public sealed partial class SavedQueriesViewModel : ObservableObject
     /// history off (<see cref="RecordHistory"/>). Nothing in the Roles &amp;
     /// Permissions window routes a PASSWORD literal through a query tab (see
     /// <c>SecurityEditor</c>), but a user can always type
-    /// <c>ALTER ROLE … PASSWORD 'x'</c> into the editor themselves. The text is
-    /// redacted here as well as in <see cref="QueryHistoryStore"/> (which
-    /// redacts everything it writes) because the in-memory list is what the
-    /// sidebar shows and what Save writes back.
+    /// <c>ALTER ROLE … PASSWORD 'x'</c> into the editor themselves. The entry
+    /// (its text and its result line) is redacted here as well as in
+    /// <see cref="QueryHistoryStore"/> (which redacts everything it writes)
+    /// because the in-memory list is what the sidebar shows and what Save
+    /// writes back.
     /// </summary>
     public void RecordExecution(QueryHistoryEntry entry)
     {
@@ -135,7 +135,7 @@ public sealed partial class SavedQueriesViewModel : ObservableObject
             return;
         }
 
-        entry = entry with { Sql = SecretRedactor.Redact(entry.Sql), Connection = _getConnectionLabel() };
+        entry = QueryHistoryStore.Redact(entry with { Connection = _getConnectionLabel() });
         History.Insert(0, entry);
         _historyStore.Append(entry);
     }
