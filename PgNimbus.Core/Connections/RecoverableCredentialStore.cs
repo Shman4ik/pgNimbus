@@ -159,13 +159,31 @@ public sealed class RecoverableCredentialStore(ICredentialStore persistent, stri
                 return;
             }
 
+            var storeRefused = false;
             foreach (var file in files)
             {
                 if (!Guid.TryParseExact(Path.GetFileNameWithoutExtension(file), "N", out var id)) continue;
+                if (storeRefused)
+                {
+                    WarnLegacy(id);
+                    continue;
+                }
+
+                string? legacy;
                 try
                 {
-                    var legacy = ReadLegacy(id);
-                    if (legacy is null) continue;
+                    legacy = ReadLegacy(id);
+                }
+                catch (Exception ex) when (IsStorageFailure(ex))
+                {
+                    // This file is unreadable; the store was not asked.
+                    WarnLegacy(id);
+                    continue;
+                }
+
+                if (legacy is null) continue;
+                try
+                {
                     var native = persistent.LoadPassword(id);
                     if (native is null) StoreVerified(id, legacy);
                     else if (native == legacy) DeleteLegacy(id);
@@ -173,6 +191,13 @@ public sealed class RecoverableCredentialStore(ICredentialStore persistent, stri
                 }
                 catch (Exception ex) when (IsStorageFailure(ex))
                 {
+                    // The OS store refused: unavailable, locked, or a Secret
+                    // Service call that waited out its 15 s. Every later file
+                    // would wait on it again, with the lock held and the first
+                    // connect queued behind this pass, so the rest are left and
+                    // reported rather than tried (review of the 2026-09 audit
+                    // fixes).
+                    storeRefused = true;
                     WarnLegacy(id);
                 }
             }

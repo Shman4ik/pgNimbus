@@ -303,7 +303,9 @@ Three rules about it:
    value. The ones that can't move (store unavailable, unreadable file, a
    different native value, which wins until a password edit resolves it) stay on
    disk and are reported once, as one line in the dialog's credential warning
-   with their count. Before this a file moved only when its profile was opened,
+   with their count. The first refusal from the store ends the pass (the rest
+   are reported, not tried): a hung Secret Service call waits out its 15 s, and
+   Connect waits on this pass. Before this a file moved only when its profile was opened,
    so profiles nobody reopened kept a base64 password forever. No new base64 files are written.
    Connection-dialog store operations run off the UI thread; Connect awaits initial
    credential loading. Linux calls are cancellable after 15 seconds and require
