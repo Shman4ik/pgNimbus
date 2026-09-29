@@ -116,7 +116,9 @@ public class DialogTests
     /// Maximized, the form used to stretch every field across the screen, with
     /// the port box ~1500px from the host it belongs to. The list and the form now
     /// stop at 1000px together and are centred, with the bar's heading over the
-    /// list; in a narrow window the form column still takes all the width.
+    /// list; in a narrow window the form column still takes all the width. The
+    /// window itself stops at the block's size (the next test), so this is the
+    /// fallback for a window manager that ignores size hints, as tiling ones do.
     /// </summary>
     [Test]
     public async Task The_connection_form_stops_widening_in_a_wide_window()
@@ -124,7 +126,10 @@ public class DialogTests
         await Ui.Run(async () =>
         {
             var window = Scenarios.ConnectionDialog();
+            window.MaxWidth = double.PositiveInfinity;
+            window.MaxHeight = double.PositiveInfinity;
             window.Width = 1600;
+            window.Height = 1080;
             Ui.Show(window);
 
             // The list and the form are one block, capped and centred.
@@ -143,9 +148,54 @@ public class DialogTests
             var headingLeft = heading.TranslatePoint(new Point(0, 0), window)!.Value.X;
             await Assert.That(Math.Abs(headingLeft - layout.Bounds.X)).IsLessThanOrEqualTo(1);
 
+            // Down, the block stays under the bar rather than centred: the heading
+            // can't follow it, and on a 1080p screen it was left 160px above the list.
+            var bar = window.FindControl<Border>("ConnectBar")!;
+            // Within a pixel: with room left over, Avalonia's star sizing hands the
+            // bar's row and the capped row one extra pixel each (41 and 793).
+            await Assert.That(Math.Abs(layout.Bounds.Height - 760)).IsLessThanOrEqualTo(1);
+            await Assert.That(Math.Abs(layout.Bounds.Y - (bar.Bounds.Bottom + 16))).IsLessThanOrEqualTo(1);
+            var overlay = window.GetVisualDescendants().OfType<Nimbus.Ui.Controls.OverlayPanel>().Single();
+            await Assert.That(overlay.Bounds.Height).IsEqualTo(window.Bounds.Height);
+
             window.Width = 640;
             Ui.Settle();
             await Assert.That(layout.ColumnDefinitions[1].ActualWidth).IsEqualTo(640 - 32 - 240);
+
+            window.Close();
+            Ui.Settle();
+        });
+    }
+
+    /// <summary>
+    /// The connect window can't be maximized or made full screen and stops at the
+    /// size the form block uses: maximized on a 1080p screen, or full screen on a
+    /// MacBook, it was a 400px form in an empty window. A placement saved before
+    /// the cap (maximized, or bigger) opens the window at the cap, not maximized
+    /// with no button to restore it.
+    /// </summary>
+    [Test]
+    public async Task The_connection_window_stops_at_the_form_size()
+    {
+        await Ui.Run(async () =>
+        {
+            var window = Scenarios.ConnectionDialog();
+            await Assert.That(window.CanMaximize).IsFalse();
+
+            var store = new PgNimbus.Core.Settings.WindowPlacementStore(
+                Path.Combine(IsolatedAppData.NewDirectory("connection-placement"), "connection-window.json"));
+            store.Save(new PgNimbus.Core.Settings.WindowPlacement(0, 0, 1900, 1040, IsMaximized: true));
+            WindowPlacementPersistence.Attach(window, store);
+            Ui.Show(window);
+
+            await Assert.That(window.WindowState).IsEqualTo(WindowState.Normal);
+            await Assert.That(window.Bounds.Width).IsEqualTo(ConnectionDialog.MaxFormWidth);
+            await Assert.That(window.Bounds.Height).IsEqualTo(ConnectionDialog.MaxFormHeight);
+
+            // At the cap the block fills the window exactly: no empty margin around it.
+            var layout = window.FindControl<Grid>("FormLayout")!;
+            await Assert.That(layout.Bounds.Width).IsEqualTo(1000);
+            await Assert.That(layout.Bounds.Height).IsEqualTo(760);
 
             window.Close();
             Ui.Settle();

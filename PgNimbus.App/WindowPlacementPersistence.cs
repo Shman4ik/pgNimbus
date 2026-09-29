@@ -12,7 +12,7 @@ namespace PgNimbus.App;
 /// shown, so the first frame already paints at the restored placement
 /// instead of jumping there.
 /// </summary>
-internal static class WindowPlacementPersistence
+public static class WindowPlacementPersistence
 {
     /// <summary>
     /// How much of the title bar must land on a live screen's working area for
@@ -116,14 +116,18 @@ internal static class WindowPlacementPersistence
         {
             window.WindowStartupLocation = WindowStartupLocation.Manual;
             window.Position = new PixelPoint(placement.X, placement.Y);
-            window.Width = placement.Width;
-            window.Height = placement.Height;
+            // A placement saved before the window had a size cap (the connection
+            // dialog outside macOS) must not reopen it past that cap.
+            window.Width = Math.Min(placement.Width, window.MaxWidth);
+            window.Height = Math.Min(placement.Height, window.MaxHeight);
         }
 
         // Maximized survives even when the saved position no longer maps to a
         // live screen — the window then maximizes wherever the OS opens it,
-        // and unmaximize falls back to the default centered size.
-        if (placement.IsMaximized)
+        // and unmaximize falls back to the default centered size. Not for a
+        // window that can't be maximized: it would open maximized with no
+        // button to restore it.
+        if (placement.IsMaximized && window.CanMaximize)
         {
             window.WindowState = WindowState.Maximized;
         }

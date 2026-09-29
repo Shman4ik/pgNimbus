@@ -15,10 +15,22 @@
         MinWidth="620" MinHeight="520"
         WindowStartupLocation="CenterScreen">
 
-    <!-- Outer grid carries no margin so the About overlay's backdrop can reach the
+    <!-- The outer panel carries no margin so the About overlay's backdrop can reach the
          window edges; the form keeps its own inset. Named because
          NimbusWindowChrome hangs the maximized window's OffScreenMargin on it. -->
-    <Grid Name="RootLayout" RowDefinitions="Auto,*">
+    <Panel Name="RootLayout">
+
+    <!-- Bar and block only. The About overlay is kept out of this grid: spanning
+         its rows, its window-high desired size was spread over them and pushed
+         the capped row past its MaxHeight. -->
+    <Grid>
+    <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <!-- The block's row: 760 plus FormLayout's 16px margins at most. A star row
+             held at its MaxHeight leaves the rest of the window empty below it; a
+             Top-aligned block would have shrunk to its content, the list with it. -->
+        <RowDefinition Height="*" MaxHeight="792" />
+    </Grid.RowDefinitions>
 
     <!-- The one bar of chrome, as in the main window (NimbusWindowChrome,
          DESIGN.md rule 9): no icon and no "pgNimbus - Connect" caption over the
@@ -32,16 +44,15 @@
         <TextBlock Name="BarHeading" Text="Saved connections" FontWeight="SemiBold" VerticalAlignment="Center" />
     </Border>
 
-    <!-- The list and the form are one block, capped at 1000 x 760 and centred in
-         whatever room the window has (a Stretch element past its MaxWidth is
-         centred, not left-aligned). Below the cap, which covers the default
-         720 x 600, it fills the window as before. Maximized or full screen it
-         used to stretch the list to the window's full height and park the form,
-         capped at 720px, against the left edge, with the buttons a screen's
-         height below the last field and half the window empty to its right.
-         The bar's "Saved connections" heading follows the block's left edge
-         (AlignBarHeading in code-behind), so it stays over the list. -->
-    <Grid Name="FormLayout" Grid.Row="1" Margin="16" MaxWidth="1000" MaxHeight="760"
+    <!-- The list and the form are one block, capped at 1000 x 760, centred
+         across (a Stretch element past its MaxWidth is centred, not
+         left-aligned) and kept under the bar. The window itself stops at that
+         size and can't be maximized (ConnectionDialog.MaxFormWidth), so the cap
+         only matters where a window manager ignores size hints. The bar's
+         "Saved connections" heading follows the block's left edge
+         (AlignBarHeading in code-behind), so it stays over the list; it can't
+         follow it down, which is why the block is never centred vertically. -->
+    <Grid Name="FormLayout" Grid.Row="1" Margin="16" MaxWidth="1000"
           RowDefinitions="*,Auto,Auto" ColumnDefinitions="240,*">
 
     <Grid Grid.Row="0" Grid.ColumnSpan="2" ColumnDefinitions="240,*" IsEnabled="{Binding CredentialsReady}">
@@ -377,14 +388,16 @@
 
     </Grid>
 
+    </Grid>
+
     <!-- The same About box the shell hosts, with the same sizing. Here because the
          connect form is often the only window open, and macOS's app-menu "About
          pgNimbus" has to land somewhere (see ConnectionDialogViewModel.IsAboutOpen). -->
-    <nui:OverlayPanel Grid.RowSpan="2" IsOpen="{Binding IsAboutOpen, Mode=TwoWay}"
+    <nui:OverlayPanel IsOpen="{Binding IsAboutOpen, Mode=TwoWay}"
                       Title="About" PanelWidth="340" PanelMaxHeight="400">
         <views:AboutView />
     </nui:OverlayPanel>
 
-    </Grid>
+    </Panel>
 
 </Window>

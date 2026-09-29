@@ -129,6 +129,21 @@ public static class MacMenus
     /// opens, so it always matches the windows actually open.
     /// </para>
     /// </summary>
+    private static NativeMenuItem ZoomItem(Window window)
+    {
+        var item = Action("Zoom", () =>
+        {
+            if (window.CanMaximize)
+            {
+                window.WindowState = window.WindowState == WindowState.Maximized
+                    ? WindowState.Normal
+                    : WindowState.Maximized;
+            }
+        });
+        item.IsEnabled = window.CanMaximize;
+        return item;
+    }
+
     public static NativeMenu Window(Window window, IEnumerable<NativeMenuItemBase>? windowItems = null)
     {
         var menu = new NativeMenu
@@ -136,9 +151,9 @@ public static class MacMenus
             Items =
             {
                 Action("Minimize", () => window.WindowState = WindowState.Minimized, new KeyGesture(Key.M, Hotkeys.Command)),
-                Action("Zoom", () => window.WindowState = window.WindowState == WindowState.Maximized
-                    ? WindowState.Normal
-                    : WindowState.Maximized),
+                // Greyed out, as AppKit does, for a window that can't be maximized
+                // (the connect form): zooming it would sidestep its size cap.
+                ZoomItem(window),
             },
         };
 

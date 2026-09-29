@@ -803,14 +803,14 @@ public static class Scenarios
     }
 
     /// <summary>
-    /// The connect form in a maximized-sized window: the list and the form stay one
-    /// centred block, with the bar's heading over the list.
+    /// The connect form at its largest: the window stops at the size the list and
+    /// the form fill, and can't be maximized or made full screen.
     /// </summary>
     public static Window ConnectionDialogWide()
     {
         var window = ConnectionDialog();
-        window.Width = 1440;
-        window.Height = 900;
+        window.Width = PgNimbus.App.Views.ConnectionDialog.MaxFormWidth;
+        window.Height = PgNimbus.App.Views.ConnectionDialog.MaxFormHeight;
         return window;
     }
 
