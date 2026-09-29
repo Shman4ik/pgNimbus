@@ -71,7 +71,7 @@ account. On Windows they have the normal permissions of your profile folder.
 | --- | --- | --- |
 | `connections.json` | Your connection profiles: name, host, port, database, user name, SSL mode, root certificate path, colour, read-only flag, and SSH host, port, user name, sign-in method and key file path. No password. | No |
 | `credentials/*.dpapi` (Windows only) | Saved database passwords, SSH passwords and key passphrases. See [passwords](#passwords). | Yes, DPAPI |
-| `history.json` | Up to 200 statements you ran (the oldest go first, pinned ones stay): the SQL, when it ran, how long it took, the result line (row count, or the server's error message), and the `host/database` it ran on. | No |
+| `history.json` | Up to 200 statements you ran (the oldest go first, pinned ones stay): the SQL, when it ran, how long it took, the result line (row count, or the server's error message; none for a statement that held a password), and the `host/database` it ran on. | No |
 | `saved-queries.json` | The queries you saved, as you saved them. | No |
 | `workspace.json` | The text of your open tabs, per `host/database`, so the next session can reopen them. | No |
 | `settings.json` | Your preferences, the last connection used, the paths of up to 10 recently opened `.sql` files, and per-database lists of excluded schemas and LISTEN channels. | No |
@@ -111,10 +111,12 @@ Before a statement goes into `history.json` or `workspace.json`, pgNimbus
 replaces passwords it recognizes with `'<redacted>'::redacted`: `PASSWORD '…'`
 in `CREATE ROLE` and `ALTER ROLE` (also inside a `DO` block, an `EXECUTE` string
 or a comment), `password=…` in a connection string, and `user:password@` in a
-URI. The crash log masks error messages the same way. Masking misses a secret
-that is not labelled as one, such as a key passed to `pgp_sym_encrypt`, and
-it does not apply to the result line in the history or to saved queries. Everything else
-in your SQL, such as an email address in a `WHERE` clause, is stored as you
+URI. The crash log masks error messages the same way. When a statement held a
+password, its history entry keeps no result line, because the server's error
+message can quote part of the statement where masking can't find it. Masking
+misses a secret that is not labelled as one, such as a key passed to
+`pgp_sym_encrypt`, and it does not apply to saved queries. Everything else in
+your SQL, such as an email address in a `WHERE` clause, is stored as you
 typed it. [Where your password goes](getting-started/connecting.md#where-your-password-goes)
 has the details.
 

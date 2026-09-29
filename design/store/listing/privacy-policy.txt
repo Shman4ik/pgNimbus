@@ -20,7 +20,7 @@ All files are in %AppData%\pgNimbus. The Microsoft Store version may keep them i
 
 - Connection profiles: name, host, port, database, user name, SSL settings, SSH host, user name and key file path. No passwords.
 - Passwords (database, SSH, key passphrase): encrypted with Windows DPAPI for your Windows account, one file per password in the credentials folder. pgNimbus does not use Windows Credential Manager. If a password cannot be saved, the app warns you and keeps it in memory for that session only.
-- Query history (not encrypted): the text of up to 200 statements you ran, with the values in them, when each ran, its row count or the server's error message, and the host and database. Passwords written in SQL (for example ALTER ROLE ... PASSWORD) are masked before saving. You can turn history off in Settings and clear it from the history list.
+- Query history (not encrypted): the text of up to 200 statements you ran, with the values in them, when each ran, its row count or the server's error message, and the host and database. Passwords written in SQL (for example ALTER ROLE ... PASSWORD) are masked before saving, and the error message of such a statement is not saved. You can turn history off in Settings and clear it from the history list.
 - Open tabs (not encrypted): the text of your open query tabs, so they reopen next time, with passwords masked the same way.
 - Saved queries (not encrypted): the queries you save, as you saved them.
 - Settings, recently opened file paths, names you picked from autocomplete, window positions, and SSH host keys you accepted (not encrypted).

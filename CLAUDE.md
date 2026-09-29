@@ -628,7 +628,12 @@ Three rules about it:
    that write SQL nobody asked to save** (2026-09, security audit finding 8):
    `QueryHistoryStore` redacts every entry it writes and scrubs the file once on
    load (an entry from before the redactor, or in a shape it learned later, is
-   rewritten in place), and `WorkspaceStore.Save` redacts every tab's text on its
+   rewritten in place). That covers the result line too (`QueryHistoryStore.Redact`):
+   it goes through the redactor, and a statement whose text held a secret keeps
+   `WithheldSummary` instead, since a server error quotes the token it failed on
+   (`syntax error at or near "…"`) with no keyword beside it for the redactor to
+   find; the check is the marker in the redacted text, so entries redacted before
+   this rule lose their result line on the next load. And `WorkspaceStore.Save` redacts every tab's text on its
    way into `workspace.json`, the other connections' snapshots included, except a
    file-backed tab, which keeps no text at all (`WorkspaceTab.TextFromFile`) and
    is read from its file on restore: redacted, it reopened modified and one

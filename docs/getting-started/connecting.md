@@ -63,7 +63,8 @@ see [where pgNimbus keeps its files](installation.md#where-pgnimbus-keeps-its-fi
 - `history.json` keeps the text of every statement you run, with the values in
   it. A query that looks up a customer by email keeps the email address. Each
   entry also keeps its result line: the row count, or the server's error
-  message.
+  message. A statement that held a password keeps no result line, because an
+  error message can quote the password where masking can't find it.
 - `workspace.json` keeps the text of your open tabs, so the next session can
   reopen them.
 - `saved-queries.json` keeps the queries you save to the Saved Queries list,

@@ -13,10 +13,17 @@ namespace PgNimbus.Core.Query;
 /// every read, which rewrites the file when an entry written before the
 /// redactor (or before it knew a shape) still held one. That makes the store
 /// itself the choke point, not the view model that happens to call it today.
+/// The result line is redacted too (<see cref="Redact(QueryHistoryEntry)"/>).
 /// </summary>
 public sealed class QueryHistoryStore(string? filePath = null)
 {
     private const int MaxEntries = 200;
+
+    /// <summary>
+    /// The result line kept for a statement that held a password, in place of
+    /// the one it produced.
+    /// </summary>
+    public const string WithheldSummary = "result not kept: the statement held a password";
 
     private readonly string? _filePath = filePath ?? AppDataPaths.Resolve("history.json");
 
@@ -36,10 +43,10 @@ public sealed class QueryHistoryStore(string? filePath = null)
         var scrubbed = false;
         for (var i = 0; i < entries.Count; i++)
         {
-            var redacted = SecretRedactor.Redact(entries[i].Sql);
-            if (!string.Equals(redacted, entries[i].Sql, StringComparison.Ordinal))
+            var redacted = Redact(entries[i]);
+            if (!ReferenceEquals(redacted, entries[i]))
             {
-                entries[i] = entries[i] with { Sql = redacted };
+                entries[i] = redacted;
                 scrubbed = true;
             }
         }
@@ -85,9 +92,34 @@ public sealed class QueryHistoryStore(string? filePath = null)
 
     public void Clear() => Save([]);
 
-    /// <summary>Writes <paramref name="entries"/>, each one's text redacted first.</summary>
+    /// <summary>Writes <paramref name="entries"/>, each one redacted first.</summary>
     public void Save(IReadOnlyList<QueryHistoryEntry> entries) =>
-        Write([.. entries.Select(e => e with { Sql = SecretRedactor.Redact(e.Sql) })]);
+        Write([.. entries.Select(Redact)]);
+
+    /// <summary>
+    /// <paramref name="entry"/> with its secrets taken out, or the same
+    /// instance when there are none. The text goes through
+    /// <see cref="SecretRedactor"/>, and so does the result line, except for a
+    /// statement that held a password: its result line is replaced by
+    /// <see cref="WithheldSummary"/>. An error message quotes the part of the
+    /// statement it failed on (<c>syntax error at or near "…"</c>, a conninfo
+    /// <c>missing "=" after "…"</c>) with no keyword beside it that says it is a
+    /// secret, so the redactor cannot find it there. A statement "held a
+    /// password" when its redacted text carries the redactor's marker, which
+    /// also covers entries redacted before this existed, on their next load.
+    /// </summary>
+    public static QueryHistoryEntry Redact(QueryHistoryEntry entry)
+    {
+        var sql = SecretRedactor.Redact(entry.Sql);
+        // Sql is null only in a hand-edited file; that entry has nothing to hide.
+        var summary = entry.Sql is not null && sql.Contains(SecretRedactor.ValueReplacement, StringComparison.Ordinal)
+            ? WithheldSummary
+            : SecretRedactor.Redact(entry.Summary);
+
+        return string.Equals(sql, entry.Sql, StringComparison.Ordinal) && string.Equals(summary, entry.Summary, StringComparison.Ordinal)
+            ? entry
+            : entry with { Sql = sql, Summary = summary };
+    }
 
     private void Write(List<QueryHistoryEntry> entries) =>
         AppDataFile.WriteJson(_filePath, entries, QueryHistoryJsonContext.Default.ListQueryHistoryEntry);
