@@ -2632,7 +2632,7 @@ via `workflow_dispatch`, which builds everything but skips the "release"
 job so it never publishes).
 
 **What a tag is allowed to mean, and who holds the token** (2026-09, security
-audit findings 5 and 15). Three things the audit found, each now a rule:
+audit findings 5 and 15). Four things the audit found, each now a rule:
 - **The built commit has to be on `main`.** A tag can be pushed on any commit,
   and the attestation only ever proved "built by this workflow" — nothing said
   "from a reviewed commit". The first step of every build job (and `sbom`) is
