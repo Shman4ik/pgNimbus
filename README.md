@@ -47,11 +47,11 @@ Where it sits among the alternatives: pgAdmin and DBeaver are powerful but heavy
 
 | Cold start (NativeAOT) | Completion that knows your foreign keys |
 | --- | --- |
-| ![pgNimbus launching from a cold NativeAOT process to a fully rendered main window in well under a second](docs/screenshots/cold-start.gif) | ![Typing FROM + a partial table name, JOIN with an FK-ranked table suggestion, then ON auto-completing the full join condition](docs/screenshots/completion-demo.gif) |
+| ![pgNimbus starting cold from a NativeAOT build, with the main window drawn about half a second after launch](docs/screenshots/cold-start.gif) | ![Typing FROM and part of a table name, then JOIN and a few letters of customers; picking the foreign key suggestion writes the whole ON condition in one step](docs/screenshots/completion-demo.gif) |
 
 | EXPLAIN ANALYZE as a tree | Safe mode: review, then commit once |
 | --- | --- |
-| ![Raw EXPLAIN ANALYZE text next to the graphical plan tree pgNimbus renders from it, with per-node cost and actual timing](docs/screenshots/explain-tree-demo.gif) | ![Editing cells across two tabs in safe mode, then committing both staged changes together in a single transaction](docs/screenshots/safe-mode-commit-demo.gif) |
+| ![EXPLAIN ANALYZE output as text, then the Tree view with a heat bar, cost and time on every node, and the Color switch moving from time to rows, cost and buffers](docs/screenshots/explain-tree-demo.gif) | ![Two cell edits staged in safe mode (the rows turn amber), reviewed as SQL, then committed together in one transaction](docs/screenshots/safe-mode-commit-demo.gif) |
 
 ## 📦 Installation
 

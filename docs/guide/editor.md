@@ -59,7 +59,7 @@ Completion triggers as you type, or on demand with
 <kbd>Ctrl</kbd>+<kbd>Space</kbd> (literal <kbd>Ctrl</kbd> on every platform,
 because <kbd>Cmd</kbd>+<kbd>Space</kbd> is Spotlight on macOS).
 
-![Typing FROM and a partial table name, then JOIN with an FK-ranked suggestion, then ON auto-completing the whole join condition](../screenshots/completion-demo.gif)
+![Typing FROM and part of a table name, then JOIN and a few letters of customers; picking the foreign key suggestion writes the whole ON condition in one step](../screenshots/completion-demo.gif)
 
 It reads the live catalog, so it knows about:
 

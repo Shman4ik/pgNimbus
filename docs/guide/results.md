@@ -130,7 +130,7 @@ string.
 
 ## Safe mode
 
-![Editing cells across two tabs in safe mode, then committing both staged changes together as one transaction](../screenshots/safe-mode-commit-demo.gif)
+![Two cell edits staged in safe mode (the rows turn amber), reviewed as SQL, then committed together in one transaction](../screenshots/safe-mode-commit-demo.gif)
 
 Safe mode is on by default for every new connection. It is for the "inline
 edit on production" nerves. With it on, grid edits, inserts and deletes are

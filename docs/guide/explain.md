@@ -3,7 +3,7 @@
 pgNimbus does not dump `EXPLAIN` output at you. It parses the plan, walks it for
 known problems, and draws it as a tree with a time heat map.
 
-![Raw EXPLAIN ANALYZE text next to the plan tree pgNimbus renders from it, with per-node cost and actual timing](../screenshots/explain-tree-demo.gif)
+![EXPLAIN ANALYZE output as text, then the Tree view with a heat bar, cost and time on every node, and the Color switch moving from time to rows, cost and buffers](../screenshots/explain-tree-demo.gif)
 
 ## Running EXPLAIN
 

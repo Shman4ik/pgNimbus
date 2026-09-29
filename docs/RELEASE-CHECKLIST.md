@@ -176,10 +176,11 @@ pass. 1.0.0 found five defects here that no Windows step could have.
 
 - [ ] Screenshots: `scripts/screenshots/update-published.sh` on Windows if any
       surface they show changed (UI design rule 9).
-- [ ] GIFs and videos: re-record the ones whose screens changed. The README
-      GIFs are not covered by the screenshot harness. (Scripted recording is
-      being built; until it lands, the recipe is the "Screen recording demo
-      pipeline" note in Claude's project memory.)
+- [ ] GIFs: re-record the ones whose screens changed. The README GIFs are not
+      covered by the screenshot harness. Scripted recording lives in
+      `scripts/demo/record/` (one scene per GIF, see its README). Publish the
+      new files to the site with `scripts/website/publish-site.sh` after the PR
+      merges.
 
 ## 5. Ship
 
