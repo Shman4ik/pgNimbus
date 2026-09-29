@@ -43,6 +43,18 @@ public sealed partial class AlterTableViewModel(SchemaEditor schemaEditor, Schem
     /// <summary>Raised after a successful ALTER TABLE so the schema tree node for this table can refresh.</summary>
     public event Action? SchemaChanged;
 
+    /// <summary>
+    /// Confirms before an irreversible column drop, naming the column as
+    /// <c>schema.table.column</c>. Wired by <see cref="Views.AlterTableDialog"/> to
+    /// show <see cref="Views.ConfirmDialog"/> with itself as owner — the same
+    /// pattern used for drop schema, drop extension, delete rows and terminate
+    /// backend, all of which show the dialog from the view's
+    /// code-behind rather than the view model. A decline leaves the column
+    /// untouched; this is null only in a host that never wires it (design time,
+    /// a test that doesn't care), where the drop proceeds unconfirmed.
+    /// </summary>
+    public Func<ColumnDetail, Task<bool>>? ConfirmDropColumnRequested { get; set; }
+
     public async Task LoadAsync()
     {
         IsBusy = true;
@@ -96,6 +108,11 @@ public sealed partial class AlterTableViewModel(SchemaEditor schemaEditor, Schem
     private async Task DropColumnAsync()
     {
         if (SelectedColumn is not { } column)
+        {
+            return;
+        }
+
+        if (ConfirmDropColumnRequested is { } confirm && !await confirm(column))
         {
             return;
         }

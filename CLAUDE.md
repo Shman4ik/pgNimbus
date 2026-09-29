@@ -478,6 +478,29 @@ Three rules about it:
    `ConfirmDialog`; the plain one is Postgres's own RESTRICT (it fails on a
    non-empty schema, and that refusal lands in the sidebar's error strip), and
    CASCADE is a separate item with a confirm that says what it takes with it.
+   **Security audit 2026-09, finding 6, closed two gaps this same pattern had
+   missed** (2026-09-29): the Alter Table dialog's "Drop selected column" ran
+   straight from `DropColumnCommand` to `SchemaEditor.DropColumnAsync` with
+   nothing in between — one click after selecting a row destroyed the column's
+   data — and the Extensions group's "Install" confirmed nothing while "Drop…"
+   right beside it already did. Both now confirm the same way: `AlterTableViewModel.ConfirmDropColumnRequested`
+   is a `Func<ColumnDetail, Task<bool>>` that `AlterTableDialog` wires in its
+   `Opened` handler to a `ConfirmDialog` naming `schema.table.column`
+   (`AlterTableConfirmTests`), and `SchemaTreePanel.OnInstallExtensionClick`
+   confirms in code-behind exactly like `OnDropExtensionClick`, naming the
+   extension and the database (`SchemaTreeViewModel.DatabaseName`, wired from
+   `MainViewModel.ConnectionDatabase`; `ExtensionInstallConfirmTests`). The same
+   finding's third gap was a non-safe-mode multi-row delete
+   (`QueryViewModel.DeleteRowsAsync`) running one autocommit DELETE per row: a
+   mid-batch failure (a blocking trigger, a lost connection) left whatever had
+   already committed deleted and the rest untouched, and the status line even
+   said so ("Delete failed after N row(s)") instead of preventing it. It now
+   builds one `ParameterizedStatement` per row (`ExpectedRowsAffected: 1`, the
+   same shape safe mode's staged batch already used) and hands the list to
+   `QueryEngine.ApplyBatchAsync`, which runs them inside one transaction, so a
+   delete is all-or-nothing: "Deleted N rows" or "Delete failed, nothing
+   deleted: …" (`QueryViewModelDeleteRowsTests`, gated on `PGNIMBUS_TEST_CONN`,
+   a trigger blocking the second of three rows).
    **Exclude from autocomplete** is the answer to "this database has 40 schemas
    and 30 belong to other teams": the schema stays in the tree (dimmed, eye-off
    marked, so the exclusion is visible where it was made and one right-click
