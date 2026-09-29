@@ -130,11 +130,11 @@ The numbers are machine-relative; the point of the chart is that a regression sh
 
 ## 🔒 Privacy
 
-pgNimbus sends zero telemetry: no usage analytics, no automatic crash uploads, no update pings. There's no account and no cloud sync, and nothing you query, browse or type is sent anywhere except the servers you configure. Saved passwords go to the OS store (DPAPI on Windows, Keychain on macOS, Secret Service on Linux), never into the profile file.
+pgNimbus sends zero telemetry: no usage analytics, no automatic crash uploads, no update pings. There's no account and no cloud sync, and nothing you query, browse or type is sent anywhere except the servers you configure. Saved passwords are encrypted by the OS (DPAPI-encrypted files on Windows, the Keychain on macOS, Secret Service on Linux) and never go into the profile file.
 
-Two things to know. Query history, workspace SQL and the local crash log can contain sensitive data and are stored on disk unencrypted. Passwords found in that SQL are masked before it is saved, and history can be turned off in Settings. And if the OS store is unavailable, a warning says so and the password is kept only for the current session. Details, including migration from older unencrypted files, are in [where your password goes](https://shman4ik.github.io/pgNimbus/docs/getting-started/connecting/#where-your-password-goes).
+Two things to know. Query history, open tabs, saved queries and the local crash log can contain sensitive data and are stored on disk unencrypted. Passwords found in history and tab SQL are masked before saving (a saved query is kept as you saved it), and history can be turned off in Settings. And if the OS store is unavailable, a warning says so and the password is kept only for the current session. The [privacy page](https://shman4ik.github.io/pgNimbus/docs/privacy/) lists every file and what is in it; [where your password goes](https://shman4ik.github.io/pgNimbus/docs/getting-started/connecting/#where-your-password-goes) covers migration from older unencrypted files.
 
-Building from source is the one place anything is reported, and it isn't the app: Avalonia's build tooling sends anonymous build statistics to Avalonia while the project compiles. Nothing of it ships in the binaries you download.
+Two things outside the app report data. Building from source runs Avalonia's build tooling, which sends anonymous build statistics to Avalonia, and the .NET SDK, which sends usage data to Microsoft unless `DOTNET_CLI_TELEMETRY_OPTOUT` is set. Neither ships in the binaries you download. And the Microsoft Store can show the developer aggregate install and crash numbers, based on your Windows diagnostic data settings.
 
 ## 🗺️ Roadmap
 

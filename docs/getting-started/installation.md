@@ -158,10 +158,14 @@ Each release also ships a CycloneDX SBOM
 | Connection profiles, saved queries, history, settings, workspace | `<appdata>/pgNimbus/` |
 | Crash log | `<appdata>/pgNimbus/logs/pgnimbus.log` |
 | SSH host keys you accepted | `<appdata>/pgNimbus/known_hosts`, in OpenSSH's format. See [host keys](connecting.md#host-keys). |
-| Passwords | DPAPI-encrypted files on Windows; Keychain on macOS; Secret Service via `libsecret-1.so.0` on Linux. Unavailable storage uses session memory with a visible warning. Never the profile file. Legacy unencrypted `.cred` files are migrated when profiles are opened, then removed only after verification. See [credential storage](connecting.md#where-your-password-goes). |
+| Passwords | DPAPI-encrypted files in `<appdata>/pgNimbus/credentials/` on Windows; Keychain on macOS; Secret Service via `libsecret-1.so.0` on Linux. Unavailable storage uses session memory with a visible warning. Never the profile file. Legacy unencrypted `.cred` files (macOS and Linux) are all migrated when the connection dialog first opens, then removed only after verification. See [credential storage](connecting.md#where-your-password-goes). |
 
-On Windows `<appdata>` is `%AppData%`. On macOS and Linux it follows the
-platform's usual application-data location.
+On Windows `<appdata>` is `%AppData%`; the Microsoft Store version may keep the
+folder under `%LocalAppData%\Packages\DmitriiShmanev.pgNimbus_5cjm84wd2pj14\LocalCache\Roaming`
+instead. On macOS and Linux it is `~/.config`, or `$XDG_CONFIG_HOME` when that
+is set. Uninstalling leaves the folder in place; the
+[privacy page](../privacy.md#deleting-your-data) says how to remove it and what
+each file holds.
 
 ## Next
 

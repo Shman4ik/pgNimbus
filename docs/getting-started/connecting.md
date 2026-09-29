@@ -59,19 +59,24 @@ window using that connection closes.
 Deleting a profile attempts to remove database and SSH credentials from both
 locations and reports failures.
 
-Credential protection does not cover your queries. Two files keep SQL text on
+Credential protection does not cover your queries. Three files keep SQL text on
 disk, unencrypted, in `<appdata>/pgNimbus/` (on Windows, `%AppData%\pgNimbus`;
 see [where pgNimbus keeps its files](installation.md#where-pgnimbus-keeps-its-files)):
 
 - `history.json` keeps the text of every statement you run, with the values in
-  it. A query that looks up a customer by email keeps the email address.
+  it. A query that looks up a customer by email keeps the email address. Each
+  entry also keeps its result line: the row count, or the server's error
+  message. A statement that held a password keeps no result line, because an
+  error message can quote the password where masking can't find it.
 - `workspace.json` keeps the text of your open tabs, so the next session can
   reopen them.
+- `saved-queries.json` keeps the queries you save to the Saved Queries list,
+  exactly as you saved them.
 
-Before either file is written, pgNimbus masks passwords it finds in the SQL:
+Before the first two files are written, pgNimbus masks passwords it finds in the SQL:
 `PASSWORD '…'` in `CREATE ROLE` and `ALTER ROLE`, including inside a `DO` block,
 an `EXECUTE` string or a comment, and `password=…` in a connection string such
-such as `CREATE SUBSCRIPTION … CONNECTION '…'` or `dblink_connect('…')`. The
+as `CREATE SUBSCRIPTION … CONNECTION '…'` or `dblink_connect('…')`. The
 password is replaced with `'<redacted>'::redacted`, so a restored tab or a history
 entry shows that instead. If you run such a statement again, PostgreSQL rejects
 it as a syntax error rather than setting the password to the placeholder. Other

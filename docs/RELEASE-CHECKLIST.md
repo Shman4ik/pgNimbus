@@ -69,9 +69,13 @@ JIT never shows (reflection JSON, bindings).
       dotnet publish PgNimbus.App -c Release -r win-x64 -p:PublishAot=true -p:Version=X.Y.Z -o artifacts\aot
       ```
       (from PowerShell: Git Bash fails at link on `vswhere.exe`).
-- [ ] **Back up `%APPDATA%\pgNimbus` first** and restore it afterwards. The
-      app writes the workspace, profiles, history and settings there, and a
-      test pass leaves profiles and saved queries behind.
+- [ ] **Keep the pass out of your real app data.** Launch the build with
+      `PGNIMBUS_DATA_DIR` set to an empty scratch folder (`$env:PGNIMBUS_DATA_DIR = "<scratch>"`
+      before `Start-Process`); every store, the credential files and the crash
+      log follow it, and you delete the folder afterwards. With the real folder,
+      row 2's "press Enter" reconnects to whichever database you used last, which
+      on the 1.0.0 pass was a remote one. Back up `%APPDATA%\pgNimbus` anyway
+      and compare it afterwards; a launch alone must leave it byte-identical.
 - [ ] Seed the stand: `scripts/demo/seed.ps1` (or pipe the six files through
       `wslc exec -i pgn-release psql -U postgres -d demo`), then
       `CREATE EXTENSION pg_stat_statements` in `demo`, run a few queries, and
@@ -91,10 +95,10 @@ Walk each flow; the expected result is what "pass" means.
 |---|------|-----------|
 | 1 | Connection dialog: New, paste `psql -h 127.0.0.1 -p 5441 -U postgres -d demo`, type the password, Test, Connect | Fields fill from the string, the profile appears in the list without a Save button, Test reports the server version, Connect opens the main window |
 | 2 | Relaunch, press Enter | The last profile is preselected and Enter reconnects |
-| 3 | Schema tree: expand `commerce`, double-click a table | Browse opens in a new tab with `LIMIT 100`, sizes shown, timing in the status bar |
+| 3 | Schema tree: expand `commerce`, double-click a table | Browse opens in a new tab with `LIMIT 100`, timing in the status bar, the node does not stay expanded (relation sizes only with "Show relation sizes" on; it is off by default) |
 | 4 | Completion: `SELECT * FROM or` Enter, ` JOIN `, pick the FK row | `orders o JOIN customers c ON c.id = o.customer_id` as one accept |
 | 5 | Run (Ctrl+Enter) a join | Rows stream, status shows rows / ms / first byte |
-| 6 | Explain and Explain Analyze (Ctrl+E / Ctrl+Shift+E), Text and Tree, Color metrics | Plan renders, heat bars, bottleneck in red, warnings strip |
+| 6 | Explain and Explain Analyze (Ctrl+E / Ctrl+Shift+E), Text and Tree, Color metrics | Plan renders with buffers, the tree opens expanded, heat bars, bottleneck in red, the Color chips rescale it. A healthy plan has no warnings strip; row 7 shows it |
 | 7 | Import query plan (palette), paste a text plan | New tab, warnings for bad estimates |
 | 8 | Safe mode: edit a cell, change the same row from psql, Review, Commit | Conflict dialog with before / now / yours; Reload and restage, then Commit succeeds |
 | 9 | Browse filters: Ctrl+F in the grid, add a condition; Ctrl+I | A chip, the WHERE in the editor, row details card |
@@ -108,6 +112,14 @@ Walk each flow; the expected result is what "pass" means.
 | 17 | Export a browsed table to CSV | The file holds every row, not the 100 on screen |
 | 18 | Read-only profile: toggle it, reconnect, try an UPDATE | The server refuses it (25006) and the grid is read-only |
 | 19 | Every documented chord in F1 | Each one does what the sheet says, including the punctuation ones (Ctrl+, Ctrl+/ Ctrl+= Ctrl+-) |
+| 20 | SSH tunnel to the sshd container (Password auth, `Host=127.0.0.1;Port=2299`, target the Postgres container's bridge IP): Test | First connect shows the unknown-host dialog with the key type and a `SHA256:` fingerprint equal to `ssh-keygen -l` on the server; Enter does not accept; Accept connects; a second Test asks nothing. Replace the stored key in `<appdata>/known_hosts` and Test again: it stops and names the host, the file and line, both fingerprints |
+| 21 | TLS defaults: new profile on `127.0.0.1`, then on a network host, then Verify CA | Local starts at Prefer, a network host at Require, Verify CA shows a Root Certificate field with Browse; Require against a server without TLS says so and names Prefer/Disable |
+| 22 | Close a tab holding unsaved SQL (Ctrl+W), then Ctrl+Shift+T | The status line says how to get it back; the text comes back |
+| 23 | Settings, Completion: keyword case, always write the table's schema, Enter accepts | `SEL` + Tab writes `select` on "lower"; a table accepts as `public.customers` with the schema switch on; with Enter off, Enter after `cus` only ends the line |
+| 24 | `CREATE ROLE tmp_x LOGIN PASSWORD 'secret123'`, run it, close the app, look at the data folder, relaunch | The history row and the workspace hold `'<redacted>'`, no file contains `secret123`, the tab reopens with the marker. `DROP ROLE tmp_x` afterwards |
+| 25 | Alter Table: Drop selected column; right-click an available extension: Install; stage a multi-row delete where a trigger refuses one row, Commit | Drop and Install ask first; the failed batch deletes nothing (count unchanged) |
+| 26 | Slow queries after restarting the interval and running one heavy query from psql | Only that query (and the pool's `DISCARD ALL`) is listed; the footer counts pgNimbus's own reads as left out |
+| 27 | Rows 6, 9, 10, 15, 20 once more in the other theme | Active chips (Color, Text/Tree, Wrap, View), the host-key dialog and every overlay stay readable |
 
 Driving it with Claude Code's computer-use: grant the exe by its **full path**,
 type in chunks of 15 characters or fewer (longer strings go through the
@@ -118,7 +130,12 @@ computer-use does not reach the app; check Escape in headless tests instead.
 2026-09-28 Ctrl+, "did nothing" through computer-use (which can't send it) and
 through `SendKeys` (whose Ctrl never reaches Avalonia), yet opened Preferences
 at once when sent as real `keybd_event` key presses. Check a failing chord that
-way, or by hand, before it goes in the log.
+way, or by hand, before it goes in the log. On 2026-09-29 the same script
+(`VK` + `MapVirtualKey` scan code, key-down in order, key-up reversed) drove
+Ctrl+/, Ctrl+=, Ctrl+- and Ctrl+, correctly. Two more tool artifacts: a click on
+a flyout's Apply straight after `type` can land before the field commits (wait a
+second); and parking the pointer on a window's maximize button opens Windows'
+Snap Layouts over the app, so move the pointer away before reading the screen.
 
 ### macOS pass (Apple Silicon Mac)
 
@@ -213,4 +230,5 @@ are what gets asked in a launch thread.
 | Version | Date | Pass by | What the pass found |
 |---------|------|---------|---------------------|
 | 0.14.0 | 2026-09-28 | Claude Code (AOT build, Windows 11) | No blockers. Fixed in the checklist's own PR: plan tree opened collapsed and every plan opened as text; checked `ToggleButton.chip` (Wrap, filter pin, history scope) drew white text on the light wash (since at least 0.13); the permissions strip said "can SELECT" for a role blocked by missing schema USAGE; Slow queries listed pgNimbus's own catalog reads first; an imported plan's tab carried `SELECT 1;`; double-clicking a table also expanded its node; the F1 row for Ctrl+1…9 was grey text. Documented: Avalonia's build-time telemetry. A reported "Ctrl+, does nothing" was an input-tool artifact, not a bug. |
+| 1.0.0 | 2026-09-29 | Claude (Sonnet 5.5; AOT build stamped 1.0.0, Windows 11, PostgreSQL 17.11) | No blockers, no code changes. Rows 1 to 18 and 20 to 26 passed. The first launch showed the real profile list with a remote database preselected, so the pass moved to `PGNIMBUS_DATA_DIR` (now in the checklist); the real app data was byte-identical to its backup afterwards. Checklist wording fixed: relation sizes are off by default, and a healthy plan has no warnings strip. Observations, not failures: after Ctrl+S a renamed tab takes the saved query's name again; a failed staged commit's red status is cut to "Commit…" in a narrow window; the AOT publish prints IL2104/IL3053 for `Avalonia.Controls.DataGrid` (the package, not our code; zero IL2026/IL3050). Not fully exercised: row 19 covered about 20 chords (the punctuation four included; the rest are pinned by the catalog and binding tests), row 18 did not click into the read-only grid, and row 27 saw the host-key dialog only in the light theme. |
 | 1.0.0 (macOS) | 2026-09-29 | Claude Code (AOT bundle, macOS 27, arm64) | Core 1914 of 1926 pass (12 skips: SSH, no server), App tests 698 of 700 (two number-separator failures from the Mac's region only). No crash on ⌘Q, Dock reopen, full screen, menu bar as designed. Found and fixed in one PR: a fresh install's first saved password showed "Password storage is unavailable" because `File.Delete` on a missing `credentials` directory read as a store failure; Settings opened by ⌘, could not be closed with Escape and swallowed typing while the SQL editor held focus; 130 MB of `.dSYM` shipped in the `.app` (case-sensitive glob); Info.plist said macOS 11 for a macOS 12 binary. Documented, not fixed: saved passwords do not survive an update while builds are ad-hoc signed (Known caveats). Not done: TLS against a real server, SSH, Gatekeeper dialog, upgrade in place. |

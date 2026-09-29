@@ -31,7 +31,7 @@ public class QueryHistoryStoreTests
             await Assert.That(entries.Count).IsEqualTo(2);
             await Assert.That(entries[0].Sql).IsEqualTo("ALTER ROLE app PASSWORD '<redacted>'::redacted;");
             await Assert.That(entries[0].Pinned).IsTrue();
-            await Assert.That(entries[0].Summary).IsEqualTo("ALTER ROLE");
+            await Assert.That(entries[0].Summary).IsEqualTo(QueryHistoryStore.WithheldSummary);
             await Assert.That(entries[1].Sql).IsEqualTo("SELECT 1;");
 
             var onDisk = await File.ReadAllTextAsync(path);
@@ -84,5 +84,68 @@ public class QueryHistoryStoreTests
         {
             File.Delete(path);
         }
+    }
+
+    [Test]
+    public async Task Append_DropsTheErrorMessageOfAStatementThatHeldAPassword()
+    {
+        // The server quotes the token it failed on, and nothing beside it says
+        // it is a secret, so only dropping the whole line keeps it out.
+        var path = Path.Combine(Path.GetTempPath(), $"pgnimbus-{Guid.NewGuid():N}.json");
+
+        try
+        {
+            var store = new QueryHistoryStore(path);
+            store.Append(new QueryHistoryEntry(
+                "CREATE SUBSCRIPTION s CONNECTION 'host=db password=hunter2 dbname' PUBLICATION p;",
+                DateTimeOffset.UtcNow, 1,
+                "Error: invalid connection string syntax: missing \"=\" after \"dbname\" (near \"hunter2\")"));
+
+            await Assert.That(await File.ReadAllTextAsync(path)).DoesNotContain("hunter2");
+            await Assert.That(store.Load()[0].Summary).IsEqualTo(QueryHistoryStore.WithheldSummary);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
+    public async Task Load_DropsTheResultLineOfAnEntryRedactedBeforeTheRuleExisted()
+    {
+        // Written by the previous version: the text already redacted, the
+        // result line as the server gave it.
+        var path = Path.Combine(Path.GetTempPath(), $"pgnimbus-{Guid.NewGuid():N}.json");
+        await File.WriteAllTextAsync(path, """
+            [
+              { "Sql": "ALTER ROLE app PASSWORD '<redacted>'::redacted VALID UNTILL 'x';", "ExecutedAt": "2026-08-01T10:00:00+00:00",
+                "ElapsedMs": 1, "Summary": "Error: syntax error at or near \"UNTILL\"" }
+            ]
+            """);
+
+        try
+        {
+            var loaded = new QueryHistoryStore(path).Load();
+            await Assert.That(loaded[0].Summary).IsEqualTo(QueryHistoryStore.WithheldSummary);
+            await Assert.That(await File.ReadAllTextAsync(path)).DoesNotContain("syntax error");
+
+            // Idempotent: a second load finds nothing left to rewrite.
+            var written = await File.ReadAllTextAsync(path);
+            new QueryHistoryStore(path).Load();
+            await Assert.That(await File.ReadAllTextAsync(path)).IsEqualTo(written);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
+    public async Task Redact_KeepsTheResultLineOfAnOrdinaryStatement()
+    {
+        var entry = new QueryHistoryEntry("SELECT * FROM users WHERE email = 'a@b.c';", DateTimeOffset.UtcNow, 1,
+            "Error: column \"emial\" does not exist");
+
+        await Assert.That(QueryHistoryStore.Redact(entry)).IsSameReferenceAs(entry);
     }
 }
