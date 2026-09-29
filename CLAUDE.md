@@ -554,7 +554,10 @@ Three rules about it:
    `QueryHistoryStore` redacts every entry it writes and scrubs the file once on
    load (an entry from before the redactor, or in a shape it learned later, is
    rewritten in place), and `WorkspaceStore.Save` redacts every tab's text on its
-   way into `workspace.json`, the other connections' snapshots included. It used
+   way into `workspace.json`, the other connections' snapshots included, except a
+   file-backed tab, which keeps no text at all (`WorkspaceTab.TextFromFile`) and
+   is read from its file on restore: redacted, it reopened modified and one
+   Ctrl+S wrote the placeholder over the real file (review of these fixes). It used
    to guard only `SavedQueriesViewModel.RecordExecution`, and the workspace
    snapshot, written on every close and connection switch, kept a typed
    `ALTER ROLE x PASSWORD 'p'` as typed. A saved query and a `.sql` file are the
@@ -568,7 +571,11 @@ Three rules about it:
    then any literal, whatever came before, so an apostrophe in `-- don't …`
    can't hide it), and a string ending in a hanging PASSWORD (`'… PASSWORD '`, a
    `format()` `%L`) redacts every later literal in the statement. Bias: redact
-   too much. It must stay idempotent (a redacted text reads as clean), or the
+   too much. The marker is `'<redacted>'::redacted`, not a bare literal: a
+   password slot takes only a string constant, so a restored or history-opened
+   statement run again is a syntax error instead of setting the password to the
+   text `<redacted>` (a live test asks the server). It must stay idempotent (a
+   literal already followed by the cast is left alone), or the
    history's load-time scrub would rewrite the file on every launch.
    **History can be turned off**: `AppSettings.RecordQueryHistory` (default on,
    Settings' History section) gates `RecordExecution`, and the sidebar's history

@@ -55,8 +55,17 @@ namespace PgNimbus.Core.Security;
 /// </summary>
 public static class SecretRedactor
 {
-    /// <summary>What a redacted literal is replaced with, quotes included.</summary>
-    public const string Replacement = "'<redacted>'";
+    /// <summary>
+    /// What a redacted literal is replaced with. The cast is what makes it safe
+    /// to run again: a password slot (<c>PASSWORD</c>, a user mapping's
+    /// <c>OPTIONS</c>) takes only a string constant, so a restored or
+    /// history-opened <c>ALTER ROLE x PASSWORD '&lt;redacted&gt;'::redacted</c> is a
+    /// syntax error, where the bare literal used to set the password to the text
+    /// <c>&lt;redacted&gt;</c> (review of the 2026-09 audit fixes). A literal
+    /// already followed by the cast is left alone, which keeps redaction
+    /// idempotent; a bare marker from before is given the cast.
+    /// </summary>
+    public const string Replacement = "'<redacted>'::redacted";
 
     /// <summary>What a redacted conninfo or URI value is replaced with, no quotes: it sits inside a string already.</summary>
     public const string ValueReplacement = "<redacted>";
@@ -94,6 +103,17 @@ public static class SecretRedactor
         return string.Equals(redacted, sql, StringComparison.Ordinal) ? sql : redacted;
     }
 
+    // Replaces a secret literal with the marker, unless the marker is already
+    // there: redaction must be idempotent, or the history's load-time scrub
+    // would rewrite the file on every launch.
+    private static void AddLiteralEdit(string text, int start, int end, List<Edit> edits)
+    {
+        if (!text.AsSpan(start).StartsWith(Replacement, StringComparison.Ordinal))
+        {
+            edits.Add(new Edit(start, end, Replacement));
+        }
+    }
+
     /// <summary>True when <see cref="Redact"/> would change something.</summary>
     public static bool ContainsSecret(string sql) => !string.Equals(Redact(sql), sql, StringComparison.Ordinal);
 
@@ -125,14 +145,14 @@ public static class SecretRedactor
                         }
                     }
 
-                    edits.Add(new Edit(tokens[literal].Start, tokens[literal].End, Replacement));
+                    AddLiteralEdit(text, tokens[literal].Start, tokens[literal].End, edits);
                     t = literal;
                     break;
 
                 case SqlTokenKind.String or SqlTokenKind.DollarString:
                     if (redactLiterals && !IsBitString(text, token))
                     {
-                        edits.Add(new Edit(token.Start, token.End, Replacement));
+                        AddLiteralEdit(text, token.Start, token.End, edits);
                     }
                     else if (CollectLiteral(text, token, depth, edits))
                     {
@@ -337,7 +357,7 @@ public static class SecretRedactor
                     var literal = SqlLexer.TokenAt(content, p);
                     if (literal.Kind is SqlTokenKind.String or SqlTokenKind.DollarString && !IsBitString(content, literal))
                     {
-                        edits.Add(new Edit(literal.Start, literal.End, Replacement));
+                        AddLiteralEdit(content, literal.Start, literal.End, edits);
                         dangling |= literal.IsIncomplete;
                     }
                 }

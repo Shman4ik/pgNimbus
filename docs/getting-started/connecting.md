@@ -57,9 +57,17 @@ see [where pgNimbus keeps its files](installation.md#where-pgnimbus-keeps-its-fi
 Before either file is written, pgNimbus masks passwords it finds in the SQL:
 `PASSWORD '…'` in `CREATE ROLE` and `ALTER ROLE`, including inside a `DO` block,
 an `EXECUTE` string or a comment, and `password=…` in a connection string such
-as `CREATE SUBSCRIPTION … CONNECTION '…'` or `dblink_connect('…')`. The value is
-replaced with `<redacted>`, so a restored tab or a history entry shows that
-instead of the password. Other values are kept as you typed them.
+such as `CREATE SUBSCRIPTION … CONNECTION '…'` or `dblink_connect('…')`. The
+password is replaced with `'<redacted>'::redacted`, so a restored tab or a history
+entry shows that instead. If you run such a statement again, PostgreSQL rejects
+it as a syntax error rather than setting the password to the placeholder. Other
+values are kept as you typed them. A tab opened from a `.sql` file that holds a
+password is not copied at all: next time it opens from the file itself, so any
+changes you had not saved to that file are gone.
+
+Masking needs a word next to the secret that says what it is. A key passed as an
+ordinary argument, such as `pgp_sym_encrypt(data, 'key')`, or a password kept in
+a variable inside a `DO` block, is stored as you typed it.
 
 To stop recording history, turn off **Record query history** in Settings. Queries
 you run after that are not written anywhere, and the history list says that

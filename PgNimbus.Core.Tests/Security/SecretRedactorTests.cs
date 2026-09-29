@@ -14,7 +14,45 @@ public class SecretRedactorTests
     public async Task PlainPasswordIsRedacted()
     {
         await Assert.That(SecretRedactor.Redact("CREATE ROLE app WITH LOGIN PASSWORD 'hunter2';"))
-            .IsEqualTo("CREATE ROLE app WITH LOGIN PASSWORD '<redacted>';");
+            .IsEqualTo("CREATE ROLE app WITH LOGIN PASSWORD '<redacted>'::redacted;");
+    }
+
+    [Test]
+    public async Task The_marker_stays_put_and_an_old_bare_one_gets_its_cast()
+    {
+        // Idempotent, or the history's load-time scrub rewrites the file on
+        // every launch; and a bare '<redacted>' written before the cast existed
+        // is upgraded, since run again it would set the password to that text.
+        var once = SecretRedactor.Redact("ALTER ROLE app PASSWORD 'hunter2' VALID UNTIL 'infinity';");
+
+        await Assert.That(SecretRedactor.Redact(once)).IsEqualTo(once);
+        await Assert.That(SecretRedactor.Redact("ALTER ROLE app PASSWORD '<redacted>';"))
+            .IsEqualTo("ALTER ROLE app PASSWORD '<redacted>'::redacted;");
+    }
+
+    [Test]
+    public async Task A_redacted_statement_fails_to_parse_instead_of_setting_the_password()
+    {
+        // The review of the 2026-09 audit fixes: a restored tab or a history
+        // entry run again used to set the role's password to "<redacted>".
+        var connection = Environment.GetEnvironmentVariable("PGNIMBUS_TEST_CONN");
+        if (string.IsNullOrEmpty(connection))
+        {
+            Skip.Test("PGNIMBUS_TEST_CONN not set: no server to parse the redacted statement.");
+        }
+
+        await using var dataSource = Npgsql.NpgsqlDataSource.Create(connection!);
+        foreach (var statement in new[]
+        {
+            "ALTER ROLE pgnimbus_no_such_role PASSWORD 'hunter2' VALID UNTIL 'infinity'",
+            "CREATE USER MAPPING FOR pgnimbus_no_such_role SERVER pgnimbus_no_such_server OPTIONS (user 'u', password 'hunter2')",
+        })
+        {
+            await using var command = dataSource.CreateCommand(SecretRedactor.Redact(statement));
+            var failure = await Assert.ThrowsAsync<Npgsql.PostgresException>(async () => await command.ExecuteNonQueryAsync());
+
+            await Assert.That(failure!.SqlState).IsEqualTo(Npgsql.PostgresErrorCodes.SyntaxError);
+        }
     }
 
     [Test]
@@ -28,7 +66,7 @@ public class SecretRedactorTests
     {
         await Assert.That(SecretRedactor.ContainsSecret(sql)).IsTrue();
         await Assert.That(SecretRedactor.Redact(sql)).DoesNotContain("'p'");
-        await Assert.That(SecretRedactor.Redact(sql)).Contains("'<redacted>'");
+        await Assert.That(SecretRedactor.Redact(sql)).Contains("'<redacted>'::redacted");
     }
 
     [Test]
@@ -37,14 +75,14 @@ public class SecretRedactorTests
         // 'hun''ter2' is one literal. A matcher that stops at the first inner
         // quote leaves "ter2'" behind — half a password, still on disk.
         await Assert.That(SecretRedactor.Redact("ALTER ROLE app PASSWORD 'hun''ter2';"))
-            .IsEqualTo("ALTER ROLE app PASSWORD '<redacted>';");
+            .IsEqualTo("ALTER ROLE app PASSWORD '<redacted>'::redacted;");
     }
 
     [Test]
     public async Task EscapeStringLiteralsAreRedactedIncludingTheirPrefix()
     {
         await Assert.That(SecretRedactor.Redact(@"ALTER ROLE app PASSWORD E'hun\'ter2';"))
-            .IsEqualTo("ALTER ROLE app PASSWORD '<redacted>';");
+            .IsEqualTo("ALTER ROLE app PASSWORD '<redacted>'::redacted;");
     }
 
     [Test]
@@ -52,7 +90,7 @@ public class SecretRedactorTests
     [Arguments("ALTER ROLE app PASSWORD $pw$hunter2$pw$;")]
     public async Task DollarQuotedPasswordsAreRedacted(string sql)
     {
-        await Assert.That(SecretRedactor.Redact(sql)).IsEqualTo("ALTER ROLE app PASSWORD '<redacted>';");
+        await Assert.That(SecretRedactor.Redact(sql)).IsEqualTo("ALTER ROLE app PASSWORD '<redacted>'::redacted;");
     }
 
     [Test]
@@ -77,7 +115,7 @@ public class SecretRedactorTests
 
         await Assert.That(redacted).DoesNotContain("one");
         await Assert.That(redacted).DoesNotContain("two");
-        await Assert.That(redacted.Split("'<redacted>'").Length).IsEqualTo(3);
+        await Assert.That(redacted.Split("'<redacted>'::redacted").Length).IsEqualTo(3);
     }
 
     [Test]
@@ -99,7 +137,7 @@ public class SecretRedactorTests
         // to write the replacement back, so the string stays well-formed.
         const string sql = "SELECT 'set PASSWORD ''x''' AS hint;";
 
-        await Assert.That(SecretRedactor.Redact(sql)).IsEqualTo("SELECT 'set PASSWORD ''<redacted>''' AS hint;");
+        await Assert.That(SecretRedactor.Redact(sql)).IsEqualTo("SELECT 'set PASSWORD ''<redacted>''::redacted' AS hint;");
     }
 
     [Test]
@@ -137,7 +175,7 @@ public class SecretRedactorTests
         const string sql =
             "ALTER ROLE app PASSWORD 'SCRAM-SHA-256$4096:AAECAwQFBgcICQoLDA0ODw==$THoPhoTAuqyoQsK4dUHncUzgfD8fdmhsgKZhWVqNP5U=:7YiHMMi2OcXGRogub03Ek06JRZ9bkhTOdCzHa5iPLiQ=';";
 
-        await Assert.That(SecretRedactor.Redact(sql)).IsEqualTo("ALTER ROLE app PASSWORD '<redacted>';");
+        await Assert.That(SecretRedactor.Redact(sql)).IsEqualTo("ALTER ROLE app PASSWORD '<redacted>'::redacted;");
         await Assert.That(SecretRedactor.ContainsSecret(sql)).IsTrue();
     }
 
@@ -146,7 +184,7 @@ public class SecretRedactorTests
     {
         // Truncated statement text (a crash log capture). Err toward redacting.
         await Assert.That(SecretRedactor.Redact("CREATE ROLE app PASSWORD 'hunter2"))
-            .IsEqualTo("CREATE ROLE app PASSWORD '<redacted>'");
+            .IsEqualTo("CREATE ROLE app PASSWORD '<redacted>'::redacted");
     }
 
     [Test]
@@ -155,7 +193,7 @@ public class SecretRedactorTests
         // Everything up to the literal is preserved verbatim — only the secret
         // is replaced.
         await Assert.That(SecretRedactor.Redact("ALTER ROLE app PASSWORD /* nested /* */ */ 'hunter2';"))
-            .IsEqualTo("ALTER ROLE app PASSWORD /* nested /* */ */ '<redacted>';");
+            .IsEqualTo("ALTER ROLE app PASSWORD /* nested /* */ */ '<redacted>'::redacted;");
     }
 
     // --- Security audit 2026-09, finding 8: the shapes that reached history.json ---
@@ -169,21 +207,21 @@ public class SecretRedactorTests
         var redacted = SecretRedactor.Redact(sql);
 
         await Assert.That(redacted).DoesNotContain("s3cret");
-        await Assert.That(redacted).Contains("PASSWORD '<redacted>'");
+        await Assert.That(redacted).Contains("PASSWORD '<redacted>'::redacted");
     }
 
     [Test]
     public async Task TheDoBlockKeepsEverythingButTheSecret()
     {
         await Assert.That(SecretRedactor.Redact("DO $$ BEGIN IF true THEN CREATE ROLE app LOGIN PASSWORD 's3cret'; END IF; END $$;"))
-            .IsEqualTo("DO $$ BEGIN IF true THEN CREATE ROLE app LOGIN PASSWORD '<redacted>'; END IF; END $$;");
+            .IsEqualTo("DO $$ BEGIN IF true THEN CREATE ROLE app LOGIN PASSWORD '<redacted>'::redacted; END IF; END $$;");
     }
 
     [Test]
     public async Task AStatementExecutedFromAStringIsRedacted()
     {
         await Assert.That(SecretRedactor.Redact("DO $$ BEGIN EXECUTE 'ALTER ROLE app PASSWORD ''s3cret'''; END $$;"))
-            .IsEqualTo("DO $$ BEGIN EXECUTE 'ALTER ROLE app PASSWORD ''<redacted>'''; END $$;");
+            .IsEqualTo("DO $$ BEGIN EXECUTE 'ALTER ROLE app PASSWORD ''<redacted>''::redacted'; END $$;");
     }
 
     [Test]
@@ -194,7 +232,7 @@ public class SecretRedactorTests
         const string sql = "DO $$ BEGIN EXECUTE format('ALTER ROLE %I PASSWORD %L', 'app', 's3cret'); END $$;";
 
         await Assert.That(SecretRedactor.Redact(sql))
-            .IsEqualTo("DO $$ BEGIN EXECUTE format('ALTER ROLE %I PASSWORD %L', '<redacted>', '<redacted>'); END $$;");
+            .IsEqualTo("DO $$ BEGIN EXECUTE format('ALTER ROLE %I PASSWORD %L', '<redacted>'::redacted, '<redacted>'::redacted); END $$;");
     }
 
     [Test]
@@ -203,7 +241,7 @@ public class SecretRedactorTests
         const string sql = "EXECUTE 'ALTER ROLE app PASSWORD ' || quote_literal('s3cret'); SELECT 'kept';";
 
         await Assert.That(SecretRedactor.Redact(sql))
-            .IsEqualTo("EXECUTE 'ALTER ROLE app PASSWORD ' || quote_literal('<redacted>'); SELECT 'kept';");
+            .IsEqualTo("EXECUTE 'ALTER ROLE app PASSWORD ' || quote_literal('<redacted>'::redacted); SELECT 'kept';");
     }
 
     [Test]
@@ -238,9 +276,9 @@ public class SecretRedactorTests
     }
 
     [Test]
-    [Arguments("-- ALTER ROLE app PASSWORD 'old'\nSELECT 1;", "-- ALTER ROLE app PASSWORD '<redacted>'\nSELECT 1;")]
-    [Arguments("/* CREATE ROLE app PASSWORD 'old' */ SELECT 1;", "/* CREATE ROLE app PASSWORD '<redacted>' */ SELECT 1;")]
-    [Arguments("-- don't run this: ALTER ROLE app PASSWORD 'old'", "-- don't run this: ALTER ROLE app PASSWORD '<redacted>'")]
+    [Arguments("-- ALTER ROLE app PASSWORD 'old'\nSELECT 1;", "-- ALTER ROLE app PASSWORD '<redacted>'::redacted\nSELECT 1;")]
+    [Arguments("/* CREATE ROLE app PASSWORD 'old' */ SELECT 1;", "/* CREATE ROLE app PASSWORD '<redacted>'::redacted */ SELECT 1;")]
+    [Arguments("-- don't run this: ALTER ROLE app PASSWORD 'old'", "-- don't run this: ALTER ROLE app PASSWORD '<redacted>'::redacted")]
     [Arguments("SELECT 1; -- was: CONNECTION 'host=x password=old'", "SELECT 1; -- was: CONNECTION 'host=x password=<redacted>'")]
     public async Task APasswordInACommentIsRedactedLikeOneOutsideIt(string sql, string expected)
     {
@@ -284,7 +322,7 @@ public class SecretRedactorTests
     {
         var sql = string.Concat(Enumerable.Repeat("/*", 2000)) + " PASSWORD 'p' " + string.Concat(Enumerable.Repeat("*/", 2000));
 
-        await Assert.That(SecretRedactor.Redact(sql)).Contains("PASSWORD '<redacted>'");
+        await Assert.That(SecretRedactor.Redact(sql)).Contains("PASSWORD '<redacted>'::redacted");
     }
 
     [Test]

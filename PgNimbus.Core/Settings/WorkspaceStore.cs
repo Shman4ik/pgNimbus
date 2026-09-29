@@ -18,6 +18,9 @@ namespace PgNimbus.Core.Settings;
 /// resume browse mode (filter chips included) instead of the tab being a plain
 /// query for good. Only the name is kept: the columns are read fresh from the
 /// catalog when it's needed, since the table may have changed in between.
+/// <paramref name="TextFromFile"/> means the snapshot kept no text for a
+/// file-backed tab and the restore reads it from <paramref name="FilePath"/>
+/// (see <see cref="WorkspaceStore.Save"/>).
 /// </summary>
 public sealed record WorkspaceTab(
     string Sql,
@@ -25,7 +28,8 @@ public sealed record WorkspaceTab(
     string? FilePath = null,
     Guid? SavedQueryId = null,
     string? BrowseSchema = null,
-    string? BrowseTable = null);
+    string? BrowseTable = null,
+    bool TextFromFile = false);
 
 /// <summary>A saved snapshot of one connection's open tabs, most-recently-saved entries kept first in the store.</summary>
 public sealed record WorkspaceEntry(string Connection, DateTimeOffset SavedAt, List<WorkspaceTab> Tabs, int ActiveTabIndex = 0);
@@ -72,7 +76,23 @@ public sealed class WorkspaceStore(string? filePath = null)
         AppDataFile.WriteJson(_filePath, entries, WorkspaceJsonContext.Default.ListWorkspaceEntry);
     }
 
-    private static WorkspaceTab Redacted(WorkspaceTab tab) => tab with { Sql = SecretRedactor.Redact(tab.Sql) };
+    // A tab backed by a file keeps no text when it holds a secret: restored,
+    // it reads the file again. Redacting it instead reopened a migration file
+    // holding CREATE ROLE … PASSWORD 'x' as a modified tab showing the
+    // placeholder, and one Ctrl+S wrote the placeholder over the real file
+    // (review of the 2026-09 audit fixes). Its unsaved edits are not kept.
+    private static WorkspaceTab Redacted(WorkspaceTab tab)
+    {
+        var redacted = SecretRedactor.Redact(tab.Sql);
+        if (string.Equals(redacted, tab.Sql, StringComparison.Ordinal))
+        {
+            return tab;
+        }
+
+        return tab.FilePath is not null
+            ? tab with { Sql = "", TextFromFile = true }
+            : tab with { Sql = redacted };
+    }
 
     private static WorkspaceEntry Redacted(WorkspaceEntry entry) => entry with { Tabs = [.. entry.Tabs.Select(Redacted)] };
 }

@@ -187,6 +187,39 @@ public class WorkspaceStoreTests
     }
 
     [Test]
+    public async Task Save_KeepsNoTextForAFileTabHoldingAPassword()
+    {
+        // Redacting a file-backed tab reopened it modified, showing the
+        // placeholder, and Ctrl+S wrote the placeholder over the real file
+        // (review of the 2026-09 audit fixes). It keeps no text instead, and
+        // the restore reads the file.
+        var path = Path.Combine(Path.GetTempPath(), $"pgnimbus-{Guid.NewGuid():N}.json");
+
+        try
+        {
+            var store = new WorkspaceStore(path);
+            store.Save("localhost/demo",
+            [
+                new WorkspaceTab("CREATE ROLE app LOGIN PASSWORD 'hunter2';", FilePath: @"C:\migrations\001_roles.sql"),
+                new WorkspaceTab("SELECT 1;", FilePath: @"C:\reports\daily.sql"),
+            ], 0);
+
+            var entry = store.GetEntry("localhost/demo")!;
+
+            await Assert.That(await File.ReadAllTextAsync(path)).DoesNotContain("hunter2");
+            await Assert.That(entry.Tabs[0].Sql).IsEqualTo("");
+            await Assert.That(entry.Tabs[0].TextFromFile).IsTrue();
+            await Assert.That(entry.Tabs[0].FilePath).IsEqualTo(@"C:\migrations\001_roles.sql");
+            await Assert.That(entry.Tabs[1].Sql).IsEqualTo("SELECT 1;");
+            await Assert.That(entry.Tabs[1].TextFromFile).IsFalse();
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
     public async Task Save_RedactsAPasswordLeftInATab()
     {
         // Security audit 2026-09, finding 8: the snapshot is written on every
@@ -202,7 +235,7 @@ public class WorkspaceStoreTests
             var entry = store.GetEntry("localhost/demo")!;
 
             await Assert.That(await File.ReadAllTextAsync(path)).DoesNotContain("hunter2");
-            await Assert.That(entry.Tabs[1].Sql).IsEqualTo("ALTER ROLE x PASSWORD '<redacted>';");
+            await Assert.That(entry.Tabs[1].Sql).IsEqualTo("ALTER ROLE x PASSWORD '<redacted>'::redacted;");
             await Assert.That(entry.Tabs[1].Title).IsEqualTo("roles");
             await Assert.That(entry.Tabs[0].Sql).IsEqualTo("SELECT 1;");
             await Assert.That(entry.ActiveTabIndex).IsEqualTo(1);
@@ -230,7 +263,7 @@ public class WorkspaceStoreTests
 
             await Assert.That(await File.ReadAllTextAsync(path)).DoesNotContain("hunter2");
             await Assert.That(new WorkspaceStore(path).GetEntry("old/db")!.Tabs[0].Sql)
-                .IsEqualTo("CREATE ROLE app PASSWORD '<redacted>';");
+                .IsEqualTo("CREATE ROLE app PASSWORD '<redacted>'::redacted;");
         }
         finally
         {

@@ -29,7 +29,7 @@ public class QueryHistoryStoreTests
             var entries = new QueryHistoryStore(path).Load();
 
             await Assert.That(entries.Count).IsEqualTo(2);
-            await Assert.That(entries[0].Sql).IsEqualTo("ALTER ROLE app PASSWORD '<redacted>';");
+            await Assert.That(entries[0].Sql).IsEqualTo("ALTER ROLE app PASSWORD '<redacted>'::redacted;");
             await Assert.That(entries[0].Pinned).IsTrue();
             await Assert.That(entries[0].Summary).IsEqualTo("ALTER ROLE");
             await Assert.That(entries[1].Sql).IsEqualTo("SELECT 1;");
@@ -78,7 +78,7 @@ public class QueryHistoryStoreTests
             store.Append(new QueryHistoryEntry("DO $$ BEGIN CREATE ROLE app LOGIN PASSWORD 's3cret'; END $$;", DateTimeOffset.UtcNow, 1, "DO"));
 
             await Assert.That(await File.ReadAllTextAsync(path)).DoesNotContain("s3cret");
-            await Assert.That(store.Load()[0].Sql).IsEqualTo("DO $$ BEGIN CREATE ROLE app LOGIN PASSWORD '<redacted>'; END $$;");
+            await Assert.That(store.Load()[0].Sql).IsEqualTo("DO $$ BEGIN CREATE ROLE app LOGIN PASSWORD '<redacted>'::redacted; END $$;");
         }
         finally
         {
