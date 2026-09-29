@@ -327,6 +327,26 @@ jobs:
             exit 1
           }
 
+          # Debug symbols must not ship. `*.dSYM` is 130 MB and the script's own
+          # cleanup once missed it on a case-sensitive glob.
+          stray=$(find "$app" \( -iname '*.dsym' -o -name '*.pdb' \))
+          [ -z "$stray" ] || {
+            echo "::error::debug symbols shipped in the .app: $stray" >&2
+            exit 1
+          }
+
+          # The plist must not promise an older macOS than the code was built for:
+          # below a Mach-O's minos, dyld refuses to load it with no explanation.
+          required=$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$app/Contents/Info.plist")
+          highest=$(find "$app/Contents/MacOS" -type f \( -perm -u+x -o -name '*.dylib' \) \
+            -exec vtool -show-build {} \; 2>/dev/null | awk '/minos/ {print $2}' | sort -V | tail -1)
+          echo "Info.plist LSMinimumSystemVersion=$required, highest Mach-O minos=$highest"
+          [ -n "$highest" ] || { echo "::error::could not read minos from any binary" >&2; exit 1; }
+          [ "$(printf '%s\n%s\n' "$required" "$highest" | sort -V | tail -1)" = "$required" ] || {
+            echo "::error::LSMinimumSystemVersion $required is older than the binaries' minos $highest" >&2
+            exit 1
+          }
+
           ./scripts/release/smoke-launch.sh "mounted .dmg" "$app/Contents/MacOS/PgNimbus.App"
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
