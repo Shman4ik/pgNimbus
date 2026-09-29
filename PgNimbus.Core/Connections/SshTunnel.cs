@@ -48,12 +48,45 @@ public sealed class SshTunnel : IDisposable
 
     public int LocalPort => (int)_forwardedPort.BoundPort;
 
-    public static SshTunnel Connect(SshTunnelOptions options, string password, string targetHost, int targetPort)
+    /// <summary>
+    /// Opens the tunnel. <paramref name="hostKeys"/> decides whether the jump
+    /// host is who it claims to be: SSH.NET raises <c>HostKeyReceived</c> on the
+    /// connect thread in the middle of the key exchange and trusts every key
+    /// unless told otherwise, so with no subscriber anyone on the path to the
+    /// bastion could terminate the SSH session and relay it, owning the
+    /// forwarded Postgres socket (and, with password auth, the SSH password).
+    /// The verifier's verdict is stashed and thrown from here rather than from
+    /// inside the event, where SSH.NET would wrap it into a bare
+    /// "connection failed".
+    /// </summary>
+    public static SshTunnel Connect(SshTunnelOptions options, string password, string targetHost, int targetPort, SshHostKeyVerifier hostKeys)
     {
         var connectionInfo = BuildConnectionInfo(options, password);
         connectionInfo.Timeout = ConnectTimeout;
 
         var client = new SshClient(connectionInfo) { KeepAliveInterval = KeepAliveInterval };
+        SshTunnelException? hostKeyFailure = null;
+        byte[]? trustedKey = null;
+        client.HostKeyReceived += (_, e) =>
+        {
+            // SSH.NET raises this again on every re-key of a long-lived session.
+            // The key checked at connect is the only one this session will ever
+            // accept: a later exchange presenting another is refused outright,
+            // never put to a prompt whose window may be long gone.
+            if (trustedKey is not null)
+            {
+                e.CanTrust = e.HostKey.AsSpan().SequenceEqual(trustedKey);
+                return;
+            }
+
+            hostKeyFailure = hostKeys.Check(options.Host, options.Port, e.HostKeyName, e.HostKey);
+            e.CanTrust = hostKeyFailure is null;
+            if (e.CanTrust)
+            {
+                trustedKey = e.HostKey;
+            }
+        };
+
         try
         {
             client.Connect();
@@ -61,7 +94,16 @@ public sealed class SshTunnel : IDisposable
         catch (Exception ex)
         {
             client.Dispose();
-            throw Describe(ex, options);
+            throw hostKeyFailure ?? Describe(ex, options);
+        }
+
+        // A verdict that SSH.NET somehow did not act on must still stop here:
+        // a tunnel that is up on a refused key is the bug this exists to fix.
+        if (hostKeyFailure is not null)
+        {
+            client.Disconnect();
+            client.Dispose();
+            throw hostKeyFailure;
         }
 
         var forwardedPort = new ForwardedPortLocal("127.0.0.1", 0, targetHost, (uint)targetPort);

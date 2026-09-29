@@ -114,6 +114,15 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
 
     public IReadOnlyList<SslMode> SslModes { get; } = Enum.GetValues<SslMode>();
 
+    /// <summary>
+    /// Decides whether the SSH jump host is the one it claims to be (security
+    /// audit 2026-09, finding 4). The default refuses every host neither
+    /// <c>~/.ssh/known_hosts</c> nor pgNimbus's own list knows: the safe
+    /// answer for a view model with no window to ask from. The connection
+    /// dialog's view swaps in the verifier that asks through a dialog.
+    /// </summary>
+    public SshHostKeyVerifier HostKeys { get; set; } = SshHostKeyVerifier.ForApp(RejectUnknownHostKeys.Instance);
+
     // Agent first: it is what `ssh` itself tries first, and the one that needs nothing typed.
     public IReadOnlyList<SshAuthMethod> SshAuthMethods { get; } = [SshAuthMethod.Agent, SshAuthMethod.PrivateKey, SshAuthMethod.Password];
 
@@ -840,7 +849,7 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
             string connectionString;
             if (profile.SshTunnel is { } sshOptions)
             {
-                tunnel = await Task.Run(() => SshTunnel.Connect(sshOptions, SshPassword, profile.Host, profile.Port));
+                tunnel = await Task.Run(() => SshTunnel.Connect(sshOptions, SshPassword, profile.Host, profile.Port, HostKeys));
                 connectionString = profile.BuildConnectionString(
                     string.IsNullOrEmpty(Password) ? null : Password,
                     (tunnel.LocalHost, tunnel.LocalPort));
@@ -904,7 +913,7 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
             string connectionString;
             if (profile.SshTunnel is { } sshOptions)
             {
-                tunnel = await Task.Run(() => SshTunnel.Connect(sshOptions, SshPassword, profile.Host, profile.Port));
+                tunnel = await Task.Run(() => SshTunnel.Connect(sshOptions, SshPassword, profile.Host, profile.Port, HostKeys));
                 connectionString = profile.BuildConnectionString(
                     string.IsNullOrEmpty(Password) ? null : Password,
                     (tunnel.LocalHost, tunnel.LocalPort));
