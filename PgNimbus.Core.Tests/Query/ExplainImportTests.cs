@@ -92,6 +92,28 @@ public class ExplainImportTests
     }
 
     [Test]
+    public async Task A_plan_deeper_than_json_documents_default_depth_still_parses()
+    {
+        // Each plan level is an object and a "Plans" array, so JsonDocument's
+        // default depth of 64 stopped a plan at about 31 levels: a join of that
+        // many tables. 40 levels reads now, in JSON and in text alike.
+        const int levels = 40;
+        var node = """{"Node Type": "Result", "Startup Cost": 0, "Total Cost": 1, "Plan Rows": 1, "Plan Width": 4}""";
+        for (var i = 0; i < levels - 1; i++)
+        {
+            node = $$"""{"Node Type": "Nested Loop", "Startup Cost": 0, "Total Cost": 1, "Plan Rows": 1, "Plan Width": 4, "Plans": [{{node}}]}""";
+        }
+
+        var json = ExplainService.Parse($$"""[{"Plan": {{node}}}]""");
+        var text = ExplainPlanTextParser.Parse(ExplainTextFormatter.Format(json));
+
+        await Assert.That(Depth(json.Root)).IsEqualTo(levels);
+        await Assert.That(Depth(text.Root)).IsEqualTo(levels);
+
+        static int Depth(ExplainNode n) => 1 + (n.Children.Count == 0 ? 0 : n.Children.Max(Depth));
+    }
+
+    [Test]
     public async Task TextPlanBuildsTreeCostAndActual()
     {
         var text =
@@ -300,9 +322,10 @@ public class ExplainImportTests
     [Test]
     public async Task JsonNestedPastTheReadersDepthIsAFormatException()
     {
-        // JsonDocument stops at 64 levels (about 30 plan nodes deep); that used to be a
-        // JsonException out of Parse, which only Import translated.
-        var deep = string.Concat(Enumerable.Repeat("""{"Node Type": "Result", "Plans": [""", 40)) + "{\"Node Type\": \"Result\"}" + string.Concat(Enumerable.Repeat("]}", 40));
+        // Parse reads JSON to ExplainService.MaxJsonDepth (256, about 127 plan nodes
+        // deep); past it JsonDocument throws a JsonException, which used to escape
+        // Parse (only Import translated it). 130 levels is 260 JSON levels.
+        var deep = string.Concat(Enumerable.Repeat("""{"Node Type": "Result", "Plans": [""", 130)) + "{\"Node Type\": \"Result\"}" + string.Concat(Enumerable.Repeat("]}", 130));
 
         await Assert.That(() => ExplainService.Parse(deep)).Throws<FormatException>();
         await Assert.That(() => ExplainService.Import(deep)).Throws<FormatException>();

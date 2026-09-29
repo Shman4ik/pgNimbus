@@ -27,11 +27,13 @@ public static class ExplainPlanTextParser
     public const int MaxInputLength = 4 * 1024 * 1024;
 
     /// <summary>
-    /// How deep "->" children may nest. Real plans stay under 30; the JSON form is
-    /// held to about the same by <c>JsonDocument</c>'s depth limit, and every consumer
-    /// of the tree (formatter, analyzer, the view models) walks it recursively.
+    /// How deep "->" children may nest. A join of many tables nests a level per
+    /// join, so a real plan can pass 30; 128 leaves room for that while bounding
+    /// every consumer of the tree (formatter, analyzer, the view models), which
+    /// walks it recursively. The JSON form gets the same room through
+    /// <see cref="ExplainService.MaxJsonDepth"/>.
     /// </summary>
-    public const int MaxDepth = 64;
+    public const int MaxDepth = 128;
 
     // Every number is `\d+(?:\.\d+)?`, never `[\d.]+`: the latter overlaps with the
     // ".." that follows it, so "(cost=" + "."×n made the engine try O(n²) splits
@@ -204,7 +206,7 @@ public static class ExplainPlanTextParser
 
                 if (stack.Count >= MaxDepth)
                 {
-                    throw new FormatException($"The plan nests deeper than {MaxDepth} levels, which is more than a plan can be.");
+                    throw new FormatException($"The plan nests deeper than {MaxDepth} levels, more than pgNimbus reads.");
                 }
 
                 stack[^1].Node.Children.Add(node);

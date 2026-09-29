@@ -125,6 +125,15 @@ public sealed class ExplainService(NpgsqlDataSource dataSource)
     /// standard <c>[{ "Plan": … }]</c> array, a single <c>{ "Plan": … }</c> object, or a
     /// bare plan node (<c>{ "Node Type": … }</c>, with or without the array wrapper).
     /// </summary>
+    /// <summary>
+    /// The JSON depth a plan may reach. Every plan level is an object and a
+    /// <c>"Plans"</c> array, so <c>JsonDocument</c>'s default of 64 held a plan to
+    /// about 31 levels, and a join of that many tables failed to show (review of
+    /// the 2026-09 audit fixes). 256 is about 127 levels, in line with
+    /// <see cref="ExplainPlanTextParser.MaxDepth"/>.
+    /// </summary>
+    public const int MaxJsonDepth = 256;
+
     public static ExplainResult Parse(string json)
     {
         try
@@ -145,7 +154,7 @@ public sealed class ExplainService(NpgsqlDataSource dataSource)
 
     private static ExplainResult ParseCore(string json)
     {
-        using var document = JsonDocument.Parse(json);
+        using var document = JsonDocument.Parse(json, new JsonDocumentOptions { MaxDepth = MaxJsonDepth });
         var root = document.RootElement;
         var entry = root.ValueKind == JsonValueKind.Array
             ? (root.GetArrayLength() > 0 ? root[0] : throw new FormatException("The EXPLAIN JSON array is empty."))

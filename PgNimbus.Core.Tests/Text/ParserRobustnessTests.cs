@@ -155,6 +155,53 @@ public class ParserRobustnessTests
     }
 
     [Test]
+    [Timeout(120_000)]
+    public async Task Thousands_of_nested_ctes_read_quickly(CancellationToken ct)
+    {
+        // Each CTE body was read on its own and a nested WITH's outer bodies hold
+        // every inner one: 4,000 of them took ~46 s of completion work, per popup,
+        // and 2,000 (42k characters, under the size where completion moves off the
+        // UI thread) 3.4 s. Capped, the definitions past the limit are skipped.
+        const int depth = 4_000;
+        var sql = string.Concat(Enumerable.Repeat("WITH q AS (", depth)) + "SELECT 1"
+            + string.Concat(Enumerable.Repeat(") SELECT 1", depth));
+
+        IReadOnlyList<SqlCompletionContext.CteDefinition> definitions = [];
+        HostileText.RunBounded(
+            () =>
+            {
+                definitions = SqlCompletionContext.ExtractCteDefinitions(sql);
+                _ = SqlCompletionContext.GetCaretContext(sql, sql.Length);
+                _ = SqlCompletionContext.IsNewNamePosition(sql, sql.Length);
+            },
+            TimeSpan.FromSeconds(5));
+
+        await Assert.That(definitions.Count).IsLessThanOrEqualTo(SqlCompletionContext.MaxCteDefinitions);
+    }
+
+    [Test]
+    public async Task The_formatter_hands_back_text_nested_past_its_limit()
+    {
+        static string Nested(int depth) => "SELECT * FROM " + string.Concat(Enumerable.Repeat("(SELECT * FROM ", depth))
+            + "t" + string.Concat(Enumerable.Repeat(") x", depth));
+
+        var shallow = Nested(3);
+        var deep = Nested(SqlFormatter.MaxNestingDepth + 1);
+
+        await Assert.That(SqlFormatter.Format(shallow)).IsNotEqualTo(shallow);
+        await Assert.That(SqlFormatter.Format(deep)).IsEqualTo(deep);
+    }
+
+    [Test]
+    public async Task A_browse_where_nested_past_its_limit_is_an_ordinary_query()
+    {
+        static string Where(int depth) => "SELECT * FROM t WHERE " + new string('(', depth) + "a = 1" + new string(')', depth) + " LIMIT 100";
+
+        await Assert.That(BrowseSqlParser.TryParse(Where(2), "public", "t", [])).IsNotNull();
+        await Assert.That(BrowseSqlParser.TryParse(Where(BrowseSqlParser.MaxParenDepth + 1), "public", "t", [])).IsNull();
+    }
+
+    [Test]
     public async Task The_call_site_reads_any_text()
     {
         var read = 0;

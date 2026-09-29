@@ -93,7 +93,13 @@ paths:
   through that branch's own sources, a column alias list renaming positionally;
   a CTE reaching itself through a star stops (visited set) instead of recursing.
   A select list whose block has sources is scoped like a predicate: another
-  branch's or the catalog's columns aren't legal there. Three things to keep:
+  branch's or the catalog's columns aren't legal there.
+  `SqlCompletionContext.ExtractCteDefinitions`, the older whole-statement
+  reading, reads at most `MaxCteDefinitions` (32) CTEs and no body past
+  `MaxCteBodyLength` (32K characters; that CTE is known by name only): every body
+  was read on its own and a nested WITH's outer bodies hold all the inner ones,
+  so 2,000 nested CTEs (42k characters, still on the UI thread) cost 3.4 s per
+  popup (2026-09, review of the audit fixes). Three things to keep:
   the reader never guesses — past `SqlScopeModel.MaxDepth` (32) nested queries a
   query is `IsOpaque` and the caret inside it gets **no** columns, not the outer
   ones (since 2026-09, security audit finding 16, parenthesized expression groups
