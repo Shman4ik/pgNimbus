@@ -685,11 +685,8 @@ public sealed partial class QueryViewModel : ObservableObject
 
             // Ask for one row past the cap: receiving it proves the result was
             // actually cut short, so an exactly-at-the-cap result isn't
-            // mislabeled as truncated. allowTextFallback is this tab vouching
-            // that the SQL is app-composed (a browse-mode page, side-effect-free
-            // by construction); hand-written SQL doesn't vouch, and the engine
-            // decides for itself whether re-executing it is provably harmless.
-            var result = await _engine.ExecuteAsync(executedSql, ct, MaxDisplayRows + 1, allowTextFallback: IsBrowsing);
+            // mislabeled as truncated.
+            var result = await _engine.ExecuteAsync(executedSql, ct, MaxDisplayRows + 1);
             if (result is ResultSet or MaterializedResultSet)
             {
                 _resultSql = executedSql;
@@ -2538,51 +2535,47 @@ public sealed partial class QueryViewModel : ObservableObject
     }
 
     /// <summary>Where an export's rows come from; see <see cref="ChooseExportSource"/>.</summary>
-    /// <param name="Sql">The query to run again for every row, or null to write the rows the grid holds.</param>
-    /// <param name="Vouched">The SQL is app-composed (a browse query), so it's safe to run twice by construction.</param>
+    /// <param name="Sql">The browse query to run again for every row, or null to write the rows the grid holds.</param>
     /// <param name="Shortfall">Why the grid's rows are all an export can write although there are more; null when nothing is missing.</param>
-    public sealed record ExportSource(string? Sql, bool Vouched, string? Shortfall);
+    public sealed record ExportSource(string? Sql, string? Shortfall);
 
     /// <summary>
     /// Decides what an export writes. When the grid holds the whole result it is
-    /// written as is; no second round trip. When it doesn't (a browse page, or a
-    /// query cut off at <see cref="MaxDisplayRows"/>), the statement runs again
-    /// with no limit and streams to the file. A browse query is ours and safe to
-    /// run twice; a hand-written one must pass
-    /// <see cref="SqlStatementInspector.IsSafeToReExecute"/>, the same guard the
-    /// engine's text fallback uses, because running an <c>INSERT … RETURNING</c>
-    /// again to export it would insert its rows twice. Where the rest can't be
-    /// read, the export still writes what's shown and <see cref="ExportSource.Shortfall"/>
-    /// says so, rather than letting a partial file pass for a complete one.
+    /// written as is; no second round trip. When it doesn't, only a browse page
+    /// query is run again with no limit and streamed to the file: it is ours, a
+    /// plain <c>SELECT</c> of one table, and safe to run twice by construction. A
+    /// hand-written query is never run again, whatever it looks like (2026-09
+    /// security audit, finding 1): a <c>SELECT</c> of a function that writes reads
+    /// as harmless and is not, and no lexical check can tell the two apart. Where
+    /// the rest can't be read, the export still writes what's shown and
+    /// <see cref="ExportSource.Shortfall"/> says so, rather than letting a partial
+    /// file pass for a complete one.
     /// </summary>
     public ExportSource ChooseExportSource()
     {
         if (SelectedSection is { } section)
         {
-            return new ExportSource(null, false, section.CapText is null
+            return new ExportSource(null, section.CapText is null
                 ? null
                 : "a statement from a script can't be run again on its own.");
         }
 
         string? sql;
-        bool vouched;
         bool complete;
         if (ShownBrowse is { } browse)
         {
             sql = browse.BuildExportSql();
-            vouched = true;
             complete = browse.Offset == 0 && !browse.CanGoNext;
         }
         else
         {
-            sql = _resultSql;
-            vouched = false;
+            sql = null;
             complete = CapText is null;
         }
 
         if (complete)
         {
-            return new ExportSource(null, false, null);
+            return new ExportSource(null, null);
         }
 
         // Inside a transaction the engine reads everything into memory (see
@@ -2591,15 +2584,15 @@ public sealed partial class QueryViewModel : ObservableObject
         // transaction's own uncommitted rows.
         if (_engine.IsInTransaction)
         {
-            return new ExportSource(null, false, "inside a transaction the rest can't be read. Commit or roll back, then export again.");
+            return new ExportSource(null, "inside a transaction the rest can't be read. Commit or roll back, then export again.");
         }
 
-        if (sql is null || !(vouched || SqlStatementInspector.IsSafeToReExecute(sql)))
+        if (sql is null)
         {
-            return new ExportSource(null, false, "the query might change data, so it wasn't run again for the rest.");
+            return new ExportSource(null, "a query you wrote isn't run again for the rest. Browse the table to export every row.");
         }
 
-        return new ExportSource(sql, vouched, null);
+        return new ExportSource(sql, null);
     }
 
     /// <summary>
@@ -2640,7 +2633,7 @@ public sealed partial class QueryViewModel : ObservableObject
 
             if (source.Sql is { } sql)
             {
-                switch (await _engine.ExecuteAsync(sql, ct, maxRows: null, allowTextFallback: source.Vouched))
+                switch (await _engine.ExecuteAsync(sql, ct, maxRows: null))
                 {
                     case ResultSet set:
                         columns = [.. set.Columns.Select(c => c.Name)];

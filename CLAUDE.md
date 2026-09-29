@@ -1466,11 +1466,12 @@ Moved to [`.claude/rules/logo-assets.md`](.claude/rules/logo-assets.md), which l
   with no limit (`_resultSql`, or `TableBrowseViewModel.BuildExportSql` — the
   page query minus `LIMIT/OFFSET`) and `ResultExporter.WriteStreamingAsync`
   (Core-pure, unit-tested) writes batch by batch, flushing each before the next
-  is read, so memory holds one batch. A hand-written query runs again only if
-  `SqlStatementInspector.IsSafeToReExecute` vouches for it — the same guard as
-  the text fallback below, for the same reason — and a script section or any
-  query in an explicit transaction (where the engine materializes) never does;
-  those write the grid and say "Exported only the N rows shown". The export
+  is read, so memory holds one batch. **Only the browse query is ever run
+  again** (2026-09 security audit, finding 1): a hand-written query, a script
+  section and any query in an explicit transaction (where the engine
+  materializes) write the grid and say "Exported only the N rows shown". A
+  lexical read-only check (`IsSafeToReExecute`, since deleted) used to vouch for
+  plain SELECTs, and `SELECT create_order()` passed it and ran twice. The export
   runs like a query (`IsRunning`, its own CTS, so Cancel works) and the view
   deletes the file unless `ExportAsync` reports it complete. Two landmines:
   no token on the `Task.Run` around the writer (a task cancelled before it
@@ -1485,26 +1486,30 @@ Moved to [`.claude/rules/logo-assets.md`](.claude/rules/logo-assets.md), which l
   'System.Object' is not supported for fields having DataTypeName …"*, and
   `GetFieldType` throws it too, before the first row is even read. `QueryEngine`
   answers in two layers, both required:
-  1. **Text-format re-execution** (`BuildTextFallbackMask` →
-     `NpgsqlCommand.UnknownResultTypeList`) re-requests just those columns as
-     Postgres literals (`("246 Oak St",Milan,MI,20918,IT)`) — the shape the grid
-     shows and the composite editor casts back on edit. It costs a second
-     execution, so it's gated on `MayReExecute`: either the caller vouched
-     (`allowTextFallback: true`, only for app-composed browse SELECTs) or
-     `SqlStatementInspector.IsSafeToReExecute` proves it lexically — a read-shaped
-     leading keyword, no data-modifying CTE, no `SELECT … INTO`, no
-     side-effecting function call (`nextval`, advisory locks, `dblink*`, …), and a
-     single statement (the simple query protocol would happily re-run
-     `SELECT 1; DROP TABLE t`). Deliberately conservative: a false negative costs
-     a placeholder, a false positive applies a side effect twice. Scripts and
-     transaction statements are vetted per statement this way and never vouch.
+  1. **Describe first, execute once** (`QueryEngine.DescribeAsync` →
+     `NpgsqlCommand.UnknownResultTypeList`). Every statement the engine runs is
+     first sent with `CommandBehavior.SchemaOnly` — Parse and Describe, no
+     Execute — which returns the row description without running anything; the
+     columns that need it are then requested as Postgres literals
+     (`("246 Oak St",Milan,MI,20918,IT)`, the shape the grid shows and the
+     composite editor casts back on edit) on the one real execution. **This
+     replaced a second execution** (2026-09 security audit, finding 1): the old
+     fallback re-ran the statement with the mask set, gated on a lexical
+     read-only check, and `SELECT create_order()` — a read by its keyword, a
+     write by its VOLATILE function — ran twice. No lexical check can tell what
+     a function does, so the rule now is that **user SQL is never executed
+     twice by the app, anywhere**; the describe costs one extra round trip per
+     statement and is also what finding 2's fix uses as its liveness check.
+     The mask is skipped for a multi-statement command (`SELECT a, b; SELECT 1`):
+     Npgsql applies it to every statement and its length must match each one.
   2. **The per-cell guard** (`QueryEngine.ReadValue` / `FieldType`) catches the
-     `InvalidCastException`/`NotSupportedException` for everything layer 1 refuses
-     and yields `QueryEngine.UnreadableCell(dataTypeName)` —
+     `InvalidCastException`/`NotSupportedException` for everything layer 1 can't
+     cover and yields `QueryEngine.UnreadableCell(dataTypeName)` —
      `<unreadable commerce.address>` — so the rest of the row still renders. Only
      those two exception types are caught; a dropped connection mid-row must stay
      an error. Integration coverage is `QueryEngineCompositeTests` (gated on
-     `PGNIMBUS_TEST_CONN` like the reconnect tests).
+     `PGNIMBUS_TEST_CONN` like the reconnect tests), which also holds the
+     audit's live check: a volatile composite-returning function runs once.
 - **SQL text, the lexer and completion** (packages A–R): see
   [`.claude/rules/sql-completion.md`](.claude/rules/sql-completion.md), which loads when working on
   `PgNimbus.Core/Text`, `PgNimbus.Core/Schema`, `PgNimbus.App/Completion`, `QueryEditorPanel` or

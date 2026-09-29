@@ -35,8 +35,7 @@ paths:
   E/B/X/N/U& strings, dollar quotes, `U&"…"` and `$1` stay raw, verbatim chips
   (its own scanner had closed a nested comment at the first `*/`, keeping the
   rest as a raw condition that would have gone back into the SQL broken, and
-  had read `0x1F` as a typed value). `IsSafeToReExecute` is untouched and must
-  not get less conservative.
+  had read `0x1F` as a typed value).
   Five rules the provider now keeps, each a reproduced bug in the audit:
   (a) **The statement is the unit** — `CompletionStatementSpan` is the text
   between the real `;` tokens around the caret, the part right of it included (a
