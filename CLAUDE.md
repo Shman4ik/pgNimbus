@@ -326,8 +326,55 @@ Three rules about it:
    reorder. `SshTunnel.Connect` throws `SshTunnelException` with a message
    written for the form (which step failed, what to check), connects with a
    15 s timeout rather than SSH.NET's 30 s (a jump host behind a VPN that is
-   off never answers), and sends keep-alives every 30 s. Host keys are still
-   not verified against `known_hosts`.
+   off never answers), and sends keep-alives every 30 s.
+   **The jump host's key is verified** (2026-09, security audit finding 4).
+   SSH.NET trusts every host key unless `HostKeyReceived` says otherwise, and
+   nothing subscribed, so anyone on the path to the bastion could terminate the
+   SSH session and relay it, owning the forwarded Postgres socket (and the SSH
+   password with password auth). `SshTunnel.Connect` now takes an
+   `SshHostKeyVerifier`, which reads the user's `~/.ssh/known_hosts` (never
+   written) and then pgNimbus's own `<appdata>/pgNimbus/known_hosts` (appended
+   in the line `ssh` writes, so `ssh-keygen -F/-R` work on it) through the
+   Core-pure `Connections/KnownHosts` (OpenSSH format: comma lists, `*`/`?`/`!`
+   patterns, `[host]:port`, `|1|salt|hash` HMAC-SHA1 hashed hosts, `@revoked`;
+   `@cert-authority` is recognised and skipped, host certificates are not
+   supported). The pure, unit-tested `SshHostKeyVerifier.Decide` applies
+   OpenSSH's precedence across both files: revoked anywhere refuses, a match
+   anywhere trusts, a mismatch refuses with a "host key changed" message
+   naming host:port, both `SHA256:` fingerprints and the file and line to
+   remove, and only a key neither file knows goes to the `ISshHostKeyPolicy`.
+   Three details are load-bearing. (a) The type compared is the one the key
+   blob names (`KnownHosts.KeyTypeOf`), not SSH.NET's `HostKeyName`, which is
+   the negotiated signature algorithm (`rsa-sha2-512` for an `ssh-rsa` line), so
+   every RSA host would otherwise read as unknown. (b) The verdict is stashed and
+   thrown from `Connect`, not from inside the event, where SSH.NET would bury it
+   under "Key exchange negotiation failed"; and a re-key later in the session
+   accepts only the key trusted at connect, never prompting again. (c) The prompt
+   is synchronous on SSH.NET's connect thread: the App's `HostKeyDialogPolicy`
+   posts `HostKeyDialog` to the UI thread and blocks that pool thread (the
+   connection dialog runs `Connect` under `Task.Run` and awaits it, so the UI
+   thread keeps pumping), and it throws rather than hang if ever called on the
+   UI thread. The view model's default policy (`RejectUnknownHostKeys`) refuses,
+   since it has no window to ask from; the view swaps in the dialog. Accept is
+   deliberately not `IsDefault`: the dialog opens a second after the Enter that
+   started the connect. Three more from the review of these fixes: (d) a host
+   the files already know is offered only the key types they know it by
+   (`SshHostKeyVerifier.KnownKeyTypes` → `SshTunnel.RestrictHostKeyAlgorithms`,
+   RSA as `rsa-sha2-512`/`-256`), as OpenSSH does, so a server presenting a key
+   of another type is refused ("did not offer a host key of the type
+   known_hosts knows it by") instead of falling through to a first-use prompt;
+   (e) the prompt's reading time counts against the 15 s `ConnectTimeout`, so a
+   connect that timed out after an accepted prompt is retried once, and trusts
+   the now-remembered key without asking (`Prompts` tells the two apart);
+   (f) accepted keys are also kept in memory, and with no app data root
+   (`DefaultOwnKnownHostsPath` is `AppDataPaths.Resolve`, null) that is the only
+   copy, for the session; the file is appended through `AppDataFile` (0600).
+   Tests: `KnownHostsTests` (real `ssh-keygen` keys and
+   `-H` hashes), `SshHostKeyVerifierTests`, `HostKeyDialogTests` (the pool-thread
+   round trip, headless), and `SshTunnelHostKeyLiveTests` against a real sshd,
+   gated on `PGNIMBUS_TEST_SSH` (`Host=…;Port=…;Username=…;Password=…`, optional
+   `Target=host:port` for a query through the tunnel; locally a
+   `linuxserver/openssh-server` container with `AllowTcpForwarding yes`).
 5. **Crashes are logged and shown, never silent.** Critical/unhandled errors
    append to a plain-text log at `<appdata>/pgNimbus/logs/pgnimbus.log`
    (`PgNimbus.Core.Diagnostics.CrashLog` does the file I/O — directory-injectable

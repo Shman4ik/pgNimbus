@@ -117,6 +117,44 @@ Pick how pgNimbus signs in to the SSH host with **Auth Method**:
 For the database host and port, give them as the SSH host sees them. A Postgres
 that only listens locally on the server is `127.0.0.1` and `5432`.
 
+### Host keys
+
+Before it signs in, pgNimbus checks that the SSH host is the server it claims
+to be, the same way `ssh` does. It looks the host's key up in your own
+`~/.ssh/known_hosts` first (hashed entries, `[host]:port` entries and
+`@revoked` lines included) and then in its own list at
+`<appdata>/pgNimbus/known_hosts`. It never writes to your `~/.ssh/known_hosts`.
+
+- **A known key** connects with no question.
+- **An unknown host** opens a dialog with the host, the key type and the key's
+  `SHA256:` fingerprint, written the way `ssh` and `ssh-keygen -l` write it.
+  Compare it with the fingerprint the server's administrator gave you.
+  **Accept** connects and adds the key to pgNimbus's list; **Cancel** does not
+  connect. Enter does not accept, so a key is never trusted by a stray key
+  press.
+- **A changed key** stops the connection. The message names the host, the
+  stored key's fingerprint, the new one, and the file and line that hold the
+  old key. A server that was reinstalled or had its keys regenerated causes
+  this, and so does someone intercepting the connection. If you know the key
+  really changed, remove that line (`ssh-keygen -R` with `-f` pointing at that
+  file does it for you) and connect again to be asked about the new key.
+- **A key of a different type** for a host already in either file stops the
+  connection too. pgNimbus asks the server only for the key types the files
+  know the host by, as `ssh` does, so a server that suddenly offers only a new
+  type of key is refused rather than treated as a new host. If its keys really
+  changed, remove its lines and connect again.
+- **A revoked key** (an `@revoked` line in either file) always stops the
+  connection.
+
+Take your time with the dialog: if reading the fingerprint outlasts the
+connection's timeout, pgNimbus connects again once you accept, without asking
+a second time.
+
+The **Test** button runs the same check, so a key you accept there is already
+known when you connect. SSH host certificates (`@cert-authority` lines) are not
+supported yet: a host that relies on one is treated as unknown and asks about
+its key.
+
 ## Several connections at once
 
 Two different things, for two different needs.

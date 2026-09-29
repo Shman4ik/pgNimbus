@@ -157,6 +157,10 @@ public partial class ConnectionDialog : Window
             return;
         }
 
+        // The view model's default refuses every unknown SSH host key; only a
+        // window can ask. Set here, once the window exists to own the dialog.
+        vm.HostKeys = SshHostKeyVerifier.ForApp(new HostKeyDialogPolicy(this));
+
         if (vm.SelectedProfile is not null)
         {
             ProfilesList.Focus();
