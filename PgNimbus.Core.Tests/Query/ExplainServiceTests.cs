@@ -41,6 +41,7 @@ public class ExplainServiceTests
     [Arguments("SELECT 1; CREATE TABLE t (id int)", 2)]
     [Arguments("SELECT * FROM t;\nDELETE FROM t WHERE id = 1;", 2)]
     [Arguments("BEGIN; UPDATE t SET n = 1; COMMIT;", 3)]
+    [Arguments("SELECT 1 --x\r; COMMIT; CREATE TABLE t (id int)", 3)]
     public async Task Several_statements_are_refused_with_their_count(string sql, int count)
     {
         var thrown = await Assert.ThrowsAsync<ArgumentException>(async () =>
@@ -48,7 +49,7 @@ public class ExplainServiceTests
             ExplainService.SingleStatement(sql);
             await Task.CompletedTask;
         });
-        await Assert.That(thrown.Message).Contains($"{count} were given");
+        await Assert.That(thrown!.Message).Contains($"{count} were given");
     }
 
     [Test]
@@ -74,7 +75,7 @@ public class ExplainServiceTests
 
         var thrown = await Assert.ThrowsAsync<ArgumentException>(async () =>
             await service.ExplainAsync("SELECT 1; SELECT 2", analyze: false, CancellationToken.None));
-        await Assert.That(thrown.Message).Contains("2 were given");
+        await Assert.That(thrown!.Message).Contains("2 were given");
     }
 
     [Test]
@@ -92,14 +93,22 @@ public class ExplainServiceTests
         try
         {
             var service = new ExplainService(dataSource);
-            var sql = $"SELECT 1; CREATE TABLE {ScratchTable} (id int)";
-
-            // The audit's reproduction: both flavours used to return a plan for
-            // the SELECT and leave the table behind.
-            await Assert.ThrowsAsync<ArgumentException>(async () =>
-                await service.ExplainAsync(sql, analyze: false, CancellationToken.None));
-            await Assert.ThrowsAsync<ArgumentException>(async () =>
-                await service.ExplainAsync(sql, analyze: true, CancellationToken.None));
+            // The audit's reproduction, and two shapes the always-rolled-back
+            // transaction alone would not stop: a COMMIT ends that transaction,
+            // and a bare \r ends a -- comment for the server (and, since the
+            // review of these fixes, for SqlLexer too).
+            foreach (var sql in new[]
+            {
+                $"SELECT 1; CREATE TABLE {ScratchTable} (id int)",
+                $"SELECT 1; COMMIT; CREATE TABLE {ScratchTable} (id int)",
+                $"SELECT 1 --x\r; COMMIT; CREATE TABLE {ScratchTable} (id int)",
+            })
+            {
+                await Assert.ThrowsAsync<ArgumentException>(async () =>
+                    await service.ExplainAsync(sql, analyze: false, CancellationToken.None));
+                await Assert.ThrowsAsync<ArgumentException>(async () =>
+                    await service.ExplainAsync(sql, analyze: true, CancellationToken.None));
+            }
 
             await Assert.That(await TableExistsAsync(dataSource)).IsFalse();
 
