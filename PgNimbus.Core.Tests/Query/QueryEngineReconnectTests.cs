@@ -269,7 +269,11 @@ public class QueryEngineReconnectTests
     }
 
     // Waits until the slow INSERT shows up as running, then terminates exactly
-    // that backend — the DBA's gesture, not a blanket kill.
+    // that backend — the DBA's gesture, not a blanket kill. "Running" means
+    // parked in pg_sleep: the engine's describe step (Parse/Describe, nothing
+    // executed) already shows the text as an active query, and a kill landing
+    // there is a loss before the send, which the engine rightly retries, so
+    // the script test saw the INSERT finish on the retry and then SELECT 2.
     private static async Task TerminateSlowInsertAsync()
     {
         await using var admin = CreateDataSource();
@@ -283,6 +287,7 @@ public class QueryEngineReconnectTests
                  WHERE pid <> pg_backend_pid()
                    AND datname = current_database()
                    AND state = 'active'
+                   AND wait_event = 'PgSleep'
                    AND query LIKE '%pg_sleep(3)%'
                    AND query NOT LIKE '%pg_stat_activity%'
                 """,
