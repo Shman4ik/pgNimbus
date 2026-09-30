@@ -19,7 +19,7 @@ namespace PgNimbus.App.Tests;
 /// fields cast to the schema-qualified type.
 /// </summary>
 [NotInParallel]
-public class AuditFinding18Tests
+public class ClipboardAndCastSafetyTests
 {
     private static void SeedFormulaResult(MainViewModel vm) =>
         vm.ActiveTab.SeedResult(
