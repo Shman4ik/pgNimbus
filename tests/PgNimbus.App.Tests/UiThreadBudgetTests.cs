@@ -1,4 +1,5 @@
 using System.Collections.Specialized;
+using System.Text;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.VisualTree;
@@ -374,6 +375,44 @@ public class UiThreadBudgetTests
                 .Where(i => i.DataContext is Core.Json.JsonTreeNode node && root.Children.Contains(node) && !ReferenceEquals(node, third))
                 .All(i => !i.IsExpanded)).IsTrue();
             await Assert.That(Rows()).IsLessThan(ScreenfulBudget);
+
+            window.Close();
+        });
+    }
+
+    [Test]
+    public async Task A_plan_of_five_thousand_nodes_realizes_a_screenful_and_its_text_goes_to_the_editor()
+    {
+        await Ui.Run(async () =>
+        {
+            // A scan per partition: the plan the audit's EXPLAIN finding was about.
+            var text = new StringBuilder("Append  (cost=0.00..9170000.00 rows=5000 width=48) (actual time=0.011..49060.000 rows=500000000 loops=1)\n");
+            for (var i = 0; i < 5_000; i++)
+            {
+                text.Append($"  ->  Seq Scan on events_p{i:D4}  (cost=0.00..1834.00 rows=1 width=48) (actual time=0.011..9.812 rows=100000 loops=1)\n");
+            }
+
+            var plan = ExplainService.Import(text.ToString());
+            await Assert.That(plan.Result.Root.Children.Count).IsEqualTo(5_000);
+
+            var (window, vm) = Scenarios.Shell();
+            Ui.Show(window);
+            var tab = vm.ActiveTab;
+            tab.ShowImportedPlan(plan.Result, plan.DisplayText, plan.RawJson);
+            tab.ShowPlanAsTextCommand.Execute(null);
+            Ui.Settle();
+
+            // Both views were lost once in a merge that kept the other side's markup,
+            // with nothing failing: a text block laying out every line, and a tree
+            // realizing every node.
+            var textView = window.GetVisualDescendants().OfType<ReadOnlyTextView>().Single(v => v.IsEffectivelyVisible);
+            await Assert.That(textView.IsShowingEditor).IsTrue();
+
+            tab.ShowPlanAsTreeCommand.Execute(null);
+            Ui.Settle();
+            var nodes = window.GetVisualDescendants().OfType<TreeViewItem>().Count(i => i.DataContext is ExplainNodeViewModel);
+            await Assert.That(nodes).IsGreaterThan(3);
+            await Assert.That(nodes).IsLessThan(ScreenfulBudget);
 
             window.Close();
         });

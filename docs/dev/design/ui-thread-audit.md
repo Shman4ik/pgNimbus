@@ -25,7 +25,7 @@ them as budgets.
 | 6 | Command palette | every relation, partitions included | `Clear` and one `Add` per match on every keystroke | one Reset; each keystroke scores only the previous one's matches; 40 ms per key over 50,000 relations (Release) |
 | 7 | SQL editor | the document | `(`, `'`, `,` and every caret move under the argument hint lexed the whole document | `SqlStatementBoundaries` remembers statement starts across edits; the readers get the statement around the caret (17 ms per key at the end of a 5 MB script, Release) |
 | 8 | EXPLAIN views | plan nodes and text | text in a `SelectableTextBlock`, a fully expanded tree with a `Styles` per node, one warning per partition scan | `ReadOnlyTextView`, a virtualizing tree, `PlanAnalyzer.Condense` (three of each kind, then "N more") in a height-capped strip |
-| 9 | Cell inspector, row details | a jsonb value; the columns of a row | the whole value laid out at once; the form rebuilt for every grid row, even closed | `ReadOnlyTextView` (a read-only editor past 32 Ki characters); the form follows the grid only while open, capped at `MaxGridColumns`, one Reset |
+| 9 | Cell inspector, row details | a jsonb value; the columns of a row | the whole value laid out at once; the form rebuilt for every grid row, even closed | `CellValueView` (#326): a read-only editor that lays out only the lines on screen, and a virtualizing JSON tree; the form follows the grid only while open, capped at `MaxGridColumns`, one Reset |
 | 10 | Monitor windows | backends, lock waiters, tables, notifications | an `Add` per row into a DataGrid every 2 s; 500 `RemoveAt` and 500 `Insert(0)` per NOTIFY drain | one Reset per refresh, reads on the thread pool; one range Remove and one range Add per drain, selection kept |
 | 11 | Core called from the UI thread | the catalog, an imported file | the completion catalog read (a million columns) and grouped there; import inferred types and ran its COPY loop there | `Task.Run` around each |
 | 12 | Wide results | result columns | `MaxGridColumns` 1,000: 5.3 s to show, 2.9 s back on a tab switch, 3.0 s when the edit context arrived (Debug) | 300 columns (1.6 s, Release); the edit context updates the columns in place (0.1 s) |
@@ -50,7 +50,7 @@ default privileges rebuild with one Reset; the completion popup holds the top
 - **Small, bounded lists:** connections, tabs, saved queries (240 px), slow
   queries (100 rows), largest relations (LIMIT 50).
 
-## Two things to know before changing these views
+## Three things to know before changing these views
 
 - **A virtualizing panel realizes a hidden row to learn it takes no space.** A
   filter that sets `IsVisible` on rows it hides brings back every row: with the
@@ -61,6 +61,12 @@ default privileges rebuild with one Reset; the completion popup holds the top
   past the viewport, the arrow keys stopped at its bottom edge.
   `VirtualizingStackPanel.CacheLength="1"` keeps a viewport of rows realized on
   each side, which is what the `TreeView.virtualizing` style sets.
+- **A virtualizing tree reuses a row for another node.** Expansion set by a style
+  value, or left to the `TreeViewItem`, stays with the row, so a row scrolled out
+  and reused would show the next node open or closed as the last one was. The
+  JSON, plan and blocking trees bind `IsExpanded` two-way to the node
+  (`JsonTreeNode`, `ExplainNodeViewModel`, `BlockingNode`), as the schema tree
+  already did.
 
 ## Still open
 
@@ -80,6 +86,7 @@ default privileges rebuild with one Reset; the completion popup holds the top
   `history_append_ms` and `editor_statement_ms` before its server metrics;
   `PGNIMBUS_BENCH_SKIP_DB=1` runs only those.
 - `UiThreadBudgetTests` holds the counts on every build: rows realized for a
-  5,000-table schema and a 5,000-statement script, one change notification per
+  5,000-table schema, a 5,000-statement script, a 5,000-node plan (its text
+  view too) and a 5,000-element JSON array, one change notification per
   palette keystroke, history change and NOTIFY drain, no row-details rebuild
   while closed, no column rebuild when an edit context arrives.

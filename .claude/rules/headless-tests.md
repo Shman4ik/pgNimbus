@@ -177,7 +177,8 @@ tab (UI design rule 3), that the results grid builds a column per result column
 and re-points on a tab switch, and that every window opens **and closes** — the
 detach path a render-and-exit pass never runs. `UiThreadBudgetTests` holds the
 2026-09 UI-thread audit as counts rather than timings, so they mean the same on a
-CI runner: rows realized for a 5,000-table schema and a 5,000-statement script, one
+CI runner: rows realized for a 5,000-table schema, a 5,000-statement script, a
+5,000-node plan (tree and text) and a 5,000-element JSON array, one
 change notification per palette keystroke, history change and NOTIFY drain, no
 row-details rebuild while closed, no column rebuild when an edit context arrives.
 The timings are `tools/UiBench`'s, which boots the app on the headless platform the

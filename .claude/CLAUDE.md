@@ -1623,9 +1623,14 @@ Moved to [`.claude/rules/logo-assets.md`](rules/logo-assets.md), which loads whe
   `ListBox` does by default (inside an outer `ScrollViewer` too, since the panel
   reads the effective viewport); a tree is `TreeView.virtualizing`; a custom
   `ItemsPanel` is a `VirtualizingStackPanel`. Filter such a list by what it is
-  bound to, never by `IsVisible`. (c) **Text that can be long is a
-  `ReadOnlyTextView`** (`Views/ReadOnlyTextView.cs`): a `SelectableTextBlock` up
-  to 32 Ki characters, a read-only AvaloniaEdit editor past that; a text block
+  bound to, never by `IsVisible`. A virtualizing tree reuses a row for another
+  node, so its `IsExpanded` binds two-way to the node (`SchemaTreeNode`,
+  `JsonTreeNode`, `ExplainNodeViewModel`, `BlockingNode`), never a style's fixed
+  value. (c) **Text that can be long goes to a read-only editor**: a
+  `ReadOnlyTextView` (`Views/ReadOnlyTextView.cs`; the plan text, the pending
+  changes' SQL) is a `SelectableTextBlock` up to 32 Ki characters and a
+  read-only AvaloniaEdit editor past that, and the cell inspector and the notify
+  payload are `CellValueView`, which is one already; a text block
   lays out every line it holds before drawing one. A preview of a statement or
   value is cut before it reaches a text block (`HistoryText.PreviewLength`,
   `HistoryLabel.Tip`, `CellText.Preview`). (d) **A read or a loop over big data
