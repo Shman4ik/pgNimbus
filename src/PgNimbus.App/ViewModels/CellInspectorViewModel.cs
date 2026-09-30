@@ -1,8 +1,3 @@
-using System.Buffers;
-using System.Text;
-using System.Text.Encodings.Web;
-using System.Text.Json;
-using System.Text.Unicode;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -19,6 +14,7 @@ namespace PgNimbus.App.ViewModels;
 /// as a collapsible tree; when the cell belongs to an editable result set they
 /// can also be edited in place — formatted, minified, validated client-side, and
 /// saved through the same cast-to-<c>jsonb</c> path an inline grid edit uses.
+/// The notify monitor's payload pane is the same view model, read-only.
 /// </summary>
 public sealed partial class CellInspectorViewModel : ObservableObject
 {
@@ -31,8 +27,11 @@ public sealed partial class CellInspectorViewModel : ObservableObject
     [ObservableProperty]
     private string _displayText = string.Empty;
 
-    /// <summary>True when <see cref="DisplayText"/> is pretty-printed JSON - drives monospace display and enables the tree view.</summary>
+    /// <summary>True when <see cref="DisplayText"/> is pretty-printed JSON - drives highlighting, folding and the tree.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowText))]
+    [NotifyPropertyChangedFor(nameof(ShowTree))]
+    [NotifyPropertyChangedFor(nameof(CanShowTreeToggle))]
     private bool _isJson;
 
     /// <summary>Whether the inspector wraps long lines, Notepad++-style. On by default so a long text/jsonb value never scrolls off-screen horizontally.</summary>
@@ -52,14 +51,16 @@ public sealed partial class CellInspectorViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(HasValidationError))]
     private bool _isEditing;
 
-    /// <summary>True to show the collapsible tree instead of the raw/pretty text (read mode only, JSON only).</summary>
+    /// <summary>
+    /// The Tree toggle. It is a preference, not a property of one value: it
+    /// survives opening the next cell, so Space down a column of jsonb stays in
+    /// the tree once you picked it, and a value that isn't JSON just shows as
+    /// text meanwhile. It used to be reset on every open.
+    /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowText))]
     [NotifyPropertyChangedFor(nameof(ShowTree))]
     private bool _isTreeView;
-
-    /// <summary>True when the value is JSON - drives monospace display; also gated on edit mode for the tree toggle's visibility.</summary>
-    partial void OnIsJsonChanged(bool value) => OnPropertyChanged(nameof(CanShowTreeToggle));
 
     /// <summary>The editable JSON text, two-way-synced with the AvaloniaEdit editor in the view.</summary>
     [ObservableProperty]
@@ -75,22 +76,32 @@ public sealed partial class CellInspectorViewModel : ObservableObject
     [ObservableProperty]
     private IReadOnlyList<JsonTreeNode> _treeRoots = [];
 
-    // Read mode shows text unless the tree is toggled on; edit mode replaces both.
-    public bool ShowText => !IsEditing && !IsTreeView;
+    /// <summary>The tree row last selected, whose path the tree's footer shows.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SelectedPath))]
+    private JsonTreeNode? _selectedNode;
 
-    public bool ShowTree => !IsEditing && IsTreeView;
+    // Read mode shows the tree when it is toggled on and the value is JSON,
+    // the text otherwise; edit mode replaces both.
+    public bool ShowText => !IsEditing && !(IsTreeView && IsJson);
+
+    public bool ShowTree => !IsEditing && IsTreeView && IsJson;
 
     /// <summary>The Text/Tree toggle only makes sense for a JSON value in read mode.</summary>
     public bool CanShowTreeToggle => IsJson && !IsEditing;
 
-// Parse the tree lazily the first time it's shown (and only for JSON), then cache it.
-    partial void OnIsTreeViewChanged(bool value)
-    {
-        if (value && IsJson && TreeRoots.Count == 0 && JsonTree.Parse(DisplayText) is { } root)
-        {
-            TreeRoots = [root];
-        }
-    }
+    /// <summary>
+    /// Where the selected tree row is, spelled the way it would be used: as a
+    /// Postgres expression over the column when there is one (the results grid),
+    /// else as an SQL/JSON path (the notify monitor's payload has no column).
+    /// </summary>
+    public string? SelectedPath => SelectedNode is not { } node ? null
+        : CanCopySqlPath ? SqlPath(node) : JsonPath(node);
+
+    /// <summary>True when the value came from a column, so a path can be written as SQL over it.</summary>
+    public bool CanCopySqlPath => _pathColumn is not null;
+
+    partial void OnIsTreeViewChanged(bool value) => EnsureTree();
 
     /// <summary>Client-side JSON validation of the in-progress edit — null when it parses
     /// or is blank. Only JSON cells are pre-validated; other free-text types (plain text,
@@ -115,25 +126,11 @@ public sealed partial class CellInspectorViewModel : ObservableObject
     // a plain text column holding a JSON-looking string must accept any string.
     private bool _validatesAsJson;
 
-    // Re-rendering goes through Utf8JsonWriter + JsonDocument.WriteTo, never
-    // JsonSerializer.Serialize(document, ...): the latter is the reflection-based
-    // serializer, which NativeAOT disables outright
-    // ("Reflection-based serialization has been disabled for this application").
-    // Same reason ResultExporter writes its JSON by hand.
-    private static readonly JsonWriterOptions PrettyPrintOptions = new()
-    {
-        Indented = true,
-        // Default escaping is ASCII-only (everything else becomes \uXXXX) -
-        // relax to all Unicode so e.g. Cyrillic values show as themselves,
-        // not escape sequences.
-        Encoder = JavaScriptEncoder.Create(UnicodeRanges.All),
-    };
-
-    private static readonly JsonWriterOptions MinifyOptions = new()
-    {
-        Indented = false,
-        Encoder = JavaScriptEncoder.Create(UnicodeRanges.All),
-    };
+    // The column a tree path is written over, and whether it needs ::jsonb
+    // first (a text column holding JSON has no -> operator). Null outside the
+    // results grid.
+    private string? _pathColumn;
+    private bool _castPathToJsonb;
 
     /// <summary>Opens the inspector read-only (non-editable result sets, text cells).</summary>
     public void Open(string columnName, object? value) =>
@@ -147,7 +144,9 @@ public sealed partial class CellInspectorViewModel : ObservableObject
     /// column's declared type is json/jsonb, gating client-side JSON validation.
     /// <paramref name="dataTypeName"/> is the column's wire type, which the text
     /// needs to agree with the grid cell's (a date and a timestamp arrive as one
-    /// CLR type; see <see cref="CellText.Preview"/>).
+    /// CLR type; see <see cref="CellText.Preview"/>). Passing it also says the
+    /// value came from a column called <paramref name="columnName"/>, which is
+    /// what a copied SQL path is written over.
     /// </summary>
     public void Open(string columnName, object? value, int columnIndex, bool canEdit, Func<int, string, Task<string?>>? commit, bool validatesAsJson = false, bool startEditing = false, string? dataTypeName = null)
     {
@@ -156,14 +155,15 @@ public sealed partial class CellInspectorViewModel : ObservableObject
         _commit = commit;
         CanEdit = canEdit && commit is not null;
         _validatesAsJson = validatesAsJson;
+        _pathColumn = dataTypeName is null ? null : columnName;
+        _castPathToJsonb = dataTypeName is not ("json" or "jsonb");
+        OnPropertyChanged(nameof(CanCopySqlPath));
 
         IsEditing = false;
-        IsTreeView = false;
         SaveError = null;
         _editSeeded = false;
 
-        (DisplayText, IsJson) = Format(value, dataTypeName);
-        TreeRoots = [];
+        SetValue(Format(value, dataTypeName));
         IsOpen = true;
 
         // A double-click on an editable json cell means "let me edit this" -
@@ -173,6 +173,21 @@ public sealed partial class CellInspectorViewModel : ObservableObject
             Edit();
         }
     }
+
+    /// <summary>The value at a tree row, as a copy wants it (see <see cref="JsonTree.ValueAt"/>).</summary>
+    public string? NodeValue(JsonTreeNode node) => JsonTree.ValueAt(DisplayText, node.Path);
+
+    /// <summary>
+    /// A Postgres expression reading the row's value out of the column:
+    /// <c>-&gt;&gt;</c> (text) for a scalar, <c>-&gt;</c> (json) for an object or
+    /// array. Null outside the results grid.
+    /// </summary>
+    public string? SqlPath(JsonTreeNode node) => _pathColumn is { } column
+        ? JsonPaths.ToSql(column, _castPathToJsonb, node.Path, asText: !node.IsContainer)
+        : null;
+
+    /// <summary>The SQL/JSON path to the row's value (<c>$.items[0].sku</c>).</summary>
+    public static string JsonPath(JsonTreeNode node) => JsonPaths.ToJsonPath(node.Path);
 
     [RelayCommand]
     private void Close() => IsOpen = false;
@@ -188,22 +203,22 @@ public sealed partial class CellInspectorViewModel : ObservableObject
         }
 
         SaveError = null;
-        IsTreeView = false;
         if (!_editSeeded)
         {
             EditText = DisplayText;
             _editSeeded = true;
         }
+
         IsEditing = true;
     }
 
-    /// <summary>Switch to the View tab. Leaves the edit buffer intact so the Edit tab
-    /// can be re-selected without losing changes (Cancel is the explicit discard).</summary>
+    /// <summary>Switch to the View tab, text or tree as last chosen. Leaves the edit
+    /// buffer intact so the Edit tab can be re-selected without losing changes
+    /// (Cancel is the explicit discard).</summary>
     [RelayCommand]
     private void ViewText()
     {
         IsEditing = false;
-        IsTreeView = false;
         SaveError = null;
     }
 
@@ -219,7 +234,7 @@ public sealed partial class CellInspectorViewModel : ObservableObject
     [RelayCommand]
     private void Format()
     {
-        if (TryReformat(EditText, PrettyPrintOptions, out var formatted))
+        if (JsonText.TryFormat(EditText, indented: true, out var formatted))
         {
             EditText = formatted;
         }
@@ -229,7 +244,7 @@ public sealed partial class CellInspectorViewModel : ObservableObject
     [RelayCommand]
     private void Minify()
     {
-        if (TryReformat(EditText, MinifyOptions, out var minified))
+        if (JsonText.TryFormat(EditText, indented: false, out var minified))
         {
             EditText = minified;
         }
@@ -257,38 +272,31 @@ public sealed partial class CellInspectorViewModel : ObservableObject
         }
 
         // Persisted. Reflect the saved value (pretty-printed, same as the grid's
-        // stored text) and drop back to the read view, tree cache invalidated.
-        (DisplayText, IsJson) = Format(EditText, null);
-        TreeRoots = [];
+        // stored text) and drop back to the read view, tree rebuilt.
+        SetValue(Format(EditText, null));
         SaveError = null;
         IsEditing = false;
         _editSeeded = false;
     }
 
-    private static bool TryReformat(string text, JsonWriterOptions options, out string result)
+    private void SetValue((string Text, bool IsJson) value)
     {
-        result = text;
-        try
-        {
-            using var document = JsonDocument.Parse(text);
-            result = Render(document, options);
-            return true;
-        }
-        catch (JsonException)
-        {
-            return false;
-        }
+        SelectedNode = null;
+        TreeRoots = [];
+        // Kind first: the viewer resets its text on DisplayText, and colours
+        // and folds it by what IsJson says at that moment.
+        IsJson = value.IsJson;
+        DisplayText = value.Text;
+        EnsureTree();
     }
 
-    private static string Render(JsonDocument document, JsonWriterOptions options)
+    // The tree is parsed when it is first shown for a value, then kept.
+    private void EnsureTree()
     {
-        var buffer = new ArrayBufferWriter<byte>();
-        using (var writer = new Utf8JsonWriter(buffer, options))
+        if (IsTreeView && IsJson && TreeRoots.Count == 0 && JsonTree.Parse(DisplayText) is { } root)
         {
-            document.WriteTo(writer);
+            TreeRoots = [root];
         }
-
-        return Encoding.UTF8.GetString(buffer.WrittenSpan);
     }
 
     private static (string Text, bool IsJson) Format(object? value, string? dataTypeName)
@@ -315,15 +323,6 @@ public sealed partial class CellInspectorViewModel : ObservableObject
             return false;
         }
 
-        try
-        {
-            using var document = JsonDocument.Parse(text);
-            pretty = Render(document, PrettyPrintOptions);
-            return true;
-        }
-        catch (JsonException)
-        {
-            return false;
-        }
+        return JsonText.TryFormat(text, indented: true, out pretty);
     }
 }

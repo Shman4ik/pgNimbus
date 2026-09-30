@@ -59,6 +59,7 @@ public enum CommandId
     CommitCellEdit,
     SetCellNull,
     InspectCell,
+    SaveInspectedValue,
     CopySelection,
     DeleteRow,
     RowDetails,
@@ -181,7 +182,9 @@ public sealed record CommandDescriptor
     /// Free text for gestures that aren't a chord at all ("Double-click",
     /// "context menu") or a range too wide to enumerate ("{cmd}+1 … {cmd}+9").
     /// Rendered as quiet text next to (or instead of) the key caps; "{cmd}+" is
-    /// spelled per scheme ("Ctrl+" or "⌘").
+    /// spelled per scheme ("Ctrl+" or "⌘"), and "{chord:Run}" is another
+    /// command's primary chord, spelled per scheme ("Ctrl+Enter" or "⌘↩"), for a
+    /// panel that answers that command's chord with its own action.
     /// </summary>
     public string? GestureNote { get; init; }
 
@@ -274,6 +277,7 @@ public sealed record CommandDescriptor
             return null;
         }
 
+        note = SpellChordPlaceholders(note, scheme);
         if (scheme == ChordScheme.Ctrl)
         {
             return note.Replace("{cmd}", "Ctrl", StringComparison.Ordinal);
@@ -301,6 +305,24 @@ public sealed record CommandDescriptor
 
             result.Append(end - index <= 1 ? "⌘" : "⌘ + ");
         }
+    }
+
+    // "{chord:Run}" → the Run entry's primary chord on this scheme.
+    private static string SpellChordPlaceholders(string note, ChordScheme scheme)
+    {
+        const string Open = "{chord:";
+        var at = note.IndexOf(Open, StringComparison.Ordinal);
+        while (at >= 0)
+        {
+            var end = note.IndexOf('}', at);
+            var name = note[(at + Open.Length)..end];
+            var label = CommandCatalog.Get(Enum.Parse<CommandId>(name)).PrimaryChordFor(scheme)?.Label(scheme)
+                ?? throw new InvalidOperationException($"{name} has no chord to name in a gesture note.");
+            note = string.Concat(note.AsSpan(0, at), label, note.AsSpan(end + 1));
+            at = note.IndexOf(Open, at + label.Length, StringComparison.Ordinal);
+        }
+
+        return note;
     }
 
     /// <summary>

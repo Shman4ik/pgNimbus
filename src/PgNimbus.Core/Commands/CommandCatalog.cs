@@ -496,6 +496,21 @@ public static class CommandCatalog
         },
         new()
         {
+            // No chord of its own: in the inspector's editor the Run chord
+            // commits the value, the way it runs what is typed in the SQL
+            // editor, so the gesture is a note that borrows Run's chord rather
+            // than a second Ctrl/Cmd+Enter the catalog test would reject as
+            // shadowing the global one. It used to reach the window and run
+            // the query behind the overlay.
+            Id = CommandId.SaveInspectedValue,
+            Title = "Save the value being edited in the cell inspector",
+            Category = CommandCategory.Results,
+            Scope = CommandScope.Results,
+            GestureNote = "{chord:Run} in the cell inspector's editor",
+            Surfaces = SheetOnly,
+        },
+        new()
+        {
             Id = CommandId.CopySelection,
             Title = "Copy the selected cells",
             Category = CommandCategory.Results,

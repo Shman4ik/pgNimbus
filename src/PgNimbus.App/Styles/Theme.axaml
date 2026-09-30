@@ -23,6 +23,27 @@
                 <ResourceInclude Source="avares://Nimbus.Ui/Theme/Icons.axaml" />
             </ResourceDictionary.MergedDictionaries>
 
+            <!--
+                JSON, wherever the cell inspector shows it: the tree paints its keys
+                and values with these, and Views/JsonSyntax copies them into the
+                highlighting the viewer and editor draw with, so the two can't drift.
+                The same values as the SQL editor's strings, numbers and keywords.
+            -->
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="JsonKeyBrush" Color="#0451A5" />
+                    <SolidColorBrush x:Key="JsonStringBrush" Color="#A31515" />
+                    <SolidColorBrush x:Key="JsonNumberBrush" Color="#098658" />
+                    <SolidColorBrush x:Key="JsonLiteralBrush" Color="#0000E0" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="JsonKeyBrush" Color="#9CDCFE" />
+                    <SolidColorBrush x:Key="JsonStringBrush" Color="#CE9178" />
+                    <SolidColorBrush x:Key="JsonNumberBrush" Color="#B5CEA8" />
+                    <SolidColorBrush x:Key="JsonLiteralBrush" Color="#569CD6" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+
         <!--
             For text that spells a shortcut. On the Cmd scheme that is Apple's key
             glyphs (⌘ ⇧ ⌥ ⌃ ↩ ⎋ ⌫ ⇥ ⇟), which Inter doesn't carry, and the system's
