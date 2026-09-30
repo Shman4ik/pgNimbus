@@ -7,15 +7,15 @@ generates it, and where it's consumed. **For the designer hand-off, use
 Pipeline model (changed 2026-08): **one drawing feeds everything.** The mark is
 drawn once in `design/logo.af`, exported to `design/logo.svg`, and every raster
 in the repo is rendered from that. Nothing under `design/masters/` or
-`PgNimbus.App/Assets/` is hand-edited any more.
+`src/PgNimbus.App/Assets/` is hand-edited any more.
 
 ```
 design/logo.af                     Affinity, the editable master
   → scripts/design/dump-af.js      geometry out to JSON (run via the Affinity MCP)
   → scripts/design/af-to-svg.py    design/logo.svg
   → scripts/design/make-masters.ps1        design/masters/**
-  → scripts/design/svg-to-axaml.py         PgNimbus.App/Styles/LogoMark.axaml
-  → scripts/windows/make-app-icons.ps1     PgNimbus.App/Assets/**
+  → scripts/design/svg-to-axaml.py         src/PgNimbus.App/Styles/LogoMark.axaml
+  → scripts/windows/make-app-icons.ps1     src/PgNimbus.App/Assets/**
   → scripts/windows/make-store-logos.ps1   design/store/**
 ```
 
@@ -29,7 +29,7 @@ hand-painted PNG that nothing can regenerate.
 
 - **Part 0 — The vector master** (`design/logo.af`, `design/logo.svg`)
 - **Part 1 — Sources** (`design/masters/`, now all generated)
-- **Part 2 — Shipped outputs** (`PgNimbus.App/Assets/`, generated)
+- **Part 2 — Shipped outputs** (`src/PgNimbus.App/Assets/`, generated)
 - **Part 3 — The scripts** (source → output mapping)
 - **Part 4 — GitHub surfaces**
 - **Part 5 — Full store/platform resolution reference**
@@ -162,7 +162,7 @@ carries no wordmark), and `trailer/`, the Store trailer and its thumbnail, from
 
 ---
 
-## Part 2 — Shipped outputs: `PgNimbus.App/Assets/`
+## Part 2 — Shipped outputs: `src/PgNimbus.App/Assets/`
 
 **Generated — do not hand-edit.** Filenames are stable, so csproj / WiX /
 MSIX manifest / CI reference them unchanged.
@@ -201,7 +201,7 @@ into the path data and writes `design/logo.svg`.
 
 ### `scripts/design/svg-to-axaml.py` (any OS, stdlib only)
 Run after any change to `design/logo.svg`. Transcribes it into
-`PgNimbus.App/Styles/LogoMark.axaml`, a `DrawingImage` keyed `LogoMarkImage` that
+`src/PgNimbus.App/Styles/LogoMark.axaml`, a `DrawingImage` keyed `LogoMarkImage` that
 the app draws wherever it shows the mark itself (the connect window's button row), so
 it is sharp at any size instead of being one more raster to keep in step. Like
 `af-to-svg.py` it relies on the SVG being flat; it stops on any element it does not

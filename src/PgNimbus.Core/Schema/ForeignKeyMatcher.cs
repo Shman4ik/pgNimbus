@@ -12,7 +12,7 @@ public readonly record struct JoinConditionSuggestion(string Condition, string? 
 /// Pure FK-graph logic behind completion's JOIN magic: which tables are FK-adjacent
 /// to the statement's tables, and what join condition connects two specific ones.
 /// No UI/App dependency (unlike the SQL-text parsing that produces its inputs, which
-/// stays in PgNimbus.App/Completion since it exists only to feed the editor popup) —
+/// stays in src/PgNimbus.App/Completion since it exists only to feed the editor popup) —
 /// this half is pure data-in/data-out, so it's unit-testable without a live connection.
 /// </summary>
 public static class ForeignKeyMatcher

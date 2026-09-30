@@ -13,17 +13,17 @@ Short version: install the .NET 10 SDK, then
 
 ```bash
 dotnet build
-dotnet run --project PgNimbus.App
+dotnet run --project src/PgNimbus.App
 ```
 
 Run the tests with:
 
 ```bash
-dotnet test --project PgNimbus.Core.Tests
+dotnet test --project tests/PgNimbus.Core.Tests
 ```
 
 ```bash
-dotnet test --project PgNimbus.App.Tests
+dotnet test --project tests/PgNimbus.App.Tests
 ```
 
 The first covers the engine and the pure logic. The second drives real

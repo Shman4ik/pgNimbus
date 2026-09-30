@@ -418,7 +418,7 @@ Escape, отправленный инструментом автоматизац
 | `dotnet run -c Release --project tools/CompletionBench -- quality` | Точность по словам и список промахов (раздел 3) |
 | `… -- cases`, `… -- hints` | Ответ провайдера в каждом сценарии, подсказки аргументов |
 | `… -- dump "<строка подключения>"` | Новый `catalog.json` с живой базы |
-| `dotnet test --project PgNimbus.App.Tests -- --treenode-filter "/*/*/CompletionTypingReplayTests/*"` | Буквальный набор (утверждение: 0 расхождений) и оракул (KSR в отчёте теста, `TestResults/*.tunit-report.json`) |
+| `dotnet test --project tests/PgNimbus.App.Tests -- --treenode-filter "/*/*/CompletionTypingReplayTests/*"` | Буквальный набор (утверждение: 0 расхождений) и оракул (KSR в отчёте теста, `TestResults/*.tunit-report.json`) |
 
 На момент аудита `CompletionTypingReplayTests` был помечен `[Explicit]`, потому что буквальный набор падал. Пакет K сделал его зелёным и снял `[Explicit]` с буквального набора, пакет L — с оракула: обе проверки идут в каждой сборке.
 Порог оракула не даёт метрике ухудшиться; каждый пакет, который поднимает KSR, поднимает и порог (после L — 32%, после M — 35%). Пакет, который добавляет запросы в корпус, сначала меряет на расширенном корпусе базовую ветку: цифры до и после сравниваются на одном корпусе.

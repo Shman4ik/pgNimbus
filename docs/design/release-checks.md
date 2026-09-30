@@ -20,7 +20,7 @@ going stale.
 `scripts/release/Smoke-Launch.ps1` (Windows) start a built pgNimbus with
 `PGNIMBUS_STARTUP_PROBE=1`, which makes the app print one line after its first
 window has rendered its first frame and then exit
-(`PgNimbus.App/StartupProbe.cs`). Both the exit code and the line are asserted:
+(`src/PgNimbus.App/StartupProbe.cs`). Both the exit code and the line are asserted:
 an app that quit before drawing anything also exits 0.
 
 `release.yml` runs this against every artifact it produces:

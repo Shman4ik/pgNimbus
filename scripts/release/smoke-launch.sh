@@ -11,7 +11,7 @@
 #
 # Mechanism: PGNIMBUS_STARTUP_PROBE=1 makes the app print one line after its
 # first window has rendered its first frame and then exit (see
-# PgNimbus.App/StartupProbe.cs). Both halves are asserted — a clean exit code
+# src/PgNimbus.App/StartupProbe.cs). Both halves are asserted — a clean exit code
 # alone would also be produced by an app that quit before drawing anything.
 #
 # Usage:

@@ -23,7 +23,7 @@ namespace PgNimbus.App.Tests;
 /// keystroke saving has a floor each package that raises it raises too, so a
 /// ranking change that costs keystrokes fails the build instead of going
 /// unnoticed. Run just these with
-/// <c>dotnet test --project PgNimbus.App.Tests -- --treenode-filter "/*/*/CompletionTypingReplayTests/*"</c>;
+/// <c>dotnet test --project tests/PgNimbus.App.Tests -- --treenode-filter "/*/*/CompletionTypingReplayTests/*"</c>;
 /// the saving is printed into the test report (TestResults/*.tunit-report.json).
 /// </summary>
 [NotInParallel]

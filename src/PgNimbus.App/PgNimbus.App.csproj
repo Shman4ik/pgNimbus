@@ -66,7 +66,7 @@
          bump between editing a colour and seeing it. See
          shared\nimbusUi\README.md for the subtree pull/push commands, and
          shared\nimbusUi\DESIGN.md for the rules it enforces. -->
-    <ProjectReference Include="..\shared\nimbusUi\src\Nimbus.Ui\Nimbus.Ui.csproj" />
+    <ProjectReference Include="..\..\shared\nimbusUi\src\Nimbus.Ui\Nimbus.Ui.csproj" />
   </ItemGroup>
 
 </Project>

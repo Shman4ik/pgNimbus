@@ -22,7 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\PgNimbus.Core\PgNimbus.Core.csproj" />
+    <ProjectReference Include="..\..\src\PgNimbus.Core\PgNimbus.Core.csproj" />
   </ItemGroup>
 
 </Project>

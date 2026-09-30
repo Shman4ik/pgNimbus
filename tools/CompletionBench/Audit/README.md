@@ -22,7 +22,7 @@ From the repository root:
 dotnet run -c Release --project tools/CompletionBench -- quality
 dotnet run -c Release --project tools/CompletionBench -- cases
 dotnet run -c Release --project tools/CompletionBench -- hints
-dotnet test --project PgNimbus.App.Tests -- --treenode-filter "/*/*/CompletionTypingReplayTests/*"
+dotnet test --project tests/PgNimbus.App.Tests -- --treenode-filter "/*/*/CompletionTypingReplayTests/*"
 ```
 
 - `quality`: for every word of the corpus, where the intended row lands after

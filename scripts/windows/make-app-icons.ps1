@@ -8,11 +8,11 @@
 #   INPUT  design/masters/icon/icon-{16,24,32,48,256,1024}.png   square full-bleed tiles
 #          design/masters/window/window-{light,dark}-256.png     the same plated mark, twice
 #
-#   OUTPUT PgNimbus.App/Assets/app.ico                    exe + MSI icon (multi-size)
-#          PgNimbus.App/Assets/window-icon-{light,dark}.ico   window icon, same mark both themes
-#          PgNimbus.App/Assets/Msix/{Square44x44Logo,Square150x150Logo,StoreLogo}
+#   OUTPUT src/PgNimbus.App/Assets/app.ico                    exe + MSI icon (multi-size)
+#          src/PgNimbus.App/Assets/window-icon-{light,dark}.ico   window icon, same mark both themes
+#          src/PgNimbus.App/Assets/Msix/{Square44x44Logo,Square150x150Logo,StoreLogo}
 #              .scale-{100,125,150,200,400}.png           MSIX plated tiles, one file per DPI
-#          PgNimbus.App/Assets/Msix/Square44x44Logo
+#          src/PgNimbus.App/Assets/Msix/Square44x44Logo
 #              .targetsize-{16,24,32,48,256}_altform-{unplated,lightunplated}.png
 #              the plated mark again (2026-08) — Windows still backplates an
 #              "unplated" tile on top, so this is a plate inside a plate,
@@ -27,7 +27,7 @@ Add-Type -AssemblyName System.Drawing
 $repo    = Resolve-Path (Join-Path $PSScriptRoot '..\..')
 $iconDir = Join-Path $repo 'design\masters\icon'
 $winDir  = Join-Path $repo 'design\masters\window'
-$outDir  = Join-Path $repo 'PgNimbus.App\Assets'
+$outDir  = Join-Path $repo 'src\PgNimbus.App\Assets'
 $msixDir = Join-Path $outDir 'Msix'
 
 function Get-Master([int]$size) {
@@ -157,7 +157,7 @@ foreach ($pair in @(
     $w.Flush()
     [System.IO.File]::WriteAllBytes((Join-Path $outDir $pair.Dst), $ms.ToArray())
     $w.Dispose(); $ms.Dispose()
-    Write-Host ("wrote PgNimbus.App\Assets\$($pair.Dst) ({0} sizes)" -f ($windowIconSizes -join ', '))
+    Write-Host ("wrote src\PgNimbus.App\Assets\$($pair.Dst) ({0} sizes)" -f ($windowIconSizes -join ', '))
 }
 
 # --- app.ico: 16/24/32/48 are hand-drawn masters copied as-is; 64/128 are
@@ -188,7 +188,7 @@ foreach ($img in $images) { $w.Write([byte[]]$img.Bytes) }
 $w.Flush()
 [System.IO.File]::WriteAllBytes((Join-Path $outDir 'app.ico'), $ms.ToArray())
 $w.Dispose(); $ms.Dispose()
-Write-Host ("wrote PgNimbus.App\Assets\app.ico ({0} sizes: {1})" -f $images.Count, (($icoPlan | ForEach-Object { $_.Size }) -join ', '))
+Write-Host ("wrote src\PgNimbus.App\Assets\app.ico ({0} sizes: {1})" -f $images.Count, (($icoPlan | ForEach-Object { $_.Size }) -join ', '))
 
 # --- MSIX plated tiles: one file per DPI scale factor (100/125/150/200/400%)
 #     for each logo, instead of a single flat file — Windows falls back to
@@ -216,7 +216,7 @@ foreach ($logo in @(
         [System.IO.File]::WriteAllBytes((Join-Path $msixDir "$($logo.Name).$($s.Suffix).png"), (Get-PngBytes $t))
         $t.Dispose()
     }
-    Write-Host "wrote PgNimbus.App\Assets\Msix\$($logo.Name).scale-{100,125,150,200,400}.png"
+    Write-Host "wrote src\PgNimbus.App\Assets\Msix\$($logo.Name).scale-{100,125,150,200,400}.png"
 }
 
 # --- MSIX "unplated" Square44x44Logo: the taskbar/Alt+Tab/Start altform
@@ -237,4 +237,4 @@ foreach ($pair in @(
         $t.Dispose()
     }
 }
-Write-Host "wrote PgNimbus.App\Assets\Msix\Square44x44Logo.targetsize-{16,24,32,48,256}_altform-{unplated,lightunplated}.png"
+Write-Host "wrote src\PgNimbus.App\Assets\Msix\Square44x44Logo.targetsize-{16,24,32,48,256}_altform-{unplated,lightunplated}.png"

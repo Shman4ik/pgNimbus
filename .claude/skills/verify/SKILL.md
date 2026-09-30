@@ -17,7 +17,7 @@ learned from real runs are after it.
   with `xdotool mousemove <x> <y> click 1` / `xdotool type ...` /
   `xdotool key ctrl+a Delete`.
 - Run the app in the background under `timeout 180 dotnet run --project
-  PgNimbus.App --no-build` so one launch survives several drive/screenshot
+  src/PgNimbus.App --no-build` so one launch survives several drive/screenshot
   Bash calls.
 - `SELECT count(*) FROM pg_stat_activity WHERE application_name='pgNimbus'`
   is a handy probe for leaked/pooled connections.
@@ -59,7 +59,7 @@ PGPASSWORD=postgres psql -h localhost -U postgres -d demo -c "CREATE TABLE ..."
 #    URI, JDBC, Key=Value;, libpq keywords, psql command line):
 dotnet build
 DISPLAY=:99 PGNIMBUS_CONN="Host=localhost;Port=5432;Database=demo;Username=postgres;Password=postgres" \
-    timeout 15 dotnet run --project PgNimbus.App --no-build &
+    timeout 15 dotnet run --project src/PgNimbus.App --no-build &
 
 # 4. Drive it (optional) and capture a screenshot:
 DISPLAY=:99 xdotool mousemove <x> <y> click 1   # click/expand/select

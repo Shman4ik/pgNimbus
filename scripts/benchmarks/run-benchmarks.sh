@@ -21,7 +21,7 @@
 #   stream_ms        large SELECT: full drain through the streaming path (median)
 #
 # Startup numbers come from the app itself (PGNIMBUS_STARTUP_PROBE=1 prints
-# launch-to-first-frame and exits — see PgNimbus.App/StartupProbe.cs); query
+# launch-to-first-frame and exits — see src/PgNimbus.App/StartupProbe.cs); query
 # numbers come from the PgNimbus.Benchmarks console project.
 #
 # Environment:
@@ -83,7 +83,7 @@ measure_startup() {
 # --- builds ------------------------------------------------------------------
 echo "== Building (JIT Release)"
 dotnet build -c Release >/dev/null
-JIT_BINARY=PgNimbus.App/bin/Release/net10.0/PgNimbus.App
+JIT_BINARY=src/PgNimbus.App/bin/Release/net10.0/PgNimbus.App
 
 if [[ -n "${PGNIMBUS_BENCH_PUBLISH_DIR:-}" ]]; then
     echo "== Using prebuilt NativeAOT publish at $PGNIMBUS_BENCH_PUBLISH_DIR"
@@ -95,12 +95,12 @@ if [[ -n "${PGNIMBUS_BENCH_PUBLISH_DIR:-}" ]]; then
     [[ -x "$AOT_BINARY" ]] || chmod +x "$AOT_BINARY"
 elif [[ -z "${PGNIMBUS_BENCH_SKIP_AOT:-}" ]]; then
     echo "== Publishing (NativeAOT linux-x64) — this is the slow part"
-    AOT_BINARY=PgNimbus.App/bin/Release/net10.0/linux-x64/publish/PgNimbus.App
+    AOT_BINARY=src/PgNimbus.App/bin/Release/net10.0/linux-x64/publish/PgNimbus.App
     PUBLISH_DIR=$(dirname "$AOT_BINARY")
     # dotnet publish never cleans its output dir, so a repeated local run
     # would keep (and count) files a previous build no longer produces.
     rm -rf "$PUBLISH_DIR"
-    dotnet publish PgNimbus.App -c Release -r linux-x64 -p:PublishAot=true >/dev/null
+    dotnet publish src/PgNimbus.App -c Release -r linux-x64 -p:PublishAot=true >/dev/null
 fi
 
 if [[ -n "${AOT_BINARY:-}" ]]; then
@@ -128,7 +128,7 @@ read -r STARTUP_JIT_MS _ <<<"$(measure_startup "$JIT_BINARY")"
 # --- query engine -------------------------------------------------------------
 echo "== Query engine ($ROWS-row stream)"
 QUERY_OUT=$(PGNIMBUS_BENCH_CONN="$CONN" PGNIMBUS_BENCH_ROWS="$ROWS" \
-    dotnet run --project PgNimbus.Benchmarks -c Release --no-build)
+    dotnet run --project tests/PgNimbus.Benchmarks -c Release --no-build)
 echo "$QUERY_OUT"
 bench_value() { grep -o "PGNIMBUS_BENCH $1=[0-9.]*" <<<"$QUERY_OUT" | cut -d= -f2; }
 CONNECT_MS=$(bench_value connect_ms)

@@ -31,7 +31,7 @@ capture box and writes `out\raw\<scene>.mp4`.
 ```powershell
 # 1. The shipping build (PowerShell only: Git Bash fails at link on vswhere)
 $env:PATH = "C:\Program Files (x86)\Microsoft Visual Studio\Installer;" + $env:PATH
-dotnet publish PgNimbus.App -c Release -r win-x64 -p:PublishAot=true -p:Version=X.Y.Z -o artifacts\aot
+dotnet publish src/PgNimbus.App -c Release -r win-x64 -p:PublishAot=true -p:Version=X.Y.Z -o artifacts\aot
 
 # 2. The demo database (port 55432 is in a Windows excluded range; use 544x)
 wslc run -d --name pgn-demo -e POSTGRES_PASSWORD=postgres -p 5443:5432 pgvector/pgvector:pg17

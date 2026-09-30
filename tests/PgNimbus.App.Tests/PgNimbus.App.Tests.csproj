@@ -32,11 +32,11 @@
          result sets). These tests drive the same windows the harness renders,
          so they take that fixture set rather than growing a second one that
          would drift away from what the screenshots show. -->
-    <ProjectReference Include="..\tools\Screenshot\Screenshot.csproj" />
+    <ProjectReference Include="..\..\tools\Screenshot\Screenshot.csproj" />
     <!-- The completion audit stand (catalog snapshot, corpus) and its loader,
          for CompletionTypingReplayTests. -->
-    <ProjectReference Include="..\tools\CompletionBench\CompletionBench.csproj" />
-    <ProjectReference Include="..\PgNimbus.App\PgNimbus.App.csproj" />
+    <ProjectReference Include="..\..\tools\CompletionBench\CompletionBench.csproj" />
+    <ProjectReference Include="..\..\src\PgNimbus.App\PgNimbus.App.csproj" />
   </ItemGroup>
 
 </Project>

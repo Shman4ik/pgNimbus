@@ -43,8 +43,8 @@ needs a model that can drive the desktop.
       wslc run -d --name pgn-release -e POSTGRES_PASSWORD=postgres -p 5441:5432 pgvector/pgvector:pg17 postgres -c shared_preload_libraries=pg_stat_statements
       wslc exec pgn-release psql -U postgres -c "CREATE DATABASE pgn_tests"
       $env:PGNIMBUS_TEST_CONN = "Host=127.0.0.1;Port=5441;Database=pgn_tests;Username=postgres;Password=postgres"
-      dotnet test --project PgNimbus.Core.Tests
-      dotnet test --project PgNimbus.App.Tests
+      dotnet test --project tests/PgNimbus.Core.Tests
+      dotnet test --project tests/PgNimbus.App.Tests
       ```
       Port 55432 falls in a Windows excluded TCP range on the dev machine; use
       544x. Expected skips: the two native credential-store tests and the two
@@ -54,7 +54,7 @@ needs a model that can drive the desktop.
       `dotnet run --project tools/Screenshot -- <scratch>`. CI already compares
       against the Linux baselines; locally this is a smoke run.
 - [ ] Docs build: `mkdocs build --strict` (after `pip install -r docs/requirements.txt`).
-- [ ] The privacy claim still holds: `grep -rn "HttpClient\|WebRequest" --include=*.cs PgNimbus.Core PgNimbus.App`
+- [ ] The privacy claim still holds: `grep -rn "HttpClient\|WebRequest" --include=*.cs src`
       finds nothing. (The build itself sends Avalonia's build-time telemetry, see
       [known caveats](#known-caveats); that is not the app.)
 
@@ -66,7 +66,7 @@ JIT never shows (reflection JSON, bindings).
 - [ ] Publish it, stamped with the version so the UI shows the right number:
       ```powershell
       $env:PATH = "C:\Program Files (x86)\Microsoft Visual Studio\Installer;" + $env:PATH
-      dotnet publish PgNimbus.App -c Release -r win-x64 -p:PublishAot=true -p:Version=X.Y.Z -o artifacts\aot
+      dotnet publish src/PgNimbus.App -c Release -r win-x64 -p:PublishAot=true -p:Version=X.Y.Z -o artifacts\aot
       ```
       (from PowerShell: Git Bash fails at link on `vswhere.exe`).
 - [ ] **Keep the pass out of your real app data.** Launch the build with
@@ -147,7 +147,7 @@ pass. 1.0.0 found five defects here that no Windows step could have.
       `docker run -d --name pgn-release -e POSTGRES_PASSWORD=postgres -p 5441:5432 pgvector/pgvector:pg17 postgres -c shared_preload_libraries=pg_stat_statements`,
       create `pgn_tests` and `demo`, pipe `scripts/demo/0*.sql` into `demo`. Run both
       test projects with `PGNIMBUS_TEST_CONN` set as in section 2.
-- [ ] Build what ships: `dotnet publish PgNimbus.App -c Release -r osx-arm64 -p:PublishAot=true -p:Version=X.Y.Z -o <dir>`,
+- [ ] Build what ships: `dotnet publish src/PgNimbus.App -c Release -r osx-arm64 -p:PublishAot=true -p:Version=X.Y.Z -o <dir>`,
       then `scripts/macos/build-app-bundle.sh <dir> X.Y.Z osx-arm64 <out>`. Mount the
       `.dmg` and check: no `*.dSYM` or `*.pdb` in the `.app` (~60 MB installed, not
       190), `LSMinimumSystemVersion` is not below `vtool -show-build` `minos` of the

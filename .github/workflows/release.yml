@@ -85,7 +85,7 @@ jobs:
       - name: Publish NativeAOT (win-x64)
         shell: bash
         run: >
-          dotnet publish PgNimbus.App -c Release -r win-x64
+          dotnet publish src/PgNimbus.App -c Release -r win-x64
           --self-contained true
           -p:PublishAot=true
           -p:Version="$VERSION"
@@ -115,7 +115,7 @@ jobs:
           dotnet wix build installer/windows/Product.wxs
           -d PublishDir=${env:GITHUB_WORKSPACE}\publish\win-x64
           -d Version=${env:VERSION}
-          -d IconFile=${env:GITHUB_WORKSPACE}\PgNimbus.App\Assets\app.ico
+          -d IconFile=${env:GITHUB_WORKSPACE}\src\PgNimbus.App\Assets\app.ico
           -arch x64
           -o pgNimbus-${env:VERSION}-win-x64.msi
 
@@ -274,7 +274,7 @@ jobs:
 
       - name: Publish NativeAOT (osx-arm64)
         run: >
-          dotnet publish PgNimbus.App -c Release -r osx-arm64
+          dotnet publish src/PgNimbus.App -c Release -r osx-arm64
           --self-contained true
           -p:PublishAot=true
           -p:Version="$VERSION"
@@ -394,7 +394,7 @@ jobs:
 
       - name: Publish NativeAOT (${{ matrix.rid }})
         run: >
-          dotnet publish PgNimbus.App -c Release -r "$RID"
+          dotnet publish src/PgNimbus.App -c Release -r "$RID"
           --self-contained true
           -p:PublishAot=true
           -p:Version="$VERSION"
@@ -495,7 +495,7 @@ jobs:
 
       - name: Generate SBOM (CycloneDX)
         run: |
-          dotnet dotnet-CycloneDX PgNimbus.App/PgNimbus.App.csproj -c Release -F Json \
+          dotnet dotnet-CycloneDX src/PgNimbus.App/PgNimbus.App.csproj -c Release -F Json \
             -o sbom -fn "pgNimbus-${VERSION}-sbom.cdx.json" \
             -sn pgNimbus -sv "$VERSION" -ed
 

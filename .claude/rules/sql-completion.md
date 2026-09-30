@@ -1,9 +1,9 @@
 ---
 description: "SQL lexer, scope reader and completion: the rules and evidence behind packages A-R."
 paths:
-  - "PgNimbus.Core/Text/**"
-  - "PgNimbus.Core/Schema/**"
-  - "PgNimbus.App/Completion/**"
+  - "src/PgNimbus.Core/Text/**"
+  - "src/PgNimbus.Core/Schema/**"
+  - "src/PgNimbus.App/Completion/**"
   - "**/QueryEditorPanel*"
   - "**/*Completion*"
   - "tools/CompletionBench/**"
@@ -69,7 +69,7 @@ paths:
   `USING`/`NATURAL` or a FROM item it can't read (subquery, function, LATERAL)
   refuses, and the reason goes to the tab's status line. The catalog behind all
   of this is one immutable snapshot (`SqlCompletionProvider.Load(CompletionCatalog)`
-  — also the test seam: `PgNimbus.App.Tests/CompletionProviderTests` runs the
+  — also the test seam: `tests/PgNimbus.App.Tests/CompletionProviderTests` runs the
   audit's catalog in memory), a refresh that finishes after a newer one started
   is dropped, relation names come without `pg_total_relation_size`
   (`GetRelationNamesAsync`), and foreign keys touching an excluded schema are

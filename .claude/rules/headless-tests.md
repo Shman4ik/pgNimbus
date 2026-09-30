@@ -2,7 +2,7 @@
 description: "Headless screenshot harness (tools/Screenshot) and headless UI tests (PgNimbus.App.Tests)."
 paths:
   - "tools/Screenshot/**"
-  - "PgNimbus.App.Tests/**"
+  - "tests/PgNimbus.App.Tests/**"
   - "scripts/screenshots/**"
 ---
 

@@ -82,14 +82,14 @@ jobs:
       - name: Test (core)
         env:
           PGNIMBUS_TEST_CONN: "Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=postgres"
-        run: dotnet test --project PgNimbus.Core.Tests -c Release --no-build
+        run: dotnet test --project tests/PgNimbus.Core.Tests -c Release --no-build
 
       # The UI half: real windows on Avalonia's headless platform, driven with
       # real key input. No display and no database — the fixture data source
       # opens no socket. This is the check that used to be a person clicking
       # through the app before a release.
       - name: Test (UI)
-        run: dotnet test --project PgNimbus.App.Tests -c Release --no-build
+        run: dotnet test --project tests/PgNimbus.App.Tests -c Release --no-build
 
       # Renders every UI scenario through Avalonia.Headless (no display, no
       # database — see CLAUDE.md "Headless screenshot harness") and compares each

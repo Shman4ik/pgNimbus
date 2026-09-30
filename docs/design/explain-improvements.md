@@ -106,7 +106,7 @@ the EXPLAIN feature.
 
 ### Core: `PlanAnalyzer` + `PlanWarning`
 
-`PgNimbus.Core/Query/PlanAnalyzer.cs` — a static class with
+`src/PgNimbus.Core/Query/PlanAnalyzer.cs` — a static class with
 `Analyze(ExplainResult) : IReadOnlyList<PlanWarning>` that walks the node tree.
 Pure and deterministic (no DB, no clock), so it is unit-tested against
 captured JSON exactly like `ExplainService.Parse`.

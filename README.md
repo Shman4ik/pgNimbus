@@ -162,8 +162,8 @@ Requires the [.NET 10 SDK](https://dotnet.microsoft.com/download).
 
 ```bash
 dotnet build
-dotnet run --project PgNimbus.App
-dotnet test --project PgNimbus.Core.Tests
+dotnet run --project src/PgNimbus.App
+dotnet test --project tests/PgNimbus.Core.Tests
 ```
 
 `PgNimbus.Core` is the engine: a plain class library over Npgsql with no UI dependencies, streaming results as `IAsyncEnumerable<RowBatch>` with real mid-flight cancellation. `PgNimbus.App` is the Avalonia front end. To skip the connection dialog while developing, set `PGNIMBUS_CONN` to any connection string the paste box accepts.
@@ -171,8 +171,8 @@ dotnet test --project PgNimbus.Core.Tests
 A NativeAOT build:
 
 ```bash
-dotnet publish PgNimbus.App -c Release -r win-x64 -p:PublishAot=true    # Windows
-dotnet publish PgNimbus.App -c Release -r linux-x64 -p:PublishAot=true  # Linux (needs clang + zlib1g-dev)
+dotnet publish src/PgNimbus.App -c Release -r win-x64 -p:PublishAot=true    # Windows
+dotnet publish src/PgNimbus.App -c Release -r linux-x64 -p:PublishAot=true  # Linux (needs clang + zlib1g-dev)
 ```
 
 The docs site is MkDocs Material: `pip install -r docs/requirements.txt && mkdocs serve`.

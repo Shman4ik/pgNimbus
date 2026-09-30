@@ -68,7 +68,7 @@ for its tests; zero IL warnings.
 
 **Findings**
 
-1. **should fix (a follow-up is fine)** `PgNimbus.App/ViewModels/QueryViewModel.cs:2592`:
+1. **should fix (a follow-up is fine)** `src/PgNimbus.App/ViewModels/QueryViewModel.cs:2592`:
    export of a hand-written query past the 100,000-row display cap now writes
    only the grid ("a query you wrote isn't run again for the rest"). That is what
    the audit asked, and the docs say so, but it removes ROADMAP D1 for every
@@ -99,8 +99,8 @@ the PR states.
 
 **Findings**
 
-1. **should fix** `PgNimbus.Core/Query/QueryEngine.cs:218` with
-   `PgNimbus.App/ViewModels/AddRowViewModel.cs:140`: after a loss once the
+1. **should fix** `src/PgNimbus.Core/Query/QueryEngine.cs:218` with
+   `src/PgNimbus.App/ViewModels/AddRowViewModel.cs:140`: after a loss once the
    statement was sent, `ExecuteNonQueryAsync` rethrows the raw Npgsql exception,
    and Add-row shows "Insert failed: Exception while reading from stream". In
    the lost-acknowledgement case the INSERT may have committed, so a user who
@@ -112,7 +112,7 @@ the PR states.
    DELETE, idempotent, and only need the wording.
 2. **nit** `docs/getting-started/connecting.md` (reconnect section): "half way"
    should be "halfway".
-3. **nit** `PgNimbus.Core.Tests/Query/QueryEngineReconnectTests.cs:366`: new
+3. **nit** `tests/PgNimbus.Core.Tests/Query/QueryEngineReconnectTests.cs:366`: new
    CS8602 warning.
 
 **Scope vs the audit:** closes finding 2 more strictly than asked: nothing is
@@ -136,7 +136,7 @@ live probe of `ExplainService` against `pgn-audit`, each shape carrying
 
 **Findings**
 
-1. **blocker** `PgNimbus.Core/Text/SqlLexer.cs:156` (unchanged by the PR): a
+1. **blocker** `src/PgNimbus.Core/Text/SqlLexer.cs:156` (unchanged by the PR): a
    `--` comment ends only at `\n`; PostgreSQL's scanner ends it at `\n` or `\r`.
    `SELECT 1 --x\r; COMMIT; CREATE TABLE pwn_cr()` passes
    `ExplainService.SingleStatement`, and both Explain and Explain Analyze
@@ -153,7 +153,7 @@ live probe of `ExplainService` against `pgn-audit`, each shape carrying
    startup option closes this whenever the option reaches the server. **Change:**
    merge #290 first; as a belt, refuse a plain `'…'` literal that holds a
    backslash in `SingleStatement`.
-3. **nit** `PgNimbus.Core.Tests/Query/ExplainServiceTests.cs:95`: the live test's
+3. **nit** `tests/PgNimbus.Core.Tests/Query/ExplainServiceTests.cs:95`: the live test's
    `SELECT 1; CREATE TABLE …` is also stopped by the new rollback transaction
    alone, so it does not prove the refusal protects anything. **Change:** add the
    `…; COMMIT; CREATE …` shape (and the `\r` shape once fixed).
@@ -180,8 +180,8 @@ run.
 
 **Findings**
 
-1. **should fix** `PgNimbus.Core/Security/ScramSha256Verifier.cs:256` with
-   `PgNimbus.App/PgNimbus.App.csproj:13`: the shipped app runs with
+1. **should fix** `src/PgNimbus.Core/Security/ScramSha256Verifier.cs:256` with
+   `src/PgNimbus.App/PgNimbus.App.csproj:13`: the shipped app runs with
    `InvariantGlobalization`, where `Normalize(FormKC)` is the identity. A
    password NFKC would change (decomposed accents, full-width letters, ligatures,
    superscripts, U+2126) gets a verifier that libpq and pgJDBC clients, which do
@@ -191,7 +191,7 @@ run.
    was created for) do regress, silently. **Change:** when
    `NormalizationAvailable` is false and the password is not ASCII, warn in the
    role dialog or refuse the password; or carry the NFKC tables.
-2. **should fix** `PgNimbus.Core/Security/RoleScriptBuilder.cs:347`: no
+2. **should fix** `src/PgNimbus.Core/Security/RoleScriptBuilder.cs:347`: no
    server-version guard. Before PostgreSQL 10 a `SCRAM-SHA-256$…` literal is
    stored as the password itself, and no user-facing doc states a minimum server
    version. **Change:** refuse below `server_version_num` 100000 (the security
@@ -271,23 +271,23 @@ the UI thread:
 
 **Findings**
 
-1. **should fix** `PgNimbus.Core/Text/SqlCompletionContext.Ctes.cs:37`
+1. **should fix** `src/PgNimbus.Core/Text/SqlCompletionContext.Ctes.cs:37`
    (`ExtractCteDefinitions`) grows about cubically and runs on popup open
    (`SqlCompletionProvider.cs:1743`, `:2283`, `:2846`), so a pasted 40 KB nest of
    CTEs freezes the editor per keystroke. **Change:** one pass with a paren
    stack, or go opaque past `SqlScopeModel.MaxDepth`; add nested `WITH` to
    `ParserRobustnessTests`' deep shapes.
-2. **should fix** `PgNimbus.Core/Query/BrowseSqlParser.cs:43`: quadratic on
+2. **should fix** `src/PgNimbus.Core/Query/BrowseSqlParser.cs:43`: quadratic on
    nested parentheses in a WHERE, on the UI thread after a Run in a browse tab.
    **Change:** a depth cap (past it the query is simply not browse-shaped).
-3. **should fix** `PgNimbus.App/Views/QueryEditorPanel.axaml.cs:1300`
+3. **should fix** `src/PgNimbus.App/Views/QueryEditorPanel.axaml.cs:1300`
    (`FormatCurrentStatement`): `SqlFormatter`'s indentation is O(depth²); a
    100,000-deep `WITH`, FROM subquery or UNION throws
    `ArgumentOutOfRangeException` (StringBuilder capacity) and the call site has
    no catch, so it reaches the crash window. **Change:** cap indentation depth in
    the formatter and catch at the call site with a status message.
 4. **should fix** (older than the PR; the new comment is wrong)
-   `PgNimbus.Core/Query/ExplainService.cs:117`: `JsonDocument.Parse` keeps the
+   `src/PgNimbus.Core/Query/ExplainService.cs:117`: `JsonDocument.Parse` keeps the
    default `MaxDepth` of 64, which is about 31 plan levels (an object and an
    array per level). A plan deeper than that, such as a 30-plus table join, fails
    with a `FormatException`. `ExplainPlanTextParser.cs:34` says "real plans stay
@@ -319,8 +319,8 @@ slow-query header holds only numbers and times). `PublicRoleTests` and
 
 **Findings**
 
-1. **should fix (follow-up)** `PgNimbus.Core/Query/SqlLiteral.cs:48` with
-   `PgNimbus.Core/Schema/SchemaService.cs:297`: the guarantee rests on the
+1. **should fix (follow-up)** `src/PgNimbus.Core/Query/SqlLiteral.cs:48` with
+   `src/PgNimbus.Core/Schema/SchemaService.cs:297`: the guarantee rests on the
    startup option. Behind a pooler that drops `options` (finding 17's PgBouncer
    case) the database default applies again, and nothing checks; that reopens
    finding 13 and #286's backslash bypass. **Change:** read
@@ -343,15 +343,15 @@ run.
 **Findings**
 
 1. **should fix** (this is the merged tree's one failing test)
-   `PgNimbus.Core/Connections/AppDataPaths.cs:26` with
-   `PgNimbus.Core.Tests/Settings/AppDataFileTests.cs:338`: the process-wide
+   `src/PgNimbus.Core/Connections/AppDataPaths.cs:26` with
+   `tests/PgNimbus.Core.Tests/Settings/AppDataFileTests.cs:338`: the process-wide
    static `RootResolverForTests` is set to null under
    `[NotInParallel(nameof(AppDataPaths))]`, which does not keep other tests out.
    On the merged tree #292's
    `The_app_default_puts_its_own_file_under_the_app_data_root` failed with
    `ArgumentNullException` and passes alone. **Change:** make the seam
    `AsyncLocal<Func<string?>?>` so it reaches only the test's own flow.
-2. **nit** `PgNimbus.Core/Settings/AppDataFile.cs:309`: every store write
+2. **nit** `src/PgNimbus.Core/Settings/AppDataFile.cs:309`: every store write
    fsyncs, including the history rewrite after each Run on the UI thread. Fine
    on an SSD, felt on a network home directory. **Change:** fsync only
    `connections.json`, or write history off the UI thread.
@@ -372,7 +372,7 @@ query stays green, as it should). A live probe with a policy that answers late.
 
 **Findings**
 
-1. **should fix** `PgNimbus.Core/Connections/SshTunnel.cs:27`: the prompt counts
+1. **should fix** `src/PgNimbus.Core/Connections/SshTunnel.cs:27`: the prompt counts
    against the 15 s connect timeout. Live, an accept after 20 s gives "Could not
    reach the SSH server 127.0.0.1:2299 (Session operation has timed out). Check
    the address, and that the VPN or network it sits behind is up." That is wrong
@@ -380,18 +380,18 @@ query stays green, as it should). A live probe with a policy that answers late.
    do not hold the handshake open on the user: fetch the key with a connection
    that stops after key exchange, ask, then connect; or retry once after an
    accepted prompt; at the least, word the error as a prompt timeout.
-2. **should fix** `PgNimbus.Core/Connections/KnownHosts.cs:231`: entries of
+2. **should fix** `src/PgNimbus.Core/Connections/KnownHosts.cs:231`: entries of
    another key type are skipped, so a host known by `ssh-ed25519` that suddenly
    presents an `ssh-rsa` key gets a plain "unknown host" prompt with no warning,
    which is what an interceptor would do. **Change:** when the host is known,
    restrict `ConnectionInfo.HostKeyAlgorithms` to the known types (OpenSSH's
    behaviour), or treat it as a change, or warn in the prompt.
-3. **should fix** (with #291) `PgNimbus.Core/Connections/SshHostKeyVerifier.cs:98`:
+3. **should fix** (with #291) `src/PgNimbus.Core/Connections/SshHostKeyVerifier.cs:98`:
    `Path.Combine(AppDataPaths.GetRootDirectory(), "known_hosts")` throws once
    #291 makes the root nullable, so every SSH connect fails when there is no
    data directory. It also raises CS8604. **Change:** `AppDataPaths.Resolve`
    with keys kept in memory when it is null.
-4. **should fix** (with #291) `PgNimbus.Core/Connections/KnownHosts.cs:319`: the
+4. **should fix** (with #291) `src/PgNimbus.Core/Connections/KnownHosts.cs:319`: the
    app's own `known_hosts` is written with `File.AppendAllText`, so 0644 on Unix,
    and it lists every bastion the user reaches. **Change:**
    `AppDataFile.AppendAllText` once #291 is in.
@@ -478,8 +478,8 @@ deterministic across refreshes and still names every blocker.
 
 **Findings**
 
-1. **blocker** `PgNimbus.Core/Settings/WorkspaceStore.cs:80` with
-   `PgNimbus.App/ViewModels/MainViewModel.cs:759`: the snapshot redacts every
+1. **blocker** `src/PgNimbus.Core/Settings/WorkspaceStore.cs:80` with
+   `src/PgNimbus.App/ViewModels/MainViewModel.cs:759`: the snapshot redacts every
    tab, file-backed ones included, and the restore puts the snapshot text in the
    buffer before attaching the file. A migration file holding
    `CREATE ROLE app LOGIN PASSWORD 'x'`, opened and never edited, reopens after a
@@ -490,7 +490,7 @@ deterministic across refreshes and still names every blocker.
    file tab (read it from disk on restore), and refuse to persist a tab that
    `ContainsSecret` flags (restore it empty with a note), as the audit preferred.
    Keep redaction for history.
-2. **should fix** `PgNimbus.Core/Security/SecretRedactor.cs:59`: the replacement
+2. **should fix** `src/PgNimbus.Core/Security/SecretRedactor.cs:59`: the replacement
    `'<redacted>'` is a valid literal, so re-running a restored or
    history-opened `ALTER ROLE x PASSWORD '<redacted>'` sets that password (the
    same for a user mapping). **Change:** a marker that fails to parse, such as
@@ -518,7 +518,7 @@ paragraph.
 
 **Findings**
 
-1. **nit** `PgNimbus.App/Views/SchemaTreePanel.axaml.cs:310`: `ConfirmDialog` is
+1. **nit** `src/PgNimbus.App/Views/SchemaTreePanel.axaml.cs:310`: `ConfirmDialog` is
    always the danger style, so "Install" is a red button. Acceptable, or add a
    non-danger variant.
 
@@ -533,7 +533,7 @@ through `ApplyBatchAsync`: one transaction (a SAVEPOINT inside the user's own),
 
 **Findings**
 
-1. **should fix** `PgNimbus.Core/Connections/ConnectionStringParser.cs:706`:
+1. **should fix** `src/PgNimbus.Core/Connections/ConnectionStringParser.cs:706`:
    `sslrootcert` now comes through the paste box, which the audit praised for
    letting no transport option through. On Windows a pasted
    `sslrootcert=\\host\share\ca.pem` makes the app read the CA over SMB (an NTLM
@@ -541,7 +541,7 @@ through `ApplyBatchAsync`: one transaction (a SAVEPOINT inside the user's own),
    "verifies" the attacker's certificate. **Change:** accept only a local absolute
    path from a paste (refuse UNC, `\\?\UNC\` and URLs) and show a pasted root
    certificate for confirmation.
-2. **should fix** `PgNimbus.App/ViewModels/ConnectionDialogViewModel.cs:194`:
+2. **should fix** `src/PgNimbus.App/ViewModels/ConnectionDialogViewModel.cs:194`:
    `Require` by default fails against the default local Docker Postgres
    (`ssl = off`), which is the first thing many people try with the `localhost`
    placeholder. The new hint helps. **Change:** default to Prefer when the host
@@ -563,7 +563,7 @@ no-op (PR body).
 
 **Findings**
 
-1. **nit** `PgNimbus.App/Views/CrashWindow.axaml.cs:125`: "… (truncated — see the
+1. **nit** `src/PgNimbus.App/Views/CrashWindow.axaml.cs:125`: "… (truncated — see the
    attached log)" puts an em dash in the issue body.
 
 **Scope vs the audit:** checked in the code: cast types are read with
@@ -583,7 +583,7 @@ GRANT uses identity arguments and `ON ROUTINE`. A type found through
 
 **Findings**
 
-1. **should fix** `PgNimbus.Core/Connections/RecoverableCredentialStore.cs:172`:
+1. **should fix** `src/PgNimbus.Core/Connections/RecoverableCredentialStore.cs:172`:
    the one-pass migration keeps trying every file after the OS store has failed,
    while holding the store's lock. With a locked or hung Secret Service (up to
    15 s per call, about three calls per file) the first Connect, which waits for
