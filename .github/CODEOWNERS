@@ -1,4 +1,6 @@
-# All PRs require review from the repo owner — see branch protection on
-# main (require_code_owner_reviews). Deliberate while the project is young:
-# every change gets a human pass from @Shman4ik before merge.
+# Names the owner, so GitHub asks @Shman4ik to review every pull request.
+# The request is not enforced: branch protection on main requires the checks
+# and resolved conversations but no approval, the same as kubeNimbus (see
+# "Repository settings" in .claude/CLAUDE.md). The owner still reads every
+# change before merging it; that is a habit, not a rule.
 * @Shman4ik

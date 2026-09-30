@@ -52,14 +52,27 @@ another that isn't in `main` yet, make them a **native stacked pull request**
 never a PR whose base is picked by hand as another PR's branch.
 
 Why this is a rule (2026-09-27): #262 and #265 were opened with #260's branch
-as their base. #260 was squash-merged first, and the repo keeps merged branches
-(`delete_branch_on_merge` is off), so nothing retargeted the two. They were
+as their base. #260 was squash-merged first, and the repo kept merged branches
+(`delete_branch_on_merge` was off; it is on since 2026-09-30, which makes GitHub
+retarget such a PR onto `main`, but a stack is still the rule), so nothing
+retargeted the two. They were
 merged into a branch that led nowhere and showed *Merged* while neither
 change was in `main`, until #263 carried them in. In a GitHub stack that can't
 happen: when the bottom PR merges, GitHub rebases the rest and retargets the
 next one onto `main` (squash included), and merging the top PR merges the whole
-stack, bottom up. Branch protection, required checks and CODEOWNERS apply to
-every PR in the stack.
+stack, bottom up. Branch protection and required checks apply to every PR in
+the stack.
+
+**Repository settings are kept the same in pgNimbus and kubeNimbus** (2026-09-30;
+nimbusUi carries the security half). On `main`: the required checks
+(`build-test` and `dependency-review` here, `Build & test` and
+`dependency-review` there), resolved conversations, no force push or deletion,
+and **no required approval** (CODEOWNERS only names who is asked). `v*` tags sit
+under a `Release tags` ruleset (create, never move or delete), releases are
+immutable, `sha_pinning_required` is on, Dependabot alerts and security updates,
+secret scanning with push protection and private vulnerability reporting are on,
+and merged branches are deleted. A change to one repo's settings is made to the
+other in the same session.
 
 How, with the `gh stack` extension (`gh extension install github/gh-stack`,
 gh ≥ 2.90; installed on the dev machine):
