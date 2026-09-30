@@ -31,7 +31,9 @@ $script:FF = (Get-Command ffmpeg -ErrorAction Stop).Source
 $script:Out = if ($env:PGN_DEMO_OUT) { $env:PGN_DEMO_OUT } else { Join-Path $PSScriptRoot 'out\raw' }
 New-Item -ItemType Directory -Force $script:Out | Out-Null
 # The capture box: centered on the 3840x1600 desktop, well inside the edges.
+# PGN_DEMO_BOX="x,y,w,h" overrides it (the Store trailer records a 16:9 box).
 $script:BX = 1208; $script:BY = 350; $script:BW = 1424; $script:BH = 892
+if ($env:PGN_DEMO_BOX) { $script:BX, $script:BY, $script:BW, $script:BH = $env:PGN_DEMO_BOX.Split(',') | ForEach-Object { [int]$_ } }
 $script:AppPid = 0
 
 function Start-App([string]$Conn) {

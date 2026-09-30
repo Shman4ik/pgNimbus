@@ -150,6 +150,15 @@ script run someone forgot about. Regenerate and commit whenever those change:
 The poster carries the same wordmark-plus-tagline layout as
 `logo/social-preview.png`, not the bare tile — see that section above.
 
+Two more in the same folder come from elsewhere (2026-09): `SuperHeroArt-16x9-1920x1080.png`,
+the image the Store shows at the top of the listing once the trailer ends, from
+`scripts/windows/make-store-hero.ps1` (the harness screenshot
+`screenshots/02-query-plan.dark.png` on the brand navy, right of centre; the Store lays
+its own title over the left side and forbids the product's title in this image, so it
+carries no wordmark), and `trailer/`, the Store trailer and its thumbnail, from
+`scripts/demo/record/scenes/store-trailer.ps1` + `make-trailer.sh` (see
+`scripts/demo/record/README.md`).
+
 ---
 
 ## Part 2 — Shipped outputs: `PgNimbus.App/Assets/`

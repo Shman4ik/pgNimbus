@@ -11,6 +11,7 @@ capture box and writes `out\raw\<scene>.mp4`.
 | `scenes/completion.ps1` | `completion-demo.gif` |
 | `scenes/explain-tree.ps1` | `explain-tree-demo.gif` |
 | `scenes/safe-mode.ps1` | `safe-mode-commit-demo.gif` |
+| `scenes/store-trailer.ps1` | `design/store/trailer/pgnimbus-trailer.mp4` (see below) |
 
 ## Rules
 
@@ -65,6 +66,30 @@ ffmpeg -y -ss 0.4 -t 12 -i in.mp4 -i pal.png -filter_complex "[0:v]$vf[x];[x][1:
 ```
 
 `-update 1 -frames:v 1` on the palette pass is required on this ffmpeg build.
+
+## The Microsoft Store trailer
+
+`scenes/store-trailer.ps1` records five takes (start, palette, completion, safe mode,
+explain) in a **16:9 box of 1600x900** (it sets `PGN_DEMO_BOX=1120,350,1600,900`
+itself; its coordinates are for that box). Put `{"X":1120,"Y":350,"Width":1600,"Height":900,"IsMaximized":false}`
+in the base folder's `connection-window.json` so the window opens there. `-Only palette,explain`
+re-records single takes.
+
+```powershell
+.\scripts\demo\record\scenes\store-trailer.ps1
+```
+
+```bash
+scripts/demo/record/make-trailer.sh "$PGN_DEMO_OUT" out/final
+```
+
+`make-trailer.sh` puts each take 1:1 on a 1920x1080 brand-navy canvas with a caption
+under it (no scaling, so the UI text stays sharp), cross-fades them, adds an end card with
+the wordmark and a silent audio track, and writes `pgnimbus-trailer.mp4` plus
+`pgnimbus-trailer-thumbnail.png`. The trims and captions are the `takes` table at its top.
+Both files are committed in `design/store/trailer/`; the listing also needs
+`design/store/SuperHeroArt-16x9-1920x1080.png` (`scripts/windows/make-store-hero.ps1`),
+or Partner Center won't show the trailer at the top.
 
 ## Cleanup
 
