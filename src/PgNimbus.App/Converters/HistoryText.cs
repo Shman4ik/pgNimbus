@@ -18,8 +18,18 @@ public static class HistoryText
     /// </summary>
     public static Func<DateTimeOffset> Now { get; set; } = () => DateTimeOffset.Now;
 
+    /// <summary>
+    /// How much of a statement a history row folds onto its line: far more than
+    /// its two lines show, and far less than a script run from the editor can be.
+    /// </summary>
+    public const int PreviewLength = 500;
+
     public static readonly IValueConverter OneLine = new FuncValueConverter<string?, string>(sql =>
-        sql is null ? string.Empty : HistoryLabel.OneLine(sql));
+        sql is null ? string.Empty : HistoryLabel.OneLine(sql, PreviewLength));
+
+    /// <summary>A statement for a tooltip, cut to what a tooltip can show (<see cref="HistoryLabel.Tip"/>).</summary>
+    public static readonly IValueConverter Tip = new FuncValueConverter<string?, string?>(sql =>
+        sql is null ? null : HistoryLabel.Tip(sql));
 
     /// <summary>Values: the entry, then the current connection's label.</summary>
     public static readonly IMultiValueConverter Meta = new FuncMultiValueConverter<object?, string>(values =>

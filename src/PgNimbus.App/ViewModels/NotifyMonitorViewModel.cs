@@ -66,7 +66,7 @@ public sealed partial class NotifyMonitorViewModel : ObservableObject, IAsyncDis
 
     public ObservableCollection<string> Channels { get; } = [];
 
-    public ObservableCollection<DatabaseNotification> Notifications { get; } = [];
+    public RangeObservableCollection<DatabaseNotification> Notifications { get; } = [];
 
     /// <summary>
     /// The payload of <see cref="SelectedNotification"/>, shown through the same
@@ -170,15 +170,23 @@ public sealed partial class NotifyMonitorViewModel : ObservableObject, IAsyncDis
     {
         var incoming = Math.Min(batch.Count, MaxNotifications);
         var overflow = Notifications.Count + incoming - MaxNotifications;
-        for (var i = 0; i < overflow; i++)
+
+        // One Remove and one Add per drain, each a range: under a flood a drain
+        // holds hundreds of notifications, and a RemoveAt and an Insert(0) per
+        // notification were that many list shifts and notifications to the feed.
+        // Ranges rather than a Reset, which would drop the selected notification.
+        if (overflow > 0)
         {
-            Notifications.RemoveAt(Notifications.Count - 1);
+            Notifications.RemoveRange(Notifications.Count - overflow, overflow);
         }
 
-        for (var i = batch.Count - incoming; i < batch.Count; i++)
+        var newestFirst = new DatabaseNotification[incoming];
+        for (var i = 0; i < incoming; i++)
         {
-            Notifications.Insert(0, batch[i]);
+            newestFirst[i] = batch[batch.Count - 1 - i];
         }
+
+        Notifications.InsertRange(0, newestFirst);
     }
 
     // The listener gave up: the connection dropped and could not be re-established.

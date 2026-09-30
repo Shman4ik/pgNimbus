@@ -115,7 +115,24 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
     [ObservableProperty]
     private bool _showSizes;
 
-    public ObservableCollection<SchemaTreeNode> Schemas { get; } = [];
+    /// <summary>The tree's root nodes: every schema, then the server-wide groups. The source of truth.</summary>
+    public RangeObservableCollection<SchemaTreeNode> Schemas { get; } = [];
+
+    /// <summary>
+    /// The root nodes the tree shows: <see cref="Schemas"/> minus what the filter
+    /// hides. The same split as <see cref="SchemaTreeNode.ShownChildren"/>, and for
+    /// the same reason: the tree virtualizes.
+    /// </summary>
+    public RangeObservableCollection<SchemaTreeNode> ShownSchemas { get; } = [];
+
+    private void SyncShownSchemas()
+    {
+        var shown = Schemas.Where(n => n.IsFilteredIn).ToList();
+        if (shown.Count != ShownSchemas.Count || !shown.SequenceEqual(ShownSchemas))
+        {
+            ShownSchemas.ReplaceAll(shown);
+        }
+    }
 
     /// <summary>
     /// The connected database's name, wired by <see cref="MainViewModel"/> from
@@ -229,7 +246,12 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
 
     private void OnSchemasChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        foreach (var node in e.NewItems?.OfType<SchemaTreeNode>() ?? [])
+        // A Reset (a refresh replaces every node at once) brings nodes nobody has
+        // seen yet; the nodes it replaced die with their own subscriptions.
+        IEnumerable<SchemaTreeNode> added = e.Action == NotifyCollectionChangedAction.Reset
+            ? [.. Schemas]
+            : e.NewItems?.OfType<SchemaTreeNode>() ?? [];
+        foreach (var node in added)
         {
             // Not unsubscribed on removal: both handlers are reached only through
             // the discarded node's own events, so they die with the node (it keeps
@@ -249,6 +271,8 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
                 SetExpanded(node, true);
             }
         }
+
+        SyncShownSchemas();
     }
 
     /// <summary>
@@ -280,7 +304,11 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
 
     private void OnSchemaChildrenChanged(SchemaNode schema, NotifyCollectionChangedEventArgs e)
     {
-        foreach (var table in e.NewItems?.OfType<TableNode>() ?? [])
+        // A load replaces the children with one Reset, which carries no items.
+        IEnumerable<TableNode> added = e.Action == NotifyCollectionChangedAction.Reset
+            ? [.. schema.Children.OfType<TableNode>()]
+            : e.NewItems?.OfType<TableNode>() ?? [];
+        foreach (var table in added)
         {
             var path = $"{schema.Name}.{table.Name}";
             TrackExpansion(table, path);
@@ -303,7 +331,9 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
         // because it had no children yet. Now it has: re-answer the whole question
         // for it, or a schema whose rows arrive after the next keystroke stays
         // hidden with its match inside it.
-        ApplyReveal(schema, ApplySchemaFilter(schema, query, CachedRelations));
+        ApplyReveal(schema, ApplySchemaFilter(schema, query, SchemasWithMatches(CachedRelations, query)));
+        schema.SyncShownChildren();
+        SyncShownSchemas();
         NotifyFilterOutcomeChanged();
     }
 
@@ -496,7 +526,11 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
                 {
                     child.IsFilteredIn = true;
                 }
+
+                node.SyncShownChildren();
             }
+
+            SyncShownSchemas();
 
             // Put back what the filter opened. Only the schemas it opened itself
             // are closed again, so a schema the user had open (before or during
@@ -511,6 +545,7 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
             return;
         }
 
+        var catalogMatches = SchemasWithMatches(relations, query);
         foreach (var node in Schemas)
         {
             // The root-level Extensions/Roles groups aren't schemas and their
@@ -526,13 +561,40 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
                     child.IsFilteredIn = true;
                 }
 
+                node.SyncShownChildren();
                 continue;
             }
 
-            ApplyReveal(schema, ApplySchemaFilter(schema, query, relations));
+            ApplyReveal(schema, ApplySchemaFilter(schema, query, catalogMatches));
+            schema.SyncShownChildren();
         }
 
+        SyncShownSchemas();
         NotifyFilterOutcomeChanged();
+    }
+
+    /// <summary>
+    /// The schemas holding a relation whose name matches <paramref name="query"/>,
+    /// read from the catalog snapshot in one pass; null without a snapshot. Asking
+    /// the snapshot once per schema instead was schemas × relations per keystroke.
+    /// </summary>
+    private static HashSet<string>? SchemasWithMatches(IReadOnlyList<RelationInfo>? relations, string query)
+    {
+        if (relations is null)
+        {
+            return null;
+        }
+
+        var schemas = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var relation in relations)
+        {
+            if (!schemas.Contains(relation.Schema) && Contains(relation.Name, query))
+            {
+                schemas.Add(relation.Schema);
+            }
+        }
+
+        return schemas;
     }
 
     /// <summary>
@@ -540,7 +602,11 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
     /// whether it survives only because of something inside it (so the caller
     /// knows to open it).
     /// </summary>
-    private static bool ApplySchemaFilter(SchemaNode schema, string query, IReadOnlyList<RelationInfo>? relations)
+    /// <param name="catalogMatches">
+    /// <see cref="SchemasWithMatches"/>: the schemas the catalog snapshot finds a
+    /// match in, or null when there is no snapshot.
+    /// </param>
+    private static bool ApplySchemaFilter(SchemaNode schema, string query, HashSet<string>? catalogMatches)
     {
         var schemaMatches = Contains(schema.Name, query);
         var anyTableMatches = FilterChildren(schema, query, schemaMatches);
@@ -550,11 +616,10 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
         // Asking IsLoaded instead is what made a schema vanish mid-load: expanding
         // sets that flag at once, so the snapshot standing in for the rows was
         // dropped a moment before the rows themselves arrived.
-        var catalogMatches = !schema.Children.OfType<TableNode>().Any() && relations is not null &&
-            relations.Any(r => r.Schema == schema.Name && Contains(r.Name, query));
+        var matchesInCatalog = !schema.Children.OfType<TableNode>().Any() && catalogMatches?.Contains(schema.Name) == true;
 
-        schema.IsFilteredIn = schemaMatches || anyTableMatches || catalogMatches;
-        return (anyTableMatches || catalogMatches) && !schemaMatches;
+        schema.IsFilteredIn = schemaMatches || anyTableMatches || matchesInCatalog;
+        return (anyTableMatches || matchesInCatalog) && !schemaMatches;
     }
 
     /// <summary>
@@ -624,10 +689,10 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
         try
         {
             var schemas = await _schemaService.GetSchemasAsync(CancellationToken.None);
-            Schemas.Clear();
+            var nodes = new List<SchemaTreeNode>(schemas.Count + 2);
             foreach (var schema in schemas)
             {
-                Schemas.Add(new SchemaNode(
+                nodes.Add(new SchemaNode(
                     _schemaService,
                     schema.Name,
                     () => ShowAdvancedObjects,
@@ -639,10 +704,13 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
             // Extensions is advanced-only; Roles is always shown.
             if (ShowAdvancedObjects)
             {
-                Schemas.Add(new ExtensionsGroupNode(_schemaService));
+                nodes.Add(new ExtensionsGroupNode(_schemaService));
             }
 
-            Schemas.Add(new RolesGroupNode(_schemaService));
+            nodes.Add(new RolesGroupNode(_schemaService));
+
+            // One Reset for the whole root rather than an Add per schema.
+            Schemas.ReplaceAll(nodes);
 
             // A fresh catalog invalidates any prior filter pass; re-apply so a lingering query still holds.
             ApplyFilter();

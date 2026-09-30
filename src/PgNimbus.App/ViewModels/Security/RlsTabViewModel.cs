@@ -158,7 +158,7 @@ public sealed partial class RlsTabViewModel : ObservableObject, ISecuritySection
     /// <summary>The schema filter's entries: <see cref="AllSchemas"/> first, then every schema that has RLS.</summary>
     public ObservableCollection<string> Schemas { get; } = [];
 
-    public ObservableCollection<RlsTableRow> Tables { get; } = [];
+    public RangeObservableCollection<RlsTableRow> Tables { get; } = [];
 
     public async Task RefreshAsync(CancellationToken ct)
     {
@@ -235,14 +235,7 @@ public sealed partial class RlsTabViewModel : ObservableObject, ISecuritySection
         var schema = SelectedSchema;
         var all = schema is null || schema == AllSchemas;
 
-        Tables.Clear();
-        foreach (var table in _allTables)
-        {
-            if (all || string.Equals(table.Schema, schema, StringComparison.Ordinal))
-            {
-                Tables.Add(table);
-            }
-        }
+        Tables.ReplaceAll(_allTables.Where(table => all || string.Equals(table.Schema, schema, StringComparison.Ordinal)));
 
         HasTables = Tables.Count > 0;
 

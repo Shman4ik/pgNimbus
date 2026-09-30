@@ -284,6 +284,7 @@ public class MenuTests
             await Assert.That(grid.SelectedItems.Count).IsEqualTo(vm.ActiveTab.Rows.Count);
 
             await Assert.That(EditCommands.Execute(window, EditCommand.Copy)).IsTrue();
+            await window.GetVisualDescendants().OfType<ResultsGridPanel>().First().PendingCopy;
             Ui.Settle();
             var copied = await window.Clipboard!.TryGetTextAsync();
 

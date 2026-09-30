@@ -44,6 +44,8 @@ public class ClipboardAndCastSafetyTests
                 EditCommands.Execute(window, EditCommand.SelectAll);
                 Ui.Settle();
                 EditCommands.Execute(window, EditCommand.Copy);
+                // The text is built off the UI thread.
+                await window.GetVisualDescendants().OfType<ResultsGridPanel>().First().PendingCopy;
                 Ui.Settle();
                 return await window.Clipboard!.TryGetTextAsync();
             }

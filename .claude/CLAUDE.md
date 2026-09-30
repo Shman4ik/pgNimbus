@@ -30,7 +30,9 @@ lives in `.claude/`, which Claude Code reads the same as the root.
 
 - `src/` — `PgNimbus.Core` (the engine) and `PgNimbus.App` (the Avalonia UI).
 - `tests/` — `PgNimbus.Core.Tests`, `PgNimbus.App.Tests`, `PgNimbus.Benchmarks`.
-- `tools/` — dev-only programs: the screenshot harness, `CompletionBench`.
+- `tools/` — dev-only programs: the screenshot harness, `CompletionBench`,
+  `UiBench` (UI-thread timings over big data; see "UI-thread work that grows
+  with the data" under coding conventions).
 - `shared/nimbusUi/` — the git subtree shared with kubeNimbus. Never move it:
   `git subtree push --prefix shared/nimbusUi` depends on the prefix.
 - `packaging/` — installer and store templates, one folder per target
@@ -545,7 +547,13 @@ Three rules about it:
    read their whole input first (Sort, Hash, hashed/plain aggregates, Bitmap Heap
    Scan), at a Limit that ran its input dry, and never covers an under-estimate.
    The App wraps them in
-   `PlanWarningViewModel` (glyph + severity brush) for the warnings strip;
+   `PlanWarningViewModel` (glyph + severity brush) for the warnings strip, after
+   `PlanAnalyzer.Condense` (2026-09, UI-thread audit): three of each kind and
+   severity (`PlanWarning.Kind` groups "Row estimate off by N×"), then one
+   "N more: …" line, in a strip capped at 220 px. A plan over a thousand
+   partitions carried a warning per partition scan, all of them above the plan.
+   The plan's text view is a `ReadOnlyTextView` and its tree is
+   `TreeView.virtualizing`, for the same plans;
    `ExplainNodeViewModel` computes each node's exclusive **self time** so the
    tree's bar becomes a time-heat profile (falling back to cost when there's
    no ANALYZE timing) and tints the single slowest node as the bottleneck.
@@ -668,7 +676,12 @@ Three rules about it:
    that write SQL nobody asked to save** (2026-09, security audit finding 8):
    `QueryHistoryStore` redacts every entry it writes and scrubs the file once on
    load (an entry from before the redactor, or in a shape it learned later, is
-   rewritten in place). That covers the result line too (`QueryHistoryStore.Redact`):
+   rewritten in place). The writes after a run, a pin and a Clear go through
+   `AppendInBackground`/`SaveInBackground` (2026-09, UI-thread audit): one
+   ordered queue on the thread pool, a lock shared by every store over the file
+   (two windows each hold one), and `SavedQueriesViewModel.PendingHistoryWrite`
+   for a test to await. Done on the UI thread, every Run re-read the file and
+   redacted all 200 entries twice, and entries keep whole scripts. That covers the result line too (`QueryHistoryStore.Redact`):
    it goes through the redactor, and a statement whose text held a secret keeps
    `WithheldSummary` instead, since a server error quotes the token it failed on
    (`syntax error at or near "…"`) with no keyword beside it for the redactor to
@@ -910,6 +923,28 @@ Three rules about it:
    "nothing matched" isn't a fact yet — without that the cue flashed on the
    first keystroke against a remote server. A *failed* fetch does release it: the
    loaded tree's verdict is then final.
+
+   **Every level of the tree virtualizes, so the filter works on lists, not on
+   visibility** (2026-09, UI-thread audit). Avalonia's `TreeView` realizes every
+   row it holds: expanding a schema of 5,000 tables built 5,011 rows and froze
+   the window for 8 s. The tree is `TreeView.virtualizing` (`Styles/Theme.axaml`:
+   a `VirtualizingStackPanel` at the root and in every item, which sizes itself
+   from the effective viewport, so a nested level virtualizes inside its parent
+   row). Two consequences are load-bearing. (a) A virtualizing panel realizes a
+   hidden row to learn it takes no space, so the old `IsVisible` binding on
+   `IsFilteredIn` made a filter matching one table realize all 5,000. The tree
+   binds to `SchemaTreeViewModel.ShownSchemas` and each node's `ShownChildren`,
+   the filtered copies of `Schemas`/`Children`; `SyncShownChildren` rebuilds
+   one with a single Reset, only when it differs, and a filter pass calls it
+   after deciding a node. `Children` stays the source of truth (the tests, the
+   harness and the filter read it). (b) `TreeView` moves focus only to a row
+   that exists, so with nothing realized past the viewport the arrow keys
+   stopped at its bottom edge; `CacheLength="1"` keeps a viewport realized on
+   each side. Loading a node's children is one `ReplaceAll`: an Add per child
+   re-vetted the whole schema against the filter each time, which was
+   quadratic, and the catalog match is one pass over the snapshot per filter
+   pass (`SchemasWithMatches`), not schemas × relations.
+   `UiThreadBudgetTests` holds the counts.
 
    **Expand all / collapse all live in the tree-options menu, not on the bar.**
    Four chips beside the filter box left it too narrow to read what was typed in
@@ -1575,6 +1610,42 @@ Moved to [`.claude/rules/logo-assets.md`](rules/logo-assets.md), which loads whe
   (via `TextChanged` + `PropertyChanged`, with a re-entrancy guard), not via
   XAML `Binding`. Both the main SQL editor (`_suppressEditorSync`) and the
   cell inspector's JSON editor (`_suppressInspectorSync`) follow this pattern.
+- **UI-thread work must not grow with the data** (2026-09, UI-thread audit,
+  [`docs/dev/design/ui-thread-audit.md`](../docs/dev/design/ui-thread-audit.md);
+  kubeNimbus had the same two freezes first). Five rules:
+  (a) **A list that is rebuilt or trimmed changes with one notification per
+  operation**: `ViewModels/RangeObservableCollection` (the class kubeNimbus has,
+  by the same name) with `ReplaceAll` (one Reset), `AddRange`/`InsertRange` and
+  `RemoveRange` (one Add or Remove each). Never `Clear` and an `Add` per item.
+  A DataGrid is bound to a collection changed only through `ReplaceAll`; a
+  range Add or Remove is for items controls, and keeps their selection, which
+  a Reset drops. (b) **Anything that can hold thousands of rows virtualizes**:
+  `ListBox` does by default (inside an outer `ScrollViewer` too, since the panel
+  reads the effective viewport); a tree is `TreeView.virtualizing`; a custom
+  `ItemsPanel` is a `VirtualizingStackPanel`. Filter such a list by what it is
+  bound to, never by `IsVisible`. A virtualizing tree reuses a row for another
+  node, so its `IsExpanded` binds two-way to the node (`SchemaTreeNode`,
+  `JsonTreeNode`, `ExplainNodeViewModel`, `BlockingNode`), never a style's fixed
+  value. (c) **Text that can be long goes to a read-only editor**: a
+  `ReadOnlyTextView` (`Views/ReadOnlyTextView.cs`; the plan text, the pending
+  changes' SQL) is a `SelectableTextBlock` up to 32 Ki characters and a
+  read-only AvaloniaEdit editor past that, and the cell inspector and the notify
+  payload are `CellValueView`, which is one already; a text block
+  lays out every line it holds before drawing one. A preview of a statement or
+  value is cut before it reaches a text block (`HistoryText.PreviewLength`,
+  `HistoryLabel.Tip`, `CellText.Preview`). (d) **A read or a loop over big data
+  runs on the thread pool**: PgNimbus.Core awaits without `ConfigureAwait(false)`,
+  and a reader over buffered rows doesn't yield, so a Core call awaited from the
+  UI thread does its row loop there. The catalog reads, the palette's relation
+  list, the monitor windows' reads, the import's type inference and COPY, the
+  history writes and the grid's copy are wrapped in `Task.Run`. (e) **The
+  editor's per-keystroke readers get the statement, not the document**, past
+  `BackgroundCompletionThreshold` (`QueryEditorPanel.StatementAround` over a
+  `SqlStatementBoundaries` cache; `.claude/rules/sql-completion.md`).
+  `UiThreadBudgetTests` holds the counts (rows realized, notifications per
+  operation) on every build; `tools/UiBench` times the views and each release
+  charts it (`.claude/rules/release-ci.md`).
+
 - **A nullable view model never sits *inside* a binding path.** Avalonia logs
   `[Binding] … 'Value is null.'` on every re-evaluation where an *intermediate*
   link of a path is null — a real binding bug then hides in the noise. Two
@@ -1797,7 +1868,11 @@ Moved to [`.claude/rules/logo-assets.md`](rules/logo-assets.md), which loads whe
   which `StagedConflictDialog` lays out. The ways out are
   `PendingChangeSet.Rebase` ("Reload and restage": staged values kept,
   snapshot replaced by the server's current row, rows gone elsewhere dropped)
-  and `Unstage` (just the conflicting rows). Five details that are load-bearing:
+  and `Unstage` (just the conflicting rows). The staged set is ordered and
+  indexed by key (a linked list plus a dictionary per kind): its comment used to
+  call it "hand-sized, so linear lookups are fine", and select all + Delete
+  staged 100,000 rows with a `Contains` each, then asked about every row the
+  grid tinted. Five details that are load-bearing:
   (a) comparison is `CellValueComparer`, not `Equals` — two reads of one
   unchanged array are two instances — and it reports **Incomparable**, not
   Different, for an `<unreadable …>` placeholder or a column read once as a
@@ -1838,7 +1913,9 @@ Moved to [`.claude/rules/logo-assets.md`](rules/logo-assets.md), which loads whe
   window, filters a line of chips) *and* put both behind an opt-in that defaulted
   off — which hid them so well that the first person to try couldn't find either.
   Now: row details needs no setting at all (an overlay costs nothing until it's
-  opened) and has a status-bar button (`RowDetailsIconGeometry`, shown whenever
+  opened, and it follows the grid's row only while open: its form, a stack of
+  editors per column, used to be rebuilt on every arrow key with nobody looking)
+  and has a status-bar button (`RowDetailsIconGeometry`, shown whenever
   there are rows, negative margin so the bar doesn't grow when they arrive) next
   to Ctrl/Cmd+I and the grid menu. The filter chips appear whenever a condition
   filters the rows, and the status bar's funnel (browse mode only) pins the line
@@ -2030,10 +2107,17 @@ Moved to [`.claude/rules/logo-assets.md`](rules/logo-assets.md), which loads whe
   rather than cancelled (`ResultCap.Shared`), because it may be a write whose
   `RETURNING` rows nobody asked for and a cancel would abort it. The cap text
   names the limit (`CapTextFor`). **The grid builds at most `MaxGridColumns`
-  (1,000)** and the status bar says "showing 1,000 of N columns"
+  (300)** and the status bar says "showing 300 of N columns"
   (`CapStatusText`, which is `CapText` plus that; export still reads `CapText`
-  alone, since every column is in the rows). `ColumnNames` is a
-  `ResettableCollection` filled with one `ReplaceAll`: the grid rebuilds all
+  alone, since every column is in the rows). It was 1,000 until the 2026-09
+  UI-thread audit: the DataGrid has no column virtualization, it lays out a
+  header per column (about 0.8 ms each) and builds a cell per column of every
+  row on screen, so 1,000 columns took 5 s to show and 3 s to come back to on a
+  tab switch. Row details stop at the same column. An edit context arriving
+  after the rows no longer rebuilds the columns
+  (`ResultTextColumn.TryUpdateMetadata`; a rebuild only when a column would
+  draw differently). `ColumnNames` is a
+  `RangeObservableCollection` filled with one `ReplaceAll`: the grid rebuilds all
   its columns on every change, so an `Add` per column had been building
   n(n+1)/2 of them. Tests: `ResultLimitsTests` (in-memory batches, the column
   cap, and a gated `repeat('x', 100000000)` × 3 that keeps one row).

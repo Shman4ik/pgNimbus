@@ -8,6 +8,7 @@ paths:
   - "docs/**"
   - "mkdocs.yml"
   - "tests/PgNimbus.Benchmarks/**"
+  - "tools/UiBench/**"
   - "Directory.Build.*"
 ---
 
@@ -40,7 +41,16 @@ the release pipeline don't pollute the trend history. Three moving parts:
    `SELECT 1` round-trip, time-to-first-`RowBatch`, and full-stream
    throughput of a 100k-row mixed-type SELECT, through `QueryEngine`'s
    streaming path (the same API the UI uses). Prints `PGNIMBUS_BENCH
-   name=value` lines; config via `PGNIMBUS_BENCH_CONN/ROWS/ITERS`.
+   name=value` lines; config via `PGNIMBUS_BENCH_CONN/ROWS/ITERS`. Before the
+   server metrics it prints four in-process ones from the 2026-09 UI-thread
+   audit (`stage_deletes_ms`, `copy_tsv_ms`, `history_append_ms`,
+   `editor_statement_ms`); `PGNIMBUS_BENCH_SKIP_DB=1` runs only those.
+   **`tools/UiBench`** is the view half: the real views on Avalonia's headless
+   platform with the screenshot fixtures, no display and no server, timing a
+   5,000-table schema, a 5,000-statement script, a palette keystroke over
+   50,000 relations, the widest result the grid shows, 1 MB of plan text and a
+   key typed at the end of a 5 MB script (`ui_*`, plus the rows realized). See
+   [`docs/dev/design/ui-thread-audit.md`](docs/dev/design/ui-thread-audit.md).
 3. **The script** — builds JIT Release, publishes linux-x64 NativeAOT (or
    measures an existing publish dir given via `PGNIMBUS_BENCH_PUBLISH_DIR` —
    the release pipeline passes build-linux's x64 output through the

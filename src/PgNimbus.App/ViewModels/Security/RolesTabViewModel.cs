@@ -49,10 +49,10 @@ public sealed partial class RolesTabViewModel(RoleService roleService, SecurityE
     private bool _hasMembers;
 
     /// <summary>One row per role on the server, predefined ones included.</summary>
-    public ObservableCollection<RoleRowViewModel> Roles { get; } = [];
+    public RangeObservableCollection<RoleRowViewModel> Roles { get; } = [];
 
     /// <summary>What the list actually shows: <see cref="Roles"/> after the name filter and the predefined toggle.</summary>
-    public ObservableCollection<RoleRowViewModel> FilteredRoles { get; } = [];
+    public RangeObservableCollection<RoleRowViewModel> FilteredRoles { get; } = [];
 
     /// <summary>The groups the selected role belongs to, walking upward.</summary>
     public ObservableCollection<RoleTreeNodeViewModel> MemberOf { get; } = [];
@@ -97,11 +97,7 @@ public sealed partial class RolesTabViewModel(RoleService roleService, SecurityE
                 _all.Add(new RoleRowViewModel(role, graph.MemberOf(role.Name).Count));
             }
 
-            Roles.Clear();
-            foreach (var row in _all)
-            {
-                Roles.Add(row);
-            }
+            Roles.ReplaceAll(_all);
 
             ApplyFilter();
 
@@ -189,21 +185,11 @@ public sealed partial class RolesTabViewModel(RoleService roleService, SecurityE
     {
         var needle = Filter.Trim();
 
-        FilteredRoles.Clear();
-        foreach (var row in _all)
-        {
-            if (!ShowPredefinedRoles && row.IsPredefined)
-            {
-                continue;
-            }
-
-            if (needle.Length > 0 && !row.Name.Contains(needle, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            FilteredRoles.Add(row);
-        }
+        // One Reset per keystroke rather than an Add per role (a DataGrid pays
+        // about 200 µs a notification).
+        FilteredRoles.ReplaceAll(_all.Where(row =>
+            (ShowPredefinedRoles || !row.IsPredefined)
+            && (needle.Length == 0 || row.Name.Contains(needle, StringComparison.OrdinalIgnoreCase))));
 
         HasFilteredRoles = FilteredRoles.Count > 0;
 

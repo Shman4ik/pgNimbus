@@ -202,6 +202,14 @@ public sealed class SqlCompletionData(string text, SqlCompletionKind kind, strin
     {
         /// <summary>The letter case a keyword row is written in (Preferences, F02).</summary>
         public Func<KeywordCase>? KeywordCase { get; init; }
+
+        /// <summary>
+        /// The text an accept plans against for a caret, and where it starts in the
+        /// document: the editor hands a long document's statement around the caret
+        /// (QueryEditorPanel.StatementAround), since planning lexes all it is given.
+        /// Null: the whole document.
+        /// </summary>
+        public Func<int, (string Text, int Offset)>? StatementAt { get; init; }
     }
 
     /// <summary>Attaches <paramref name="options"/> to every accept in <paramref name="textArea"/>.</summary>
@@ -221,17 +229,23 @@ public sealed class SqlCompletionData(string text, SqlCompletionKind kind, strin
         Options.TryGetValue(textArea, out var options);
         var document = textArea.Document;
         var aliasSeed = options?.AutoAliasTables() == true ? AliasTable : null;
-        var text = document.Text;
-        var caret = textArea.Caret.Offset;
+        var documentCaret = textArea.Caret.Offset;
+        var (text, offset) = options?.StatementAt?.Invoke(documentCaret) ?? (document.Text, 0);
+        if (ReplaceFrom < offset)
+        {
+            (text, offset) = (document.Text, 0);
+        }
+
+        var caret = documentCaret - offset;
         var insert = InsertTextFor(text, caret, options?.KeywordCase?.Invoke() ?? KeywordCase.AsTyped);
-        var edit = CompletionEdits.Plan(text, caret, insert, InsertKind, aliasSeed, CaretIndex, ReplaceFrom);
+        var edit = CompletionEdits.Plan(text, caret, insert, InsertKind, aliasSeed, CaretIndex, ReplaceFrom - offset);
         if (AppendClause is { } clause)
         {
             edit = CompletionEdits.AppendClause(text, edit, clause);
         }
 
-        document.Replace(edit.ReplaceStart, edit.ReplaceLength, edit.InsertText);
-        textArea.Caret.Offset = Math.Clamp(edit.CaretOffset, 0, document.TextLength);
+        document.Replace(edit.ReplaceStart + offset, edit.ReplaceLength, edit.InsertText);
+        textArea.Caret.Offset = Math.Clamp(edit.CaretOffset + offset, 0, document.TextLength);
         options?.Accepted?.Invoke(this);
     }
 }

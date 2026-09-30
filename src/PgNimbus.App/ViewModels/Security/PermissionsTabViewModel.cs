@@ -193,11 +193,11 @@ public sealed partial class PermissionsTabViewModel(PrivilegeService privileges,
 
     public ObservableCollection<string> Schemas { get; } = [];
 
-    public ObservableCollection<SecurableRef> Objects { get; } = [];
+    public RangeObservableCollection<SecurableRef> Objects { get; } = [];
 
     public ObservableCollection<PrivilegeColumn> PrivilegeColumns { get; } = [];
 
-    public ObservableCollection<PermissionRowViewModel> Rows { get; } = [];
+    public RangeObservableCollection<PermissionRowViewModel> Rows { get; } = [];
 
     public ObservableCollection<ColumnGrantRow> ColumnGrants { get; } = [];
 
@@ -362,13 +362,9 @@ public sealed partial class PermissionsTabViewModel(PrivilegeService privileges,
 
             SelectedSchema = Schemas.FirstOrDefault();
 
-            Objects.Clear();
             _allObjects.Clear();
-            foreach (var obj in objects)
-            {
-                Objects.Add(obj);
-                _allObjects.Add(obj);
-            }
+            _allObjects.AddRange(objects);
+            Objects.ReplaceAll(objects);
 
             SelectedObject = Objects.FirstOrDefault();
 
@@ -378,11 +374,7 @@ public sealed partial class PermissionsTabViewModel(PrivilegeService privileges,
                 PrivilegeColumns.Add(column);
             }
 
-            Rows.Clear();
-            foreach (var row in rows)
-            {
-                Rows.Add(row);
-            }
+            Rows.ReplaceAll(rows);
 
             SelectedRow = Rows.FirstOrDefault();
             AccessSentence = accessSentence;
@@ -424,12 +416,10 @@ public sealed partial class PermissionsTabViewModel(PrivilegeService privileges,
     private void ApplyObjectFilter()
     {
         var previous = SelectedObject;
-        Objects.Clear();
-        foreach (var obj in _allObjects.Where(o =>
-                     ObjectFilter.Length == 0 || o.Name.Contains(ObjectFilter, StringComparison.OrdinalIgnoreCase)))
-        {
-            Objects.Add(obj);
-        }
+        // One Reset per keystroke: an Add per matching object re-added every
+        // table of the schema on each key.
+        Objects.ReplaceAll(_allObjects.Where(o =>
+            ObjectFilter.Length == 0 || o.Name.Contains(ObjectFilter, StringComparison.OrdinalIgnoreCase)));
 
         SelectedObject = previous is not null && Objects.Contains(previous) ? previous : Objects.FirstOrDefault();
     }
@@ -475,17 +465,15 @@ public sealed partial class PermissionsTabViewModel(PrivilegeService privileges,
             var effective = EffectivePrivilegeResolver.Resolve(acl, roles, kinds, graph, answers);
             var byRole = effective.ToLookup(e => e.Role);
 
-            foreach (var role in roles)
-            {
-                var cells = kinds
+            Rows.ReplaceAll(roles.Select(role => new PermissionRowViewModel(
+                role,
+                kinds
                     .Select(kind => byRole[role].First(e => e.Privilege == kind))
                     .Select(e => new PrivilegeCellViewModel(
                         e,
                         e.Source is not (PrivilegeSource.Owner or PrivilegeSource.Superuser),
                         OnCellToggled))
-                    .ToList();
-                Rows.Add(new PermissionRowViewModel(role, cells));
-            }
+                    .ToList())));
 
             SelectedRow = Rows.FirstOrDefault();
 

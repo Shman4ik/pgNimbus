@@ -20,6 +20,18 @@
 #   first_batch_ms   large SELECT: call → first streamed RowBatch (median)
 #   stream_ms        large SELECT: full drain through the streaming path (median)
 #
+# UI-thread metrics (the 2026-09 UI-thread audit, docs/dev/design/ui-thread-audit.md),
+# every one the median of a few runs and smaller-is-better:
+#   stage_deletes_ms, copy_tsv_ms, history_append_ms, editor_statement_ms
+#                    Core work that used to grow with the data on the UI thread
+#                    (PgNimbus.Benchmarks, in process, no server needed)
+#   ui_*             the views themselves over big data: a 5,000-table schema, a
+#                    5,000-statement script, 50,000 relations in the palette, a
+#                    result as wide as the grid shows, a megabyte of plan text, a
+#                    key typed at the end of a 5 MB script (tools/UiBench, headless
+#                    Avalonia, no display needed); *_rows / *_chips count the rows
+#                    a view realized
+#
 # Startup numbers come from the app itself (PGNIMBUS_STARTUP_PROBE=1 prints
 # launch-to-first-frame and exits — see src/PgNimbus.App/StartupProbe.cs); query
 # numbers come from the PgNimbus.Benchmarks console project.
@@ -136,6 +148,27 @@ ROUNDTRIP_MS=$(bench_value roundtrip_ms)
 FIRST_BATCH_MS=$(bench_value first_batch_ms)
 STREAM_MS=$(bench_value stream_ms)
 ROWS_PER_SEC=$(bench_value rows_per_sec)
+STAGE_DELETES_MS=$(bench_value stage_deletes_ms)
+COPY_TSV_MS=$(bench_value copy_tsv_ms)
+HISTORY_APPEND_MS=$(bench_value history_append_ms)
+EDITOR_STATEMENT_MS=$(bench_value editor_statement_ms)
+
+# --- views over big data (headless) -----------------------------------------
+echo "== UI thread (headless views)"
+UI_OUT=$(dotnet run --project tools/UiBench -c Release --no-build)
+echo "$UI_OUT"
+ui_value() { grep -o "PGNIMBUS_BENCH $1=[0-9.]*" <<<"$UI_OUT" | cut -d= -f2; }
+UI_SCHEMA_EXPAND_MS=$(ui_value ui_schema_expand_ms)
+UI_SCHEMA_EXPAND_ROWS=$(ui_value ui_schema_expand_rows)
+UI_SCHEMA_FILTER_MS=$(ui_value ui_schema_filter_ms)
+UI_SCRIPT_SECTIONS_MS=$(ui_value ui_script_sections_ms)
+UI_SCRIPT_SECTION_CHIPS=$(ui_value ui_script_section_chips)
+UI_PALETTE_KEY_MS=$(ui_value ui_palette_key_ms)
+UI_WIDE_RESULT_MS=$(ui_value ui_wide_result_ms)
+UI_EDIT_CONTEXT_MS=$(ui_value ui_edit_context_ms)
+UI_LARGE_TEXT_MS=$(ui_value ui_large_text_ms)
+UI_EDITOR_KEY_MS=$(ui_value ui_editor_key_ms)
+UI_HISTORY_RECORD_MS=$(ui_value ui_history_record_ms)
 
 # --- report ------------------------------------------------------------------
 # JSON in github-action-benchmark's "customSmallerIsBetter" format.
@@ -152,7 +185,22 @@ EOF
   { "name": "Connect, cold pool", "unit": "ms", "value": $CONNECT_MS },
   { "name": "Round-trip, SELECT 1 warm", "unit": "ms", "value": $ROUNDTRIP_MS },
   { "name": "First row batch of a $ROWS-row SELECT", "unit": "ms", "value": $FIRST_BATCH_MS },
-  { "name": "Stream $ROWS rows", "unit": "ms", "value": $STREAM_MS }
+  { "name": "Stream $ROWS rows", "unit": "ms", "value": $STREAM_MS },
+  { "name": "Stage 100,000 deletes (safe mode)", "unit": "ms", "value": $STAGE_DELETES_MS },
+  { "name": "Copy 100,000 rows as TSV", "unit": "ms", "value": $COPY_TSV_MS },
+  { "name": "Write the history after a run (200 entries, 5 MB)", "unit": "ms", "value": $HISTORY_APPEND_MS },
+  { "name": "Find the caret's statement in a 5 MB script, per key", "unit": "ms", "value": $EDITOR_STATEMENT_MS },
+  { "name": "UI: expand a schema of 5,000 tables", "unit": "ms", "value": $UI_SCHEMA_EXPAND_MS },
+  { "name": "UI: tree rows realized for 5,000 tables", "unit": "rows", "value": $UI_SCHEMA_EXPAND_ROWS },
+  { "name": "UI: filter 5,000 tables to one", "unit": "ms", "value": $UI_SCHEMA_FILTER_MS },
+  { "name": "UI: 5,000 script sections land", "unit": "ms", "value": $UI_SCRIPT_SECTIONS_MS },
+  { "name": "UI: script section chips realized", "unit": "chips", "value": $UI_SCRIPT_SECTION_CHIPS },
+  { "name": "UI: palette keystroke over 50,000 relations", "unit": "ms", "value": $UI_PALETTE_KEY_MS },
+  { "name": "UI: widest result the grid shows", "unit": "ms", "value": $UI_WIDE_RESULT_MS },
+  { "name": "UI: edit context arriving after the rows", "unit": "ms", "value": $UI_EDIT_CONTEXT_MS },
+  { "name": "UI: show 1 MB of read-only text", "unit": "ms", "value": $UI_LARGE_TEXT_MS },
+  { "name": "UI: key typed at the end of a 5 MB script", "unit": "ms", "value": $UI_EDITOR_KEY_MS },
+  { "name": "UI: record a run with a full history", "unit": "ms", "value": $UI_HISTORY_RECORD_MS }
 ]
 EOF
 } >"$OUT_DIR/benchmarks.json"
@@ -174,9 +222,29 @@ EOF
     echo "| First row batch of a $ROWS-row SELECT | $FIRST_BATCH_MS ms |"
     echo "| Stream $ROWS rows | $STREAM_MS ms ($ROWS_PER_SEC rows/s) |"
     echo
+    echo "#### UI thread over big data"
+    echo
+    echo "| Metric | Value |"
+    echo "| --- | ---: |"
+    echo "| Stage 100,000 deletes (safe mode) | $STAGE_DELETES_MS ms |"
+    echo "| Copy 100,000 rows as TSV | $COPY_TSV_MS ms |"
+    echo "| Write the history after a run (200 entries, 5 MB) | $HISTORY_APPEND_MS ms |"
+    echo "| Find the caret's statement in a 5 MB script, per key | $EDITOR_STATEMENT_MS ms |"
+    echo "| Expand a schema of 5,000 tables | $UI_SCHEMA_EXPAND_MS ms ($UI_SCHEMA_EXPAND_ROWS rows realized) |"
+    echo "| Filter 5,000 tables to one | $UI_SCHEMA_FILTER_MS ms |"
+    echo "| 5,000 script sections land | $UI_SCRIPT_SECTIONS_MS ms ($UI_SCRIPT_SECTION_CHIPS chips realized) |"
+    echo "| Palette keystroke over 50,000 relations | $UI_PALETTE_KEY_MS ms |"
+    echo "| Widest result the grid shows | $UI_WIDE_RESULT_MS ms |"
+    echo "| Edit context arriving after the rows | $UI_EDIT_CONTEXT_MS ms |"
+    echo "| Show 1 MB of read-only text | $UI_LARGE_TEXT_MS ms |"
+    echo "| Key typed at the end of a 5 MB script | $UI_EDITOR_KEY_MS ms |"
+    echo "| Record a run with a full history | $UI_HISTORY_RECORD_MS ms |"
+    echo
     echo "Startup is the median of $RUNS runs, measured inside the app from OS process"
     echo "start to the first rendered frame; query metrics are medians via"
-    echo "\`PgNimbus.Benchmarks\` against a local PostgreSQL."
+    echo "\`PgNimbus.Benchmarks\` against a local PostgreSQL. UI-thread metrics are"
+    echo "medians from \`tools/UiBench\` on Avalonia's headless platform (software"
+    echo "rendering), so they are machine-relative: read them as a trend."
 } >"$OUT_DIR/summary.md"
 
 cat "$OUT_DIR/summary.md"

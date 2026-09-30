@@ -75,14 +75,16 @@
 
         <!-- Read: the document as a tree (JSON only), and where the selected row is. -->
         <Grid RowDefinitions="*,Auto" IsVisible="{Binding ShowTree}">
-            <TreeView Name="Tree" Grid.Row="0"
+            <!-- Virtualizing (TreeView.virtualizing): an array of 50,000 elements
+                 opened by hand realized a row for each. -->
+            <TreeView Name="Tree" Grid.Row="0" Classes="virtualizing"
                       ItemsSource="{Binding TreeRoots}"
                       Background="Transparent" BorderThickness="0">
                 <TreeView.Styles>
                     <!-- Opens as much of the document as fits (JsonTree.OpenRows):
                          it used to open as one collapsed "$". -->
                     <Style Selector="TreeViewItem" x:DataType="json:JsonTreeNode">
-                        <Setter Property="IsExpanded" Value="{Binding ExpandedByDefault, Mode=OneTime}" />
+                        <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
                     </Style>
                 </TreeView.Styles>
                 <TreeView.ContextMenu>

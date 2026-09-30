@@ -25,6 +25,17 @@ public sealed partial class CommandPaletteViewModel : ObservableObject
     // so this can be replaced while the palette is already open (see SetItems).
     private IReadOnlyList<PaletteItem> _all = [];
 
+    // What each candidate is matched against ("title category"), built once per
+    // candidate set instead of per candidate per keystroke.
+    private string[] _haystacks = [];
+
+    // The previous keystroke's query (lower case) and the indexes into _all it
+    // matched. One more character can only narrow a subsequence match, so the
+    // next keystroke scores only those: every relation of the database (the
+    // palette lists them all, partitions included) was scored on every key.
+    private string? _matchedQuery;
+    private List<int>? _matched;
+
     [ObservableProperty]
     private bool _isOpen;
 
@@ -34,12 +45,16 @@ public sealed partial class CommandPaletteViewModel : ObservableObject
     [ObservableProperty]
     private PaletteItem? _selectedItem;
 
-    public ObservableCollection<PaletteItem> Results { get; } = [];
+    /// <summary>
+    /// The candidates the query matches, best first. Replaced with one Reset per
+    /// keystroke: a Clear and an Add per match re-added tens of thousands of rows.
+    /// </summary>
+    public RangeObservableCollection<PaletteItem> Results { get; } = [];
 
     /// <summary>Opens the palette over the given candidates, resetting the query.</summary>
     public void Open(IReadOnlyList<PaletteItem> items)
     {
-        _all = items;
+        UseItems(items);
         SearchText = string.Empty;
         RebuildResults();
         IsOpen = true;
@@ -48,11 +63,24 @@ public sealed partial class CommandPaletteViewModel : ObservableObject
     /// <summary>Swaps in a fuller candidate set (e.g. once tables have loaded), preserving the typed query.</summary>
     public void SetItems(IReadOnlyList<PaletteItem> items)
     {
-        _all = items;
+        UseItems(items);
         if (IsOpen)
         {
             RebuildResults();
         }
+    }
+
+    private void UseItems(IReadOnlyList<PaletteItem> items)
+    {
+        _all = items;
+        _haystacks = new string[items.Count];
+        for (var i = 0; i < items.Count; i++)
+        {
+            _haystacks[i] = $"{items[i].Title} {items[i].Category}";
+        }
+
+        _matchedQuery = null;
+        _matched = null;
     }
 
     [RelayCommand]
@@ -66,26 +94,39 @@ public sealed partial class CommandPaletteViewModel : ObservableObject
 
     private void RebuildResults()
     {
-        Results.Clear();
-
         var query = SearchText.Trim();
-        IEnumerable<PaletteItem> matches;
         if (query.Length == 0)
         {
-            matches = _all;
+            _matchedQuery = null;
+            _matched = null;
+            Results.ReplaceAll(_all);
         }
         else
         {
-            matches = _all
-                .Select(item => (item, score: FuzzyMatcher.Score($"{item.Title} {item.Category}", query)))
-                .Where(x => x.score is not null)
-                .OrderByDescending(x => x.score!.Value)
-                .Select(x => x.item);
-        }
+            var lower = query.ToLowerInvariant();
+            var narrowing = _matched is not null && _matchedQuery is { } previous
+                && lower.Length > previous.Length && lower.StartsWith(previous, StringComparison.Ordinal);
+            var candidates = narrowing ? _matched! : null;
+            var count = candidates?.Count ?? _all.Count;
 
-        foreach (var item in matches)
-        {
-            Results.Add(item);
+            var matched = new List<int>();
+            var scored = new List<(int Index, int Score)>();
+            for (var n = 0; n < count; n++)
+            {
+                var i = candidates?[n] ?? n;
+                if (FuzzyMatcher.Score(_haystacks[i], query) is { } score)
+                {
+                    matched.Add(i);
+                    scored.Add((i, score));
+                }
+            }
+
+            // Best score first; ties keep the candidates' own order, as the stable
+            // OrderByDescending this replaced did.
+            scored.Sort(static (a, b) => a.Score != b.Score ? b.Score.CompareTo(a.Score) : a.Index.CompareTo(b.Index));
+            _matchedQuery = lower;
+            _matched = matched;
+            Results.ReplaceAll(scored.Select(s => _all[s.Index]));
         }
 
         SelectedItem = Results.Count > 0 ? Results[0] : null;

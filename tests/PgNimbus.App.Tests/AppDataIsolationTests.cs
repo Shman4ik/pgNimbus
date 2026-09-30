@@ -58,6 +58,7 @@ public class AppDataIsolationTests
             // leftovers of another test.
             saved.SaveQuery("Isolation check", "SELECT 1;");
             saved.RecordExecution(new QueryHistoryEntry("SELECT 1;", DateTimeOffset.UtcNow, 1.0, "1 row"));
+            await saved.PendingHistoryWrite; // the history file is written off the UI thread
 
             var written = new SavedQueryStore(saved.SavedQueryStore.FilePath).Load();
             await Assert.That(written.Select(q => q.Name)).Contains("Isolation check");

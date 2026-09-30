@@ -41,25 +41,61 @@ public sealed class ResultTextColumn : DataGridTextColumn
     private const double BoolIconSize = 13;
 
     private readonly int _index;
-    private readonly ColumnDetail? _editorMeta;
-    private readonly PgTypeCategory _category;
+    private readonly AvaloniaProperty? _defaultBindingTarget;
+    private ColumnDetail? _editorMeta;
+    private PgTypeCategory _category;
 
     public ResultTextColumn(int index, ColumnDetail? editorMeta = null, PgTypeCategory category = PgTypeCategory.Other)
     {
         _index = index;
+        _defaultBindingTarget = BindingTarget;
         _editorMeta = editorMeta;
         _category = category;
+        ApplyEditorBindingTarget();
+    }
 
-        if (editorMeta?.Editor is ColumnValueEditor.Boolean or ColumnValueEditor.Enum
-            or ColumnValueEditor.Date or ColumnValueEditor.Timestamp)
+    /// <summary>
+    /// Takes an edit context's metadata for this column in place: the editors
+    /// it generates change, the cells already on screen don't. False, and nothing
+    /// changed, when the cells would draw differently (a boolean or numeric column
+    /// becoming something else), which only a rebuild can show.
+    /// </summary>
+    /// <remarks>
+    /// The edit context arrives after the rows, and rebuilding every column for it
+    /// re-created every realized cell: for a 1,000-column result, seconds.
+    /// </remarks>
+    public bool TryUpdateMetadata(ColumnDetail? editorMeta, PgTypeCategory category)
+    {
+        if (DrawsAs(category) != DrawsAs(_category))
         {
-            // The base class binds the column's display Binding (the row→text
-            // converter) to BindingTarget on whatever editing element we
-            // generate. The display text means nothing to these editors —
-            // their state is set from the raw row value in
-            // GenerateEditingElementDirect — so park that binding on Tag.
-            BindingTarget = Control.TagProperty;
+            return false;
         }
+
+        _editorMeta = editorMeta;
+        _category = category;
+        ApplyEditorBindingTarget();
+        return true;
+    }
+
+    // The categories GenerateElement draws differently from plain text.
+    private static int DrawsAs(PgTypeCategory category) => category switch
+    {
+        PgTypeCategory.Boolean => 1,
+        PgTypeCategory.Numeric => 2,
+        _ => 0,
+    };
+
+    private void ApplyEditorBindingTarget()
+    {
+        // The base class binds the column's display Binding (the row→text
+        // converter) to BindingTarget on whatever editing element we
+        // generate. The display text means nothing to these editors —
+        // their state is set from the raw row value in
+        // GenerateEditingElementDirect — so park that binding on Tag.
+        BindingTarget = _editorMeta?.Editor is ColumnValueEditor.Boolean or ColumnValueEditor.Enum
+            or ColumnValueEditor.Date or ColumnValueEditor.Timestamp
+            ? Control.TagProperty
+            : _defaultBindingTarget;
     }
 
     // The Binding has an empty Path - it passes the row array straight to the

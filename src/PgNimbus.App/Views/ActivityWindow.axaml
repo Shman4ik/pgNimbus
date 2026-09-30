@@ -115,14 +115,14 @@
                         BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
                         CornerRadius="{StaticResource CardCornerRadius}">
                     <Panel>
-                        <TreeView ItemsSource="{Binding BlockingRoots}"
+                        <TreeView ItemsSource="{Binding BlockingRoots}" Classes="virtualizing"
                                   SelectedItem="{Binding SelectedBlockingNode, Mode=TwoWay}"
                                   IsVisible="{Binding HasLockWaits}">
                             <!-- Expand every node by default: the whole wait chain should be
                                  visible at a glance, and it survives the 2s auto-refresh rebuild. -->
                             <TreeView.Styles>
                                 <Style Selector="TreeViewItem">
-                                    <Setter Property="IsExpanded" Value="True" />
+                                    <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay, DataType=vm:BlockingNode}" />
                                 </Style>
                             </TreeView.Styles>
                             <TreeView.ItemTemplate>

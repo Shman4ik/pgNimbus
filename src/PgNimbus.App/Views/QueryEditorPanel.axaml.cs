@@ -98,6 +98,9 @@ public partial class QueryEditorPanel : UserControl
     // does not). Each popup request gets a number, and every edit bumps
     // _documentEdits: a background answer shows only if neither moved.
     internal const int BackgroundCompletionThreshold = 50_000;
+
+    // The most rows the completion list holds: the top of the ranking.
+    internal const int MaxPopupRows = 5_000;
     private int _completionRequest;
     private int _documentEdits;
     // How many overloads the hint lists before summing up the rest.
@@ -168,6 +171,7 @@ public partial class QueryEditorPanel : UserControl
             })
         {
             KeywordCase = () => _model?.CompletionKeywordCase ?? KeywordCase.AsTyped,
+            StatementAt = StatementAround,
         });
         // The argument hint belongs to the editor: it goes when focus does —
         // to the command palette, the grid, another window (G06).
@@ -562,7 +566,8 @@ public partial class QueryEditorPanel : UserControl
         var caret = SqlEditor.CaretOffset;
         // A quoted identifier counts as prose here: typing "(" inside "Order (x"
         // is part of the name, not a call.
-        var caretContext = SqlCompletionContext.GetCaretContext(text, caret);
+        var (statement, offset) = StatementAround(caret);
+        var caretContext = SqlCompletionContext.GetCaretContext(statement, caret - offset);
         var inStringOrComment = caretContext.InStringOrComment || caretContext.InQuotedIdentifier;
         switch (AutoClosePairs.Decide(text, caret, typed, inStringOrComment))
         {
@@ -695,6 +700,7 @@ public partial class QueryEditorPanel : UserControl
     private void OnSqlDocumentChanged(object? sender, DocumentChangeEventArgs e)
     {
         _documentEdits++;
+        _statements.Invalidate(e.Offset);
         if (!_reopenCompletionOnDelete || _completionWindow is not null)
         {
             return;
@@ -712,7 +718,7 @@ public partial class QueryEditorPanel : UserControl
             if (_reopenCompletionOnDelete && _completionWindow is null && SqlEditor.IsKeyboardFocusWithin)
             {
                 var caret = SqlEditor.CaretOffset;
-                if (CompletionEdits.TokenAt(SqlEditor.Text, caret).FilterStart < caret)
+                if (FilterStartAt(caret) < caret)
                 {
                     ShowCompletion(reopening: true);
                 }
@@ -737,9 +743,10 @@ public partial class QueryEditorPanel : UserControl
     {
         var paren = function.InsertText.IndexOf('(', StringComparison.Ordinal);
         var name = paren >= 0 ? function.InsertText[..paren] : function.InsertText;
-        var edit = CompletionEdits.Plan(SqlEditor.Text, SqlEditor.CaretOffset, name + "()", CompletionInsertKind.Function);
-        SqlEditor.Document.Replace(edit.ReplaceStart, edit.ReplaceLength, edit.InsertText);
-        SqlEditor.CaretOffset = Math.Clamp(edit.CaretOffset, 0, SqlEditor.Document.TextLength);
+        var (statement, offset) = StatementAround(SqlEditor.CaretOffset);
+        var edit = CompletionEdits.Plan(statement, SqlEditor.CaretOffset - offset, name + "()", CompletionInsertKind.Function);
+        SqlEditor.Document.Replace(edit.ReplaceStart + offset, edit.ReplaceLength, edit.InsertText);
+        SqlEditor.CaretOffset = Math.Clamp(edit.CaretOffset + offset, 0, SqlEditor.Document.TextLength);
         _model?.CompletionUsage.Record(function.StableId);
     }
 
@@ -754,7 +761,8 @@ public partial class QueryEditorPanel : UserControl
     // popup's contents are scoped enough to be worth opening unasked.
     private bool CaretIsInKnownClause()
     {
-        var context = SqlCompletionContext.GetCaretContext(SqlEditor.Text, SqlEditor.CaretOffset);
+        var (statement, offset) = StatementAround(SqlEditor.CaretOffset);
+        var context = SqlCompletionContext.GetCaretContext(statement, SqlEditor.CaretOffset - offset);
         return !context.InStringOrComment && context.Clause != SqlClause.None;
     }
 
@@ -946,6 +954,39 @@ public partial class QueryEditorPanel : UserControl
     private void AdjustEditorFontSize(int delta) =>
         SqlEditor.FontSize = Math.Clamp(SqlEditor.FontSize + delta, MinEditorFontSize, MaxEditorFontSize);
 
+    // Where the statements of this editor's document start, kept across edits
+    // (every document change invalidates what follows it; see OnSqlDocumentChanged).
+    private readonly SqlStatementBoundaries _statements = new();
+
+    /// <summary>
+    /// The text the per-keystroke readers (the caret's clause, the argument hint,
+    /// the Enter rule, the completion filter's start) should read, and where it
+    /// starts in the document. Up to <see cref="BackgroundCompletionThreshold"/>
+    /// characters that is the document; past it, the statement around
+    /// <paramref name="caret"/>. Each of those readers finds its statement by
+    /// lexing the whole text it is given, and several run on one key, so in a
+    /// 5 MB dump every '(' or ',' lexed 5 MB a few times over, and with the hint
+    /// open so did every caret move. They read one statement at a time anyway.
+    /// </summary>
+    private (string Text, int Offset) StatementAround(int caret)
+    {
+        var text = SqlEditor.Text;
+        if (text.Length < BackgroundCompletionThreshold)
+        {
+            return (text, 0);
+        }
+
+        var (start, end) = _statements.Span(text, caret);
+        return start == 0 && end == text.Length ? (text, 0) : (text[start..end], start);
+    }
+
+    // The start of the word the completion list filters on, in the document.
+    private int FilterStartAt(int caret)
+    {
+        var (statement, offset) = StatementAround(caret);
+        return CompletionEdits.TokenAt(statement, caret - offset).FilterStart + offset;
+    }
+
     private void UpdateBracketHighlight() =>
         // Pass the live document, not SqlEditor.Text — the latter allocates a
         // full-document string on every caret move, this reads a few chars.
@@ -1013,7 +1054,7 @@ public partial class QueryEditorPanel : UserControl
         // remains of the stock path (SelectItemWithStart on every caret move) only
         // touches the selection, and the re-rank that runs right after overrides it.
         completionWindow.CompletionList.IsFiltering = false;
-        completionWindow.StartOffset = CompletionEdits.TokenAt(text, caret).FilterStart;
+        completionWindow.StartOffset = FilterStartAt(caret);
         _userPickedCompletion = null;
         _completionCaretMoving = false;
 
@@ -1101,10 +1142,18 @@ public partial class QueryEditorPanel : UserControl
             return false;
         }
 
+        // The best MaxPopupRows of the ranking, which is all anyone scrolls to. A
+        // one-letter query over a million-column catalog matches most of it, and
+        // every keystroke copied all of it into the list below, which AvaloniaEdit's
+        // own caret handler then walks on each move.
+        IReadOnlyList<SqlCompletionData> items = ranked.Items.Count > MaxPopupRows
+            ? [.. ranked.Items.Take(MaxPopupRows)]
+            : ranked.Items;
+
         // The user's own pick outranks the ranking while it still matches.
-        var selected = ranked.Items[ranked.SelectedIndex];
+        var selected = items[ranked.SelectedIndex];
         if (_userPickedCompletion is { } pickedId
-            && ranked.Items.FirstOrDefault(i => i.StableId == pickedId) is { } stillThere)
+            && items.FirstOrDefault(i => i.StableId == pickedId) is { } stillThere)
         {
             selected = stillThere;
         }
@@ -1120,12 +1169,12 @@ public partial class QueryEditorPanel : UserControl
             // What the rows bold their matched letters against (CompletionLabel).
             list.ListBox!.Tag = query;
             list.CompletionData.Clear();
-            foreach (var item in ranked.Items)
+            foreach (var item in items)
             {
                 list.CompletionData.Add(item);
             }
 
-            list.ListBox.ItemsSource = ranked.Items;
+            list.ListBox.ItemsSource = items;
             list.SelectedItem = selected;
             list.ScrollIntoView(selected);
         }
@@ -1153,7 +1202,14 @@ public partial class QueryEditorPanel : UserControl
         }
 
         var row = new CompletionRow(selected.Text, selected.InsertText, selected.Kind == SqlCompletionKind.Keyword);
-        return CompletionAcceptance.EnterAccepts(SqlEditor.Text, SqlEditor.CaretOffset, window.StartOffset, row,
+        var caret = SqlEditor.CaretOffset;
+        var (statement, offset) = StatementAround(caret);
+        if (window.StartOffset < offset)
+        {
+            (statement, offset) = (SqlEditor.Text, 0);
+        }
+
+        return CompletionAcceptance.EnterAccepts(statement, caret - offset, window.StartOffset - offset, row,
             chosen: _completionExplicit || _userPickedCompletion is not null);
     }
 
@@ -1181,9 +1237,9 @@ public partial class QueryEditorPanel : UserControl
     // when the caret has left every call the catalog knows.
     private void UpdateSignatureHint()
     {
-        var text = SqlEditor.Text;
         var caret = SqlEditor.CaretOffset;
-        if (_model?.CompletionProvider.GetSignatureHints(text, caret) is not { } result)
+        var (statement, offset) = StatementAround(caret);
+        if (_model?.CompletionProvider.GetSignatureHints(statement, caret - offset) is not { } result)
         {
             CloseSignatureHint();
             return;
@@ -1234,7 +1290,7 @@ public partial class QueryEditorPanel : UserControl
         // clips to the editor, so it used to open over the toolbar. There it
         // goes below the line instead.
         var textView = SqlEditor.TextArea.TextView;
-        var location = SqlEditor.Document.GetLocation(Math.Min(result.Site.OpenParen, SqlEditor.Document.TextLength));
+        var location = SqlEditor.Document.GetLocation(Math.Min(result.Site.OpenParen + offset, SqlEditor.Document.TextLength));
         var position = new TextViewPosition(location);
         var top = textView.GetVisualPosition(position, VisualYPosition.LineTop) - textView.ScrollOffset;
         var card = SignaturePopup.Child!;

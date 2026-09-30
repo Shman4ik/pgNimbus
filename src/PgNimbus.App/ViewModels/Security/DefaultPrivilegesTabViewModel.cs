@@ -102,7 +102,7 @@ public sealed partial class DefaultPrivilegesTabViewModel(PrivilegeService privi
     [NotifyCanExecuteChangedFor(nameof(CopySelectedAsSqlCommand))]
     private DefaultPrivilegeRow? _selectedRow;
 
-    public ObservableCollection<DefaultPrivilegeRow> Rows { get; } = [];
+    public RangeObservableCollection<DefaultPrivilegeRow> Rows { get; } = [];
 
     public async Task RefreshAsync(CancellationToken ct)
     {
@@ -111,11 +111,7 @@ public sealed partial class DefaultPrivilegesTabViewModel(PrivilegeService privi
             var defaults = await _privileges.GetDefaultPrivilegesAsync(ct);
 
             var selected = SelectedRow;
-            Rows.Clear();
-            foreach (var row in Flatten(defaults))
-            {
-                Rows.Add(row);
-            }
+            Rows.ReplaceAll(Flatten(defaults));
 
             HasRows = Rows.Count > 0;
 

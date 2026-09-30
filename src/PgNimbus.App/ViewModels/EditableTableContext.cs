@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using PgNimbus.Core.Schema;
 
 namespace PgNimbus.App.ViewModels;
@@ -21,5 +22,21 @@ public sealed record EditableTableContext(
     IReadOnlyList<string> PrimaryKeyColumns,
     IReadOnlyList<ColumnDetail> Columns)
 {
-    public ColumnDetail? Column(string name) => Columns.FirstOrDefault(c => c.Name == name);
+    // Staging a delete snapshots the row by asking for every column, and a delete
+    // of the whole grid asks rows × columns times, so the lookup is a dictionary,
+    // built once per Columns list. Kept beside the record rather than in a field:
+    // a field would take part in the record's equality and ride along in a `with`.
+    private static readonly ConditionalWeakTable<IReadOnlyList<ColumnDetail>, Dictionary<string, ColumnDetail>> ByName = new();
+
+    public ColumnDetail? Column(string name) =>
+        ByName.GetValue(Columns, static columns =>
+        {
+            var byName = new Dictionary<string, ColumnDetail>(StringComparer.Ordinal);
+            foreach (var column in columns)
+            {
+                byName.TryAdd(column.Name, column);
+            }
+
+            return byName;
+        }).GetValueOrDefault(name);
 }

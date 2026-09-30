@@ -55,6 +55,19 @@ public sealed record JsonTreeNode(
     /// </summary>
     public bool ExpandedByDefault { get; internal set; }
 
+    private bool? _isExpanded;
+
+    /// <summary>
+    /// Whether the node is open in a tree: <see cref="ExpandedByDefault"/> until the
+    /// user opens or closes it. Kept on the node because the tree virtualizes, and
+    /// the row a node was shown in is reused for another once it scrolls away.
+    /// </summary>
+    public bool IsExpanded
+    {
+        get => _isExpanded ?? ExpandedByDefault;
+        set => _isExpanded = value;
+    }
+
     /// <summary>An array element, whose name is its index: drawn quieter than a member's key.</summary>
     public bool IsElement => Path.Count > 0 && Path[^1].IsElement;
 

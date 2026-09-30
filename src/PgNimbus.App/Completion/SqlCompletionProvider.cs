@@ -299,8 +299,13 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         CancelQuietly(Interlocked.Exchange(ref _refreshCts, cts));
         try
         {
-            var catalog = await ReadCatalogAsync(_schemaService, ExcludedSchemas, cts.Token);
+            // The read goes to the thread pool as well as the build: PgNimbus.Core
+            // awaits without ConfigureAwait(false), and a reader over rows already
+            // buffered doesn't yield, so awaited from the UI thread the million-column
+            // catalog was read, and grouped by table, there, after every DDL statement.
             var excluded = ExcludedSchemas;
+            var schemaService = _schemaService;
+            var catalog = await Task.Run(() => ReadCatalogAsync(schemaService, excluded, cts.Token), cts.Token);
             var alwaysQualify = AlwaysQualifyTables;
             var snapshot = await Task.Run(() => Build(catalog, excluded, alwaysQualify), cts.Token);
             if (generation != Volatile.Read(ref _refreshGeneration) || cts.IsCancellationRequested)

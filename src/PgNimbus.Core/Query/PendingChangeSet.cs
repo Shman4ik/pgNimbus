@@ -53,11 +53,15 @@ public sealed class PendingChangeSet
     // The row as the user saw it when first staged, keyed like the changes.
     private readonly Dictionary<RowKey, RowSnapshot> _originals = [];
 
-    // Ordered lists, not dictionaries: the review script and the executed
-    // batch must list changes in the order they were staged, and the set stays
-    // human-sized (it's hand-staged), so linear lookups are fine.
-    private readonly List<EditedRow> _edits = [];
-    private readonly List<RowKey> _deletes = [];
+    // Ordered, because the review script and the executed batch list changes in
+    // the order they were staged, and indexed by key, because the set is not
+    // always hand-sized: select all and Delete stages every row of the grid, up
+    // to 100,000, and with lookups by list scan that staging (and the row tints
+    // asked per row) was quadratic.
+    private readonly LinkedList<EditedRow> _edits = new();
+    private readonly Dictionary<RowKey, LinkedListNode<EditedRow>> _editIndex = [];
+    private readonly LinkedList<RowKey> _deletes = new();
+    private readonly Dictionary<RowKey, LinkedListNode<RowKey>> _deleteIndex = [];
     private readonly List<IReadOnlyList<PendingInsertValue>> _inserts = [];
 
     public PendingChangeSet(string schema, string table, IReadOnlyList<string> primaryKeyColumns, IReadOnlyList<string?>? keyCastTypes = null)
@@ -87,7 +91,7 @@ public sealed class PendingChangeSet
 
     // Edited rows whose edits would actually execute — a staged delete on the
     // same row wins while it's staged.
-    private IEnumerable<EditedRow> ActiveEdits => _edits.Where(e => !_deletes.Contains(e.Key));
+    private IEnumerable<EditedRow> ActiveEdits => _edits.Where(e => !_deleteIndex.ContainsKey(e.Key));
 
     public bool IsEmpty => Count == 0;
 
@@ -112,15 +116,20 @@ public sealed class PendingChangeSet
             throw new ArgumentException($"Primary key column {column} can't be edited.", nameof(column));
         }
 
-        if (_deletes.Contains(key))
+        if (_deleteIndex.ContainsKey(key))
         {
             throw new InvalidOperationException("This row is staged for deletion — press Delete on it again to unstage the delete first.");
         }
 
-        var row = _edits.FirstOrDefault(e => e.Key.Equals(key));
-        if (row is null)
+        EditedRow row;
+        if (_editIndex.TryGetValue(key, out var node))
         {
-            _edits.Add(row = new EditedRow(key));
+            row = node.Value;
+        }
+        else
+        {
+            row = new EditedRow(key);
+            _editIndex[key] = _edits.AddLast(row);
         }
 
         var index = row.Cells.FindIndex(c => c.Column == column);
@@ -144,9 +153,9 @@ public sealed class PendingChangeSet
     public void StageDelete(object?[] pkValues, RowSnapshot? original = null)
     {
         var key = MakeKey(pkValues);
-        if (!_deletes.Contains(key))
+        if (!_deleteIndex.ContainsKey(key))
         {
-            _deletes.Add(key);
+            _deleteIndex[key] = _deletes.AddLast(key);
         }
 
         Remember(key, original);
@@ -156,12 +165,13 @@ public sealed class PendingChangeSet
     public bool UnstageDelete(object?[] pkValues)
     {
         var key = MakeKey(pkValues);
-        if (!_deletes.Remove(key))
+        if (!_deleteIndex.Remove(key, out var node))
         {
             return false;
         }
 
-        if (!_edits.Any(e => e.Key.Equals(key)))
+        _deletes.Remove(node);
+        if (!_editIndex.ContainsKey(key))
         {
             _originals.Remove(key);
         }
@@ -187,27 +197,24 @@ public sealed class PendingChangeSet
     /// <summary>Stages an INSERT. An empty value list means "all defaults" (<c>INSERT … DEFAULT VALUES</c>).</summary>
     public void StageInsert(IReadOnlyList<PendingInsertValue> values) => _inserts.Add(values);
 
-    public bool IsRowDeleted(object?[] pkValues) => _deletes.Contains(MakeKey(pkValues));
+    public bool IsRowDeleted(object?[] pkValues) => _deleteIndex.ContainsKey(MakeKey(pkValues));
 
-    public bool IsRowEdited(object?[] pkValues)
-    {
-        var key = MakeKey(pkValues);
-        return _edits.Any(e => e.Key.Equals(key));
-    }
+    public bool IsRowEdited(object?[] pkValues) => _editIndex.ContainsKey(MakeKey(pkValues));
 
     /// <summary>The staged (column, value) pairs for a row, or null when none are staged — used to re-apply staged values after the grid reloads from the server.</summary>
     public IReadOnlyList<(string Column, object? Value)>? GetRowEdits(object?[] pkValues)
     {
-        var key = MakeKey(pkValues);
-        return _edits.FirstOrDefault(e => e.Key.Equals(key))?.Cells
-            .Select(c => (c.Column, c.Value))
-            .ToList();
+        return _editIndex.TryGetValue(MakeKey(pkValues), out var node)
+            ? node.Value.Cells.Select(c => (c.Column, c.Value)).ToList()
+            : null;
     }
 
     public void Clear()
     {
         _edits.Clear();
+        _editIndex.Clear();
         _deletes.Clear();
+        _deleteIndex.Clear();
         _inserts.Clear();
         _originals.Clear();
     }
@@ -256,8 +263,16 @@ public sealed class PendingChangeSet
 
     private void Forget(RowKey key)
     {
-        _edits.RemoveAll(e => e.Key.Equals(key));
-        _deletes.Remove(key);
+        if (_editIndex.Remove(key, out var edit))
+        {
+            _edits.Remove(edit);
+        }
+
+        if (_deleteIndex.Remove(key, out var delete))
+        {
+            _deletes.Remove(delete);
+        }
+
         _originals.Remove(key);
     }
 
@@ -299,11 +314,12 @@ public sealed class PendingChangeSet
         }
 
         var columns = PrimaryKeyColumns.ToList();
+        var seen = new HashSet<string>(columns, StringComparer.Ordinal);
         foreach (var row in rows)
         {
             foreach (var column in row.Original?.Columns ?? [])
             {
-                if (!columns.Contains(column))
+                if (seen.Add(column))
                 {
                     columns.Add(column);
                 }
