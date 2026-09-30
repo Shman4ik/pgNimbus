@@ -102,7 +102,7 @@ Walk each flow; the expected result is what "pass" means.
 | 7 | Import query plan (palette), paste a text plan | New tab, warnings for bad estimates |
 | 8 | Safe mode: edit a cell, change the same row from psql, Review, Commit | Conflict dialog with before / now / yours; Reload and restage, then Commit succeeds |
 | 9 | Browse filters: Ctrl+F in the grid, add a condition; Ctrl+I | A chip, the WHERE in the editor, row details card |
-| 10 | `telemetry.api_events`: scroll down and right, Space on a jsonb cell | Scrolls without stalls; inspector pretty-prints, Tree view works |
+| 10 | `telemetry.api_events`: scroll down and right, Space on a jsonb cell, Tree, right-click a value | Scrolls without stalls; inspector colours keys apart from values, folds, shows no blue link text; the tree opens expanded and Copy SQL Path gives a `->>` expression |
 | 11 | Server activity (palette): hold a row lock in psql, block a second session | Blocking tab shows holder over waiter; Terminate on the holder clears it |
 | 12 | Database overview, Slow queries (palette) | Sizes and cache hit; statements ranked, interval restarts |
 | 13 | Notify monitor: add a channel, Start listening, send a JSON payload | It arrives and the payload pane pretty-prints it |

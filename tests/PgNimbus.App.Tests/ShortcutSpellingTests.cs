@@ -252,10 +252,11 @@ public class ShortcutSpellingTests
         return string.Concat(hint.Inlines!.OfType<Run>().Select(r => r.Text));
     }
 
-    // The toolbar's Run button: the one control whose tip names the Run command.
+    // The toolbar's Run button: the one control on screen whose tip names the
+    // Run command (the cell inspector's Save names it too, but is closed here).
     private static string RunButtonTip(Window window) =>
         window.GetVisualDescendants().OfType<Button>()
-            .Where(b => CommandTip.GetCommand(b) == CommandId.Run)
+            .Where(b => CommandTip.GetCommand(b) == CommandId.Run && b.IsEffectivelyVisible)
             .Select(b => ToolTip.GetTip(b) as string)
             .Single()!;
 

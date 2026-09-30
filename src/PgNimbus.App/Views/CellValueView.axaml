@@ -1,0 +1,139 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ae="using:AvaloniaEdit"
+             xmlns:folding="using:AvaloniaEdit.Folding"
+             xmlns:vm="using:PgNimbus.App.ViewModels"
+             xmlns:json="using:PgNimbus.Core.Json"
+             x:Class="PgNimbus.App.Views.CellValueView"
+             x:DataType="vm:CellInspectorViewModel">
+    <!--
+        One cell's whole value, three ways: a read-only text viewer, a collapsible
+        tree (JSON only) and the editor (an editable cell's Edit tab). The results
+        grid's cell inspector and the notify monitor's payload pane both host it,
+        which is why neither of them carries a copy of any of this any more.
+
+        The viewer is an AvaloniaEdit editor, not a SelectableTextBlock: it draws
+        JSON in the same colours as the editor and the tree, folds every object and
+        array, finds text with the Find chord, and lays out only the lines on
+        screen, where a SelectableTextBlock shaped the whole value.
+    -->
+    <UserControl.Styles>
+        <!-- The fold markers default to black on white, which vanishes in the dark theme. -->
+        <Style Selector="folding|FoldingMargin">
+            <Setter Property="FoldingMarkerBrush" Value="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+            <Setter Property="FoldingMarkerBackgroundBrush" Value="Transparent" />
+            <Setter Property="SelectedFoldingMarkerBrush" Value="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+            <Setter Property="SelectedFoldingMarkerBackgroundBrush" Value="Transparent" />
+        </Style>
+
+        <!-- The tree in the viewer's colours: keys, then values by kind. An array
+             index is a position, not a name, and a container's "{ 3 fields }" is a
+             summary, so both are ordinary text at the secondary 0.6. -->
+        <Style Selector="TextBlock.jsonName">
+            <Setter Property="Foreground" Value="{DynamicResource JsonKeyBrush}" />
+        </Style>
+        <Style Selector="TextBlock.jsonName.element">
+            <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+            <Setter Property="Opacity" Value="0.6" />
+        </Style>
+        <Style Selector="TextBlock.jsonValue">
+            <Setter Property="Opacity" Value="0.6" />
+        </Style>
+        <Style Selector="TextBlock.jsonValue.str">
+            <Setter Property="Foreground" Value="{DynamicResource JsonStringBrush}" />
+            <Setter Property="Opacity" Value="1" />
+        </Style>
+        <Style Selector="TextBlock.jsonValue.num">
+            <Setter Property="Foreground" Value="{DynamicResource JsonNumberBrush}" />
+            <Setter Property="Opacity" Value="1" />
+        </Style>
+        <Style Selector="TextBlock.jsonValue.lit">
+            <Setter Property="Foreground" Value="{DynamicResource JsonLiteralBrush}" />
+            <Setter Property="Opacity" Value="1" />
+        </Style>
+        <!-- On the focused tree's accent row (DESIGN.md rule 20) the text is white,
+             and a blue key on the brand blue can't be read. The child chain reaches
+             the selected row's own header only, as in SchemaTreePanel: a descendant
+             selector would also whiten every row of its expanded children. -->
+        <Style Selector="TreeView:focus-within TreeViewItem:selected > ContentControl > StackPanel > TextBlock.jsonName, TreeView:focus-within TreeViewItem:selected > ContentControl > StackPanel > TextBlock.jsonValue">
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="TreeView:focus-within TreeViewItem:selected > ContentControl > StackPanel > TextBlock.jsonName.element, TreeView:focus-within TreeViewItem:selected > ContentControl > StackPanel > TextBlock.jsonValue">
+            <Setter Property="Opacity" Value="0.85" />
+        </Style>
+    </UserControl.Styles>
+
+    <Panel>
+        <!-- Read: the value as text. -->
+        <ae:TextEditor Name="Viewer"
+                       IsReadOnly="True"
+                       IsVisible="{Binding ShowText}"
+                       WordWrap="{Binding WordWrap}"
+                       ShowLineNumbers="{Binding IsJson}"
+                       HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                       FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="13" />
+
+        <!-- Read: the document as a tree (JSON only), and where the selected row is. -->
+        <Grid RowDefinitions="*,Auto" IsVisible="{Binding ShowTree}">
+            <TreeView Name="Tree" Grid.Row="0"
+                      ItemsSource="{Binding TreeRoots}"
+                      Background="Transparent" BorderThickness="0">
+                <TreeView.Styles>
+                    <!-- Opens as much of the document as fits (JsonTree.OpenRows):
+                         it used to open as one collapsed "$". -->
+                    <Style Selector="TreeViewItem" x:DataType="json:JsonTreeNode">
+                        <Setter Property="IsExpanded" Value="{Binding ExpandedByDefault, Mode=OneTime}" />
+                    </Style>
+                </TreeView.Styles>
+                <TreeView.ContextMenu>
+                    <ContextMenu Name="TreeMenu">
+                        <MenuItem Header="Copy Value" Click="OnCopyValueClick" />
+                        <MenuItem Header="Copy SQL Path" Click="OnCopySqlPathClick"
+                                  IsVisible="{Binding CanCopySqlPath}" />
+                        <MenuItem Header="Copy JSON Path" Click="OnCopyJsonPathClick" />
+                    </ContextMenu>
+                </TreeView.ContextMenu>
+                <TreeView.ItemTemplate>
+                    <TreeDataTemplate ItemsSource="{Binding Children}" x:DataType="json:JsonTreeNode">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Classes="jsonName" Classes.element="{Binding IsElement}"
+                                       Text="{Binding Name}"
+                                       FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="12" />
+                            <TextBlock Classes="jsonValue"
+                                       Classes.str="{Binding IsString}"
+                                       Classes.num="{Binding IsNumber}"
+                                       Classes.lit="{Binding IsLiteral}"
+                                       Text="{Binding ValuePreview}"
+                                       FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="12"
+                                       TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                    </TreeDataTemplate>
+                </TreeView.ItemTemplate>
+            </TreeView>
+
+            <!-- The selected row's path, or how to get one: the menu is the only
+                 other place that says it exists. Cascadia Mono, not Code: Code's
+                 ligatures drew "->>" as an arrow, in text that is there to be copied. -->
+            <Border Grid.Row="1" BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="0,1,0,0"
+                    Padding="4,6,4,0" Margin="0,4,0,0">
+                <Panel>
+                    <SelectableTextBlock Name="PathText" Text="{Binding SelectedPath}"
+                                         IsVisible="{Binding SelectedPath, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                         FontFamily="Cascadia Mono,Consolas,Menlo,monospace" FontSize="12"
+                                         TextWrapping="Wrap" />
+                    <TextBlock Text="Select a value to see its path. Right-click to copy it."
+                               IsVisible="{Binding SelectedPath, Converter={x:Static ObjectConverters.IsNull}}"
+                               FontSize="12" Opacity="0.55" TextTrimming="CharacterEllipsis" />
+                </Panel>
+            </Border>
+        </Grid>
+
+        <!-- Edit: the editable cell's text (two-way synced in code-behind). -->
+        <Border IsVisible="{Binding IsEditing}"
+                BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" CornerRadius="6">
+            <ae:TextEditor Name="JsonInspectorEditor"
+                           ShowLineNumbers="True" WordWrap="True"
+                           FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="13" />
+        </Border>
+    </Panel>
+</UserControl>

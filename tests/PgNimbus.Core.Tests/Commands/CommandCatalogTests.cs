@@ -254,6 +254,15 @@ public class CommandCatalogTests
     }
 
     [Test]
+    public async Task GestureNotesSpellAnotherCommandsChordPerScheme()
+    {
+        var descriptor = CommandCatalog.Get(CommandId.SaveInspectedValue);
+
+        await Assert.That(descriptor.GestureNoteFor(ChordScheme.Ctrl)).IsEqualTo("Ctrl+Enter in the cell inspector's editor");
+        await Assert.That(descriptor.GestureNoteFor(ChordScheme.Cmd)).IsEqualTo("⌘↩ in the cell inspector's editor");
+    }
+
+    [Test]
     public async Task GestureNotesResolveTheModifierPlaceholder()
     {
         var descriptor = CommandCatalog.Get(CommandId.GoToTabByNumber);

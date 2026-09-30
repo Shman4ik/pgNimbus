@@ -120,13 +120,19 @@ guessing at a client-side conversion.
 inspector opens straight on its Edit tab, with:
 
 - pretty-printing and minifying
-- JSON syntax highlighting
+- JSON syntax highlighting, with keys, strings, numbers and `true`/`false`/`null`
+  each in their own colour
+- folding for every object and array
 - client-side validation before anything is sent
-- a collapsible read-only tree view of the value
+- <kbd>Ctrl</kbd>+<kbd>Enter</kbd> to save, the same chord that runs a query
 
 Validation is driven by the column's type rather than by what the value looks
 like, so a plain `text` column holding something JSON-shaped still accepts any
 string.
+
+Text is shown as it is. A string such as `"Ann <ann@example.com>"` or one
+holding an emoji is not turned into `<…` escapes, and e-mail addresses and
+URLs are ordinary text, not links.
 
 ## Safe mode
 
@@ -197,6 +203,29 @@ graph and still have every step you came through.
 truncation, with JSON pretty-printed and one-click copy. On an editable cell it
 also has an Edit tab, which is the comfortable way to edit anything longer than a
 line.
+
+A JSON value opens in a larger overlay, coloured the same way as the editor,
+with line numbers and a fold marker beside each object and array. A folded one
+shows how many fields or items it holds. <kbd>Ctrl</kbd>+<kbd>F</kbd> searches
+the value.
+
+**Tree** shows the value as a collapsible document instead. It opens with as
+much expanded as fits on screen, so a small value is readable without a click.
+Select a row to see its path under the tree, written as SQL over the column
+(`metadata->'items'->0->>'sku'`), ready to paste into a `WHERE`. Right-click a row
+to copy:
+
+| Item | What you get |
+| --- | --- |
+| Copy Value | The value itself: a string without its quotes, an object or array as formatted JSON |
+| Copy SQL Path | The `->` / `->>` expression over the column |
+| Copy JSON Path | The SQL/JSON path, such as `$.items[0].sku`, for `jsonb_path_query` and friends |
+
+The inspector remembers whether you last used the text or the tree, so pressing
+<kbd>Space</kbd> on the next row opens the same view.
+
+While the inspector is open, the window's other shortcuts are off. It is modal,
+so nothing you press there acts on the tab behind it.
 
 ## Transactions
 

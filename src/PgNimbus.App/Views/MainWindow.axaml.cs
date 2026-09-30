@@ -383,9 +383,18 @@ public partial class MainWindow : Window, IEditCommandTarget
             KeyBindings.Add(new KeyBinding { Gesture = gesture, Command = new DelegatedCommand(resolve) });
     }
 
-    /// <summary>The catalog's command, bound to this window's view model.</summary>
+    /// <summary>
+    /// The catalog's command, bound to this window's view model. None while the
+    /// cell inspector is open: it is modal over the window, and every chord used
+    /// to reach through it to the tab behind. Ctrl+Enter in its editor re-ran the
+    /// query and reloaded the grid under the cell being edited, and Ctrl+W closed
+    /// the tab it was open over. The window's bindings see a key before the
+    /// focused editor does, so this is also what lets CellValueView answer
+    /// Ctrl+Enter with Save (measured: with the guard gone, the query runs and
+    /// nothing is saved).
+    /// </summary>
     private System.Windows.Input.ICommand? ResolveCommand(CommandId id) =>
-        _viewModel is null ? null : CommandBindings.Resolve(id, _viewModel);
+        _viewModel is null || _viewModel.CellInspector.IsOpen ? null : CommandBindings.Resolve(id, _viewModel);
 
     /// <summary>
     /// The end of the Edit menu's routing walk (<see cref="EditCommands"/>): Find
@@ -408,10 +417,22 @@ public partial class MainWindow : Window, IEditCommandTarget
     // focus currently is - a KeyBinding can't express a toggle.
     protected override void OnKeyDown(KeyEventArgs e)
     {
-        if (e.Key == Key.Escape && _viewModel?.CellInspector.IsOpen == true)
+        if (_viewModel?.CellInspector.IsOpen == true)
         {
-            _viewModel.CellInspector.CloseCommand.Execute(null);
-            e.Handled = true;
+            if (e.Key == Key.Escape)
+            {
+                _viewModel.CellInspector.CloseCommand.Execute(null);
+                e.Handled = true;
+            }
+            else if (CommandBindings.Matches(CommandId.Find, e))
+            {
+                // The value's own find bar, not the SQL editor's behind the overlay.
+                ResultsPanel.OpenInspectorSearch();
+                e.Handled = true;
+            }
+
+            // Nothing below may act on the window behind a modal overlay (see
+            // ResolveCommand for the key bindings' half of this).
             return;
         }
 
