@@ -19,7 +19,7 @@ public enum SqlKeywordPosition
 /// The keywords that are legal at the caret, most likely first, and whether
 /// anything else (a column, a function) is too. Completion ranks these above
 /// the rest and drops every keyword that is not on the list
-/// (docs/design/sql-completion-audit-2.md §6.2 step 1, findings B02, B04, C01).
+/// (docs/dev/design/sql-completion-audit-2.md §6.2 step 1, findings B02, B04, C01).
 /// </summary>
 /// <param name="Position">What the caret position takes.</param>
 /// <param name="Keywords">The legal keywords in rank order; empty when <see cref="Position"/> is <see cref="SqlKeywordPosition.Unknown"/>.</param>

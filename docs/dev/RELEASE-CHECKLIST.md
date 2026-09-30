@@ -9,10 +9,10 @@ tick them in a scratch copy), walk them top to bottom, and add a row to the
 [release log](#release-log) at the end. When a release finds something this
 list would have caught earlier, change the list in the same PR. A step that
 nobody can do in the time a weekly release allows gets automated or deleted,
-not skipped silently (see `docs/design/release-checks.md`).
+not skipped silently (see `docs/dev/design/release-checks.md`).
 
 Most of the manual pass can be handed to Claude Code: "go through
-docs/RELEASE-CHECKLIST.md for vX.Y.Z". Simple steps (test runs, the hygiene
+docs/dev/RELEASE-CHECKLIST.md for vX.Y.Z". Simple steps (test runs, the hygiene
 sweep, release-note drafting) are fine for a Sonnet subagent; the click-through
 needs a model that can drive the desktop.
 

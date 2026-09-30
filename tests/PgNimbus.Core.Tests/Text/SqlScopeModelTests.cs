@@ -3,7 +3,7 @@ using PgNimbus.Core.Text;
 namespace PgNimbus.Core.Tests.Text;
 
 /// <summary>
-/// The scope tree of docs/design/sql-editing-experience.md, package F
+/// The scope tree of docs/dev/design/sql-editing-experience.md, package F
 /// (T13–T19): which block the caret is in, which sources it and the levels
 /// around it can name, which CTEs are in reach, and what a derived table or
 /// CTE outputs. Every case also names what must <i>not</i> be visible — a

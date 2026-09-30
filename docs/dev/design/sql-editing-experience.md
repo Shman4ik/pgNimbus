@@ -27,7 +27,7 @@
 4. Измерить задержки всего пути ввода и ограничить работу на UI-потоке.
 
 Новые постоянные кнопки не нужны. Основной интерфейс — существующий список подсказок, клавиатура и небольшая панель аргументов у курсора.
-Вторичные действия остаются в палитре команд. Это соответствует [правилам Nimbus](../../shared/nimbusUi/DESIGN.md).
+Вторичные действия остаются в палитре команд. Это соответствует [правилам Nimbus](../../../shared/nimbusUi/DESIGN.md).
 
 ## 2. Что проверено
 
@@ -586,21 +586,21 @@ P0 исправляет неверные подсказки или измене�
 
 | Файл | Изменение при реализации |
 | --- | --- |
-| [SqlCompletionContext.cs](../../src/PgNimbus.Core/Text/SqlCompletionContext.cs) | Заменить независимые сканы общими токенами и контекстом блока |
-| [SqlCompletionContext.Ctes.cs](../../src/PgNimbus.Core/Text/SqlCompletionContext.Ctes.cs) | Выходная модель и видимость CTE |
-| [SqlCompletionContext.StarExpansion.cs](../../src/PgNimbus.Core/Text/SqlCompletionContext.StarExpansion.cs) | Точная проекция и отказ при неизвестной семантике |
-| [SqlScriptSplitter.cs](../../src/PgNimbus.Core/Query/SqlScriptSplitter.cs) | Общая лексика, сохранение контракта Run/Format |
-| [SqlFormatter.cs](../../src/PgNimbus.Core/Query/SqlFormatter.cs) | Переход на общие токены с сохранением round-trip |
-| [BrowseSqlParser.cs](../../src/PgNimbus.Core/Query/BrowseSqlParser.cs) | Общие токены, прежнее ограничение поддерживаемых форм |
-| [SqlStatementInspector.cs](../../src/PgNimbus.Core/Query/SqlStatementInspector.cs) | Совместимость без ослабления проверки повторного выполнения |
-| [SqlCompletionProvider.cs](../../src/PgNimbus.App/Completion/SqlCompletionProvider.cs) | Отделить snapshot/resolution от Avalonia-адаптера |
-| [SqlCompletionData.cs](../../src/PgNimbus.App/Completion/SqlCompletionData.cs) | Применять точный TextEdit и позицию курсора |
-| [QueryEditorPanel.axaml.cs](../../src/PgNimbus.App/Views/QueryEditorPanel.axaml.cs) | Сессия completion, клавиатура, один Undo, отмена |
-| [CompletionRanker.cs](../../src/PgNimbus.Core/Text/CompletionRanker.cs) | Ступени совпадения и контекстный порядок |
+| [SqlCompletionContext.cs](../../../src/PgNimbus.Core/Text/SqlCompletionContext.cs) | Заменить независимые сканы общими токенами и контекстом блока |
+| [SqlCompletionContext.Ctes.cs](../../../src/PgNimbus.Core/Text/SqlCompletionContext.Ctes.cs) | Выходная модель и видимость CTE |
+| [SqlCompletionContext.StarExpansion.cs](../../../src/PgNimbus.Core/Text/SqlCompletionContext.StarExpansion.cs) | Точная проекция и отказ при неизвестной семантике |
+| [SqlScriptSplitter.cs](../../../src/PgNimbus.Core/Query/SqlScriptSplitter.cs) | Общая лексика, сохранение контракта Run/Format |
+| [SqlFormatter.cs](../../../src/PgNimbus.Core/Query/SqlFormatter.cs) | Переход на общие токены с сохранением round-trip |
+| [BrowseSqlParser.cs](../../../src/PgNimbus.Core/Query/BrowseSqlParser.cs) | Общие токены, прежнее ограничение поддерживаемых форм |
+| [SqlStatementInspector.cs](../../../src/PgNimbus.Core/Query/SqlStatementInspector.cs) | Совместимость без ослабления проверки повторного выполнения |
+| [SqlCompletionProvider.cs](../../../src/PgNimbus.App/Completion/SqlCompletionProvider.cs) | Отделить snapshot/resolution от Avalonia-адаптера |
+| [SqlCompletionData.cs](../../../src/PgNimbus.App/Completion/SqlCompletionData.cs) | Применять точный TextEdit и позицию курсора |
+| [QueryEditorPanel.axaml.cs](../../../src/PgNimbus.App/Views/QueryEditorPanel.axaml.cs) | Сессия completion, клавиатура, один Undo, отмена |
+| [CompletionRanker.cs](../../../src/PgNimbus.Core/Text/CompletionRanker.cs) | Ступени совпадения и контекстный порядок |
 | [CompletionRecency.cs](../../src/PgNimbus.Core/Text/CompletionRecency.cs) | История по StableId |
-| [ForeignKeyMatcher.cs](../../src/PgNimbus.Core/Schema/ForeignKeyMatcher.cs) | Несколько связей и привязка к текущему JOIN |
-| [SchemaService.cs](../../src/PgNimbus.Core/Schema/SchemaService.cs) | Metadata без размеров, типы и идентичности объектов |
-| [MainViewModel.cs](../../src/PgNimbus.App/ViewModels/MainViewModel.cs) | Жизненный цикл refresh и invalidation |
+| [ForeignKeyMatcher.cs](../../../src/PgNimbus.Core/Schema/ForeignKeyMatcher.cs) | Несколько связей и привязка к текущему JOIN |
+| [SchemaService.cs](../../../src/PgNimbus.Core/Schema/SchemaService.cs) | Metadata без размеров, типы и идентичности объектов |
+| [MainViewModel.cs](../../../src/PgNimbus.App/ViewModels/MainViewModel.cs) | Жизненный цикл refresh и invalidation |
 
 Логику языка и metadata держать в Core. Popup, клавиатуру и AvaloniaEdit оставить в App.
 Общие темы Nimbus не требуют изменений для исправления парсера.

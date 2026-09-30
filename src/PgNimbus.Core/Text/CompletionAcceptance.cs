@@ -9,7 +9,7 @@ public readonly record struct CompletionRow(string Name, string InsertText, bool
 
 /// <summary>
 /// When Enter accepts the highlighted completion row
-/// (docs/design/sql-completion-audit-2.md §6.1). Enter is also the key that
+/// (docs/dev/design/sql-completion-audit-2.md §6.1). Enter is also the key that
 /// ends a line, so a row it takes has to be one the user asked for, and taking
 /// it has to change something:
 /// <list type="number">

@@ -1,7 +1,7 @@
 # Completion audit stand
 
 The fixtures behind the second completion audit,
-[`docs/design/sql-completion-audit-2.md`](../../../docs/design/sql-completion-audit-2.md).
+[`docs/dev/design/sql-completion-audit-2.md`](../../../docs/dev/design/sql-completion-audit-2.md).
 They measure how much completion helps someone typing ordinary SQL, and
 whether it ever gets in their way. Everything runs offline from the catalog
 snapshot below; a server is needed only to take a new snapshot.

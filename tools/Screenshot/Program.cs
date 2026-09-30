@@ -126,7 +126,7 @@ if (baselineDir is not null)
     if (mismatches.Count > 0)
     {
         Console.WriteLine();
-        Console.WriteLine("If the change is intended, refresh the baselines — see docs/design/release-checks.md.");
+        Console.WriteLine("If the change is intended, refresh the baselines — see docs/dev/design/release-checks.md.");
     }
 }
 

@@ -3,7 +3,7 @@ using PgNimbus.Core.Text;
 namespace PgNimbus.Core.Tests.Text;
 
 /// <summary>
-/// The audit cases from docs/design/sql-editing-experience.md that live in
+/// The audit cases from docs/dev/design/sql-editing-experience.md that live in
 /// Core: statement boundaries for completion, literal detection by the shared
 /// lexer, the clause stack across subqueries, name folding, qualifier chains
 /// and the JOIN kinds that take no condition. <c>|</c> marks the caret.

@@ -8,7 +8,7 @@ namespace PgNimbus.App.Completion;
 
 /// <summary>
 /// A completion row's name with the letters the typed text matched drawn in
-/// bold (docs/design/sql-completion-audit-2.md G01): with fuzzy matching, a row
+/// bold (docs/dev/design/sql-completion-audit-2.md G01): with fuzzy matching, a row
 /// like <c>order_items</c> for "oi" otherwise gives no clue why it is there.
 /// <see cref="Query"/> is what the popup filters on (the list's Tag), and
 /// <see cref="MatchText"/> the name the ranker matched, which a qualified

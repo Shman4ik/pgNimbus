@@ -4,7 +4,7 @@ using PgNimbus.Core.Text;
 namespace PgNimbus.Core.Tests.Text;
 
 /// <summary>
-/// The argument hint's reading of a call (docs/design/sql-editing-experience.md,
+/// The argument hint's reading of a call (docs/dev/design/sql-editing-experience.md,
 /// package H, T27): which call and which argument the caret is in, with commas
 /// inside strings, arrays, nested calls and subqueries not counting, and which
 /// overloads fit. <c>|</c> marks the caret.

@@ -610,7 +610,7 @@ Three rules about it:
    holds the audit's live check (two statements are refused and the table is
    not created). The design
    doc + competitive research is in
-   [`docs/design/explain-improvements.md`](docs/design/explain-improvements.md).
+   [`docs/dev/design/explain-improvements.md`](docs/dev/design/explain-improvements.md).
 7. **Permissions are answered, not dumped — and never applied behind the user's
    back.** `src/PgNimbus.Core/Security/` reads roles and ACLs, but the headline is
    that it answers *"can this role do this, and why?"* rather than rendering
@@ -729,7 +729,7 @@ Three rules about it:
    `DEFAULT …`, which made the generated GRANT a syntax error, and a procedure
    fails under `ON FUNCTION`. `RoutineGrantTests` runs the script against a
    function with a default and a procedure. The research and the plan are in
-   [`docs/design/accounts-permissions.md`](docs/design/accounts-permissions.md).
+   [`docs/dev/design/accounts-permissions.md`](docs/dev/design/accounts-permissions.md).
    **Two rules every script builder keeps** (2026-09, security audit findings
    11 and 12; the RLS re-create and the default-privileges statement moved out
    of their view models into the Core-pure `PolicyScriptBuilder` and

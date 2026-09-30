@@ -77,7 +77,7 @@ about first. If the CI figure moves for good, change all three together.
 ## Release pipeline
 
 What to walk before tagging, and what past release passes found, is
-[`docs/RELEASE-CHECKLIST.md`](docs/RELEASE-CHECKLIST.md) (living, one log row per
+[`docs/dev/RELEASE-CHECKLIST.md`](docs/dev/RELEASE-CHECKLIST.md) (living, one log row per
 release); this section is how the pipeline itself works.
 
 `.github/workflows/release.yml` runs on every `vX.Y.Z` tag push (or manually
@@ -204,7 +204,7 @@ It produces, per tag:
   the plist value not older than the highest `vtool -show-build` `minos` of any
   Mach-O), and `MacOSEntitlementsTests` keeps the template from going under 12.
   **Ad-hoc signing has a Keychain cost** that only a Developer ID removes: see
-  hard rule 4 in `CLAUDE.md` and "Known caveats" in `docs/RELEASE-CHECKLIST.md`.
+  hard rule 4 in `CLAUDE.md` and "Known caveats" in `docs/dev/RELEASE-CHECKLIST.md`.
   None of this substitutes for a Developer ID signature plus notarization,
   which needs a paid Apple account and would remove the warning outright.
   **Both `codesign` calls also pass `--options runtime`** (security audit
@@ -467,10 +467,10 @@ the documentation site, `/dev/bench/` is the benchmark history.
 ### Documentation site (`/docs/`)
 
 MkDocs Material, configured in the repo-root [`mkdocs.yml`](mkdocs.yml), built
-from `docs/`. `docs/` doubles as the repo's internal notes directory, so
-`exclude_docs` keeps `marketing/`, `design/`, `PROGRESS.md`,
-`PRE-LAUNCH-CHECKLIST.md` and `RELEASE-CHECKLIST.md` out of the published site — **only pages listed in
-`nav` ship**. Published by
+from `docs/`. Contributor notes (design records, the release checklists)
+live in `docs/dev/`, and `exclude_docs` keeps it and the git-ignored
+`marketing/` out of the published site — **only pages listed in `nav`
+ship**. Published by
 [`scripts/website/publish-docs.sh`](scripts/website/publish-docs.sh), which
 replaces `gh-pages:/docs/` alone; `.github/workflows/docs.yml` builds it with
 `--strict` on every PR touching `docs/`/`mkdocs.yml` (so a broken link or a page

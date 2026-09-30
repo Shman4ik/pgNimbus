@@ -292,4 +292,4 @@ verified live under Xvfb against a staged lock-wait scene before landing.
       original observation was made under Xvfb, which runs no window manager
       to honor size hints at all.
 - [x] Roadmap features (extension manager, plugin API) — live in
-      [ROADMAP.md](../ROADMAP.md) P3; not tracked here.
+      [ROADMAP.md](../../ROADMAP.md) P3; not tracked here.

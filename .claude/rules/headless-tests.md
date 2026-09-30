@@ -76,7 +76,7 @@ artifact nobody opens is not a check:
    covered: they show motion and are still recorded by hand.
 
 Full rationale, thresholds and the weekly-release loop:
-[`docs/design/release-checks.md`](docs/design/release-checks.md).
+[`docs/dev/design/release-checks.md`](docs/dev/design/release-checks.md).
 
 How the fixtures work, and why they're shaped this way:
 

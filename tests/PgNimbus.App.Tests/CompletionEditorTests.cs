@@ -22,7 +22,7 @@ namespace PgNimbus.App.Tests;
 
 /// <summary>
 /// The completion popup in the real editor, driven with real keys: the
-/// accept matrix of docs/design/sql-editing-experience.md (T28–T31) — what
+/// accept matrix of docs/dev/design/sql-editing-experience.md (T28–T31) — what
 /// Ctrl+Space filters on, what an accept replaces, and that one Undo takes a
 /// whole accept back, auto-alias included.
 /// </summary>

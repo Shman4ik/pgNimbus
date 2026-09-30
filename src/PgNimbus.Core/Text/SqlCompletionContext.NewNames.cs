@@ -12,7 +12,7 @@ public static partial class SqlCompletionContext
     /// what the user means there, even when a row happens to share the letters
     /// (<c>FROM customers c</c> is not <c>CROSS</c>, <c>AS manager</c> is not
     /// <c>manager_id</c>), so the popup may show rows but Enter takes one only
-    /// when it was chosen (docs/design/sql-completion-audit-2.md §6.1).
+    /// when it was chosen (docs/dev/design/sql-completion-audit-2.md §6.1).
     /// </summary>
     public static bool IsNewNamePosition(string sql, int caret)
     {

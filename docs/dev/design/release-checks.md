@@ -1,6 +1,6 @@
 # Release stability checks
 
-Internal notes, not part of the published docs site (`docs/design/` is in
+Internal notes, not part of the published docs site (`docs/dev/design/` is in
 `exclude_docs`).
 
 ## The problem this solves
@@ -84,7 +84,7 @@ On Linux this renders directly. Anywhere else it goes through
 `scripts/screenshots/render-linux.sh`, which runs the harness in the .NET SDK
 container (the image needs `libfontconfig1`, which the script installs — Skia is
 bundled but links against the system fontconfig). The
-[Screenshots workflow](../../.github/workflows/screenshots.yml) does the same
+[Screenshots workflow](../../../.github/workflows/screenshots.yml) does the same
 thing on a real CI runner and opens a PR.
 
 A missing baseline is reported as `NEW` and does **not** fail the run: a

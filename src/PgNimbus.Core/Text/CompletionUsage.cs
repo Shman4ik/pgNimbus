@@ -6,7 +6,7 @@ public sealed record CompletionUsageEntry(string Id, int Count, DateTime LastUse
 /// <summary>
 /// What the user has accepted from the completion list on one connection, so
 /// <see cref="CompletionRanker"/> can put the names they actually use first
-/// (docs/design/sql-completion-audit-2.md B08, §6.2 step 4): more accepts
+/// (docs/dev/design/sql-completion-audit-2.md B08, §6.2 step 4): more accepts
 /// first, and among equals the more recent. Bounded — the least recently used
 /// entry goes when the store is full — and persisted per connection by the
 /// host (<see cref="Settings.CompletionUsageStore"/>). Ids are the rows'

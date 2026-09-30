@@ -13,7 +13,7 @@ namespace PgNimbus.App.Tests;
 
 /// <summary>
 /// The audit corpus typed into the real editor, key by key — the two editor
-/// measurements of docs/design/sql-completion-audit-2.md (section 2.3), over
+/// measurements of docs/dev/design/sql-completion-audit-2.md (section 2.3), over
 /// the audit stand's catalog (tools/CompletionBench/Audit). Every other
 /// completion test puts the caret into finished text; these type the text the
 /// way a person does, which is where the popup can get in the way.

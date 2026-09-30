@@ -23,7 +23,7 @@ K и L — P0: без них остальные улучшения подска�
 | Что | Значение |
 | --- | --- |
 | Сервер | PostgreSQL 17 (образ `pgvector/pgvector:pg17`), локальный контейнер `wslc` |
-| База | Демо-данные [`scripts/demo`](../../scripts/demo/) (public, commerce, iot, org, analytics, telemetry) и схема `saas` из 24 отношений |
+| База | Демо-данные [`scripts/demo`](../../../scripts/demo/) (public, commerce, iot, org, analytics, telemetry) и схема `saas` из 24 отношений |
 | Схема `saas` | Типичные имена SaaS-приложения: accounts, users, teams, projects, issues, invoices…; два enum, domain, два FK из `issues` в `users`, составной FK, представления, три функции, процедура, таблица `"TimeEntries"` в смешанном регистре, последовательность, комментарии |
 | search_path | `public` (по умолчанию) |
 | Каталог completion | 7 схем, 50 отношений (из них 8 секций `iot.readings`), 424 колонки, 49 FK, 92 типа |
@@ -402,7 +402,7 @@ Escape, отправленный инструментом автоматизац
 
 ## 8. Воспроизведение
 
-Стенд лежит в [`tools/CompletionBench/Audit`](../../tools/CompletionBench/Audit/) (подробности в его README):
+Стенд лежит в [`tools/CompletionBench/Audit`](../../../tools/CompletionBench/Audit/) (подробности в его README):
 
 | Файл | Что это |
 | --- | --- |
@@ -427,7 +427,7 @@ Escape, отправленный инструментом автоматизац
 
 ## Приложение А. Корпус
 
-Корпус на момент аудита. Инструменты читают [`tools/CompletionBench/Audit/corpus.sql`](../../tools/CompletionBench/Audit/corpus.sql); запросы разделены строкой `---`.
+Корпус на момент аудита. Инструменты читают [`tools/CompletionBench/Audit/corpus.sql`](../../../tools/CompletionBench/Audit/corpus.sql); запросы разделены строкой `---`.
 
 ```sql
 SELECT c.first_name, c.last_name, c.email

@@ -93,7 +93,7 @@ public sealed record AppSettings
     /// <summary>
     /// The letter case completion writes keywords in: <c>"typed"</c> (the case
     /// being typed — <c>tr</c> gives <c>true</c>, the default), <c>"upper"</c>
-    /// or <c>"lower"</c> (docs/design/sql-completion-audit-2.md F02, §6.7).
+    /// or <c>"lower"</c> (docs/dev/design/sql-completion-audit-2.md F02, §6.7).
     /// </summary>
     public string CompletionKeywordCase { get; set; } = "typed";
 

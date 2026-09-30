@@ -93,7 +93,7 @@ public partial class QueryEditorPanel : UserControl
     // re-read it. Plain navigation through existing calls never opens it.
     private bool _signatureHintActive;
     // Documents at least this long are read for completion off the UI thread
-    // (docs/design/sql-editing-experience.md §8: under it, the whole path stays
+    // (docs/dev/design/sql-editing-experience.md §8: under it, the whole path stays
     // well inside the 4 ms per keystroke budget; at 100k characters its tail
     // does not). Each popup request gets a number, and every edit bumps
     // _documentEdits: a background answer shows only if neither moved.
@@ -1162,7 +1162,7 @@ public partial class QueryEditorPanel : UserControl
         return true;
     }
 
-    // The Enter rule (docs/design/sql-completion-audit-2.md §6.1, decided in
+    // The Enter rule (docs/dev/design/sql-completion-audit-2.md §6.1, decided in
     // CompletionAcceptance): Enter takes the highlighted row only when the
     // accept would change the text, and the user chose the row (Ctrl+Space,
     // arrows, mouse) or typed the start of its name outside a new-name position.

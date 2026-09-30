@@ -2,7 +2,7 @@ namespace PgNimbus.Core.Text;
 
 /// <summary>
 /// A place where the caret types a value rather than a name, and what decides
-/// which values fit there (docs/design/sql-completion-audit-2.md E07):
+/// which values fit there (docs/dev/design/sql-completion-audit-2.md E07):
 /// <list type="bullet">
 /// <item>the right-hand side of a comparison with a column
 /// (<c>i.status = |</c>, <c>status &lt;&gt; '|</c>, <c>status IN ('a', |</c>) —

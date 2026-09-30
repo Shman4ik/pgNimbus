@@ -3,7 +3,7 @@ using PgNimbus.Core.Text;
 namespace PgNimbus.Core.Tests.Text;
 
 /// <summary>
-/// The Enter rule of docs/design/sql-completion-audit-2.md §6.1 and the
+/// The Enter rule of docs/dev/design/sql-completion-audit-2.md §6.1 and the
 /// new-name positions it leans on (findings A01–A07).
 /// </summary>
 public class CompletionAcceptanceTests

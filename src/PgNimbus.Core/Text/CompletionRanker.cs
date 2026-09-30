@@ -20,7 +20,7 @@ public enum CompletionMatchTier
 /// typed so far, replacing the strict-prefix filter of the stock editor list.
 /// A candidate is on the list when its name holds the typed letters in order
 /// (<see cref="FuzzyMatcher"/>), and the list is ordered by, in turn
-/// (docs/design/sql-completion-audit-2.md §6.2):
+/// (docs/dev/design/sql-completion-audit-2.md §6.2):
 /// <list type="number">
 /// <item>the match tier (<see cref="CompletionMatchTier"/>): an exact name,
 /// then names starting with the text, then names whose parts start with it,

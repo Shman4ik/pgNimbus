@@ -11,7 +11,7 @@ dotnet run -c Release --project tools/CompletionBench
 It prints one Markdown table per catalog: the median and p95 over 30 timed
 calls (after 5 warm-up calls), and the bytes allocated per call. The budgets
 and the last recorded results are in
-[`docs/design/sql-editing-experience.md`](../../docs/design/sql-editing-experience.md), section 8.
+[`docs/dev/design/sql-editing-experience.md`](../../docs/dev/design/sql-editing-experience.md), section 8.
 Numbers depend on the machine. Compare runs on the same machine, not against
 another machine's numbers.
 

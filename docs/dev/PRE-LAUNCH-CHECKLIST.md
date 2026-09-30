@@ -46,7 +46,7 @@ anything embarrassing or sensitive must be dealt with *before*, not after.
       config, never committed — that part is fine.)
       *Superseded 2026-09 (#271): the package and `.WithDeveloperTools()`
       are gone from Debug builds too.*
-- [x] **Skim `docs/PROGRESS.md` and `CLAUDE.md` one last time** with
+- [x] **Skim `docs/dev/PROGRESS.md` and `CLAUDE.md` one last time** with
       "public reader" glasses. Done 2026-07-08: no secrets, no internal
       hostnames, nothing embarrassing — both read as engineering notes a
       public audience can see. (CLAUDE.md's DevTools section was updated
@@ -197,7 +197,7 @@ launch-day traffic doesn't come back for a second look.
       cross-platform-capable; honest answer about what's tested),
       "unsigned binaries", "how is this different from Beekeeper/
       DBeaver", and benchmark-methodology questions about the 100 ms
-      claim (`docs/PROGRESS.md` iteration 1 has the receipts — link it).
+      claim (`docs/dev/PROGRESS.md` iteration 1 has the receipts — link it).
 - [ ] **Lobsters, r/dotnet, r/csharp, r/programming** — staggered over
       the following days, angle adjusted per audience (r/dotnet cares
       about the NativeAOT + Avalonia story more than the Postgres story).

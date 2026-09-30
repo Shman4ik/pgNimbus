@@ -9,7 +9,7 @@ namespace PgNimbus.Core.Tests.Query;
 /// text is a literal, not a lexer's output: the formatter's own round-trip check
 /// compares two runs of one tokenizer, so a tokenizer that misreads a literal
 /// misreads it the same way on both sides and passes. These are the independent
-/// half (docs/design/sql-editing-experience.md §7.4).
+/// half (docs/dev/design/sql-editing-experience.md §7.4).
 /// </summary>
 public class SqlFormatterLexicalTests
 {

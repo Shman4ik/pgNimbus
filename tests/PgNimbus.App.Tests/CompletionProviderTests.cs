@@ -6,7 +6,7 @@ namespace PgNimbus.App.Tests;
 
 /// <summary>
 /// The completion provider against an in-memory catalog — the audit's fixture
-/// (docs/design/sql-editing-experience.md §4): <c>public.users(id, name)</c>,
+/// (docs/dev/design/sql-editing-experience.md §4): <c>public.users(id, name)</c>,
 /// <c>audit.users(id, audit_only)</c>, <c>public.orders(id, user_id, total)</c>.
 /// Every case checks what must be <i>absent</i> as well as what must be there:
 /// noise from another scope is exactly what a presence-only check misses.

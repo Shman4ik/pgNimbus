@@ -1,6 +1,6 @@
 namespace PgNimbus.Core.Text;
 
-/// <summary>The letter case completion writes keywords in (docs/design/sql-completion-audit-2.md F02, §6.7).</summary>
+/// <summary>The letter case completion writes keywords in (docs/dev/design/sql-completion-audit-2.md F02, §6.7).</summary>
 public enum KeywordCase
 {
     /// <summary>The case the user is typing in: <c>tr</c> → <c>true</c>, <c>SEL</c> → <c>SELECT</c>.</summary>

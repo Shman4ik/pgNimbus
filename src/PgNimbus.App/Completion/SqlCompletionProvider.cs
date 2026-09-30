@@ -212,7 +212,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
     private const double CommonFunctionPriority = 3.5;
     private const double FunctionPriority = 3;
     // A catalog-wide column the statement has no source for: under
-    // the functions (docs/design/sql-completion-audit-2.md §6.2 step 3).
+    // the functions (docs/dev/design/sql-completion-audit-2.md §6.2 step 3).
     private const double ColumnPriority = 2;
     // A table named in an expression (only ever as a qualifier there).
     private const double GeneralTablePriority = 1.5;
