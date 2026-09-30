@@ -35,7 +35,7 @@ Anything left unverified:
 
 ## Checklist
 
-- [ ] [CLAUDE.md](../CLAUDE.md) updated if this changes anything it describes
+- [ ] [CLAUDE.md](../.claude/CLAUDE.md) updated if this changes anything it describes
       — it's the contract, not a record of the past
 - [ ] **Touches `shared/nimbusUi`?** Then the change is kubeNimbus's too: push
       the subtree up (`git subtree push --prefix shared/nimbusUi …`), open the

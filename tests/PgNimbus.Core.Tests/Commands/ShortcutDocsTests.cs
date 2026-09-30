@@ -46,7 +46,7 @@ public class ShortcutDocsTests
     private static string RepositoryRoot()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
-        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "CLAUDE.md")))
+        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "PgNimbus.slnx")))
         {
             dir = dir.Parent;
         }

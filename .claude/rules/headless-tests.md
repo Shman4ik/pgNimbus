@@ -6,7 +6,7 @@ paths:
   - "scripts/screenshots/**"
 ---
 
-<!-- Moved out of the root CLAUDE.md so it loads only when working on these paths. Same rule applies: keep it current in the same PR. -->
+<!-- Moved out of .claude/CLAUDE.md so it loads only when working on these paths. Same rule applies: keep it current in the same PR. -->
 
 ## Headless screenshot harness (`tools/Screenshot`)
 
