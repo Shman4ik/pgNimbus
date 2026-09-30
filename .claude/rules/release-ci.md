@@ -446,6 +446,11 @@ you upload it to Partner Center.
   with the last field forced to `0` (Store convention) —
   `ConvertTo-MsixVersion` strips any prerelease suffix like `-ci.42` from
   `VERSION` before padding.
+- **Listing media** (2026-09): screenshots (PNG only; GIFs are refused) in
+  `design/store/screenshots/`, the trailer and its thumbnail in
+  `design/store/trailer/`, and the 16:9 Super hero art the trailer needs in
+  `design/store/`. How each is regenerated: `design/LOGO-ASSETS.md` and
+  `scripts/demo/record/README.md`.
 - **Submission** (manual, not automated yet): the first submission passed
   certification and the listing is live. For updates: download the
   `windows-msix` artifact from the release workflow run and upload it through
