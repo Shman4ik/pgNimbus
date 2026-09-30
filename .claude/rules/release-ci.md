@@ -42,9 +42,20 @@ the release pipeline don't pollute the trend history. Three moving parts:
    throughput of a 100k-row mixed-type SELECT, through `QueryEngine`'s
    streaming path (the same API the UI uses). Prints `PGNIMBUS_BENCH
    name=value` lines; config via `PGNIMBUS_BENCH_CONN/ROWS/ITERS`. Before the
-   server metrics it prints four in-process ones from the 2026-09 UI-thread
+   server metrics it prints in-process ones from the 2026-09 UI-thread
    audit (`stage_deletes_ms`, `copy_tsv_ms`, `history_append_ms`,
-   `editor_statement_ms`); `PGNIMBUS_BENCH_SKIP_DB=1` runs only those.
+   `history_load_ms`, `editor_statement_ms`); `PGNIMBUS_BENCH_SKIP_DB=1` runs
+   only those. After the stream it times the two paths where round trips add
+   up: `script_ms` (a 200-statement seed script, BEGIN … COMMIT, so it counts
+   round trips rather than commit fsyncs) and `batch_apply_ms` (safe mode's
+   commit of 1,000 staged edits). **`roundtrip_ms` doubled in v1.0.0 on
+   purpose**: every single statement is described before its one execution
+   (security audit finding 1), which is a second round trip. Don't "fix" it
+   by dropping the describe; `script_ms` is where the skippable describes show.
+   Read `roundtrip_ms` in the bench with a pinch of salt at the 0.1 ms level:
+   run after the in-process metrics, it moves with the GC's state, and an
+   isolated loop over the same engine showed no difference where the bench
+   showed 0.1 ms.
    **`tools/UiBench`** is the view half: the real views on Avalonia's headless
    platform with the screenshot fixtures, no display and no server, timing a
    5,000-table schema, a 5,000-statement script, a palette keystroke over

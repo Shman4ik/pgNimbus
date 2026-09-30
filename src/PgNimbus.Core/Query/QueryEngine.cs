@@ -323,11 +323,7 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
                     await VerifyStagedRowsAsync(check, tx, null, restoreLockTimeout: true, ct);
                 }
 
-                foreach (var statement in statements)
-                {
-                    await using var txCommand = CreateCommand(statement, tx, transaction: null);
-                    affected += CheckRowCount(statement, await txCommand.ExecuteNonQueryAsync(ct));
-                }
+                affected = await ExecuteStatementsAsync(statements, tx, transaction: null, ct);
 
                 await ExecuteRawAsync(tx, null, $"RELEASE SAVEPOINT {Savepoint}", ct);
             }
@@ -399,12 +395,7 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
                     await VerifyStagedRowsAsync(check, connection, batchTransaction, restoreLockTimeout: false, ct);
                 }
 
-                var total = 0;
-                foreach (var statement in statements)
-                {
-                    await using var command = CreateCommand(statement, connection, batchTransaction);
-                    total += CheckRowCount(statement, await command.ExecuteNonQueryAsync(ct));
-                }
+                var total = await ExecuteStatementsAsync(statements, connection, batchTransaction, ct);
 
                 committing = true;
                 await batchTransaction.CommitAsync(ct);
@@ -437,6 +428,51 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
                 }
             }
         }
+    }
+
+    /// <summary>How many staged statements go to the server in one <see cref="NpgsqlBatch"/>.</summary>
+    internal const int StatementsPerBatch = 500;
+
+    /// <summary>
+    /// Runs <paramref name="statements"/> in order, <see cref="StatementsPerBatch"/>
+    /// to a round trip, and returns the rows they touched. They used to go one
+    /// command, one round trip each: committing a select-all delete of 5,000
+    /// rows cost 5,000 round trips, a minute and more against a server 15 ms
+    /// away. Always called inside a transaction (the batch's own, or a savepoint
+    /// in the user's), so a failure anywhere in a batch still undoes all of it,
+    /// and so does a statement that touched other than its expected row count,
+    /// checked per statement once its batch is back.
+    /// </summary>
+    private static async Task<int> ExecuteStatementsAsync(
+        IReadOnlyList<ParameterizedStatement> statements,
+        NpgsqlConnection connection,
+        NpgsqlTransaction? transaction,
+        CancellationToken ct)
+    {
+        var total = 0;
+        for (var start = 0; start < statements.Count; start += StatementsPerBatch)
+        {
+            var end = Math.Min(start + StatementsPerBatch, statements.Count);
+            await using var batch = new NpgsqlBatch(connection, transaction);
+            for (var i = start; i < end; i++)
+            {
+                var command = new NpgsqlBatchCommand(statements[i].Sql);
+                foreach (var (name, value) in statements[i].Parameters)
+                {
+                    command.Parameters.AddWithValue(name, value ?? DBNull.Value);
+                }
+
+                batch.BatchCommands.Add(command);
+            }
+
+            await batch.ExecuteNonQueryAsync(ct);
+            for (var i = start; i < end; i++)
+            {
+                total += CheckRowCount(statements[i], batch.BatchCommands[i - start].RecordsAffected);
+            }
+        }
+
+        return total;
     }
 
     private static int CheckRowCount(ParameterizedStatement statement, int affected) =>
@@ -750,7 +786,8 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
                 ct.ThrowIfCancellationRequested();
 
                 var statement = statements[i];
-                var result = await ExecuteOnConnectionAsync(connection, statement, maxRowsPerStatement, budget?.MaxBytes, budget, ct);
+                var describe = DescribeNeeded(statement, mayRetry: !inTransaction && i == 0);
+                var result = await ExecuteOnConnectionAsync(connection, statement, maxRowsPerStatement, budget?.MaxBytes, budget, describe, ct);
 
                 // A connection loss on the very first statement, before it was
                 // sent (the describe failed on a dead pooled socket), means
@@ -792,7 +829,7 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
                         yield break;
                     }
 
-                    result = await ExecuteOnConnectionAsync(connection, statement, maxRowsPerStatement, budget?.MaxBytes, budget, ct);
+                    result = await ExecuteOnConnectionAsync(connection, statement, maxRowsPerStatement, budget?.MaxBytes, budget, describe, ct);
                 }
 
                 if (result is QueryError error)
@@ -845,7 +882,7 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
             // ExecuteOnConnectionAsync converts PostgresExceptions to QueryError
             // but lets other failures (e.g. a dropped connection) escape; ExecuteAsync
             // promises never to throw those, so translate them here too.
-            result = await ExecuteOnConnectionAsync(connection, sql, maxRows, maxBytes, null, ct);
+            result = await ExecuteOnConnectionAsync(connection, sql, maxRows, maxBytes, null, DescribeNeeded(sql, mayRetry: false), ct);
         }
         catch (OperationCanceledException)
         {
@@ -889,6 +926,7 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
         int? maxRows,
         long? maxBytes,
         ResultBudget? shared,
+        bool describe,
         CancellationToken ct)
     {
         var stopwatch = Stopwatch.StartNew();
@@ -902,7 +940,13 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
         try
         {
             // Same describe-then-execute as ExecuteAsync: the statement runs once.
-            command.UnknownResultTypeList = await DescribeAsync(command, ct);
+            // The describe is skipped only where the caller says it has nothing
+            // to find (see DescribeNeeded): the statement runs once either way.
+            if (describe)
+            {
+                command.UnknownResultTypeList = await DescribeAsync(command, ct);
+            }
+
             sent = true;
             reader = await command.ExecuteReaderAsync(CommandBehavior.Default, ct);
 
@@ -1034,6 +1078,21 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
             }
         }
     }
+
+    /// <summary>
+    /// Whether a statement on the shared-connection paths (a script, the user's
+    /// transaction) needs its describe. The describe has two jobs: it is the
+    /// liveness check that makes a retry safe (a loss during it means nothing
+    /// ran), and it finds the columns that must come back as text. Where the
+    /// statement would never be retried (<paramref name="mayRetry"/> false: a
+    /// script's second statement onwards, anything inside a transaction) only
+    /// the second job is left, and a statement that cannot return rows
+    /// (<see cref="SqlStatementInspector.CannotReturnRows"/>) has no columns for
+    /// it. Skipping it there halves the round trips of a migration or seed
+    /// script. A wrong guess costs a placeholder cell, never a second run.
+    /// </summary>
+    private static bool DescribeNeeded(string statement, bool mayRetry) =>
+        mayRetry || !SqlStatementInspector.CannotReturnRows(statement);
 
     /// <summary>
     /// Asks the server to describe <paramref name="command"/> without running it —

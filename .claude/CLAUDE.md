@@ -167,9 +167,9 @@ Three rules about it:
    deliberately not `TimeoutException`, which Npgsql also uses for command
    timeouts and pool exhaustion) versus an ordinary statement error, and on
    loss flushes the whole pool so the next rent opens a fresh socket. **What
-   is retried is only what ran nothing.** Every path describes the statement
-   before sending it (`DescribeAsync`; see "Describe first, execute once"
-   under coding conventions), and a loss during open or describe — the dead pooled
+   is retried is only what ran nothing.** Every path that may retry describes
+   the statement before sending it (`DescribeAsync`; see "Describe first,
+   execute once" under coding conventions), and a loss during open or describe — the dead pooled
    socket a laptop sleep, a dropped tunnel or a backend terminated *while
    idle* leaves behind — is retried once on a fresh connection, invisibly.
    A loss after the send is never retried, on any path: the statement is
@@ -681,7 +681,17 @@ Three rules about it:
    ordered queue on the thread pool, a lock shared by every store over the file
    (two windows each hold one), and `SavedQueriesViewModel.PendingHistoryWrite`
    for a test to await. Done on the UI thread, every Run re-read the file and
-   redacted all 200 entries twice, and entries keep whole scripts. That covers the result line too (`QueryHistoryStore.Redact`):
+   redacted all 200 entries twice, and entries keep whole scripts. **An entry
+   is redacted once, not on every read** (2026-09, benchmark pass):
+   `QueryHistoryEntry.Redacted` is a stamp, `SecretRedactor.Version` plus a
+   SHA-256 of the text and result line, and `Redact` returns a stamped entry as
+   it is. The hash is what makes it safe: a `with` that changes the text, or a
+   hand-edited file, no longer matches and is redacted again, and raising
+   `SecretRedactor.Version` (do it whenever the redactor learns a shape it
+   missed) re-scrubs every history on its next load. Before this, opening a
+   window with a history holding five 1 MB scripts redacted all of it on the UI
+   thread, 130–190 ms (`history_load_ms`); now it reads it, ~45 ms. An older
+   pgNimbus ignores the field. That covers the result line too (`QueryHistoryStore.Redact`):
    it goes through the redactor, and a statement whose text held a secret keeps
    `WithheldSummary` instead, since a server error quotes the token it failed on
    (`syntax error at or near "…"`) with no keyword beside it for the redactor to
@@ -1886,7 +1896,12 @@ Moved to [`.claude/rules/logo-assets.md`](rules/logo-assets.md), which loads whe
   put back once the rows are locked, since a local setting would otherwise
   outlive the batch; (d) UPDATE/DELETE carry `ExpectedRowsAffected = 1`, so a
   statement that touches anything but its one row aborts the batch rather than
-  "succeeding" at nothing; (e) key parts are cast to their declared type like
+  "succeeding" at nothing, checked per statement once its round trip is back:
+  the statements go `QueryEngine.StatementsPerBatch` (500) to an `NpgsqlBatch`
+  (2026-09), where they used to take a round trip each (1,000 staged edits:
+  ~300 ms locally, and seconds against a remote server; `batch_apply_ms`), which
+  is safe because the whole batch is one transaction or savepoint, so a miss in
+  a later round trip undoes the earlier ones (`QueryEngineBatchTests`); (e) key parts are cast to their declared type like
   edited values are (`keyCastTypes`), because an enum key part arrives as text
   and `enum = text` has no operator. **Row identity that can't be supported is
   refused up front:** no primary key was already read-only; a key column whose
@@ -2164,6 +2179,16 @@ Moved to [`.claude/rules/logo-assets.md`](rules/logo-assets.md), which loads whe
      a function does, so the rule now is that **user SQL is never executed
      twice by the app, anywhere**; the describe costs one extra round trip per
      statement and is also what finding 2's fix uses as its liveness check.
+     **It is skipped only where it has neither job** (2026-09, benchmark pass:
+     the v1.0.0 release doubled `roundtrip_ms`, and a script paid two round
+     trips per statement). A statement that is never retried (a script's second
+     statement onwards, anything inside the user's transaction) needs no
+     liveness check, and one that `SqlStatementInspector.CannotReturnRows`
+     (an allowlist of leading words — INSERT/UPDATE/DELETE/MERGE, DDL, SET,
+     BEGIN/COMMIT… — and no `RETURNING` token anywhere) has no columns to mask,
+     so `QueryEngine.DescribeNeeded` sends it straight away. A wrong guess costs
+     a placeholder cell, never a second run. A seed script's round trips drop
+     by half (`script_ms`); single statements keep the describe.
      The mask is skipped for a multi-statement command (`SELECT a, b; SELECT 1`):
      Npgsql applies it to every statement and its length must match each one.
   2. **The per-cell guard** (`QueryEngine.ReadValue` / `FieldType`) catches the

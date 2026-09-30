@@ -46,7 +46,7 @@ public class QueryHistoryStoreTests
     }
 
     [Test]
-    public async Task Load_LeavesACleanFileUntouched()
+    public async Task Load_StampsAnUnstampedFileOnceAndThenLeavesItUntouched()
     {
         var path = Path.Combine(Path.GetTempPath(), $"pgnimbus-{Guid.NewGuid():N}.json");
         const string json = """[ { "Sql": "SELECT 1;", "ExecutedAt": "2026-08-01T09:00:00+00:00", "ElapsedMs": 1, "Summary": "1 row" } ]""";
@@ -54,10 +54,39 @@ public class QueryHistoryStoreTests
 
         try
         {
-            new QueryHistoryStore(path).Load();
+            var first = new QueryHistoryStore(path).Load();
+            await Assert.That(first[0].Sql).IsEqualTo("SELECT 1;");
+            await Assert.That(first[0].Redacted).IsNotNull();
 
-            // Byte for byte: no rewrite happened.
-            await Assert.That(await File.ReadAllTextAsync(path)).IsEqualTo(json);
+            // The first load wrote the stamps; the second reads them and writes
+            // nothing: byte for byte, no rewrite happened.
+            var stamped = await File.ReadAllTextAsync(path);
+            new QueryHistoryStore(path).Load();
+            await Assert.That(await File.ReadAllTextAsync(path)).IsEqualTo(stamped);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
+    public async Task Load_ScrubsAnEntryWhoseStampIsFromAnotherRedactorVersion()
+    {
+        // A stamp an older redactor wrote (or one somebody typed) vouches for
+        // nothing: the entry is redacted again.
+        var path = Path.Combine(Path.GetTempPath(), $"pgnimbus-{Guid.NewGuid():N}.json");
+        await File.WriteAllTextAsync(path, """
+            [ { "Sql": "ALTER ROLE app PASSWORD 'hunter2';", "ExecutedAt": "2026-08-01T10:00:00+00:00",
+                "ElapsedMs": 1, "Summary": "ALTER ROLE", "Redacted": "0:00000000000000000000000000000000" } ]
+            """);
+
+        try
+        {
+            var entries = new QueryHistoryStore(path).Load();
+
+            await Assert.That(entries[0].Sql).IsEqualTo("ALTER ROLE app PASSWORD '<redacted>'::redacted;");
+            await Assert.That(await File.ReadAllTextAsync(path)).DoesNotContain("hunter2");
         }
         finally
         {
@@ -146,6 +175,34 @@ public class QueryHistoryStoreTests
         var entry = new QueryHistoryEntry("SELECT * FROM users WHERE email = 'a@b.c';", DateTimeOffset.UtcNow, 1,
             "Error: column \"emial\" does not exist");
 
-        await Assert.That(QueryHistoryStore.Redact(entry)).IsSameReferenceAs(entry);
+        var redacted = QueryHistoryStore.Redact(entry);
+
+        await Assert.That(redacted.Sql).IsEqualTo(entry.Sql);
+        await Assert.That(redacted.Summary).IsEqualTo(entry.Summary);
+    }
+
+    [Test]
+    public async Task Redact_ReturnsAStampedEntryAsItIs()
+    {
+        var stamped = QueryHistoryStore.Redact(new QueryHistoryEntry("SELECT 1;", DateTimeOffset.UtcNow, 1, "1 row"));
+
+        await Assert.That(QueryHistoryStore.Redact(stamped)).IsSameReferenceAs(stamped);
+        // Pinning keeps the text, so it keeps the stamp's worth too.
+        var pinned = stamped with { Pinned = true };
+        await Assert.That(QueryHistoryStore.Redact(pinned)).IsSameReferenceAs(pinned);
+    }
+
+    [Test]
+    public async Task Redact_DoesNotTrustAStampOnTextThatChangedSince()
+    {
+        // The stamp hashes the text it vouches for, so a `with` that swaps the
+        // text in cannot carry the old stamp's word over to a password.
+        var stamped = QueryHistoryStore.Redact(new QueryHistoryEntry("SELECT 1;", DateTimeOffset.UtcNow, 1, "1 row"));
+        var changed = stamped with { Sql = "ALTER ROLE app PASSWORD 'hunter2';" };
+
+        var redacted = QueryHistoryStore.Redact(changed);
+
+        await Assert.That(redacted.Sql).IsEqualTo("ALTER ROLE app PASSWORD '<redacted>'::redacted;");
+        await Assert.That(redacted.Summary).IsEqualTo(QueryHistoryStore.WithheldSummary);
     }
 }

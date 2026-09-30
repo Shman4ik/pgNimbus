@@ -195,6 +195,46 @@ public class QueryEngineCompositeTests
     }
 
     [Test]
+    public async Task AScriptStatementThatCannotReturnRowsRunsUndescribedAndOnce()
+    {
+        SkipIfNoConnection();
+
+        await SeedAsync();
+        await using var dataSource = CreateDataSource();
+        try
+        {
+            var engine = new QueryEngine(dataSource);
+
+            // The INSERT is the script's second statement and returns nothing,
+            // so it goes out without a describe (one round trip, not two); the
+            // SELECT after it is still described and reads its literal.
+            var results = new List<StatementResult>();
+            await foreach (var result in engine.ExecuteScriptAsync(
+                [
+                    "SELECT 1",
+                    $"INSERT INTO {ScratchTable} VALUES (2, ROW('1 Elm St', 'Rome')::{CompositeType})",
+                    $"SELECT ship_to FROM {ScratchTable} WHERE id = 2",
+                ],
+                null))
+            {
+                results.Add(result);
+            }
+
+            await Assert.That(results).Count().IsEqualTo(3);
+            await Assert.That(((CommandResult)results[1]).RowsAffected).IsEqualTo(1);
+            await Assert.That(((MaterializedResultSet)results[2]).Rows[0][0]).IsEqualTo("(\"1 Elm St\",Rome)");
+
+            var count = await DrainAsync(
+                await engine.ExecuteAsync($"SELECT count(*) FROM {ScratchTable} WHERE id = 2", CancellationToken.None));
+            await Assert.That(count[0][0]).IsEqualTo(1L);
+        }
+        finally
+        {
+            await DropAsync();
+        }
+    }
+
+    [Test]
     public async Task AVolatileFunctionReturningACompositeRunsExactlyOnce()
     {
         SkipIfNoConnection();

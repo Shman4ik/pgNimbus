@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Text.Json.Serialization;
 using PgNimbus.Core.Connections;
 using PgNimbus.Core.Security;
@@ -181,8 +183,9 @@ public sealed class QueryHistoryStore(string? filePath = null)
     }
 
     /// <summary>
-    /// <paramref name="entry"/> with its secrets taken out, or the same
-    /// instance when there are none. The text goes through
+    /// <paramref name="entry"/> with its secrets taken out and stamped as
+    /// redacted, or the same instance when it already carries this redactor's
+    /// stamp for exactly its text. The text goes through
     /// <see cref="SecretRedactor"/>, and so does the result line, except for a
     /// statement that held a password: its result line is replaced by
     /// <see cref="WithheldSummary"/>. An error message quotes the part of the
@@ -192,17 +195,43 @@ public sealed class QueryHistoryStore(string? filePath = null)
     /// password" when its redacted text carries the redactor's marker, which
     /// also covers entries redacted before this existed, on their next load.
     /// </summary>
+    /// <remarks>
+    /// The stamp (<see cref="QueryHistoryEntry.Redacted"/>) is why a load or an
+    /// append no longer redacts the whole file again: the history keeps each
+    /// statement whole, and with a few large scripts in it that was a tenth of a
+    /// second on every window open and every run. It is
+    /// <see cref="SecretRedactor.Version"/> plus a SHA-256 of the text and result
+    /// line, so an entry whose text changed after it was stamped (a <c>with</c>,
+    /// a hand-edited file) no longer matches and is redacted again, and so is
+    /// every entry once the redactor's version is raised.
+    /// </remarks>
     public static QueryHistoryEntry Redact(QueryHistoryEntry entry)
     {
+        if (entry.Redacted is { } stamp && string.Equals(stamp, StampFor(entry), StringComparison.Ordinal))
+        {
+            return entry;
+        }
+
         var sql = SecretRedactor.Redact(entry.Sql);
         // Sql is null only in a hand-edited file; that entry has nothing to hide.
         var summary = entry.Sql is not null && sql.Contains(SecretRedactor.ValueReplacement, StringComparison.Ordinal)
             ? WithheldSummary
             : SecretRedactor.Redact(entry.Summary);
 
-        return string.Equals(sql, entry.Sql, StringComparison.Ordinal) && string.Equals(summary, entry.Summary, StringComparison.Ordinal)
-            ? entry
-            : entry with { Sql = sql, Summary = summary };
+        var redacted = entry with { Sql = sql, Summary = summary };
+        return redacted with { Redacted = StampFor(redacted) };
+    }
+
+    // "<redactor version>:<first 16 bytes of SHA-256 over text, NUL, result line>", hex.
+    private static string StampFor(QueryHistoryEntry entry)
+    {
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        hash.AppendData(MemoryMarshal.AsBytes((entry.Sql ?? "").AsSpan()));
+        hash.AppendData([0, 0]);
+        hash.AppendData(MemoryMarshal.AsBytes((entry.Summary ?? "").AsSpan()));
+        Span<byte> digest = stackalloc byte[32];
+        hash.GetHashAndReset(digest);
+        return $"{SecretRedactor.Version}:{Convert.ToHexStringLower(digest[..16])}";
     }
 
     private void Write(List<QueryHistoryEntry> entries) =>
