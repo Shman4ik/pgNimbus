@@ -67,6 +67,15 @@ public static class SecretRedactor
     /// </summary>
     public const string Replacement = "'<redacted>'::redacted";
 
+    /// <summary>
+    /// Which redactor this is. Stores that remember "already redacted" instead of
+    /// redacting again (the query history, <see cref="Query.QueryHistoryStore"/>)
+    /// key that memory on this number, so raising it makes every one of them
+    /// scrub what they hold on their next load. Raise it whenever the redactor
+    /// learns a shape it used to miss.
+    /// </summary>
+    public const int Version = 1;
+
     /// <summary>What a redacted conninfo or URI value is replaced with, no quotes: it sits inside a string already.</summary>
     public const string ValueReplacement = "<redacted>";
 

@@ -77,6 +77,15 @@ var iterations = int.TryParse(Environment.GetEnvironmentVariable("PGNIMBUS_BENCH
         store.Append(new QueryHistoryEntry("SELECT 1;", DateTimeOffset.UtcNow, 1, "1 row"));
         return stopwatch.Elapsed.TotalMilliseconds;
     });
+
+    // Opening a window: the same history read back, on the UI thread. It
+    // redacted every entry again until entries were stamped as redacted.
+    var historyLoadMs = Median(iterations, () =>
+    {
+        var stopwatch = Stopwatch.StartNew();
+        _ = store.Load();
+        return stopwatch.Elapsed.TotalMilliseconds;
+    });
     File.Delete(historyPath);
 
     // A keystroke at the end of a 5 MB script: finding the statement the caret is
@@ -109,6 +118,7 @@ var iterations = int.TryParse(Environment.GetEnvironmentVariable("PGNIMBUS_BENCH
     Console.WriteLine($"PGNIMBUS_BENCH stage_deletes_ms={stageMs:F1}");
     Console.WriteLine($"PGNIMBUS_BENCH copy_tsv_ms={copyMs:F1}");
     Console.WriteLine($"PGNIMBUS_BENCH history_append_ms={historyMs:F1}");
+    Console.WriteLine($"PGNIMBUS_BENCH history_load_ms={historyLoadMs:F1}");
     Console.WriteLine($"PGNIMBUS_BENCH editor_statement_ms={keystrokeMs:F3}");
 }
 
@@ -196,13 +206,66 @@ if (streamedRows != rows)
 
 var rowsPerSec = rows / (streamMs / 1000.0);
 
+// --- script: a seed script of 200 statements on one connection --------------
+// BEGIN, INSERTs, COMMIT: what a migration or a seed file looks like, and inside
+// one transaction so the number is round trips rather than 200 commit fsyncs.
+// Each statement is described before it runs unless it can't return rows and
+// would not be retried, so this is the number that shows the describe's cost.
+const string ScratchTable = "pgnimbus_bench_scratch";
+await ExecAsync(dataSource, $"DROP TABLE IF EXISTS {ScratchTable}; CREATE TABLE {ScratchTable} (id int PRIMARY KEY, qty int NOT NULL)");
+var scriptMs = await MedianAsync(iterations, async () =>
+{
+    await ExecAsync(dataSource, $"TRUNCATE {ScratchTable}");
+    IReadOnlyList<string> script =
+    [
+        "BEGIN",
+        .. Enumerable.Range(1, 198).Select(n => $"INSERT INTO {ScratchTable} VALUES ({n}, 0)"),
+        "COMMIT",
+    ];
+    var stopwatch = Stopwatch.StartNew();
+    await foreach (var result in engine.ExecuteScriptAsync(script, null))
+    {
+        if (result is QueryError error)
+        {
+            throw new InvalidOperationException($"Script failed: {error.Message}");
+        }
+    }
+
+    return stopwatch.Elapsed.TotalMilliseconds;
+});
+
+// --- batch: safe mode's commit of 1,000 staged edits ------------------------
+await ExecAsync(dataSource, $"TRUNCATE {ScratchTable}; INSERT INTO {ScratchTable} SELECT g, 0 FROM generate_series(1, 1000) g");
+IReadOnlyList<ParameterizedStatement> edits =
+[
+    .. Enumerable.Range(1, 1000).Select(n => new ParameterizedStatement(
+        $"UPDATE {ScratchTable} SET qty = qty + 1 WHERE id = @id",
+        new Dictionary<string, object?> { ["id"] = n },
+        ExpectedRowsAffected: 1)),
+];
+var batchMs = await MedianAsync(iterations, async () =>
+{
+    var stopwatch = Stopwatch.StartNew();
+    await engine.ApplyBatchAsync(edits, CancellationToken.None);
+    return stopwatch.Elapsed.TotalMilliseconds;
+});
+await ExecAsync(dataSource, $"DROP TABLE {ScratchTable}");
+
 Console.WriteLine($"PGNIMBUS_BENCH connect_ms={connectMs:F1}");
 Console.WriteLine($"PGNIMBUS_BENCH roundtrip_ms={roundtripMs:F2}");
 Console.WriteLine($"PGNIMBUS_BENCH first_batch_ms={firstBatchMs:F1}");
 Console.WriteLine($"PGNIMBUS_BENCH stream_ms={streamMs:F1}");
 Console.WriteLine($"PGNIMBUS_BENCH stream_rows={rows}");
 Console.WriteLine($"PGNIMBUS_BENCH rows_per_sec={rowsPerSec:F0}");
+Console.WriteLine($"PGNIMBUS_BENCH script_ms={scriptMs:F1}");
+Console.WriteLine($"PGNIMBUS_BENCH batch_apply_ms={batchMs:F1}");
 return 0;
+
+static async Task ExecAsync(NpgsqlDataSource dataSource, string sql)
+{
+    await using var command = dataSource.CreateCommand(sql);
+    await command.ExecuteNonQueryAsync();
+}
 
 static async Task<long> DrainAsync(QueryEngine engine, string sql)
 {

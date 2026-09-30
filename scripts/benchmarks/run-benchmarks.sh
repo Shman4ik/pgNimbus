@@ -148,9 +148,12 @@ ROUNDTRIP_MS=$(bench_value roundtrip_ms)
 FIRST_BATCH_MS=$(bench_value first_batch_ms)
 STREAM_MS=$(bench_value stream_ms)
 ROWS_PER_SEC=$(bench_value rows_per_sec)
+SCRIPT_MS=$(bench_value script_ms)
+BATCH_APPLY_MS=$(bench_value batch_apply_ms)
 STAGE_DELETES_MS=$(bench_value stage_deletes_ms)
 COPY_TSV_MS=$(bench_value copy_tsv_ms)
 HISTORY_APPEND_MS=$(bench_value history_append_ms)
+HISTORY_LOAD_MS=$(bench_value history_load_ms)
 EDITOR_STATEMENT_MS=$(bench_value editor_statement_ms)
 
 # --- views over big data (headless) -----------------------------------------
@@ -186,9 +189,12 @@ EOF
   { "name": "Round-trip, SELECT 1 warm", "unit": "ms", "value": $ROUNDTRIP_MS },
   { "name": "First row batch of a $ROWS-row SELECT", "unit": "ms", "value": $FIRST_BATCH_MS },
   { "name": "Stream $ROWS rows", "unit": "ms", "value": $STREAM_MS },
+  { "name": "Run a 200-statement seed script", "unit": "ms", "value": $SCRIPT_MS },
+  { "name": "Commit 1,000 staged edits", "unit": "ms", "value": $BATCH_APPLY_MS },
   { "name": "Stage 100,000 deletes (safe mode)", "unit": "ms", "value": $STAGE_DELETES_MS },
   { "name": "Copy 100,000 rows as TSV", "unit": "ms", "value": $COPY_TSV_MS },
   { "name": "Write the history after a run (200 entries, 5 MB)", "unit": "ms", "value": $HISTORY_APPEND_MS },
+  { "name": "Load the history (200 entries, 5 MB)", "unit": "ms", "value": $HISTORY_LOAD_MS },
   { "name": "Find the caret's statement in a 5 MB script, per key", "unit": "ms", "value": $EDITOR_STATEMENT_MS },
   { "name": "UI: expand a schema of 5,000 tables", "unit": "ms", "value": $UI_SCHEMA_EXPAND_MS },
   { "name": "UI: tree rows realized for 5,000 tables", "unit": "rows", "value": $UI_SCHEMA_EXPAND_ROWS },
@@ -221,6 +227,8 @@ EOF
     echo "| Round-trip (\`SELECT 1\`, warm) | $ROUNDTRIP_MS ms |"
     echo "| First row batch of a $ROWS-row SELECT | $FIRST_BATCH_MS ms |"
     echo "| Stream $ROWS rows | $STREAM_MS ms ($ROWS_PER_SEC rows/s) |"
+    echo "| Run a 200-statement seed script | $SCRIPT_MS ms |"
+    echo "| Commit 1,000 staged edits | $BATCH_APPLY_MS ms |"
     echo
     echo "#### UI thread over big data"
     echo
@@ -229,6 +237,7 @@ EOF
     echo "| Stage 100,000 deletes (safe mode) | $STAGE_DELETES_MS ms |"
     echo "| Copy 100,000 rows as TSV | $COPY_TSV_MS ms |"
     echo "| Write the history after a run (200 entries, 5 MB) | $HISTORY_APPEND_MS ms |"
+    echo "| Load the history (200 entries, 5 MB) | $HISTORY_LOAD_MS ms |"
     echo "| Find the caret's statement in a 5 MB script, per key | $EDITOR_STATEMENT_MS ms |"
     echo "| Expand a schema of 5,000 tables | $UI_SCHEMA_EXPAND_MS ms ($UI_SCHEMA_EXPAND_ROWS rows realized) |"
     echo "| Filter 5,000 tables to one | $UI_SCHEMA_FILTER_MS ms |"
