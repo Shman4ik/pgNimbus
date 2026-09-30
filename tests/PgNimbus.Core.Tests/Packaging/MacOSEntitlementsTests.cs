@@ -14,7 +14,7 @@ public class MacOSEntitlementsTests
     [Test]
     public async Task The_entitlements_file_is_well_formed_XML()
     {
-        var path = Path.Combine(RepositoryRoot(), "installer", "macos", "Entitlements.plist");
+        var path = Path.Combine(RepositoryRoot(), "packaging", "macos", "Entitlements.plist");
         await Assert.That(File.Exists(path)).IsTrue();
 
         var doc = new XmlDocument { XmlResolver = null };
@@ -26,7 +26,7 @@ public class MacOSEntitlementsTests
     [Test]
     public async Task It_asks_for_library_validation_to_be_off_and_nothing_else()
     {
-        var path = Path.Combine(RepositoryRoot(), "installer", "macos", "Entitlements.plist");
+        var path = Path.Combine(RepositoryRoot(), "packaging", "macos", "Entitlements.plist");
         var doc = new XmlDocument { XmlResolver = null };
         doc.Load(path);
 
@@ -44,7 +44,7 @@ public class MacOSEntitlementsTests
     [Test]
     public async Task The_bundle_does_not_promise_a_macOS_older_than_12()
     {
-        var path = Path.Combine(RepositoryRoot(), "installer", "macos", "Info.plist.template");
+        var path = Path.Combine(RepositoryRoot(), "packaging", "macos", "Info.plist.template");
         var doc = new XmlDocument { XmlResolver = null };
         doc.Load(path);
 

@@ -14,7 +14,7 @@ param(
     [Parameter(Mandatory)] [string]$PublishDir,
     [Parameter(Mandatory)] [string]$Version,
     [Parameter(Mandatory)] [string]$Output,
-    [string]$ManifestTemplate = (Join-Path $PSScriptRoot '..\..\installer\msix\Package.appxmanifest'),
+    [string]$ManifestTemplate = (Join-Path $PSScriptRoot '..\..\packaging\msix\Package.appxmanifest'),
     [string]$AssetsDir = (Join-Path $PSScriptRoot '..\..\src\PgNimbus.App\Assets\Msix')
 )
 $ErrorActionPreference = 'Stop'

@@ -112,7 +112,7 @@ jobs:
         # paths against the .wxs file's own directory, not the cwd.
         shell: pwsh
         run: >
-          dotnet wix build installer/windows/Product.wxs
+          dotnet wix build packaging/windows/Product.wxs
           -d PublishDir=${env:GITHUB_WORKSPACE}\publish\win-x64
           -d Version=${env:VERSION}
           -d IconFile=${env:GITHUB_WORKSPACE}\src\PgNimbus.App\Assets\app.ico
@@ -121,7 +121,7 @@ jobs:
 
       # The MSI is the artifact most people actually download, and nothing else
       # in the pipeline proves it installs. Per-user (no elevation), so this
-      # lands in %LocalAppData%\pgNimbus — see installer/windows/Product.wxs.
+      # lands in %LocalAppData%\pgNimbus — see packaging/windows/Product.wxs.
       - name: Smoke test (install the MSI, launch it, uninstall)
         shell: pwsh
         run: |

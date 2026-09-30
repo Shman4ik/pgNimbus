@@ -2063,4 +2063,4 @@ Moved to [`.claude/rules/headless-tests.md`](.claude/rules/headless-tests.md), w
 
 ## Benchmarks, release pipeline, Store, website
 
-Moved to [`.claude/rules/release-ci.md`](.claude/rules/release-ci.md), which loads when working on `.github/`, `scripts/`, `installer/`, `packaging/`, `website/`, `docs/` or `PgNimbus.Benchmarks`.
+Moved to [`.claude/rules/release-ci.md`](.claude/rules/release-ci.md), which loads when working on `.github/`, `scripts/`, `packaging/`, `website/`, `docs/` or `PgNimbus.Benchmarks`.

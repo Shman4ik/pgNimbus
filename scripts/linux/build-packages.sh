@@ -31,7 +31,7 @@ OUT_DIR="$(cd "$OUT_DIR" && pwd)"
 
 BASE_NAME="pgNimbus-$VERSION-linux-$ARCH_LABEL"
 MASTER_DIR="$REPO_ROOT/design/masters/icon"
-DESKTOP_TEMPLATE="$REPO_ROOT/installer/linux/pgnimbus.desktop.template"
+DESKTOP_TEMPLATE="$REPO_ROOT/packaging/linux/pgnimbus.desktop.template"
 
 # Stage what actually ships: the publish output minus the *.dbg side file
 # NativeAOT strips debug symbols into (the benchmark script excludes it from

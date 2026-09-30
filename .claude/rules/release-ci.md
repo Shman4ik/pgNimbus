@@ -3,7 +3,6 @@ description: "Benchmarks, release pipeline, Actions storage budget, supply chain
 paths:
   - ".github/**"
   - "scripts/**"
-  - "installer/**"
   - "packaging/**"
   - "website/**"
   - "docs/**"
@@ -146,7 +145,7 @@ to (verified, not assumed).
 It produces, per tag:
 
 - **Windows** — `dotnet publish -r win-x64 -p:PublishAot=true`, then a
-  per-user WiX v5 MSI built from [`installer/windows/Product.wxs`](installer/windows/Product.wxs)
+  per-user WiX v5 MSI built from [`packaging/windows/Product.wxs`](packaging/windows/Product.wxs)
   via the `wix` .NET tool from the repo's tool manifest
   (`.config/dotnet-tools.json`, restored with `dotnet tool restore`, run as
   `dotnet wix build ... -d PublishDir=... -d Version=...`). The manifest
@@ -216,7 +215,7 @@ It produces, per tag:
   library validation, which refuses to load a dylib unless it carries the
   main executable's own Team ID; every dylib in the bundle is ad-hoc signed
   alongside the app (no Team ID at all), so library validation would refuse
-  them all at launch. `installer/macos/Entitlements.plist` sets
+  them all at launch. `packaging/macos/Entitlements.plist` sets
   `com.apple.security.cs.disable-library-validation` to allow exactly that
   and nothing else, and both `codesign` calls pass `--entitlements` pointing
   at it. Developer ID plus notarization (ROADMAP T5) is still the fix that
@@ -246,7 +245,7 @@ It produces, per tag:
   X11-family libs Avalonia's X11 backend uses at runtime plus fontconfig
   for Skia — Skia/HarfBuzz themselves are bundled; a semver prerelease `-` becomes Debian `~` so CI test versions
   sort before releases). The desktop entry comes from
-  [`installer/linux/pgnimbus.desktop.template`](installer/linux/pgnimbus.desktop.template)
+  [`packaging/linux/pgnimbus.desktop.template`](packaging/linux/pgnimbus.desktop.template)
   (`__EXEC__` placeholder: the AppImage execs `PgNimbus.App`, the deb
   `pgnimbus`), icons from the `design/masters/icon/` tiles. The NativeAOT
   `*.dbg` symbols side-file is excluded from all three packages. Unsigned,
@@ -405,7 +404,7 @@ Release, since a self-signed MSIX can't be installed without the user
 manually trusting the cert first, and Store re-signing only happens after
 you upload it to Partner Center.
 
-- **Manifest**: [`installer/msix/Package.appxmanifest`](installer/msix/Package.appxmanifest)
+- **Manifest**: [`packaging/msix/Package.appxmanifest`](packaging/msix/Package.appxmanifest)
   is a template (`$VERSION$` placeholder) with `Identity/Publisher` hardcoded
   to this repo's reserved Partner Center product identity
   (`DmitriiShmanev.pgNimbus` / `CN=04FDF7B0-6D86-4EB7-B798-21CD434897BC`,

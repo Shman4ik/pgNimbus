@@ -106,7 +106,7 @@ fi
 if [[ -n "${AOT_BINARY:-}" ]]; then
     BINARY_SIZE_MB=$(awk "BEGIN { printf \"%.1f\", $(stat -c%s "$AOT_BINARY") / 1024 / 1024 }")
     # Measure what ships, not what publish leaves on disk: the MSI and MSIX
-    # both exclude debug symbols (*.pdb — see installer/windows/Product.wxs
+    # both exclude debug symbols (*.pdb — see packaging/windows/Product.wxs
     # and scripts/windows/build-msix.ps1); the linux-x64 equivalent is the
     # *.dbg file NativeAOT strips symbols into. Counting them here would
     # make the metric miss packaging-size changes entirely.
