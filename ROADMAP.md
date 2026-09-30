@@ -21,15 +21,15 @@ These are documented capability comparisons, not measured speed comparisons or c
 
 ## What the current implementation makes possible
 
-The existing foundations are substantial: staged grid changes, FK navigation, offline plan import, plan warnings, database statistics, a blocking tree, and schema DDL reconstruction. The source also already includes a [security workspace](PgNimbus.App/ViewModels/Security/SecurityViewModel.cs), [effective-privilege explanations](PgNimbus.Core/Security/EffectivePrivilegeResolver.cs), and [RLS policy inspection](PgNimbus.App/ViewModels/Security/RlsTabViewModel.cs); role management and a policy list should not be proposed as new features.
+The existing foundations are substantial: staged grid changes, FK navigation, offline plan import, plan warnings, database statistics, a blocking tree, and schema DDL reconstruction. The source also already includes a [security workspace](src/PgNimbus.App/ViewModels/Security/SecurityViewModel.cs), [effective-privilege explanations](src/PgNimbus.Core/Security/EffectivePrivilegeResolver.cs), and [RLS policy inspection](src/PgNimbus.App/ViewModels/Security/RlsTabViewModel.cs); role management and a policy list should not be proposed as new features.
 
 Specific gaps drive the first priorities:
 
-- [CredentialStore](PgNimbus.Core/Connections/CredentialStore.cs) now selects protected platform storage with verified legacy migration and a visible session-memory fallback; see [where your password goes](https://shman4ik.github.io/pgNimbus/docs/getting-started/connecting/#where-your-password-goes) for storage details and remaining legacy files.
-- [PendingChangeSet](PgNimbus.Core/Query/PendingChangeSet.cs) now re-reads and locks every staged row at commit and compares it with the row as loaded (T2), so a concurrent change rolls the batch back instead of being overwritten.
-- [ConnectionProfile](PgNimbus.Core/Connections/ConnectionProfile.cs) has connection colors and SSL modes, but no environment policy or configurable query deadline; its command timeout is currently unlimited.
-- [ExplainService](PgNimbus.Core/Query/ExplainService.cs) and [PlanAnalyzer](PgNimbus.Core/Query/PlanAnalyzer.cs) already parse and explain individual plans. Comparing saved runs is the next increment, not rebuilding visualization.
-- [TableBrowseViewModel](PgNimbus.App/ViewModels/TableBrowseViewModel.cs) pages with `LIMIT/OFFSET`, and the grid holds at most 100,000 rows. Export no longer depends on either (D1): it runs the query again and streams every row to the file.
+- [CredentialStore](src/PgNimbus.Core/Connections/CredentialStore.cs) now selects protected platform storage with verified legacy migration and a visible session-memory fallback; see [where your password goes](https://shman4ik.github.io/pgNimbus/docs/getting-started/connecting/#where-your-password-goes) for storage details and remaining legacy files.
+- [PendingChangeSet](src/PgNimbus.Core/Query/PendingChangeSet.cs) now re-reads and locks every staged row at commit and compares it with the row as loaded (T2), so a concurrent change rolls the batch back instead of being overwritten.
+- [ConnectionProfile](src/PgNimbus.Core/Connections/ConnectionProfile.cs) has connection colors and SSL modes, but no environment policy or configurable query deadline; its command timeout is currently unlimited.
+- [ExplainService](src/PgNimbus.Core/Query/ExplainService.cs) and [PlanAnalyzer](src/PgNimbus.Core/Query/PlanAnalyzer.cs) already parse and explain individual plans. Comparing saved runs is the next increment, not rebuilding visualization.
+- [TableBrowseViewModel](src/PgNimbus.App/ViewModels/TableBrowseViewModel.cs) pages with `LIMIT/OFFSET`, and the grid holds at most 100,000 rows. Export no longer depends on either (D1): it runs the query again and streams every row to the file.
 
 ## P0: Trust and everyday adoption
 

@@ -27,7 +27,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../../PgNimbus.App/PgNimbus.App.csproj" />
+    <ProjectReference Include="../../src/PgNimbus.App/PgNimbus.App.csproj" />
   </ItemGroup>
 
   <ItemGroup>

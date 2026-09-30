@@ -2,9 +2,9 @@
 
   <!--
     Latency measurements for the SQL editor's completion path
-    (docs/design/sql-editing-experience.md §8, package I), and the quality
+    (docs/dev/design/sql-editing-experience.md §8, package I), and the quality
     measurements of the second completion audit
-    (docs/design/sql-completion-audit-2.md, Audit/README.md). Dev-only: not
+    (docs/dev/design/sql-completion-audit-2.md, Audit/README.md). Dev-only: not
     referenced by the app, ships in no package, never published AOT. Run it in
     Release (see the README next to this project).
   -->
@@ -21,7 +21,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\PgNimbus.App\PgNimbus.App.csproj" />
+    <ProjectReference Include="..\..\src\PgNimbus.App\PgNimbus.App.csproj" />
   </ItemGroup>
 
   <ItemGroup>

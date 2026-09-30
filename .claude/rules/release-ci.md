@@ -3,16 +3,15 @@ description: "Benchmarks, release pipeline, Actions storage budget, supply chain
 paths:
   - ".github/**"
   - "scripts/**"
-  - "installer/**"
   - "packaging/**"
   - "website/**"
   - "docs/**"
   - "mkdocs.yml"
-  - "PgNimbus.Benchmarks/**"
+  - "tests/PgNimbus.Benchmarks/**"
   - "Directory.Build.*"
 ---
 
-<!-- Moved out of the root CLAUDE.md so it loads only when working on these paths. Same rule applies: keep it current in the same PR. -->
+<!-- Moved out of .claude/CLAUDE.md so it loads only when working on these paths. Same rule applies: keep it current in the same PR. -->
 
 ## Benchmarks pipeline
 
@@ -34,7 +33,7 @@ the release pipeline don't pollute the trend history. Three moving parts:
 
 1. **Startup probe** — `PGNIMBUS_STARTUP_PROBE=1` makes the app print
    `PGNIMBUS_STARTUP_PROBE window_ms=… rss_bytes=…` after its first window
-   renders its first frame, then exit (`PgNimbus.App/StartupProbe.cs`, armed
+   renders its first frame, then exit (`src/PgNimbus.App/StartupProbe.cs`, armed
    in `App.OnFrameworkInitializationCompleted`). `window_ms` is measured from
    OS process start, so it captures AOT-vs-JIT differences honestly.
 2. **`PgNimbus.Benchmarks`** — console project measuring connect (cold pool),
@@ -78,7 +77,7 @@ about first. If the CI figure moves for good, change all three together.
 ## Release pipeline
 
 What to walk before tagging, and what past release passes found, is
-[`docs/RELEASE-CHECKLIST.md`](docs/RELEASE-CHECKLIST.md) (living, one log row per
+[`docs/dev/RELEASE-CHECKLIST.md`](docs/dev/RELEASE-CHECKLIST.md) (living, one log row per
 release); this section is how the pipeline itself works.
 
 `.github/workflows/release.yml` runs on every `vX.Y.Z` tag push (or manually
@@ -146,7 +145,7 @@ to (verified, not assumed).
 It produces, per tag:
 
 - **Windows** — `dotnet publish -r win-x64 -p:PublishAot=true`, then a
-  per-user WiX v5 MSI built from [`installer/windows/Product.wxs`](installer/windows/Product.wxs)
+  per-user WiX v5 MSI built from [`packaging/windows/Product.wxs`](packaging/windows/Product.wxs)
   via the `wix` .NET tool from the repo's tool manifest
   (`.config/dotnet-tools.json`, restored with `dotnet tool restore`, run as
   `dotnet wix build ... -d PublishDir=... -d Version=...`). The manifest
@@ -205,7 +204,7 @@ It produces, per tag:
   the plist value not older than the highest `vtool -show-build` `minos` of any
   Mach-O), and `MacOSEntitlementsTests` keeps the template from going under 12.
   **Ad-hoc signing has a Keychain cost** that only a Developer ID removes: see
-  hard rule 4 in `CLAUDE.md` and "Known caveats" in `docs/RELEASE-CHECKLIST.md`.
+  hard rule 4 in `CLAUDE.md` and "Known caveats" in `docs/dev/RELEASE-CHECKLIST.md`.
   None of this substitutes for a Developer ID signature plus notarization,
   which needs a paid Apple account and would remove the warning outright.
   **Both `codesign` calls also pass `--options runtime`** (security audit
@@ -216,7 +215,7 @@ It produces, per tag:
   library validation, which refuses to load a dylib unless it carries the
   main executable's own Team ID; every dylib in the bundle is ad-hoc signed
   alongside the app (no Team ID at all), so library validation would refuse
-  them all at launch. `installer/macos/Entitlements.plist` sets
+  them all at launch. `packaging/macos/Entitlements.plist` sets
   `com.apple.security.cs.disable-library-validation` to allow exactly that
   and nothing else, and both `codesign` calls pass `--entitlements` pointing
   at it. Developer ID plus notarization (ROADMAP T5) is still the fix that
@@ -246,7 +245,7 @@ It produces, per tag:
   X11-family libs Avalonia's X11 backend uses at runtime plus fontconfig
   for Skia — Skia/HarfBuzz themselves are bundled; a semver prerelease `-` becomes Debian `~` so CI test versions
   sort before releases). The desktop entry comes from
-  [`installer/linux/pgnimbus.desktop.template`](installer/linux/pgnimbus.desktop.template)
+  [`packaging/linux/pgnimbus.desktop.template`](packaging/linux/pgnimbus.desktop.template)
   (`__EXEC__` placeholder: the AppImage execs `PgNimbus.App`, the deb
   `pgnimbus`), icons from the `design/masters/icon/` tiles. The NativeAOT
   `*.dbg` symbols side-file is excluded from all three packages. Unsigned,
@@ -405,7 +404,7 @@ Release, since a self-signed MSIX can't be installed without the user
 manually trusting the cert first, and Store re-signing only happens after
 you upload it to Partner Center.
 
-- **Manifest**: [`installer/msix/Package.appxmanifest`](installer/msix/Package.appxmanifest)
+- **Manifest**: [`packaging/msix/Package.appxmanifest`](packaging/msix/Package.appxmanifest)
   is a template (`$VERSION$` placeholder) with `Identity/Publisher` hardcoded
   to this repo's reserved Partner Center product identity
   (`DmitriiShmanev.pgNimbus` / `CN=04FDF7B0-6D86-4EB7-B798-21CD434897BC`,
@@ -414,7 +413,7 @@ you upload it to Partner Center.
   Win32/Desktop Bridge (`runFullTrust`
   capability, `EntryPoint="Windows.FullTrustApplication"`), not Windows App
   SDK, since the app is a native AOT exe with no WinUI dependency.
-- **Tile assets**: `PgNimbus.App/Assets/Msix/*.png` (Square44x44Logo,
+- **Tile assets**: `src/PgNimbus.App/Assets/Msix/*.png` (Square44x44Logo,
   Square150x150Logo, StoreLogo — each as 5 DPI-scale files, plus
   Square44x44Logo's 10 unplated targetsize files) are generated by
   [`scripts/windows/make-app-icons.ps1`](scripts/windows/make-app-icons.ps1)
@@ -468,10 +467,10 @@ the documentation site, `/dev/bench/` is the benchmark history.
 ### Documentation site (`/docs/`)
 
 MkDocs Material, configured in the repo-root [`mkdocs.yml`](mkdocs.yml), built
-from `docs/`. `docs/` doubles as the repo's internal notes directory, so
-`exclude_docs` keeps `marketing/`, `design/`, `PROGRESS.md`,
-`PRE-LAUNCH-CHECKLIST.md` and `RELEASE-CHECKLIST.md` out of the published site — **only pages listed in
-`nav` ship**. Published by
+from `docs/`. Contributor notes (design records, the release checklists)
+live in `docs/dev/`, and `exclude_docs` keeps it and the git-ignored
+`marketing/` out of the published site — **only pages listed in `nav`
+ship**. Published by
 [`scripts/website/publish-docs.sh`](scripts/website/publish-docs.sh), which
 replaces `gh-pages:/docs/` alone; `.github/workflows/docs.yml` builds it with
 `--strict` on every PR touching `docs/`/`mkdocs.yml` (so a broken link or a page

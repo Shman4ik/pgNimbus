@@ -1,21 +1,21 @@
 ---
 description: "SQL lexer, scope reader and completion: the rules and evidence behind packages A-R."
 paths:
-  - "PgNimbus.Core/Text/**"
-  - "PgNimbus.Core/Schema/**"
-  - "PgNimbus.App/Completion/**"
+  - "src/PgNimbus.Core/Text/**"
+  - "src/PgNimbus.Core/Schema/**"
+  - "src/PgNimbus.App/Completion/**"
   - "**/QueryEditorPanel*"
   - "**/*Completion*"
   - "tools/CompletionBench/**"
 ---
 
-<!-- Moved out of the root CLAUDE.md so it loads only when working on these paths. Same rule applies: keep it current in the same PR. -->
+<!-- Moved out of .claude/CLAUDE.md so it loads only when working on these paths. Same rule applies: keep it current in the same PR. -->
 
 # SQL text and completion
 
 - **SQL text has one lexer, and completion reads one statement the way the
   server would** (2026-09, first delivery of
-  [`docs/design/sql-editing-experience.md`](docs/design/sql-editing-experience.md),
+  [`docs/dev/design/sql-editing-experience.md`](docs/dev/design/sql-editing-experience.md),
   packages A–E). `Text/SqlLexer` (Core-pure, unit-tested, including a
   generative "tokens exactly tile any text" check — it runs per keystroke on the
   UI thread, so a zero-width token would hang the app) is the single definition
@@ -69,7 +69,7 @@ paths:
   `USING`/`NATURAL` or a FROM item it can't read (subquery, function, LATERAL)
   refuses, and the reason goes to the tab's status line. The catalog behind all
   of this is one immutable snapshot (`SqlCompletionProvider.Load(CompletionCatalog)`
-  — also the test seam: `PgNimbus.App.Tests/CompletionProviderTests` runs the
+  — also the test seam: `tests/PgNimbus.App.Tests/CompletionProviderTests` runs the
   audit's catalog in memory), a refresh that finishes after a newer one started
   is dropped, relation names come without `pg_total_relation_size`
   (`GetRelationNamesAsync`), and foreign keys touching an excluded schema are
@@ -248,7 +248,7 @@ paths:
   Not done yet: a token cache per document version, the first full ranking
   over a ~1M-row list (3.5 ms median), and package J.
   **The second audit measured typing, not parsing** (2026-09-27,
-  [`docs/design/sql-completion-audit-2.md`](docs/design/sql-completion-audit-2.md),
+  [`docs/dev/design/sql-completion-audit-2.md`](docs/dev/design/sql-completion-audit-2.md),
   packages K–R, J folded into them). Typed without looking at the popup, with
   Enter at each line end, the 25-query corpus came out changed in 51 places:
   Enter took a row identical to the typed word (swallowing the newline), turned

@@ -4,11 +4,11 @@ paths:
   - "design/**"
   - "scripts/design/**"
   - "scripts/windows/make-*"
-  - "PgNimbus.App/Assets/**"
+  - "src/PgNimbus.App/Assets/**"
   - "**/LogoMark.axaml"
 ---
 
-<!-- Moved out of the root CLAUDE.md so it loads only when working on these paths. Same rule applies: keep it current in the same PR. -->
+<!-- Moved out of .claude/CLAUDE.md so it loads only when working on these paths. Same rule applies: keep it current in the same PR. -->
 
 ## App icon / logo assets
 
@@ -22,7 +22,7 @@ generated from that. **There is one colourway** (2026-08): the mark is plated,
 a dark disc holding a light field, so it carries its own contrast and reads on
 white, on a light UI, on GitHub dark and on black alike — a second SVG would be
 a second thing to keep in step for no gain. Nothing in `design/masters/**` or
-`PgNimbus.App/Assets/**` is hand-edited any more — regenerate, don't retouch.
+`src/PgNimbus.App/Assets/**` is hand-edited any more — regenerate, don't retouch.
 The chain, each step a script:
 
 ```
@@ -30,8 +30,8 @@ design/logo.af                     Affinity, the editable master
   → scripts/design/dump-af.js      geometry out to JSON (run via the Affinity MCP)
   → scripts/design/af-to-svg.py    design/logo.svg
   → scripts/design/make-masters.ps1        design/masters/**
-  → scripts/design/svg-to-axaml.py         PgNimbus.App/Styles/LogoMark.axaml
-  → scripts/windows/make-app-icons.ps1     PgNimbus.App/Assets/**
+  → scripts/design/svg-to-axaml.py         src/PgNimbus.App/Styles/LogoMark.axaml
+  → scripts/windows/make-app-icons.ps1     src/PgNimbus.App/Assets/**
   → scripts/windows/make-store-logos.ps1   design/store/**
 ```
 
@@ -113,7 +113,7 @@ nothing can regenerate. Layout:
   Center re-upload doesn't depend on someone remembering to run the script.
 - `design/archive/` — superseded concepts (old `icon-tile.png`, `simple/`, …).
 
-Everything in `PgNimbus.App/Assets/` is **generated** by
+Everything in `src/PgNimbus.App/Assets/` is **generated** by
 `scripts/windows/make-app-icons.ps1` (Windows-only, System.Drawing) —
 regenerate via that script, don't hand-edit. Output filenames are stable so
 csproj / WiX / MSIX manifest reference them unchanged:

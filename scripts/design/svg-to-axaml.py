@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Writes PgNimbus.App/Styles/LogoMark.axaml from design/logo.svg.
+"""Writes src/PgNimbus.App/Styles/LogoMark.axaml from design/logo.svg.
 
 The app draws the mark as vector geometry (a DrawingImage keyed LogoMarkImage),
 so it is sharp at any size and on any DPI, instead of shipping another raster
@@ -25,7 +25,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "design" / "logo.svg"
-TARGET = ROOT / "PgNimbus.App" / "Styles" / "LogoMark.axaml"
+TARGET = ROOT / "src" / "PgNimbus.App" / "Styles" / "LogoMark.axaml"
 NS = {"svg": "http://www.w3.org/2000/svg"}
 
 CAPS = {"round": "Round", "square": "Square", "butt": "Flat"}

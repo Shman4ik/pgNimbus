@@ -1,4 +1,4 @@
--- The completion audit's extra schema (docs/design/sql-completion-audit-2.md),
+-- The completion audit's extra schema (docs/dev/design/sql-completion-audit-2.md),
 -- loaded after scripts/demo 01-06: a typical SaaS app's naming, with the
 -- shapes that stress completion — column names many tables share, two FKs
 -- from one table to another, a composite FK, enums, a domain, views,

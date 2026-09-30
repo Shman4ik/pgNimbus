@@ -13,17 +13,17 @@ Short version: install the .NET 10 SDK, then
 
 ```bash
 dotnet build
-dotnet run --project PgNimbus.App
+dotnet run --project src/PgNimbus.App
 ```
 
 Run the tests with:
 
 ```bash
-dotnet test --project PgNimbus.Core.Tests
+dotnet test --project tests/PgNimbus.Core.Tests
 ```
 
 ```bash
-dotnet test --project PgNimbus.App.Tests
+dotnet test --project tests/PgNimbus.App.Tests
 ```
 
 The first covers the engine and the pure logic. The second drives real
@@ -38,6 +38,20 @@ A build sends something the app never does: Avalonia's build tooling
 build statistics to Avalonia while the project compiles, and the publish log
 says so ("Avalonia Accelerate Community requires telemetry"). It runs on the
 build machine only; nothing of it ships in pgNimbus.
+
+## Where things are
+
+| Folder | What is in it |
+| --- | --- |
+| `src/` | `PgNimbus.Core` (the engine, no UI) and `PgNimbus.App` (the Avalonia front end) |
+| `tests/` | Unit tests, headless UI tests and the benchmarks |
+| `tools/` | Dev-only programs: the screenshot harness and the completion bench |
+| `shared/nimbusUi/` | The design system shared with kubeNimbus (a git subtree) |
+| `packaging/` | Installer and store templates for Windows, MSIX, macOS, Linux and winget |
+| `scripts/` | Build, release, screenshot and design scripts |
+| `docs/` | The documentation site; `docs/dev/` has contributor notes that are not published |
+| `design/` | Logo sources, brand masters and Store listing media |
+| `website/` | The landing page |
 
 ## The two hard architectural rules
 
@@ -55,7 +69,7 @@ Every PR is gated on these — they're what keeps the project's thesis
    arrives. Every execution takes a `CancellationToken` and must actually
    stop mid-flight, not just at the start. (The one deliberate exception —
    materialized results inside an explicit transaction — is documented in
-   [CLAUDE.md](CLAUDE.md).)
+   [CLAUDE.md](.claude/CLAUDE.md).)
 
 Also: PostgreSQL-first, not lowest-common-denominator. Schema
 introspection reads `pg_catalog` directly, not `information_schema`. And
@@ -81,7 +95,7 @@ On a headless Linux box (or CI-like sandbox) the loop is: `Xvfb` for a
 virtual display, a local PostgreSQL with seed data, `PGNIMBUS_CONN` to
 skip the connection dialog, `xdotool` to drive, and ImageMagick's
 `import` for screenshots. The exact commands are in
-[CLAUDE.md](CLAUDE.md#bootstrapping-a-fresh-linuxci-sandbox-no-net-no-display-no-postgres).
+[the `verify` skill](.claude/skills/verify/SKILL.md#bootstrapping-a-fresh-linuxci-sandbox-no-net-no-display-no-postgres).
 Please check both themes (the in-app light/dark toggle) for visual
 changes.
 

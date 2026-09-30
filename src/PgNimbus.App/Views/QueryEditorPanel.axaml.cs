@@ -1,0 +1,1486 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Xml;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using Avalonia.Controls.Primitives.PopupPositioning;
+using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.Controls.Documents;
+using Avalonia.Media;
+using Avalonia.Platform;
+using Avalonia.Styling;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
+using AvaloniaEdit;
+using AvaloniaEdit.CodeCompletion;
+using AvaloniaEdit.Document;
+using AvaloniaEdit.Highlighting;
+using AvaloniaEdit.Rendering;
+using AvaloniaEdit.Highlighting.Xshd;
+using AvaloniaEdit.Search;
+using PgNimbus.App.Completion;
+using PgNimbus.App.ViewModels;
+using PgNimbus.Core.Commands;
+using PgNimbus.Core.Query;
+using PgNimbus.Core.Text;
+
+namespace PgNimbus.App.Views;
+
+/// <summary>
+/// The SQL editor surface, peeled out of MainWindow (UI design rule 7). It owns
+/// every editor interaction: the ViewModel↔AvaloniaEdit text sync, completion
+/// popup + fuzzy filter + auto-alias, syntax highlighting + theme rewrite,
+/// matching-bracket highlight, auto-close pairs, font zoom, find/replace, and
+/// the drag-drop identifier drop target.
+///
+/// DataContext is inherited from the host window (a <see cref="MainViewModel"/>):
+/// the editor edits whichever tab is active and draws on window-level services
+/// (the shared completion provider, the global word-wrap preference, and the
+/// Format / Expand-* / Find palette events), so a per-tab sub-ViewModel wouldn't
+/// carry what it needs. The host resolves the panel by name for the two things
+/// only it can drive: F6 focus hand-off and Ctrl+F/Ctrl+H open-search.
+/// </summary>
+public partial class QueryEditorPanel : UserControl
+{
+    private MainViewModel? _model;
+    // The tab the shared editor currently reflects. Each tab keeps its own Sql;
+    // this is re-pointed as MainViewModel.ActiveTab changes.
+    private QueryViewModel? _activeQuery;
+
+    // The ViewModel↔AvaloniaEdit two-way sync is manual (AvaloniaEdit's Text
+    // isn't a bindable AvaloniaProperty); this guards the echo so an edit on one
+    // side doesn't loop back through the other.
+    private bool _suppressEditorSync;
+
+    private CompletionWindow? _completionWindow;
+    // The row the user picked with the arrow keys or the mouse, by StableId —
+    // kept selected across re-filtering while it still matches, instead of
+    // being overridden by whichever row ranks first after the next keystroke.
+    private string? _userPickedCompletion;
+    // The open list was asked for (Ctrl+Space), not opened by a trigger.
+    private bool _completionExplicit;
+    // Set while ApplyFuzzyFilter moves the selection itself, so that move isn't
+    // mistaken for the user's pick.
+    private bool _applyingCompletionFilter;
+    // Set from a caret move until the open popup's own caret handler has run.
+    // The stock CompletionWindow answers every caret move with SelectItem on the
+    // typed prefix, picking a row by its own rules; that is not the user's pick
+    // either. Treating it as one pinned "orde" to order_items while orders
+    // ranked first, and Tab wrote order_items (found live 2026-09-22).
+    private bool _completionCaretMoving;
+    // The last filter pass: the candidate list it ran over, the typed text, and
+    // the indexes that matched — the pool the next, longer query starts from.
+    private IReadOnlyList<SqlCompletionData>? _filterData;
+    private string? _filterQuery;
+    private List<int>? _filterMatches;
+    // The popup closed because the typed word matched nothing. Deleting a
+    // character may make it match again, and then the popup comes back — the
+    // one case where an edit that isn't typing reopens it.
+    private bool _reopenCompletionOnDelete;
+    // Closer promised by OnSqlTextEntering's InsertPair verdict, written by
+    // OnSqlTextEntered once the opener is in the document. '\0' = none pending.
+    private char _pendingAutoCloser;
+    private IHighlightingDefinition? _sqlHighlighting;
+    // AvaloniaEdit's stock find/replace panel, installed on the SQL editor;
+    // opened via Ctrl+F / Ctrl+H (from the host's OnKeyDown) or the palette.
+    private SearchPanel? _searchPanel;
+    private readonly BracketHighlightRenderer _bracketRenderer;
+    // The argument hint is live from "(" (or Ctrl+Shift+Space, or accepting a
+    // function) until the caret leaves the call: only then does a caret move
+    // re-read it. Plain navigation through existing calls never opens it.
+    private bool _signatureHintActive;
+    // Documents at least this long are read for completion off the UI thread
+    // (docs/dev/design/sql-editing-experience.md §8: under it, the whole path stays
+    // well inside the 4 ms per keystroke budget; at 100k characters its tail
+    // does not). Each popup request gets a number, and every edit bumps
+    // _documentEdits: a background answer shows only if neither moved.
+    internal const int BackgroundCompletionThreshold = 50_000;
+    private int _completionRequest;
+    private int _documentEdits;
+    // How many overloads the hint lists before summing up the rest.
+    private const int MaxSignatureLines = 5;
+
+    // The space between the argument hint and the line it describes.
+    private const double SignatureHintGap = 2;
+
+    private const double MinEditorFontSize = 8;
+    private const double MaxEditorFontSize = 32;
+    private const double DefaultEditorFontSize = 14;
+
+    public QueryEditorPanel()
+    {
+        InitializeComponent();
+
+        // Must exist before LoadSqlHighlighting - the theme pass that call
+        // triggers also resolves this renderer's brush.
+        _bracketRenderer = new BracketHighlightRenderer(SqlEditor.TextArea.TextView);
+        LoadSqlHighlighting();
+
+        SqlEditor.TextChanged += (_, _) =>
+        {
+            if (_activeQuery is null || _suppressEditorSync)
+            {
+                return;
+            }
+
+            _activeQuery.Sql = SqlEditor.Text;
+        };
+
+        // Feed the editor's live selection to the active tab so "Run" executes
+        // just the highlighted SQL when there is a selection (see RunAsync).
+        // Empty selection -> null, i.e. run the whole buffer.
+        SqlEditor.TextArea.SelectionChanged += (_, _) =>
+        {
+            if (_activeQuery is null)
+            {
+                return;
+            }
+
+            var selected = SqlEditor.SelectedText;
+            _activeQuery.SelectedSql = string.IsNullOrEmpty(selected) ? null : selected;
+        };
+
+        // The schema tree (drag source) lives in SchemaTreePanel; the editor is
+        // the drop target — drop a quoted identifier at the pointer.
+        DragDrop.SetAllowDrop(SqlEditor, true);
+        SqlEditor.AddHandler(DragDrop.DragOverEvent, OnEditorDragOver);
+        SqlEditor.AddHandler(DragDrop.DropEvent, OnEditorDrop);
+
+        SqlEditor.TextArea.TextEntering += OnSqlTextEntering;
+        SqlEditor.TextArea.TextEntered += OnSqlTextEntered;
+        SqlEditor.Document.Changed += OnSqlDocumentChanged;
+
+        // An accepted suggestion writes itself as one edit (SqlCompletionData.
+        // Complete); these are the two things it needs from this editor.
+        SqlCompletionData.Configure(SqlEditor.TextArea, new SqlCompletionData.AcceptOptions(
+            AutoAliasTables: () => _model is { AutoAliasTables: true },
+            Accepted: accepted =>
+            {
+                _model?.CompletionUsage.Record(accepted.StableId);
+                // The caret now sits inside the call's parens: show what goes there.
+                if (accepted.Kind == SqlCompletionKind.Function)
+                {
+                    Dispatcher.UIThread.Post(() => ShowSignatureHint());
+                }
+            })
+        {
+            KeywordCase = () => _model?.CompletionKeywordCase ?? KeywordCase.AsTyped,
+        });
+        // The argument hint belongs to the editor: it goes when focus does —
+        // to the command palette, the grid, another window (G06).
+        SqlEditor.TextArea.LostFocus += (_, _) => Dispatcher.UIThread.Post(() =>
+        {
+            if (!SqlEditor.TextArea.IsKeyboardFocusWithin)
+            {
+                CloseSignatureHint();
+            }
+        });
+        // Tunnel on the TextArea: AvaloniaEdit's editing input handler consumes
+        // Enter (inserts a newline) and marks the event handled before it bubbles
+        // up to the editor, so a plain bubbling KeyDown handler never sees
+        // Shift+Enter. Tunneling runs us first, so our shortcuts win.
+        SqlEditor.TextArea.AddHandler(KeyDownEvent, OnSqlEditorKeyDown, RoutingStrategies.Tunnel);
+
+        // Editor niceties: current-line wash (brushes are theme-resolved in
+        // ApplySqlHighlightingTheme), matching-bracket highlight, and
+        // Ctrl+wheel font zoom. The wheel handler tunnels because the
+        // TextView claims wheel events for scrolling before they'd bubble.
+        SqlEditor.Options.HighlightCurrentLine = true;
+        SqlEditor.TextArea.Caret.PositionChanged += (_, _) =>
+        {
+            // Subscribed here, before any CompletionWindow exists, so this runs
+            // ahead of the window's own caret handler (see _completionCaretMoving);
+            // the per-window handler in PresentCompletion clears it.
+            _completionCaretMoving = _completionWindow is not null;
+            UpdateBracketHighlight();
+            if (_signatureHintActive)
+            {
+                UpdateSignatureHint();
+            }
+
+            // Feed the caret to the active tab too: with no selection, Explain uses it
+            // to pick which statement of the buffer to explain (see ExplainTarget).
+            if (_activeQuery is not null)
+            {
+                _activeQuery.CaretOffset = SqlEditor.CaretOffset;
+            }
+        };
+        SqlEditor.AddHandler(PointerWheelChangedEvent, OnSqlEditorPointerWheel, RoutingStrategies.Tunnel);
+
+        // Find & replace: AvaloniaEdit's SearchPanel handles matching,
+        // highlighting, and its own Enter/Shift+Enter/Esc bindings; only
+        // opening it (Ctrl/Cmd+F, Ctrl/Cmd+H) goes through the host's OnKeyDown.
+        // Its match-highlight brush is theme-resolved in ApplySqlHighlightingTheme.
+        // The panel wears the compact template from Theme.axaml, whose buttons are
+        // wired below by name: the stock template's RoutedCommand buttons raise
+        // their command from a static "last focused element" and silently no-op
+        // when that routing misses the panel, so the buttons call the panel's
+        // methods directly instead.
+        _searchPanel = SearchPanel.Install(SqlEditor);
+        _searchPanel.TemplateApplied += (_, e) =>
+        {
+            WireSearchPanelButton(e, "PART_FindPreviousButton", p => p.FindPrevious());
+            WireSearchPanelButton(e, "PART_FindNextButton", p => p.FindNext());
+            WireSearchPanelButton(e, "PART_CloseButton", p => p.Close());
+            WireSearchPanelButton(e, "PART_ReplaceNextButton", p => p.ReplaceNext());
+            WireSearchPanelButton(e, "PART_ReplaceAllButton", p => p.ReplaceAll());
+        };
+
+        ActualThemeVariantChanged += (_, _) => ApplySqlHighlightingTheme();
+        DataContextChanged += OnDataContextChanged;
+    }
+
+    // ActualThemeVariant isn't final at construction time; re-resolve the
+    // palette once the panel is in a live visual tree, and close any open
+    // completion popup when the host window loses focus (a native always-on-top
+    // popup would otherwise float over whatever the user switched to).
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        ApplySqlHighlightingTheme();
+        ApplyTextSelectionBrush();
+        if (TopLevel.GetTopLevel(this) is Window window)
+        {
+            window.Deactivated += OnHostDeactivated;
+        }
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        if (TopLevel.GetTopLevel(this) is Window window)
+        {
+            window.Deactivated -= OnHostDeactivated;
+        }
+
+        base.OnDetachedFromVisualTree(e);
+    }
+
+    private void OnHostDeactivated(object? sender, EventArgs e)
+    {
+        _completionWindow?.Close();
+        CloseSignatureHint();
+    }
+
+    /// <summary>The argument hint as shown (one overload per line), or null when it is closed.</summary>
+    public string? SignatureHintText => SignaturePopup.IsOpen ? SignatureText.Inlines?.Text : null;
+
+    // --- Host-driven interactions ----------------------------------------
+    // The two things only the window can decide: F6 focus hand-off between the
+    // editor and the results grid, and opening find/replace from OnKeyDown.
+
+    /// <summary>True when keyboard focus is inside the editor — the host's F6 uses this to hop focus.</summary>
+    public bool IsEditorFocused => SqlEditor.IsKeyboardFocusWithin;
+
+    /// <summary>Moves keyboard focus into the editor's text area.</summary>
+    public void FocusEditor() => SqlEditor.TextArea.Focus();
+
+    /// <summary>
+    /// Opens the editor's find (or find &amp; replace) panel, seeding the
+    /// search box with the current single-line selection the way most editors
+    /// do. Reactivate focuses and selects the search box, so a second Ctrl+F
+    /// while the panel is already open just puts the cursor back in it.
+    /// </summary>
+    public void OpenSearch(bool replaceMode)
+    {
+        if (_searchPanel is null)
+        {
+            return;
+        }
+
+        _searchPanel.IsReplaceMode = replaceMode;
+
+        var selection = SqlEditor.SelectedText;
+        if (!string.IsNullOrEmpty(selection) && !selection.Contains('\n'))
+        {
+            _searchPanel.SearchPattern = selection;
+        }
+
+        _searchPanel.Open();
+        // Focus after the open has been laid out — Reactivate needs the panel's
+        // TextBox realized, which isn't guaranteed synchronously on first open.
+        Dispatcher.UIThread.Post(() => _searchPanel.Reactivate());
+    }
+
+    // Attaches a click handler to one of the compact search-panel template's
+    // named buttons (see the SearchPanel ControlTheme in Theme.axaml).
+    // TemplateApplied can rerun (it instantiates fresh buttons each time), so
+    // attaching here never double-subscribes.
+    private void WireSearchPanelButton(TemplateAppliedEventArgs e, string name, Action<SearchPanel> action)
+    {
+        if (e.NameScope.Find<Button>(name) is { } button)
+        {
+            button.Click += (_, _) =>
+            {
+                if (_searchPanel is { } panel)
+                {
+                    action(panel);
+                }
+            };
+        }
+    }
+
+    // --- ViewModel wiring / active-tab tracking --------------------------
+
+    private void OnDataContextChanged(object? sender, EventArgs e)
+    {
+        if (_model is not null)
+        {
+            _model.PropertyChanged -= OnMainViewModelPropertyChanged;
+            _model.FormatSqlRequested -= FormatCurrentStatement;
+            _model.ExpandStarRequested -= ExpandSelectStar;
+            _model.ToggleLineCommentRequested -= ToggleLineComment;
+            _model.FindRequested -= OpenSearch;
+            _model.CommandPalette.PropertyChanged -= OnCommandPalettePropertyChanged;
+        }
+
+        _model = DataContext as MainViewModel;
+
+        if (_model is not null)
+        {
+            _model.PropertyChanged += OnMainViewModelPropertyChanged;
+            _model.FormatSqlRequested += FormatCurrentStatement;
+            _model.ExpandStarRequested += ExpandSelectStar;
+            _model.ToggleLineCommentRequested += ToggleLineComment;
+            _model.FindRequested += OpenSearch;
+            _model.CommandPalette.PropertyChanged += OnCommandPalettePropertyChanged;
+            AttachQuery(_model.ActiveTab);
+        }
+    }
+
+    // The palette opens over the editor: the argument hint goes (G06), as it
+    // does when focus leaves the editor for anything else.
+    private void OnCommandPalettePropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(CommandPaletteViewModel.IsOpen) && _model?.CommandPalette.IsOpen == true)
+        {
+            CloseSignatureHint();
+        }
+    }
+
+    private void OnMainViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        // Guarded because the tab strip's two-way SelectedItem binding can write
+        // a null: CloseTab reselects before it removes, so it no longer does,
+        // but the property is non-nullable by convention (a null!-initialized
+        // backing field), not by the compiler.
+        if (e.PropertyName == nameof(MainViewModel.ActiveTab) && _model is { ActiveTab: not null })
+        {
+            AttachQuery(_model.ActiveTab);
+        }
+    }
+
+    // Switching the active tab swaps which QueryViewModel the shared editor
+    // reflects - each tab keeps its own Sql, but there's only one on-screen
+    // editor, so this re-points it at the new tab.
+    private void AttachQuery(QueryViewModel? query)
+    {
+        if (_activeQuery is not null)
+        {
+            _activeQuery.PropertyChanged -= OnActiveQueryPropertyChanged;
+        }
+
+        _activeQuery = query;
+        if (_activeQuery is null)
+        {
+            return;
+        }
+
+        _activeQuery.PropertyChanged += OnActiveQueryPropertyChanged;
+
+        // A popup opened over the previous tab's text must not accept into this one.
+        _completionWindow?.Close();
+        CloseSignatureHint();
+        _suppressEditorSync = true;
+        SqlEditor.Text = _activeQuery.Sql;
+        _suppressEditorSync = false;
+
+        // A reopened closed tab asks for its caret back, once.
+        if (_activeQuery.PendingCaretOffset is { } caret)
+        {
+            _activeQuery.PendingCaretOffset = null;
+            SqlEditor.CaretOffset = Math.Clamp(caret, 0, SqlEditor.Document.TextLength);
+        }
+
+        // Seed the newly-attached tab's caret copy from where the editor actually sits,
+        // so Explain doesn't target a statement based on the previous tab's offset.
+        _activeQuery.CaretOffset = SqlEditor.CaretOffset;
+    }
+
+    // ViewModel → editor half of the manual two-way sync: an external Sql change
+    // (a fix suggestion applied, a browse page composed, a saved query loaded
+    // into this tab) pushes into the editor under the re-entrancy guard.
+    private void OnActiveQueryPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(QueryViewModel.Sql) || _activeQuery is null)
+        {
+            return;
+        }
+
+        if (SqlEditor.Text == _activeQuery.Sql)
+        {
+            return;
+        }
+
+        _completionWindow?.Close();
+        _suppressEditorSync = true;
+        SqlEditor.Text = _activeQuery.Sql;
+        _suppressEditorSync = false;
+    }
+
+    /// <summary>
+    /// Locks the text-selection wash to the fixed brand-blue token
+    /// (AppTextSelectionBrush in Theme.axaml, shared with every plain TextBox's
+    /// Style setter) instead of AvaloniaEdit's theme/OS-accent-derived default,
+    /// so it matches the app's other selection surfaces and reads the same on
+    /// both themes. SelectionBrush lives on TextArea, not TextEditor, so it
+    /// can't be a XAML attribute on SqlEditor.
+    ///
+    /// Resolved on *attach*, not in the constructor: the token lives in the
+    /// app-level Styles.Resources, and a detached control's resource lookup
+    /// stops at its own (null) logical parent — only a TopLevel has the
+    /// Application wired in as its styling parent from the start. Doing this in
+    /// the constructor silently found nothing and left the OS-accent default
+    /// (the regression that came with the MainWindow → panel extraction).
+    /// </summary>
+    private void ApplyTextSelectionBrush()
+    {
+        if (this.TryFindResource("AppTextSelectionBrush", ActualThemeVariant, out var selectionBrush)
+            && selectionBrush is IBrush brush)
+        {
+            SqlEditor.TextArea.SelectionBrush = brush;
+        }
+    }
+
+    // --- Syntax highlighting ---------------------------------------------
+
+    private void LoadSqlHighlighting()
+    {
+        using var stream = AssetLoader.Open(new Uri("avares://PgNimbus.App/Assets/PostgreSql.xshd"));
+        using var reader = XmlReader.Create(stream);
+        _sqlHighlighting = HighlightingLoader.Load(reader, HighlightingManager.Instance);
+        ApplySqlHighlightingTheme();
+    }
+
+    // The XSHD bakes in the dark palette; the highlighter has no theme
+    // awareness of its own, so the named colors are rewritten whenever the
+    // actual theme variant resolves or changes.
+    private void ApplySqlHighlightingTheme()
+    {
+        if (_sqlHighlighting is null)
+        {
+            return;
+        }
+
+        var dark = ActualThemeVariant == ThemeVariant.Dark;
+        SetHighlightColor("Comment", dark ? "#6A9955" : "#008000");
+        SetHighlightColor("String", dark ? "#CE9178" : "#A31515");
+        SetHighlightColor("Number", dark ? "#B5CEA8" : "#098658");
+        SetHighlightColor("Keyword", dark ? "#569CD6" : "#0000E0");
+        SetHighlightColor("Type", dark ? "#4EC9B0" : "#267F99");
+
+        // Editor chrome that has to track the theme with the palette: a
+        // barely-there wash on the caret's line (border suppressed - the
+        // stock one draws a hard outline box) and a stronger accent-tinted
+        // wash behind the matched bracket pair.
+        var textView = SqlEditor.TextArea.TextView;
+        textView.CurrentLineBackground = new SolidColorBrush(Color.Parse(dark ? "#0DFFFFFF" : "#0D000000"));
+        textView.CurrentLineBorder = new Pen(Brushes.Transparent);
+        _bracketRenderer.Brush = new SolidColorBrush(Color.Parse(dark ? "#40569CD6" : "#332B5FBF"));
+        // Find-match highlight: same accent-tinted wash family as the bracket pair.
+        _searchPanel?.SetSearchResultsBrush(new SolidColorBrush(Color.Parse(dark ? "#40569CD6" : "#332B5FBF")));
+
+        // Reassigning is what makes the TextView drop its cached line
+        // visuals and re-run the highlighter with the new brushes.
+        SqlEditor.SyntaxHighlighting = null;
+        SqlEditor.SyntaxHighlighting = _sqlHighlighting;
+    }
+
+    private void SetHighlightColor(string name, string hex)
+    {
+        if (_sqlHighlighting?.GetNamedColor(name) is { } color)
+        {
+            color.Foreground = new SimpleHighlightingBrush(Color.Parse(hex));
+        }
+    }
+
+    // --- Drag-drop target (identifier from the schema tree) --------------
+
+    private void OnEditorDragOver(object? sender, DragEventArgs e)
+    {
+        if (!e.DataTransfer.Formats.Contains(DataFormat.Text))
+        {
+            e.DragEffects = DragDropEffects.None;
+            return;
+        }
+
+        e.DragEffects = DragDropEffects.Copy;
+        // Live caret preview: the caret tracks the pointer so it's obvious
+        // where the identifier will land.
+        if (SqlEditor.GetPositionFromPoint(e.GetPosition(SqlEditor)) is { } position)
+        {
+            SqlEditor.TextArea.Caret.Position = position;
+        }
+
+        e.Handled = true;
+    }
+
+    private void OnEditorDrop(object? sender, DragEventArgs e)
+    {
+        if (e.DataTransfer.TryGetText() is not { Length: > 0 } text)
+        {
+            return;
+        }
+
+        var offset = SqlEditor.GetPositionFromPoint(e.GetPosition(SqlEditor)) is { } position
+            ? SqlEditor.Document.GetOffset(position.Location)
+            : SqlEditor.CaretOffset;
+        SqlEditor.Document.Insert(offset, text);
+        SqlEditor.CaretOffset = offset + text.Length;
+        SqlEditor.TextArea.Focus();
+        e.Handled = true;
+    }
+
+    // --- Auto-close pairs -------------------------------------------------
+    // OnSqlTextEntering runs before AvaloniaEdit inserts the typed character:
+    // TypeOver must suppress the insertion entirely, and an InsertPair verdict
+    // needs the pre-insert text (AutoClosePairs.Decide's contract). The closer
+    // itself is written in OnSqlTextEntered, after the opener exists.
+    private void OnSqlTextEntering(object? sender, TextInputEventArgs e)
+    {
+        _pendingAutoCloser = '\0';
+        if (e.Text is not { Length: 1 } entered || entered[0] is not ('(' or ')' or '\'' or '"'))
+        {
+            return;
+        }
+
+        // "(" takes a function row whose name was being typed (F05):
+        // "coun(" writes count() with the caret between the parens, as Tab
+        // would, instead of leaving coun().
+        if (entered[0] == '(' && _completionWindow is { } open
+            && open.CompletionList.SelectedItem is SqlCompletionData { Kind: SqlCompletionKind.Function } function
+            && ParenAccepts(open, function))
+        {
+            AcceptCallOnParen(function);
+            open.Close();
+            e.Handled = true;
+            ShowSignatureHint();
+            return;
+        }
+
+        var typed = entered[0];
+        var textArea = SqlEditor.TextArea;
+
+        // Typing an opener over a selection wraps it instead of replacing it.
+        if (typed is not ')' && !textArea.Selection.IsEmpty)
+        {
+            textArea.Selection.ReplaceSelectionWithText(
+                typed + textArea.Selection.GetText() + AutoClosePairs.CloserFor(typed));
+            e.Handled = true;
+            return;
+        }
+
+        var text = SqlEditor.Text;
+        var caret = SqlEditor.CaretOffset;
+        // A quoted identifier counts as prose here: typing "(" inside "Order (x"
+        // is part of the name, not a call.
+        var caretContext = SqlCompletionContext.GetCaretContext(text, caret);
+        var inStringOrComment = caretContext.InStringOrComment || caretContext.InQuotedIdentifier;
+        switch (AutoClosePairs.Decide(text, caret, typed, inStringOrComment))
+        {
+            case AutoClosePairs.Verdict.TypeOver:
+                SqlEditor.CaretOffset = caret + 1;
+                e.Handled = true;
+                break;
+            case AutoClosePairs.Verdict.InsertPair:
+                _pendingAutoCloser = AutoClosePairs.CloserFor(typed);
+                break;
+        }
+    }
+
+    private void OnSqlTextEntered(object? sender, TextInputEventArgs e)
+    {
+        if (string.IsNullOrEmpty(e.Text))
+        {
+            return;
+        }
+
+        var c = e.Text[0];
+
+        // The closer OnSqlTextEntering promised: write it after the caret so
+        // the pair hugs it — "(|)" — and typing continues between them.
+        if (_pendingAutoCloser != '\0')
+        {
+            var closer = _pendingAutoCloser;
+            _pendingAutoCloser = '\0';
+            var openerEnd = SqlEditor.CaretOffset;
+            SqlEditor.Document.Insert(openerEnd, closer.ToString());
+            SqlEditor.CaretOffset = openerEnd;
+            // Only now, with the caret back inside the pair: the insert moved
+            // it past ")" for a moment, which reads as leaving the call.
+            if (c == '(')
+            {
+                ShowSignatureHint();
+            }
+            else if (c == '\'')
+            {
+                // "status = '|'": the values that fit, if the text around the
+                // string decides any (an enum's labels, a sequence); the
+                // provider answers nothing for an ordinary string.
+                ShowCompletion();
+            }
+
+            return;
+        }
+
+        // "(" after a name opens the argument hint; "," moves its highlight
+        // through the caret-move handler while the hint is live.
+        if (c == '(' && e.Text.Length == 1)
+        {
+            ShowSignatureHint();
+            return;
+        }
+
+        // "::" is a cast: the type list follows.
+        if (c == ':' && e.Text.Length == 1 && SqlEditor.CaretOffset >= 2 && SqlEditor.Document.GetCharAt(SqlEditor.CaretOffset - 2) == ':')
+        {
+            ShowCompletion();
+            return;
+        }
+
+        // A dot starts member access (alias./table./schema.). Re-trigger even
+        // when a bare-identifier list is already open, so it switches to the
+        // qualifier's columns instead of staying on the catalog-wide list.
+        if (c == '.')
+        {
+            ShowCompletion();
+            return;
+        }
+
+        // A character that can't be part of a name ends the word the popup was
+        // filtering on, so the popup closes: punctuation must never match a row
+        // itself (typed "*" would pick the star row, whose accept writes a
+        // second "*"), and a phrase row must never be filtered across a space
+        // ("IS N" matching IS NULL), since an accept replaces only the word under
+        // the caret. Inside a quoted identifier the name goes on. A comma or a
+        // space may then reopen it below, for the next item.
+        if (_completionWindow is { } open && !SqlLexer.IsIdentPart(c) && !FiltersQuotedName(open))
+        {
+            open.Close();
+        }
+
+        if (_completionWindow is not null)
+        {
+            return;
+        }
+
+        // Only a single typed character opens the popup: a paste or an IME
+        // commit arrives as one multi-character entry, and its first letter
+        // isn't the user starting to type a name.
+        if (e.Text.Length == 1 && (char.IsLetter(c) || c == '_'))
+        {
+            ShowCompletion();
+            return;
+        }
+
+        // A comma continuing a list (SELECT list, FROM list, GROUP/ORDER BY …)
+        // reopens the list on the spot — the next item is as predictable as the
+        // first one was right after the clause keyword.
+        if (c == ',' && CaretIsInKnownClause())
+        {
+            ShowCompletion();
+            return;
+        }
+
+        if (c != ' ')
+        {
+            return;
+        }
+
+        // The space right after a clause keyword (FROM/WHERE/SELECT/AND …)
+        // opens the list unprompted — the spots where what comes next is most
+        // predictable (ON is where the FK join-condition suggestion shows up,
+        // when there is one). A space right after a comma re-opens the list the
+        // comma itself opened (the space closed it by matching nothing).
+        var caret = SqlEditor.CaretOffset;
+        var text = SqlEditor.Text;
+        var beforeSpace = caret >= 2 && caret <= text.Length ? text[caret - 2] : '\0';
+        if (beforeSpace == ',' ? CaretIsInKnownClause() : WordBeforeCaretTriggersAutoOpen())
+        {
+            ShowCompletion();
+        }
+    }
+
+    // Deleting back into a word that matched nothing reopens the popup once the
+    // word matches again (see _reopenCompletionOnDelete). Any other edit — typing
+    // included, which reopens through OnSqlTextEntered — ends that state.
+    private void OnSqlDocumentChanged(object? sender, DocumentChangeEventArgs e)
+    {
+        _documentEdits++;
+        if (!_reopenCompletionOnDelete || _completionWindow is not null)
+        {
+            return;
+        }
+
+        if (e.InsertionLength > 0 || e.RemovalLength == 0 || _suppressEditorSync)
+        {
+            _reopenCompletionOnDelete = false;
+            return;
+        }
+
+        // After the deletion has landed and the caret has moved with it.
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (_reopenCompletionOnDelete && _completionWindow is null && SqlEditor.IsKeyboardFocusWithin)
+            {
+                var caret = SqlEditor.CaretOffset;
+                if (CompletionEdits.TokenAt(SqlEditor.Text, caret).FilterStart < caret)
+                {
+                    ShowCompletion(reopening: true);
+                }
+            }
+        });
+    }
+
+    // A function row "(" may take: the one the user chose, or the one whose
+    // name starts with what was typed.
+    private bool ParenAccepts(CompletionWindow window, SqlCompletionData function)
+    {
+        var caret = SqlEditor.CaretOffset;
+        var start = Math.Clamp(window.StartOffset, 0, caret);
+        var typed = SqlEditor.Document.GetText(start, caret - start);
+        return _completionExplicit || _userPickedCompletion is not null
+            || (typed.Length > 0 && function.Text.StartsWith(typed, StringComparison.OrdinalIgnoreCase));
+    }
+
+    // Writes the call alone — "name()" with the caret inside, no window
+    // (the "(" says the arguments come next) — as one edit.
+    private void AcceptCallOnParen(SqlCompletionData function)
+    {
+        var paren = function.InsertText.IndexOf('(', StringComparison.Ordinal);
+        var name = paren >= 0 ? function.InsertText[..paren] : function.InsertText;
+        var edit = CompletionEdits.Plan(SqlEditor.Text, SqlEditor.CaretOffset, name + "()", CompletionInsertKind.Function);
+        SqlEditor.Document.Replace(edit.ReplaceStart, edit.ReplaceLength, edit.InsertText);
+        SqlEditor.CaretOffset = Math.Clamp(edit.CaretOffset, 0, SqlEditor.Document.TextLength);
+        _model?.CompletionUsage.Record(function.StableId);
+    }
+
+    // True when the popup is filtering on the inside of a "quoted name", which
+    // may hold spaces and punctuation.
+    private bool FiltersQuotedName(CompletionWindow window) =>
+        window.StartOffset > 0 && window.StartOffset <= SqlEditor.Document.TextLength
+        && SqlEditor.Document.GetCharAt(window.StartOffset - 1) == '"';
+
+    // True when the caret sits in a recognized clause (table position, select
+    // list, predicate…) outside strings/comments — the contexts where the
+    // popup's contents are scoped enough to be worth opening unasked.
+    private bool CaretIsInKnownClause()
+    {
+        var context = SqlCompletionContext.GetCaretContext(SqlEditor.Text, SqlEditor.CaretOffset);
+        return !context.InStringOrComment && context.Clause != SqlClause.None;
+    }
+
+    // The keywords whose trailing space auto-opens the popup: the ones after
+    // which the very next token is predictable — a table (FROM/JOIN/INTO/
+    // UPDATE), a scoped column (WHERE/ON/AND/OR, GROUP/ORDER/PARTITION BY),
+    // or a select-list expression.
+    private static readonly string[] AutoOpenKeywords =
+        ["from", "join", "into", "update", "on", "where", "and", "or", "select", "by"];
+
+    // True when the word just left of the caret (which sits right after the
+    // freshly typed space) is a keyword after which the popup should open itself.
+    private bool WordBeforeCaretTriggersAutoOpen()
+    {
+        var text = SqlEditor.Text;
+        var end = Math.Min(SqlEditor.CaretOffset, text.Length) - 1; // skip the space
+        if (end <= 0)
+        {
+            return false;
+        }
+
+        var start = end;
+        while (start > 0 && (char.IsLetter(text[start - 1]) || text[start - 1] == '_'))
+        {
+            start--;
+        }
+
+        var word = text.AsSpan(start, Math.Max(end - start, 0));
+        foreach (var keyword in AutoOpenKeywords)
+        {
+            if (word.Equals(keyword, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // --- Key handling / font zoom / bracket match ------------------------
+
+    private void OnSqlEditorKeyDown(object? sender, KeyEventArgs e)
+    {
+        // The find/replace panel lives inside the TextArea, so this tunneled
+        // handler also sees keys typed into its text boxes - without this
+        // guard, Shift+Enter there runs the query instead of find-previous.
+        if (e.Source is Visual source && source.FindAncestorOfType<SearchPanel>() is not null)
+        {
+            return;
+        }
+
+        if (CommandBindings.Matches(CommandId.Completion, e))
+        {
+            ShowCompletion(explicitRequest: true);
+            e.Handled = true;
+            return;
+        }
+
+        // Enter takes a suggestion only when the user chose it or typed enough
+        // of it; otherwise the popup steps aside and Enter is a newline. Tab
+        // always takes it (the list handles that itself).
+        if (e.Key == Key.Enter && e.KeyModifiers == KeyModifiers.None && _completionWindow is { } open && !EnterAccepts(open))
+        {
+            open.Close();
+            return; // not handled: the editor writes the newline
+        }
+
+        // Home and End move the caret in the line, as they do everywhere else
+        // in the editor, not the list's selection (G05).
+        if (e.Key is Key.Home or Key.End && (e.KeyModifiers & ~KeyModifiers.Shift) == KeyModifiers.None && _completionWindow is { } list)
+        {
+            list.Close();
+            return; // not handled: the editor moves the caret
+        }
+
+        if (CommandBindings.Matches(CommandId.ParameterHints, e))
+        {
+            ShowSignatureHint();
+            e.Handled = true;
+            return;
+        }
+
+        // Escape takes the argument hint down — after the completion list, which
+        // closes first on its own Escape.
+        if (e.Key == Key.Escape && e.KeyModifiers == KeyModifiers.None && _completionWindow is null && SignaturePopup.IsOpen)
+        {
+            CloseSignatureHint();
+            e.Handled = true;
+            return;
+        }
+
+        // Smart execution: runs just the statement the caret sits in (between
+        // ;s) rather than the whole tab, so trying one statement out of a
+        // multi-statement script doesn't require selecting it by hand first.
+        if (CommandBindings.Matches(CommandId.RunStatementUnderCursor, e))
+        {
+            if (_activeQuery is { } query
+                && SqlScriptSplitter.StatementAt(SqlEditor.Text, SqlEditor.CaretOffset) is { } statement)
+            {
+                _ = query.RunStatementAsync(statement);
+            }
+
+            e.Handled = true;
+            return;
+        }
+
+        // Format the statement under the caret. All three shift-F combos fire it,
+        // regardless of the active hotkey scheme: Ctrl+Shift+F and Cmd+Shift+F
+        // (the two platform combos, as before) plus Alt+Shift+F (the
+        // IntelliJ/VS Code convention). A deliberate exception to the
+        // Hotkeys.Command routing — accepting every modifier is harmless here
+        // (nothing else binds them) and means the muscle-memory combo works
+        // whatever platform the user came from.
+        if (e.Key == Key.F
+            && (e.KeyModifiers == (KeyModifiers.Control | KeyModifiers.Shift)
+                || e.KeyModifiers == (KeyModifiers.Meta | KeyModifiers.Shift)
+                || e.KeyModifiers == (KeyModifiers.Alt | KeyModifiers.Shift)))
+        {
+            FormatCurrentStatement();
+            e.Handled = true;
+            return;
+        }
+
+        // Line-level editing, VS Code conventions. Gestures come from the
+        // catalog (CommandCatalog) so the F1 sheet and the docs can't drift.
+        if (CommandBindings.Matches(CommandId.ToggleLineComment, e))
+        {
+            ToggleLineComment();
+            e.Handled = true;
+            return;
+        }
+
+        if (CommandBindings.Matches(CommandId.DuplicateLine, e))
+        {
+            DuplicateSelectionOrLine();
+            e.Handled = true;
+            return;
+        }
+
+        if (CommandBindings.Matches(CommandId.MoveLineUp, e))
+        {
+            MoveSelectedLines(-1);
+            e.Handled = true;
+            return;
+        }
+
+        if (CommandBindings.Matches(CommandId.MoveLineDown, e))
+        {
+            MoveSelectedLines(+1);
+            e.Handled = true;
+            return;
+        }
+
+        // Font-size zoom: Ctrl+= / Ctrl+- step, Ctrl+0 resets (numpad
+        // variants included; Cmd on the mac scheme). Ctrl+wheel does the same
+        // via the tunneled pointer handler. Shift is tolerated because
+        // "Ctrl and +" is physically Ctrl+Shift+= on most layouts.
+        if (e.KeyModifiers.HasFlag(Hotkeys.Command) && !e.KeyModifiers.HasFlag(KeyModifiers.Alt))
+        {
+            switch (e.Key)
+            {
+                case Key.OemPlus or Key.Add:
+                    AdjustEditorFontSize(+1);
+                    e.Handled = true;
+                    break;
+                case Key.OemMinus or Key.Subtract:
+                    AdjustEditorFontSize(-1);
+                    e.Handled = true;
+                    break;
+                case Key.D0 or Key.NumPad0:
+                    SqlEditor.FontSize = DefaultEditorFontSize;
+                    e.Handled = true;
+                    break;
+            }
+        }
+    }
+
+    private void OnSqlEditorPointerWheel(object? sender, PointerWheelEventArgs e)
+    {
+        if (!e.KeyModifiers.HasFlag(Hotkeys.Command))
+        {
+            return;
+        }
+
+        AdjustEditorFontSize(e.Delta.Y >= 0 ? +1 : -1);
+        e.Handled = true;
+    }
+
+    private void AdjustEditorFontSize(int delta) =>
+        SqlEditor.FontSize = Math.Clamp(SqlEditor.FontSize + delta, MinEditorFontSize, MaxEditorFontSize);
+
+    private void UpdateBracketHighlight() =>
+        // Pass the live document, not SqlEditor.Text — the latter allocates a
+        // full-document string on every caret move, this reads a few chars.
+        _bracketRenderer.Update(SqlEditor.Document, SqlEditor.CaretOffset);
+
+    // --- Completion popup -------------------------------------------------
+
+    // Opens the popup for the word under the caret. The filter starts at the
+    // word's start (after the quote, inside "…"), not at the caret, so Ctrl+Space
+    // after "sel" filters on "sel" and accepting replaces all of it; the accept
+    // itself replaces the whole token (see SqlCompletionData.Complete). Any
+    // popup already open is closed first: one window, one set of handlers.
+    private void ShowCompletion(bool reopening = false, bool explicitRequest = false)
+    {
+        _completionWindow?.Close();
+        if (!reopening)
+        {
+            _reopenCompletionOnDelete = false;
+            _completionExplicit = explicitRequest;
+        }
+
+        var text = SqlEditor.Text;
+        var caret = SqlEditor.CaretOffset;
+        if (_model?.CompletionProvider is not { } provider)
+        {
+            return;
+        }
+
+        var request = ++_completionRequest;
+        if (text.Length < BackgroundCompletionThreshold)
+        {
+            PresentCompletion(text, caret, provider.GetCompletionData(text, caret));
+            return;
+        }
+
+        // A long script: read it on the thread pool, and show the answer only
+        // if nothing moved meanwhile — the same request, no edit since, the
+        // caret where it was. A stale answer is dropped, never shown.
+        var edits = _documentEdits;
+        _ = Task.Run(() => provider.GetCompletionData(text, caret)).ContinueWith(
+            done => Dispatcher.UIThread.Post(() =>
+            {
+                if (done.IsCompletedSuccessfully && request == _completionRequest
+                    && edits == _documentEdits && caret == SqlEditor.CaretOffset && SqlEditor.IsKeyboardFocusWithin)
+                {
+                    PresentCompletion(text, caret, done.Result);
+                }
+            }),
+            TaskScheduler.Default);
+    }
+
+    // Opens the popup over `data`, computed for `text` at `caret` (which is
+    // still what the editor holds — ShowCompletion checked).
+    private void PresentCompletion(string text, int caret, IReadOnlyList<SqlCompletionData> data)
+    {
+        if (data.Count == 0)
+        {
+            return;
+        }
+
+        var completionWindow = new CompletionWindow(SqlEditor.TextArea);
+        // The stock filter is prefix/substring-only and can't be swapped out
+        // (SelectItem isn't virtual, the list isn't replaceable), so it's turned
+        // off and ApplyFuzzyFilter below owns filtering + ranking instead. What
+        // remains of the stock path (SelectItemWithStart on every caret move) only
+        // touches the selection, and the re-rank that runs right after overrides it.
+        completionWindow.CompletionList.IsFiltering = false;
+        completionWindow.StartOffset = CompletionEdits.TokenAt(text, caret).FilterStart;
+        _userPickedCompletion = null;
+        _completionCaretMoving = false;
+
+        if (!ApplyFuzzyFilter(completionWindow, data))
+        {
+            // Nothing matches what's typed — never show; a Backspace may change that.
+            _reopenCompletionOnDelete = true;
+            return;
+        }
+
+        _reopenCompletionOnDelete = false;
+
+        // Stock AvaloniaEdit only moves the *selection* as the user keeps typing;
+        // re-filtering the visible items is on us, from the same caret event it uses.
+        // Registered after the window's own handler, so this runs second and wins.
+        EventHandler caretMoved = (_, _) =>
+        {
+            _completionCaretMoving = false; // the stock SelectItem has run by now
+            if (_completionWindow != completionWindow)
+            {
+                return; // already closed by the stock handler in this same event
+            }
+
+            if (!ApplyFuzzyFilter(completionWindow, data))
+            {
+                // Fuzzy-matches nothing — close (a hidden window would still sit
+                // on the keyboard), and let a Backspace bring it back.
+                completionWindow.Close();
+                _reopenCompletionOnDelete = true;
+            }
+        };
+        SqlEditor.TextArea.Caret.PositionChanged += caretMoved;
+
+        EventHandler<SelectionChangedEventArgs> picked = (_, _) =>
+        {
+            if (!_applyingCompletionFilter && !_completionCaretMoving
+                && completionWindow.CompletionList.SelectedItem is SqlCompletionData item)
+            {
+                _userPickedCompletion = item.StableId;
+                MarkTentative(completionWindow);
+            }
+        };
+        completionWindow.CompletionList.ListBox.SelectionChanged += picked;
+
+        completionWindow.Closed += (_, _) =>
+        {
+            _completionCaretMoving = false;
+            SqlEditor.TextArea.Caret.PositionChanged -= caretMoved;
+            completionWindow.CompletionList.ListBox.SelectionChanged -= picked;
+            if (_completionWindow == completionWindow)
+            {
+                _completionWindow = null;
+            }
+        };
+        completionWindow.Show();
+        _completionWindow = completionWindow;
+    }
+
+    // Re-ranks the candidate set against the segment typed since the popup opened
+    // and pushes the result into the list. False when nothing matches (caller
+    // hides the window). Clamp defensively: StartOffset -= 1 above (or
+    // AvaloniaEdit's own offset bookkeeping) must never be allowed to slice out
+    // of document bounds and crash the app.
+    private bool ApplyFuzzyFilter(CompletionWindow completionWindow, IReadOnlyList<SqlCompletionData> data)
+    {
+        var document = SqlEditor.Document;
+        var start = Math.Max(0, completionWindow.StartOffset);
+        var caret = Math.Clamp(SqlEditor.CaretOffset, start, document.TextLength);
+        var query = document.GetText(start, caret - start);
+
+        // One more character can only narrow the matches, so the previous
+        // keystroke's matches are all that needs scoring again; anything else
+        // (Backspace, a pasted replacement) starts from the full list.
+        var usage = _model?.CompletionUsage;
+        var narrowing = _filterMatches is not null && _filterData == data && _filterQuery is { } previous
+            && query.Length > previous.Length && query.StartsWith(previous, StringComparison.OrdinalIgnoreCase);
+        var ranked = CompletionRanker.Rank(
+            data, query, static d => d.Text, static d => d.Priority, d => usage?.RankOf(d.StableId) ?? int.MaxValue,
+            narrowing ? _filterMatches : null, out var matched);
+        _filterData = data;
+        _filterQuery = query;
+        _filterMatches = matched;
+        if (ranked.Items.Count == 0)
+        {
+            return false;
+        }
+
+        // The user's own pick outranks the ranking while it still matches.
+        var selected = ranked.Items[ranked.SelectedIndex];
+        if (_userPickedCompletion is { } pickedId
+            && ranked.Items.FirstOrDefault(i => i.StableId == pickedId) is { } stillThere)
+        {
+            selected = stillThere;
+        }
+
+        // CompletionData is a plain list the ListBox binds once at template time —
+        // mutating it alone changes nothing on screen. Keep it in sync (the stock
+        // selection-only pass indexes into it) and rebind ItemsSource for the
+        // visible refresh, exactly like the stock filtering path does.
+        var list = completionWindow.CompletionList;
+        _applyingCompletionFilter = true;
+        try
+        {
+            // What the rows bold their matched letters against (CompletionLabel).
+            list.ListBox!.Tag = query;
+            list.CompletionData.Clear();
+            foreach (var item in ranked.Items)
+            {
+                list.CompletionData.Add(item);
+            }
+
+            list.ListBox.ItemsSource = ranked.Items;
+            list.SelectedItem = selected;
+            list.ScrollIntoView(selected);
+        }
+        finally
+        {
+            _applyingCompletionFilter = false;
+        }
+
+        MarkTentative(completionWindow);
+        return true;
+    }
+
+    // The Enter rule (docs/dev/design/sql-completion-audit-2.md §6.1, decided in
+    // CompletionAcceptance): Enter takes the highlighted row only when the
+    // accept would change the text, and the user chose the row (Ctrl+Space,
+    // arrows, mouse) or typed the start of its name outside a new-name position.
+    // Otherwise the popup steps aside and Enter is a newline: finishing a line
+    // must not rewrite what was typed.
+    private bool EnterAccepts(CompletionWindow window)
+    {
+        // "Accept with Tab only" (Preferences): Enter is always a newline.
+        if (window.CompletionList.SelectedItem is not SqlCompletionData selected || _model is { CompletionEnterAccepts: false })
+        {
+            return false;
+        }
+
+        var row = new CompletionRow(selected.Text, selected.InsertText, selected.Kind == SqlCompletionKind.Keyword);
+        return CompletionAcceptance.EnterAccepts(SqlEditor.Text, SqlEditor.CaretOffset, window.StartOffset, row,
+            chosen: _completionExplicit || _userPickedCompletion is not null);
+    }
+
+    // A highlight Enter would not take is drawn as an outline rather than a
+    // fill (Theme.axaml, CompletionListBox.tentative), so the two states read
+    // differently before the key is pressed.
+    private void MarkTentative(CompletionWindow window) =>
+        window.CompletionList.ListBox?.Classes.Set("tentative", !EnterAccepts(window));
+
+    // --- Argument hint ----------------------------------------------------
+
+    private void ShowSignatureHint()
+    {
+        _signatureHintActive = true;
+        UpdateSignatureHint();
+    }
+
+    private void CloseSignatureHint()
+    {
+        _signatureHintActive = false;
+        SignaturePopup.IsOpen = false;
+    }
+
+    // Re-reads the call around the caret and redraws the hint, or closes it
+    // when the caret has left every call the catalog knows.
+    private void UpdateSignatureHint()
+    {
+        var text = SqlEditor.Text;
+        var caret = SqlEditor.CaretOffset;
+        if (_model?.CompletionProvider.GetSignatureHints(text, caret) is not { } result)
+        {
+            CloseSignatureHint();
+            return;
+        }
+
+        var inlines = new InlineCollection();
+        var hints = result.Hints;
+        for (var i = 0; i < Math.Min(hints.Count, MaxSignatureLines); i++)
+        {
+            if (i > 0)
+            {
+                inlines.Add(new LineBreak());
+            }
+
+            var hint = hints[i];
+            inlines.Add(new Run($"{hint.Name}("));
+            for (var p = 0; p < hint.Parameters.Count; p++)
+            {
+                if (p > 0)
+                {
+                    inlines.Add(new Run(", "));
+                }
+
+                var run = new Run(hint.Parameters[p].Text);
+                if (p == hint.ActiveParameter)
+                {
+                    run.FontWeight = FontWeight.Bold;
+                }
+
+                inlines.Add(run);
+            }
+
+            inlines.Add(new Run(hint.ReturnType.Length > 0 ? $") → {hint.ReturnType}" : ")"));
+        }
+
+        if (hints.Count > MaxSignatureLines)
+        {
+            inlines.Add(new LineBreak());
+            inlines.Add(new Run($"+{hints.Count - MaxSignatureLines} more") { FontStyle = FontStyle.Italic });
+        }
+
+        SignatureText.Inlines = inlines;
+
+        // Anchored just above the line of the call's "(", so the completion
+        // list (which opens below the caret) never covers it — unless the
+        // editor has no room above that line (a call on its first visible
+        // line): the popup lives in the window's overlay layer, which nothing
+        // clips to the editor, so it used to open over the toolbar. There it
+        // goes below the line instead.
+        var textView = SqlEditor.TextArea.TextView;
+        var location = SqlEditor.Document.GetLocation(Math.Min(result.Site.OpenParen, SqlEditor.Document.TextLength));
+        var position = new TextViewPosition(location);
+        var top = textView.GetVisualPosition(position, VisualYPosition.LineTop) - textView.ScrollOffset;
+        var card = SignaturePopup.Child!;
+        card.Measure(Size.Infinity);
+        var below = top.Y - SignatureHintGap < card.DesiredSize.Height;
+        if (below)
+        {
+            var bottom = textView.GetVisualPosition(position, VisualYPosition.LineBottom) - textView.ScrollOffset;
+            SignaturePopup.PlacementAnchor = PopupAnchor.BottomLeft;
+            SignaturePopup.PlacementGravity = PopupGravity.BottomRight;
+            SignaturePopup.PlacementRect = new Rect(bottom.X, bottom.Y + SignatureHintGap, 1, 1);
+        }
+        else
+        {
+            SignaturePopup.PlacementAnchor = PopupAnchor.TopLeft;
+            SignaturePopup.PlacementGravity = PopupGravity.TopRight;
+            SignaturePopup.PlacementRect = new Rect(top.X, top.Y - SignatureHintGap, 1, 1);
+        }
+
+        SignaturePopup.PlacementTarget = textView;
+        SignaturePopup.IsOpen = true;
+    }
+
+    // --- Format / expand-star (palette + Shift-F) ------------------------
+
+    // Pretty-prints the statement under the caret and replaces just that span, so
+    // formatting one statement in a multi-statement script leaves the others alone.
+    // Puts the caret at the end of the reformatted text. A no-op when the caret
+    // isn't in a statement or the formatter left the text unchanged.
+    private void FormatCurrentStatement()
+    {
+        var text = SqlEditor.Text;
+        if (SqlScriptSplitter.StatementSpanAt(text, SqlEditor.CaretOffset) is not { } span)
+        {
+            return;
+        }
+
+        var (start, end) = span;
+        var formatted = SqlFormatter.Format(text[start..end]);
+        if (formatted == text[start..end])
+        {
+            return;
+        }
+
+        SqlEditor.Document.Replace(start, end - start, formatted);
+        SqlEditor.CaretOffset = start + formatted.Length;
+    }
+
+    // Palette "Expand SELECT *": replace the star(s) in the statement under
+    // the caret with the explicit column list — CTEs and catalog tables both
+    // resolve (see SqlCompletionProvider.ExpandSelectStar). When the expansion
+    // is declined (a table is unknown, a USING join merges columns …) the text
+    // is left alone and the reason goes to the status line: better nothing
+    // than a list that changes the result, but not nothing *silently*.
+    private void ExpandSelectStar()
+    {
+        if (_model is null)
+        {
+            return;
+        }
+
+        if (_model.CompletionProvider.ExpandSelectStar(SqlEditor.Text, SqlEditor.CaretOffset, out var refusal) is not { } expansion)
+        {
+            if (refusal is not null && _activeQuery is not null)
+            {
+                _activeQuery.Status = refusal;
+            }
+
+            return;
+        }
+
+        SqlEditor.Document.Replace(expansion.Start, expansion.Length, expansion.Replacement);
+        SqlEditor.CaretOffset = expansion.Start + expansion.Replacement.Length;
+    }
+
+    // --- Line operations (comment, duplicate, move) -----------------------
+
+    /// <summary>
+    /// The document line numbers the selection covers — the caret's line when
+    /// nothing is selected. A selection ending exactly at a line's start hasn't
+    /// really reached that line, so it doesn't count (drag-selecting three full
+    /// lines must act on three, not four).
+    /// </summary>
+    private (int First, int Last) SelectedLineRange()
+    {
+        var document = SqlEditor.Document;
+        var hasSelection = SqlEditor.SelectionLength > 0;
+        var start = hasSelection ? SqlEditor.SelectionStart : SqlEditor.CaretOffset;
+        var end = hasSelection ? SqlEditor.SelectionStart + SqlEditor.SelectionLength : SqlEditor.CaretOffset;
+
+        var first = document.GetLineByOffset(start);
+        var last = document.GetLineByOffset(end);
+        if (last.LineNumber > first.LineNumber && end == last.Offset)
+        {
+            last = last.PreviousLine ?? last;
+        }
+
+        return (first.LineNumber, last.LineNumber);
+    }
+
+    /// <summary>
+    /// Comment/uncomment the selected lines. The decision of what to write is
+    /// <see cref="LineCommenter"/>'s (Core-pure, unit-tested); this only maps
+    /// it onto the document.
+    /// </summary>
+    private void ToggleLineComment()
+    {
+        var document = SqlEditor.Document;
+        var (first, last) = SelectedLineRange();
+
+        var lines = new List<string>(last - first + 1);
+        for (var number = first; number <= last; number++)
+        {
+            var line = document.GetLineByNumber(number);
+            lines.Add(document.GetText(line.Offset, line.Length));
+        }
+
+        var toggled = LineCommenter.Toggle(lines);
+
+        // Bottom-up, so rewriting one line never invalidates the offsets of the
+        // ones still to go. One update group = one undo step.
+        document.BeginUpdate();
+        try
+        {
+            for (var number = last; number >= first; number--)
+            {
+                var line = document.GetLineByNumber(number);
+                var replacement = toggled[number - first];
+                if (document.GetText(line.Offset, line.Length) != replacement)
+                {
+                    document.Replace(line.Offset, line.Length, replacement);
+                }
+            }
+        }
+        finally
+        {
+            document.EndUpdate();
+        }
+    }
+
+    /// <summary>Copies the selection in place, or the caret's line below itself.</summary>
+    private void DuplicateSelectionOrLine()
+    {
+        var document = SqlEditor.Document;
+        if (SqlEditor.SelectionLength > 0)
+        {
+            var start = SqlEditor.SelectionStart;
+            var length = SqlEditor.SelectionLength;
+            document.Insert(start + length, document.GetText(start, length));
+            SqlEditor.Select(start + length, length);
+            return;
+        }
+
+        var line = document.GetLineByOffset(SqlEditor.CaretOffset);
+        var newLine = TextUtilities.GetNewLineFromDocument(document, line.LineNumber);
+        var text = document.GetText(line.Offset, line.Length);
+        var caret = SqlEditor.CaretOffset;
+
+        document.Insert(line.EndOffset, newLine + text);
+        // Land on the copy at the same column, so repeated presses stack copies.
+        SetCaret(caret + newLine.Length + line.Length);
+    }
+
+    /// <summary>Swaps the selected lines with the one above (-1) or below (+1).</summary>
+    private void MoveSelectedLines(int direction)
+    {
+        var document = SqlEditor.Document;
+        var (first, last) = SelectedLineRange();
+
+        var targetNumber = direction < 0 ? first - 1 : last + 1;
+        if (targetNumber < 1 || targetNumber > document.LineCount)
+        {
+            return;
+        }
+
+        var blockStart = document.GetLineByNumber(first).Offset;
+        var blockEnd = document.GetLineByNumber(last).EndOffset;
+        var block = document.GetText(blockStart, blockEnd - blockStart);
+
+        var target = document.GetLineByNumber(targetNumber);
+        var targetText = document.GetText(target.Offset, target.Length);
+        var newLine = TextUtilities.GetNewLineFromDocument(document, first);
+
+        var caret = SqlEditor.CaretOffset;
+        var selectionStart = SqlEditor.SelectionStart;
+        var selectionLength = SqlEditor.SelectionLength;
+
+        // Where the block lands. Offsets are then carried across as distances
+        // from the block's start rather than by a precomputed delta: a caret
+        // that sits outside the block (a selection ending on the following
+        // line's first column trims back to the line above, leaving it there)
+        // would otherwise be shifted into nowhere — that overflow is what
+        // crashed the editor the first time this shipped.
+        int movedStart;
+        if (direction < 0)
+        {
+            document.Replace(target.Offset, blockEnd - target.Offset, block + newLine + targetText);
+            movedStart = target.Offset;
+        }
+        else
+        {
+            document.Replace(blockStart, target.EndOffset - blockStart, targetText + newLine + block);
+            movedStart = blockStart + targetText.Length + newLine.Length;
+        }
+
+        var blockLength = blockEnd - blockStart;
+        SetCaret(Reposition(caret));
+        if (selectionLength > 0)
+        {
+            var start = Math.Clamp(Reposition(selectionStart), 0, document.TextLength);
+            SqlEditor.Select(start, Math.Min(selectionLength, document.TextLength - start));
+        }
+
+        // Offsets inside the block travel with it; anything else stays put.
+        int Reposition(int offset) =>
+            offset >= blockStart && offset <= blockStart + blockLength
+                ? movedStart + (offset - blockStart)
+                : offset;
+    }
+
+    // AvaloniaEdit throws on an out-of-range caret, so every computed offset
+    // goes through here rather than being assigned straight to the editor.
+    private void SetCaret(int offset) =>
+        SqlEditor.CaretOffset = Math.Clamp(offset, 0, SqlEditor.Document.TextLength);
+}

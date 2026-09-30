@@ -24,14 +24,12 @@ edit_uri: edit/main/docs/
 docs_dir: docs
 site_dir: site
 
-# docs/ doubles as the repo's internal notes directory. Only the pages in `nav`
-# below are published — everything here is working material that must not ship.
+# Only the pages in `nav` below are published. docs/dev/ holds the contributor
+# notes (design records, release checklists) and docs/marketing/ unpublished
+# drafts; neither ships.
 exclude_docs: |
+  dev/
   marketing/
-  design/
-  PROGRESS.md
-  PRE-LAUNCH-CHECKLIST.md
-  RELEASE-CHECKLIST.md
 
 theme:
   name: material

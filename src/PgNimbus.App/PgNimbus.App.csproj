@@ -1,0 +1,72 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>PgNimbus.App</RootNamespace>
+    <AssemblyName>PgNimbus.App</AssemblyName>
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <!--
+        English-only: don't ship localized satellite assemblies (the DataGrid
+        pulls in zh-Hans). Under NativeAOT the satellites are bundled into the
+        binary and enumerated by AppDomain.GetAssemblies() - with invariant
+        globalization, AssemblyName construction for a culture-named satellite
+        throws CultureNotFoundException inside Avalonia's asset resolver,
+        which surfaces as a bogus "avares://... not found" crash at startup.
+    -->
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <!--
+        The release build publishes NativeAOT, so trim/AOT-hostile calls are a
+        runtime crash, not a perf note - JsonSerializer's reflection overloads
+        throw "Reflection-based serialization has been disabled for this
+        application" under AOT. Core carries IsAotCompatible (which turns these
+        analyzers on); the App can't (it isn't a library and shouldn't be marked
+        trimmable), so switch the analyzers on directly and get the IL2026/IL3050
+        warning at build time instead of after a release build ships. Deliberately
+        not IsAotCompatible=true - that also sets IsTrimmable, which is a library
+        concept. The App is currently at zero IL warnings; keep it there.
+    -->
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <EnableAotAnalyzer>true</EnableAotAnalyzer>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <RuntimeIdentifiers>win-x64;osx-arm64;linux-x64;linux-arm64</RuntimeIdentifiers>
+    <Authors>Dmitrii Shmanev</Authors>
+    <Product>pgNimbus</Product>
+    <Description>A fast, open-source PostgreSQL GUI client built with .NET and Avalonia.</Description>
+    <Copyright>Copyright (c) 2026 Dmitrii Shmanev</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/Shman4ik/pgNimbus</RepositoryUrl>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Assets\Msix\** are packaging-time-only MSIX tile images (see
+         scripts/windows/make-app-icons.ps1), not app resources. -->
+    <AvaloniaResource Include="Assets\**" Exclude="Assets\Msix\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.1.3" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.3" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.3" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.3" />
+    <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.1.2" />
+    <PackageReference Include="Avalonia.AvaloniaEdit" Version="12.0.0" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PgNimbus.Core\PgNimbus.Core.csproj" />
+    <!-- The design system shared with kubeNimbus. A git subtree, not a NuGet
+         package: the sources stay in the tree, so there is no feed and no version
+         bump between editing a colour and seeing it. See
+         shared\nimbusUi\README.md for the subtree pull/push commands, and
+         shared\nimbusUi\DESIGN.md for the rules it enforces. -->
+    <ProjectReference Include="..\..\shared\nimbusUi\src\Nimbus.Ui\Nimbus.Ui.csproj" />
+  </ItemGroup>
+
+</Project>

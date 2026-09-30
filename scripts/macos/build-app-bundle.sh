@@ -31,7 +31,7 @@ APP_DIR="$DMG_ROOT/pgNimbus.app"
 mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
 
 # Info.plist with the version stamped in.
-sed "s/__VERSION__/$VERSION/g" "$REPO_ROOT/installer/macos/Info.plist.template" \
+sed "s/__VERSION__/$VERSION/g" "$REPO_ROOT/packaging/macos/Info.plist.template" \
   > "$APP_DIR/Contents/Info.plist"
 
 # App icon: build a .iconset from the prepared square tile masters and compile
@@ -94,11 +94,11 @@ chmod +x "$APP_DIR/Contents/MacOS/PgNimbus.App"
 # validation, which refuses to load a dylib unless it carries the main
 # executable's own Team ID; every dylib here is ad-hoc signed like the app
 # itself (no Team ID at all), so library validation would refuse them all at
-# launch. installer/macos/Entitlements.plist disables just that one check.
+# launch. packaging/macos/Entitlements.plist disables just that one check.
 #
 # It is not a substitute for a Developer ID signature plus notarization, which
 # would remove the warning entirely and still needs a paid Apple account.
-ENTITLEMENTS="$REPO_ROOT/installer/macos/Entitlements.plist"
+ENTITLEMENTS="$REPO_ROOT/packaging/macos/Entitlements.plist"
 while IFS= read -r lib; do
   codesign --force --options runtime --entitlements "$ENTITLEMENTS" --timestamp=none --sign - "$lib"
 done < <(find "$APP_DIR/Contents/MacOS" -type f -name '*.dylib')

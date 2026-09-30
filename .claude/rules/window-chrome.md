@@ -4,8 +4,8 @@ paths:
   - "**/Chrome/**"
   - "**/MainWindow*"
   - "**/ConnectionDialog*"
-  - "PgNimbus.App/App.axaml*"
-  - "PgNimbus.App/Platform/**"
+  - "src/PgNimbus.App/App.axaml*"
+  - "src/PgNimbus.App/Platform/**"
   - "**/MacMenus*"
   - "**/MacAppMenu*"
   - "**/ResultsGridPanel*"
@@ -13,7 +13,7 @@ paths:
   - "**/ThemedWindowChrome*"
 ---
 
-<!-- Moved out of the root CLAUDE.md so it loads only when working on these paths. Same rule applies: keep it current in the same PR. -->
+<!-- Moved out of .claude/CLAUDE.md so it loads only when working on these paths. Same rule applies: keep it current in the same PR. -->
 
 ## Platform window chrome
 

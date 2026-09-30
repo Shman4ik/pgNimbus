@@ -2,11 +2,11 @@
 description: "Headless screenshot harness (tools/Screenshot) and headless UI tests (PgNimbus.App.Tests)."
 paths:
   - "tools/Screenshot/**"
-  - "PgNimbus.App.Tests/**"
+  - "tests/PgNimbus.App.Tests/**"
   - "scripts/screenshots/**"
 ---
 
-<!-- Moved out of the root CLAUDE.md so it loads only when working on these paths. Same rule applies: keep it current in the same PR. -->
+<!-- Moved out of .claude/CLAUDE.md so it loads only when working on these paths. Same rule applies: keep it current in the same PR. -->
 
 ## Headless screenshot harness (`tools/Screenshot`)
 
@@ -76,7 +76,7 @@ artifact nobody opens is not a check:
    covered: they show motion and are still recorded by hand.
 
 Full rationale, thresholds and the weekly-release loop:
-[`docs/design/release-checks.md`](docs/design/release-checks.md).
+[`docs/dev/design/release-checks.md`](docs/dev/design/release-checks.md).
 
 How the fixtures work, and why they're shaped this way:
 

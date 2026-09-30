@@ -1,7 +1,7 @@
 # Completion audit stand
 
 The fixtures behind the second completion audit,
-[`docs/design/sql-completion-audit-2.md`](../../../docs/design/sql-completion-audit-2.md).
+[`docs/dev/design/sql-completion-audit-2.md`](../../../docs/dev/design/sql-completion-audit-2.md).
 They measure how much completion helps someone typing ordinary SQL, and
 whether it ever gets in their way. Everything runs offline from the catalog
 snapshot below; a server is needed only to take a new snapshot.
@@ -22,7 +22,7 @@ From the repository root:
 dotnet run -c Release --project tools/CompletionBench -- quality
 dotnet run -c Release --project tools/CompletionBench -- cases
 dotnet run -c Release --project tools/CompletionBench -- hints
-dotnet test --project PgNimbus.App.Tests -- --treenode-filter "/*/*/CompletionTypingReplayTests/*"
+dotnet test --project tests/PgNimbus.App.Tests -- --treenode-filter "/*/*/CompletionTypingReplayTests/*"
 ```
 
 - `quality`: for every word of the corpus, where the intended row lands after

@@ -16,9 +16,9 @@
 -->
 
 - [ ] `dotnet build PgNimbus.slnx`
-- [ ] `dotnet test --project PgNimbus.Core.Tests/PgNimbus.Core.Tests.csproj`
+- [ ] `dotnet test --project tests/PgNimbus.Core.Tests/PgNimbus.Core.Tests.csproj`
       — against a live Postgres? <!-- yes / no, tests skip cleanly without one -->
-- [ ] `dotnet test --project PgNimbus.App.Tests/PgNimbus.App.Tests.csproj`
+- [ ] `dotnet test --project tests/PgNimbus.App.Tests/PgNimbus.App.Tests.csproj`
       <!-- headless UI tests: real windows, no display, no database -->
 - [ ] NativeAOT publish, no new trim/AOT warnings — RID: <!-- win-x64 (shipping) / linux-x64 -->
 - [ ] UI changes: baselines refreshed via `scripts/screenshots/update-baselines.sh`
@@ -35,7 +35,7 @@ Anything left unverified:
 
 ## Checklist
 
-- [ ] [CLAUDE.md](../CLAUDE.md) updated if this changes anything it describes
+- [ ] [CLAUDE.md](../.claude/CLAUDE.md) updated if this changes anything it describes
       — it's the contract, not a record of the past
 - [ ] **Touches `shared/nimbusUi`?** Then the change is kubeNimbus's too: push
       the subtree up (`git subtree push --prefix shared/nimbusUi …`), open the

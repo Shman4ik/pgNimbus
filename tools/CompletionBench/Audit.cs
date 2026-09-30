@@ -8,7 +8,7 @@ namespace PgNimbus.CompletionBench;
 
 /// <summary>
 /// The provider-level measurements of the completion audit
-/// (docs/design/sql-completion-audit-2.md, sections 2.3 and 8). They load a
+/// (docs/dev/design/sql-completion-audit-2.md, sections 2.3 and 8). They load a
 /// catalog snapshot (<see cref="AuditCatalog"/>) and ask the real
 /// <see cref="SqlCompletionProvider"/> and <see cref="CompletionRanker"/>
 /// what the popup would hold — no editor, no server. The typing replay,
