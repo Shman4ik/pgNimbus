@@ -152,8 +152,9 @@ The poster carries the same wordmark-plus-tagline layout as
 
 Two more in the same folder come from elsewhere (2026-09): `SuperHeroArt-16x9-1920x1080.png`,
 the image the Store shows at the top of the listing once the trailer ends, from
-`scripts/windows/make-store-hero.ps1` (the harness screenshot
-`screenshots/02-query-plan.dark.png` on the brand navy, right of centre; the Store lays
+`scripts/windows/make-store-hero.ps1` (`SuperHeroArt-source.dark.png`, a query and its
+rows in the dark theme captured from the real app on Windows by
+`scripts/demo/record/scenes/store-hero.ps1`, on the brand navy, right of centre; the Store lays
 its own title over the left side and forbids the product's title in this image, so it
 carries no wordmark), and `trailer/`, the Store trailer and its thumbnail, from
 `scripts/demo/record/scenes/store-trailer.ps1` + `make-trailer.sh` (see

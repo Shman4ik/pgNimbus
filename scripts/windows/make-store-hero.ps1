@@ -5,9 +5,11 @@
 #   - it must not include the product's title (Store rule), which is why this
 #     is the app on the brand navy and not the wordmark lockup the poster uses;
 #   - the left third is kept empty for that overlay.
-# The window is design/store/screenshots/02-query-plan.dark.png, which the
-# headless harness renders, so regenerating the screenshots and then this keeps
-# the two in step. Output is checked into design/store/ like the other logos.
+# The window is design/store/SuperHeroArt-source.dark.png: the everyday case (a
+# query and its rows, dark theme) captured from the real app on Windows by
+# scripts/demo/record/scenes/store-hero.ps1, not a headless render, so it shows
+# the real window chrome and fonts. Output is checked into design/store/ like the
+# other logos.
 #
 # Usage:
 #   pwsh scripts/windows/make-store-hero.ps1
@@ -24,7 +26,7 @@ Add-Type -AssemblyName System.Drawing
 
 $repo = Resolve-Path (Join-Path $PSScriptRoot '..\..')
 if (-not $OutDir) { $OutDir = Join-Path $repo 'design\store' }
-if (-not $Screenshot) { $Screenshot = Join-Path $repo 'design\store\screenshots\02-query-plan.dark.png' }
+if (-not $Screenshot) { $Screenshot = Join-Path $repo 'design\store\SuperHeroArt-source.dark.png' }
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 
 $W, $H = $Size.Split('x') | ForEach-Object { [int]$_ }

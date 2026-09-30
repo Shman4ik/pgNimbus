@@ -12,6 +12,7 @@ capture box and writes `out\raw\<scene>.mp4`.
 | `scenes/explain-tree.ps1` | `explain-tree-demo.gif` |
 | `scenes/safe-mode.ps1` | `safe-mode-commit-demo.gif` |
 | `scenes/store-trailer.ps1` | `design/store/trailer/pgnimbus-trailer.mp4` (see below) |
+| `scenes/store-hero.ps1` | `design/store/SuperHeroArt-source.dark.png`, a still for `make-store-hero.ps1` |
 
 ## Rules
 
