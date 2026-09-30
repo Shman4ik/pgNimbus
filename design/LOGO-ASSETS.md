@@ -137,8 +137,6 @@ renders the card uncropped at its native 2:1, so that traded away a legible
 product name and tagline for a benefit that mostly didn't apply. It is opaque
 because a transparent card renders white in some clients and black in others.
 
-> Superseded/old concepts live in `design/archive/`.
-
 ### `design/store/` — Microsoft Partner Center listing images (**generated**)
 
 Not a source — **generated** by `scripts/windows/make-store-logos.ps1` from
@@ -371,7 +369,7 @@ rules", so the designer sees them without reading this file.
 - Removed orphan `Assets/pgnimbus-icon_opt (1).ico` (was bundled into the app
   via the `Assets\**` glob for no reason).
 - Old loose sources (`icon-tile.png`, `logo*.png`, `logo_01.ico`, `simple/`)
-  moved to `design/archive/`.
+  were deleted (2026-09); they are in git history if ever needed.
 - Per `CLAUDE.md`'s "keep this file current" rule: when the layout or pipeline
   changes, update this file **and** the `## App icon / logo assets` section of
   `CLAUDE.md` in the same PR.

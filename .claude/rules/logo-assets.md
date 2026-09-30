@@ -81,7 +81,7 @@ nothing can regenerate. Layout:
   is 39.451 in both modules, the width kubeNimbus's broom already used: at the
   trunk it has to *fill* the hollow between the trunk's two walls out on the
   plate, not merely outline them, or the trunk ends with a black wedge inside
-  it. What this replaced is `design/archive/logo-raster-era.svg` — one compound
+  it. What this replaced (the raster-era `logo.svg`, in git history) was one compound
   path with seven subpaths, in which neither the elephant nor the broom was an
   object: both were white showing through a solid ink disc, so hiding the disc
   left nothing.
@@ -111,7 +111,6 @@ nothing can regenerate. Layout:
   listing images from `icon-1024.png`, via
   `scripts/windows/make-store-logos.ps1`. Checked into git so a Partner
   Center re-upload doesn't depend on someone remembering to run the script.
-- `design/archive/` — superseded concepts (old `icon-tile.png`, `simple/`, …).
 
 Everything in `src/PgNimbus.App/Assets/` is **generated** by
 `scripts/windows/make-app-icons.ps1` (Windows-only, System.Drawing) —
