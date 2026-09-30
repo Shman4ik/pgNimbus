@@ -1253,13 +1253,18 @@ guessing at a client-side conversion.</p>
 inspector opens straight on its Edit tab, with:</p>
 <ul>
 <li>pretty-printing and minifying</li>
-<li>JSON syntax highlighting</li>
+<li>JSON syntax highlighting, with keys, strings, numbers and <code>true</code>/<code>false</code>/<code>null</code>
+  each in their own colour</li>
+<li>folding for every object and array</li>
 <li>client-side validation before anything is sent</li>
-<li>a collapsible read-only tree view of the value</li>
+<li><kbd>Ctrl</kbd>+<kbd>Enter</kbd> to save, the same chord that runs a query</li>
 </ul>
 <p>Validation is driven by the column's type rather than by what the value looks
 like, so a plain <code>text</code> column holding something JSON-shaped still accepts any
 string.</p>
+<p>Text is shown as it is. A string such as <code>"Ann &lt;ann@example.com&gt;"</code> or one
+holding an emoji is not turned into <code>&lt;…</code> escapes, and e-mail addresses and
+URLs are ordinary text, not links.</p>
 <h2 id="safe-mode">Safe mode<a class="headerlink" href="#safe-mode" title="Permanent link">&para;</a></h2>
 <p><img alt="Two cell edits staged in safe mode (the rows turn amber), reviewed as SQL, then committed together in one transaction" src="../../screenshots/safe-mode-commit-demo.gif" /></p>
 <p>Safe mode is on by default for every new connection. It is for the "inline
@@ -1317,6 +1322,41 @@ graph and still have every step you came through.</p>
 truncation, with JSON pretty-printed and one-click copy. On an editable cell it
 also has an Edit tab, which is the comfortable way to edit anything longer than a
 line.</p>
+<p>A JSON value opens in a larger overlay, coloured the same way as the editor,
+with line numbers and a fold marker beside each object and array. A folded one
+shows how many fields or items it holds. <kbd>Ctrl</kbd>+<kbd>F</kbd> searches
+the value.</p>
+<p><strong>Tree</strong> shows the value as a collapsible document instead. It opens with as
+much expanded as fits on screen, so a small value is readable without a click.
+Select a row to see its path under the tree, written as SQL over the column
+(<code>metadata-&gt;'items'-&gt;0-&gt;&gt;'sku'</code>), ready to paste into a <code>WHERE</code>. Right-click a row
+to copy:</p>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>What you get</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Copy Value</td>
+<td>The value itself: a string without its quotes, an object or array as formatted JSON</td>
+</tr>
+<tr>
+<td>Copy SQL Path</td>
+<td>The <code>-&gt;</code> / <code>-&gt;&gt;</code> expression over the column</td>
+</tr>
+<tr>
+<td>Copy JSON Path</td>
+<td>The SQL/JSON path, such as <code>$.items[0].sku</code>, for <code>jsonb_path_query</code> and friends</td>
+</tr>
+</tbody>
+</table>
+<p>The inspector remembers whether you last used the text or the tree, so pressing
+<kbd>Space</kbd> on the next row opens the same view.</p>
+<p>While the inspector is open, the window's other shortcuts are off. It is modal,
+so nothing you press there acts on the tab behind it.</p>
 <h2 id="transactions">Transactions<a class="headerlink" href="#transactions" title="Permanent link">&para;</a></h2>
 <p>An explicit transaction runs on one held connection, with a status-bar indicator
 so you always know you are inside one.</p>
