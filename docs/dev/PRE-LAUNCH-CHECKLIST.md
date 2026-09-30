@@ -197,7 +197,8 @@ launch-day traffic doesn't come back for a second look.
       cross-platform-capable; honest answer about what's tested),
       "unsigned binaries", "how is this different from Beekeeper/
       DBeaver", and benchmark-methodology questions about the 100 ms
-      claim (`docs/dev/PROGRESS.md` iteration 1 has the receipts — link it).
+      claim (the old progress log's iteration 1 had the receipts; it was deleted
+      in 2026-09 and is in git history, or link the benchmark workflow's results).
 - [ ] **Lobsters, r/dotnet, r/csharp, r/programming** — staggered over
       the following days, angle adjusted per audience (r/dotnet cares
       about the NativeAOT + Avalonia story more than the Postgres story).
