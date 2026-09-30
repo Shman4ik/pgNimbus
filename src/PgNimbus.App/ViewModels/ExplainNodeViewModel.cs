@@ -61,6 +61,14 @@ public sealed partial class ExplainNodeViewModel : ObservableObject
     [ObservableProperty]
     private bool _isBottleneck;
 
+    /// <summary>
+    /// Whether the node's row is open. The plan opens all the way down; the state
+    /// lives here rather than on the row because the tree virtualizes, and a row
+    /// scrolled out of view is reused for another node.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isExpanded = true;
+
     /// <summary>Exclusive (self) execution time — 0 when the plan carries no ANALYZE timing.</summary>
     public double SelfTimeMs { get; }
 

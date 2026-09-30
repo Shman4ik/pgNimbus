@@ -224,14 +224,8 @@ public partial class QueryEditorPanel : UserControl
         // when that routing misses the panel, so the buttons call the panel's
         // methods directly instead.
         _searchPanel = SearchPanel.Install(SqlEditor);
-        _searchPanel.TemplateApplied += (_, e) =>
-        {
-            WireSearchPanelButton(e, "PART_FindPreviousButton", p => p.FindPrevious());
-            WireSearchPanelButton(e, "PART_FindNextButton", p => p.FindNext());
-            WireSearchPanelButton(e, "PART_CloseButton", p => p.Close());
-            WireSearchPanelButton(e, "PART_ReplaceNextButton", p => p.ReplaceNext());
-            WireSearchPanelButton(e, "PART_ReplaceAllButton", p => p.ReplaceAll());
-        };
+        EditorDefaults.WireSearchButtons(_searchPanel);
+        EditorDefaults.Apply(SqlEditor);
 
         ActualThemeVariantChanged += (_, _) => ApplySqlHighlightingTheme();
         DataContextChanged += OnDataContextChanged;
@@ -306,24 +300,6 @@ public partial class QueryEditorPanel : UserControl
         // Focus after the open has been laid out — Reactivate needs the panel's
         // TextBox realized, which isn't guaranteed synchronously on first open.
         Dispatcher.UIThread.Post(() => _searchPanel.Reactivate());
-    }
-
-    // Attaches a click handler to one of the compact search-panel template's
-    // named buttons (see the SearchPanel ControlTheme in Theme.axaml).
-    // TemplateApplied can rerun (it instantiates fresh buttons each time), so
-    // attaching here never double-subscribes.
-    private void WireSearchPanelButton(TemplateAppliedEventArgs e, string name, Action<SearchPanel> action)
-    {
-        if (e.NameScope.Find<Button>(name) is { } button)
-        {
-            button.Click += (_, _) =>
-            {
-                if (_searchPanel is { } panel)
-                {
-                    action(panel);
-                }
-            };
-        }
     }
 
     // --- ViewModel wiring / active-tab tracking --------------------------
@@ -494,7 +470,7 @@ public partial class QueryEditorPanel : UserControl
         textView.CurrentLineBorder = new Pen(Brushes.Transparent);
         _bracketRenderer.Brush = new SolidColorBrush(Color.Parse(dark ? "#40569CD6" : "#332B5FBF"));
         // Find-match highlight: same accent-tinted wash family as the bracket pair.
-        _searchPanel?.SetSearchResultsBrush(new SolidColorBrush(Color.Parse(dark ? "#40569CD6" : "#332B5FBF")));
+        _searchPanel?.SetSearchResultsBrush(EditorDefaults.SearchResultsBrush(ActualThemeVariant));
 
         // Reassigning is what makes the TextView drop its cached line
         // visuals and re-run the highlighter with the new brushes.

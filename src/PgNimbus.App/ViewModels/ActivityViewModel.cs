@@ -65,6 +65,13 @@ public sealed class BlockingNode(BlockingTreeNode node)
 {
     private readonly BlockingTreeNode _node = node;
 
+    /// <summary>
+    /// Whether the node's row is open: every row starts open, so the wait chain
+    /// shows at a glance. Kept here, not on the row, because the tree virtualizes
+    /// and reuses a row scrolled out of view for another backend.
+    /// </summary>
+    public bool IsExpanded { get; set; } = true;
+
     public int Pid => _node.Backend.Pid;
 
     public string Identity => $"{_node.Backend.User ?? "?"}@{_node.Backend.Database ?? "?"}";

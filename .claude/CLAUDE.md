@@ -1739,7 +1739,7 @@ Moved to [`.claude/rules/logo-assets.md`](rules/logo-assets.md), which loads whe
   **View / Edit** segmented-tab header (one click each way; the in-progress edit
   buffer survives a hop to View and back — the `_editSeeded` flag reseeds only on
   first entry or a Cancel/Save). Editing is offered for the **free-text editor
-  kinds** (`MainWindow.IsFreeTextEditor`: `Text`/`Array`/`Composite`/`Json`/
+  kinds** (`ResultsGridPanel.IsFreeTextEditor`: `Text`/`Array`/`Composite`/`Json`/
   `CastText`) — everything the commit path can take as typed text — but **not**
   the typed-widget kinds (`Boolean`/`Enum`/`Date`/`Timestamp`), which stay
   inline-only (a text box is a downgrade from their checkbox/dropdown/picker).
@@ -1750,12 +1750,68 @@ Moved to [`.claude/rules/logo-assets.md`](rules/logo-assets.md), which loads whe
   — so a plain `text` column holding a JSON-looking string still accepts any
   string. A double-click on an editable json/jsonb cell opens the inspector
   straight on the Edit tab (`OpenCellInspector(..., startEditing: true)`), since
-  json is unusable in a one-line inline editor; `MainWindow.OnResultsGridBeginningEdit`
+  json is unusable in a one-line inline editor; `ResultsGridPanel.OnResultsGridBeginningEdit`
   cancels the grid's own inline edit for that gesture. Other editable types keep
   their fast inline double-click; the inspector's Edit tab is reached via Space /
   "Inspect Cell…". Completion carries the jsonb function
   family (`SqlCompletionProvider.Functions`); JSON operators (`->`, `@>`, `?`,
   `@?`, …) are punctuation, out of the identifier-triggered completion model.
+  **The JSON polish pass** (2026-09-30, reported from real use: "part of my JSON
+  was randomly highlighted blue — a nested list of e-mails"). Five defects, each
+  reproduced in a headless test before it was fixed (`JsonInspectorTests`):
+  (a) **AvaloniaEdit draws every URL and e-mail address as a link**, in pure
+  `Blue`, over the highlighter's colours (`TextEditorOptions.EnableHyperlinks` /
+  `EnableEmailHyperlinks` default on): that was the "random" blue, and an
+  address in a SQL string literal did the same. `Views/EditorDefaults.Apply`
+  turns both off, and every AvaloniaEdit editor in the app calls it — any new
+  one must. (b) **Object keys were never coloured as keys.** Json.xshd had a
+  `Rule` for them, and AvaloniaEdit tries a RuleSet's Rules only on the text
+  *between* its Spans; every key starts with the quote that begins the string
+  Span, so the rule never matched once. Keys are a Span now, with a lookahead
+  begin (`"(?=(?:[^"\\]|\\.)*"\s*:)`) defined before the string Span so it
+  wins the tie. The colours are the `Json*Brush` theme resources in
+  `Styles/Theme.axaml`, which the tree paints with directly and
+  `Views/JsonSyntax` copies into one highlighting definition per theme.
+  (c) **The formatter escaped what JSON doesn't need escaped.** Pretty-printing
+  went through `Utf8JsonWriter` with `JavaScriptEncoder.Create(UnicodeRanges.All)`,
+  which still escapes HTML-sensitive characters: `"Ann <ann@example.com>"` read
+  as `"Ann <ann@example.com>"`, `'`, `&`, `+` the same, and even
+  `UnsafeRelaxedJsonEscaping` writes an emoji as two surrogate escapes; a
+  Format then Save wrote that back into a `json` column. The Core-pure
+  `Json/JsonText` writes the tokens itself (a `Utf8JsonReader` pass), escaping
+  only the quote, the backslash and control characters, keeping a number's
+  source text byte for byte, reading to `JsonText.MaxDepth` (256; JsonDocument's
+  default 64 had shown a deeper jsonb as plain text), always with `\n` breaks.
+  (d) **Ctrl/Cmd+Enter in the inspector's editor ran the query behind the
+  overlay**, reloading the grid under the cell being edited, and Ctrl+W closed
+  the tab it sat on. The window's key bindings see a key *before* the focused
+  control does, so `MainWindow.ResolveCommand` returns no command while
+  `CellInspector.IsOpen` (the inspector is modal), `OnKeyDown` returns early
+  for it (routing the Find chord to the value's own find bar), and
+  `CellValueView` answers the Run chord with Save — documented in the catalog as
+  `CommandId.SaveInspectedValue`, a gesture note that borrows Run's chord through
+  the new `{chord:Run}` placeholder (a second Ctrl+Enter entry would fail the
+  shadowing test; spelling "Enter" would fail the Cmd scheme's no-words test).
+  (e) **The read view was a monochrome `SelectableTextBlock`** and the tree
+  opened as one collapsed `$`. Both the inspector and the notify monitor's
+  payload pane now host `Views/CellValueView` (UI rule 7 — the two had carried
+  copies of the same XAML): a read-only AvaloniaEdit viewer in the editor's
+  colours, with line numbers, folding (`Json/JsonFolding`, a Core-pure bracket
+  pass that never parses, so half-typed text still folds, titled like the tree's
+  summaries) and its own find bar, and laying out only the lines on screen; the
+  tree, which opens breadth first while the rows fit (`JsonTree.OpenRows`, 100),
+  colours keys and values like the viewer, and names the selected row's path in
+  a footer as SQL over the column (`JsonPaths.ToSql`: `metadata->'cc'->>0`,
+  `::jsonb` first for a column that isn't json/jsonb, a JSON path for the
+  payload pane, which has no column); its right-click menu copies the value
+  (`JsonTree.ValueAt`, by member *position*, since a `json` value can repeat a
+  key), the SQL path or the JSON path. A JSON value gets a larger card (up to
+  1040 wide, the window's height); the size is a style on the card itself,
+  because the hoisted overlay leaves `ResultsGridPanel`'s styles behind. The
+  Tree/Text choice is a preference that survives the next Space. The built-in
+  `TextEditor.SearchPanel` exists only once the editor's template is applied,
+  and the compact find-bar template's buttons need wiring by name
+  (`EditorDefaults.WireSearchButtons`, once per panel), as the SQL editor's did.
 - **Cell edits round-trip through a server-side cast, not a CLR conversion, for
   types Postgres won't assign from text.** Inline edits send the cell text as a
   parameter and let the engine convert it (`QueryViewModel.ConvertEditedValue`:
@@ -2145,8 +2201,9 @@ serialization has been disabled for this application"). Every persisted store
 uses a source-generated context (`AppSettingsJsonContext`,
 `WorkspaceJsonContext`, …); everything that touches arbitrary user JSON —
 `ResultExporter`'s JSON export, `JsonTree`, `ExplainService`, and the cell
-inspector's Format/Minify — goes through `JsonDocument` + `Utf8JsonWriter`
-by hand, which needs no type model at all. That's enforced at build time:
+inspector's Format/Minify (`Json/JsonText`, a `Utf8JsonReader` pass) — goes
+through `JsonDocument`, `Utf8JsonReader` or `Utf8JsonWriter` by hand, which
+needs no type model at all. That's enforced at build time:
 `PgNimbus.Core` carries `IsAotCompatible`, and `PgNimbus.App` sets
 `EnableTrimAnalyzer`/`EnableAotAnalyzer` directly (it's an exe, so
 `IsAotCompatible`'s implied `IsTrimmable` doesn't fit), so an offending call

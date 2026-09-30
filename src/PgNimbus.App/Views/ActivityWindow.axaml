@@ -122,7 +122,7 @@
                                  visible at a glance, and it survives the 2s auto-refresh rebuild. -->
                             <TreeView.Styles>
                                 <Style Selector="TreeViewItem">
-                                    <Setter Property="IsExpanded" Value="True" />
+                                    <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay, DataType=vm:BlockingNode}" />
                                 </Style>
                             </TreeView.Styles>
                             <TreeView.ItemTemplate>

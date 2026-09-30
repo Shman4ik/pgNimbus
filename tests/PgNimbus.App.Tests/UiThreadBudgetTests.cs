@@ -330,6 +330,56 @@ public class UiThreadBudgetTests
     }
 
     [Test]
+    public async Task A_json_array_of_five_thousand_elements_realizes_a_screenful_and_keeps_what_was_opened()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, vm) = Scenarios.Shell();
+            Ui.Show(window);
+            var json = "[" + string.Join(",", Enumerable.Range(0, 5_000).Select(i => $"{{\"id\": {i}, \"tags\": [\"a\", \"b\"]}}")) + "]";
+            vm.CellInspector.Open("payload", json, 0, canEdit: false, commit: null, dataTypeName: "jsonb");
+            vm.CellInspector.IsTreeView = true;
+            Ui.Settle();
+
+            var tree = window.GetVisualDescendants().OfType<TreeView>().First(t => t.Name == "Tree");
+            var root = (Core.Json.JsonTreeNode)tree.ItemsSource!.Cast<object>().Single();
+            TreeViewItem Row(object node) =>
+                window.GetVisualDescendants().OfType<TreeViewItem>().First(i => ReferenceEquals(i.DataContext, node));
+
+            // As the chevron and the arrow keys do it: SetCurrentValue, which keeps
+            // the binding to the node (a local value would override it for good).
+            var rootItem = Row(root);
+            rootItem.SetCurrentValue(TreeViewItem.IsExpandedProperty, true);
+            Ui.Settle();
+
+            int Rows() => window.GetVisualDescendants().OfType<TreeViewItem>().Count(i => i.DataContext is Core.Json.JsonTreeNode);
+            await Assert.That(Rows()).IsLessThan(ScreenfulBudget);
+
+            // Open the third element by hand, scroll to the end and back: its row
+            // was reused for other elements meanwhile, and the state has to come
+            // back from the node, not stay behind on the row.
+            var third = root.Children[2];
+            Row(third).SetCurrentValue(TreeViewItem.IsExpandedProperty, true);
+            Ui.Settle();
+            await Assert.That(third.IsExpanded).IsTrue();
+
+            rootItem.ScrollIntoView(root.Children.Count - 1);
+            Ui.Settle();
+            rootItem.ScrollIntoView(0);
+            Ui.Settle();
+
+            var rows = window.GetVisualDescendants().OfType<TreeViewItem>().Where(i => i.DataContext is Core.Json.JsonTreeNode).ToList();
+            await Assert.That(rows.Single(i => ReferenceEquals(i.DataContext, third)).IsExpanded).IsTrue();
+            await Assert.That(rows
+                .Where(i => i.DataContext is Core.Json.JsonTreeNode node && root.Children.Contains(node) && !ReferenceEquals(node, third))
+                .All(i => !i.IsExpanded)).IsTrue();
+            await Assert.That(Rows()).IsLessThan(ScreenfulBudget);
+
+            window.Close();
+        });
+    }
+
+    [Test]
     public async Task Long_read_only_text_goes_to_the_editor_and_short_text_stays_a_text_block()
     {
         await Ui.Run(async () =>

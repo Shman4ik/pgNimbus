@@ -1,22 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    JSON syntax highlighting for the cell inspector's edit mode. The foreground
-    values baked in here are the dark-theme palette; MainWindow recolors the
-    named colors at runtime for the light theme (and back), so keep the color
-    names in sync with ApplyJsonHighlightingTheme.
+    JSON syntax highlighting for the cell inspector's viewer and editor. The
+    foreground values baked in here are placeholders: Highlighting/JsonSyntax
+    recolors every named color from the Json*Brush theme resources, which the
+    tree view paints with too, so keep the names in sync with it.
 -->
 <SyntaxDefinition name="JSON" extensions=".json" xmlns="http://icsharpcode.net/sharpdevelop/syntaxdefinition/2008">
     <Color name="Property" foreground="#9CDCFE" />
     <Color name="String" foreground="#CE9178" />
     <Color name="Number" foreground="#B5CEA8" />
-    <Color name="Keyword" foreground="#569CD6" fontWeight="bold" />
+    <Color name="Keyword" foreground="#569CD6" />
 
     <RuleSet>
-        <!-- A quoted string immediately followed by a colon is an object key.
-             Defined before the value-string span so keys win at the same offset. -->
-        <Rule color="Property">
-            "(\\.|[^"\\])*"(?=\s*:)
-        </Rule>
+        <!-- An object key: a string followed by a colon. It has to be a Span, not a
+             Rule. AvaloniaEdit tries a RuleSet's Rules only on the text between its
+             Spans, and every key starts with the quote that begins the String span
+             below, so a Rule for keys never matched once and keys were drawn as
+             values. The lookahead reads the whole string and the colon after it;
+             the Span comes first so it wins the tie at the same quote. -->
+        <Span color="Property">
+            <Begin>"(?=(?:[^"\\]|\\.)*"\s*:)</Begin>
+            <End>"</End>
+            <RuleSet>
+                <Span begin="\\" end="." />
+            </RuleSet>
+        </Span>
 
         <!-- Value strings; a backslash escape keeps the closing quote from ending early. -->
         <Span color="String">

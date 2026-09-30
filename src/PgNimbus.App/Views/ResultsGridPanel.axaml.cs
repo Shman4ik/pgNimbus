@@ -2,7 +2,6 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
-using System.Xml;
 using Avalonia;
 using Avalonia.Collections;
 using Avalonia.Controls;
@@ -12,13 +11,9 @@ using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Media;
-using Avalonia.Platform;
 using Avalonia.Platform.Storage;
-using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
-using AvaloniaEdit.Highlighting;
-using AvaloniaEdit.Highlighting.Xshd;
 using PgNimbus.App.Converters;
 using PgNimbus.App.ViewModels;
 using PgNimbus.Core.Commands;
@@ -34,7 +29,7 @@ namespace PgNimbus.App.Views;
 /// results DataGrid and everything only about it: type-aware column building,
 /// inline cell editing + the staged-edit commit path, safe-mode dirty-row washes,
 /// follow-FK navigation, copy/export/import, header-click sorting, and the cell
-/// inspector (its JSON editor, syntax highlighting, and theme rewrite).
+/// inspector's overlay (the value itself is a <see cref="CellValueView"/>).
 ///
 /// DataContext is inherited from the host window (a <see cref="MainViewModel"/>):
 /// the grid shows whichever tab is active and draws on window-level services (the
@@ -50,13 +45,6 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
     // The tab the shared grid currently reflects. Each tab keeps its own
     // Rows/Status; this is re-pointed as MainViewModel.ActiveTab changes.
     private QueryViewModel? _activeQuery;
-
-    // Re-entrancy guard for the cell inspector's JSON editor: the
-    // ViewModel↔AvaloniaEdit two-way sync is manual (AvaloniaEdit's Text isn't a
-    // bindable AvaloniaProperty).
-    private bool _suppressInspectorSync;
-    // JSON highlighting for the cell inspector's edit mode (theme-neutral palette).
-    private IHighlightingDefinition? _jsonHighlighting;
 
     private object?[]? _pendingEditRow;
     private int _pendingEditColumnIndex;
@@ -96,20 +84,6 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
     {
         InitializeComponent();
 
-        // Cell-inspector JSON editor: manual two-way sync (AvaloniaEdit's Text
-        // isn't a bindable AvaloniaProperty). Editor → ViewModel here; ViewModel
-        // → editor in OnCellInspectorPropertyChanged.
-        JsonInspectorEditor.TextChanged += (_, _) =>
-        {
-            if (_model is null || _suppressInspectorSync)
-            {
-                return;
-            }
-
-            _model.CellInspector.EditText = JsonInspectorEditor.Text;
-        };
-        LoadJsonHighlighting();
-
         // Column resizing is the DataGrid's own, but the cap that keeps one long
         // value from blowing a column past the viewport has to be lifted for the
         // column about to be dragged — tunneled, because the header marks the
@@ -135,7 +109,6 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
             gridMenu.Opening += (_, _) => OnResultsGridMenuOpening();
         }
 
-        ActualThemeVariantChanged += (_, _) => ApplyJsonHighlightingTheme();
         DataContextChanged += OnDataContextChanged;
 
         // Row details follow the grid's current row (the form pins itself while
@@ -156,15 +129,11 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
     // The window's root panel the cell inspector overlay is re-hosted into (see below).
     private Panel? _inspectorOverlayHost;
 
-    // ActualThemeVariant isn't final at construction time; re-resolve the JSON
-    // highlighting palette once the panel is in a live visual tree. Also hoist
-    // the cell inspector overlay out of this panel's layout so it covers the
-    // whole window rather than just the results-pane row it lives in.
+    // Hoist the cell inspector overlay out of this panel's layout so it covers
+    // the whole window rather than just the results-pane row it lives in.
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
-        ApplyJsonHighlightingTheme();
-        ApplyTextSelectionBrush();
         HoistCellInspectorToWindowRoot();
         UpdateRunHint();
         Hotkeys.Changed += UpdateRunHint;
@@ -248,6 +217,13 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
     /// <summary>Moves keyboard focus into the results grid.</summary>
     public void FocusGrid() => ResultsGrid.Focus();
 
+    /// <summary>
+    /// The Find chord while the cell inspector is open: searches the value it
+    /// shows rather than the SQL editor hidden behind the overlay. False when
+    /// the inspector is showing its tree, which has no text to search.
+    /// </summary>
+    public bool OpenInspectorSearch() => InspectorValue.OpenSearch();
+
     /// <summary>Command-bar "Export → CSV": save the current result set as CSV.</summary>
     public void ExportCsv() => _ = ExportAsync(ExportFormat.Csv, "csv", "CSV");
 
@@ -266,7 +242,6 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
         if (_model is not null)
         {
             _model.PropertyChanged -= OnMainViewModelPropertyChanged;
-            _model.CellInspector.PropertyChanged -= OnCellInspectorPropertyChanged;
             _model.RowDetailFocusRequested -= OnRowDetailFocusRequested;
             _model.FilterEditorRequested -= OnFilterEditorRequested;
         }
@@ -276,7 +251,6 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
         if (_model is not null)
         {
             _model.PropertyChanged += OnMainViewModelPropertyChanged;
-            _model.CellInspector.PropertyChanged += OnCellInspectorPropertyChanged;
             _model.RowDetailFocusRequested += OnRowDetailFocusRequested;
             _model.FilterEditorRequested += OnFilterEditorRequested;
             // Warm the FK cache in the background so the grid's FK-navigation menu
@@ -452,102 +426,6 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
         if (e.PropertyName == nameof(QueryViewModel.EditContext) && !TryUpdateColumnMetadata(_activeQuery))
         {
             RebuildColumns(_activeQuery);
-        }
-    }
-
-    // --- Cell inspector: JSON editor highlighting + sync -----------------
-
-    // The cell inspector's JSON editor gets its own highlighting, theme-rewritten
-    // the same way the SQL editor's is in QueryEditorPanel (the XSHD bakes in the
-    // dark palette).
-    /// <summary>
-    /// Locks the cell inspector's JSON editor selection wash to the fixed
-    /// brand-blue token (AppTextSelectionBrush in Theme.axaml, shared with every
-    /// plain TextBox's Style setter), so a selection there reads identically to
-    /// the SQL editor and every plain TextBox. SelectionBrush lives on TextArea,
-    /// not TextEditor, so it can't be a XAML attribute.
-    ///
-    /// Resolved on *attach*, not in the constructor — see the same method on
-    /// <see cref="QueryEditorPanel"/> for why a detached control's lookup of an
-    /// app-level resource silently finds nothing.
-    /// </summary>
-    private void ApplyTextSelectionBrush()
-    {
-        if (this.TryFindResource("AppTextSelectionBrush", ActualThemeVariant, out var selectionBrush)
-            && selectionBrush is IBrush brush)
-        {
-            JsonInspectorEditor.TextArea.SelectionBrush = brush;
-        }
-    }
-
-    private void LoadJsonHighlighting()
-    {
-        using var stream = AssetLoader.Open(new Uri("avares://PgNimbus.App/Assets/Json.xshd"));
-        using var reader = XmlReader.Create(stream);
-        _jsonHighlighting = HighlightingLoader.Load(reader, HighlightingManager.Instance);
-        ApplyJsonHighlightingTheme();
-    }
-
-    private void ApplyJsonHighlightingTheme()
-    {
-        if (_jsonHighlighting is null)
-        {
-            return;
-        }
-
-        var dark = ActualThemeVariant == ThemeVariant.Dark;
-        SetHighlightColor(_jsonHighlighting, "Property", dark ? "#9CDCFE" : "#0451A5");
-        SetHighlightColor(_jsonHighlighting, "String", dark ? "#CE9178" : "#A31515");
-        SetHighlightColor(_jsonHighlighting, "Number", dark ? "#B5CEA8" : "#098658");
-        SetHighlightColor(_jsonHighlighting, "Keyword", dark ? "#569CD6" : "#0000E0");
-
-        UpdateInspectorHighlighting();
-    }
-
-    // JSON highlighting only applies to a json/jsonb cell — the inspector now
-    // edits any free-text type (plain text, arrays, xml, …) where colored JSON
-    // tokens would be noise, so a non-JSON cell gets the bare editor. Reassigning
-    // (null then set) drops the TextView's cached line visuals so the change takes.
-    private void UpdateInspectorHighlighting()
-    {
-        var json = _model?.CellInspector.IsJson == true ? _jsonHighlighting : null;
-        JsonInspectorEditor.SyntaxHighlighting = null;
-        JsonInspectorEditor.SyntaxHighlighting = json;
-    }
-
-    // ViewModel → editor half of the inspector's manual two-way sync: when the
-    // ViewModel changes EditText (entering edit mode, Format, Minify), push it
-    // into AvaloniaEdit under the re-entrancy guard so the echo back doesn't loop.
-    private void OnCellInspectorPropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        // IsJson flips per opened cell; the editor's highlighting follows it.
-        if (e.PropertyName == nameof(CellInspectorViewModel.IsJson))
-        {
-            UpdateInspectorHighlighting();
-            return;
-        }
-
-        if (e.PropertyName != nameof(CellInspectorViewModel.EditText) || _model is null)
-        {
-            return;
-        }
-
-        var text = _model.CellInspector.EditText;
-        if (JsonInspectorEditor.Text == text)
-        {
-            return;
-        }
-
-        _suppressInspectorSync = true;
-        JsonInspectorEditor.Text = text;
-        _suppressInspectorSync = false;
-    }
-
-    private static void SetHighlightColor(IHighlightingDefinition? highlighting, string name, string hex)
-    {
-        if (highlighting?.GetNamedColor(name) is { } color)
-        {
-            color.Foreground = new SimpleHighlightingBrush(Color.Parse(hex));
         }
     }
 

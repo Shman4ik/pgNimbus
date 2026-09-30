@@ -69,6 +69,7 @@ by default and can be forced either way in Settings → Hotkey scheme.
 | Edit selected cell | F2 / double-click | F2 / double-click |
 | Commit / cancel a cell edit; stage / revert row-detail edits | Enter / Esc | ↩ / ⎋ |
 | Inspect cell (full value, pretty-printed JSON) | Space / double-click (read-only) / context menu | Space / double-click (read-only) / context menu |
+| Save the value being edited in the cell inspector | Ctrl+Enter in the cell inspector's editor | ⌘↩ in the cell inspector's editor |
 | Copy the selected cells | Ctrl+C | ⌘C |
 | Delete the selected row (editable results) | Delete | ⌦ |
 | Show / hide row details | Ctrl+I | ⌘I |

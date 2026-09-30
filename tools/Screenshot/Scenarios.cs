@@ -98,6 +98,8 @@ public static class Scenarios
         ("host-key-dialog", HostKeyDialogShot),
         ("main-window-read-only-not-applied", ReadOnlyNotApplied),
         ("connection-dialog-verify-full", ConnectionDialogVerifyFull),
+        ("main-window-cell-inspector-tree", CellInspectorTree),
+        ("main-window-cell-inspector-edit", CellInspectorEdit),
     ];
 
     // --- Main window ------------------------------------------------------
@@ -547,12 +549,41 @@ public static class Scenarios
         return window;
     }
 
-    /// <summary>The cell inspector over a jsonb value, in read mode.</summary>
+    // A jsonb value as one turns up at work: nested objects, a list of addresses
+    // (the list that used to come out partly link-blue), numbers and words.
+    private const string OrderMetadata =
+        """{"channel":"web","coupon":"SUMMER26","customer":{"name":"Ann Lee","email":"ann@example.com"},"notify":["Ann Lee <ann@example.com>","billing@example.com"],"items":[{"sku":"NIM-1","qty":2,"gift":false},{"sku":"NIM-7","qty":1,"gift":true}],"note":null}""";
+
+    /// <summary>The cell inspector over a jsonb value, in read mode: coloured and folded.</summary>
     public static Window CellInspector()
     {
         var vm = Fixtures.MainWindowViewModel();
         SeedOrdersResult(vm.ActiveTab);
-        vm.CellInspector.Open("metadata", """{"channel":"web","coupon":"SUMMER26","items":[{"sku":"NIM-1","qty":2}]}""");
+        vm.CellInspector.Open("metadata", OrderMetadata, 5, canEdit: false, commit: null, dataTypeName: "jsonb");
+        return HostMainWindow(vm);
+    }
+
+    /// <summary>
+    /// The same value as a tree, a row selected: the tree opens as much as fits,
+    /// and the footer spells the selected value's path as SQL over the column.
+    /// </summary>
+    public static Window CellInspectorTree()
+    {
+        var vm = Fixtures.MainWindowViewModel();
+        SeedOrdersResult(vm.ActiveTab);
+        vm.CellInspector.Open("metadata", OrderMetadata, 5, canEdit: false, commit: null, dataTypeName: "jsonb");
+        vm.CellInspector.IsTreeView = true;
+        vm.CellInspector.SelectedNode = vm.CellInspector.TreeRoots[0].Children.Single(n => n.Name == "notify").Children[1];
+        return HostMainWindow(vm);
+    }
+
+    /// <summary>An editable jsonb cell on its Edit tab: the editor in the viewer's colours.</summary>
+    public static Window CellInspectorEdit()
+    {
+        var vm = Fixtures.MainWindowViewModel();
+        SeedOrdersResult(vm.ActiveTab);
+        vm.CellInspector.Open("metadata", OrderMetadata, 5, canEdit: true,
+            commit: (_, _) => Task.FromResult<string?>(null), validatesAsJson: true, startEditing: true, dataTypeName: "jsonb");
         return HostMainWindow(vm);
     }
 

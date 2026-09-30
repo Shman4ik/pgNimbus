@@ -107,4 +107,111 @@ public class JsonTreeTests
         await Assert.That(root!.ValuePreview.Length).IsLessThan(big.Length);
         await Assert.That(root.ValuePreview.EndsWith('…')).IsTrue();
     }
+
+    [Test]
+    public async Task A_short_multi_line_string_still_previews_on_one_line()
+    {
+        // Only strings past the length cap used to lose their newlines, so a
+        // short two-line value made its row two lines tall.
+        var root = JsonTree.Parse("""{"note": "line 1\nline 2"}""");
+
+        await Assert.That(root!.Children[0].ValuePreview).IsEqualTo("\"line 1\\nline 2\"");
+    }
+
+    [Test]
+    public async Task A_string_previews_its_characters_unescaped()
+    {
+        var root = JsonTree.Parse("""["Ann <ann@example.com>"]""");
+
+        await Assert.That(root!.Children[0].ValuePreview).IsEqualTo("\"Ann <ann@example.com>\"");
+    }
+
+    [Test]
+    public async Task Every_node_knows_its_path_from_the_root()
+    {
+        var root = JsonTree.Parse("""{"user": {"roles": ["admin", "dev"]}, "user2": 1}""")!;
+
+        var dev = root.Children[0].Children[0].Children[1];
+
+        await Assert.That(root.Path).IsEmpty();
+        await Assert.That(dev.Path).IsEquivalentTo(
+            [JsonPathSegment.Member("user", 0), JsonPathSegment.Member("roles", 0), JsonPathSegment.Element(1)]);
+        await Assert.That(dev.IsElement).IsTrue();
+        await Assert.That(root.Children[1].Path.Single()).IsEqualTo(JsonPathSegment.Member("user2", 1));
+    }
+
+    [Test]
+    public async Task A_small_document_opens_whole()
+    {
+        var root = JsonTree.Parse("""{"cc": ["a@x.io", "b@x.io"], "meta": {"n": 1}}""")!;
+
+        await Assert.That(root.ExpandedByDefault).IsTrue();
+        await Assert.That(root.Children[0].ExpandedByDefault).IsTrue();
+        await Assert.That(root.Children[1].ExpandedByDefault).IsTrue();
+    }
+
+    [Test]
+    public async Task A_large_document_opens_its_outline()
+    {
+        // Three arrays of 40: the root and the first two fit in the rows the
+        // tree opens with, the third would take it past them.
+        var list = "[" + string.Join(",", Enumerable.Range(0, 40)) + "]";
+        var root = JsonTree.Parse($$"""{"a": {{list}}, "b": {{list}}, "c": {{list}}}""")!;
+
+        await Assert.That(root.ExpandedByDefault).IsTrue();
+        await Assert.That(root.Children[0].ExpandedByDefault).IsTrue();
+        await Assert.That(root.Children[1].ExpandedByDefault).IsTrue();
+        await Assert.That(root.Children[2].ExpandedByDefault).IsFalse();
+    }
+
+    [Test]
+    public async Task A_level_opens_before_the_one_under_it()
+    {
+        // "a" holds a 95-item array. Opened depth first it would take the rows
+        // "b" needs, and "b" is higher in the outline, so "b" goes first.
+        var list = "[" + string.Join(",", Enumerable.Range(0, 95)) + "]";
+        var root = JsonTree.Parse($$"""{"a": {"deep": {{list}}}, "b": [1, 2, 3]}""")!;
+
+        await Assert.That(root.Children[0].ExpandedByDefault).IsTrue();
+        await Assert.That(root.Children[1].ExpandedByDefault).IsTrue();
+        await Assert.That(root.Children[0].Children[0].ExpandedByDefault).IsFalse();
+    }
+
+    [Test]
+    public async Task Reads_nesting_past_json_documents_default_depth()
+    {
+        var json = new string('[', 100) + new string(']', 100);
+
+        await Assert.That(JsonTree.Parse(json)).IsNotNull();
+    }
+
+    [Test]
+    public async Task ValueAt_gives_what_a_copy_wants()
+    {
+        const string json = """{"to": ["Ann <ann@example.com>"], "n": 1.50, "ok": false, "o": {"k": [1]}}""";
+        var root = JsonTree.Parse(json)!;
+
+        await Assert.That(JsonTree.ValueAt(json, root.Children[0].Children[0].Path)).IsEqualTo("Ann <ann@example.com>");
+        await Assert.That(JsonTree.ValueAt(json, root.Children[1].Path)).IsEqualTo("1.50");
+        await Assert.That(JsonTree.ValueAt(json, root.Children[2].Path)).IsEqualTo("false");
+        await Assert.That(JsonTree.ValueAt(json, root.Children[3].Path)).IsEqualTo("{\n  \"k\": [\n    1\n  ]\n}");
+        await Assert.That(JsonTree.ValueAt(json, [])).IsEqualTo(JsonText.TryFormat(json, true, out var all) ? all : null);
+    }
+
+    [Test]
+    public async Task ValueAt_follows_a_repeated_key_by_position()
+    {
+        const string json = """{"a": 1, "a": 2}""";
+        var root = JsonTree.Parse(json)!;
+
+        await Assert.That(JsonTree.ValueAt(json, root.Children[1].Path)).IsEqualTo("2");
+    }
+
+    [Test]
+    public async Task ValueAt_is_null_for_a_path_that_leads_nowhere()
+    {
+        await Assert.That(JsonTree.ValueAt("[1]", [JsonPathSegment.Element(3)])).IsNull();
+        await Assert.That(JsonTree.ValueAt("[1]", [JsonPathSegment.Member("a", 0)])).IsNull();
+        await Assert.That(JsonTree.ValueAt("not json", [])).IsNull();
+    }
 }
