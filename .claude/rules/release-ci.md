@@ -118,9 +118,9 @@ audit findings 5 and 15). Four things the audit found, each now a rule:
   `github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')`: a
   dispatch with a tag chosen under "Use workflow from" carries the same
   `github.ref`, and used to publish while the file's header said it never would.
-  The repo-side half (a tag ruleset for `refs/tags/v*`, immutable releases)
-  is a setting, not a workflow change; the PR that added this listed the
-  commands.
+  The repo-side half is settings, on since 2026-09-30: the `Release tags`
+  ruleset (a `refs/tags/v*` tag can be created, never moved, force-updated or
+  deleted) and immutable releases.
 - **The workflow token is read-only.** Top-level `permissions: contents: read`;
   only `release` (assets, attestations) and the `benchmark` call (gh-pages
   history) get `contents: write`, and every checkout in `release.yml` and
@@ -144,8 +144,8 @@ audit findings 5 and 15). Four things the audit found, each now a rule:
   there could upload different binaries *and mint valid provenance for them*.
   Deliberately create-only — a re-run after the release exists fails rather
   than quietly replacing assets someone may already have downloaded; delete
-  the release and re-run, or cut a new tag. Once immutable releases are on,
-  the latter is the only way.
+  the release and re-run, or cut a new tag. Immutable releases are on
+  (2026-09-30), so a published release can only be followed by a new tag.
 
 **Every package is launched before it ships.** Each build job runs
 `scripts/release/smoke-launch.sh` (or `Smoke-Launch.ps1` on Windows) against
@@ -370,9 +370,10 @@ pinned NuGet sources):
   during a release). The .NET tools (`wix`, `CycloneDX`) are exact versions in
   `.config/dotnet-tools.json`; appimagetool and the AppImage runtime are fixed
   releases with sha256 checks in `build-packages.sh` (see the Linux bullet
-  above). The repo-side lock — "Require actions to be pinned to a full-length
-  commit SHA" (`actions/permissions` `sha_pinning_required`) — is a setting for
-  the owner to turn on; without it a future `@v8` slips past review.
+  above). The repo-side lock, "Require actions to be pinned to a full-length
+  commit SHA" (`actions/permissions` `sha_pinning_required`), is on since
+  2026-09-30, so a future `@v8` fails the run instead of slipping past review
+  (local `./` actions and the local reusable workflow are exempt).
 - **SBOM** — its own `sbom` job (ubuntu, `contents: read`) generates a
   CycloneDX JSON SBOM of the App's full NuGet graph (`dotnet dotnet-CycloneDX`
   from the tool manifest on `PgNimbus.App.csproj`, `-c Release`, the
@@ -400,7 +401,8 @@ pinned NuGet sources):
   moderate/high/critical audit warnings (NU1902–NU1904) to errors, so any
   `dotnet build`/`restore` — local or CI — fails on a known advisory; ci.yml
   additionally runs `dependency-review-action` on PRs to block newly-added
-  vulnerable packages at review time.
+  vulnerable packages at review time, a required check beside `build-test`
+  since 2026-09-30.
 - **Pinned SDK line** — `global.json` carries `sdk.version` `10.0.100` with
   `rollForward: latestFeature`: any 10.0 SDK at or above it builds, so the
   1xx-band SDK Ubuntu's apt package ships (the verify skill's sandbox recipe)
