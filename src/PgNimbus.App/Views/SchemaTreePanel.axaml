@@ -313,12 +313,16 @@
                 <!-- No horizontal scrolling: a long name trims inside the sidebar's
                      width (widen the sidebar to read it) rather than sliding the
                      whole tree sideways, which also let an error row wrap. -->
-                <TreeView Name="SchemaTreeView" ItemsSource="{Binding Schemas}"
+                <!-- Every level virtualizes (TreeView.virtualizing in Styles/Theme.axaml):
+                     expanding a schema of 5,000 tables realized 5,000 rows and froze the
+                     window for eight seconds. The filter works on ShownSchemas and each
+                     node's ShownChildren rather than on IsVisible, because a virtualizing
+                     panel still realizes a hidden row to learn it takes no space. -->
+                <TreeView Name="SchemaTreeView" Classes="virtualizing" ItemsSource="{Binding ShownSchemas}"
                           ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                     <TreeView.Styles>
                         <Style Selector="TreeViewItem">
                             <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay, DataType=vm:SchemaTreeNode}" />
-                            <Setter Property="IsVisible" Value="{Binding IsFilteredIn, Mode=OneWay, DataType=vm:SchemaTreeNode}" />
                         </Style>
                         <!-- Fluent sets these template parts' values at Template
                              priority, which a plain style never beats; a selector with
@@ -344,7 +348,7 @@
                         </Style>
                     </TreeView.Styles>
                     <TreeView.ItemTemplate>
-                        <TreeDataTemplate ItemsSource="{Binding Children}">
+                        <TreeDataTemplate ItemsSource="{Binding ShownChildren}">
                             <ContentControl Content="{Binding}" />
                         </TreeDataTemplate>
                     </TreeView.ItemTemplate>

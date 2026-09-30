@@ -47,10 +47,19 @@
                                 <Style Selector="TextBlock.err">
                                     <Setter Property="Foreground" Value="#E03131" />
                                 </Style>
+                                <!-- The 4px between chips, which StackPanel.Spacing gave
+                                     before the panel below had to virtualize. -->
+                                <Style Selector="ListBoxItem">
+                                    <Setter Property="Margin" Value="0,1,4,1" />
+                                </Style>
                             </ListBox.Styles>
+                            <!-- Virtualizing: a script is one chip per statement, and a
+                                 10,000-statement seed script realized every one of them.
+                                 It virtualizes inside the ScrollViewer around it, which
+                                 hands it the visible width. -->
                             <ListBox.ItemsPanel>
                                 <ItemsPanelTemplate>
-                                    <StackPanel Orientation="Horizontal" Spacing="4" />
+                                    <VirtualizingStackPanel Orientation="Horizontal" />
                                 </ItemsPanelTemplate>
                             </ListBox.ItemsPanel>
                             <ListBox.ItemTemplate>
@@ -268,40 +277,48 @@
 
                         <!-- Named plan problems (bad estimates, disk spills, wasteful seq scans,
                              lossy bitmaps) from PlanAnalyzer — the thing pgAdmin leaves the user
-                             to spot. Hidden entirely when the plan is clean. -->
-                        <ItemsControl Grid.Row="1" ItemsSource="{Binding ActiveTab.PlanWarnings}"
-                                      IsVisible="{Binding ActiveTab.HasPlanWarnings}" Margin="4,0,4,4">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate DataType="vm:PlanWarningViewModel">
-                                    <Border Background="{Binding WashBrush}" CornerRadius="4"
-                                            Padding="8,5" Margin="0,2">
-                                        <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <TextBlock Text="{Binding Glyph}" Foreground="{Binding AccentBrush}"
-                                                       FontSize="13" VerticalAlignment="Top" />
-                                            <StackPanel Spacing="1">
-                                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="12.5" />
-                                                <TextBlock Text="{Binding Detail}" FontSize="11.5" Opacity="0.8"
-                                                           TextWrapping="Wrap" />
+                             to spot. Hidden entirely when the plan is clean. Condensed to a few of
+                             each kind (PlanAnalyzer.Condense) and scrolled past a height, so a plan
+                             with a warning per partition scan still shows the plan under them. -->
+                        <ScrollViewer Grid.Row="1" MaxHeight="220" IsVisible="{Binding ActiveTab.HasPlanWarnings}">
+                            <ItemsControl ItemsSource="{Binding ActiveTab.PlanWarnings}" Margin="4,0,4,4">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="vm:PlanWarningViewModel">
+                                        <Border Background="{Binding WashBrush}" CornerRadius="4"
+                                                Padding="8,5" Margin="0,2">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <TextBlock Text="{Binding Glyph}" Foreground="{Binding AccentBrush}"
+                                                           FontSize="13" VerticalAlignment="Top" />
+                                                <StackPanel Spacing="1">
+                                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="12.5" />
+                                                    <TextBlock Text="{Binding Detail}" FontSize="11.5" Opacity="0.8"
+                                                               TextWrapping="Wrap" />
+                                                </StackPanel>
                                             </StackPanel>
-                                        </StackPanel>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-
-                        <ScrollViewer Grid.Row="2" IsVisible="{Binding ActiveTab.IsPlanTextView}"
-                                      HorizontalScrollBarVisibility="Auto">
-                            <SelectableTextBlock Text="{Binding ActiveTab.ExplainText}" Margin="8,4"
-                                                 FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="12.5" />
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                         </ScrollViewer>
+
+                        <!-- A plan over a thousand partitions is a megabyte of text:
+                             ReadOnlyTextView hands anything that long to a read-only editor,
+                             which lays out only the lines on screen. -->
+                        <views:ReadOnlyTextView Grid.Row="2" IsVisible="{Binding ActiveTab.IsPlanTextView}"
+                                                Text="{Binding ActiveTab.ExplainText}" TextMargin="8,4"
+                                                FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="12.5" />
                         <ScrollViewer Grid.Row="2" IsVisible="{Binding !ActiveTab.IsPlanTextView}">
-                            <TreeView ItemsSource="{Binding ActiveTab.ExplainRoots}" Margin="4">
+                            <TreeView ItemsSource="{Binding ActiveTab.ExplainRoots}" Margin="4" Classes="virtualizing">
                                 <!-- Open all the way down: the heat bars only say something when
                                      every node is on screen, and a plan opening as one collapsed
                                      root hid the whole tree behind a chevron. -->
                                 <TreeView.Styles>
                                     <Style Selector="TreeViewItem">
                                         <Setter Property="IsExpanded" Value="True" />
+                                    </Style>
+                                    <!-- Once for the tree, not a Styles collection per node. -->
+                                    <Style Selector="Rectangle.hot">
+                                        <Setter Property="Fill" Value="{DynamicResource AppDangerBrush}" />
                                     </Style>
                                 </TreeView.Styles>
                                 <TreeView.ItemTemplate>
@@ -311,13 +328,7 @@
                                                 <!-- Self-time (heat) bar; the slowest node is tinted danger-red as the bottleneck. -->
                                                 <Rectangle Width="{Binding BarWidth}" Height="10" RadiusX="2" RadiusY="2"
                                                            Classes.hot="{Binding IsBottleneck}"
-                                                           Fill="{DynamicResource AppAccentBrush}" VerticalAlignment="Center">
-                                                    <Rectangle.Styles>
-                                                        <Style Selector="Rectangle.hot">
-                                                            <Setter Property="Fill" Value="{DynamicResource AppDangerBrush}" />
-                                                        </Style>
-                                                    </Rectangle.Styles>
-                                                </Rectangle>
+                                                           Fill="{DynamicResource AppAccentBrush}" VerticalAlignment="Center" />
                                                 <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
                                             </StackPanel>
                                             <TextBlock Text="{Binding CostLabel}" FontSize="11" Opacity="0.7" Margin="16,0,0,0" />
@@ -407,15 +418,14 @@
                     </Grid>
 
                     <!-- Read: pretty/raw text -->
-                    <ScrollViewer Grid.Row="1" IsVisible="{Binding ShowText}"
-                                  HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-                        <SelectableTextBlock Text="{Binding DisplayText}"
-                                              TextWrapping="{Binding WordWrap, Converter={x:Static conv2:BoolToTextWrappingConverter.Instance}}"
-                                              FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="13" />
-                    </ScrollViewer>
+                    <!-- A jsonb cell can be hundreds of KB pretty-printed; past
+                         ReadOnlyTextView's threshold it goes to a read-only editor. -->
+                    <views:ReadOnlyTextView Grid.Row="1" IsVisible="{Binding ShowText}"
+                                            Text="{Binding DisplayText}" WordWrap="{Binding WordWrap}"
+                                            FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="13" />
 
                     <!-- Read: collapsible document tree (JSON only) -->
-                    <TreeView Grid.Row="1" IsVisible="{Binding ShowTree}"
+                    <TreeView Grid.Row="1" IsVisible="{Binding ShowTree}" Classes="virtualizing"
                               ItemsSource="{Binding TreeRoots}"
                               Background="Transparent" BorderThickness="0">
                         <TreeView.ItemTemplate>

@@ -17,7 +17,16 @@ namespace PgNimbus.Core.Query;
 /// </summary>
 public sealed class QueryHistoryStore(string? filePath = null)
 {
-    private const int MaxEntries = 200;
+    /// <summary>How many entries are kept; pinned ones on top of that (see <see cref="Trim"/>).</summary>
+    public const int MaxEntries = 200;
+
+    // One lock for every store over every file: two windows each hold a store
+    // over the same history.json, and a write is a read, a change and a rename.
+    private static readonly Lock FileGate = new();
+
+    // The writes queued by the *InBackground methods, run one after another.
+    private static readonly Lock QueueGate = new();
+    private static Task s_writes = Task.CompletedTask;
 
     /// <summary>
     /// The result line kept for a statement that held a password, in place of
@@ -38,6 +47,14 @@ public sealed class QueryHistoryStore(string? filePath = null)
     /// read it. A redacted entry reads as clean, so this rewrites only once.
     /// </summary>
     public IReadOnlyList<QueryHistoryEntry> Load()
+    {
+        lock (FileGate)
+        {
+            return LoadLocked();
+        }
+    }
+
+    private List<QueryHistoryEntry> LoadLocked()
     {
         var entries = Read();
         var scrubbed = false;
@@ -72,29 +89,96 @@ public sealed class QueryHistoryStore(string? filePath = null)
     private List<QueryHistoryEntry> Read() =>
         AppDataFile.ReadJson(_filePath, QueryHistoryJsonContext.Default.ListQueryHistoryEntry) ?? [];
 
+    /// <summary>
+    /// Adds <paramref name="entry"/> in front of what the file holds (read again,
+    /// so what another window added since is kept) and writes the result, trimmed
+    /// (<see cref="Trim"/>). Every entry is redacted on the way out.
+    /// </summary>
     public void Append(QueryHistoryEntry entry)
     {
-        var entries = Load().ToList();
-        entries.Insert(0, entry);
-
-        // Trim oldest-first, but never a pinned entry - pinning is the
-        // "keep this around" signal, so the cap only evicts unpinned ones.
-        for (var i = entries.Count - 1; i >= 0 && entries.Count > MaxEntries; i--)
+        lock (FileGate)
         {
-            if (!entries[i].Pinned)
-            {
-                entries.RemoveAt(i);
-            }
+            SaveLocked(Trim([entry, .. Read()]));
         }
-
-        Save(entries);
     }
 
     public void Clear() => Save([]);
 
     /// <summary>Writes <paramref name="entries"/>, each one redacted first.</summary>
-    public void Save(IReadOnlyList<QueryHistoryEntry> entries) =>
-        Write([.. entries.Select(Redact)]);
+    public void Save(IReadOnlyList<QueryHistoryEntry> entries)
+    {
+        lock (FileGate)
+        {
+            SaveLocked(entries);
+        }
+    }
+
+    private void SaveLocked(IReadOnlyList<QueryHistoryEntry> entries) => Write([.. entries.Select(Redact)]);
+
+    /// <summary>
+    /// <see cref="Append"/> on the thread pool, after every write queued before it.
+    /// The history is written after every run, and it holds each statement whole,
+    /// redacted entry by entry: done on the UI thread, a history holding a few
+    /// large scripts added that much to every later run. The task never faults;
+    /// a write that fails is dropped like a failed save always was.
+    /// </summary>
+    public Task AppendInBackground(QueryHistoryEntry entry) => Enqueue(() => Append(entry));
+
+    /// <summary><see cref="Save"/> on the thread pool, in order with <see cref="AppendInBackground"/>.</summary>
+    public Task SaveInBackground(IReadOnlyList<QueryHistoryEntry> entries) => Enqueue(() => Save(entries));
+
+    private static Task Enqueue(Action write)
+    {
+        lock (QueueGate)
+        {
+            return s_writes = s_writes.ContinueWith(
+                _ =>
+                {
+                    try
+                    {
+                        write();
+                    }
+                    catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+                    {
+                        // History is best-effort: the list on screen stays right, and
+                        // the next write carries it to the file.
+                    }
+                },
+                CancellationToken.None,
+                TaskContinuationOptions.None,
+                TaskScheduler.Default);
+        }
+    }
+
+    /// <summary>
+    /// <paramref name="newestFirst"/> cut to <see cref="MaxEntries"/>, oldest first,
+    /// but never a pinned entry: pinning is the "keep this around" signal, so the
+    /// cap only evicts unpinned ones. The one rule for the file and the list on screen.
+    /// </summary>
+    public static List<QueryHistoryEntry> Trim(IEnumerable<QueryHistoryEntry> newestFirst)
+    {
+        var entries = newestFirst.ToList();
+        var excess = entries.Count - MaxEntries;
+        if (excess <= 0)
+        {
+            return entries;
+        }
+
+        var kept = new List<QueryHistoryEntry>(MaxEntries);
+        for (var i = entries.Count - 1; i >= 0; i--)
+        {
+            if (excess > 0 && !entries[i].Pinned)
+            {
+                excess--;
+                continue;
+            }
+
+            kept.Add(entries[i]);
+        }
+
+        kept.Reverse();
+        return kept;
+    }
 
     /// <summary>
     /// <paramref name="entry"/> with its secrets taken out, or the same

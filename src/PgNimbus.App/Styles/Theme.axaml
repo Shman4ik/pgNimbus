@@ -565,4 +565,32 @@
         <Setter Property="Margin" Value="0,16,0,0" />
     </Style>
 
+    <!--
+        A tree whose rows virtualize at every level. Avalonia's TreeView realizes
+        every row it holds (the root and each item lay out on a plain StackPanel),
+        so a schema of 5,000 tables took eight seconds to expand, and a plan with a
+        thousand partition scans or a JSON array of 50,000 elements the same. The
+        VirtualizingStackPanel sizes itself from the effective viewport, so a nested
+        level virtualizes too, inside its parent row and the tree's ScrollViewer.
+        CacheLength keeps one viewport of rows realized past each edge: TreeView's
+        arrow keys move focus only to a row that exists, and without it they stopped
+        at the bottom of the window. Don't filter such a tree with IsVisible: a
+        virtualizing panel realizes a hidden row to learn it takes no space (the
+        schema tree filters through its ShownChildren lists instead).
+    -->
+    <Style Selector="TreeView.virtualizing">
+        <Setter Property="ItemsPanel">
+            <ItemsPanelTemplate>
+                <VirtualizingStackPanel CacheLength="1" />
+            </ItemsPanelTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="TreeView.virtualizing TreeViewItem">
+        <Setter Property="ItemsPanel">
+            <ItemsPanelTemplate>
+                <VirtualizingStackPanel CacheLength="1" />
+            </ItemsPanelTemplate>
+        </Setter>
+    </Style>
+
 </Styles>

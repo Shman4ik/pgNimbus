@@ -21,9 +21,18 @@ public static class HistoryLabel
     /// collapsed to one space. Whitespace inside a string literal is folded too:
     /// this is a preview, and the full text is one double-click away.
     /// </summary>
-    public static string OneLine(string sql)
+    public static string OneLine(string sql) => OneLine(sql, int.MaxValue);
+
+    /// <summary>
+    /// <see cref="OneLine(string)"/> cut at <paramref name="maxLength"/> characters,
+    /// with an ellipsis when something was cut. A history row shows two lines of
+    /// it; folded whole, a multi-megabyte script became one line the row laid out
+    /// in full (a text block shapes a line before it trims it), every time the
+    /// row scrolled into view.
+    /// </summary>
+    public static string OneLine(string sql, int maxLength)
     {
-        var builder = new StringBuilder(sql.Length);
+        var builder = new StringBuilder(Math.Min(sql.Length, maxLength));
         var pendingSpace = false;
         foreach (var c in sql)
         {
@@ -39,10 +48,36 @@ public static class HistoryLabel
                 pendingSpace = false;
             }
 
+            if (builder.Length >= maxLength)
+            {
+                return builder.Append('…').ToString();
+            }
+
             builder.Append(c);
         }
 
         return builder.ToString();
+    }
+
+    /// <summary>
+    /// The statement for a tooltip: as written, cut after <paramref name="maxLines"/>
+    /// lines or <paramref name="maxLength"/> characters, whichever comes first, with
+    /// a closing line saying so. A tooltip lays out every line it holds.
+    /// </summary>
+    public static string Tip(string sql, int maxLines = 40, int maxLength = 4000)
+    {
+        var end = Math.Min(sql.Length, maxLength);
+        var lines = 1;
+        for (var i = 0; i < end; i++)
+        {
+            if (sql[i] == '\n' && ++lines > maxLines)
+            {
+                end = i;
+                break;
+            }
+        }
+
+        return end >= sql.Length ? sql : sql[..end].TrimEnd() + "\n…";
     }
 
     /// <summary>

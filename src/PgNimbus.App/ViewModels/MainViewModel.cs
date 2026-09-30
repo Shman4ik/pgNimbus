@@ -359,8 +359,11 @@ public sealed partial class MainViewModel : ObservableObject
     private IReadOnlyList<RelationInfo>? _relationCache;
 
     /// <summary>Every relation in the database, fetched once and shared by the command palette and the schema tree's filter box.</summary>
+    // Read on the thread pool: every relation of the database, partitions included,
+    // and a reader loop over buffered rows never yields, so awaited from the UI
+    // thread it read them all there.
     private async Task<IReadOnlyList<RelationInfo>> GetRelationsAsync() =>
-        _relationCache ??= await _schemaService.GetAllRelationsAsync(CancellationToken.None);
+        _relationCache ??= await Task.Run(() => _schemaService.GetAllRelationsAsync(CancellationToken.None));
 
     // Catalog-name snapshot for the unquoted-identifier fix, built lazily on the
     // first failed query and reused until the schema is refreshed.

@@ -39,11 +39,21 @@ public sealed partial class SavedQueriesViewModel : ObservableObject
 
     public ObservableCollection<SavedQuery> SavedQueries { get; } = [];
 
-    /// <summary>The full history, most recent first — the source of truth the filtered view derives from.</summary>
-    public ObservableCollection<QueryHistoryEntry> History { get; } = [];
+    /// <summary>
+    /// The full history, most recent first — the source of truth the filtered view derives from.
+    /// Changed with one notification per operation: every change rebuilds <see cref="FilteredHistory"/>,
+    /// and Clear History removing entries one at a time rebuilt it once per entry.
+    /// </summary>
+    public RangeObservableCollection<QueryHistoryEntry> History { get; } = [];
 
     /// <summary>What the history list actually shows: filter + scope applied, pinned entries floated to the top.</summary>
-    public ObservableCollection<QueryHistoryEntry> FilteredHistory { get; } = [];
+    public RangeObservableCollection<QueryHistoryEntry> FilteredHistory { get; } = [];
+
+    /// <summary>
+    /// The history file write last queued (writes run off the UI thread, in order).
+    /// Completed when nothing is pending; tests await it before reading the file.
+    /// </summary>
+    public Task PendingHistoryWrite { get; private set; } = Task.CompletedTask;
 
     /// <summary>
     /// The label ("host/database") of the connection this window is on. A
@@ -136,8 +146,8 @@ public sealed partial class SavedQueriesViewModel : ObservableObject
         }
 
         entry = QueryHistoryStore.Redact(entry with { Connection = _getConnectionLabel() });
-        History.Insert(0, entry);
-        _historyStore.Append(entry);
+        History.ReplaceAll(QueryHistoryStore.Trim([entry, .. History]));
+        PendingHistoryWrite = _historyStore.AppendInBackground(entry);
     }
 
     partial void OnRecordHistoryChanged(bool value) => _persistRecordHistory?.Invoke(value);
@@ -155,12 +165,7 @@ public sealed partial class SavedQueriesViewModel : ObservableObject
             .OrderByDescending(e => e.Pinned)
             .ToList();
 
-        FilteredHistory.Clear();
-        foreach (var entry in matches)
-        {
-            FilteredHistory.Add(entry);
-        }
-
+        FilteredHistory.ReplaceAll(matches);
         OnPropertyChanged(nameof(HasNoHistoryMatches));
     }
 
@@ -183,7 +188,7 @@ public sealed partial class SavedQueriesViewModel : ObservableObject
         }
 
         History[index] = entry with { Pinned = !entry.Pinned };
-        _historyStore.Save(History);
+        PendingHistoryWrite = _historyStore.SaveInBackground([.. History]);
     }
 
     /// <summary>The entry with this id, or null if it has since been deleted.</summary>
@@ -287,14 +292,7 @@ public sealed partial class SavedQueriesViewModel : ObservableObject
     [RelayCommand]
     private void ClearHistory()
     {
-        for (var i = History.Count - 1; i >= 0; i--)
-        {
-            if (!History[i].Pinned)
-            {
-                History.RemoveAt(i);
-            }
-        }
-
-        _historyStore.Save(History);
+        History.ReplaceAll([.. History.Where(e => e.Pinned)]);
+        PendingHistoryWrite = _historyStore.SaveInBackground([.. History]);
     }
 }

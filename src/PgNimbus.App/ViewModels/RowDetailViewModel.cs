@@ -103,7 +103,7 @@ public sealed partial class RowDetailViewModel : ObservableObject
         _owner.PropertyChanged += OnOwnerPropertyChanged;
     }
 
-    public ObservableCollection<RowDetailField> Fields { get; } = [];
+    public RangeObservableCollection<RowDetailField> Fields { get; } = [];
 
     /// <summary>The row on show — the grid's current row, pinned while the sidebar holds unstaged changes.</summary>
     public object?[]? Row { get; private set; }
@@ -197,7 +197,6 @@ public sealed partial class RowDetailViewModel : ObservableObject
             field.PropertyChanged -= OnFieldChanged;
         }
 
-        Fields.Clear();
         ChangedCount = 0;
         Error = null;
         Row = row;
@@ -213,6 +212,7 @@ public sealed partial class RowDetailViewModel : ObservableObject
 
         if (row is null)
         {
+            Fields.ReplaceAll([]);
             Heading = "Row details";
             Note = "Select a row in the grid to see its fields.";
             return;
@@ -224,7 +224,13 @@ public sealed partial class RowDetailViewModel : ObservableObject
         Heading = index >= 0 ? $"Row {offset + index + 1:N0} of {offset + _owner.Rows.Count:N0}" : "Row details";
         Note = editable ? null : _owner.ReadOnlyHint is { } hint ? $"Read-only: {hint}" : "Read-only: this result isn't mapped to one table.";
 
-        for (var i = 0; i < _owner.ColumnNames.Count && i < row.Length; i++)
+        // One Reset for the whole form, and no more fields than the grid has
+        // columns (QueryViewModel.MaxGridColumns): each field is a stack of type-aware
+        // editors, and a wide result's form was thousands of them, rebuilt one Add
+        // at a time on every change of the grid's row.
+        var fields = new List<RowDetailField>();
+        var count = Math.Min(Math.Min(_owner.ColumnNames.Count, row.Length), QueryViewModel.MaxGridColumns);
+        for (var i = 0; i < count; i++)
         {
             var name = _owner.ColumnNames[i];
             var value = row[i];
@@ -254,8 +260,10 @@ public sealed partial class RowDetailViewModel : ObservableObject
                 ? new RowDetailField(i, name, typeLabel, value, NewRowField.For(meta, placeholder: "empty string"), null, _owner.ColumnTypeName(i))
                 : new RowDetailField(i, name, typeLabel, value, null, reason is { Length: 0 } ? null : reason, _owner.ColumnTypeName(i)) { CanInspect = CellText.IsShortened(value) };
             field.PropertyChanged += OnFieldChanged;
-            Fields.Add(field);
+            fields.Add(field);
         }
+
+        Fields.ReplaceAll(fields);
     }
 
     [RelayCommand(CanExecute = nameof(HasChanges))]

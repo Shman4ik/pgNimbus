@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="using:PgNimbus.App.Views"
         x:Class="PgNimbus.App.Views.PendingChangesDialog"
         Title="pgNimbus — Staged changes"
         Width="620" Height="460"
@@ -18,11 +19,11 @@
                    Foreground="{DynamicResource AppWarningBrush}" />
 
         <Border Grid.Row="3" Classes="card" Padding="8" Margin="0,4,0,0">
-            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-                <SelectableTextBlock Name="SqlText"
-                                     FontFamily="Cascadia Code,Consolas,Menlo,monospace"
-                                     FontSize="12" />
-            </ScrollViewer>
+            <!-- One statement per staged row: 100,000 staged deletes are megabytes
+                 of text, which ReadOnlyTextView shows in a read-only editor. -->
+            <views:ReadOnlyTextView Name="SqlText"
+                                    FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                    FontSize="12" />
         </Border>
 
         <StackPanel Grid.Row="4" Classes="dialogButtons">

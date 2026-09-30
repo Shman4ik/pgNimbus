@@ -16,5 +16,6 @@
   <Folder Name="/tools/">
     <Project Path="tools/CompletionBench/CompletionBench.csproj" />
     <Project Path="tools/Screenshot/Screenshot.csproj" />
+    <Project Path="tools/UiBench/UiBench.csproj" />
   </Folder>
 </Solution>

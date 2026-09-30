@@ -48,7 +48,7 @@
                      IsVisible="{Binding !HasNoSavedQueries}">
                 <ListBox.ItemTemplate>
                     <DataTemplate x:DataType="query:SavedQuery">
-                        <DockPanel ToolTip.Tip="{Binding Sql}">
+                        <DockPanel ToolTip.Tip="{Binding Sql, Converter={x:Static conv2:HistoryText.Tip}}">
                             <PathIcon DockPanel.Dock="Left" Data="{StaticResource QueriesIconGeometry}"
                                       Width="11" Height="11" Margin="0,0,8,0" Opacity="0.55" VerticalAlignment="Center" />
                             <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
@@ -121,7 +121,7 @@
                                      breaks and indentation turned into a staircase here -->
                                 <TextBlock Text="{Binding Sql, Converter={x:Static conv2:HistoryText.OneLine}}"
                                            TextTrimming="CharacterEllipsis" MaxLines="2" TextWrapping="Wrap" FontSize="12"
-                                           ToolTip.Tip="{Binding Sql}" />
+                                           ToolTip.Tip="{Binding Sql, Converter={x:Static conv2:HistoryText.Tip}}" />
                                 <TextBlock Classes="secondary" FontSize="11" TextTrimming="CharacterEllipsis"
                                            ToolTip.Tip="{Binding Converter={x:Static conv2:HistoryText.Detail}}">
                                     <TextBlock.Text>

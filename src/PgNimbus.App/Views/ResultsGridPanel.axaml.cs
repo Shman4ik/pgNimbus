@@ -139,8 +139,17 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
         DataContextChanged += OnDataContextChanged;
 
         // Row details follow the grid's current row (the form pins itself while
-        // it holds unstaged changes; see RowDetailViewModel.Load).
-        ResultsGrid.SelectionChanged += (_, _) => _activeQuery?.RowDetail.Load(ResultsGrid.SelectedItem as object?[]);
+        // it holds unstaged changes; see RowDetailViewModel.Load), but only while
+        // they are open: the form is a stack of editors per column, and it was
+        // rebuilt on every arrow key in the grid with nobody looking at it.
+        // Opening it loads the row selected then (OnMainViewModelPropertyChanged).
+        ResultsGrid.SelectionChanged += (_, _) =>
+        {
+            if (_model?.IsRowDetailOpen == true)
+            {
+                _activeQuery?.RowDetail.Load(ResultsGrid.SelectedItem as object?[]);
+            }
+        };
         RowDetails.CloseRequested += CloseRowDetails;
     }
 
@@ -292,6 +301,12 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
             // However it closed (✕, Esc, the scrim, the chord), the grid gets focus back.
             FocusGrid();
         }
+        else if (e.PropertyName == nameof(MainViewModel.IsRowDetailOpen)
+                 && ResultsGrid.SelectedItem is object?[] selected)
+        {
+            // Opening: the form wasn't following the grid while it was closed.
+            _activeQuery?.RowDetail.Load(selected);
+        }
     }
 
     // --- Row details / filter bar ------------------------------------------
@@ -310,13 +325,10 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
     {
         // Opening from the keyboard with no row selected would show an empty
         // form; the first row is the obvious one to show.
+        // (A row already selected was loaded as the form opened.)
         if (ResultsGrid.SelectedItem is null && _activeQuery is { Rows.Count: > 0 } query)
         {
             ResultsGrid.SelectedItem = query.Rows[0];
-        }
-        else if (ResultsGrid.SelectedItem is object?[] selected)
-        {
-            _activeQuery?.RowDetail.Load(selected);
         }
 
         RowDetails.FocusFirstField();
@@ -402,7 +414,7 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
         RebuildColumns(_activeQuery);
         // The new tab's staged set (if any) tints different rows than the old
         // tab's — repaint once its rows have realized.
-        Dispatcher.UIThread.Post(RefreshPendingRowHighlights, DispatcherPriority.Background);
+        PostRowHighlightRefresh();
     }
 
     private void OnColumnNamesChanged(object? sender, NotifyCollectionChangedEventArgs e) => RebuildColumns(_activeQuery!);
@@ -422,7 +434,7 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
             PointGridAt(_activeQuery.Rows);
             // Rows realize after this returns; re-tint once they exist so a
             // reloaded page keeps its staged-row washes.
-            Dispatcher.UIThread.Post(RefreshPendingRowHighlights, DispatcherPriority.Background);
+            PostRowHighlightRefresh();
             return;
         }
 
@@ -437,7 +449,7 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
         // The edit context lands after the rows do (a browse page sets it once
         // the run completes), and it carries the per-column type metadata the
         // type-aware cell editors need — so the columns must be rebuilt again.
-        if (e.PropertyName == nameof(QueryViewModel.EditContext))
+        if (e.PropertyName == nameof(QueryViewModel.EditContext) && !TryUpdateColumnMetadata(_activeQuery))
         {
             RebuildColumns(_activeQuery);
         }
@@ -694,17 +706,59 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
             && e.NewStartingIndex + (e.NewItems?.Count ?? 0) == list.Count;
         if (!isAppend)
         {
-            Dispatcher.UIThread.Post(RefreshPendingRowHighlights, DispatcherPriority.Background);
+            PostRowHighlightRefresh();
         }
+    }
+
+    private bool _rowHighlightRefreshPosted;
+
+    // One repaint per burst of changes: fifty rows removed one by one used to
+    // queue fifty walks over the grid.
+    private void PostRowHighlightRefresh()
+    {
+        if (_rowHighlightRefreshPosted)
+        {
+            return;
+        }
+
+        _rowHighlightRefreshPosted = true;
+        Dispatcher.UIThread.Post(() =>
+        {
+            _rowHighlightRefreshPosted = false;
+            RefreshPendingRowHighlights();
+        }, DispatcherPriority.Background);
     }
 
     // Re-tints every realized row; newly realized ones are handled by the
     // grid's LoadingRow hook. Called whenever the staged set changes.
     private void RefreshPendingRowHighlights()
     {
-        foreach (var row in ResultsGrid.GetVisualDescendants().OfType<DataGridRow>())
+        foreach (var row in RealizedRows(ResultsGrid))
         {
             ApplyRowStaging(row);
+        }
+    }
+
+    // The grid's realized rows, found without walking into them: a row of a
+    // 1,000-column result holds thousands of visuals, and every one of them was
+    // visited on each repaint.
+    private static IEnumerable<DataGridRow> RealizedRows(Visual root)
+    {
+        var pending = new Stack<Visual>();
+        pending.Push(root);
+        while (pending.Count > 0)
+        {
+            var visual = pending.Pop();
+            if (visual is DataGridRow row)
+            {
+                yield return row;
+                continue;
+            }
+
+            foreach (var child in visual.GetVisualChildren())
+            {
+                pending.Push(child);
+            }
         }
     }
 
@@ -729,7 +783,7 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
         switch (command)
         {
             case EditCommand.Copy:
-                _ = CopySelectionAsync(QueryViewModel.CopyFormat.Tsv);
+                _copy = CopySelectionAsync(QueryViewModel.CopyFormat.Tsv);
                 return true;
             case EditCommand.SelectAll:
                 ResultsGrid.SelectAll();
@@ -749,7 +803,7 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
     {
         if (e.Key == Key.C && e.KeyModifiers.HasFlag(Hotkeys.Command))
         {
-            _ = CopySelectionAsync(QueryViewModel.CopyFormat.Tsv);
+            _copy = CopySelectionAsync(QueryViewModel.CopyFormat.Tsv);
             e.Handled = true;
             return;
         }
@@ -1250,15 +1304,24 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
 
     // --- Copy --------------------------------------------------------------
 
-    private void OnCopyCells(object? sender, RoutedEventArgs e) => _ = CopySelectionAsync(QueryViewModel.CopyFormat.Tsv);
+    private void OnCopyCells(object? sender, RoutedEventArgs e) => _copy = CopySelectionAsync(QueryViewModel.CopyFormat.Tsv);
 
-    private void OnCopyAsCsv(object? sender, RoutedEventArgs e) => _ = CopySelectionAsync(QueryViewModel.CopyFormat.Csv);
+    private void OnCopyAsCsv(object? sender, RoutedEventArgs e) => _copy = CopySelectionAsync(QueryViewModel.CopyFormat.Csv);
 
-    private void OnCopyAsJson(object? sender, RoutedEventArgs e) => _ = CopySelectionAsync(QueryViewModel.CopyFormat.Json);
+    private void OnCopyAsJson(object? sender, RoutedEventArgs e) => _copy = CopySelectionAsync(QueryViewModel.CopyFormat.Json);
 
-    private void OnCopyAsMarkdown(object? sender, RoutedEventArgs e) => _ = CopySelectionAsync(QueryViewModel.CopyFormat.Markdown);
+    private void OnCopyAsMarkdown(object? sender, RoutedEventArgs e) => _copy = CopySelectionAsync(QueryViewModel.CopyFormat.Markdown);
 
-    private void OnCopyAsInsert(object? sender, RoutedEventArgs e) => _ = CopySelectionAsync(QueryViewModel.CopyFormat.Insert);
+    private void OnCopyAsInsert(object? sender, RoutedEventArgs e) => _copy = CopySelectionAsync(QueryViewModel.CopyFormat.Insert);
+
+    private Task _copy = Task.CompletedTask;
+
+    /// <summary>
+    /// The copy last started from the grid. The text is built on the thread pool
+    /// (<see cref="QueryViewModel.CopyRowsAsync"/>), so a test awaits this before
+    /// reading the clipboard.
+    /// </summary>
+    public Task PendingCopy => _copy;
 
     // Copies the selected rows (or the whole result set when nothing is selected)
     // in the chosen shape.
@@ -1270,7 +1333,7 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
         }
 
         var selected = ResultsGrid.SelectedItems.OfType<object?[]>().ToList();
-        var text = _activeQuery.CopyRows(format, selected, _model?.SpreadsheetSafeExport == true);
+        var text = await _activeQuery.CopyRowsAsync(format, selected, _model?.SpreadsheetSafeExport == true);
         if (string.IsNullOrEmpty(text))
         {
             return;
@@ -1326,10 +1389,13 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
             var previousStatus = _model.ActiveTab.Status;
             _model.ActiveTab.Status = $"Reading {files[0].Name}…";
             await using var stream = await files[0].OpenReadAsync();
-            var data = await Task.Run(async () =>
+            var (data, types) = await Task.Run(async () =>
             {
                 var text = await TabularFileParser.ReadTextAsync(stream);
-                return isJson ? TabularFileParser.ParseJson(text) : TabularFileParser.ParseCsv(text);
+                var parsed = isJson ? TabularFileParser.ParseJson(text) : TabularFileParser.ParseCsv(text);
+                // Inferring a column's type reads every one of its cells: up to the
+                // parser's 50M, which on the UI thread was seconds after the parse.
+                return (parsed, ImportViewModel.InferTypes(parsed));
             });
             _model.ActiveTab.Status = previousStatus;
 
@@ -1340,7 +1406,7 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
             }
 
             var schemas = _model.SchemaTree.Schemas.OfType<SchemaNode>().Select(s => s.Name).ToList();
-            var importViewModel = new ImportViewModel(_model.Importer, data, SuggestTableName(files[0].Name), schemas);
+            var importViewModel = new ImportViewModel(_model.Importer, data, SuggestTableName(files[0].Name), schemas, types);
             importViewModel.Completed += (schema, table, count) => _ = OnImportCompletedAsync(schema, table, count);
 
             var dialog = new ImportDialog { DataContext = importViewModel };
@@ -1510,6 +1576,63 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
 
     // --- Column building ---------------------------------------------------
 
+    private static (ColumnDetail? EditorMeta, string? DeclaredType, PgTypeCategory Category) ColumnMetadata(QueryViewModel query, int index)
+    {
+        // In browse mode the edit context knows each column's Postgres
+        // type — the column uses it to generate a type-aware cell editor
+        // (enum dropdown, checkbox, date picker) instead of a TextBox.
+        var editorMeta = query.EditContext?.Column(query.ColumnNames[index]);
+        // Prefer the browse-mode format_type spelling ("numeric(12,2)") when
+        // known; fall back to the wire name for arbitrary queries. Domains
+        // resolve to their base type's family (see ClassifierType).
+        var declaredType = editorMeta?.DataType ?? query.ColumnTypeName(index);
+        // In browse mode the catalog kind is known, so enum/composite columns
+        // get their own icon; an arbitrary query only has the wire type name,
+        // where an enum is indistinguishable from Other.
+        var category = editorMeta is { } meta
+            ? PgTypeCategorizer.CategorizeColumn(declaredType, meta.DomainBaseType, meta.Editor)
+            : PgTypeCategorizer.Categorize(PgTypeCategorizer.ClassifierType(declaredType, null));
+        return (editorMeta, declaredType, category);
+    }
+
+    /// <summary>
+    /// Hands the columns already built for <paramref name="query"/> its new edit
+    /// context without rebuilding them (<see cref="ResultTextColumn.TryUpdateMetadata"/>):
+    /// the context lands after the rows, and a rebuild re-created every realized
+    /// cell, seconds for a 1,000-column result. False when the grid holds other
+    /// columns, or a column would draw differently; the caller then rebuilds.
+    /// </summary>
+    private bool TryUpdateColumnMetadata(QueryViewModel query)
+    {
+        var built = Math.Min(query.ColumnNames.Count, QueryViewModel.MaxGridColumns);
+        if (_builtFor != query || _builtColumnNames.Count != built || ResultsGrid.Columns.Count != built)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < built; i++)
+        {
+            if (_builtColumnNames[i] != query.ColumnNames[i] || ResultsGrid.Columns[i] is not ResultTextColumn)
+            {
+                return false;
+            }
+        }
+
+        for (var i = 0; i < built; i++)
+        {
+            var (editorMeta, declaredType, category) = ColumnMetadata(query, i);
+            var column = (ResultTextColumn)ResultsGrid.Columns[i];
+            if (!column.TryUpdateMetadata(editorMeta, category))
+            {
+                return false;
+            }
+
+            column.Header = CreateColumnHeader(i, query.ColumnNames[i], declaredType, category, editorMeta);
+        }
+
+        return true;
+    }
+
     // The column Binding has an empty Path - it passes the row array straight
     // to RowIndexConverter and never resolves a member by name, so the
     // reflection/dynamic code the analyzers warn about is never exercised.
@@ -1533,21 +1656,8 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
         var built = Math.Min(query.ColumnNames.Count, QueryViewModel.MaxGridColumns);
         for (var i = 0; i < built; i++)
         {
-            // In browse mode the edit context knows each column's Postgres
-            // type — the column uses it to generate a type-aware cell editor
-            // (enum dropdown, checkbox, date picker) instead of a TextBox.
             var name = query.ColumnNames[i];
-            var editorMeta = query.EditContext?.Column(name);
-            // Prefer the browse-mode format_type spelling ("numeric(12,2)") when
-            // known; fall back to the wire name for arbitrary queries. Domains
-            // resolve to their base type's family (see ClassifierType).
-            var declaredType = editorMeta?.DataType ?? query.ColumnTypeName(i);
-            // In browse mode the catalog kind is known, so enum/composite columns
-            // get their own icon; an arbitrary query only has the wire type name,
-            // where an enum is indistinguishable from Other.
-            var category = editorMeta is { } meta
-                ? PgTypeCategorizer.CategorizeColumn(declaredType, meta.DomainBaseType, meta.Editor)
-                : PgTypeCategorizer.Categorize(PgTypeCategorizer.ClassifierType(declaredType, null));
+            var (editorMeta, declaredType, category) = ColumnMetadata(query, i);
 
             var column = new ResultTextColumn(i, editorMeta, category)
             {

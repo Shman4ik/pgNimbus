@@ -111,7 +111,7 @@ public class ResultLimitsTests
             var grid = window.GetVisualDescendants().OfType<DataGrid>().First();
             await Assert.That(grid.Columns.Count).IsEqualTo(QueryViewModel.MaxGridColumns);
             await Assert.That(vm.ActiveTab.ColumnNames.Count).IsEqualTo(count);
-            await Assert.That(vm.ActiveTab.CapStatusText).IsEqualTo("showing 1,000 of 5,000 columns");
+            await Assert.That(vm.ActiveTab.CapStatusText).IsEqualTo($"showing {QueryViewModel.MaxGridColumns:N0} of 5,000 columns");
             // The row still holds every value; only the grid stops building.
             await Assert.That(vm.ActiveTab.Rows[0].Length).IsEqualTo(count);
 

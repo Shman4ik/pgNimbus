@@ -115,7 +115,7 @@
                         BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
                         CornerRadius="{StaticResource CardCornerRadius}">
                     <Panel>
-                        <TreeView ItemsSource="{Binding BlockingRoots}"
+                        <TreeView ItemsSource="{Binding BlockingRoots}" Classes="virtualizing"
                                   SelectedItem="{Binding SelectedBlockingNode, Mode=TwoWay}"
                                   IsVisible="{Binding HasLockWaits}">
                             <!-- Expand every node by default: the whole wait chain should be

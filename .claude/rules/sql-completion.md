@@ -191,7 +191,21 @@ paths:
   shorter — a generative test holds it to ranking everything). Documents of
   `QueryEditorPanel.BackgroundCompletionThreshold` (50k) characters or more are
   read for completion on the thread pool; the answer is shown only when the
-  request number, `_documentEdits` and the caret are all unchanged.
+  request number, `_documentEdits` and the caret are all unchanged. Past the
+  same threshold the editor's other per-keystroke readers (the caret's clause
+  on `( ) ' " ,`, the argument hint on every caret move, the Enter rule under
+  every filter update, the filter's start, an accept's plan) are handed the
+  statement around the caret instead of the document
+  (`QueryEditorPanel.StatementAround`, offsets mapped back), found through
+  `Text/SqlStatementBoundaries`: statement starts remembered across edits (an
+  edit drops only what follows it), so the lex runs from the last boundary
+  before the caret. Each reader lexed the whole document, a 5 MB dump per key
+  (2026-09, UI-thread audit). It answers exactly what
+  `CompletionStatementSpan` does, and `SqlStatementBoundariesTests` holds that
+  over generated documents and random edits, plus the caret context of the
+  statement alone being the document's. The popup itself holds the top
+  `MaxPopupRows` (5,000) of the ranking: every keystroke copied all of it into
+  `CompletionData`, which AvaloniaEdit's own caret handler walks.
   **Enter accepts only what was chosen, and only if it changes the text** (the
   §6.1 rule, decided 2026-09-22 and tightened by the second audit on
   2026-09-27; `Text/CompletionAcceptance`, Core-pure, unit-tested). Two

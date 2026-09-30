@@ -145,7 +145,7 @@
                                                  FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="12" />
                         </ScrollViewer>
 
-                        <TreeView IsVisible="{Binding ShowTree}" ItemsSource="{Binding TreeRoots}"
+                        <TreeView IsVisible="{Binding ShowTree}" ItemsSource="{Binding TreeRoots}" Classes="virtualizing"
                                   Background="Transparent" BorderThickness="0" Padding="6,4">
                             <TreeView.ItemTemplate>
                                 <TreeDataTemplate ItemsSource="{Binding Children}" x:DataType="json:JsonTreeNode">

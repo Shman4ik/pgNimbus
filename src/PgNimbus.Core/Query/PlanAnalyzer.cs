@@ -19,7 +19,15 @@ public sealed record PlanWarning(
     string Title,
     string Detail,
     string NodeType,
-    string? Relation);
+    string? Relation)
+{
+    /// <summary>
+    /// What kind of problem this is, when the title carries a figure that differs
+    /// from node to node ("Row estimate off by 120×"); null when the title names it.
+    /// <see cref="PlanAnalyzer.Condense"/> groups by it.
+    /// </summary>
+    public string? Kind { get; init; }
+}
 
 /// <summary>
 /// Walks a parsed <see cref="ExplainResult"/> and reports well-known plan
@@ -42,6 +50,54 @@ public static class PlanAnalyzer
         var warnings = new List<PlanWarning>();
         Walk(result.Root, cutShort: false, warnings);
         return warnings;
+    }
+
+    /// <summary>
+    /// <paramref name="warnings"/> with at most <paramref name="perKind"/> of each kind
+    /// and severity, in plan order, and one closing line per kind for the rest. A
+    /// plan over a thousand partitions carries a warning per partition scan, and the
+    /// strip listed every one of them above the plan it was about, pushing it off
+    /// the screen.
+    /// </summary>
+    public static IReadOnlyList<PlanWarning> Condense(IReadOnlyList<PlanWarning> warnings, int perKind = 3)
+    {
+        var seen = new Dictionary<(PlanWarningSeverity, string), int>();
+        var order = new List<(PlanWarningSeverity, string)>();
+        var kept = new List<PlanWarning>();
+        foreach (var warning in warnings)
+        {
+            var key = (warning.Severity, warning.Kind ?? warning.Title);
+            if (!seen.TryGetValue(key, out var count))
+            {
+                order.Add(key);
+            }
+
+            seen[key] = count + 1;
+            if (count < perKind)
+            {
+                kept.Add(warning);
+            }
+        }
+
+        foreach (var (severity, kind) in order)
+        {
+            var count = seen[(severity, kind)];
+            if (count > perKind)
+            {
+                var more = count - perKind;
+                kept.Add(new PlanWarning(
+                    severity,
+                    $"{more:N0} more: {kind}",
+                    $"The same at {more:N0} more node{(more == 1 ? "" : "s")} of this plan. The text view lists every node.",
+                    string.Empty,
+                    null)
+                {
+                    Kind = kind,
+                });
+            }
+        }
+
+        return kept;
     }
 
     /// <param name="cutShort">
@@ -127,7 +183,10 @@ public static class PlanAnalyzer
             $"Planner {direction}estimated {ExplainTextFormatter.HeaderFor(node)}: estimated {estimated:0}, actual {actual:0} rows. "
                 + "Stale statistics or correlated columns can mislead the planner — try ANALYZE or extended statistics.",
             node.NodeType,
-            node.RelationName));
+            node.RelationName)
+        {
+            Kind = "Row estimates off",
+        });
     }
 
     /// <summary>Sorts / hash joins that spilled to disk — usually a work_mem shortfall.</summary>

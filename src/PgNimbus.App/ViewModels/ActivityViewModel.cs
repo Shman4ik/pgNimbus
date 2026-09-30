@@ -181,10 +181,10 @@ public sealed partial class ActivityViewModel(ActivityService service) : Observa
 
     private const int BlockingTab = 1;
 
-    public ObservableCollection<ActivityRow> Rows { get; } = [];
+    public RangeObservableCollection<ActivityRow> Rows { get; } = [];
 
     /// <summary>Roots of the blocking forest — the lock holders to cancel to unstick everyone below.</summary>
-    public ObservableCollection<BlockingNode> BlockingRoots { get; } = [];
+    public RangeObservableCollection<BlockingNode> BlockingRoots { get; } = [];
 
     [RelayCommand]
     private async Task RefreshAsync()
@@ -200,16 +200,14 @@ public sealed partial class ActivityViewModel(ActivityService service) : Observa
     {
         try
         {
-            var backends = await _service.GetActivityAsync(CancellationToken.None);
+            var backends = await Task.Run(() => _service.GetActivityAsync(CancellationToken.None));
 
             // Swap the rows but keep the selection pinned to the same backend
-            // (by pid), so an auto-refresh doesn't yank it away mid-decision.
+            // (by pid), so an auto-refresh doesn't yank it away mid-decision. One
+            // Reset: an Add per backend cost the DataGrid a notification each,
+            // every 2 s, on a server with hundreds of connections.
             var selectedPid = SelectedRow?.Pid;
-            Rows.Clear();
-            foreach (var backend in backends)
-            {
-                Rows.Add(new ActivityRow(backend));
-            }
+            Rows.ReplaceAll(backends.Select(backend => new ActivityRow(backend)));
 
             SelectedRow = selectedPid is { } pid ? Rows.FirstOrDefault(r => r.Pid == pid) : null;
 
@@ -228,15 +226,14 @@ public sealed partial class ActivityViewModel(ActivityService service) : Observa
     {
         try
         {
-            var backends = await _service.GetBlockingAsync(CancellationToken.None);
-            var roots = BlockingTree.Build(backends);
+            var (backends, roots) = await Task.Run(async () =>
+            {
+                var read = await _service.GetBlockingAsync(CancellationToken.None);
+                return (read, BlockingTree.Build(read));
+            });
 
             var selectedPid = SelectedBlockingNode?.Pid;
-            BlockingRoots.Clear();
-            foreach (var root in roots)
-            {
-                BlockingRoots.Add(new BlockingNode(root));
-            }
+            BlockingRoots.ReplaceAll(roots.Select(root => new BlockingNode(root)));
 
             SelectedBlockingNode = selectedPid is { } pid ? FindByPid(BlockingRoots, pid) : null;
             HasLockWaits = BlockingRoots.Count > 0;

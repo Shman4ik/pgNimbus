@@ -52,7 +52,13 @@ public sealed partial class ImportViewModel : ObservableObject
     /// <summary>Raised after a successful load with (schema, table, rows imported).</summary>
     public event Action<string, string, long>? Completed;
 
-    public ImportViewModel(ImportService service, TabularData data, string suggestedTable, IReadOnlyList<string> schemas)
+    /// <param name="inferredTypes">
+    /// Each column's type as <see cref="InferTypes"/> reads it, when the caller already
+    /// did that off the UI thread; null to infer here (fine for the handful of rows a
+    /// test or the screenshot harness passes).
+    /// </param>
+    public ImportViewModel(ImportService service, TabularData data, string suggestedTable, IReadOnlyList<string> schemas,
+        IReadOnlyList<string>? inferredTypes = null)
     {
         _service = service;
         _data = data;
@@ -61,13 +67,24 @@ public sealed partial class ImportViewModel : ObservableObject
         _schema = Schemas.Contains("public") ? "public" : Schemas[0];
         Summary = $"{data.Rows.Count:N0} row{(data.Rows.Count == 1 ? "" : "s")} · {data.Columns.Count} column{(data.Columns.Count == 1 ? "" : "s")} parsed";
 
+        var types = inferredTypes ?? InferTypes(data);
         for (var i = 0; i < data.Columns.Count; i++)
         {
-            var index = i;
-            Columns.Add(new ImportColumnViewModel(
-                data.Columns[i],
-                TypeInferrer.Infer(data.Rows.Select(r => index < r.Length ? r[index] : null))));
+            Columns.Add(new ImportColumnViewModel(data.Columns[i], types[i]));
         }
+    }
+
+    /// <summary>Each column's Postgres type as <see cref="TypeInferrer"/> reads it from every row. Pure; safe off the UI thread.</summary>
+    public static IReadOnlyList<string> InferTypes(TabularData data)
+    {
+        var types = new string[data.Columns.Count];
+        for (var i = 0; i < types.Length; i++)
+        {
+            var index = i;
+            types[i] = TypeInferrer.Infer(data.Rows.Select(r => index < r.Length ? r[index] : null));
+        }
+
+        return types;
     }
 
     [RelayCommand]
@@ -84,7 +101,11 @@ public sealed partial class ImportViewModel : ObservableObject
         try
         {
             var columns = Columns.Select(c => new ImportColumn(c.Name.Trim(), c.DataType)).ToList();
-            var count = await _service.ImportAsync(Schema, TableName.Trim(), columns, _data.Rows, CreateNewTable, CancellationToken.None);
+            // On the thread pool: the COPY loop formats every row, and its writes
+            // complete synchronously while Npgsql's buffer has room, so awaited from
+            // the UI thread it ran there, a million rows at a time.
+            var (schema, table, rows, create) = (Schema, TableName.Trim(), _data.Rows, CreateNewTable);
+            var count = await Task.Run(() => _service.ImportAsync(schema, table, columns, rows, create, CancellationToken.None));
             Completed?.Invoke(Schema, TableName.Trim(), count);
         }
         catch (Exception ex)

@@ -175,7 +175,14 @@ What it covers that nothing else does: that a gesture reaches its command, that
 the palette invokes the entry it highlights, that a saved query opens a *new*
 tab (UI design rule 3), that the results grid builds a column per result column
 and re-points on a tab switch, and that every window opens **and closes** — the
-detach path a render-and-exit pass never runs.
+detach path a render-and-exit pass never runs. `UiThreadBudgetTests` holds the
+2026-09 UI-thread audit as counts rather than timings, so they mean the same on a
+CI runner: rows realized for a 5,000-table schema and a 5,000-statement script, one
+change notification per palette keystroke, history change and NOTIFY drain, no
+row-details rebuild while closed, no column rebuild when an edit context arrives.
+The timings are `tools/UiBench`'s, which boots the app on the headless platform the
+way the screenshot harness does (`SetupWithoutStarting`, then `RunJobs` and
+`ForceRenderTimerTick`) and reuses its fixtures.
 
 Three landmines, all load-bearing:
 

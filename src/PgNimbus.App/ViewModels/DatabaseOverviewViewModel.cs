@@ -96,11 +96,11 @@ public sealed partial class DatabaseOverviewViewModel(DatabaseStatsService servi
     [ObservableProperty]
     private string _status = "";
 
-    public ObservableCollection<RelationSizeRow> LargestRelations { get; } = [];
+    public RangeObservableCollection<RelationSizeRow> LargestRelations { get; } = [];
 
-    public ObservableCollection<TableScanRow> TableScans { get; } = [];
+    public RangeObservableCollection<TableScanRow> TableScans { get; } = [];
 
-    public ObservableCollection<UnusedIndexRow> UnusedIndexes { get; } = [];
+    public RangeObservableCollection<UnusedIndexRow> UnusedIndexes { get; } = [];
 
     // AllowConcurrentExecutions = false disables the Refresh button while a
     // snapshot is in flight, so repeated clicks can't race the ObservableCollection
@@ -113,10 +113,12 @@ public sealed partial class DatabaseOverviewViewModel(DatabaseStatsService servi
     {
         try
         {
-            var overviewTask = _service.GetOverviewAsync(ct);
-            var largestTask = _service.GetLargestRelationsAsync(LargestRelationsLimit, ct);
-            var scansTask = _service.GetTableScanUsageAsync(ct);
-            var unusedTask = _service.GetUnusedIndexesAsync(ct);
+            // Read on the thread pool: the scan and unused-index lists cover every
+            // table of the database, and a reader loop over buffered rows doesn't yield.
+            var overviewTask = Task.Run(() => _service.GetOverviewAsync(ct), ct);
+            var largestTask = Task.Run(() => _service.GetLargestRelationsAsync(LargestRelationsLimit, ct), ct);
+            var scansTask = Task.Run(() => _service.GetTableScanUsageAsync(ct), ct);
+            var unusedTask = Task.Run(() => _service.GetUnusedIndexesAsync(ct), ct);
             await Task.WhenAll(overviewTask, largestTask, scansTask, unusedTask);
 
             var overview = await overviewTask;
@@ -125,26 +127,16 @@ public sealed partial class DatabaseOverviewViewModel(DatabaseStatsService servi
             TableCacheHitText = FormatRatio(overview.TableCacheHitRatio);
             IndexCacheHitText = FormatRatio(overview.IndexCacheHitRatio);
 
+            // One Reset per list: an Add per row cost the DataGrid a notification
+            // each (about 200 µs), and the scan list has a row per table.
             var largest = await largestTask;
-            LargestRelations.Clear();
-            foreach (var relation in largest)
-            {
-                LargestRelations.Add(new RelationSizeRow(relation));
-            }
+            LargestRelations.ReplaceAll(largest.Select(relation => new RelationSizeRow(relation)));
 
             var scans = await scansTask;
-            TableScans.Clear();
-            foreach (var scan in scans)
-            {
-                TableScans.Add(new TableScanRow(scan));
-            }
+            TableScans.ReplaceAll(scans.Select(scan => new TableScanRow(scan)));
 
             var unused = await unusedTask;
-            UnusedIndexes.Clear();
-            foreach (var index in unused)
-            {
-                UnusedIndexes.Add(new UnusedIndexRow(index));
-            }
+            UnusedIndexes.ReplaceAll(unused.Select(index => new UnusedIndexRow(index)));
 
             var unusedBytes = unused.Sum(i => i.IndexBytes);
             Status = $"{LargestRelations.Count} relation{Plural(LargestRelations.Count)} · "

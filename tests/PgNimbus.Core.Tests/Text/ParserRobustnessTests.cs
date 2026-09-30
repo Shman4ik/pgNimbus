@@ -230,6 +230,37 @@ public class ParserRobustnessTests
     }
 
     [Test]
+    public async Task The_statement_cache_reads_any_text()
+    {
+        var read = 0;
+        var boundaries = new SqlStatementBoundaries();
+        Exercise((sql, caret) =>
+        {
+            boundaries.Reset();
+            _ = boundaries.Span(sql, caret);
+            boundaries.Invalidate(caret / 2);
+            _ = boundaries.Span(sql, caret);
+            read++;
+        });
+
+        await Assert.That(read).IsGreaterThan(0);
+    }
+
+    [Test]
+    [Timeout(240_000)]
+    public async Task The_statement_cache_reads_a_hundred_thousand_nested_parens(CancellationToken ct)
+    {
+        var boundaries = new SqlStatementBoundaries();
+        var ran = ExerciseDeep((sql, caret) =>
+        {
+            boundaries.Reset();
+            _ = boundaries.Span(sql, caret);
+        });
+
+        await Assert.That(ran).IsGreaterThan(0);
+    }
+
+    [Test]
     public async Task The_keyword_grammar_reads_any_text()
     {
         var read = 0;

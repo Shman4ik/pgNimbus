@@ -1,4 +1,3 @@
-using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace PgNimbus.App.ViewModels;
@@ -10,6 +9,11 @@ namespace PgNimbus.App.ViewModels;
 public abstract partial class SchemaTreeNode : ObservableObject
 {
     private bool _loaded;
+
+    protected SchemaTreeNode()
+    {
+        Children.CollectionChanged += (_, _) => SyncShownChildren();
+    }
 
     /// <summary>
     /// True once this node's children have actually been fetched. Lets a caller
@@ -24,13 +28,53 @@ public abstract partial class SchemaTreeNode : ObservableObject
     [ObservableProperty]
     private bool _isLoading;
 
-    /// <summary>Whether this node passes the sidebar filter. Bound to <c>TreeViewItem.IsVisible</c>; true when no filter is active.</summary>
+    /// <summary>
+    /// Whether this node passes the sidebar filter; true when no filter is active.
+    /// A node that doesn't is left out of its parent's <see cref="ShownChildren"/>
+    /// once the filter pass calls <see cref="SyncShownChildren"/> on the parent.
+    /// </summary>
     [ObservableProperty]
     private bool _isFilteredIn = true;
 
     public string Name { get; init; } = string.Empty;
 
-    public ObservableCollection<SchemaTreeNode> Children { get; } = [];
+    /// <summary>Every child this node has loaded: the source of truth the filter reads.</summary>
+    public RangeObservableCollection<SchemaTreeNode> Children { get; } = [];
+
+    /// <summary>
+    /// The children the tree shows: <see cref="Children"/> minus what the filter
+    /// hides. The tree binds to this, not to <see cref="Children"/>, because its
+    /// panels virtualize (a schema of 5,000 tables took 8 s to expand when every
+    /// row was realized), and a virtualizing panel has to realize a hidden row to
+    /// learn that it takes no space: a filter matching one table of 5,000 by
+    /// visibility realized all of them. Left out of this list, it is never built.
+    /// </summary>
+    public RangeObservableCollection<SchemaTreeNode> ShownChildren { get; } = [];
+
+    /// <summary>
+    /// Brings <see cref="ShownChildren"/> in line with <see cref="Children"/> and
+    /// their <see cref="IsFilteredIn"/>, with one Reset, and only when it differs
+    /// (a Reset rebuilds the rows it holds). Runs by itself when the children
+    /// change; a filter pass calls it after deciding a node's children.
+    /// </summary>
+    public void SyncShownChildren()
+    {
+        var shown = new List<SchemaTreeNode>(Children.Count);
+        foreach (var child in Children)
+        {
+            if (child.IsFilteredIn)
+            {
+                shown.Add(child);
+            }
+        }
+
+        if (shown.Count == ShownChildren.Count && shown.SequenceEqual(ShownChildren))
+        {
+            return;
+        }
+
+        ShownChildren.ReplaceAll(shown);
+    }
 
     /// <summary>Seeds a placeholder child so an as-yet-unloaded expandable node still shows an expand arrow.</summary>
     protected void MarkExpandable() => Children.Add(new PlaceholderNode());
@@ -46,12 +90,7 @@ public abstract partial class SchemaTreeNode : ObservableObject
     /// </summary>
     public void SeedChildren(IEnumerable<SchemaTreeNode> children)
     {
-        Children.Clear();
-        foreach (var child in children)
-        {
-            Children.Add(child);
-        }
-
+        Children.ReplaceAll(children);
         _loaded = true;
     }
 
@@ -71,17 +110,13 @@ public abstract partial class SchemaTreeNode : ObservableObject
         IsLoading = true;
         try
         {
-            var children = await FetchChildrenAsync();
-            Children.Clear();
-            foreach (var child in children)
-            {
-                Children.Add(child);
-            }
+            // One Reset, not an Add per child: the sidebar filter re-vets a schema
+            // on every change to its children, which per Add was quadratic.
+            Children.ReplaceAll(await FetchChildrenAsync());
         }
         catch (Exception ex)
         {
-            Children.Clear();
-            Children.Add(new ErrorNode { Name = ex.Message });
+            Children.ReplaceAll([new ErrorNode { Name = ex.Message }]);
         }
         finally
         {

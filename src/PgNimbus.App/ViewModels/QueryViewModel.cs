@@ -40,7 +40,14 @@ public sealed partial class QueryViewModel : ObservableObject
     /// a cell per row for each. Rows still hold every value; copy, export and the
     /// cell inspector see all of them.
     /// </summary>
-    public const int MaxGridColumns = 1_000;
+    /// <remarks>
+    /// 300, down from 1,000 (2026-09, UI-thread audit): the DataGrid builds a cell
+    /// for every column of every row on screen, off screen or not, so a
+    /// 1,000-column result was 15,000 cells for fifteen rows: five seconds to show,
+    /// three to come back to on a tab switch, and a tenth of a second per row
+    /// scrolled into view (headless, Debug). Cost is linear in the columns.
+    /// </remarks>
+    public const int MaxGridColumns = 300;
 
     private readonly QueryEngine _engine;
     private readonly ExplainService _explainService;
@@ -382,7 +389,12 @@ public sealed partial class QueryViewModel : ObservableObject
     /// empty for a single statement. Selecting an entry re-points the shared grid
     /// and status bar at that statement's result (see <see cref="OnSelectedSectionChanged"/>).
     /// </summary>
-    public ObservableCollection<ScriptResultViewModel> ResultSections { get; } = [];
+    /// <summary>
+    /// One section per statement of a script run, added in batches
+    /// (<see cref="RangeObservableCollection{T}.AddRange"/>): a seed script of
+    /// ten thousand INSERTs used to post one dispatcher round trip per statement.
+    /// </summary>
+    public RangeObservableCollection<ScriptResultViewModel> ResultSections { get; } = [];
 
     [ObservableProperty]
     private ScriptResultViewModel? _selectedSection;
@@ -391,12 +403,12 @@ public sealed partial class QueryViewModel : ObservableObject
     public bool IsScriptResult => ResultSections.Count > 1;
 
     /// <summary>
-    /// The result's column names. Filled with <see cref="ResettableCollection{T}.ReplaceAll"/>,
+    /// The result's column names. Filled with <see cref="RangeObservableCollection{T}.ReplaceAll"/>,
     /// never an <c>Add</c> per column: the grid rebuilds its columns on every change.
     /// </summary>
-    public ResettableCollection<string> ColumnNames { get; } = [];
+    public RangeObservableCollection<string> ColumnNames { get; } = [];
 
-    /// <summary>"showing 1,000 of 5,000 columns" when the grid builds fewer columns than the result has; null otherwise.</summary>
+    /// <summary>"showing 300 of 5,000 columns" when the grid builds fewer columns than the result has; null otherwise.</summary>
     public string? ColumnCapText => ColumnNames.Count > MaxGridColumns
         ? $"showing {MaxGridColumns:N0} of {ColumnNames.Count:N0} columns"
         : null;
@@ -979,30 +991,70 @@ public sealed partial class QueryViewModel : ObservableObject
     // adding a selectable result section per statement as it lands. The engine
     // enumeration runs on a background thread (ReadAsync often completes
     // synchronously, so consuming it on the UI thread would freeze it and make
-    // Cancel unresponsive); section adds are marshaled back to the UI thread.
+    // Cancel unresponsive). Sections reach the UI thread in batches: the loop
+    // queues each one and posts a drain only when none is waiting, so a script
+    // of ten thousand quick statements is a few dozen UI updates, not ten
+    // thousand round trips each waited on.
     private async Task RunScriptAsync(IReadOnlyList<string> statements, Stopwatch stopwatch, CancellationToken ct)
     {
         var index = 0;
+        var pending = new List<ScriptResultViewModel>();
+        var drainPosted = false;
 
-        await Task.Run(async () =>
+        void Drain()
         {
-            // One budget for every section: a script of ten big SELECTs used to keep
-            // ten results' worth of rows (audit finding 16).
-            var budget = new ResultBudget(MaxDisplayRows, MaxDisplayBytes);
-            await foreach (var result in _engine.ExecuteScriptAsync(statements, MaxDisplayRows, ct, budget).WithCancellation(ct))
+            ScriptResultViewModel[] batch;
+            lock (pending)
             {
-                index++;
-                var section = ScriptResultViewModel.From(index, statements[index - 1], result);
-
-                await Dispatcher.UIThread.InvokeAsync(() =>
-                {
-                    ResultSections.Add(section);
-                    // Show the first section the moment it arrives.
-                    SelectedSection ??= section;
-                    NotifyScriptResultChanged();
-                });
+                batch = [.. pending];
+                pending.Clear();
+                drainPosted = false;
             }
-        }, ct);
+
+            if (batch.Length == 0)
+            {
+                return;
+            }
+
+            ResultSections.AddRange(batch);
+            // Show the first section the moment it arrives.
+            SelectedSection ??= batch[0];
+            NotifyScriptResultChanged();
+        }
+
+        try
+        {
+            await Task.Run(async () =>
+            {
+                // One budget for every section: a script of ten big SELECTs used to keep
+                // ten results' worth of rows (audit finding 16).
+                var budget = new ResultBudget(MaxDisplayRows, MaxDisplayBytes);
+                await foreach (var result in _engine.ExecuteScriptAsync(statements, MaxDisplayRows, ct, budget).WithCancellation(ct))
+                {
+                    index++;
+                    var section = ScriptResultViewModel.From(index, statements[index - 1], result);
+
+                    lock (pending)
+                    {
+                        pending.Add(section);
+                        if (drainPosted)
+                        {
+                            continue;
+                        }
+
+                        drainPosted = true;
+                    }
+
+                    Dispatcher.UIThread.Post(Drain);
+                }
+            }, ct);
+        }
+        finally
+        {
+            // Back on the UI thread: whatever is still queued lands now, on success,
+            // cancellation and failure alike (a drain posted meanwhile finds nothing).
+            Drain();
+        }
 
         // Surface a failure by jumping to the statement that failed, and let its
         // section (via OnSelectedSectionChanged) leave the real error message and
@@ -1218,7 +1270,7 @@ public sealed partial class QueryViewModel : ObservableObject
             warnings.AddRange(leadingWarnings);
         }
 
-        warnings.AddRange(PlanAnalyzer.Analyze(result).Select(w => new PlanWarningViewModel(w)));
+        warnings.AddRange(PlanAnalyzer.Condense(PlanAnalyzer.Analyze(result)).Select(w => new PlanWarningViewModel(w)));
         PlanWarnings = warnings;
 
         ExplainText = displayText;
@@ -1659,9 +1711,14 @@ public sealed partial class QueryViewModel : ObservableObject
     // references, falling back to "Query N".
     private void UpdateTabTitle() => TabTitle = TitleOverride ?? DeriveTableName(Sql) ?? DefaultTitle;
 
+    // How much of the buffer the tab title is looked for in.
+    private const int TitleScanLength = 64 * 1024;
+
     private static string? DeriveTableName(string sql)
     {
-        var match = TableReferenceRegex().Match(sql);
+        // The head of the buffer only: this runs on every keystroke, and a long
+        // script with no FROM/INTO near the top was scanned to its end each time.
+        var match = TableReferenceRegex().Match(sql, 0, Math.Min(sql.Length, TitleScanLength));
         if (!match.Success)
         {
             return null;
@@ -2214,10 +2271,7 @@ public sealed partial class QueryViewModel : ObservableObject
 
             if (Browse is null)
             {
-                foreach (var row in rows)
-                {
-                    Rows.Remove(row);
-                }
+                RemoveRowsFromGrid(rows);
             }
 
             Status = deleted == 1 ? "Deleted 1 row" : $"Deleted {deleted:N0} rows";
@@ -2239,6 +2293,35 @@ public sealed partial class QueryViewModel : ObservableObject
         }
 
         return deleted;
+    }
+
+    // Past this many rows a delete swaps in a new row list instead of removing
+    // each row from the one the grid shows.
+    private const int RowByRowRemovalLimit = 50;
+
+    /// <summary>
+    /// Takes deleted rows off the grid. A few go one by one, which keeps the
+    /// grid's scroll position and selection where they were. Many go in one swap
+    /// of <see cref="Rows"/>, as a run delivers its rows: each removal from the
+    /// list the grid shows costs the DataGrid a notification (about 200 µs a row)
+    /// and shifts the list, so a select-all delete of a 100,000-row result went
+    /// through a hundred thousand of them.
+    /// </summary>
+    private void RemoveRowsFromGrid(IReadOnlyList<object?[]> rows)
+    {
+        if (rows.Count <= RowByRowRemovalLimit)
+        {
+            foreach (var row in rows)
+            {
+                Rows.Remove(row);
+            }
+
+            return;
+        }
+
+        // Rows are arrays, so this is reference identity: the grid's own rows.
+        var removed = new HashSet<object?[]>(rows);
+        Rows = new AvaloniaList<object?[]>(Rows.Where(row => !removed.Contains(row)));
     }
 
     /// <summary>Reloads whatever the grid currently shows — the browse page if browsing, else the last query — after an out-of-band change (e.g. a row insert).</summary>
@@ -2890,44 +2973,174 @@ public sealed partial class QueryViewModel : ObservableObject
     }
 
     /// <summary>
+    /// The most text a copy puts on the clipboard: 64 Mi characters, 128 MB as
+    /// UTF-16. A grid holds up to <see cref="MaxDisplayBytes"/> of values, and
+    /// formatted as text that is more than a clipboard (or the spreadsheet it is
+    /// pasted into) takes gracefully; Export writes any size to a file.
+    /// </summary>
+    public const int MaxCopyChars = 64 * 1024 * 1024;
+
+    // A copy of this many rows says on the status line that it is under way and
+    // when it lands; smaller ones finish before anyone could read it.
+    private const int CopyProgressRows = 10_000;
+
+    /// <summary>
     /// Renders the given rows (or the whole result set when <paramref name="selectedRows"/> is empty) in
-    /// <paramref name="format"/> for the clipboard. Returns null when there's nothing to copy. INSERT statements
+    /// <paramref name="format"/> for the clipboard. Returns null when there's nothing to copy, or when the
+    /// text would pass <see cref="MaxCopyChars"/>, which the status line then says. INSERT statements
     /// target the edited table when the result set maps to one, otherwise a <c>table_name</c> placeholder.
     /// <paramref name="spreadsheetSafe"/> applies to the TSV and CSV shapes, the two a spreadsheet takes a
     /// paste of (<see cref="ResultExporter.NeutralizeFormula"/>).
     /// </summary>
-    public string? CopyRows(CopyFormat format, IReadOnlyList<object?[]> selectedRows, bool spreadsheetSafe = false)
+    /// <remarks>
+    /// The rows and column names are read here, on the UI thread; the text is built on the thread pool.
+    /// Ctrl+A, Ctrl+C over a full grid formats up to 100,000 rows, which on the UI thread froze the window
+    /// for seconds before anything reached the clipboard.
+    /// </remarks>
+    public async Task<string?> CopyRowsAsync(CopyFormat format, IReadOnlyList<object?[]> selectedRows, bool spreadsheetSafe = false)
     {
-        var rows = selectedRows.Count > 0 ? selectedRows : (IReadOnlyList<object?[]>)Rows;
+        IReadOnlyList<object?[]> rows = selectedRows.Count > 0 ? selectedRows : [.. Rows];
         if (rows.Count == 0 || ColumnNames.Count == 0)
         {
             return null;
         }
 
-        using var writer = new StringWriter();
-        switch (format)
+        IReadOnlyList<string> columns = [.. ColumnNames];
+        var table = InsertTargetTable;
+        var announce = rows.Count >= CopyProgressRows;
+        if (announce)
         {
-            case CopyFormat.Tsv:
-                ResultExporter.WriteTsv(writer, ColumnNames, rows, spreadsheetSafe);
-                break;
-            case CopyFormat.Csv:
-                ResultExporter.WriteCsv(writer, ColumnNames, rows, spreadsheetSafe);
-                break;
-            case CopyFormat.Markdown:
-                ResultExporter.WriteMarkdown(writer, ColumnNames, rows);
-                break;
-            case CopyFormat.Insert:
-                ResultExporter.WriteInsert(writer, InsertTargetTable, ColumnNames, rows);
-                break;
-            case CopyFormat.Json:
-                using (var stream = new MemoryStream())
-                {
-                    ResultExporter.WriteJson(stream, ColumnNames, rows);
-                    return System.Text.Encoding.UTF8.GetString(stream.ToArray());
-                }
+            Status = $"Copying {RowLabel(rows.Count)}...";
         }
 
-        return writer.ToString();
+        var text = await Task.Run(() => FormatRows(format, table, columns, rows, spreadsheetSafe, MaxCopyChars));
+        if (text is null)
+        {
+            Status = $"Not copied: {RowLabel(rows.Count)} come to more than {MaxCopyChars / (1024 * 1024)}M characters of text. Export them to a file instead.";
+        }
+        else if (announce)
+        {
+            Status = $"Copied {RowLabel(rows.Count)}";
+        }
+
+        return text;
+    }
+
+    /// <summary>
+    /// <paramref name="rows"/> as clipboard text in <paramref name="format"/>, or null past
+    /// <paramref name="maxChars"/>. Pure; <see cref="CopyRowsAsync"/> runs it on the thread pool.
+    /// </summary>
+    public static string? FormatRows(
+        CopyFormat format, string insertTable, IReadOnlyList<string> columns, IReadOnlyList<object?[]> rows,
+        bool spreadsheetSafe, int maxChars)
+    {
+        try
+        {
+            if (format == CopyFormat.Json)
+            {
+                // UTF-8: at most three bytes for a UTF-16 unit, one for the common case.
+                using var stream = new CappedMemoryStream(3L * maxChars);
+                ResultExporter.WriteJson(stream, columns, rows);
+                var json = System.Text.Encoding.UTF8.GetString(stream.GetBuffer(), 0, (int)stream.Length);
+                return json.Length > maxChars ? null : json;
+            }
+
+            using var writer = new CappedStringWriter(maxChars);
+            switch (format)
+            {
+                case CopyFormat.Tsv:
+                    ResultExporter.WriteTsv(writer, columns, rows, spreadsheetSafe);
+                    break;
+                case CopyFormat.Csv:
+                    ResultExporter.WriteCsv(writer, columns, rows, spreadsheetSafe);
+                    break;
+                case CopyFormat.Markdown:
+                    ResultExporter.WriteMarkdown(writer, columns, rows);
+                    break;
+                case CopyFormat.Insert:
+                    ResultExporter.WriteInsert(writer, insertTable, columns, rows);
+                    break;
+            }
+
+            return writer.ToString();
+        }
+        catch (CopyTooLargeException)
+        {
+            return null;
+        }
+    }
+
+    private sealed class CopyTooLargeException : Exception;
+
+    // Stops a copy at its limit instead of building the whole text first.
+    private sealed class CappedStringWriter(int maxChars) : StringWriter(System.Globalization.CultureInfo.InvariantCulture)
+    {
+        private void Reserve(int count)
+        {
+            if (GetStringBuilder().Length + (long)count > maxChars)
+            {
+                throw new CopyTooLargeException();
+            }
+        }
+
+        public override void Write(char value)
+        {
+            Reserve(1);
+            base.Write(value);
+        }
+
+        public override void Write(char[] buffer, int index, int count)
+        {
+            Reserve(count);
+            base.Write(buffer, index, count);
+        }
+
+        public override void Write(ReadOnlySpan<char> buffer)
+        {
+            Reserve(buffer.Length);
+            base.Write(buffer);
+        }
+
+        public override void Write(string? value)
+        {
+            Reserve(value?.Length ?? 0);
+            base.Write(value);
+        }
+
+        public override void WriteLine(ReadOnlySpan<char> buffer)
+        {
+            Reserve(buffer.Length + CoreNewLine.Length);
+            base.WriteLine(buffer);
+        }
+    }
+
+    private sealed class CappedMemoryStream(long maxBytes) : MemoryStream
+    {
+        private void Reserve(int count)
+        {
+            if (Length + count > maxBytes)
+            {
+                throw new CopyTooLargeException();
+            }
+        }
+
+        public override void Write(byte[] buffer, int offset, int count)
+        {
+            Reserve(count);
+            base.Write(buffer, offset, count);
+        }
+
+        public override void Write(ReadOnlySpan<byte> buffer)
+        {
+            Reserve(buffer.Length);
+            base.Write(buffer);
+        }
+
+        public override void WriteByte(byte value)
+        {
+            Reserve(1);
+            base.WriteByte(value);
+        }
     }
 
     private string InsertTargetTable => EditContext is { } ctx
