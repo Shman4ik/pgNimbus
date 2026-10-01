@@ -157,14 +157,42 @@ public class TooltipReachTests
             }
 
             var middle = new Point(target.Bounds.Width / 2, target.Bounds.Height / 2);
-            if (target.TranslatePoint(middle, window) is not { } point
-                || !new Rect(window.ClientSize).Contains(point))
+            if (target.TranslatePoint(middle, window) is not { } point || !IsOnScreen(element, point, window))
             {
                 continue;
             }
 
             yield return (element, point);
         }
+    }
+
+    /// <summary>
+    /// Whether the point is where the element can be seen and reached: inside the window,
+    /// inside every ancestor that clips (a scroll viewport, a grid scrolled sideways, a
+    /// narrow pane), and under nothing that has switched hit-testing off on purpose.
+    /// </summary>
+    private static bool IsOnScreen(Control element, Point point, Window window)
+    {
+        if (!new Rect(window.ClientSize).Contains(point))
+        {
+            return false;
+        }
+
+        foreach (var visual in element.GetSelfAndVisualAncestors().TakeWhile(v => !ReferenceEquals(v, window)))
+        {
+            if (visual is InputElement { IsHitTestVisible: false })
+            {
+                return false;
+            }
+
+            if (visual.ClipToBounds && visual.TranslatePoint(default, window) is { } origin
+                && !new Rect(origin, visual.Bounds.Size).Contains(point))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static string Describe(Control element)
