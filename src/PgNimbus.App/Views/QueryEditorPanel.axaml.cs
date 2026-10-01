@@ -275,6 +275,12 @@ public partial class QueryEditorPanel : UserControl
     /// <summary>Moves keyboard focus into the editor's text area.</summary>
     public void FocusEditor() => SqlEditor.TextArea.Focus();
 
+    // A new or reopened tab: posted, because the palette and the ☰ menu run the
+    // command while they close, and a closing menu hands focus back to whatever
+    // held it before it opened.
+    private void FocusEditorAfterLayout() =>
+        Dispatcher.UIThread.Post(FocusEditor, DispatcherPriority.Input);
+
     /// <summary>
     /// Opens the editor's find (or find &amp; replace) panel, seeding the
     /// search box with the current single-line selection the way most editors
@@ -313,6 +319,7 @@ public partial class QueryEditorPanel : UserControl
             _model.ExpandStarRequested -= ExpandSelectStar;
             _model.ToggleLineCommentRequested -= ToggleLineComment;
             _model.FindRequested -= OpenSearch;
+            _model.EditorFocusRequested -= FocusEditorAfterLayout;
             _model.CommandPalette.PropertyChanged -= OnCommandPalettePropertyChanged;
         }
 
@@ -325,6 +332,7 @@ public partial class QueryEditorPanel : UserControl
             _model.ExpandStarRequested += ExpandSelectStar;
             _model.ToggleLineCommentRequested += ToggleLineComment;
             _model.FindRequested += OpenSearch;
+            _model.EditorFocusRequested += FocusEditorAfterLayout;
             _model.CommandPalette.PropertyChanged += OnCommandPalettePropertyChanged;
             AttachQuery(_model.ActiveTab);
         }

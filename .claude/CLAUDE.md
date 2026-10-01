@@ -1195,6 +1195,15 @@ Three rules about it:
    nowhere (a scratch tab with text, a dirty file tab, a saved query that
    differs from its entry) says so on the status line with the reopen gesture,
    read from the catalog, one line for a bulk close. Tests: `ClosedTabTests`.
+   **A tab the user asks for takes focus** (2026-10): Ctrl/Cmd+T (and the
+   strip's +, the ☰ menu, the palette) and Reopen Closed Tab raise
+   `MainViewModel.EditorFocusRequested`, which `QueryEditorPanel` answers by
+   focusing the editor, posted so a closing palette or menu can't hand focus
+   back after it. Ctrl+T used to leave focus where it was, so typing went
+   nowhere until the editor was clicked. Only `AddTab` and `ReopenClosedTab`
+   raise it, never `NewTab`: browse, imports, generated SQL, templates and the
+   workspace restore open tabs without taking the keys from what the user was
+   typing in. Tests: `NewTabFocusTests`.
    **A tab's name is either a label or an override, and the difference is the
    bug this fixed**: `QueryViewModel.TitleOverride` is for names a *person*
    chose (the backing file, a saved query, a rename) and survives every later
