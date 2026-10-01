@@ -1425,6 +1425,24 @@ Three rules about it:
    vocabulary is app-wide across the secondary windows and dialogs; the main
    window's command bar deliberately keeps its flat minimalist `toolbar`
    buttons (rule 1) and is the one surface exempt.
+   **A status line is `TextBlock.statusMessage`** (`Styles/Theme.axaml`,
+   2026-10, 1.0.1 release pass): one line (`MaxLines=1`: Npgsql puts a server
+   error's `DETAIL` after a newline, which grew the bar a line), cut with an
+   ellipsis, and its whole text in a tooltip only while it is cut
+   (`Converters/CutTextTip`, which reads the block's `TextLayout` for a
+   collapsed line or lines left out). The main window's message and
+   cap warning, and the Activity, Database Overview and Security windows' status
+   lines use it; Slow Queries keeps its wrapping line, a paragraph of caveats
+   meant to be read. Found because a failed safe-mode commit read "Commit
+   failed…" in a narrow window with no way to see why: the main message had
+   carried a `ToolTip.Tip` since the bar was built, and it never once opened.
+   **Landmine: a `TextBlock` or panel with no `Background` is not hit-testable**
+   (not even over its glyphs: 0 of 4,536 points over the status text reached
+   it), so a tooltip on it is dead and the pointer lands on whatever has a
+   background behind it. The style sets `Background="Transparent"`, and so does
+   `Border.statusBar StackPanel`, whose segment tooltips (read-only reason, In
+   transaction, staged changes) had opened only over an icon's ink.
+   `StatusLineTests` hovers each with real pointer input.
    **Surfaces and dialogs have a vocabulary too** (2026-09, DESIGN.md rules 15
    and 16). Every secondary window sits on the shell tone — a `Window` style in
    `Styles/Theme.axaml` sets it, and the Inter font, so no window sets either —

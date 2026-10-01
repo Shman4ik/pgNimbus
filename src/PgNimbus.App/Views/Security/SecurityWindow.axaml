@@ -57,7 +57,7 @@
             </TabItem>
         </TabControl>
 
-        <TextBlock Grid.Row="2" Text="{Binding Status}" FontSize="11" Opacity="0.7" Margin="2,8,2,0" />
+        <TextBlock Grid.Row="2" Classes="statusMessage" Text="{Binding Status}" FontSize="11" Opacity="0.7" Margin="2,8,2,0" />
 
     </Grid>
 

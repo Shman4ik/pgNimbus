@@ -166,7 +166,7 @@
         <!-- One status strip flush along the window's bottom edge, showing the
              visible tab's line — not a floating caption per tab. -->
         <Border Grid.Row="1" Classes="statusBar" Margin="0,12,0,0">
-            <TextBlock Classes="statusText dim" Text="{Binding ActiveStatus}" />
+            <TextBlock Classes="statusText dim statusMessage" Text="{Binding ActiveStatus}" />
         </Border>
 
     </Grid>
