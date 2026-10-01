@@ -170,9 +170,12 @@ public static class RowFilterSql
     /// a DMY <c>DateStyle</c>), and a UTC <see cref="DateTime"/> — how Npgsql
     /// hands back a timestamptz — carries an explicit <c>+00</c>, since an
     /// offset-less literal would be read in the session's time zone instead.
+    /// Infinity is the word: Npgsql reads it as <see cref="DateTime.MaxValue"/>,
+    /// which written as a date is a finite one, and the filter matched nothing.
     /// </summary>
     public static string ValueText(object value) => value switch
     {
+        _ when PgValueSyntax.TemporalInfinity(value) is { } infinity => infinity,
         DateTime { Kind: DateTimeKind.Utc } dt => dt.ToString("yyyy-MM-dd HH:mm:ss.FFFFFF", CultureInfo.InvariantCulture) + "+00",
         DateTime dt => dt.ToString("yyyy-MM-dd HH:mm:ss.FFFFFF", CultureInfo.InvariantCulture),
         DateTimeOffset dto => dto.ToString("yyyy-MM-dd HH:mm:ss.FFFFFFzzz", CultureInfo.InvariantCulture),

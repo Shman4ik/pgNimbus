@@ -39,6 +39,9 @@ public static class SqlLiteral
         double d => d.ToString("R", CultureInfo.InvariantCulture),
         decimal m => m.ToString(CultureInfo.InvariantCulture),
         string s => Quote(s),
+        // Npgsql reads infinity as DateTime.MaxValue; written as a date it is a
+        // finite one, so a seed or filter built from it matched nothing.
+        _ when Schema.PgValueSyntax.TemporalInfinity(value) is { } infinity => Quote(infinity),
         DateTime dt => Quote(dt.ToString("yyyy-MM-dd HH:mm:ss.FFFFFF", CultureInfo.InvariantCulture)),
         DateTimeOffset dto => Quote(dto.ToString("yyyy-MM-dd HH:mm:ss.FFFFFFzzz", CultureInfo.InvariantCulture)),
         DateOnly d => Quote(d.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)),

@@ -246,6 +246,8 @@ public static class PgValueSyntax
     public static string InvariantText(object value) => value switch
     {
         bool b => b ? "t" : "f",
+        // "O" would write infinity as a finite 9999-12-31T23:59:59.9999999.
+        _ when TemporalInfinity(value) is { } infinity => infinity,
         // The invariant culture writes dates US-style (07/20/2026); ISO reads
         // back whatever the server's DateStyle.
         DateTime or DateTimeOffset or DateOnly or TimeOnly => ((IFormattable)value).ToString("O", CultureInfo.InvariantCulture),
