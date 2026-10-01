@@ -1203,7 +1203,20 @@ Three rules about it:
    to the SQL-derived name the moment the buffer says something else. Browsing
    `customers` and then typing a query against `products` used to leave the
    tab named `customers` forever, because the label had been written as an
-   override. Only `TitleOverride` rides the workspace snapshot. The tab's text
+   override. Only `TitleOverride` rides the workspace snapshot. **An imported
+   plan rides it as its content, not as a name** (2026-10, 1.0.1 release pass):
+   a tab from Import query plan came back after a restart as an empty "Query N"
+   holding only the import's comment, because its label was not an override and
+   the plan, unlike a query's result, has no statement to run again. Writing the
+   label as an override would have frozen it against later typing, so instead
+   `QueryViewModel.ShownImport` keeps the `ImportedPlan` while it is on screen
+   (typing, a run and the ✕ hide it, which clears it), `WorkspaceTab.ImportedPlan`
+   carries its pasted text (JSON, or the cleaned text; through `SecretRedactor`
+   like the tab text, since node lines quote literals), and the restore puts the
+   label back at once and imports the plan again off the UI thread
+   (`MainViewModel.WorkspacePlansRestored`; a plan that no longer parses leaves
+   the named tab and a status line). `ClosedTab` keeps it too, so Reopen Closed
+   Tab brings the plan back. Tests: `ImportedPlanRestoreTests`. The tab's text
    rides it through `SecretRedactor` (`WorkspaceStore.Save`, hard rule 7), so a
    restored tab that held a password shows `'<redacted>'` in its place.
    The ☰ button (top-left, 2026-07) opens the one discoverable menu for file/tab-level commands: New Query Tab,

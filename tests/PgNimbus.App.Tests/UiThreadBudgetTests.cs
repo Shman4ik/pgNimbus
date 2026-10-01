@@ -398,7 +398,7 @@ public class UiThreadBudgetTests
             var (window, vm) = Scenarios.Shell();
             Ui.Show(window);
             var tab = vm.ActiveTab;
-            tab.ShowImportedPlan(plan.Result, plan.DisplayText, plan.RawJson);
+            tab.ShowImportedPlan(plan);
             tab.ShowPlanAsTextCommand.Execute(null);
             Ui.Settle();
 

@@ -54,6 +54,35 @@ public class WorkspaceStoreTests
     }
 
     [Test]
+    public async Task An_imported_plan_round_trips_and_is_redacted_like_the_tab_text()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"pgnimbus-{Guid.NewGuid():N}.json");
+        // A plan's node lines quote the planned statement's literals.
+        const string plan = "Seq Scan on audit  (cost=0.00..1.00 rows=1 width=4)\n"
+            + "  Filter: (note = 'ALTER ROLE app PASSWORD ''hunter2'''::text)";
+        const string clean = "Seq Scan on orders  (cost=0.00..5.00 rows=5 width=4)";
+
+        try
+        {
+            var store = new WorkspaceStore(path);
+            store.Save("localhost/demo", [new("-- Imported plan", ImportedPlan: plan), new("-- Imported plan", ImportedPlan: clean)], 0);
+
+            var tabs = store.GetEntry("localhost/demo")!.Tabs;
+
+            await Assert.That(tabs[0].ImportedPlan).IsNotNull();
+            await Assert.That(tabs[0].ImportedPlan!).DoesNotContain("hunter2");
+            await Assert.That(await File.ReadAllTextAsync(path)).DoesNotContain("hunter2");
+            // Still a plan the restore can import.
+            await Assert.That(PgNimbus.Core.Query.ExplainService.Import(tabs[0].ImportedPlan!).Result.Root.NodeType).IsEqualTo("Seq Scan");
+            await Assert.That(tabs[1].ImportedPlan).IsEqualTo(clean);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
     public async Task A_workspace_written_before_browse_state_existed_still_loads()
     {
         var path = Path.Combine(Path.GetTempPath(), $"pgnimbus-{Guid.NewGuid():N}.json");

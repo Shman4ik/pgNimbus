@@ -786,6 +786,7 @@ public sealed partial class MainViewModel : ObservableObject
         if (workspace is { Tabs.Count: > 0 })
         {
             var restoredFiles = new List<(QueryViewModel Tab, string Path, bool LoadText)>();
+            var restoredPlans = new List<(QueryViewModel Tab, string Pasted)>();
             foreach (var saved in workspace.Tabs)
             {
                 var tab = NewTab();
@@ -804,6 +805,15 @@ public sealed partial class MainViewModel : ObservableObject
                     tab.RestoreBrowsedTable(browseSchema, browseTable);
                 }
 
+                // An imported plan has no query to run again, so the pasted text
+                // is kept and imported again (RestoreImportedPlansAsync). The
+                // label is set now, so the tab is named right from the first frame.
+                if (saved.ImportedPlan is { } pasted)
+                {
+                    tab.DefaultTitle = ImportedPlanTitle;
+                    restoredPlans.Add((tab, pasted));
+                }
+
                 // The tab's saved file association is reattached once the file
                 // has been read off the UI thread (ReattachRestoredFilesAsync);
                 // until then the tab shows the title the snapshot saved for it.
@@ -816,6 +826,7 @@ public sealed partial class MainViewModel : ObservableObject
             var activeIndex = Math.Clamp(workspace.ActiveTabIndex, 0, Tabs.Count - 1);
             ActiveTab = Tabs[activeIndex];
             WorkspaceFilesRestored = ReattachRestoredFilesAsync(restoredFiles);
+            WorkspacePlansRestored = RestoreImportedPlansAsync(restoredPlans);
         }
         else
         {
@@ -832,6 +843,48 @@ public sealed partial class MainViewModel : ObservableObject
     /// Public so a test can wait for it; nothing in the app needs to.
     /// </summary>
     public Task WorkspaceFilesRestored { get; } = Task.CompletedTask;
+
+    /// <summary>
+    /// Completes once every restored imported plan is back on screen (or could
+    /// not be read). Already complete when no restored tab held one. Public so a
+    /// test can wait for it.
+    /// </summary>
+    public Task WorkspacePlansRestored { get; } = Task.CompletedTask;
+
+    // Imports each restored tab's pasted plan again, off the UI thread: a plan
+    // can be a 4 MiB paste, and restore runs while the window opens. A tab
+    // someone typed into in the meantime keeps what was typed. A plan that no
+    // longer parses (a hand-edited snapshot, or one the secret redactor
+    // rewrote) leaves its tab named, and says why.
+    private static async Task RestoreImportedPlansAsync(IReadOnlyList<(QueryViewModel Tab, string Pasted)> plans)
+    {
+        foreach (var (tab, pasted) in plans)
+        {
+            var sql = tab.Sql;
+            ImportedPlan? plan;
+            try
+            {
+                plan = await Task.Run(() => ExplainService.Import(pasted));
+            }
+            catch (FormatException)
+            {
+                plan = null;
+            }
+
+            if (!string.Equals(tab.Sql, sql, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (plan is null)
+            {
+                tab.Status = "The imported plan could not be read back. Import it again with Import query plan…";
+                continue;
+            }
+
+            tab.ShowImportedPlan(plan);
+        }
+    }
 
     /// <summary>
     /// Best-effort reattach of each restored tab to its saved file. The
@@ -1192,9 +1245,15 @@ public sealed partial class MainViewModel : ObservableObject
         // Not the new tab's usual `SELECT 1;`: that read as the query the plan was
         // made from, and one Ctrl+Enter replaced the plan with its result.
         tab.Sql = "-- Imported plan: pasted, not run against this database.\n";
-        tab.DefaultTitle = "Imported plan";
-        tab.ShowImportedPlan(plan.Result, plan.DisplayText, plan.RawJson);
+        tab.DefaultTitle = ImportedPlanTitle;
+        tab.ShowImportedPlan(plan);
     }
+
+    // The label an imported plan's tab carries. A label, not a name someone
+    // chose (UI rule 4): it yields to the SQL-derived name once the tab is used
+    // for a query, so it is never written as a TitleOverride, and a restored
+    // or reopened plan gets it back from here.
+    private const string ImportedPlanTitle = "Imported plan";
 
     /// <summary>
     /// Drops a generated script into a new tab, where it can be read, edited and
@@ -1397,6 +1456,12 @@ public sealed partial class MainViewModel : ObservableObject
             // Same as a workspace restore: nothing is fetched now, and the next
             // run of the page query resumes browse mode.
             tab.RestoreBrowsedTable(browsed.Schema, browsed.Name);
+        }
+
+        if (closed.ImportedPlan is { } plan)
+        {
+            // After the text: setting the text hides any plan on screen.
+            tab.ShowImportedPlan(plan);
         }
 
         tab.CaretOffset = closed.CaretOffset;
