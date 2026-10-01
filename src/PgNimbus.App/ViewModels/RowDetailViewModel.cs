@@ -249,7 +249,7 @@ public sealed partial class RowDetailViewModel : ObservableObject
                 reason = string.Empty;
                 typeLabel += " · primary key";
             }
-            else if (CellText.IsShortened(value) || QueryEngine.IsUnreadableCell(value))
+            else if (CellText.IsShortened(value, _owner.ColumnTypeName(i)) || QueryEngine.IsUnreadableCell(value))
             {
                 // The form would hold the value in a one-box editor at best and
                 // a preview at worst; the inspector carries the whole thing.
@@ -258,7 +258,7 @@ public sealed partial class RowDetailViewModel : ObservableObject
 
             var field = reason is null && editable && meta is not null
                 ? new RowDetailField(i, name, typeLabel, value, NewRowField.For(meta, placeholder: "empty string"), null, _owner.ColumnTypeName(i))
-                : new RowDetailField(i, name, typeLabel, value, null, reason is { Length: 0 } ? null : reason, _owner.ColumnTypeName(i)) { CanInspect = CellText.IsShortened(value) };
+                : new RowDetailField(i, name, typeLabel, value, null, reason is { Length: 0 } ? null : reason, _owner.ColumnTypeName(i)) { CanInspect = CellText.IsShortened(value, _owner.ColumnTypeName(i)) };
             field.PropertyChanged += OnFieldChanged;
             fields.Add(field);
         }

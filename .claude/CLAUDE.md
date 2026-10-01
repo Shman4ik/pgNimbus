@@ -2095,6 +2095,31 @@ Moved to [`.claude/rules/logo-assets.md`](rules/logo-assets.md), which loads whe
   for `DateTime`/`DateTimeOffset` and never read `CellText`. Still culture-bound,
   and not part of this change: numbers in the grid (`55,75` on a Czech Mac)
   and the row-details date picker.
+  **Ranges and multiranges are written by pgNimbus, never by Npgsql's
+  `ToString`** (2026-10, 1.0.1 release pass). `NpgsqlRange<T>.ToString` writes
+  each bound in the process culture: a CSV export of a `tstzrange` came out as
+  `[07/22/2026 19:56:13,07/25/2026 19:56:13)` (the app's invariant culture is
+  US-shaped), the fraction of a second and the zone gone, and a `numrange`
+  under a decimal comma as `[1,5,2,25)`. `PgValueSyntax.FormatRange` writes the
+  literal (`empty`, `(,6)`, bounds quoted as the server quotes them) with a
+  bound writer the caller chooses: the grid's is `CellText.Temporal`, so a cell
+  reads as psql prints it (`["2026-07-22 19:56:13.543613+00",…)`) and the inline
+  edit casts it back unchanged; the exporter's is its scalar text, so a bound
+  reads like the timestamptz cell beside it (`2026-07-22T19:56:13.5436130Z`).
+  The subtypes are a closed `switch` over `NpgsqlRange<int|long|decimal|DateTime
+  |DateOnly|…>`, not reflection (NativeAOT). **A multirange and an array of
+  ranges are the same CLR value** (`NpgsqlRange<T>[]`) with different literals
+  (`{[1,3),[5,7)}` against `{"[1,3)","[5,7)"}`), so only the column's wire type
+  tells them apart: `CellText.Preview/Full/IsShortened` take it, and every
+  `ResultExporter` writer takes an optional `columnTypes` list that export and
+  copy pass. In CSV/TSV/Markdown a multirange is its literal while an array
+  stays `;`-joined; an INSERT copy writes an array as `'{1,2}'` (it wrote
+  `'1;2'`, which no array column takes). `DateOnly`/`TimeOnly` are ISO in export
+  and in `PgValueSyntax.InvariantText`, the fallback every literal writer uses,
+  and a `timestamptz[]` cell's elements are written like the scalar.
+  `ResultExporterRangeTests` runs under cs-CZ and, with `PGNIMBUS_TEST_CONN`,
+  casts what each range and multirange type was written as back on the server;
+  `RangeCellTextTests` holds the grid side.
 - **Export writes every row, not the grid's** (2026-09, ROADMAP D1). It used to
   write `Rows`: one 100-row page when browsing, at most `MaxDisplayRows` for a
   query, silently. `QueryViewModel.ChooseExportSource` now decides: a grid that

@@ -198,7 +198,7 @@ public sealed partial class NewRowField : ObservableObject
                 DateValue = stamp.Date;
                 return;
             default:
-                Value = CellText.Full(value);
+                Value = CellText.Full(value, DataType);
                 return;
         }
     }

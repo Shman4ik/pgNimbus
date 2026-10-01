@@ -809,7 +809,7 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
         if (e.Row.DataContext is object?[] row
             && e.Column is { } column
             && column.DisplayIndex < row.Length
-            && CellText.IsShortened(row[column.DisplayIndex]))
+            && CellText.IsShortened(row[column.DisplayIndex], _activeQuery?.ColumnTypeName(column.DisplayIndex)))
         {
             e.Cancel = true;
             // Posted: the grid is mid-edit-begin, and the inspector steals focus.
@@ -958,7 +958,9 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
 
         var value = row[_lastPressedColumnIndex];
         var entries = new List<(string Header, FilterOperator Op, string? Value)>();
-        if (value is not null && !CellText.IsShortened(value) && !QueryEngine.IsUnreadableCell(value))
+        if (value is not null
+            && !CellText.IsShortened(value, _activeQuery.ColumnTypeName(_lastPressedColumnIndex))
+            && !QueryEngine.IsUnreadableCell(value))
         {
             var ops = RowFilterSql.OperatorsFor(meta.Editor, meta.DataType);
             var text = RowFilterSql.ValueText(value);

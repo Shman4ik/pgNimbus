@@ -28,13 +28,13 @@ public static class ResultExporter
     /// formula (see <see cref="NeutralizeFormula"/>). Off by default: the quote
     /// is a change to the data for every other reader of the file.
     /// </param>
-    public static void WriteCsv(TextWriter writer, IReadOnlyList<string> columns, IEnumerable<object?[]> rows, bool spreadsheetSafe = false)
+    public static void WriteCsv(TextWriter writer, IReadOnlyList<string> columns, IEnumerable<object?[]> rows, bool spreadsheetSafe = false, IReadOnlyList<string?>? columnTypes = null)
     {
         WriteCsvHeader(writer, columns, spreadsheetSafe);
 
         foreach (var row in rows)
         {
-            WriteCsvRow(writer, row, spreadsheetSafe);
+            WriteCsvRow(writer, row, spreadsheetSafe, columnTypes);
         }
     }
 
@@ -44,11 +44,16 @@ public static class ResultExporter
         writer.Write("\r\n");
     }
 
-    private static void WriteCsvRow(TextWriter writer, object?[] row, bool spreadsheetSafe)
+    private static void WriteCsvRow(TextWriter writer, object?[] row, bool spreadsheetSafe, IReadOnlyList<string?>? columnTypes)
     {
-        writer.Write(string.Join(',', row.Select(v => EscapeCsvField(FormatCell(v, spreadsheetSafe)))));
+        writer.Write(string.Join(',', row.Select((v, i) => EscapeCsvField(FormatCell(v, TypeOf(columnTypes, i), spreadsheetSafe)))));
         writer.Write("\r\n");
     }
+
+    // The column's wire type, when the caller passed them: a multirange and an
+    // array of ranges are the same CLR value and only this tells them apart.
+    private static string? TypeOf(IReadOnlyList<string?>? columnTypes, int index) =>
+        columnTypes is not null && index < columnTypes.Count ? columnTypes[index] : null;
 
     /// <summary>
     /// The characters that make Excel, LibreOffice and Google Sheets read a cell
@@ -68,9 +73,9 @@ public static class ResultExporter
 
     // A cell's text for CSV/TSV. Numbers are never prefixed: a negative number
     // starts with '-', and it is a number to the spreadsheet too, not a formula.
-    private static string FormatCell(object? value, bool spreadsheetSafe)
+    private static string FormatCell(object? value, string? type, bool spreadsheetSafe)
     {
-        var text = FormatCsvValue(value);
+        var text = FormatCsvValue(value, type);
         return spreadsheetSafe && !IsNumber(value) ? NeutralizeFormula(text) : text;
     }
 
@@ -96,7 +101,8 @@ public static class ResultExporter
         IAsyncEnumerable<RowBatch> batches,
         Action<long>? progress,
         CancellationToken ct,
-        bool spreadsheetSafe = false)
+        bool spreadsheetSafe = false,
+        IReadOnlyList<string?>? columnTypes = null)
     {
         long written = 0;
 
@@ -108,7 +114,7 @@ public static class ResultExporter
             {
                 foreach (var row in batch.Rows)
                 {
-                    WriteCsvRow(csv, row, spreadsheetSafe);
+                    WriteCsvRow(csv, row, spreadsheetSafe, columnTypes);
                 }
 
                 written += batch.Rows.Count;
@@ -125,7 +131,7 @@ public static class ResultExporter
         {
             foreach (var row in batch.Rows)
             {
-                WriteJsonRow(json, columns, row);
+                WriteJsonRow(json, columns, row, columnTypes);
             }
 
             // Utf8JsonWriter buffers until it is flushed: without this the whole
@@ -146,20 +152,20 @@ public static class ResultExporter
     /// <paramref name="spreadsheetSafe"/> is <see cref="WriteCsv"/>'s; the formula check reads the value before
     /// its tabs are collapsed, so a leading tab still counts.
     /// </summary>
-    public static void WriteTsv(TextWriter writer, IReadOnlyList<string> columns, IEnumerable<object?[]> rows, bool spreadsheetSafe = false)
+    public static void WriteTsv(TextWriter writer, IReadOnlyList<string> columns, IEnumerable<object?[]> rows, bool spreadsheetSafe = false, IReadOnlyList<string?>? columnTypes = null)
     {
         writer.Write(string.Join('\t', columns.Select(c => SanitizeTsv(spreadsheetSafe ? NeutralizeFormula(c) : c))));
         writer.Write('\n');
 
         foreach (var row in rows)
         {
-            writer.Write(string.Join('\t', row.Select(v => SanitizeTsv(FormatCell(v, spreadsheetSafe)))));
+            writer.Write(string.Join('\t', row.Select((v, i) => SanitizeTsv(FormatCell(v, TypeOf(columnTypes, i), spreadsheetSafe)))));
             writer.Write('\n');
         }
     }
 
     /// <summary>A GitHub-flavored Markdown table (header, separator row, then data), pipes and newlines escaped.</summary>
-    public static void WriteMarkdown(TextWriter writer, IReadOnlyList<string> columns, IEnumerable<object?[]> rows)
+    public static void WriteMarkdown(TextWriter writer, IReadOnlyList<string> columns, IEnumerable<object?[]> rows, IReadOnlyList<string?>? columnTypes = null)
     {
         writer.Write("| ");
         writer.Write(string.Join(" | ", columns.Select(EscapeMarkdown)));
@@ -170,16 +176,17 @@ public static class ResultExporter
         foreach (var row in rows)
         {
             writer.Write("| ");
-            writer.Write(string.Join(" | ", row.Select(v => EscapeMarkdown(FormatCsvValue(v)))));
+            writer.Write(string.Join(" | ", row.Select((v, i) => EscapeMarkdown(FormatCsvValue(v, TypeOf(columnTypes, i))))));
             writer.Write(" |\n");
         }
     }
 
     /// <summary>
     /// One <c>INSERT INTO table (cols) VALUES (...);</c> per row, with proper SQL literal quoting (NULL,
-    /// unquoted numbers/booleans, single-quoted and '-escaped text, <c>\x…</c> bytea).
+    /// unquoted numbers/booleans, single-quoted and '-escaped text, <c>\x…</c> bytea, an array, range or
+    /// multirange as the literal its column reads).
     /// </summary>
-    public static void WriteInsert(TextWriter writer, string table, IReadOnlyList<string> columns, IEnumerable<object?[]> rows)
+    public static void WriteInsert(TextWriter writer, string table, IReadOnlyList<string> columns, IEnumerable<object?[]> rows, IReadOnlyList<string?>? columnTypes = null)
     {
         var columnList = string.Join(", ", columns.Select(QuoteIdentifier));
 
@@ -190,7 +197,7 @@ public static class ResultExporter
             writer.Write(" (");
             writer.Write(columnList);
             writer.Write(") VALUES (");
-            writer.Write(string.Join(", ", row.Select(FormatSqlLiteral)));
+            writer.Write(string.Join(", ", row.Select((v, i) => FormatSqlLiteral(v, TypeOf(columnTypes, i)))));
             writer.Write(");\n");
         }
     }
@@ -205,44 +212,62 @@ public static class ResultExporter
         Encoder = JavaScriptEncoder.Create(UnicodeRanges.All),
     };
 
-    public static void WriteJson(Stream stream, IReadOnlyList<string> columns, IEnumerable<object?[]> rows)
+    public static void WriteJson(Stream stream, IReadOnlyList<string> columns, IEnumerable<object?[]> rows, IReadOnlyList<string?>? columnTypes = null)
     {
         using var writer = new Utf8JsonWriter(stream, JsonOptions);
 
         writer.WriteStartArray();
         foreach (var row in rows)
         {
-            WriteJsonRow(writer, columns, row);
+            WriteJsonRow(writer, columns, row, columnTypes);
         }
 
         writer.WriteEndArray();
     }
 
-    private static void WriteJsonRow(Utf8JsonWriter writer, IReadOnlyList<string> columns, object?[] row)
+    private static void WriteJsonRow(Utf8JsonWriter writer, IReadOnlyList<string> columns, object?[] row, IReadOnlyList<string?>? columnTypes)
     {
         writer.WriteStartObject();
         for (var i = 0; i < columns.Count; i++)
         {
             writer.WritePropertyName(columns[i]);
-            WriteJsonValue(writer, row[i]);
+            WriteJsonValue(writer, row[i], TypeOf(columnTypes, i));
         }
 
         writer.WriteEndObject();
     }
 
-    private static string FormatCsvValue(object? value) => value switch
+    private static string FormatCsvValue(object? value, string? type = null) => value switch
     {
         null or DBNull => string.Empty,
         DateTime dt => dt.ToString("O", CultureInfo.InvariantCulture),
         DateTimeOffset dto => dto.ToString("O", CultureInfo.InvariantCulture),
+        // The invariant culture is US-shaped too (07/20/2026); "O" is ISO.
+        DateOnly date => date.ToString("O", CultureInfo.InvariantCulture),
+        TimeOnly time => time.ToString("O", CultureInfo.InvariantCulture),
         byte[] bytes => Convert.ToBase64String(bytes),
-        Array array => string.Join(';', array.Cast<object?>().Select(FormatCsvValue)),
+        // A multirange is one value, not an array: its literal, {[1,3),[5,7)}.
+        Array array when PgValueSyntax.IsMultirangeType(type)
+            && PgValueSyntax.FormatMultirange(array, FormatBound) is { } multirange => multirange,
+        Array array => string.Join(';', array.Cast<object?>().Select(v => FormatCsvValue(v))),
         // hstore comes back as a Dictionary<string,string>; emit its Postgres
         // literal ("k"=>"v") rather than the CLR type name.
         System.Collections.IDictionary map => PgValueSyntax.FormatHstore(map),
+        // A range's own ToString writes its bounds in the process culture
+        // (07/22/2026 19:56:13, a decimal comma); here each bound is written
+        // the way a scalar cell of its type is.
+        _ when PgValueSyntax.FormatRange(value, FormatBound) is { } range => range,
         IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
         _ => value.ToString() ?? string.Empty,
     };
+
+    private static string FormatBound(object bound) => FormatCsvValue(bound);
+
+    // An element inside a Postgres array literal: bytea as \x-hex (the literal's
+    // own form, where a CSV cell takes base64), anything else as its cell text,
+    // which the literal then quotes.
+    private static string FormatArrayElement(object element) =>
+        element is byte[] bytes ? "\\x" + Convert.ToHexString(bytes) : FormatCsvValue(element);
 
     private static string EscapeCsvField(string value) =>
         value.IndexOfAny([',', '"', '\n', '\r']) < 0 ? value : $"\"{value.Replace("\"", "\"\"")}\"";
@@ -273,18 +298,35 @@ public static class ResultExporter
     /// on (<see cref="Connections.ConnectionProfile.StandardStringsSessionOption"/>):
     /// only then is the doubled quote the whole escape.
     /// </summary>
-    public static string FormatSqlLiteral(object? value) => value switch
+    /// <param name="value">The value.</param>
+    /// <param name="type">
+    /// The column's wire type, when known: it is what tells a multirange from an
+    /// array of ranges (<see cref="PgValueSyntax.IsMultirangeType"/>).
+    /// </param>
+    public static string FormatSqlLiteral(object? value, string? type = null) => value switch
     {
         null or DBNull => "NULL",
         bool b => b ? "TRUE" : "FALSE",
         byte or sbyte or short or ushort or int or uint or long or ulong => Convert.ToString(value, CultureInfo.InvariantCulture) ?? "NULL",
         float or double or decimal => ((IFormattable)value).ToString(null, CultureInfo.InvariantCulture),
         byte[] bytes => $"'\\x{Convert.ToHexString(bytes)}'",
-        _ => Query.SqlLiteral.Quote(FormatCsvValue(value)),
+        // An array as its CSV text ('1;2') is no array literal; write {1,2}.
+        Array array when !PgValueSyntax.IsMultirangeType(type) =>
+            Query.SqlLiteral.Quote(PgValueSyntax.FormatArray(array, FormatArrayElement)),
+        _ => Query.SqlLiteral.Quote(FormatCsvValue(value, type)),
     };
 
-    private static void WriteJsonValue(Utf8JsonWriter writer, object? value)
+    private static void WriteJsonValue(Utf8JsonWriter writer, object? value, string? type = null)
     {
+        // A range or a multirange has no JSON shape of its own: it is written as
+        // its literal, the way the CSV writes it.
+        if ((value is Array && PgValueSyntax.IsMultirangeType(type))
+            || (value is not null && PgValueSyntax.FormatRange(value, FormatBound) is not null))
+        {
+            writer.WriteStringValue(FormatCsvValue(value, type));
+            return;
+        }
+
         switch (value)
         {
             case null or DBNull:
@@ -329,6 +371,9 @@ public static class ResultExporter
                 break;
             case DateTimeOffset dto:
                 writer.WriteStringValue(dto.ToString("O", CultureInfo.InvariantCulture));
+                break;
+            case DateOnly or TimeOnly:
+                writer.WriteStringValue(FormatCsvValue(value));
                 break;
             case Guid g:
                 writer.WriteStringValue(g);
