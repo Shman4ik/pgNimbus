@@ -76,8 +76,8 @@ the release pipeline don't pollute the trend history. Three moving parts:
    `PGNIMBUS_BENCH_SKIP_AOT=1` skips the slow AOT publish for local runs. Also
    tracks size: the AOT exe alone (`binary_size_mb`) and the shipped publish
    files (`publish_size_mb` — the publish output minus `*.pdb`/`*.dbg` debug
-   symbols, mirroring the exclusion the MSI/MSIX packaging applies, so the
-   metric tracks what installers actually package rather than what publish
+   symbols, mirroring the exclusion the zip/MSIX packaging applies, so the
+   metric tracks what the packages actually hold rather than what publish
    leaves on disk; the publish dir is wiped before publishing so repeated
    local runs never count stale leftovers) — the latter is the more honest
    "app size" number since side-car native libs bundled alongside the exe
@@ -151,8 +151,8 @@ audit findings 5 and 15). Four things the audit found, each now a rule:
 `scripts/release/smoke-launch.sh` (or `Smoke-Launch.ps1` on Windows) against
 its own artifacts with `PGNIMBUS_STARTUP_PROBE=1`, asserting both a clean exit
 *and* the probe line — an app that quit before drawing anything also exits 0.
-Windows smokes the publish output and the MSI after a silent per-user install
-(uninstalled in the same step); macOS smokes the publish output and the binary
+Windows smokes the publish output and the exe of the zip unpacked into a fresh
+folder (and fails if a `.pdb` shipped in it); macOS smokes the publish output and the binary
 inside the mounted `.dmg`; Linux smokes the publish output, the `.tar.gz`, the
 `.AppImage` (`--appimage-extract-and-run`, runners have no FUSE) and the `.deb`
 after `apt-get install` resolves its own `Depends` — that last one is how a
@@ -166,18 +166,17 @@ to (verified, not assumed).
 It produces, per tag:
 
 - **Windows** — `dotnet publish -r win-x64 -p:PublishAot=true`, then a
-  per-user WiX v5 MSI built from [`packaging/windows/Product.wxs`](packaging/windows/Product.wxs)
-  via the `wix` .NET tool from the repo's tool manifest
-  (`.config/dotnet-tools.json`, restored with `dotnet tool restore`, run as
-  `dotnet wix build ... -d PublishDir=... -d Version=...`). The manifest
-  pins `wix` and `CycloneDX` to exact versions that Dependabot's nuget
-  ecosystem bumps; it replaced `dotnet tool install --global wix --version
-  5.*`, which floated (2026-09). Per-user (installs to `%LocalAppData%`, no elevation) is
-  deliberate: the MSI is currently **unsigned** (no code-signing cert yet),
-  and per-machine + unsigned is a much worse UAC/SmartScreen experience.
-  The `UpgradeCode` GUID in `Product.wxs` is fixed forever — never
-  regenerate it, that's what makes installing a newer tag upgrade in place
-  instead of side-by-side.
+  portable `pgNimbus-<version>-win-x64.zip` from
+  [`scripts/windows/build-zip.ps1`](scripts/windows/build-zip.ps1): one
+  top-level folder of the same name, like the Linux `.tar.gz`, with no `.pdb`.
+  Nothing installs; the app's data is in `%AppData%\pgNimbus` either way, so
+  replacing the folder is the update. **It replaced a per-user WiX MSI on
+  2026-10-01**: the MSI was downloaded about 38 times over 30 releases (none for
+  0.13.0 to 1.0.0), the Store package already covers installing and updating,
+  and WiX 7 had just started to require accepting its OSMF EULA (WIX7015),
+  a build dependency and a licence for a channel nobody used. What the zip gives
+  up is the Start menu shortcut, the Apps entry and upgrading in place. The
+  tool manifest (`.config/dotnet-tools.json`) now pins only `CycloneDX`.
 - **macOS** — `osx-arm64` only, built on a `macos-14` runner. GitHub retired
   the last Intel macOS runner image (`macos-13`) in December 2025 and has
   said x86_64 macOS support ends entirely once the `macos-15` image retires
@@ -275,18 +274,21 @@ It produces, per tag:
   [`scripts/winget/render-manifest.sh`](scripts/winget/render-manifest.sh)
   and the templates in `packaging/winget/`) the three manifest files
   winget requires and validates them with `winget validate` right after
-  building the MSI (same job — the MSI and its SHA256 are already at
-  hand, no separate runner), but does
+  building the zip (same job — the zip and its SHA256 are already at
+  hand, no separate runner). The installer is `zip` with a nested `portable`
+  exe aliased `pgnimbus`, and `ArchiveBinariesDependOnPath: true` puts the
+  unpacked folder on PATH instead of symlinking the exe, which loads the
+  native libraries beside it. It does
   **not** submit them anywhere, and that is now a decision rather than a
   pending step (2026-09 backlog review, issue #134 closed): `winget install
   pgNimbus` already resolves through the `msstore` source to the
   Microsoft-signed Store package, so a community-source entry would only add
-  the unsigned MSI beside it. The generated `winget-manifests.zip` release
+  the unsigned zip beside it. The generated `winget-manifests.zip` release
   asset stays, so the first `winget-pkgs` PR (which registers the
   `pgNimbus.pgNimbus` identifier) can still be filed by hand if the msstore
   source turns out not to be enough — e.g. machines where it is disabled.
 
-The direct-download MSI is **unsigned** and stays that way — deliberately
+The direct-download zip is **unsigned** and stays that way — deliberately
 **not** pursuing a paid signing service (Azure Artifact Signing / a purchased
 Authenticode cert): pgNimbus is a free OSS project with no revenue. macOS is
 the one exception on the plan (ROADMAP T5, confirmed 2026-09-27): a Developer
@@ -300,7 +302,7 @@ certification — the package only needs a throwaway self-signed cert to
 satisfy the upload requirement, not a purchased one), and Store apps are
 automatically discoverable via winget's built-in `msstore` source with no
 separate winget submission. It's an *additional* channel, not a replacement
-for the direct MSI, and the two coexist.
+for the direct zip, and the two coexist.
 
 ### Actions storage is a 0.5 GB budget (2026-08)
 
@@ -314,7 +316,7 @@ rules keep it there:
 1. **An artifact that ships in the GitHub Release gets `retention-days: 1`.**
    Release assets don't count against the Actions allowance, and the `release`
    job consumes these in the same run — the artifact is a job-to-job hand-off,
-   not storage. That covers `windows-msi`, `macos-dmg-arm64`,
+   not storage. That covers `windows-zip`, `macos-dmg-arm64`,
    `linux-packages-*`, `sbom` (from its own job since 2026-09), `winget-manifests`, and `publish-linux-x64`
    (benchmark input). A day is still long enough for a human to grab a
    `workflow_dispatch` test build, where the `release` job never runs.
@@ -367,7 +369,7 @@ pinned NuGet sources):
   together, so a pin is never a freeze. Two of the actions were pinned to
   *branches* before this (`dependency-review-action@v5`,
   `github-action-benchmark@v1`, the latter running with `contents: write`
-  during a release). The .NET tools (`wix`, `CycloneDX`) are exact versions in
+  during a release). The .NET tool `CycloneDX` is an exact version in
   `.config/dotnet-tools.json`; appimagetool and the AppImage runtime are fixed
   releases with sha256 checks in `build-packages.sh` (see the Linux bullet
   above). The repo-side lock, "Require actions to be pinned to a full-length

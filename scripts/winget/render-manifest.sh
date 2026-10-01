@@ -4,7 +4,7 @@
 # NOT submit anything to microsoft/winget-pkgs — it just produces the files
 # for manual (or, later, automated) submission.
 #
-# Usage: render-manifest.sh <version> <msi-sha256> <release-url> <out-dir>
+# Usage: render-manifest.sh <version> <zip-sha256> <release-url> <out-dir>
 set -euo pipefail
 
 VERSION="$1"

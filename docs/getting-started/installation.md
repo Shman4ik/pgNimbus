@@ -20,13 +20,21 @@ winget install pgNimbus --source msstore
 
 This installs the same Store package, so it carries the same signature.
 
-### MSI
+### Portable zip
 
-Download `pgNimbus-<version>-win-x64.msi` from the
-[releases page](https://github.com/Shman4ik/pgNimbus/releases). It is a per-user
-installer: it writes to `%LocalAppData%` and needs no administrator rights.
+Download `pgNimbus-<version>-win-x64.zip` from the
+[releases page](https://github.com/Shman4ik/pgNimbus/releases), unzip it
+anywhere you like, and run `PgNimbus.App.exe` from the
+`pgNimbus-<version>-win-x64` folder. Nothing is installed and no administrator
+rights are needed. To update, replace the folder with the new release's. Your
+connections and settings live in `%AppData%\pgNimbus`, not in the folder, so
+they carry over.
 
-!!! warning "The MSI is unsigned"
+Releases up to 1.0.0 also shipped an MSI installer. If you installed one,
+remove it under **Settings › Apps › Installed apps** and use the Store or the
+zip instead: the MSI gets no further updates.
+
+!!! warning "The zip is unsigned"
 
     pgNimbus is a free project with no revenue, so it does not buy a code
     signing certificate. SmartScreen will warn on first run; click
@@ -135,7 +143,7 @@ repository, so pin the check to the release workflow and the tag you
 downloaded:
 
 ```bash
-gh attestation verify pgNimbus-<version>-win-x64.msi --repo Shman4ik/pgNimbus \
+gh attestation verify pgNimbus-<version>-win-x64.zip --repo Shman4ik/pgNimbus \
   --signer-workflow Shman4ik/pgNimbus/.github/workflows/release.yml \
   --source-ref refs/tags/v<version>
 ```

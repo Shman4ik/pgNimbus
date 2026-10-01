@@ -14,7 +14,7 @@ updates:
   # commit SHA with a "# vX.Y.Z" comment (security audit 2026-09, finding 5);
   # this is what moves the SHA and the comment together when a new release
   # of an action appears. The nuget entry above also covers the tool manifest
-  # (.config/dotnet-tools.json: wix, CycloneDX).
+  # (.config/dotnet-tools.json: CycloneDX).
   - package-ecosystem: github-actions
     directory: /
     schedule:

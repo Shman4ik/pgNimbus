@@ -102,60 +102,40 @@ jobs:
           -Label "win-x64 publish output"
           -Executable publish/win-x64/PgNimbus.App.exe
 
-      # WiX comes from the tool manifest (.config/dotnet-tools.json), pinned to
-      # an exact version that Dependabot bumps — not a floating "5.*" install.
-      - name: Restore .NET tools (WiX)
-        run: dotnet tool restore
-
-      - name: Build MSI
-        # PublishDir/IconFile must be absolute: WiX resolves relative -d
-        # paths against the .wxs file's own directory, not the cwd.
+      # The direct Windows download is a portable .zip, not an installer
+      # (2026-10): the per-user MSI was downloaded a handful of times in 30
+      # releases, and the Store package covers installing and updating. Nothing
+      # to install means nothing to sign, upgrade or uninstall here either.
+      - name: Build portable zip
         shell: pwsh
         run: >
-          dotnet wix build packaging/windows/Product.wxs
-          -d PublishDir=${env:GITHUB_WORKSPACE}\publish\win-x64
-          -d Version=${env:VERSION}
-          -d IconFile=${env:GITHUB_WORKSPACE}\src\PgNimbus.App\Assets\app.ico
-          -arch x64
-          -o pgNimbus-${env:VERSION}-win-x64.msi
+          scripts/windows/build-zip.ps1
+          -PublishDir publish/win-x64
+          -Version ${env:VERSION}
+          -Output pgNimbus-${env:VERSION}-win-x64.zip
 
-      # The MSI is the artifact most people actually download, and nothing else
-      # in the pipeline proves it installs. Per-user (no elevation), so this
-      # lands in %LocalAppData%\pgNimbus — see packaging/windows/Product.wxs.
-      - name: Smoke test (install the MSI, launch it, uninstall)
+      # Launch it the way its users get it: unpacked into a fresh folder.
+      - name: Smoke test (unpack the zip, launch it)
         shell: pwsh
         run: |
-          $msi = (Resolve-Path "pgNimbus-${env:VERSION}-win-x64.msi").Path
-          $log = "msi-install.log"
-
-          $install = Start-Process msiexec -ArgumentList "/i", "`"$msi`"", "/qn", "/l*v", $log -Wait -PassThru
-          if ($install.ExitCode -ne 0) {
-              Get-Content $log -Tail 60
-              throw "msiexec /i failed with $($install.ExitCode)"
-          }
-
-          $installed = Join-Path $env:LOCALAPPDATA "pgNimbus\PgNimbus.App.exe"
-          scripts/release/Smoke-Launch.ps1 -Label "installed MSI" -Executable $installed
-
-          # Uninstall in the same step: leaving the product registered would
-          # make a re-run of this job hit an unexpected upgrade path instead of
-          # a clean first install.
-          $uninstall = Start-Process msiexec -ArgumentList "/x", "`"$msi`"", "/qn" -Wait -PassThru
-          if ($uninstall.ExitCode -ne 0) {
-              throw "msiexec /x failed with $($uninstall.ExitCode)"
-          }
+          $dest = Join-Path $env:RUNNER_TEMP "zip-smoke"
+          Expand-Archive -Path "pgNimbus-${env:VERSION}-win-x64.zip" -DestinationPath $dest -Force
+          $exe = Join-Path $dest "pgNimbus-${env:VERSION}-win-x64\PgNimbus.App.exe"
+          scripts/release/Smoke-Launch.ps1 -Label "unpacked zip" -Executable $exe
+          $pdb = Get-ChildItem -Path $dest -Filter *.pdb -Recurse
+          if ($pdb) { throw "debug symbols shipped in the zip: $($pdb.Name -join ', ')" }
 
       - name: Compute SHA256
         id: sha
         shell: pwsh
         run: |
-          $hash = (Get-FileHash "pgNimbus-${env:VERSION}-win-x64.msi" -Algorithm SHA256).Hash.ToLower()
+          $hash = (Get-FileHash "pgNimbus-${env:VERSION}-win-x64.zip" -Algorithm SHA256).Hash.ToLower()
           "sha256=$hash" >> $env:GITHUB_OUTPUT
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: windows-msi
-          path: pgNimbus-${{ env.VERSION }}-win-x64.msi
+          name: windows-zip
+          path: pgNimbus-${{ env.VERSION }}-win-x64.zip
           # Handed straight to the "release" job below, which publishes it as a
           # GitHub Release asset — and Release assets do not count against the
           # Actions storage allowance. So this copy is a same-run hand-off, not
@@ -190,16 +170,16 @@ jobs:
           retention-days: 14
 
       # winget manifests are rendered right here rather than in a separate
-      # job: the MSI and its SHA256 are already at hand, so this saves a
+      # job: the zip and its SHA256 are already at hand, so this saves a
       # whole extra Windows runner (and the artifact round-trip) that used
       # to sit on the critical path before "release".
       - name: Render winget manifests
         shell: bash
         env:
-          MSI_SHA256: ${{ steps.sha.outputs.sha256 }}
+          ZIP_SHA256: ${{ steps.sha.outputs.sha256 }}
         run: |
-          RELEASE_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/v${VERSION}/pgNimbus-${VERSION}-win-x64.msi"
-          bash scripts/winget/render-manifest.sh "$VERSION" "$MSI_SHA256" "$RELEASE_URL" manifests
+          RELEASE_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/v${VERSION}/pgNimbus-${VERSION}-win-x64.zip"
+          bash scripts/winget/render-manifest.sh "$VERSION" "$ZIP_SHA256" "$RELEASE_URL" manifests
 
       - name: Validate winget manifests
         shell: pwsh
@@ -213,7 +193,7 @@ jobs:
         with:
           name: winget-manifests
           path: winget-manifests.zip
-          # Same-run hand-off to "release" (see windows-msi above).
+          # Same-run hand-off to "release" (see windows-zip above).
           retention-days: 1
 
   build-macos:
@@ -353,7 +333,7 @@ jobs:
         with:
           name: macos-dmg-arm64
           path: dist/*.dmg
-          # Same-run hand-off to "release" (see windows-msi above).
+          # Same-run hand-off to "release" (see windows-zip above).
           retention-days: 1
 
   build-linux:
@@ -440,7 +420,7 @@ jobs:
         with:
           name: linux-packages-${{ matrix.rid }}
           path: dist/*
-          # Same-run hand-off to "release" (see windows-msi above).
+          # Same-run hand-off to "release" (see windows-zip above).
           retention-days: 1
 
       # The raw x64 publish output feeds the benchmark job so it doesn't
@@ -514,7 +494,7 @@ jobs:
         with:
           name: sbom
           path: sbom/*.cdx.json
-          # Same-run hand-off to "release" (see windows-msi above).
+          # Same-run hand-off to "release" (see windows-zip above).
           retention-days: 1
 
   # The publish gate. Each build job smoke-launches its own artifacts before
@@ -541,12 +521,12 @@ jobs:
         with:
           path: artifacts
           merge-multiple: true
-          pattern: "{windows-msi,macos-dmg-arm64,linux-packages-*,winget-manifests,sbom}"
+          pattern: "{windows-zip,macos-dmg-arm64,linux-packages-*,winget-manifests,sbom}"
 
       - name: Generate checksums
         run: |
           cd artifacts
-          sha256sum *.msi *.dmg *.zip *.AppImage *.tar.gz *.deb *.cdx.json > SHA256SUMS.txt
+          sha256sum *.dmg *.zip *.AppImage *.tar.gz *.deb *.cdx.json > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
       # Signed SLSA build provenance (Sigstore) for every shipped file — the
@@ -581,7 +561,6 @@ jobs:
             --title "$TAG" \
             --generate-notes \
             --prerelease \
-            ./*.msi \
             ./*.dmg \
             ./*.zip \
             ./*.AppImage \

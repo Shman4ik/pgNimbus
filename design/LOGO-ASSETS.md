@@ -162,12 +162,12 @@ carries no wordmark), and `trailer/`, the Store trailer and its thumbnail, from
 
 ## Part 2 — Shipped outputs: `src/PgNimbus.App/Assets/`
 
-**Generated — do not hand-edit.** Filenames are stable, so csproj / WiX /
+**Generated — do not hand-edit.** Filenames are stable, so csproj /
 MSIX manifest / CI reference them unchanged.
 
 | File | Size(s) | Bg | Consumed by |
 |---|---|---|---|
-| `app.ico` | 16,24,32,48,64,128,256 | solid tile | exe icon (`ApplicationIcon` in csproj) + MSI (`Product.wxs` → `ARPPRODUCTICON`, shortcut) only — **not** the runtime window icon, see the next row |
+| `app.ico` | 16,24,32,48,64,128,256 | solid tile | exe icon (`ApplicationIcon` in csproj) only — **not** the runtime window icon, see the next row |
 | `window-icon-light.ico` | 16,24,32,48,256 | solid tile | what `ThemedWindowChrome.Attach` actually sets at runtime: the small/big taskbar `WM_SETICON` HICONs when the app is in light theme |
 | `window-icon-dark.ico` | 16,24,32,48,256 | solid tile | same, dark theme — **and** unconditionally `Window.Icon` regardless of theme (a pre-existing quirk in `ThemedWindowChrome.cs` that stopped visibly mattering once both `.ico` files became byte-identical, 2026-08) |
 | `Msix/Square44x44Logo.scale-{100,125,150,200,400}.png` | 44,55,66,88,176 | solid tile | MSIX small tile (`Package.appxmanifest`) |
@@ -298,7 +298,7 @@ What the pipeline produces today, and what a fuller store presence could add.
 The **1024 master must be the largest single source** (nothing upstream is
 bigger), so it bounds quality of every derived size.
 
-**Windows exe/MSI (`app.ico`):** 16, 24, 32, 48, 64, 128, 256. *(Could add 20,
+**Windows exe (`app.ico`):** 16, 24, 32, 48, 64, 128, 256. *(Could add 20,
 40, 96 for complete Explorer coverage.)*
 
 **macOS (`app.icns`):** 16, 32, 64, 128, 256, 512 at @1×/@2× → real px 16, 32,

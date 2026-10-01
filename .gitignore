@@ -47,8 +47,7 @@ publish/
 *.publishproj
 
 # Local release/installer build output
-*.msi
-*.wixpdb
+pgNimbus-*-win-x64.zip
 *.dmg
 dist/
 manifests/

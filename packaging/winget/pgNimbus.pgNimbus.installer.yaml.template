@@ -1,17 +1,23 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.9.0.schema.json
 # winget installer manifest — https://learn.microsoft.com/windows/package-manager/package/manifest
 # Rendered by scripts/winget/render-manifest.sh, placeholders filled from the release tag.
+#
+# A portable app inside a zip: winget unpacks the whole archive and puts the
+# exe on PATH as `pgnimbus`. ArchiveBinariesDependOnPath adds the unpacked
+# folder to PATH instead of a symlink to the exe, because the exe loads the
+# native libraries next to it (SkiaSharp, HarfBuzz, ANGLE).
 PackageIdentifier: pgNimbus.pgNimbus
 PackageVersion: __VERSION__
 MinimumOSVersion: 10.0.17763.0
-InstallerType: msi
-Scope: user
-InstallModes:
-  - interactive
-  - silent
-UpgradeBehavior: install
+InstallerType: zip
+NestedInstallerType: portable
+NestedInstallerFiles:
+  - RelativeFilePath: pgNimbus-__VERSION__-win-x64\PgNimbus.App.exe
+    PortableCommandAlias: pgnimbus
+ArchiveBinariesDependOnPath: true
 Installers:
   - Architecture: x64
     InstallerUrl: __RELEASE_URL__
     InstallerSha256: __SHA256__
 ManifestType: installer
-ManifestVersion: 1.6.0
+ManifestVersion: 1.9.0

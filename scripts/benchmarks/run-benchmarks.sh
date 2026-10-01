@@ -13,8 +13,8 @@
 #   publish_size_mb  total size of the shipped files in the AOT publish dir
 #                     (exe + native deps like libSkiaSharp/libHarfBuzzSharp),
 #                     excluding *.pdb/*.dbg debug symbols — the same exclusion
-#                     the MSI (Product.wxs) and MSIX (build-msix.ps1) apply,
-#                     so this tracks what installers actually package
+#                     the zip (build-zip.ps1) and MSIX (build-msix.ps1) apply,
+#                     so this tracks what the packages actually hold
 #   connect_ms       first physical connection on a cold pool
 #   roundtrip_ms     SELECT 1 on a warm pooled connection (median)
 #   first_batch_ms   large SELECT: call → first streamed RowBatch (median)
@@ -117,8 +117,8 @@ fi
 
 if [[ -n "${AOT_BINARY:-}" ]]; then
     BINARY_SIZE_MB=$(awk "BEGIN { printf \"%.1f\", $(stat -c%s "$AOT_BINARY") / 1024 / 1024 }")
-    # Measure what ships, not what publish leaves on disk: the MSI and MSIX
-    # both exclude debug symbols (*.pdb — see packaging/windows/Product.wxs
+    # Measure what ships, not what publish leaves on disk: the zip and MSIX
+    # both exclude debug symbols (*.pdb — see scripts/windows/build-zip.ps1
     # and scripts/windows/build-msix.ps1); the linux-x64 equivalent is the
     # *.dbg file NativeAOT strips symbols into. Counting them here would
     # make the metric miss packaging-size changes entirely.
