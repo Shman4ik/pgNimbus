@@ -56,6 +56,17 @@ artifact nobody opens is not a check:
    request resolves to depends on what earlier scenarios loaded: baselines from a
    run filtered to `connection` drew every bold label heavier than CI's full run
    and failed it by 1.3%. A filter is for looking, not for committing.
+   **Nothing in a frame may follow the wall clock** (2026-10-01). Avalonia's
+   `CalendarDatePicker` draws today's day number on its calendar button (a
+   template binding to `DateTime.Today`), so the filter editor, row details and
+   the role dialog drew a different frame every day. On the 1st the filter
+   editor's two digits passed the 0.1 % tolerance against baselines rendered on
+   the 28th, and every open PR failed at once. `FixedToday.Pin` writes the
+   constant day (28, the baselines' day) over it before each frame is captured,
+   at `BindingPriority.Animation`: neither a plain style nor one with an
+   activator outranks that template binding. `FixedTodayTests` fails if the pin
+   finds nothing to pin. Time-of-day text is already pinned the same way
+   (`HistoryText.Now` in `Fixtures`).
    **A new scenario goes at the end of `Scenarios.All`** (2026-09-28): the
    headless clock advances with every frame rendered, so one inserted mid-list
    moves the moment every later window's transitions are caught at. Below the
