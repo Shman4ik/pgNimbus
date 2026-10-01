@@ -522,15 +522,14 @@
             <!-- Files-style segmented status bar: message · rows · timing · cap warning -->
             <!-- The bar is a Grid, not a StackPanel, so it can never overflow the
                  window: the message sits in the lone star column and truncates
-                 (full text on hover), while every other segment is compact and
-                 keeps its width. Long cap text truncates the same way. -->
+                 (statusMessage: full text on hover while it is cut), while every
+                 other segment is compact and keeps its width. Long cap text
+                 truncates the same way. -->
             <Border Grid.Row="1" Classes="statusBar">
                 <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
                     <TextBlock Grid.Column="0" Text="{Binding ActiveTab.Status}"
-                               Classes="statusText" Classes.error="{Binding ActiveTab.HasError}"
-                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
-                               HorizontalAlignment="Left"
-                               ToolTip.Tip="{Binding ActiveTab.Status}" />
+                               Classes="statusText statusMessage" Classes.error="{Binding ActiveTab.HasError}"
+                               VerticalAlignment="Center" HorizontalAlignment="Left" />
                     <!-- Running indicator: indeterminate bar + live elapsed tick while a query is in flight -->
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center"
                                 Margin="10,0,0,0"
@@ -603,9 +602,8 @@
                     <StackPanel Grid.Column="8" Orientation="Horizontal" Spacing="10" Margin="10,0,0,0"
                                 IsVisible="{Binding ActiveTab.CapStatusText, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
                         <Rectangle Classes="statusSeparator" />
-                        <TextBlock Classes="statusText warn" Text="{Binding ActiveTab.CapStatusText}" VerticalAlignment="Center"
-                                   MaxWidth="320" TextTrimming="CharacterEllipsis"
-                                   ToolTip.Tip="{Binding ActiveTab.CapStatusText}" />
+                        <TextBlock Classes="statusText warn statusMessage" Text="{Binding ActiveTab.CapStatusText}"
+                                   VerticalAlignment="Center" MaxWidth="320" />
                     </StackPanel>
                     <!-- Browse-mode paging: the one piece of the old browse bar that
                          couldn't move into the SQL editor. Disabled while a query is
