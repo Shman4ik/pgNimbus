@@ -302,7 +302,7 @@ public static class Scenarios
         tab.Sql = SampleSql;
 
         var plan = ExplainService.Import(File.ReadAllText(FixturePath("plan-analyze.json")));
-        tab.ShowImportedPlan(plan.Result, plan.DisplayText, plan.RawJson);
+        tab.ShowImportedPlan(plan);
         tab.IsPlanTextView = !asTree;
         return HostMainWindow(vm);
     }

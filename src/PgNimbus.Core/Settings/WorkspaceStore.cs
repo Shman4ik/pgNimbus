@@ -21,6 +21,10 @@ namespace PgNimbus.Core.Settings;
 /// <paramref name="TextFromFile"/> means the snapshot kept no text for a
 /// file-backed tab and the restore reads it from <paramref name="FilePath"/>
 /// (see <see cref="WorkspaceStore.Save"/>).
+/// <paramref name="ImportedPlan"/> is the plan a tab showed from Import query
+/// plan, as it was pasted (its JSON, or the cleaned text): it was never run, so
+/// unlike any other result it is the tab's content, and the restore imports it
+/// again.
 /// </summary>
 public sealed record WorkspaceTab(
     string Sql,
@@ -29,7 +33,8 @@ public sealed record WorkspaceTab(
     Guid? SavedQueryId = null,
     string? BrowseSchema = null,
     string? BrowseTable = null,
-    bool TextFromFile = false);
+    bool TextFromFile = false,
+    string? ImportedPlan = null);
 
 /// <summary>A saved snapshot of one connection's open tabs, most-recently-saved entries kept first in the store.</summary>
 public sealed record WorkspaceEntry(string Connection, DateTimeOffset SavedAt, List<WorkspaceTab> Tabs, int ActiveTabIndex = 0);
@@ -83,6 +88,14 @@ public sealed class WorkspaceStore(string? filePath = null)
     // (review of the 2026-09 audit fixes). Its unsaved edits are not kept.
     private static WorkspaceTab Redacted(WorkspaceTab tab)
     {
+        // An imported plan is the tab's content too, and its node lines quote
+        // the planned statement's literals.
+        if (tab.ImportedPlan is { } plan && SecretRedactor.Redact(plan) is var redactedPlan
+            && !string.Equals(redactedPlan, plan, StringComparison.Ordinal))
+        {
+            tab = tab with { ImportedPlan = redactedPlan };
+        }
+
         var redacted = SecretRedactor.Redact(tab.Sql);
         if (string.Equals(redacted, tab.Sql, StringComparison.Ordinal))
         {

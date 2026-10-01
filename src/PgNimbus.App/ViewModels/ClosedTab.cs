@@ -1,3 +1,5 @@
+using PgNimbus.Core.Query;
+
 namespace PgNimbus.App.ViewModels;
 
 /// <summary>
@@ -5,7 +7,8 @@ namespace PgNimbus.App.ViewModels;
 /// what it happened to be showing. Results, plans and staged edits are not kept
 /// (they belong to a run, and running again is one keystroke), and neither is
 /// anything outside this window's session: the stack lives on
-/// <see cref="MainViewModel"/> and goes with it.
+/// <see cref="MainViewModel"/> and goes with it. An imported plan is the one
+/// plan that is kept: it was pasted, not run, so there is nothing to run again.
 /// </summary>
 /// <param name="Title">The label the tab showed when it closed, for the status line.</param>
 /// <param name="Index">Where the tab sat in the strip, so it comes back in its place.</param>
@@ -20,7 +23,8 @@ public sealed record ClosedTab(
     string? FileBaseline,
     Guid? SavedQueryId,
     int CaretOffset,
-    (string Schema, string Name)? BrowsedTable)
+    (string Schema, string Name)? BrowsedTable,
+    ImportedPlan? ImportedPlan)
 {
     public static ClosedTab From(QueryViewModel tab, int index) => new(
         index,
@@ -32,5 +36,6 @@ public sealed record ClosedTab(
         tab.FileBaseline,
         tab.SavedQueryId,
         tab.CaretOffset,
-        tab.BrowsedTableName);
+        tab.BrowsedTableName,
+        tab.ShownImport);
 }

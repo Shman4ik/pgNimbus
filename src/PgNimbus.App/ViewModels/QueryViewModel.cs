@@ -10,6 +10,7 @@ using Npgsql;
 using PgNimbus.Core.Export;
 using PgNimbus.Core.Query;
 using PgNimbus.Core.Schema;
+using PgNimbus.Core.Settings;
 
 namespace PgNimbus.App.ViewModels;
 
@@ -1264,6 +1265,7 @@ public sealed partial class QueryViewModel : ObservableObject
         string? summaryPrefix = null,
         IReadOnlyList<PlanWarningViewModel>? leadingWarnings = null)
     {
+        ShownImport = null;
         var root = new ExplainNodeViewModel(result.Root, result.Root.TotalCost);
         ExplainRoot = root;
         ApplyPlanHeat(root);
@@ -1293,11 +1295,27 @@ public sealed partial class QueryViewModel : ObservableObject
     /// import). Opened into its own tab by <see cref="MainViewModel.OpenImportedPlan"/>,
     /// so it never overwrites another tab's results.
     /// </summary>
-    public void ShowImportedPlan(ExplainResult result, string displayText, string? planJson)
+    public void ShowImportedPlan(ImportedPlan plan)
     {
-        ShowPlan(result, displayText, planJson, summaryPrefix: "Imported plan");
+        ShowPlan(plan.Result, plan.DisplayText, plan.RawJson, summaryPrefix: "Imported plan");
+        ShownImport = plan;
         Status = "Imported plan";
     }
+
+    /// <summary>
+    /// The imported plan this tab is showing, or null. An imported plan is the
+    /// tab's content, not a run's result: there is no query behind it to run
+    /// again, so the workspace snapshot and Reopen Closed Tab keep it the way
+    /// they keep a tab's text. It lasts exactly as long as the plan is on
+    /// screen — typing, a run and the plan header's ✕ all hide it, and after
+    /// that the tab is whatever is being typed.
+    /// </summary>
+    public ImportedPlan? ShownImport { get; private set; }
+
+    /// <summary>What the workspace snapshot keeps of this tab.</summary>
+    public WorkspaceTab ToWorkspaceTab() =>
+        new(Sql, TitleOverride, FilePath, SavedQueryId, BrowsedTableName?.Schema, BrowsedTableName?.Name,
+            ImportedPlan: ShownImport is { } plan ? plan.RawJson ?? plan.DisplayText : null);
 
     /// <summary>
     /// Turns the output of a hand-written EXPLAIN — one typed into the editor and Run,
@@ -1487,7 +1505,14 @@ public sealed partial class QueryViewModel : ObservableObject
 
     partial void OnRowsChanged(AvaloniaList<object?[]> value) => OnPropertyChanged(nameof(HasNoResults));
 
-    partial void OnIsShowingPlanChanged(bool value) => OnPropertyChanged(nameof(HasNoResults));
+    partial void OnIsShowingPlanChanged(bool value)
+    {
+        OnPropertyChanged(nameof(HasNoResults));
+        if (!value)
+        {
+            ShownImport = null;
+        }
+    }
 
     partial void OnSqlChanged(string value)
     {
