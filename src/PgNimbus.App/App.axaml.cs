@@ -287,6 +287,7 @@ public partial class App : Application
         // headless tests (which never get a lifetime) run the same wiring.
         Platform.MacTextKeys.Install();
         Platform.EditorTypingUndo.Install();
+        Nimbus.Ui.Controls.ToolTipHitTesting.Install();
     }
 
     public override void OnFrameworkInitializationCompleted()

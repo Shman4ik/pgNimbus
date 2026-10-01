@@ -1,5 +1,6 @@
 <Styles xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:conv="using:Nimbus.Ui.Converters">
 
     <!--
         The shared Nimbus control vocabulary: the style classes both apps use, and the
@@ -283,6 +284,29 @@
 
     <Style Selector="TextBlock.statusText.error">
         <Setter Property="Foreground" Value="{StaticResource AppDangerBrush}" />
+    </Style>
+
+    <!--
+        A status line (DESIGN.md rule 21): one line, cut with an ellipsis when the
+        window is too narrow, and the whole text in a tooltip while it is cut, so a
+        long error can always be read without a control of its own. Combine it with
+        statusText (or not) for the size and weight. One line even for a message
+        that has two: a server error often carries its detail after a newline, which
+        grew the status bar a line. The tooltip opens because ToolTipHitTesting
+        gives the block a transparent background; without one the pointer reached
+        the bar behind the text, and pgNimbus's status tooltip, bound since the bar
+        was built, never once opened.
+    -->
+    <Style Selector="TextBlock.statusMessage">
+        <Setter Property="MaxLines" Value="1" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        <Setter Property="ToolTip.Tip">
+            <MultiBinding Converter="{x:Static conv:CutTextTip.Instance}">
+                <Binding Path="$self" />
+                <Binding Path="$self.Text" />
+                <Binding Path="$self.Bounds.Width" />
+            </MultiBinding>
+        </Setter>
     </Style>
 
 </Styles>

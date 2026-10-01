@@ -99,7 +99,11 @@ src/Nimbus.Ui/
   Controls/               The library's own controls. OverlayPanel is the first —
                           a dismissable panel over the shell, which is what both
                           apps use instead of a secondary Window. FocusRing is the
-                          default focus adorner (rule 20).
+                          default focus adorner (rule 20). ToolTipHitTesting is a
+                          class handler each app installs from
+                          Application.Initialize (rule 21).
+  Converters/             Converters the shared styles bind through: CutTextTip,
+                          the tooltip of TextBlock.statusMessage (rule 21).
   Chrome/                 One-bar window chrome + drawn caption buttons, and
                           MacTrafficLights (centres the traffic lights on the bar).
   Hotkeys.cs              Ctrl/Cmd resolution, gesture labels.

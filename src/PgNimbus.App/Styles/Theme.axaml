@@ -3,8 +3,7 @@
         xmlns:cc="clr-namespace:AvaloniaEdit.CodeCompletion;assembly=AvaloniaEdit"
         xmlns:search="clr-namespace:AvaloniaEdit.Search;assembly=AvaloniaEdit"
         xmlns:completion="using:PgNimbus.App.Completion"
-        xmlns:cmd="using:PgNimbus.App"
-        xmlns:conv="using:PgNimbus.App.Converters">
+        xmlns:cmd="using:PgNimbus.App">
 
     <!--
         PowerToys-inspired design tokens: soft rounded cards, pill-shaped nav
@@ -613,38 +612,6 @@
                 <VirtualizingStackPanel CacheLength="1" />
             </ItemsPanelTemplate>
         </Setter>
-    </Style>
-
-    <!--
-        A status line: one line, cut with an ellipsis when the window is too
-        narrow, and the whole text in a tooltip while it is cut. Every window's
-        status message uses it, so a long error ("Commit failed — no staged
-        changes were applied: …") can always be read without a control of its
-        own. The transparent background is load-bearing: a TextBlock without
-        one is not hit-testable, so the pointer reached the status bar behind
-        it and the main window's tooltip, bound since the bar was built, never
-        once opened (2026-10, 1.0.1 release pass).
-    -->
-    <Style Selector="TextBlock.statusMessage">
-        <!-- One line even for a message that has two: Npgsql puts a server
-             error's DETAIL after a newline, which grew the status bar. -->
-        <Setter Property="MaxLines" Value="1" />
-        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
-        <Setter Property="Background" Value="Transparent" />
-        <Setter Property="ToolTip.Tip">
-            <MultiBinding Converter="{x:Static conv:CutTextTip.Instance}">
-                <Binding Path="$self" />
-                <Binding Path="$self.Text" />
-                <Binding Path="$self.Bounds.Width" />
-            </MultiBinding>
-        </Setter>
-    </Style>
-
-    <!-- The status bar's segments carry tooltips of their own (why results are
-         read-only, what "In transaction" means, what is staged), which opened
-         only over an icon's ink for the same reason. -->
-    <Style Selector="Border.statusBar StackPanel">
-        <Setter Property="Background" Value="Transparent" />
     </Style>
 
 </Styles>
