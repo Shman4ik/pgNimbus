@@ -223,7 +223,7 @@ are what gets asked in a launch thread.
   `docs/getting-started/installation.md` (delete the `pgNimbus` items in Keychain
   Access). The first Developer ID build is a new identity again, so it needs the
   same one-time reset; say so in its release notes.
-- **Unsigned direct downloads.** MSI and Linux packages are unsigned, the dmg is
+- **Unsigned direct downloads.** The Windows zip and Linux packages are unsigned, the dmg is
   ad-hoc signed. The Store package is signed by Microsoft.
 
 ## Release log

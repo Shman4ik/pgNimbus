@@ -53,7 +53,7 @@ try {
     New-Item -ItemType Directory -Force -Path "$stage\Assets" | Out-Null
     # .pdb debug symbols are dev-only (crash-dump/symbol-server use) and add
     # tens of MB (e.g. libSkiaSharp.pdb) with no end-user benefit — same
-    # exclusion the MSI installer applies in Product.wxs.
+    # exclusion the portable zip applies in build-zip.ps1.
     Copy-Item "$PublishDir\*" -Destination $stage -Recurse -Force -Exclude '*.pdb'
     Get-ChildItem -Path $stage -Filter '*.pdb' -Recurse | Remove-Item -Force
     Copy-Item "$AssetsDir\*.png" -Destination "$stage\Assets" -Force

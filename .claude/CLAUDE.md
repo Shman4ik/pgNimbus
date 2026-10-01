@@ -36,7 +36,7 @@ lives in `.claude/`, which Claude Code reads the same as the root.
 - `shared/nimbusUi/` — the git subtree shared with kubeNimbus. Never move it:
   `git subtree push --prefix shared/nimbusUi` depends on the prefix.
 - `packaging/` — installer and store templates, one folder per target
-  (`windows`, `msix`, `macos`, `linux`, `winget`).
+  (`msix`, `macos`, `linux`, `winget`; the Windows zip needs no template).
 - `scripts/` — build, release, screenshot and design scripts.
 - `docs/` — the published docs site only; `docs/dev/` holds contributor notes
   (design records, release checklists), kept off the site by `mkdocs.yml`.

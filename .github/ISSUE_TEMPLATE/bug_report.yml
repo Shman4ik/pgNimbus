@@ -28,8 +28,13 @@ body:
     attributes:
       label: Install method
       options:
-        - Windows MSI
+        - Microsoft Store or WinGet
+        - Windows zip
+        - Windows MSI (1.0.0 or earlier)
         - macOS dmg
+        - Linux AppImage
+        - Linux .deb
+        - Linux .tar.gz
         - Built from source
     validations:
       required: true

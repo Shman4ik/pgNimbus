@@ -8,7 +8,7 @@
 #   INPUT  design/masters/icon/icon-{16,24,32,48,256,1024}.png   square full-bleed tiles
 #          design/masters/window/window-{light,dark}-256.png     the same plated mark, twice
 #
-#   OUTPUT src/PgNimbus.App/Assets/app.ico                    exe + MSI icon (multi-size)
+#   OUTPUT src/PgNimbus.App/Assets/app.ico                    exe icon (multi-size)
 #          src/PgNimbus.App/Assets/window-icon-{light,dark}.ico   window icon, same mark both themes
 #          src/PgNimbus.App/Assets/Msix/{Square44x44Logo,Square150x150Logo,StoreLogo}
 #              .scale-{100,125,150,200,400}.png           MSIX plated tiles, one file per DPI
@@ -85,7 +85,7 @@ function Get-PngBytes([System.Drawing.Bitmap]$bmp) {
 
 # Classic uncompressed ICO entry: BITMAPINFOHEADER + bottom-up BGRA + AND mask.
 # Only app.ico needs this: the Windows shell itself reads that file (Explorer,
-# MSI/ARP), and there PNG compression is only spec-blessed for the 256px entry —
+# the taskbar's pinned shortcut), and there PNG compression is only spec-blessed for the 256px entry —
 # smaller sizes go in as plain BMP for maximum shell compatibility. The
 # window-icon .ico files below are all-PNG instead: they're decoded only
 # in-app (Avalonia + CreateIconFromResourceEx, both PNG-capable at any size),

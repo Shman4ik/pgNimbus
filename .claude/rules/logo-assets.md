@@ -115,10 +115,10 @@ nothing can regenerate. Layout:
 Everything in `src/PgNimbus.App/Assets/` is **generated** by
 `scripts/windows/make-app-icons.ps1` (Windows-only, System.Drawing) —
 regenerate via that script, don't hand-edit. Output filenames are stable so
-csproj / WiX / MSIX manifest reference them unchanged:
+csproj / MSIX manifest reference them unchanged:
 
-- `app.ico` — 16–256px multi-size tile; the exe (`ApplicationIcon`) and the
-  MSI icon only. Windows don't set `Icon` in XAML; the runtime window icon is
+- `app.ico` — 16–256px multi-size tile; the exe (`ApplicationIcon`)
+  only. Windows don't set `Icon` in XAML; the runtime window icon is
   the next bullet, not this file.
 - `window-icon-light.ico` / `window-icon-dark.ico` — what
   `ThemedWindowChrome.Attach(this)` (called from every window's constructor)

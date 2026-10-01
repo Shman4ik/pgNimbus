@@ -13,7 +13,7 @@
     drawing anything would also exit 0.
 
 .PARAMETER Label
-    What is being smoked, for the log ("publish output", "installed MSI").
+    What is being smoked, for the log ("publish output", "unpacked zip").
 
 .PARAMETER Executable
     Path to PgNimbus.App.exe.

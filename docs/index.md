@@ -12,7 +12,7 @@ come next, the [roadmap](https://github.com/Shman4ik/pgNimbus/blob/main/ROADMAP.
 
 - **[Installation](getting-started/installation.md)**
 
-    Microsoft Store, WinGet, MSI, `.dmg`, AppImage, `.deb`, `.tar.gz`, and how to
+    Microsoft Store, WinGet, a portable `.zip`, `.dmg`, AppImage, `.deb`, `.tar.gz`, and how to
     verify a download you didn't get from the Store.
 
 - **[Connecting to a database](getting-started/connecting.md)**
