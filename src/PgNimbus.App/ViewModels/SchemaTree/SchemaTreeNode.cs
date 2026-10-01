@@ -113,9 +113,15 @@ public abstract partial class SchemaTreeNode : ObservableObject
             // One Reset, not an Add per child: the sidebar filter re-vets a schema
             // on every change to its children, which per Add was quadratic.
             Children.ReplaceAll(await FetchChildrenAsync());
+            _loaded = true;
         }
         catch (Exception ex)
         {
+            // Not loaded: the next expand tries again. A failure is usually the
+            // connection (a dropped VPN, a laptop waking up), and it used to stick:
+            // the error row stayed under the node after the server was back and the
+            // same table browsed fine, until a refresh of the whole tree.
+            _loaded = false;
             Children.ReplaceAll([new ErrorNode { Name = ex.Message }]);
         }
         finally
