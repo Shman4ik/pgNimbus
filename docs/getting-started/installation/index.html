@@ -437,10 +437,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#msi" class="md-nav__link">
+  <a href="#portable-zip" class="md-nav__link">
     <span class="md-ellipsis">
       
-        MSI
+        Portable zip
       
     </span>
   </a>
@@ -897,10 +897,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#msi" class="md-nav__link">
+  <a href="#portable-zip" class="md-nav__link">
     <span class="md-ellipsis">
       
-        MSI
+        Portable zip
       
     </span>
   </a>
@@ -1004,12 +1004,19 @@ SmartScreen warnings and nothing to re-download by hand.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">winget</span> <span class="n">install</span> <span class="n">pgNimbus</span> <span class="p">-</span><span class="n">-source</span> <span class="n">msstore</span>
 </code></pre></div>
 <p>This installs the same Store package, so it carries the same signature.</p>
-<h3 id="msi">MSI<a class="headerlink" href="#msi" title="Permanent link">&para;</a></h3>
-<p>Download <code>pgNimbus-&lt;version&gt;-win-x64.msi</code> from the
-<a href="https://github.com/Shman4ik/pgNimbus/releases">releases page</a>. It is a per-user
-installer: it writes to <code>%LocalAppData%</code> and needs no administrator rights.</p>
+<h3 id="portable-zip">Portable zip<a class="headerlink" href="#portable-zip" title="Permanent link">&para;</a></h3>
+<p>Download <code>pgNimbus-&lt;version&gt;-win-x64.zip</code> from the
+<a href="https://github.com/Shman4ik/pgNimbus/releases">releases page</a>, unzip it
+anywhere you like, and run <code>PgNimbus.App.exe</code> from the
+<code>pgNimbus-&lt;version&gt;-win-x64</code> folder. Nothing is installed and no administrator
+rights are needed. To update, replace the folder with the new release's. Your
+connections and settings live in <code>%AppData%\pgNimbus</code>, not in the folder, so
+they carry over.</p>
+<p>Releases up to 1.0.0 also shipped an MSI installer. If you installed one,
+remove it under <strong>Settings › Apps › Installed apps</strong> and use the Store or the
+zip instead: the MSI gets no further updates.</p>
 <div class="admonition warning">
-<p class="admonition-title">The MSI is unsigned</p>
+<p class="admonition-title">The zip is unsigned</p>
 <p>pgNimbus is a free project with no revenue, so it does not buy a code
 signing certificate. SmartScreen will warn on first run; click
 <strong>More info</strong> then <strong>Run anyway</strong>. If that bothers you, use the Store or
@@ -1102,7 +1109,7 @@ itself is bundled.</p>
 Plain <code>--repo</code> accepts an attestation from any workflow or ref in the
 repository, so pin the check to the release workflow and the tag you
 downloaded:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>gh<span class="w"> </span>attestation<span class="w"> </span>verify<span class="w"> </span>pgNimbus-&lt;version&gt;-win-x64.msi<span class="w"> </span>--repo<span class="w"> </span>Shman4ik/pgNimbus<span class="w"> </span><span class="se">\</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>gh<span class="w"> </span>attestation<span class="w"> </span>verify<span class="w"> </span>pgNimbus-&lt;version&gt;-win-x64.zip<span class="w"> </span>--repo<span class="w"> </span>Shman4ik/pgNimbus<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span>--signer-workflow<span class="w"> </span>Shman4ik/pgNimbus/.github/workflows/release.yml<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span>--source-ref<span class="w"> </span>refs/tags/v&lt;version&gt;
 </code></pre></div>
