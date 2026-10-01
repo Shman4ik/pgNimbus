@@ -383,6 +383,37 @@ defaults were the cause each time; `Theme/Tokens.axaml`, `Theme/Controls.axaml` 
   is inserted or removed mid-list. The cell text size and row height stay per app
   (rules 12 and 14).
 
+### 21. A tooltip opens anywhere over what carries it, and a cut line keeps its text in one
+
+A tooltip opens on the element the pointer is over, and Avalonia's hit test finds
+an element only where it draws something. A `TextBlock` or a `Panel` with no
+`Background` draws nothing of its own, glyphs included, so the pointer over its
+text reaches the list row, card or header behind it and the tooltip never opens.
+pgNimbus measured it headlessly: none of 4,536 points over its status line reached
+the text block, and a walk of every window then found about 50 more dead tooltips
+(history rows, connection endpoints, cut query text, grid column headers). It is
+rule 5's failure seen from the other side: there the click fell through, here the
+hover does.
+
+- **`Controls/ToolTipHitTesting` fixes it once for every element**, so no view
+  writes `Background="Transparent"` beside a `ToolTip.Tip`. Each app calls
+  `ToolTipHitTesting.Install()` from `Application.Initialize`. Any `Panel`,
+  `TextBlock`, `Border`, `ContentPresenter` or templated control that gets a
+  tooltip and has no background gets a transparent one as a *current* value: a
+  background the markup or a style sets still wins, one that goes back to null is
+  filled again, and nothing changes on screen. A disabled control still shows no
+  tooltip (Avalonia's choice; `ToolTip.ShowOnDisabled` opts in).
+- **A status line is `TextBlock.statusMessage`**: one line even for a message that
+  has two (a server error's detail often comes after a newline, which grew the bar
+  a line), cut with an ellipsis, and its whole text in a tooltip only while it is
+  cut (`Converters/CutTextTip`, which reads the block's text layout). A tooltip
+  that repeats what is already on screen is noise, so a line that fits has none. It
+  combines with `statusText` and its `dim`/`warn`/`error` variants.
+
+Each app checks the first half in a headless test that walks its windows,
+hit-tests the middle of every tooltip-bearing element and fails on any the pointer
+passes through.
+
 ---
 
 ## What is deliberately *not* shared
@@ -426,6 +457,9 @@ mechanism — a rule nobody tracks is a rule that decays.
       `ListBox.segmented` and switcher styles override the shared row rules and are unaffected.
       Its window chrome gets the centred traffic lights for free through `NimbusWindowChrome`.
 - [ ] `AppSuccessBrush` → pgNimbus. The status trio was two-thirds defined there.
+- [x] **Tooltips that answer the pointer, and the cut status line → both** (rule 21).
+      `ToolTipHitTesting` and `TextBlock.statusMessage` came up from pgNimbus;
+      kubeNimbus installs the handler and its status bar uses `statusMessage`.
 - [x] **The Fluent control layer → `Theme/Controls.axaml`.** Inputs, lists, trees,
       grids and the `.soft`/`.danger` button families were defined in pgNimbus only,
       so kubeNimbus rendered every `TextBox`, `ComboBox`, `ListBox`, `TreeView` and

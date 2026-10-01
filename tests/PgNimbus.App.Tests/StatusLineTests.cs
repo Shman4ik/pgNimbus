@@ -3,7 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.VisualTree;
-using PgNimbus.App.Converters;
+using Nimbus.Ui.Converters;
 using PgNimbus.App.ViewModels;
 using PgNimbus.App.ViewModels.Security;
 using PgNimbus.Screenshot;
@@ -159,7 +159,7 @@ public class StatusLineTests
     // returns what the tooltip that opens shows. The show delay is a dispatcher
     // timer the headless clock never advances, so it is zero here; everything
     // else is the real path (hit test, pointer-over, the tooltip service).
-    private static async Task<object?> HoverAsync(Window window, TextBlock block)
+    internal static async Task<object?> HoverAsync(Window window, TextBlock block)
     {
         ToolTip.SetShowDelay(block, 0);
         var point = block.TranslatePoint(new Point(8, block.Bounds.Height / 2), window)!.Value;

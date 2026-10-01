@@ -30,7 +30,7 @@ future move.
 4. **Avalonia's `PackageReference` version is pinned to the lowest version
    either app is on**, not the newest available. NuGet unifies upward in the
    consumer, so a low pin costs nothing; a high pin breaks the app that hasn't
-   upgraded yet. Today: 12.1.0 (pgNimbus), while kubeNimbus is on 12.1.1.
+   upgraded yet. Today both are on 12.1.3 (DataGrid 12.1.2).
 5. **A change here is not done until both apps have been built against it.**
    There is no test suite that can catch a broken style — the apps' screenshot
    harnesses are the only check, and they live in the apps. Building is not
@@ -99,7 +99,11 @@ src/Nimbus.Ui/
   Controls/               The library's own controls. OverlayPanel is the first —
                           a dismissable panel over the shell, which is what both
                           apps use instead of a secondary Window. FocusRing is the
-                          default focus adorner (rule 20).
+                          default focus adorner (rule 20). ToolTipHitTesting is a
+                          class handler each app installs from
+                          Application.Initialize (rule 21).
+  Converters/             Converters the shared styles bind through: CutTextTip,
+                          the tooltip of TextBlock.statusMessage (rule 21).
   Chrome/                 One-bar window chrome + drawn caption buttons, and
                           MacTrafficLights (centres the traffic lights on the bar).
   Hotkeys.cs              Ctrl/Cmd resolution, gesture labels.
