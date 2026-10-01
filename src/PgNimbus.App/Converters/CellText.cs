@@ -198,25 +198,18 @@ public static class CellText
     /// </summary>
     public static string? Temporal(object value, string? dataTypeName = null)
     {
+        if (PgValueSyntax.TemporalInfinity(value) is { } infinity)
+        {
+            return infinity;
+        }
+
         switch (value)
         {
             case DateOnly date:
-                return date == DateOnly.MaxValue ? "infinity"
-                    : date == DateOnly.MinValue ? "-infinity"
-                    : date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+                return date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
             case TimeOnly time:
                 return FormatTime(time.Ticks);
             case DateTime stamp:
-                if (stamp == DateTime.MaxValue)
-                {
-                    return "infinity";
-                }
-
-                if (stamp == DateTime.MinValue)
-                {
-                    return "-infinity";
-                }
-
                 if (IsType(dataTypeName, "date"))
                 {
                     return stamp.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);

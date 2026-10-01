@@ -255,6 +255,26 @@ public static class PgValueSyntax
     };
 
     /// <summary>
+    /// <c>infinity</c> or <c>-infinity</c> for the values Npgsql reads those as
+    /// (the largest and smallest <see cref="DateTime"/>, <see cref="DateOnly"/> or
+    /// <see cref="DateTimeOffset"/>), null for any other value. Written any other
+    /// way, <see cref="DateTime.MaxValue"/> is <c>9999-12-31T23:59:59.9999999</c>,
+    /// which Postgres reads as a finite timestamp. Npgsql cannot tell
+    /// <c>-infinity</c> from <c>0001-01-01 00:00:00</c>: both are the smallest
+    /// value, and this answers <c>-infinity</c> for both.
+    /// </summary>
+    public static string? TemporalInfinity(object value) => value switch
+    {
+        DateTime stamp when stamp == DateTime.MaxValue => "infinity",
+        DateTime stamp when stamp == DateTime.MinValue => "-infinity",
+        DateOnly date when date == DateOnly.MaxValue => "infinity",
+        DateOnly date when date == DateOnly.MinValue => "-infinity",
+        DateTimeOffset stamp when stamp == DateTimeOffset.MaxValue => "infinity",
+        DateTimeOffset stamp when stamp == DateTimeOffset.MinValue => "-infinity",
+        _ => null,
+    };
+
+    /// <summary>
     /// Whether a column of this wire type is a multirange. Npgsql hands a
     /// multirange over as an array of <see cref="NpgsqlTypes.NpgsqlRange{T}"/>,
     /// exactly as it hands over an array of ranges, and the two have different

@@ -240,6 +240,9 @@ public static class ResultExporter
     private static string FormatCsvValue(object? value, string? type = null) => value switch
     {
         null or DBNull => string.Empty,
+        // Npgsql reads infinity as DateTime.MaxValue, and "O" would write that
+        // as a finite 9999-12-31T23:59:59.9999999. A range bound comes here too.
+        _ when PgValueSyntax.TemporalInfinity(value) is { } infinity => infinity,
         DateTime dt => dt.ToString("O", CultureInfo.InvariantCulture),
         DateTimeOffset dto => dto.ToString("O", CultureInfo.InvariantCulture),
         // The invariant culture is US-shaped too (07/20/2026); "O" is ISO.
@@ -366,13 +369,7 @@ public static class ResultExporter
             case decimal m:
                 writer.WriteNumberValue(m);
                 break;
-            case DateTime dt:
-                writer.WriteStringValue(dt.ToString("O", CultureInfo.InvariantCulture));
-                break;
-            case DateTimeOffset dto:
-                writer.WriteStringValue(dto.ToString("O", CultureInfo.InvariantCulture));
-                break;
-            case DateOnly or TimeOnly:
+            case DateTime or DateTimeOffset or DateOnly or TimeOnly:
                 writer.WriteStringValue(FormatCsvValue(value));
                 break;
             case Guid g:
