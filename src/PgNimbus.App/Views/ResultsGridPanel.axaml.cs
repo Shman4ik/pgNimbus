@@ -800,6 +800,23 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
             return;
         }
 
+        // The DataGrid also begins an edit when the cell that is already current
+        // is clicked again, one slow click, the way someone clicks to put focus
+        // back in the grid before pressing Space. For a json or previewed cell
+        // that edit is the inspector's Edit tab, which only a double-click or
+        // F2 asks for, so a single click edits nothing there. (It is what a
+        // release pass saw as Space opening the inspector on Edit; a short json
+        // value got a one-line inline editor the same way.)
+        if (e.EditingEventArgs is PointerPressedEventArgs { ClickCount: < 2 }
+            && e.Row.DataContext is object?[] clicked
+            && e.Column is { } clickedColumn
+            && clickedColumn.DisplayIndex < clicked.Length
+            && (IsJsonColumn(clickedColumn.DisplayIndex) || CellText.IsShortened(clicked[clickedColumn.DisplayIndex])))
+        {
+            e.Cancel = true;
+            return;
+        }
+
         // The inline editor is pre-filled from the cell's display text (the
         // column's own binding is what the DataGrid puts in the TextBox), and
         // that text is capped and folded onto one line - see CellText. So for a

@@ -1812,7 +1812,13 @@ Moved to [`.claude/rules/logo-assets.md`](rules/logo-assets.md), which loads whe
   json is unusable in a one-line inline editor; `ResultsGridPanel.OnResultsGridBeginningEdit`
   cancels the grid's own inline edit for that gesture. Other editable types keep
   their fast inline double-click; the inspector's Edit tab is reached via Space /
-  "Inspect Cell…". Completion carries the jsonb function
+  "Inspect Cell…". **Space always opens View** (2026-10): the DataGrid also
+  begins an edit on one slow click on the cell that is already current, and for
+  a json or previewed cell `OnResultsGridBeginningEdit` turned that into the
+  inspector's Edit tab (a short json value got a one-line inline editor), which
+  a release pass read as Space opening Edit; a single click
+  (`EditingEventArgs` a press with `ClickCount < 2`) on such a cell now edits
+  nothing (`InspectorSpaceTests`). Completion carries the jsonb function
   family (`SqlCompletionProvider.Functions`); JSON operators (`->`, `@>`, `?`,
   `@?`, …) are punctuation, out of the identifier-triggered completion model.
   **The JSON polish pass** (2026-09-30, reported from real use: "part of my JSON
