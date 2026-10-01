@@ -1563,7 +1563,9 @@ Three rules about it:
    holds it; the rule text is DESIGN.md rule 13.
    The command palette and the cell inspector are also **not** OverlayPanels, and for
    a better reason than inertia: both are focus-driven surfaces with their own
-   keyboard model, not panels you read.
+   keyboard model, not panels you read. The inspector's Escape is its own for the
+   same reason: tunnelled on the card, ahead of the editor that would swallow it
+   (see "Escape closes the inspector" under the json/jsonb convention).
 9. **A change to the UI updates the published screenshots in the same PR**
    (2026-09, carried over from kubeNimbus's rule 21). The docs site and landing
    page (`docs/screenshots/`) and the Microsoft Store listing
@@ -1877,6 +1879,25 @@ Moved to [`.claude/rules/logo-assets.md`](rules/logo-assets.md), which loads whe
   `TextEditor.SearchPanel` exists only once the editor's template is applied,
   and the compact find-bar template's buttons need wiring by name
   (`EditorDefaults.WireSearchButtons`, once per panel), as the SQL editor's did.
+  **Escape closes the inspector from anywhere on its card, and asks before it
+  drops an edit** (2026-10-01, found by `InspectorSpaceTests` in #333). With
+  focus in the editor or the viewer, Escape did nothing: AvaloniaEdit's
+  `TextArea` marks every Escape handled in its own bubble phase, find bar or
+  not, so `MainWindow.OnKeyDown` never saw it. A tunnelled handler on
+  `CellInspectorCard` (`ResultsGridPanel.OnCellInspectorCardKeyDown`) closes
+  the card first, except while a find bar is open (`CellValueView.IsSearchOpen`):
+  then the first Escape closes the bar and the next one closes the card. In Edit,
+  Escape closes the card. It does not just leave the edit: a double-click opens
+  a json cell straight on Edit, so "back to View" would cost a peek two Escapes,
+  and Cancel is a click away. Closing never drops typed text silently, though.
+  Escape, ✕ and the scrim all go through `CellInspectorViewModel.CloseCommand`,
+  which, when `HasUnsavedEdit` (the buffer was seeded and differs from the value,
+  on View too, since the buffer survives the hop), asks through
+  `ConfirmDiscardRequested`: a `ConfirmDialog` reading `Discard your changes to
+  "column"?`. Its Cancel is `IsCancel` now (DESIGN.md rule 16, missing from every
+  confirm until then), so Escape, Escape keeps the edit and focus returns to the
+  editor. Only Discard closes. `InspectorEscapeTests` drives all of it with real
+  keys.
 - **Cell edits round-trip through a server-side cast, not a CLR conversion, for
   types Postgres won't assign from text.** Inline edits send the cell text as a
   parameter and let the engine convert it (`QueryViewModel.ConvertEditedValue`:

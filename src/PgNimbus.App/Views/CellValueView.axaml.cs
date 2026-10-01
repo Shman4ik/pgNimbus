@@ -195,6 +195,14 @@ public partial class CellValueView : UserControl
         return true;
     }
 
+    /// <summary>
+    /// True while the viewer's or the editor's find bar is open. Escape belongs
+    /// to the find bar then, wherever in that editor focus is: AvaloniaEdit
+    /// closes it on Escape from the bar and from the text alike.
+    /// </summary>
+    public bool IsSearchOpen =>
+        Viewer.SearchPanel is { IsClosed: false } || JsonInspectorEditor.SearchPanel is { IsClosed: false };
+
     private void OnDataContextChanged(object? sender, EventArgs e)
     {
         if (_model is not null)
