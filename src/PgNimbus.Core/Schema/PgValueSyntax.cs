@@ -172,14 +172,21 @@ public static class PgValueSyntax
     /// of "System.String[]", and an F2 edit round-trips through
     /// <c>CAST(text AS type[])</c> unchanged.
     /// </summary>
-    public static string FormatArray(Array array)
+    /// <param name="array">The array.</param>
+    /// <param name="formatElement">
+    /// How one non-null element is written before it is quoted, when the
+    /// caller has its own spelling for some types (the grid writes dates the
+    /// way Postgres prints them). Null, or a null answer, falls back to
+    /// <see cref="InvariantText"/>.
+    /// </param>
+    public static string FormatArray(Array array, Func<object, string?>? formatElement = null)
     {
         var sb = new StringBuilder();
-        AppendArray(sb, array);
+        AppendArray(sb, array, formatElement);
         return sb.ToString();
     }
 
-    private static void AppendArray(StringBuilder sb, Array array)
+    private static void AppendArray(StringBuilder sb, Array array, Func<object, string?>? formatElement)
     {
         sb.Append('{');
         var first = true;
@@ -191,13 +198,13 @@ public static class PgValueSyntax
             }
 
             first = false;
-            AppendElement(sb, item);
+            AppendElement(sb, item, formatElement);
         }
 
         sb.Append('}');
     }
 
-    private static void AppendElement(StringBuilder sb, object? value)
+    private static void AppendElement(StringBuilder sb, object? value, Func<object, string?>? formatElement)
     {
         switch (value)
         {
@@ -205,16 +212,11 @@ public static class PgValueSyntax
                 sb.Append("NULL");
                 return;
             case Array nested:
-                AppendArray(sb, nested);
+                AppendArray(sb, nested, formatElement);
                 return;
         }
 
-        var text = value switch
-        {
-            bool b => b ? "t" : "f",
-            IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
-            _ => value.ToString() ?? string.Empty,
-        };
+        var text = (value is bool ? null : formatElement?.Invoke(value)) ?? InvariantText(value);
 
         // Postgres quotes an element when the bare form would be ambiguous:
         // empty, the word NULL, or containing a delimiter/quote/backslash/space.
@@ -234,6 +236,133 @@ public static class PgValueSyntax
 
     private static readonly System.Buffers.SearchValues<char> QuotedElementChars =
         System.Buffers.SearchValues.Create("{},\"\\ \t\n\r");
+
+    /// <summary>
+    /// A value's text in no culture at all: <c>t</c>/<c>f</c> for a boolean (the
+    /// array element spelling), a range as its literal, anything formattable
+    /// with the invariant culture. What every literal writer here falls back to,
+    /// so a decimal comma or a US date never reaches text Postgres has to read.
+    /// </summary>
+    public static string InvariantText(object value) => value switch
+    {
+        bool b => b ? "t" : "f",
+        // The invariant culture writes dates US-style (07/20/2026); ISO reads
+        // back whatever the server's DateStyle.
+        DateTime or DateTimeOffset or DateOnly or TimeOnly => ((IFormattable)value).ToString("O", CultureInfo.InvariantCulture),
+        _ when FormatRange(value, InvariantText) is { } range => range,
+        IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
+        _ => value.ToString() ?? string.Empty,
+    };
+
+    /// <summary>
+    /// Whether a column of this wire type is a multirange. Npgsql hands a
+    /// multirange over as an array of <see cref="NpgsqlTypes.NpgsqlRange{T}"/>,
+    /// exactly as it hands over an array of ranges, and the two have different
+    /// literals (<c>{[1,3),[5,7)}</c> against <c>{"[1,3)","[5,7)"}</c>), so only
+    /// the column's type can say which one a value is.
+    /// </summary>
+    public static bool IsMultirangeType(string? dataTypeName) =>
+        dataTypeName is not null && dataTypeName.EndsWith("multirange", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// A range (what Npgsql materializes a range column as) in Postgres's own
+    /// literal syntax, <c>[lower,upper)</c>, <c>(,6)</c> or <c>empty</c>, each
+    /// bound written by <paramref name="formatBound"/> and quoted the way the
+    /// server quotes one (<see cref="QuoteRangeBound"/>). Null when
+    /// <paramref name="value"/> is not a range.
+    /// <para>
+    /// This exists because <c>NpgsqlRange&lt;T&gt;.ToString</c> writes each bound
+    /// in the process culture: an export of a <c>tstzrange</c> read
+    /// <c>[07/22/2026 19:56:13,07/25/2026 19:56:13)</c>, the fraction of a second
+    /// and the zone gone, and a <c>numrange</c> under a decimal comma could not be
+    /// read back at all. The subtypes are listed rather than found by reflection,
+    /// which NativeAOT would not keep: they are the ones Npgsql maps a range to
+    /// (the built-in ranges, and a user range over a numeric or temporal type).
+    /// </para>
+    /// </summary>
+    public static string? FormatRange(object value, Func<object, string> formatBound) => value switch
+    {
+        NpgsqlTypes.NpgsqlRange<int> r => FormatRange(r, formatBound),
+        NpgsqlTypes.NpgsqlRange<long> r => FormatRange(r, formatBound),
+        NpgsqlTypes.NpgsqlRange<short> r => FormatRange(r, formatBound),
+        NpgsqlTypes.NpgsqlRange<decimal> r => FormatRange(r, formatBound),
+        NpgsqlTypes.NpgsqlRange<double> r => FormatRange(r, formatBound),
+        NpgsqlTypes.NpgsqlRange<float> r => FormatRange(r, formatBound),
+        NpgsqlTypes.NpgsqlRange<DateOnly> r => FormatRange(r, formatBound),
+        NpgsqlTypes.NpgsqlRange<DateTime> r => FormatRange(r, formatBound),
+        NpgsqlTypes.NpgsqlRange<DateTimeOffset> r => FormatRange(r, formatBound),
+        NpgsqlTypes.NpgsqlRange<TimeOnly> r => FormatRange(r, formatBound),
+        NpgsqlTypes.NpgsqlRange<TimeSpan> r => FormatRange(r, formatBound),
+        _ => null,
+    };
+
+    /// <summary>
+    /// A multirange (an array of ranges, see <see cref="IsMultirangeType"/>) as
+    /// its literal, <c>{[1,3),[5,7)}</c>: the ranges unquoted, unlike the
+    /// elements of a range array. Null when an element is not a range.
+    /// </summary>
+    public static string? FormatMultirange(Array ranges, Func<object, string> formatBound)
+    {
+        var sb = new StringBuilder("{");
+        var first = true;
+        foreach (var item in ranges)
+        {
+            if (item is null || FormatRange(item, formatBound) is not { } range)
+            {
+                return null;
+            }
+
+            if (!first)
+            {
+                sb.Append(',');
+            }
+
+            first = false;
+            sb.Append(range);
+        }
+
+        return sb.Append('}').ToString();
+    }
+
+    private static string FormatRange<T>(NpgsqlTypes.NpgsqlRange<T> range, Func<object, string> formatBound)
+    {
+        if (range.IsEmpty)
+        {
+            return "empty";
+        }
+
+        var sb = new StringBuilder();
+        sb.Append(range.LowerBoundIsInclusive ? '[' : '(');
+        if (!range.LowerBoundInfinite && range.LowerBound is { } lower)
+        {
+            sb.Append(QuoteRangeBound(formatBound(lower)));
+        }
+
+        sb.Append(',');
+        if (!range.UpperBoundInfinite && range.UpperBound is { } upper)
+        {
+            sb.Append(QuoteRangeBound(formatBound(upper)));
+        }
+
+        sb.Append(range.UpperBoundIsInclusive ? ']' : ')');
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// One range bound as the server writes it (<c>range_bound_escape</c>):
+    /// double-quoted when it is empty or holds whitespace, a quote, a backslash,
+    /// a comma, a parenthesis or a bracket, with quotes and backslashes doubled.
+    /// </summary>
+    public static string QuoteRangeBound(string text)
+    {
+        var needsQuoting = text.Length == 0 || text.AsSpan().ContainsAny(QuotedRangeBoundChars);
+        return needsQuoting
+            ? "\"" + text.Replace("\\", "\\\\").Replace("\"", "\"\"") + "\""
+            : text;
+    }
+
+    private static readonly System.Buffers.SearchValues<char> QuotedRangeBoundChars =
+        System.Buffers.SearchValues.Create("\"\\()[], \t\n\r\v\f");
 
     /// <summary>
     /// Renders an hstore value (Npgsql materializes it as a

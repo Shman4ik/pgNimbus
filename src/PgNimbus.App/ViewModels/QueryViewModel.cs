@@ -497,6 +497,10 @@ public sealed partial class QueryViewModel : ObservableObject
     public string? ColumnTypeName(int index) =>
         index >= 0 && index < _columns.Count ? _columns[index].DataTypeName : null;
 
+    // Every column's wire type, beside ColumnNames, for the exporter: it is
+    // what tells a multirange from an array of ranges.
+    private string?[] ColumnTypes() => [.. ColumnNames.Select((_, i) => ColumnTypeName(i))];
+
     /// <summary>
     /// The grid's rows. Replaced wholesale (a fresh list instance) rather than
     /// mutated in bulk: the DataGrid's CollectionChanged handling costs
@@ -2870,6 +2874,7 @@ public sealed partial class QueryViewModel : ObservableObject
 
         var source = ChooseExportSource();
         var gridColumns = ColumnNames.ToList();
+        var gridTypes = ColumnTypes();
         var gridRows = Rows.ToList();
 
         _cts = new CancellationTokenSource();
@@ -2885,6 +2890,7 @@ public sealed partial class QueryViewModel : ObservableObject
         try
         {
             IReadOnlyList<string> columns = gridColumns;
+            IReadOnlyList<string?> types = gridTypes;
             IAsyncEnumerable<RowBatch> batches = InBatches(gridRows);
 
             if (source.Sql is { } sql)
@@ -2893,10 +2899,12 @@ public sealed partial class QueryViewModel : ObservableObject
                 {
                     case ResultSet set:
                         columns = [.. set.Columns.Select(c => c.Name)];
+                        types = [.. set.Columns.Select(c => c.DataTypeName)];
                         batches = set.Batches;
                         break;
                     case MaterializedResultSet materialized:
                         columns = [.. materialized.Columns.Select(c => c.Name)];
+                        types = [.. materialized.Columns.Select(c => c.DataTypeName)];
                         batches = InBatches(materialized.Rows);
                         break;
                     case QueryError error:
@@ -2928,7 +2936,7 @@ public sealed partial class QueryViewModel : ObservableObject
                         }
                     });
                 }
-            }, ct, spreadsheetSafe));
+            }, ct, spreadsheetSafe, types));
 
             Status = source.Shortfall is { } shortfall
                 ? $"Exported only the {RowLabel(written)} shown to {fileName}: {shortfall}"
@@ -3006,6 +3014,7 @@ public sealed partial class QueryViewModel : ObservableObject
         }
 
         IReadOnlyList<string> columns = [.. ColumnNames];
+        var types = ColumnTypes();
         var table = InsertTargetTable;
         var announce = rows.Count >= CopyProgressRows;
         if (announce)
@@ -3013,7 +3022,7 @@ public sealed partial class QueryViewModel : ObservableObject
             Status = $"Copying {RowLabel(rows.Count)}...";
         }
 
-        var text = await Task.Run(() => FormatRows(format, table, columns, rows, spreadsheetSafe, MaxCopyChars));
+        var text = await Task.Run(() => FormatRows(format, table, columns, rows, spreadsheetSafe, MaxCopyChars, types));
         if (text is null)
         {
             Status = $"Not copied: {RowLabel(rows.Count)} come to more than {MaxCopyChars / (1024 * 1024)}M characters of text. Export them to a file instead.";
@@ -3032,7 +3041,7 @@ public sealed partial class QueryViewModel : ObservableObject
     /// </summary>
     public static string? FormatRows(
         CopyFormat format, string insertTable, IReadOnlyList<string> columns, IReadOnlyList<object?[]> rows,
-        bool spreadsheetSafe, int maxChars)
+        bool spreadsheetSafe, int maxChars, IReadOnlyList<string?>? columnTypes = null)
     {
         try
         {
@@ -3040,7 +3049,7 @@ public sealed partial class QueryViewModel : ObservableObject
             {
                 // UTF-8: at most three bytes for a UTF-16 unit, one for the common case.
                 using var stream = new CappedMemoryStream(3L * maxChars);
-                ResultExporter.WriteJson(stream, columns, rows);
+                ResultExporter.WriteJson(stream, columns, rows, columnTypes);
                 var json = System.Text.Encoding.UTF8.GetString(stream.GetBuffer(), 0, (int)stream.Length);
                 return json.Length > maxChars ? null : json;
             }
@@ -3049,16 +3058,16 @@ public sealed partial class QueryViewModel : ObservableObject
             switch (format)
             {
                 case CopyFormat.Tsv:
-                    ResultExporter.WriteTsv(writer, columns, rows, spreadsheetSafe);
+                    ResultExporter.WriteTsv(writer, columns, rows, spreadsheetSafe, columnTypes);
                     break;
                 case CopyFormat.Csv:
-                    ResultExporter.WriteCsv(writer, columns, rows, spreadsheetSafe);
+                    ResultExporter.WriteCsv(writer, columns, rows, spreadsheetSafe, columnTypes);
                     break;
                 case CopyFormat.Markdown:
-                    ResultExporter.WriteMarkdown(writer, columns, rows);
+                    ResultExporter.WriteMarkdown(writer, columns, rows, columnTypes);
                     break;
                 case CopyFormat.Insert:
-                    ResultExporter.WriteInsert(writer, insertTable, columns, rows);
+                    ResultExporter.WriteInsert(writer, insertTable, columns, rows, columnTypes);
                     break;
             }
 

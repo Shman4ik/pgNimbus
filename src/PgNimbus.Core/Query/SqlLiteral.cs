@@ -43,6 +43,8 @@ public static class SqlLiteral
         DateTimeOffset dto => Quote(dto.ToString("yyyy-MM-dd HH:mm:ss.FFFFFFzzz", CultureInfo.InvariantCulture)),
         DateOnly d => Quote(d.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)),
         TimeOnly t => Quote(t.ToString("HH:mm:ss.FFFFFF", CultureInfo.InvariantCulture)),
+        // A range's own ToString writes its bounds in the process culture.
+        _ when Schema.PgValueSyntax.FormatRange(value, Schema.PgValueSyntax.InvariantText) is { } range => Quote(range),
         _ => Quote(Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty),
     };
 

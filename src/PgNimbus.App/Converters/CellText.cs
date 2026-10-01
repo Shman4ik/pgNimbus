@@ -86,17 +86,8 @@ public static class CellText
         // most-significant bit first, matching Postgres) so it reads and, for
         // an editable table, round-trips through CAST(text AS bit(n)).
         BitArray bits => FormatBits(bits, PreviewLength),
-        // Array columns render in Postgres's literal syntax ("{a,b}") instead
-        // of the CLR default ("System.String[]") — readable, and editable in
-        // place since the cell editor pre-fills from this text and the edit
-        // pipeline casts it back server-side.
-        Array array => Shorten(PgValueSyntax.FormatArray(array)),
-        // hstore arrives as a Dictionary<string,string>, whose default ToString
-        // is the CLR type name. Render the Postgres literal ("k"=>"v") so it
-        // reads in any result set — browse mode already re-requests it as text,
-        // but a hand-written SELECT gets the raw dictionary.
-        IDictionary map => Shorten(PgValueSyntax.FormatHstore(map)),
         string text => Shorten(text),
+        _ when Literal(value, dataTypeName) is { } literal => Shorten(literal),
         var other => other,
     };
 
@@ -110,26 +101,75 @@ public static class CellText
         DateTime or DateTimeOffset or DateOnly or TimeOnly or TimeSpan when Temporal(value, dataTypeName) is { } text => text,
         byte[] bytes => "\\x" + Convert.ToHexString(bytes),
         BitArray bits => FormatBits(bits, bits.Count),
-        Array array => PgValueSyntax.FormatArray(array),
-        IDictionary map => PgValueSyntax.FormatHstore(map),
-        _ => value.ToString() ?? string.Empty,
+        _ => Literal(value, dataTypeName) ?? value.ToString() ?? string.Empty,
     };
 
     /// <summary>
     /// Whether the grid is showing less than the whole value — capped, or folded
     /// onto one line. The results grid asks this before beginning an inline
-    /// edit, since that editor is pre-filled from the display text.
+    /// edit, since that editor is pre-filled from the display text. Pass the
+    /// column's type whenever <see cref="Preview"/> got one: it decides the text
+    /// of a multirange or an array of dates, and this must judge that same text.
     /// </summary>
-    public static bool IsShortened(object? value) => value switch
+    public static bool IsShortened(object? value, string? dataTypeName = null) => value switch
     {
         null => false,
         byte[] bytes => bytes.Length > ByteaPreviewBytes,
         BitArray bits => bits.Count > PreviewLength,
-        Array array => NeedsShortening(PgValueSyntax.FormatArray(array)),
-        IDictionary map => NeedsShortening(PgValueSyntax.FormatHstore(map)),
         string text => NeedsShortening(text),
-        _ => false,
+        _ => Literal(value, dataTypeName) is { } literal && NeedsShortening(literal),
     };
+
+    /// <summary>
+    /// The Postgres literal of a value whose CLR form has no useful text of its
+    /// own, or null for any other value:
+    /// <list type="bullet">
+    /// <item>an array, as <c>{a,b}</c> rather than "System.String[]" — readable,
+    /// and editable in place, since the cell editor pre-fills from this text and
+    /// the edit pipeline casts it back server-side. Its elements are written as
+    /// their own cells would be, so a <c>timestamptz[]</c> reads like a
+    /// timestamptz;</item>
+    /// <item>a range, and a multirange (an array of ranges that only the
+    /// column's type tells from a range array), as psql prints them:
+    /// <c>["2026-07-22 19:56:13.543613+00","2026-07-25 19:56:13+00")</c>. A
+    /// range's own <c>ToString</c> writes its bounds in the process culture and
+    /// drops a timestamp's fraction and zone;</item>
+    /// <item>hstore, which arrives as a <c>Dictionary&lt;string,string&gt;</c>, as
+    /// <c>"k"=&gt;"v"</c> — browse mode already re-requests it as text, but a
+    /// hand-written SELECT gets the raw dictionary.</item>
+    /// </list>
+    /// </summary>
+    private static string? Literal(object value, string? dataTypeName)
+    {
+        switch (value)
+        {
+            case Array array when PgValueSyntax.IsMultirangeType(dataTypeName):
+                return PgValueSyntax.FormatMultirange(array, RangeBound(dataTypeName))
+                    ?? PgValueSyntax.FormatArray(array);
+            case Array array:
+                var elementType = ElementType(dataTypeName);
+                return PgValueSyntax.FormatArray(
+                    array, element => Temporal(element, elementType) ?? PgValueSyntax.FormatRange(element, RangeBound(elementType)));
+            case IDictionary map:
+                return PgValueSyntax.FormatHstore(map);
+            default:
+                return PgValueSyntax.FormatRange(value, RangeBound(dataTypeName));
+        }
+    }
+
+    // How a range's bound is written: as a cell of its subtype would be. Npgsql
+    // marks a tstzrange bound UTC, which is what gives it its +00; a daterange
+    // bound read as a DateTime needs the column to say it is a date.
+    private static Func<object, string> RangeBound(string? rangeType)
+    {
+        var boundType = rangeType is not null && rangeType.StartsWith("date", StringComparison.OrdinalIgnoreCase) ? "date" : null;
+        return bound => Temporal(bound, boundType) ?? PgValueSyntax.InvariantText(bound);
+    }
+
+    // "timestamp with time zone[]" → "timestamp with time zone": an array's
+    // wire name is its element's with the brackets after it.
+    private static string? ElementType(string? arrayType) =>
+        arrayType is not null && arrayType.EndsWith("[]", StringComparison.Ordinal) ? arrayType[..^2] : null;
 
     /// <summary>
     /// A date or time written the way Postgres itself prints it with

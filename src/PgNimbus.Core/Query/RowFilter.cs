@@ -179,6 +179,10 @@ public static class RowFilterSql
         DateOnly d => d.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
         TimeOnly t => t.ToString("HH:mm:ss.FFFFFF", CultureInfo.InvariantCulture),
         bool b => b ? "true" : "false",
+        // A range's own ToString writes its bounds in the process culture and
+        // drops a timestamp's fraction and zone, so filtering by a range cell
+        // matched nothing; each bound is written as its own cell would be.
+        _ when PgValueSyntax.FormatRange(value, ValueText) is { } range => range,
         IFormattable f => f.ToString(null, CultureInfo.InvariantCulture),
         _ => value.ToString() ?? string.Empty,
     };
