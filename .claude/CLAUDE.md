@@ -2148,9 +2148,21 @@ Moved to [`.claude/rules/logo-assets.md`](rules/logo-assets.md), which loads whe
   `QueryViewModel.ParseEditedText` (the static half of `ConvertEditedValue`,
   public so `TemporalCellTextTests` can hold the round trip) reads `+00` back to
   a UTC `DateTime` for timestamptz, an offset-less wall clock to `Unspecified`
-  for timestamp, `24:00:00` and the infinity words too. Export and copy are
-  untouched: `ResultExporter` already writes invariant round-trip (`"O"`) text
-  for `DateTime`/`DateTimeOffset` and never read `CellText`. Still culture-bound,
+  for timestamp, `24:00:00` and the infinity words too. Export and copy write
+  invariant round-trip (`"O"`) text for `DateTime`/`DateTimeOffset` and never
+  read `CellText`, **except for infinity** (2026-10, 1.0.1 release pass):
+  `"O"` wrote Npgsql's `DateTime.MaxValue` as `9999-12-31T23:59:59.9999999`,
+  which Postgres reads back as a finite timestamp (rounded into the year 10000),
+  and `-infinity` as the year 1. `PgValueSyntax.TemporalInfinity` is now the one
+  place that knows Npgsql's mapping (Max/Min of `DateTime`, `DateOnly` and
+  `DateTimeOffset`); `CellText.Temporal` and `ResultExporter`'s scalar text both
+  ask it first, so CSV/TSV/Markdown/JSON/INSERT write `infinity`/`-infinity` in
+  a cell, an array element and a range bound (`[2026-01-01,infinity)`, which is
+  not the unbounded `[2026-01-01,)`). The FK hop's seed goes through
+  `FormatSqlLiteral` and gets it too. Npgsql reads `0001-01-01 00:00:00` as
+  `DateTime.MinValue` as well, so that one finite value shows and exports as
+  `-infinity`. `ResultExporterInfinityTests` holds it, and with
+  `PGNIMBUS_TEST_CONN` casts each written form back on the server. Still culture-bound,
   and not part of this change: numbers in the grid (`55,75` on a Czech Mac)
   and the row-details date picker.
   **Ranges and multiranges are written by pgNimbus, never by Npgsql's
