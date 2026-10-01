@@ -227,6 +227,13 @@ The inspector remembers whether you last used the text or the tree, so pressing
 While the inspector is open, the window's other shortcuts are off. It is modal,
 so nothing you press there acts on the tab behind it.
 
+<kbd>Esc</kbd> closes the inspector, from the Edit tab too. If its find bar is
+open, the first <kbd>Esc</kbd> closes only the find bar. If you have changed the
+value and not saved it, the inspector asks before it discards your changes.
+<kbd>Esc</kbd> again, or **Cancel**, takes you back to your edit. The same
+question comes up when you close with ✕ or by clicking outside the inspector.
+To drop an edit and keep the inspector open, use **Cancel** on the Edit tab.
+
 ## Transactions
 
 An explicit transaction runs on one held connection, with a status-bar indicator

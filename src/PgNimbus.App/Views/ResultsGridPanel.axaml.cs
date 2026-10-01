@@ -124,6 +124,12 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
             }
         };
         RowDetails.CloseRequested += CloseRowDetails;
+
+        // Escape closes the inspector from anywhere on its card. Tunnelled,
+        // because AvaloniaEdit's text area marks every Escape handled, find bar
+        // or not, so with focus in the editor or the viewer the window's own
+        // Escape (MainWindow.OnKeyDown) never saw it.
+        CellInspectorCard.AddHandler(KeyDownEvent, OnCellInspectorCardKeyDown, RoutingStrategies.Tunnel);
     }
 
     // The window's root panel the cell inspector overlay is re-hosted into (see below).
@@ -244,6 +250,7 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
             _model.PropertyChanged -= OnMainViewModelPropertyChanged;
             _model.RowDetailFocusRequested -= OnRowDetailFocusRequested;
             _model.FilterEditorRequested -= OnFilterEditorRequested;
+            _model.CellInspector.ConfirmDiscardRequested = null;
         }
 
         _model = DataContext as MainViewModel;
@@ -253,6 +260,7 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
             _model.PropertyChanged += OnMainViewModelPropertyChanged;
             _model.RowDetailFocusRequested += OnRowDetailFocusRequested;
             _model.FilterEditorRequested += OnFilterEditorRequested;
+            _model.CellInspector.ConfirmDiscardRequested = ConfirmDiscardInspectorEditAsync;
             // Warm the FK cache in the background so the grid's FK-navigation menu
             // items (which can't await) have edges to read by the time it's opened.
             _ = _model.EnsureForeignKeysAsync();
@@ -1119,6 +1127,33 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
 
     // Swallow presses on the card so they don't bubble to the scrim and close it.
     private void OnCellInspectorCardPressed(object? sender, PointerPressedEventArgs e) => e.Handled = true;
+
+    // An open find bar keeps its Escape: the first one closes the bar, the next
+    // the card.
+    private void OnCellInspectorCardKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Escape || e.KeyModifiers != KeyModifiers.None || InspectorValue.IsSearchOpen)
+        {
+            return;
+        }
+
+        _model?.CellInspector.CloseCommand.Execute(null);
+        e.Handled = true;
+    }
+
+    // Closing with an unsaved edit asks first (CellInspectorViewModel.CloseAsync):
+    // the card can hold a long JSON document typed by hand, and Escape, ✕ and a
+    // stray click on the scrim each used to drop it without a word.
+    private async Task<bool> ConfirmDiscardInspectorEditAsync(string column)
+    {
+        if (HostWindow is not { } owner)
+        {
+            return true;
+        }
+
+        var confirm = new ConfirmDialog($"Discard your changes to \"{column}\"?", "Discard");
+        return await confirm.ShowDialog<bool>(owner);
+    }
 
     // --- Sorting -----------------------------------------------------------
 

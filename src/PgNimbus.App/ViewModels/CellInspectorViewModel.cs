@@ -189,8 +189,34 @@ public sealed partial class CellInspectorViewModel : ObservableObject
     /// <summary>The SQL/JSON path to the row's value (<c>$.items[0].sku</c>).</summary>
     public static string JsonPath(JsonTreeNode node) => JsonPaths.ToJsonPath(node.Path);
 
+    /// <summary>
+    /// True when closing would lose an edit: the edit buffer was seeded and no
+    /// longer matches the value. Counts on View too, since the buffer survives
+    /// a hop there; typing a change and taking it back again counts as none.
+    /// </summary>
+    public bool HasUnsavedEdit => _editSeeded && EditText != DisplayText;
+
+    /// <summary>
+    /// Asks whether to throw away an unsaved edit, given the column's name; true
+    /// discards. Set by the view that hosts an editable inspector. With nothing
+    /// set, a close never asks.
+    /// </summary>
+    public Func<string, Task<bool>>? ConfirmDiscardRequested { get; set; }
+
+    /// <summary>
+    /// Every way the card closes: ✕, the scrim, Escape. Asks first when it would
+    /// lose an edit, and stays open, edit intact, unless the answer is discard.
+    /// </summary>
     [RelayCommand]
-    private void Close() => IsOpen = false;
+    private async Task CloseAsync()
+    {
+        if (HasUnsavedEdit && ConfirmDiscardRequested is { } confirm && !await confirm(ColumnName))
+        {
+            return;
+        }
+
+        IsOpen = false;
+    }
 
     /// <summary>Switch to the Edit tab. Seeds the editor from the current value only
     /// on first entry, so toggling back to View and returning keeps in-progress edits.</summary>

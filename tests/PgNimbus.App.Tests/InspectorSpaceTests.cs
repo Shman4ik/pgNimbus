@@ -9,6 +9,7 @@ using PgNimbus.Core.Commands;
 using PgNimbus.Core.Query;
 using PgNimbus.Core.Schema;
 using PgNimbus.Screenshot;
+using static PgNimbus.App.Tests.InspectorUi;
 
 namespace PgNimbus.App.Tests;
 
@@ -119,8 +120,8 @@ public class InspectorSpaceTests
     /// <summary>
     /// Edit, then close, then Space again: the inspector is one view model
     /// reused for every cell, so nothing from the last opening may carry over.
-    /// Closed each way the card closes by pointer. (Not Escape: while the
-    /// editor has focus AvaloniaEdit's text area keeps that key.)
+    /// Closed each way the card closes by pointer; Escape has its own tests
+    /// (<see cref="InspectorEscapeTests"/>).
     /// </summary>
     [Test]
     [Arguments(InspectorClose.CloseButton)]
@@ -186,97 +187,4 @@ public class InspectorSpaceTests
             window.Close();
         });
     }
-
-    private static async Task AssertOpenOnView(MainViewModel vm, bool editable)
-    {
-        await Assert.That(vm.CellInspector.IsOpen).IsTrue();
-        await Assert.That(vm.CellInspector.CanEdit).IsEqualTo(editable);
-        await Assert.That(vm.CellInspector.IsEditing).IsFalse();
-    }
-
-    public enum InspectorClose
-    {
-        CloseButton,
-        Scrim,
-        CancelThenCloseButton,
-    }
-
-    private static void Close(Window window, InspectorClose how)
-    {
-        switch (how)
-        {
-            case InspectorClose.CloseButton:
-                ClickButton(window, "✕");
-                break;
-            case InspectorClose.CancelThenCloseButton:
-                ClickButton(window, "Cancel");
-                ClickButton(window, "✕");
-                break;
-            case InspectorClose.Scrim:
-                // The scrim's corner, outside the card's 40px margin.
-                var scrim = window.GetVisualDescendants().OfType<Border>().First(b => b.Name == "CellInspectorOverlay");
-                var corner = scrim.TranslatePoint(new Point(10, 10), window)!.Value;
-                window.MouseDown(corner, MouseButton.Left);
-                window.MouseUp(corner, MouseButton.Left);
-                Ui.Settle();
-                break;
-        }
-    }
-
-    // A real click on one of the inspector card's buttons, found by its label.
-    private static void ClickButton(Window window, string label)
-    {
-        var card = window.GetVisualDescendants().OfType<Border>().First(b => b.Name == "CellInspectorCard");
-        var button = card.GetVisualDescendants().OfType<Button>()
-            .First(b => b.Content as string == label && b.IsEffectivelyVisible);
-        Click(window, button, 0.5);
-    }
-
-    private static void Seed(MainViewModel vm, string json, bool editable)
-    {
-        var tab = vm.ActiveTab;
-        tab.SeedResult(
-            [new ColumnInfo("id", "bigint", typeof(long)), new ColumnInfo("payload", "jsonb", typeof(string))],
-            [[1L, json], [2L, json]]);
-        tab.EditContext = editable
-            ? new EditableTableContext(
-                "public", "t", ["id"],
-                [new ColumnDetail("id", "bigint", NotNull: true, IsPrimaryKey: true),
-                 new ColumnDetail("payload", "jsonb", NotNull: false, IsPrimaryKey: false) { Editor = ColumnValueEditor.Json }])
-            : null;
-        Ui.Settle();
-    }
-
-    private static DataGridCell Cell(Window window, int row, int column)
-    {
-        var grid = window.GetVisualDescendants().OfType<DataGrid>().First();
-        var gridRow = window.GetVisualDescendants().OfType<DataGridRow>().First(r => r.Index == row);
-        return grid.Columns[column].GetCellContent(gridRow)!.FindAncestorOfType<DataGridCell>()!;
-    }
-
-    private static Point PointIn(Window window, Control target, double fraction) =>
-        target.TranslatePoint(new Point(target.Bounds.Width * fraction, target.Bounds.Height / 2), window)!.Value;
-
-    private static void Click(Window window, Control target, double fraction)
-    {
-        var point = PointIn(window, target, fraction);
-        window.MouseDown(point, MouseButton.Left);
-        window.MouseUp(point, MouseButton.Left);
-        Ui.Settle();
-    }
-
-    private static void DoubleClick(Window window, Control target)
-    {
-        var point = PointIn(window, target, 0.5);
-        window.MouseDown(point, MouseButton.Left);
-        window.MouseUp(point, MouseButton.Left);
-        window.MouseDown(point, MouseButton.Left);
-        window.MouseUp(point, MouseButton.Left);
-        Ui.Settle();
-    }
-
-    private static bool HasInlineEditor(Window window) =>
-        window.GetVisualDescendants().OfType<DataGridCell>()
-            .SelectMany(cell => cell.GetVisualDescendants().OfType<TextBox>())
-            .Any();
 }
