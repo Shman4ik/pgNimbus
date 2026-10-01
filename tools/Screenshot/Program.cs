@@ -150,6 +150,14 @@ bool Capture(string name, ThemeVariant theme, Func<Window> build)
     AvaloniaHeadlessPlatform.ForceRenderTimerTick();
     Dispatcher.UIThread.RunJobs();
 
+    // A date picker draws today's day; the frame must not change with the date.
+    if (FixedToday.Pin(window) > 0)
+    {
+        Dispatcher.UIThread.RunJobs();
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+        Dispatcher.UIThread.RunJobs();
+    }
+
     using var frame = window.CaptureRenderedFrame();
     var path = Path.Combine(outDir, $"{name}.{(theme == ThemeVariant.Dark ? "dark" : "light")}.png");
     frame?.Save(path, new PngBitmapEncoderOptions());
