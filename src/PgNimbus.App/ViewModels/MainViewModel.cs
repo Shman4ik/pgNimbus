@@ -107,6 +107,11 @@ public sealed partial class MainViewModel : ObservableObject
     // Raised to comment/uncomment the selected lines; the editor panel owns the
     // document, same split as Format SQL.
     public event Action? ToggleLineCommentRequested;
+    // Raised after a tab the user asked for by name (New Query Tab, Reopen Closed
+    // Tab) becomes active, so the editor panel can take keyboard focus. Only those
+    // commands raise it: tabs opened by browse, an import, generated SQL or the
+    // workspace restore leave focus where it was.
+    public event Action? EditorFocusRequested;
 
     // Every catalog command resolves to an ICommand here (see CommandBindings),
     // so the view-only actions above get thin command wrappers rather than the
@@ -830,7 +835,9 @@ public sealed partial class MainViewModel : ObservableObject
         }
         else
         {
-            AddTab();
+            // NewTab, not AddTab: a restore must not pull focus into the editor
+            // while the window is still coming up.
+            NewTab();
         }
     }
 
@@ -1111,8 +1118,14 @@ public sealed partial class MainViewModel : ObservableObject
     // (see CloseTab) rather than being refused.
     private bool CanCloseTab() => Tabs.Count > 0;
 
+    // The explicit new-tab command (Ctrl/Cmd+T, the strip's +, the ☰ menu, the
+    // palette). The editor takes focus so typing starts the query at once.
     [RelayCommand]
-    private void AddTab() => NewTab();
+    private void AddTab()
+    {
+        NewTab();
+        EditorFocusRequested?.Invoke();
+    }
 
     // Creates a query tab, wires its history hook, and makes it active.
     private QueryViewModel NewTab()
@@ -1480,6 +1493,7 @@ public sealed partial class MainViewModel : ObservableObject
         }
 
         NotifyTabCommands();
+        EditorFocusRequested?.Invoke();
     }
 
     private bool CanReopenClosedTab() => _closedTabs.Count > 0;
