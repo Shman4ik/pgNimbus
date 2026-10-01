@@ -30,7 +30,7 @@ future move.
 4. **Avalonia's `PackageReference` version is pinned to the lowest version
    either app is on**, not the newest available. NuGet unifies upward in the
    consumer, so a low pin costs nothing; a high pin breaks the app that hasn't
-   upgraded yet. Today: 12.1.0 (pgNimbus), while kubeNimbus is on 12.1.1.
+   upgraded yet. Today both are on 12.1.3 (DataGrid 12.1.2).
 5. **A change here is not done until both apps have been built against it.**
    There is no test suite that can catch a broken style — the apps' screenshot
    harnesses are the only check, and they live in the apps. Building is not
