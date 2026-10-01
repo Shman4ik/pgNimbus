@@ -246,12 +246,34 @@ public static class PgValueSyntax
     public static string InvariantText(object value) => value switch
     {
         bool b => b ? "t" : "f",
+        // "O" would write infinity as a finite 9999-12-31T23:59:59.9999999.
+        _ when TemporalInfinity(value) is { } infinity => infinity,
         // The invariant culture writes dates US-style (07/20/2026); ISO reads
         // back whatever the server's DateStyle.
         DateTime or DateTimeOffset or DateOnly or TimeOnly => ((IFormattable)value).ToString("O", CultureInfo.InvariantCulture),
         _ when FormatRange(value, InvariantText) is { } range => range,
         IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
         _ => value.ToString() ?? string.Empty,
+    };
+
+    /// <summary>
+    /// <c>infinity</c> or <c>-infinity</c> for the values Npgsql reads those as
+    /// (the largest and smallest <see cref="DateTime"/>, <see cref="DateOnly"/> or
+    /// <see cref="DateTimeOffset"/>), null for any other value. Written any other
+    /// way, <see cref="DateTime.MaxValue"/> is <c>9999-12-31T23:59:59.9999999</c>,
+    /// which Postgres reads as a finite timestamp. Npgsql cannot tell
+    /// <c>-infinity</c> from <c>0001-01-01 00:00:00</c>: both are the smallest
+    /// value, and this answers <c>-infinity</c> for both.
+    /// </summary>
+    public static string? TemporalInfinity(object value) => value switch
+    {
+        DateTime stamp when stamp == DateTime.MaxValue => "infinity",
+        DateTime stamp when stamp == DateTime.MinValue => "-infinity",
+        DateOnly date when date == DateOnly.MaxValue => "infinity",
+        DateOnly date when date == DateOnly.MinValue => "-infinity",
+        DateTimeOffset stamp when stamp == DateTimeOffset.MaxValue => "infinity",
+        DateTimeOffset stamp when stamp == DateTimeOffset.MinValue => "-infinity",
+        _ => null,
     };
 
     /// <summary>

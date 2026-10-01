@@ -2157,6 +2157,18 @@ Moved to [`.claude/rules/logo-assets.md`](rules/logo-assets.md), which loads whe
   `ResultExporterRangeTests` runs under cs-CZ and, with `PGNIMBUS_TEST_CONN`,
   casts what each range and multirange type was written as back on the server;
   `RangeCellTextTests` holds the grid side.
+  **Infinity is written as the word in every text the server runs** (2026-10).
+  Npgsql reads `infinity`/`-infinity` as the Max/Min of `DateTime`, `DateOnly`
+  and `DateTimeOffset`, and the writers whose text is executed formatted those
+  as dates: filter by cell on an infinite timestamptz wrote
+  `9999-12-31 23:59:59.999999+00`, a finite timestamp, and matched nothing.
+  `RowFilterSql.ValueText` (filter by cell, and each range bound through
+  `FormatRange`), `SqlLiteral.Format` (the staged-batch row check, the review
+  script, a role's `VALID UNTIL`) and `PgValueSyntax.InvariantText` (the
+  fallback of the array and range writers) ask `PgValueSyntax.TemporalInfinity`
+  first. `InfinityLiteralTests` holds the text and, with `PGNIMBUS_TEST_CONN`,
+  runs a filter built from each infinite cell (timestamp, timestamptz, date,
+  tstzrange, daterange) and checks it matches that row alone.
 - **Export writes every row, not the grid's** (2026-09, ROADMAP D1). It used to
   write `Rows`: one 100-row page when browsing, at most `MaxDisplayRows` for a
   query, silently. `QueryViewModel.ChooseExportSource` now decides: a grid that
