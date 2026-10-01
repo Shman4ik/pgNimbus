@@ -111,8 +111,11 @@ jobs:
         # PublishDir/IconFile must be absolute: WiX resolves relative -d
         # paths against the .wxs file's own directory, not the cwd.
         shell: pwsh
+        # WiX 7 refuses to build until its OSMF EULA is accepted (WIX7015);
+        # -acceptEula accepts it for this invocation without writing a file.
         run: >
           dotnet wix build packaging/windows/Product.wxs
+          -acceptEula wix7
           -d PublishDir=${env:GITHUB_WORKSPACE}\publish\win-x64
           -d Version=${env:VERSION}
           -d IconFile=${env:GITHUB_WORKSPACE}\src\PgNimbus.App\Assets\app.ico

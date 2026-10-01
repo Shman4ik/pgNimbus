@@ -166,10 +166,16 @@ to (verified, not assumed).
 It produces, per tag:
 
 - **Windows** — `dotnet publish -r win-x64 -p:PublishAot=true`, then a
-  per-user WiX v5 MSI built from [`packaging/windows/Product.wxs`](packaging/windows/Product.wxs)
+  per-user WiX v7 MSI built from [`packaging/windows/Product.wxs`](packaging/windows/Product.wxs)
   via the `wix` .NET tool from the repo's tool manifest
   (`.config/dotnet-tools.json`, restored with `dotnet tool restore`, run as
-  `dotnet wix build ... -d PublishDir=... -d Version=...`). The manifest
+  `dotnet wix build ... -acceptEula wix7 -d PublishDir=... -d Version=...`).
+  **WiX 7 needs its Open Source Maintenance Fee EULA accepted** or the build
+  stops with WIX7015; the owner accepted it on 2026-10-01, and `-acceptEula`
+  does it per invocation, so no acceptance file has to exist on the runner.
+  A Dependabot bump of `wix` never shows that failure in its own PR: the PR
+  CI builds no MSI, only the release pipeline does, so a `wix` major is
+  checked by building the MSI locally or by a `workflow_dispatch` run. The manifest
   pins `wix` and `CycloneDX` to exact versions that Dependabot's nuget
   ecosystem bumps; it replaced `dotnet tool install --global wix --version
   5.*`, which floated (2026-09). Per-user (installs to `%LocalAppData%`, no elevation) is

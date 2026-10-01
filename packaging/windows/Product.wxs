@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   Built via: wix build packaging/windows/Product.wxs
+               -acceptEula wix7
                -d PublishDir=<absolute path to dotnet publish output dir>
                -d Version=<x.y.z, no leading v>
                -d IconFile=<absolute path to app.ico>
