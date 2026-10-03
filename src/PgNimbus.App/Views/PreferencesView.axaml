@@ -24,11 +24,12 @@
     <!-- Four tabs rather than one long page (2026-10): seven sections of cards
          had grown past the overlay's height, and finding a setting meant
          scrolling through all of them. The strip is the sidebar's full-width
-         capsule, not TabControl.segmented, whose selection fades in on a
+         capsule (nimbusUi's TabControl.capsule, kubeNimbus's settings page's too),
+         not TabControl.segmented, whose selection fades in on a
          transition the preferences-window baseline must never catch half-way.
          The page keeps one height whichever tab shows (PreferencesView.axaml.cs),
          so the strip never moves under the pointer. -->
-    <TabControl Classes="sidebar settings" SelectedIndex="{Binding SelectedTab}">
+    <TabControl Classes="capsule settings" SelectedIndex="{Binding SelectedTab}">
         <TabItem Header="General">
             <ScrollViewer HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Margin="20,14,20,20" Spacing="6">

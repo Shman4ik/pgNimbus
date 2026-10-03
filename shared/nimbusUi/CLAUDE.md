@@ -87,7 +87,8 @@ src/Nimbus.Ui/
   Theme/Tokens.axaml      Colour, radii, scrollbars, Fluent resource overrides.
   Theme/Icons.axaml       MDI geometries used by both apps (Apache-2.0).
   Theme/Controls.axaml    Fluent control retheming: inputs, lists, trees, grids,
-                          the .soft/.danger button families, TabControl.
+                          the .soft/.danger button families, TabControl and
+                          TabControl.capsule (the full-width tab strip).
   Theme/Overlay.axaml     The ControlTheme for OverlayPanel (DESIGN.md rule 13).
   Theme/ToggleSwitch.axaml  The ControlTheme for ToggleSwitch (rule 20). A whole
                           theme because Fluent sets the switch's sizes at Template

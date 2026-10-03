@@ -236,7 +236,7 @@
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
-        <TabControl Name="SidebarTabs" Grid.Column="0" Classes="sidebar">
+        <TabControl Name="SidebarTabs" Grid.Column="0" Classes="capsule">
             <!-- The tooltips say what each tab holds rather than repeating its
                  label — and they're the only clue left once a narrow sidebar
                  collapses the headers to icons. -->
