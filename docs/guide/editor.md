@@ -164,6 +164,22 @@ editor:
 | Find / find & replace | <kbd>Ctrl</kbd>+<kbd>F</kbd> / <kbd>Ctrl</kbd>+<kbd>H</kbd> |
 | Zoom font in / out / reset | <kbd>Ctrl</kbd>+<kbd>+</kbd> / <kbd>Ctrl</kbd>+<kbd>−</kbd> / <kbd>Ctrl</kbd>+<kbd>0</kbd> |
 
+### Fonts
+
+Code is drawn in JetBrains Mono, which ships with pgNimbus, so the editor looks
+the same on every machine. It is the cut without ligatures: `->>` and `!=` stay
+the characters you typed. Settings, under Appearance, has three choices:
+
+- **Interface font**: System or Inter. System is San Francisco on macOS, Segoe UI
+  on Windows and your desktop's font on Linux, and it is the default. Inter
+  looks the same on every platform.
+- **Code font**: JetBrains Mono, or any monospace font installed on your
+  computer. It applies to the editor, the grid's numbers, plans, the cell
+  inspector and every other place that shows code.
+- **Editor font size**: the size each SQL editor starts at, and the size
+  <kbd>Ctrl</kbd>+<kbd>0</kbd> goes back to. Zooming changes only the editor
+  you are in.
+
 Commenting follows the convention you are used to. If every non-blank selected
 line is already commented it uncomments them, otherwise it comments the block at
 its shared indentation, so the SQL keeps its shape.

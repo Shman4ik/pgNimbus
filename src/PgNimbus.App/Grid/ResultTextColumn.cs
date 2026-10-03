@@ -32,10 +32,6 @@ namespace PgNimbus.App;
 /// </summary>
 public sealed class ResultTextColumn : DataGridTextColumn
 {
-    // Shared numeric font — the same mono stack the SQL editor/inspector use, so
-    // digits line up column-to-column under the right-aligned numeric cells.
-    private static readonly FontFamily MonoFont = new("Cascadia Code,Consolas,Menlo,monospace");
-
     // Drawn at roughly cap height so the icon reads as one line of text rather
     // than as a control sitting inside the row.
     private const double BoolIconSize = 13;
@@ -119,12 +115,13 @@ public sealed class ResultTextColumn : DataGridTextColumn
             Converter = new NullCellOpacityConverter(_index),
         });
 
-        // Numeric cells right-align and use the mono font so digits line up and
+        // Numeric cells right-align and use the mono font (the shared `mono`
+        // class, the same face as the SQL editor) so digits line up and
         // magnitudes are comparable down the column.
         if (_category == PgTypeCategory.Numeric && element is TextBlock text)
         {
             text.TextAlignment = TextAlignment.Right;
-            text.FontFamily = MonoFont;
+            text.Classes.Add("mono");
         }
 
         return element;

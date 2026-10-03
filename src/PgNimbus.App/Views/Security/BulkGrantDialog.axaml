@@ -6,8 +6,7 @@
         Title="pgNimbus — Bulk grant"
         Width="660" Height="640"
         MinWidth="520" MinHeight="480"
-        WindowStartupLocation="CenterOwner"
-        FontFamily="{StaticResource InterFont}">
+        WindowStartupLocation="CenterOwner">
 
     <Grid Margin="20" RowDefinitions="Auto,Auto,*,Auto">
 
@@ -81,7 +80,7 @@
                      AcceptsReturn="True" TextWrapping="NoWrap"
                      ScrollViewer.HorizontalScrollBarVisibility="Auto"
                      ScrollViewer.VerticalScrollBarVisibility="Auto"
-                     FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="12.5"
+                     Classes="mono" FontSize="12.5"
                      BorderThickness="0" Background="Transparent" />
         </Border>
 

@@ -45,15 +45,13 @@
             </ResourceDictionary.ThemeDictionaries>
 
         <!--
-            For text that spells a shortcut. On the Cmd scheme that is Apple's key
-            glyphs (⌘ ⇧ ⌥ ⌃ ↩ ⎋ ⌫ ⇥ ⇟), which Inter doesn't carry, and the system's
-            own fallback on macOS is Apple Symbols, whose glyphs sit at half the
-            height of the letters beside them ("⌘K" read as a speck and a K).
-            Lucida Grande (macOS) and Segoe UI Symbol (Windows) draw them at text
-            size. Inter stays first, so letters and the Ctrl scheme's words are
-            unchanged.
+            KeyCapFont (text that spells a shortcut) and MonoFont are shared tokens now,
+            set from the settings by NimbusFonts.Apply (DESIGN.md rule 22). This one is
+            the SQL editor's size, which App.ApplyFonts sets from
+            AppSettings.EditorFontSize; 14 is for the tests and tools that never load
+            settings.
         -->
-        <FontFamily x:Key="KeyCapFont">fonts:Inter#Inter, Lucida Grande, Segoe UI Symbol</FontFamily>
+        <x:Double x:Key="EditorFontSize">14</x:Double>
 
         <!--
             Vector icons (Material Design Icons, Apache-2.0, pictogrammers.com).
@@ -554,11 +552,10 @@
         <Setter Property="FontFamily" Value="{DynamicResource KeyCapFont}" />
     </Style>
 
+    <!-- No FontFamily here: Fluent's Window theme reads ContentControlThemeFontFamily,
+         which NimbusFonts.Apply sets, for every window and popup alike. -->
     <Style Selector="Window">
         <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}" />
-        <!-- Three windows (the connection dialog, Alter table, the crash reporter)
-             never set the app font, so they alone drew in the platform's. -->
-        <Setter Property="FontFamily" Value="{DynamicResource InterFont}" />
     </Style>
 
     <!-- One vocabulary for a dialog's parts, so the next dialog is assembled rather

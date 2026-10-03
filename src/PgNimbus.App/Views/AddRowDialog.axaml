@@ -7,8 +7,7 @@
         x:DataType="vm:AddRowViewModel"
         Title="pgNimbus — Add Row"
         Width="520" Height="560"
-        WindowStartupLocation="CenterOwner"
-        FontFamily="{StaticResource InterFont}">
+        WindowStartupLocation="CenterOwner">
 
     <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" Margin="20">
 

@@ -4,6 +4,7 @@ using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Styling;
 using Avalonia.Threading;
+using Nimbus.Ui.Fonts;
 using PgNimbus.App;
 using PgNimbus.Core.Commands;
 
@@ -192,5 +193,6 @@ public static class TestApp
 {
     public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<App>()
         .UseHeadless(new AvaloniaHeadlessPlatformOptions())
-        .WithInterFont();
+        .WithInterFont()
+        .WithNimbusFonts();
 }

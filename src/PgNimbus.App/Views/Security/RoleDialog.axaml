@@ -6,8 +6,7 @@
         Title="{Binding Title}"
         Width="760" Height="660"
         MinWidth="620" MinHeight="480"
-        WindowStartupLocation="CenterOwner"
-        FontFamily="{StaticResource InterFont}">
+        WindowStartupLocation="CenterOwner">
 
     <Grid RowDefinitions="*,Auto" Margin="20">
 
@@ -148,7 +147,7 @@
                     <Border Background="{StaticResource CardBackgroundBrush}"
                             BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
                             CornerRadius="{StaticResource CardCornerRadius}" Padding="12,10">
-                        <SelectableTextBlock Text="{Binding LivePreview}" FontFamily="Consolas,Menlo,monospace"
+                        <SelectableTextBlock Text="{Binding LivePreview}" Classes="mono"
                                              FontSize="12" TextWrapping="Wrap" />
                     </Border>
                 </StackPanel>

@@ -4,8 +4,7 @@
         Title="pgNimbus — Import query plan"
         Width="640" Height="520"
         MinWidth="420" MinHeight="320"
-        WindowStartupLocation="CenterOwner"
-        FontFamily="{StaticResource InterFont}">
+        WindowStartupLocation="CenterOwner">
 
     <Grid Margin="20" RowDefinitions="Auto,*,Auto,Auto">
         <StackPanel Grid.Row="0" Spacing="4" Margin="0,0,0,10">
@@ -19,7 +18,7 @@
                      AcceptsReturn="True" AcceptsTab="True" TextWrapping="NoWrap"
                      ScrollViewer.HorizontalScrollBarVisibility="Auto"
                      ScrollViewer.VerticalScrollBarVisibility="Auto"
-                     FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="12.5"
+                     Classes="mono" FontSize="12.5"
                      PlaceholderText="[ { &quot;Plan&quot;: { … } } ]  — or —  Seq Scan on t  (cost=…) (actual …)"
                      BorderThickness="0" Background="Transparent" />
         </Border>

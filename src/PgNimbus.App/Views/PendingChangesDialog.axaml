@@ -5,8 +5,7 @@
         Title="pgNimbus — Staged changes"
         Width="620" Height="460"
         MinWidth="460" MinHeight="280"
-        WindowStartupLocation="CenterOwner"
-        FontFamily="{StaticResource InterFont}">
+        WindowStartupLocation="CenterOwner">
 
     <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" Margin="20">
 
@@ -22,7 +21,7 @@
             <!-- One statement per staged row: 100,000 staged deletes are megabytes
                  of text, which ReadOnlyTextView shows in a read-only editor. -->
             <views:ReadOnlyTextView Name="SqlText"
-                                    FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                    Classes="mono"
                                     FontSize="12" />
         </Border>
 

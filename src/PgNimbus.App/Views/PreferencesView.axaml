@@ -52,6 +52,54 @@
             <Border Classes="card" Padding="14,12" Margin="0,6,0,0">
                 <Grid ColumnDefinitions="*,Auto">
                     <StackPanel Spacing="2" Margin="0,0,16,0">
+                        <TextBlock Classes="label" Text="Interface font" />
+                        <TextBlock Classes="hint" Text="System is San Francisco on macOS, Segoe UI on Windows and your desktop's font on Linux. Inter looks the same everywhere." />
+                    </StackPanel>
+                    <ComboBox Name="InterfaceFontBox" Grid.Column="1" MinWidth="130" VerticalAlignment="Center"
+                              SelectedIndex="{Binding InterfaceFontIndex}">
+                        <ComboBoxItem Content="System" />
+                        <ComboBoxItem Content="Inter" />
+                    </ComboBox>
+                </Grid>
+            </Border>
+
+            <Border Classes="card" Padding="14,12" Margin="0,6,0,0">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Spacing="2" Margin="0,0,16,0">
+                        <TextBlock Classes="label" Text="Code font" />
+                        <TextBlock Classes="hint" Text="For the SQL editor, values, plans and every other place that shows code. Lists the monospace fonts installed on this computer." />
+                    </StackPanel>
+                    <ComboBox Name="CodeFontBox" Grid.Column="1" MinWidth="200" MaxWidth="260" VerticalAlignment="Center"
+                              ItemsSource="{Binding CodeFonts}"
+                              SelectedItem="{Binding SelectedCodeFont}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:CodeFontOption">
+                                <TextBlock Text="{Binding Label}" FontFamily="{Binding Family}"
+                                           LetterSpacing="0" TextTrimming="CharacterEllipsis" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </Grid>
+            </Border>
+
+            <Border Classes="card" Padding="14,12" Margin="0,6,0,0">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Spacing="2" Margin="0,0,16,0">
+                        <TextBlock Classes="label" Text="Editor font size" />
+                        <TextBlock Classes="hint" Text="{Binding EditorFontSizeHint}"
+                                   FontFamily="{DynamicResource KeyCapFont}" />
+                    </StackPanel>
+                    <NumericUpDown Name="EditorFontSizeBox" Grid.Column="1" MinWidth="130" VerticalAlignment="Center"
+                                   Minimum="{x:Static vm:PreferencesViewModel.MinEditorFontSize}"
+                                   Maximum="{x:Static vm:PreferencesViewModel.MaxEditorFontSize}"
+                                   Increment="1" FormatString="0"
+                                   Value="{Binding EditorFontSize}" />
+                </Grid>
+            </Border>
+
+            <Border Classes="card" Padding="14,12" Margin="0,6,0,0">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Spacing="2" Margin="0,0,16,0">
                         <TextBlock Classes="label" Text="Show relation sizes in the schema tree" />
                         <TextBlock Classes="hint" Text="Adds each table and materialized view's on-disk size (heap + indexes + TOAST) as a dim hint next to its name" />
                     </StackPanel>

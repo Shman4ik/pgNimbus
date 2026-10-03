@@ -6,8 +6,7 @@
         Title="pgNimbus — Server Activity"
         Width="980" Height="560"
         MinWidth="720" MinHeight="320"
-        WindowStartupLocation="CenterOwner"
-        FontFamily="{StaticResource InterFont}">
+        WindowStartupLocation="CenterOwner">
 
     <Grid RowDefinitions="*,Auto">
 
@@ -72,7 +71,7 @@
                                     <DataTemplate x:DataType="vm:ActivityRow">
                                         <!-- Monospace, like the pid badge in the blocking tree -->
                                         <TextBlock Text="{Binding Pid}" Margin="12,0" VerticalAlignment="Center"
-                                                   FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="12" />
+                                                   Classes="mono" FontSize="12" />
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
@@ -130,7 +129,7 @@
                                     <StackPanel Spacing="1" Margin="0,3">
                                         <StackPanel Orientation="Horizontal" Spacing="8">
                                             <Border Background="{StaticResource CardBorderBrush}" CornerRadius="3" Padding="5,1" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding Pid}" FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="11" />
+                                                <TextBlock Text="{Binding Pid}" Classes="mono" FontSize="11" />
                                             </Border>
                                             <TextBlock Text="{Binding Identity}" VerticalAlignment="Center" FontWeight="SemiBold" />
                                             <!-- Amber = this backend is itself stuck waiting on a lock -->

@@ -4,6 +4,7 @@ using Avalonia.Headless;
 using Avalonia.Media.Imaging;
 using Avalonia.Styling;
 using Avalonia.Threading;
+using Nimbus.Ui.Fonts;
 using PgNimbus.App;
 using PgNimbus.Screenshot;
 
@@ -197,4 +198,5 @@ bool Capture(string name, ThemeVariant theme, Func<Window> build)
 static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<App>()
     .UseSkia()
     .UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false })
-    .WithInterFont();
+    .WithInterFont()
+    .WithNimbusFonts();

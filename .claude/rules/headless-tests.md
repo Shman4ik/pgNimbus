@@ -78,9 +78,12 @@ artifact nobody opens is not a check:
    minimum on a backdrop sampled from the shot's own chrome so it matches its
    theme). Run `scripts/screenshots/update-published.sh` in any PR that changes
    what they show (UI design rule 9), and before a release — **on Windows**:
-   unlike the baselines it renders on the host, because the monospace panes need
-   Cascadia Code or Consolas and the CI container has neither (until 2026-09 the
-   Store listing showed its SQL in a proportional font).
+   unlike the baselines it renders on the host. That started because the
+   monospace panes needed Cascadia Code or Consolas and the CI container has
+   neither (until 2026-09 the Store listing showed its SQL in a proportional
+   font); since 2026-10 code is drawn in the bundled JetBrains Mono NL everywhere
+   (UI rule 11), so the container draws the same face, but the published set is
+   still rendered on Windows, where its interface text has always been drawn.
    These used to be hand-captured against a live database, which made them go
    stale silently and leaked real detail — the old main-window shot published a
    live Neon hostname. The README's animated GIFs are deliberately **not**

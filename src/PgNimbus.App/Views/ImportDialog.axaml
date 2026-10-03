@@ -7,8 +7,7 @@
         Title="pgNimbus — Import"
         Width="560" Height="620"
         MinWidth="480" MinHeight="420"
-        WindowStartupLocation="CenterOwner"
-        FontFamily="{StaticResource InterFont}">
+        WindowStartupLocation="CenterOwner">
 
     <Grid RowDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto" Margin="20">
 

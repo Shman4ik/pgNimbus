@@ -109,9 +109,19 @@ public partial class QueryEditorPanel : UserControl
     // The space between the argument hint and the line it describes.
     private const double SignatureHintGap = 2;
 
-    private const double MinEditorFontSize = 8;
-    private const double MaxEditorFontSize = 32;
-    private const double DefaultEditorFontSize = 14;
+    public const double MinEditorFontSize = 8;
+    public const double MaxEditorFontSize = 32;
+
+    /// <summary>
+    /// The resource the editor's <c>FontSize</c> is bound to, set from
+    /// <c>AppSettings.EditorFontSize</c>. Zoom changes the open editor with
+    /// <c>SetCurrentValue</c>, which leaves the binding in place, so a size chosen on
+    /// the preferences page still reaches an editor that was zoomed.
+    /// </summary>
+    public const string EditorFontSizeKey = "EditorFontSize";
+
+    public static double ClampEditorFontSize(double size) =>
+        double.IsFinite(size) ? Math.Clamp(Math.Round(size), MinEditorFontSize, MaxEditorFontSize) : 14;
 
     public QueryEditorPanel()
     {
@@ -941,7 +951,11 @@ public partial class QueryEditorPanel : UserControl
                     e.Handled = true;
                     break;
                 case Key.D0 or Key.NumPad0:
-                    SqlEditor.FontSize = DefaultEditorFontSize;
+                    if (this.TryFindResource(EditorFontSizeKey, out var size) && size is double chosen)
+                    {
+                        SqlEditor.SetCurrentValue(TextEditor.FontSizeProperty, chosen);
+                    }
+
                     e.Handled = true;
                     break;
             }
@@ -960,7 +974,7 @@ public partial class QueryEditorPanel : UserControl
     }
 
     private void AdjustEditorFontSize(int delta) =>
-        SqlEditor.FontSize = Math.Clamp(SqlEditor.FontSize + delta, MinEditorFontSize, MaxEditorFontSize);
+        SqlEditor.SetCurrentValue(TextEditor.FontSizeProperty, Math.Clamp(SqlEditor.FontSize + delta, MinEditorFontSize, MaxEditorFontSize));
 
     // Where the statements of this editor's document start, kept across edits
     // (every document change invalidates what follows it; see OnSqlDocumentChanged).

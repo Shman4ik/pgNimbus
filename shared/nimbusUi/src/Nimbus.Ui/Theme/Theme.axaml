@@ -52,6 +52,28 @@
          App.axaml), which is what lets an app override anything shared. -->
     <StyleInclude Source="avares://Nimbus.Ui/Theme/Controls.axaml" />
 
+    <!-- Typography (DESIGN.md rule 22). Every top level draws its interface text with
+         the spacing NimbusFonts sets: 0 except for San Francisco on macOS. A popup is a
+         top level of its own and inherits nothing from the window that opened it. -->
+    <Style Selector="Window">
+        <Setter Property="LetterSpacing" Value="{DynamicResource InterfaceLetterSpacing}" />
+    </Style>
+    <Style Selector="PopupRoot">
+        <Setter Property="LetterSpacing" Value="{DynamicResource InterfaceLetterSpacing}" />
+    </Style>
+
+    <!-- Code, values and identifiers: the one monospace face, at its own spacing. The
+         class, not a FontFamily written at the use site, so the face is a setting and
+         the San Francisco compensation never stretches a column of digits. -->
+    <Style Selector=":is(TextBlock).mono">
+        <Setter Property="TextElement.FontFamily" Value="{DynamicResource MonoFont}" />
+        <Setter Property="TextElement.LetterSpacing" Value="0" />
+    </Style>
+    <Style Selector=":is(TemplatedControl).mono">
+        <Setter Property="TextElement.FontFamily" Value="{DynamicResource MonoFont}" />
+        <Setter Property="TextElement.LetterSpacing" Value="0" />
+    </Style>
+
     <Style Selector="ScrollBar /template/ Thumb">
         <Setter Property="CornerRadius" Value="5" />
     </Style>

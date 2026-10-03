@@ -17,7 +17,6 @@
         WindowStartupLocation="CenterOwner"
         Width="1100" Height="800"
         MinWidth="940" MinHeight="560"
-        FontFamily="{StaticResource InterFont}"
         Background="Transparent"
         TransparencyLevelHint="Mica,AcrylicBlur">
 

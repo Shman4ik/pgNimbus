@@ -65,6 +65,27 @@ public sealed record AppSettings
     public string HotkeyScheme { get; set; } = "auto";
 
     /// <summary>
+    /// The face the interface draws in: <c>"auto"</c> (the default, which is the
+    /// system face), <c>"system"</c> or <c>"inter"</c>. A plain string
+    /// for the same reason as <see cref="Theme"/>; the App maps it to a font family.
+    /// </summary>
+    public string InterfaceFont { get; set; } = "auto";
+
+    /// <summary>
+    /// The monospace family for code, values and identifiers, by name. Null (the
+    /// default) is the bundled JetBrains Mono NL. A name that is no longer installed
+    /// falls back to the bundled face rather than to a proportional one.
+    /// </summary>
+    public string? CodeFont { get; set; }
+
+    /// <summary>
+    /// The SQL editor's font size, in pixels, which a new editor starts at and the
+    /// zoom-reset gesture returns to. Zooming with Ctrl+wheel or Ctrl+=/− changes the
+    /// open editor only.
+    /// </summary>
+    public double EditorFontSize { get; set; } = 14;
+
+    /// <summary>
     /// Notepad++-style word wrap in the SQL editor: long lines wrap to the pane
     /// width instead of scrolling horizontally. Off by default (the classic
     /// no-wrap editor); toggled from the editor command bar or the command

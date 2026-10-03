@@ -203,7 +203,7 @@
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="x:String">
                                         <TextBlock Text="{Binding}" FontSize="12" Margin="0,1"
-                                                   FontFamily="Cascadia Code,Consolas,Menlo,monospace" />
+                                                   Classes="mono" />
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>

@@ -4,8 +4,7 @@
         Title="pgNimbus"
         Width="380" SizeToContent="Height"
         CanResize="False"
-        WindowStartupLocation="CenterOwner"
-        FontFamily="{StaticResource InterFont}">
+        WindowStartupLocation="CenterOwner">
 
     <StackPanel Margin="20">
         <TextBlock Name="MessageText" TextWrapping="Wrap" FontSize="13" />
