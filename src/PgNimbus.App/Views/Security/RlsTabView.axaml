@@ -128,7 +128,7 @@
                                             <TextBlock Text="USING — which existing rows are visible"
                                                        FontSize="10" Opacity="0.6" FontWeight="SemiBold" />
                                             <SelectableTextBlock Text="{Binding Using}" TextWrapping="Wrap"
-                                                                 FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                                                 Classes="mono"
                                                                  FontSize="12" />
                                         </StackPanel>
 
@@ -136,7 +136,7 @@
                                             <TextBlock Text="WITH CHECK — which new or updated rows are allowed"
                                                        FontSize="10" Opacity="0.6" FontWeight="SemiBold" />
                                             <SelectableTextBlock Text="{Binding WithCheck}" TextWrapping="Wrap"
-                                                                 FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                                                 Classes="mono"
                                                                  FontSize="12" />
                                         </StackPanel>
                                     </StackPanel>

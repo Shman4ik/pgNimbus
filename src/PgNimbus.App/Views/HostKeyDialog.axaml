@@ -4,8 +4,7 @@
         Title="pgNimbus — Unknown SSH host"
         Width="480" SizeToContent="Height"
         CanResize="False"
-        WindowStartupLocation="CenterOwner"
-        FontFamily="{StaticResource InterFont}">
+        WindowStartupLocation="CenterOwner">
 
     <!-- The first connect through an SSH jump host nobody has recorded: what
          ssh prints as "The authenticity of host … can't be established", as a
@@ -31,7 +30,7 @@
                 <!-- Monospace and selectable: a fingerprint is compared character by
                      character, or pasted next to the one in the admin's message. -->
                 <SelectableTextBlock Grid.Row="4" Grid.Column="2" Name="FingerprintText"
-                                     FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="12.5"
+                                     Classes="mono" FontSize="12.5"
                                      TextWrapping="Wrap" VerticalAlignment="Center" />
             </Grid>
         </Border>

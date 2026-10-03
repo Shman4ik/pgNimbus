@@ -4,8 +4,7 @@
         Title="pgNimbus — Save query"
         Width="420" SizeToContent="Height"
         CanResize="False"
-        WindowStartupLocation="CenterOwner"
-        FontFamily="{StaticResource InterFont}">
+        WindowStartupLocation="CenterOwner">
 
     <!-- Names a query for the Saved Queries list. Deliberately a small modal
          rather than a text box parked in the sidebar: the old box sat below

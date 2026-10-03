@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Styling;
+using Nimbus.Ui.Fonts;
 using Npgsql;
 using PgNimbus.App.Completion;
 using PgNimbus.App.ViewModels;
@@ -198,6 +199,46 @@ public partial class App : Application
         Hotkeys.Initialize(scheme);
     }
 
+    /// <summary>
+    /// Applies the persisted typography to the application's resources (DESIGN.md rule
+    /// 22): the interface face, the monospace face and the SQL editor's size. Every use
+    /// site reads them as <c>DynamicResource</c>, so open windows follow a change.
+    /// </summary>
+    private static void ApplyFonts(AppSettings settings)
+    {
+        if (Current is not { } app)
+        {
+            return;
+        }
+
+        NimbusFonts.Apply(app.Resources, InterfaceFontFromString(settings.InterfaceFont), settings.CodeFont);
+        app.Resources[QueryEditorPanel.EditorFontSizeKey] = QueryEditorPanel.ClampEditorFontSize(settings.EditorFontSize);
+    }
+
+    /// <summary>The face a stored <see cref="AppSettings.InterfaceFont"/> means on this platform ("auto" is the platform's default).</summary>
+    public static InterfaceFont InterfaceFontFromString(string? value) => value?.ToLowerInvariant() switch
+    {
+        "system" => InterfaceFont.System,
+        "inter" => InterfaceFont.Inter,
+        _ => NimbusFonts.PlatformDefault,
+    };
+
+    /// <summary>Applies and persists the interface face chosen on the preferences page ("system"/"inter").</summary>
+    internal static void SetInterfaceFont(string value) => SaveAndApplyFonts(SettingsStore.Load() with { InterfaceFont = value });
+
+    /// <summary>Applies and persists the monospace face chosen on the preferences page (null: the bundled one).</summary>
+    internal static void SetCodeFont(string? value) => SaveAndApplyFonts(SettingsStore.Load() with { CodeFont = value });
+
+    /// <summary>Applies and persists the SQL editor's font size chosen on the preferences page.</summary>
+    internal static void SetEditorFontSize(double value) =>
+        SaveAndApplyFonts(SettingsStore.Load() with { EditorFontSize = QueryEditorPanel.ClampEditorFontSize(value) });
+
+    private static void SaveAndApplyFonts(AppSettings settings)
+    {
+        SettingsStore.Save(settings);
+        ApplyFonts(settings);
+    }
+
     private static ThemeVariant ThemeFromString(string? theme) => theme?.ToLowerInvariant() switch
     {
         "light" => ThemeVariant.Light,
@@ -302,6 +343,9 @@ public partial class App : Application
         // Restore the saved light/dark choice before any window resolves its
         // ActualThemeVariant, so the first frame already paints in the right theme.
         ApplyPersistedTheme();
+
+        // And in the chosen faces, so no window lays its text out twice.
+        ApplyFonts(SettingsStore.Load());
 
         // Resolve Ctrl-vs-Cmd before any window builds its key bindings.
         Hotkeys.Initialize(SettingsStore.Load().HotkeyScheme);

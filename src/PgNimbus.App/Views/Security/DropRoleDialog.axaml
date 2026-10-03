@@ -7,8 +7,7 @@
         Title="pgNimbus — Drop role"
         Width="820" Height="680"
         MinWidth="640" MinHeight="480"
-        WindowStartupLocation="CenterOwner"
-        FontFamily="{StaticResource InterFont}">
+        WindowStartupLocation="CenterOwner">
 
     <!-- Two growing rows: the dependency lists and the script. Dragging the
          window taller has to give the script the room, because reading it is
@@ -121,7 +120,7 @@
                 BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
                 CornerRadius="{StaticResource CardCornerRadius}" Padding="12,10">
             <ScrollViewer>
-                <SelectableTextBlock Text="{Binding Script}" FontFamily="Consolas,Menlo,monospace"
+                <SelectableTextBlock Text="{Binding Script}" Classes="mono"
                                      FontSize="12" TextWrapping="NoWrap" />
             </ScrollViewer>
         </Border>

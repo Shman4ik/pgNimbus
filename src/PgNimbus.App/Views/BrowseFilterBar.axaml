@@ -75,7 +75,7 @@
                                          TextBlock laid out while the line was hidden drew
                                          nothing at all once it showed (a blank chip). -->
                                     <TextBlock Text="{Binding Converter={x:Static conv:ChipText.Shorten}}" FontSize="11.5"
-                                               FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                               Classes="mono"
                                                VerticalAlignment="Center"
                                                Margin="10,0,4,0" ToolTip.Tip="{Binding}" />
                                     <Button Classes="chip x" Content="✕"

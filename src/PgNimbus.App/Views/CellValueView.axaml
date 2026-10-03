@@ -71,7 +71,7 @@
                        WordWrap="{Binding WordWrap}"
                        ShowLineNumbers="{Binding IsJson}"
                        HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
-                       FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="13" />
+                       Classes="mono" FontSize="13" />
 
         <!-- Read: the document as a tree (JSON only), and where the selected row is. -->
         <Grid RowDefinitions="*,Auto" IsVisible="{Binding ShowTree}">
@@ -98,15 +98,13 @@
                 <TreeView.ItemTemplate>
                     <TreeDataTemplate ItemsSource="{Binding Children}" x:DataType="json:JsonTreeNode">
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBlock Classes="jsonName" Classes.element="{Binding IsElement}"
-                                       Text="{Binding Name}"
-                                       FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="12" />
-                            <TextBlock Classes="jsonValue"
+                            <TextBlock Classes="jsonName mono" Classes.element="{Binding IsElement}"
+                                       Text="{Binding Name}" FontSize="12" />
+                            <TextBlock Classes="jsonValue mono"
                                        Classes.str="{Binding IsString}"
                                        Classes.num="{Binding IsNumber}"
                                        Classes.lit="{Binding IsLiteral}"
-                                       Text="{Binding ValuePreview}"
-                                       FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="12"
+                                       Text="{Binding ValuePreview}" FontSize="12"
                                        TextTrimming="CharacterEllipsis" />
                         </StackPanel>
                     </TreeDataTemplate>
@@ -114,14 +112,15 @@
             </TreeView>
 
             <!-- The selected row's path, or how to get one: the menu is the only
-                 other place that says it exists. Cascadia Mono, not Code: Code's
-                 ligatures drew "->>" as an arrow, in text that is there to be copied. -->
+                 other place that says it exists. Monospace without ligatures (the
+                 bundled face is JetBrains Mono NL): Cascadia Code's ligatures drew
+                 "->>" as an arrow, in text that is there to be copied. -->
             <Border Grid.Row="1" BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="0,1,0,0"
                     Padding="4,6,4,0" Margin="0,4,0,0">
                 <Panel>
                     <SelectableTextBlock Name="PathText" Text="{Binding SelectedPath}"
                                          IsVisible="{Binding SelectedPath, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                         FontFamily="Cascadia Mono,Consolas,Menlo,monospace" FontSize="12"
+                                         Classes="mono" FontSize="12"
                                          TextWrapping="Wrap" />
                     <TextBlock Text="Select a value to see its path. Right-click to copy it."
                                IsVisible="{Binding SelectedPath, Converter={x:Static ObjectConverters.IsNull}}"
@@ -135,7 +134,7 @@
                 BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" CornerRadius="6">
             <ae:TextEditor Name="JsonInspectorEditor"
                            ShowLineNumbers="True" WordWrap="True"
-                           FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="13" />
+                           Classes="mono" FontSize="13" />
         </Border>
     </Panel>
 </UserControl>

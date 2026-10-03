@@ -120,6 +120,7 @@ Walk each flow; the expected result is what "pass" means.
 | 25 | Alter Table: Drop selected column; right-click an available extension: Install; stage a multi-row delete where a trigger refuses one row, Commit | Drop and Install ask first; the failed batch deletes nothing (count unchanged) |
 | 26 | Slow queries after restarting the interval and running one heavy query from psql | Only that query (and the pool's `DISCARD ALL`) is listed; the footer counts pgNimbus's own reads as left out |
 | 27 | Rows 6, 9, 10, 15, 20 once more in the other theme | Active chips (Color, Text/Tree, Wrap, View), the host-key dialog and every overlay stay readable |
+| 28 | Settings, Appearance: Interface font System and Inter, Code font (pick an installed one, then back), Editor font size 18, zoom with Ctrl+wheel, Ctrl+0 | Every open window changes at once. **On a Mac**, System is San Francisco (a Finder window beside it has the same letters) and its spacing at 13px is neither cramped nor loose (`NimbusFonts.MacSystemLetterSpacing`); the grid's digits stay one per column. Code text is JetBrains Mono, `->>` stays three characters, Ctrl+0 returns to 18 |
 
 Driving it with Claude Code's computer-use: grant the exe by its **full path**,
 type in chunks of 15 characters or fewer (longer strings go through the

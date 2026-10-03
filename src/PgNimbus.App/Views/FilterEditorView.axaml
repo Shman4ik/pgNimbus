@@ -47,7 +47,7 @@
         <!-- The generated SQL, before it runs. -->
         <Border Background="{StaticResource HoverBackgroundBrush}" CornerRadius="6" Padding="8,5">
             <TextBlock Text="{Binding DraftPreviewSql}" TextWrapping="Wrap"
-                       FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="11.5" Opacity="0.8" />
+                       Classes="mono" FontSize="11.5" Opacity="0.8" />
         </Border>
 
         <TextBlock Text="{Binding FilterError}" FontSize="11" TextWrapping="Wrap"

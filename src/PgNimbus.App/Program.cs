@@ -1,4 +1,5 @@
 using Avalonia;
+using Nimbus.Ui.Fonts;
 using PgNimbus.App.Diagnostics;
 
 namespace PgNimbus.App;
@@ -28,5 +29,6 @@ internal static class Program
     public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<App>()
         .UsePlatformDetect()
         .WithInterFont()
+        .WithNimbusFonts()
         .LogToTrace();
 }

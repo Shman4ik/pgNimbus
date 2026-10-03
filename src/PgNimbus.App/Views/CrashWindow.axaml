@@ -19,7 +19,7 @@
         <Border Classes="card" Padding="12,10">
             <TextBox Name="ErrorText" IsReadOnly="True" BorderThickness="0"
                      Background="Transparent" TextWrapping="Wrap"
-                     FontFamily="Consolas, Menlo, monospace" FontSize="12"
+                     Classes="mono" FontSize="12"
                      MaxHeight="140" />
         </Border>
 

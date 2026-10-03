@@ -11,8 +11,7 @@
         Title="pgNimbus — LISTEN / NOTIFY"
         Width="1040" Height="620"
         MinWidth="760" MinHeight="380"
-        WindowStartupLocation="CenterOwner"
-        FontFamily="{StaticResource InterFont}">
+        WindowStartupLocation="CenterOwner">
 
     <!--
         A reference view read beside the editor while an application's event
@@ -91,7 +90,7 @@
                                         <!-- One line per notification: the whole payload is one click away
                                              in the pane beside it, so the feed stays scannable. -->
                                         <TextBlock Text="{Binding Payload}" FontSize="12" Opacity="0.75"
-                                                   FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                                   Classes="mono"
                                                    TextTrimming="CharacterEllipsis" />
                                     </StackPanel>
                                 </DataTemplate>

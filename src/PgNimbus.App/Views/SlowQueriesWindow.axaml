@@ -7,8 +7,7 @@
         Title="pgNimbus — Slow Queries"
         Width="1040" Height="620"
         MinWidth="760" MinHeight="360"
-        WindowStartupLocation="CenterOwner"
-        FontFamily="{StaticResource InterFont}">
+        WindowStartupLocation="CenterOwner">
 
     <Grid RowDefinitions="Auto,*,Auto" Margin="12">
 
@@ -82,7 +81,7 @@
                                 <StackPanel Orientation="Horizontal" Spacing="6" Margin="12,0" VerticalAlignment="Center">
                                     <TextBlock Text="↺" Foreground="{StaticResource AppWarningBrush}" IsVisible="{Binding Restarted}"
                                                ToolTip.Tip="Started counting again inside the interval (reset or evicted), so this covers only part of it" />
-                                    <TextBlock Text="{Binding Query}" FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="12"
+                                    <TextBlock Text="{Binding Query}" Classes="mono" FontSize="12"
                                                TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Query}" />
                                 </StackPanel>
                             </DataTemplate>

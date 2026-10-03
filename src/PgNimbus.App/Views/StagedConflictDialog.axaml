@@ -5,8 +5,7 @@
         Title="pgNimbus — Commit rolled back"
         Width="760" Height="520"
         MinWidth="520" MinHeight="300"
-        WindowStartupLocation="CenterOwner"
-        FontFamily="{StaticResource InterFont}">
+        WindowStartupLocation="CenterOwner">
 
     <Window.Styles>
         <Style Selector="TextBlock.changed">
@@ -44,18 +43,18 @@
                                                 <TextBlock Grid.Column="0" FontSize="12" Text="{Binding Column}"
                                                            TextTrimming="CharacterEllipsis" Margin="0,0,8,0" />
                                                 <TextBlock Grid.Column="1" FontSize="12" Text="{Binding Before}"
-                                                           FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                                           Classes="mono"
                                                            TextTrimming="CharacterEllipsis" Margin="0,0,8,0"
                                                            ToolTip.Tip="{Binding FullBefore}" />
                                                 <!-- The column another session changed is the reason for
                                                      the rollback, so it's the one that gets the colour. -->
                                                 <TextBlock Grid.Column="2" FontSize="12" Text="{Binding Current}"
-                                                           FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                                           Classes="mono"
                                                            TextTrimming="CharacterEllipsis" Margin="0,0,8,0"
                                                            ToolTip.Tip="{Binding FullCurrent}"
                                                            Classes.changed="{Binding ChangedElsewhere}" />
                                                 <TextBlock Grid.Column="3" FontSize="12" Text="{Binding Proposed}"
-                                                           FontFamily="Cascadia Code,Consolas,Menlo,monospace"
+                                                           Classes="mono"
                                                            TextTrimming="CharacterEllipsis"
                                                            ToolTip.Tip="{Binding FullProposed}"
                                                            Opacity="{Binding HasProposed, Converter={x:Static v:StagedConflictDialog.DimUnlessTrue}}" />

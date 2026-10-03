@@ -7,8 +7,7 @@
         Title="pgNimbus — Roles and Permissions"
         Width="1100" Height="720"
         MinWidth="820" MinHeight="440"
-        WindowStartupLocation="CenterOwner"
-        FontFamily="{StaticResource InterFont}">
+        WindowStartupLocation="CenterOwner">
 
     <Grid RowDefinitions="Auto,*,Auto" Margin="12">
 

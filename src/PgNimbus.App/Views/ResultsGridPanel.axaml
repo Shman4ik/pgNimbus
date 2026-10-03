@@ -304,7 +304,7 @@
                              which lays out only the lines on screen. -->
                         <views:ReadOnlyTextView Grid.Row="2" IsVisible="{Binding ActiveTab.IsPlanTextView}"
                                                 Text="{Binding ActiveTab.ExplainText}" TextMargin="8,4"
-                                                FontFamily="Cascadia Code,Consolas,Menlo,monospace" FontSize="12.5" />
+                                                Classes="mono" FontSize="12.5" />
                         <ScrollViewer Grid.Row="2" IsVisible="{Binding !ActiveTab.IsPlanTextView}">
                             <TreeView ItemsSource="{Binding ActiveTab.ExplainRoots}" Margin="4" Classes="virtualizing">
                                 <!-- Open all the way down: the heat bars only say something when

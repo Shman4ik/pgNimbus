@@ -6,6 +6,7 @@ using Avalonia.Headless;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using AvaloniaEdit;
+using Nimbus.Ui.Fonts;
 using PgNimbus.App;
 using PgNimbus.App.ViewModels;
 using PgNimbus.App.Views;
@@ -41,6 +42,7 @@ AppBuilder.Configure<App>()
     .UseSkia()
     .UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false })
     .WithInterFont()
+    .WithNimbusFonts()
     .SetupWithoutStarting();
 
 var iterations = int.TryParse(Environment.GetEnvironmentVariable("PGNIMBUS_BENCH_UI_ITERS"), out var n) && n > 0 ? n : 3;

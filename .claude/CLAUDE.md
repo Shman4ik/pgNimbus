@@ -1304,8 +1304,8 @@ Three rules about it:
    "Cmd" "Shift" "Enter" in F1. `CommandCatalogTests` holds the Cmd scheme to no
    modifier or special key spelled as a word. Inter has none of those glyphs and
    macOS's own fallback (Apple Symbols) draws them at half height, so every text
-   that spells a gesture uses the `KeyCapFont` resource in `Styles/Theme.axaml`
-   (Inter, then Lucida Grande / Segoe UI Symbol): the F1 keycaps, the palette's
+   that spells a gesture uses the shared `KeyCapFont` token (DESIGN.md rule 22:
+   the interface face, then Lucida Grande / Segoe UI Symbol): the F1 keycaps, the palette's
    shortcut column, the search pill, the empty grid's hint and every `ToolTip`.
    **A platform's own convention is a scheme-only chord** (`MoreChords`, a list
    of `SchemeChord`s): Next/Previous tab answer ⇧⌘] / ⇧⌘[ on the Cmd scheme (a
@@ -1475,7 +1475,8 @@ Three rules about it:
    hovers the status lines with real pointer input.
    **Surfaces and dialogs have a vocabulary too** (2026-09, DESIGN.md rules 15
    and 16). Every secondary window sits on the shell tone — a `Window` style in
-   `Styles/Theme.axaml` sets it, and the Inter font, so no window sets either —
+   `Styles/Theme.axaml` sets it, and Fluent's `ContentControlThemeFontFamily` gives
+   every window the interface face (UI rule 11), so no window sets either —
    and groups its content in `card`s. A dialog is assembled from
    `TextBlock.dialogTitle`, `TextBlock.dialogHint` and `StackPanel.dialogButtons`
    (the macOS order on every platform: other secondaries, then Cancel, then the
@@ -1640,6 +1641,43 @@ Three rules about it:
    The scenario `controls-gallery` shows the focus ring, both selection faces, the
    switches and a highlighted menu item together, since no app screen holds
    keyboard focus; `SharedControlStylingTests` reads each painted part.
+11. **Fonts are settings, and no view writes a font name** (2026-10; canonical
+   text is DESIGN.md rule 22). Reported from a Mac: the interface wasn't in the
+   system face. Three findings shaped it:
+   - **The app was never in Inter, and on a Mac it was in Helvetica.** Seventeen
+     windows carried `FontFamily="{StaticResource InterFont}"` and the `Window`
+     style `{DynamicResource InterFont}`; no such resource was ever defined. The
+     `StaticResource` on a control is deferred and resolves to nothing, but the
+     style's `DynamicResource` setter put the font's default value (`$Default`)
+     at Style priority, above Fluent's Inter. So every window drew in the
+     platform default: Segoe UI on Windows (the published screenshots show it),
+     DejaVu in the CI container (the baselines show it), and **Helvetica on
+     macOS**, which is what CoreText gives for `$Default`
+     (AvaloniaUI/Avalonia#21565). Only popups (menus, tooltips, completion),
+     which that style didn't match, were Inter. The references are gone; the
+     interface face is Fluent's `ContentControlThemeFontFamily`, set by
+     `NimbusFonts.Apply` from `AppSettings.InterfaceFont`. `"auto"` is System on
+     every platform, which keeps Windows and Linux as they looked and moves the
+     Mac to San Francisco; Inter is the opt-in, and the popups now match the
+     windows whichever is chosen.
+   - **Code had four spellings of one stack** at ~30 sites, plus a copy in
+     `ResultTextColumn` for numeric cells, and the Mac got Menlo from it. All of
+     them are `Classes="mono"` now (the grid adds the class in code), reading
+     `MonoFont`: the bundled JetBrains Mono NL unless `AppSettings.CodeFont`
+     names an installed family. NL because `CellValueView`'s JSON path already
+     had to dodge Cascadia Code's `->>` ligature.
+   - **The editor's size is a resource too.** `SqlEditor.FontSize` binds
+     `{DynamicResource EditorFontSize}` (`AppSettings.EditorFontSize`, 8 to 32);
+     the zoom gestures use `SetCurrentValue`, which keeps that binding, so a size
+     chosen in Settings still reaches a zoomed editor and ⌘0 returns to it. A
+     plain assignment would have replaced the binding.
+   Settings shows the three under Appearance; the code font list is the installed
+   monospace families (`Platform/MonospaceFonts`, through Skia rather than
+   Avalonia's `FontManager`, which would keep every face it opened for the life
+   of the process), each row drawn in its own face. Tests: `FontSettingsTests`
+   (the bundled face's name and its missing `calt`, a change reaching open text,
+   the mono class keeping spacing 0, the editor size after a zoom). Not testable
+   headlessly: how San Francisco looks, which is release checklist row 28.
 
 ## Platform window chrome
 

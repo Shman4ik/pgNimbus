@@ -17,8 +17,8 @@
             <ae:TextEditor Name="SqlEditor"
                            ShowLineNumbers="True"
                            WordWrap="{Binding WordWrapEditor}"
-                           FontFamily="Cascadia Code,Consolas,Menlo,monospace"
-                           FontSize="14" />
+                           Classes="mono"
+                           FontSize="{DynamicResource EditorFontSize}" />
             <!-- The argument hint: the called function's overloads with the
                  parameter under the caret in bold, just above the call. Opens
                  on "(", follows the caret, closes when the caret leaves the
@@ -32,7 +32,7 @@
                    ShouldUseOverlayLayer="True">
                 <Border Classes="signatureHint">
                     <TextBlock Name="SignatureText"
-                               FontFamily="Cascadia Code,Consolas,Menlo,monospace" />
+                               Classes="mono" />
                 </Border>
             </Popup>
         </Panel>

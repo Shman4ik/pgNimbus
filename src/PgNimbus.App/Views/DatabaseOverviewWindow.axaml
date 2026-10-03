@@ -6,8 +6,7 @@
         Title="pgNimbus — Database Overview"
         Width="960" Height="600"
         MinWidth="720" MinHeight="360"
-        WindowStartupLocation="CenterOwner"
-        FontFamily="{StaticResource InterFont}">
+        WindowStartupLocation="CenterOwner">
 
     <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="12">
 
