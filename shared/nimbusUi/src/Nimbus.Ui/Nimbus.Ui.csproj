@@ -28,6 +28,12 @@
     <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.1.2" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- The bundled monospace face (Fonts/NimbusFonts.cs). Fonts are not globbed
+         the way .axaml files are, so they are listed. -->
+    <AvaloniaResource Include="Fonts\**\*.ttf" />
+  </ItemGroup>
+
   <!-- No explicit item group for the .axaml files: Avalonia's own build targets
        already glob them and register them under avares://. Adding them by hand
        double-includes and fails the build — both apps rely on the same default

@@ -46,8 +46,8 @@ prints: Apple's glyphs, modifiers in the order ⌃ ⌥ ⇧ ⌘, then the key, ru
 "Shift", "Enter" never appear as words there. That covers every place a gesture is
 written: palette rows, cheat-sheet keycaps, tooltips, the search pill, hints. The
 glyphs need a font that carries them at text size (Inter doesn't, and macOS's
-fallback draws them at half height), so text spelling a gesture names one
-explicitly. And where the Mac has its own convention for a command the other
+fallback draws them at half height), so text spelling a gesture uses the
+`KeyCapFont` token (rule 22). And where the Mac has its own convention for a command the other
 platforms don't share (⇧⌘] / ⇧⌘[ for the next and previous tab, ⌘. to stop, ⌘? for
 help), the Cmd scheme answers it too and names it first; the cross-platform chord
 stays a synonym. pgNimbus implements this in its command catalog; kubeNimbus's
@@ -414,6 +414,48 @@ Each app checks the first half in a headless test that walks its windows,
 hit-tests the middle of every tooltip-bearing element and fails on any the pointer
 passes through.
 
+### 22. Typography is three faces, each one token, and the faces are settings
+
+Text comes in three faces, and each is one resource that every use site reads
+dynamically. No view writes a font name.
+
+| Role | Token | Default | How a view uses it |
+|---|---|---|---|
+| Interface | `ContentControlThemeFontFamily` (Fluent's own key) | System (Inter is opt-in) | Nothing: every `Window` and `PopupRoot` reads it |
+| Code, values, identifiers | `MonoFont` | the bundled JetBrains Mono NL | `Classes="mono"` |
+| Text that spells a shortcut | `KeyCapFont` | the interface face, then Lucida Grande, Segoe UI Symbol | `FontFamily="{DynamicResource KeyCapFont}"` (rule 4) |
+
+`Nimbus.Ui.Fonts.NimbusFonts.Apply` sets all three, plus `InterfaceLetterSpacing`,
+in the application's resources from the app's settings, and open windows follow.
+Each app offers the interface face (System or Inter) and the code face (the bundled
+one or any installed monospace family) in its preferences, and registers the bundled
+face with `WithNimbusFonts()` beside `WithInterFont()` in every app builder, tests
+and tools included.
+
+- **Code is drawn in a face we ship.** Before this both apps wrote
+  `Cascadia Code,Consolas,Menlo,monospace` at each use site (pgNimbus ~30 times, in
+  four spellings). A Mac has neither Cascadia nor Consolas, so it got Menlo; a CI
+  container has none of them, so screenshots taken there drew code in the interface
+  face. The bundled face is the **NL** cut, without ligatures: code text is read
+  character by character and copied, and the regular cut draws `->>` as an arrow.
+- **The interface face is the platform's, and has to be asked for on macOS.**
+  `$Default` does not get there: Avalonia asks Skia, and CoreText answers Helvetica
+  (AvaloniaUI/Avalonia#21565), so the system face is asked for by name, "System
+  Font", with Inter behind it. pgNimbus found it the hard way: a `Window` style
+  setting a resource that did not exist put `$Default` above Fluent's Inter, so its
+  windows had been Segoe UI on Windows and Helvetica on macOS, which a Mac user
+  reported as "not the native font". An unresolved `DynamicResource` in a style
+  setter is not a no-op. San Francisco is one
+  variable font whose optical-size axis defaults to display spacing; CoreText sets it
+  to the point size, Avalonia 12.1 cannot, so at 13px the advances are too narrow.
+  `InterfaceLetterSpacing` adds 0.7px on every top level while that face is in use,
+  and the `mono` class resets it to 0, so a column of digits never spreads. That
+  value comes from the Avalonia issue above and is checked on a Mac before a release
+  that changes it. On Windows, System is Segoe UI (Segoe UI Variable has the same
+  axis problem), on Linux the desktop's default face.
+- **Weights.** The bundled face ships Regular and Bold: syntax highlighting draws
+  keywords bold, and nothing else in code text asks for a weight.
+
 ---
 
 ## What is deliberately *not* shared
@@ -457,6 +499,17 @@ mechanism — a rule nobody tracks is a rule that decays.
       `ListBox.segmented` and switcher styles override the shared row rules and are unaffected.
       Its window chrome gets the centred traffic lights for free through `NimbusWindowChrome`.
 - [ ] `AppSuccessBrush` → pgNimbus. The status trio was two-thirds defined there.
+- [ ] **Typography as settings → kubeNimbus** (rule 22). pgNimbus moved first. kubeNimbus
+      still writes `Cascadia Mono,Consolas,monospace` at about 80 use sites (one with
+      `DejaVu Sans Mono` too) and has no font settings. Its main window's
+      `{StaticResource InterFontFamily}` names a resource nothing defines; on a control
+      that is deferred and resolves to nothing, so kubeNimbus is drawn in Fluent's Inter,
+      on a Mac too. Moving it to System changes how it looks on every platform, which
+      pgNimbus's switch did not (see the rule), so that default is its own decision. Replace the stacks with `Classes="mono"` (its `Run`s with
+      `FontFamily="{DynamicResource MonoFont}"`), add `WithNimbusFonts()` to its app
+      builders, call `NimbusFonts.Apply` from its settings, and add the two choices to its
+      preferences page. pgNimbus's `Platform/MonospaceFonts` (the installed list, through
+      Skia) is the candidate to lift here when it does.
 - [x] **Tooltips that answer the pointer, and the cut status line → both** (rule 21).
       `ToolTipHitTesting` and `TextBlock.statusMessage` came up from pgNimbus;
       kubeNimbus installs the handler and its status bar uses `statusMessage`.

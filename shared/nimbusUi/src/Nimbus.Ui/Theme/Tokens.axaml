@@ -155,6 +155,26 @@
     <x:Double x:Key="ControlContentThemeFontSize">13</x:Double>
 
     <!--
+        Typography (DESIGN.md rule 22). These are the defaults; each app replaces all
+        four from its settings through Nimbus.Ui.Fonts.NimbusFonts.Apply, which writes
+        the application's own resources, so nothing here needs editing to change a face.
+        The interface face is Fluent's ContentControlThemeFontFamily, left at Fluent's
+        Inter here.
+
+        MonoFont: code, values and identifiers, through the `mono` class in Theme.axaml.
+        The bundled JetBrains Mono NL, so a frame drawn in a CI container (which has no
+        Cascadia, Consolas or Menlo) shows the same face as one drawn on a desktop.
+
+        KeyCapFont: text that spells a shortcut (rule 4). The interface face first, then
+        faces that carry Apple's key glyphs at text size.
+
+        InterfaceLetterSpacing: 0, except for San Francisco on macOS (NimbusFonts).
+    -->
+    <FontFamily x:Key="MonoFont">fonts:JetBrainsMono#JetBrains Mono NL</FontFamily>
+    <FontFamily x:Key="KeyCapFont">fonts:Inter#Inter, Lucida Grande, Segoe UI Symbol</FontFamily>
+    <x:Double x:Key="InterfaceLetterSpacing">0</x:Double>
+
+    <!--
         ToggleSwitch, Apple-style (DESIGN.md rule 20): a filled track with no outline,
         a white knob in both states, the accent track when on. The off track is
         theme-split and lives in the theme dictionaries above; the geometry (32x18,
