@@ -1144,7 +1144,7 @@ changes you had not saved to that file are gone.</p>
 <p>Masking needs a word next to the secret that says what it is. A key passed as an
 ordinary argument, such as <code>pgp_sym_encrypt(data, 'key')</code>, or a password kept in
 a variable inside a <code>DO</code> block, is stored as you typed it.</p>
-<p>To stop recording history, turn off <strong>Record query history</strong> in Settings. Queries
+<p>To stop recording history, turn off <strong>Record query history</strong> in Settings, on the General tab. Queries
 you run after that are not written anywhere, and the history list says that
 history is off. Entries already recorded stay until you right-click the list and
 choose <strong>Clear History</strong>; pinned entries survive that, so unpin them first.</p>
@@ -1173,6 +1173,9 @@ round swatch next to the name field. It shows as a dot in the main window's
 command bar and runs through the window's chrome. Making production red and
 staging green is the cheapest possible guard against running the right query
 against the wrong server.</p>
+<p>The main window's title bar names the connection after its profile, followed by
+the database. Hover over it to see where that is, as <code>user@host:port/database</code>
+and the SSH hop, if any. A profile you never named shows its host instead.</p>
 <h2 id="read-only-connections">Read-only connections<a class="headerlink" href="#read-only-connections" title="Permanent link">&para;</a></h2>
 <p>Switch on <strong>Read-only session</strong> for a profile you only mean to read from, such
 as production. Every session then starts with <code>default_transaction_read_only</code>
@@ -1180,7 +1183,7 @@ on, so the server itself refuses <code>INSERT</code>, <code>UPDATE</code>, <code
 DDL. It refuses them from the editor, the results grid, an import and a schema
 action alike, because the check isn't in pgNimbus. The profile gets a lock in
 the list.</p>
-<p>The main window shows <strong>read-only</strong> with a lock next to the host and database,
+<p>The main window shows <strong>read-only</strong> with a lock next to the connection name and database,
 and the results grid doesn't offer editing. pgNimbus asks the server when the
 window opens, so the mark also appears when the server makes the session
 read-only on its own: a role or database with <code>default_transaction_read_only</code>
@@ -1374,7 +1377,7 @@ inspector on Windows or macOS), and if you type the <code>export</code> line dir
 at a shell, it usually lands in shell history too. Prefer a connection
 string with no password and let pgNimbus prompt, or keep this variable to
 a throwaway local database.</p>
-<p>For everyday use there is a switch in Settings, <strong>Open the last
+<p>For everyday use there is a switch on the General tab of Settings, <strong>Open the last
 connection on startup</strong>, which goes straight to whatever you connected to
 last. The dialog stays one Switch connection away, and a connect that fails
 lands back in it with the error.</p>
