@@ -259,7 +259,7 @@
     </Style>
 
     <!-- TabControl.capsule: one full-width capsule across the top, split into equal
-         segments, the selected one in the accent wash. pgNimbus's sidebar switch
+         segments, the selected one raised on the track. pgNimbus's sidebar switch
          (Schemas / Queries) and both apps' settings pages use it. It was pgNimbus's
          `TabControl.sidebar` until kubeNimbus's settings page went to tabs too
          (2026-10); a settings page that looks different in each app is what DESIGN.md
@@ -284,10 +284,8 @@
                 <DockPanel>
                     <Border Name="PART_StripBorder"
                             DockPanel.Dock="Top"
-                            Background="{StaticResource CardBackgroundBrush}"
-                            BorderBrush="{StaticResource CardBorderBrush}"
-                            BorderThickness="1"
-                            CornerRadius="8"
+                            Background="{DynamicResource AppSegmentTrackBrush}"
+                            CornerRadius="7"
                             Padding="2">
                         <ItemsPresenter Name="PART_ItemsPresenter"
                                         ItemsPanel="{TemplateBinding ItemsPanel}" />
@@ -300,13 +298,20 @@
             </ControlTemplate>
         </Setter>
     </Style>
+    <!-- Fluent's TabControl theme gives the part named PART_ItemsPresenter a bottom
+         margin (TabControlTopPlacementItemMargin) from an activated selector, which
+         beats the template's own value; the selected segment sat 2px from the
+         strip's top and 4px from its bottom. -->
+    <Style Selector="TabControl.capsule /template/ ItemsPresenter#PART_ItemsPresenter">
+        <Setter Property="Margin" Value="0" />
+    </Style>
     <Style Selector="TabControl.capsule > TabItem">
-        <Setter Property="Padding" Value="8,4" />
+        <Setter Property="Padding" Value="8,2" />
         <Setter Property="Margin" Value="0" />
         <Setter Property="MinHeight" Value="0" />
         <Setter Property="MinWidth" Value="0" />
         <Setter Property="FontSize" Value="13" />
-        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="CornerRadius" Value="5" />
         <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}" />
         <Setter Property="HorizontalContentAlignment" Value="Center" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
@@ -329,18 +334,21 @@
     <Style Selector="TabControl.capsule > TabItem /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Opacity" Value="0.7" />
     </Style>
-    <Style Selector="TabControl.capsule > TabItem:pointerover /template/ Border#PART_LayoutRoot">
-        <Setter Property="Background" Value="{StaticResource HoverBackgroundBrush}" />
+    <Style Selector="TabControl.capsule > TabItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Opacity" Value="0.9" />
     </Style>
+    <!-- The selected segment is a raised surface on the track, in the body's own
+         text colour: the accent wash with accent SemiBold text it replaced (2026-10)
+         read as a selected list row, and was the heaviest thing in the sidebar. -->
     <Style Selector="TabControl.capsule > TabItem:selected">
-        <Setter Property="Foreground" Value="{StaticResource AppAccentBrush}" />
-        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontWeight" Value="Medium" />
     </Style>
     <Style Selector="TabControl.capsule > TabItem:selected /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Opacity" Value="1" />
     </Style>
-    <Style Selector="TabControl.capsule > TabItem:selected /template/ Border#PART_LayoutRoot, TabControl.capsule > TabItem:selected:pointerover /template/ Border#PART_LayoutRoot">
-        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
+    <Style Selector="TabControl.capsule > TabItem:selected /template/ Border#PART_LayoutRoot">
+        <Setter Property="Background" Value="{DynamicResource AppSegmentThumbBrush}" />
+        <Setter Property="BoxShadow" Value="0 1 2 0 #1F000000, 0 0 1 0 #1A000000" />
     </Style>
 
     <!-- ==================================================================

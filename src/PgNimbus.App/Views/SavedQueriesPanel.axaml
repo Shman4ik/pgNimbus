@@ -30,7 +30,7 @@
     <!-- The lists sit on the shell tone like the schema tree beside them, with
          no card around each: two cards stacked in a 300px column were two more
          borders and 16px of padding for nothing a section header doesn't say. -->
-    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*" Margin="0,10,0,0">
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*" Margin="0,8,0,0">
         <TextBlock Grid.Row="0" Classes="sectionHeader" Text="SAVED QUERIES" Margin="6,0,6,4" />
         <!-- Sized to its rows, up to a cap: an equal half of the panel left a short
              list floating over empty space while the history below it scrolled. -->
@@ -79,7 +79,7 @@
                           ToolTip.Tip="Only queries run against the current connection">
                 <PathIcon Data="{StaticResource DatabaseIconGeometry}" Width="12" Height="12" />
             </ToggleButton>
-            <TextBox FontSize="12" Text="{Binding HistoryFilter, Mode=TwoWay}"
+            <TextBox Classes="sidebarFilter" Text="{Binding HistoryFilter, Mode=TwoWay}"
                      PlaceholderText="Search history…">
                 <TextBox.InnerLeftContent>
                     <PathIcon Data="{StaticResource MagnifyIconGeometry}" Width="13" Height="13"
