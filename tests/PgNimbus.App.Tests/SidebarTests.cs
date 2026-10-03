@@ -32,7 +32,7 @@ public class SidebarTests
             var tabs = window.FindControl<TabControl>("SidebarTabs")!;
             var items = tabs.GetLogicalChildren().OfType<TabItem>().ToList();
 
-            await Assert.That(tabs.Classes).Contains("sidebar");
+            await Assert.That(tabs.Classes).Contains("capsule");
             await Assert.That(items.Count).IsEqualTo(2);
             await Assert.That(items[0].Bounds.Height).IsLessThanOrEqualTo(28);
             await Assert.That(items[0].Bounds.Y).IsEqualTo(items[1].Bounds.Y);

@@ -199,6 +199,12 @@ Three things follow:
   never reached the top level, and typed text went into the document behind the panel.
   `OverlayPanel` is focusable, remembers the focused element when `IsOpen` turns true,
   takes focus, and restores it on close unless focus has gone elsewhere on purpose.
+- **An overlay with tabs keeps one height, whichever tab shows.** The card is centred
+  and sized to its content, so a page sized by its current tab grows and shrinks on
+  every switch, and the tab strip moves under the pointer that just clicked it. Both
+  settings pages are tabs on `TabControl.capsule` and fix their height in the view's
+  `MeasureOverride` (`min(PageHeight, available height)`, each tab scrolling inside
+  it), and both open on the tab they were left on for the rest of the session.
 - **Anything you need to *watch* while it is open stays a window.** An overlay covers
   the shell. That is the line: pgNimbus's server-activity and database-overview windows
   are reference views you read beside your work and are deliberately not converted, and
@@ -428,9 +434,15 @@ dynamically. No view writes a font name.
 `Nimbus.Ui.Fonts.NimbusFonts.Apply` sets all three, plus `InterfaceLetterSpacing`,
 in the application's resources from the app's settings, and open windows follow.
 Each app offers the interface face (System or Inter) and the code face (the bundled
-one or any installed monospace family) in its preferences, and registers the bundled
-face with `WithNimbusFonts()` beside `WithInterFont()` in every app builder, tests
-and tools included.
+one or any installed monospace family, which `Nimbus.Ui.Fonts.MonospaceFonts` lists)
+in its preferences, and registers the bundled face with `WithNimbusFonts()` beside
+`WithInterFont()` in every app builder, tests and tools included. Where a class
+cannot go, the use site still names the token, never a face: a `Run` takes
+`FontFamily="{DynamicResource MonoFont}"`, an app style that is all code sets
+`FontFamily` to `{DynamicResource MonoFont}` and `LetterSpacing` to 0, as the
+class does, and so does a control whose `FontFamily` is its own property rather than
+the inherited `TextElement` one, which the class cannot reach (kubeNimbus's exec
+terminal, a `Grid`).
 
 - **Code is drawn in a face we ship.** Before this both apps wrote
   `Cascadia Code,Consolas,Menlo,monospace` at each use site (pgNimbus ~30 times, in
@@ -465,7 +477,7 @@ reasons:
 
 | Thing | Why it stays per-app |
 |---|---|
-| `TabItem` styling | pgNimbus styles only its sidebar's Schemas/Queries switch, under its own `TabControl.sidebar` class (a full-width capsule of equal segments); kubeNimbus styles the bare selector for the compact inspector strip (12,6, `MinHeight` 0). Genuinely different jobs. |
+| Bare `TabItem` styling | Each app's own. The capsule strip both apps draw (pgNimbus's sidebar switch, both settings pages) is shared as `TabControl.capsule` in `Theme/Controls.axaml`; it was pgNimbus's `TabControl.sidebar` until kubeNimbus's settings page needed it too. An app style on bare `TabItem` loads after the library and would override the capsule's segments, so an app that has one scopes it with `TabControl:not(.capsule) > TabItem`. kubeNimbus has none: its inspector strips are `ListBox.segmented` over `TabControl.headerless`, whose headers are never drawn. |
 | `TabControl.segmented` | pgNimbus's segmented strip. kubeNimbus does the same job with `ListBox.segmented` + `TabControl.headerless` on purpose — a `TabControl` cannot host a panel's own tools on its header row, and its inspector dock needs exactly that (its rule 10). Sharing a mechanism the sibling has explicitly rejected buys nothing. |
 | Domain icons | A Kubernetes cube and a Postgres elephant are not shared vocabulary. `Theme/Icons.axaml` holds only glyphs both apps actually use. |
 | Everything in `*.Core` | Both engines are UI-free by their own hard rule and share nothing but coincidence. This is why each app has its own copy of the command catalog and chord types: they are UI-free by design, so they cannot live in a library that references Avalonia. |
@@ -499,17 +511,20 @@ mechanism — a rule nobody tracks is a rule that decays.
       `ListBox.segmented` and switcher styles override the shared row rules and are unaffected.
       Its window chrome gets the centred traffic lights for free through `NimbusWindowChrome`.
 - [ ] `AppSuccessBrush` → pgNimbus. The status trio was two-thirds defined there.
-- [ ] **Typography as settings → kubeNimbus** (rule 22). pgNimbus moved first. kubeNimbus
-      still writes `Cascadia Mono,Consolas,monospace` at about 80 use sites (one with
-      `DejaVu Sans Mono` too) and has no font settings. Its main window's
-      `{StaticResource InterFontFamily}` names a resource nothing defines; on a control
-      that is deferred and resolves to nothing, so kubeNimbus is drawn in Fluent's Inter,
-      on a Mac too. Moving it to System changes how it looks on every platform, which
-      pgNimbus's switch did not (see the rule), so that default is its own decision. Replace the stacks with `Classes="mono"` (its `Run`s with
-      `FontFamily="{DynamicResource MonoFont}"`), add `WithNimbusFonts()` to its app
-      builders, call `NimbusFonts.Apply` from its settings, and add the two choices to its
-      preferences page. pgNimbus's `Platform/MonospaceFonts` (the installed list, through
-      Skia) is the candidate to lift here when it does.
+- [x] **Typography as settings → kubeNimbus** (rule 22). pgNimbus moved first. kubeNimbus
+      wrote `Cascadia Mono,Consolas,monospace` at 78 use sites (the terminal's with
+      `DejaVu Sans Mono` too) and had no font settings; 70 are now the `mono` class and the
+      rest name the token (a `Run`, six all-code styles, and the exec terminal, whose own
+      `FontFamily` the class does not reach), both app builders call `WithNimbusFonts()`,
+      and `NimbusFonts.Apply` runs from its settings and its preferences page's two new
+      cards. Its main window's
+      `{StaticResource InterFontFamily}` named a resource nothing defined, so it had been in
+      Fluent's Inter on every platform; its "auto" is System now, like pgNimbus's, which
+      changed its look everywhere and was the owner's decision, so both apps share one face
+      on one desktop. `MonospaceFonts` came up here from pgNimbus for it.
+- [ ] `Nimbus.Ui.Fonts.MonospaceFonts` → pgNimbus: drop its own `Platform/MonospaceFonts`
+      (the copy this one was lifted from, unchanged apart from its namespace) and read the
+      shared one, once pgNimbus has taken a nimbusUi with it.
 - [x] **Tooltips that answer the pointer, and the cut status line → both** (rule 21).
       `ToolTipHitTesting` and `TextBlock.statusMessage` came up from pgNimbus;
       kubeNimbus installs the handler and its status bar uses `statusMessage`.
@@ -544,10 +559,13 @@ mechanism — a rule nobody tracks is a rule that decays.
       kubeNimbus dialog safe, since that failure is invisible on a machine whose OS
       theme matches the app's.
 - [ ] **Preferences page shape → keep them converging.** Both apps now use the same
-      page: section header, one card per setting, label and explanation left, control
-      right, immediate apply, no OK/Cancel. It is duplicated markup rather than a
-      shared control today, and that is fine — but a change to one is a change both
-      should get.
+      page: tabs on `TabControl.capsule` (General and Appearance first in both, so the
+      theme and the shortcut modifier, the two settings both apps have, sit under the
+      same tab names), one fixed height, reopened on the last tab, then a section
+      header, one card per setting, label and explanation left, control right,
+      immediate apply, no OK/Cancel. It is duplicated markup rather than a shared
+      control today, and that is fine — but a change to one is a change both should
+      get. pgNimbus went to tabs first (2026-10); kubeNimbus followed the same week.
 - [ ] **Load the window icon through `AssetLoader`, not `Icon="/Assets/…"`** — see the
       note under kubeNimbus's release section. The XAML attribute goes through
       `IconTypeConverter`, which cannot resolve a relative asset path under NativeAOT

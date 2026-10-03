@@ -114,9 +114,10 @@ of [nimbusUi](https://github.com/Shman4ik/nimbusUi), referenced as an ordinary
   had none of them and was drawing stock Fluent inputs, lists and grids next to
   these, which is what made the two apps stop looking like one family. Change them
   there, not here. What is left in this app's own `Styles/Theme.axaml` is
-  `TabControl.sidebar`, `TabControl.segmented` and the AvaloniaEdit
-  completion/search themes — all
-  genuinely pgNimbus's (see DESIGN.md's not-shared table).
+  `TabControl.segmented` and the AvaloniaEdit completion/search themes — all
+  genuinely pgNimbus's (see DESIGN.md's not-shared table). The full-width capsule
+  strip went up as `TabControl.capsule` (2026-10) when kubeNimbus's settings page
+  needed it too; it was `TabControl.sidebar` here.
   **Load order is the only precedence, and the move broke it once** (2026-09).
   Avalonia styles have no specificity: for one property, the later style wins,
   whatever the selectors. `Controls.axaml` is included at the top of `Theme.axaml`,
@@ -984,7 +985,7 @@ Three rules about it:
    saved list half the height, printed each history entry's formatting as a
    staircase and its timestamp as `07/30/2026 09:41:00 +00:00`, and ended in two
    stock grey buttons. Now: (a) the tabs are one full-width capsule the filter
-   box's height, `TabControl.sidebar` in `Styles/Theme.axaml` — not
+   box's height, `TabControl.capsule` (shared/nimbusUi's `Controls.axaml`) — not
    `segmented`, which hugs its segments and fades its selection in on a
    transition that a main-window baseline must never catch half-way (the
    security window has no baselines for exactly that). (b) The tree's chevron
@@ -1416,7 +1417,7 @@ Three rules about it:
    Horizontal tab strips use `TabControl.segmented` — a retemplated
    macOS-style segmented capsule (the monitoring windows' Backends/Blocking
    and Database Overview's tabs); the sidebar's Schemas/Queries switch is its
-   own `TabControl.sidebar` (UI rule 1's compact pass has why it is not
+   own `TabControl.capsule`, shared with kubeNimbus (UI rule 1's compact pass has why it is not
    `segmented`), and there is no bare global `TabItem` style any more. Its header line also
    carries a **trailing actions region**: whatever a window puts in the
    `TabControl`'s `Tag` is presented right-aligned on the tab baseline (hosted
@@ -1581,7 +1582,8 @@ Three rules about it:
    the app icon. **Settings is four tabs** (2026-10): General (startup, shortcut
    modifier, history), Appearance, Editor (completion) and Data (editing, filter
    bar). Seven sections on one page had outgrown the overlay. The strip is
-   `TabControl.sidebar`, not `segmented`, whose selection fades in and would make
+   nimbusUi's `TabControl.capsule` (the sidebar switch's strip, shared when kubeNimbus's
+   page went to tabs too), not `segmented`, whose selection fades in and would make
    the `preferences-window` baselines flaky. The page is one height on every tab
    (`PreferencesView.PageHeight`, measured in code-behind), because the overlay's
    card is centred and sized to its content, so a tab change moved the strip

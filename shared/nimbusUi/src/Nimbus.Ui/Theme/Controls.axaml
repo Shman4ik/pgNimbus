@@ -17,9 +17,9 @@
         changed, it changes both apps: that is the point of it being here.
 
         What deliberately stayed per-app, and why:
-          - `TabItem` / `TabItem:selected` — pgNimbus styles it for the query tab
-            strip, kubeNimbus for the compact inspector strip. Same selector,
-            genuinely different jobs (see DESIGN.md).
+          - Bare `TabItem` / `TabItem:selected` — each app's own. The one tab strip
+            both apps draw, the full-width capsule, is shared as `TabControl.capsule`
+            in the Tabs section below.
           - `TabControl.segmented` — pgNimbus's segmented strip. kubeNimbus does
             the same job with `ListBox.segmented` + `TabControl.headerless` on
             purpose, because a TabControl cannot host a panel's own tools on its
@@ -250,13 +250,97 @@
          ================================================================== -->
 
     <!-- The container only: transparent, and no padding of its own, so a tab's
-         content sits flush against whatever surface hosts it. `TabItem` itself is
-         deliberately NOT here — pgNimbus styles it for the query tab strip and
-         kubeNimbus for the compact inspector strip, which is the one documented
-         same-selector-different-job exception (DESIGN.md). -->
+         content sits flush against whatever surface hosts it. Bare `TabItem` is
+         deliberately NOT here; only the capsule strip below is (DESIGN.md's
+         not-shared table). -->
     <Style Selector="TabControl">
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="Padding" Value="0" />
+    </Style>
+
+    <!-- TabControl.capsule: one full-width capsule across the top, split into equal
+         segments, the selected one in the accent wash. pgNimbus's sidebar switch
+         (Schemas / Queries) and both apps' settings pages use it. It was pgNimbus's
+         `TabControl.sidebar` until kubeNimbus's settings page went to tabs too
+         (2026-10); a settings page that looks different in each app is what DESIGN.md
+         says the pair must not do.
+
+         No transition on the selection, on purpose: TabControl.segmented's 140 ms fade
+         is something a screenshot baseline can catch half-way.
+
+         An app's own styles load after this file, and file order is the only
+         precedence (this library's CLAUDE.md, rule 7): an app style on bare `TabItem`
+         would beat `TabControl.capsule > TabItem` here. An app that styles bare
+         `TabItem` scopes it away from the capsule (`TabControl:not(.capsule) > TabItem`). -->
+    <Style Selector="TabControl.capsule">
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="ItemsPanel">
+            <ItemsPanelTemplate>
+                <UniformGrid Rows="1" />
+            </ItemsPanelTemplate>
+        </Setter>
+        <Setter Property="Template">
+            <ControlTemplate>
+                <DockPanel>
+                    <Border Name="PART_StripBorder"
+                            DockPanel.Dock="Top"
+                            Background="{StaticResource CardBackgroundBrush}"
+                            BorderBrush="{StaticResource CardBorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="2">
+                        <ItemsPresenter Name="PART_ItemsPresenter"
+                                        ItemsPanel="{TemplateBinding ItemsPanel}" />
+                    </Border>
+                    <ContentPresenter Name="PART_SelectedContentHost"
+                                      Content="{TemplateBinding SelectedContent}"
+                                      ContentTemplate="{TemplateBinding SelectedContentTemplate}"
+                                      Padding="{TemplateBinding Padding}" />
+                </DockPanel>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="TabControl.capsule > TabItem">
+        <Setter Property="Padding" Value="8,4" />
+        <Setter Property="Margin" Value="0" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Name="PART_LayoutRoot"
+                        Background="{TemplateBinding Background}"
+                        CornerRadius="{TemplateBinding CornerRadius}"
+                        Padding="{TemplateBinding Padding}">
+                    <ContentPresenter Name="PART_ContentPresenter"
+                                      Content="{TemplateBinding Header}"
+                                      ContentTemplate="{TemplateBinding HeaderTemplate}"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center" />
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="TabControl.capsule > TabItem /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Opacity" Value="0.7" />
+    </Style>
+    <Style Selector="TabControl.capsule > TabItem:pointerover /template/ Border#PART_LayoutRoot">
+        <Setter Property="Background" Value="{StaticResource HoverBackgroundBrush}" />
+    </Style>
+    <Style Selector="TabControl.capsule > TabItem:selected">
+        <Setter Property="Foreground" Value="{StaticResource AppAccentBrush}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="TabControl.capsule > TabItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Opacity" Value="1" />
+    </Style>
+    <Style Selector="TabControl.capsule > TabItem:selected /template/ Border#PART_LayoutRoot, TabControl.capsule > TabItem:selected:pointerover /template/ Border#PART_LayoutRoot">
+        <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
     </Style>
 
     <!-- ==================================================================
