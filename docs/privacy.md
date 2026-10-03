@@ -136,7 +136,7 @@ managers that honor the markers, don't keep it, and clears the clipboard after
 
 ## Turning off history
 
-Turn off **Record query history** in Settings. Statements you run after that are
+Turn off **Record query history** in Settings, on the General tab. Statements you run after that are
 not written anywhere. To remove entries already recorded, right-click the
 history list and choose **Clear History**. Pinned entries survive that, so unpin
 them first.

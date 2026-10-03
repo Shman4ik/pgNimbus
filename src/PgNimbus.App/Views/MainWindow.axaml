@@ -120,10 +120,18 @@
                          title bar it would be printing the window's own title back
                          at it (DESIGN.md rule 9). The accent dot above stays — it
                          says which connection this is, not which app. -->
-                    <!-- Files-style breadcrumb: where am I connected -->
-                    <TextBlock Name="ConnectionHostText" Text="{Binding ConnectionHost}" FontSize="12" Opacity="0.75" VerticalAlignment="Center" Margin="16,0,0,0" />
-                    <TextBlock Text="›" FontSize="12" Opacity="0.45" VerticalAlignment="Center" Margin="6,0" />
-                    <TextBlock Text="{Binding ConnectionDatabase}" FontSize="12" Opacity="0.75" VerticalAlignment="Center" />
+                    <!-- Files-style breadcrumb: where am I connected. The profile's
+                         name when it has one (a pooler host is 50 characters of
+                         noise, and through an SSH tunnel the host was 127.0.0.1),
+                         with the endpoint itself on hover. -->
+                    <StackPanel Name="ConnectionBreadcrumb" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,0,0"
+                                ToolTip.Tip="{Binding ConnectionEndpoint}">
+                        <TextBlock Name="ConnectionNameText" Text="{Binding ConnectionName}" FontSize="12" Opacity="0.75" VerticalAlignment="Center"
+                                   MaxWidth="260" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="›" FontSize="12" Opacity="0.45" VerticalAlignment="Center" Margin="6,0" />
+                        <TextBlock Text="{Binding ConnectionDatabase}" FontSize="12" Opacity="0.75" VerticalAlignment="Center"
+                                   MaxWidth="200" TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
                     <!-- Read-only mark: only on a connection that can't write (a
                          read-only profile or role, or a standby), so the write state
                          is on screen before anything runs (ROADMAP T3). Not a control. -->

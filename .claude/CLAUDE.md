@@ -1578,7 +1578,17 @@ Three rules about it:
    Preferences), so the menu opened a page with another name. One name on every
    platform, since the page is the same page. The About overlay carries the vector
    mark (`LogoMarkImage`, 72px) above the name, the way a native About panel carries
-   the app icon. `ConnectionDialog` and
+   the app icon. **Settings is four tabs** (2026-10): General (startup, shortcut
+   modifier, history), Appearance, Editor (completion) and Data (editing, filter
+   bar). Seven sections on one page had outgrown the overlay. The strip is
+   `TabControl.sidebar`, not `segmented`, whose selection fades in and would make
+   the `preferences-window` baselines flaky. The page is one height on every tab
+   (`PreferencesView.PageHeight`, measured in code-behind), because the overlay's
+   card is centred and sized to its content, so a tab change moved the strip
+   under the pointer. It opens on the tab it was left on
+   (`MainViewModel.PreferencesTab`, session only). A new setting goes on one of
+   the four tabs, never a fifth for one card. Tests: `SettingsTabsTests`.
+   `ConnectionDialog` and
    `CrashWindow` cannot be overlays at all — both exist before, or instead of, a main
    window. The modal dialogs (`ConfirmDialog`, `AddRowDialog`, `AlterTableDialog`,
    `ImportDialog`, `ImportPlanDialog`, `PendingChangesDialog`, `StagedConflictDialog`)
@@ -1797,7 +1807,7 @@ Moved to [`.claude/rules/logo-assets.md`](rules/logo-assets.md), which loads whe
   `SchemaService.GetWriteStateAsync` (`pg_is_in_recovery()` and
   `default_transaction_read_only`) runs once when the window opens, so a
   read-only role and a standby replica get the same `ReadOnlyMark` beside
-  host › database; the profile's flag only seeds it (read in `BuildMainWindow`
+  the breadcrumb (profile name › database); the profile's flag only seeds it (read in `BuildMainWindow`
   from the data source's `Options`) so no tab is ever briefly editable on a
   read-only profile. Tabs read `MainViewModel.ConnectionReadOnlyHint` through a
   `Func` and refuse an `EditContext` while it is set (`ApplyConnectionReadOnly`

@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.Input;
 using PgNimbus.App.Completion;
 using PgNimbus.App.ViewModels.Security;
 using PgNimbus.Core.Commands;
+using PgNimbus.Core.Connections;
 using PgNimbus.Core.Import;
 using PgNimbus.Core.Monitoring;
 using PgNimbus.Core.Query;
@@ -214,6 +215,12 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private PreferencesViewModel? _preferences;
 
+    /// <summary>
+    /// The Settings tab last shown, so the page opens where it was left. For the
+    /// session only: the page is rebuilt on every open, this outlives it.
+    /// </summary>
+    public int PreferencesTab { get; set; }
+
     /// <summary>F1 and the ? button both toggle, so the key that opens it also closes it.</summary>
     [RelayCommand]
     private void ShowShortcuts() => IsShortcutsOpen = !IsShortcutsOpen;
@@ -382,6 +389,44 @@ public sealed partial class MainViewModel : ObservableObject
 
     /// <summary>Database name for the title-bar breadcrumb (host › database).</summary>
     public string ConnectionDatabase { get; }
+
+    /// <summary>
+    /// The breadcrumb's first part: the profile's name when someone gave it one,
+    /// else <see cref="ConnectionHost"/>. A name nobody typed is saved as
+    /// <c>host/database</c> (the connection form's placeholder), and that one
+    /// gives way to the host too, or the bar would read <c>host/db › db</c>.
+    /// </summary>
+    public string ConnectionName { get; }
+
+    /// <summary>
+    /// Where the window is connected, spelled out for the breadcrumb's tooltip
+    /// (<c>user@host:port/database</c>, and the SSH hop when there is one), since
+    /// the bar shows a name.
+    /// </summary>
+    public string ConnectionEndpoint { get; }
+
+    /// <summary>See <see cref="ConnectionName"/>.</summary>
+    public static string BreadcrumbName(string? profileName, string host, string database)
+    {
+        var name = profileName?.Trim();
+        return string.IsNullOrEmpty(name)
+            || string.Equals(name, $"{host}/{database}", StringComparison.OrdinalIgnoreCase)
+            ? host
+            : name;
+    }
+
+    /// <summary>
+    /// <see cref="ConnectionEndpoint"/> for a profile. It names the profile's host,
+    /// not the connection string's, which through an SSH tunnel is the local end
+    /// of the forward (127.0.0.1).
+    /// </summary>
+    public static string DescribeEndpoint(ConnectionProfile profile)
+    {
+        var endpoint = $"{profile.Username}@{profile.Host}:{profile.Port}/{profile.Database}";
+        return profile.SshTunnel is { } ssh
+            ? $"{endpoint}\nthrough SSH: {ssh.Username}@{ssh.Host}:{ssh.Port}"
+            : endpoint;
+    }
 
     /// <summary>
     /// Why this connection can't write, or null when it can. Shown beside the
@@ -660,6 +705,8 @@ public sealed partial class MainViewModel : ObservableObject
         string? accentColor = null,
         string connectionHost = "",
         string connectionDatabase = "",
+        string? connectionName = null,
+        string? connectionEndpoint = null,
         bool readOnlyConnection = false,
         bool autoAliasTables = true,
         Action<bool>? persistAutoAliasTables = null,
@@ -689,6 +736,10 @@ public sealed partial class MainViewModel : ObservableObject
         CompletionUsage = completionUsage ?? new CompletionUsage();
         ConnectionHost = connectionHost;
         ConnectionDatabase = connectionDatabase;
+        ConnectionName = BreadcrumbName(connectionName, connectionHost, connectionDatabase);
+        ConnectionEndpoint = string.IsNullOrEmpty(connectionEndpoint)
+            ? $"{connectionHost}/{connectionDatabase}"
+            : connectionEndpoint;
         _connectionReadOnlyHint = readOnlyConnection ? ReadOnlySessionHint : null;
         _profileReadOnly = readOnlyConnection;
         _autoAliasTables = autoAliasTables;

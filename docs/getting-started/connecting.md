@@ -88,7 +88,7 @@ Masking needs a word next to the secret that says what it is. A key passed as an
 ordinary argument, such as `pgp_sym_encrypt(data, 'key')`, or a password kept in
 a variable inside a `DO` block, is stored as you typed it.
 
-To stop recording history, turn off **Record query history** in Settings. Queries
+To stop recording history, turn off **Record query history** in Settings, on the General tab. Queries
 you run after that are not written anywhere, and the history list says that
 history is off. Entries already recorded stay until you right-click the list and
 choose **Clear History**; pinned entries survive that, so unpin them first.
@@ -125,6 +125,10 @@ command bar and runs through the window's chrome. Making production red and
 staging green is the cheapest possible guard against running the right query
 against the wrong server.
 
+The main window's title bar names the connection after its profile, followed by
+the database. Hover over it to see where that is, as `user@host:port/database`
+and the SSH hop, if any. A profile you never named shows its host instead.
+
 ## Read-only connections
 
 Switch on **Read-only session** for a profile you only mean to read from, such
@@ -134,7 +138,7 @@ DDL. It refuses them from the editor, the results grid, an import and a schema
 action alike, because the check isn't in pgNimbus. The profile gets a lock in
 the list.
 
-The main window shows **read-only** with a lock next to the host and database,
+The main window shows **read-only** with a lock next to the connection name and database,
 and the results grid doesn't offer editing. pgNimbus asks the server when the
 window opens, so the mark also appears when the server makes the session
 read-only on its own: a role or database with `default_transaction_read_only`
@@ -319,7 +323,7 @@ clear "connection lost, nothing committed" error.
     string with no password and let pgNimbus prompt, or keep this variable to
     a throwaway local database.
 
-    For everyday use there is a switch in Settings, **Open the last
+    For everyday use there is a switch on the General tab of Settings, **Open the last
     connection on startup**, which goes straight to whatever you connected to
     last. The dialog stays one Switch connection away, and a connect that fails
     lands back in it with the error.

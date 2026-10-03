@@ -83,6 +83,7 @@ public static class Scenarios
         ("bulk-grant-dialog", BulkGrantDialogShot),
         ("shortcuts-window", Shortcuts),
         ("preferences-window", Preferences),
+        ("preferences-window-appearance", PreferencesAppearance),
         ("about-window", About),
         ("crash-window", Crash),
         ("connection-dialog", ConnectionDialog),
@@ -776,6 +777,13 @@ public static class Scenarios
 
     /// <summary>The preferences page.</summary>
     public static Window Preferences() => OverlayOn(vm => vm.IsPreferencesOpen = true);
+
+    /// <summary>The preferences page on its Appearance tab, the busiest of the four.</summary>
+    public static Window PreferencesAppearance() => OverlayOn(vm =>
+    {
+        vm.PreferencesTab = 1;
+        vm.IsPreferencesOpen = true;
+    });
 
     /// <summary>The About box.</summary>
     public static Window About() => OverlayOn(vm => vm.IsAboutOpen = true);
