@@ -135,7 +135,7 @@ public partial class MainWindow : Window, IEditCommandTarget
         }
 
         AppMenuButton.IsVisible = false;
-        ConnectionHostText.Margin = new Thickness(0);
+        ConnectionBreadcrumb.Margin = new Thickness(0);
     }
 
     // KeyBinding.Command must be a live ICommand, but most targets hang off

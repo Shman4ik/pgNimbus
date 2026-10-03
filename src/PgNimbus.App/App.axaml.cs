@@ -478,7 +478,7 @@ public partial class App : Application
     /// (or minimized) is what the user is asking for, so raise that; only when
     /// every window is gone does the app need a fresh entry point, and that's
     /// the connection dialog — the closed window's data source and SSH tunnel
-    /// went with it (see <see cref="BuildMainWindow(NpgsqlDataSource, string?, SshTunnel?)"/>),
+    /// went with it (see <see cref="BuildMainWindow(NpgsqlDataSource, string?, SshTunnel?, ConnectionProfile?)"/>),
     /// so there is nothing to resurrect.
     /// </summary>
     private static void ReopenWindow(IClassicDesktopStyleApplicationLifetime desktop)
@@ -553,7 +553,7 @@ public partial class App : Application
 
         viewModel.Connected += (dataSource, accentColor, tunnel) =>
         {
-            var mainWindow = BuildMainWindow(dataSource, accentColor, tunnel);
+            var mainWindow = BuildMainWindow(dataSource, accentColor, tunnel, viewModel.ConnectedProfile);
             if (viewModel.ConnectedProfileId is { } profileId)
             {
                 ForgetSessionPasswordsOnClose(mainWindow, profileId);
@@ -625,7 +625,7 @@ public partial class App : Application
     /// hands over a data source that has already opened one connection, so by
     /// the time this runs the credentials are known good.
     /// </summary>
-    internal static MainWindow BuildMainWindow(NpgsqlDataSource dataSource, string? accentColor = null, SshTunnel? tunnel = null)
+    internal static MainWindow BuildMainWindow(NpgsqlDataSource dataSource, string? accentColor = null, SshTunnel? tunnel = null, ConnectionProfile? profile = null)
     {
         var connectionString = dataSource.ConnectionString;
         var engine = new QueryEngine(dataSource);
@@ -669,6 +669,8 @@ public partial class App : Application
             accentColor,
             connectionHost: connectionHost,
             connectionDatabase: connectionDatabase,
+            connectionName: profile?.Name,
+            connectionEndpoint: profile is null ? null : MainViewModel.DescribeEndpoint(profile),
             // The server's own answer follows once the window is up
             // (DetectWriteStateAsync below); the profile's is known now.
             readOnlyConnection: csb.Options?.Contains(ConnectionProfile.ReadOnlySessionOption, StringComparison.Ordinal) == true,

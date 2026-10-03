@@ -61,6 +61,12 @@ public sealed partial class PreferencesViewModel : ObservableObject
     [ObservableProperty]
     private decimal? _editorFontSize;
 
+    /// <summary>The page's tab: 0 General, 1 Appearance, 2 Editor, 3 Data.</summary>
+    [ObservableProperty]
+    private int _selectedTab;
+
+    partial void OnSelectedTabChanged(int value) => _main.PreferencesTab = value;
+
     // Set while the list is rebuilt: the ComboBox reports a selection change for
     // the old item leaving, which is not a choice.
     private bool _loadingCodeFonts;
@@ -68,6 +74,7 @@ public sealed partial class PreferencesViewModel : ObservableObject
     public PreferencesViewModel(MainViewModel main)
     {
         _main = main;
+        _selectedTab = main.PreferencesTab;
         var settings = App.LoadSettings();
         _themeIndex = settings.Theme switch { "light" => 1, "dark" => 2, _ => 0 };
         _hotkeySchemeIndex = settings.HotkeyScheme switch { "windows" => 1, "mac" => 2, _ => 0 };

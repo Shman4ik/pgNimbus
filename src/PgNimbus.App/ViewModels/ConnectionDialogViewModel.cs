@@ -325,7 +325,13 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
     /// before it. The host uses it to drop that profile's session-only
     /// passwords from the credential store's memory when the window closes.
     /// </summary>
-    public Guid? ConnectedProfileId { get; private set; }
+    public Guid? ConnectedProfileId => ConnectedProfile?.Id;
+
+    /// <summary>
+    /// The profile the last <see cref="Connected"/> was raised for, as it was
+    /// saved: the window names itself after it and shows its endpoint.
+    /// </summary>
+    public ConnectionProfile? ConnectedProfile { get; private set; }
 
     /// <param name="lastProfileId">
     /// The profile connected to last session, preselected here so the common
@@ -1036,7 +1042,7 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
             // The dialog closes inside the hand-off; the passwords go first.
             await FlushAsync();
 
-            ConnectedProfileId = profile.Id;
+            ConnectedProfile = profile;
             Connected?.Invoke(dataSource, profile.AccentColor, tunnel);
             dataSource = null; // handed off; the main window owns it now
             RememberLastProfile();

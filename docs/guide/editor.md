@@ -220,7 +220,7 @@ left them, including never-saved scratch SQL.
 The sidebar's Queries tab holds saved queries and the query history. History is
 searchable, pinnable, and scoped per connection. Double-click any entry to open
 it in a new tab. History is a local, unencrypted file with passwords masked; turn
-off **Record query history** in Settings to stop it. See
+off **Record query history** in Settings (General tab) to stop it. See
 [what stays on disk](../getting-started/connecting.md#where-your-password-goes).
 
 To save the query you are looking at, right-click its tab and choose **Save

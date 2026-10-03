@@ -243,3 +243,14 @@ paths:
   DataGrid only reacts to user `Scroll` events, so that moves the bar
   without the content (the 2026-07 macOS "scrollbar moves, results don't"
   bug, since removed).
+- **The breadcrumb names the profile, not the host** (2026-10). The bar
+  showed `csb.Host`: a Neon pooler host is ~50 characters, and through an SSH
+  tunnel it was `127.0.0.1`, the forward's local end. `MainViewModel.ConnectionName`
+  is the profile's name (`ConnectionDialogViewModel.ConnectedProfile`, passed to
+  `BuildMainWindow`), else the host. A name nobody typed is saved as
+  `host/database` and gives way to the host too (`BreadcrumbName`), or the bar would
+  read `host/db › db`. The tooltip is `ConnectionEndpoint`
+  (`user@host:port/database` from the profile, plus the SSH hop). `ConnectionHost`
+  is still the host, and still the workspace and history key. The screenshot
+  fixture has no profile, so its bar still reads `localhost › shop`. Tests:
+  `ConnectionBreadcrumbTests`.
