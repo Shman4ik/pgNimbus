@@ -988,7 +988,18 @@ Three rules about it:
    box's height, `TabControl.capsule` (shared/nimbusUi's `Controls.axaml`) — not
    `segmented`, which hugs its segments and fades its selection in on a
    transition that a main-window baseline must never catch half-way (the
-   security window has no baselines for exactly that). (b) The tree's chevron
+   security window has no baselines for exactly that). Since 2026-10 its
+   selected segment is a raised thumb on a tinted track, macOS's segmented
+   control (`AppSegmentThumbBrush` on `AppSegmentTrackBrush`), not the accent
+   wash with accent SemiBold text, which read as a selected list row; and both
+   sidebar filter boxes are `TextBox.sidebarFilter`, 26px instead of Fluent's
+   32. **Landmine:** Fluent's TabControl theme gives any part named
+   `PART_ItemsPresenter` a bottom margin (`TabControlTopPlacementItemMargin`)
+   from an activated selector, and the capsule template keeps that name, so the
+   selected segment sat 2px from the strip's top and 4px from its bottom (seen
+   on a Mac); the capsule zeroes it, and `CapsuleTabsTests` measures the gaps.
+   A 0.5px spread `BoxShadow` as a hairline ring left grey specks in the thumb's
+   rounded corners; the ring is a 1px blur. (b) The tree's chevron
    column is 2+12+4px instead of Fluent's 12+12+12, and its root lines up with
    the filter box. **Landmine:** Fluent sets that margin in the template, at
    Template priority, which beats any plain style — the setter only lands from a

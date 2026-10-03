@@ -290,7 +290,7 @@
             <!-- Type-to-filter box: case-insensitive substring over schema and table
                  names, including tables in schemas that were never expanded (the
                  filter matches the same whole-catalog list the command palette does) -->
-            <TextBox FontSize="12"
+            <TextBox Classes="sidebarFilter"
                      PlaceholderText="Filter schemas &amp; tables…"
                      Text="{Binding FilterText, Mode=TwoWay}">
                 <TextBox.InnerLeftContent>

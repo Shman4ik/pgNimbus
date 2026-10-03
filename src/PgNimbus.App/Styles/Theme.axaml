@@ -273,6 +273,15 @@
          baseline of the main window must never catch half-way (the security window's
          shots have no baseline for exactly that reason). -->
 
+    <!-- The sidebar's filter boxes (schema tree, history): 26px instead of Fluent's
+         32, so the box lines up with the tab strip above it and the icon buttons
+         beside it. 12px text, the size of the tree's secondary text. -->
+    <Style Selector="TextBox.sidebarFilter">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="MinHeight" Value="26" />
+        <Setter Property="Padding" Value="6,2,6,2" />
+    </Style>
+
     <!-- Segmented control: an elegant horizontal tab strip (macOS-style) for
          the monitoring windows, scoped by class so the left-nav TabItem above
          is untouched. The header strip is a subtle capsule; each segment is a

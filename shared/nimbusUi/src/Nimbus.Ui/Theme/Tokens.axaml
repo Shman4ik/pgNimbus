@@ -36,6 +36,10 @@
             <SolidColorBrush x:Key="AppToolbarHoverBrush" Color="#14000000" />
             <SolidColorBrush x:Key="AppToolbarPressedBrush" Color="#24000000" />
             <!-- A switch that is off: a filled grey track, not Fluent's outline. -->
+            <!-- The selected segment of a capsule tab strip: a raised surface on the
+                 strip's tinted track, the way a macOS segmented control draws it. -->
+            <SolidColorBrush x:Key="AppSegmentTrackBrush" Color="#0F000000" />
+            <SolidColorBrush x:Key="AppSegmentThumbBrush" Color="#FFFFFF" />
             <SolidColorBrush x:Key="ToggleSwitchFillOff" Color="#24000000" />
             <SolidColorBrush x:Key="ToggleSwitchFillOffPointerOver" Color="#30000000" />
             <SolidColorBrush x:Key="ToggleSwitchFillOffPressed" Color="#3D000000" />
@@ -54,6 +58,8 @@
             <SolidColorBrush x:Key="AppAltRowBrush" Color="#0AFFFFFF" />
             <SolidColorBrush x:Key="AppToolbarHoverBrush" Color="#1FFFFFFF" />
             <SolidColorBrush x:Key="AppToolbarPressedBrush" Color="#2EFFFFFF" />
+            <SolidColorBrush x:Key="AppSegmentTrackBrush" Color="#14FFFFFF" />
+            <SolidColorBrush x:Key="AppSegmentThumbBrush" Color="#4A4A4A" />
             <SolidColorBrush x:Key="ToggleSwitchFillOff" Color="#33FFFFFF" />
             <SolidColorBrush x:Key="ToggleSwitchFillOffPointerOver" Color="#40FFFFFF" />
             <SolidColorBrush x:Key="ToggleSwitchFillOffPressed" Color="#4DFFFFFF" />
