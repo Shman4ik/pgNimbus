@@ -97,12 +97,16 @@
                             </ListBox.ItemTemplate>
                         </ListBox>
 
+                        <!-- Stretched with a margin, not centred: a centred panel measures its
+                             text at infinite width, so the hint was cut at the pane's edge
+                             instead of wrapping (1.1.0 release pass). -->
                         <StackPanel IsVisible="{Binding !Notifications.Count}"
-                                    HorizontalAlignment="Center" VerticalAlignment="Center"
-                                    Spacing="8" IsHitTestVisible="False">
+                                    HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                                    Margin="16,0" Spacing="8" IsHitTestVisible="False">
                             <TextBlock Text="Nothing received yet" FontSize="13" FontWeight="SemiBold"
                                        Opacity="0.55" HorizontalAlignment="Center" />
                             <TextBlock Opacity="0.6" FontSize="12" HorizontalAlignment="Center" TextAlignment="Center"
+                                       TextWrapping="Wrap"
                                        Text="Add a channel, press Start listening, and every NOTIFY on it lands here." />
                         </StackPanel>
                     </Panel>

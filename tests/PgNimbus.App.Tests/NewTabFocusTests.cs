@@ -34,11 +34,12 @@ public class NewTabFocusTests
             await Assert.That(vm.ActiveTab).IsNotEqualTo(first);
             await Assert.That(editor.TextArea.IsKeyboardFocusWithin).IsTrue();
 
-            var before = vm.ActiveTab.Sql;
+            // The placeholder is selected, so typing replaces it instead of
+            // landing in front of it ("abcSELECT 1;"; 1.1.0 release pass).
+            await Assert.That(vm.ActiveTab.Sql).IsEqualTo(QueryViewModel.ScratchSql);
             Ui.Type(window, "abc");
 
-            await Assert.That(vm.ActiveTab.Sql.Length).IsEqualTo(before.Length + 3);
-            await Assert.That(vm.ActiveTab.Sql).Contains("abc");
+            await Assert.That(vm.ActiveTab.Sql).IsEqualTo("abc");
             await Assert.That(filter.Text ?? "").DoesNotContain("abc");
             await Assert.That(first.Sql).IsEqualTo(firstSql);
 
@@ -72,9 +73,8 @@ public class NewTabFocusTests
             await Assert.That(vm.ActiveTab).IsNotEqualTo(first);
             await Assert.That(editor.TextArea.IsKeyboardFocusWithin).IsTrue();
 
-            var before = vm.ActiveTab.Sql;
             Ui.Type(window, "abc");
-            await Assert.That(vm.ActiveTab.Sql.Length).IsEqualTo(before.Length + 3);
+            await Assert.That(vm.ActiveTab.Sql).IsEqualTo("abc");
 
             window.Close();
         });

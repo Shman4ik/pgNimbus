@@ -1215,7 +1215,11 @@ Three rules about it:
    nowhere until the editor was clicked. Only `AddTab` and `ReopenClosedTab`
    raise it, never `NewTab`: browse, imports, generated SQL, templates and the
    workspace restore open tabs without taking the keys from what the user was
-   typing in. Tests: `NewTabFocusTests`.
+   typing in. A new tab's placeholder (`QueryViewModel.ScratchSql`) is
+   selected as focus lands, so typing replaces it (1.1.0 release pass): with
+   the caret in front of it, `SELECT * FROM or` became `SELECT * FROM
+   orSELECT 1;`, and accepting a completion then swallowed the rest of that
+   word. Tests: `NewTabFocusTests`.
    **A tab's name is either a label or an override, and the difference is the
    bug this fixed**: `QueryViewModel.TitleOverride` is for names a *person*
    chose (the backing file, a saved query, a rename) and survives every later
