@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790706987733,
+  "lastUpdate": 1791135006933,
   "repoUrl": "https://github.com/Shman4ik/pgNimbus",
   "entries": {
     "pgNimbus benchmarks": [
@@ -1995,6 +1995,165 @@ window.BENCHMARK_DATA = {
           {
             "name": "Stream 100000 rows",
             "value": 145.2,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shman4ik@gmail.com",
+            "name": "Dmitrii Shmanev",
+            "username": "Shman4ik"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "eeb81db9d8377f3b12101431e657411808c3c95c",
+          "message": "release: 1.1.0 pass; a new tab's placeholder is replaced by typing (#350)\n\nThe 1.1.0 manual pass on the NativeAOT Windows build found two defects:\n\n- Ctrl+T puts focus in the new tab's editor since #340, but with the caret\n  in front of the SELECT 1; placeholder. Typing \"SELECT * FROM or\" gave\n  \"SELECT * FROM orSELECT 1;\", and accepting the completion then replaced\n  the whole word \"orSELECT\". The placeholder is now selected as focus lands,\n  so typing replaces it. NewTabFocusTests asserts the tab holds exactly what\n  was typed (red without the fix); CompletionEditorTests sets an empty\n  selection instead of only moving the caret.\n- The Notify monitor's empty-state hint was cut at the pane's edge: a\n  centred StackPanel measures at infinite width. It stretches with a margin\n  and the hint wraps.\n\nRELEASE-CHECKLIST: the 1.1.0 log row, row 29 (Ctrl+T then type), and two\ninput-tool notes (Ctrl+wheel and Ctrl+= through computer-use; reading an\nultra-wide screen with ffmpeg). CLAUDE.md UI rule 4 records the selection.\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-10-04T10:17:48+02:00",
+          "tree_id": "9d9236dedab56b128cb80e5eff33b0bde4bb9fa2",
+          "url": "https://github.com/Shman4ik/pgNimbus/commit/eeb81db9d8377f3b12101431e657411808c3c95c"
+        },
+        "date": 1791135005638,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Startup, launch to first frame (NativeAOT)",
+            "value": 227,
+            "unit": "ms"
+          },
+          {
+            "name": "Memory at first frame (NativeAOT)",
+            "value": 167.9,
+            "unit": "MB"
+          },
+          {
+            "name": "Binary size (NativeAOT)",
+            "value": 46.7,
+            "unit": "MB"
+          },
+          {
+            "name": "Publish size (NativeAOT, shipped files)",
+            "value": 60.1,
+            "unit": "MB"
+          },
+          {
+            "name": "Startup, launch to first frame (JIT)",
+            "value": 2147,
+            "unit": "ms"
+          },
+          {
+            "name": "Connect, cold pool",
+            "value": 135.2,
+            "unit": "ms"
+          },
+          {
+            "name": "Round-trip, SELECT 1 warm",
+            "value": 0.54,
+            "unit": "ms"
+          },
+          {
+            "name": "First row batch of a 100000-row SELECT",
+            "value": 10.7,
+            "unit": "ms"
+          },
+          {
+            "name": "Stream 100000 rows",
+            "value": 137.1,
+            "unit": "ms"
+          },
+          {
+            "name": "Run a 200-statement seed script",
+            "value": 51.8,
+            "unit": "ms"
+          },
+          {
+            "name": "Commit 1,000 staged edits",
+            "value": 48.6,
+            "unit": "ms"
+          },
+          {
+            "name": "Stage 100,000 deletes (safe mode)",
+            "value": 49,
+            "unit": "ms"
+          },
+          {
+            "name": "Copy 100,000 rows as TSV",
+            "value": 103.6,
+            "unit": "ms"
+          },
+          {
+            "name": "Write the history after a run (200 entries, 5 MB)",
+            "value": 107.9,
+            "unit": "ms"
+          },
+          {
+            "name": "Load the history (200 entries, 5 MB)",
+            "value": 42.9,
+            "unit": "ms"
+          },
+          {
+            "name": "Find the caret's statement in a 5 MB script, per key",
+            "value": 0.001,
+            "unit": "ms"
+          },
+          {
+            "name": "UI: expand a schema of 5,000 tables",
+            "value": 361.5,
+            "unit": "ms"
+          },
+          {
+            "name": "UI: tree rows realized for 5,000 tables",
+            "value": 92,
+            "unit": "rows"
+          },
+          {
+            "name": "UI: filter 5,000 tables to one",
+            "value": 86.8,
+            "unit": "ms"
+          },
+          {
+            "name": "UI: 5,000 script sections land",
+            "value": 28.7,
+            "unit": "ms"
+          },
+          {
+            "name": "UI: script section chips realized",
+            "value": 8,
+            "unit": "chips"
+          },
+          {
+            "name": "UI: palette keystroke over 50,000 relations",
+            "value": 36.8,
+            "unit": "ms"
+          },
+          {
+            "name": "UI: widest result the grid shows",
+            "value": 2051.3,
+            "unit": "ms"
+          },
+          {
+            "name": "UI: edit context arriving after the rows",
+            "value": 137.7,
+            "unit": "ms"
+          },
+          {
+            "name": "UI: show 1 MB of read-only text",
+            "value": 23.3,
+            "unit": "ms"
+          },
+          {
+            "name": "UI: key typed at the end of a 5 MB script",
+            "value": 30.2,
+            "unit": "ms"
+          },
+          {
+            "name": "UI: record a run with a full history",
+            "value": 0.12,
             "unit": "ms"
           }
         ]
