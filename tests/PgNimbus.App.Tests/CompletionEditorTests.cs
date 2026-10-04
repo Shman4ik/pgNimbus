@@ -267,7 +267,9 @@ public class CompletionEditorTests
             await Assert.That(vm.ActiveTab).IsNotEqualTo(first);
             editor.TextArea.Focus();
             var before = editor.Text;
-            editor.CaretOffset = before.Length;
+            // Select, not CaretOffset: a new tab's placeholder opens selected,
+            // and moving the caret in code keeps the selection.
+            editor.Select(before.Length, 0);
             Ui.Press(window, Key.Enter);
 
             await Assert.That(Lf(editor.Text)).IsEqualTo(Lf(before) + "\n");

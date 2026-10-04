@@ -287,9 +287,21 @@ public partial class QueryEditorPanel : UserControl
 
     // A new or reopened tab: posted, because the palette and the ☰ menu run the
     // command while they close, and a closing menu hands focus back to whatever
-    // held it before it opened.
+    // held it before it opened. A new tab's placeholder text is selected, so
+    // what the user types replaces it: with the caret in front of it, typing
+    // "SELECT * FROM or" made "SELECT * FROM orSELECT 1;", and accepting a
+    // completion then swallowed the rest of that word (1.1.0 release pass).
     private void FocusEditorAfterLayout() =>
-        Dispatcher.UIThread.Post(FocusEditor, DispatcherPriority.Input);
+        Dispatcher.UIThread.Post(() =>
+        {
+            FocusEditor();
+            if (_model?.ActiveTab is { IsUntouchedScratch: true } tab
+                && string.Equals(tab.Sql, QueryViewModel.ScratchSql, StringComparison.Ordinal)
+                && string.Equals(SqlEditor.Text, tab.Sql, StringComparison.Ordinal))
+            {
+                SqlEditor.SelectAll();
+            }
+        }, DispatcherPriority.Input);
 
     /// <summary>
     /// Opens the editor's find (or find &amp; replace) panel, seeding the
