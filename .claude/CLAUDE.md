@@ -41,7 +41,11 @@ lives in `.claude/`, which Claude Code reads the same as the root.
   (`msix`, `macos`, `linux`, `winget`; the Windows zip needs no template).
 - `scripts/` — build, release, screenshot and design scripts.
 - `docs/` — the published docs site only; `docs/dev/` holds contributor notes
-  (design records, release checklists), kept off the site by `mkdocs.yml`.
+  (design records, release checklists), kept off the site by `mkdocs.yml`. The
+  "security audit 2026-09, finding N" citations scattered through this file are
+  explained in
+  [`docs/dev/design/security-audit-2026-09.md`](../docs/dev/design/security-audit-2026-09.md),
+  with the review of the fix set beside it.
 - `design/` — brand sources, masters and Store listing media. `website/` — the
   landing page.
 

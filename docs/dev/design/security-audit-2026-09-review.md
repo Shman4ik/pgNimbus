@@ -1,10 +1,14 @@
 # Review of the security-audit fix set, 2026-09-29
 
-Internal working document. It reviews the 17 draft PRs that answer
-[`security-audit-2026-09.md`](https://github.com/Shman4ik/pgNimbus/blob/claude/security-audit-opensource-083333/docs/design/security-audit-2026-09.md)
-(branch `claude/security-audit-opensource-083333`). Nothing here was fixed on the
-PR branches; every finding names the file, the line on the PR branch and the
-change it needs.
+Internal working document. It reviews the 17 draft PRs that answer the findings
+of [`security-audit-2026-09.md`](security-audit-2026-09.md). Nothing here was
+fixed on the PR branches; every finding names the file, the line on the PR
+branch and the change it needs.
+
+The audit's own working document, which this one was written against, was lost
+with its unmerged branch; the file linked above is the account of the 18
+findings reconstructed from the fix PRs, this review and the code, and its last
+section says what is faithful and what is not.
 
 ## How it was checked
 
