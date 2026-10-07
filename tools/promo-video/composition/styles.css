@@ -1,0 +1,525 @@
+/* Adapted from jamesmontemagno/app-fire-calculator tools/hype-video (MIT), in pgNimbus's colours. */
+:root {
+  /* Colours come from the variant (variants.mjs); main.js sets them on :root before drawing. */
+  font-family: 'Inter', system-ui, sans-serif;
+  color: var(--ink);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: #000;
+  overflow: hidden;
+}
+
+#viewport {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+#stage {
+  position: relative;
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  background: var(--bg-deep);
+  transform-origin: center;
+  flex: none;
+}
+
+#background,
+#scenes,
+#flash,
+#vignette,
+#fade,
+.scene {
+  position: absolute;
+  inset: 0;
+}
+
+#flash {
+  background: var(--flash);
+  opacity: 0;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+
+#vignette {
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 55%, var(--vignette) 100%);
+}
+
+#fade {
+  background: var(--fade);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.scene {
+  visibility: hidden;
+}
+
+.scene.active {
+  visibility: visible;
+}
+
+/* Builders set inline `visibility: visible` on children, which would otherwise show through a hidden scene. */
+.scene:not(.active) * {
+  visibility: hidden !important;
+}
+
+.anim {
+  display: inline-block;
+  will-change: transform, opacity;
+}
+
+/* ---------- Typography ---------- */
+
+.kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.kicker::before {
+  content: '';
+  width: 48px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--hot);
+}
+
+.headline {
+  margin: 22px 0 0;
+  font-size: 76px;
+  line-height: 1.04;
+  font-weight: 900;
+  letter-spacing: -0.035em;
+}
+
+.hot {
+  background: var(--hot);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-weight: 600;
+  font-size: 0.86em;
+  letter-spacing: -0.02em;
+  padding: 0 0.22em;
+  border-radius: 0.16em;
+  background: var(--code-bg);
+  box-shadow: inset 0 0 0 2px var(--code-ring);
+  color: var(--code-ink);
+}
+
+.bullets {
+  list-style: none;
+  margin: 40px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 16px;
+}
+
+.bullets li {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+.check {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--check);
+  color: var(--check-ink);
+}
+
+.check .icon {
+  width: 22px;
+  height: 22px;
+  stroke-width: 3.2;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 28px;
+  border-radius: 999px;
+  background: var(--card);
+  border: 2px solid var(--card-border);
+  font-size: 32px;
+  font-weight: 700;
+  white-space: nowrap;
+  backdrop-filter: blur(8px);
+}
+
+.chip .icon {
+  width: 34px;
+  height: 34px;
+  color: var(--accent);
+}
+
+/* ---------- The app window ---------- */
+
+.window {
+  position: absolute;
+  left: 0;
+  top: 0;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #1e1e1e;
+  box-shadow:
+    0 40px 120px var(--shadow),
+    0 0 90px rgba(var(--glow), 0.22),
+    0 0 0 1.5px var(--window-ring);
+}
+
+.window img {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  transform-origin: 0 0;
+}
+
+/* ---------- Scene layouts ---------- */
+
+.center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.split .copy {
+  position: absolute;
+  left: 110px;
+  top: 0;
+  bottom: 0;
+  width: 580px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  z-index: 2;
+}
+
+.split .shots {
+  position: absolute;
+  inset: 0;
+}
+
+/* intro */
+
+.intro-hook {
+  font-size: 100px;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+}
+
+.intro-hook .line {
+  display: block;
+}
+
+.intro-hook .word {
+  display: inline-block;
+  margin: 0 0.13em;
+}
+
+.stopwatch {
+  margin-top: 56px;
+  display: flex;
+  align-items: center;
+  gap: 30px;
+}
+
+.stopwatch .icon {
+  width: 104px;
+  height: 104px;
+  color: var(--accent);
+  stroke-width: 2.2;
+}
+
+.stopwatch .readout {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 132px;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.intro-caption {
+  margin-top: 20px;
+  font-size: 30px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.logo {
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  box-shadow:
+    0 30px 90px var(--shadow),
+    0 0 120px rgba(var(--glow), 0.5);
+}
+
+.brand-name {
+  margin-top: 40px;
+  font-size: 156px;
+  font-weight: 900;
+  letter-spacing: -0.045em;
+  line-height: 1;
+}
+
+.brand-tagline {
+  margin-top: 22px;
+  font-size: 38px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* pillars */
+
+.pillar-word {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 34px;
+}
+
+.pillar-word .icon {
+  width: 150px;
+  height: 150px;
+  color: var(--accent);
+  stroke-width: 1.8;
+}
+
+.pillar-word .text {
+  font-size: 180px;
+  font-weight: 900;
+  letter-spacing: -0.045em;
+  line-height: 0.95;
+  text-transform: uppercase;
+  text-align: center;
+  max-width: 1760px;
+}
+
+.pillar-grid {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 56px;
+}
+
+.pillar-grid .kicker {
+  font-size: 30px;
+}
+
+.pillar-grid .row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 26px 28px;
+  max-width: 1700px;
+}
+
+.pillar-grid .chip {
+  font-size: 46px;
+  padding: 22px 38px;
+}
+
+.pillar-grid .chip .icon {
+  width: 48px;
+  height: 48px;
+}
+
+/* statement */
+
+.statement .badge {
+  width: 170px;
+  height: 170px;
+  color: var(--accent);
+}
+
+.statement .badge svg {
+  width: 100%;
+  height: 100%;
+  stroke-width: 1.7;
+}
+
+.statement .headline {
+  margin-top: 34px;
+  font-size: 112px;
+  text-align: center;
+}
+
+.statement .headline .line {
+  display: block;
+}
+
+.chip-row {
+  margin-top: 56px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 20px;
+  max-width: 1600px;
+}
+
+/* outro */
+
+.outro .lockup {
+  display: flex;
+  align-items: center;
+  gap: 36px;
+}
+
+.outro .lockup .logo {
+  width: 150px;
+  height: 150px;
+}
+
+.outro .lockup .name {
+  font-size: 128px;
+  font-weight: 900;
+  letter-spacing: -0.045em;
+  line-height: 1;
+}
+
+.outro .headline {
+  margin: 44px 0 0;
+  font-size: 72px;
+  text-align: center;
+}
+
+.platforms {
+  margin-top: 40px;
+  display: flex;
+  gap: 22px;
+}
+
+.platforms .chip {
+  font-size: 34px;
+}
+
+.platforms .note {
+  font-weight: 600;
+  color: var(--muted);
+  font-size: 26px;
+}
+
+.install {
+  margin-top: 46px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 34px;
+  font-weight: 600;
+  padding: 18px 30px;
+  border-radius: 14px;
+  background: var(--panel);
+  border: 2px solid var(--card-border);
+  color: var(--code-ink);
+  white-space: pre;
+}
+
+.install .prompt {
+  color: var(--accent);
+}
+
+.install .caret {
+  display: inline-block;
+  width: 0.55em;
+  height: 1.05em;
+  margin-left: 4px;
+  vertical-align: -0.18em;
+  background: var(--accent);
+}
+
+.links {
+  margin-top: 46px;
+  display: flex;
+  gap: 48px;
+  font-size: 32px;
+  font-weight: 700;
+}
+
+.links span {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.links .icon {
+  width: 36px;
+  height: 36px;
+  color: var(--accent);
+}
+
+/* ---------- Preview controls (never rendered into frames) ---------- */
+
+#controls {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  font: 500 14px/1 'Inter', system-ui, sans-serif;
+}
+
+#controls[hidden] {
+  display: none;
+}
+
+#controls input {
+  flex: 1;
+}
+
+#controls button {
+  font: inherit;
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 0;
+  background: #2f6feb;
+  color: #fff;
+  cursor: pointer;
+}

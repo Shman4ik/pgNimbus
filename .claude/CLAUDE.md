@@ -32,7 +32,9 @@ lives in `.claude/`, which Claude Code reads the same as the root.
 - `tests/` — `PgNimbus.Core.Tests`, `PgNimbus.App.Tests`, `PgNimbus.Benchmarks`.
 - `tools/` — dev-only programs: the screenshot harness, `CompletionBench`,
   `UiBench` (UI-thread timings over big data; see "UI-thread work that grows
-  with the data" under coding conventions).
+  with the data" under coding conventions), and `promo-video` (a Node project:
+  the promo video rendered from a storyboard, with clips cut from the Store
+  trailer and stills from the harness; its README says how to rebuild it).
 - `shared/nimbusUi/` — the git subtree shared with kubeNimbus. Never move it:
   `git subtree push --prefix shared/nimbusUi` depends on the prefix.
 - `packaging/` — installer and store templates, one folder per target

@@ -88,6 +88,10 @@ scripts/demo/record/make-trailer.sh "$PGN_DEMO_OUT" out/final
 under it (no scaling, so the UI text stays sharp), cross-fades them, adds an end card with
 the wordmark and a silent audio track, and writes `pgnimbus-trailer.mp4` plus
 `pgnimbus-trailer-thumbnail.png`. The trims and captions are the `takes` table at its top.
+
+The promo video (`tools/promo-video`) cuts its clips out of the committed trailer by
+time. A re-recorded trailer moves those times, so check the `clips` table in
+`tools/promo-video/storyboard.mjs` against the new one (its README says how).
 Both files are committed in `design/store/trailer/`; the listing also needs
 `design/store/SuperHeroArt-16x9-1920x1080.png` (`scripts/windows/make-store-hero.ps1`),
 or Partner Center won't show the trailer at the top.
