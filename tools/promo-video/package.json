@@ -1,0 +1,22 @@
+{
+  "name": "pgnimbus-promo-video",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "The pgNimbus promo video: a storyboard, generated music and a frame-exact renderer.",
+  "license": "MIT",
+  "scripts": {
+    "setup": "playwright install --only-shell chromium",
+    "clips": "node scripts/extract-clips.mjs",
+    "shots": "node scripts/render-shots.mjs",
+    "music": "node scripts/generate-music.mjs",
+    "preview": "node scripts/preview.mjs",
+    "render": "node scripts/render.mjs",
+    "build": "npm run clips && npm run shots && npm run music && npm run render"
+  },
+  "devDependencies": {
+    "@fontsource/inter": "^5.2.8",
+    "@fontsource/jetbrains-mono": "^5.2.8",
+    "playwright": "^1.63.0"
+  }
+}
