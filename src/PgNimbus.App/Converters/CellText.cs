@@ -87,7 +87,7 @@ public static class CellText
         // an editable table, round-trips through CAST(text AS bit(n)).
         BitArray bits => FormatBits(bits, PreviewLength),
         string text => Shorten(text),
-        _ when Literal(value, dataTypeName) is { } literal => Shorten(literal),
+        _ when Literal(value, dataTypeName, PreviewLength + 1) is { } literal => Shorten(literal),
         var other => other,
     };
 
@@ -118,7 +118,7 @@ public static class CellText
         byte[] bytes => bytes.Length > ByteaPreviewBytes,
         BitArray bits => bits.Count > PreviewLength,
         string text => NeedsShortening(text),
-        _ => Literal(value, dataTypeName) is { } literal && NeedsShortening(literal),
+        _ => Literal(value, dataTypeName, PreviewLength + 1) is { } literal && NeedsShortening(literal),
     };
 
     /// <summary>
@@ -140,19 +140,21 @@ public static class CellText
     /// hand-written SELECT gets the raw dictionary.</item>
     /// </list>
     /// </summary>
-    private static string? Literal(object value, string? dataTypeName)
+    // One character past the cap distinguishes a complete literal from a
+    // prefix, including a surrogate pair straddling the cut. Full uses no cap.
+    private static string? Literal(object value, string? dataTypeName, int maxLength = int.MaxValue)
     {
         switch (value)
         {
             case Array array when PgValueSyntax.IsMultirangeType(dataTypeName):
-                return PgValueSyntax.FormatMultirange(array, RangeBound(dataTypeName))
-                    ?? PgValueSyntax.FormatArray(array);
+                return PgValueSyntax.FormatMultirange(array, RangeBound(dataTypeName), maxLength)
+                    ?? PgValueSyntax.FormatArray(array, maxLength: maxLength);
             case Array array:
                 var elementType = ElementType(dataTypeName);
                 return PgValueSyntax.FormatArray(
-                    array, element => Temporal(element, elementType) ?? PgValueSyntax.FormatRange(element, RangeBound(elementType)));
+                    array, element => Temporal(element, elementType) ?? PgValueSyntax.FormatRange(element, RangeBound(elementType)), maxLength);
             case IDictionary map:
-                return PgValueSyntax.FormatHstore(map);
+                return PgValueSyntax.FormatHstore(map, maxLength);
             default:
                 return PgValueSyntax.FormatRange(value, RangeBound(dataTypeName));
         }

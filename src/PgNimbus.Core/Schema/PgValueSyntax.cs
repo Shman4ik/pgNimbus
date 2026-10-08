@@ -179,32 +179,47 @@ public static class PgValueSyntax
     /// way Postgres prints them). Null, or a null answer, falls back to
     /// <see cref="InvariantText"/>.
     /// </param>
-    public static string FormatArray(Array array, Func<object, string?>? formatElement = null)
+    public static string FormatArray(Array array, Func<object, string?>? formatElement = null) =>
+        FormatArray(array, formatElement, int.MaxValue);
+
+    /// <summary>An exact prefix of the array literal, not necessarily a complete literal.</summary>
+    public static string FormatArray(Array array, int maxLength) => FormatArray(array, null, maxLength);
+
+    /// <summary>An exact prefix of the array literal, using the caller's element spelling.</summary>
+    public static string FormatArray(Array array, Func<object, string?>? formatElement, int maxLength)
     {
-        var sb = new StringBuilder();
+        var sb = new LiteralBuilder(maxLength);
         AppendArray(sb, array, formatElement);
         return sb.ToString();
     }
 
-    private static void AppendArray(StringBuilder sb, Array array, Func<object, string?>? formatElement)
+    private static void AppendArray(LiteralBuilder sb, Array array, Func<object, string?>? formatElement)
     {
         sb.Append('{');
         var first = true;
         foreach (var item in array)
         {
+            if (sb.IsFull)
+            {
+                break;
+            }
+
             if (!first)
             {
                 sb.Append(',');
             }
 
             first = false;
-            AppendElement(sb, item, formatElement);
+            if (!sb.IsFull)
+            {
+                AppendElement(sb, item, formatElement);
+            }
         }
 
         sb.Append('}');
     }
 
-    private static void AppendElement(StringBuilder sb, object? value, Func<object, string?>? formatElement)
+    private static void AppendElement(LiteralBuilder sb, object? value, Func<object, string?>? formatElement)
     {
         switch (value)
         {
@@ -220,13 +235,15 @@ public static class PgValueSyntax
 
         // Postgres quotes an element when the bare form would be ambiguous:
         // empty, the word NULL, or containing a delimiter/quote/backslash/space.
+        // Scan the whole element even for a prefix: a delimiter past the cap
+        // still changes its opening quote. Only escaping is bounded here.
         var needsQuoting = text.Length == 0
             || text.Equals("NULL", StringComparison.OrdinalIgnoreCase)
             || text.AsSpan().ContainsAny(QuotedElementChars);
 
         if (needsQuoting)
         {
-            sb.Append('"').Append(text.Replace("\\", "\\\\").Replace("\"", "\\\"")).Append('"');
+            AppendHstoreString(sb, text);
         }
         else
         {
@@ -322,13 +339,34 @@ public static class PgValueSyntax
     /// A multirange (an array of ranges, see <see cref="IsMultirangeType"/>) as
     /// its literal, <c>{[1,3),[5,7)}</c>: the ranges unquoted, unlike the
     /// elements of a range array. Null when an element is not a range.
+    /// With a length cap, returns an exact prefix; typed range arrays stop
+    /// formatting as soon as the cap is reached.
     /// </summary>
-    public static string? FormatMultirange(Array ranges, Func<object, string> formatBound)
+    public static string? FormatMultirange(Array ranges, Func<object, string> formatBound) =>
+        FormatMultirange(ranges, formatBound, int.MaxValue);
+
+    /// <summary>An exact prefix of the multirange literal, or null when an element is not a range.</summary>
+    public static string? FormatMultirange(Array ranges, Func<object, string> formatBound, int maxLength)
     {
-        var sb = new StringBuilder("{");
+        var sb = new LiteralBuilder(maxLength);
+        sb.Append('{');
+        // Only a typed range array proves that an unseen element cannot force
+        // the caller's array-literal fallback. Heterogeneous arrays must still
+        // be validated to the end, even after their prefix has been written.
+        var knownRanges = ranges is NpgsqlTypes.NpgsqlRange<int>[]
+            or NpgsqlTypes.NpgsqlRange<long>[] or NpgsqlTypes.NpgsqlRange<short>[]
+            or NpgsqlTypes.NpgsqlRange<decimal>[] or NpgsqlTypes.NpgsqlRange<double>[]
+            or NpgsqlTypes.NpgsqlRange<float>[] or NpgsqlTypes.NpgsqlRange<DateOnly>[]
+            or NpgsqlTypes.NpgsqlRange<DateTime>[] or NpgsqlTypes.NpgsqlRange<DateTimeOffset>[]
+            or NpgsqlTypes.NpgsqlRange<TimeOnly>[] or NpgsqlTypes.NpgsqlRange<TimeSpan>[];
         var first = true;
         foreach (var item in ranges)
         {
+            if (sb.IsFull && knownRanges)
+            {
+                break;
+            }
+
             if (item is null || FormatRange(item, formatBound) is not { } range)
             {
                 return null;
@@ -393,21 +431,40 @@ public static class PgValueSyntax
     /// — so the grid shows a readable value everywhere, not only in browse mode's
     /// text-format path. Both key and value are always double-quoted (the form
     /// Postgres itself emits); a null value is the bare keyword <c>NULL</c>.
+    /// With a length cap, returns an exact prefix without formatting the tail.
     /// </summary>
-    public static string FormatHstore(System.Collections.IDictionary map)
+    public static string FormatHstore(System.Collections.IDictionary map) => FormatHstore(map, int.MaxValue);
+
+    /// <summary>An exact prefix of the hstore literal, without formatting the tail.</summary>
+    public static string FormatHstore(System.Collections.IDictionary map, int maxLength)
     {
-        var sb = new StringBuilder();
+        var sb = new LiteralBuilder(maxLength);
         var first = true;
         foreach (System.Collections.DictionaryEntry entry in map)
         {
+            if (sb.IsFull)
+            {
+                break;
+            }
+
             if (!first)
             {
                 sb.Append(", ");
             }
 
             first = false;
+            if (sb.IsFull)
+            {
+                break;
+            }
+
             AppendHstoreString(sb, entry.Key.ToString() ?? string.Empty);
             sb.Append("=>");
+            if (sb.IsFull)
+            {
+                break;
+            }
+
             if (entry.Value is null)
             {
                 sb.Append("NULL");
@@ -421,8 +478,60 @@ public static class PgValueSyntax
         return sb.ToString();
     }
 
-    private static void AppendHstoreString(StringBuilder sb, string text) =>
-        sb.Append('"').Append(text.Replace("\\", "\\\\").Replace("\"", "\\\"")).Append('"');
+    private static void AppendHstoreString(LiteralBuilder sb, string text)
+    {
+        sb.Append('"');
+        foreach (var ch in text)
+        {
+            if (sb.IsFull)
+            {
+                break;
+            }
+
+            if (ch is '\\' or '"')
+            {
+                sb.Append('\\');
+            }
+
+            sb.Append(ch);
+        }
+
+        sb.Append('"');
+    }
+
+    // The same writer serves Full and its prefix: never allocate a whole
+    // escaped string just to discard everything after the grid's budget.
+    private sealed class LiteralBuilder
+    {
+        private readonly StringBuilder builder = new();
+        private readonly int maxLength;
+
+        public LiteralBuilder(int maxLength)
+        {
+            ArgumentOutOfRangeException.ThrowIfNegative(maxLength);
+            this.maxLength = maxLength;
+        }
+
+        public bool IsFull => builder.Length == maxLength;
+
+        public LiteralBuilder Append(char value)
+        {
+            if (!IsFull)
+            {
+                builder.Append(value);
+            }
+
+            return this;
+        }
+
+        public LiteralBuilder Append(string value)
+        {
+            builder.Append(value, 0, Math.Min(value.Length, maxLength - builder.Length));
+            return this;
+        }
+
+        public override string ToString() => builder.ToString();
+    }
 
     private static string? Validate(string trimmed, char open, char close, string kind)
     {

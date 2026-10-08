@@ -2221,6 +2221,14 @@ Moved to [`.claude/rules/logo-assets.md`](rules/logo-assets.md), which loads whe
   that leaves the floor untouched while staying ~3× what the widest column can
   actually show. Folding newlines to spaces is the same argument from the other
   side: a 40-line stack trace made its row 40 lines tall.
+  Arrays, hstore and typed multiranges write only `PreviewLength + 1` literal
+  characters for both the preview and `IsShortened`; the extra character tells
+  a complete value from a prefix. Escaping shares that budget, including nested
+  arrays, while `Full` still writes everything. Array elements still need a full
+  quoting scan (a late delimiter changes the opening quote), and heterogeneous
+  multiranges still validate every element to preserve the array fallback.
+  `CellTextPrefixTests` and `PgValuePrefixTests` hold prefix equivalence,
+  formatter-call budgets and capped escaping allocations.
   **The safety half is not optional.** The DataGrid pre-fills its inline editor
   from the column's own display binding — i.e. from the preview — so a cell
   showing less than it holds must not be edited inline, or committing an
@@ -2375,9 +2383,9 @@ Moved to [`.claude/rules/logo-assets.md`](rules/logo-assets.md), which loads whe
   cap, and a gated `repeat('x', 100000000)` × 3 that keeps one row).
   **Not bounded yet**, as the audit also asked: a single cell is still read
   whole by Npgsql before the budget can refuse its row (a 500 MB cell costs
-  500 MB), and `CellText.Preview` formats a whole array or hstore literal before
-  cutting it to 256 characters. Both want a per-cell cap with the full value
-  fetched on demand in the inspector.
+  500 MB). That still wants a per-cell read cap with the full value fetched on
+  demand in the inspector; literal preview formatting is capped separately as
+  described under `CellText` above.
   **Safe for Spreadsheets** (security audit 2026-09, finding 18, CSV formula
   injection) is a checkbox at the foot of the command bar's Export menu,
   `AppSettings.SpreadsheetSafeExport`, off by default because the quote changes
