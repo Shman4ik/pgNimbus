@@ -2263,11 +2263,18 @@ Moved to [`.claude/rules/logo-assets.md`](rules/logo-assets.md), which loads whe
   `FormatSqlLiteral` and gets it too. Npgsql reads `0001-01-01 00:00:00` as
   `DateTime.MinValue` as well, so that one finite value shows and exports as
   `-infinity`. `ResultExporterInfinityTests` holds it, and with
-  `PGNIMBUS_TEST_CONN` casts each written form back on the server. Numbers in
-  the grid and cell inspector use invariant text too (`55.75` even on a Czech
-  Mac), so the inline editor can parse its displayed text without changing the
-  value. `NumericCellTextTests` checks display and edit round trips under several
-  regions. The row-details date picker remains culture-bound.
+  `PGNIMBUS_TEST_CONN` casts each written form back on the server.
+  **Numbers are invariant text too** (2026-10, #360): `CellText.Number` writes
+  `55.75`, `-128`, `NaN`, `-Infinity` for the grid, the inspector and row
+  details, whatever the culture. The shipped app runs with
+  `InvariantGlobalization`, so its binding already wrote them that way (a Czech
+  Mac never saw `55,75`). The test host and the Screenshot/UiBench tools run in
+  the machine's culture, though, and the app would too if the flag ever went.
+  That matters because the inline editor is pre-filled from the cell text and
+  `ParseEditedText` reads it invariantly, where a decimal comma is a thousands
+  separator: `55,75` would be saved as 5575. `NumericCellTextTests` holds the round trip under cs-CZ, de-DE,
+  en-US and ar-SA. The row-details date picker still follows the process
+  culture, which in the shipped app is the invariant one (`MM/dd/yyyy`).
   **Ranges and multiranges are written by pgNimbus, never by Npgsql's
   `ToString`** (2026-10, 1.0.1 release pass). `NpgsqlRange<T>.ToString` writes
   each bound in the process culture: a CSV export of a `tstzrange` came out as

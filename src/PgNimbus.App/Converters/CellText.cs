@@ -59,8 +59,7 @@ public static class CellText
     /// <summary>
     /// The cell's display text: capped, and folded onto a single line. Dates and
     /// times are written the ISO way Postgres writes them (<see cref="Temporal"/>),
-    /// whatever the machine's region. Numbers use invariant text too, so the
-    /// inline editor can read them back without a locale-dependent decimal separator.
+    /// whatever the machine's region, and numbers as invariant text (<see cref="Number"/>).
     /// </summary>
     /// <param name="value">The raw cell value.</param>
     /// <param name="dataTypeName">
@@ -73,8 +72,7 @@ public static class CellText
     public static object? Preview(object? value, string? dataTypeName = null) => value switch
     {
         null => NullPlaceholder,
-        byte or sbyte or short or ushort or int or uint or long or ulong or float or double or decimal
-            => ((IFormattable)value).ToString(null, CultureInfo.InvariantCulture),
+        _ when Number(value) is { } number => number,
         DateTime or DateTimeOffset or DateOnly or TimeOnly or TimeSpan when Temporal(value, dataTypeName) is { } text => text,
         // bytea arrives as byte[]; its default ToString is the useless
         // "System.Byte[]". Show a capped \x-hex preview (the cell inspector
@@ -100,8 +98,7 @@ public static class CellText
     public static string Full(object? value, string? dataTypeName = null) => value switch
     {
         null => NullPlaceholder,
-        byte or sbyte or short or ushort or int or uint or long or ulong or float or double or decimal
-            => ((IFormattable)value).ToString(null, CultureInfo.InvariantCulture),
+        _ when Number(value) is { } number => number,
         DateTime or DateTimeOffset or DateOnly or TimeOnly or TimeSpan when Temporal(value, dataTypeName) is { } text => text,
         byte[] bytes => "\\x" + Convert.ToHexString(bytes),
         BitArray bits => FormatBits(bits, bits.Count),
@@ -169,6 +166,26 @@ public static class CellText
         var boundType = rangeType is not null && rangeType.StartsWith("date", StringComparison.OrdinalIgnoreCase) ? "date" : null;
         return bound => Temporal(bound, boundType) ?? PgValueSyntax.InvariantText(bound);
     }
+
+    /// <summary>
+    /// A number as invariant text (<c>55.75</c>, <c>-128</c>, <c>NaN</c>,
+    /// <c>-Infinity</c>), the same text <see cref="PgValueSyntax.InvariantText"/>
+    /// writes for an array element, and spellings Postgres accepts; null for any
+    /// other value.
+    /// <para>
+    /// The shipped app runs with <c>InvariantGlobalization</c>, so the binding
+    /// already wrote numbers this way there. The test host and the tools
+    /// (Screenshot, UiBench) run in the machine's culture, though, and the app
+    /// would too if the flag ever went. The inline editor is pre-filled from this
+    /// text and <c>QueryViewModel.ParseEditedText</c> reads it back invariantly,
+    /// where a decimal comma is a thousands separator: <c>55,75</c> would be
+    /// saved as 5575.
+    /// </para>
+    /// </summary>
+    private static string? Number(object value) =>
+        value is byte or sbyte or short or ushort or int or uint or long or ulong or float or double or decimal
+            ? ((IFormattable)value).ToString(null, CultureInfo.InvariantCulture)
+            : null;
 
     // "timestamp with time zone[]" → "timestamp with time zone": an array's
     // wire name is its element's with the brackets after it.

@@ -62,10 +62,18 @@ public class NumericCellTextTests
         try
         {
             CultureInfo.CurrentCulture = new CultureInfo("de-DE");
-            foreach (var value in new object[] { float.NaN, double.NaN, float.PositiveInfinity,
-                         double.PositiveInfinity, float.NegativeInfinity, double.NegativeInfinity })
+            // Postgres's own spellings for float4/float8, which it also accepts on input.
+            (object Value, string Text)[] cases =
+            [
+                (float.NaN, "NaN"),
+                (double.NaN, "NaN"),
+                (float.PositiveInfinity, "Infinity"),
+                (double.PositiveInfinity, "Infinity"),
+                (float.NegativeInfinity, "-Infinity"),
+                (double.NegativeInfinity, "-Infinity"),
+            ];
+            foreach (var (value, expected) in cases)
             {
-                var expected = ((IFormattable)value).ToString(null, CultureInfo.InvariantCulture);
                 await Assert.That(Convert.ToString(CellText.Preview(value), CultureInfo.CurrentCulture)).IsEqualTo(expected);
                 await Assert.That(CellText.Full(value)).IsEqualTo(expected);
                 var parsed = QueryViewModel.ParseEditedText(expected, value.GetType(), null);
