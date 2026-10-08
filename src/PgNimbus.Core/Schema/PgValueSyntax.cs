@@ -194,6 +194,15 @@ public static class PgValueSyntax
 
     private static void AppendArray(LiteralBuilder sb, Array array, Func<object, string?>? formatElement)
     {
+        // Npgsql reads multidimensional PostgreSQL arrays as rectangular CLR
+        // arrays. Their enumerator yields scalar elements, not nested arrays:
+        // retain each dimension instead of flattening them into one list.
+        if (array.Rank > 1 && array.Length > 0)
+        {
+            AppendArrayDimension(sb, array, array.GetEnumerator(), 0, formatElement);
+            return;
+        }
+
         sb.Append('{');
         var first = true;
         foreach (var item in array)
@@ -212,6 +221,46 @@ public static class PgValueSyntax
             if (!sb.IsFull)
             {
                 AppendElement(sb, item, formatElement);
+            }
+        }
+
+        sb.Append('}');
+    }
+
+    private static void AppendArrayDimension(
+        LiteralBuilder sb,
+        Array array,
+        System.Collections.IEnumerator elements,
+        int dimension,
+        Func<object, string?>? formatElement)
+    {
+        sb.Append('{');
+        for (var i = 0; i < array.GetLength(dimension); i++)
+        {
+            // As in the one-dimensional loop: past the cap nothing more would be
+            // written, so nothing more is formatted. Every enclosing level stops
+            // here too, so the shared enumerator left behind is never read again.
+            if (sb.IsFull)
+            {
+                break;
+            }
+
+            if (i > 0)
+            {
+                sb.Append(',');
+            }
+
+            if (dimension + 1 < array.Rank)
+            {
+                AppendArrayDimension(sb, array, elements, dimension + 1, formatElement);
+            }
+            else
+            {
+                elements.MoveNext();
+                if (!sb.IsFull)
+                {
+                    AppendElement(sb, elements.Current, formatElement);
+                }
             }
         }
 
