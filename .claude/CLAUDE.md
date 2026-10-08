@@ -2030,10 +2030,19 @@ Moved to [`.claude/rules/logo-assets.md`](rules/logo-assets.md), which loads whe
   literal for the cast to accept the round-trip, so `Converters/CellText` formats
   the CLR types whose `ToString` is useless: `byte[]`→`\x`-hex (capped preview),
   `Array`→Postgres `{…}` literal (`PgValueSyntax.FormatArray`), and
-  `BitArray`→bit string (`10110001`, MSB first). Known edge: a `bit(1)` column
-  surfaces from Npgsql as `bool` (displays `True`/`False`), so an inline edit of
-  it fails loudly at the cast rather than corrupting — the inspector or a `bit(n)`
-  column edits cleanly.
+  `BitArray`→bit string (`10110001`, MSB first). **Every bit type is read as
+  text, by its Postgres type** (2026-10, #354): Npgsql reads `bit(n)` as a
+  `BitArray` but `bit(1)` as a `bool`, and the describe-first text request
+  (`QueryEngine.NeedsTextFormat`) used to key on the `BitArray`, so a `bit(1)`
+  column showed `True`/`False` and every write of its value failed (`cannot
+  cast type boolean to bit`): an inline edit, Copy as INSERT, filter by cell, a
+  `bit(1)[]` array. It now matches `bit`/`varbit` as `pg_catalog` base types, so
+  `bit(1)`, `bit(n)`, arrays and domains over them arrive as the literal psql
+  prints (`1`, `10110001`, `{1,0}`) on every read path, and that literal casts
+  back. Do not fix this in `CellText` with a `bool` arm: a `boolean` is a `bool`
+  too (PR #363 turned every boolean in the inspector into `1`).
+  `QueryEngineBitStringTests` holds it against a real server. The `BitArray`
+  arm stays for the one read the mask can't reach (a multi-statement command).
 - **Safe mode's commit is optimistic-concurrency checked, and a conflict rolls
   back the whole batch** (2026-09). Staging an edit or delete hands
   `PendingChangeSet` a `RowSnapshot` — the row's loaded table columns as the grid

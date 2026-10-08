@@ -1186,9 +1186,16 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
     // format instead, so their values arrive as Postgres literals ("(10,20,cm)")
     // — exactly the shape the grid displays and the composite editor
     // validates and casts back on edit.
+    //
+    // bit and bit varying are matched here, by type, and not by the BitArray
+    // they read as: Npgsql reads bit(1) as a bool, so a bit(1) column slipped
+    // past that check, showed True/False and failed the cast on every edit,
+    // copy and filter (#354). By type, bit(1), bit(n), an array of either and a
+    // domain over one all arrive as the bit literal ("1", "10110000", "{1,0}").
     private static bool NeedsTextFormat(PostgresType type) => type switch
     {
         PostgresCompositeType => true,
+        PostgresBaseType { Namespace: "pg_catalog", InternalName: "bit" or "varbit" } => true,
         PostgresArrayType array => NeedsTextFormat(array.Element),
         PostgresDomainType domain => NeedsTextFormat(domain.BaseType),
         PostgresRangeType range => NeedsTextFormat(range.Subtype),
@@ -1206,12 +1213,12 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
     // that would have read fine arrives as its Postgres literal, which the grid
     // already renders.
     //
-    // bit / bit varying and hstore are also requested as text: Npgsql maps them to
-    // a BitArray / Dictionary<string,string> whose default ToString is just the
-    // class name ("System.Collections.BitArray", "System.Collections.Generic.
-    // Dictionary`2[…]"), useless in a cell. Their text form is the value itself
-    // (the bit literal "10110000", the hstore literal "\"k\"=>\"v\"") — what a user
-    // expects to see and edit. Both are small, so the extra round trip is cheap.
+    // hstore is also requested as text: Npgsql maps it to a
+    // Dictionary<string,string> whose default ToString is just the class name
+    // ("System.Collections.Generic.Dictionary`2[…]"), useless in a cell. Its text
+    // form is the value itself (the hstore literal "\"k\"=>\"v\"") — what a user
+    // expects to see and edit. It is small, so the extra round trip is cheap. The
+    // bit types are requested as text for the same reason, by type (above).
     private static readonly Type HstoreType = typeof(System.Collections.Generic.Dictionary<string, string>);
 
     private static bool NeedsTextFormat(NpgsqlDataReader reader, int column)
@@ -1224,9 +1231,7 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
         try
         {
             var clrType = reader.GetFieldType(column);
-            return clrType == typeof(object)
-                || clrType == typeof(System.Collections.BitArray)
-                || clrType == HstoreType;
+            return clrType == typeof(object) || clrType == HstoreType;
         }
         catch
         {
