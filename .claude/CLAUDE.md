@@ -2043,6 +2043,23 @@ Moved to [`.claude/rules/logo-assets.md`](rules/logo-assets.md), which loads whe
   too (PR #363 turned every boolean in the inspector into `1`).
   `QueryEngineBitStringTests` holds it against a real server. The `BitArray`
   arm stays for the one read the mask can't reach (a multi-statement command).
+  **An array literal keeps the value's shape** (2026-10, #366 and the bytea[]
+  fix after it). Npgsql reads a 2-D array as a CLR `T[,]`, whose enumerator
+  runs flat, and `FormatArray` wrote `{{1,2},{3,4}}` as `{1,2,3,4}`; it reads
+  `bytea[]` as `byte[][]`, and each `byte[]` went down the nested-array branch
+  as `{{222,173,190,239}}`. Both cast back without an error, the first as a
+  1-D array and the second as a 2-D bytea[] of the digit strings, so an inline
+  edit that changed nothing else saved a different value. `FormatArray` now
+  walks by dimension (`GetLength(d)`) and writes a bytea element as quoted
+  `\x`-hex, `{"\\xDEADBEEF"}` (upper-case hex, as a bytea cell shows it); the
+  INSERT copy and `CellDisplay` share it, and JSON export writes nested arrays
+  per dimension too. Never `foreach` an `Array` that came from a reader where
+  the shape matters. Not kept: a lower bound other than 1
+  (`'[2:3]={5,6}'`), which Npgsql drops on read, so an edit re-bases it; and
+  CSV, TSV and Markdown still join a 2-D array's elements with `;`, flat, as
+  they join a 1-D one.
+  `ArrayLiteralRoundTripTests` casts every shape back on a real server, and
+  stages the shown text as an edit through safe mode's row check.
 - **Safe mode's commit is optimistic-concurrency checked, and a conflict rolls
   back the whole batch** (2026-09). Staging an edit or delete hands
   `PendingChangeSet` a `RowSnapshot` — the row's loaded table columns as the grid

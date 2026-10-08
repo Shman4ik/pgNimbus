@@ -266,11 +266,10 @@ public static class ResultExporter
 
     private static string FormatBound(object bound) => FormatCsvValue(bound);
 
-    // An element inside a Postgres array literal: bytea as \x-hex (the literal's
-    // own form, where a CSV cell takes base64), anything else as its cell text,
-    // which the literal then quotes.
-    private static string FormatArrayElement(object element) =>
-        element is byte[] bytes ? "\\x" + Convert.ToHexString(bytes) : FormatCsvValue(element);
+    // An element inside a Postgres array literal: its cell text, which the
+    // literal then quotes. A bytea element never gets here: FormatArray writes
+    // it as \x-hex itself (the literal's own form, where a CSV cell takes base64).
+    private static string FormatArrayElement(object element) => FormatCsvValue(element);
 
     private static string EscapeCsvField(string value) =>
         value.IndexOfAny([',', '"', '\n', '\r']) < 0 ? value : $"\"{value.Replace("\"", "\"\"")}\"";
@@ -379,13 +378,7 @@ public static class ResultExporter
                 writer.WriteStringValue(Convert.ToBase64String(bytes));
                 break;
             case Array array:
-                writer.WriteStartArray();
-                foreach (var item in array)
-                {
-                    WriteJsonValue(writer, item);
-                }
-
-                writer.WriteEndArray();
+                WriteJsonArray(writer, array, array.GetEnumerator(), 0);
                 break;
             // hstore (Dictionary<string,string>) is naturally a JSON object —
             // faithful and machine-readable, matching how arrays serialize
@@ -404,5 +397,27 @@ public static class ResultExporter
                 writer.WriteStringValue(value.ToString());
                 break;
         }
+    }
+
+    // One JSON array per dimension: Npgsql reads a 2-D Postgres array as a CLR
+    // T[,], whose enumerator runs flat (row-major), so a plain foreach wrote
+    // {{1,2},{3,4}} as [1,2,3,4].
+    private static void WriteJsonArray(Utf8JsonWriter writer, Array array, System.Collections.IEnumerator elements, int dimension)
+    {
+        writer.WriteStartArray();
+        for (var i = 0; i < array.GetLength(dimension); i++)
+        {
+            if (dimension + 1 < array.Rank)
+            {
+                WriteJsonArray(writer, array, elements, dimension + 1);
+            }
+            else
+            {
+                elements.MoveNext();
+                WriteJsonValue(writer, elements.Current);
+            }
+        }
+
+        writer.WriteEndArray();
     }
 }

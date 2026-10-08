@@ -237,6 +237,45 @@ public class ResultsGridTests
         });
     }
 
+    /// <summary>
+    /// An array cell edits inline, and the edit casts the editor's text back to
+    /// the column's type, so that text has to keep the value's shape. A 2-D
+    /// int[] (a CLR <c>int[,]</c>) was pre-filled as <c>{1,2,3,4}</c> and a
+    /// bytea[] (<c>byte[][]</c>) as <c>{{222,173,190,239}}</c>: committing
+    /// either untouched saved a 1-D array, or a 2-D bytea[] of the digit strings.
+    /// </summary>
+    [Test]
+    [Arguments(1, "{{1,2},{3,4}}")]
+    [Arguments(2, """{"\\xDEADBEEF",NULL}""")]
+    public async Task An_array_cell_is_edited_inline_in_its_own_shape(int column, string expected)
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, vm) = Scenarios.Shell();
+            Ui.Show(window);
+
+            var tab = vm.ActiveTab;
+            tab.SeedResult(
+                [new ColumnInfo("id", "bigint", typeof(long)),
+                 new ColumnInfo("grid", "integer[]", typeof(Array)),
+                 new ColumnInfo("blobs", "bytea[]", typeof(Array))],
+                [[1L, new[,] { { 1, 2 }, { 3, 4 } }, new[] { new byte[] { 0xDE, 0xAD, 0xBE, 0xEF }, null }]]);
+            tab.EditContext = new EditableTableContext(
+                "public", "t", ["id"],
+                [new ColumnDetail("id", "bigint", NotNull: true, IsPrimaryKey: true),
+                 new ColumnDetail("grid", "integer[]", NotNull: false, IsPrimaryKey: false) { Editor = ColumnValueEditor.Array },
+                 new ColumnDetail("blobs", "bytea[]", NotNull: false, IsPrimaryKey: false) { Editor = ColumnValueEditor.Array }]);
+            Ui.Settle();
+
+            BeginEditingTheCell(FindResultsGrid(window)!, column);
+
+            await Assert.That(vm.CellInspector.IsOpen).IsFalse();
+            await Assert.That(EditorTextBox(window)?.Text).IsEqualTo(expected);
+
+            window.Close();
+        });
+    }
+
     // One editable row: a keyed table context is what makes the grid writable,
     // which is the only state in which BeginningEdit fires at all.
     private static void SeedEditableCell(MainViewModel vm, string payload)
@@ -252,10 +291,10 @@ public class ResultsGridTests
         Ui.Settle();
     }
 
-    private static void BeginEditingTheCell(DataGrid grid)
+    private static void BeginEditingTheCell(DataGrid grid, int column = 1)
     {
         grid.SelectedIndex = 0;
-        grid.CurrentColumn = grid.Columns[1];
+        grid.CurrentColumn = grid.Columns[column];
         Ui.Settle();
         grid.BeginEdit();
         Ui.Settle();

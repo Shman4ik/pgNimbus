@@ -108,11 +108,45 @@ public class PgValueSyntaxTests
     }
 
     [Test]
+    public async Task FormatsByteaArrayElementsAsHexNotAsNestedArrays()
+    {
+        // bytea[] arrives as byte[][]. Each element used to be written as an
+        // array of its bytes, {{222,173,190,239}}, which the inline edit then
+        // cast back as a 2-D bytea[] of the digit strings. Postgres prints
+        // {"\\xdeadbeef"}; the hex is upper case, as a bytea cell shows it.
+        byte[] deadbeef = [0xDE, 0xAD, 0xBE, 0xEF];
+        await Assert.That(PgValueSyntax.FormatArray(new[] { deadbeef })).IsEqualTo("""{"\\xDEADBEEF"}""");
+        await Assert.That(PgValueSyntax.FormatArray(new byte[]?[] { deadbeef, null, [] }))
+            .IsEqualTo("""{"\\xDEADBEEF",NULL,"\\x"}""");
+    }
+
+    [Test]
+    public async Task A_bytea_element_is_hex_whatever_the_element_formatter_says()
+    {
+        // The grid's formatter writes dates and ranges and answers null for the
+        // rest; the exporter's writes CSV text, which for bytea is base64. Neither
+        // is how an element of a bytea[] literal reads.
+        byte[] bytes = [0x01, 0xFF];
+        await Assert.That(PgValueSyntax.FormatArray(new[] { bytes }, _ => "Af8=")).IsEqualTo("""{"\\x01FF"}""");
+    }
+
+    [Test]
+    public async Task FormatsMultidimensionalByteaArraysByDimension()
+    {
+        // ARRAY[ARRAY['\xdead'::bytea], ARRAY['\xbeef'::bytea]] arrives as a
+        // byte[,][] (Byte[][,] to reflection): both fixes at once.
+        var value = new byte[,][] { { new byte[] { 0xDE, 0xAD } }, { new byte[] { 0xBE, 0xEF } } };
+        await Assert.That(PgValueSyntax.FormatArray(value)).IsEqualTo("""{{"\\xDEAD"},{"\\xBEEF"}}""");
+    }
+
+    [Test]
     public async Task FormattedArraysPassTheirOwnValidation()
     {
         var formatted = PgValueSyntax.FormatArray(new[] { "plain", "with space", "with,comma", "with\"quote" });
 
         await Assert.That(PgValueSyntax.ValidateArray(formatted)).IsNull();
+        await Assert.That(PgValueSyntax.ValidateArray(PgValueSyntax.FormatArray(new[,] { { "a b", null }, { "{", "" } }))).IsNull();
+        await Assert.That(PgValueSyntax.ValidateArray(PgValueSyntax.FormatArray(new[] { new byte[] { 0x5C, 0x22 } }))).IsNull();
     }
 
     [Test]

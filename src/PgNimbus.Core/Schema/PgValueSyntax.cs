@@ -170,7 +170,10 @@ public static class PgValueSyntax
     /// Postgres's own literal syntax — <c>{a,b,c}</c>, elements quoted by the
     /// server's rules — so the grid shows a readable, *editable* value instead
     /// of "System.String[]", and an F2 edit round-trips through
-    /// <c>CAST(text AS type[])</c> unchanged.
+    /// <c>CAST(text AS type[])</c> unchanged. That needs the value's shape kept:
+    /// a multi-dimensional array (a CLR <c>T[,]</c>) is written dimension by
+    /// dimension, <c>{{1,2},{3,4}}</c>, and a <c>bytea[]</c> (a <c>byte[][]</c>)
+    /// element by element as <c>\x</c>-hex.
     /// </summary>
     /// <param name="array">The array.</param>
     /// <param name="formatElement">
@@ -274,12 +277,20 @@ public static class PgValueSyntax
             case null or DBNull:
                 sb.Append("NULL");
                 return;
-            case Array nested:
+            // bytea[] arrives as byte[][], and each byte[] is one bytea value,
+            // not a nested array of numbers: written as one, it read
+            // {{222,173,190,239}}, which casts back as a 2-D bytea[] of the digit
+            // strings.
+            case Array nested when nested is not byte[]:
                 AppendArray(sb, nested, formatElement);
                 return;
         }
 
-        var text = (value is bool ? null : formatElement?.Invoke(value)) ?? InvariantText(value);
+        // A bytea element is \x-hex, as a bytea cell shows it, which the quoting
+        // below wraps and escapes as the server does: {"\\xDEADBEEF"}.
+        var text = value is byte[] bytes
+            ? "\\x" + Convert.ToHexString(bytes)
+            : (value is bool ? null : formatElement?.Invoke(value)) ?? InvariantText(value);
 
         // Postgres quotes an element when the bare form would be ambiguous:
         // empty, the word NULL, or containing a delimiter/quote/backslash/space.
