@@ -2273,8 +2273,15 @@ Moved to [`.claude/rules/logo-assets.md`](rules/logo-assets.md), which loads whe
   That matters because the inline editor is pre-filled from the cell text and
   `ParseEditedText` reads it invariantly, where a decimal comma is a thousands
   separator: `55,75` would be saved as 5575. `NumericCellTextTests` holds the round trip under cs-CZ, de-DE,
-  en-US and ar-SA. The row-details date picker still follows the process
-  culture, which in the shipped app is the invariant one (`MM/dd/yyyy`).
+  en-US and ar-SA. **So are the date pickers** (2026-10, #353): a
+  `CalendarDatePicker` style in `Styles/Theme.axaml` gives every picker in the
+  app (row details, Add row, the filter editor, the grid's inline editors, the
+  role dialog) `Converters/IsoDate` as its `TextConverter`, so it shows
+  `2026-10-08` and reads `2026-10-08` or `2026-1-8`, nothing else; a bare picker's
+  placeholder says `<yyyy-MM-dd>`. They used the culture's short pattern, which
+  is `MM/dd/yyyy` in the shipped app, so row details showed a date in another
+  shape than the grid cell it came from. `IsoDatePickerTests` types into a real
+  picker under the same four cultures.
   **Ranges and multiranges are written by pgNimbus, never by Npgsql's
   `ToString`** (2026-10, 1.0.1 release pass). `NpgsqlRange<T>.ToString` writes
   each bound in the process culture: a CSV export of a `tstzrange` came out as
