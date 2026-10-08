@@ -568,7 +568,8 @@ coalesces under a lock with at most one drain posted.
 Two gaps were left open and stated: a single cell is still read whole by Npgsql
 before the budget can refuse its row, and `CellText.Preview` formats a whole
 array or hstore literal before cutting it to 256 characters. Both want a
-per-cell cap with the full value fetched on demand in the inspector.
+per-cell cap with the full value fetched on demand in the inspector. The second
+was closed in #365 (2026-10): the literal writers stop at the preview's length.
 
 ### 17. A read-only profile was silently writable behind a pooler (Medium)
 
@@ -657,7 +658,7 @@ From the review's own table, with where each is recorded:
 
 | Item | Stated in |
 |---|---|
-| Per-cell materialisation cap; array/hstore preview formatting | PR #295, and CLAUDE.md's result-bounds bullet |
+| Per-cell materialisation cap (array/hstore preview formatting: closed in #365) | PR #295, and CLAUDE.md's result-bounds bullet |
 | `RequireAuth=scram-sha-256` | PR #299 |
 | SSH host certificates (`@cert-authority`) | CLAUDE.md, `docs/getting-started/connecting.md` |
 | Typed SQL not blocked on a read-only profile behind a pooler | tooltip, status line, `connecting.md`, CLAUDE.md |
