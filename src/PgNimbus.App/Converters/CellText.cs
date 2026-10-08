@@ -81,6 +81,9 @@ public static class CellText
         byte[] bytes => bytes.Length <= ByteaPreviewBytes
             ? "\\x" + Convert.ToHexString(bytes)
             : "\\x" + Convert.ToHexString(bytes.AsSpan(0, ByteaPreviewBytes)) + Ellipsis,
+        // bit(1) arrives as bool (bit(n>1) arrives as BitArray). Format as "1"/"0"
+        // so inline edits succeed (the editor sends text, and Postgres casts "1"/"0" to bit(1)).
+        bool b => b ? "1" : "0",
         // bit/varbit arrive as a BitArray, whose default ToString is
         // "System.Collections.BitArray". Render the bit string ("10110001",
         // most-significant bit first, matching Postgres) so it reads and, for
@@ -102,6 +105,8 @@ public static class CellText
         DateTime or DateTimeOffset or DateOnly or TimeOnly or TimeSpan when Temporal(value, dataTypeName) is { } text => text,
         byte[] bytes => "\\x" + Convert.ToHexString(bytes),
         BitArray bits => FormatBits(bits, bits.Count),
+        // bit(1) arrives as bool. Format as "1"/"0" for consistency with Preview().
+        bool b => b ? "1" : "0",
         _ => Literal(value, dataTypeName) ?? value.ToString() ?? string.Empty,
     };
 
