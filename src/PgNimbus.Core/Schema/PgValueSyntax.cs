@@ -170,11 +170,13 @@ public static class PgValueSyntax
     /// Postgres's own literal syntax — <c>{a,b,c}</c>, elements quoted by the
     /// server's rules — so the grid shows a readable, *editable* value instead
     /// of "System.String[]", and an F2 edit round-trips through
-    /// <c>CAST(text AS type[])</c> unchanged. A null element is written
-    /// <c>NULL</c> (the app's sessions read value-type arrays with nullable
-    /// elements, <see cref="Connections.ConnectionProfile.ArrayNullability"/>),
-    /// and a rectangular array keeps one brace level per dimension:
-    /// <c>{{1,NULL},{3,4}}</c>.
+    /// <c>CAST(text AS type[])</c> unchanged. That needs the value's shape kept:
+    /// a multi-dimensional array (a CLR <c>T[,]</c>) is written dimension by
+    /// dimension, <c>{{1,2},{3,4}}</c>, and a <c>bytea[]</c> (a <c>byte[][]</c>)
+    /// element by element as <c>\x</c>-hex. A null element is written
+    /// <c>NULL</c>; the app's sessions read value-type arrays with nullable
+    /// elements (<see cref="Connections.ConnectionProfile.ArrayNullability"/>),
+    /// so <c>{1,NULL,3}</c> arrives as an <c>int?[]</c>.
     /// </summary>
     /// <param name="array">The array.</param>
     /// <param name="formatElement">
@@ -183,14 +185,13 @@ public static class PgValueSyntax
     /// way Postgres prints them). Null, or a null answer, falls back to
     /// <see cref="InvariantText"/>.
     /// </param>
-    public static string FormatArray(Array array, Func<object, string?>? formatElement = null) =>
-        FormatArray(array, formatElement, int.MaxValue);
-
-    /// <summary>An exact prefix of the array literal, not necessarily a complete literal.</summary>
-    public static string FormatArray(Array array, int maxLength) => FormatArray(array, null, maxLength);
-
-    /// <summary>An exact prefix of the array literal, using the caller's element spelling.</summary>
-    public static string FormatArray(Array array, Func<object, string?>? formatElement, int maxLength)
+    /// <param name="maxLength">
+    /// The most characters to write. The result is then the literal's first
+    /// characters, never a different text, and the elements past them are not
+    /// formatted at all: the grid asks for one more character than a cell
+    /// shows, which is how it tells a whole literal from a longer one.
+    /// </param>
+    public static string FormatArray(Array array, Func<object, string?>? formatElement = null, int maxLength = int.MaxValue)
     {
         var sb = new LiteralBuilder(maxLength);
         AppendArray(sb, array, formatElement);
@@ -199,9 +200,12 @@ public static class PgValueSyntax
 
     private static void AppendArray(LiteralBuilder sb, Array array, Func<object, string?>? formatElement)
     {
-        if (array.Rank > 1)
+        // Npgsql reads multidimensional PostgreSQL arrays as rectangular CLR
+        // arrays. Their enumerator yields scalar elements, not nested arrays:
+        // retain each dimension instead of flattening them into one list.
+        if (array.Rank > 1 && array.Length > 0)
         {
-            AppendDimension(sb, array, formatElement, new int[array.Rank], 0);
+            AppendArrayDimension(sb, array, array.GetEnumerator(), 0, formatElement);
             return;
         }
 
@@ -229,25 +233,19 @@ public static class PgValueSyntax
         sb.Append('}');
     }
 
-    // Npgsql reads a multi-dimensional Postgres array as a rectangular CLR one
-    // ({{1,2},{3,4}} as int[2,2]), and a foreach over that yields its elements
-    // flat: the grid showed {1,2,3,4}, and an unchanged inline edit, which
-    // casts the cell's text back, wrote a one-dimensional array. Each
-    // dimension is a brace level, the last one's elements in row-major order.
-    // An array with no elements is {} whatever its rank, as Postgres writes it.
-    private static void AppendDimension(LiteralBuilder sb, Array array, Func<object, string?>? formatElement, int[] indices, int dimension)
+    private static void AppendArrayDimension(
+        LiteralBuilder sb,
+        Array array,
+        System.Collections.IEnumerator elements,
+        int dimension,
+        Func<object, string?>? formatElement)
     {
-        if (array.Length == 0)
-        {
-            sb.Append("{}");
-            return;
-        }
-
         sb.Append('{');
-        var lower = array.GetLowerBound(dimension);
-        var length = array.GetLength(dimension);
-        for (var i = 0; i < length; i++)
+        for (var i = 0; i < array.GetLength(dimension); i++)
         {
+            // As in the one-dimensional loop: past the cap nothing more would be
+            // written, so nothing more is formatted. Every enclosing level stops
+            // here too, so the shared enumerator left behind is never read again.
             if (sb.IsFull)
             {
                 break;
@@ -258,19 +256,17 @@ public static class PgValueSyntax
                 sb.Append(',');
             }
 
-            if (sb.IsFull)
+            if (dimension + 1 < array.Rank)
             {
-                break;
-            }
-
-            indices[dimension] = lower + i;
-            if (dimension == array.Rank - 1)
-            {
-                AppendElement(sb, array.GetValue(indices), formatElement);
+                AppendArrayDimension(sb, array, elements, dimension + 1, formatElement);
             }
             else
             {
-                AppendDimension(sb, array, formatElement, indices, dimension + 1);
+                elements.MoveNext();
+                if (!sb.IsFull)
+                {
+                    AppendElement(sb, elements.Current, formatElement);
+                }
             }
         }
 
@@ -284,12 +280,22 @@ public static class PgValueSyntax
             case null or DBNull:
                 sb.Append("NULL");
                 return;
-            case Array nested:
+            // bytea[] arrives as byte[][], and each byte[] is one bytea value,
+            // not a nested array of numbers: written as one, it read
+            // {{222,173,190,239}}, which casts back as a 2-D bytea[] of the digit
+            // strings.
+            case Array nested when nested is not byte[]:
                 AppendArray(sb, nested, formatElement);
                 return;
         }
 
-        var text = (value is bool ? null : formatElement?.Invoke(value)) ?? InvariantText(value);
+        // A bytea element is \x-hex, as a bytea cell shows it, which the quoting
+        // below wraps and escapes as the server does: {"\\xDEADBEEF"}. Its
+        // backslash is what decides the quoting, so a prefix converts only the
+        // bytes whose digits can still fit, two a byte, not a whole blob.
+        var text = value is byte[] bytes
+            ? "\\x" + Convert.ToHexString(bytes, 0, Math.Min(bytes.Length, (sb.Remaining / 2) + 1))
+            : (value is bool ? null : formatElement?.Invoke(value)) ?? InvariantText(value);
 
         // Postgres quotes an element when the bare form would be ambiguous:
         // empty, the word NULL, or containing a delimiter/quote/backslash/space.
@@ -301,7 +307,7 @@ public static class PgValueSyntax
 
         if (needsQuoting)
         {
-            AppendHstoreString(sb, text);
+            AppendQuoted(sb, text);
         }
         else
         {
@@ -397,30 +403,29 @@ public static class PgValueSyntax
     /// A multirange (an array of ranges, see <see cref="IsMultirangeType"/>) as
     /// its literal, <c>{[1,3),[5,7)}</c>: the ranges unquoted, unlike the
     /// elements of a range array. Null when an element is not a range.
-    /// With a length cap, returns an exact prefix; typed range arrays stop
-    /// formatting as soon as the cap is reached.
     /// </summary>
-    public static string? FormatMultirange(Array ranges, Func<object, string> formatBound) =>
-        FormatMultirange(ranges, formatBound, int.MaxValue);
-
-    /// <summary>An exact prefix of the multirange literal, or null when an element is not a range.</summary>
-    public static string? FormatMultirange(Array ranges, Func<object, string> formatBound, int maxLength)
+    /// <param name="ranges">The array of ranges.</param>
+    /// <param name="formatBound">How one bound is written before it is quoted.</param>
+    /// <param name="maxLength">
+    /// The most characters to write, as for <see cref="FormatArray"/>: the
+    /// result is the literal's first characters. It is still null whenever the
+    /// whole literal would be, which may mean reading past the cap.
+    /// </param>
+    public static string? FormatMultirange(Array ranges, Func<object, string> formatBound, int maxLength = int.MaxValue)
     {
         var sb = new LiteralBuilder(maxLength);
         sb.Append('{');
-        // Only a typed range array proves that an unseen element cannot force
-        // the caller's array-literal fallback. Heterogeneous arrays must still
-        // be validated to the end, even after their prefix has been written.
-        var knownRanges = ranges is NpgsqlTypes.NpgsqlRange<int>[]
-            or NpgsqlTypes.NpgsqlRange<long>[] or NpgsqlTypes.NpgsqlRange<short>[]
-            or NpgsqlTypes.NpgsqlRange<decimal>[] or NpgsqlTypes.NpgsqlRange<double>[]
-            or NpgsqlTypes.NpgsqlRange<float>[] or NpgsqlTypes.NpgsqlRange<DateOnly>[]
-            or NpgsqlTypes.NpgsqlRange<DateTime>[] or NpgsqlTypes.NpgsqlRange<DateTimeOffset>[]
-            or NpgsqlTypes.NpgsqlRange<TimeOnly>[] or NpgsqlTypes.NpgsqlRange<TimeSpan>[];
+        // One element that is not a range makes the whole value null (the
+        // caller falls back to the array literal), so a prefix may stop at the
+        // cap only once no later element can be anything else: in an array of
+        // one range struct type, which holds no null and no other type. An
+        // object[] or a Nullable<T>[] is read to the end.
+        var elementType = ranges.GetType().GetElementType();
+        var restAreRanges = false;
         var first = true;
         foreach (var item in ranges)
         {
-            if (sb.IsFull && knownRanges)
+            if (restAreRanges && sb.IsFull)
             {
                 break;
             }
@@ -430,6 +435,7 @@ public static class PgValueSyntax
                 return null;
             }
 
+            restAreRanges = elementType is { IsValueType: true } && item.GetType() == elementType;
             if (!first)
             {
                 sb.Append(',');
@@ -489,12 +495,14 @@ public static class PgValueSyntax
     /// — so the grid shows a readable value everywhere, not only in browse mode's
     /// text-format path. Both key and value are always double-quoted (the form
     /// Postgres itself emits); a null value is the bare keyword <c>NULL</c>.
-    /// With a length cap, returns an exact prefix without formatting the tail.
     /// </summary>
-    public static string FormatHstore(System.Collections.IDictionary map) => FormatHstore(map, int.MaxValue);
-
-    /// <summary>An exact prefix of the hstore literal, without formatting the tail.</summary>
-    public static string FormatHstore(System.Collections.IDictionary map, int maxLength)
+    /// <param name="map">The hstore value.</param>
+    /// <param name="maxLength">
+    /// The most characters to write, as for <see cref="FormatArray"/>: the
+    /// result is the literal's first characters, and the pairs past them are
+    /// not formatted.
+    /// </param>
+    public static string FormatHstore(System.Collections.IDictionary map, int maxLength = int.MaxValue)
     {
         var sb = new LiteralBuilder(maxLength);
         var first = true;
@@ -516,7 +524,7 @@ public static class PgValueSyntax
                 break;
             }
 
-            AppendHstoreString(sb, entry.Key.ToString() ?? string.Empty);
+            AppendQuoted(sb, entry.Key.ToString() ?? string.Empty);
             sb.Append("=>");
             if (sb.IsFull)
             {
@@ -529,29 +537,32 @@ public static class PgValueSyntax
             }
             else
             {
-                AppendHstoreString(sb, entry.Value.ToString() ?? string.Empty);
+                AppendQuoted(sb, entry.Value.ToString() ?? string.Empty);
             }
         }
 
         return sb.ToString();
     }
 
-    private static void AppendHstoreString(LiteralBuilder sb, string text)
+    // A double-quoted array element or hstore key or value, a backslash before
+    // each quote and backslash. Written a run at a time between the characters
+    // that need one, so the scan stays vectorized: a loop per character made a
+    // 4 MB element five times slower to export.
+    private static void AppendQuoted(LiteralBuilder sb, string text)
     {
         sb.Append('"');
-        foreach (var ch in text)
+        var rest = text.AsSpan();
+        while (!rest.IsEmpty && !sb.IsFull)
         {
-            if (sb.IsFull)
+            var escape = rest.IndexOfAny('\\', '"');
+            if (escape < 0)
             {
+                sb.Append(rest);
                 break;
             }
 
-            if (ch is '\\' or '"')
-            {
-                sb.Append('\\');
-            }
-
-            sb.Append(ch);
+            sb.Append(rest[..escape]).Append('\\').Append(rest[escape]);
+            rest = rest[(escape + 1)..];
         }
 
         sb.Append('"');
@@ -572,6 +583,9 @@ public static class PgValueSyntax
 
         public bool IsFull => builder.Length == maxLength;
 
+        /// <summary>How many more characters fit; int.MaxValue less what is written, for Full.</summary>
+        public int Remaining => maxLength - builder.Length;
+
         public LiteralBuilder Append(char value)
         {
             if (!IsFull)
@@ -582,9 +596,11 @@ public static class PgValueSyntax
             return this;
         }
 
-        public LiteralBuilder Append(string value)
+        public LiteralBuilder Append(string value) => Append(value.AsSpan());
+
+        public LiteralBuilder Append(ReadOnlySpan<char> value)
         {
-            builder.Append(value, 0, Math.Min(value.Length, maxLength - builder.Length));
+            builder.Append(value[..Math.Min(value.Length, maxLength - builder.Length)]);
             return this;
         }
 

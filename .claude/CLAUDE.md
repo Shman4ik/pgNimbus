@@ -2043,15 +2043,31 @@ Moved to [`.claude/rules/logo-assets.md`](rules/logo-assets.md), which loads whe
   too (PR #363 turned every boolean in the inspector into `1`).
   `QueryEngineBitStringTests` holds it against a real server. The `BitArray`
   arm stays for the one read the mask can't reach (a multi-statement command).
-  **Value-type arrays are read with nullable elements, and a multi-dimensional
-  one keeps its dimensions** (2026-10). Npgsql's default
-  `ArrayNullabilityMode.Never` reads an `integer[]` as `int[]` and throws for
-  `{1,NULL,3}`, so every int/date/uuid/numeric/range array holding a NULL showed
-  `<unreadable integer[]>`: no value and no edit. It also hid a concurrent
-  change: the row check reads a placeholder as Incomparable, so a commit
-  overwrote another session's edit that had put a NULL into the array. Now
-  `ConnectionProfile.ArrayNullability` is `Always`. `BuildConnectionString` sets
-  it, which covers `CreateDataSource` and the tester, and
+  **An array literal keeps the value's shape** (2026-10, #366 and the bytea[]
+  fix after it). Npgsql reads a 2-D array as a CLR `T[,]`, whose enumerator
+  runs flat, and `FormatArray` wrote `{{1,2},{3,4}}` as `{1,2,3,4}`; it reads
+  `bytea[]` as `byte[][]`, and each `byte[]` went down the nested-array branch
+  as `{{222,173,190,239}}`. Both cast back without an error, the first as a
+  1-D array and the second as a 2-D bytea[] of the digit strings, so an inline
+  edit that changed nothing else saved a different value. `FormatArray` now
+  walks by dimension (`GetLength(d)`) and writes a bytea element as quoted
+  `\x`-hex, `{"\\xDEADBEEF"}` (upper-case hex, as a bytea cell shows it); the
+  INSERT copy and `CellDisplay` share it, and JSON export writes nested arrays
+  per dimension too. Never `foreach` an `Array` that came from a reader where
+  the shape matters. Not kept: a lower bound other than 1
+  (`'[2:3]={5,6}'`), which Npgsql drops on read, so an edit re-bases it; and
+  CSV, TSV and Markdown still join a 2-D array's elements with `;`, flat, as
+  they join a 1-D one.
+  `ArrayLiteralRoundTripTests` casts every shape back on a real server, and
+  stages the shown text as an edit through safe mode's row check.
+  **Value-type arrays are read with nullable elements** (2026-10). Npgsql's
+  default `ArrayNullabilityMode.Never` reads an `integer[]` as `int[]` and
+  throws for `{1,NULL,3}`, so every int/date/uuid/numeric/range array holding a
+  NULL showed `<unreadable integer[]>`: no value and no edit. It also hid a
+  concurrent change: the row check reads a placeholder as Incomparable, so a
+  commit overwrote another session's edit that had put a NULL into the array.
+  Now `ConnectionProfile.ArrayNullability` is `Always`. `BuildConnectionString`
+  sets it, which covers `CreateDataSource` and the tester, and
   `ConnectionProfile.ForAppSession` sets it for `PGNIMBUS_CONN`. Every data
   source the app builds must go through one of the two. **Always, not
   PerInstance**: PerInstance reads `int[]` or `int?[]` by row, two CLR types in
@@ -2061,17 +2077,12 @@ Moved to [`.claude/rules/logo-assets.md`](rules/logo-assets.md), which loads whe
   arrays with one. Npgsql reports `System.Array` as the field type under every
   mode, so `ColumnInfo.ClrType` and the describe's text mask do not change, and
   elements box the same (`CellValueComparer` finds `int[]` and `int?[]` equal
-  element by element). Npgsql reads `{{1,2},{3,4}}` as a rectangular
-  `int?[2,2]`, whose `foreach` is flat. `PgValueSyntax.FormatArray` walks it by
-  dimension: the grid showed `{1,NULL,3,4}`, and an unchanged inline edit cast
-  that back as a one-dimensional array. The JSON export does the same
-  (`[[1,null],[3,4]]`); the CSV/TSV `;`-joined form stays flat. Filter by cell
-  writes an array as its literal (`RowFilterSql.ValueText`, which needs the
-  column's type for a multirange); it wrote `System.Int32[]`. Not handled: a
-  non-default lower bound (`[0:2]={…}`), which Npgsql drops, so an edit writes
-  the array back starting at 1. `QueryEngineNullableArrayTests` reads, shows,
-  filters and saves such arrays through safe mode (row check included) against
-  a real server, and checks that a NULL put in elsewhere is a conflict.
+  element by element). Filter by cell writes an array as its literal
+  (`RowFilterSql.ValueText`, which needs the column's type for a multirange); it
+  wrote `System.Int32[]` and matched nothing. `QueryEngineNullableArrayTests`
+  reads, shows, filters and saves such arrays through safe mode (row check
+  included) against a real server, and checks that a NULL put in elsewhere is a
+  conflict.
 - **Safe mode's commit is optimistic-concurrency checked, and a conflict rolls
   back the whole batch** (2026-09). Staging an edit or delete hands
   `PendingChangeSet` a `RowSnapshot` — the row's loaded table columns as the grid
@@ -2259,14 +2270,23 @@ Moved to [`.claude/rules/logo-assets.md`](rules/logo-assets.md), which loads whe
   that leaves the floor untouched while staying ~3× what the widest column can
   actually show. Folding newlines to spaces is the same argument from the other
   side: a 40-line stack trace made its row 40 lines tall.
-  Arrays, hstore and typed multiranges write only `PreviewLength + 1` literal
-  characters for both the preview and `IsShortened`; the extra character tells
-  a complete value from a prefix. Escaping shares that budget, including nested
-  arrays, while `Full` still writes everything. Array elements still need a full
-  quoting scan (a late delimiter changes the opening quote), and heterogeneous
-  multiranges still validate every element to preserve the array fallback.
-  `CellTextPrefixTests` and `PgValuePrefixTests` hold prefix equivalence,
-  formatter-call budgets and capped escaping allocations.
+  **An array, multirange or hstore literal stops at the cap too** (2026-10,
+  #365): it used to be built whole and then cut, so a ten-thousand-element array
+  cost ten thousand conversions per realized cell. `PgValueSyntax.FormatArray`,
+  `FormatMultirange` and `FormatHstore` take a `maxLength` and return exactly
+  the literal's first characters, and `Preview`/`IsShortened` ask for
+  `PreviewLength + 1`, the one extra character being what tells a literal of
+  256 from a longer one; `Full` asks for all of it. Two things are still read
+  whole, because the text before the cap depends on them: an element's quoting
+  (a delimiter past the cap changes its opening quote), and a multirange's
+  elements unless the array is of one range struct type (a single non-range
+  element makes the value fall back to the array literal). Escaping goes a run
+  at a time between the characters it escapes: a loop per character had made a
+  4 MB element five times slower to export. The walk over a 2-D array's
+  dimensions stops at the cap the same way, and a bytea element converts only
+  the bytes whose hex can still fit. `CellTextPrefixTests` and
+  `PgValuePrefixTests` hold the prefix, the formatter-call budget and the
+  allocations.
   **The safety half is not optional.** The DataGrid pre-fills its inline editor
   from the column's own display binding — i.e. from the preview — so a cell
   showing less than it holds must not be edited inline, or committing an
@@ -2422,8 +2442,8 @@ Moved to [`.claude/rules/logo-assets.md`](rules/logo-assets.md), which loads whe
   **Not bounded yet**, as the audit also asked: a single cell is still read
   whole by Npgsql before the budget can refuse its row (a 500 MB cell costs
   500 MB). That still wants a per-cell read cap with the full value fetched on
-  demand in the inspector; literal preview formatting is capped separately as
-  described under `CellText` above.
+  demand in the inspector. The audit's other gap, an array or hstore preview
+  built whole before it was cut, closed in #365 (the grid-preview bullet above).
   **Safe for Spreadsheets** (security audit 2026-09, finding 18, CSV formula
   injection) is a checkbox at the foot of the command bar's Export menu,
   `AppSettings.SpreadsheetSafeExport`, off by default because the quote changes

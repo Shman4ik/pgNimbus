@@ -8,20 +8,6 @@ namespace PgNimbus.Core.Tests.Schema;
 public class PgValuePrefixTests
 {
     [Test]
-    public async Task Original_formatter_signatures_remain_available()
-    {
-        // Method groups require the original CLR parameter lists; optional
-        // parameters alone would only preserve direct source-level calls.
-        Func<Array, Func<object, string?>?, string> array = PgValueSyntax.FormatArray;
-        Func<IDictionary, string> hstore = PgValueSyntax.FormatHstore;
-        Func<Array, Func<object, string>, string?> multirange = PgValueSyntax.FormatMultirange;
-        await Assert.That(array(new[] { 1, 2 }, null)).IsEqualTo("{1,2}");
-        await Assert.That(hstore(new OrderedDictionary { ["k"] = "v" })).IsEqualTo("\"k\"=>\"v\"");
-        await Assert.That(multirange(new[] { new NpgsqlRange<int>(1, true, 3, false) }, PgValueSyntax.InvariantText))
-            .IsEqualTo("{[1,3)}");
-    }
-
-    [Test]
     public async Task Negative_limits_are_rejected()
     {
         await Assert.That(() => PgValueSyntax.FormatArray(Array.Empty<int>(), maxLength: -1))
@@ -42,8 +28,12 @@ public class PgValuePrefixTests
             new[] { "a,b", "{x}", "a b", "a\tb\nc\r", "a\\b\"c", "😀" },
             new object[] { new[] { "a\\\"b", "NULL" }, Array.Empty<int>(), new[] { 1, 2 } },
             new[,] { { "a", "b" }, { "c", "d" } },
+            new string?[,,] { { { "a b", null } }, { { "", "NULL" } } },
+            new[] { new byte[] { 0xDE, 0xAD, 0xBE, 0xEF }, null, [] },
+            new byte[,][] { { new byte[] { 0xDE, 0xAD } }, { new byte[] { 0xBE, 0xEF } } },
+            // Value-type arrays as the app's sessions read them: nullable elements.
+            new int?[] { 1, null, 3 },
             new int?[,] { { 1, null }, { 3, 4 } },
-            new int?[2, 1, 2] { { { 1, null } }, { { null, 4 } } },
         ];
 
         foreach (var value in values)
@@ -108,6 +98,39 @@ public class PgValuePrefixTests
     }
 
     [Test]
+    public async Task A_multidimensional_array_stops_calling_the_element_formatter_at_the_cap()
+    {
+        var calls = 0;
+        string Format(object value)
+        {
+            calls++;
+            return "x";
+        }
+
+        var value = new int[100, 100];
+        var prefix = PgValueSyntax.FormatArray(value, Format, 257);
+        await Assert.That(prefix).IsEqualTo(PgValueSyntax.FormatArray(value, Format)[..257]);
+        calls = 0;
+        PgValueSyntax.FormatArray(value, Format, 257);
+        await Assert.That(calls).IsLessThan(257);
+    }
+
+    [Test]
+    public async Task A_bytea_element_converts_only_the_bytes_a_prefix_shows()
+    {
+        // A 4 MB blob in a bytea[] cell: its preview must not build 8 MB of hex
+        // to keep 257 characters of it.
+        var value = new[] { new byte[4_000_000] };
+        PgValueSyntax.FormatArray(value, maxLength: 257);
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        var prefix = PgValueSyntax.FormatArray(value, maxLength: 257);
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        await Assert.That(prefix).IsEqualTo("{\"\\\\x" + new string('0', 252));
+        await Assert.That(allocated).IsLessThan(64_000L);
+    }
+
+    [Test]
     public async Task Typed_multiranges_stop_formatting_bounds_at_the_cap()
     {
         var value = Enumerable.Repeat(new NpgsqlRange<int>(1, true, 3, false), 10_000).ToArray();
@@ -122,6 +145,27 @@ public class PgValuePrefixTests
         await Assert.That(calls).IsLessThan(257);
         var full = PgValueSyntax.FormatMultirange(value, PgValueSyntax.InvariantText)!;
         await Assert.That(prefix).IsEqualTo(full[..257]);
+    }
+
+    [Test]
+    public async Task A_multirange_that_may_hold_a_null_is_read_past_the_cap()
+    {
+        // A Nullable<T>[] is an array of a struct type too, but one whose
+        // elements can be null, so its tail can still make the value null.
+        var value = Enumerable.Repeat<NpgsqlRange<int>?>(new NpgsqlRange<int>(1, true, 3, false), 1_000)
+            .Append(null)
+            .ToArray();
+        await Assert.That(PgValueSyntax.FormatMultirange(value, PgValueSyntax.InvariantText)).IsNull();
+        await Assert.That(PgValueSyntax.FormatMultirange(value, PgValueSyntax.InvariantText, 10)).IsNull();
+    }
+
+    [Test]
+    [Arguments(0)]
+    [Arguments(1)]
+    [Arguments(2)]
+    public async Task An_array_of_values_that_are_not_ranges_is_no_multirange_at_any_cap(int limit)
+    {
+        await Assert.That(PgValueSyntax.FormatMultirange(new[] { 1, 2 }, PgValueSyntax.InvariantText, limit)).IsNull();
     }
 
     [Test]

@@ -13,9 +13,8 @@ namespace PgNimbus.Core.Tests.Query;
 /// source the app builds now reads such arrays with nullable elements
 /// (<see cref="ConnectionProfile.ArrayNullability"/>), so the cell shows the
 /// literal the server prints, and that literal saves back unchanged through
-/// safe mode's batch, row check included. <c>{{1,NULL},{3,4}}</c> also used to
-/// show as <c>{1,NULL,3,4}</c>, and its unchanged edit wrote a one-dimensional
-/// array.
+/// safe mode's batch, row check included. The shapes themselves (2-D, bytea[])
+/// are <see cref="ArrayLiteralRoundTripTests"/>'; these are the NULL elements.
 ///
 /// The offline half checks what the connection strings ask for; the rest is
 /// gated on <c>PGNIMBUS_TEST_CONN</c> like <see cref="QueryEngineBitStringTests"/>.

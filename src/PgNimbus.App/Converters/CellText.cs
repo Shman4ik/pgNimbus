@@ -139,9 +139,15 @@ public static class CellText
     /// <c>"k"=&gt;"v"</c> — browse mode already re-requests it as text, but a
     /// hand-written SELECT gets the raw dictionary.</item>
     /// </list>
+    /// <para>
+    /// <paramref name="maxLength"/> stops an array, multirange or hstore literal
+    /// after that many characters, so a cell holding ten thousand elements
+    /// formats a hundred or so. <see cref="Preview"/> and <see cref="IsShortened"/>
+    /// ask for one past <see cref="PreviewLength"/>, which is what tells a
+    /// literal of exactly that length from a longer one; <see cref="Full"/> asks
+    /// for all of it.
+    /// </para>
     /// </summary>
-    // One character past the cap distinguishes a complete literal from a
-    // prefix, including a surrogate pair straddling the cut. Full uses no cap.
     private static string? Literal(object value, string? dataTypeName, int maxLength = int.MaxValue)
     {
         switch (value)

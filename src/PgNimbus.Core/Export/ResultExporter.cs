@@ -266,11 +266,10 @@ public static class ResultExporter
 
     private static string FormatBound(object bound) => FormatCsvValue(bound);
 
-    // An element inside a Postgres array literal: bytea as \x-hex (the literal's
-    // own form, where a CSV cell takes base64), anything else as its cell text,
-    // which the literal then quotes.
-    private static string FormatArrayElement(object element) =>
-        element is byte[] bytes ? "\\x" + Convert.ToHexString(bytes) : FormatCsvValue(element);
+    // An element inside a Postgres array literal: its cell text, which the
+    // literal then quotes. A bytea element never gets here: FormatArray writes
+    // it as \x-hex itself (the literal's own form, where a CSV cell takes base64).
+    private static string FormatArrayElement(object element) => FormatCsvValue(element);
 
     private static string EscapeCsvField(string value) =>
         value.IndexOfAny([',', '"', '\n', '\r']) < 0 ? value : $"\"{value.Replace("\"", "\"\"")}\"";
@@ -378,17 +377,8 @@ public static class ResultExporter
             case byte[] bytes:
                 writer.WriteStringValue(Convert.ToBase64String(bytes));
                 break;
-            case Array { Rank: > 1 } array:
-                WriteJsonDimension(writer, array, new int[array.Rank], 0);
-                break;
             case Array array:
-                writer.WriteStartArray();
-                foreach (var item in array)
-                {
-                    WriteJsonValue(writer, item);
-                }
-
-                writer.WriteEndArray();
+                WriteJsonArray(writer, array, array.GetEnumerator(), 0);
                 break;
             // hstore (Dictionary<string,string>) is naturally a JSON object —
             // faithful and machine-readable, matching how arrays serialize
@@ -409,24 +399,22 @@ public static class ResultExporter
         }
     }
 
-    // A multi-dimensional Postgres array arrives as a rectangular CLR one
-    // (int?[2,2]), whose foreach is flat: {{1,NULL},{3,4}} was written as
-    // [1,null,3,4]. One JSON array per dimension, as Postgres's own to_json
-    // writes it: [[1,null],[3,4]].
-    private static void WriteJsonDimension(Utf8JsonWriter writer, Array array, int[] indices, int dimension)
+    // One JSON array per dimension: Npgsql reads a 2-D Postgres array as a CLR
+    // T[,], whose enumerator runs flat (row-major), so a plain foreach wrote
+    // {{1,2},{3,4}} as [1,2,3,4].
+    private static void WriteJsonArray(Utf8JsonWriter writer, Array array, System.Collections.IEnumerator elements, int dimension)
     {
         writer.WriteStartArray();
-        var lower = array.GetLowerBound(dimension);
         for (var i = 0; i < array.GetLength(dimension); i++)
         {
-            indices[dimension] = lower + i;
-            if (dimension == array.Rank - 1)
+            if (dimension + 1 < array.Rank)
             {
-                WriteJsonValue(writer, array.GetValue(indices));
+                WriteJsonArray(writer, array, elements, dimension + 1);
             }
             else
             {
-                WriteJsonDimension(writer, array, indices, dimension + 1);
+                elements.MoveNext();
+                WriteJsonValue(writer, elements.Current);
             }
         }
 
