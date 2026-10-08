@@ -2060,6 +2060,29 @@ Moved to [`.claude/rules/logo-assets.md`](rules/logo-assets.md), which loads whe
   they join a 1-D one.
   `ArrayLiteralRoundTripTests` casts every shape back on a real server, and
   stages the shown text as an edit through safe mode's row check.
+  **Value-type arrays are read with nullable elements** (2026-10). Npgsql's
+  default `ArrayNullabilityMode.Never` reads an `integer[]` as `int[]` and
+  throws for `{1,NULL,3}`, so every int/date/uuid/numeric/range array holding a
+  NULL showed `<unreadable integer[]>`: no value and no edit. It also hid a
+  concurrent change: the row check reads a placeholder as Incomparable, so a
+  commit overwrote another session's edit that had put a NULL into the array.
+  Now `ConnectionProfile.ArrayNullability` is `Always`. `BuildConnectionString`
+  sets it, which covers `CreateDataSource` and the tester, and
+  `ConnectionProfile.ForAppSession` sets it for `PGNIMBUS_CONN`. Every data
+  source the app builds must go through one of the two. **Always, not
+  PerInstance**: PerInstance reads `int[]` or `int?[]` by row, two CLR types in
+  one column (the grid's sort falls back to `ToString` for arrays, so it would
+  group rows by whether they held a NULL). Always gives one shape whatever the
+  data, so a path tested on arrays without a NULL is the path that runs on
+  arrays with one. Npgsql reports `System.Array` as the field type under every
+  mode, so `ColumnInfo.ClrType` and the describe's text mask do not change, and
+  elements box the same (`CellValueComparer` finds `int[]` and `int?[]` equal
+  element by element). Filter by cell writes an array as its literal
+  (`RowFilterSql.ValueText`, which needs the column's type for a multirange); it
+  wrote `System.Int32[]` and matched nothing. `QueryEngineNullableArrayTests`
+  reads, shows, filters and saves such arrays through safe mode (row check
+  included) against a real server, and checks that a NULL put in elsewhere is a
+  conflict.
 - **Safe mode's commit is optimistic-concurrency checked, and a conflict rolls
   back the whole batch** (2026-09). Staging an edit or delete hands
   `PendingChangeSet` a `RowSnapshot` — the row's loaded table columns as the grid

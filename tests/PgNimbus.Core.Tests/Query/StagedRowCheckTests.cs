@@ -28,6 +28,22 @@ public class StagedRowCheckTests
         await Assert.That(CellValueComparer.Compare(new[,] { { 1, 2 }, { 3, 4 } }, new[] { 1, 2, 3, 4 })).IsEqualTo(CellComparison.Different);
     }
 
+    // The app's sessions read value-type arrays with nullable elements
+    // (ConnectionProfile.ArrayNullability); a snapshot taken under another
+    // setting, or by a caller holding an int[], must still match the re-read.
+    [Test]
+    public async Task An_array_compares_by_its_elements_whether_or_not_they_are_nullable()
+    {
+        await Assert.That(CellValueComparer.Compare(new[] { 1, 2, 3 }, new int?[] { 1, 2, 3 })).IsEqualTo(CellComparison.Equal);
+        await Assert.That(CellValueComparer.Compare(new int?[] { 1, null, 3 }, new int?[] { 1, null, 3 })).IsEqualTo(CellComparison.Equal);
+        await Assert.That(CellValueComparer.Compare(new[,] { { 1, 2 }, { 3, 4 } }, new int?[,] { { 1, 2 }, { 3, 4 } })).IsEqualTo(CellComparison.Equal);
+        await Assert.That(CellValueComparer.Compare(new int?[,] { { 1, null }, { 3, 4 } }, new int?[,] { { 1, null }, { 3, 4 } })).IsEqualTo(CellComparison.Equal);
+
+        await Assert.That(CellValueComparer.Compare(new int?[] { 1, null, 3 }, new int?[] { 1, 2, 3 })).IsEqualTo(CellComparison.Different);
+        await Assert.That(CellValueComparer.Compare(new[] { 1, 2, 3 }, new int?[] { 1, null, 3 })).IsEqualTo(CellComparison.Different);
+        await Assert.That(CellValueComparer.Compare(new int?[,] { { 1, null }, { 3, 4 } }, new int?[] { 1, null, 3, 4 })).IsEqualTo(CellComparison.Different);
+    }
+
     [Test]
     public async Task UnreadablePlaceholdersAndMixedWireFormatsAreNotComparable()
     {

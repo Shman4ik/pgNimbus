@@ -172,10 +172,18 @@ public static class RowFilterSql
     /// offset-less literal would be read in the session's time zone instead.
     /// Infinity is the word: Npgsql reads it as <see cref="DateTime.MaxValue"/>,
     /// which written as a date is a finite one, and the filter matched nothing.
+    /// An array is its literal (<c>{1,NULL,3}</c>), which is what the text search
+    /// an array column gets reads in <c>column::text</c>; it was written with
+    /// <c>ToString</c>, <c>System.Int32[]</c>, and matched nothing either. Pass
+    /// the column's wire type: only it tells a multirange, whose literal is
+    /// <c>{[1,3),[5,7)}</c>, from an array of ranges.
     /// </summary>
-    public static string ValueText(object value) => value switch
+    public static string ValueText(object value, string? dataTypeName = null) => value switch
     {
         _ when PgValueSyntax.TemporalInfinity(value) is { } infinity => infinity,
+        Array array when PgValueSyntax.IsMultirangeType(dataTypeName)
+            && PgValueSyntax.FormatMultirange(array, ElementText) is { } multirange => multirange,
+        Array array => PgValueSyntax.FormatArray(array, ElementText),
         DateTime { Kind: DateTimeKind.Utc } dt => dt.ToString("yyyy-MM-dd HH:mm:ss.FFFFFF", CultureInfo.InvariantCulture) + "+00",
         DateTime dt => dt.ToString("yyyy-MM-dd HH:mm:ss.FFFFFF", CultureInfo.InvariantCulture),
         DateTimeOffset dto => dto.ToString("yyyy-MM-dd HH:mm:ss.FFFFFFzzz", CultureInfo.InvariantCulture),
@@ -185,10 +193,13 @@ public static class RowFilterSql
         // A range's own ToString writes its bounds in the process culture and
         // drops a timestamp's fraction and zone, so filtering by a range cell
         // matched nothing; each bound is written as its own cell would be.
-        _ when PgValueSyntax.FormatRange(value, ValueText) is { } range => range,
+        _ when PgValueSyntax.FormatRange(value, ElementText) is { } range => range,
         IFormattable f => f.ToString(null, CultureInfo.InvariantCulture),
         _ => value.ToString() ?? string.Empty,
     };
+
+    // An array element or a range bound, written as its own cell would be.
+    private static string ElementText(object value) => ValueText(value);
 
     // Escapes LIKE's wildcards so a typed "50%" matches the text "50%" and not
     // everything starting with "50". Backslash is LIKE's default escape

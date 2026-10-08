@@ -66,6 +66,20 @@ public class PgValueSyntaxTests
         await Assert.That(PgValueSyntax.FormatArray(new string?[] { "a", null })).IsEqualTo("{a,NULL}");
     }
 
+    // What Npgsql hands over for a value-type array under the app's
+    // ArrayNullabilityMode.Always: Nullable<T> elements, in any number of
+    // dimensions. A null element is NULL, and the element formatter never sees it.
+    [Test]
+    public async Task Formats_arrays_with_nullable_elements()
+    {
+        await Assert.That(PgValueSyntax.FormatArray(new int?[] { 1, null, 3 })).IsEqualTo("{1,NULL,3}");
+        await Assert.That(PgValueSyntax.FormatArray(new bool?[] { true, null })).IsEqualTo("{t,NULL}");
+        await Assert.That(PgValueSyntax.FormatArray(new int?[,] { { 1, null }, { 3, 4 } })).IsEqualTo("{{1,NULL},{3,4}}");
+        await Assert.That(PgValueSyntax.FormatArray(new int?[2, 1, 2] { { { 1, 2 } }, { { null, 4 } } })).IsEqualTo("{{{1,2}},{{NULL,4}}}");
+        await Assert.That(PgValueSyntax.FormatArray(new int?[,] { { 1, null }, { 3, 4 } }, e => $"<{e}>"))
+            .IsEqualTo("{{<1>,NULL},{<3>,<4>}}");
+    }
+
     [Test]
     public async Task FormatsHstoreDictionariesAsPostgresLiterals()
     {

@@ -173,7 +173,10 @@ public static class PgValueSyntax
     /// <c>CAST(text AS type[])</c> unchanged. That needs the value's shape kept:
     /// a multi-dimensional array (a CLR <c>T[,]</c>) is written dimension by
     /// dimension, <c>{{1,2},{3,4}}</c>, and a <c>bytea[]</c> (a <c>byte[][]</c>)
-    /// element by element as <c>\x</c>-hex.
+    /// element by element as <c>\x</c>-hex. A null element is written
+    /// <c>NULL</c>; the app's sessions read value-type arrays with nullable
+    /// elements (<see cref="Connections.ConnectionProfile.ArrayNullability"/>),
+    /// so <c>{1,NULL,3}</c> arrives as an <c>int?[]</c>.
     /// </summary>
     /// <param name="array">The array.</param>
     /// <param name="formatElement">

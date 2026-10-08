@@ -31,6 +31,9 @@ public class PgValuePrefixTests
             new string?[,,] { { { "a b", null } }, { { "", "NULL" } } },
             new[] { new byte[] { 0xDE, 0xAD, 0xBE, 0xEF }, null, [] },
             new byte[,][] { { new byte[] { 0xDE, 0xAD } }, { new byte[] { 0xBE, 0xEF } } },
+            // Value-type arrays as the app's sessions read them: nullable elements.
+            new int?[] { 1, null, 3 },
+            new int?[,] { { 1, null }, { 3, 4 } },
         ];
 
         foreach (var value in values)

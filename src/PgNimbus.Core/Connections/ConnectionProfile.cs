@@ -128,6 +128,39 @@ public sealed record ConnectionProfile(
     }
 
     /// <summary>
+    /// How every session the app opens reads an array of a value type
+    /// (<c>integer[]</c>, <c>date[]</c>, <c>uuid[]</c>, <c>numeric[]</c>, a range
+    /// array …): always with nullable elements, <c>int?[]</c>.
+    /// <para>
+    /// Npgsql's default, <see cref="ArrayNullabilityMode.Never"/>, reads such an
+    /// array as <c>int[]</c> and throws when one of its elements is NULL, and
+    /// the engine's per-cell guard turned that into
+    /// <c>&lt;unreadable integer[]&gt;</c>: a whole column of a real table showed
+    /// no value and could not be edited, for every row holding a NULL element.
+    /// <see cref="ArrayNullabilityMode.PerInstance"/> would read it too, but as
+    /// <c>int[]</c> or <c>int?[]</c> depending on the row, two CLR types in one
+    /// column, so a path tested on arrays with no NULL could still break on one
+    /// with. Always is one shape per column whatever the data. Npgsql reports
+    /// <see cref="Array"/> as the field type under every mode, so the column's
+    /// metadata does not change; elements box the same, as a value or null; the
+    /// cost is a wider element (8 bytes for an <c>int?</c>). Reference-type
+    /// arrays (<c>text[]</c>) are unaffected, they always carried null.
+    /// </para>
+    /// </summary>
+    public const ArrayNullabilityMode ArrayNullability = ArrayNullabilityMode.Always;
+
+    /// <summary>
+    /// <paramref name="connectionString"/> as the app connects with it, for the
+    /// strings that do not come from a profile (<c>PGNIMBUS_CONN</c>): the same
+    /// <see cref="StandardStringsSessionOption"/> (<see cref="WithStandardStrings"/>)
+    /// and <see cref="ArrayNullability"/> that <see cref="BuildConnectionString"/>
+    /// gives a profile.
+    /// </summary>
+    public static string ForAppSession(string connectionString) =>
+        new NpgsqlConnectionStringBuilder(WithStandardStrings(connectionString)) { ArrayNullabilityMode = ArrayNullability }
+            .ConnectionString;
+
+    /// <summary>
     /// One-line "who and where" for the connection list —
     /// <c>postgres@db.example.com/analytics</c>, with the port shown only when
     /// it isn't 5432 (the default is noise on every row). Enough to tell two
@@ -163,6 +196,7 @@ public sealed record ConnectionProfile(
             CommandTimeout = 0,
             IncludeErrorDetail = true,
             ApplicationName = "pgNimbus",
+            ArrayNullabilityMode = ArrayNullability,
         };
 
         builder.Options = SessionOptions(ReadOnly);

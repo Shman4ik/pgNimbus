@@ -136,4 +136,21 @@ public class RowFilterSqlTests
         await Assert.That(RowFilterSql.ValueText(12.5m)).IsEqualTo("12.5");
         await Assert.That(RowFilterSql.ValueText(true)).IsEqualTo("true");
     }
+
+    // An array column's filter is a text search over column::text, so filter by
+    // cell must write the array the way the server prints it. It wrote ToString,
+    // "System.Int32[]", and matched nothing.
+    [Test]
+    public async Task ValueText_writes_an_array_as_its_literal()
+    {
+        await Assert.That(RowFilterSql.ValueText(new int?[] { 1, null, 3 }, "integer[]")).IsEqualTo("{1,NULL,3}");
+        await Assert.That(RowFilterSql.ValueText(new int?[,] { { 1, null }, { 3, 4 } }, "integer[]")).IsEqualTo("{{1,NULL},{3,4}}");
+        await Assert.That(RowFilterSql.ValueText(new DateOnly?[] { new DateOnly(2026, 7, 14), null }, "date[]")).IsEqualTo("{2026-07-14,NULL}");
+        await Assert.That(RowFilterSql.ValueText(new[] { "a b", "c" }, "text[]")).IsEqualTo("""{"a b",c}""");
+
+        // Only the column's type tells a multirange from an array of ranges.
+        NpgsqlTypes.NpgsqlRange<int>[] ranges = [new(1, true, 3, false), new(5, true, 7, false)];
+        await Assert.That(RowFilterSql.ValueText(ranges, "int4multirange")).IsEqualTo("{[1,3),[5,7)}");
+        await Assert.That(RowFilterSql.ValueText(ranges, "int4range[]")).IsEqualTo("""{"[1,3)","[5,7)"}""");
+    }
 }

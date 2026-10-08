@@ -1166,6 +1166,10 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
     // keeps one composite column from failing an entire result set. Only the two
     // "this type can't become an object" exceptions are caught: anything else
     // (a dropped connection mid-row) must still surface as the error it is.
+    // An int[] holding a NULL element used to land here too (Npgsql's default
+    // array nullability throws for it); the app's data sources read such arrays
+    // as int?[] (ConnectionProfile.ArrayNullability), and one built without
+    // that setting still gets the placeholder rather than a failed result.
     private static object? ReadValue(NpgsqlDataReader reader, int column)
     {
         try

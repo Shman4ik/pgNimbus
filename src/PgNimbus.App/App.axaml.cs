@@ -612,11 +612,12 @@ public partial class App : Application
     /// for it when nobody is sitting in a connect form.
     /// </summary>
     internal static MainWindow BuildMainWindow(string connectionString) =>
-        // A profile forces standard_conforming_strings on in its Options; this
-        // string comes from nowhere near a profile, so the same option is added
-        // here, or the literals the app composes would parse differently on
-        // this one path (finding 13).
-        BuildMainWindow(NpgsqlDataSource.Create(ConnectionProfile.WithStandardStrings(connectionString)));
+        // A profile forces standard_conforming_strings on in its Options and
+        // reads value-type arrays with nullable elements; this string comes from
+        // nowhere near a profile, so both are added here, or the literals the
+        // app composes would parse differently on this one path (finding 13)
+        // and an int[] holding a NULL would be unreadable.
+        BuildMainWindow(NpgsqlDataSource.Create(ConnectionProfile.ForAppSession(connectionString)));
 
     /// <summary>
     /// Builds a connected window around an existing <paramref name="dataSource"/>

@@ -42,6 +42,18 @@ public sealed class ResultExporterArrayTests
         await Assert.That(Compact(JsonCell(new int[0, 2]))).IsEqualTo("[]");
     }
 
+    // Value-type arrays arrive with nullable elements (int?[], int?[,]):
+    // ConnectionProfile.ArrayNullability. A NULL element is null in JSON and
+    // NULL in the literal an INSERT copy writes.
+    [Test]
+    public async Task Null_elements_of_a_value_type_array_survive_json_and_insert()
+    {
+        await Assert.That(Compact(JsonCell(new int?[] { 1, null, 3 }))).IsEqualTo("[1,null,3]");
+        await Assert.That(Compact(JsonCell(new int?[,] { { 1, null }, { 3, 4 } }))).IsEqualTo("[[1,null],[3,4]]");
+        await Assert.That(ResultExporter.FormatSqlLiteral(new int?[] { 1, null, 3 }, "integer[]")).IsEqualTo("'{1,NULL,3}'");
+        await Assert.That(ResultExporter.FormatSqlLiteral(new int?[,] { { 1, null }, { 3, 4 } }, "integer[]")).IsEqualTo("'{{1,NULL},{3,4}}'");
+    }
+
     [Test]
     public async Task Json_writes_a_bytea_array_as_one_base64_string_per_element()
     {
