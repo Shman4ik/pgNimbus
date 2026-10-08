@@ -62,6 +62,22 @@ public class CellTextPrefixTests
         await MatchesFull(new NpgsqlRange<int>(1, true, 5, false), "int4range");
     }
 
+    // A value-type array as the app's sessions read it (nullable elements) and
+    // a two-dimensional one: the grid shows the literal, which is also what the
+    // inline editor is pre-filled with and casts back, so it must be the whole
+    // value in Postgres's own shape, never a flattened {1,NULL,3,4}.
+    [Test]
+    public async Task Nullable_and_multi_dimensional_arrays_show_their_literal()
+    {
+        await Assert.That(CellText.Preview(new int?[] { 1, null, 3 }, "integer[]")).IsEqualTo("{1,NULL,3}");
+        await Assert.That(CellText.Preview(new int?[,] { { 1, null }, { 3, 4 } }, "integer[]")).IsEqualTo("{{1,NULL},{3,4}}");
+        await Assert.That(CellText.Full(new int?[,] { { 1, null }, { 3, 4 } }, "integer[]")).IsEqualTo("{{1,NULL},{3,4}}");
+        await Assert.That(CellText.IsShortened(new int?[,] { { 1, null }, { 3, 4 } }, "integer[]")).IsFalse();
+        await Assert.That(CellText.Preview(new DateOnly?[] { new DateOnly(2026, 7, 20), null }, "date[]")).IsEqualTo("{2026-07-20,NULL}");
+        await MatchesFull(new int?[,] { { 1, null }, { 3, 4 } }, "integer[]");
+        await MatchesFull(new decimal?[200, 2], "numeric[]");
+    }
+
     [Test]
     public async Task An_invalid_multirange_tail_keeps_the_array_fallback()
     {

@@ -378,6 +378,9 @@ public static class ResultExporter
             case byte[] bytes:
                 writer.WriteStringValue(Convert.ToBase64String(bytes));
                 break;
+            case Array { Rank: > 1 } array:
+                WriteJsonDimension(writer, array, new int[array.Rank], 0);
+                break;
             case Array array:
                 writer.WriteStartArray();
                 foreach (var item in array)
@@ -404,5 +407,29 @@ public static class ResultExporter
                 writer.WriteStringValue(value.ToString());
                 break;
         }
+    }
+
+    // A multi-dimensional Postgres array arrives as a rectangular CLR one
+    // (int?[2,2]), whose foreach is flat: {{1,NULL},{3,4}} was written as
+    // [1,null,3,4]. One JSON array per dimension, as Postgres's own to_json
+    // writes it: [[1,null],[3,4]].
+    private static void WriteJsonDimension(Utf8JsonWriter writer, Array array, int[] indices, int dimension)
+    {
+        writer.WriteStartArray();
+        var lower = array.GetLowerBound(dimension);
+        for (var i = 0; i < array.GetLength(dimension); i++)
+        {
+            indices[dimension] = lower + i;
+            if (dimension == array.Rank - 1)
+            {
+                WriteJsonValue(writer, array.GetValue(indices));
+            }
+            else
+            {
+                WriteJsonDimension(writer, array, indices, dimension + 1);
+            }
+        }
+
+        writer.WriteEndArray();
     }
 }

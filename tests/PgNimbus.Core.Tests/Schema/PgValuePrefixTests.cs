@@ -42,6 +42,8 @@ public class PgValuePrefixTests
             new[] { "a,b", "{x}", "a b", "a\tb\nc\r", "a\\b\"c", "😀" },
             new object[] { new[] { "a\\\"b", "NULL" }, Array.Empty<int>(), new[] { 1, 2 } },
             new[,] { { "a", "b" }, { "c", "d" } },
+            new int?[,] { { 1, null }, { 3, 4 } },
+            new int?[2, 1, 2] { { { 1, null } }, { { null, 4 } } },
         ];
 
         foreach (var value in values)

@@ -170,7 +170,11 @@ public static class PgValueSyntax
     /// Postgres's own literal syntax — <c>{a,b,c}</c>, elements quoted by the
     /// server's rules — so the grid shows a readable, *editable* value instead
     /// of "System.String[]", and an F2 edit round-trips through
-    /// <c>CAST(text AS type[])</c> unchanged.
+    /// <c>CAST(text AS type[])</c> unchanged. A null element is written
+    /// <c>NULL</c> (the app's sessions read value-type arrays with nullable
+    /// elements, <see cref="Connections.ConnectionProfile.ArrayNullability"/>),
+    /// and a rectangular array keeps one brace level per dimension:
+    /// <c>{{1,NULL},{3,4}}</c>.
     /// </summary>
     /// <param name="array">The array.</param>
     /// <param name="formatElement">
@@ -195,6 +199,12 @@ public static class PgValueSyntax
 
     private static void AppendArray(LiteralBuilder sb, Array array, Func<object, string?>? formatElement)
     {
+        if (array.Rank > 1)
+        {
+            AppendDimension(sb, array, formatElement, new int[array.Rank], 0);
+            return;
+        }
+
         sb.Append('{');
         var first = true;
         foreach (var item in array)
@@ -213,6 +223,54 @@ public static class PgValueSyntax
             if (!sb.IsFull)
             {
                 AppendElement(sb, item, formatElement);
+            }
+        }
+
+        sb.Append('}');
+    }
+
+    // Npgsql reads a multi-dimensional Postgres array as a rectangular CLR one
+    // ({{1,2},{3,4}} as int[2,2]), and a foreach over that yields its elements
+    // flat: the grid showed {1,2,3,4}, and an unchanged inline edit, which
+    // casts the cell's text back, wrote a one-dimensional array. Each
+    // dimension is a brace level, the last one's elements in row-major order.
+    // An array with no elements is {} whatever its rank, as Postgres writes it.
+    private static void AppendDimension(LiteralBuilder sb, Array array, Func<object, string?>? formatElement, int[] indices, int dimension)
+    {
+        if (array.Length == 0)
+        {
+            sb.Append("{}");
+            return;
+        }
+
+        sb.Append('{');
+        var lower = array.GetLowerBound(dimension);
+        var length = array.GetLength(dimension);
+        for (var i = 0; i < length; i++)
+        {
+            if (sb.IsFull)
+            {
+                break;
+            }
+
+            if (i > 0)
+            {
+                sb.Append(',');
+            }
+
+            if (sb.IsFull)
+            {
+                break;
+            }
+
+            indices[dimension] = lower + i;
+            if (dimension == array.Rank - 1)
+            {
+                AppendElement(sb, array.GetValue(indices), formatElement);
+            }
+            else
+            {
+                AppendDimension(sb, array, formatElement, indices, dimension + 1);
             }
         }
 

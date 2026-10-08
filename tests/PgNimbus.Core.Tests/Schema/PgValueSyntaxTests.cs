@@ -66,6 +66,32 @@ public class PgValueSyntaxTests
         await Assert.That(PgValueSyntax.FormatArray(new string?[] { "a", null })).IsEqualTo("{a,NULL}");
     }
 
+    // What Npgsql hands over for a value-type array under the app's
+    // ArrayNullabilityMode.Always: Nullable<T> elements, and a rectangular CLR
+    // array for a multi-dimensional one (never a jagged one).
+    [Test]
+    public async Task Formats_nullable_and_multi_dimensional_arrays_as_postgres_writes_them()
+    {
+        await Assert.That(PgValueSyntax.FormatArray(new int?[] { 1, null, 3 })).IsEqualTo("{1,NULL,3}");
+        await Assert.That(PgValueSyntax.FormatArray(new bool?[] { true, null })).IsEqualTo("{t,NULL}");
+        await Assert.That(PgValueSyntax.FormatArray(new int?[,] { { 1, null }, { 3, 4 } })).IsEqualTo("{{1,NULL},{3,4}}");
+        await Assert.That(PgValueSyntax.FormatArray(new[,] { { 1, 2, 3 }, { 4, 5, 6 } })).IsEqualTo("{{1,2,3},{4,5,6}}");
+        await Assert.That(PgValueSyntax.FormatArray(new[,] { { "a b", null }, { "", "NULL" } }))
+            .IsEqualTo("""{{"a b",NULL},{"","NULL"}}""");
+        await Assert.That(PgValueSyntax.FormatArray(new int?[2, 1, 2] { { { 1, 2 } }, { { null, 4 } } })).IsEqualTo("{{{1,2}},{{NULL,4}}}");
+        await Assert.That(PgValueSyntax.FormatArray(new int[0, 3])).IsEqualTo("{}");
+
+        // A non-zero lower bound (Array.CreateInstance can make one) changes nothing.
+        var offset = Array.CreateInstance(typeof(int?), [2, 2], [1, 5]);
+        offset.SetValue(1, 1, 5);
+        offset.SetValue(4, 2, 6);
+        await Assert.That(PgValueSyntax.FormatArray(offset)).IsEqualTo("{{1,NULL},{NULL,4}}");
+
+        // The caller's element spelling reaches every dimension.
+        await Assert.That(PgValueSyntax.FormatArray(new int?[,] { { 1, null }, { 3, 4 } }, e => $"<{e}>"))
+            .IsEqualTo("{{<1>,NULL},{<3>,<4>}}");
+    }
+
     [Test]
     public async Task FormatsHstoreDictionariesAsPostgresLiterals()
     {

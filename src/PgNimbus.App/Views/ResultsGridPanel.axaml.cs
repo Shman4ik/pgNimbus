@@ -988,7 +988,7 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
             && !QueryEngine.IsUnreadableCell(value))
         {
             var ops = RowFilterSql.OperatorsFor(meta.Editor, meta.DataType);
-            var text = RowFilterSql.ValueText(value);
+            var text = RowFilterSql.ValueText(value, _activeQuery.ColumnTypeName(_lastPressedColumnIndex));
             var shown = text.Length > 40 ? text[..40] + "…" : text;
             if (value is bool b)
             {
