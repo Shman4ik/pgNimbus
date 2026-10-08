@@ -2259,7 +2259,9 @@ Moved to [`.claude/rules/logo-assets.md`](rules/logo-assets.md), which loads whe
   elements unless the array is of one range struct type (a single non-range
   element makes the value fall back to the array literal). Escaping goes a run
   at a time between the characters it escapes: a loop per character had made a
-  4 MB element five times slower to export. `CellTextPrefixTests` and
+  4 MB element five times slower to export. The walk over a 2-D array's
+  dimensions stops at the cap the same way, and a bytea element converts only
+  the bytes whose hex can still fit. `CellTextPrefixTests` and
   `PgValuePrefixTests` hold the prefix, the formatter-call budget and the
   allocations.
   **The safety half is not optional.** The DataGrid pre-fills its inline editor

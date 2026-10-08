@@ -287,9 +287,11 @@ public static class PgValueSyntax
         }
 
         // A bytea element is \x-hex, as a bytea cell shows it, which the quoting
-        // below wraps and escapes as the server does: {"\\xDEADBEEF"}.
+        // below wraps and escapes as the server does: {"\\xDEADBEEF"}. Its
+        // backslash is what decides the quoting, so a prefix converts only the
+        // bytes whose digits can still fit, two a byte, not a whole blob.
         var text = value is byte[] bytes
-            ? "\\x" + Convert.ToHexString(bytes)
+            ? "\\x" + Convert.ToHexString(bytes, 0, Math.Min(bytes.Length, (sb.Remaining / 2) + 1))
             : (value is bool ? null : formatElement?.Invoke(value)) ?? InvariantText(value);
 
         // Postgres quotes an element when the bare form would be ambiguous:
@@ -577,6 +579,9 @@ public static class PgValueSyntax
         }
 
         public bool IsFull => builder.Length == maxLength;
+
+        /// <summary>How many more characters fit; int.MaxValue less what is written, for Full.</summary>
+        public int Remaining => maxLength - builder.Length;
 
         public LiteralBuilder Append(char value)
         {
