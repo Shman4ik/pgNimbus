@@ -3,6 +3,7 @@
         xmlns:cc="clr-namespace:AvaloniaEdit.CodeCompletion;assembly=AvaloniaEdit"
         xmlns:search="clr-namespace:AvaloniaEdit.Search;assembly=AvaloniaEdit"
         xmlns:completion="using:PgNimbus.App.Completion"
+        xmlns:conv="using:PgNimbus.App.Converters"
         xmlns:cmd="using:PgNimbus.App">
 
     <!--
@@ -386,6 +387,16 @@
     <Style Selector="DataGridCell">
         <Setter Property="FontSize" Value="13" />
         <Setter Property="MinHeight" Value="25" />
+    </Style>
+
+    <!-- Every date picker shows and reads ISO dates, as the grid writes them and
+         Postgres prints them (#353); the culture's short pattern was MM/dd/yyyy.
+         The converter does the text; the custom format is only the placeholder an
+         empty picker without one shows (the grid's inline editors). -->
+    <Style Selector="CalendarDatePicker">
+        <Setter Property="SelectedDateFormat" Value="Custom" />
+        <Setter Property="CustomDateFormatString" Value="{x:Static conv:IsoDate.Format}" />
+        <Setter Property="TextConverter" Value="{x:Static conv:IsoDate.Text}" />
     </Style>
 
     <!--
