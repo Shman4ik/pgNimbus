@@ -28,6 +28,9 @@ public class PgValuePrefixTests
             new[] { "a,b", "{x}", "a b", "a\tb\nc\r", "a\\b\"c", "😀" },
             new object[] { new[] { "a\\\"b", "NULL" }, Array.Empty<int>(), new[] { 1, 2 } },
             new[,] { { "a", "b" }, { "c", "d" } },
+            new string?[,,] { { { "a b", null } }, { { "", "NULL" } } },
+            new[] { new byte[] { 0xDE, 0xAD, 0xBE, 0xEF }, null, [] },
+            new byte[,][] { { new byte[] { 0xDE, 0xAD } }, { new byte[] { 0xBE, 0xEF } } },
         ];
 
         foreach (var value in values)
@@ -89,6 +92,39 @@ public class PgValuePrefixTests
         calls = 0;
         PgValueSyntax.FormatArray(value, Format);
         await Assert.That(calls).IsEqualTo(10_000);
+    }
+
+    [Test]
+    public async Task A_multidimensional_array_stops_calling_the_element_formatter_at_the_cap()
+    {
+        var calls = 0;
+        string Format(object value)
+        {
+            calls++;
+            return "x";
+        }
+
+        var value = new int[100, 100];
+        var prefix = PgValueSyntax.FormatArray(value, Format, 257);
+        await Assert.That(prefix).IsEqualTo(PgValueSyntax.FormatArray(value, Format)[..257]);
+        calls = 0;
+        PgValueSyntax.FormatArray(value, Format, 257);
+        await Assert.That(calls).IsLessThan(257);
+    }
+
+    [Test]
+    public async Task A_bytea_element_converts_only_the_bytes_a_prefix_shows()
+    {
+        // A 4 MB blob in a bytea[] cell: its preview must not build 8 MB of hex
+        // to keep 257 characters of it.
+        var value = new[] { new byte[4_000_000] };
+        PgValueSyntax.FormatArray(value, maxLength: 257);
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        var prefix = PgValueSyntax.FormatArray(value, maxLength: 257);
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        await Assert.That(prefix).IsEqualTo("{\"\\\\x" + new string('0', 252));
+        await Assert.That(allocated).IsLessThan(64_000L);
     }
 
     [Test]

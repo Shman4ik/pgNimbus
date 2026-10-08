@@ -170,7 +170,10 @@ public static class PgValueSyntax
     /// Postgres's own literal syntax — <c>{a,b,c}</c>, elements quoted by the
     /// server's rules — so the grid shows a readable, *editable* value instead
     /// of "System.String[]", and an F2 edit round-trips through
-    /// <c>CAST(text AS type[])</c> unchanged.
+    /// <c>CAST(text AS type[])</c> unchanged. That needs the value's shape kept:
+    /// a multi-dimensional array (a CLR <c>T[,]</c>) is written dimension by
+    /// dimension, <c>{{1,2},{3,4}}</c>, and a <c>bytea[]</c> (a <c>byte[][]</c>)
+    /// element by element as <c>\x</c>-hex.
     /// </summary>
     /// <param name="array">The array.</param>
     /// <param name="formatElement">
@@ -194,6 +197,15 @@ public static class PgValueSyntax
 
     private static void AppendArray(LiteralBuilder sb, Array array, Func<object, string?>? formatElement)
     {
+        // Npgsql reads multidimensional PostgreSQL arrays as rectangular CLR
+        // arrays. Their enumerator yields scalar elements, not nested arrays:
+        // retain each dimension instead of flattening them into one list.
+        if (array.Rank > 1 && array.Length > 0)
+        {
+            AppendArrayDimension(sb, array, array.GetEnumerator(), 0, formatElement);
+            return;
+        }
+
         sb.Append('{');
         var first = true;
         foreach (var item in array)
@@ -218,6 +230,46 @@ public static class PgValueSyntax
         sb.Append('}');
     }
 
+    private static void AppendArrayDimension(
+        LiteralBuilder sb,
+        Array array,
+        System.Collections.IEnumerator elements,
+        int dimension,
+        Func<object, string?>? formatElement)
+    {
+        sb.Append('{');
+        for (var i = 0; i < array.GetLength(dimension); i++)
+        {
+            // As in the one-dimensional loop: past the cap nothing more would be
+            // written, so nothing more is formatted. Every enclosing level stops
+            // here too, so the shared enumerator left behind is never read again.
+            if (sb.IsFull)
+            {
+                break;
+            }
+
+            if (i > 0)
+            {
+                sb.Append(',');
+            }
+
+            if (dimension + 1 < array.Rank)
+            {
+                AppendArrayDimension(sb, array, elements, dimension + 1, formatElement);
+            }
+            else
+            {
+                elements.MoveNext();
+                if (!sb.IsFull)
+                {
+                    AppendElement(sb, elements.Current, formatElement);
+                }
+            }
+        }
+
+        sb.Append('}');
+    }
+
     private static void AppendElement(LiteralBuilder sb, object? value, Func<object, string?>? formatElement)
     {
         switch (value)
@@ -225,12 +277,22 @@ public static class PgValueSyntax
             case null or DBNull:
                 sb.Append("NULL");
                 return;
-            case Array nested:
+            // bytea[] arrives as byte[][], and each byte[] is one bytea value,
+            // not a nested array of numbers: written as one, it read
+            // {{222,173,190,239}}, which casts back as a 2-D bytea[] of the digit
+            // strings.
+            case Array nested when nested is not byte[]:
                 AppendArray(sb, nested, formatElement);
                 return;
         }
 
-        var text = (value is bool ? null : formatElement?.Invoke(value)) ?? InvariantText(value);
+        // A bytea element is \x-hex, as a bytea cell shows it, which the quoting
+        // below wraps and escapes as the server does: {"\\xDEADBEEF"}. Its
+        // backslash is what decides the quoting, so a prefix converts only the
+        // bytes whose digits can still fit, two a byte, not a whole blob.
+        var text = value is byte[] bytes
+            ? "\\x" + Convert.ToHexString(bytes, 0, Math.Min(bytes.Length, (sb.Remaining / 2) + 1))
+            : (value is bool ? null : formatElement?.Invoke(value)) ?? InvariantText(value);
 
         // Postgres quotes an element when the bare form would be ambiguous:
         // empty, the word NULL, or containing a delimiter/quote/backslash/space.
@@ -517,6 +579,9 @@ public static class PgValueSyntax
         }
 
         public bool IsFull => builder.Length == maxLength;
+
+        /// <summary>How many more characters fit; int.MaxValue less what is written, for Full.</summary>
+        public int Remaining => maxLength - builder.Length;
 
         public LiteralBuilder Append(char value)
         {
