@@ -59,8 +59,8 @@ public static class CellText
     /// <summary>
     /// The cell's display text: capped, and folded onto a single line. Dates and
     /// times are written the ISO way Postgres writes them (<see cref="Temporal"/>),
-    /// whatever the machine's region. Values whose own <c>ToString</c> already
-    /// reads correctly (numbers, booleans) are passed through unchanged.
+    /// whatever the machine's region. Numbers use invariant text too, so the
+    /// inline editor can read them back without a locale-dependent decimal separator.
     /// </summary>
     /// <param name="value">The raw cell value.</param>
     /// <param name="dataTypeName">
@@ -73,6 +73,8 @@ public static class CellText
     public static object? Preview(object? value, string? dataTypeName = null) => value switch
     {
         null => NullPlaceholder,
+        byte or sbyte or short or ushort or int or uint or long or ulong or float or double or decimal
+            => ((IFormattable)value).ToString(null, CultureInfo.InvariantCulture),
         DateTime or DateTimeOffset or DateOnly or TimeOnly or TimeSpan when Temporal(value, dataTypeName) is { } text => text,
         // bytea arrives as byte[]; its default ToString is the useless
         // "System.Byte[]". Show a capped \x-hex preview (the cell inspector
@@ -98,6 +100,8 @@ public static class CellText
     public static string Full(object? value, string? dataTypeName = null) => value switch
     {
         null => NullPlaceholder,
+        byte or sbyte or short or ushort or int or uint or long or ulong or float or double or decimal
+            => ((IFormattable)value).ToString(null, CultureInfo.InvariantCulture),
         DateTime or DateTimeOffset or DateOnly or TimeOnly or TimeSpan when Temporal(value, dataTypeName) is { } text => text,
         byte[] bytes => "\\x" + Convert.ToHexString(bytes),
         BitArray bits => FormatBits(bits, bits.Count),

@@ -60,18 +60,17 @@ public class CellTextTests
     }
 
     /// <summary>
-    /// Numbers and booleans are handed to the binding untouched. Turning them
-    /// into strings here would quietly change how every numeric column reads.
-    /// Dates and times are the exception: those are written ISO whatever the
-    /// region (<see cref="TemporalCellTextTests"/>), and never shortened.
+    /// Numbers, dates and times use region-independent text and are never
+    /// shortened (<see cref="NumericCellTextTests"/> and
+    /// <see cref="TemporalCellTextTests"/>).
     /// </summary>
     [Test]
-    public async Task Values_that_read_correctly_already_are_passed_through()
+    public async Task Numeric_and_temporal_values_use_canonical_text()
     {
         var timestamp = new DateTime(2026, 9, 8, 12, 0, 0, DateTimeKind.Utc);
 
-        await Assert.That(CellText.Preview(42)).IsEqualTo(42);
-        await Assert.That(CellText.Preview(12.5m)).IsEqualTo(12.5m);
+        await Assert.That(CellText.Preview(42)).IsEqualTo("42");
+        await Assert.That(CellText.Preview(12.5m)).IsEqualTo("12.5");
         await Assert.That(CellText.Preview(timestamp)).IsEqualTo("2026-09-08 12:00:00+00");
         await Assert.That(CellText.IsShortened(timestamp)).IsFalse();
     }
