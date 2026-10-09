@@ -1078,11 +1078,13 @@ hosted way to build an <code>osx-x64</code> binary. Apple Silicon only for now.<
 </div>
 <h2 id="linux">Linux<a class="headerlink" href="#linux" title="Permanent link">&para;</a></h2>
 <p>x64 and arm64 builds, in three formats, all on the
-<a href="https://github.com/Shman4ik/pgNimbus/releases">releases page</a>.</p>
+<a href="https://github.com/Shman4ik/pgNimbus/releases">releases page</a>. All three
+need glibc 2.35 or newer, so Ubuntu 22.04, Debian 12 or a later release. On an
+older system the app stops at once with <code>version `GLIBC_2.xx' not found</code>.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="2:3"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><input id="__tabbed_2_2" name="__tabbed_2" type="radio" /><input id="__tabbed_2_3" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">AppImage</label><label for="__tabbed_2_2">Debian / Ubuntu</label><label for="__tabbed_2_3">tar.gz</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<p>Works on any distribution and installs nothing.</p>
+<p>Works on any such distribution and installs nothing.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>chmod<span class="w"> </span>+x<span class="w"> </span>pgNimbus-&lt;version&gt;-linux-&lt;arch&gt;.AppImage
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>./pgNimbus-&lt;version&gt;-linux-&lt;arch&gt;.AppImage
 </code></pre></div>
