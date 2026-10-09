@@ -342,13 +342,24 @@ jobs:
         include:
           # arm64 is a native build — GitHub provides free arm64 runners for
           # public repos — so no cross-compilation toolchain is involved.
-          - runner: ubuntu-latest
+          #
+          # 22.04, not latest, on purpose: the binary needs the glibc of the
+          # machine it was linked on, so this runner sets the oldest system
+          # the Linux packages start on. 1.1.0, linked on 24.04, bound fmod to
+          # GLIBC_2.38 and would not start on Ubuntu 22.04, Debian 12 or
+          # RHEL 9 (the AppImage catalog refused it for that,
+          # AppImage/appimage.github.io#6624). Keep this the oldest Ubuntu LTS
+          # GitHub still hosts; when 22.04 retires, move both legs and
+          # GLIBC_CEILING to the next LTS together.
+          - runner: ubuntu-22.04
             rid: linux-x64
-          - runner: ubuntu-24.04-arm
+          - runner: ubuntu-22.04-arm
             rid: linux-arm64
     runs-on: ${{ matrix.runner }}
     env:
       RID: ${{ matrix.rid }}
+      # Ubuntu 22.04's glibc. check-glibc.sh fails the build above it.
+      GLIBC_CEILING: "2.35"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -381,6 +392,13 @@ jobs:
           -p:FileVersion="$VERSION"
           -p:InformationalVersion="$VERSION"
           -o "publish/$RID"
+
+      # The smoke tests below run on this same runner, so they cannot see a
+      # glibc floor raised by the runner itself; this reads it from the binary.
+      - name: Check the glibc floor
+        run: |
+          chmod +x scripts/linux/check-glibc.sh
+          ./scripts/linux/check-glibc.sh "publish/$RID" "$GLIBC_CEILING"
 
       # appimagetool and the AppImage runtime it embeds are pinned releases
       # with sha256 checks inside the script — see scripts/linux/build-packages.sh.

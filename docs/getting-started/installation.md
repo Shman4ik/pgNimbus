@@ -104,11 +104,13 @@ You do this once per installed version. Later launches open normally.
 ## Linux
 
 x64 and arm64 builds, in three formats, all on the
-[releases page](https://github.com/Shman4ik/pgNimbus/releases).
+[releases page](https://github.com/Shman4ik/pgNimbus/releases). All three
+need glibc 2.35 or newer, so Ubuntu 22.04, Debian 12 or a later release. On an
+older system the app stops at once with ``version `GLIBC_2.xx' not found``.
 
 === "AppImage"
 
-    Works on any distribution and installs nothing.
+    Works on any such distribution and installs nothing.
 
     ```bash
     chmod +x pgNimbus-<version>-linux-<arch>.AppImage

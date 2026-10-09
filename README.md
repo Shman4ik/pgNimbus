@@ -67,7 +67,7 @@ Where it sits among the alternatives: pgAdmin and DBeaver are powerful but heavy
 | Windows (recommended) | **[Microsoft Store](https://apps.microsoft.com/detail/9N6SZT42XJ24)**, signed and self-updating, or `winget install pgNimbus --source msstore` |
 | Windows (portable) | `pgNimbus-<version>-win-x64.zip` from [Releases](https://github.com/Shman4ik/pgNimbus/releases). Unzip anywhere and run `PgNimbus.App.exe`; no installer, no admin rights. Unsigned, so SmartScreen warns on first run. |
 | macOS (beta) | `pgNimbus-<version>-macos-arm64.dmg`, Apple Silicon only, macOS 12 or later. Ad-hoc signed and not notarized: the first launch needs **Open Anyway**, and an update can leave saved passwords unreadable until you delete the old `pgNimbus` Keychain items (see the installation guide). |
-| Linux (beta) | AppImage, `.deb` or `.tar.gz` for x64 and arm64 from [Releases](https://github.com/Shman4ik/pgNimbus/releases). |
+| Linux (beta) | AppImage, `.deb` or `.tar.gz` for x64 and arm64 from [Releases](https://github.com/Shman4ik/pgNimbus/releases). Needs glibc 2.35 or newer: Ubuntu 22.04, Debian 12 or later. |
 
 The [installation guide](https://shman4ik.github.io/pgNimbus/docs/getting-started/installation/) has the step-by-step for each platform, the macOS Gatekeeper dialogs, and where pgNimbus keeps its files. Every release asset carries signed build provenance, so you can check where a download came from. Pass `--signer-workflow` and `--source-ref`, or the check also accepts an attestation from any other workflow or ref in the repo:
 

@@ -246,7 +246,18 @@ It produces, per tag:
   parse entitlements: AMFIUnserializeXML: syntax error near line 6", because a comment said
   `(--options runtime)` and `--` may not appear inside an XML comment.
 - **Linux** — `linux-x64` + `linux-arm64` (the arm64 leg runs natively on
-  GitHub's free `ubuntu-24.04-arm` runners — no cross-compile toolchain).
+  GitHub's free `ubuntu-22.04-arm` runners — no cross-compile toolchain).
+  **Both legs build on Ubuntu 22.04, never `ubuntu-latest`** (2026-10): a
+  NativeAOT binary needs the glibc it was linked against, and the linker
+  binds each symbol to the newest version the build machine has. 1.1.0 was
+  linked on 24.04 and took `fmod`/`fmodf@GLIBC_2.38`, so none of the three
+  packages started on Ubuntu 22.04, Debian 12 or RHEL 9, and the AppImage
+  catalog's test (which runs on the oldest supported Ubuntu LTS) refused it
+  (AppImage/appimage.github.io#6624). The smoke tests run on the build runner,
+  so they could never see it; `scripts/linux/check-glibc.sh` reads the floor
+  from the publish output instead and fails above `GLIBC_CEILING` (2.35).
+  When GitHub retires `ubuntu-22.04`, move both runners and the ceiling to the
+  next LTS in one change.
   Each RID is packaged three ways by
   [`scripts/linux/build-packages.sh`](scripts/linux/build-packages.sh):
   `.AppImage` (appimagetool **1.9.1** and the type2 runtime release

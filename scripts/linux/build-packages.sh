@@ -123,7 +123,9 @@ echo "Built $OUT_DIR/$BASE_NAME.AppImage"
 # ---- .deb -------------------------------------------------------------------
 # Debian versions use ~ for prerelease (sorts before the release), where
 # semver uses -. Affects workflow_dispatch test versions like 0.0.0-ci.42.
-DEB_VERSION="${VERSION/-/~}"
+# The ~ is escaped: bash tilde-expands a bare one in the replacement, and
+# "${VERSION/-/~}" gave 0.0.0/home/runnerci.42, which dpkg-deb refuses.
+DEB_VERSION="${VERSION/-/\~}"
 DEB_ROOT="$WORK_DIR/deb"
 mkdir -p "$DEB_ROOT/DEBIAN" \
          "$DEB_ROOT/usr/lib/pgnimbus" \
