@@ -40,6 +40,16 @@ lives in `.claude/`, which Claude Code reads the same as the root.
 - `packaging/` — installer and store templates, one folder per target
   (`msix`, `macos`, `linux`, `winget`; the Windows zip needs no template).
 - `scripts/` — build, release, screenshot and design scripts.
+- `.oss-scanner/` — what Anthropic's [OSS Scanner](https://github.com/anthropics/oss-scanner)
+  builds and reads: a `Dockerfile` (the SDK image with every package restored,
+  PostgreSQL 17 and an sshd, both suites run once), `services.sh` (starts the
+  two servers and exports `PGNIMBUS_TEST_CONN`/`PGNIMBUS_TEST_SSH`) and
+  `threat_model.md` (what is untrusted, how findings are rated, what is accepted
+  by design). The scan runs with no network, so anything a test or reproducer
+  needs is fetched in the Dockerfile. No CI job builds it (a failed build is
+  emailed by the scanner); the commands to check it by hand are at its top. A
+  change that moves a trust boundary, or accepts a finding by design, updates
+  `threat_model.md` in the same PR.
 - `docs/` — the published docs site only; `docs/dev/` holds contributor notes
   (design records, release checklists), kept off the site by `mkdocs.yml`. The
   "security audit 2026-09, finding N" citations scattered through this file are
