@@ -46,6 +46,13 @@ Notes and caveats:
   `release.yml` exercises the whole pipeline without publishing anything, even
   when started from a tag. Start it from a commit that is already on `main`:
   every build job first checks that, and refuses any other commit.
+- A smoke launch proves the package starts on the runner that built it, and
+  nothing older. The Linux binary needs the glibc it was linked against, so
+  the runner sets the floor: 1.1.0, built on `ubuntu-latest` (24.04), needed
+  glibc 2.38 and did not start on Ubuntu 22.04 or Debian 12 while every smoke
+  passed. The Linux legs now build on `ubuntu-22.04`, and
+  `scripts/linux/check-glibc.sh` reads the floor from the binary and fails the
+  build above 2.35.
 - `PgNimbus.App` is a `WinExe`, so it has no console of its own. The probe line
   is still readable because redirecting stdout gives the process a handle to
   write to — verified, not assumed.
