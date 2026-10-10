@@ -154,7 +154,7 @@ Next up (a direction, not a commitment):
 - **Query Lab:** save EXPLAIN runs and compare them before and after a change.
 - **Signed and notarized macOS builds.**
 
-The full backlog, with the competitive research behind each item, is in [ROADMAP.md](ROADMAP.md). Pick one scoped item if you'd like to contribute; [CONTRIBUTING.md](CONTRIBUTING.md) has the details.
+The backlog is tracked as [issues labeled `roadmap`](https://github.com/Shman4ik/pgNimbus/issues?q=is%3Aissue%20is%3Aopen%20label%3Aroadmap); [ROADMAP.md](ROADMAP.md) has the direction and the competitive research behind it. Pick one scoped item if you'd like to contribute; [CONTRIBUTING.md](CONTRIBUTING.md) has the details.
 
 ## 🧱 Building and running
 

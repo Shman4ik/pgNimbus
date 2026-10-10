@@ -28,6 +28,14 @@ The root holds only what tooling needs there (`PgNimbus.slnx`, `global.json`,
 (README, LICENSE, CONTRIBUTING, SECURITY, CODE_OF_CONDUCT, ROADMAP). This file
 lives in `.claude/`, which Claude Code reads the same as the root.
 
+**The backlog is GitHub issues labeled `roadmap`** (2026-10-10), each with a
+priority (`P0`–`P2`) and a size (`size: S/M/L`); scope, "done when" and
+constraints live in the issue. `ROADMAP.md` keeps the direction, the
+competitive evidence, one line per item linking its issue, and the P3 ideas,
+which get an issue only once someone asks for one. Citations such as "ROADMAP
+T3" in code and in this file name those items by ID. Shipping an item closes
+its issue and turns its `ROADMAP.md` line into `[x]` with a docs link.
+
 - `src/` — `PgNimbus.Core` (the engine) and `PgNimbus.App` (the Avalonia UI).
 - `tests/` — `PgNimbus.Core.Tests`, `PgNimbus.App.Tests`, `PgNimbus.Benchmarks`.
 - `tools/` — dev-only programs: the screenshot harness, `CompletionBench`,

@@ -5,10 +5,12 @@ body:
   - type: markdown
     attributes:
       value: |
-        Please skim the [roadmap](https://github.com/Shman4ik/pgNimbus/blob/main/ROADMAP.md)
-        first — a lot of planned work is already listed there. If your idea is
-        on it, an issue is still welcome as a place to discuss specifics or
-        register demand; just link the backlog line.
+        Please skim the [roadmap issues](https://github.com/Shman4ik/pgNimbus/issues?q=is%3Aissue%20is%3Aopen%20label%3Aroadmap)
+        first — a lot of planned work is already tracked there. If your idea is
+        one of them, comment on that issue instead of opening a new one. Ideas
+        not validated yet are listed under P3 in
+        [ROADMAP.md](https://github.com/Shman4ik/pgNimbus/blob/main/ROADMAP.md#p3-validate-before-committing);
+        for one of those, a new issue that links its line registers demand.
 
   - type: textarea
     id: problem
