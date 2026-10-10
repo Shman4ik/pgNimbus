@@ -559,6 +559,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/backup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backup and restore
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1102,7 +1130,7 @@
 <p>pgNimbus is a desktop PostgreSQL client. It has no account, no cloud service and
 no telemetry. It sends nothing to the developer or to any third party.
 Everything it keeps stays on your computer, and this page lists all of it.</p>
-<p>Last updated: 29 September 2026.</p>
+<p>Last updated: 10 October 2026.</p>
 <h2 id="what-goes-over-the-network">What goes over the network<a class="headerlink" href="#what-goes-over-the-network" title="Permanent link">&para;</a></h2>
 <p>pgNimbus opens network connections to two kinds of host, both of which you
 configure:</p>
@@ -1125,15 +1153,19 @@ run time: fonts, icons and themes are built into the app.</p>
   address. Nothing is published until you submit the form yourself, and you can
   edit it first.</li>
 </ul>
-<p>The app also talks to programs on your own computer: the OS password store, and
-the SSH agent when a profile signs in with it.</p>
+<p>The app also talks to programs on your own computer: the OS password store, the
+SSH agent when a profile signs in with it, and PostgreSQL's <code>pg_dump</code> and
+<code>pg_restore</code> when you <a href="../guide/backup/">back up or restore</a>. They connect to the
+same server as the window you start them from, and get the password through
+their environment, never their command line.</p>
 <h2 id="what-your-postgresql-server-sees">What your PostgreSQL server sees<a class="headerlink" href="#what-your-postgresql-server-sees" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Your IP address, or the SSH jump host's when you use a tunnel.</li>
 <li>The user name and database you connect with, and your password or a proof
   of it, depending on the server's authentication method.</li>
 <li>The application name <code>pgNimbus</code>, for connections made from the connection
-  dialog. It carries no version number or other identifier.</li>
+  dialog. It carries no version number or other identifier. A backup connects
+  as <code>pg_dump</code>, a restore as <code>pg_restore</code>.</li>
 <li>Every statement you run.</li>
 <li>The statements pgNimbus runs for itself (the schema tree, completion, the
   monitoring windows). Each starts with the comment <code>/* pgNimbus */</code>, so it can
@@ -1204,7 +1236,7 @@ account. On Windows they have the normal permissions of your profile folder.</p>
 </tr>
 <tr>
 <td><code>settings.json</code></td>
-<td>Your preferences, the last connection used, the paths of up to 10 recently opened <code>.sql</code> files, and per-database lists of excluded schemas and LISTEN channels.</td>
+<td>Your preferences, the last connection used, the paths of up to 10 recently opened <code>.sql</code> files, per-database lists of excluded schemas and LISTEN channels, the folder of your last backup, and the folder <code>pg_dump</code> runs from if you chose one.</td>
 <td>No</td>
 </tr>
 <tr>
@@ -1220,6 +1252,11 @@ account. On Windows they have the normal permissions of your profile folder.</p>
 <tr>
 <td><code>known_hosts</code></td>
 <td>SSH host keys you accepted, in OpenSSH's format.</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>trusted-roots.pem</code></td>
+<td>The certificate authorities your computer trusts, copied from the OS for <code>pg_dump</code> when a connection checks the server's certificate without a root certificate of its own. Public certificates only.</td>
 <td>No</td>
 </tr>
 <tr>
@@ -1264,8 +1301,8 @@ your SQL, such as an email address in a <code>WHERE</code> clause, is stored as 
 typed it. <a href="../getting-started/connecting/#where-your-password-goes">Where your password goes</a>
 has the details.</p>
 <h3 id="files-you-create-yourself">Files you create yourself<a class="headerlink" href="#files-you-create-yourself" title="Permanent link">&para;</a></h3>
-<p>Exports, saved plans and <code>.sql</code> files go only where you choose in the save
-dialog.</p>
+<p>Exports, backups, saved plans and <code>.sql</code> files go only where you choose in the
+save dialog.</p>
 <h2 id="clipboard">Clipboard<a class="headerlink" href="#clipboard" title="Permanent link">&para;</a></h2>
 <p>Copying puts text on the system clipboard, where clipboard history and clipboard
 managers can keep it. The connection dialog's copy button leaves the password

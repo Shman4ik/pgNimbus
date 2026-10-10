@@ -12,25 +12,31 @@
         <meta name="author" content="Dmitrii Shmanev">
       
       
+        <link rel="canonical" href="https://shman4ik.github.io/pgNimbus/docs/guide/backup/">
       
+      
+        <link rel="prev" href="../monitoring/">
+      
+      
+        <link rel="next" href="../../reference/keyboard-shortcuts/">
       
       
         
       
       
-      <link rel="icon" href="/pgNimbus/docs/assets/favicon.png">
+      <link rel="icon" href="../../assets/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
-        <title>pgNimbus</title>
+        <title>Backup and restore - pgNimbus</title>
       
     
     
-      <link rel="stylesheet" href="/pgNimbus/docs/assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
-        <link rel="stylesheet" href="/pgNimbus/docs/assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -49,7 +55,7 @@
       
     
     
-    <script>__md_scope=new URL("/pgNimbus/docs/",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -73,6 +79,11 @@
     <label class="md-overlay" for="__drawer"></label>
     <div data-md-component="skip">
       
+        
+        <a href="#backup-and-restore" class="md-skip">
+          Skip to content
+        </a>
+      
     </div>
     <div data-md-component="announce">
       
@@ -85,9 +96,9 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="/pgNimbus/docs/." title="pgNimbus" class="md-header__button md-logo" aria-label="pgNimbus" data-md-component="logo">
+    <a href="../.." title="pgNimbus" class="md-header__button md-logo" aria-label="pgNimbus" data-md-component="logo">
       
-  <img src="/pgNimbus/docs/assets/logo.png" alt="logo">
+  <img src="../../assets/logo.png" alt="logo">
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -104,7 +115,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              
+              Backup and restore
             
           </span>
         </div>
@@ -222,9 +233,9 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="/pgNimbus/docs/." title="pgNimbus" class="md-nav__button md-logo" aria-label="pgNimbus" data-md-component="logo">
+    <a href="../.." title="pgNimbus" class="md-nav__button md-logo" aria-label="pgNimbus" data-md-component="logo">
       
-  <img src="/pgNimbus/docs/assets/logo.png" alt="logo">
+  <img src="../../assets/logo.png" alt="logo">
 
     </a>
     pgNimbus
@@ -251,7 +262,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/pgNimbus/docs/." class="md-nav__link">
+      <a href="../.." class="md-nav__link">
         
   
   
@@ -330,7 +341,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/pgNimbus/docs/getting-started/installation/" class="md-nav__link">
+      <a href="../../getting-started/installation/" class="md-nav__link">
         
   
   
@@ -358,7 +369,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/pgNimbus/docs/getting-started/connecting/" class="md-nav__link">
+      <a href="../../getting-started/connecting/" class="md-nav__link">
         
   
   
@@ -390,8 +401,10 @@
       
   
   
+    
   
   
+  
     
     
     
@@ -402,11 +415,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
         
           
           <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
@@ -427,7 +440,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             
@@ -445,7 +458,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/pgNimbus/docs/guide/editor/" class="md-nav__link">
+      <a href="../editor/" class="md-nav__link">
         
   
   
@@ -473,7 +486,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/pgNimbus/docs/guide/results/" class="md-nav__link">
+      <a href="../results/" class="md-nav__link">
         
   
   
@@ -501,7 +514,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/pgNimbus/docs/guide/explain/" class="md-nav__link">
+      <a href="../explain/" class="md-nav__link">
         
   
   
@@ -529,7 +542,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/pgNimbus/docs/guide/monitoring/" class="md-nav__link">
+      <a href="../monitoring/" class="md-nav__link">
         
   
   
@@ -554,10 +567,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="/pgNimbus/docs/guide/backup/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backup and restore
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -573,6 +613,70 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#back-up-a-database-a-schema-or-a-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Back up a database, a schema or a table
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#restore-a-backup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Restore a backup
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#installing-pg_dump" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Installing pg_dump
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#your-password-and-the-command-line" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Your password and the command line
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -644,7 +748,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/pgNimbus/docs/reference/keyboard-shortcuts/" class="md-nav__link">
+      <a href="../../reference/keyboard-shortcuts/" class="md-nav__link">
         
   
   
@@ -679,7 +783,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/pgNimbus/docs/privacy/" class="md-nav__link">
+      <a href="../../privacy/" class="md-nav__link">
         
   
   
@@ -716,6 +820,60 @@
   
   
   
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#back-up-a-database-a-schema-or-a-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Back up a database, a schema or a table
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#restore-a-backup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Restore a backup
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#installing-pg_dump" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Installing pg_dump
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#your-password-and-the-command-line" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Your password and the command line
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
   
 </nav>
                   </div>
@@ -728,8 +886,165 @@
               
               <article class="md-content__inner md-typeset">
                 
-  <h1>404 - Not found</h1>
+                  
 
+
+  
+    <a href="https://github.com/Shman4ik/pgNimbus/edit/main/docs/guide/backup.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="backup-and-restore">Backup and restore<a class="headerlink" href="#backup-and-restore" title="Permanent link">&para;</a></h1>
+<p>pgNimbus backs up with PostgreSQL's own <code>pg_dump</code> and restores with its
+<code>pg_restore</code>, so a backup is a normal PostgreSQL backup that any PostgreSQL tool
+can read. It covers the simple cases: all of a database, one schema or one
+table, with or without the rows, and putting a backup back. For scheduled
+backups, parallel dumps, roles and other cluster-wide objects, use a dedicated
+tool such as <code>pg_dumpall</code>, pgBackRest or your cloud provider's snapshots.</p>
+<p><img alt="The backup window: where to save, and everything or the structure only" src="../../screenshots/backup.png" /></p>
+<h2 id="back-up-a-database-a-schema-or-a-table">Back up a database, a schema or a table<a class="headerlink" href="#back-up-a-database-a-schema-or-a-table" title="Permanent link">&para;</a></h2>
+<ul>
+<li>The whole database: <strong>Back Up Database…</strong> in the ☰ menu, the command palette,
+  or the <strong>File</strong> menu on macOS.</li>
+<li>One schema: right-click it in the schema tree and choose <strong>Back Up Schema…</strong>.</li>
+<li>One table, with its partitions if it has any: right-click it and choose
+  <strong>Back Up Table…</strong>.</li>
+</ul>
+<p>The window asks two things:</p>
+<ol>
+<li><strong>Where to save.</strong> pgNimbus suggests a file named after the database and the
+   time, in the folder you used last. <strong>Change…</strong> picks another.</li>
+<li><strong>What to save.</strong> <strong>Everything</strong> is the structure and every row.
+   <strong>Structure only</strong> is the tables, views, functions, types and permissions,
+   without the rows.</li>
+</ol>
+<p>The kind of file follows its name:</p>
+<ul>
+<li><strong><code>.dump</code></strong> (the default) is <code>pg_dump</code>'s compressed archive. Restore it with
+  <a href="#restore-a-backup">Restore Backup…</a>, or with <code>pg_restore</code>.</li>
+<li><strong><code>.sql</code></strong> is a plain SQL script you can read, compare and keep in Git.
+  Restore it with <code>psql</code>.</li>
+</ul>
+<p>Click <strong>Back Up</strong>. The window shows which table is being saved, how long it has
+taken and how big the file is so far. You can keep working in the main window
+while it runs. When it finishes, <strong>Show in Folder</strong> opens the folder that holds
+the file.</p>
+<div class="admonition tip">
+<p class="admonition-title">A failed backup never destroys an older one</p>
+<p><code>pg_dump</code> writes to a temporary <code>.partial</code> file next to the one you chose,
+and pgNimbus moves it into place only when the backup finishes. If the
+backup fails, or you click <strong>Stop</strong>, the temporary file is deleted and a
+file that was already at that path stays as it was.</p>
+</div>
+<h2 id="restore-a-backup">Restore a backup<a class="headerlink" href="#restore-a-backup" title="Permanent link">&para;</a></h2>
+<p><strong>Restore Backup…</strong> is in the ☰ menu, the command palette, and the <strong>File</strong> menu
+on macOS. It restores into the server the window is connected to.</p>
+<p><img alt="The restore window: what the backup holds, where it goes, and whose it is" src="../../screenshots/restore.png" /></p>
+<ol>
+<li><strong>Choose the file.</strong> pgNimbus reads what it holds before anything runs: the
+   database it came from, the PostgreSQL release, when it was saved and how many
+   tables it has.</li>
+<li><strong>Choose where it goes.</strong><ul>
+<li><strong>A new database</strong> (the default). pgNimbus creates it and restores into it,
+  so nothing that exists is touched. It suggests the backup's own database
+  name, with <code>_restored</code> on the end if that name is taken.</li>
+<li><strong>This database.</strong> What the backup holds is dropped and created again from
+  it, rows included. Other objects in the database stay. pgNimbus asks before
+  it starts.</li>
+</ul>
+</li>
+<li><strong>Keep owners and permissions</strong>, or not. Kept, every object belongs to the
+   role it belonged to before. A backup from another server often names roles
+   this server doesn't have; pgNimbus checks, and turns this off when one is
+   missing, so you own everything restored instead.</li>
+</ol>
+<p>A restore is one transaction: it all happens, or none of it does. If it fails,
+or you click <strong>Stop</strong>, the database is as it was, and a new database that
+pgNimbus created for it is removed again. After a restore into a new database,
+<strong>Open in New Window</strong> connects to it the way the current window is connected.</p>
+<p>A backup of one schema or table can point outside itself: a foreign key to a
+table in another schema, a view over one, a column of a type defined elsewhere.
+In a new, empty database those aren't there and the restore stops. Restore it
+into a database that has them, such as the one it came from.</p>
+<p>pgNimbus restores <code>pg_dump</code>'s archives (<code>.dump</code>, <code>.backup</code>, <code>.tar</code>). It doesn't
+restore a plain <code>.sql</code> script: that needs <code>psql</code>, and <code>psql</code> also runs any shell
+commands a script holds, so run a script you trust with <code>psql -f</code> yourself.
+A restore runs the SQL the backup holds as your role, so restore backups you
+trust.</p>
+<h2 id="installing-pg_dump">Installing pg_dump<a class="headerlink" href="#installing-pg_dump" title="Permanent link">&para;</a></h2>
+<p>pgNimbus doesn't ship <code>pg_dump</code> and <code>pg_restore</code>, and doesn't download them. It
+finds the copies that come with PostgreSQL, pgAdmin, Postgres.app or Homebrew,
+in the places they install them, so most people never have to point it
+anywhere.</p>
+<p><code>pg_dump</code> must be at least as new as the server: a PostgreSQL 17 server needs
+<code>pg_dump</code> 17 or newer. A newer <code>pg_dump</code> backs up every older server, so
+installing the newest release is always enough. When no copy is new enough,
+the backup window says which version it needs, what it found instead, and the
+steps for your system. In short:</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Windows</label><label for="__tabbed_1_2">macOS</label><label for="__tabbed_1_3">Linux</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<p>Download the PostgreSQL installer from
+<a href="https://www.enterprisedb.com/downloads/postgres-postgresql-downloads">EDB</a>,
+run it, and on the <strong>Select Components</strong> page leave only
+<strong>Command Line Tools</strong> checked. Or, from a terminal:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>winget install -e --id PostgreSQL.PostgreSQL.18 --interactive
+</code></pre></div>
+<p>and choose <strong>Command Line Tools</strong> when the installer asks. pgNimbus finds
+<code>C:\Program Files\PostgreSQL\18\bin</code> on its own. If pgAdmin 4 is
+installed, pgNimbus can use the copy that comes with it too.</p>
+</div>
+<div class="tabbed-block">
+<p>With Homebrew:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>brew install libpq
+</code></pre></div>
+<p>Or install <a href="https://postgresapp.com/downloads.html">Postgres.app</a>; it
+includes the client programs, and you don't have to start its server.</p>
+</div>
+<div class="tabbed-block">
+<p>On Debian and Ubuntu, add PostgreSQL's own package repository (your
+distribution's packages are often older than the server), then install the
+client:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>sudo apt install -y postgresql-common
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>sudo apt install postgresql-client-18
+</code></pre></div>
+<p>On Fedora, RHEL and their relatives, set up the
+<a href="https://www.postgresql.org/download/linux/redhat/">PostgreSQL repository</a>
+and install <code>postgresql18</code>. On Arch, install <code>postgresql-libs</code>.</p>
+</div>
+</div>
+</div>
+<p>Then click <strong>Look Again</strong> in the backup or restore window.</p>
+<p>If your copy is somewhere pgNimbus doesn't look, open <strong>Settings</strong>, go to the
+<strong>Data</strong> tab and choose the folder that holds <code>pg_dump</code> and <code>pg_restore</code>.
+The same card shows which copy pgNimbus uses.</p>
+<h2 id="your-password-and-the-command-line">Your password and the command line<a class="headerlink" href="#your-password-and-the-command-line" title="Permanent link">&para;</a></h2>
+<p>pgNimbus starts <code>pg_dump</code> and <code>pg_restore</code> with the same server, database, user
+and TLS settings as the window you started them from. It passes the password in
+their environment and never on their command line, which any user on the
+computer can read. Under the backup form, <strong>Command</strong> shows the exact command
+pgNimbus runs, without the password, so you can copy it and run it yourself.</p>
+<p>Through an SSH tunnel, both go through the window's tunnel, so keep the window
+open until they finish. pgNimbus asks before closing a window whose backup or
+restore is still running.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
               </article>
             </div>
           
@@ -789,10 +1104,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "/pgNimbus/docs/", "features": ["navigation.instant", "navigation.sections", "navigation.top", "navigation.tracking", "toc.follow", "content.code.copy", "content.action.edit", "search.suggest", "search.highlight"], "search": "/pgNimbus/docs/assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.sections", "navigation.top", "navigation.tracking", "toc.follow", "content.code.copy", "content.action.edit", "search.suggest", "search.highlight"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="/pgNimbus/docs/assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>
