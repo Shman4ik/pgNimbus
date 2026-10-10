@@ -686,6 +686,14 @@ public static class CommandCatalog
         },
         new()
         {
+            Id = CommandId.RestoreBackup,
+            Title = "Restore backup…",
+            Category = CommandCategory.Navigation,
+            Glyph = "⤒",
+            Surfaces = PaletteOnly,
+        },
+        new()
+        {
             Id = CommandId.ToggleTheme,
             Title = "Toggle light/dark theme",
             Category = CommandCategory.Navigation,

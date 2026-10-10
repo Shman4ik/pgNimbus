@@ -487,7 +487,7 @@ public partial class App : Application
     /// (or minimized) is what the user is asking for, so raise that; only when
     /// every window is gone does the app need a fresh entry point, and that's
     /// the connection dialog — the closed window's data source and SSH tunnel
-    /// went with it (see <see cref="BuildMainWindow(NpgsqlDataSource, string?, SshTunnel?, ConnectionProfile?, string?, PgToolConnection?)"/>),
+    /// went with it (see <see cref="BuildMainWindow(NpgsqlDataSource, string?, SshTunnelLease?, ConnectionProfile?, string?, PgToolConnection?)"/>),
     /// so there is nothing to resurrect.
     /// </summary>
     private static void ReopenWindow(IClassicDesktopStyleApplicationLifetime desktop)
@@ -562,7 +562,12 @@ public partial class App : Application
 
         viewModel.Connected += (dataSource, accentColor, tunnel) =>
         {
-            var mainWindow = BuildMainWindow(dataSource, accentColor, tunnel, viewModel.ConnectedProfile, viewModel.ConnectedPassword);
+            var mainWindow = BuildMainWindow(
+                dataSource,
+                accentColor,
+                tunnel is null ? null : SshTunnelLease.Create(tunnel),
+                viewModel.ConnectedProfile,
+                viewModel.ConnectedPassword);
             if (viewModel.ConnectedProfileId is { } profileId)
             {
                 ForgetSessionPasswordsOnClose(mainWindow, profileId);
@@ -579,6 +584,72 @@ public partial class App : Application
         };
 
         return dialog;
+    }
+
+    /// <summary>
+    /// Opens a main window on <paramref name="database"/> of the same server,
+    /// connected the way the window that asked is: its profile with the
+    /// database swapped (not saved; the connection list doesn't grow), its
+    /// password, and another hold on its SSH tunnel, since signing in to the jump
+    /// host again would need the SSH secret, which no window keeps. One real
+    /// connection is opened first, as the connection dialog does, so a failure
+    /// lands in the restore window that asked rather than in a broken window.
+    /// </summary>
+    private static async Task OpenDatabaseInNewWindowAsync(
+        string database,
+        string connectionString,
+        PgToolConnection toolConnection,
+        string? accentColor,
+        SshTunnelLease? tunnel,
+        ConnectionProfile? profile,
+        string? password)
+    {
+        var lease = tunnel?.Acquire();
+        NpgsqlDataSource? dataSource = null;
+        try
+        {
+            MainWindow window;
+            if (profile is not null)
+            {
+                var target = profile with { Database = database };
+                dataSource = target.CreateDataSource(password, lease is null ? null : (lease.Tunnel.LocalHost, lease.Tunnel.LocalPort));
+                await using (await dataSource.OpenConnectionAsync())
+                {
+                }
+
+                window = BuildMainWindow(dataSource, accentColor, lease, target, password);
+                ForgetSessionPasswordsOnClose(window, profile.Id);
+            }
+            else
+            {
+                // PGNIMBUS_CONN: the data source's string, which Npgsql hands
+                // back without its password, with the database swapped.
+                var builder = new NpgsqlConnectionStringBuilder(connectionString)
+                {
+                    Database = database,
+                    Password = toolConnection.Password,
+                };
+                dataSource = NpgsqlDataSource.Create(builder.ConnectionString);
+                await using (await dataSource.OpenConnectionAsync())
+                {
+                }
+
+                window = BuildMainWindow(dataSource, accentColor, lease, toolConnection: toolConnection.ForDatabase(database));
+            }
+
+            dataSource = null;
+            lease = null;
+            window.Show();
+        }
+        finally
+        {
+            if (dataSource is not null)
+            {
+                await dataSource.DisposeAsync();
+            }
+
+            lease?.Dispose();
+        }
     }
 
     // The profile each open main window was connected with.
@@ -632,26 +703,27 @@ public partial class App : Application
 
     /// <summary>
     /// Builds a connected window around an existing <paramref name="dataSource"/>
-    /// and takes ownership of it (and of <paramref name="tunnel"/>): both are
-    /// disposed by the window's <c>Closed</c> handler. The connection dialog
-    /// hands over a data source that has already opened one connection, so by
-    /// the time this runs the credentials are known good.
+    /// and takes ownership of it (and of its hold on <paramref name="tunnel"/>):
+    /// both are released by the window's <c>Closed</c> handler, and the tunnel
+    /// closes with the last window holding it. The connection dialog hands over a
+    /// data source that has already opened one connection, so by the time this
+    /// runs the credentials are known good.
     /// <paramref name="password"/> and the tunnel's local end become the
-    /// connection pg_dump uses (<see cref="PgToolConnection"/>), which
-    /// <paramref name="toolConnection"/> gives directly for a window with no
-    /// profile behind it.
+    /// connection pg_dump and pg_restore use (<see cref="PgToolConnection"/>),
+    /// which <paramref name="toolConnection"/> gives directly for a window with
+    /// no profile behind it.
     /// </summary>
     internal static MainWindow BuildMainWindow(
         NpgsqlDataSource dataSource,
         string? accentColor = null,
-        SshTunnel? tunnel = null,
+        SshTunnelLease? tunnel = null,
         ConnectionProfile? profile = null,
         string? password = null,
         PgToolConnection? toolConnection = null)
     {
         toolConnection ??= profile is null
             ? null
-            : PgToolConnection.From(profile, password, tunnel is null ? null : (tunnel.LocalHost, tunnel.LocalPort));
+            : PgToolConnection.From(profile, password, tunnel is null ? null : (tunnel.Tunnel.LocalHost, tunnel.Tunnel.LocalPort));
         var connectionString = dataSource.ConnectionString;
         var engine = new QueryEngine(dataSource);
         var explainService = new ExplainService(dataSource);
@@ -724,7 +796,17 @@ public partial class App : Application
             completionUsage: LoadCompletionUsage(workspaceKey),
             completionSettings: LoadCompletionSettings(),
             persistCompletionSettings: PersistCompletionSettings,
-            backups: toolConnection is null ? null : new BackupService(dataSource, toolConnection));
+            backups: toolConnection is null ? null : new BackupService(dataSource, toolConnection),
+            restores: toolConnection is null ? null : new RestoreService(dataSource, toolConnection));
+
+        // "Open in New Window" after a restore into a new database: the same
+        // profile and password, and the same SSH tunnel (another hold on it).
+        if (toolConnection is not null)
+        {
+            var tools = toolConnection;
+            viewModel.OpenDatabaseInNewWindow = database =>
+                OpenDatabaseInNewWindowAsync(database, dataSource.ConnectionString, tools, accentColor, tunnel, profile, password);
+        }
 
         var window = new MainWindow
         {
@@ -763,8 +845,9 @@ public partial class App : Application
 
             // Order matters: drain the notify listener's connection back to the
             // pool first, then dispose the data source (the pool itself, which
-            // otherwise leaks on every "switch connection"), then the SSH tunnel
-            // that carries all of it.
+            // otherwise leaks on every "switch connection"), then this window's
+            // hold on the SSH tunnel that carries all of it, which closes the
+            // tunnel unless a window opened on a restored database still uses it.
             await notifyMonitor.DisposeAsync();
             await dataSource.DisposeAsync();
             tunnel?.Dispose();

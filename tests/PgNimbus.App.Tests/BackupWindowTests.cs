@@ -39,13 +39,7 @@ public class BackupWindowTests
     {
         var window = new BackupWindow { DataContext = model };
         Ui.Show(window);
-        var deadline = DateTime.UtcNow.AddSeconds(30);
-        while (model.Tools.State == PgToolState.Searching && DateTime.UtcNow < deadline)
-        {
-            await Task.Delay(10);
-            Ui.Settle(passes: 1);
-        }
-
+        await Ui.WaitUntilAsync(() => model.Tools.State != PgToolState.Searching);
         return window;
     }
 
@@ -260,7 +254,7 @@ public class BackupWindowTests
             window.Close();
             Ui.Settle();
             window.OwnedWindows.OfType<ConfirmDialog>().Single().Close(true);
-            await Assert.That(Ui.SettleUntil(() => !window.IsVisible)).IsTrue();
+            await Assert.That(await Ui.WaitUntilAsync(() => !window.IsVisible)).IsTrue();
             await running;
             await Assert.That(model.State).IsEqualTo(BackupWindowState.Cancelled);
         });

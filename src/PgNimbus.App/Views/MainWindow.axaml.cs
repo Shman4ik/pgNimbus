@@ -38,8 +38,8 @@ public partial class MainWindow : Window, IEditCommandTarget
         Closed += (_, _) => Hotkeys.Changed -= BuildKeyBindings;
 
         // Closing this window ends its connection, and the SSH tunnel a running
-        // backup may be using, so a running backup is asked about first.
-        Closing += OnClosingWithBackupRunning;
+        // backup or restore may be using, so either is asked about first.
+        Closing += OnClosingWithToolRunning;
 
         // ActualThemeVariant isn't final at construction time - re-resolve the
         // toggle glyph once the window opens, and again on any live theme switch,
@@ -199,6 +199,7 @@ public partial class MainWindow : Window, IEditCommandTarget
                 CommandItem("New Connection Window…", CommandId.NewWindow),
                 new NativeMenuItemSeparator(),
                 CommandItem("Back Up Database…", CommandId.BackupDatabase),
+                CommandItem("Restore Backup…", CommandId.RestoreBackup),
             },
         };
         // Like the ☰ menu's submenu: reflects the list as of menu open.
@@ -528,6 +529,7 @@ public partial class MainWindow : Window, IEditCommandTarget
             _viewModel.NotifyMonitorRequested -= ShowNotifyMonitorWindow;
             _viewModel.SecurityRequested -= ShowSecurityWindow;
             _viewModel.BackupRequested -= ShowBackupWindow;
+            _viewModel.RestoreRequested -= ShowRestoreWindow;
             _viewModel.SidebarToggleRequested -= ToggleSidebar;
             _viewModel.OpenFileRequested -= OnOpenFileRequested;
             _viewModel.SaveFileRequested -= OnSaveFileRequested;
@@ -550,6 +552,7 @@ public partial class MainWindow : Window, IEditCommandTarget
         _viewModel.NotifyMonitorRequested += ShowNotifyMonitorWindow;
         _viewModel.SecurityRequested += ShowSecurityWindow;
         _viewModel.BackupRequested += ShowBackupWindow;
+        _viewModel.RestoreRequested += ShowRestoreWindow;
         _viewModel.SidebarToggleRequested += ToggleSidebar;
         _viewModel.OpenFileRequested += OnOpenFileRequested;
         _viewModel.SaveFileRequested += OnSaveFileRequested;
@@ -1255,23 +1258,66 @@ public partial class MainWindow : Window, IEditCommandTarget
             : $"{model.ConnectionName} · {endpoint}";
     }
 
-    private async void OnClosingWithBackupRunning(object? sender, WindowClosingEventArgs e)
+    private RestoreWindow? _restoreWindow;
+
+    /// <summary>
+    /// Opens the restore window, one per main window: a second request brings
+    /// the open one forward, whatever it is doing.
+    /// </summary>
+    private void ShowRestoreWindow()
     {
-        if (_closingConfirmed || _backupWindow?.DataContext is not BackupViewModel { IsRunning: true } backup)
+        if (_viewModel?.Restores is not { } restores)
+        {
+            return;
+        }
+
+        if (_restoreWindow is not null)
+        {
+            _restoreWindow.Activate();
+            return;
+        }
+
+        var model = new RestoreViewModel(restores, ConnectionLabel(_viewModel), openDatabase: _viewModel.OpenDatabaseInNewWindow);
+        // A restore into this database changed what the schema tree shows.
+        model.CurrentDatabaseChanged += () => _ = _viewModel.RefreshSchemaCommand.ExecuteAsync(null);
+        _restoreWindow = new RestoreWindow { DataContext = model };
+        _restoreWindow.Closed += (_, _) => _restoreWindow = null;
+        _restoreWindow.Show(this);
+    }
+
+    private async void OnClosingWithToolRunning(object? sender, WindowClosingEventArgs e)
+    {
+        if (_closingConfirmed)
+        {
+            return;
+        }
+
+        var backup = _backupWindow?.DataContext as BackupViewModel is { IsRunning: true } b ? b : null;
+        var restore = _restoreWindow?.DataContext as RestoreViewModel is { IsRunning: true } r ? r : null;
+        if (backup is null && restore is null)
         {
             return;
         }
 
         e.Cancel = true;
-        var stop = await new ConfirmDialog(
-            "A backup is still running, and closing this window ends its connection. Stop the backup and close?",
-            "Stop Backup").ShowDialog<bool>(this);
-        if (!stop)
+        var (message, label) = restore is not null
+            ? ("A restore is still running, and closing this window ends its connection. Stop the restore and close? It runs as one transaction, so nothing it did stays.", "Stop Restore")
+            : ("A backup is still running, and closing this window ends its connection. Stop the backup and close?", "Stop Backup");
+        if (!await new ConfirmDialog(message, label).ShowDialog<bool>(this))
         {
             return;
         }
 
-        await backup.StopAndWaitAsync();
+        if (backup is not null)
+        {
+            await backup.StopAndWaitAsync();
+        }
+
+        if (restore is not null)
+        {
+            await restore.StopAndWaitAsync();
+        }
+
         _closingConfirmed = true;
         Close();
     }

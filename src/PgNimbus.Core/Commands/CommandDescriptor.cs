@@ -88,6 +88,7 @@ public enum CommandId
 
     // Appended for the same reason; filed under navigation with the windows.
     BackupDatabase,
+    RestoreBackup,
 }
 
 /// <summary>

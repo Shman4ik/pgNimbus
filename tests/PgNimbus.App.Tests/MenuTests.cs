@@ -55,7 +55,7 @@ public class MenuTests
     }
 
     [Test]
-    public async Task Back_up_is_in_the_app_menu_and_the_mac_File_menu_and_both_open_it()
+    public async Task Back_up_and_restore_are_in_the_app_menu_and_the_mac_File_menu()
     {
         await Ui.Run(async () =>
         {
@@ -73,10 +73,17 @@ public class MenuTests
             var appMenuItem = window.FindControl<MenuItem>("MenuBackupDatabase")!;
             await Assert.That(appMenuItem.Header).IsEqualTo("Back Up Database…");
             appMenuItem.Command!.Execute(null);
+            var restoreItem = window.FindControl<MenuItem>("MenuRestoreBackup")!;
+            await Assert.That(restoreItem.Header).IsEqualTo("Restore Backup…");
+            await Assert.That(restoreItem.Command).IsEqualTo(vm.RestoreBackupCommand);
             menuButton.Flyout.Hide();
 
             var file = Submenu(((MainWindow)window).CreateNativeMenuBar(), "File");
             Click(Item(file, "Back Up Database…"));
+            var restores = 0;
+            vm.RestoreRequested += () => restores++;
+            Click(Item(file, "Restore Backup…"));
+            await Assert.That(restores).IsEqualTo(1);
 
             await Assert.That(scopes).IsEquivalentTo([Core.Backup.BackupScope.Database, Core.Backup.BackupScope.Database]);
             foreach (var backup in window.OwnedWindows.ToList())

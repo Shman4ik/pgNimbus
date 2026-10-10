@@ -1,0 +1,222 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:PgNimbus.App.ViewModels"
+        xmlns:views="using:PgNimbus.App.Views"
+        xmlns:conv="using:Avalonia.Data.Converters"
+        x:Class="PgNimbus.App.Views.RestoreWindow"
+        x:DataType="vm:RestoreViewModel"
+        Title="pgNimbus — Restore"
+        Width="620" SizeToContent="Height"
+        MinWidth="480"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner">
+
+    <Window.Styles>
+        <Style Selector="TextBlock.fieldLabel">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+        </Style>
+        <Style Selector="TextBlock.choiceHint">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+        </Style>
+        <Style Selector="TextBlock.warning">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Foreground" Value="{DynamicResource AppWarningBrush}" />
+        </Style>
+        <Style Selector="TextBlock.error">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Foreground" Value="{DynamicResource AppDangerBrush}" />
+        </Style>
+        <Style Selector="TextBlock.success">
+            <Setter Property="Foreground" Value="{DynamicResource AppSuccessBrush}" />
+        </Style>
+        <Style Selector="TextBlock.failure">
+            <Setter Property="Foreground" Value="{DynamicResource AppDangerBrush}" />
+        </Style>
+        <Style Selector="Button.disclosure">
+            <Setter Property="Padding" Value="4,3" />
+            <Setter Property="Margin" Value="-4,0,0,0" />
+        </Style>
+        <Style Selector="Button.disclosure PathIcon">
+            <Setter Property="Width" Value="10" />
+            <Setter Property="Height" Value="10" />
+        </Style>
+        <Style Selector="Border.commandBox">
+            <Setter Property="Background" Value="{DynamicResource AppAltRowBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="10,8" />
+        </Style>
+    </Window.Styles>
+
+    <!-- Not modal, like the backup window: a restore can take minutes. -->
+    <StackPanel Margin="20">
+        <TextBlock Classes="dialogTitle" Text="{Binding Title}" />
+        <TextBlock Classes="dialogHint" Text="{Binding ConnectionLabel}" Margin="0,2,0,14" />
+
+        <!-- No pg_restore: the exact steps to get one. -->
+        <Border Name="ToolsMissingCard" Classes="card" Padding="16,14" IsVisible="{Binding ShowToolsMissing}">
+            <views:PgToolGuideView DataContext="{Binding Tools}" />
+        </Border>
+
+        <!-- No file yet. -->
+        <Border Name="ChooseFileCard" Classes="card" Padding="16,14" IsVisible="{Binding IsChoosingFile}">
+            <StackPanel Spacing="4">
+                <TextBlock Text="Choose a backup made by pg_dump" FontWeight="SemiBold" />
+                <TextBlock Classes="choiceHint"
+                           Text="A .dump file, like the ones Back Up Database… saves, or a .backup or .tar archive. You'll see what it holds before anything is restored." />
+            </StackPanel>
+        </Border>
+
+        <!-- Reading the file's table of contents. -->
+        <Border Classes="card" Padding="16,14" IsVisible="{Binding IsInspecting}">
+            <StackPanel Spacing="8">
+                <TextBlock Text="{Binding FileName, StringFormat='Reading {0}…'}" />
+                <ProgressBar IsIndeterminate="True" />
+            </StackPanel>
+        </Border>
+
+        <!-- A file that can't be restored, and why. -->
+        <Border Name="UnusableCard" Classes="card" Padding="16,14" IsVisible="{Binding IsUnusable}">
+            <StackPanel Spacing="6">
+                <TextBlock Text="{Binding FileName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                <SelectableTextBlock Name="ProblemText" Text="{Binding Problem}" TextWrapping="Wrap" FontSize="12"
+                                     Foreground="{DynamicResource AppWarningBrush}" />
+            </StackPanel>
+        </Border>
+
+        <!-- What the backup holds, where it goes, and whose it is. -->
+        <Border Name="FormCard" Classes="card" Padding="16,14" IsVisible="{Binding ShowForm}">
+            <StackPanel Spacing="14">
+                <StackPanel>
+                    <TextBlock Classes="fieldLabel" Text="Backup" />
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Spacing="2">
+                            <TextBlock Name="FileNameText" Text="{Binding FileName}" TextTrimming="CharacterEllipsis"
+                                       ToolTip.Tip="{Binding ArchivePath}" />
+                            <TextBlock Name="SummaryText" Classes="choiceHint" Text="{Binding ArchiveSummary}" />
+                            <TextBlock Classes="choiceHint" Text="{Binding ContentSummary}" />
+                        </StackPanel>
+                        <Button Grid.Column="1" Classes="soft" Content="Change…" Margin="8,0,0,0" VerticalAlignment="Top"
+                                Click="OnChooseFileClick" />
+                    </Grid>
+                    <TextBlock Classes="warning" Text="{Binding VersionWarning}" Margin="0,6,0,0"
+                               IsVisible="{Binding VersionWarning, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                </StackPanel>
+
+                <StackPanel Spacing="8">
+                    <TextBlock Classes="fieldLabel" Text="Restore into" Margin="0" />
+                    <RadioButton Name="NewDatabaseChoice" GroupName="target" IsChecked="{Binding IntoNewDatabase}">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="A new database" />
+                            <TextBox Name="NewDatabaseNameBox" Text="{Binding NewDatabaseName}" Width="300" HorizontalAlignment="Left"
+                                     IsEnabled="{Binding IntoNewDatabase}" />
+                            <TextBlock Classes="error" Text="{Binding NameError}"
+                                       IsVisible="{Binding NameError, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                            <TextBlock Classes="choiceHint"
+                                       Text="Nothing that exists is touched. If the restore fails, the new database is removed again." />
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton Name="CurrentDatabaseChoice" GroupName="target" IsChecked="{Binding IntoCurrentDatabase}">
+                        <StackPanel Spacing="1">
+                            <TextBlock Text="{Binding CurrentDatabaseLabel}" />
+                            <TextBlock Classes="choiceHint"
+                                       Text="What the backup holds is dropped and created again from it; other objects stay. pgNimbus asks before it starts." />
+                        </StackPanel>
+                    </RadioButton>
+                </StackPanel>
+
+                <StackPanel Spacing="2">
+                    <CheckBox Name="KeepOwnersBox" IsChecked="{Binding KeepOwners}" Content="Keep owners and permissions" />
+                    <TextBlock Name="OwnersNoteText" Text="{Binding OwnersNote}" Margin="28,0,0,0"
+                               Classes="choiceHint" Classes.warning="{Binding HasMissingRoles}" />
+                </StackPanel>
+
+                <TextBlock Classes="dialogHint" Text="{Binding Tools.StatusLine}" TextTrimming="CharacterEllipsis"
+                           ToolTip.Tip="{Binding Tools.StatusLine}" />
+            </StackPanel>
+        </Border>
+
+        <!-- Running. -->
+        <Border Name="ProgressCard" Classes="card" Padding="16,14" IsVisible="{Binding IsRunning}">
+            <StackPanel Spacing="8">
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Text="{Binding ProgressText}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding ProgressText}" />
+                    <TextBlock Grid.Column="1" Text="{Binding ProgressDetail}" Margin="12,0,0,0"
+                               FontFamily="{DynamicResource KeyCapFont}" Classes="secondary" />
+                </Grid>
+                <ProgressBar Minimum="0" Maximum="100" Value="{Binding ProgressPercent}" />
+                <TextBlock Classes="dialogHint"
+                           Text="It's one transaction: Stop leaves everything as it was, and removes a new database again." />
+            </StackPanel>
+        </Border>
+
+        <!-- Finished. -->
+        <Border Name="ResultCard" Classes="card" Padding="16,14" IsVisible="{Binding IsFinished}">
+            <StackPanel Spacing="6">
+                <TextBlock Name="ResultTitleText" Text="{Binding ResultTitle}" FontSize="14" FontWeight="SemiBold"
+                           Classes.success="{Binding IsSucceeded}" Classes.failure="{Binding IsFailed}" />
+                <SelectableTextBlock Name="ResultDetailText" Text="{Binding ResultDetail}" TextWrapping="Wrap" FontSize="12" />
+                <TextBlock Classes="warning" Text="{Binding ResultHint}"
+                           IsVisible="{Binding ResultHint, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                <Button Classes="toolbar disclosure" Command="{Binding ToggleLogShownCommand}" Margin="0,4,0,0"
+                        IsVisible="{Binding Log, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <PathIcon Data="{StaticResource ChevronRightIconGeometry}" IsVisible="{Binding !IsLogShown}" />
+                        <PathIcon Data="{StaticResource ChevronRightIconGeometry}" RenderTransform="rotate(90deg)" IsVisible="{Binding IsLogShown}" />
+                        <TextBlock Text="pg_restore's log" />
+                    </StackPanel>
+                </Button>
+                <Border Classes="commandBox" IsVisible="{Binding IsLogShown}">
+                    <Grid RowDefinitions="Auto,Auto">
+                        <views:ReadOnlyTextView Classes="mono" FontSize="11" Height="200" Text="{Binding Log}" />
+                        <Button Grid.Row="1" Classes="soft" Content="Copy Log" HorizontalAlignment="Left" Margin="0,6,0,0"
+                                Click="OnCopyLogClick" />
+                    </Grid>
+                </Border>
+            </StackPanel>
+        </Border>
+
+        <!-- One row of buttons per state, the primary last (DESIGN.md rule 16). -->
+        <StackPanel Classes="dialogButtons" IsVisible="{Binding ShowToolsMissing}">
+            <Button Classes="soft" Content="Choose Folder…" Click="OnChooseToolsFolderClick"
+                    ToolTip.Tip="Pick the folder that holds pg_dump and pg_restore" />
+            <Button Classes="soft" Content="Look Again" Command="{Binding Tools.LookAgainCommand}" />
+            <Button Classes="soft" Content="Use Automatic Search" Command="{Binding Tools.UseAutomaticSearchCommand}"
+                    IsVisible="{Binding Tools.IsConfigured}" />
+            <Button Classes="soft" Content="Cancel" IsCancel="{Binding ShowToolsMissing}" Click="OnCloseClick" />
+        </StackPanel>
+        <StackPanel Classes="dialogButtons" IsVisible="{Binding IsChoosingFile}">
+            <Button Classes="soft" Content="Cancel" IsCancel="{Binding IsChoosingFile}" Click="OnCloseClick" />
+            <Button Name="ChooseFileButton" Classes="accent" Content="Choose File…" IsDefault="{Binding IsChoosingFile}"
+                    Click="OnChooseFileClick" />
+        </StackPanel>
+        <StackPanel Classes="dialogButtons" IsVisible="{Binding IsUnusable}">
+            <Button Classes="soft" Content="Close" IsCancel="{Binding IsUnusable}" Click="OnCloseClick" />
+            <Button Classes="accent" Content="Choose Another File…" IsDefault="{Binding IsUnusable}" Click="OnChooseFileClick" />
+        </StackPanel>
+        <StackPanel Classes="dialogButtons" IsVisible="{Binding ShowForm}">
+            <Button Classes="soft" Content="Cancel" IsCancel="{Binding ShowForm}" Click="OnCloseClick" />
+            <Button Name="StartButton" Classes="accent" Content="Restore" IsDefault="{Binding ShowForm}" Command="{Binding StartCommand}" />
+        </StackPanel>
+        <StackPanel Classes="dialogButtons" IsVisible="{Binding IsRunning}">
+            <Button Name="StopButton" Classes="soft danger" Content="Stop" Command="{Binding StopCommand}" />
+        </StackPanel>
+        <StackPanel Classes="dialogButtons" IsVisible="{Binding IsSucceeded}">
+            <Button Classes="soft" Content="Close" IsCancel="{Binding IsSucceeded}" Click="OnCloseClick" />
+            <Button Name="OpenDatabaseButton" Classes="accent" Content="Open in New Window" IsDefault="{Binding CanOpenDatabase}"
+                    Command="{Binding OpenDatabaseCommand}" IsVisible="{Binding CanOpenDatabase}" />
+        </StackPanel>
+        <StackPanel Classes="dialogButtons" IsVisible="{Binding IsFailed}">
+            <Button Classes="soft" Content="Close" IsCancel="{Binding IsFailed}" Click="OnCloseClick" />
+            <Button Name="TryAgainButton" Classes="accent" Content="Try Again" IsDefault="{Binding IsFailed}" Command="{Binding TryAgainCommand}" />
+        </StackPanel>
+    </StackPanel>
+
+</Window>

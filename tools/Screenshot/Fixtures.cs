@@ -82,7 +82,8 @@ public static class Fixtures
             readOnlyConnection: readOnlyProfile,
             savedQueryStore: new SavedQueryStore(Path.Combine(dataDirectory, "saved-queries.json")),
             historyStore: new QueryHistoryStore(Path.Combine(dataDirectory, "history.json")),
-            backups: new FakeBackupService());
+            backups: new FakeBackupService(),
+            restores: new FakeRestoreService());
 
         SeedSavedQueries(viewModel.SavedQueries);
 

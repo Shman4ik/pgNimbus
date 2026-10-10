@@ -148,6 +148,28 @@ public static class PgToolErrorHints
             return "The server refused the password pgNimbus connected this window with. If it changed since, reconnect and try again.";
         }
 
+        if (tool == PgTool.PgRestore && Has("role ") && Has("does not exist"))
+        {
+            return "The backup names a role this server doesn't have. Turn off Keep owners and permissions to make you the owner of everything, or create the role first.";
+        }
+
+        // A backup of one schema or table keeps its foreign keys, views and
+        // column types that point outside it, and a new database has none of that.
+        if (tool == PgTool.PgRestore && Has("does not exist"))
+        {
+            return "The backup refers to something it doesn't contain, such as a table in another schema. A schema or table backup needs what it points to, so restore it into a database that has it, like the one it came from.";
+        }
+
+        if (tool == PgTool.PgRestore && Has("must be owner of"))
+        {
+            return "Something in the backup belongs to a role you can't act for. Turn off Keep owners and permissions, or restore as that role.";
+        }
+
+        if (tool == PgTool.PgRestore && Has("permission denied"))
+        {
+            return "Your role can't create everything the backup holds here. Restore into a new database, which you own, or use a role that can.";
+        }
+
         if (Has("server version mismatch"))
         {
             return "This pg_dump is older than the server. Install a newer one; Settings, on the Data tab, shows which one pgNimbus uses.";

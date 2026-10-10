@@ -116,6 +116,24 @@ public static class Ui
     }
 
     /// <summary>
+    /// Pumps the dispatcher until <paramref name="condition"/> holds, waiting by
+    /// time rather than by passes. For flows whose next step comes back from the
+    /// thread pool (a service called through <c>Task.Run</c>): in a full run,
+    /// beside the completion replay, 200 passes can go by before it does.
+    /// </summary>
+    public static async Task<bool> WaitUntilAsync(Func<bool> condition, int seconds = 30)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(seconds);
+        while (!condition() && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(10);
+            Settle(passes: 1);
+        }
+
+        return condition();
+    }
+
+    /// <summary>
     /// Sends the gesture the command catalog declares for <paramref name="id"/>.
     ///
     /// Deliberately resolved rather than typed in: the catalog is the single

@@ -23,10 +23,15 @@ product, not a vulnerability. What is not trusted:
 - **Other local users** on Linux and macOS, who must not be able to read what pgNimbus writes under the app data
   directory (`Settings/AppDataFile`, `Diagnostics/CrashLogger`), nor plant files there, nor read a password off a
   process's command line.
-- **PostgreSQL's client programs** (`Backup/`). A backup runs `pg_dump`, found by `PgToolLocator` in the places
-  PostgreSQL, pgAdmin, Postgres.app and Homebrew install it, on PATH, or in a folder the user picked. What it prints
-  (progress lines naming the server's tables, errors quoting the server) is shown as text and parsed by `PgToolLog`
-  and `PgDumpProgressTracker`.
+- **PostgreSQL's client programs** (`Backup/`). A backup runs `pg_dump`, a restore `pg_restore`, found by
+  `PgToolLocator` in the places PostgreSQL, pgAdmin, Postgres.app and Homebrew install them, on PATH, or in a folder
+  the user picked. What they print (progress lines naming the server's tables, errors quoting the server) is shown as
+  text and parsed by `PgToolLog`, `PgDumpProgressTracker` and `PgRestoreProgressTracker`.
+- **A backup file chosen for a restore** (`Backup/PgArchive`, `Backup/RestoreService`). Its first bytes decide what it
+  is, and `pg_restore --list` output (object and role names from whoever made the file) is parsed and shown. Restoring
+  it runs the SQL it holds as the connected role, which is what a restore is; what must not happen is anything beyond
+  that SQL. Only pg_dump archives are restored, through `pg_restore` with a connection string; a plain SQL script is
+  refused, never handed to psql, whose `\!` meta-command runs a shell (pgAdmin's CVE-2025-12762 and CVE-2025-13780).
 
 ## Promises the code makes, which a finding would break
 
@@ -60,9 +65,11 @@ product, not a vulnerability. What is not trusted:
    CAs exported to the app data directory (`Backup/TrustedRoots`, never the shared temp directory).
 6. **Hostile input degrades, it does not take the app down.** Parsers have depth and size limits, results are capped
    in rows, bytes and columns (`ResultBudget`), and a value Npgsql cannot read becomes a placeholder cell.
-7. **A failed backup destroys nothing.** `pg_dump` writes to `<file>.partial`, which replaces the chosen file only
-   when it exits cleanly; a failure or a stop deletes the partial file and leaves an older backup at that path as it
-   was (`Backup/BackupService`).
+7. **A failed backup or restore destroys nothing.** `pg_dump` writes to `<file>.partial`, which replaces the chosen
+   file only when it exits cleanly; a failure or a stop deletes the partial file and leaves an older backup at that
+   path as it was (`Backup/BackupService`). A restore is always one transaction that stops at its first error
+   (`--single-transaction --exit-on-error`), replaces the current database only after a confirmation naming it, and
+   drops a database it created for itself when it fails (`Backup/RestoreService`).
 
 ## Components that matter most / least
 
@@ -95,8 +102,8 @@ PGPASSWORD=postgres psql -h 127.0.0.1 -U postgres   # to create hostile objects 
 ```
 
 - `services.sh` exports `PGNIMBUS_TEST_CONN` and `PGNIMBUS_TEST_SSH`; tests gated on them skip without them. The
-  backup tests (`BackupServiceLiveTests`) run the image's own `pg_dump` 17 from `/usr/lib/postgresql/17/bin`, which
-  the automatic search finds.
+  backup and restore tests (`BackupServiceLiveTests`, `RestoreServiceLiveTests`) run the image's own `pg_dump` and
+  `pg_restore` 17 from `/usr/lib/postgresql/17/bin`, which the automatic search finds.
 - The server has TLS on, with Ubuntu's self-signed snakeoil certificate (CI's `postgres:17` has it off). For the
   no-TLS paths: `ALTER SYSTEM SET ssl = off`, then `pg_ctlcluster 17 main restart`.
 - The best reproducer is a new TUnit test in `tests/PgNimbus.Core.Tests` (engine, parsers, SQL generation) or

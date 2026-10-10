@@ -31,10 +31,10 @@ Two buttons open a page in your web browser, and only when you click them:
   edit it first.
 
 The app also talks to programs on your own computer: the OS password store, the
-SSH agent when a profile signs in with it, and PostgreSQL's `pg_dump` when you
-make a [backup](guide/backup.md). `pg_dump` connects to the same server as the
-window you start it from, and gets the password through its environment, never
-its command line.
+SSH agent when a profile signs in with it, and PostgreSQL's `pg_dump` and
+`pg_restore` when you [back up or restore](guide/backup.md). They connect to the
+same server as the window you start them from, and get the password through
+their environment, never their command line.
 
 ## What your PostgreSQL server sees
 
@@ -43,7 +43,7 @@ its command line.
   of it, depending on the server's authentication method.
 - The application name `pgNimbus`, for connections made from the connection
   dialog. It carries no version number or other identifier. A backup connects
-  as `pg_dump`.
+  as `pg_dump`, a restore as `pg_restore`.
 - Every statement you run.
 - The statements pgNimbus runs for itself (the schema tree, completion, the
   monitoring windows). Each starts with the comment `/* pgNimbus */`, so it can

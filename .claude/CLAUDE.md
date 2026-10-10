@@ -837,11 +837,12 @@ Three rules about it:
    for every name — so the role is `"PUBLIC"` — and `GranteeLabel` shows that
    role quoted so the two are told apart on screen. `PublicRoleTests` creates
    the role for real and revokes from it through the generated script.
-8. **Backups are PostgreSQL's own programs, found rather than shipped, and the
-   password never touches a command line** (2026-10, issue #381). The scope the
-   owner set: the simple cases only (a database, a schema or a table, everything
-   or the structure only, as a `.dump` archive or a `.sql` script; the format
-   follows the file name), with dedicated tools for the rest. `src/PgNimbus.Core/Backup/`
+8. **Backup and restore are PostgreSQL's own programs, found rather than
+   shipped, and the password never touches a command line** (2026-10, issue
+   #381). The scope the owner set: the simple cases only (a database, a schema
+   or a table, everything or the structure only, as a `.dump` archive or a
+   `.sql` script, the format following the file name; and an archive restored
+   into a new database or the current one), with dedicated tools for the rest. `src/PgNimbus.Core/Backup/`
    holds it, Core-pure apart from starting a process:
    - **`PgToolLocator` finds `pg_dump`/`pg_restore`; nothing is downloaded.** It
      looks where PostgreSQL (EDB, PGDG `/usr/lib/postgresql/*/bin`,
@@ -895,11 +896,45 @@ Three rules about it:
      Closing it, or the main window (whose tunnel the backup may be using),
      while it runs asks first. No `Expander`: its chevron turns on a transition
      the baselines would catch half-way.
-   Tests: `Backup/*Tests` (unit) and `BackupServiceLiveTests` (a real pg_dump
-   against a database of its own, gated on `PGNIMBUS_TEST_CONN`; CI installs
-   PGDG's client 18 and sets `PGNIMBUS_TEST_PG_TOOLS`, which makes the tools
-   required rather than skipped), `BackupWindowTests`, scenarios `backup-window*`
-   and `preferences-window-data`; the user guide is `docs/guide/backup.md`.
+   - **Restore takes archives only, never a script** (`RestoreService`). A plain
+     `.sql` needs psql, and psql runs the `\!` shell commands a script can hold:
+     that is how restoring a plain dump became remote code execution in pgAdmin
+     twice (CVE-2025-12762, then its bypass CVE-2025-13780, a BOM ahead of the
+     meta-command). `PgArchive.Detect` reads the first bytes (`PGDMP`, `ustar`, a
+     folder with `toc.dat`) and refuses text with the reason. The archive is
+     shown before anything runs, from `pg_restore --list` (`PgArchiveListing`:
+     the kind is the only reliable part of an entry line, so it is matched
+     longest-first; the owner is the last word, none when the line ends in a
+     space).
+   - **A restore is all or nothing**: always `--single-transaction
+     --exit-on-error`. Into a new database (the default) it is created first
+     (`TEMPLATE template0`, as pg_dump's documentation asks) and dropped again on
+     failure or Stop, its other sessions ended first since a killed pg_restore's
+     backend lingers. Into the current database it is `--clean --if-exists`,
+     behind a `ConfirmDialog` naming the database and the server, and the schema
+     tree refreshes after. **Owners are kept only if every one exists here**:
+     `MissingRolesAsync` checks the listing's owners, and a missing one turns
+     Keep owners and permissions off by default (`--no-owner --no-privileges`),
+     since the first `ALTER … OWNER TO` would otherwise stop the restore. A
+     read-only connection doesn't open the window at all. **A schema or table
+     backup can point outside itself** (found live: `sales.orders`' foreign key
+     to `public.customers`), so into an empty new database it stops at
+     `relation … does not exist`; `PgToolErrorHints` says to restore it where
+     what it points to exists. Nothing tries to detect it up front: the listing
+     names a constraint, not what it references.
+   - **Open in New Window** after a restore into a new database connects the way
+     the window did: the profile with the database swapped (not saved), its
+     password, and another hold on its SSH tunnel (`SshTunnelLease`: windows share
+     the tunnel, the last one to close closes it), since no window keeps the SSH
+     secret to sign in again.
+   Tests: `Backup/*Tests` (unit), `BackupServiceLiveTests` and
+   `RestoreServiceLiveTests` (a real pg_dump and pg_restore against databases of
+   their own, gated on `PGNIMBUS_TEST_CONN`; the round trip compares rows, and a
+   stop while pg_restore waits on a lock leaves the database as it was; CI
+   installs PGDG's client 18 and sets `PGNIMBUS_TEST_PG_TOOLS`, which makes the
+   tools required rather than skipped), `BackupWindowTests`, `RestoreWindowTests`,
+   scenarios `backup-window*`, `restore-window*` and `preferences-window-data`;
+   the user guide is `docs/guide/backup.md`.
 
 ## UI design rules
 
@@ -1337,7 +1372,7 @@ Three rules about it:
    The ☰ button (top-left, 2026-07) opens the one discoverable menu for file/tab-level commands: New Query Tab,
    Open… / Open Recent, Save / Save As… / Save to Saved Queries… /
    Save to File…, Close Tab, Reopen Closed Tab, Switch Connection…,
-   New Connection Window…, Back Up Database… (2026-10, hard rule 8, beside
+   New Connection Window…, Back Up Database… and Restore Backup… (2026-10, hard rule 8, beside
    Switch Connection in the macOS File menu too), Settings…, **Keyboard Shortcuts and About pgNimbus**
    (Title Case and the macOS menu bar's own names since 2026-09, DESIGN.md
    rule 18; the palette rows of the same commands say "Open file…", "Save to
