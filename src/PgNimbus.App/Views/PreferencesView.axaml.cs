@@ -1,5 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Interactivity;
+using PgNimbus.App.ViewModels;
 
 namespace PgNimbus.App.Views;
 
@@ -20,6 +22,16 @@ public partial class PreferencesView : UserControl
     public const double PageHeight = 520;
 
     public PreferencesView() => InitializeComponent();
+
+    private async void OnChooseToolsFolderClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is PreferencesViewModel model
+            && TopLevel.GetTopLevel(this) is { } owner
+            && await BackupWindow.ChooseToolsFolderAsync(owner) is { } folder)
+        {
+            await model.PgTools.UseFolderAsync(folder);
+        }
+    }
 
     protected override Size MeasureOverride(Size availableSize)
     {

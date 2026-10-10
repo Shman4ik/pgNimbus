@@ -65,7 +65,32 @@ public sealed partial class PreferencesViewModel : ObservableObject
     [ObservableProperty]
     private int _selectedTab;
 
-    partial void OnSelectedTabChanged(int value) => _main.PreferencesTab = value;
+    partial void OnSelectedTabChanged(int value)
+    {
+        _main.PreferencesTab = value;
+        LoadPgToolsWhenShown();
+    }
+
+    /// <summary>The Data tab's index, where the pg_dump card is.</summary>
+    public const int DataTab = 3;
+
+    /// <summary>
+    /// Which pg_dump and pg_restore backups use, for the Data tab's card. Read
+    /// when that tab first shows: the search runs programs, and someone
+    /// changing the theme shouldn't start it.
+    /// </summary>
+    public PgToolStatusViewModel PgTools { get; } = new(Core.Backup.PgTool.PgDump);
+
+    private bool _pgToolsLoaded;
+
+    private void LoadPgToolsWhenShown()
+    {
+        if (SelectedTab == DataTab && !_pgToolsLoaded)
+        {
+            _pgToolsLoaded = true;
+            _ = PgTools.LoadAsync();
+        }
+    }
 
     // Set while the list is rebuilt: the ComboBox reports a selection change for
     // the old item leaving, which is not a choice.
@@ -87,6 +112,7 @@ public sealed partial class PreferencesViewModel : ObservableObject
         _main.PropertyChanged += OnMainPropertyChanged;
         _main.SchemaTree.PropertyChanged += OnSchemaTreePropertyChanged;
         _main.SavedQueries.PropertyChanged += OnSavedQueriesPropertyChanged;
+        LoadPgToolsWhenShown();
     }
 
     /// <summary>

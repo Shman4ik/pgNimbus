@@ -55,6 +55,40 @@ public class MenuTests
     }
 
     [Test]
+    public async Task Back_up_is_in_the_app_menu_and_the_mac_File_menu_and_both_open_it()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, vm) = Scenarios.Shell();
+            var scopes = new List<Core.Backup.BackupScope>();
+            vm.BackupRequested += scopes.Add;
+
+            // The ☰ menu (Windows, Linux) and the File menu (macOS) carry the
+            // same file-level commands (UI design rule 4).
+            // Its items bind once the flyout has opened, as it would under a click.
+            Ui.Show(window);
+            var menuButton = window.FindControl<Button>("AppMenuButton")!;
+            menuButton.Flyout!.ShowAt(menuButton);
+            Ui.Settle();
+            var appMenuItem = window.FindControl<MenuItem>("MenuBackupDatabase")!;
+            await Assert.That(appMenuItem.Header).IsEqualTo("Back Up Database…");
+            appMenuItem.Command!.Execute(null);
+            menuButton.Flyout.Hide();
+
+            var file = Submenu(((MainWindow)window).CreateNativeMenuBar(), "File");
+            Click(Item(file, "Back Up Database…"));
+
+            await Assert.That(scopes).IsEquivalentTo([Core.Backup.BackupScope.Database, Core.Backup.BackupScope.Database]);
+            foreach (var backup in window.OwnedWindows.ToList())
+            {
+                backup.Close();
+            }
+
+            window.Close();
+        });
+    }
+
+    [Test]
     public async Task Edit_menu_carries_the_standard_verbs_with_their_gestures()
     {
         await Ui.Run(async () =>
@@ -348,7 +382,7 @@ public class MenuTests
             Ui.Show(window);
 
             var table = ContextMenuFor(window, node => node is TableNode { Name: "customers" });
-            await Assert.That(Join(VisibleHeaders(table))).IsEqualTo("Browse Rows | Copy Name | Source (DDL) | Alter Table…");
+            await Assert.That(Join(VisibleHeaders(table))).IsEqualTo("Browse Rows | Copy Name | Source (DDL) | Alter Table… | Back Up Table…");
 
             var view = ContextMenuFor(window, node => node is TableNode { Name: "active_customers" });
             await Assert.That(Join(VisibleHeaders(view))).IsEqualTo("Browse Rows | Copy Name | Source (DDL)");
@@ -367,7 +401,7 @@ public class MenuTests
 
             var schema = ContextMenuFor(window, node => node is SchemaNode { Name: "public" });
             await Assert.That(Join(VisibleHeaders(schema)))
-                .IsEqualTo("New Table… | Copy Name | Refresh | Exclude from Autocomplete | Drop Schema… | Drop Schema (Cascade)…");
+                .IsEqualTo("New Table… | Copy Name | Refresh | Back Up Schema… | Exclude from Autocomplete | Drop Schema… | Drop Schema (Cascade)…");
 
             window.Close();
         });

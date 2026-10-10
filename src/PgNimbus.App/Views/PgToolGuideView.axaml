@@ -1,0 +1,75 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PgNimbus.App.ViewModels"
+             x:Class="PgNimbus.App.Views.PgToolGuideView"
+             x:DataType="vm:PgToolStatusViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="Border.stepNumber">
+            <Setter Property="Width" Value="20" />
+            <Setter Property="Height" Value="20" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Background" Value="{DynamicResource AppSegmentTrackBrush}" />
+            <Setter Property="VerticalAlignment" Value="Top" />
+            <Setter Property="Margin" Value="0,1,0,0" />
+        </Style>
+        <Style Selector="Border.commandBox">
+            <Setter Property="Background" Value="{DynamicResource AppAltRowBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="10,6,6,6" />
+        </Style>
+    </UserControl.Styles>
+
+    <!-- What to do when pg_dump or pg_restore can't be found: the version this
+         server needs, what was found instead, and the exact steps for this
+         platform, each command one Copy away. The person reading this is
+         blocked, so it says one way to get unblocked rather than every way
+         there is. -->
+    <StackPanel Spacing="12">
+        <StackPanel Spacing="4">
+            <TextBlock Name="GuideHeadline" Text="{Binding Headline}" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap" />
+            <SelectableTextBlock Name="GuideExplanation" Text="{Binding Explanation}" FontSize="12" TextWrapping="Wrap"
+                                 Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+        </StackPanel>
+
+        <ItemsControl Name="GuideSteps" ItemsSource="{Binding Steps}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <StackPanel Spacing="12" />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:PgToolGuideStepViewModel">
+                    <Grid ColumnDefinitions="30,*">
+                        <Border Classes="stepNumber">
+                            <TextBlock Text="{Binding Number}" FontSize="11" FontWeight="SemiBold"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel Grid.Column="1" Spacing="6">
+                            <SelectableTextBlock Text="{Binding Text}" FontSize="13" TextWrapping="Wrap" />
+                            <Border Classes="commandBox" IsVisible="{Binding HasCommand}">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <SelectableTextBlock Classes="mono" Text="{Binding Command}" FontSize="12"
+                                                         TextWrapping="Wrap" VerticalAlignment="Center" />
+                                    <Button Grid.Column="1" Classes="soft" Content="Copy" Margin="8,0,0,0"
+                                            VerticalAlignment="Top" Click="OnCopyCommandClick"
+                                            ToolTip.Tip="Copy the command" />
+                                </Grid>
+                            </Border>
+                            <Button Classes="soft" IsVisible="{Binding HasLink}" HorizontalAlignment="Left"
+                                    Click="OnOpenLinkClick" ToolTip.Tip="{Binding LinkUrl}">
+                                <TextBlock Text="{Binding LinkText}" />
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <TextBlock Classes="dialogHint"
+                   Text="Installed them somewhere else? Choose Folder… and pick the folder that holds pg_dump." />
+    </StackPanel>
+
+</UserControl>

@@ -2,6 +2,7 @@ using Npgsql;
 using PgNimbus.App.Completion;
 using PgNimbus.App.ViewModels;
 using PgNimbus.App.ViewModels.Security;
+using PgNimbus.Core.Backup;
 using PgNimbus.Core.Import;
 using PgNimbus.Core.Monitoring;
 using PgNimbus.Core.Notifications;
@@ -80,13 +81,22 @@ public static class Fixtures
             workspace: workspace,
             readOnlyConnection: readOnlyProfile,
             savedQueryStore: new SavedQueryStore(Path.Combine(dataDirectory, "saved-queries.json")),
-            historyStore: new QueryHistoryStore(Path.Combine(dataDirectory, "history.json")));
+            historyStore: new QueryHistoryStore(Path.Combine(dataDirectory, "history.json")),
+            backups: new FakeBackupService());
 
         SeedSavedQueries(viewModel.SavedQueries);
 
         SeedSchemaTree(schemaTree, schemaService);
         return viewModel;
     }
+
+    /// <summary>
+    /// What the search for pg_dump answers in every screenshot and UI test: one
+    /// PostgreSQL 18 install. Fixed, because a real search finds whatever the
+    /// rendering machine has installed (see <see cref="IsolatedAppData.Enable"/>).
+    /// </summary>
+    public static PgToolScan PgTools() =>
+        new([new PgToolInstall(@"C:\Program Files\PostgreSQL\18\bin", new PgVersion(18, 6), null, [])], [], null);
 
     // --- Schema tree ------------------------------------------------------
 

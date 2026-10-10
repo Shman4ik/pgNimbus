@@ -8,6 +8,7 @@ using Npgsql;
 using PgNimbus.App.Completion;
 using PgNimbus.App.ViewModels;
 using PgNimbus.App.Views;
+using PgNimbus.Core.Backup;
 using PgNimbus.Core.Connections;
 using PgNimbus.Core.Import;
 using PgNimbus.Core.Monitoring;
@@ -180,6 +181,14 @@ public partial class App : Application
 
     /// <summary>The saved settings snapshot, for the preferences page to initialize from.</summary>
     internal static AppSettings LoadSettings() => SettingsStore.Load();
+
+    /// <summary>Persists the folder pg_dump and pg_restore run from (null: search for them).</summary>
+    internal static void SetPgToolsDirectory(string? value) =>
+        SettingsStore.Save(SettingsStore.Load() with { PgToolsDirectory = string.IsNullOrWhiteSpace(value) ? null : value });
+
+    /// <summary>Remembers where the last backup went, so the next one is suggested there.</summary>
+    internal static void PersistLastBackupFolder(string? value) =>
+        SettingsStore.Save(SettingsStore.Load() with { LastBackupFolder = value });
 
     /// <summary>Applies and persists a theme chosen on the preferences page ("system"/"light"/"dark").</summary>
     internal static void SetTheme(string theme)
@@ -478,7 +487,7 @@ public partial class App : Application
     /// (or minimized) is what the user is asking for, so raise that; only when
     /// every window is gone does the app need a fresh entry point, and that's
     /// the connection dialog — the closed window's data source and SSH tunnel
-    /// went with it (see <see cref="BuildMainWindow(NpgsqlDataSource, string?, SshTunnel?, ConnectionProfile?)"/>),
+    /// went with it (see <see cref="BuildMainWindow(NpgsqlDataSource, string?, SshTunnel?, ConnectionProfile?, string?, PgToolConnection?)"/>),
     /// so there is nothing to resurrect.
     /// </summary>
     private static void ReopenWindow(IClassicDesktopStyleApplicationLifetime desktop)
@@ -553,7 +562,7 @@ public partial class App : Application
 
         viewModel.Connected += (dataSource, accentColor, tunnel) =>
         {
-            var mainWindow = BuildMainWindow(dataSource, accentColor, tunnel, viewModel.ConnectedProfile);
+            var mainWindow = BuildMainWindow(dataSource, accentColor, tunnel, viewModel.ConnectedProfile, viewModel.ConnectedPassword);
             if (viewModel.ConnectedProfileId is { } profileId)
             {
                 ForgetSessionPasswordsOnClose(mainWindow, profileId);
@@ -617,7 +626,9 @@ public partial class App : Application
         // nowhere near a profile, so both are added here, or the literals the
         // app composes would parse differently on this one path (finding 13)
         // and an int[] holding a NULL would be unreadable.
-        BuildMainWindow(NpgsqlDataSource.Create(ConnectionProfile.ForAppSession(connectionString)));
+        BuildMainWindow(
+            NpgsqlDataSource.Create(ConnectionProfile.ForAppSession(connectionString)),
+            toolConnection: PgToolConnection.FromConnectionString(connectionString));
 
     /// <summary>
     /// Builds a connected window around an existing <paramref name="dataSource"/>
@@ -625,9 +636,22 @@ public partial class App : Application
     /// disposed by the window's <c>Closed</c> handler. The connection dialog
     /// hands over a data source that has already opened one connection, so by
     /// the time this runs the credentials are known good.
+    /// <paramref name="password"/> and the tunnel's local end become the
+    /// connection pg_dump uses (<see cref="PgToolConnection"/>), which
+    /// <paramref name="toolConnection"/> gives directly for a window with no
+    /// profile behind it.
     /// </summary>
-    internal static MainWindow BuildMainWindow(NpgsqlDataSource dataSource, string? accentColor = null, SshTunnel? tunnel = null, ConnectionProfile? profile = null)
+    internal static MainWindow BuildMainWindow(
+        NpgsqlDataSource dataSource,
+        string? accentColor = null,
+        SshTunnel? tunnel = null,
+        ConnectionProfile? profile = null,
+        string? password = null,
+        PgToolConnection? toolConnection = null)
     {
+        toolConnection ??= profile is null
+            ? null
+            : PgToolConnection.From(profile, password, tunnel is null ? null : (tunnel.LocalHost, tunnel.LocalPort));
         var connectionString = dataSource.ConnectionString;
         var engine = new QueryEngine(dataSource);
         var explainService = new ExplainService(dataSource);
@@ -699,7 +723,8 @@ public partial class App : Application
             persistExcludedSchemas: workspaceKey is null ? null : schemas => PersistExcludedSchemas(workspaceKey, schemas),
             completionUsage: LoadCompletionUsage(workspaceKey),
             completionSettings: LoadCompletionSettings(),
-            persistCompletionSettings: PersistCompletionSettings);
+            persistCompletionSettings: PersistCompletionSettings,
+            backups: toolConnection is null ? null : new BackupService(dataSource, toolConnection));
 
         var window = new MainWindow
         {

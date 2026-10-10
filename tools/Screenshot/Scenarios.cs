@@ -4,6 +4,7 @@ using PgNimbus.App.ViewModels.Security;
 using PgNimbus.App.Views;
 using PgNimbus.App.Views.Security;
 using Avalonia.VisualTree;
+using PgNimbus.Core.Backup;
 using PgNimbus.Core.Connections;
 using PgNimbus.Core.Monitoring;
 using PgNimbus.Core.Query;
@@ -101,6 +102,12 @@ public static class Scenarios
         ("connection-dialog-verify-full", ConnectionDialogVerifyFull),
         ("main-window-cell-inspector-tree", CellInspectorTree),
         ("main-window-cell-inspector-edit", CellInspectorEdit),
+        ("backup-window", BackupSetup),
+        ("backup-window-running", BackupRunning),
+        ("backup-window-done", BackupDone),
+        ("backup-window-failed", BackupFailed),
+        ("backup-window-tools-missing", BackupToolsMissing),
+        ("preferences-window-data", PreferencesData),
     ];
 
     // --- Main window ------------------------------------------------------
@@ -891,6 +898,88 @@ public static class Scenarios
         };
 
     // --- Helpers ----------------------------------------------------------
+
+    // --- Backup -------------------------------------------------------------
+
+    /// <summary>
+    /// A backup window over the fixture service, at a fixed path and time so the
+    /// frame doesn't depend on whose Documents folder renders it.
+    /// </summary>
+    public static BackupViewModel BackupModel(PgToolStatusViewModel? tools = null, BackupScope? scope = null)
+    {
+        var model = new BackupViewModel(
+            new FakeBackupService(),
+            scope ?? BackupScope.Database,
+            "prod-eu · app@db.example.com:5432/shop",
+            lastFolder: null,
+            tools: tools,
+            now: () => new DateTime(2026, 10, 10, 14, 32, 0));
+        model.OutputPath = @"C:\Users\me\Documents\shop_2026-10-10_1432.dump";
+        return model;
+    }
+
+    /// <summary>The form: where to save, and everything or the structure only.</summary>
+    public static Window BackupSetup() => new BackupWindow { DataContext = BackupModel() };
+
+    /// <summary>A backup saving its 23rd table of 41.</summary>
+    public static Window BackupRunning()
+    {
+        var model = BackupModel();
+        model.State = BackupWindowState.Running;
+        model.ProgressIsIndeterminate = false;
+        model.ProgressPercent = 56;
+        model.ProgressText = "Saving sales.orders · table 23 of 41";
+        model.ProgressDetail = "1:12 · 184 MB";
+        return new BackupWindow { DataContext = model };
+    }
+
+    /// <summary>A finished backup: how big, how long, where.</summary>
+    public static Window BackupDone()
+    {
+        var model = BackupModel();
+        model.State = BackupWindowState.Succeeded;
+        model.ResultTitle = "Saved 48.2 MB in 0:42";
+        model.ResultDetail = model.OutputPath;
+        model.Log = "pg_dump: reading schemas\npg_dump: dumping contents of table \"sales.orders\"";
+        return new BackupWindow { DataContext = model };
+    }
+
+    /// <summary>A backup pg_dump refused, with its error and the sentence saying what to do.</summary>
+    public static Window BackupFailed()
+    {
+        var model = BackupModel();
+        model.State = BackupWindowState.Failed;
+        model.ResultTitle = "Backup failed";
+        model.ResultDetail = "query failed: ERROR:  permission denied for table payroll\ndetail: Query was: LOCK TABLE hr.payroll IN ACCESS SHARE MODE";
+        model.ResultHint = PgToolErrorHints.For(model.ResultDetail, PgTool.PgDump, tunnelled: false);
+        model.IsLogShown = true;
+        model.Log = "pg_dump: reading schemas\npg_dump: error: query failed: ERROR:  permission denied for table payroll";
+        return new BackupWindow { DataContext = model };
+    }
+
+    /// <summary>
+    /// No pg_dump new enough for the server: what was found, why it doesn't do,
+    /// and the Windows steps (fixed, so the frame is the same on every OS).
+    /// </summary>
+    public static Window BackupToolsMissing()
+    {
+        var scan = new PgToolScan(
+            [new PgToolInstall(@"C:\Program Files\PostgreSQL\15\bin", new PgVersion(15, 3), null, [])],
+            [new PgToolProblem(@"C:\Program Files\pgAdmin 4\runtime", "it doesn't start: a library it needs is missing")],
+            null);
+        var tools = new PgToolStatusViewModel(
+            PgTool.PgDump,
+            scan: _ => Task.FromResult(scan),
+            guide: server => PgToolInstallGuide.Steps(PgToolPlatform.Windows, PgToolInstallGuide.MajorToInstall(server)));
+        return new BackupWindow { DataContext = BackupModel(tools) };
+    }
+
+    /// <summary>Settings on its Data tab, where the pg_dump card is.</summary>
+    public static Window PreferencesData() => OverlayOn(vm =>
+    {
+        vm.PreferencesTab = PreferencesViewModel.DataTab;
+        vm.IsPreferencesOpen = true;
+    });
 
     /// <summary>
     /// The shell with the fixture catalog and a result set already in the grid,

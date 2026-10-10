@@ -173,6 +173,22 @@ public partial class SchemaTreePanel : UserControl
         }
     }
 
+    private void OnBackUpSchemaClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem { Tag: SchemaNode schema })
+        {
+            Model?.BackUpSchemaRequested?.Invoke(schema);
+        }
+    }
+
+    private void OnBackUpTableClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem { Tag: TableNode table })
+        {
+            Model?.BackUpTableRequested?.Invoke(table);
+        }
+    }
+
     private async void OnCopySchemaNameClick(object? sender, RoutedEventArgs e)
     {
         if (sender is not MenuItem { Tag: SchemaNode schema } || TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard)

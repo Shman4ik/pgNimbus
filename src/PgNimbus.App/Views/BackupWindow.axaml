@@ -1,0 +1,202 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:PgNimbus.App.ViewModels"
+        xmlns:views="using:PgNimbus.App.Views"
+        xmlns:conv="using:Avalonia.Data.Converters"
+        x:Class="PgNimbus.App.Views.BackupWindow"
+        x:DataType="vm:BackupViewModel"
+        Title="pgNimbus — Back Up"
+        Width="620" SizeToContent="Height"
+        MinWidth="480"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner">
+
+    <Window.Styles>
+        <Style Selector="TextBlock.fieldLabel">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+        </Style>
+        <Style Selector="Button.disclosure">
+            <Setter Property="Padding" Value="4,3" />
+            <Setter Property="Margin" Value="-4,0,0,0" />
+        </Style>
+        <Style Selector="Button.disclosure PathIcon">
+            <Setter Property="Width" Value="10" />
+            <Setter Property="Height" Value="10" />
+        </Style>
+        <Style Selector="Border.commandBox">
+            <Setter Property="Background" Value="{DynamicResource AppAltRowBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="10,8" />
+        </Style>
+        <Style Selector="TextBlock.success">
+            <Setter Property="Foreground" Value="{DynamicResource AppSuccessBrush}" />
+        </Style>
+        <Style Selector="TextBlock.failure">
+            <Setter Property="Foreground" Value="{DynamicResource AppDangerBrush}" />
+        </Style>
+        <Style Selector="RadioButton > StackPanel > TextBlock.choiceHint">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+        </Style>
+    </Window.Styles>
+
+    <!-- Not modal: a backup of a big database takes minutes, and the main window
+         stays usable the whole time. One per main window (MainWindow keeps it). -->
+    <StackPanel Margin="20">
+        <TextBlock Classes="dialogTitle" Text="{Binding Title}" />
+        <TextBlock Classes="dialogHint" Text="{Binding ConnectionLabel}" Margin="0,2,0,14" />
+
+        <!-- Looking for pg_dump: a moment, normally. -->
+        <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding ShowSearching}" Margin="0,4,0,4">
+            <ProgressBar IsIndeterminate="True" Width="120" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding Tools.StatusLine}" FontSize="12" VerticalAlignment="Center" />
+        </StackPanel>
+
+        <!-- No pg_dump that fits this server: the exact steps to get one. -->
+        <Border Name="ToolsMissingCard" Classes="card" Padding="16,14" IsVisible="{Binding ShowToolsMissing}">
+            <views:PgToolGuideView DataContext="{Binding Tools}" />
+        </Border>
+
+        <!-- The form: two choices. The format follows the file name. -->
+        <Border Name="FormCard" Classes="card" Padding="16,14" IsVisible="{Binding ShowForm}">
+            <StackPanel Spacing="14">
+                <StackPanel>
+                    <TextBlock Classes="fieldLabel" Text="Save to" />
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBox Name="OutputPathBox" Text="{Binding OutputPath}" IsReadOnly="True"
+                                 ToolTip.Tip="{Binding OutputPath}" />
+                        <Button Grid.Column="1" Name="ChangeFileButton" Classes="soft" Content="Change…" Margin="8,0,0,0"
+                                VerticalAlignment="Center" Click="OnChangeFileClick" />
+                    </Grid>
+                    <TextBlock Classes="dialogHint" Text="{Binding FormatHint}" Margin="0,6,0,0" />
+                </StackPanel>
+
+                <StackPanel Spacing="8">
+                    <TextBlock Classes="fieldLabel" Text="What to save" Margin="0" />
+                    <RadioButton Name="EverythingChoice" GroupName="content" IsChecked="{Binding Everything}">
+                        <StackPanel Spacing="1">
+                            <TextBlock Text="Everything" />
+                            <TextBlock Classes="choiceHint" Text="The structure and every row." />
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton Name="StructureOnlyChoice" GroupName="content" IsChecked="{Binding StructureOnly}">
+                        <StackPanel Spacing="1">
+                            <TextBlock Text="Structure only" />
+                            <TextBlock Classes="choiceHint" Text="Tables, views, functions, types and permissions, without the rows." />
+                        </StackPanel>
+                    </RadioButton>
+                </StackPanel>
+
+                <!-- The command, for anyone who wants to run it themselves or check
+                     what runs. The password is never in it: pg_dump gets it
+                     through its environment. A plain disclosure button rather than
+                     an Expander, whose chevron turns on a transition a baseline
+                     catches half-way. -->
+                <StackPanel Spacing="6">
+                    <Grid ColumnDefinitions="Auto,*">
+                        <Button Name="CommandToggle" Classes="toolbar disclosure" Command="{Binding ToggleCommandShownCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <PathIcon Data="{StaticResource ChevronRightIconGeometry}" IsVisible="{Binding !IsCommandShown}" />
+                                <PathIcon Data="{StaticResource ChevronRightIconGeometry}" RenderTransform="rotate(90deg)" IsVisible="{Binding IsCommandShown}" />
+                                <TextBlock Text="Command" />
+                            </StackPanel>
+                        </Button>
+                        <TextBlock Grid.Column="1" Name="ToolLine" Classes="dialogHint" Text="{Binding Tools.StatusLine}"
+                                   TextTrimming="CharacterEllipsis" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                   Margin="12,0,0,0" ToolTip.Tip="{Binding Tools.StatusLine}" />
+                    </Grid>
+                    <Border Classes="commandBox" IsVisible="{Binding IsCommandShown}">
+                        <StackPanel Spacing="6">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <SelectableTextBlock Name="CommandPreviewText" Classes="mono" Text="{Binding CommandPreview}"
+                                                     FontSize="11" TextWrapping="Wrap" />
+                                <Button Grid.Column="1" Classes="soft" Content="Copy" Margin="8,0,0,0" VerticalAlignment="Top"
+                                        Click="OnCopyCommandClick" />
+                            </Grid>
+                            <TextBlock Classes="dialogHint" FontSize="11"
+                                       Text="Without the password: pgNimbus passes it to pg_dump in the environment, never on the command line." />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <TextBlock Text="{Binding SetupError}" Foreground="{DynamicResource AppDangerBrush}" TextWrapping="Wrap"
+                   IsVisible="{Binding SetupError, Converter={x:Static conv:ObjectConverters.IsNotNull}}" Margin="0,10,0,0" />
+
+        <!-- Running: what is being saved, how far, how long, how big. -->
+        <Border Name="ProgressCard" Classes="card" Padding="16,14" IsVisible="{Binding IsRunning}">
+            <StackPanel Spacing="8">
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Name="ProgressTextBlock" Text="{Binding ProgressText}" TextTrimming="CharacterEllipsis"
+                               ToolTip.Tip="{Binding ProgressText}" />
+                    <TextBlock Grid.Column="1" Text="{Binding ProgressDetail}" Margin="12,0,0,0"
+                               FontFamily="{DynamicResource KeyCapFont}" Classes="secondary" />
+                </Grid>
+                <ProgressBar Minimum="0" Maximum="100" Value="{Binding ProgressPercent}"
+                             IsIndeterminate="{Binding ProgressIsIndeterminate}" />
+                <TextBlock Classes="dialogHint"
+                           Text="You can keep working in the main window. Stop deletes the unfinished file; one already at that path stays as it was." />
+            </StackPanel>
+        </Border>
+
+        <!-- Finished: where it went, or what went wrong. -->
+        <Border Name="ResultCard" Classes="card" Padding="16,14" IsVisible="{Binding IsFinished}">
+            <StackPanel Spacing="6">
+                <TextBlock Name="ResultTitleText" Text="{Binding ResultTitle}" FontSize="14" FontWeight="SemiBold"
+                           Classes.success="{Binding IsSucceeded}" Classes.failure="{Binding IsFailed}" />
+                <SelectableTextBlock Name="ResultDetailText" Text="{Binding ResultDetail}" TextWrapping="Wrap" FontSize="12" />
+                <TextBlock Text="{Binding ResultHint}" TextWrapping="Wrap" FontSize="12"
+                           Foreground="{DynamicResource AppWarningBrush}"
+                           IsVisible="{Binding ResultHint, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
+                <Button Name="LogToggle" Classes="toolbar disclosure" Command="{Binding ToggleLogShownCommand}" Margin="0,4,0,0"
+                        IsVisible="{Binding Log, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <PathIcon Data="{StaticResource ChevronRightIconGeometry}" IsVisible="{Binding !IsLogShown}" />
+                        <PathIcon Data="{StaticResource ChevronRightIconGeometry}" RenderTransform="rotate(90deg)" IsVisible="{Binding IsLogShown}" />
+                        <TextBlock Text="pg_dump's log" />
+                    </StackPanel>
+                </Button>
+                <Border Classes="commandBox" IsVisible="{Binding IsLogShown}">
+                    <Grid RowDefinitions="Auto,Auto">
+                        <views:ReadOnlyTextView Classes="mono" FontSize="11" Height="200" Text="{Binding Log}" />
+                        <Button Grid.Row="1" Classes="soft" Content="Copy Log" HorizontalAlignment="Left" Margin="0,6,0,0"
+                                Click="OnCopyLogClick" />
+                    </Grid>
+                </Border>
+            </StackPanel>
+        </Border>
+
+        <!-- One row of buttons per state, the primary last (DESIGN.md rule 16). -->
+        <StackPanel Classes="dialogButtons" IsVisible="{Binding IsSetup}">
+            <Button Classes="soft" Content="Choose Folder…" Click="OnChooseToolsFolderClick"
+                    IsVisible="{Binding Tools.IsMissing}"
+                    ToolTip.Tip="Pick the folder that holds pg_dump and pg_restore" />
+            <Button Classes="soft" Content="Look Again" Command="{Binding Tools.LookAgainCommand}"
+                    IsVisible="{Binding Tools.IsMissing}" />
+            <Button Classes="soft" Content="Use Automatic Search" Command="{Binding Tools.UseAutomaticSearchCommand}"
+                    IsVisible="{Binding ShowUseAutomaticSearch}" />
+            <Button Classes="soft" Content="Cancel" IsCancel="{Binding IsSetup}" Click="OnCloseClick" />
+            <Button Name="StartButton" Classes="accent" Content="Back Up" IsDefault="{Binding ShowForm}"
+                    Command="{Binding StartCommand}" IsVisible="{Binding !Tools.IsMissing}" />
+        </StackPanel>
+        <StackPanel Classes="dialogButtons" IsVisible="{Binding IsRunning}">
+            <Button Name="StopButton" Classes="soft danger" Content="Stop" Command="{Binding StopCommand}" />
+        </StackPanel>
+        <StackPanel Classes="dialogButtons" IsVisible="{Binding IsSucceeded}">
+            <Button Classes="soft" Content="Back Up Again" Command="{Binding BackUpAgainCommand}" />
+            <Button Classes="soft" Content="Close" IsCancel="{Binding IsSucceeded}" Click="OnCloseClick" />
+            <Button Name="ShowInFolderButton" Classes="accent" Content="Show in Folder" IsDefault="{Binding IsSucceeded}" Click="OnShowInFolderClick" />
+        </StackPanel>
+        <StackPanel Classes="dialogButtons" IsVisible="{Binding IsFailed}">
+            <Button Classes="soft" Content="Close" IsCancel="{Binding IsFailed}" Click="OnCloseClick" />
+            <Button Name="TryAgainButton" Classes="accent" Content="Try Again" IsDefault="{Binding IsFailed}" Command="{Binding TryAgainCommand}" />
+        </StackPanel>
+    </StackPanel>
+
+</Window>

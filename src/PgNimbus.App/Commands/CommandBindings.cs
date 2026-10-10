@@ -193,6 +193,7 @@ public static class CommandBindings
         [CommandId.SecurityManager] = vm => vm.ShowSecurityCommand,
         [CommandId.SwitchConnection] = vm => vm.SwitchConnectionCommand,
         [CommandId.NewWindow] = vm => vm.OpenNewWindowCommand,
+        [CommandId.BackupDatabase] = vm => vm.BackupDatabaseCommand,
         [CommandId.ToggleTheme] = vm => vm.ToggleThemeCommand,
         [CommandId.Preferences] = vm => vm.ShowPreferencesCommand,
         [CommandId.ShortcutsWindow] = vm => vm.ShowShortcutsCommand,

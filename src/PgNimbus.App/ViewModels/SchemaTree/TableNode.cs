@@ -46,6 +46,13 @@ public sealed class TableNode : SchemaTreeNode
     /// </summary>
     public bool CanAlter => Kind is RelationKind.Table or RelationKind.PartitionedTable;
 
+    /// <summary>
+    /// Whether "Back Up Table…" applies: tables and partitioned parents, the
+    /// relations that hold rows of their own. A view's backup would be one
+    /// CREATE VIEW, which Source (DDL) already shows.
+    /// </summary>
+    public bool CanBackUp => Kind is RelationKind.Table or RelationKind.PartitionedTable;
+
     /// <summary>Only relations with real storage carry indexes (tables, matviews, partitioned parents) — not plain views.</summary>
     private bool CanHaveIndexes => Kind is RelationKind.Table or RelationKind.MaterializedView or RelationKind.PartitionedTable;
 

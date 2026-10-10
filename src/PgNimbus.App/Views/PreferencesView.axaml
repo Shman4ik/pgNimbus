@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:PgNimbus.App.ViewModels"
+             xmlns:views="using:PgNimbus.App.Views"
              x:Class="PgNimbus.App.Views.PreferencesView"
              x:DataType="vm:PreferencesViewModel">
 
@@ -235,6 +236,36 @@
                                           OnContent="" OffContent=""
                                           IsChecked="{Binding ShowFilterBar}" />
                         </Grid>
+                    </Border>
+
+                    <!-- Which pg_dump and pg_restore backups run with. Found on its
+                         own almost always; this is where to point at a folder the
+                         search can't know, and where to see what it found. -->
+                    <TextBlock Classes="sectionHeader" Text="BACKUP" Margin="4,10,4,4" />
+                    <Border Name="PgToolsCard" Classes="card" Padding="14,12">
+                        <StackPanel Spacing="10">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel Spacing="2" Margin="0,0,16,0">
+                                    <TextBlock Classes="label" Text="PostgreSQL client programs" />
+                                    <TextBlock Classes="hint" Text="pg_dump and pg_restore make and restore backups. pgNimbus finds them where PostgreSQL, pgAdmin, Postgres.app and Homebrew install them." />
+                                    <TextBlock Name="PgToolsStatus" Classes="hint" Text="{Binding PgTools.StatusLine}"
+                                               TextWrapping="Wrap" Opacity="0.85" Margin="0,4,0,0" />
+                                    <TextBlock Classes="hint" Text="{Binding PgTools.FolderLabel}" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
+                                    <Button Classes="soft" Content="Choose Folder…" HorizontalAlignment="Stretch"
+                                            Click="OnChooseToolsFolderClick"
+                                            ToolTip.Tip="Pick the folder that holds pg_dump and pg_restore" />
+                                    <Button Classes="soft" Content="Look Again" HorizontalAlignment="Stretch"
+                                            Command="{Binding PgTools.LookAgainCommand}" />
+                                    <Button Classes="soft" Content="Automatic" HorizontalAlignment="Stretch"
+                                            Command="{Binding PgTools.UseAutomaticSearchCommand}"
+                                            IsVisible="{Binding PgTools.IsConfigured}"
+                                            ToolTip.Tip="Forget the folder and search again" />
+                                </StackPanel>
+                            </Grid>
+                            <views:PgToolGuideView DataContext="{Binding PgTools}" IsVisible="{Binding IsMissing}" />
+                        </StackPanel>
                     </Border>
                 </StackPanel>
             </ScrollViewer>

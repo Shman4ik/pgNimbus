@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PgNimbus.App.Completion;
 using PgNimbus.App.ViewModels.Security;
+using PgNimbus.Core.Backup;
 using PgNimbus.Core.Commands;
 using PgNimbus.Core.Connections;
 using PgNimbus.Core.Import;
@@ -91,6 +92,10 @@ public sealed partial class MainViewModel : ObservableObject
 
     // Raised to open (or focus) the Roles & Permissions window.
     public event Action? SecurityRequested;
+
+    // Raised to open the backup window for the database, a schema or a table;
+    // the view owns the window (one per main window).
+    public event Action<BackupScope>? BackupRequested;
     // Raised to collapse/restore the sidebar (the view owns the grid column).
     public event Action? SidebarToggleRequested;
     // Raised to open the "Open SQL file" picker; MainWindow owns the
@@ -347,6 +352,28 @@ public sealed partial class MainViewModel : ObservableObject
 
     [RelayCommand]
     private void ShowSecurity() => SecurityRequested?.Invoke();
+
+    /// <summary>
+    /// Runs pg_dump for this window's connection; null where the window has no
+    /// connection pg_dump could use (the screenshot fixtures).
+    /// </summary>
+    public IBackupService? Backups { get; }
+
+    /// <summary>Backs up the whole database (palette, ☰ menu, the macOS File menu).</summary>
+    [RelayCommand]
+    private void BackupDatabase() => RequestBackup(BackupScope.Database);
+
+    private void RequestBackup(BackupScope scope)
+    {
+        if (Backups is null)
+        {
+            ActiveTab.Status = "Backups need a connection that pg_dump can use, and this window has none.";
+            ActiveTab.HasError = true;
+            return;
+        }
+
+        BackupRequested?.Invoke(scope);
+    }
 
     /// <summary>
     /// The schema tree's route into the Roles &amp; Permissions window, on a
@@ -731,8 +758,10 @@ public sealed partial class MainViewModel : ObservableObject
         (KeywordCase KeywordCase, bool AlwaysQualifyTables, bool EnterAccepts)? completionSettings = null,
         Action<KeywordCase, bool, bool>? persistCompletionSettings = null,
         SavedQueryStore? savedQueryStore = null,
-        QueryHistoryStore? historyStore = null)
+        QueryHistoryStore? historyStore = null,
+        IBackupService? backups = null)
     {
+        Backups = backups;
         CompletionUsage = completionUsage ?? new CompletionUsage();
         ConnectionHost = connectionHost;
         ConnectionDatabase = connectionDatabase;
@@ -772,6 +801,9 @@ public sealed partial class MainViewModel : ObservableObject
         SchemaTree.SetExtensionInstalledRequested = SetExtensionInstalledAsync;
         SchemaTree.AlterTableViewModelFactory = CreateAlterTableViewModel;
         SchemaTree.NewTableRequested = NewTableAsync;
+        SchemaTree.BackUpSchemaRequested = schema => RequestBackup(BackupScope.ForSchema(schema.Name));
+        SchemaTree.BackUpTableRequested = table =>
+            RequestBackup(BackupScope.ForTable(table.Schema, table.Name, table.Kind == RelationKind.PartitionedTable));
         SchemaTree.DropSchemaRequested = DropSchemaAsync;
         SchemaTree.SetSchemaExcludedFromCompletionRequested = SetSchemaExcludedFromCompletionAsync;
         SchemaTree.ManageRolesRequested = ManageRolesAsync;

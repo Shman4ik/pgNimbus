@@ -837,6 +837,69 @@ Three rules about it:
    for every name — so the role is `"PUBLIC"` — and `GranteeLabel` shows that
    role quoted so the two are told apart on screen. `PublicRoleTests` creates
    the role for real and revokes from it through the generated script.
+8. **Backups are PostgreSQL's own programs, found rather than shipped, and the
+   password never touches a command line** (2026-10, issue #381). The scope the
+   owner set: the simple cases only (a database, a schema or a table, everything
+   or the structure only, as a `.dump` archive or a `.sql` script; the format
+   follows the file name), with dedicated tools for the rest. `src/PgNimbus.Core/Backup/`
+   holds it, Core-pure apart from starting a process:
+   - **`PgToolLocator` finds `pg_dump`/`pg_restore`; nothing is downloaded.** It
+     looks where PostgreSQL (EDB, PGDG `/usr/lib/postgresql/*/bin`,
+     `/usr/pgsql-*/bin`), pgAdmin 4, Postgres.app, Homebrew (`opt/libpq/bin`),
+     MacPorts and Scoop install them, then PATH, and runs `pg_dump --version`
+     in each: a directory whose program doesn't start is a `PgToolProblem`, shown,
+     never offered. Searched by name because an app started from the Finder sees
+     `/usr/bin:/bin:/usr/sbin:/sbin`, never a terminal's PATH. A folder chosen in
+     Settings (`AppSettings.PgToolsDirectory`) is the only place looked in.
+     **pgAdmin's `runtime\pg_dump.exe` needs `..\python` on PATH** (that is where
+     `gssapi64.dll` lives; without it Windows reports STATUS_DLL_NOT_FOUND), so
+     the candidate carries it as `ExtraPath`. The newest install that can dump
+     the server wins (`PgVersion.CanDump`: the server's major release or newer;
+     9.x majors are two numbers), a tie keeps a plain install over pgAdmin's.
+     The machine is described by `PgToolHost`, so `PgToolLocatorTests` search a
+     fake Windows machine on a Linux runner. `App`'s `PgToolCatalog` runs one
+     search per session (Look Again and a folder change run another); the
+     harness and the UI tests pin it with `UseFixedScan` from `IsolatedAppData.Enable`.
+   - **When none fits, the window says exactly how to get one** (the owner's
+     requirement): the version needed, what was found and why it doesn't do, and
+     `PgToolInstallGuide`'s steps for the platform (EDB's installer with only
+     Command Line Tools, or `winget … --interactive`; `brew install libpq` or
+     Postgres.app; PGDG's apt script and `postgresql-client-N`, PGDG dnf, Arch's
+     `postgresql-libs`), each command one Copy away. It installs
+     `max(server, NewestKnownMajor)`; raise `NewestKnownMajor` with each release.
+   - **The child connects where the window is, and nowhere else**
+     (`PgToolConnection`, `PgToolProcess.PrepareEnvironment`): a libpq connection
+     string spelling out every setting, the password as `PGPASSWORD` in the
+     child's environment (any local user can read a command line), every other
+     inherited `PG*` variable dropped but the password file and client
+     certificate ones Npgsql reads too, and `LC_ALL=C` so the progress and error
+     readers see English. Through the SSH tunnel it is `host=<real host>
+     hostaddr=127.0.0.1 port=<forward>`: libpq's own split, so Verify full checks
+     the real name. A verifying mode without its own CA gets the OS trust store
+     exported as `trusted-roots.pem` in the app data directory (`TrustedRoots`):
+     libpq knows no OS store and refused where Npgsql connected. **Always
+     `gssencmode=disable`**: pgAdmin's libpq tried GSSAPI first and the program
+     died with an access violation on a wrong password (measured). The command
+     preview under the form is that exact command line.
+   - **A failed backup destroys nothing**: pg_dump writes `<file>.partial`, moved
+     over the chosen file only on a clean exit; failure and Stop delete it.
+     Progress reads pg_dump's `--verbose` lines ("dumping contents of table"),
+     weighted by each table's `relpages`, **not `pg_table_size`**, which opens
+     the table and waited for the same lock pg_dump was about to wait for (the
+     stop test found it). A schema or table is chosen by an exact pattern, the
+     identifier quoted (`"Odd ""Schema"" *?"`), and a partitioned table with
+     `--table-and-children` (pg_dump 16+; older ones list the partitions).
+   - **The window** (`BackupWindow`, one per main window, not modal) is opened by
+     `CommandId.BackupDatabase` (palette, ☰, macOS File) and the schema and table
+     menus; an idle one is re-pointed, a running one only brought forward.
+     Closing it, or the main window (whose tunnel the backup may be using),
+     while it runs asks first. No `Expander`: its chevron turns on a transition
+     the baselines would catch half-way.
+   Tests: `Backup/*Tests` (unit) and `BackupServiceLiveTests` (a real pg_dump
+   against a database of its own, gated on `PGNIMBUS_TEST_CONN`; CI installs
+   PGDG's client 18 and sets `PGNIMBUS_TEST_PG_TOOLS`, which makes the tools
+   required rather than skipped), `BackupWindowTests`, scenarios `backup-window*`
+   and `preferences-window-data`; the user guide is `docs/guide/backup.md`.
 
 ## UI design rules
 
@@ -861,14 +924,17 @@ Three rules about it:
    alongside the accent-colour row collapsing into one swatch button + flyout
    next to the Name field). **A context menu is not a dumping ground either**
    (2026-08): pgAdmin answers a right-click on a schema with 15 items plus an
-   18-item Create submenu; pgNimbus's schema menu is six — New Table…, Copy
-   Name, Refresh, Exclude from Autocomplete, Drop Schema…, Drop Schema
-   (Cascade)… — and each earns its place the same way a toolbar button would.
-   A relation's menu is four (2026-09): **Browse Rows** first, because it is what
+   18-item Create submenu; pgNimbus's schema menu is seven — New Table…, Copy
+   Name, Refresh, Back Up Schema…, Exclude from Autocomplete, Drop Schema…, Drop
+   Schema (Cascade)… — and each earns its place the same way a toolbar button would.
+   A relation's menu is five (2026-09; Back Up Table… since 2026-10): **Browse Rows** first, because it is what
    a double-click does and the menu used to offer only Source (DDL) and Alter
    Table…, so the commonest reason to right-click a table had no row; then Copy
-   Name, Source (DDL), and Alter Table… for tables and partitioned parents only
-   (`TableNode.CanAlter` — the dialog's ADD/DROP COLUMN only fails on a view).
+   Name, Source (DDL), and Alter Table… and Back Up Table… for tables and partitioned parents only
+   (`TableNode.CanAlter`/`CanBackUp` — the dialog's ADD/DROP COLUMN only fails on a view,
+   and a view's backup would be the one CREATE VIEW that Source (DDL) already shows).
+   The two Back Up items were the owner's call (issue #381): backing up one table
+   before a risky migration is the commonest simple backup there is.
    Every menu label is Title Case on every platform (DESIGN.md rule 18): the
    native menu bar already was, and the context menus under it said "Copy name"
    and "Drop schema...". `MenuTests` pins the schema and relation menus.
@@ -1271,7 +1337,8 @@ Three rules about it:
    The ☰ button (top-left, 2026-07) opens the one discoverable menu for file/tab-level commands: New Query Tab,
    Open… / Open Recent, Save / Save As… / Save to Saved Queries… /
    Save to File…, Close Tab, Reopen Closed Tab, Switch Connection…,
-   New Connection Window…, Settings…, **Keyboard Shortcuts and About pgNimbus**
+   New Connection Window…, Back Up Database… (2026-10, hard rule 8, beside
+   Switch Connection in the macOS File menu too), Settings…, **Keyboard Shortcuts and About pgNimbus**
    (Title Case and the macOS menu bar's own names since 2026-09, DESIGN.md
    rule 18; the palette rows of the same commands say "Open file…", "Save to
    Saved Queries…" and "Save to file…" in the palette's sentence case). Those last

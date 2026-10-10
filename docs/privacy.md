@@ -4,7 +4,7 @@ pgNimbus is a desktop PostgreSQL client. It has no account, no cloud service and
 no telemetry. It sends nothing to the developer or to any third party.
 Everything it keeps stays on your computer, and this page lists all of it.
 
-Last updated: 29 September 2026.
+Last updated: 10 October 2026.
 
 ## What goes over the network
 
@@ -30,8 +30,11 @@ Two buttons open a page in your web browser, and only when you click them:
   address. Nothing is published until you submit the form yourself, and you can
   edit it first.
 
-The app also talks to programs on your own computer: the OS password store, and
-the SSH agent when a profile signs in with it.
+The app also talks to programs on your own computer: the OS password store, the
+SSH agent when a profile signs in with it, and PostgreSQL's `pg_dump` when you
+make a [backup](guide/backup.md). `pg_dump` connects to the same server as the
+window you start it from, and gets the password through its environment, never
+its command line.
 
 ## What your PostgreSQL server sees
 
@@ -39,7 +42,8 @@ the SSH agent when a profile signs in with it.
 - The user name and database you connect with, and your password or a proof
   of it, depending on the server's authentication method.
 - The application name `pgNimbus`, for connections made from the connection
-  dialog. It carries no version number or other identifier.
+  dialog. It carries no version number or other identifier. A backup connects
+  as `pg_dump`.
 - Every statement you run.
 - The statements pgNimbus runs for itself (the schema tree, completion, the
   monitoring windows). Each starts with the comment `/* pgNimbus */`, so it can
@@ -74,10 +78,11 @@ account. On Windows they have the normal permissions of your profile folder.
 | `history.json` | Up to 200 statements you ran (the oldest go first, pinned ones stay): the SQL, when it ran, how long it took, the result line (row count, or the server's error message; none for a statement that held a password), and the `host/database` it ran on. | No |
 | `saved-queries.json` | The queries you saved, as you saved them. | No |
 | `workspace.json` | The text of your open tabs, per `host/database`, so the next session can reopen them. | No |
-| `settings.json` | Your preferences, the last connection used, the paths of up to 10 recently opened `.sql` files, and per-database lists of excluded schemas and LISTEN channels. | No |
+| `settings.json` | Your preferences, the last connection used, the paths of up to 10 recently opened `.sql` files, per-database lists of excluded schemas and LISTEN channels, the folder of your last backup, and the folder `pg_dump` runs from if you chose one. | No |
 | `completion-usage.json` | The table, column and other names you picked from completion, with counts, per `host/database`, so they rank higher next time. | No |
 | `window.json`, `connection-window.json` | Window size and position. | No |
 | `known_hosts` | SSH host keys you accepted, in OpenSSH's format. | No |
+| `trusted-roots.pem` | The certificate authorities your computer trusts, copied from the OS for `pg_dump` when a connection checks the server's certificate without a root certificate of its own. Public certificates only. | No |
 | `logs/pgnimbus.log` | Unexpected errors: the time, the error type and message (passwords masked), and the stack trace. Kept to 1 MiB, then moved to `pgnimbus.log.old`. | No |
 
 A file that pgNimbus can't parse is renamed to `<name>.corrupt-<date>` and kept,
@@ -122,8 +127,8 @@ has the details.
 
 ### Files you create yourself
 
-Exports, saved plans and `.sql` files go only where you choose in the save
-dialog.
+Exports, backups, saved plans and `.sql` files go only where you choose in the
+save dialog.
 
 ## Clipboard
 
