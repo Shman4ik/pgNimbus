@@ -96,6 +96,9 @@ public sealed partial class MainViewModel : ObservableObject
     // Raised to open the backup window for the database, a schema or a table;
     // the view owns the window (one per main window).
     public event Action<BackupScope>? BackupRequested;
+
+    // Raised to open the restore window (one per main window, like backup's).
+    public event Action? RestoreRequested;
     // Raised to collapse/restore the sidebar (the view owns the grid column).
     public event Action? SidebarToggleRequested;
     // Raised to open the "Open SQL file" picker; MainWindow owns the
@@ -362,6 +365,45 @@ public sealed partial class MainViewModel : ObservableObject
     /// <summary>Backs up the whole database (palette, ☰ menu, the macOS File menu).</summary>
     [RelayCommand]
     private void BackupDatabase() => RequestBackup(BackupScope.Database);
+
+    /// <summary>
+    /// Runs pg_restore against this window's server; null where the window has
+    /// no connection pg_restore could use (the screenshot fixtures).
+    /// </summary>
+    public IRestoreService? Restores { get; }
+
+    /// <summary>
+    /// Opens a window on another database of this server, connected like this
+    /// one (the same profile, password and SSH tunnel): "Open in New Window"
+    /// after a restore into a new database. Set by the host; null hides it.
+    /// </summary>
+    public Func<string, Task>? OpenDatabaseInNewWindow { get; set; }
+
+    /// <summary>
+    /// Restores a pg_dump archive (palette, ☰ menu, the macOS File menu). Not on
+    /// a read-only connection: the server would refuse the CREATE DATABASE and
+    /// every statement of the restore, and saying so up front beats a window
+    /// that fails at the end.
+    /// </summary>
+    [RelayCommand]
+    private void RestoreBackup()
+    {
+        if (Restores is null)
+        {
+            ActiveTab.Status = "Restoring needs a connection that pg_restore can use, and this window has none.";
+            ActiveTab.HasError = true;
+            return;
+        }
+
+        if (IsReadOnlyConnection)
+        {
+            ActiveTab.Status = "This connection is read-only, so it can't restore a backup. Connect with a profile that can write.";
+            ActiveTab.HasError = true;
+            return;
+        }
+
+        RestoreRequested?.Invoke();
+    }
 
     private void RequestBackup(BackupScope scope)
     {
@@ -759,9 +801,11 @@ public sealed partial class MainViewModel : ObservableObject
         Action<KeywordCase, bool, bool>? persistCompletionSettings = null,
         SavedQueryStore? savedQueryStore = null,
         QueryHistoryStore? historyStore = null,
-        IBackupService? backups = null)
+        IBackupService? backups = null,
+        IRestoreService? restores = null)
     {
         Backups = backups;
+        Restores = restores;
         CompletionUsage = completionUsage ?? new CompletionUsage();
         ConnectionHost = connectionHost;
         ConnectionDatabase = connectionDatabase;

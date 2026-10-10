@@ -108,6 +108,13 @@ public static class Scenarios
         ("backup-window-failed", BackupFailed),
         ("backup-window-tools-missing", BackupToolsMissing),
         ("preferences-window-data", PreferencesData),
+        ("restore-window-choose", RestoreChoose),
+        ("restore-window", RestoreReady),
+        ("restore-window-replace", RestoreReplace),
+        ("restore-window-running", RestoreRunning),
+        ("restore-window-done", RestoreDone),
+        ("restore-window-failed", RestoreFailed),
+        ("restore-window-script", RestoreScript),
     ];
 
     // --- Main window ------------------------------------------------------
@@ -972,6 +979,89 @@ public static class Scenarios
             scan: _ => Task.FromResult(scan),
             guide: server => PgToolInstallGuide.Steps(PgToolPlatform.Windows, PgToolInstallGuide.MajorToInstall(server)));
         return new BackupWindow { DataContext = BackupModel(tools) };
+    }
+
+    // --- Restore ------------------------------------------------------------
+
+    private const string ShopArchive = @"C:\Users\me\Documents\shop_2026-10-10_1432.dump";
+
+    /// <summary>A restore window over the fixture service, which opens no file picker.</summary>
+    public static RestoreViewModel RestoreModel() =>
+        new(
+            new FakeRestoreService(),
+            "local · postgres@localhost:5432/shop",
+            new PgToolStatusViewModel(PgTool.PgRestore, scan: _ => Task.FromResult(Fixtures.PgTools())),
+            openDatabase: _ => Task.CompletedTask);
+
+    private static Window RestoreWindowFor(RestoreViewModel model) =>
+        new RestoreWindow { DataContext = model, PickFileOnOpen = false };
+
+    /// <summary>Opened, no file chosen yet (the picker was closed).</summary>
+    public static Window RestoreChoose() => RestoreWindowFor(RestoreModel());
+
+    /// <summary>
+    /// The archive shown for what it is, into a new database by default, with a
+    /// role the backup names missing here, so owners are not kept.
+    /// </summary>
+    public static Window RestoreReady()
+    {
+        var model = RestoreModel();
+        model.ShowInspection(ShopArchive, FakeRestoreService.ShopListing, ["reporting"], "shop_restored");
+        return RestoreWindowFor(model);
+    }
+
+    /// <summary>Into the window's own database, which replaces what the backup holds.</summary>
+    public static Window RestoreReplace()
+    {
+        var model = RestoreModel();
+        model.ShowInspection(ShopArchive, FakeRestoreService.ShopListing, [], "shop_restored");
+        model.IntoCurrentDatabase = true;
+        return RestoreWindowFor(model);
+    }
+
+    /// <summary>A restore filling one of its tables.</summary>
+    public static Window RestoreRunning()
+    {
+        var model = RestoreModel();
+        model.ShowInspection(ShopArchive, FakeRestoreService.ShopListing, [], "shop_restored");
+        model.State = RestoreWindowState.Running;
+        model.ProgressPercent = 62;
+        model.ProgressText = "Restoring rows of public.orders";
+        model.ProgressDetail = "0:48";
+        return RestoreWindowFor(model);
+    }
+
+    /// <summary>Restored into a new database, which can be opened in a window of its own.</summary>
+    public static Window RestoreDone()
+    {
+        var model = RestoreModel();
+        model.ShowInspection(ShopArchive, FakeRestoreService.ShopListing, [], "shop_restored");
+        var plan = new RestorePlan(ShopArchive, RestoreTarget.NewDatabase, "shop_restored", KeepOwners: true);
+        model.ShowResult(new RestoreResult(RestoreOutcome.Succeeded, "shop_restored", TimeSpan.FromSeconds(12), null, null, "pg_restore: creating TABLE \"public.orders\"", false), plan);
+        return RestoreWindowFor(model);
+    }
+
+    /// <summary>A role the backup names is missing: nothing restored, the new database removed, and what to do.</summary>
+    public static Window RestoreFailed()
+    {
+        var model = RestoreModel();
+        model.ShowInspection(ShopArchive, FakeRestoreService.ShopListing, ["reporting"], "shop_restored");
+        var plan = new RestorePlan(ShopArchive, RestoreTarget.NewDatabase, "shop_restored", KeepOwners: true);
+        const string error = "could not execute query: ERROR:  role \"reporting\" does not exist\nCommand was: ALTER TABLE sales.invoices OWNER TO reporting;";
+        model.ShowResult(new RestoreResult(
+            RestoreOutcome.Failed, "shop_restored", TimeSpan.FromSeconds(2), error,
+            PgToolErrorHints.For(error, PgTool.PgRestore, tunnelled: false), "pg_restore: error: " + error, CreatedDatabaseRemoved: true), plan);
+        return RestoreWindowFor(model);
+    }
+
+    /// <summary>A plain SQL script, which pgNimbus doesn't restore, and why.</summary>
+    public static Window RestoreScript()
+    {
+        var model = RestoreModel();
+        model.ShowProblem(@"C:\Users\me\Documents\shop.sql",
+            "This is a SQL script, pg_dump's plain format. pgNimbus restores pg_dump's archives (.dump). Restore a script with psql (psql -f file.sql); "
+            + "pgNimbus doesn't run psql for you, because psql also runs the shell commands a script can hold.");
+        return RestoreWindowFor(model);
     }
 
     /// <summary>Settings on its Data tab, where the pg_dump card is.</summary>

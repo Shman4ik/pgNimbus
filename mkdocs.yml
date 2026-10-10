@@ -94,7 +94,7 @@ nav:
       - Results grid: guide/results.md
       - Query plans: guide/explain.md
       - Monitoring: guide/monitoring.md
-      - Backup: guide/backup.md
+      - Backup and restore: guide/backup.md
   - Reference:
       - Keyboard shortcuts: reference/keyboard-shortcuts.md
   - Privacy: privacy.md

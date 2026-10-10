@@ -100,7 +100,7 @@ public sealed partial class BackupViewModel : ObservableObject, IDisposable
     /// <summary>What the chosen file will be, under the file name.</summary>
     public string FormatHint => BackupPlan.FormatFor(OutputPath) == BackupFormat.SqlScript
         ? "A SQL script you can read and keep in Git. Restore it with psql."
-        : "pg_dump's archive: compressed, and restored with pg_restore. Save as .sql for a readable script.";
+        : "pg_dump's archive: compressed, and what Restore Backup… (or pg_restore) restores. Save as .sql for a readable script.";
 
     /// <summary>
     /// The pg_dump command line, without the password (which never is an

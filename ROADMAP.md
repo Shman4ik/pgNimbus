@@ -72,7 +72,7 @@ The headlines below are proposals to use **after** the corresponding capabilitie
 
 - [ ] **Typed query parameters (M) · [#138](https://github.com/Shman4ik/pgNimbus/issues/138).** Prompt for `:name` / `$1` values with PostgreSQL types and NULL support; do not persist sensitive values by default. The minimal typed input that Q2's statements need comes first.
 - [ ] **ER diagram (L) · [#380](https://github.com/Shman4ik/pgNimbus/issues/380).** A table and its FK neighbors first, then a schema-wide layout and SVG export.
-- [ ] **Backup/restore UI (L) · [#381](https://github.com/Shman4ik/pgNimbus/issues/381).** Over `pg_dump`/`pg_restore`, with a command preview that holds no secrets and an explicit restore target.
+- [x] **Backup/restore UI (L) · [#381](https://github.com/Shman4ik/pgNimbus/issues/381).** Over `pg_dump`/`pg_restore`, with a command preview that holds no secrets and an explicit restore target. Shipped as the simple cases (a database, a schema or a table; restore into a new database or the current one, all or nothing); see `docs/guide/backup.md`.
 - [ ] **Maintenance insights (M) · [#382](https://github.com/Shman4ik/pgNimbus/issues/382).** Stale statistics, dead tuples, long transactions, and vacuum progress in Database Overview.
 - [ ] **Hotkey remapping (M) · [#383](https://github.com/Shman4ik/pgNimbus/issues/383).** A remap layer over the command catalog.
 - [ ] **macOS platform polish (M) · [#384](https://github.com/Shman4ik/pgNimbus/issues/384).** Vibrancy, sheet-style dialogs, native context menus, and sidebar/title-bar integration.

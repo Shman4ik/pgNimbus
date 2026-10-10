@@ -95,6 +95,7 @@
                                 <MenuItem Name="MenuNewWindow" Header="New Connection Window…" Command="{Binding OpenNewWindowCommand}" />
                                 <Separator />
                                 <MenuItem Name="MenuBackupDatabase" Header="Back Up Database…" Command="{Binding BackupDatabaseCommand}" />
+                                <MenuItem Name="MenuRestoreBackup" Header="Restore Backup…" Command="{Binding RestoreBackupCommand}" />
                                 <Separator />
                                 <MenuItem Name="MenuPreferences" Header="Settings…" Command="{Binding ShowPreferencesCommand}" />
                                 <!-- The cheat sheet and the About box, in the same
