@@ -77,11 +77,25 @@ jobs:
       - name: Build (Release)
         run: dotnet build -c Release
 
+      # pg_dump and pg_restore for the backup round trips (BackupServiceLiveTests).
+      # pg_dump has to be at least as new as the postgres:17 service, and the
+      # runner's own PostgreSQL is older, so the client comes from PGDG, the way
+      # the backup window's install steps tell an Ubuntu user to get it.
+      - name: Install PostgreSQL client programs
+        run: |
+          sudo apt-get install -y postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y postgresql-client-18
+
       # TUnit on Microsoft.Testing.Platform — "dotnet test --project" works
       # via the test.runner opt-in in the repo-root global.json.
+      # PGNIMBUS_TEST_PG_TOOLS makes the backup tests require that install (a
+      # broken one fails the build instead of skipping the round trip), and the
+      # automatic search is checked to find it on its own.
       - name: Test (core)
         env:
           PGNIMBUS_TEST_CONN: "Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=postgres"
+          PGNIMBUS_TEST_PG_TOOLS: /usr/lib/postgresql/18/bin
         run: dotnet test --project tests/PgNimbus.Core.Tests -c Release --no-build
 
       # The UI half: real windows on Avalonia's headless platform, driven with

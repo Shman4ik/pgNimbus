@@ -27,8 +27,17 @@ public static class IsolatedAppData
     /// <summary>This process's stand-in for the app data root. Enables the redirect on first use.</summary>
     public static string Directory => Root.Value;
 
-    /// <summary>Redirects the app data root for this process. Idempotent.</summary>
-    public static void Enable() => _ = Root.Value;
+    /// <summary>
+    /// Redirects the app data root for this process, and pins what the machine
+    /// has installed: the search for pg_dump runs programs and finds whatever the
+    /// machine rendering a frame happens to have, so every search answers the
+    /// fixture's install instead (<see cref="Fixtures.PgTools"/>). Idempotent.
+    /// </summary>
+    public static void Enable()
+    {
+        _ = Root.Value;
+        PgNimbus.App.Platform.PgToolCatalog.UseFixedScan(Fixtures.PgTools());
+    }
 
     /// <summary>
     /// A fresh, not-yet-created directory under <see cref="Directory"/>, for a

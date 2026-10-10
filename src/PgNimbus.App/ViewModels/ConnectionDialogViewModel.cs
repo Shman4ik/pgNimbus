@@ -333,6 +333,13 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
     /// </summary>
     public ConnectionProfile? ConnectedProfile { get; private set; }
 
+    /// <summary>
+    /// The password the last <see cref="Connected"/> connected with, set just
+    /// before it. The window hands it to pg_dump and pg_restore, which connect
+    /// on their own; the pool it travels with holds the same password anyway.
+    /// </summary>
+    public string? ConnectedPassword { get; private set; }
+
     /// <param name="lastProfileId">
     /// The profile connected to last session, preselected here so the common
     /// case — reconnect to the same database — needs no clicking at all: the
@@ -1043,6 +1050,7 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
             await FlushAsync();
 
             ConnectedProfile = profile;
+            ConnectedPassword = string.IsNullOrEmpty(Password) ? null : Password;
             Connected?.Invoke(dataSource, profile.AccentColor, tunnel);
             dataSource = null; // handed off; the main window owns it now
             RememberLastProfile();

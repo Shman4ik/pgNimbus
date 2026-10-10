@@ -94,6 +94,8 @@
                                 <MenuItem Name="MenuSwitchConnection" Header="Switch Connection…" Command="{Binding SwitchConnectionCommand}" />
                                 <MenuItem Name="MenuNewWindow" Header="New Connection Window…" Command="{Binding OpenNewWindowCommand}" />
                                 <Separator />
+                                <MenuItem Name="MenuBackupDatabase" Header="Back Up Database…" Command="{Binding BackupDatabaseCommand}" />
+                                <Separator />
                                 <MenuItem Name="MenuPreferences" Header="Settings…" Command="{Binding ShowPreferencesCommand}" />
                                 <!-- The cheat sheet and the About box, in the same
                                      place kubeNimbus's ☰ menu carries them. The

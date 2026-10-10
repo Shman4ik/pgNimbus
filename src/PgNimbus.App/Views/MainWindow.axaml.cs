@@ -10,6 +10,7 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Nimbus.Ui.Chrome;
 using PgNimbus.App.ViewModels;
+using PgNimbus.Core.Backup;
 using PgNimbus.Core.Commands;
 using PgNimbus.Core.Query;
 
@@ -35,6 +36,10 @@ public partial class MainWindow : Window, IEditCommandTarget
         BuildKeyBindings();
         Hotkeys.Changed += BuildKeyBindings;
         Closed += (_, _) => Hotkeys.Changed -= BuildKeyBindings;
+
+        // Closing this window ends its connection, and the SSH tunnel a running
+        // backup may be using, so a running backup is asked about first.
+        Closing += OnClosingWithBackupRunning;
 
         // ActualThemeVariant isn't final at construction time - re-resolve the
         // toggle glyph once the window opens, and again on any live theme switch,
@@ -192,6 +197,8 @@ public partial class MainWindow : Window, IEditCommandTarget
                 new NativeMenuItemSeparator(),
                 CommandItem("Switch Connection…", CommandId.SwitchConnection),
                 CommandItem("New Connection Window…", CommandId.NewWindow),
+                new NativeMenuItemSeparator(),
+                CommandItem("Back Up Database…", CommandId.BackupDatabase),
             },
         };
         // Like the ☰ menu's submenu: reflects the list as of menu open.
@@ -520,6 +527,7 @@ public partial class MainWindow : Window, IEditCommandTarget
             _viewModel.SlowQueriesRequested -= ShowSlowQueriesWindow;
             _viewModel.NotifyMonitorRequested -= ShowNotifyMonitorWindow;
             _viewModel.SecurityRequested -= ShowSecurityWindow;
+            _viewModel.BackupRequested -= ShowBackupWindow;
             _viewModel.SidebarToggleRequested -= ToggleSidebar;
             _viewModel.OpenFileRequested -= OnOpenFileRequested;
             _viewModel.SaveFileRequested -= OnSaveFileRequested;
@@ -541,6 +549,7 @@ public partial class MainWindow : Window, IEditCommandTarget
         _viewModel.SlowQueriesRequested += ShowSlowQueriesWindow;
         _viewModel.NotifyMonitorRequested += ShowNotifyMonitorWindow;
         _viewModel.SecurityRequested += ShowSecurityWindow;
+        _viewModel.BackupRequested += ShowBackupWindow;
         _viewModel.SidebarToggleRequested += ToggleSidebar;
         _viewModel.OpenFileRequested += OnOpenFileRequested;
         _viewModel.SaveFileRequested += OnSaveFileRequested;
@@ -1192,6 +1201,79 @@ public partial class MainWindow : Window, IEditCommandTarget
         _securityWindow = new Security.SecurityWindow { DataContext = _viewModel?.Security };
         _securityWindow.Closed += (_, _) => _securityWindow = null;
         _securityWindow.Show(this);
+    }
+
+    private BackupWindow? _backupWindow;
+    private bool _closingConfirmed;
+
+    /// <summary>
+    /// Opens the backup window for <paramref name="scope"/>, one per main
+    /// window. A window that is running a backup is only brought forward (the
+    /// one running is the one that matters); an idle one is pointed at the new
+    /// scope, so right-clicking another schema backs that one up.
+    /// </summary>
+    private void ShowBackupWindow(BackupScope scope)
+    {
+        if (_viewModel?.Backups is not { } backups)
+        {
+            return;
+        }
+
+        if (_backupWindow is { DataContext: BackupViewModel { IsRunning: true } })
+        {
+            _backupWindow.Activate();
+            return;
+        }
+
+        var model = new BackupViewModel(
+            backups,
+            scope,
+            ConnectionLabel(_viewModel),
+            App.LoadSettings().LastBackupFolder,
+            App.PersistLastBackupFolder);
+
+        if (_backupWindow is not null)
+        {
+            (_backupWindow.DataContext as BackupViewModel)?.Dispose();
+            _backupWindow.DataContext = model;
+            _ = model.LoadAsync();
+            _backupWindow.Activate();
+            return;
+        }
+
+        _backupWindow = new BackupWindow { DataContext = model };
+        _backupWindow.Closed += (_, _) => _backupWindow = null;
+        _backupWindow.Show(this);
+    }
+
+    /// <summary>"prod-eu · app@db.example.com:5432/shop": the profile, and where it points.</summary>
+    private static string ConnectionLabel(MainViewModel model)
+    {
+        var endpoint = model.ConnectionEndpoint.Split('\n')[0];
+        return string.Equals(model.ConnectionName, model.ConnectionHost, StringComparison.Ordinal)
+            ? endpoint
+            : $"{model.ConnectionName} · {endpoint}";
+    }
+
+    private async void OnClosingWithBackupRunning(object? sender, WindowClosingEventArgs e)
+    {
+        if (_closingConfirmed || _backupWindow?.DataContext is not BackupViewModel { IsRunning: true } backup)
+        {
+            return;
+        }
+
+        e.Cancel = true;
+        var stop = await new ConfirmDialog(
+            "A backup is still running, and closing this window ends its connection. Stop the backup and close?",
+            "Stop Backup").ShowDialog<bool>(this);
+        if (!stop)
+        {
+            return;
+        }
+
+        await backup.StopAndWaitAsync();
+        _closingConfirmed = true;
+        Close();
     }
 
     // The Explain toolbar button is a single slot with a flyout (minimalist rule);

@@ -673,6 +673,17 @@ public static class CommandCatalog
             Chord = new(CommandKey.N, CmdShift),
             Surfaces = Everywhere,
         },
+        // pg_dump of the window's database. No chord: a backup is a deliberate,
+        // occasional act, reached from the palette, the ☰ menu and the macOS
+        // File menu; a schema's or a table's own is on its right-click menu.
+        new()
+        {
+            Id = CommandId.BackupDatabase,
+            Title = "Back up database…",
+            Category = CommandCategory.Navigation,
+            Glyph = "⤓",
+            Surfaces = PaletteOnly,
+        },
         new()
         {
             Id = CommandId.ToggleTheme,

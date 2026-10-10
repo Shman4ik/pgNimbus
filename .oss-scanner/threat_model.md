@@ -21,7 +21,12 @@ product, not a vulnerability. What is not trusted:
   (`ConnectionStringParser`), a pasted query plan (`ExplainService.Import`, `ExplainPlanTextParser`), a CSV, TSV or
   JSON file imported into a table (`Import/TabularFileParser`), a `.sql` file opened from disk.
 - **Other local users** on Linux and macOS, who must not be able to read what pgNimbus writes under the app data
-  directory (`Settings/AppDataFile`, `Diagnostics/CrashLogger`), nor plant files there.
+  directory (`Settings/AppDataFile`, `Diagnostics/CrashLogger`), nor plant files there, nor read a password off a
+  process's command line.
+- **PostgreSQL's client programs** (`Backup/`). A backup runs `pg_dump`, found by `PgToolLocator` in the places
+  PostgreSQL, pgAdmin, Postgres.app and Homebrew install it, on PATH, or in a folder the user picked. What it prints
+  (progress lines naming the server's tables, errors quoting the server) is shown as text and parsed by `PgToolLog`
+  and `PgDumpProgressTracker`.
 
 ## Promises the code makes, which a finding would break
 
@@ -44,18 +49,28 @@ product, not a vulnerability. What is not trusted:
    `connections.json`, logs or the clipboard history (`Platform/SecretClipboard`). A `PASSWORD` typed into SQL is
    redacted before it reaches the query history, the workspace snapshot or a crash report (`Security/SecretRedactor`,
    `QueryHistoryStore`, `WorkspaceStore`, `CrashLogger`). A role password the app sets is sent to the server as a
-   SCRAM verifier, never cleartext (`Security/ScramSha256Verifier`).
+   SCRAM verifier, never cleartext (`Security/ScramSha256Verifier`). `pg_dump` gets the connection's password as
+   `PGPASSWORD` in its own environment, never as an argument, and the command preview the backup window shows is
+   that command line, with no password in it (`Backup/PgToolProcess`, `Backup/PgToolConnection`). Every other
+   inherited `PG*` variable is dropped, so the program connects where the window is connected and nowhere else.
 5. **Nobody in the middle.** An SSH host key is checked against `~/.ssh/known_hosts` and pgNimbus's own file before
    the tunnel carries anything; a changed key refuses to connect. Verify-full checks the server certificate's name
-   against the profile's host, also through the tunnel.
+   against the profile's host, also through the tunnel. `pg_dump` checks the same name (libpq's `host` beside
+   `hostaddr=127.0.0.1` through a tunnel) against the profile's root certificate or, without one, the OS's trusted
+   CAs exported to the app data directory (`Backup/TrustedRoots`, never the shared temp directory).
 6. **Hostile input degrades, it does not take the app down.** Parsers have depth and size limits, results are capped
    in rows, bytes and columns (`ResultBudget`), and a value Npgsql cannot read becomes a placeholder cell.
+7. **A failed backup destroys nothing.** `pg_dump` writes to `<file>.partial`, which replaces the chosen file only
+   when it exits cleanly; a failure or a stop deletes the partial file and leaves an older backup at that path as it
+   was (`Backup/BackupService`).
 
 ## Components that matter most / least
 
 - Most: `src/PgNimbus.Core/Query` (the engine, SQL generation, Explain, staged edits, history), `Connections`
   (connection strings, TLS, SSH, credential stores), `Security` (script builders, redactor, SCRAM), `Schema`
-  (catalog reads, `DdlTemplates`, `SchemaEditor`, `PgValueSyntax`), `Import`, `Export`, `Json`, `Settings`.
+  (catalog reads, `DdlTemplates`, `SchemaEditor`, `PgValueSyntax`), `Import`, `Export`, `Json`, `Settings`, and
+  `Backup` (the libpq connection string and its quoting, the child's environment, the `pg_dump` arguments and the
+  exact-name patterns a schema or table is selected by).
   In the App: `ViewModels/QueryViewModel*` and `Views/ResultsGridPanel*` (edit, staging, export paths),
   `Views/ConnectionDialog*` and `ViewModels/ConnectionDialogViewModel` (paste box, autosave, credential flow),
   `Views/HostKeyDialogPolicy`, `Platform/SecretClipboard`, `Converters/CellText`, and `Views/CrashWindow`, the one
@@ -79,7 +94,9 @@ dotnet run --project tests/PgNimbus.Core.Tests -c Release --no-build -- --treeno
 PGPASSWORD=postgres psql -h 127.0.0.1 -U postgres   # to create hostile objects and data
 ```
 
-- `services.sh` exports `PGNIMBUS_TEST_CONN` and `PGNIMBUS_TEST_SSH`; tests gated on them skip without them.
+- `services.sh` exports `PGNIMBUS_TEST_CONN` and `PGNIMBUS_TEST_SSH`; tests gated on them skip without them. The
+  backup tests (`BackupServiceLiveTests`) run the image's own `pg_dump` 17 from `/usr/lib/postgresql/17/bin`, which
+  the automatic search finds.
 - The server has TLS on, with Ubuntu's self-signed snakeoil certificate (CI's `postgres:17` has it off). For the
   no-TLS paths: `ALTER SYSTEM SET ssl = off`, then `pg_ctlcluster 17 main restart`.
 - The best reproducer is a new TUnit test in `tests/PgNimbus.Core.Tests` (engine, parsers, SQL generation) or
@@ -119,6 +136,8 @@ that only the user can trigger against themselves with their own SQL is not a vu
   typed SQL on a read-only profile behind a pooler that drops startup options is warned about, not blocked;
   `pgp_sym_encrypt` keys are not redacted.
 - `Prefer` as the default SSL mode for a loopback host (localhost, 127/8, ::1, a socket directory) is deliberate.
+- The backup runs whichever `pg_dump` it finds in the well-known install folders and on the user's PATH. A program
+  planted there already runs as the user, which is outside this model.
 - Unsigned or ad-hoc-signed release binaries, SmartScreen and Gatekeeper warnings.
 - Anything that needs an attacker already running code as the user, except reading another user's files (above).
 - Vulnerabilities inside Npgsql, Avalonia, SSH.NET or the .NET runtime, unless pgNimbus uses them unsafely. Report

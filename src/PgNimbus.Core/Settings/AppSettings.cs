@@ -193,4 +193,14 @@ public sealed record AppSettings
     /// deserializer bypasses property initializers for init-only setters.
     /// </summary>
     public List<string> RecentSqlFiles { get; set; } = [];
+
+    /// <summary>
+    /// The folder pg_dump and pg_restore are run from, when the user picked one
+    /// (Settings, Data tab). Null, the default, searches the places PostgreSQL,
+    /// pgAdmin, Postgres.app and Homebrew install them (<c>PgToolLocator</c>).
+    /// </summary>
+    public string? PgToolsDirectory { get; set; }
+
+    /// <summary>The folder the last backup was saved to, where the next one is suggested.</summary>
+    public string? LastBackupFolder { get; set; }
 }

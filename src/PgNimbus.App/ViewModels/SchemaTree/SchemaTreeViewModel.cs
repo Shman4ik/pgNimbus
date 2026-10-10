@@ -173,6 +173,12 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
     /// <summary>Opens a CREATE TABLE starter statement for a schema in a new query tab.</summary>
     public Func<SchemaNode, Task>? NewTableRequested { get; set; }
 
+    /// <summary>Opens the backup window for one schema ("Back Up Schema…").</summary>
+    public Action<SchemaNode>? BackUpSchemaRequested { get; set; }
+
+    /// <summary>Opens the backup window for one table ("Back Up Table…"), its partitions included.</summary>
+    public Action<TableNode>? BackUpTableRequested { get; set; }
+
     /// <summary>DROP SCHEMA (the bool is CASCADE), then reload the tree and the caches derived from it.</summary>
     public Func<SchemaNode, bool, Task>? DropSchemaRequested { get; set; }
 

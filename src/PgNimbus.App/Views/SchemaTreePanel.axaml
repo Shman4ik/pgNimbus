@@ -41,6 +41,7 @@
                         <MenuItem Header="New Table…" Tag="{Binding}" Click="OnNewTableClick" />
                         <MenuItem Header="Copy Name" Tag="{Binding}" Click="OnCopySchemaNameClick" />
                         <MenuItem Header="Refresh" Tag="{Binding}" Click="OnRefreshSchemaClick" />
+                        <MenuItem Header="Back Up Schema…" Tag="{Binding}" Click="OnBackUpSchemaClick" />
                         <Separator />
                         <MenuItem Header="Exclude from Autocomplete" Tag="{Binding}" Click="OnToggleSchemaExcludedClick"
                                   ToggleType="CheckBox" IsChecked="{Binding ExcludedFromCompletion, Mode=OneWay}"
@@ -67,13 +68,15 @@
                     <!-- The default action first (the same browse a double-click
                          runs, UI design rule 2), then Copy Name like the schema
                          and role menus. Alter Table… is for relations ALTER TABLE
-                         can change, so views and materialized views leave it out. -->
+                         can change, and Back Up Table… for relations that hold rows
+                         of their own, so views and materialized views leave both out. -->
                     <ContextMenu>
                         <MenuItem Header="Browse Rows" Tag="{Binding}" Click="OnBrowseTableClick" />
                         <MenuItem Header="Copy Name" Tag="{Binding}" Click="OnCopyTableNameClick" />
                         <Separator />
                         <MenuItem Header="Source (DDL)" Tag="{Binding}" Click="OnShowSourceClick" />
                         <MenuItem Header="Alter Table…" Tag="{Binding}" Click="OnAlterTableClick" IsVisible="{Binding CanAlter}" />
+                        <MenuItem Header="Back Up Table…" Tag="{Binding}" Click="OnBackUpTableClick" IsVisible="{Binding CanBackUp}" />
                     </ContextMenu>
                 </DockPanel.ContextMenu>
                 <!-- One family icon per relation kind (table/view/matview/partitioned)
