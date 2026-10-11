@@ -110,12 +110,20 @@ older system the app stops at once with ``version `GLIBC_2.xx' not found``.
 
 === "AppImage"
 
-    Works on any such distribution and installs nothing.
+    Works on any such distribution and installs nothing. The file is named
+    `pgNimbus-<version>-x86_64.AppImage` for x64 and
+    `pgNimbus-<version>-aarch64.AppImage` for arm64.
 
     ```bash
-    chmod +x pgNimbus-<version>-linux-<arch>.AppImage
-    ./pgNimbus-<version>-linux-<arch>.AppImage
+    chmod +x pgNimbus-<version>-<arch>.AppImage
+    ./pgNimbus-<version>-<arch>.AppImage
     ```
+
+    AppImages built after 1.2.0 carry update information, so a tool such as
+    [AppImageUpdate](https://github.com/AppImage/AppImageUpdate) can fetch the
+    next release and download only what changed. The `.zsync` file beside each
+    AppImage on the releases page is what that tool reads; you do not need to
+    download it yourself.
 
 === "Debian / Ubuntu"
 

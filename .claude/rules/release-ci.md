@@ -154,7 +154,8 @@ its own artifacts with `PGNIMBUS_STARTUP_PROBE=1`, asserting both a clean exit
 Windows smokes the publish output and the exe of the zip unpacked into a fresh
 folder (and fails if a `.pdb` shipped in it); macOS smokes the publish output and the binary
 inside the mounted `.dmg`; Linux smokes the publish output, the `.tar.gz`, the
-`.AppImage` (`--appimage-extract-and-run`, runners have no FUSE) and the `.deb`
+`.AppImage` (`--appimage-extract-and-run`, runners have no FUSE; it also checks
+the update information inside it and its `.zsync` file) and the `.deb`
 after `apt-get install` resolves its own `Depends` — that last one is how a
 missing runtime library gets caught here instead of on a user's machine. The
 Linux legs need `xvfb`; macOS runners have a real window server. `release`
@@ -260,7 +261,22 @@ It produces, per tag:
   next LTS in one change.
   Each RID is packaged three ways by
   [`scripts/linux/build-packages.sh`](scripts/linux/build-packages.sh):
-  `.AppImage` (appimagetool **1.9.1** and the type2 runtime release
+  `.AppImage`, named `pgNimbus-<ver>-x86_64.AppImage` / `-aarch64.AppImage`
+  (not `…-linux-x64…` like the other two: the AppImage catalog's test warned
+  that an AppImage name should not say "linux" and should spell the
+  architecture the AppImage way, AppImage/appimage.github.io#6624, 2026-10),
+  with update information embedded (`appimagetool -u
+  gh-releases-zsync|Shman4ik|pgNimbus|latest|pgNimbus-*-<arch>.AppImage.zsync`)
+  and the `.zsync` file that goes with it published beside it, so
+  AppImageUpdate can fetch the next release and download only the changed
+  blocks. appimagetool writes the `.zsync` into its working directory through
+  `zsyncmake` (apt: `zsync`, installed by its own step in `build-linux`) and
+  only warns when that is missing, so the script refuses to build without it
+  and checks the file exists. The smoke step also reads
+  `--appimage-updateinformation` back from the built AppImage. The `.zsync`
+  is listed in `SHA256SUMS.txt`, attested and attached like the AppImage; the
+  releases are immutable, so a `.zsync` forgotten at tag time cannot be added
+  later (the tooling: appimagetool **1.9.1** and the type2 runtime release
   **20251108** downloaded at build time, each checked against a hardcoded
   sha256 — the `digest` GitHub publishes per release asset — and the runtime
   handed over with `--runtime-file`, so appimagetool never fetches "latest"

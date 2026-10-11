@@ -400,6 +400,11 @@ jobs:
           chmod +x scripts/linux/check-glibc.sh
           ./scripts/linux/check-glibc.sh "publish/$RID" "$GLIBC_CEILING"
 
+      # zsyncmake writes the .zsync file an AppImage's updater reads; the script
+      # refuses to build without it.
+      - name: Install zsync
+        run: sudo apt-get install -y zsync
+
       # appimagetool and the AppImage runtime it embeds are pinned releases
       # with sha256 checks inside the script — see scripts/linux/build-packages.sh.
       - name: Build tar.gz + AppImage + .deb
@@ -419,6 +424,9 @@ jobs:
           chmod +x scripts/release/smoke-launch.sh
           arch="${RID#linux-}"
           base="pgNimbus-${VERSION}-linux-${arch}"
+          # The AppImage is named with the architecture AppImages spell.
+          case "$arch" in x64) appimage_arch=x86_64 ;; arm64) appimage_arch=aarch64 ;; esac
+          appimage="pgNimbus-${VERSION}-${appimage_arch}.AppImage"
 
           ./scripts/release/smoke-launch.sh "publish output" "publish/${RID}/PgNimbus.App"
 
@@ -427,8 +435,13 @@ jobs:
 
           # CI runners have no FUSE, so the AppImage has to unpack itself —
           # the same flag build-packages.sh uses for appimagetool.
-          chmod +x "dist/${base}.AppImage"
-          ./scripts/release/smoke-launch.sh "AppImage" "dist/${base}.AppImage" --appimage-extract-and-run
+          chmod +x "dist/${appimage}"
+          ./scripts/release/smoke-launch.sh "AppImage" "dist/${appimage}" --appimage-extract-and-run
+          # Its updater reads the update information inside the AppImage and the
+          # .zsync file next to it: both have to be there under the matching name.
+          "dist/${appimage}" --appimage-updateinformation | grep -Fx \
+            "gh-releases-zsync|Shman4ik|pgNimbus|latest|pgNimbus-*-${appimage_arch}.AppImage.zsync"
+          test -s "dist/${appimage}.zsync"
 
           sudo apt-get install -y "./dist/${base}.deb"
           ./scripts/release/smoke-launch.sh ".deb" /usr/bin/pgnimbus
@@ -544,7 +557,7 @@ jobs:
       - name: Generate checksums
         run: |
           cd artifacts
-          sha256sum *.dmg *.zip *.AppImage *.tar.gz *.deb *.cdx.json > SHA256SUMS.txt
+          sha256sum *.dmg *.zip *.AppImage *.zsync *.tar.gz *.deb *.cdx.json > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
       # Signed SLSA build provenance (Sigstore) for every shipped file — the
@@ -582,6 +595,7 @@ jobs:
             ./*.dmg \
             ./*.zip \
             ./*.AppImage \
+            ./*.zsync \
             ./*.tar.gz \
             ./*.deb \
             ./*.cdx.json \
