@@ -15,7 +15,7 @@ Whenever a change touches something this file documents — tech stack
 versions, architectural rules, coding conventions, the sandbox bootstrap
 steps — update the corresponding section in the same commit/PR. That
 includes the path-scoped files in `.claude/rules/` (completion, window
-chrome, logo assets, headless tests, release/CI) and the `verify` skill,
+chrome, logo assets, headless tests, release/CI, Avalonia styling) and the `verify` skill,
 which hold what used to be sections here. Treat a
 stale `CLAUDE.md` (e.g. it still saying "Avalonia 11" after an upgrade to
 12) as a bug, not a nitpick: it's the first thing a fresh session reads,
@@ -168,10 +168,17 @@ of [nimbusUi](https://github.com/Shman4ik/nimbusUi), referenced as an ordinary
 Three rules about it:
 
 1. **A change to a shared surface is a change to both apps.** Edit the files in
-   place, build pgNimbus, then `git subtree push --prefix shared/nimbusUi`, pull
-   it into kubeNimbus and build that too. Both working copies are normally open
+   place, build pgNimbus, then ship them to nimbusUi, copy them into kubeNimbus
+   and build that too. Both working copies are normally open
    side by side, so this is one session's work, not a follow-up ticket. The PR
    template asks for the paired PR.
+   **`git subtree push`/`pull` do not work here** (since 2026-08): push is rejected
+   non-fast-forward and pull refuses unrelated histories, because the apps' split
+   histories diverged from nimbusUi's. The contents match; only the graphs differ.
+   Sync by copying files: `git worktree add --detach <tmp> nimbusui/main`, copy the
+   changed files in, commit and open the nimbusUi PR, then copy the same files into
+   each app as a "Take nimbusUi: …" commit. Check that the three copies match with
+   `tr -d '\r' | md5sum` (line endings differ between repos).
 2. **The membership test is "can it be described without naming Postgres?"** If
    yes it probably belongs up there; if no it stays here. When in doubt leave it
    here — a wrong thing pulled up has to be un-shared against two consumers.

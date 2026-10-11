@@ -363,6 +363,18 @@ the backlog (`gh api repos/OWNER/REPO/actions/artifacts` → `DELETE`) to actual
 free anything. The repo's default retention is set to 7 days as a backstop for
 uploads that forget rule 1.
 
+**A tag push that starts no Release run means the quota is spent** (seen
+2026-08-26 on v0.11.2). The push succeeds and `actions/permissions` says
+enabled, but no run is created and nothing reports an error. With no payment
+method on file, GitHub blocks *all* usage, including this public repo's free
+runs. kubeNimbus (private) is what fills the quota. Deleting artifacts does not
+lift the block: storage bills as GB-hours over the cycle, so the total accrued so far
+stays until the billing month resets. Check billing before debugging
+`release.yml`, and trim kubeNimbus's artifacts, not pgNimbus's free checks.
+The way out is a payment method plus a spending budget, or waiting for the reset.
+A tag push does not replay. Re-trigger with `gh workflow run release.yml --ref vX.Y.Z`,
+which sets `github.ref` to the tag exactly as a push would.
+
 Runner *minutes* ride the same fix from the other side: every workflow that
 triggers on both `push` and `pull_request` keys its `concurrency` group on
 `github.event.pull_request.head.ref || github.ref`. Keyed on `github.ref` the
