@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791135006933,
+  "lastUpdate": 1791728785896,
   "repoUrl": "https://github.com/Shman4ik/pgNimbus",
   "entries": {
     "pgNimbus benchmarks": [
@@ -2154,6 +2154,165 @@ window.BENCHMARK_DATA = {
           {
             "name": "UI: record a run with a full history",
             "value": 0.12,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shman4ik@gmail.com",
+            "name": "Dmitrii Shmanev",
+            "username": "Shman4ik"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "37a48d3c57b471245dc0f597c5dcec164cfcbb9d",
+          "message": "release: 1.2.0 pass; checklist rows for backup and restore (#389)\n\nRows 30 and 31 walk Back Up Database and Restore Backup, which the checklist\ndid not know. The log gets the 1.2.0 row: test counts, what was walked by\nhand, what was not, and four small observations.\n\nCo-authored-by: Claude Sonnet 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-10-11T07:08:32-07:00",
+          "tree_id": "11fc9482e5ae937d5486f9da5c0c5be6603169c7",
+          "url": "https://github.com/Shman4ik/pgNimbus/commit/37a48d3c57b471245dc0f597c5dcec164cfcbb9d"
+        },
+        "date": 1791728784899,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Startup, launch to first frame (NativeAOT)",
+            "value": 229,
+            "unit": "ms"
+          },
+          {
+            "name": "Memory at first frame (NativeAOT)",
+            "value": 168.8,
+            "unit": "MB"
+          },
+          {
+            "name": "Binary size (NativeAOT)",
+            "value": 47.4,
+            "unit": "MB"
+          },
+          {
+            "name": "Publish size (NativeAOT, shipped files)",
+            "value": 60.8,
+            "unit": "MB"
+          },
+          {
+            "name": "Startup, launch to first frame (JIT)",
+            "value": 2205,
+            "unit": "ms"
+          },
+          {
+            "name": "Connect, cold pool",
+            "value": 131.3,
+            "unit": "ms"
+          },
+          {
+            "name": "Round-trip, SELECT 1 warm",
+            "value": 0.53,
+            "unit": "ms"
+          },
+          {
+            "name": "First row batch of a 100000-row SELECT",
+            "value": 11,
+            "unit": "ms"
+          },
+          {
+            "name": "Stream 100000 rows",
+            "value": 155.1,
+            "unit": "ms"
+          },
+          {
+            "name": "Run a 200-statement seed script",
+            "value": 53.1,
+            "unit": "ms"
+          },
+          {
+            "name": "Commit 1,000 staged edits",
+            "value": 50.5,
+            "unit": "ms"
+          },
+          {
+            "name": "Stage 100,000 deletes (safe mode)",
+            "value": 47.7,
+            "unit": "ms"
+          },
+          {
+            "name": "Copy 100,000 rows as TSV",
+            "value": 101.3,
+            "unit": "ms"
+          },
+          {
+            "name": "Write the history after a run (200 entries, 5 MB)",
+            "value": 86.8,
+            "unit": "ms"
+          },
+          {
+            "name": "Load the history (200 entries, 5 MB)",
+            "value": 71.8,
+            "unit": "ms"
+          },
+          {
+            "name": "Find the caret's statement in a 5 MB script, per key",
+            "value": 0.001,
+            "unit": "ms"
+          },
+          {
+            "name": "UI: expand a schema of 5,000 tables",
+            "value": 425.8,
+            "unit": "ms"
+          },
+          {
+            "name": "UI: tree rows realized for 5,000 tables",
+            "value": 92,
+            "unit": "rows"
+          },
+          {
+            "name": "UI: filter 5,000 tables to one",
+            "value": 85.3,
+            "unit": "ms"
+          },
+          {
+            "name": "UI: 5,000 script sections land",
+            "value": 23.3,
+            "unit": "ms"
+          },
+          {
+            "name": "UI: script section chips realized",
+            "value": 8,
+            "unit": "chips"
+          },
+          {
+            "name": "UI: palette keystroke over 50,000 relations",
+            "value": 37.1,
+            "unit": "ms"
+          },
+          {
+            "name": "UI: widest result the grid shows",
+            "value": 2102.5,
+            "unit": "ms"
+          },
+          {
+            "name": "UI: edit context arriving after the rows",
+            "value": 194.3,
+            "unit": "ms"
+          },
+          {
+            "name": "UI: show 1 MB of read-only text",
+            "value": 24.9,
+            "unit": "ms"
+          },
+          {
+            "name": "UI: key typed at the end of a 5 MB script",
+            "value": 31.4,
+            "unit": "ms"
+          },
+          {
+            "name": "UI: record a run with a full history",
+            "value": 0.1,
             "unit": "ms"
           }
         ]
