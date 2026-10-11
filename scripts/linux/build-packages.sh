@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Packages a `dotnet publish` NativeAOT output into the three Linux release
-# artifacts: a plain .tar.gz, an .AppImage, and a .deb. Linux-only (dpkg-deb
-# ships with any Debian-family distro/runner; a pinned, checksum-verified
+# artifacts: a plain .tar.gz, an .AppImage (with its .zsync update file), and a
+# .deb. Linux-only (dpkg-deb ships with any Debian-family distro/runner; the
+# AppImage needs `zsyncmake`, apt package zsync; a pinned, checksum-verified
 # appimagetool and AppImage runtime are downloaded on demand, and appimagetool
 # runs with --appimage-extract-and-run since CI runners lack FUSE).
 #
@@ -30,6 +31,11 @@ mkdir -p "$OUT_DIR"
 OUT_DIR="$(cd "$OUT_DIR" && pwd)"
 
 BASE_NAME="pgNimbus-$VERSION-linux-$ARCH_LABEL"
+# The AppImage is named the way the AppImage catalog asks for: no "linux" (every
+# AppImage is for Linux) and the architecture AppImages spell, x86_64 or aarch64.
+# The update information below matches this pattern, so keep the two together.
+APPIMAGE_NAME="pgNimbus-$VERSION-$APPIMAGE_ARCH.AppImage"
+UPDATE_INFO="gh-releases-zsync|Shman4ik|pgNimbus|latest|pgNimbus-*-$APPIMAGE_ARCH.AppImage.zsync"
 MASTER_DIR="$REPO_ROOT/design/masters/icon"
 DESKTOP_TEMPLATE="$REPO_ROOT/packaging/linux/pgnimbus.desktop.template"
 
@@ -113,12 +119,33 @@ fetch_verified \
   "https://github.com/AppImage/type2-runtime/releases/download/$TYPE2_RUNTIME_VERSION/runtime-$APPIMAGE_ARCH" \
   "$RUNTIME_SHA256" "$RUNTIME"
 
+# The AppImage carries its update information (-u), so AppImageUpdate and the
+# tools built on it can find the next release on GitHub and download only the
+# changed blocks. With a gh-releases-zsync value appimagetool also writes the
+# matching .zsync file, which has to be published beside the AppImage, with
+# the same name plus ".zsync": it is what the updater reads. appimagetool calls
+# `zsyncmake` for it (apt: zsync) and, when that is missing, only warns, which
+# would ship an AppImage whose updater finds nothing, so it is required here.
+command -v zsyncmake >/dev/null || {
+  echo "zsyncmake not found (apt-get install zsync): the AppImage needs its .zsync file" >&2
+  exit 1
+}
+
 # --appimage-extract-and-run: CI runners have no FUSE, so appimagetool (itself
-# an AppImage) has to unpack itself to run.
-ARCH="$APPIMAGE_ARCH" "$APPIMAGETOOL" --appimage-extract-and-run \
-  --runtime-file "$RUNTIME" \
-  "$APPDIR" "$OUT_DIR/$BASE_NAME.AppImage"
-echo "Built $OUT_DIR/$BASE_NAME.AppImage"
+# an AppImage) has to unpack itself to run. It writes the .zsync file into the
+# working directory, so it runs from the output directory.
+(
+  cd "$OUT_DIR"
+  ARCH="$APPIMAGE_ARCH" "$APPIMAGETOOL" --appimage-extract-and-run \
+    --runtime-file "$RUNTIME" \
+    -u "$UPDATE_INFO" \
+    "$APPDIR" "$OUT_DIR/$APPIMAGE_NAME"
+)
+[ -s "$OUT_DIR/$APPIMAGE_NAME.zsync" ] || {
+  echo "appimagetool did not write $APPIMAGE_NAME.zsync into $OUT_DIR" >&2
+  exit 1
+}
+echo "Built $OUT_DIR/$APPIMAGE_NAME and $APPIMAGE_NAME.zsync"
 
 # ---- .deb -------------------------------------------------------------------
 # Debian versions use ~ for prerelease (sorts before the release), where
