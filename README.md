@@ -9,7 +9,8 @@
 
 <p align="center">
   <b>A fast PostgreSQL client that talks to your database and nothing else.</b><br>
-  On screen in about 0.2 s. Results stream while the query runs. No telemetry, no account, no cloud.
+  On screen in about 0.2 s. Results stream while the query runs. No telemetry, no account, no cloud.<br>
+  Free and open source, from the same family as <a href="https://github.com/Shman4ik/kubeNimbus">kubeNimbus</a>.
 </p>
 
 <p align="center">
@@ -185,6 +186,10 @@ pgNimbus is free and MIT licensed, and it stays that way. If it saves you time a
 <a href="https://buymeacoffee.com/shman4ik"><img src="website/assets/bmc-button.svg" alt="Buy me a coffee" height="50"></a>
 
 A star, a bug report or a word to a colleague helps too.
+
+## ☁️ Also from here
+
+[kubeNimbus](https://github.com/Shman4ik/kubeNimbus) is the same idea for Kubernetes: a native client that opens on the workloads needing attention, reads metrics-server without asking for Prometheus, and sends no telemetry either. It shares this app's UI layer ([nimbusUi](https://github.com/Shman4ik/nimbusUi)), so the two look and behave like siblings. It is at 0.7.0, and what it needs most is feedback from real clusters.
 
 ## 📄 License
 
