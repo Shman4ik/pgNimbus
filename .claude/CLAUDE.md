@@ -89,8 +89,8 @@ the stack.
 
 **Repository settings are kept the same in pgNimbus and kubeNimbus** (2026-09-30;
 nimbusUi carries the security half). On `main`: the required checks
-(`build-test` and `dependency-review` here, `Build & test` and
-`dependency-review` there), resolved conversations, no force push or deletion,
+(`build-test`, `dependency-review` and `nimbusUi drift` here, `Build & test`,
+`dependency-review` and `nimbusUi drift` there), resolved conversations, no force push or deletion,
 and **no required approval** (CODEOWNERS only names who is asked). `v*` tags sit
 under a `Release tags` ruleset (create, never move or delete), releases are
 immutable, `sha_pinning_required` is on, Dependabot alerts and security updates,
@@ -178,7 +178,8 @@ Three rules about it:
    Sync by copying files: `git worktree add --detach <tmp> nimbusui/main`, copy the
    changed files in, commit and open the nimbusUi PR, then copy the same files into
    each app as a "Take nimbusUi: …" commit. Check that the three copies match with
-   `tr -d '\r' | md5sum` (line endings differ between repos).
+   `tr -d '\r' | md5sum` (line endings differ between repos); CI's `nimbusUi drift` job
+   checks each app against nimbusUi's `main` on every PR (CONTRIBUTING.md).
 2. **The membership test is "can it be described without naming Postgres?"** If
    yes it probably belongs up there; if no it stays here. When in doubt leave it
    here — a wrong thing pulled up has to be un-shared against two consumers.

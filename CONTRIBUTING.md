@@ -120,6 +120,16 @@ where we agree on how the app now looks.
 
 - Keep PRs focused — one feature or fix per PR.
 - CI must pass (`dotnet build` + tests on every PR).
+- **`shared/nimbusUi` must match [nimbusUi](https://github.com/Shman4ik/nimbusUi)'s `main`.**
+  The `nimbusUi drift` job compares every file under it with nimbusUi's `main`, ignoring
+  line endings, and fails on any difference (`scripts/check-nimbusui-drift.sh <nimbusUi
+  checkout>` runs the same check locally). It is a required check, and it has no
+  exemption: a "Take nimbusUi: …" PR, which copies files from a nimbusUi PR, is red, and
+  cannot merge, until that nimbusUi PR has merged. That is the merge order — nimbusUi
+  first, then re-run the job on each app's PR (pgNimbus and kubeNimbus) and merge them once
+  it is green. A red drift job on a PR that touches nothing shared means someone else's
+  sync is unfinished, and it blocks every PR until that sync lands; say so in the PR
+  rather than syncing in it.
 - If your change alters behavior documented in README or CLAUDE.md,
   update those files in the same PR — a stale doc is treated as a bug.
 - New pure logic in `PgNimbus.Core` (parsers, formatters, matchers…) is
