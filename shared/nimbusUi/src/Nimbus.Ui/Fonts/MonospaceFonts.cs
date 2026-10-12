@@ -1,10 +1,10 @@
-using Nimbus.Ui.Fonts;
 using SkiaSharp;
 
-namespace PgNimbus.App.Platform;
+namespace Nimbus.Ui.Fonts;
 
 /// <summary>
-/// The installed monospace families, for the preferences page's code font list.
+/// The installed monospace families, for the code font list each app's preferences page
+/// offers beside the bundled face (DESIGN.md rule 22).
 /// <para>
 /// Asked of Skia directly rather than through Avalonia's <c>FontManager</c>: Avalonia
 /// keeps every glyph typeface it creates for the life of the process, so testing a few

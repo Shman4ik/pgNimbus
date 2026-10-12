@@ -365,7 +365,11 @@ defaults were the cause each time; `Theme/Tokens.axaml`, `Theme/Controls.axaml` 
   accent; and `ListBox.strip` for choices laid out as a list (a tab strip, a row of
   result sections), where "selected" means "the one showing" and keeps the light
   `AppSelectionBrush` wash. Rows draw no focus ring (below); the accent fill is the
-  focus indication.
+  focus indication. A strip's items are the exception: their wash is the same with or
+  without focus, so they draw the ring, and the strip moves its selection on Left/Right,
+  Home and End through `Controls/ArrowKeyFocus`, which focuses the item it reaches as
+  keyboard focus. A `ListBox`'s own arrow keys focus it with no navigation method, which
+  turns `:focus-visible` off, so the ring vanished on the first key.
 - **One focus ring.** `Controls/FocusRing` is every adorner layer's default focus
   adorner: a 2px ring of semi-transparent brand accent (`AppFocusRingBrush`), 2px
   outside the control and rounded to its own corner radius. Fluent drew a square 2px
@@ -468,6 +472,34 @@ terminal, a `Grid`).
 - **Weights.** The bundled face ships Regular and Bold: syntax highlighting draws
   keywords bold, and nothing else in code text asks for a weight.
 
+### 23. A group is marked by a header or a border, never both, and nothing is boxed inside a box
+
+A group of rows gets **one** grouping device. A group with a header of its own
+(`TextBlock.sectionHeader`) is a `Border.section`: the header marks it, so it has no border
+and no fill, only the inset a card's padding gave it. A group with no header may be a
+`card`, where the border is doing the work a header would (a keyboard cheat sheet's one
+card per section around several rows is the model). A pane that lives inside a container
+that is already a card (a docked inspector, an overlay) never draws a second card around
+its own content: an editor, a terminal, a log or a value view sits straight in the
+container, and a panel below it that needs separating gets a single rule above it.
+
+- **Dot-led rows hang the dot.** `Border.section` insets its content by 16px, the width of a
+  status dot and its gap, and a list whose rows lead with a dot takes `dotLed`, which pulls
+  it back by the same 16px: the dot sits in the inset and the row's text starts where the
+  section header and every dot-less row do. Put `dotLed` on the list, not on each row: an
+  `ItemsControl` clips its items to its own bounds, so a row pulled out of them loses its
+  dot.
+
+kubeNimbus's inspector dock (2026-10, kubeNimbus#215 and #237) had both failures in a ~300px
+dock. Pod and node detail's Overview stacked four bordered cards, each with an uppercase
+header inside its own border, so every group was announced twice; and the log, exec
+terminal, Helm values, YAML editor and apply-preview panes each drew a card inside the
+dock's card, the diff three boxes deep. Every border spent a few pixels of a dock that had
+none to spare and grouped nothing its partner did not. The cards also made #237 unfixable:
+inside a bordered card a dot cannot hang into the 12px padding without sitting on the
+border, so the condition rows started 16px right of their own header while every other
+card was flush.
+
 ---
 
 ## What is deliberately *not* shared
@@ -522,9 +554,26 @@ mechanism — a rule nobody tracks is a rule that decays.
       Fluent's Inter on every platform; its "auto" is System now, like pgNimbus's, which
       changed its look everywhere and was the owner's decision, so both apps share one face
       on one desktop. `MonospaceFonts` came up here from pgNimbus for it.
-- [ ] `Nimbus.Ui.Fonts.MonospaceFonts` → pgNimbus: drop its own `Platform/MonospaceFonts`
-      (the copy this one was lifted from, unchanged apart from its namespace) and read the
-      shared one, once pgNimbus has taken a nimbusUi with it.
+- [x] `Nimbus.Ui.Fonts.MonospaceFonts` → pgNimbus: its own `Platform/MonospaceFonts` (the
+      copy this one was lifted from, unchanged apart from its namespace) is gone and it reads
+      the shared one (kubeNimbus#238).
+- [x] **`Button.chip.accentText` → shared** (kubeNimbus#249): the chip Button whose text is a
+      filter's state, drawn in the accent while it narrows. kubeNimbus's log panes use it;
+      pgNimbus has no such chip today and gets the class for its first one.
+- [x] **Arrow keys keep the focus ring on a strip → both** (rule 20, kubeNimbus#297).
+      `Controls/ArrowKeyFocus`, set by `ListBox.strip` and `TabControl.capsule` here, by
+      kubeNimbus's `ListBox.segmented` and by pgNimbus's `TabControl.segmented`. A `ListBox`
+      focused the next item with no navigation method, so `:focus-visible` went off with the
+      first key, and a `TabControl` had no arrow keys at all. `ListBox.strip` items also take
+      the ring back from the row rule, which drew none, so pgNimbus's tab strip had never
+      shown one.
+- [ ] **One grouping device per group (rule 23) → pgNimbus.** kubeNimbus applied it to its
+      dock (#215, #237). pgNimbus has no dock, and its windows were read when the rule landed:
+      the one near miss is the notify monitor's Send row, a card whose `sectionHeader` is the
+      inline label of a one-row form rather than a header over rows, left as it is. Its
+      preferences page is a section header over one card per setting, which is two groups,
+      not one marked twice (the same holds in kubeNimbus). A new surface in either app
+      follows the rule.
 - [x] **Tooltips that answer the pointer, and the cut status line → both** (rule 21).
       `ToolTipHitTesting` and `TextBlock.statusMessage` came up from pgNimbus;
       kubeNimbus installs the handler and its status bar uses `statusMessage`.

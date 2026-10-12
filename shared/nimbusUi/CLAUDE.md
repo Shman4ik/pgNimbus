@@ -30,7 +30,9 @@ future move.
 4. **Avalonia's `PackageReference` version is pinned to the lowest version
    either app is on**, not the newest available. NuGet unifies upward in the
    consumer, so a low pin costs nothing; a high pin breaks the app that hasn't
-   upgraded yet. Today both are on 12.1.3 (DataGrid 12.1.2).
+   upgraded yet. Today both are on Avalonia 12.1.3 and DataGrid 12.1.2; keep this line
+   and the comment above the pin stating the real versions, because a stale one nearly
+   refused a safe merge once.
 5. **A change here is not done until both apps have been built against it.**
    There is no test suite that can catch a broken style — the apps' screenshot
    harnesses are the only check, and they live in the apps. Building is not
@@ -71,14 +73,17 @@ future move.
 The usual case: you are in pgNimbus or kubeNimbus, the change turns out to be
 shared, and the files are right there under `shared/nimbusUi`.
 
-Edit them in place, build the app, and then push the subtree back up
-(`git subtree push --prefix shared/nimbusUi …`) as its own step — the app's own
-commit and the shared commit are separate histories, and forgetting the second
-half is how the copies started drifting in the first place.
-
-Then pull it into the sibling app and build that one too. Both working copies
-are normally checked out side by side (`X:\source\pgNimbus`, `X:\source\kubeNimbus`),
-so this is one session's work, not a follow-up ticket.
+Edit them in place and build the app. Then ship the same files here and to the
+sibling app **by copying them**: `git subtree push`/`pull` stopped working in 2026-08
+(the apps' split histories diverged from this repo's, so push is rejected and pull
+refuses unrelated histories), although the contents still match. Check out this
+repo's `main` in a temporary worktree, copy the changed files in and open a PR here,
+then copy the same files into the sibling app as a "Take nimbusUi: …" commit and build
+that one too. Check that the three copies match with `tr -d '\r' | md5sum` (line
+endings differ between the repos). Forgetting one of the copies is how they started
+drifting in the first place. Both apps are normally checked out side by side
+(`X:\source\pgNimbus`, `X:\source\kubeNimbus`), so this is one session's work, not a
+follow-up ticket.
 
 ## Layout
 
@@ -102,7 +107,9 @@ src/Nimbus.Ui/
                           apps use instead of a secondary Window. FocusRing is the
                           default focus adorner (rule 20). ToolTipHitTesting is a
                           class handler each app installs from
-                          Application.Initialize (rule 21).
+                          Application.Initialize (rule 21). ArrowKeyFocus is an
+                          attached property a strip's style sets, so its arrow keys
+                          move the selection with the focus ring (rule 20).
   Converters/             Converters the shared styles bind through: CutTextTip,
                           the tooltip of TextBlock.statusMessage (rule 21).
   Chrome/                 One-bar window chrome + drawn caption buttons, and
@@ -110,6 +117,9 @@ src/Nimbus.Ui/
   Fonts/                  The bundled JetBrains Mono NL (Regular, Bold, OFL.txt) and
                           NimbusFonts: the typography tokens' values per platform,
                           Apply, and WithNimbusFonts() for the app builders (rule 22).
+                          MonospaceFonts: the installed monospace families for the
+                          preferences pages' code font list, read through SkiaSharp
+                          (the one reason the csproj references Avalonia.Skia).
                           The .ttf files are listed as AvaloniaResource in the csproj;
                           unlike .axaml they are not globbed.
   Hotkeys.cs              Ctrl/Cmd resolution, gesture labels.

@@ -1796,6 +1796,14 @@ Three rules about it:
      grid loading those rows again (`SharedControlStylingTests` removes a row to
      prove it). Every pgNimbus `DataGridCell` is 13px in a 25px row
      (`Styles/Theme.axaml`, per app by DESIGN.md rules 12 and 14).
+   - **Strips move on the arrow keys with the focus ring** (2026-10, kubeNimbus#297).
+     `TabControl.segmented` (this app's) and the shared `TabControl.capsule` and
+     `ListBox.strip` set nimbusUi's `ArrowKeyFocus`, so Left/Right, Home and End move
+     the selection and focus the item as keyboard focus. Before, a `TabControl` had no
+     arrow keys at all and `TabsList` drew no ring (the row rule's empty adorner), and a
+     `ListBox`'s own arrows focus with no navigation method, which drops the ring.
+     `StripArrowFocusTests` presses them on the sidebar capsule, a security window's
+     segmented tabs and the editor tab strip.
    - The command bar's theme button carries a `CommandTip` for `ToggleTheme` like
      its three neighbours.
    The scenario `controls-gallery` shows the focus ring, both selection faces, the
@@ -1832,7 +1840,8 @@ Three rules about it:
      chosen in Settings still reaches a zoomed editor and ⌘0 returns to it. A
      plain assignment would have replaced the binding.
    Settings shows the three under Appearance; the code font list is the installed
-   monospace families (`Platform/MonospaceFonts`, through Skia rather than
+   monospace families (nimbusUi's `Fonts/MonospaceFonts` since 2026-10, kubeNimbus#238;
+   it was this app's `Platform/MonospaceFonts`; through Skia rather than
    Avalonia's `FontManager`, which would keep every face it opened for the life
    of the process), each row drawn in its own face. Tests: `FontSettingsTests`
    (the bundled face's name and its missing `calt`, a change reaching open text,

@@ -37,9 +37,10 @@ Anything left unverified:
 
 - [ ] [CLAUDE.md](../.claude/CLAUDE.md) updated if this changes anything it describes
       — it's the contract, not a record of the past
-- [ ] **Touches `shared/nimbusUi`?** Then the change is kubeNimbus's too: push
-      the subtree up (`git subtree push --prefix shared/nimbusUi …`), open the
-      matching kubeNimbus PR, and link it here. A shared change that lands in
+- [ ] **Touches `shared/nimbusUi`?** Then the change is kubeNimbus's too: copy the
+      files into a nimbusUi PR and into kubeNimbus as a "Take nimbusUi: …" commit
+      (`git subtree` no longer works here; see nimbusUi's CLAUDE.md), open the
+      matching PRs, and link them here. A shared change that lands in
       one app only is how the copies drifted in the first place — see
       [DESIGN.md](../shared/nimbusUi/DESIGN.md).
 - [ ] Anything general enough for kubeNimbus (a token, a style class, a window

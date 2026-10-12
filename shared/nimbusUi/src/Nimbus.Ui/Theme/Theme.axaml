@@ -198,6 +198,17 @@
         <Setter Property="Background" Value="{StaticResource AppSelectionBrush}" />
     </Style>
 
+    <!-- A chip Button whose own text is a filter's state (a "Levels ▾" chip that opens a
+         flyout of checkboxes): drawn in the accent while it narrows what is shown, so a
+         filtered view never looks like an unfiltered one. A Button rather than a
+         ToggleButton because it opens a flyout and has no checked state of its own; a
+         ToggleButton would flip on the click and fight its binding (DESIGN.md rule 6).
+         Set at the template part for all three states, because the base chip rule pins
+         the part's Foreground on hover and press. -->
+    <Style Selector="Button.chip.accentText /template/ ContentPresenter#PART_ContentPresenter, Button.chip.accentText:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.chip.accentText:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Foreground" Value="{StaticResource AppAccentBrush}" />
+    </Style>
+
     <Style Selector="Button.toolbar, ToggleButton.toolbar">
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />
@@ -242,6 +253,23 @@
         <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="CornerRadius" Value="{StaticResource CardCornerRadius}" />
+    </Style>
+
+    <!-- A group that has a header of its own (DESIGN.md rule 23): the header marks it, so it
+         gets no border and no fill, only the inset a card's padding gave it. The left inset is
+         the width a status dot and its gap take, so a dot-led row (`Grid.dotRow` below) hangs
+         its dot in it and its text starts where the header does. -->
+    <Style Selector="Border.section">
+        <Setter Property="Padding" Value="16,4,12,6" />
+    </Style>
+
+    <!-- Rows led by a status dot and its gap (16px together), inside a `section`: pulled left
+         by both, so the dot sits in the section's inset and the text lines up with the section
+         header and with every row that has no dot (rule 23). Set it on the list, not on each
+         row: an ItemsControl clips its items to its own bounds, and a row pulled out of them
+         lost its dot. A Margin set on the element itself overrides this one. -->
+    <Style Selector=":is(Control).dotLed">
+        <Setter Property="Margin" Value="-16,0,0,0" />
     </Style>
 
     <Style Selector="Border.layer">
