@@ -89,8 +89,8 @@ the stack.
 
 **Repository settings are kept the same in pgNimbus and kubeNimbus** (2026-09-30;
 nimbusUi carries the security half). On `main`: the required checks
-(`build-test` and `dependency-review` here, `Build & test` and
-`dependency-review` there), resolved conversations, no force push or deletion,
+(`build-test`, `dependency-review` and `nimbusUi drift` here, `Build & test`,
+`dependency-review` and `nimbusUi drift` there), resolved conversations, no force push or deletion,
 and **no required approval** (CODEOWNERS only names who is asked). `v*` tags sit
 under a `Release tags` ruleset (create, never move or delete), releases are
 immutable, `sha_pinning_required` is on, Dependabot alerts and security updates,

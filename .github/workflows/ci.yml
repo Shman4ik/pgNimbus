@@ -48,7 +48,8 @@ jobs:
   # tracked file with nimbusUi's main, line endings ignored, on every run: nimbusUi's main
   # moves on its own, so a change that touches nothing shared still reports a drift someone
   # else left. Read-only: nimbusUi is public, the checkout keeps no credentials, and the job
-  # writes nothing. A "Take nimbusUi" PR is red until its nimbusUi PR has merged; re-run this
+  # writes nothing. A required check, so the job has no `if:` and always reports; a
+  # "Take nimbusUi" PR is red until its nimbusUi PR has merged; re-run this
   # job then, before merging (CONTRIBUTING.md). kubeNimbus runs the same job.
   nimbusui-drift:
     name: nimbusUi drift
