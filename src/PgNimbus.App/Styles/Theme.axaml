@@ -4,7 +4,8 @@
         xmlns:search="clr-namespace:AvaloniaEdit.Search;assembly=AvaloniaEdit"
         xmlns:completion="using:PgNimbus.App.Completion"
         xmlns:conv="using:PgNimbus.App.Converters"
-        xmlns:cmd="using:PgNimbus.App">
+        xmlns:cmd="using:PgNimbus.App"
+        xmlns:nimbus="using:Nimbus.Ui.Controls">
 
     <!--
         PowerToys-inspired design tokens: soft rounded cards, pill-shaped nav
@@ -300,6 +301,9 @@
          A window that sets no Tag renders nothing there. -->
     <Style Selector="TabControl.segmented">
         <Setter Property="Padding" Value="0" />
+        <!-- Left/Right move between tabs with the focus ring (nimbusUi's ArrowKeyFocus,
+             DESIGN.md rule 20): TabControl has no arrow keys of its own. -->
+        <Setter Property="nimbus:ArrowKeyFocus.IsEnabled" Value="True" />
         <Setter Property="Template">
             <ControlTemplate>
                 <DockPanel>
