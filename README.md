@@ -32,15 +32,17 @@
 
 ---
 
-## 🚀 pgNimbus 1.0
+## 🚀 Where it stands
 
-pgNimbus reached 1.0 three months after its first commit on July 4, 2026, and 32 releases later. It started as a weekend experiment typed on a phone and grew, evening by evening, into the client its author keeps open at work all day.
+pgNimbus reached 1.0 on September 29, 2026, its 33rd release in the three months since the first commit on July 4. It started as a weekend experiment typed on a phone and became the client its author opens a dozen times a working day.
 
-Before tagging 1.0, the whole codebase was read the way an attacker would read it, and the way a DBA connecting to production would. That review found 18 problems. The worst were a query that could run twice, a statement a DBA had just killed being sent again after a reconnect, and SSH host keys that were never checked. All of them are fixed in 1.0. The review was done in house, with the same Claude Code agents that write most of the code, so it isn't a third-party audit. [See what's in 1.0.](https://github.com/Shman4ik/pgNimbus/releases/tag/v1.0.0)
+Before tagging 1.0, the whole codebase was read the way an attacker would read it, and the way a DBA connecting to production would. That review found 18 problems. The worst were a query that could run twice, a statement a DBA had just killed being sent again after a reconnect, and SSH host keys that were never checked. All of them are fixed in 1.0. The review was done in house, with the same Claude Code agents that write most of the code, so it isn't a third-party audit.
+
+Since then 1.1 made large databases quick to move around in, and 1.2 added backing up and restoring a database, a schema or a single table through PostgreSQL's own `pg_dump` and `pg_restore`. [See what's in the latest release.](https://github.com/Shman4ik/pgNimbus/releases/latest)
 
 ## 🎯 Why pgNimbus?
 
-pgNimbus is written by a developer who spends most working days in Postgres, for people who do the same. Three things don't bend:
+pgNimbus is written by a .NET developer who also runs the DevOps for the team, which means a dozen short trips into the database a day: check a row, see what a migration actually did, find out what is holding a lock. Every one of those trips used to start with waiting for pgAdmin to open. Three things don't bend:
 
 - **It's fast where you wait.** A NativeAOT binary, not Electron: about 0.2 s to a window, rows on screen while the query is still running, and <kbd>Esc</kbd> stops a query mid-flight. Measured on every release.
 - **Your data stays yours.** No telemetry, no update checks, no crash uploads, no account, no AI features. The only connections it opens go to your Postgres servers and SSH tunnels.
