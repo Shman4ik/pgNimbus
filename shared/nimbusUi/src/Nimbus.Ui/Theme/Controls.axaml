@@ -274,6 +274,9 @@
          `TabItem` scopes it away from the capsule (`TabControl:not(.capsule) > TabItem`). -->
     <Style Selector="TabControl.capsule">
         <Setter Property="Padding" Value="0" />
+        <!-- Left/Right move between segments with the focus ring (rule 20): TabControl has
+             no arrow keys of its own. -->
+        <Setter Property="controls:ArrowKeyFocus.IsEnabled" Value="True" />
         <Setter Property="ItemsPanel">
             <ItemsPanelTemplate>
                 <UniformGrid Rows="1" />
@@ -433,6 +436,22 @@
 
     <Style Selector="ListBox.strip ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{StaticResource AppSelectionHoverBrush}" />
+    </Style>
+
+    <!-- Because a strip keeps that wash with or without focus, the ring is the only sign of
+         where the keyboard is (rule 20), so a strip's item takes it back from the row rule
+         above, which drew none. And ListBox's own arrow keys focused the next item with no
+         navigation method, which drops the ring on the first press; ArrowKeyFocus moves the
+         selection with keyboard focus instead. -->
+    <Style Selector="ListBox.strip">
+        <Setter Property="controls:ArrowKeyFocus.IsEnabled" Value="True" />
+    </Style>
+    <Style Selector="ListBox.strip ListBoxItem">
+        <Setter Property="FocusAdorner">
+            <FocusAdornerTemplate>
+                <controls:FocusRing />
+            </FocusAdornerTemplate>
+        </Setter>
     </Style>
 
     <Style Selector="TreeViewItem">
