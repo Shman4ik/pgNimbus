@@ -42,6 +42,32 @@ jobs:
         with:
           fail-on-severity: moderate
 
+  # shared/nimbusUi is a copy of nimbusUi, and kubeNimbus holds another (.claude/CLAUDE.md,
+  # the sibling section). Nothing else in CI can see the copies drift apart, so the last
+  # drift was found a cycle later by hand (kubeNimbus #238, #343). This compares every
+  # tracked file with nimbusUi's main, line endings ignored, on every run: nimbusUi's main
+  # moves on its own, so a change that touches nothing shared still reports a drift someone
+  # else left. Read-only: nimbusUi is public, the checkout keeps no credentials, and the job
+  # writes nothing. A "Take nimbusUi" PR is red until its nimbusUi PR has merged; re-run this
+  # job then, before merging (CONTRIBUTING.md). kubeNimbus runs the same job.
+  nimbusui-drift:
+    name: nimbusUi drift
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check out nimbusUi main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Shman4ik/nimbusUi
+          ref: main
+          path: .nimbusui-main
+          persist-credentials: false
+      - name: Compare shared/nimbusUi with nimbusUi main
+        run: bash scripts/check-nimbusui-drift.sh .nimbusui-main shared/nimbusUi
+
   build-test:
     runs-on: ubuntu-latest
     # A green run takes ~3 minutes. Without a cap a hung test holds the runner

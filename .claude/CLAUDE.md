@@ -178,7 +178,8 @@ Three rules about it:
    Sync by copying files: `git worktree add --detach <tmp> nimbusui/main`, copy the
    changed files in, commit and open the nimbusUi PR, then copy the same files into
    each app as a "Take nimbusUi: …" commit. Check that the three copies match with
-   `tr -d '\r' | md5sum` (line endings differ between repos).
+   `tr -d '\r' | md5sum` (line endings differ between repos); CI's `nimbusUi drift` job
+   checks each app against nimbusUi's `main` on every PR (CONTRIBUTING.md).
 2. **The membership test is "can it be described without naming Postgres?"** If
    yes it probably belongs up there; if no it stays here. When in doubt leave it
    here — a wrong thing pulled up has to be un-shared against two consumers.
