@@ -220,8 +220,10 @@ are what gets asked in a launch thread.
   `Avalonia.BuildServices`, which reports anonymous build statistics to Avalonia
   at compile time ("Avalonia Accelerate Community requires telemetry" in the
   publish log). It does not run in the shipped app, which still makes no network
-  connection except to your databases and SSH hosts. The publish log says an
-  opt-out needs a paid Avalonia tier.
+  connection except to your databases and SSH hosts. The CI workflows set
+  `AVALONIA_TELEMETRY_OPTOUT=1`, which a runner (no Avalonia licence) honours; on a
+  machine signed in to Avalonia Accelerate Community the task ignores it and the
+  log says an opt-out needs a paid tier (CONTRIBUTING.md).
 - **macOS updates lose saved passwords (until notarized builds).** A Keychain item
   belongs to the code signature that created it, and an ad-hoc signature is a hash
   of the binary, so every release is a different app to the Keychain. The app asks

@@ -39,6 +39,21 @@ build statistics to Avalonia while the project compiles, and the publish log
 says so ("Avalonia Accelerate Community requires telemetry"). It runs on the
 build machine only; nothing of it ships in pgNimbus.
 
+What a report holds is listed in the package's README: the build time, the
+project name hashed, target framework and runtime, the Avalonia version, the
+Accelerate licence tier, an anonymous machine id and the machine name hashed,
+the IDE or CLI, the OS, and which CI system runs it. The documented opt-out is
+the environment variable `AVALONIA_TELEMETRY_OPTOUT=1` (there is no MSBuild
+property), and every workflow that builds sets it. It holds only on a machine
+with no Avalonia Accelerate licence: the task's source
+([`AvaloniaStatsTask.cs`](https://github.com/AvaloniaUI/Avalonia.BuildServices/blob/a6a42573a5865a6aeb15abb6f1ae2b307d8363e8/BuildTask/AvaloniaStatsTask.cs))
+reads the licence tickets an Avalonia tool sign-in leaves on the machine, and
+for a Community or Trial tier it prints that line and reports anyway. A CI
+runner has no tickets, so the opt-out holds there; a developer signed in to
+Accelerate Community (the Avalonia DevTools) can set the variable and still
+report, and the only ways out it offers are a paid tier or signing out.
+kubeNimbus measured this on 2026-10-13 (its `docs/engineering/tech-stack.md`).
+
 ## Where things are
 
 | Folder | What is in it |
