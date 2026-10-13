@@ -20,18 +20,18 @@
 
   <ItemGroup>
     <!-- Pinned to the LOWEST version either app is on (both apps are on
-         Avalonia 12.1.3 and DataGrid 12.1.2 today). NuGet unifies to the highest reference in the
+         Avalonia 12.1.4 and DataGrid 12.1.2 today). NuGet unifies to the highest reference in the
          consuming app, so this cannot hold either app back — but raising it
          above an app's own version would fail that app's restore. -->
-    <PackageReference Include="Avalonia" Version="12.1.3" />
-    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.3" />
+    <PackageReference Include="Avalonia" Version="12.1.4" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.4" />
     <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.1.2" />
     <!-- For SkiaSharp, which Fonts/MonospaceFonts reads the installed families
          through. Both apps already have it under Avalonia.Desktop, so this adds no
          package to either; taking it through Avalonia.Skia rather than naming
          SkiaSharp keeps its version whatever Avalonia's is, with no second pin to
          drift. Same lowest-version rule as Avalonia itself. -->
-    <PackageReference Include="Avalonia.Skia" Version="12.1.3" />
+    <PackageReference Include="Avalonia.Skia" Version="12.1.4" />
   </ItemGroup>
 
   <ItemGroup>
