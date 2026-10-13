@@ -37,6 +37,9 @@ permissions:
 env:
   DOTNET_NOLOGO: "1"
   DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  # Avalonia.BuildServices reports every compile to Avalonia unless this is set; a runner has
+  # no Accelerate licence, so the opt-out is honoured (CONTRIBUTING.md, kubeNimbus#353).
+  AVALONIA_TELEMETRY_OPTOUT: "1"
 
 jobs:
   refresh:
