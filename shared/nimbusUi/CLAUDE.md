@@ -30,7 +30,7 @@ future move.
 4. **Avalonia's `PackageReference` version is pinned to the lowest version
    either app is on**, not the newest available. NuGet unifies upward in the
    consumer, so a low pin costs nothing; a high pin breaks the app that hasn't
-   upgraded yet. Today both are on Avalonia 12.1.3 and DataGrid 12.1.2; keep this line
+   upgraded yet. Today both are on Avalonia 12.1.4 and DataGrid 12.1.2; keep this line
    and the comment above the pin stating the real versions, because a stale one nearly
    refused a safe merge once.
 5. **A change here is not done until both apps have been built against it.**

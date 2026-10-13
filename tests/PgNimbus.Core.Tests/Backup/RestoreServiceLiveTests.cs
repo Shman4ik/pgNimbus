@@ -121,7 +121,7 @@ public class RestoreServiceLiveTests
         await Assert.That(await ScalarAsync(LiveBackupDatabase.Name, "SELECT count(*) FROM sales.orders WHERE total = 0")).IsEqualTo(0L);
         await Assert.That(await ScalarAsync(LiveBackupDatabase.Name, "SELECT count(*) FROM \"Odd \"\"Schema\"\" *?\".\"Weird.Table\"")).IsEqualTo(2L);
         // What the backup doesn't hold stays.
-        await Assert.That(await ScalarAsync(LiveBackupDatabase.Name, "SELECT to_regclass('public.kept') IS NOT NULL")).IsEqualTo(true);
+        await Assert.That(await ScalarAsync(LiveBackupDatabase.Name, "SELECT to_regclass('public.kept') IS NOT NULL") is true).IsTrue();
     }
 
     [Test]
@@ -203,7 +203,7 @@ public class RestoreServiceLiveTests
         {
             await Assert.That(dropped.Outcome).IsEqualTo(RestoreOutcome.Succeeded).Because(dropped.Error ?? dropped.Log);
             await Assert.That(await ScalarAsync(Target, "SELECT count(*) FROM public.t")).IsEqualTo(2L);
-            await Assert.That(await ScalarAsync(Target, "SELECT tableowner = current_user FROM pg_tables WHERE tablename = 't'")).IsEqualTo(true);
+            await Assert.That(await ScalarAsync(Target, "SELECT tableowner = current_user FROM pg_tables WHERE tablename = 't'") is true).IsTrue();
         }
         finally
         {
