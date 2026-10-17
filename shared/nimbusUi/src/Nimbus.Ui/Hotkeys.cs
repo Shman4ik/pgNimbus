@@ -56,20 +56,93 @@ public static class Hotkeys
 
     /// <summary>
     /// Human-readable label for a gesture that already exists, for palette rows and the
-    /// cheat sheet. Reads the modifier off the gesture rather than assuming
+    /// cheat sheet. Reads the modifiers off the gesture rather than assuming
     /// <see cref="Primary"/>, so a deliberately-literal Ctrl gesture (a terminal's
-    /// interrupt is Control on macOS too) describes itself honestly.
+    /// interrupt is Control on macOS too) describes itself honestly, and Shift and Alt are
+    /// named too. Spelled the way the scheme's platform writes a shortcut: "Ctrl+Shift+N"
+    /// when <see cref="Primary"/> is Ctrl, Apple's glyphs in ⌃⌥⇧⌘ order ("⇧⌘N") when it is
+    /// Cmd — the same spelling each app's command catalog uses.
     /// </summary>
     public static string Describe(KeyGesture gesture)
     {
         ArgumentNullException.ThrowIfNull(gesture);
 
-        var mod = gesture.KeyModifiers.HasFlag(KeyModifiers.Meta) ? "Cmd"
-            : gesture.KeyModifiers.HasFlag(KeyModifiers.Control) ? "Ctrl"
-            : "";
+        var modifiers = gesture.KeyModifiers;
+        if (Primary.HasFlag(KeyModifiers.Meta))
+        {
+            var glyphs = new System.Text.StringBuilder(5);
+            if (modifiers.HasFlag(KeyModifiers.Control))
+            {
+                glyphs.Append('⌃');
+            }
 
-        return string.IsNullOrEmpty(mod) ? gesture.Key.ToString() : $"{mod}+{gesture.Key}";
+            if (modifiers.HasFlag(KeyModifiers.Alt))
+            {
+                glyphs.Append('⌥');
+            }
+
+            if (modifiers.HasFlag(KeyModifiers.Shift))
+            {
+                glyphs.Append('⇧');
+            }
+
+            if (modifiers.HasFlag(KeyModifiers.Meta))
+            {
+                glyphs.Append('⌘');
+            }
+
+            return glyphs.Append(KeyName(gesture.Key, mac: true)).ToString();
+        }
+
+        var words = new List<string>(4);
+        if (modifiers.HasFlag(KeyModifiers.Control))
+        {
+            words.Add("Ctrl");
+        }
+
+        if (modifiers.HasFlag(KeyModifiers.Alt))
+        {
+            words.Add("Alt");
+        }
+
+        if (modifiers.HasFlag(KeyModifiers.Shift))
+        {
+            words.Add("Shift");
+        }
+
+        if (modifiers.HasFlag(KeyModifiers.Meta))
+        {
+            words.Add("Win");
+        }
+
+        words.Add(KeyName(gesture.Key, mac: false));
+        return string.Join("+", words);
     }
+
+    /// <summary>"K", "1" for D1, "," for OemComma, "⌫" or "Backspace" for Back.</summary>
+    private static string KeyName(Key key, bool mac) => key switch
+    {
+        >= Key.D0 and <= Key.D9 => ((int)(key - Key.D0)).ToString(System.Globalization.CultureInfo.InvariantCulture),
+        Key.Back => mac ? "⌫" : "Backspace",
+        Key.Delete => mac ? "⌦" : "Delete",
+        Key.Return => mac ? "↩" : "Enter",
+        Key.Escape => mac ? "⎋" : "Esc",
+        Key.Tab => mac ? "⇥" : "Tab",
+        Key.PageUp => mac ? "⇞" : "PgUp",
+        Key.PageDown => mac ? "⇟" : "PgDn",
+        Key.Up => "↑",
+        Key.Down => "↓",
+        Key.Left => "←",
+        Key.Right => "→",
+        Key.OemComma => ",",
+        Key.OemPeriod => ".",
+        Key.OemQuestion => "/",
+        Key.OemPlus => "+",
+        Key.OemMinus => "−",
+        Key.OemOpenBrackets => "[",
+        Key.OemCloseBrackets => "]",
+        _ => key.ToString(),
+    };
 
     /// <summary>One row of a keyboard cheat sheet: what it does, and what to press.</summary>
     public sealed record ShortcutEntry(string Action, string Keys);
