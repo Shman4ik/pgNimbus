@@ -661,6 +661,10 @@ public sealed partial class QueryViewModel : ObservableObject
         EstablishBrowseEditContext();
     }
 
+    // Completes "Results are read-only: …" for rows loaded before writes were
+    // allowed in a production window.
+    public const string WritesAllowedRerunHint = "writes are allowed now. Run the query again to edit these rows.";
+
     // Completes "Results are read-only: …" for a browse-shaped query whose rows
     // came from somewhere other than the browsed table (or from a table nobody
     // could confirm was it).
@@ -1680,6 +1684,14 @@ public sealed partial class QueryViewModel : ObservableObject
     {
         if (_connectionReadOnlyHint?.Invoke() is not { } readOnly)
         {
+            // Writes were allowed (a production window, ROADMAP T3). The rows on
+            // screen were loaded without an edit context, and finding one takes
+            // the result's metadata, which the next run reads.
+            if (previousHint is not null && ReadOnlyHint == previousHint)
+            {
+                ReadOnlyHint = WritesAllowedRerunHint;
+            }
+
             return;
         }
 

@@ -1,4 +1,5 @@
 using Npgsql;
+using PgNimbus.Core.Connections;
 using PgNimbus.Core.Query;
 
 namespace PgNimbus.Core.Schema;
@@ -16,9 +17,9 @@ public static class ColumnTypes
 /// SqlIdentifier.Quote (never string-concatenated raw), and column types are
 /// restricted to <see cref="ColumnTypes.All"/> rather than accepting free text.
 /// </summary>
-public sealed class SchemaEditor(NpgsqlDataSource dataSource)
+public sealed class SchemaEditor(WriteGatedDataSource dataSource)
 {
-    private readonly NpgsqlDataSource _dataSource = dataSource;
+    private readonly WriteGatedDataSource _dataSource = dataSource;
 
     public Task AddColumnAsync(string schema, string table, string column, string dataType, bool isNullable, CancellationToken ct)
     {

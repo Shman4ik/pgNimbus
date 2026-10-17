@@ -143,9 +143,34 @@
                          startup option (security audit 2026-09, finding 17). The
                          grid stays read-only; typed SQL can write, which the
                          tooltip says. -->
+                    <!-- The profile's environment (ROADMAP T3), only when it has one.
+                         Dev and staging are a label. Production is a switch: writes
+                         are off when the window opens, and a click allows them for
+                         this window after a confirm (or turns them off again). -->
+                    <Border Name="EnvironmentLabel" Classes="envTag" Margin="10,0,0,0" VerticalAlignment="Center"
+                            Classes.staging="{Binding IsStaging}"
+                            Classes.production="{Binding IsProduction}"
+                            IsVisible="{Binding ShowEnvironmentLabel}"
+                            ToolTip.Tip="{Binding EnvironmentTag, StringFormat='Environment: {0}'}">
+                        <TextBlock Text="{Binding EnvironmentTag}" />
+                    </Border>
+                    <Button Name="ProductionWritesButton" Classes="envTag production" Margin="10,0,0,0" VerticalAlignment="Center"
+                            Classes.writesOn="{Binding WritesAllowed}"
+                            IsVisible="{Binding CanToggleWrites}"
+                            Command="{Binding ToggleWritesCommand}"
+                            ToolTip.Tip="{Binding WritesToggleTip}">
+                        <StackPanel Orientation="Horizontal" Spacing="5">
+                            <PathIcon Data="{StaticResource LockIconGeometry}" Width="10" Height="10"
+                                      IsVisible="{Binding !WritesAllowed}" />
+                            <PathIcon Data="{StaticResource LockOpenIconGeometry}" Width="10" Height="10"
+                                      IsVisible="{Binding WritesAllowed}" />
+                            <TextBlock Text="production" IsVisible="{Binding !WritesAllowed}" />
+                            <TextBlock Text="production · writes on" IsVisible="{Binding WritesAllowed}" />
+                        </StackPanel>
+                    </Button>
                     <StackPanel Name="ReadOnlyMark" Orientation="Horizontal" Spacing="4" Margin="10,0,0,0" VerticalAlignment="Center"
                                 Background="Transparent"
-                                IsVisible="{Binding IsReadOnlyConnection}"
+                                IsVisible="{Binding ShowReadOnlyMark}"
                                 Classes.warn="{Binding IsReadOnlyNotEnforced}"
                                 ToolTip.Tip="{Binding ConnectionReadOnlyHint, StringFormat='Read-only: {0}'}">
                         <StackPanel.Styles>

@@ -148,6 +148,26 @@ public static class CommandCatalog
             // grid edits hit the database immediately.
             Surfaces = PaletteOnly,
         },
+        // A production window's write switch (ROADMAP T3), also the title
+        // bar's production label. No chord, for the same reason as safe mode;
+        // the palette lists only the one that applies, and only in a
+        // production window.
+        new()
+        {
+            Id = CommandId.AllowWrites,
+            Title = "Allow writes in this window",
+            Category = CommandCategory.Query,
+            Glyph = "✎",
+            Surfaces = PaletteOnly,
+        },
+        new()
+        {
+            Id = CommandId.LockWrites,
+            Title = "Turn writes off in this window",
+            Category = CommandCategory.Query,
+            Glyph = "⊘",
+            Surfaces = PaletteOnly,
+        },
 
         // --------------------------------------------------------- Tabs & files
         new()

@@ -1,4 +1,5 @@
 using Npgsql;
+using PgNimbus.Core.Connections;
 
 namespace PgNimbus.Core.Security;
 
@@ -12,7 +13,7 @@ namespace PgNimbus.Core.Security;
 /// panel that assumes otherwise shows an error where perfectly readable data was
 /// available.
 /// </summary>
-public sealed class RoleService(NpgsqlDataSource dataSource)
+public sealed class RoleService(WriteGatedDataSource dataSource)
 {
     /// <summary>
     /// Cap on <see cref="GetGrantsHeldAsync"/>. A role granted on 50k tables must
@@ -21,7 +22,7 @@ public sealed class RoleService(NpgsqlDataSource dataSource)
     /// </summary>
     public const int GrantsHeldLimit = 200;
 
-    private readonly NpgsqlDataSource _dataSource = dataSource;
+    private readonly WriteGatedDataSource _dataSource = dataSource;
 
     /// <summary>
     /// Every role on the server, alphabetically. <paramref name="includePredefined"/>

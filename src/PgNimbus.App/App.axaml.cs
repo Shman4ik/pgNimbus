@@ -725,18 +725,28 @@ public partial class App : Application
             ? null
             : PgToolConnection.From(profile, password, tunnel is null ? null : (tunnel.Tunnel.LocalHost, tunnel.Tunnel.LocalPort));
         var connectionString = dataSource.ConnectionString;
-        var engine = new QueryEngine(dataSource);
-        var explainService = new ExplainService(dataSource);
-        var schemaService = new SchemaService(dataSource);
-        var schemaEditor = new SchemaEditor(dataSource);
-        var ddlService = new DdlService(dataSource);
-        var activityService = new ActivityService(dataSource);
-        var databaseStatsService = new DatabaseStatsService(dataSource);
-        var statementStatsService = new StatementStatsService(dataSource);
-        var roleService = new RoleService(dataSource);
-        var privilegeService = new PrivilegeService(dataSource);
-        var securityEditor = new SecurityEditor(dataSource);
-        var importService = new ImportService(dataSource);
+
+        // Every service rents from one gate. A production profile's gate can
+        // switch the window to a second, writable pool when the user allows
+        // writes (ROADMAP T3); every other profile's is the one pool.
+        var tunnelEndpoint = tunnel is null ? ((string Host, int Port)?)null : (tunnel.Tunnel.LocalHost, tunnel.Tunnel.LocalPort);
+        var gate = new WriteGatedDataSource(
+            dataSource,
+            profile is { CanAllowWrites: true } writableProfile
+                ? () => writableProfile.CreateDataSource(password, tunnelEndpoint, readOnly: false)
+                : null);
+        var engine = new QueryEngine(gate);
+        var explainService = new ExplainService(gate);
+        var schemaService = new SchemaService(gate);
+        var schemaEditor = new SchemaEditor(gate);
+        var ddlService = new DdlService(gate);
+        var activityService = new ActivityService(gate);
+        var databaseStatsService = new DatabaseStatsService(gate);
+        var statementStatsService = new StatementStatsService(gate);
+        var roleService = new RoleService(gate);
+        var privilegeService = new PrivilegeService(gate);
+        var securityEditor = new SecurityEditor(gate);
+        var importService = new ImportService(gate);
         var schemaTree = new SchemaTreeViewModel(
             schemaService,
             SettingsStore.Load().ShowAdvancedSchemaObjects,
@@ -757,7 +767,7 @@ public partial class App : Application
 
         // Built after the connection key, which scopes its restored channels.
         var notifyMonitor = new NotifyMonitorViewModel(
-            new NotificationListener(dataSource),
+            new NotificationListener(gate),
             channels: Core.Settings.NotifyChannels.For(SettingsStore.Load(), workspaceKey),
             persistChannels: workspaceKey is null ? null : channels => PersistNotifyChannels(workspaceKey, channels));
 
@@ -771,6 +781,8 @@ public partial class App : Application
             // The server's own answer follows once the window is up
             // (DetectWriteStateAsync below); the profile's is known now.
             readOnlyConnection: csb.Options?.Contains(ConnectionProfile.ReadOnlySessionOption, StringComparison.Ordinal) == true,
+            environment: profile?.Environment ?? ConnectionEnvironment.None,
+            writeGate: gate.CanAllowWrites ? gate : null,
             autoAliasTables: SettingsStore.Load().AutoAliasTables,
             persistAutoAliasTables: PersistAutoAliasTables,
             safeModeEdits: SettingsStore.Load().SafeModeEdits,
@@ -796,8 +808,8 @@ public partial class App : Application
             completionUsage: LoadCompletionUsage(workspaceKey),
             completionSettings: LoadCompletionSettings(),
             persistCompletionSettings: PersistCompletionSettings,
-            backups: toolConnection is null ? null : new BackupService(dataSource, toolConnection),
-            restores: toolConnection is null ? null : new RestoreService(dataSource, toolConnection));
+            backups: toolConnection is null ? null : new BackupService(gate, toolConnection),
+            restores: toolConnection is null ? null : new RestoreService(gate, toolConnection));
 
         // "Open in New Window" after a restore into a new database: the same
         // profile and password, and the same SSH tunnel (another hold on it).
@@ -849,7 +861,7 @@ public partial class App : Application
             // hold on the SSH tunnel that carries all of it, which closes the
             // tunnel unless a window opened on a restored database still uses it.
             await notifyMonitor.DisposeAsync();
-            await dataSource.DisposeAsync();
+            await gate.DisposeAsync();
             tunnel?.Dispose();
         };
 

@@ -129,6 +129,46 @@ The main window's title bar names the connection after its profile, followed by
 the database. Hover over it to see where that is, as `user@host:port/database`
 and the SSH hop, if any. A profile you never named shows its host instead.
 
+## Environments
+
+Set **Environment** on a profile to say what it points at: Development,
+Staging or Production. The profile list shows the label next to the name, and
+the main window shows it next to the connection name before anything runs.
+Dev and staging are labels only.
+
+**Production** also changes what the window can do. Every window on a
+production profile opens with writes off, enforced by the server in the same
+way as a [read-only connection](#read-only-connections): `INSERT`, `UPDATE`,
+`DELETE`, `COPY FROM` and DDL are refused from the editor, the results grid, an
+import and a schema or security action alike. Cancel query and Terminate in
+Server Activity are off too.
+
+When you mean to change data, click the red **production** label (or run
+**Allow writes in this window** from the command palette) and confirm. The
+label fills red and reads **production · writes on**. Only that window can
+write: other windows on the same profile, a new window and the next connect all
+start with writes off again. Click the label again (or run **Turn writes off in
+this window**) to turn writes off. pgNimbus refuses that while a transaction you
+started with Begin is open, because its connection can still write; commit or
+roll back first. Rows already in a grid stay read-only until you run the query
+again.
+
+If **Read-only session** is also on, the profile stays read-only and no window
+can allow writes.
+
+### What this protects, and what it doesn't
+
+The environment and the read-only session are safeguards against mistakes in
+pgNimbus, not permissions. They make an accidental write fail, and they make the
+write state visible before you run anything. They don't stop a statement from
+running `SET default_transaction_read_only = off` for its own session, and they
+don't apply to psql or any other client using the same login.
+
+What a role may do is decided by PostgreSQL: its grants, ownership and role
+memberships. To make writes to production impossible rather than deliberate,
+connect as a role without write privileges. **Roles and permissions** in the
+command palette shows what a role can do and why.
+
 ## Read-only connections
 
 Switch on **Read-only session** for a profile you only mean to read from, such

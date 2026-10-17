@@ -165,6 +165,8 @@ public static class CommandBindings
         [CommandId.CloseTab] = vm => vm.CloseTabCommand,
         [CommandId.ReopenClosedTab] = vm => vm.ReopenClosedTabCommand,
         [CommandId.CloseOtherTabs] = vm => vm.CloseOtherTabsCommand,
+        [CommandId.AllowWrites] = vm => vm.AllowWritesCommand,
+        [CommandId.LockWrites] = vm => vm.LockWritesCommand,
         [CommandId.CloseTabsToTheRight] = vm => vm.CloseTabsToTheRightCommand,
         [CommandId.RenameTab] = vm => vm.RenameTabCommand,
         [CommandId.NextTab] = vm => vm.NextTabCommand,

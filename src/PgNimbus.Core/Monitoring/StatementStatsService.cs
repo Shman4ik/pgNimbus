@@ -1,4 +1,5 @@
 using Npgsql;
+using PgNimbus.Core.Connections;
 using PgNimbus.Core.Query;
 
 namespace PgNimbus.Core.Monitoring;
@@ -75,7 +76,7 @@ public sealed record StatementStatsRead(StatementStatsProblem Problem, Statement
 /// <c>pg_stat_statements_info</c> view arrived in 1.9, and per-entry
 /// <c>stats_since</c> in 1.11.
 /// </summary>
-public sealed class StatementStatsService(NpgsqlDataSource dataSource)
+public sealed class StatementStatsService(WriteGatedDataSource dataSource)
 {
     /// <summary>How much of each statement a read brings back; the grid shows one line of it.</summary>
     public const int PreviewLength = 400;
@@ -83,7 +84,7 @@ public sealed class StatementStatsService(NpgsqlDataSource dataSource)
     // What pg_stat_statements shows in place of a statement this role may not see.
     private const string InsufficientPrivilege = "<insufficient privilege>";
 
-    private readonly NpgsqlDataSource _dataSource = dataSource;
+    private readonly WriteGatedDataSource _dataSource = dataSource;
 
     public async Task<StatementStatsRead> ReadAsync(CancellationToken ct)
     {

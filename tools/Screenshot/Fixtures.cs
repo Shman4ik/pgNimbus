@@ -3,6 +3,7 @@ using PgNimbus.App.Completion;
 using PgNimbus.App.ViewModels;
 using PgNimbus.App.ViewModels.Security;
 using PgNimbus.Core.Backup;
+using PgNimbus.Core.Connections;
 using PgNimbus.Core.Import;
 using PgNimbus.Core.Monitoring;
 using PgNimbus.Core.Notifications;
@@ -53,10 +54,19 @@ public static class Fixtures
     /// <paramref name="workspace"/> is a snapshot to restore, handed over the
     /// way <c>App</c> hands over the one it read from <c>workspace.json</c>.
     /// </summary>
-    public static MainViewModel MainWindowViewModel(WorkspaceEntry? workspace = null, bool readOnlyProfile = false)
+    public static MainViewModel MainWindowViewModel(
+        WorkspaceEntry? workspace = null,
+        bool readOnlyProfile = false,
+        ConnectionEnvironment environment = ConnectionEnvironment.None)
     {
         var dataDirectory = IsolatedAppData.NewDirectory("main-window");
-        var dataSource = DataSource;
+
+        // As App.BuildMainWindow: a production profile that isn't read-only gets
+        // a gate that can switch to a second pool (offline here, like the first).
+        var production = environment == ConnectionEnvironment.Production;
+        var dataSource = new WriteGatedDataSource(
+            DataSource,
+            production && !readOnlyProfile ? () => NpgsqlDataSource.Create(OfflineConnectionString) : null);
         var schemaService = new SchemaService(dataSource);
         var schemaTree = new SchemaTreeViewModel(schemaService, showSizes: true);
 
@@ -79,7 +89,9 @@ public static class Fixtures
             connectionHost: "localhost",
             connectionDatabase: "shop",
             workspace: workspace,
-            readOnlyConnection: readOnlyProfile,
+            readOnlyConnection: readOnlyProfile || production,
+            environment: environment,
+            writeGate: dataSource.CanAllowWrites ? dataSource : null,
             savedQueryStore: new SavedQueryStore(Path.Combine(dataDirectory, "saved-queries.json")),
             historyStore: new QueryHistoryStore(Path.Combine(dataDirectory, "history.json")),
             backups: new FakeBackupService(),
@@ -214,9 +226,10 @@ public static class Fixtures
     public static IReadOnlyList<PgNimbus.Core.Connections.ConnectionProfile> ConnectionProfiles() =>
     [
         new(Guid.Parse("aaaaaaaa-0000-0000-0000-000000000001"), "Local shop", "localhost", 5432, "shop", "pgnimbus", SslMode.Prefer),
-        new(Guid.Parse("aaaaaaaa-0000-0000-0000-000000000002"), "Staging", "db.staging.example", 5432, "shop", "app", SslMode.Require, AccentColor: "#F0A030"),
+        new(Guid.Parse("aaaaaaaa-0000-0000-0000-000000000002"), "Staging", "db.staging.example", 5432, "shop", "app", SslMode.Require, AccentColor: "#F0A030",
+            Environment: PgNimbus.Core.Connections.ConnectionEnvironment.Staging),
         new(Guid.Parse("aaaaaaaa-0000-0000-0000-000000000003"), "Production", "db.example.com", 6432, "shop", "reporting", SslMode.VerifyFull, AccentColor: "#E05252", ReadOnly: true,
-            RootCertificatePath: "/etc/ssl/certs/example-ca.pem"),
+            RootCertificatePath: "/etc/ssl/certs/example-ca.pem", Environment: PgNimbus.Core.Connections.ConnectionEnvironment.Production),
     ];
 
     // --- Result sets ------------------------------------------------------

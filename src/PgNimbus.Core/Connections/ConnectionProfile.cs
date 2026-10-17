@@ -52,6 +52,12 @@ internal static class SslModeExtensions
 /// missing from a hand-edited connections.json with this default, and a
 /// profile that silently went plaintext-only is the worse failure.
 /// </param>
+/// <param name="Environment">
+/// Which environment the profile points at. A label in the window for every
+/// value but <see cref="ConnectionEnvironment.Production"/>, whose sessions start
+/// read-only exactly as a <paramref name="ReadOnly"/> profile's do, until the
+/// user allows writes for one window (<see cref="WriteGatedDataSource"/>).
+/// </param>
 /// <param name="RootCertificatePath">
 /// A CA certificate file (PEM or DER) to trust for this connection instead of
 /// the OS store: the provider bundles that RDS, Cloud SQL and Supabase publish,
@@ -68,9 +74,24 @@ public sealed record ConnectionProfile(
     string? AccentColor = null,
     SshTunnelOptions? SshTunnel = null,
     bool ReadOnly = false,
-    string? RootCertificatePath = null)
+    string? RootCertificatePath = null,
+    ConnectionEnvironment Environment = ConnectionEnvironment.None)
 {
     public const int DefaultPort = 5432;
+
+    /// <summary>
+    /// True when a window on this profile opens with writes off: a
+    /// <see cref="ReadOnly"/> profile, or a production one.
+    /// </summary>
+    [JsonIgnore]
+    public bool StartsReadOnly => ReadOnly || Environment == ConnectionEnvironment.Production;
+
+    /// <summary>
+    /// True when a window may allow writes for itself: a production profile that
+    /// is not also <see cref="ReadOnly"/>. Read-only stays read-only.
+    /// </summary>
+    [JsonIgnore]
+    public bool CanAllowWrites => Environment == ConnectionEnvironment.Production && !ReadOnly;
 
     /// <summary>
     /// The startup option a <see cref="ReadOnly"/> profile connects with. As a
@@ -182,7 +203,10 @@ public sealed record ConnectionProfile(
     // `endpointOverride` - Npgsql then connects to 127.0.0.1:<local port>
     // instead of the real host, while the rest of the profile (database,
     // username, SSL mode) still applies.
-    public string BuildConnectionString(string? password, (string Host, int Port)? endpointOverride = null)
+    //
+    // `readOnly` overrides StartsReadOnly: the write gate builds a production
+    // profile's second pool with false.
+    public string BuildConnectionString(string? password, (string Host, int Port)? endpointOverride = null, bool? readOnly = null)
     {
         var builder = new NpgsqlConnectionStringBuilder
         {
@@ -199,7 +223,7 @@ public sealed record ConnectionProfile(
             ArrayNullabilityMode = ArrayNullability,
         };
 
-        builder.Options = SessionOptions(ReadOnly);
+        builder.Options = SessionOptions(readOnly ?? StartsReadOnly);
 
         if (UsesRootCertificate)
         {
@@ -227,9 +251,9 @@ public sealed record ConnectionProfile(
     /// (the SNI sent and the name the certificate must carry); every other
     /// setting is exactly <see cref="BuildConnectionString"/>'s.
     /// </summary>
-    public NpgsqlDataSource CreateDataSource(string? password, (string Host, int Port)? endpointOverride = null, bool pooling = true)
+    public NpgsqlDataSource CreateDataSource(string? password, (string Host, int Port)? endpointOverride = null, bool pooling = true, bool? readOnly = null)
     {
-        var connectionString = BuildConnectionString(password, endpointOverride);
+        var connectionString = BuildConnectionString(password, endpointOverride, readOnly);
         if (!pooling)
         {
             connectionString = new NpgsqlConnectionStringBuilder(connectionString) { Pooling = false }.ConnectionString;

@@ -43,7 +43,9 @@ product, not a vulnerability. What is not trusted:
    turns into executable SQL is the main thing we want found.
 2. **User SQL runs exactly once.** No path executes a statement twice (`QueryEngine` describes first and executes
    once; a reconnect retries only what never left the client). Explain refuses a selection of more than one statement
-   and always runs inside a transaction it rolls back. A read-only profile adds `default_transaction_read_only=on`.
+   and always runs inside a transaction it rolls back. A read-only profile adds `default_transaction_read_only=on`,
+   and so does a production profile's window until the user allows writes in it (`WriteGatedDataSource` switches
+   that window to a second, writable pool; locking switches back).
 3. **An edit lands on the row and table it was made on.** Inline edits, safe-mode staged batches (`PendingChangeSet`,
    `StagedRowCheck`, an optimistic-concurrency check under `FOR UPDATE`), row deletes (one transaction) and the
    browse-mode edit context (`EditableResultDetector`, checked by the result's table OID). A value saved must be the
@@ -122,7 +124,7 @@ PGPASSWORD=postgres psql -h 127.0.0.1 -U postgres   # to create hostile objects 
   string or an imported file; a stored password or private key sent to a host other than the one it belongs to.
 - **High**: SQL the user did not write or approve reaches the server (injection through any generated SQL, a
   statement executed twice, a statement past a promised boundary: Explain, a rolled-back ANALYZE, a read-only
-  profile); an edit or delete applied to a different row or table; TLS or SSH host-key verification bypassed; a
+  profile, a production window with writes off); an edit or delete applied to a different row or table; TLS or SSH host-key verification bypassed; a
   cleartext password written to disk, a log, the clipboard history or the server's statement text where point 4
   says it is not.
 - **Medium**: a destructive action without the confirmation the UI promises; a value silently changed on a
@@ -140,7 +142,8 @@ that only the user can trigger against themselves with their own SQL is not a vu
   them as they were; a regression or an incomplete fix of one is a new finding, and please say which one it extends.
 - Accepted by design (same document, "Left undone by design"): a single huge cell is read whole before the result
   budget can refuse it; no `RequireAuth=scram-sha-256`; SSH host certificates (`@cert-authority`) are not supported;
-  typed SQL on a read-only profile behind a pooler that drops startup options is warned about, not blocked;
+  typed SQL on a read-only profile (or a locked production window) behind a pooler that drops startup options is
+  warned about, not blocked;
   `pgp_sym_encrypt` keys are not redacted.
 - `Prefer` as the default SSL mode for a loopback host (localhost, 127/8, ::1, a socket directory) is deliberate.
 - The backup runs whichever `pg_dump` it finds in the well-known install folders and on the user's PATH. A program

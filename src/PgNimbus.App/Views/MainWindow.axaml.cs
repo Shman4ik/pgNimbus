@@ -515,6 +515,18 @@ public partial class MainWindow : Window, IEditCommandTarget
         base.OnKeyDown(e);
     }
 
+    // The production switch's confirm (ROADMAP T3): names the connection, says
+    // the change is this window's only, and confirms in red, since what it
+    // allows is exactly what the label exists to stop by accident.
+    private Task<bool> ConfirmAllowWritesAsync()
+    {
+        var name = _viewModel is { } vm ? $"{vm.ConnectionName} › {vm.ConnectionDatabase}" : "this connection";
+        var confirm = new ConfirmDialog(
+            $"Allow writes to production ({name}) in this window? Statements you run, grid edits, imports and schema actions can change data until you turn writes off or close the window. Other windows keep writes off.",
+            "Allow Writes");
+        return confirm.ShowDialog<bool>(this);
+    }
+
     private void Attach(MainViewModel vm)
     {
         if (_viewModel is not null)
@@ -539,6 +551,7 @@ public partial class MainWindow : Window, IEditCommandTarget
         }
 
         _viewModel = vm;
+        _viewModel.ConfirmAllowWritesRequested = ConfirmAllowWritesAsync;
         // Palette actions that touch the window are handled here.
         _viewModel.ThemeToggleRequested += ToggleTheme;
         _viewModel.SwitchConnectionRequested += SwitchConnection;

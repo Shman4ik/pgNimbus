@@ -115,6 +115,8 @@ public static class Scenarios
         ("restore-window-done", RestoreDone),
         ("restore-window-failed", RestoreFailed),
         ("restore-window-script", RestoreScript),
+        ("main-window-production", ProductionLocked),
+        ("main-window-production-writes-on", ProductionWritesOn),
     ];
 
     // --- Main window ------------------------------------------------------
@@ -152,6 +154,32 @@ public static class Scenarios
         vm.ActiveTab.ReadOnlyHint = vm.ConnectionReadOnlyHint;
         _ = vm.DetectWriteStateAsync(_ => Task.FromResult(SessionWriteState.ReadWrite));
         return HostMainWindow(vm);
+    }
+
+    /// <summary>
+    /// A production profile's window as it opens (ROADMAP T3): the red
+    /// "production" switch with writes off, and a grid that offers no editing.
+    /// </summary>
+    public static Window ProductionLocked()
+    {
+        var vm = Fixtures.MainWindowViewModel(environment: ConnectionEnvironment.Production);
+        SeedOrdersResult(vm.ActiveTab);
+        vm.ActiveTab.ReadOnlyHint = vm.ConnectionReadOnlyHint;
+        return HostMainWindow(vm);
+    }
+
+    /// <summary>The same window after the user allowed writes: the switch filled red.</summary>
+    public static Window ProductionWritesOn()
+    {
+        var vm = Fixtures.MainWindowViewModel(environment: ConnectionEnvironment.Production);
+        SeedOrdersResult(vm.ActiveTab);
+        var window = HostMainWindow(vm);
+
+        // After the window took the view model, which wires the real confirm.
+        vm.ConfirmAllowWritesRequested = () => Task.FromResult(true);
+        vm.WriteStateProbe = _ => Task.FromResult(SessionWriteState.ReadWrite);
+        _ = vm.AllowWritesCommand.ExecuteAsync(null);
+        return window;
     }
 
     /// <summary>A tab that has never run — the results pane's empty state.</summary>

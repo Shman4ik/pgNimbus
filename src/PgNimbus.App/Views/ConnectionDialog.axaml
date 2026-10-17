@@ -88,6 +88,12 @@
                                         <PathIcon Data="{StaticResource LockIconGeometry}" Width="10" Height="10" Opacity="0.6"
                                                   VerticalAlignment="Center" IsVisible="{Binding ReadOnly}"
                                                   ToolTip.Tip="Read-only session" />
+                                        <Border Classes="envTag" Padding="4,0" VerticalAlignment="Center"
+                                                Classes.staging="{Binding Environment, Converter={x:Static converters:EnvironmentText.IsStaging}}"
+                                                Classes.production="{Binding Environment, Converter={x:Static converters:EnvironmentText.IsProduction}}"
+                                                IsVisible="{Binding Environment, Converter={x:Static converters:EnvironmentText.HasTag}}">
+                                            <TextBlock Text="{Binding Environment, Converter={x:Static converters:EnvironmentText.Tag}}" FontSize="10" />
+                                        </Border>
                                     </StackPanel>
                                     <!-- user@host[:port]/database - enough to tell two
                                          profiles on the same server apart without
@@ -258,6 +264,22 @@
                  means the same thing wherever it sits. They used to lead their
                  labels, which is a checkbox's shape, not a switch's. -->
             <StackPanel Grid.Row="9" Margin="0,0,0,8">
+                <!-- Which environment this is (ROADMAP T3): a label in the window,
+                     and for production, writes off until a window allows them. -->
+                <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,6">
+                    <TextBlock Grid.Column="0" Text="Environment" VerticalAlignment="Center" Margin="0,0,12,0" />
+                    <ComboBox Name="EnvironmentCombo" Grid.Column="1" MinWidth="150"
+                              ItemsSource="{Binding Environments}" SelectedItem="{Binding Environment}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="conn:ConnectionEnvironment">
+                                <TextBlock Text="{Binding Converter={x:Static converters:EnvironmentText.Label}}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </Grid>
+                <TextBlock Classes="secondary" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,6"
+                           IsVisible="{Binding IsProductionEnvironment}"
+                           Text="{Binding EnvironmentHint}" />
                 <Grid ColumnDefinitions="*,Auto" Background="Transparent"
                       ToolTip.Tip="Every statement runs in a read-only transaction, so the server refuses INSERT, UPDATE, DELETE and DDL. It guards against mistakes; to make writes impossible, use a role without write privileges.">
                     <TextBlock Grid.Column="0" Text="Read-only session" VerticalAlignment="Center" Margin="0,0,12,0" />

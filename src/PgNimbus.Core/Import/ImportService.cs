@@ -1,5 +1,6 @@
 using System.Text;
 using Npgsql;
+using PgNimbus.Core.Connections;
 using PgNimbus.Core.Query;
 
 namespace PgNimbus.Core.Import;
@@ -13,9 +14,9 @@ public sealed record ImportColumn(string Name, string DataType);
 /// column types are restricted to <see cref="TypeInferrer.Types"/> because
 /// they're concatenated into DDL.
 /// </summary>
-public sealed class ImportService(NpgsqlDataSource dataSource)
+public sealed class ImportService(WriteGatedDataSource dataSource)
 {
-    private readonly NpgsqlDataSource _dataSource = dataSource;
+    private readonly WriteGatedDataSource _dataSource = dataSource;
 
     /// <summary>Creates the table (when <paramref name="createTable"/>) and loads every row. Returns the number of rows imported.</summary>
     public async Task<long> ImportAsync(
