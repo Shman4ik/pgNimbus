@@ -2,6 +2,7 @@ using System.Data;
 using System.Diagnostics;
 using Npgsql;
 using Npgsql.PostgresTypes;
+using PgNimbus.Core.Connections;
 
 namespace PgNimbus.Core.Query;
 
@@ -10,7 +11,7 @@ namespace PgNimbus.Core.Query;
 /// batches so the caller can render the first screenful before the whole
 /// result set has arrived, and every execution can be cancelled mid-flight.
 /// </summary>
-public sealed class QueryEngine(NpgsqlDataSource dataSource)
+public sealed class QueryEngine(WriteGatedDataSource dataSource)
 {
     private const int BatchSize = 200;
 
@@ -19,7 +20,7 @@ public sealed class QueryEngine(NpgsqlDataSource dataSource)
     // time rather than after 200 of them are already in memory.
     private const long BatchBytes = 8L * 1024 * 1024;
 
-    private readonly NpgsqlDataSource _dataSource = dataSource;
+    private readonly WriteGatedDataSource _dataSource = dataSource;
 
     // Non-null while an explicit user transaction is open. Every execution then
     // runs on this one connection (instead of a fresh pooled one) so BEGIN and a

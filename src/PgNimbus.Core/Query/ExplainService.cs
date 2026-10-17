@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Npgsql;
+using PgNimbus.Core.Connections;
 
 namespace PgNimbus.Core.Query;
 
@@ -49,9 +50,9 @@ public sealed record ImportedPlan(ExplainResult Result, string DisplayText, stri
 /// into a navigable tree, rather than leaving callers to parse Postgres's
 /// raw JSON shape themselves.
 /// </summary>
-public sealed class ExplainService(NpgsqlDataSource dataSource)
+public sealed class ExplainService(WriteGatedDataSource dataSource)
 {
-    private readonly NpgsqlDataSource _dataSource = dataSource;
+    private readonly WriteGatedDataSource _dataSource = dataSource;
 
     /// <summary>
     /// Runs <c>EXPLAIN</c> over exactly one statement. <paramref name="sql"/> may carry

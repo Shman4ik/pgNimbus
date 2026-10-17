@@ -1,4 +1,5 @@
 using Npgsql;
+using PgNimbus.Core.Connections;
 using PgNimbus.Core.Schema;
 
 namespace PgNimbus.Core.Monitoring;
@@ -68,9 +69,9 @@ public sealed record UnusedIndex(
 /// panel. Every query hits pg_catalog / the pg_stat_* views directly — nothing
 /// here writes, so it's always safe to run against production.
 /// </summary>
-public sealed class DatabaseStatsService(NpgsqlDataSource dataSource)
+public sealed class DatabaseStatsService(WriteGatedDataSource dataSource)
 {
-    private readonly NpgsqlDataSource _dataSource = dataSource;
+    private readonly WriteGatedDataSource _dataSource = dataSource;
 
     /// <summary>Current database name, size on disk, and the heap/index cache-hit ratios.</summary>
     public async Task<DatabaseOverview> GetOverviewAsync(CancellationToken ct)

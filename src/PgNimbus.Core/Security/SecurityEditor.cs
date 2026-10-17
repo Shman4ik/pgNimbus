@@ -1,4 +1,5 @@
 using Npgsql;
+using PgNimbus.Core.Connections;
 
 namespace PgNimbus.Core.Security;
 
@@ -21,9 +22,9 @@ namespace PgNimbus.Core.Security;
 /// a three-statement drop-role recipe that fails on its second statement leaves
 /// the role exactly as it was rather than half-dismantled.
 /// </summary>
-public sealed class SecurityEditor(NpgsqlDataSource dataSource)
+public sealed class SecurityEditor(WriteGatedDataSource dataSource)
 {
-    private readonly NpgsqlDataSource _dataSource = dataSource;
+    private readonly WriteGatedDataSource _dataSource = dataSource;
 
     /// <summary>
     /// Executes <paramref name="script"/> — one or more statements — atomically.

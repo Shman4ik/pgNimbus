@@ -1,5 +1,6 @@
 using Npgsql;
 using NpgsqlTypes;
+using PgNimbus.Core.Connections;
 
 namespace PgNimbus.Core.Security;
 
@@ -17,9 +18,9 @@ namespace PgNimbus.Core.Security;
 ///
 /// Everything here is read-only, so it is always safe to run against production.
 /// </summary>
-public sealed class PrivilegeService(NpgsqlDataSource dataSource)
+public sealed class PrivilegeService(WriteGatedDataSource dataSource)
 {
-    private readonly NpgsqlDataSource _dataSource = dataSource;
+    private readonly WriteGatedDataSource _dataSource = dataSource;
 
     /// <summary>
     /// Catalog schemas are hidden from the object picker unless the caller asks

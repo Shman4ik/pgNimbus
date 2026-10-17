@@ -2022,6 +2022,40 @@ Moved to [`.claude/rules/logo-assets.md`](rules/logo-assets.md), which loads whe
   (`ApplyConnectionReadOnly(previousHint)`), so no chip keeps saying "the server
   refuses writes". The server query is replaceable for tests
   (`DetectWriteStateAsync(probe)`); scenario `main-window-read-only-not-applied`.
+  **Environments, and production's writes are off until a window allows them**
+  (2026-10, ROADMAP T3 second slice, #373). `ConnectionProfile.Environment`
+  (`ConnectionEnvironment`: None, Development, Staging, Production; persisted as
+  a number, append only) is a label in the profile list and beside the
+  breadcrumb. Production also starts read-only (`StartsReadOnly`): the same
+  startup option, so the server enforces it on every path. Allowing writes is
+  per window, and the server still enforces the switch. **A `SET` cannot
+  lift it**: the pool's `DISCARD ALL` puts the startup option back on every
+  reuse, and a `SET` per rental costs a round trip per statement. So every
+  service of a window rents from one `Connections/WriteGatedDataSource`, which
+  for a production profile that is not also `ReadOnly` (`CanAllowWrites`) holds
+  a second, writable pool, built on first use from the same profile, password
+  and tunnel (`CreateDataSource(…, readOnly: false)`), and switches pools.
+  Every other window's gate is its one pool (a data source converts to it
+  implicitly, which is why the tests still pass `NpgsqlDataSource`). Locking
+  clears the writable pool and is refused while `IsInTransaction` (that
+  connection came from the writable pool); a statement already running when it
+  locks finishes as it started. The title bar's `ProductionWritesButton` is the
+  switch (`ToggleWritesCommand`, behind `ConfirmAllowWritesRequested`, a
+  `ConfirmDialog` wired by `MainWindow`; with no handler nothing is allowed),
+  the palette lists Allow or Turn off only in such a window, and
+  `ShowReadOnlyMark` hides the plain mark when the lock is the only reason.
+  After either change `DetectWriteStateAsync` asks the server again (a
+  read-only role or a standby still refuses; a pooler dropping the option
+  turns the mark amber with `ProductionNotEnforcedHint`), through
+  `WriteStateProbe` in tests. Tabs whose rows were read-only for the lock read
+  `QueryViewModel.WritesAllowedRerunHint` until the next run. Server Activity's
+  Cancel query and Terminate are off while writes are (`ActivityViewModel.
+  SignalsLockedHint`): the server allows both on a read-only session, so that
+  check is pgNimbus's own. Every new window, a reconnect and "Open in New
+  Window" start locked. Per-profile timeouts are left (they wait for a
+  request). Tests: `ProductionWriteGateTests` (Core, live half on
+  `PGNIMBUS_TEST_CONN`), `ProductionEnvironmentTests`; scenarios
+  `main-window-production`, `main-window-production-writes-on`.
 - **json/jsonb are a first-class editable type.** `ColumnValueEditorClassifier`
   maps them to `ColumnValueEditor.Json` (jsonpath isn't JSON-shaped so it takes
   the plain-cast `CastText` path below; hstore stays `Text` — its display needs

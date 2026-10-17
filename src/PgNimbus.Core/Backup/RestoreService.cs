@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Npgsql;
+using PgNimbus.Core.Connections;
 using PgNimbus.Core.Query;
 
 namespace PgNimbus.Core.Backup;
@@ -67,7 +68,7 @@ public interface IRestoreService
 /// and its bypass, CVE-2025-13780). pg_restore connects with a connection
 /// string and runs SQL only.
 /// </summary>
-public sealed class RestoreService(NpgsqlDataSource dataSource, PgToolConnection connection) : IRestoreService
+public sealed class RestoreService(WriteGatedDataSource dataSource, PgToolConnection connection) : IRestoreService
 {
     private static readonly TimeSpan ListTimeout = TimeSpan.FromSeconds(120);
 

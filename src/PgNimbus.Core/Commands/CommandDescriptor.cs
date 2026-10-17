@@ -89,6 +89,10 @@ public enum CommandId
     // Appended for the same reason; filed under navigation with the windows.
     BackupDatabase,
     RestoreBackup,
+
+    // Appended; filed under Query beside safe mode (ROADMAP T3).
+    AllowWrites,
+    LockWrites,
 }
 
 /// <summary>

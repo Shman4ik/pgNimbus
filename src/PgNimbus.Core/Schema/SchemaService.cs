@@ -1,4 +1,5 @@
 using Npgsql;
+using PgNimbus.Core.Connections;
 
 namespace PgNimbus.Core.Schema;
 
@@ -221,9 +222,9 @@ public sealed record ForeignKeyInfo(
 /// partitioned tables, actual type names) instead of the SQL-standard
 /// lowest common denominator.
 /// </summary>
-public sealed class SchemaService(NpgsqlDataSource dataSource)
+public sealed class SchemaService(WriteGatedDataSource dataSource)
 {
-    private readonly NpgsqlDataSource _dataSource = dataSource;
+    private readonly WriteGatedDataSource _dataSource = dataSource;
 
     public async Task<IReadOnlyList<SchemaInfo>> GetSchemasAsync(CancellationToken ct)
     {

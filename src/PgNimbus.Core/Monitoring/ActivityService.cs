@@ -1,4 +1,5 @@
 using Npgsql;
+using PgNimbus.Core.Connections;
 
 namespace PgNimbus.Core.Monitoring;
 
@@ -23,9 +24,9 @@ public sealed record BackendActivity(
 /// Live server activity: pg_stat_activity snapshots plus the two backend
 /// controls (cancel the running statement / terminate the whole backend).
 /// </summary>
-public sealed class ActivityService(NpgsqlDataSource dataSource)
+public sealed class ActivityService(WriteGatedDataSource dataSource)
 {
-    private readonly NpgsqlDataSource _dataSource = dataSource;
+    private readonly WriteGatedDataSource _dataSource = dataSource;
 
     /// <summary>Client backends other than our own, active ones first.</summary>
     public async Task<IReadOnlyList<BackendActivity>> GetActivityAsync(CancellationToken ct)

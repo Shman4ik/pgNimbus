@@ -17,7 +17,9 @@ Two tabs, both refreshing every two seconds.
 A live `pg_stat_activity` grid: who is connected, what they are running, how long
 they have been at it, and what they are waiting on. Each backend can be cancelled
 (stop the current statement) or terminated (drop the session) from the toolbar,
-so a runaway query is one click away from stopping.
+so a runaway query is one click away from stopping. In a window on a
+[production profile](../getting-started/connecting.md#environments), both stay
+off until you allow writes in that window.
 
 ### Blocking
 

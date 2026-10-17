@@ -521,15 +521,33 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private bool _isReadOnlyNotEnforced;
 
-    // The connection profile asked for read-only (known before the window
-    // opens, from the data source's Options).
-    private readonly bool _profileReadOnly;
+    // The pool the window rents from asks for read-only sessions: a read-only
+    // profile, or a production one whose writes are off (known before the
+    // window opens, from the data source's Options; it changes when a
+    // production window allows or locks writes).
+    private bool _expectReadOnly;
 
     private const string ReadOnlySessionHint = "the connection is read-only, so the server refuses writes.";
+
+    /// <summary>Why a production window with writes off can't write.</summary>
+    public const string ProductionLockedHint =
+        "this is a production connection, and writes are off in this window until you allow them.";
+
+    private const string ProductionNotEnforcedHint =
+        "writes should be off on this production connection, but the server or a connection pooler did not apply that option, and the server accepts writes. " +
+        "pgNimbus keeps the grid read-only, but only pgNimbus blocks writes now: SQL you run can still change data.";
 
     private const string ReadOnlyNotEnforcedHint =
         "the profile asks for a read-only connection, but the server or a connection pooler did not apply that option, and the server accepts writes. " +
         "pgNimbus keeps the grid read-only, but only pgNimbus blocks writes now: SQL you run can still change data. Don't rely on this profile's protection in this session.";
+
+    /// <summary>
+    /// Replaces the server query behind every <see cref="DetectWriteStateAsync"/>
+    /// that passes no probe of its own, including the one after a production
+    /// window allows or locks writes. The tests' and screenshots' seam; null in
+    /// the app.
+    /// </summary>
+    public Func<CancellationToken, Task<SessionWriteState>>? WriteStateProbe { get; set; }
 
     /// <summary>
     /// Asks the server whether a session on this connection may write, once,
@@ -543,14 +561,14 @@ public sealed partial class MainViewModel : ObservableObject
         SessionWriteState state;
         try
         {
-            state = await (probe ?? _schemaService.GetWriteStateAsync)(CancellationToken.None);
+            state = await (probe ?? WriteStateProbe ?? _schemaService.GetWriteStateAsync)(CancellationToken.None);
         }
         catch
         {
             return;
         }
 
-        if (state == SessionWriteState.ReadWrite && _profileReadOnly)
+        if (state == SessionWriteState.ReadWrite && _expectReadOnly)
         {
             // The profile's promise failed in transit (security audit 2026-09,
             // finding 17). Replacing the hint with the server's "writable" made
@@ -558,7 +576,7 @@ public sealed partial class MainViewModel : ObservableObject
             // the lock in the connection list as the only trace. The hint stays,
             // reworded, and the tabs keep refusing edit contexts.
             IsReadOnlyNotEnforced = true;
-            ConnectionReadOnlyHint = ReadOnlyNotEnforcedHint;
+            ConnectionReadOnlyHint = _writeGate is null ? ReadOnlyNotEnforcedHint : ProductionNotEnforcedHint;
             ActiveTab.Status = "Read-only was not applied: the server or a connection pooler ignored the profile's read-only option. " +
                 "The grid stays read-only, but SQL you run can write.";
             return;
@@ -568,13 +586,147 @@ public sealed partial class MainViewModel : ObservableObject
         ConnectionReadOnlyHint = state switch
         {
             SessionWriteState.Standby => "the server is a standby replica, which refuses writes.",
-            SessionWriteState.ReadOnly => ReadOnlySessionHint,
+            SessionWriteState.ReadOnly => _writeGate is not null && !WritesAllowed ? ProductionLockedHint : ReadOnlySessionHint,
             _ => null,
         };
     }
 
+    /// <summary>The profile's environment (ROADMAP T3).</summary>
+    public ConnectionEnvironment Environment { get; }
+
+    /// <summary>The environment's word in the title bar, or null for none.</summary>
+    public string? EnvironmentTag => Environment.Tag();
+
+    /// <summary>True when the title bar shows a plain environment label (not production's switch).</summary>
+    public bool ShowEnvironmentLabel => EnvironmentTag is not null && !CanToggleWrites;
+
+    public bool IsProduction => Environment == ConnectionEnvironment.Production;
+
+    public bool IsStaging => Environment == ConnectionEnvironment.Staging;
+
+    // The production window's two pools; null for every other window.
+    private readonly WriteGatedDataSource? _writeGate;
+
+    /// <summary>
+    /// True for a production window that can allow writes for itself. Not a
+    /// read-only production profile: read-only is a promise this window keeps.
+    /// </summary>
+    public bool CanToggleWrites => _writeGate is not null;
+
+    /// <summary>
+    /// True after the user allowed writes in this production window. Starts
+    /// false in every window, including a new window on the same profile.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(WritesToggleTip))]
+    private bool _writesAllowed;
+
+    /// <summary>
+    /// True when the read-only mark has something to say that the production
+    /// switch doesn't: a window that is read-only only because its writes are
+    /// off already says so in the switch.
+    /// </summary>
+    public bool ShowReadOnlyMark => IsReadOnlyConnection && ConnectionReadOnlyHint != ProductionLockedHint;
+
+    public string WritesToggleTip => WritesAllowed
+        ? "Production: writes are allowed in this window. Click to turn them off."
+        : "Production: writes are off in this window, and the server refuses them. Click to allow writes for this window.";
+
+    /// <summary>
+    /// Asks the user to confirm allowing writes; the view shows a confirm naming
+    /// the connection. Without one, nothing is allowed.
+    /// </summary>
+    public Func<Task<bool>>? ConfirmAllowWritesRequested { get; set; }
+
+    /// <summary>
+    /// Allows writes in this production window after the user confirms: every
+    /// connection rented from now on comes from the writable pool, so the
+    /// editor, the grid, imports and schema and security actions can write. The
+    /// server is asked again for its write state, since a read-only role or a
+    /// standby still refuses.
+    /// </summary>
+    [RelayCommand]
+    private async Task AllowWritesAsync()
+    {
+        if (_writeGate is null)
+        {
+            ActiveTab.Status = IsProduction
+                ? "This production profile is read-only, so its windows can't allow writes. Turn off Read-only session in the profile."
+                : "Only a production profile's window turns writes on and off.";
+            ActiveTab.HasError = true;
+            return;
+        }
+
+        if (WritesAllowed)
+        {
+            return;
+        }
+
+        if (ConfirmAllowWritesRequested is not { } confirm || !await confirm())
+        {
+            return;
+        }
+
+        _writeGate.AllowWrites();
+        WritesAllowed = true;
+        _expectReadOnly = false;
+        IsReadOnlyNotEnforced = false;
+        ConnectionReadOnlyHint = null;
+        ApplyWriteStateToActivity();
+        ActiveTab.Status = "Writes are allowed in this window. Other windows on this profile still have them off.";
+        ActiveTab.HasError = false;
+        await DetectWriteStateAsync();
+    }
+
+    /// <summary>
+    /// Turns writes off again in this production window. Refused while an
+    /// explicit transaction is open, because its connection came from the
+    /// writable pool and would go on writing.
+    /// </summary>
+    [RelayCommand]
+    private async Task LockWritesAsync()
+    {
+        if (_writeGate is null || !WritesAllowed)
+        {
+            return;
+        }
+
+        if (IsInTransaction)
+        {
+            ActiveTab.Status = "Commit or roll back the open transaction first: it holds a connection that can write.";
+            ActiveTab.HasError = true;
+            return;
+        }
+
+        _writeGate.LockWrites();
+        WritesAllowed = false;
+        _expectReadOnly = true;
+        IsReadOnlyNotEnforced = false;
+        ConnectionReadOnlyHint = ProductionLockedHint;
+        ApplyWriteStateToActivity();
+        ActiveTab.Status = "Writes are off in this window again.";
+        ActiveTab.HasError = false;
+
+        // A pooler that drops the startup option shows up here as a writable
+        // session, which turns the mark amber.
+        await DetectWriteStateAsync();
+    }
+
+    /// <summary>The production switch in the title bar: allows writes, or turns them off.</summary>
+    [RelayCommand]
+    private Task ToggleWritesAsync() => WritesAllowed ? LockWritesAsync() : AllowWritesAsync();
+
+    // Cancel query and Terminate in Server Activity follow the switch: a
+    // production window with writes off doesn't signal other sessions either.
+    // The server allows both on a read-only session, so this is pgNimbus's check.
+    private void ApplyWriteStateToActivity() =>
+        Activity.SignalsLockedHint = _writeGate is not null && !WritesAllowed
+            ? "Writes are off in this production window, so it doesn't cancel or terminate other sessions. Allow writes first."
+            : null;
+
     partial void OnConnectionReadOnlyHintChanged(string? oldValue, string? newValue)
     {
+        OnPropertyChanged(nameof(ShowReadOnlyMark));
         foreach (var tab in Tabs)
         {
             tab.ApplyConnectionReadOnly(oldValue);
@@ -777,6 +929,8 @@ public sealed partial class MainViewModel : ObservableObject
         string? connectionName = null,
         string? connectionEndpoint = null,
         bool readOnlyConnection = false,
+        ConnectionEnvironment environment = ConnectionEnvironment.None,
+        WriteGatedDataSource? writeGate = null,
         bool autoAliasTables = true,
         Action<bool>? persistAutoAliasTables = null,
         bool safeModeEdits = true,
@@ -813,8 +967,10 @@ public sealed partial class MainViewModel : ObservableObject
         ConnectionEndpoint = string.IsNullOrEmpty(connectionEndpoint)
             ? $"{connectionHost}/{connectionDatabase}"
             : connectionEndpoint;
-        _connectionReadOnlyHint = readOnlyConnection ? ReadOnlySessionHint : null;
-        _profileReadOnly = readOnlyConnection;
+        Environment = environment;
+        _writeGate = writeGate;
+        _connectionReadOnlyHint = readOnlyConnection ? (writeGate is null ? ReadOnlySessionHint : ProductionLockedHint) : null;
+        _expectReadOnly = readOnlyConnection;
         _autoAliasTables = autoAliasTables;
         _persistAutoAliasTables = persistAutoAliasTables;
         _safeModeEdits = safeModeEdits;
@@ -894,6 +1050,7 @@ public sealed partial class MainViewModel : ObservableObject
         CompletionProvider.NotifyChannels = [.. notifyMonitor.Channels];
         notifyMonitor.Channels.CollectionChanged += (_, _) => CompletionProvider.NotifyChannels = [.. notifyMonitor.Channels];
         Activity = new ActivityViewModel(activityService);
+        ApplyWriteStateToActivity();
         DatabaseOverview = new DatabaseOverviewViewModel(databaseStatsService);
         SlowQueries = new SlowQueriesViewModel(statementStatsService);
         // A statement, or the setup script, opens as a new tab; nothing runs from the window.
@@ -1934,12 +2091,21 @@ public sealed partial class MainViewModel : ObservableObject
     // title, glyph and the trailing shortcut label all come from there, so the
     // palette can't drift from the key bindings or the F1 sheet.
     private IEnumerable<PaletteItem> BuildActionItems() =>
-        CommandCatalog.On(CommandSurface.Palette).Select(descriptor => new PaletteItem(
+        CommandCatalog.On(CommandSurface.Palette).Where(IsInPalette).Select(descriptor => new PaletteItem(
             descriptor.Title,
             "Action",
             descriptor.Glyph,
             Invoke(() => CommandBindings.Resolve(descriptor.Id, this)),
             descriptor.ShortcutLabel(Hotkeys.Scheme)));
+
+    // The write switch's two rows are listed only in a production window that
+    // can allow writes, and only the one that would change something.
+    private bool IsInPalette(CommandDescriptor descriptor) => descriptor.Id switch
+    {
+        CommandId.AllowWrites => CanToggleWrites && !WritesAllowed,
+        CommandId.LockWrites => CanToggleWrites && WritesAllowed,
+        _ => true,
+    };
 
     private IEnumerable<PaletteItem> BuildSavedQueryItems() =>
         SavedQueries.SavedQueries.Select(q => new PaletteItem(

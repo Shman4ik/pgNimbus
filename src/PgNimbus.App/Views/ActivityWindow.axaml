@@ -21,17 +21,19 @@
                     SelectedIndex="{Binding SelectedTab, Mode=TwoWay}">
             <TabControl.Tag>
                 <StackPanel Orientation="Horizontal" Spacing="6">
-                    <Button Classes="soft" Command="{Binding CancelCommand}"
-                            IsEnabled="{Binding HasTarget}"
-                            ToolTip.Tip="Stop the selected backend's running statement but keep the session (pg_cancel_backend). On the Blocking tab, aim at a lock holder to release everyone waiting beneath it.">
+                    <Button Name="CancelBackendButton" Classes="soft" Command="{Binding CancelCommand}"
+                            IsEnabled="{Binding CanSignal}"
+                            ToolTip.ShowOnDisabled="True"
+                            ToolTip.Tip="{Binding CancelTip}">
                         <StackPanel Orientation="Horizontal" Spacing="7">
                             <PathIcon Data="{StaticResource StopIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
                             <TextBlock Text="Cancel query" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
-                    <Button Classes="soft danger" Click="OnTerminateClick"
-                            IsEnabled="{Binding HasTarget}"
-                            ToolTip.Tip="Kill the selected backend's whole session (pg_terminate_backend)">
+                    <Button Name="TerminateBackendButton" Classes="soft danger" Click="OnTerminateClick"
+                            IsEnabled="{Binding CanSignal}"
+                            ToolTip.ShowOnDisabled="True"
+                            ToolTip.Tip="{Binding TerminateTip}">
                         <StackPanel Orientation="Horizontal" Spacing="7">
                             <PathIcon Data="{StaticResource CloseIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
                             <TextBlock Text="Terminate…" VerticalAlignment="Center" />

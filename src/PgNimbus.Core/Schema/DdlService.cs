@@ -1,4 +1,5 @@
 using Npgsql;
+using PgNimbus.Core.Connections;
 using PgNimbus.Core.Query;
 
 namespace PgNimbus.Core.Schema;
@@ -11,9 +12,9 @@ namespace PgNimbus.Core.Schema;
 /// <c>format_type</c>) to render real Postgres semantics — identity columns,
 /// partition keys, matviews — rather than an approximation.
 /// </summary>
-public sealed class DdlService(NpgsqlDataSource dataSource)
+public sealed class DdlService(WriteGatedDataSource dataSource)
 {
-    private readonly NpgsqlDataSource _dataSource = dataSource;
+    private readonly WriteGatedDataSource _dataSource = dataSource;
 
     /// <summary>
     /// Builds the DDL for <paramref name="schema"/>.<paramref name="name"/>.

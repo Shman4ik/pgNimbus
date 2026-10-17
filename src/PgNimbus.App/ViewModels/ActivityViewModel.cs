@@ -139,12 +139,14 @@ public sealed partial class ActivityViewModel(ActivityService service) : Observa
     [NotifyPropertyChangedFor(nameof(TargetPid))]
     [NotifyPropertyChangedFor(nameof(TargetLabel))]
     [NotifyPropertyChangedFor(nameof(HasTarget))]
+    [NotifyPropertyChangedFor(nameof(CanSignal))]
     private ActivityRow? _selectedRow;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(TargetPid))]
     [NotifyPropertyChangedFor(nameof(TargetLabel))]
     [NotifyPropertyChangedFor(nameof(HasTarget))]
+    [NotifyPropertyChangedFor(nameof(CanSignal))]
     private BlockingNode? _selectedBlockingNode;
 
     /// <summary>
@@ -156,8 +158,29 @@ public sealed partial class ActivityViewModel(ActivityService service) : Observa
     [NotifyPropertyChangedFor(nameof(TargetPid))]
     [NotifyPropertyChangedFor(nameof(TargetLabel))]
     [NotifyPropertyChangedFor(nameof(HasTarget))]
+    [NotifyPropertyChangedFor(nameof(CanSignal))]
     [NotifyPropertyChangedFor(nameof(ActiveStatus))]
     private int _selectedTab;
+
+    /// <summary>
+    /// Why Cancel query and Terminate are off, or null when they are on. Set by
+    /// the main window: a production window with writes off refuses them
+    /// (ROADMAP T3). The server would allow both on a read-only session, so this
+    /// one is pgNimbus's own check.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanSignal))]
+    [NotifyPropertyChangedFor(nameof(CancelTip))]
+    [NotifyPropertyChangedFor(nameof(TerminateTip))]
+    private string? _signalsLockedHint;
+
+    /// <summary>True when the header's Cancel query and Terminate act.</summary>
+    public bool CanSignal => HasTarget && SignalsLockedHint is null;
+
+    public string CancelTip => SignalsLockedHint ??
+        "Stop the selected backend's running statement but keep the session (pg_cancel_backend). On the Blocking tab, aim at a lock holder to release everyone waiting beneath it.";
+
+    public string TerminateTip => SignalsLockedHint ?? "Kill the selected backend's whole session (pg_terminate_backend)";
 
     [ObservableProperty]
     private bool _autoRefresh = true;
@@ -290,6 +313,13 @@ public sealed partial class ActivityViewModel(ActivityService service) : Observa
 
     private async Task SignalCancelAsync(int pid)
     {
+        if (SignalsLockedHint is { } locked)
+        {
+            Status = locked;
+            BlockingStatus = locked;
+            return;
+        }
+
         try
         {
             var signaled = await _service.CancelBackendAsync(pid, CancellationToken.None);
@@ -308,6 +338,13 @@ public sealed partial class ActivityViewModel(ActivityService service) : Observa
 
     private async Task SignalTerminateAsync(int pid)
     {
+        if (SignalsLockedHint is { } locked)
+        {
+            Status = locked;
+            BlockingStatus = locked;
+            return;
+        }
+
         try
         {
             var signaled = await _service.TerminateBackendAsync(pid, CancellationToken.None);

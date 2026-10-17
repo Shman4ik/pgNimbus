@@ -233,7 +233,31 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
     /// connection-string preview: it's this app's setting, like the accent colour.
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(EnvironmentHint))]
     private bool _readOnly;
+
+    public IReadOnlyList<ConnectionEnvironment> Environments => ConnectionEnvironments.All;
+
+    /// <summary>
+    /// Which environment the profile points at (see
+    /// <see cref="ConnectionProfile.Environment"/>). Not part of the
+    /// connection-string preview either.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsProductionEnvironment))]
+    [NotifyPropertyChangedFor(nameof(EnvironmentHint))]
+    private ConnectionEnvironment _environment;
+
+    /// <summary>Shows the line under the picker saying what production does.</summary>
+    public bool IsProductionEnvironment => Environment == ConnectionEnvironment.Production;
+
+    /// <summary>
+    /// That line. A read-only production profile can't allow writes at all, so
+    /// it doesn't promise that it can.
+    /// </summary>
+    public string EnvironmentHint => ReadOnly && IsProductionEnvironment
+        ? "Read-only session is on, so writes stay off in every window."
+        : Environment.Description();
 
     [ObservableProperty]
     private string _password = string.Empty;
@@ -408,6 +432,7 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
             RootCertificatePath = value?.RootCertificatePath ?? string.Empty;
             AccentColor = value?.AccentColor;
             ReadOnly = value?.ReadOnly ?? false;
+            Environment = value?.Environment ?? ConnectionEnvironment.None;
             Password = string.Empty;
 
             UseSshTunnel = value?.SshTunnel is not null;
@@ -610,6 +635,8 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
     partial void OnNameChanged(string value) => OnFormEdited();
     partial void OnAccentColorChanged(string? value) => OnFormEdited();
     partial void OnReadOnlyChanged(bool value) => OnFormEdited();
+
+    partial void OnEnvironmentChanged(ConnectionEnvironment value) => OnFormEdited();
     partial void OnUseSshTunnelChanged(bool value) => OnFormEdited(credentials: true);
     partial void OnSshHostChanged(string value) => OnFormEdited();
     partial void OnSshPortChanged(int value) => OnFormEdited();
@@ -1125,7 +1152,8 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
             AccentColor,
             sshTunnel,
             ReadOnly,
-            Blank(RootCertificatePath) ? null : RootCertificatePath.Trim());
+            Blank(RootCertificatePath) ? null : RootCertificatePath.Trim(),
+            Environment);
     }
 
     /// <summary>

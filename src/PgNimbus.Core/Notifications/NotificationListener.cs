@@ -1,4 +1,5 @@
 using Npgsql;
+using PgNimbus.Core.Connections;
 using PgNimbus.Core.Query;
 
 namespace PgNimbus.Core.Notifications;
@@ -20,9 +21,9 @@ public sealed record DatabaseNotification(string Channel, string Payload, int Pr
 /// the UI can stop claiming to be listening. Anything that is not a connection
 /// loss stops immediately: re-running it would fail the same way.
 /// </summary>
-public sealed class NotificationListener(NpgsqlDataSource dataSource) : IAsyncDisposable
+public sealed class NotificationListener(WriteGatedDataSource dataSource) : IAsyncDisposable
 {
-    private readonly NpgsqlDataSource _dataSource = dataSource;
+    private readonly WriteGatedDataSource _dataSource = dataSource;
     private NpgsqlConnection? _connection;
     private CancellationTokenSource? _cts;
     private Task? _listenLoop;

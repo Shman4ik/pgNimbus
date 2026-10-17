@@ -53,7 +53,7 @@ public interface IBackupService
 /// PostgreSQL tool restores, it knows every object type of every version, and
 /// a backup that only pgNimbus could read would be a trap.
 /// </summary>
-public sealed class BackupService(NpgsqlDataSource dataSource, PgToolConnection connection) : IBackupService
+public sealed class BackupService(WriteGatedDataSource dataSource, PgToolConnection connection) : IBackupService
 {
     /// <summary>How often a running backup reports how much it has written.</summary>
     private static readonly TimeSpan ProgressInterval = TimeSpan.FromMilliseconds(250);

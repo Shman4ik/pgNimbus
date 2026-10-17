@@ -93,6 +93,8 @@
              The other kinds reuse the shared icons above (table, database, function, swap);
              CompletionKindVisuals maps kind → resource key + fixed color. -->
         <StreamGeometry x:Key="LockIconGeometry">M12,17A2,2 0 0,0 14,15C14,13.89 13.1,13 12,13A2,2 0 0,0 10,15A2,2 0 0,0 12,17M18,8A2,2 0 0,1 20,10V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V10C4,8.89 4.9,8 6,8H7V6A5,5 0 0,1 12,1A5,5 0 0,1 17,6V8H18M12,3A3,3 0 0,0 9,6V8H15V6A3,3 0 0,0 12,3Z</StreamGeometry>
+        <!-- MDI lock-open-variant: a production window with writes allowed (ROADMAP T3). -->
+        <StreamGeometry x:Key="LockOpenIconGeometry">M18,1C15.24,1 13,3.24 13,6V8H4A2,2 0 0,0 2,10V20A2,2 0 0,0 4,22H16A2,2 0 0,0 18,20V10A2,2 0 0,0 16,8H15V6A3,3 0 0,1 18,3A3,3 0 0,1 21,6V8H23V6C23,3.24 20.76,1 18,1M10,13A2,2 0 0,1 12,15A2,2 0 0,1 10,17A2,2 0 0,1 8,15A2,2 0 0,1 10,13Z</StreamGeometry>
         <!-- MDI plus: the connection dialog's New Connection button under the list. -->
         <StreamGeometry x:Key="PlusIconGeometry">M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z</StreamGeometry>
         <!-- MDI filter-outline: the status bar's filter-bar toggle. -->
@@ -274,6 +276,74 @@
          actions, and its selection fades in on a transition, which a screenshot
          baseline of the main window must never catch half-way (the security window's
          shots have no baseline for exactly that reason). -->
+
+    <!-- The connection's environment beside the title bar's breadcrumb (ROADMAP T3).
+         A small outlined tag: neutral for dev, amber for staging, red for
+         production. Production's is a Button (the window's write switch), filled
+         red while writes are allowed so that state can't be missed. Its fills
+         are pinned on the template part, where Fluent paints a button's hover
+         and pressed states (.claude/rules/avalonia-styling.md). -->
+    <Style Selector="Border.envTag">
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="Padding" Value="6,1" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemControlForegroundBaseLowBrush}" />
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="Border.envTag > TextBlock">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="Opacity" Value="0.8" />
+    </Style>
+    <Style Selector="Border.envTag.staging">
+        <Setter Property="BorderBrush" Value="{StaticResource AppWarningBrush}" />
+    </Style>
+    <Style Selector="Border.envTag.staging > TextBlock">
+        <Setter Property="Foreground" Value="{StaticResource AppWarningBrush}" />
+        <Setter Property="Opacity" Value="1" />
+    </Style>
+    <Style Selector="Border.envTag.production">
+        <Setter Property="BorderBrush" Value="{StaticResource AppDangerBorderBrush}" />
+        <Setter Property="Background" Value="{StaticResource AppDangerWashBrush}" />
+    </Style>
+    <Style Selector="Border.envTag.production > TextBlock">
+        <Setter Property="Foreground" Value="{StaticResource AppDangerBrush}" />
+        <Setter Property="Opacity" Value="1" />
+    </Style>
+    <Style Selector="Button.envTag">
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="Padding" Value="6,1" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="Foreground" Value="{StaticResource AppDangerBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource AppDangerBorderBrush}" />
+        <Setter Property="Background" Value="{StaticResource AppDangerWashBrush}" />
+    </Style>
+    <Style Selector="Button.envTag:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource AppDangerWashBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource AppDangerBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource AppDangerBrush}" />
+    </Style>
+    <Style Selector="Button.envTag:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource AppDangerBorderBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource AppDangerBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource AppDangerBrush}" />
+    </Style>
+    <Style Selector="Button.envTag.writesOn">
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="BorderBrush" Value="{StaticResource AppDangerBrush}" />
+        <Setter Property="Background" Value="{StaticResource AppDangerBrush}" />
+    </Style>
+    <Style Selector="Button.envTag.writesOn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource AppDangerHoverBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource AppDangerHoverBrush}" />
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.envTag.writesOn:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource AppDangerPressedBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource AppDangerPressedBrush}" />
+        <Setter Property="Foreground" Value="White" />
+    </Style>
 
     <!-- The sidebar's filter boxes (schema tree, history): 26px instead of Fluent's
          32, so the box lines up with the tab strip above it and the icon buttons
