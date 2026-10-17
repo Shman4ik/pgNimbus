@@ -464,6 +464,34 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#environments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Environments
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Environments">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-this-protects-and-what-it-doesnt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What this protects, and what it doesn't
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#read-only-connections" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -963,6 +991,34 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#environments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Environments
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Environments">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-this-protects-and-what-it-doesnt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What this protects, and what it doesn't
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#read-only-connections" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1204,6 +1260,38 @@ against the wrong server.</p>
 <p>The main window's title bar names the connection after its profile, followed by
 the database. Hover over it to see where that is, as <code>user@host:port/database</code>
 and the SSH hop, if any. A profile you never named shows its host instead.</p>
+<h2 id="environments">Environments<a class="headerlink" href="#environments" title="Permanent link">&para;</a></h2>
+<p>Set <strong>Environment</strong> on a profile to say what it points at: Development,
+Staging or Production. The profile list shows the label next to the name, and
+the main window shows it next to the connection name before anything runs.
+Dev and staging are labels only.</p>
+<p><strong>Production</strong> also changes what the window can do. Every window on a
+production profile opens with writes off, enforced by the server in the same
+way as a <a href="#read-only-connections">read-only connection</a>: <code>INSERT</code>, <code>UPDATE</code>,
+<code>DELETE</code>, <code>COPY FROM</code> and DDL are refused from the editor, the results grid, an
+import and a schema or security action alike. Cancel query and Terminate in
+Server Activity are off too.</p>
+<p>When you mean to change data, click the red <strong>production</strong> label (or run
+<strong>Allow writes in this window</strong> from the command palette) and confirm. The
+label fills red and reads <strong>production · writes on</strong>. Only that window can
+write: other windows on the same profile, a new window and the next connect all
+start with writes off again. Click the label again (or run <strong>Turn writes off in
+this window</strong>) to turn writes off. pgNimbus refuses that while a transaction you
+started with Begin is open, because its connection can still write; commit or
+roll back first. Rows already in a grid stay read-only until you run the query
+again.</p>
+<p>If <strong>Read-only session</strong> is also on, the profile stays read-only and no window
+can allow writes.</p>
+<h3 id="what-this-protects-and-what-it-doesnt">What this protects, and what it doesn't<a class="headerlink" href="#what-this-protects-and-what-it-doesnt" title="Permanent link">&para;</a></h3>
+<p>The environment and the read-only session are safeguards against mistakes in
+pgNimbus, not permissions. They make an accidental write fail, and they make the
+write state visible before you run anything. They don't stop a statement from
+running <code>SET default_transaction_read_only = off</code> for its own session, and they
+don't apply to psql or any other client using the same login.</p>
+<p>What a role may do is decided by PostgreSQL: its grants, ownership and role
+memberships. To make writes to production impossible rather than deliberate,
+connect as a role without write privileges. <strong>Roles and permissions</strong> in the
+command palette shows what a role can do and why.</p>
 <h2 id="read-only-connections">Read-only connections<a class="headerlink" href="#read-only-connections" title="Permanent link">&para;</a></h2>
 <p>Switch on <strong>Read-only session</strong> for a profile you only mean to read from, such
 as production. Every session then starts with <code>default_transaction_read_only</code>

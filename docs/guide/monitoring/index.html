@@ -1010,7 +1010,9 @@ again focuses the window you already have.</p>
 <p>A live <code>pg_stat_activity</code> grid: who is connected, what they are running, how long
 they have been at it, and what they are waiting on. Each backend can be cancelled
 (stop the current statement) or terminated (drop the session) from the toolbar,
-so a runaway query is one click away from stopping.</p>
+so a runaway query is one click away from stopping. In a window on a
+<a href="../../getting-started/connecting/#environments">production profile</a>, both stay
+off until you allow writes in that window.</p>
 <h3 id="blocking">Blocking<a class="headerlink" href="#blocking" title="Permanent link">&para;</a></h3>
 <p>The tab worth knowing about before you need it: a who-blocks-whom lock tree. Lock
 holders sit at the top, waiters nest underneath them, each labelled with the lock
