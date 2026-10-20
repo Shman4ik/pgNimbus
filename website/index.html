@@ -289,7 +289,7 @@
 
 <section class="hero">
   <div class="wrap">
-    <a class="release" href="https://github.com/Shman4ik/pgNimbus/releases/latest"><b>1.2</b> Out now: back up and restore with PostgreSQL's own pg_dump and pg_restore</a>
+    <a class="release" href="https://github.com/Shman4ik/pgNimbus/releases/latest"><b>1.2.1</b> Out now: a profile marked Production opens with writes off, enforced by the server</a>
     <h1>A fast, open-source PostgreSQL&nbsp;GUI client</h1>
     <p class="sub">
       It talks to your database and nothing else: no telemetry, no account, no cloud.
@@ -356,7 +356,7 @@
       <li><span class="when">August</span><strong>Roles and permissions</strong>A window that asks the server whether a role can do something, and explains where the answer comes from.</li>
       <li><span class="when">September</span><strong>A tool for every day</strong>Safe mode that notices someone else's edit, completion that reads SQL the way the server does, and a macOS pass.</li>
       <li><span class="when">1.0</span><strong>Reviewed before the tag</strong>18 findings, from a query that could run twice to unchecked SSH host keys. All of them are fixed in 1.0.</li>
-      <li><span class="when">October</span><strong>1.1 and 1.2</strong>Databases with thousands of tables stay quick to move around in, and a database, a schema or one table can be backed up and restored with PostgreSQL's own tools.</li>
+      <li><span class="when">October</span><strong>1.1, 1.2 and 1.2.1</strong>Databases with thousands of tables stay quick to move around in, a database, a schema or one table can be backed up and restored with PostgreSQL's own tools, and a connection marked Production opens with writes off.</li>
     </ol>
     <p class="center" style="margin-top:30px"><a class="btn" href="https://github.com/Shman4ik/pgNimbus/releases/latest">What's in the latest release →</a></p>
   </div>
@@ -407,6 +407,7 @@
       <li><strong>Follow foreign keys from the grid.</strong> Jump to the referenced row, or list every row that references this one.</li>
       <li><strong>Roles and permissions.</strong> Ask whether a role can do something and see why: a direct grant, a group, PUBLIC, ownership. Grants come out as a script you review, never applied behind your back.</li>
       <li><strong>Server insight.</strong> Live activity with a who-blocks-whom lock tree, a database overview, a slow-query shortlist from pg_stat_statements, and a LISTEN/NOTIFY monitor.</li>
+      <li><strong>Environments.</strong> Mark a profile Development, Staging or Production. The label shows next to the connection name before anything runs, and a production window opens with writes off, enforced by the server. Allow writes in that one window when you mean to, and the next connect starts locked again.</li>
       <li><strong>Read-only connections.</strong> Mark a profile read-only and the server itself refuses writes.</li>
       <li><strong>Transaction control.</strong> Explicit Begin, Commit and Rollback on one held connection, with rollback on failure.</li>
       <li><strong>Multi-tab editor.</strong> SQL formatting, find and replace, run history, saved queries, whole-script execution, and closed tabs come back with Ctrl+Shift+T.</li>

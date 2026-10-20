@@ -39,7 +39,7 @@ pgNimbus reached 1.0 on September 29, 2026, its 33rd release in the three months
 
 Before tagging 1.0, the whole codebase was read the way an attacker would read it, and the way a DBA connecting to production would. That review found 18 problems. The worst were a query that could run twice, a statement a DBA had just killed being sent again after a reconnect, and SSH host keys that were never checked. All of them are fixed in 1.0. The review was done in house, with the same Claude Code agents that write most of the code, so it isn't a third-party audit.
 
-Since then 1.1 made large databases quick to move around in, and 1.2 added backing up and restoring a database, a schema or a single table through PostgreSQL's own `pg_dump` and `pg_restore`. [See what's in the latest release.](https://github.com/Shman4ik/pgNimbus/releases/latest)
+Since then 1.1 made large databases quick to move around in, 1.2 added backing up and restoring a database, a schema or a single table through PostgreSQL's own `pg_dump` and `pg_restore`, and 1.2.1 made a connection marked Production open with writes off until you allow them in one window. [See what's in the latest release.](https://github.com/Shman4ik/pgNimbus/releases/latest)
 
 ## 🎯 Why pgNimbus?
 
