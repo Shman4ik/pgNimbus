@@ -86,9 +86,16 @@
         <Setter Property="IsVisible" Value="False" />
     </Style>
 
+    <!-- A text button is 32px, the height of the fields beside it (Fluent's
+         TextControlThemeMinHeight), in every family: 6px over and under a 13px line plus a
+         1px border for the plain and soft ones, 7px for the filled ones, which draw no
+         border. Each family had its own padding, so in one row a plain Restart… stood 34px
+         beside a 32px Sync and a 26px Delete beside a 32px Apply (kubeNimbus's audit,
+         2026-10-21). The filled families' padding is here, after this rule, because file
+         order is the only precedence (CLAUDE.md rule 7). -->
     <Style Selector="Button">
         <Setter Property="CornerRadius" Value="{StaticResource ControlCornerRadius}" />
-        <Setter Property="Padding" Value="14,7" />
+        <Setter Property="Padding" Value="14,6" />
     </Style>
 
     <Style Selector="Button.accent">
@@ -96,6 +103,14 @@
         <Setter Property="Foreground" Value="White" />
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="14,7" />
+    </Style>
+
+    <Style Selector="Button.danger">
+        <Setter Property="Padding" Value="14,7" />
+    </Style>
+    <Style Selector="Button.soft">
+        <Setter Property="Padding" Value="11,6" />
     </Style>
 
     <Style Selector="Button.accent:pointerover">
