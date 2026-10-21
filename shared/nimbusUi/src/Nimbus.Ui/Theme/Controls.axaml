@@ -578,6 +578,42 @@
         <Setter Property="CornerRadius" Value="{StaticResource ControlCornerRadius}" />
     </Style>
 
+    <!-- A NumericUpDown's spin buttons are two quiet chevrons inside the box, not two
+         34px bordered squares beside it. Fluent's pair took 68px of a 92px port box, which
+         left the digits about 20px, and in kubeNimbus's scale strip the bordered squares
+         read as two more buttons in a sentence that already ends in Scale and Cancel
+         (2026-10-21). The buttons keep their hover and pressed fill, so they still look
+         pressable on contact; the arrow keys and the wheel step the value as before.
+         Fluent's ButtonSpinner template sets MinWidth, BorderThickness, Background and the
+         chevrons' size on the parts themselves, which outranks a plain style; a selector with
+         an activator (the never-set class in :not) runs at trigger priority, which does not. -->
+    <Style Selector="NumericUpDown /template/ ButtonSpinner /template/ RepeatButton:not(.nimbusDefault)">
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="Width" Value="22" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="CornerRadius" Value="{StaticResource ControlCornerRadius}" />
+    </Style>
+    <!-- A disabled box (a scale strip after its answer) is one grey field: Fluent greys the
+         text part only and gives each chevron a grey square of its own, which drew two more
+         squares inside the box. -->
+    <Style Selector="NumericUpDown:disabled">
+        <Setter Property="Background" Value="{DynamicResource TextControlBackgroundDisabled}" />
+    </Style>
+    <Style Selector="NumericUpDown /template/ ButtonSpinner /template/ RepeatButton:disabled /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="NumericUpDown:disabled /template/ TextBox#PART_TextBox /template/ Border#PART_BorderElement">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+    </Style>
+    <Style Selector="NumericUpDown /template/ ButtonSpinner /template/ RepeatButton PathIcon:not(.nimbusDefault)">
+        <Setter Property="Width" Value="9" />
+        <Setter Property="Height" Value="9" />
+        <Setter Property="Opacity" Value="0.7" />
+    </Style>
+
     <!-- Selected text in every plain TextBox uses the brand-blue wash instead of
          FluentTheme's OS-accent-derived default (rule 11: the accent is ours, never
          the OS's). SelectionBrush is a TextBox-only property — not exposed on
