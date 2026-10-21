@@ -66,7 +66,12 @@ future move.
    loads and does nothing. Set the templated control's own property when the part
    template-binds it (`MenuItem { CornerRadius }`), and replace the whole
    `ControlTheme` when it hard-codes it (`Theme/ToggleSwitch.axaml`). Check the
-   rendered part in a headless test, not the style.
+   rendered part in a headless test, not the style. One way past it without a new
+   theme: a style whose selector has an activator (a pseudo-class, or a class test such
+   as `:not(.nimbusDefault)` on a class nothing sets) applies at trigger priority, which
+   is above Template. The NumericUpDown spin buttons in `Controls.axaml` are restyled
+   that way (2026-10-21): their `MinWidth`, `BorderThickness` and chevron size are written
+   in Fluent's ButtonSpinner template.
 
 ## Working on this from inside an app repo
 

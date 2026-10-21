@@ -502,6 +502,23 @@ card was flush.
 
 ---
 
+### 24. A text button is as tall as the field beside it, in every family
+
+A button with words on it is 32px, Fluent's `TextControlThemeMinHeight` and so the height of
+every TextBox, ComboBox and NumericUpDown, whether it is plain, `soft`, `accent`, `danger` or a
+`SplitButton`. `Theme.axaml` gets there by padding: 6px over and under a 13px line for the
+families with a 1px border, 7px for the filled ones, which have none. Never give one text button a
+`Padding`, `FontSize` or `Height` of its own in a row of others; an icon-only toolbar button is
+not a text button and keeps its own size. A NumericUpDown's spin buttons are chevrons inside the
+box, not bordered squares beside it.
+
+kubeNimbus's audit of its rendered screens (2026-10-21, kubeNimbus#409) measured one row at three
+heights: a plain Restart… at 34px beside a 32px Sync split button on the application page, a
+`soft danger` Delete with its own `Padding="8,4"` and 12px label at 26px beside a 32px Apply in
+the YAML toolbar, and a plain 34px Stop beside the 32px port fields. Each family had its own
+padding and the filled ones had no border, so the heights only matched by accident.
+kubeNimbus's harness checks the rows with `LayoutChecks.RowIsLevel`.
+
 ## What is deliberately *not* shared
 
 Sharing the wrong thing costs more than duplicating it. Known exceptions, with
