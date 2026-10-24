@@ -172,10 +172,10 @@
                     <TextBlock Text="Reviewed before commit" FontSize="10.5" Opacity="0.6"
                                VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                ToolTip.Tip="Staged changes are listed, checked for conflicts and committed from the status bar" />
-                    <Button Grid.Column="1" Classes="soft" Content="Revert" FontSize="12" Padding="10,3"
+                    <Button Grid.Column="1" Classes="soft" Content="Revert" FontSize="12" Padding="10,3" MinHeight="0"
                             Command="{Binding RevertCommand}"
                             cmd:CommandTip.Text="Put every field back to the row's values" cmd:CommandTip.Keys="Escape" />
-                    <Button Grid.Column="2" Classes="accent" Content="{Binding StageLabel}" FontSize="12" Padding="12,3"
+                    <Button Grid.Column="2" Classes="accent" Content="{Binding StageLabel}" FontSize="12" Padding="12,3" MinHeight="0"
                             Margin="6,0,0,0"
                             Command="{Binding StageCommand}"
                             ToolTip.Tip="Stage these changes; review and commit them from the status bar (Enter)" />

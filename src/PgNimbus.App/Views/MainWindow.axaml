@@ -595,10 +595,10 @@
                         <Ellipse Width="8" Height="8" Fill="{DynamicResource AppAccentBrush}" VerticalAlignment="Center" />
                         <TextBlock Classes="statusText" FontWeight="SemiBold"
                                    Text="{Binding ActiveTab.PendingChangesText}" VerticalAlignment="Center" />
-                        <Button Classes="accent" FontSize="11" Padding="10,3" Content="Review…"
+                        <Button Classes="accent" FontSize="11" Padding="10,3" MinHeight="0" Content="Review…"
                                 Click="OnReviewPendingClick"
                                 ToolTip.Tip="Show the generated SQL, then commit everything as one transaction" />
-                        <Button FontSize="11" Padding="10,3" Content="Discard"
+                        <Button FontSize="11" Padding="10,3" MinHeight="0" Content="Discard"
                                 Click="OnDiscardPendingClick"
                                 ToolTip.Tip="Drop all staged changes and reload from the server" />
                     </StackPanel>
@@ -608,7 +608,7 @@
                                 IsVisible="{Binding ActiveTab.FixSuggestionSql, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
                         <Rectangle Classes="statusSeparator" />
                         <TextBlock Classes="statusText" Text="{Binding ActiveTab.FixSuggestionText}" VerticalAlignment="Center" />
-                        <Button Classes="accent" FontSize="11" Padding="10,3" Content="Fix &amp; re-run"
+                        <Button Classes="accent" FontSize="11" Padding="10,3" MinHeight="0" Content="Fix &amp; re-run"
                                 Command="{Binding ActiveTab.ApplyFixCommand}"
                                 ToolTip.Tip="Rewrite the unquoted identifiers to match the database and run again" />
                     </StackPanel>

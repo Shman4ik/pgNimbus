@@ -55,11 +55,11 @@
                    IsVisible="{Binding FilterError, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
 
         <Grid ColumnDefinitions="Auto,*,Auto">
-            <Button Grid.Column="0" Classes="soft danger" Content="Remove" FontSize="12" Padding="10,3"
+            <Button Grid.Column="0" Classes="soft danger" Content="Remove" FontSize="12" Padding="10,3" MinHeight="0"
                     IsVisible="{Binding IsEditingExisting}"
                     Command="{Binding RemoveFilterCommand}"
                     ToolTip.Tip="Remove this condition" />
-            <Button Grid.Column="2" Classes="accent" Content="Apply" FontSize="12" Padding="16,3"
+            <Button Grid.Column="2" Classes="accent" Content="Apply" FontSize="12" Padding="16,3" MinHeight="0"
                     Command="{Binding CommitDraftCommand}"
                     ToolTip.Tip="Filter the rows by this condition (Enter)" />
         </Grid>

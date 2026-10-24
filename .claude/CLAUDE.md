@@ -1849,6 +1849,22 @@ Three rules about it:
    the mono class keeping spacing 0, the editor size after a zoom). Not testable
    headlessly: how San Francisco looks, which is release checklist row 28.
 
+12. **Every text button has a 32px floor, and a button that is not a text button
+   resets it** (2026-10-24; canonical text is DESIGN.md rule 24, nimbusUi#15). The
+   padding alone gave 32px only where the line is 18px, as Segoe UI's is; the system
+   face in the CI container draws a 16px line, and kubeNimbus's harness measured the
+   same buttons at 30px beside 32px fields. So `Theme.axaml`'s `Button` style also
+   sets `MinHeight` to `TextControlThemeMinHeight`, and the shared `toolbar`, `chip` and
+   `searchpill` classes set their own. What pgNimbus adds: the two accent-colour swatch
+   buttons in the connection dialog (24x24 circles), the status bar's pending-changes
+   buttons, and the compact Apply/Remove, Clear conditions and Revert/Stage buttons
+   set `MinHeight="0"`, because each is smaller on purpose (a 32px button would grow
+   the status bar every time a change is staged). `Button.envTag`, `Button.label` and
+   the chips already set theirs. A new button class that is not a text button sets
+   `MinHeight` too. The floor also made the filter editor's date row (30px to 32px) and
+   the Backup/Restore windows 2px taller in the Linux baselines; the date row is most
+   likely the date picker's own template button, a plain `Button`.
+
 ## Platform window chrome
 
 Moved to [`.claude/rules/window-chrome.md`](rules/window-chrome.md), which loads when working on the window chrome, menus, `MainWindow`, `ConnectionDialog`, `App.axaml` or `Platform/`.
