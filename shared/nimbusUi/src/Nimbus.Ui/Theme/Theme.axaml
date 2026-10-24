@@ -92,10 +92,16 @@
          border. Each family had its own padding, so in one row a plain Restart… stood 34px
          beside a 32px Sync and a 26px Delete beside a 32px Apply (kubeNimbus's audit,
          2026-10-21). The filled families' padding is here, after this rule, because file
-         order is the only precedence (CLAUDE.md rule 7). -->
+         order is the only precedence (CLAUDE.md rule 7).
+         The padding comes to 32px only where the line is 18px, as Segoe UI's is; the system
+         face on a Linux runner draws a 16px line, and kubeNimbus's harness measured those
+         buttons at 30px beside 32px fields. So the height is a floor as well, the same one
+         Fluent gives every text field. The classes below that are not text buttons (toolbar,
+         chip, searchpill) set their own, and an app's own non-text button classes must too. -->
     <Style Selector="Button">
         <Setter Property="CornerRadius" Value="{StaticResource ControlCornerRadius}" />
         <Setter Property="Padding" Value="14,6" />
+        <Setter Property="MinHeight" Value="{DynamicResource TextControlThemeMinHeight}" />
     </Style>
 
     <Style Selector="Button.accent">
@@ -228,6 +234,7 @@
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="Padding" Value="10,7" />
+        <Setter Property="MinHeight" Value="0" />
     </Style>
 
     <Style Selector="ToggleButton.toolbar:checked /template/ ContentPresenter#PART_ContentPresenter">

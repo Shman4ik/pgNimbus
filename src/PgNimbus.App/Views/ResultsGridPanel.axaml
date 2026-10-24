@@ -191,7 +191,7 @@
                                           Opacity="0.28" HorizontalAlignment="Center" />
                                 <TextBlock Text="No rows match these conditions" FontSize="14" FontWeight="SemiBold"
                                            Opacity="0.6" HorizontalAlignment="Center" />
-                                <Button Classes="soft" Content="Clear conditions" FontSize="12" Padding="12,4"
+                                <Button Classes="soft" Content="Clear conditions" FontSize="12" Padding="12,4" MinHeight="0"
                                         HorizontalAlignment="Center"
                                         Command="{Binding ClearFiltersCommand}" />
                             </StackPanel>

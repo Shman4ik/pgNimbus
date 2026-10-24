@@ -171,7 +171,7 @@
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <Button Command="{Binding SelectAccentColorCommand}" CommandParameter="{x:Null}"
                                         Click="OnAccentSwatchClick"
-                                        Width="24" Height="24" Padding="0" CornerRadius="12"
+                                        Width="24" Height="24" MinHeight="0" Padding="0" CornerRadius="12"
                                         Background="Transparent" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1"
                                         ToolTip.Tip="No accent color" />
                                 <ItemsControl ItemsSource="{Binding AccentColorSwatches}">
@@ -185,7 +185,7 @@
                                             <Button Command="{Binding $parent[ItemsControl].((vm:ConnectionDialogViewModel)DataContext).SelectAccentColorCommand}"
                                                     CommandParameter="{Binding}"
                                                     Click="OnAccentSwatchClick"
-                                                    Width="24" Height="24" Padding="0" CornerRadius="12"
+                                                    Width="24" Height="24" MinHeight="0" Padding="0" CornerRadius="12"
                                                     Background="{Binding Converter={x:Static converters:HexToBrushConverter.Instance}}"
                                                     BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1"
                                                     ToolTip.Tip="{Binding}" />
