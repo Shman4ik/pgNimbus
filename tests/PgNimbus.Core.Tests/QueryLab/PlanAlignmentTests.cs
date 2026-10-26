@@ -103,6 +103,18 @@ public class PlanAlignmentTests
     }
 
     [Test]
+    public async Task A_wrapper_put_above_or_taken_from_a_node_is_not_a_move_either_way()
+    {
+        // The real pair both ways round: the Gather goes (before → after) or comes (after →
+        // before), and the scan under it stays where it was relative to the join.
+        var withGather = ExplainService.Import(RealPlans.BeforeJson).Result;
+        var withoutGather = ExplainService.Import(RealPlans.AfterJson).Result;
+
+        await Assert.That(PlanDiff.Build(withGather, withoutGather).Moved).IsEqualTo(0);
+        await Assert.That(PlanDiff.Build(withoutGather, withGather).Moved).IsEqualTo(0);
+    }
+
+    [Test]
     public async Task A_sort_the_index_made_unnecessary_is_removed()
     {
         var before = Node("Sort", details: [("Sort Key", "id")], children: [Node("Seq Scan", relation: "t", alias: "t")]);

@@ -436,9 +436,25 @@ public sealed record PlanComparison(
 
         if (diff.ShapeChanged)
         {
+            var parts = new List<string>();
+            if (diff.Added > 0)
+            {
+                parts.Add($"{Count(diff.Added, "node")} added");
+            }
+
+            if (diff.Removed > 0)
+            {
+                parts.Add($"{Count(diff.Removed, "node")} removed");
+            }
+
+            if (diff.Moved > 0)
+            {
+                parts.Add($"{Count(diff.Moved, "node")} moved to another parent");
+            }
+
+            var list = parts.Count == 1 ? parts[0] : string.Join(", ", parts[..^1]) + " and " + parts[^1];
             Add(PlanWarningSeverity.Info, "The plan's shape changed",
-                $"{Count(diff.Added, "node")} added, {Count(diff.Removed, "node")} removed and {Count(diff.Moved, "node")} "
-                + "moved to another parent. The Plan changes tab shows where.");
+                char.ToUpperInvariant(list[0]) + list[1..] + ". The Plan changes tab shows where.");
         }
 
         void Add(PlanWarningSeverity severity, string title, string detail) =>

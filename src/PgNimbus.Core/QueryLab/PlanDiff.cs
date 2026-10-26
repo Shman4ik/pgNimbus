@@ -170,10 +170,12 @@ public static class PlanDiff
                 differences.Add("outer and inner inputs swapped");
             }
 
-            var beforeParent = _before.Parents[beforeIndex];
-            var moved = beforeParent >= 0
-                && alignment.AfterIndexOf(beforeParent) is var parentImage and >= 0
-                && parentImage != _after.Parents[index];
+            // Moved when the nearest matched ancestor is another node: a Gather put above
+            // a scan, or a Sort taken away from over it, is a wrapper, not a move.
+            var beforeAnchor = MatchedAncestor(_before, beforeIndex, i => alignment.AfterIndexOf(i) >= 0);
+            var afterAnchor = MatchedAncestor(_after, index, i => alignment.BeforeIndexOf(i) >= 0);
+            var moved = (beforeAnchor >= 0) != (afterAnchor >= 0)
+                || (beforeAnchor >= 0 && alignment.AfterIndexOf(beforeAnchor) != afterAnchor);
             if (moved)
             {
                 _moved++;
@@ -195,6 +197,20 @@ public static class PlanDiff
                 Moved = moved,
                 InputsSwapped = swapped,
             };
+        }
+
+        /// <summary>The nearest ancestor of <paramref name="index"/> that has a counterpart, or -1.</summary>
+        private static int MatchedAncestor(PlanTree tree, int index, Func<int, bool> matched)
+        {
+            for (var parent = tree.Parents[index]; parent >= 0; parent = tree.Parents[parent])
+            {
+                if (matched(parent))
+                {
+                    return parent;
+                }
+            }
+
+            return -1;
         }
 
         /// <summary>
