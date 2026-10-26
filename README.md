@@ -191,7 +191,7 @@ A star, a bug report or a word to a colleague helps too.
 
 ## ☁️ Also from here
 
-[kubeNimbus](https://github.com/Shman4ik/kubeNimbus) is the same idea for Kubernetes: a native client that opens on the workloads needing attention, reads metrics-server without asking for Prometheus, and sends no telemetry either. It shares this app's UI layer ([nimbusUi](https://github.com/Shman4ik/nimbusUi)), so the two look and behave like siblings. It is at 0.7.0, and what it needs most is feedback from real clusters.
+[kubeNimbus](https://github.com/Shman4ik/kubeNimbus) is the same idea for Kubernetes: a native client that opens on the workloads needing attention, reads metrics-server without asking for Prometheus, and sends no telemetry either. It shares this app's UI layer ([nimbusUi](https://github.com/Shman4ik/nimbusUi)), so the two look and behave like siblings. It reached 1.0 on 26 October 2026, and what it needs most is feedback from real clusters.
 
 ## 📄 License
 
