@@ -154,6 +154,9 @@ public static class CommandBindings
         [CommandId.ExplainAnalyze] = vm => vm.ActiveTab?.ExplainAnalyzeCommand,
 
         [CommandId.ImportPlan] = vm => vm.ImportPlanCommand,
+        [CommandId.QueryLab] = vm => vm.ShowQueryLabCommand,
+        [CommandId.SavePlanToQueryLab] = vm => vm.SavePlanToQueryLabCommand,
+        [CommandId.ComparePlan] = vm => vm.ComparePlanCommand,
         [CommandId.FormatSql] = vm => vm.FormatSqlCommand,
         [CommandId.ExpandStar] = vm => vm.ExpandStarCommand,
         [CommandId.BeginTransaction] = vm => vm.BeginTransactionCommand,

@@ -49,6 +49,7 @@ internal static class Marketing
         new("connection-dialog.light.png", "docs/screenshots/connection-dialog.png"),
         new("backup-window.light.png", "docs/screenshots/backup.png"),
         new("restore-window.light.png", "docs/screenshots/restore.png"),
+        new("query-lab-plan-changes.light.png", "docs/screenshots/query-lab.png"),
 
         // Microsoft Store listing. Numbered because Partner Center orders
         // screenshots by upload and the numbering is the only way to keep the

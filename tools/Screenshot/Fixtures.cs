@@ -8,6 +8,7 @@ using PgNimbus.Core.Import;
 using PgNimbus.Core.Monitoring;
 using PgNimbus.Core.Notifications;
 using PgNimbus.Core.Query;
+using PgNimbus.Core.QueryLab;
 using PgNimbus.Core.Schema;
 using PgNimbus.Core.Security;
 using PgNimbus.Core.Settings;
@@ -95,7 +96,8 @@ public static class Fixtures
             savedQueryStore: new SavedQueryStore(Path.Combine(dataDirectory, "saved-queries.json")),
             historyStore: new QueryHistoryStore(Path.Combine(dataDirectory, "history.json")),
             backups: new FakeBackupService(),
-            restores: new FakeRestoreService());
+            restores: new FakeRestoreService(),
+            savedPlanStore: new SavedPlanStore(Path.Combine(dataDirectory, "query-lab")));
 
         SeedSavedQueries(viewModel.SavedQueries);
 

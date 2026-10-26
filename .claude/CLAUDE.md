@@ -731,6 +731,25 @@ Three rules about it:
    re-reads the index under one lock, an unreadable index refuses the change, the
    caps (200 plans, 4 MiB each) refuse rather than evict, and an explicit save is
    written as is, like a saved query.
+   **In the App** a tab records a `PlanCapture` the moment it shows a plan (the
+   explained statement, `ExplainRun.ServerVersion`, the source, the raw plan), so
+   Save keeps what was explained, not what the editor holds later; typing hides
+   the plan and drops it. The plan header's **Compare ▾** chip (beside Export ▾,
+   the owner's call on UI rule 1) builds its menu as it opens: Save to Query
+   Lab…, Compare With ▸ the 8 latest saved plans, Open Query Lab; the palette has
+   `QueryLab`, `SavePlanToQueryLab` and `ComparePlan`, and the macOS Query menu
+   Query Lab…. `QueryLabWindow` is one per main window, like Slow Queries, needs
+   no connection and runs nothing; its view model's store reads, writes and the
+   comparison go through `QueryLabViewModel.OffUiThread` (the thread pool; the
+   screenshot harness runs them inline so a frame holds the result). The two tabs
+   are `TabControl.capsule`, not `segmented`, so the baselines don't catch a fade.
+   A saved plan opens in a new tab with its name as the title override and its
+   statement as comments, since it may be of a write. `ExplainNodeViewModel`
+   reads `PlanMetrics`, so the plan tree's heat and Query Lab mean the same
+   self time. `SaveQueryDialog` names saved plans too (a noun and a title are
+   parameters). Tests: `QueryLabTests`; scenarios `query-lab-window`,
+   `query-lab-plan-changes`, `query-lab-empty`, from real PG 17 captures in
+   `tools/Screenshot/Fixtures/plan-*-index.json`.
 7. **Permissions are answered, not dumped — and never applied behind the user's
    back.** `src/PgNimbus.Core/Security/` reads roles and ACLs, but the headline is
    that it answers *"can this role do this, and why?"* rather than rendering

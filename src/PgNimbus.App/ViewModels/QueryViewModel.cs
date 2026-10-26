@@ -8,7 +8,9 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Npgsql;
 using PgNimbus.Core.Export;
+using PgNimbus.App.Converters;
 using PgNimbus.Core.Query;
+using PgNimbus.Core.QueryLab;
 using PgNimbus.Core.Schema;
 using PgNimbus.Core.Settings;
 
@@ -326,6 +328,13 @@ public sealed partial class QueryViewModel : ObservableObject
 
     /// <summary>Drives the "Copy/Save as JSON" plan-export actions — hidden when there's no JSON (a text import).</summary>
     public bool HasPlanJson => PlanJson is not null;
+
+    /// <summary>
+    /// The plan on screen and how it was measured, for Query Lab (see <see cref="PlanCapture"/>);
+    /// null when no plan is showing.
+    /// </summary>
+    [ObservableProperty]
+    private PlanCapture? _planCapture;
 
     partial void OnPlanJsonChanged(string? value) => OnPropertyChanged(nameof(HasPlanJson));
 
@@ -1266,11 +1275,13 @@ public sealed partial class QueryViewModel : ObservableObject
         ExplainResult result,
         string displayText,
         string? planJson,
+        PlanCapture capture,
         string? summaryPrefix = null,
         IReadOnlyList<PlanWarningViewModel>? leadingWarnings = null)
     {
         ShownImport = null;
-        var root = new ExplainNodeViewModel(result.Root, result.Root.TotalCost);
+        PlanCapture = capture;
+        var root = ExplainNodeViewModel.ForPlan(result);
         ExplainRoot = root;
         ApplyPlanHeat(root);
 
@@ -1301,9 +1312,28 @@ public sealed partial class QueryViewModel : ObservableObject
     /// </summary>
     public void ShowImportedPlan(ImportedPlan plan)
     {
-        ShowPlan(plan.Result, plan.DisplayText, plan.RawJson, summaryPrefix: "Imported plan");
+        ShowPlan(plan.Result, plan.DisplayText, plan.RawJson,
+            new PlanCapture(plan.Result, plan.RawJson ?? plan.DisplayText, SavedPlanSource.Imported, null, null, HistoryText.Now()),
+            summaryPrefix: "Imported plan");
         ShownImport = plan;
         Status = "Imported plan";
+    }
+
+    /// <summary>
+    /// Shows a plan saved in Query Lab, opened into its own tab. It rides the workspace
+    /// snapshot like an import (<see cref="ShownImport"/>), and keeps what the save knew
+    /// about how it was measured, so saving it again or comparing it says the same.
+    /// </summary>
+    public void ShowSavedPlan(SavedPlan saved, ImportedPlan plan)
+    {
+        ShowPlan(plan.Result, plan.DisplayText, plan.RawJson,
+            new PlanCapture(plan.Result, plan.RawJson ?? plan.DisplayText, saved.Source, saved.Statement, saved.ServerVersion, saved.CapturedAt)
+            {
+                Saved = saved,
+            },
+            summaryPrefix: "Saved plan");
+        ShownImport = plan;
+        Status = $"Saved plan “{saved.Name}”";
     }
 
     /// <summary>
@@ -1376,7 +1406,10 @@ public sealed partial class QueryViewModel : ObservableObject
             }
             : null;
 
-        ShowPlan(plan.Result, plan.DisplayText, plan.RawJson, leadingWarnings: notes);
+        ShowPlan(plan.Result, plan.DisplayText, plan.RawJson,
+            new PlanCapture(plan.Result, plan.RawJson ?? plan.DisplayText, SavedPlanSource.Run,
+                SqlStatementInspector.StripExplain(sql).Trim(), null, HistoryText.Now()),
+            leadingWarnings: notes);
     }
 
     /// <summary>
@@ -1437,7 +1470,9 @@ public sealed partial class QueryViewModel : ObservableObject
                 }
                 : null;
 
-            ShowPlan(result, ExplainTextFormatter.Format(result), run.Json, leadingWarnings: notes);
+            ShowPlan(result, ExplainTextFormatter.Format(result), run.Json,
+                new PlanCapture(result, run.Json, SavedPlanSource.Explain, target, run.ServerVersion, HistoryText.Now()),
+                leadingWarnings: notes);
             Status = "Plan ready";
         }
         catch (OperationCanceledException)
@@ -1515,6 +1550,7 @@ public sealed partial class QueryViewModel : ObservableObject
         if (!value)
         {
             ShownImport = null;
+            PlanCapture = null;
         }
     }
 

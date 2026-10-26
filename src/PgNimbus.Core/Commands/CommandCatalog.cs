@@ -90,6 +90,31 @@ public static class CommandCatalog
         },
         new()
         {
+            Id = CommandId.QueryLab,
+            Title = "Query Lab (compare saved plans)",
+            CheatTitle = "Query Lab",
+            Category = CommandCategory.Query,
+            Glyph = "⇄",
+            Surfaces = PaletteOnly,
+        },
+        new()
+        {
+            Id = CommandId.SavePlanToQueryLab,
+            Title = "Save plan to Query Lab…",
+            Category = CommandCategory.Query,
+            Glyph = "⇄",
+            Surfaces = PaletteOnly,
+        },
+        new()
+        {
+            Id = CommandId.ComparePlan,
+            Title = "Compare plan in Query Lab…",
+            Category = CommandCategory.Query,
+            Glyph = "⇄",
+            Surfaces = PaletteOnly,
+        },
+        new()
+        {
             Id = CommandId.FormatSql,
             Title = "Format SQL",
             CheatTitle = "Format the statement under the cursor",

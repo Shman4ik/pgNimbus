@@ -240,6 +240,16 @@
                             </StackPanel>
                             <!-- pgAdmin-style plan view switch: raw text (default) vs graphical tree -->
                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="2">
+                                <!-- Query Lab: keep this plan, or compare it with a saved one. Plan-scoped
+                                     like Export, and its menu is built as it opens (the saved plans
+                                     change from any window), in OnComparePlanFlyoutOpening. -->
+                                <Button Name="ComparePlanButton" Classes="chip" Content="Compare ▾" FontSize="11"
+                                        Padding="8,2" Margin="0,0,6,0"
+                                        ToolTip.Tip="Save this plan to Query Lab, or compare it with a saved one">
+                                    <Button.Flyout>
+                                        <MenuFlyout Opening="OnComparePlanFlyoutOpening" />
+                                    </Button.Flyout>
+                                </Button>
                                 <!-- Share the plan into external tools (pev2, depesz). Plan-scoped,
                                      shown only while a plan is on screen — not a main-toolbar control. -->
                                 <Button Classes="chip" Content="Export ▾" FontSize="11" Padding="8,2" Margin="0,0,6,0"
