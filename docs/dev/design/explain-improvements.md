@@ -102,6 +102,56 @@ Out of scope for v1 (follow-ups, noted so they aren't forgotten):
 All five deferred follow-ups are now shipped; nothing remains out of scope for
 the EXPLAIN feature.
 
+## v2: Query Lab, saved plans and plan diff (ROADMAP Q1, #375)
+
+Save named EXPLAIN runs and compare two of them, live or imported. Delivered as a
+two-PR stack: the Core (this section) first, then the App window.
+
+**What a comparison needs that a single plan didn't.** A figure that was not
+measured must stay distinguishable from a zero. `ExplainResult.Capture` records
+whether the nodes' buffers were measured, the SETTINGS list, planning buffers, JIT
+and trigger time. The text parser splits the lines the text format folds
+(`Buffers:`, `Heap Blocks:`, `Buckets: … Batches:`, `Sort Method: … Disk:`) into
+the JSON keys and keeps statement-level lines off the last node.
+
+**Matching nodes.** The first draft used Zhang–Shasha ordered tree edit
+distance. A design review rejected it: the planner swaps a hash join's inputs,
+adds a Gather above a scan and prunes a different set of partitions, and an
+ordered edit distance reads each of those as a subtree deleted and inserted
+again, while its cost grows with the partition plans people most need to
+compare. `PlanAlignment` matches by anchors instead, in the GumTree style:
+
+1. identical subtrees whose shape occurs once on each side, tallest first;
+2. scans by relation (with the alias, then the relation alone when it is read
+   once on each side; an alias alone never anchors, since partition aliases
+   renumber after pruning);
+3. containers bottom-up, by Dice over their matched descendants (≥ 0.5);
+4. an LCS under each matched pair for what is left (a Hash, a Sort, a Gather, a
+   Bitmap Index Scan).
+
+Labels are canonical across formats (`PlanNodeLabel`), so a JSON plan and its
+text twin compare as identical. `PlanDiff` merges onto the after plan, grafts
+removed nodes under the counterpart of their nearest matched ancestor, marks
+moved nodes and swapped join inputs, and folds runs of five or more sibling
+scans that were all added or all removed.
+
+**Honest summaries.** `PlanComparison` reports signed changes with no verdict
+("−811 ms (−99.8%)"), labels cost as planner units, gives the reason a figure is
+missing, and adds notes for what a pair of single runs cannot show: one run
+each, cache warmth (one side read ≥ 100 blocks outside shared buffers and the
+other a tenth of that or less), TIMING OFF, different versions, cost settings,
+parallel workers short of the plan, JIT on one side, different connections,
+statements or rows returned. The issue's constraints are tests: no comparison
+string contains "faster", "better", "improved" or the like.
+
+**Storage.** `<appdata>/pgNimbus/query-lab/index.json` lists the saved plans and
+each plan is a `<id>.plan` file beside it, re-parsed when opened so parser fixes
+reach plans saved earlier. Caps refuse a save instead of evicting one.
+
+Not in this feature: repeated measurement of a live run (a follow-up issue),
+query parameters (#138), and the reviewable before/after report (P3, depends on
+this).
+
 ## Design
 
 ### Core: `PlanAnalyzer` + `PlanWarning`

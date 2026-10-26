@@ -685,6 +685,52 @@ Three rules about it:
    not created). The design
    doc + competitive research is in
    [`docs/dev/design/explain-improvements.md`](../docs/dev/design/explain-improvements.md).
+   **Query Lab compares two plans and never runs one** (2026-10, ROADMAP Q1, #375;
+   Core in `src/PgNimbus.Core/QueryLab/`, all Core-pure siblings of `PlanAnalyzer`).
+   Four things are load-bearing. (a) **A figure that wasn't measured is null,
+   never zero.** `ExplainResult.Capture` (`ExplainCapture`) says what a plan
+   carries beyond its tree: whether its nodes' buffers were measured (JSON prints
+   every node counter, zeros included, so their absence means BUFFERS or ANALYZE
+   was off; text prints a `Buffers:` line only where one is non-zero, so none is
+   "can't tell"), the SETTINGS list (JSON `"Settings": {}` is "all defaults",
+   no line in text is unknown), planning buffers, JIT and trigger time.
+   `ExplainNode.ParentRelationship` is read too. The text parser splits the lines
+   text folds (`Buffers:`, `Heap Blocks:`, `Buckets: … Batches:`, `Sort Method: …
+   Disk:`) into the JSON keys, keeps statement-level lines (`Settings:`,
+   `Trigger …:`, `Query Identifier:`, the `Planning:`/`JIT:` trailers) off the
+   last node, where they used to land, and turns `InitPlan 1` / `SubPlan 2` /
+   `CTE x` headers into the next child's `SubplanName`. Side fix: the Buffers heat
+   and the hash-spill and lossy-bitmap warnings now work on pasted text plans.
+   (b) **`PlanMetrics` is the one definition of a node's figures**: per-loop
+   rows against the per-loop estimate, time × loops divided by workers + 1 inside
+   a parallel section (flagged approximate), InitPlans not subtracted from the
+   node that reads them (pev2's rule: their time is charged there), self buffers,
+   and why a node went to disk (`Temp Written Blocks` of its own catches a sort
+   that spilled in a worker while the leader says quicksort).
+   (c) **Nodes are matched by anchors, not by an edit distance**
+   (`PlanAlignment`, GumTree-style): identical subtrees, then scans by relation
+   (with the alias, then the relation alone; an alias alone never anchors,
+   partition aliases renumber after pruning), then containers bottom-up by Dice
+   over matched descendants, then an LCS under each matched pair. A design review
+   rejected Zhang–Shasha: an ordered edit distance reads a swapped hash join, a new
+   Gather or a different set of pruned partitions as subtrees deleted and inserted.
+   Labels are canonical across formats (`PlanNodeLabel`: `Hash Left Join` is Hash
+   Join + Left, `Partial HashAggregate` is Aggregate + Hashed + Partial), so a JSON
+   plan and its text twin compare as all Same (tested on real PG 17 captures in
+   `tests/PgNimbus.Core.Tests/QueryLab/RealPlans.cs`). `PlanDiff` merges onto the
+   after plan, grafts removed nodes where they hung, marks moves and swapped
+   inputs, and folds 5+ sibling scans added or removed into one row.
+   (d) **Nothing it writes is a verdict.** `PlanComparison` reports signed
+   changes (`−811 ms (−99.8%)`), labels cost "planner units", says why a figure is
+   missing, and notes what one pair of runs can't show: one run each, cache
+   warmth (one side read ≥ 100 blocks outside shared buffers, the other a tenth of
+   that), different versions, cost settings, workers, JIT, connection, statement,
+   rows. `PlanComparisonTests` bans "faster", "better", "improved" and their
+   kind from every string. Saved plans live in `<appdata>/pgNimbus/query-lab/`,
+   an `index.json` plus one `<id>.plan` per plan (`SavedPlanStore`): every change
+   re-reads the index under one lock, an unreadable index refuses the change, the
+   caps (200 plans, 4 MiB each) refuse rather than evict, and an explicit save is
+   written as is, like a saved query.
 7. **Permissions are answered, not dumped — and never applied behind the user's
    back.** `src/PgNimbus.Core/Security/` reads roles and ACLs, but the headline is
    that it answers *"can this role do this, and why?"* rather than rendering

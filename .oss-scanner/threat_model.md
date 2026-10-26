@@ -19,7 +19,10 @@ product, not a vulnerability. What is not trusted:
   (`SshTunnel`, `SshHostKeyVerifier`, `KnownHosts`, `SshAgentClient`).
 - **Text and files the user brings in but did not write**: a pasted connection string or `postgres://` URI
   (`ConnectionStringParser`), a pasted query plan (`ExplainService.Import`, `ExplainPlanTextParser`), a CSV, TSV or
-  JSON file imported into a table (`Import/TabularFileParser`), a `.sql` file opened from disk.
+  JSON file imported into a table (`Import/TabularFileParser`), a `.sql` file opened from disk. A plan saved to Query
+  Lab (`QueryLab/SavedPlanStore`, `<appdata>/pgNimbus/query-lab/`) is the same untrusted text, kept: it is read back
+  through the same bounded parsers, and two such plans are compared by `PlanAlignment`, `PlanDiff` and
+  `PlanComparison`, which must stay bounded on any tree the parsers accept.
 - **Other local users** on Linux and macOS, who must not be able to read what pgNimbus writes under the app data
   directory (`Settings/AppDataFile`, `Diagnostics/CrashLogger`), nor plant files there, nor read a password off a
   process's command line.
@@ -77,7 +80,7 @@ product, not a vulnerability. What is not trusted:
 
 - Most: `src/PgNimbus.Core/Query` (the engine, SQL generation, Explain, staged edits, history), `Connections`
   (connection strings, TLS, SSH, credential stores), `Security` (script builders, redactor, SCRAM), `Schema`
-  (catalog reads, `DdlTemplates`, `SchemaEditor`, `PgValueSyntax`), `Import`, `Export`, `Json`, `Settings`, and
+  (catalog reads, `DdlTemplates`, `SchemaEditor`, `PgValueSyntax`), `Import`, `Export`, `Json`, `Settings`, `QueryLab`, and
   `Backup` (the libpq connection string and its quoting, the child's environment, the `pg_dump` arguments and the
   exact-name patterns a schema or table is selected by).
   In the App: `ViewModels/QueryViewModel*` and `Views/ResultsGridPanel*` (edit, staging, export paths),
