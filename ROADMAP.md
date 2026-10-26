@@ -47,7 +47,8 @@ Ship these before a broad production-use or cross-platform launch. Scope labels 
 
 Deliver the following as small, reviewable increments. The first campaign should be **Query Lab**; T1–T3 remain trust work, not optional marketing polish.
 
-- [ ] **Q1 · EXPLAIN baselines and plan diff (L) · [#375](https://github.com/Shman4ik/pgNimbus/issues/375).** Save named runs and compare two of them, imported or live.
+- [x] **Q1 · EXPLAIN baselines and plan diff (L) · [#375](https://github.com/Shman4ik/pgNimbus/issues/375).** Shipped as Query Lab: save named plans, live or imported, and compare any two, node by node, with the reason any figure is missing and notes on what single runs can't show. See [Comparing plans in Query Lab](docs/guide/explain.md#comparing-plans-in-query-lab).
+- [ ] **Q4 · Repeated measurement in Query Lab (M) · [#411](https://github.com/Shman4ik/pgNimbus/issues/411).** Measure a live run several times and compare the spread instead of one sample.
 - [x] **Q2 · Slow-query shortlist (M).** Shipped: a Slow queries window over `pg_stat_statements`, with interval deltas, reset detection, and a separate explanation for each reason the data is unavailable. Prompting for typed values is left to [#138](https://github.com/Shman4ik/pgNimbus/issues/138). See [Slow queries](https://shman4ik.github.io/pgNimbus/docs/guide/monitoring/#slow-queries).
 - [ ] **S1 · Schema snapshots and drift report (L) · [#376](https://github.com/Shman4ik/pgNimbus/issues/376).** Compare two connections, or a connection against a local snapshot.
 - [ ] **R1 · RLS access investigation (L) · [#377](https://github.com/Shman4ik/pgNimbus/issues/377).** A bounded, read-only preview of the rows a role can see, with the policies that apply.
