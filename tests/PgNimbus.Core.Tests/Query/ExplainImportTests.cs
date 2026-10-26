@@ -233,12 +233,15 @@ public class ExplainImportTests
         await Assert.That(result.ExecutionTimeMs).IsEqualTo(102.734);
         await Assert.That(result.Root.Details.Select(d => d.Key)).Contains("Sort Method");
 
-        // The function scan keeps its own Buffers line and gains no second one from
-        // the Planning trailer.
+        // The function scan keeps its own buffer counters, under the keys FORMAT JSON
+        // uses, and gains nothing from the Planning trailer, whose counters are the
+        // statement's.
         var scan = result.Root.Children[0];
         await Assert.That(scan.NodeType).IsEqualTo("Function Scan");
-        await Assert.That(scan.Details.Count(d => d.Key == "Buffers")).IsEqualTo(1);
-        await Assert.That(scan.Details.First(d => d.Key == "Buffers").Value).IsEqualTo("temp read=342 written=342");
+        await Assert.That(scan.Details.Select(d => $"{d.Key}={d.Value}"))
+            .IsEquivalentTo(["Temp Read Blocks=342", "Temp Written Blocks=342"]);
+        await Assert.That(result.Capture.PlanningBuffers.Select(d => $"{d.Key}={d.Value}"))
+            .IsEquivalentTo(["Shared Hit Blocks=9"]);
 
         // …and the spill in that sort is exactly what the analyzer should flag.
         await Assert.That(PlanAnalyzer.Analyze(result).Any(w => w.Title == "Sort spilled to disk")).IsTrue();
