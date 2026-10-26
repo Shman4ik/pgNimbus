@@ -1270,7 +1270,7 @@ public sealed partial class QueryViewModel : ObservableObject
         IReadOnlyList<PlanWarningViewModel>? leadingWarnings = null)
     {
         ShownImport = null;
-        var root = new ExplainNodeViewModel(result.Root, result.Root.TotalCost);
+        var root = ExplainNodeViewModel.ForPlan(result);
         ExplainRoot = root;
         ApplyPlanHeat(root);
 

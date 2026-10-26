@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using PgNimbus.Core.Query;
+using PgNimbus.Core.QueryLab;
 
 namespace PgNimbus.App.ViewModels;
 
@@ -26,25 +27,25 @@ public sealed partial class ExplainNodeViewModel : ObservableObject
 {
     private const double MaxBarWidth = 200;
 
-    // Buffer-usage counters are cumulative (like actual time), so exclusive
-    // self-buffers subtract the children's — and they're prefixed by their pool.
-    private static readonly string[] BufferPrefixes = ["Shared ", "Local ", "Temp "];
+    /// <summary>The tree for a whole plan, its figures read once by <see cref="PlanMetrics"/>.</summary>
+    public static ExplainNodeViewModel ForPlan(ExplainResult result) =>
+        new(result.Root, result.Root.TotalCost, PlanMetrics.Compute(result));
 
-    public ExplainNodeViewModel(ExplainNode node, double rootTotalCost)
+    public ExplainNodeViewModel(ExplainNode node, double rootTotalCost, IReadOnlyDictionary<ExplainNode, PlanNodeMetrics> metrics)
     {
         Node = node;
-        Children = node.Children.Select(c => new ExplainNodeViewModel(c, rootTotalCost)).ToList();
+        Children = node.Children.Select(c => new ExplainNodeViewModel(c, rootTotalCost, metrics)).ToList();
 
-        // Exclusive (self) quantities: this node's total minus the same for its
-        // children, clamped at 0 for the odd rounding case. Time and buffers are
-        // cumulative in the plan JSON, so both need the subtraction; cost likewise
-        // (Total Cost includes children). Rows aren't additive down the tree, so
-        // the "rows" metric uses the node's own output row count.
-        var inclusiveMs = InclusiveMs(node);
-        SelfTimeMs = node.ActualTotalTimeMs is null ? 0 : Math.Max(0, inclusiveMs - node.Children.Sum(InclusiveMs));
-        SelfCost = Math.Max(0, node.TotalCost - node.Children.Sum(c => c.TotalCost));
-        SelfBuffers = Math.Max(0, BufferBlocks(node) - node.Children.Sum(BufferBlocks));
-        RowCount = node.ActualRows is { } actual ? actual * (node.ActualLoops ?? 1) : node.PlanRows;
+        // Exclusive (self) quantities come from PlanMetrics, the definition Query Lab
+        // compares by too: time and buffers net of the children (an InitPlan's are
+        // charged to the node that reads it, a parallel section's time is divided by
+        // the leader and its workers), cost likewise. Rows aren't additive down the
+        // tree, so the "rows" metric uses the node's own output row count.
+        var figures = metrics[node];
+        SelfTimeMs = figures.SelfMs ?? 0;
+        SelfCost = figures.SelfCost;
+        SelfBuffers = figures.SelfBuffers?.Total ?? 0;
+        RowCount = figures.ActualRowsTotal ?? node.PlanRows;
 
         // A sensible starting bar before the first ApplyMetric (cost profile).
         BarWidth = rootTotalCost > 0 ? Math.Clamp(node.TotalCost / rootTotalCost, 0, 1) * MaxBarWidth : 0;
@@ -141,23 +142,4 @@ public sealed partial class ExplainNodeViewModel : ObservableObject
         return max;
     }
 
-    private static double InclusiveMs(ExplainNode node) =>
-        node.ActualTotalTimeMs is { } total ? total * (node.ActualLoops ?? 1) : 0;
-
-    /// <summary>Sum of the node's buffer-usage counters (shared/local/temp hit/read/dirtied/written blocks).</summary>
-    private static double BufferBlocks(ExplainNode node)
-    {
-        double sum = 0;
-        foreach (var (key, value) in node.Details)
-        {
-            if (key.EndsWith(" Blocks", StringComparison.Ordinal)
-                && Array.Exists(BufferPrefixes, p => key.StartsWith(p, StringComparison.Ordinal))
-                && double.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var blocks))
-            {
-                sum += blocks;
-            }
-        }
-
-        return sum;
-    }
 }
