@@ -2,6 +2,7 @@ using System;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using PgNimbus.App.ViewModels;
 using PgNimbus.Core.Query;
 
 namespace PgNimbus.App.Views;
@@ -22,7 +23,10 @@ public sealed record SaveQueryResult(string Name, Guid? OverwriteId);
 /// </summary>
 public partial class SaveQueryDialog : Window
 {
-    private readonly Func<string, SavedQuery?>? _findByName;
+    private readonly Func<string, (Guid Id, string Name)?>? _findByName;
+
+    // What a name collides with, in the warning: "saved query", "saved plan".
+    private readonly string _noun = "saved query";
 
     // The entry this tab is already saved as, if any: matching it is an
     // ordinary update, not a collision, so it must not raise the warning.
@@ -37,11 +41,30 @@ public partial class SaveQueryDialog : Window
     }
 
     public SaveQueryDialog(string heading, string initialName, Guid? currentId, Func<string, SavedQuery?> findByName)
+        : this(heading, initialName, currentId, name => findByName(name) is { } query ? (query.Id, query.Name) : null,
+            "saved query", "pgNimbus — Save query")
+    {
+    }
+
+    /// <summary>
+    /// Names any kind of saved item: <paramref name="findByName"/> answers the id and name
+    /// of the item a name already belongs to, and <paramref name="noun"/> says what it is
+    /// in the collision warning ("A saved plan named … already exists").
+    /// </summary>
+    public SaveQueryDialog(
+        string heading,
+        string initialName,
+        Guid? currentId,
+        Func<string, (Guid Id, string Name)?> findByName,
+        string noun,
+        string windowTitle)
         : this()
     {
+        Title = windowTitle;
         HeadingText.Text = heading;
         _currentId = currentId;
         _findByName = findByName;
+        _noun = noun;
 
         NameBox.Text = initialName;
         NameBox.TextChanged += (_, _) => UpdateConflictState();
@@ -66,23 +89,8 @@ public partial class SaveQueryDialog : Window
     /// number (" 2", " 3", …) instead, because the dialog turns a taken name into
     /// Replace, and Enter on a suggestion must never overwrite a saved query.
     /// </summary>
-    public static string SuggestName(string title, Func<string, SavedQuery?> findByName)
-    {
-        var name = title.Trim();
-        if (name.Length == 0 || findByName(name) is null)
-        {
-            return name;
-        }
-
-        for (var n = 2; ; n++)
-        {
-            var candidate = $"{name} {n}";
-            if (findByName(candidate) is null)
-            {
-                return candidate;
-            }
-        }
-    }
+    public static string SuggestName(string title, Func<string, SavedQuery?> findByName) =>
+        SaveQueryNames.Suggest(title, name => findByName(name) is not null);
 
     private void UpdateConflictState()
     {
@@ -90,12 +98,12 @@ public partial class SaveQueryDialog : Window
         SaveButton.IsEnabled = name.Length > 0;
 
         var match = name.Length > 0 ? _findByName?.Invoke(name) : null;
-        _conflictId = match is not null && match.Id != _currentId ? match.Id : null;
+        _conflictId = match is { } taken && taken.Id != _currentId ? taken.Id : null;
 
         ConflictText.IsVisible = _conflictId is not null;
         ConflictText.Text = _conflictId is null
             ? string.Empty
-            : $"A saved query named \u201c{match!.Name}\u201d already exists. Saving replaces it.";
+            : $"A {_noun} named \u201c{match!.Value.Name}\u201d already exists. Saving replaces it.";
         SaveButton.Content = _conflictId is null ? "Save" : "Replace";
     }
 

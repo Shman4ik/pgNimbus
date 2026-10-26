@@ -226,6 +226,7 @@ public partial class MainWindow : Window, IEditCommandTarget
                 CommandItem("Server Activity…", CommandId.ServerActivity),
                 CommandItem("Database Overview…", CommandId.DatabaseOverview),
                 CommandItem("Slow Queries…", CommandId.SlowQueries),
+                CommandItem("Query Lab…", CommandId.QueryLab),
                 CommandItem("LISTEN / NOTIFY Monitor…", CommandId.NotifyMonitor),
                 CommandItem("Roles and Permissions…", CommandId.SecurityManager),
             },
@@ -538,6 +539,8 @@ public partial class MainWindow : Window, IEditCommandTarget
         _viewModel.ActivityRequested -= ShowActivityWindow;
             _viewModel.DatabaseOverviewRequested -= ShowDatabaseOverviewWindow;
             _viewModel.SlowQueriesRequested -= ShowSlowQueriesWindow;
+            _viewModel.QueryLabRequested -= ShowQueryLabWindow;
+            _viewModel.SavePlanRequested -= OnSavePlanRequested;
             _viewModel.NotifyMonitorRequested -= ShowNotifyMonitorWindow;
             _viewModel.SecurityRequested -= ShowSecurityWindow;
             _viewModel.BackupRequested -= ShowBackupWindow;
@@ -562,6 +565,8 @@ public partial class MainWindow : Window, IEditCommandTarget
         _viewModel.ActivityRequested += ShowActivityWindow;
         _viewModel.DatabaseOverviewRequested += ShowDatabaseOverviewWindow;
         _viewModel.SlowQueriesRequested += ShowSlowQueriesWindow;
+        _viewModel.QueryLabRequested += ShowQueryLabWindow;
+        _viewModel.SavePlanRequested += OnSavePlanRequested;
         _viewModel.NotifyMonitorRequested += ShowNotifyMonitorWindow;
         _viewModel.SecurityRequested += ShowSecurityWindow;
         _viewModel.BackupRequested += ShowBackupWindow;
@@ -1180,6 +1185,72 @@ public partial class MainWindow : Window, IEditCommandTarget
         _slowQueriesWindow = new SlowQueriesWindow { DataContext = _viewModel?.SlowQueries };
         _slowQueriesWindow.Closed += (_, _) => _slowQueriesWindow = null;
         _slowQueriesWindow.Show(this);
+    }
+
+    private QueryLabWindow? _queryLabWindow;
+
+    // One live instance, like the reference windows: it is read beside the query
+    // whose plan it compares, and a second one would only show the same plans.
+    private void ShowQueryLabWindow()
+    {
+        if (_queryLabWindow is not null)
+        {
+            _queryLabWindow.Activate();
+            return;
+        }
+
+        _queryLabWindow = new QueryLabWindow { DataContext = _viewModel?.QueryLab };
+        _queryLabWindow.Closed += (_, _) => _queryLabWindow = null;
+        _queryLabWindow.Show(this);
+    }
+
+    private void OnSavePlanRequested(PlanCapture capture) => _ = SavePlanAsync(capture);
+
+    /// <summary>
+    /// Names the active tab's plan and keeps it in Query Lab. A tab showing a plan
+    /// that is already saved suggests that plan's name, and saving under it updates
+    /// it rather than adding a copy, as Save to Saved Queries does.
+    /// </summary>
+    private async Task SavePlanAsync(PlanCapture capture)
+    {
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        var lab = _viewModel.QueryLab;
+        var tab = _viewModel.ActiveTab;
+        await lab.ReloadAsync();
+        var current = capture.Saved is { } saved && lab.FindByName(saved.Name)?.Id == saved.Id ? saved : null;
+        var dialog = new SaveQueryDialog(
+            "Save plan to Query Lab",
+            current?.Name ?? SaveQueryNames.Suggest(tab.TabTitle, name => lab.FindByName(name) is not null),
+            current?.Id,
+            name => lab.FindByName(name) is { } plan ? (plan.Id, plan.Name) : null,
+            "saved plan",
+            "pgNimbus — Save plan");
+
+        if (await dialog.ShowDialog<SaveQueryResult?>(this) is not { } result)
+        {
+            return;
+        }
+
+        var entry = await lab.SaveAsync(capture, result.Name, result.OverwriteId);
+        if (entry is null)
+        {
+            tab.Status = lab.Status ?? "The plan couldn't be saved";
+            tab.HasError = true;
+            return;
+        }
+
+        // A second save of this plan updates the entry it now is.
+        if (ReferenceEquals(tab.PlanCapture, capture))
+        {
+            tab.PlanCapture = capture with { Saved = entry };
+        }
+
+        tab.Status = $"Saved plan “{entry.Name}” to Query Lab";
+        tab.HasError = false;
     }
 
     private NotifyMonitorWindow? _notifyMonitorWindow;

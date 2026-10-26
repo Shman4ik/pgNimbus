@@ -8,6 +8,7 @@ using PgNimbus.Core.Backup;
 using PgNimbus.Core.Connections;
 using PgNimbus.Core.Monitoring;
 using PgNimbus.Core.Query;
+using PgNimbus.Core.QueryLab;
 using PgNimbus.Core.Schema;
 using PgNimbus.Core.Security;
 
@@ -117,6 +118,9 @@ public static class Scenarios
         ("restore-window-script", RestoreScript),
         ("main-window-production", ProductionLocked),
         ("main-window-production-writes-on", ProductionWritesOn),
+        ("query-lab-window", QueryLabSummary),
+        ("query-lab-plan-changes", QueryLabPlanChanges),
+        ("query-lab-empty", QueryLabEmpty),
     ];
 
     // --- Main window ------------------------------------------------------
@@ -1120,6 +1124,85 @@ public static class Scenarios
         var (columns, rows) = Fixtures.OrdersResult();
         tab.Sql = SampleSql;
         tab.SeedResult(columns, rows, rowCountText: $"{rows.Count} rows", timingText: "18 ms · first byte 6 ms");
+    }
+
+    // --- Query Lab --------------------------------------------------------
+
+    /// <summary>
+    /// The lab of a fixture window holding two real PostgreSQL 17 runs of one statement,
+    /// before and after an index on orders.customer_id, compared. Its background work
+    /// runs inline, so the frame holds the comparison.
+    /// </summary>
+    public static (QueryLabViewModel Lab, MainViewModel Window) SeededQueryLab(bool compare = true)
+    {
+        var vm = Fixtures.MainWindowViewModel();
+        var lab = vm.QueryLab;
+        lab.OffUiThread = work =>
+        {
+            work();
+            return Task.CompletedTask;
+        };
+
+        const string statement = "SELECT c.name, count(*) AS orders, sum(o.amount) AS total\n  FROM orders o\n  JOIN customers c ON c.id = o.customer_id\n WHERE o.customer_id = 42\n GROUP BY c.name";
+        var at = new DateTimeOffset(2026, 7, 30, 9, 12, 0, TimeSpan.Zero);
+        SavedPlan? before = null;
+        SavedPlan? after = null;
+        foreach (var (name, file, minutes) in new[]
+                 {
+                     ("orders for one customer · no index", "plan-before-index.json", 0),
+                     ("orders for one customer · with index", "plan-after-index.json", 21),
+                 })
+        {
+            var text = File.ReadAllText(FixturePath(file));
+            var plan = ExplainService.Import(text).Result;
+            var capture = new PlanCapture(plan, text, SavedPlanSource.Explain, statement, "17.11", at.AddMinutes(minutes));
+            var saved = lab.SaveAsync(capture, name, null).GetAwaiter().GetResult();
+            (before, after) = before is null ? (saved, after) : (before, saved);
+        }
+
+        lab.Status = null;
+        if (compare)
+        {
+            lab.Before = lab.Choices.Single(c => c.Saved?.Id == before!.Id);
+            lab.After = lab.Choices.Single(c => c.Saved?.Id == after!.Id);
+        }
+
+        return (lab, vm);
+    }
+
+    /// <summary>Query Lab's summary of the index change: figures, notes, the warning it resolved.</summary>
+    public static Window QueryLabSummary()
+    {
+        var (lab, _) = SeededQueryLab();
+        lab.SelectedPlan = lab.Plans[0];
+        return new QueryLabWindow { DataContext = lab, Width = 1180, Height = 720 };
+    }
+
+    /// <summary>The merged plan tree: the scan that changed, the Gather that went, the index scan that came.</summary>
+    public static Window QueryLabPlanChanges()
+    {
+        var (lab, _) = SeededQueryLab();
+        lab.SelectedTab = 1;
+        var window = new QueryLabWindow { DataContext = lab, Width = 1180, Height = 720 };
+        // Selected once the tree exists: a virtualizing tree drops a selection it has no row for yet.
+        window.Opened += (_, _) => Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            lab.Comparison!.SelectedNode = Flatten(lab.Comparison.Roots).First(n => n.IsChanged));
+        return window;
+
+        static IEnumerable<PlanDiffNodeViewModel> Flatten(IEnumerable<PlanDiffNodeViewModel> nodes) =>
+            nodes.SelectMany(n => new[] { n }.Concat(Flatten(n.Children)));
+    }
+
+    /// <summary>Query Lab with nothing saved yet: the how-to.</summary>
+    public static Window QueryLabEmpty()
+    {
+        var vm = Fixtures.MainWindowViewModel();
+        vm.QueryLab.OffUiThread = work =>
+        {
+            work();
+            return Task.CompletedTask;
+        };
+        return new QueryLabWindow { DataContext = vm.QueryLab, Width = 1180, Height = 720 };
     }
 
     private static Window HostMainWindow(MainViewModel viewModel) =>

@@ -10,6 +10,7 @@ using PgNimbus.Core.Connections;
 using PgNimbus.Core.Import;
 using PgNimbus.Core.Monitoring;
 using PgNimbus.Core.Query;
+using PgNimbus.Core.QueryLab;
 using PgNimbus.Core.Schema;
 using PgNimbus.Core.Security;
 using PgNimbus.Core.Settings;
@@ -49,6 +50,9 @@ public sealed partial class MainViewModel : ObservableObject
     /// <summary>The slow-query shortlist (pg_stat_statements), one per connection like the other monitoring windows.</summary>
     public SlowQueriesViewModel SlowQueries { get; }
 
+    /// <summary>Query Lab: the saved plans and the comparison of two (ROADMAP Q1), one per window.</summary>
+    public QueryLabViewModel QueryLab { get; }
+
     /// <summary>Backs the Roles &amp; Permissions window (roles, grants, default privileges, RLS).</summary>
     public SecurityViewModel Security { get; }
 
@@ -86,6 +90,13 @@ public sealed partial class MainViewModel : ObservableObject
     public event Action? DatabaseOverviewRequested;
 
     public event Action? SlowQueriesRequested;
+
+    // Raised to open (or focus) the Query Lab window, which the view owns.
+    public event Action? QueryLabRequested;
+
+    // Raised to save the active tab's plan to Query Lab; MainWindow owns the naming modal
+    // and then calls QueryLab.SaveAsync.
+    public event Action<PlanCapture>? SavePlanRequested;
 
     // Raised to open (or focus) the LISTEN/NOTIFY monitor window.
     public event Action? NotifyMonitorRequested;
@@ -349,6 +360,48 @@ public sealed partial class MainViewModel : ObservableObject
 
     [RelayCommand]
     private void ShowSlowQueries() => SlowQueriesRequested?.Invoke();
+
+    [RelayCommand]
+    private void ShowQueryLab() => QueryLabRequested?.Invoke();
+
+    /// <summary>The plan the active tab is showing, or null with the status line saying how to get one.</summary>
+    private PlanCapture? ActivePlan()
+    {
+        if (ActiveTab.PlanCapture is { } capture && ActiveTab.IsShowingPlan)
+        {
+            return capture;
+        }
+
+        ActiveTab.Status = "No plan on screen: run Explain or Explain Analyze, or import a plan, first";
+        ActiveTab.HasError = true;
+        return null;
+    }
+
+    [RelayCommand]
+    private void SavePlanToQueryLab()
+    {
+        if (ActivePlan() is { } capture)
+        {
+            SavePlanRequested?.Invoke(capture);
+        }
+    }
+
+    /// <summary>Opens Query Lab with the active tab's plan as the After side and the Before side to pick.</summary>
+    [RelayCommand]
+    private Task ComparePlanAsync() => ComparePlanWithAsync(null);
+
+    /// <summary>Opens Query Lab comparing <paramref name="before"/> (or nothing yet) with the active tab's plan.</summary>
+    public async Task ComparePlanWithAsync(SavedPlan? before)
+    {
+        if (ActivePlan() is not { } capture)
+        {
+            return;
+        }
+
+        var tab = ActiveTab;
+        QueryLabRequested?.Invoke();
+        await QueryLab.CompareAsync(before, capture, tab.TabTitle);
+    }
 
     [RelayCommand]
     private void ShowNotifyMonitor() => NotifyMonitorRequested?.Invoke();
@@ -956,7 +1009,8 @@ public sealed partial class MainViewModel : ObservableObject
         SavedQueryStore? savedQueryStore = null,
         QueryHistoryStore? historyStore = null,
         IBackupService? backups = null,
-        IRestoreService? restores = null)
+        IRestoreService? restores = null,
+        SavedPlanStore? savedPlanStore = null)
     {
         Backups = backups;
         Restores = restores;
@@ -1053,6 +1107,10 @@ public sealed partial class MainViewModel : ObservableObject
         ApplyWriteStateToActivity();
         DatabaseOverview = new DatabaseOverviewViewModel(databaseStatsService);
         SlowQueries = new SlowQueriesViewModel(statementStatsService);
+        QueryLab = new QueryLabViewModel(savedPlanStore ?? new SavedPlanStore(),
+            () => string.IsNullOrEmpty(ConnectionHost) ? null : $"{ConnectionHost}/{ConnectionDatabase}");
+        // A saved plan opens in a new tab, like an import: nothing runs from the lab.
+        QueryLab.OpenPlanRequested += OpenSavedPlan;
         // A statement, or the setup script, opens as a new tab; nothing runs from the window.
         SlowQueries.OpenSqlRequested += (title, sql) => OpenGeneratedSql(title, sql);
         Security = new SecurityViewModel(roleService, privilegeService, securityEditor, connectionDatabase);
@@ -1536,6 +1594,21 @@ public sealed partial class MainViewModel : ObservableObject
     /// in a new tab showing the plan views + warnings strip — never overwriting the
     /// active tab, per the "loading never overwrites" rule.
     /// </summary>
+    /// <summary>Opens a plan saved in Query Lab in a new tab, named after it, without touching the active tab.</summary>
+    public void OpenSavedPlan(SavedPlan saved, ImportedPlan plan)
+    {
+        var tab = NewTab();
+        // The statement as comments, like an import's note: a saved plan may be of a
+        // write, and one Ctrl+Enter on its text would run it for real.
+        tab.Sql = saved.Statement is { } statement
+            ? $"-- Saved plan \"{SqlComment.Safe(saved.Name)}\", of this statement:\n"
+                + string.Concat(statement.Replace("\r\n", "\n").Split('\n').Select(line => $"-- {SqlComment.Safe(line)}\n"))
+            : $"-- Saved plan \"{SqlComment.Safe(saved.Name)}\": imported, not run against this database.\n";
+        // A name a person chose, like a saved query's: it stays through later typing.
+        tab.TitleOverride = saved.Name;
+        tab.ShowSavedPlan(saved, plan);
+    }
+
     public void OpenImportedPlan(ImportedPlan plan)
     {
         var tab = NewTab();

@@ -1,0 +1,288 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:PgNimbus.App.ViewModels"
+        x:Class="PgNimbus.App.Views.QueryLabWindow"
+        x:DataType="vm:QueryLabViewModel"
+        Title="pgNimbus — Query Lab"
+        Width="1180" Height="720"
+        MinWidth="820" MinHeight="420"
+        WindowStartupLocation="CenterOwner">
+
+    <Window.Styles>
+        <!-- The change is a glyph and a word; the colour only repeats it. -->
+        <Style Selector="TextBlock.changed">
+            <Setter Property="Foreground" Value="{DynamicResource AppWarningBrush}" />
+        </Style>
+        <Style Selector="TextBlock.added">
+            <Setter Property="Foreground" Value="{DynamicResource AppSuccessBrush}" />
+        </Style>
+        <Style Selector="TextBlock.removed">
+            <Setter Property="Foreground" Value="{DynamicResource AppDangerBrush}" />
+        </Style>
+        <Style Selector="TextBlock.same">
+            <Setter Property="Opacity" Value="0.45" />
+        </Style>
+        <Style Selector="TextBlock.missing">
+            <Setter Property="Opacity" Value="0.45" />
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="*,Auto" ColumnDefinitions="270,*" Margin="12">
+
+        <!-- The saved plans: managed here, double-click opens one in a new tab. -->
+        <Border Grid.Row="0" Grid.Column="0" Classes="card" Padding="0" Margin="0,0,12,0">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Text="Saved plans" FontWeight="SemiBold" Margin="12,10,12,6" />
+                <Button DockPanel.Dock="Bottom" Classes="soft" Content="Import Plan…" Margin="10"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                        Command="{Binding ImportPlanCommand}"
+                        ToolTip.Tip="Paste an EXPLAIN plan from another tool or machine and keep it here; no connection needed" />
+                <Panel>
+                    <ListBox Name="PlansList" ItemsSource="{Binding Plans}" SelectedItem="{Binding SelectedPlan}"
+                             IsVisible="{Binding HasPlans}" Background="Transparent">
+                        <ListBox.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Compare as Before" Command="{Binding CompareAsBeforeCommand}"
+                                          CommandParameter="{Binding SelectedPlan}" />
+                                <MenuItem Header="Compare as After" Command="{Binding CompareAsAfterCommand}"
+                                          CommandParameter="{Binding SelectedPlan}" />
+                                <Separator />
+                                <MenuItem Header="Open in New Tab" Command="{Binding OpenInNewTabCommand}"
+                                          CommandParameter="{Binding SelectedPlan}" />
+                                <MenuItem Header="Rename…" Command="{Binding RenameCommand}"
+                                          CommandParameter="{Binding SelectedPlan}" />
+                                <Separator />
+                                <MenuItem Header="Delete…" Command="{Binding DeleteCommand}"
+                                          CommandParameter="{Binding SelectedPlan}" />
+                            </ContextMenu>
+                        </ListBox.ContextMenu>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:SavedPlanItem">
+                                <StackPanel Spacing="1" Margin="0,2" ToolTip.Tip="{Binding Tip}">
+                                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Classes="secondary" Text="{Binding Detail}" FontSize="11"
+                                               TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                    <TextBlock IsVisible="{Binding !HasPlans}" Margin="14,4" TextWrapping="Wrap" Opacity="0.6" FontSize="12"
+                               Text="Plans you save from a tab's Compare menu, or import here, are kept on this computer." />
+                </Panel>
+            </DockPanel>
+        </Border>
+
+        <Grid Grid.Row="0" Grid.Column="1" RowDefinitions="Auto,*">
+
+            <!-- Before and after: either side may be a saved plan or the tab's unsaved one. -->
+            <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto,*" Margin="0,0,0,10">
+                <TextBlock Grid.Column="0" Text="Before" VerticalAlignment="Center" Margin="0,0,8,0" Opacity="0.7" />
+                <ComboBox Grid.Column="1" Name="BeforePicker" ItemsSource="{Binding Choices}" SelectedItem="{Binding Before}"
+                          HorizontalAlignment="Stretch" PlaceholderText="Pick a plan" IsEnabled="{Binding HasChoices}">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:PlanChoice">
+                            <!-- One line, trimmed as a whole: the name first, its figures after. -->
+                            <TextBlock TextTrimming="CharacterEllipsis">
+                                <Run Text="{Binding Label}" />
+                                <Run Text="  " />
+                                <Run Text="{Binding Detail}" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+                            </TextBlock>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+                <Button Grid.Column="2" Classes="soft" Content="⇄" Margin="8,0" Padding="10,0" IsEnabled="{Binding HasChoices}"
+                        Command="{Binding SwapCommand}" ToolTip.Tip="Swap before and after" />
+                <TextBlock Grid.Column="3" Text="After" VerticalAlignment="Center" Margin="0,0,8,0" Opacity="0.7" />
+                <ComboBox Grid.Column="4" Name="AfterPicker" ItemsSource="{Binding Choices}" SelectedItem="{Binding After}"
+                          HorizontalAlignment="Stretch" PlaceholderText="Pick a plan" IsEnabled="{Binding HasChoices}">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:PlanChoice">
+                            <!-- One line, trimmed as a whole: the name first, its figures after. -->
+                            <TextBlock TextTrimming="CharacterEllipsis">
+                                <Run Text="{Binding Label}" />
+                                <Run Text="  " />
+                                <Run Text="{Binding Detail}" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+                            </TextBlock>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+            </Grid>
+
+            <!-- Nothing to compare yet: say what to do. -->
+            <Border Grid.Row="1" Classes="card" Padding="24,20" MaxWidth="560"
+                    HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="{Binding !HasComparison}">
+                <TextBlock Text="{Binding EmptyText}" TextWrapping="Wrap" Opacity="0.75" />
+            </Border>
+
+            <!-- capsule, not segmented: its selection must not fade in under a baseline. -->
+            <TabControl Grid.Row="1" Name="LabTabs" Classes="capsule" SelectedIndex="{Binding SelectedTab}"
+                        IsVisible="{Binding HasComparison}">
+                <TabItem Header="Summary">
+                    <ScrollViewer Margin="0,10,0,0" DataContext="{Binding Comparison}" x:DataType="vm:PlanComparisonViewModel">
+                        <StackPanel Spacing="12">
+
+                            <!-- The figures, side by side. A dash says the side doesn't have it; hover says why. -->
+                            <Border Classes="card" Padding="14,10">
+                                <Grid ColumnDefinitions="2*,*,*,1.6*" RowDefinitions="Auto,Auto">
+                                    <TextBlock Grid.Column="1" Text="Before" Classes="secondary" FontSize="11"
+                                               ToolTip.Tip="{Binding BeforeLabel}" HorizontalAlignment="Right" Margin="8,0" />
+                                    <TextBlock Grid.Column="2" Text="After" Classes="secondary" FontSize="11"
+                                               ToolTip.Tip="{Binding AfterLabel}" HorizontalAlignment="Right" Margin="8,0" />
+                                    <TextBlock Grid.Column="3" Text="Change" Classes="secondary" FontSize="11" Margin="16,0,0,0" />
+                                    <ItemsControl Grid.Row="1" Grid.ColumnSpan="4" ItemsSource="{Binding Metrics}" Margin="0,6,0,0">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:PlanMetricRowViewModel">
+                                                <Grid ColumnDefinitions="2*,*,*,1.6*" Margin="0,3">
+                                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                                                        <TextBlock Text="{Binding Label}" />
+                                                        <!-- A caveat that belongs to this figure: "one run each". -->
+                                                        <TextBlock Text="{Binding Note}" Classes="secondary" FontSize="11"
+                                                                   VerticalAlignment="Center" IsVisible="{Binding HasNote}" />
+                                                    </StackPanel>
+                                                    <TextBlock Grid.Column="1" Classes="mono" Classes.missing="{Binding BeforeMissing}"
+                                                               Text="{Binding BeforeText}" ToolTip.Tip="{Binding BeforeTip}"
+                                                               HorizontalAlignment="Right" Margin="8,0" />
+                                                    <TextBlock Grid.Column="2" Classes="mono" Classes.missing="{Binding AfterMissing}"
+                                                               Text="{Binding AfterText}" ToolTip.Tip="{Binding AfterTip}"
+                                                               HorizontalAlignment="Right" Margin="8,0" />
+                                                    <TextBlock Grid.Column="3" Classes="mono secondary" Text="{Binding ChangeText}"
+                                                               Margin="16,0,0,0" TextTrimming="CharacterEllipsis" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </Grid>
+                            </Border>
+
+                            <!-- What these two runs can and can't show. -->
+                            <ItemsControl ItemsSource="{Binding Notes}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="vm:PlanWarningViewModel">
+                                        <Border Background="{Binding WashBrush}" CornerRadius="4" Padding="10,6" Margin="0,2">
+                                            <Grid ColumnDefinitions="Auto,*">
+                                                <TextBlock Text="{Binding Glyph}" Foreground="{Binding AccentBrush}" FontSize="13"
+                                                           VerticalAlignment="Top" Margin="0,0,8,0" />
+                                                <StackPanel Grid.Column="1" Spacing="1">
+                                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="12.5" />
+                                                    <TextBlock Text="{Binding Detail}" FontSize="11.5" Opacity="0.8" TextWrapping="Wrap" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <Border Classes="card" Padding="14,10" IsVisible="{Binding HasSettingChanges}">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="Planner settings that differ" FontWeight="SemiBold" />
+                                    <ItemsControl ItemsSource="{Binding SettingChanges}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="x:String">
+                                                <TextBlock Classes="mono" Text="{Binding}" FontSize="12" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Classes="card" Padding="14,10" IsVisible="{Binding HasWarningChanges}">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="Plan warnings" FontWeight="SemiBold" />
+                                    <ItemsControl ItemsSource="{Binding WarningChanges}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:WarningChangeViewModel">
+                                                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2" ToolTip.Tip="{Binding Detail}">
+                                                    <TextBlock Text="{Binding Glyph}" Width="14" />
+                                                    <TextBlock Text="{Binding Word}" Width="40" Opacity="0.7" />
+                                                    <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
+                <TabItem Header="Plan changes">
+                    <Grid Margin="0,10,0,0" RowDefinitions="Auto,*,Auto" DataContext="{Binding Comparison}"
+                          x:DataType="vm:PlanComparisonViewModel">
+                        <TextBlock Grid.Row="0" Text="{Binding ChangeSummary}" Opacity="0.75" Margin="2,0,0,6" />
+                        <Border Grid.Row="1" Classes="card" Padding="0" ClipToBounds="True">
+                            <TreeView Name="DiffTree" ItemsSource="{Binding Roots}" Classes="virtualizing"
+                                      SelectedItem="{Binding SelectedNode, Mode=TwoWay}" Margin="4">
+                                <TreeView.Styles>
+                                    <Style Selector="TreeViewItem">
+                                        <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay, DataType=vm:PlanDiffNodeViewModel}" />
+                                    </Style>
+                                </TreeView.Styles>
+                                <TreeView.ItemTemplate>
+                                    <TreeDataTemplate x:DataType="vm:PlanDiffNodeViewModel" ItemsSource="{Binding Children}">
+                                        <!-- Glyph and word on the header's line, the figures under it. -->
+                                        <Grid ColumnDefinitions="110,*" RowDefinitions="Auto,Auto" Margin="0,3">
+                                            <TextBlock Grid.Column="0" Text="{Binding Badge}" FontSize="12" FontWeight="SemiBold"
+                                                       Classes.changed="{Binding IsChanged}" Classes.added="{Binding IsAdded}"
+                                                       Classes.removed="{Binding IsRemoved}" Classes.same="{Binding IsSame}" />
+                                            <TextBlock Grid.Column="1" TextTrimming="CharacterEllipsis">
+                                                <Run Text="{Binding Header}" />
+                                                <Run Text="  " />
+                                                <Run Text="{Binding WasHeader}" FontSize="11" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+                                            </TextBlock>
+                                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding MetricLine}" Classes="secondary mono"
+                                                       FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,1,0,0" />
+                                        </Grid>
+                                    </TreeDataTemplate>
+                                </TreeView.ItemTemplate>
+                            </TreeView>
+                        </Border>
+
+                        <!-- The selected node on both sides: every figure, and what it does differently. -->
+                        <Border Grid.Row="2" Classes="card" Padding="14,10" Margin="0,10,0,0" MaxHeight="240"
+                                IsVisible="{Binding HasSelectedNode}">
+                            <ScrollViewer>
+                                <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,*" DataContext="{Binding SelectedNode}"
+                                      x:DataType="vm:PlanDiffNodeViewModel">
+                                    <TextBlock Grid.ColumnSpan="2" Text="{Binding Header}" FontWeight="SemiBold"
+                                               TextTrimming="CharacterEllipsis" Margin="0,0,0,6" />
+                                    <Grid Grid.Row="1" Grid.Column="0" ColumnDefinitions="2*,*,*" Margin="0,0,16,2">
+                                        <TextBlock Grid.Column="1" Text="Before" Classes="secondary" FontSize="11"
+                                                   HorizontalAlignment="Right" Margin="6,0" />
+                                        <TextBlock Grid.Column="2" Text="After" Classes="secondary" FontSize="11"
+                                                   HorizontalAlignment="Right" Margin="6,0" />
+                                    </Grid>
+                                    <ItemsControl Grid.Row="2" Grid.Column="0" ItemsSource="{Binding Figures}" Margin="0,0,16,0">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:NodeFigure">
+                                                <Grid ColumnDefinitions="2*,*,*" Margin="0,1">
+                                                    <TextBlock Grid.Column="0" Text="{Binding Label}" FontSize="12" />
+                                                    <TextBlock Grid.Column="1" Classes="mono" Text="{Binding Before}" FontSize="12"
+                                                               HorizontalAlignment="Right" Margin="6,0" />
+                                                    <TextBlock Grid.Column="2" Classes="mono" Text="{Binding After}" FontSize="12"
+                                                               HorizontalAlignment="Right" Margin="6,0" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <StackPanel Grid.Row="1" Grid.RowSpan="2" Grid.Column="1" Spacing="2">
+                                        <TextBlock Text="What changed" Classes="secondary" FontSize="11" IsVisible="{Binding HasDifferences}" />
+                                        <ItemsControl ItemsSource="{Binding Differences}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="x:String">
+                                                    <TextBlock Classes="mono" Text="{Binding}" FontSize="12" TextWrapping="Wrap" />
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Grid>
+                            </ScrollViewer>
+                        </Border>
+                    </Grid>
+                </TabItem>
+            </TabControl>
+        </Grid>
+
+        <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Classes="statusMessage" Text="{Binding Status}"
+                   FontSize="11" Opacity="0.7" Margin="2,8,2,0" />
+    </Grid>
+</Window>
