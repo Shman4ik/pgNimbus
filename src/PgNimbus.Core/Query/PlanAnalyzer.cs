@@ -27,6 +27,13 @@ public sealed record PlanWarning(
     /// <see cref="PlanAnalyzer.Condense"/> groups by it.
     /// </summary>
     public string? Kind { get; init; }
+
+    /// <summary>
+    /// The plan node the warning is about, or null for one that sums up several
+    /// (<see cref="PlanAnalyzer.Condense"/>). A plan comparison matches warnings
+    /// through the node mapping, since a title can carry a figure ("off by 120×").
+    /// </summary>
+    public ExplainNode? Node { get; init; }
 }
 
 /// <summary>
@@ -186,6 +193,7 @@ public static class PlanAnalyzer
             node.RelationName)
         {
             Kind = "Row estimates off",
+            Node = node,
         });
     }
 
@@ -200,7 +208,10 @@ public static class PlanAnalyzer
                 "Sort spilled to disk",
                 $"This sort used an on-disk method ({method}){used}. Raising work_mem may keep it in memory.",
                 node.NodeType,
-                node.RelationName));
+                node.RelationName)
+            {
+                Node = node,
+            });
         }
 
         if (ParseLong(Detail(node, "Hash Batches")) is { } batches && batches > 1)
@@ -210,7 +221,10 @@ public static class PlanAnalyzer
                 "Hash spilled to disk",
                 $"The hash used {batches} batches (>1 means it didn't fit in memory). Raising work_mem may reduce batching.",
                 node.NodeType,
-                node.RelationName));
+                node.RelationName)
+            {
+                Node = node,
+            });
         }
     }
 
@@ -238,7 +252,10 @@ public static class PlanAnalyzer
             $"The scan{relation} read {scanned:0} rows and filtered out {removed:0} of them. "
                 + "An index on the filtered column(s) would let the planner skip the discarded rows.",
             node.NodeType,
-            node.RelationName));
+            node.RelationName)
+            {
+                Node = node,
+            });
     }
 
     /// <summary>Bitmap heap scan whose bitmap didn't fit in work_mem, so whole pages were rechecked lossily.</summary>
@@ -252,7 +269,10 @@ public static class PlanAnalyzer
                 $"{lossy} heap blocks were rechecked lossily because the bitmap outgrew work_mem. "
                     + "Raising work_mem lets more of the bitmap stay exact.",
                 node.NodeType,
-                node.RelationName));
+                node.RelationName)
+            {
+                Node = node,
+            });
         }
     }
 

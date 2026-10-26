@@ -26,16 +26,77 @@ public sealed record ExplainNode(
     double? ActualRows,
     long? ActualLoops,
     IReadOnlyList<KeyValuePair<string, string>> Details,
-    IReadOnlyList<ExplainNode> Children);
+    IReadOnlyList<ExplainNode> Children)
+{
+    /// <summary>
+    /// How the node hangs off its parent, as EXPLAIN names it ("Outer", "Inner",
+    /// "InitPlan", "SubPlan", "Member"), or null when the plan doesn't say. An
+    /// InitPlan's time is charged to the node that reads its result, so self time
+    /// must not subtract it the way it subtracts an ordinary child.
+    /// </summary>
+    public string? ParentRelationship { get; init; }
+}
 
-public sealed record ExplainResult(ExplainNode Root, double? PlanningTimeMs, double? ExecutionTimeMs);
+public sealed record ExplainResult(ExplainNode Root, double? PlanningTimeMs, double? ExecutionTimeMs)
+{
+    /// <summary>What the plan carries beyond the tree, and what it can't tell (see <see cref="ExplainCapture"/>).</summary>
+    public ExplainCapture Capture { get; init; } = ExplainCapture.Unknown;
+}
+
+/// <summary>Which EXPLAIN format a plan was read from.</summary>
+public enum PlanFormat
+{
+    Unknown,
+    Json,
+    Text,
+}
+
+/// <summary>
+/// The statement-level figures of a plan, and whether a figure was measured at all. A
+/// comparison has to tell "zero" from "not captured": <c>FORMAT JSON</c> with BUFFERS
+/// prints every counter, zeros included, while the text format prints a <c>Buffers:</c>
+/// line only where one is non-zero, so a text plan with none can't say whether BUFFERS
+/// was on. Null means "can't tell" throughout.
+/// </summary>
+public sealed record ExplainCapture
+{
+    public static readonly ExplainCapture Unknown = new();
+
+    public PlanFormat Format { get; init; }
+
+    /// <summary>
+    /// True: the nodes' buffer counters were measured (ANALYZE with BUFFERS), so a missing
+    /// counter is a zero. False: they were not. Null: can't tell. Planning counters are
+    /// <see cref="PlanningBuffers"/>, apart.
+    /// </summary>
+    public bool? Buffers { get; init; }
+
+    /// <summary>
+    /// The non-default planner settings EXPLAIN (SETTINGS) reported; empty when it was
+    /// asked and every setting was the default, null when the plan doesn't say.
+    /// </summary>
+    public IReadOnlyList<KeyValuePair<string, string>>? Settings { get; init; }
+
+    /// <summary>PostgreSQL 13+'s planning buffer counters, under the node keys ("Shared Hit Blocks", …).</summary>
+    public IReadOnlyList<KeyValuePair<string, string>> PlanningBuffers { get; init; } = [];
+
+    /// <summary>JIT's total time, which <see cref="ExplainResult.ExecutionTimeMs"/> includes; null when JIT didn't run.</summary>
+    public double? JitMs { get; init; }
+
+    /// <summary>Time spent in triggers, which <see cref="ExplainResult.ExecutionTimeMs"/> includes; null when none fired.</summary>
+    public double? TriggerMs { get; init; }
+}
 
 /// <summary>
 /// The outcome of a live <see cref="ExplainService.ExplainAsync"/>: the parsed tree and
 /// the raw <c>FORMAT JSON</c> payload the server returned (kept so the plan can be copied
 /// or exported as JSON into external tools like pev2, unchanged).
 /// </summary>
-public sealed record ExplainRun(ExplainResult Result, string Json);
+public sealed record ExplainRun(ExplainResult Result, string Json)
+{
+    /// <summary>The server's version ("17.2"), kept with a saved run as part of how it was measured.</summary>
+    public string? ServerVersion { get; init; }
+}
 
 /// <summary>
 /// A plan imported from pasted text (<see cref="ExplainService.Import"/>): the parsed
@@ -99,7 +160,7 @@ public sealed class ExplainService(WriteGatedDataSource dataSource)
         await using var command = new NpgsqlCommand(explainSql, connection, transaction);
         var json = (string)(await command.ExecuteScalarAsync(ct))!;
         await transaction.RollbackAsync(ct);
-        return new ExplainRun(Parse(json), json);
+        return new ExplainRun(Parse(json), json) { ServerVersion = connection.PostgreSqlVersion.ToString() };
     }
 
     /// <summary>
@@ -182,7 +243,94 @@ public sealed class ExplainService(WriteGatedDataSource dataSource)
             throw new FormatException("The \"Plan\" element is not an object.");
         }
 
-        return new ExplainResult(ParseNode(planElement), GetDouble(entry, "Planning Time"), GetDouble(entry, "Execution Time"));
+        var context = new ParseContext();
+        var rootNode = ParseNode(planElement, context);
+        var planningBuffers = new List<KeyValuePair<string, string>>();
+        if (entry.TryGetProperty("Planning", out var planning) && planning.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var property in planning.EnumerateObject())
+            {
+                if (IsBufferCounter(property.Name) && property.Value.ValueKind == JsonValueKind.Number)
+                {
+                    if (property.Value.GetDouble() != 0)
+                    {
+                        planningBuffers.Add(new KeyValuePair<string, string>(property.Name, property.Value.GetRawText()));
+                    }
+                }
+            }
+        }
+
+        return new ExplainResult(rootNode, GetDouble(entry, "Planning Time"), GetDouble(entry, "Execution Time"))
+        {
+            Capture = new ExplainCapture
+            {
+                Format = PlanFormat.Json,
+                // FORMAT JSON prints every node counter, zeros included, so their absence
+                // means no node was measured: BUFFERS was off, or ANALYZE was (a plain
+                // EXPLAIN (BUFFERS) counts planning only).
+                Buffers = context.SawBufferCounters,
+                Settings = ReadSettings(entry),
+                PlanningBuffers = planningBuffers,
+                JitMs = entry.TryGetProperty("JIT", out var jit) && jit.ValueKind == JsonValueKind.Object
+                        && jit.TryGetProperty("Timing", out var timing) && timing.ValueKind == JsonValueKind.Object
+                    ? GetDouble(timing, "Total")
+                    : null,
+                TriggerMs = ReadTriggerTime(entry),
+            },
+        };
+    }
+
+    /// <summary>The <c>"Settings"</c> object EXPLAIN (SETTINGS) adds: empty when every setting is the default, null when absent.</summary>
+    private static IReadOnlyList<KeyValuePair<string, string>>? ReadSettings(JsonElement entry)
+    {
+        if (!entry.TryGetProperty("Settings", out var settings) || settings.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        var list = new List<KeyValuePair<string, string>>();
+        foreach (var setting in settings.EnumerateObject())
+        {
+            if (RenderDetailValue(setting.Value) is { } value)
+            {
+                list.Add(new KeyValuePair<string, string>(setting.Name, value));
+            }
+        }
+
+        return list;
+    }
+
+    /// <summary>The summed <c>"Time"</c> of the <c>"Triggers"</c> array an ANALYZE of a write carries, or null when there is none.</summary>
+    private static double? ReadTriggerTime(JsonElement entry)
+    {
+        if (!entry.TryGetProperty("Triggers", out var triggers) || triggers.ValueKind != JsonValueKind.Array
+            || triggers.GetArrayLength() == 0)
+        {
+            return null;
+        }
+
+        double total = 0;
+        foreach (var trigger in triggers.EnumerateArray())
+        {
+            if (trigger.ValueKind == JsonValueKind.Object)
+            {
+                total += GetDouble(trigger, "Time") ?? 0;
+            }
+        }
+
+        return total;
+    }
+
+    /// <summary>A BUFFERS counter key: "Shared Hit Blocks", "Local Written Blocks", "Temp Read Blocks", ….</summary>
+    internal static bool IsBufferCounter(string key) =>
+        key.EndsWith(" Blocks", StringComparison.Ordinal)
+        && (key.StartsWith("Shared ", StringComparison.Ordinal)
+            || key.StartsWith("Local ", StringComparison.Ordinal)
+            || key.StartsWith("Temp ", StringComparison.Ordinal));
+
+    private sealed class ParseContext
+    {
+        public bool SawBufferCounters { get; set; }
     }
 
     /// <summary>
@@ -227,7 +375,7 @@ public sealed class ExplainService(WriteGatedDataSource dataSource)
         "Actual Startup Time", "Actual Total Time", "Actual Rows", "Actual Loops",
     ];
 
-    private static ExplainNode ParseNode(JsonElement element)
+    private static ExplainNode ParseNode(JsonElement element, ParseContext context)
     {
         var children = new List<ExplainNode>();
         if (element.TryGetProperty("Plans", out var childPlans))
@@ -244,7 +392,7 @@ public sealed class ExplainService(WriteGatedDataSource dataSource)
                     throw new FormatException("A child plan is not an object.");
                 }
 
-                children.Add(ParseNode(child));
+                children.Add(ParseNode(child, context));
             }
         }
 
@@ -262,8 +410,14 @@ public sealed class ExplainService(WriteGatedDataSource dataSource)
                 continue;
             }
 
+            if (IsBufferCounter(property.Name))
+            {
+                context.SawBufferCounters = true;
+            }
+
             // BUFFERS emits every counter in FORMAT JSON even when zero (unlike FORMAT TEXT,
-            // which hides them). Drop the zero-valued buffer lines so the text view stays clean.
+            // which hides them). Drop the zero-valued buffer lines so the text view stays clean;
+            // ExplainCapture.Buffers keeps the fact that they were measured.
             if (property.Name.EndsWith("Blocks", StringComparison.Ordinal)
                 && property.Value.ValueKind == JsonValueKind.Number
                 && property.Value.GetDouble() == 0)
@@ -304,7 +458,10 @@ public sealed class ExplainService(WriteGatedDataSource dataSource)
             GetDouble(element, "Actual Rows"),
             ToLong(GetDouble(element, "Actual Loops")),
             details,
-            children);
+            children)
+        {
+            ParentRelationship = GetString(element, "Parent Relationship"),
+        };
     }
 
     /// <summary>A number property, or null when absent or not a number (a string "850" is not one).</summary>

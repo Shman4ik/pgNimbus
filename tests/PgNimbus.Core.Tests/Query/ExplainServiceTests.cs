@@ -164,6 +164,25 @@ public class ExplainServiceTests
         }
     }
 
+    [Test]
+    public async Task A_live_run_says_how_it_was_measured()
+    {
+        SkipIfNoConnection();
+
+        await using var dataSource = NpgsqlDataSource.Create(ConnectionString!);
+        var run = await new ExplainService(dataSource).ExplainAsync(
+            "SELECT count(*) FROM generate_series(1, 1000)", analyze: true, CancellationToken.None);
+
+        // What a saved run keeps beside its plan: the server's version, and from the
+        // plan itself that BUFFERS and SETTINGS were asked for (an empty Settings
+        // object is "all defaults", not "unknown").
+        await using var connection = await dataSource.OpenConnectionAsync();
+        await Assert.That(run.ServerVersion).IsEqualTo(connection.PostgreSqlVersion.ToString());
+        await Assert.That(run.Result.Capture.Format).IsEqualTo(PlanFormat.Json);
+        await Assert.That(run.Result.Capture.Buffers).IsTrue();
+        await Assert.That(run.Result.Capture.Settings).IsNotNull();
+    }
+
     private static async Task<bool> TableExistsAsync(NpgsqlDataSource dataSource)
     {
         await using var connection = await dataSource.OpenConnectionAsync();

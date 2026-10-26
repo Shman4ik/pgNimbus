@@ -411,6 +411,8 @@ public class ParserRobustnessTests
         {
             "Seq Scan on t  (cost=0.00..41.88 rows=850 width=4) (actual time=0.009..0.021 rows=7.00 loops=1)\n  Filter: (a = 1)\n  ->  Index Scan using i on u  (cost=0.1..1.2 rows=1 width=8)\nPlanning Time: 0.1 ms\nExecution Time: 0.2 ms\n",
             "QUERY PLAN\n----------\n Result  (cost=0.00..0.01 rows=1 width=4)\n(1 row)\n",
+            // The folded lines and statement trailers the parser splits (Query Lab).
+            "Hash  (cost=1.0..1.0 rows=3 width=4)\n  Buckets: 4 (originally 1)  Batches: 2  Memory Usage: 9kB\n  Buffers: shared hit=2 read=7, temp written=6\n  InitPlan 1\n    ->  Result  (cost=0.0..0.1 rows=1 width=4)\nSettings: a = 'x, y', b = 'z'\nPlanning:\n  Buffers: shared hit=9\nTrigger t on o: time=1.0 calls=3\nJIT:\n  Timing: Generation 0.5 ms, Total 5.4 ms\n",
         };
         var inputs = shapes.SelectMany(shape => Enumerable.Range(0, shape.Length + 1).SelectMany(at => HostileText.Alphabet.Select(c => shape.Insert(at, c.ToString()))))
             .Concat(HostileText.Random(20260928, 2000))

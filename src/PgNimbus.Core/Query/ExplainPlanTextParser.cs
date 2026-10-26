@@ -129,8 +129,14 @@ public static class ExplainPlanTextParser
         var lines = text.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
 
         ParsedNode? root = null;
+        var rootIndent = 0;
         double? planningTime = null;
         double? executionTime = null;
+        List<KeyValuePair<string, string>>? settings = null;
+        var planningBuffers = new List<KeyValuePair<string, string>>();
+        double? jitMs = null;
+        double? triggerMs = null;
+        var sawBuffers = false;
 
         // Stack of (indent, node): a node's children are the deeper-indented "-> …"
         // lines that follow it; detail lines attach to the top of the stack.
@@ -140,6 +146,12 @@ public static class ExplainPlanTextParser
         // its indented lines describe the statement, not the last node parsed, so they
         // must not land in that node's details (which feed the buffers heat + analyzer).
         var inTrailer = false;
+        string? trailer = null;
+
+        // "InitPlan 1 (returns $0)", "SubPlan 2", "CTE recent": the header EXPLAIN prints
+        // above the child it names, which FORMAT JSON carries as that child's
+        // "Subplan Name" and "Parent Relationship" instead.
+        string? pendingSubplan = null;
 
         foreach (var rawLine in lines)
         {
@@ -175,14 +187,48 @@ public static class ExplainPlanTextParser
                     throw new FormatException("This doesn't look like an EXPLAIN text plan — the first line has no plan node.");
                 }
 
+                rootIndent = indent;
                 stack.Add((indent, root));
                 continue;
             }
 
             // A bare top-level section header opens the post-tree trailer (see inTrailer).
-            if (indent == 0 && !isChild && trimmedStart.EndsWith(':') && !trimmedStart.Contains(": ", StringComparison.Ordinal))
+            if (indent <= rootIndent && !isChild && trimmedStart.EndsWith(':') && !trimmedStart.Contains(": ", StringComparison.Ordinal))
             {
                 inTrailer = true;
+                trailer = trimmedStart[..^1];
+                continue;
+            }
+
+            // Any other line at the root's indentation describes the statement, not a
+            // node: "Settings: …", "Trigger t on orders: time=… calls=…", "Query Identifier: …".
+            if (indent <= rootIndent && !isChild)
+            {
+                inTrailer = false;
+                trailer = null;
+                if (trimmedStart.StartsWith("Settings: ", StringComparison.Ordinal))
+                {
+                    settings = ParseSettings(trimmedStart["Settings: ".Length..]);
+                }
+                else if (trimmedStart.StartsWith("Trigger ", StringComparison.Ordinal) && TriggerTime(trimmedStart) is { } time)
+                {
+                    triggerMs = (triggerMs ?? 0) + time;
+                }
+
+                continue;
+            }
+
+            if (inTrailer && !isChild)
+            {
+                if (trailer == "Planning" && trimmedStart.StartsWith("Buffers: ", StringComparison.Ordinal))
+                {
+                    planningBuffers.AddRange(SplitBuffers(trimmedStart["Buffers: ".Length..]));
+                }
+                else if (trailer == "JIT" && trimmedStart.StartsWith("Timing: ", StringComparison.Ordinal))
+                {
+                    jitMs = JitTotal(trimmedStart) ?? jitMs;
+                }
+
                 continue;
             }
 
@@ -191,6 +237,12 @@ public static class ExplainPlanTextParser
                 inTrailer = false;
                 var node = ParseHeader(trimmedStart[2..].TrimStart())
                     ?? throw new FormatException($"Couldn't parse a plan node from: {trimmedStart}");
+                if (pendingSubplan is not null)
+                {
+                    node.SubplanName = pendingSubplan;
+                    node.ParentRelationship = pendingSubplan.StartsWith("SubPlan", StringComparison.Ordinal) ? "SubPlan" : "InitPlan";
+                    pendingSubplan = null;
+                }
 
                 // Pop shallower/sibling frames so the new node hangs off the nearest
                 // strictly-shallower ancestor.
@@ -215,14 +267,26 @@ public static class ExplainPlanTextParser
             }
 
             // A non-arrow, non-summary line is a detail ("Key: value") of the current
-            // node. Bare annotations without a colon (subplan headers, "Workers")
-            // aren't first-class detail and are skipped.
+            // node. A subplan header names the child that follows; other bare
+            // annotations without a colon aren't first-class detail and are skipped.
             var colon = trimmedStart.IndexOf(": ", StringComparison.Ordinal);
-            if (colon > 0 && stack.Count > 0 && !inTrailer)
+            if (colon < 0)
+            {
+                if (IsSubplanHeader(trimmedStart))
+                {
+                    pendingSubplan = trimmedStart.TrimEnd();
+                }
+
+                continue;
+            }
+
+            if (colon > 0 && stack.Count > 0)
             {
                 var key = trimmedStart[..colon];
                 var value = trimmedStart[(colon + 2)..].Trim();
-                stack[^1].Node.Details.Add(new KeyValuePair<string, string>(key, value));
+                var node = stack[^1].Node;
+                sawBuffers |= key == "Buffers";
+                node.Details.AddRange(Expand(node.NodeType, key, value));
             }
         }
 
@@ -231,8 +295,280 @@ public static class ExplainPlanTextParser
             throw new FormatException("No plan node found in the pasted text.");
         }
 
-        return new ExplainResult(root.ToExplainNode(), planningTime, executionTime);
+        return new ExplainResult(root.ToExplainNode(), planningTime, executionTime)
+        {
+            Capture = new ExplainCapture
+            {
+                Format = PlanFormat.Text,
+                // The text format prints a node's Buffers line only where a counter is
+                // non-zero, so one proves the nodes were measured, and none can't prove
+                // they weren't.
+                Buffers = sawBuffers ? true : null,
+                Settings = settings,
+                PlanningBuffers = planningBuffers,
+                JitMs = jitMs,
+                TriggerMs = triggerMs,
+            },
+        };
     }
+
+    private static bool IsSubplanHeader(string line) =>
+        line.StartsWith("InitPlan", StringComparison.Ordinal)
+        || line.StartsWith("SubPlan", StringComparison.Ordinal)
+        || line.StartsWith("CTE ", StringComparison.Ordinal);
+
+    /// <summary>
+    /// A text detail line in the keys <c>FORMAT JSON</c> uses, where the text format folds
+    /// several figures onto one line: <c>Buffers: shared hit=3 read=5, temp read=342</c>,
+    /// <c>Heap Blocks: exact=10 lossy=5</c>, <c>Buckets: 1024  Batches: 2 (originally 1)
+    /// Memory Usage: 9kB</c>, <c>Sort Method: external merge  Disk: 2400kB</c>. Splitting
+    /// them is what lets the Buffers heat, the spill and lossy-bitmap warnings and a plan
+    /// comparison read a pasted text plan the way they read a JSON one.
+    /// </summary>
+    private static IEnumerable<KeyValuePair<string, string>> Expand(string nodeType, string key, string value)
+    {
+        switch (key)
+        {
+            case "Buffers":
+                return SplitBuffers(value);
+            case "Heap Blocks":
+                return SplitCounters(value, ("exact", "Exact Heap Blocks"), ("lossy", "Lossy Heap Blocks"));
+            case "Buckets" or "Batches" or "Planned Partitions":
+                return SplitSegments($"{key}: {value}", nodeType);
+            case "Sort Method":
+                return SplitSortMethod(value);
+            default:
+                return [new KeyValuePair<string, string>(key, value)];
+        }
+    }
+
+    /// <summary><c>shared hit=3 read=5 dirtied=1 written=2, local …, temp read=342 written=342</c>.</summary>
+    private static List<KeyValuePair<string, string>> SplitBuffers(string value)
+    {
+        var counters = new List<KeyValuePair<string, string>>();
+        foreach (var pool in value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+        {
+            var words = pool.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (words.Length < 2 || words[0] is not ("shared" or "local" or "temp"))
+            {
+                continue;
+            }
+
+            var prefix = char.ToUpperInvariant(words[0][0]) + words[0][1..];
+            foreach (var word in words[1..])
+            {
+                var equals = word.IndexOf('=');
+                if (equals > 0 && Counter(word[(equals + 1)..]) is { } count)
+                {
+                    var kind = word[..equals];
+                    counters.Add(new KeyValuePair<string, string>(
+                        $"{prefix} {char.ToUpperInvariant(kind[0])}{kind[1..]} Blocks", count));
+                }
+            }
+        }
+
+        return counters;
+    }
+
+    /// <summary><c>exact=10 lossy=5</c> to the named keys.</summary>
+    private static List<KeyValuePair<string, string>> SplitCounters(string value, params (string Word, string Key)[] names)
+    {
+        var counters = new List<KeyValuePair<string, string>>();
+        foreach (var word in value.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var equals = word.IndexOf('=');
+            if (equals <= 0 || Counter(word[(equals + 1)..]) is not { } count)
+            {
+                continue;
+            }
+
+            foreach (var (name, key) in names)
+            {
+                if (word[..equals] == name)
+                {
+                    counters.Add(new KeyValuePair<string, string>(key, count));
+                }
+            }
+        }
+
+        return counters;
+    }
+
+    /// <summary>
+    /// A Hash or HashAggregate line, two spaces between figures:
+    /// <c>Buckets: 4096 (originally 1024)  Batches: 2 (originally 1)  Memory Usage: 9kB</c>
+    /// or <c>Batches: 5  Memory Usage: 4145kB  Disk Usage: 7680kB</c>.
+    /// </summary>
+    private static List<KeyValuePair<string, string>> SplitSegments(string line, string nodeType)
+    {
+        var details = new List<KeyValuePair<string, string>>();
+        var batches = nodeType == "Hash" ? "Hash Batches" : "HashAgg Batches";
+        foreach (var segment in line.Split("  ", StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+        {
+            var colon = segment.IndexOf(": ", StringComparison.Ordinal);
+            if (colon <= 0)
+            {
+                continue;
+            }
+
+            var name = segment[..colon];
+            var figure = segment[(colon + 2)..];
+            var original = figure.IndexOf(" (originally ", StringComparison.Ordinal);
+            var current = Counter((original >= 0 ? figure[..original] : figure).Replace("kB", "", StringComparison.Ordinal));
+            var was = original >= 0 ? Counter(figure[(original + " (originally ".Length)..].TrimEnd(')')) : null;
+            switch (name)
+            {
+                case "Buckets":
+                    Add("Hash Buckets", current);
+                    Add("Original Hash Buckets", was ?? current);
+                    break;
+                case "Batches":
+                    Add(batches, current);
+                    if (nodeType == "Hash")
+                    {
+                        Add("Original Hash Batches", was ?? current);
+                    }
+
+                    break;
+                case "Memory Usage":
+                    Add("Peak Memory Usage", current);
+                    break;
+                case "Disk Usage":
+                    Add("Disk Usage", current);
+                    break;
+                default:
+                    details.Add(new KeyValuePair<string, string>(name, figure));
+                    break;
+            }
+        }
+
+        return details;
+
+        void Add(string key, string? figure)
+        {
+            if (figure is not null)
+            {
+                details.Add(new KeyValuePair<string, string>(key, figure));
+            }
+        }
+    }
+
+    /// <summary><c>external merge  Disk: 2400kB</c> → Sort Method, Sort Space Type, Sort Space Used.</summary>
+    private static List<KeyValuePair<string, string>> SplitSortMethod(string value)
+    {
+        var parts = value.Split("  ", StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        var details = new List<KeyValuePair<string, string>> { new("Sort Method", parts.Length > 0 ? parts[0] : value) };
+        foreach (var part in parts.Skip(1))
+        {
+            var colon = part.IndexOf(": ", StringComparison.Ordinal);
+            if (colon > 0 && part[..colon] is "Disk" or "Memory"
+                && Counter(part[(colon + 2)..].Replace("kB", "", StringComparison.Ordinal)) is { } used)
+            {
+                details.Add(new KeyValuePair<string, string>("Sort Space Used", used));
+                details.Add(new KeyValuePair<string, string>("Sort Space Type", part[..colon]));
+            }
+        }
+
+        return details;
+    }
+
+    /// <summary>
+    /// <c>work_mem = '64MB', random_page_cost = '1.1'</c>. EXPLAIN writes each value in
+    /// single quotes without escaping, so a value ends at a quote followed by
+    /// <c>, name = '</c> or the end of the line.
+    /// </summary>
+    private static List<KeyValuePair<string, string>> ParseSettings(string text)
+    {
+        var settings = new List<KeyValuePair<string, string>>();
+        var position = 0;
+        while (position < text.Length)
+        {
+            var equals = text.IndexOf(" = '", position, StringComparison.Ordinal);
+            if (equals < 0)
+            {
+                break;
+            }
+
+            var name = text[position..equals].Trim();
+            var valueStart = equals + " = '".Length;
+            var end = valueStart;
+            while (true)
+            {
+                var quote = text.IndexOf('\'', end);
+                if (quote < 0)
+                {
+                    end = text.Length;
+                    break;
+                }
+
+                if (quote == text.Length - 1 || IsNextSetting(text, quote + 1))
+                {
+                    end = quote;
+                    break;
+                }
+
+                end = quote + 1;
+            }
+
+            settings.Add(new KeyValuePair<string, string>(name, text[valueStart..end]));
+            position = Math.Min(text.Length, end + 1);
+            if (position < text.Length && text[position] == ',')
+            {
+                position++;
+            }
+        }
+
+        return settings;
+    }
+
+    /// <summary>True when <c>, name = '</c> follows <paramref name="at"/>.</summary>
+    private static bool IsNextSetting(string text, int at)
+    {
+        if (at + 1 >= text.Length || text[at] != ',' || text[at + 1] != ' ')
+        {
+            return false;
+        }
+
+        var equals = text.IndexOf(" = '", at, StringComparison.Ordinal);
+        return equals > at + 2 && text[(at + 2)..equals].All(c => char.IsLetterOrDigit(c) || c is '_' or '.');
+    }
+
+    /// <summary>The <c>time=1.234</c> of <c>Trigger t on orders: time=1.234 calls=5</c>.</summary>
+    private static double? TriggerTime(string line)
+    {
+        var at = line.LastIndexOf(": time=", StringComparison.Ordinal);
+        if (at < 0)
+        {
+            return null;
+        }
+
+        var figure = line[(at + ": time=".Length)..];
+        var space = figure.IndexOf(' ');
+        return Figure(space < 0 ? figure : figure[..space]);
+    }
+
+    /// <summary>The <c>Total 5.446 ms</c> of a JIT <c>Timing:</c> line.</summary>
+    private static double? JitTotal(string line)
+    {
+        var at = line.IndexOf("Total ", StringComparison.Ordinal);
+        if (at < 0)
+        {
+            return null;
+        }
+
+        var figure = line[(at + "Total ".Length)..];
+        var space = figure.IndexOf(' ');
+        return Figure(space < 0 ? figure : figure[..space]);
+    }
+
+    /// <summary>A whole-number counter as the invariant text JSON would carry, or null.</summary>
+    private static string? Counter(string text) =>
+        long.TryParse(text.Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out var value)
+            ? value.ToString(CultureInfo.InvariantCulture)
+            : null;
+
+    private static double? Figure(string text) =>
+        double.TryParse(text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var value) ? value : null;
 
     /// <summary>
     /// Parses one node header line — the operator name plus the <c>(cost=…)</c> and
@@ -389,6 +725,8 @@ public static class ExplainPlanTextParser
         public double? ActualTotalTimeMs { get; set; }
         public double? ActualRows { get; set; }
         public long? ActualLoops { get; set; }
+        public string? SubplanName { get; set; }
+        public string? ParentRelationship { get; set; }
         public List<KeyValuePair<string, string>> Details { get; } = [];
         public List<ParsedNode> Children { get; } = [];
 
@@ -399,7 +737,7 @@ public static class ExplainPlanTextParser
             IndexName,
             JoinType: null,
             ScanDirection,
-            SubplanName: null,
+            SubplanName,
             Strategy: null,
             PartialMode: null,
             Operation: null,
@@ -413,6 +751,9 @@ public static class ExplainPlanTextParser
             ActualRows,
             ActualLoops,
             Details,
-            Children.Select(c => c.ToExplainNode()).ToList());
+            Children.Select(c => c.ToExplainNode()).ToList())
+        {
+            ParentRelationship = ParentRelationship,
+        };
     }
 }
