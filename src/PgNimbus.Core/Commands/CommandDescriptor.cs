@@ -96,6 +96,9 @@ public enum CommandId
     // Appended; filed under Query beside safe mode (ROADMAP T3).
     AllowWrites,
     LockWrites,
+
+    // Appended; filed under navigation after the cheat sheet, the About box's neighbour.
+    RateInStore,
 }
 
 /// <summary>
