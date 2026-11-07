@@ -33,12 +33,18 @@ come next, the [roadmap](https://github.com/Shman4ik/pgNimbus/blob/main/ROADMAP.
 - **[Query plans](guide/explain.md)**
 
     `EXPLAIN` and `EXPLAIN ANALYZE` as a heat-mapped tree with plain-language
-    warnings, plus pasting a plan from somewhere else.
+    warnings, pasting a plan from somewhere else, and comparing two plans in
+    Query Lab.
 
 - **[Monitoring](guide/monitoring.md)**
 
-    Server activity, the who-blocks-whom lock tree, the database overview, and
-    the `LISTEN`/`NOTIFY` monitor.
+    Server activity, the who-blocks-whom lock tree, the database overview, slow
+    queries, and the `LISTEN`/`NOTIFY` monitor.
+
+- **[Backup and restore](guide/backup.md)**
+
+    Back up a database, a schema or a table with PostgreSQL's own `pg_dump`, and
+    restore an archive into a new database or the current one.
 
 </div>
 

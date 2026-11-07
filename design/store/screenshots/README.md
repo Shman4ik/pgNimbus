@@ -14,6 +14,8 @@ this table mirrors it:
 | `04-completion.dark.png` | `main-window-completion`, dark |
 | `05-server-activity.light.png` | `activity-window`, light |
 | `06-database-overview.dark.png` | `database-overview-window`, dark |
+| `07-query-lab.light.png` | `query-lab-plan-changes`, light |
+| `08-backup.dark.png` | `backup-window`, dark |
 
 Half are the light theme and half the dark, alternating, so the listing shows both without
 one dominating. The Store asks for desktop screenshots of 1366x768 or larger; a shot that

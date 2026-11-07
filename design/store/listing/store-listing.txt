@@ -1,0 +1,100 @@
+pgNimbus Microsoft Store listing, English (United States)
+For version 1.3.0. Prepared 2026-11-07 from the live listing of 2026-10-20 (1.2.1).
+
+Paste each field below into Partner Center > pgNimbus > the 1.3.0 submission >
+Store listings > English. Copy only the text between the ===== lines, not the
+lines themselves. Partner Center limits: Description 10,000 characters, What's
+new 1,500, Product features up to 20 lines of 200 characters each (one feature
+per box, no bullets of your own).
+
+What changed against the live listing:
+- Description: a "Compare plans in Query Lab" sentence under "Understand slow
+  queries", a new "Back up and restore" section before "Import and export",
+  and one sentence on environments in "Connect with care" (1.2.1 shipped them,
+  but the listing never said so).
+- Product features: new lines for Query Lab, backup and restore, and
+  environments. To stay at 20, the LISTEN/NOTIFY monitor moved into the
+  server activity line, and read-only connections share the environments line.
+- What's new: rewritten for 1.3.0.
+- Screenshots: 07-query-lab.light.png and 08-backup.dark.png are new in
+  design/store/screenshots/. 05-server-activity.light.png and
+  06-database-overview.dark.png were re-rendered in #406 and #408; upload
+  them too if the listing still has the older ones.
+
+===== DESCRIPTION =====
+pgNimbus is a fast, free PostgreSQL (Postgres) GUI client and SQL editor for Windows. It opens in about 0.2 seconds, shows rows while a query is still running, and sends your data nowhere except the servers you connect to. It is open source under the MIT license, with no account, no telemetry and no cloud.
+
+Write SQL and see rows sooner
+
+Results stream into the grid while the query runs, and Esc stops it on the server. Autocomplete reads SQL the way PostgreSQL does: it resolves names along search_path and inside subqueries and CTEs, offers one JOIN ... ON condition per foreign key, and completes whole phrases such as ORDER BY and LEFT JOIN. Scripts get a result section for each statement. Your tabs, including unsaved ones, come back after a restart, and Ctrl+Shift+T reopens a closed tab.
+
+Review changes before they are applied
+
+Browse any table without writing SQL, with sorting, paging and filters that run on the server. Follow foreign keys, edit cells with editors for enums, dates, arrays and JSON, or open a row as a form.
+
+Safe mode stages edits, inserts and deletes and shows the exact SQL. Everything commits as one transaction. Each staged row is re-read under a lock first, so if another session changed it, nothing is written and you see the old, current and proposed values.
+
+Understand slow queries
+
+EXPLAIN and EXPLAIN ANALYZE open as a tree with a heat map of self time and plain warnings about disk spills and bad row estimates. Paste a plan from anywhere and read it without a connection. Compare plans in Query Lab: save a plan, add an index, explain again, and see time, rows, cost and buffers side by side, with one merged tree that marks each node as the same, changed, added or removed. Slow queries lists the heaviest statements from pg_stat_statements and never resets your statistics.
+
+See what the server is doing
+
+Server activity lets you cancel or terminate a session, and a lock tree shows who blocks whom. Database overview lists the largest relations, unused indexes, scan types and cache hit ratios. The roles view answers "can this role do that, and why" using the server's own privilege checks, and changes come out as a script instead of being applied behind your back. The LISTEN/NOTIFY monitor shows JSON payloads as a tree.
+
+Connect with care
+
+Paste a connection string in any format: a postgres:// URI, a JDBC URL, libpq keywords or a whole psql command. Give each profile an accent color so production never looks like staging. Mark a connection Development, Staging or Production, and a production window opens with writes off, enforced by the server, until you allow writes in that window. Mark a profile Read only and the server itself refuses every write. SSH tunnels sign in with your SSH agent, a key file or a password, and the host key is checked against known_hosts. TLS goes up to Verify full, also through a tunnel, with your own root certificate if you need one. Passwords are encrypted with Windows DPAPI and stored apart from your connection profiles.
+
+Back up and restore
+
+Back up a database, a schema or a single table with PostgreSQL's own pg_dump, as an archive or as a readable .sql script. pgNimbus finds the pg_dump and pg_restore that PostgreSQL or pgAdmin already installed, and downloads nothing. If none of them fits your server, it says which version to install and how. The password never appears on a command line. A restore shows what the archive holds before it starts, restores all or nothing, and goes into a new database unless you choose the current one.
+
+Import and export
+
+Import CSV and JSON through COPY. Export a table or a query result as CSV, JSON, Markdown or INSERT statements. The export writes every row, not just the page on screen, and you can cancel it.
+
+Free and private
+
+pgNimbus is MIT licensed and built with .NET and Avalonia as a NativeAOT app, not Electron. It has no telemetry, no automatic crash reports and no account. Ctrl+K opens a command palette for every table and command, F1 lists all shortcuts, and there are light and dark themes.
+
+Requires access to a PostgreSQL server.
+===== END DESCRIPTION =====
+
+===== WHAT'S NEW IN THIS VERSION =====
+pgNimbus 1.3.0 adds Query Lab. Your connections, queries and settings carry over.
+
+• Query Lab saves EXPLAIN plans and compares any two of them, for example the same query before and after you add an index. Start from the Compare menu on the plan header, or open Query Lab from the command palette (Ctrl+K).
+• The Summary tab puts time, rows, estimated cost and buffers side by side. A missing figure says why it is missing, and notes say what two single runs cannot show, such as a warm cache.
+• The Plan changes tab merges both plans into one tree and marks each node Same, Changed, Added or Removed.
+• Query Lab needs no connection and runs nothing. Import Plan adds a plan you paste, as JSON or text.
+
+Improved: Pasted text plans get the Buffers color metric and the warnings for disk spills and lossy bitmap scans. In parallel plans, the heat bars divide a node's time among the leader and the workers. Buttons are the same height as the fields beside them. Updated to Avalonia 12.1.5 and the latest stable packages.
+===== END WHAT'S NEW =====
+
+===== PRODUCT FEATURES (one line per box, 20 boxes) =====
+Free and open source (MIT). Opens in about 0.2 s. No account, no telemetry, no cloud
+Results stream into the grid while the query runs, and Esc cancels it on the server
+Autocomplete that reads SQL like PostgreSQL: search_path, subqueries, CTEs, one JOIN ... ON per foreign key
+Safe mode: stage edits, inserts and deletes, review the exact SQL, commit as one transaction with conflict checks
+Browse tables without SQL: sorting, paging and filter chips run on the server. Follow foreign keys
+Editors for enum, boolean, date, array and JSON columns, plus a row details form
+EXPLAIN and EXPLAIN ANALYZE as a tree with a self-time heat map and plain warnings
+Query Lab: save EXPLAIN plans and compare any two, node by node, before and after a change
+Slow queries from pg_stat_statements, ranked by total or mean time, without resetting statistics
+Roles and permissions: see why a role can or cannot do something, and get the change as a script
+Server activity with cancel, terminate and a who-blocks-whom lock tree, plus a LISTEN/NOTIFY monitor
+Database overview: largest relations, unused indexes, scan types, cache hit ratios
+Back up and restore a database, a schema or a table with PostgreSQL's own pg_dump and pg_restore
+Mark a connection Production and it opens with writes off. Mark it Read only and the server refuses every write
+SSH tunnels with agent, key or password sign-in and host key checks against known_hosts
+TLS up to Verify full, your own root certificate, passwords encrypted with Windows DPAPI
+Export writes every row as CSV, JSON, Markdown or INSERT statements. Import CSV and JSON with COPY
+Command palette (Ctrl+K), F1 shortcut sheet, light and dark themes
+Tabs, including unsaved ones, return after a restart. Ctrl+Shift+T reopens a closed tab
+Paste a connection string in any format, including a whole psql command
+===== END PRODUCT FEATURES =====
+
+===== SHORT DESCRIPTION (optional; the live one is fine as it is) =====
+A fast, free, open-source PostgreSQL (Postgres) GUI client and SQL editor for Windows. It opens in about 0.2 s, streams results while the query runs and sends your data only to the servers you connect to. Safe mode, plan comparison, backup and restore, no telemetry.
+===== END SHORT DESCRIPTION =====
