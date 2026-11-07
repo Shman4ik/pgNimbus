@@ -203,5 +203,6 @@ public static class CommandBindings
         [CommandId.ToggleTheme] = vm => vm.ToggleThemeCommand,
         [CommandId.Preferences] = vm => vm.ShowPreferencesCommand,
         [CommandId.ShortcutsWindow] = vm => vm.ShowShortcutsCommand,
+        [CommandId.RateInStore] = vm => vm.RateInStoreCommand,
     };
 }

@@ -205,7 +205,10 @@ pass. 1.0.0 found five defects here that no Windows step could have.
       launched before it ships, so a red smoke step is a real failure.
 - [ ] Paste the release notes into the GitHub release.
 - [ ] Microsoft Store: download the `windows-msix` artifact (kept 14 days) and
-      submit it in Partner Center.
+      submit it in Partner Center. Once the update is installed from the
+      Store, the ☰ menu's last item, Rate pgNimbus in the Microsoft Store,
+      opens the Store's review dialog. Only a packaged build shows it, so no
+      other check can see it.
 - [ ] Check the benchmark chart for a regression in startup or streaming; the
       public copy says "about 0.2 s", so it has to stay true.
 - [ ] Landing page and docs, if an install channel or a headline feature changed.

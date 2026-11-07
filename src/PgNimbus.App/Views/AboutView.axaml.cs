@@ -1,6 +1,7 @@
 using System.Reflection;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using PgNimbus.App.Platform;
 
 namespace PgNimbus.App.Views;
 
@@ -28,7 +29,25 @@ public partial class AboutView : UserControl
         VersionText.Text = $"Version {version}";
         var copyright = assembly?.GetCustomAttribute<AssemblyCopyrightAttribute>()?.Copyright;
         CopyrightText.Text = string.IsNullOrEmpty(copyright) ? "MIT License" : $"{copyright} · MIT License";
+        ShowsStoreLink = StoreListing.IsPackaged;
     }
+
+    /// <summary>
+    /// Whether the "Rate pgNimbus in the Microsoft Store" link shows: only in the
+    /// Store MSIX, read from the process itself rather than a view model because
+    /// this box is hosted by both the shell and the connection dialog. Settable so
+    /// the headless tests can show it.
+    /// </summary>
+    public bool ShowsStoreLink
+    {
+        get => RateInStoreLink.IsVisible;
+        set => RateInStoreLink.IsVisible = value;
+    }
+
+    /// <summary>What the link opens; a seam so a test can click it without starting the Store.</summary>
+    public Action OpenStoreReviewPage { get; set; } = StoreListing.OpenReviewPage;
+
+    private void OnRateInStoreClick(object? sender, RoutedEventArgs e) => OpenStoreReviewPage();
 
     private void OnGitHubClick(object? sender, RoutedEventArgs e)
     {

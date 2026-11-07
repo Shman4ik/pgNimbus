@@ -17,5 +17,10 @@
         <TextBlock Name="CopyrightText" FontSize="11" Opacity="0.6" HorizontalAlignment="Center" Margin="0,2,0,0" />
         <Button Classes="soft" Content="pgNimbus on GitHub" HorizontalAlignment="Center" Margin="0,14,0,0"
                 Click="OnGitHubClick" />
+        <!-- Shown only in the Store MSIX (ShowsStoreLink): a chip, so it rests dim
+             under the button and asks nothing of anyone (UI rule 1). -->
+        <Button Name="RateInStoreLink" Classes="chip" Content="Rate pgNimbus in the Microsoft Store"
+                HorizontalAlignment="Center" FontSize="12" Padding="8,4" Margin="0,6,0,0" IsVisible="False"
+                Click="OnRateInStoreClick" />
     </StackPanel>
 </UserControl>

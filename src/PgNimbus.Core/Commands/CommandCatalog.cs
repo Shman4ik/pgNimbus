@@ -766,6 +766,18 @@ public static class CommandCatalog
             MoreChords = [new(new(CommandKey.Slash, CmdShift), ChordScheme.Cmd, Primary: true)],
             Surfaces = PaletteAndSheet,
         },
+        // Opens the Store's rate-and-review page. The palette lists it only when
+        // the app runs as the Store MSIX (MainViewModel.CanRateInStore), beside
+        // the ☰ menu item and the About box's link. No chord and no prompt: it
+        // is there for whoever looks for it, and asks nobody (UI design rule 1).
+        new()
+        {
+            Id = CommandId.RateInStore,
+            Title = "Rate pgNimbus in the Microsoft Store",
+            Category = CommandCategory.Navigation,
+            Glyph = "☆",
+            Surfaces = PaletteOnly,
+        },
     ];
 
     private static readonly Dictionary<CommandId, CommandDescriptor> ById =
