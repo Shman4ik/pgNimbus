@@ -207,7 +207,7 @@ pass. 1.0.0 found five defects here that no Windows step could have.
       commit that is not on `main`. Watch `release.yml`: every package is
       launched before it ships, so a red smoke step is a real failure.
 - [ ] Paste the release notes into the GitHub release.
-- [ ] Microsoft Store: download the `windows-msix` artifact (kept 14 days) and
+- [ ] Microsoft Store: download the `windows-msix` artifact (kept 7 days) and
       upload the `.msixbundle` in it on Partner Center's Packages page. The package
       table must list an x64 and an arm64 package. The first bundle submission must also remove
       the previous release's single neutral package (1.2.1 or later, the last one built

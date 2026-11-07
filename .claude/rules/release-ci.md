@@ -367,10 +367,12 @@ rules keep it there:
    `linux-packages-*`, `sbom` (from its own job since 2026-09), `winget-manifests`, and `publish-linux-x64`
    (benchmark input). A day is still long enough for a human to grab a
    `workflow_dispatch` test build, where the `release` job never runs.
-   `windows-msix` is the one exception at 14 days: Partner Center submission is
+   `windows-msix` is the one exception at 7 days: Partner Center submission is
    a manual download-and-upload, so it has to outlive the run. It holds both
    architectures since 2026-11, about 50 MB, so each run holds twice what it
-   used to for those two weeks.
+   used to for that week. Seven is also the repository's maximum retention:
+   the workflow asked for 14 until 2026-11, and GitHub quietly used 7 (the run
+   log says "Using 7 instead"). Raising it means raising that setting too.
 2. **Diagnostic artifacts upload on `failure()` only, for days not months.**
    The CI `screenshots` artifact is worth looking at exactly when the visual
    regression went red; on a green run it is a byte-for-byte re-render of

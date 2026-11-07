@@ -248,9 +248,11 @@ jobs:
           # The one build artifact with no Release asset behind it: Partner Center
           # submission is a manual download-and-upload step (see
           # .claude/rules/release-ci.md, "Microsoft Store (MSIX)"), so it has to
-          # outlive the run. Two weeks is long enough for that and short enough
-          # that a ~50 MB bundle is not held 90 days per release.
-          retention-days: 14
+          # outlive the run. A week is long enough for that and short enough
+          # that a ~50 MB bundle is not held 90 days per release. It is also the
+          # most the repository allows (Settings > Actions > artifact retention):
+          # this said 14 until 2026-11, and every run logged "Using 7 instead".
+          retention-days: 7
 
       - name: Render winget manifests
         shell: bash
