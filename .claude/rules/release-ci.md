@@ -152,7 +152,8 @@ audit findings 5 and 15). Four things the audit found, each now a rule:
 its own artifacts with `PGNIMBUS_STARTUP_PROBE=1`, asserting both a clean exit
 *and* the probe line — an app that quit before drawing anything also exits 0.
 Windows smokes the publish output and the exe of the zip unpacked into a fresh
-folder (and fails if a `.pdb` shipped in it); macOS smokes the publish output and the binary
+folder (and fails if a `.pdb` shipped in it), for x64 and arm64 each, and the
+MSIX bundle is installed on the x64 runner and removed again; macOS smokes the publish output and the binary
 inside the mounted `.dmg`; Linux smokes the publish output, the `.tar.gz`, the
 `.AppImage` (`--appimage-extract-and-run`, runners have no FUSE; it also checks
 the update information inside it and its `.zsync` file) and the `.deb`
@@ -166,10 +167,26 @@ to (verified, not assumed).
 
 It produces, per tag:
 
-- **Windows** — `dotnet publish -r win-x64 -p:PublishAot=true`, then a
-  portable `pgNimbus-<version>-win-x64.zip` from
+- **Windows** — `win-x64` + `win-arm64`, a `build-windows` matrix
+  (2026-11). Each leg runs `dotnet publish -r <rid> -p:PublishAot=true`, then
+  makes a portable `pgNimbus-<version>-<rid>.zip` with
   [`scripts/windows/build-zip.ps1`](scripts/windows/build-zip.ps1): one
   top-level folder of the same name, like the Linux `.tar.gz`, with no `.pdb`.
+  **The arm64 leg builds natively on GitHub's free `windows-11-arm` runner**
+  (public repos only), like the Linux arm64 leg. A cross-compile on the x64
+  runner would need the VS ARM64 build tools there, and its output could not be
+  smoke-launched on an x64 machine. It was added when Partner Center's Packages
+  page began recommending Arm64 packages (2026-11-07): Windows on Arm had been
+  getting the x64 build under emulation, which works but loses the startup
+  time the app is sold on. **A smoke launch cannot tell the two architectures
+  apart**, because Windows on Arm runs x64 programs too, so each leg first runs
+  [`scripts/windows/Assert-PeArchitecture.ps1`](scripts/windows/Assert-PeArchitecture.ps1),
+  which reads the Machine field of every native `.exe`/`.dll` in the publish
+  output (managed assemblies skipped) and fails on any file of another
+  architecture: an x64 publish, or a SkiaSharp/HarfBuzz/ANGLE library restored
+  for the wrong RID. The publish step runs from `pwsh`, not bash, as the release
+  checklist's local publish does (from Git Bash the link step can fail to find
+  `vswhere.exe`).
   Nothing installs; the app's data is in `%AppData%\pgNimbus` either way, so
   replacing the folder is the update. **It replaced a per-user WiX MSI on
   2026-10-01**: the MSI was downloaded about 38 times over 30 releases (none for
@@ -297,12 +314,15 @@ It produces, per tag:
   `pgnimbus`), icons from the `design/masters/icon/` tiles. The NativeAOT
   `*.dbg` symbols side-file is excluded from all three packages. Unsigned,
   like the other direct-download channels.
-- **winget** — the `build-windows` job renders (via
+- **winget** — the `windows-packages` job renders (via
   [`scripts/winget/render-manifest.sh`](scripts/winget/render-manifest.sh)
   and the templates in `packaging/winget/`) the three manifest files
-  winget requires and validates them with `winget validate` right after
-  building the zip (same job — the zip and its SHA256 are already at
-  hand, no separate runner). The installer is `zip` with a nested `portable`
+  winget requires and validates them with `winget validate`. The installer
+  manifest lists two installers, `x64` and `arm64`, one per zip, each naming
+  the exe inside its own `pgNimbus-<version>-<rid>` folder, so the job needs
+  both zips' SHA256. That is why it moved out of the x64 build (where it ran
+  to save a runner) into the job after both legs, which builds the MSIX bundle
+  too. The installer is `zip` with a nested `portable`
   exe aliased `pgnimbus`, and `ArchiveBinariesDependOnPath: true` puts the
   unpacked folder on PATH instead of symlinking the exe, which loads the
   native libraries beside it. It does
@@ -343,12 +363,14 @@ rules keep it there:
 1. **An artifact that ships in the GitHub Release gets `retention-days: 1`.**
    Release assets don't count against the Actions allowance, and the `release`
    job consumes these in the same run — the artifact is a job-to-job hand-off,
-   not storage. That covers `windows-zip`, `macos-dmg-arm64`,
+   not storage. That covers `windows-zip-win-x64`/`-win-arm64`, `macos-dmg-arm64`,
    `linux-packages-*`, `sbom` (from its own job since 2026-09), `winget-manifests`, and `publish-linux-x64`
    (benchmark input). A day is still long enough for a human to grab a
    `workflow_dispatch` test build, where the `release` job never runs.
    `windows-msix` is the one exception at 14 days: Partner Center submission is
-   a manual download-and-upload, so it has to outlive the run.
+   a manual download-and-upload, so it has to outlive the run. It holds both
+   architectures since 2026-11, about 50 MB, so each run holds twice what it
+   used to for those two weeks.
 2. **Diagnostic artifacts upload on `failure()` only, for days not months.**
    The CI `screenshots` artifact is worth looking at exactly when the visual
    regression went red; on a green run it is a byte-for-byte re-render of
@@ -461,15 +483,41 @@ pinned NuGet sources):
 
 ### Microsoft Store (MSIX)
 
-`build-windows` also packs `publish/win-x64` into a self-signed `.msix` via
-[`scripts/windows/build-msix.ps1`](scripts/windows/build-msix.ps1), uploaded
-as the `windows-msix` CI artifact — **not** attached to the public GitHub
-Release, since a self-signed MSIX can't be installed without the user
-manually trusting the cert first, and Store re-signing only happens after
-you upload it to Partner Center.
+The `windows-packages` job (after both `build-windows` legs) packs the two
+unpacked zips into one self-signed `pgNimbus-<version>-win.msixbundle` via
+[`scripts/windows/build-msix.ps1`](scripts/windows/build-msix.ps1): an x64 and
+an arm64 `.msix` inside, each signed, then the bundle signed, all with the same
+ephemeral certificate. It is uploaded as the `windows-msix` CI artifact —
+**not** attached to the public GitHub Release, since a self-signed MSIX can't
+be installed without the user manually trusting the cert first, and Store
+re-signing only happens after you upload it to Partner Center. The packages are
+made from the zips rather than the publish folders: a zip holds the publish
+output minus `.pdb` files, exactly what the script packs, so the Store gets the
+bytes that were smoke-launched.
+
+**One bundle, not two packages** (2026-11). Partner Center takes either (a
+submission can hold several `.msix`, one per architecture, or one
+`.msixbundle`), and its package requirements say bundles "should be generated
+whenever possible"; a bundle is also one file to upload instead of two to keep
+apart. The Store installs the package that matches the device. Before the bundle
+the single package declared no `ProcessorArchitecture`, which makes it `neutral`,
+so Windows on Arm got the x64 exe; the manifest template now takes it from
+`$ARCH$`. **The first bundle submission must drop that neutral package**: a
+neutral package also applies to 32-bit x86 Windows, which the bundle does not
+cover, so Partner Center may keep offering it there unless it is removed from
+the submission's package list (it offers to remove redundant packages; check
+the last neutral package is gone either way).
+
+**The bundle is installed before it is uploaded.** Partner Center is otherwise
+the only place it is ever opened, and it reports a bad package only after the
+upload. The job trusts the upload certificate (`-CertificateOutput` writes its
+public half) in `LocalMachine\TrustedPeople`, `Add-AppxPackage`s the bundle,
+checks that Windows picked the `X64` package and that `PgNimbus.App.exe` is in
+it, removes the package and the certificate. It does not launch the installed
+app: the zip of the same bytes was already launched.
 
 - **Manifest**: [`packaging/msix/Package.appxmanifest`](packaging/msix/Package.appxmanifest)
-  is a template (`$VERSION$` placeholder) with `Identity/Publisher` hardcoded
+  is a template (`$VERSION$` and `$ARCH$` placeholders) with `Identity/Publisher` hardcoded
   to this repo's reserved Partner Center product identity
   (`DmitriiShmanev.pgNimbus` / `CN=04FDF7B0-6D86-4EB7-B798-21CD434897BC`,
   Store ID `9N6SZT42XJ24` — the listing is **live** as of 2026-07:
@@ -490,22 +538,31 @@ you upload it to Partner Center.
   package to *build*, but Windows silently backplates/shrinks it on the
   taskbar, Start, and the sideload "Install app?" dialog when it can't find a
   qualifier-matched size — hence the scale/targetsize sets (fixed 2026-07).
-- **`build-msix.ps1`**: stages the publish output + tile assets + rendered
-  manifest, then runs `makepri.exe` (`createconfig` + `new`) to compile those
+- **`build-msix.ps1`**: takes `-Package <arch>=<folder>` once per
+  architecture (`x64`, `arm64`) and writes a `.msix` for one or a
+  `.msixbundle` for several (`makeappx bundle /bv <version>`; without `/bv`
+  the bundle is stamped with the current date and time). Per package it stages
+  the folder + tile assets + the manifest rendered for that architecture,
+  checks the files with `Assert-PeArchitecture.ps1` (a package marked arm64
+  must hold arm64 code: the Store installs it only there), then runs
+  `makepri.exe` (`createconfig` + `new`) to compile those
   qualified filenames into a single `resources.pri` — without it, Windows
   only ever resolves the scale-100/unqualified assets and the rest just sit
   in the package unused. `createconfig`'s default `priconfig.xml` splits
   scale-qualified resources into separate `resources.scale-*.pri` side files
-  (meant for `AppxBundle` resource packages with matching manifest
-  `<ResourcePackage>` entries); since this is one flat non-bundle package,
-  the script strips that `<autoResourcePackage>` splitting so everything
-  lands in the one `resources.pri` actually included in the package. Then
-  packs with `makeappx.exe`, signs with an ephemeral
+  (meant for bundles that carry resource packages, one per scale, with
+  matching manifest `<ResourcePackage>` entries); each of our packages carries
+  every qualified icon itself (a few hundred KB), so the script strips that
+  `<autoResourcePackage>` splitting and everything lands in the one
+  `resources.pri` actually included in the package. Then
+  packs with `makeappx.exe` and signs with an ephemeral
   `New-SelfSignedCertificate` (Subject matching the manifest's `Publisher`,
-  deleted from the cert store right after signing). Resolves `makeappx`/
+  one certificate for every package and the bundle, deleted from the cert
+  store with its key at the end). Resolves `makeappx`/
   `makepri`/`signtool` by globbing every installed Windows SDK's
-  `bin\<ver>\x64` dir and taking the newest, so it doesn't hardcode an SDK
-  version that'll drift on GitHub's runner images. MSIX versions are 4-part
+  `bin\<ver>\x64` dir (`arm64` first on an Arm machine) and taking the
+  newest, so it doesn't hardcode an SDK version that'll drift on GitHub's
+  runner images. MSIX versions are 4-part
   with the last field forced to `0` (Store convention) —
   `ConvertTo-MsixVersion` strips any prerelease suffix like `-ci.42` from
   `VERSION` before padding.
@@ -516,8 +573,10 @@ you upload it to Partner Center.
   `scripts/demo/record/README.md`.
 - **Submission** (manual, not automated yet): the first submission passed
   certification and the listing is live. For updates: download the
-  `windows-msix` artifact from the release workflow run and upload it through
-  Partner Center → this product → Packages, then submit for certification.
+  `windows-msix` artifact from the release workflow run and upload the
+  `.msixbundle` in it through Partner Center → this product → Packages, check
+  the package table lists an x64 and an arm64 package (and, the first time,
+  that the old neutral package is removed), then submit for certification.
   Could move to the Microsoft Store submission API later (needs its own
   Entra ID app registration under the Partner Center account — free,
   unrelated to Azure Artifact Signing).

@@ -64,7 +64,23 @@ jobs:
       publish_artifact: publish-linux-x64
 
   build-windows:
-    runs-on: windows-latest
+    strategy:
+      matrix:
+        include:
+          - runner: windows-latest
+            rid: win-x64
+            arch: x64
+          # Native, like the Linux arm64 leg: GitHub's free Windows on Arm
+          # runner for public repos. A cross-compile on the x64 runner would
+          # need the VS ARM64 build tools there, and its output could not be
+          # launched on an x64 machine, so no smoke test would ever run it.
+          - runner: windows-11-arm
+            rid: win-arm64
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    env:
+      RID: ${{ matrix.rid }}
+      ARCH: ${{ matrix.arch }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -85,16 +101,25 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Publish NativeAOT (win-x64)
-        shell: bash
+      # From PowerShell, as the release checklist does it locally: from Git
+      # Bash the NativeAOT link step can fail to find vswhere.exe.
+      - name: Publish NativeAOT (${{ matrix.rid }})
+        shell: pwsh
         run: >
-          dotnet publish src/PgNimbus.App -c Release -r win-x64
+          dotnet publish src/PgNimbus.App -c Release -r $env:RID
           --self-contained true
           -p:PublishAot=true
-          -p:Version="$VERSION"
-          -p:FileVersion="$VERSION"
-          -p:InformationalVersion="$VERSION"
-          -o publish/win-x64
+          -p:Version="$env:VERSION"
+          -p:FileVersion="$env:VERSION"
+          -p:InformationalVersion="$env:VERSION"
+          -o "publish/$env:RID"
+
+      # Windows on Arm runs x64 programs under emulation, so the smoke test
+      # below would pass on the arm64 runner for an x64 build too. This reads
+      # the architecture from the PE header of every native file instead.
+      - name: Check the binaries' architecture
+        shell: pwsh
+        run: scripts/windows/Assert-PeArchitecture.ps1 -Path "publish/$env:RID" -Architecture $env:ARCH
 
       # Smoke the binary before packaging it, so a NativeAOT failure is
       # distinguishable from an installer failure at a glance.
@@ -102,8 +127,8 @@ jobs:
         shell: pwsh
         run: >
           scripts/release/Smoke-Launch.ps1
-          -Label "win-x64 publish output"
-          -Executable publish/win-x64/PgNimbus.App.exe
+          -Label "$env:RID publish output"
+          -Executable "publish/$env:RID/PgNimbus.App.exe"
 
       # The direct Windows download is a portable .zip, not an installer
       # (2026-10): the per-user MSI was downloaded a handful of times in 30
@@ -113,76 +138,127 @@ jobs:
         shell: pwsh
         run: >
           scripts/windows/build-zip.ps1
-          -PublishDir publish/win-x64
-          -Version ${env:VERSION}
-          -Output pgNimbus-${env:VERSION}-win-x64.zip
+          -PublishDir "publish/$env:RID"
+          -Rid $env:RID
+          -Version $env:VERSION
+          -Output "pgNimbus-$env:VERSION-$env:RID.zip"
 
       # Launch it the way its users get it: unpacked into a fresh folder.
       - name: Smoke test (unpack the zip, launch it)
         shell: pwsh
         run: |
           $dest = Join-Path $env:RUNNER_TEMP "zip-smoke"
-          Expand-Archive -Path "pgNimbus-${env:VERSION}-win-x64.zip" -DestinationPath $dest -Force
-          $exe = Join-Path $dest "pgNimbus-${env:VERSION}-win-x64\PgNimbus.App.exe"
-          scripts/release/Smoke-Launch.ps1 -Label "unpacked zip" -Executable $exe
+          Expand-Archive -Path "pgNimbus-$env:VERSION-$env:RID.zip" -DestinationPath $dest -Force
+          $exe = Join-Path $dest "pgNimbus-$env:VERSION-$env:RID\PgNimbus.App.exe"
+          scripts/release/Smoke-Launch.ps1 -Label "unpacked zip ($env:RID)" -Executable $exe
           $pdb = Get-ChildItem -Path $dest -Filter *.pdb -Recurse
           if ($pdb) { throw "debug symbols shipped in the zip: $($pdb.Name -join ', ')" }
 
-      - name: Compute SHA256
-        id: sha
-        shell: pwsh
-        run: |
-          $hash = (Get-FileHash "pgNimbus-${env:VERSION}-win-x64.zip" -Algorithm SHA256).Hash.ToLower()
-          "sha256=$hash" >> $env:GITHUB_OUTPUT
-
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: windows-zip
-          path: pgNimbus-${{ env.VERSION }}-win-x64.zip
-          # Handed straight to the "release" job below, which publishes it as a
-          # GitHub Release asset — and Release assets do not count against the
-          # Actions storage allowance. So this copy is a same-run hand-off, not
-          # a keepsake; the 90-day default kept a second copy of every package
-          # ever built. A workflow_dispatch test run (no "release" job) still
-          # leaves it downloadable for the rest of the day.
+          name: windows-zip-${{ matrix.rid }}
+          path: pgNimbus-${{ env.VERSION }}-${{ matrix.rid }}.zip
+          # Handed to "windows-packages" and "release" below; the latter
+          # publishes it as a GitHub Release asset, and Release assets do not
+          # count against the Actions storage allowance. So this copy is a
+          # same-run hand-off, not a keepsake; the 90-day default kept a second
+          # copy of every package ever built. A workflow_dispatch test run (no
+          # "release" job) still leaves it downloadable for the rest of the day.
           retention-days: 1
 
-      - name: Build MSIX (for Microsoft Store submission)
+  # The Store bundle and the winget manifests both need the two architectures,
+  # so they are made once both legs have built, checked and smoke-launched their
+  # zip, and from those zips: each holds the publish output minus its .pdb
+  # files, which is exactly what build-msix.ps1 packs, so the Store gets the
+  # very bytes that were launched. winget used to be rendered inside the x64
+  # build to save a runner; with one zip per architecture it needs both SHA256s.
+  windows-packages:
+    needs: build-windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Require the built commit to be on main
+        uses: ./.github/actions/require-on-main
+
+      - name: Determine version
+        uses: ./.github/actions/version
+        with:
+          version: ${{ inputs.version }}
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: zips
+          merge-multiple: true
+          pattern: windows-zip-*
+
+      - name: Unpack the zips
+        shell: pwsh
+        run: |
+          foreach ($rid in 'win-x64', 'win-arm64') {
+            Expand-Archive -Path "zips/pgNimbus-$env:VERSION-$rid.zip" -DestinationPath unpacked -Force
+          }
+
+      - name: Build MSIX bundle (for Microsoft Store submission)
         # Self-signed for upload only — Store re-signs with its own trusted
         # certificate during certification (see scripts/windows/build-msix.ps1).
         # Not part of the public GitHub Release: a self-signed MSIX can't be
         # installed without the user trusting the cert first, so this is a
-        # CI-only artifact — download it from the workflow run and upload to
-        # Partner Center. See CLAUDE.md "Microsoft Store (MSIX)".
+        # CI-only artifact — download it from the workflow run and upload it to
+        # Partner Center. One bundle, an x64 and an arm64 package inside; the
+        # Store gives each device its own. See .claude/rules/release-ci.md,
+        # "Microsoft Store (MSIX)".
         shell: pwsh
         run: >
           scripts/windows/build-msix.ps1
-          -PublishDir publish/win-x64
-          -Version ${env:VERSION}
-          -Output pgNimbus-${env:VERSION}-win-x64.msix
+          -Package "x64=unpacked/pgNimbus-$env:VERSION-win-x64","arm64=unpacked/pgNimbus-$env:VERSION-win-arm64"
+          -Version $env:VERSION
+          -Output "pgNimbus-$env:VERSION-win.msixbundle"
+          -CertificateOutput "$env:RUNNER_TEMP/msix-upload.cer"
+
+      # Partner Center is the only other place this bundle is ever opened, and it
+      # reports a bad package only after the upload. Install it here instead:
+      # Windows picks the package for this machine's architecture out of the
+      # bundle the way the Store does, so this also proves the x64 package is
+      # marked x64. The upload certificate is trusted for this step only.
+      - name: Install the bundle, then remove it
+        shell: pwsh
+        run: |
+          $cer = Import-Certificate -FilePath "$env:RUNNER_TEMP/msix-upload.cer" -CertStoreLocation Cert:\LocalMachine\TrustedPeople
+          try {
+            Add-AppxPackage -Path "pgNimbus-$env:VERSION-win.msixbundle"
+            $pkg = Get-AppxPackage -Name DmitriiShmanev.pgNimbus
+            if (-not $pkg) { throw "the bundle installed nothing" }
+            $pkg | Format-List Name, Version, Architecture, PackageFullName, InstallLocation
+            if ("$($pkg.Architecture)" -ne 'X64') { throw "installed the $($pkg.Architecture) package on an x64 machine" }
+            if (-not (Test-Path (Join-Path $pkg.InstallLocation 'PgNimbus.App.exe'))) { throw "PgNimbus.App.exe is not in the installed package" }
+            Remove-AppxPackage -Package $pkg.PackageFullName
+          }
+          finally {
+            Remove-Item "Cert:\LocalMachine\TrustedPeople\$($cer.Thumbprint)" -Force -ErrorAction SilentlyContinue
+          }
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: windows-msix
-          path: pgNimbus-${{ env.VERSION }}-win-x64.msix
+          path: pgNimbus-${{ env.VERSION }}-win.msixbundle
           # The one build artifact with no Release asset behind it: Partner Center
-          # submission is a manual download-and-upload step (see CLAUDE.md,
-          # "Microsoft Store (MSIX)"), so it has to outlive the run. Two weeks is
-          # long enough for that and short enough that a ~25 MB package is not
-          # held 90 days per release.
+          # submission is a manual download-and-upload step (see
+          # .claude/rules/release-ci.md, "Microsoft Store (MSIX)"), so it has to
+          # outlive the run. Two weeks is long enough for that and short enough
+          # that a ~50 MB bundle is not held 90 days per release.
           retention-days: 14
 
-      # winget manifests are rendered right here rather than in a separate
-      # job: the zip and its SHA256 are already at hand, so this saves a
-      # whole extra Windows runner (and the artifact round-trip) that used
-      # to sit on the critical path before "release".
       - name: Render winget manifests
         shell: bash
-        env:
-          ZIP_SHA256: ${{ steps.sha.outputs.sha256 }}
         run: |
-          RELEASE_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/v${VERSION}/pgNimbus-${VERSION}-win-x64.zip"
-          bash scripts/winget/render-manifest.sh "$VERSION" "$ZIP_SHA256" "$RELEASE_URL" manifests
+          x64_sha=$(sha256sum "zips/pgNimbus-${VERSION}-win-x64.zip" | cut -d' ' -f1)
+          arm64_sha=$(sha256sum "zips/pgNimbus-${VERSION}-win-arm64.zip" | cut -d' ' -f1)
+          base="https://github.com/${GITHUB_REPOSITORY}/releases/download/v${VERSION}"
+          bash scripts/winget/render-manifest.sh "$VERSION" "$base" "$x64_sha" "$arm64_sha" manifests
 
       - name: Validate winget manifests
         shell: pwsh
@@ -196,7 +272,7 @@ jobs:
         with:
           name: winget-manifests
           path: winget-manifests.zip
-          # Same-run hand-off to "release" (see windows-zip above).
+          # Same-run hand-off to "release" (see windows-zip-* above).
           retention-days: 1
 
   build-macos:
@@ -336,7 +412,7 @@ jobs:
         with:
           name: macos-dmg-arm64
           path: dist/*.dmg
-          # Same-run hand-off to "release" (see windows-zip above).
+          # Same-run hand-off to "release" (see windows-zip-* above).
           retention-days: 1
 
   build-linux:
@@ -454,7 +530,7 @@ jobs:
         with:
           name: linux-packages-${{ matrix.rid }}
           path: dist/*
-          # Same-run hand-off to "release" (see windows-zip above).
+          # Same-run hand-off to "release" (see windows-zip-* above).
           retention-days: 1
 
       # The raw x64 publish output feeds the benchmark job so it doesn't
@@ -528,7 +604,7 @@ jobs:
         with:
           name: sbom
           path: sbom/*.cdx.json
-          # Same-run hand-off to "release" (see windows-zip above).
+          # Same-run hand-off to "release" (see windows-zip-* above).
           retention-days: 1
 
   # The publish gate. Each build job smoke-launches its own artifacts before
@@ -536,7 +612,7 @@ jobs:
   # window" — a broken build cannot reach a GitHub Release without someone
   # deliberately re-running past a red job.
   release:
-    needs: [build-windows, build-macos, build-linux, sbom]
+    needs: [build-windows, windows-packages, build-macos, build-linux, sbom]
     # A push of a v* tag, and nothing else: a workflow_dispatch started from a
     # tag has the same github.ref and must not publish.
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
@@ -548,14 +624,14 @@ jobs:
       attestations: write
     steps:
       # Only the artifacts that ship in the Release. Notably excluded:
-      # windows-msix (Store-submission-only, see build-windows),
+      # windows-msix (Store-submission-only, see windows-packages),
       # publish-linux-x64 (benchmark input — its .tar.gz would otherwise
       # leak into the checksum globs below), bench-results.
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           path: artifacts
           merge-multiple: true
-          pattern: "{windows-zip,macos-dmg-arm64,linux-packages-*,winget-manifests,sbom}"
+          pattern: "{windows-zip-*,macos-dmg-arm64,linux-packages-*,winget-manifests,sbom}"
 
       - name: Generate checksums
         run: |

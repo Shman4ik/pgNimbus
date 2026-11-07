@@ -23,9 +23,11 @@ This installs the same Store package, so it carries the same signature.
 ### Portable zip
 
 Download `pgNimbus-<version>-win-x64.zip` from the
-[releases page](https://github.com/Shman4ik/pgNimbus/releases), unzip it
-anywhere you like, and run `PgNimbus.App.exe` from the
-`pgNimbus-<version>-win-x64` folder. Nothing is installed and no administrator
+[releases page](https://github.com/Shman4ik/pgNimbus/releases), or
+`pgNimbus-<version>-win-arm64.zip` for a Windows on Arm device, such as a
+Snapdragon laptop. Unzip it anywhere you like, and run
+`PgNimbus.App.exe` from the folder inside it, named like the zip.
+The x64 zip also runs on Arm under emulation, but starts slower. Nothing is installed and no administrator
 rights are needed. To update, replace the folder with the new release's. Your
 connections and settings live in `%AppData%\pgNimbus`, not in the folder, so
 they carry over.

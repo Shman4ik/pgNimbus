@@ -1,19 +1,21 @@
-# Packs a dotnet-publish win-x64 output into the portable .zip that ships on
-# the GitHub Release: one top-level folder named after the package
-# (pgNimbus-<version>-win-x64\PgNimbus.App.exe, …), like the Linux .tar.gz.
+# Packs a dotnet-publish win-x64 or win-arm64 output into the portable .zip
+# that ships on the GitHub Release: one top-level folder named after the
+# package (pgNimbus-<version>-<rid>\PgNimbus.App.exe, …), like the Linux .tar.gz.
 # Nothing is installed: unzip anywhere and run PgNimbus.App.exe. Settings live
 # in %APPDATA%\pgNimbus either way, so replacing the folder keeps them.
 #
 # Usage:
 #   pwsh scripts/windows/build-zip.ps1 -PublishDir publish\win-x64 -Version 1.2.3 -Output pgNimbus-1.2.3-win-x64.zip
+#   pwsh scripts/windows/build-zip.ps1 -PublishDir publish\win-arm64 -Rid win-arm64 -Version 1.2.3 -Output pgNimbus-1.2.3-win-arm64.zip
 param(
     [Parameter(Mandatory)] [string]$PublishDir,
     [Parameter(Mandatory)] [string]$Version,
-    [Parameter(Mandatory)] [string]$Output
+    [Parameter(Mandatory)] [string]$Output,
+    [ValidateSet('win-x64', 'win-arm64')] [string]$Rid = 'win-x64'
 )
 $ErrorActionPreference = 'Stop'
 
-$name = "pgNimbus-$Version-win-x64"
+$name = "pgNimbus-$Version-$Rid"
 $stage = Join-Path ([System.IO.Path]::GetTempPath()) ("pgnimbus-zip-" + [guid]::NewGuid())
 try {
     $root = Join-Path $stage $name
