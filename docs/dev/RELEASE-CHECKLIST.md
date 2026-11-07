@@ -200,6 +200,11 @@ pass. 1.0.0 found five defects here that no Windows step could have.
 
 ## 5. Ship
 
+- [ ] Rehearse the pipeline on `main` first: `gh workflow run release.yml --ref main -f version=X.Y.Z`,
+      and tag only once every build job is green. GitHub retires runner images
+      on its own schedule, and a job that cannot start blocks `release`: on
+      2026-11-02 `macos-14` stopped starting, which a 1.3.0 tag would have met
+      with nothing published.
 - [ ] Tag `vX.Y.Z` on `main` and push it. The pipeline refuses a tag on any
       commit that is not on `main`. Watch `release.yml`: every package is
       launched before it ships, so a red smoke step is a real failure.
