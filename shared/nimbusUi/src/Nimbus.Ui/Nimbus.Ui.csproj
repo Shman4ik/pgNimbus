@@ -20,7 +20,7 @@
 
   <ItemGroup>
     <!-- Pinned to the LOWEST version either app is on (both apps are on
-         Avalonia 12.1.4 and DataGrid 12.1.2 today). NuGet unifies to the highest reference in the
+         Avalonia 12.1.5 and DataGrid 12.1.2 today). NuGet unifies to the highest reference in the
          consuming app, so this cannot hold either app back — but raising it
          above an app's own version would fail that app's restore. -->
     <PackageReference Include="Avalonia" Version="12.1.5" />
