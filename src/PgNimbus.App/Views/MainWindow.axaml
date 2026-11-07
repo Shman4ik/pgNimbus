@@ -105,6 +105,12 @@
                                      there is no native menu bar to hold it. -->
                                 <MenuItem Name="MenuShortcuts" Header="Keyboard Shortcuts" Command="{Binding ShowShortcutsCommand}" />
                                 <MenuItem Name="MenuAbout" Header="About pgNimbus" Command="{Binding ShowAboutCommand}" />
+                                <!-- Only in the Store MSIX (MainViewModel.CanRateInStore).
+                                     Windows only, so it has no macOS menu-bar twin;
+                                     a quiet item, never a prompt (UI rule 1). -->
+                                <MenuItem Name="MenuRateInStore" Header="Rate pgNimbus in the Microsoft Store"
+                                          Command="{Binding RateInStoreCommand}"
+                                          IsVisible="{Binding CanRateInStore}" />
                             </MenuFlyout>
                         </Button.Flyout>
                     </Button>

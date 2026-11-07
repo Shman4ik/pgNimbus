@@ -3,6 +3,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PgNimbus.App.Completion;
+using PgNimbus.App.Platform;
 using PgNimbus.App.ViewModels.Security;
 using PgNimbus.Core.Backup;
 using PgNimbus.Core.Commands;
@@ -268,6 +269,29 @@ public sealed partial class MainViewModel : ObservableObject
     /// <summary>Opens the About box. Reached from the ☰ menu and the macOS app menu.</summary>
     [RelayCommand]
     private void ShowAbout() => IsAboutOpen = true;
+
+    /// <summary>
+    /// Whether the "Rate pgNimbus in the Microsoft Store" entry shows: its
+    /// palette row and its ☰ menu item. Only the Store MSIX has a package
+    /// identity (<see cref="StoreListing.IsPackaged"/>), and a review
+    /// page for an app installed some other way would be a dead end. Settable
+    /// so the headless tests can show it.
+    /// </summary>
+    [ObservableProperty]
+    private bool _canRateInStore = StoreListing.IsPackaged;
+
+    /// <summary>What the rate command opens; a seam so a test can run it without starting the Store.</summary>
+    public Action OpenStoreReviewPage { get; set; } = StoreListing.OpenReviewPage;
+
+    /// <summary>Opens the Store's rate-and-review page. Passive: nothing ever asks for a rating.</summary>
+    [RelayCommand]
+    private void RateInStore()
+    {
+        if (CanRateInStore)
+        {
+            OpenStoreReviewPage();
+        }
+    }
 
     [RelayCommand]
     private void OpenFile() => OpenFileRequested?.Invoke();
@@ -2172,11 +2196,13 @@ public sealed partial class MainViewModel : ObservableObject
             descriptor.ShortcutLabel(Hotkeys.Scheme)));
 
     // The write switch's two rows are listed only in a production window that
-    // can allow writes, and only the one that would change something.
+    // can allow writes, and only the one that would change something; the Store
+    // rating only where the app came from the Store.
     private bool IsInPalette(CommandDescriptor descriptor) => descriptor.Id switch
     {
         CommandId.AllowWrites => CanToggleWrites && !WritesAllowed,
         CommandId.LockWrites => CanToggleWrites && WritesAllowed,
+        CommandId.RateInStore => CanRateInStore,
         _ => true,
     };
 

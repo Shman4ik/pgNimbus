@@ -212,6 +212,9 @@ pass. 1.0.0 found five defects here that no Windows step could have.
       table must list an x64 and an arm64 package. The first bundle submission must also remove
       the previous release's single neutral package (1.2.1 or later, the last one built
       before the bundle), or 32-bit x86 Windows may keep being offered it. Then submit for certification.
+      Once the update is installed from the Store, the ☰ menu's last item, Rate pgNimbus
+      in the Microsoft Store, opens the Store's review dialog. Only a packaged build shows
+      it, so no other check can see it.
 - [ ] Check the benchmark chart for a regression in startup or streaming; the
       public copy says "about 0.2 s", so it has to stay true.
 - [ ] Landing page and docs, if an install channel or a headline feature changed.

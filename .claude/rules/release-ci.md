@@ -582,6 +582,12 @@ app: the zip of the same bytes was already launched.
   Could move to the Microsoft Store submission API later (needs its own
   Entra ID app registration under the Partner Center account — free,
   unrelated to Azure Artifact Signing).
+- **Ratings** (2026-11): the packaged app carries a passive "Rate pgNimbus in
+  the Microsoft Store" entry (☰ menu, palette, About box) that opens the
+  listing's review page. It shows only under a package identity, so a
+  sideloaded `windows-msix` artifact shows it too; nothing else does. Check it
+  once on an installed Store build: the item is there and opens the Store's
+  review dialog. CLAUDE.md UI rule 4 has the details.
 
 ## Project website + docs (GitHub Pages)
 

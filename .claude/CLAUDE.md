@@ -1466,7 +1466,20 @@ Three rules about it:
    there** — ☰ (and the "pgNimbus" wordmark) are hidden on macOS, and every
    ☰ command lives in the real menu bar instead (see "Platform window
    chrome"). A command added to the ☰ menu must be added to
-   `BuildMacNativeMenu` in the same change, and vice versa.
+   `BuildMacNativeMenu` in the same change, and vice versa. **The one exception
+   is Rate pgNimbus in the Microsoft Store** (2026-11), last in the ☰ menu after
+   About: it exists only in the Store MSIX, so it has no macOS twin. Partner
+   Center showed 3 ratings in the app's whole life against ~850 Store page views
+   a month, so the entry is there to be found, but it stays passive: no prompt,
+   no counter, no telemetry (rule 1). The ☰ item, its palette row
+   (`CommandId.RateInStore`, palette only, no chord) and a dim `chip` link under
+   the About box's GitHub button all show only when the process has a package
+   identity: `Platform/StoreListing.IsPackaged` calls `GetCurrentPackageFullName`
+   (a blittable P/Invoke, NativeAOT-safe), which answers `APPMODEL_ERROR_NO_PACKAGE`
+   for every other install. They open `ms-windows-store://review/?ProductId=9N6SZT42XJ24`.
+   `MainViewModel.CanRateInStore` and `AboutView.ShowsStoreLink` are settable for
+   the tests (`StoreRatingTests`); the harness is never packaged, so no
+   screenshot shows them.
    **Ctrl+S follows the tab, and both destinations are also named outright**
    (2026-08).
    pgNimbus can save a query to two places — the Saved Queries list and a `.sql`
