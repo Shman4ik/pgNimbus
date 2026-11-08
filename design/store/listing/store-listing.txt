@@ -68,6 +68,7 @@ pgNimbus 1.3.0 adds Query Lab. Your connections, queries and settings carry over
 • The Summary tab puts time, rows, estimated cost and buffers side by side. A missing figure says why it is missing, and notes say what two single runs cannot show, such as a warm cache.
 • The Plan changes tab merges both plans into one tree and marks each node Same, Changed, Added or Removed.
 • Query Lab needs no connection and runs nothing. Import Plan adds a plan you paste, as JSON or text.
+• Windows on Arm PCs now get a native Arm build instead of the x64 one under emulation.
 
 Improved: Pasted text plans get the Buffers color metric and the warnings for disk spills and lossy bitmap scans. In parallel plans, the heat bars divide a node's time among the leader and the workers. Buttons are the same height as the fields beside them. Updated to Avalonia 12.1.5 and the latest stable packages.
 ===== END WHAT'S NEW =====
