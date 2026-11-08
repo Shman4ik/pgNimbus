@@ -48,29 +48,39 @@ public class QueryLabTests
             var chip = window.GetVisualDescendants().OfType<Button>().Single(b => b.Name == "ComparePlanButton");
             await Assert.That(chip.IsEffectivelyVisible).IsTrue();
 
-            IReadOnlyList<object?> OpenMenu()
+            // What the popup draws, not what the flyout holds: in 1.3.0 the items were
+            // built in Opening, Items held all of them, and the popup showed none (a menu
+            // item is its own container, so a drawn one is attached and has a width).
+            static bool Drawn(MenuItem item) => item.IsAttachedToVisualTree() && item.Bounds.Width > 0;
+
+            async Task<(List<MenuItem> Top, List<MenuItem> CompareWith)> OpenMenu()
             {
                 var flyout = (MenuFlyout)chip.Flyout!;
                 flyout.ShowAt(chip);
                 Ui.Settle();
-                var items = flyout.Items.ToList();
+                var top = flyout.Items.OfType<MenuItem>().ToList();
+                await Assert.That(top.All(Drawn)).IsTrue();
+                var compare = top.Single(i => (string?)i.Header == "Compare With");
+                compare.IsSubMenuOpen = true;
+                Ui.Settle();
+                var sub = compare.Items.OfType<MenuItem>().ToList();
+                await Assert.That(sub.All(Drawn)).IsTrue();
                 flyout.Hide();
                 Ui.Settle();
-                return items;
+                return (top, sub);
             }
 
-            var menu = OpenMenu();
-            await Assert.That(menu.OfType<MenuItem>().Select(i => (i.Header as string)!))
+            var (menu, compareWith) = await OpenMenu();
+            await Assert.That(menu.Select(i => (i.Header as string)!))
                 .IsEquivalentTo(["Save to Query Lab…", "Compare With", "Open Query Lab"], CollectionOrdering.Matching);
-            var compareWith = menu.OfType<MenuItem>().Single(i => (string?)i.Header == "Compare With");
-            var none = compareWith.Items.OfType<MenuItem>().First();
+            var none = compareWith.First();
             await Assert.That(none.Header).IsEqualTo("No saved plans");
             await Assert.That(none.IsEnabled).IsFalse();
 
             await vm.QueryLab.SaveAsync(Capture(Fixture("plan-before-index.json")), "no_index baseline", null);
-            compareWith = OpenMenu().OfType<MenuItem>().Single(i => (string?)i.Header == "Compare With");
+            (_, compareWith) = await OpenMenu();
             // An underscore in a header is an access key unless it is doubled.
-            await Assert.That(compareWith.Items.OfType<MenuItem>().First().Header).IsEqualTo("no__index baseline");
+            await Assert.That(compareWith.First().Header).IsEqualTo("no__index baseline");
 
             window.Close();
         });

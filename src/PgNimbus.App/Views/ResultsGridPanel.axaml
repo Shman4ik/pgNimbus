@@ -241,13 +241,19 @@
                             <!-- pgAdmin-style plan view switch: raw text (default) vs graphical tree -->
                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="2">
                                 <!-- Query Lab: keep this plan, or compare it with a saved one. Plan-scoped
-                                     like Export, and its menu is built as it opens (the saved plans
-                                     change from any window), in OnComparePlanFlyoutOpening. -->
+                                     like Export. The Compare With list is built as the menu opens (the
+                                     saved plans change from any window), in OnComparePlanFlyoutOpening;
+                                     the top level stays here, see that handler for why. -->
                                 <Button Name="ComparePlanButton" Classes="chip" Content="Compare ▾" FontSize="11"
                                         Padding="8,2" Margin="0,0,6,0"
                                         ToolTip.Tip="Save this plan to Query Lab, or compare it with a saved one">
                                     <Button.Flyout>
-                                        <MenuFlyout Opening="OnComparePlanFlyoutOpening" />
+                                        <MenuFlyout Opening="OnComparePlanFlyoutOpening">
+                                            <MenuItem Header="Save to Query Lab…" Click="OnSavePlanToQueryLab" />
+                                            <MenuItem Name="ComparePlanWithMenu" Header="Compare With" />
+                                            <Separator />
+                                            <MenuItem Header="Open Query Lab" Click="OnOpenQueryLab" />
+                                        </MenuFlyout>
                                     </Button.Flyout>
                                 </Button>
                                 <!-- Share the plan into external tools (pev2, depesz). Plan-scoped,

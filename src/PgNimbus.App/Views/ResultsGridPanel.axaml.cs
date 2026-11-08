@@ -1448,21 +1448,21 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
     /// <summary>The most saved plans the Compare menu lists; the rest are a click away in Query Lab.</summary>
     internal const int ComparePlanMenuLimit = 8;
 
-    // Built each time it opens: the saved plans change from any window's lab, and the
-    // tab's own saved plan is left out (comparing a plan with itself says nothing).
+    // The Compare With list is built each time the menu opens: the saved plans change
+    // from any window's lab, and the tab's own saved plan is left out (comparing a plan
+    // with itself says nothing). Only the submenu's own items change: the flyout builds
+    // its presenter before it raises Opening, and the presenter never shows items added
+    // to the flyout after that, so a menu whose top level was built here opened as an
+    // empty 2 px popup (1.3.0 release pass). QueryLabTests checks what the popup draws.
     private void OnComparePlanFlyoutOpening(object? sender, EventArgs e)
     {
-        if (sender is not MenuFlyout flyout || _model is not { } model)
+        if (_model is not { } model || sender is not MenuFlyout flyout
+            || flyout.Items.OfType<MenuItem>().FirstOrDefault(i => i.Name == "ComparePlanWithMenu") is not { } compare)
         {
             return;
         }
 
-        flyout.Items.Clear();
-        var save = new MenuItem { Header = "Save to Query Lab…" };
-        save.Click += (_, _) => model.SavePlanToQueryLabCommand.Execute(null);
-        flyout.Items.Add(save);
-
-        var compare = new MenuItem { Header = "Compare With" };
+        compare.Items.Clear();
         var own = _activeQuery?.PlanCapture?.Saved?.Id;
         var recent = model.QueryLab.RecentPlans(ComparePlanMenuLimit + 1).Where(p => p.Id != own).Take(ComparePlanMenuLimit).ToList();
         if (recent.Count == 0)
@@ -1481,13 +1481,11 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
         var more = new MenuItem { Header = "More in Query Lab…" };
         more.Click += (_, _) => model.ComparePlanCommand.Execute(null);
         compare.Items.Add(more);
-        flyout.Items.Add(compare);
-
-        flyout.Items.Add(new Separator());
-        var open = new MenuItem { Header = "Open Query Lab" };
-        open.Click += (_, _) => model.ShowQueryLabCommand.Execute(null);
-        flyout.Items.Add(open);
     }
+
+    private void OnSavePlanToQueryLab(object? sender, RoutedEventArgs e) => _model?.SavePlanToQueryLabCommand.Execute(null);
+
+    private void OnOpenQueryLab(object? sender, RoutedEventArgs e) => _model?.ShowQueryLabCommand.Execute(null);
 
     private void OnCopyPlanJson(object? sender, RoutedEventArgs e) => _ = CopyToClipboardAsync(_activeQuery?.PlanJson);
 
