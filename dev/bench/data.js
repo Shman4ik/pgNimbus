@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792439057845,
+  "lastUpdate": 1794166651745,
   "repoUrl": "https://github.com/Shman4ik/pgNimbus",
   "entries": {
     "pgNimbus benchmarks": [
@@ -2467,6 +2467,165 @@ window.BENCHMARK_DATA = {
           {
             "name": "UI: key typed at the end of a 5 MB script",
             "value": 38.7,
+            "unit": "ms"
+          },
+          {
+            "name": "UI: record a run with a full history",
+            "value": 0.08,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "shman4ik@gmail.com",
+            "name": "Dmitrii Shmanev",
+            "username": "Shman4ik"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b8437e4e13c48bd0818c93d5b4dafaf286269c83",
+          "message": "Fix the plan header's Compare menu opening empty (#424)\n\nIn 1.3.0 the Compare ▾ chip opened an empty 2x32 px popup, by mouse and\nby keyboard, and the invisible popup swallowed the next click. Its items\nwere added to the MenuFlyout in Opening, but the flyout builds its\npresenter before it raises Opening, and the presenter never shows items\nadded after that (it held 0 while the flyout held 4). Export beside it\nwas fine because its items are in XAML.\n\nThe top level is now static XAML; only the Compare With submenu, a\nMenuItem's own items, is rebuilt as the menu opens. The test read\nflyout.Items, which were always there, so it passed; it now checks that\nevery item and submenu item is drawn (attached, with a width), and goes\nred on the old code. Checked in the real app with real clicks: the menu,\nthe saved plans in the submenu, Save to Query Lab and Open Query Lab.\n\nFound in the 1.3.0 release pass.\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-08T19:31:55+01:00",
+          "tree_id": "287b1043519908253dce1ba4aa69c8279aa5c6fc",
+          "url": "https://github.com/Shman4ik/pgNimbus/commit/b8437e4e13c48bd0818c93d5b4dafaf286269c83"
+        },
+        "date": 1794166649904,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Startup, launch to first frame (NativeAOT)",
+            "value": 194,
+            "unit": "ms"
+          },
+          {
+            "name": "Memory at first frame (NativeAOT)",
+            "value": 168.9,
+            "unit": "MB"
+          },
+          {
+            "name": "Binary size (NativeAOT)",
+            "value": 48.2,
+            "unit": "MB"
+          },
+          {
+            "name": "Publish size (NativeAOT, shipped files)",
+            "value": 61.5,
+            "unit": "MB"
+          },
+          {
+            "name": "Startup, launch to first frame (JIT)",
+            "value": 1806,
+            "unit": "ms"
+          },
+          {
+            "name": "Connect, cold pool",
+            "value": 107.8,
+            "unit": "ms"
+          },
+          {
+            "name": "Round-trip, SELECT 1 warm",
+            "value": 0.4,
+            "unit": "ms"
+          },
+          {
+            "name": "First row batch of a 100000-row SELECT",
+            "value": 8.7,
+            "unit": "ms"
+          },
+          {
+            "name": "Stream 100000 rows",
+            "value": 167.1,
+            "unit": "ms"
+          },
+          {
+            "name": "Run a 200-statement seed script",
+            "value": 33.4,
+            "unit": "ms"
+          },
+          {
+            "name": "Commit 1,000 staged edits",
+            "value": 32.5,
+            "unit": "ms"
+          },
+          {
+            "name": "Stage 100,000 deletes (safe mode)",
+            "value": 36.3,
+            "unit": "ms"
+          },
+          {
+            "name": "Copy 100,000 rows as TSV",
+            "value": 72.6,
+            "unit": "ms"
+          },
+          {
+            "name": "Write the history after a run (200 entries, 5 MB)",
+            "value": 124.8,
+            "unit": "ms"
+          },
+          {
+            "name": "Load the history (200 entries, 5 MB)",
+            "value": 35.3,
+            "unit": "ms"
+          },
+          {
+            "name": "Find the caret's statement in a 5 MB script, per key",
+            "value": 0.001,
+            "unit": "ms"
+          },
+          {
+            "name": "UI: expand a schema of 5,000 tables",
+            "value": 381.1,
+            "unit": "ms"
+          },
+          {
+            "name": "UI: tree rows realized for 5,000 tables",
+            "value": 92,
+            "unit": "rows"
+          },
+          {
+            "name": "UI: filter 5,000 tables to one",
+            "value": 72.9,
+            "unit": "ms"
+          },
+          {
+            "name": "UI: 5,000 script sections land",
+            "value": 21,
+            "unit": "ms"
+          },
+          {
+            "name": "UI: script section chips realized",
+            "value": 8,
+            "unit": "chips"
+          },
+          {
+            "name": "UI: palette keystroke over 50,000 relations",
+            "value": 32.5,
+            "unit": "ms"
+          },
+          {
+            "name": "UI: widest result the grid shows",
+            "value": 1717.8,
+            "unit": "ms"
+          },
+          {
+            "name": "UI: edit context arriving after the rows",
+            "value": 150.2,
+            "unit": "ms"
+          },
+          {
+            "name": "UI: show 1 MB of read-only text",
+            "value": 21.3,
+            "unit": "ms"
+          },
+          {
+            "name": "UI: key typed at the end of a 5 MB script",
+            "value": 33.2,
             "unit": "ms"
           },
           {
