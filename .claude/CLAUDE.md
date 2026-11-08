@@ -735,8 +735,11 @@ Three rules about it:
    explained statement, `ExplainRun.ServerVersion`, the source, the raw plan), so
    Save keeps what was explained, not what the editor holds later; typing hides
    the plan and drops it. The plan header's **Compare ▾** chip (beside Export ▾,
-   the owner's call on UI rule 1) builds its menu as it opens: Save to Query
-   Lab…, Compare With ▸ the 8 latest saved plans, Open Query Lab; the palette has
+   the owner's call on UI rule 1) is Save to Query Lab…, Compare With ▸ the 8
+   latest saved plans, Open Query Lab. Only the submenu is built as it opens: a
+   `MenuFlyout` builds its presenter before `Opening`, and items added to the
+   flyout there are never drawn, so 1.3.0 shipped a menu that opened as an empty
+   2 px popup (`QueryLabTests` now checks what the popup draws). The palette has
    `QueryLab`, `SavePlanToQueryLab` and `ComparePlan`, and the macOS Query menu
    Query Lab…. `QueryLabWindow` is one per main window, like Slow Queries, needs
    no connection and runs nothing; its view model's store reads, writes and the
