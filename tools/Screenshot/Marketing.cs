@@ -63,6 +63,8 @@ internal static class Marketing
         new("main-window-completion.dark.png", "design/store/screenshots/04-completion.dark.png", StoreMinimum),
         new("activity-window.light.png", "design/store/screenshots/05-server-activity.light.png", StoreMinimum),
         new("database-overview-window.dark.png", "design/store/screenshots/06-database-overview.dark.png", StoreMinimum),
+        new("query-lab-plan-changes.light.png", "design/store/screenshots/07-query-lab.light.png", StoreMinimum),
+        new("backup-window.dark.png", "design/store/screenshots/08-backup.dark.png", StoreMinimum),
     ];
 
     /// <summary>

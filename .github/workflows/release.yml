@@ -282,8 +282,10 @@ jobs:
     # (macos-13) in December 2025, and has said x86_64 macOS support ends
     # entirely after the macos-15 image retires (Fall 2027). There's no
     # GitHub-hosted way to build osx-x64 anymore, and virtually all Macs
-    # sold since 2020 are Apple Silicon anyway.
-    runs-on: macos-14
+    # sold since 2020 are Apple Silicon anyway. macos-14 stopped starting on
+    # 2026-11-02 ("The configuration 'macos-14-arm64-us-default' is not
+    # supported"); macos-15 still carries Xcode 16.x for the step below.
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

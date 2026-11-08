@@ -195,7 +195,11 @@ It produces, per tag:
   a build dependency and a licence for a channel nobody used. What the zip gives
   up is the Start menu shortcut, the Apps entry and upgrading in place. The
   tool manifest (`.config/dotnet-tools.json`) now pins only `CycloneDX`.
-- **macOS** — `osx-arm64` only, built on a `macos-14` runner. GitHub retired
+- **macOS** — `osx-arm64` only, built on a `macos-15` runner (it was
+  `macos-14` until GitHub stopped running that image on 2026-11-02: the job was
+  cancelled before it started with "The configuration
+  'macos-14-arm64-us-default' is not supported", and since `release` needs it, a
+  tag would have published nothing; found on a 1.3.0 rehearsal). GitHub retired
   the last Intel macOS runner image (`macos-13`) in December 2025 and has
   said x86_64 macOS support ends entirely once the `macos-15` image retires
   (Fall 2027) — there's no GitHub-hosted way to build `osx-x64` anymore, so
