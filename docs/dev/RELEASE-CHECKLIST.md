@@ -66,7 +66,8 @@ JIT never shows (reflection JSON, bindings).
 - [ ] **No Visual Studio on the machine (the QA VM)? Take the CI build instead.**
       `gh workflow run release.yml --ref main -f version=X.Y.Z` builds and smoke-tests every
       package without publishing (it needs a commit already on `main`); then
-      `gh run download <run-id> -n windows-zip` and unpack it. It is the very NativeAOT exe
+      `gh run download <run-id> -n windows-zip-win-x64` (or `-n windows-zip-win-arm64` on
+      Windows on Arm) and unpack it. It is the very NativeAOT exe
       the tag would ship, and the connection dialog shows the stamped version. 1.2.1 was
       tested this way.
 - [ ] Publish it, stamped with the version so the UI shows the right number:
@@ -74,7 +75,9 @@ JIT never shows (reflection JSON, bindings).
       $env:PATH = "C:\Program Files (x86)\Microsoft Visual Studio\Installer;" + $env:PATH
       dotnet publish src/PgNimbus.App -c Release -r win-x64 -p:PublishAot=true -p:Version=X.Y.Z -o artifacts\aot
       ```
-      (from PowerShell: Git Bash fails at link on `vswhere.exe`).
+      (from PowerShell: Git Bash fails at link on `vswhere.exe`). The arm64 build
+      (`-r win-arm64`) needs the "MSVC ARM64 build tools" Visual Studio component; on
+      an x64 machine it cannot be launched, so test it from the CI zip on an Arm device.
 - [ ] **Keep the pass out of your real app data.** Launch the build with
       `PGNIMBUS_DATA_DIR` set to an empty scratch folder (`$env:PGNIMBUS_DATA_DIR = "<scratch>"`
       before `Start-Process`); every store, the credential files and the crash
@@ -204,11 +207,14 @@ pass. 1.0.0 found five defects here that no Windows step could have.
       commit that is not on `main`. Watch `release.yml`: every package is
       launched before it ships, so a red smoke step is a real failure.
 - [ ] Paste the release notes into the GitHub release.
-- [ ] Microsoft Store: download the `windows-msix` artifact (kept 14 days) and
-      submit it in Partner Center. Once the update is installed from the
-      Store, the ☰ menu's last item, Rate pgNimbus in the Microsoft Store,
-      opens the Store's review dialog. Only a packaged build shows it, so no
-      other check can see it.
+- [ ] Microsoft Store: download the `windows-msix` artifact (kept 7 days) and
+      upload the `.msixbundle` in it on Partner Center's Packages page. The package
+      table must list an x64 and an arm64 package. The first bundle submission must also remove
+      the previous release's single neutral package (1.2.1 or later, the last one built
+      before the bundle), or 32-bit x86 Windows may keep being offered it. Then submit for certification.
+      Once the update is installed from the Store, the ☰ menu's last item, Rate pgNimbus
+      in the Microsoft Store, opens the Store's review dialog. Only a packaged build shows
+      it, so no other check can see it.
 - [ ] Check the benchmark chart for a regression in startup or streaming; the
       public copy says "about 0.2 s", so it has to stay true.
 - [ ] Landing page and docs, if an install channel or a headline feature changed.

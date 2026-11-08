@@ -6,18 +6,27 @@
 # exe on PATH as `pgnimbus`. ArchiveBinariesDependOnPath adds the unpacked
 # folder to PATH instead of a symlink to the exe, because the exe loads the
 # native libraries next to it (SkiaSharp, HarfBuzz, ANGLE).
+#
+# One zip per architecture. The folder inside is named after the zip, so each
+# installer names its own exe; winget picks arm64 on Windows on Arm.
 PackageIdentifier: pgNimbus.pgNimbus
 PackageVersion: __VERSION__
 MinimumOSVersion: 10.0.17763.0
 InstallerType: zip
 NestedInstallerType: portable
-NestedInstallerFiles:
-  - RelativeFilePath: pgNimbus-__VERSION__-win-x64\PgNimbus.App.exe
-    PortableCommandAlias: pgnimbus
 ArchiveBinariesDependOnPath: true
 Installers:
   - Architecture: x64
-    InstallerUrl: __RELEASE_URL__
-    InstallerSha256: __SHA256__
+    InstallerUrl: __RELEASE_BASE_URL__/pgNimbus-__VERSION__-win-x64.zip
+    InstallerSha256: __X64_SHA256__
+    NestedInstallerFiles:
+      - RelativeFilePath: pgNimbus-__VERSION__-win-x64\PgNimbus.App.exe
+        PortableCommandAlias: pgnimbus
+  - Architecture: arm64
+    InstallerUrl: __RELEASE_BASE_URL__/pgNimbus-__VERSION__-win-arm64.zip
+    InstallerSha256: __ARM64_SHA256__
+    NestedInstallerFiles:
+      - RelativeFilePath: pgNimbus-__VERSION__-win-arm64\PgNimbus.App.exe
+        PortableCommandAlias: pgnimbus
 ManifestType: installer
 ManifestVersion: 1.9.0

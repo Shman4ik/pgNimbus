@@ -47,7 +47,9 @@ publish/
 *.publishproj
 
 # Local release/installer build output
-pgNimbus-*-win-x64.zip
+pgNimbus-*-win-*.zip
+*.msix
+*.msixbundle
 *.dmg
 dist/
 manifests/

@@ -68,7 +68,7 @@ Where it sits among the alternatives: pgAdmin and DBeaver are powerful but heavy
 | Platform | How |
 | --- | --- |
 | Windows (recommended) | **[Microsoft Store](https://apps.microsoft.com/detail/9N6SZT42XJ24)**, signed and self-updating, or `winget install pgNimbus --source msstore` |
-| Windows (portable) | `pgNimbus-<version>-win-x64.zip` from [Releases](https://github.com/Shman4ik/pgNimbus/releases). Unzip anywhere and run `PgNimbus.App.exe`; no installer, no admin rights. Unsigned, so SmartScreen warns on first run. |
+| Windows (portable) | `pgNimbus-<version>-win-x64.zip`, or `-win-arm64.zip` for Windows on Arm, from [Releases](https://github.com/Shman4ik/pgNimbus/releases). Unzip anywhere and run `PgNimbus.App.exe`; no installer, no admin rights. Unsigned, so SmartScreen warns on first run. |
 | macOS (beta) | `pgNimbus-<version>-macos-arm64.dmg`, Apple Silicon only, macOS 12 or later. Ad-hoc signed and not notarized: the first launch needs **Open Anyway**, and an update can leave saved passwords unreadable until you delete the old `pgNimbus` Keychain items (see the installation guide). |
 | Linux (beta) | AppImage, `.deb` or `.tar.gz` for x64 and arm64 from [Releases](https://github.com/Shman4ik/pgNimbus/releases). Needs glibc 2.35 or newer: Ubuntu 22.04, Debian 12 or later. |
 
@@ -175,7 +175,7 @@ dotnet test --project tests/PgNimbus.Core.Tests
 A NativeAOT build:
 
 ```bash
-dotnet publish src/PgNimbus.App -c Release -r win-x64 -p:PublishAot=true    # Windows
+dotnet publish src/PgNimbus.App -c Release -r win-x64 -p:PublishAot=true    # Windows (win-arm64 for Windows on Arm)
 dotnet publish src/PgNimbus.App -c Release -r linux-x64 -p:PublishAot=true  # Linux (needs clang + zlib1g-dev)
 ```
 

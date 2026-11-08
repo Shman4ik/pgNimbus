@@ -1,8 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   Template rendered by scripts/windows/build-msix.ps1, which stages this file
-  (with $VERSION$ substituted for a 4-part x.y.z.0 version) as AppxManifest.xml
-  next to the win-x64 publish output before `makeappx pack`.
+  (with $VERSION$ substituted for a 4-part x.y.z.0 version and $ARCH$ for x64
+  or arm64) as AppxManifest.xml next to the win-x64 or win-arm64 publish output
+  before `makeappx pack`, once per architecture, then bundles the packages.
+
+  ProcessorArchitecture is what the Store matches against the device. The
+  single package shipped before the bundle left it out, which makes a package
+  "neutral": Windows on Arm then got the x64 exe and ran it under emulation.
+  In a bundle, the packages may differ in that one attribute and nothing else.
 
   Identity/Publisher come from the Package/Identity/Name and
   Package/Identity/Publisher values Partner Center assigned when the app name
@@ -21,7 +27,8 @@
   <Identity
       Name="DmitriiShmanev.pgNimbus"
       Publisher="CN=04FDF7B0-6D86-4EB7-B798-21CD434897BC"
-      Version="$VERSION$" />
+      Version="$VERSION$"
+      ProcessorArchitecture="$ARCH$" />
 
   <Properties>
     <DisplayName>pgNimbus</DisplayName>
