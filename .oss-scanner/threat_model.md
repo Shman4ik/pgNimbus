@@ -7,7 +7,7 @@ security-relevant code are in `.claude/CLAUDE.md` ("Hard architectural rules" 2,
 
 ## What this project does and where untrusted input enters
 
-pgNimbus is a desktop PostgreSQL client (.NET 10, Avalonia). `src/PgNimbus.Core` is the engine (Npgsql, SSH.NET,
+pgNimbus is a desktop PostgreSQL client (.NET 11, Avalonia). `src/PgNimbus.Core` is the engine (Npgsql, SSH.NET,
 the OS credential stores); `src/PgNimbus.App` is the UI. The user is trusted: running SQL the user typed is the
 product, not a vulnerability. What is not trusted:
 

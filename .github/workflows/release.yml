@@ -38,7 +38,7 @@ permissions:
   contents: read
 
 env:
-  DOTNET_VERSION: "10.0.x"
+  DOTNET_VERSION: "11.0.x"
   DOTNET_NOLOGO: "1"
   DOTNET_CLI_TELEMETRY_OPTOUT: "1"
   # Avalonia.BuildServices reports every compile to Avalonia unless this is set; a runner has

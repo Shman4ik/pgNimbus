@@ -2,7 +2,7 @@
 # Measures pgNimbus's headline performance numbers and writes them to
 # bench-results/ as JSON (for history tracking) + Markdown (for humans).
 # Run by .github/workflows/benchmark.yml on every PR and push to main;
-# also runs locally on any Linux box with the .NET 10 SDK, Xvfb, and a
+# also runs locally on any Linux box with the .NET 11 SDK, Xvfb, and a
 # reachable PostgreSQL.
 #
 # Metrics:
@@ -95,7 +95,7 @@ measure_startup() {
 # --- builds ------------------------------------------------------------------
 echo "== Building (JIT Release)"
 dotnet build -c Release >/dev/null
-JIT_BINARY=src/PgNimbus.App/bin/Release/net10.0/PgNimbus.App
+JIT_BINARY=src/PgNimbus.App/bin/Release/net11.0/PgNimbus.App
 
 if [[ -n "${PGNIMBUS_BENCH_PUBLISH_DIR:-}" ]]; then
     echo "== Using prebuilt NativeAOT publish at $PGNIMBUS_BENCH_PUBLISH_DIR"
@@ -107,7 +107,7 @@ if [[ -n "${PGNIMBUS_BENCH_PUBLISH_DIR:-}" ]]; then
     [[ -x "$AOT_BINARY" ]] || chmod +x "$AOT_BINARY"
 elif [[ -z "${PGNIMBUS_BENCH_SKIP_AOT:-}" ]]; then
     echo "== Publishing (NativeAOT linux-x64) — this is the slow part"
-    AOT_BINARY=src/PgNimbus.App/bin/Release/net10.0/linux-x64/publish/PgNimbus.App
+    AOT_BINARY=src/PgNimbus.App/bin/Release/net11.0/linux-x64/publish/PgNimbus.App
     PUBLISH_DIR=$(dirname "$AOT_BINARY")
     # dotnet publish never cleans its output dir, so a repeated local run
     # would keep (and count) files a previous build no longer produces.

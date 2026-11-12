@@ -30,11 +30,12 @@ learned from real runs are after it.
 A bare container has none of this preinstalled. All of it installs cleanly
 via `apt-get` (no external downloads needed — `dotnet-install.sh` /
 `dot.net` are typically blocked by sandboxed network policies, but the
-Ubuntu `dotnet-sdk-10.0` apt package works and is the reliable path):
+Ubuntu `dotnet-sdk-11.0` apt package works and is the reliable path; an image whose archive
+does not carry 11.0 yet gets it from Canonical's `ppa:dotnet/backports`):
 
 ```bash
 apt-get update -qq
-apt-get install -y dotnet-sdk-10.0          # build/run the app
+apt-get install -y dotnet-sdk-11.0          # build/run the app
 apt-get install -y xvfb imagemagick xdotool # headless display + screenshot + input
 apt-get install -y postgresql               # a real DB to click through, not just mocks
 apt-get install -y clang zlib1g-dev         # only for NativeAOT publish (linux-x64)

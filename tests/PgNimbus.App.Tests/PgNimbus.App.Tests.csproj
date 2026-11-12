@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net11.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <!-- Same platform contract as PgNimbus.Core.Tests: TUnit on
@@ -17,8 +17,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="TUnit" Version="1.80.0" />
-    <PackageReference Include="Avalonia.Headless" Version="12.1.5" />
+    <PackageReference Include="TUnit" Version="1.83.8" />
+    <PackageReference Include="Avalonia.Headless" Version="12.1.6" />
   </ItemGroup>
 
   <ItemGroup>
