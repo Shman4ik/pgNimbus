@@ -11,8 +11,8 @@
 #   docker run --rm -it --network=none pgnimbus-scan bash
 #   . .oss-scanner/services.sh && dotnet test --project tests/PgNimbus.Core.Tests -c Release --no-build
 #
-# The SDK tag floats on purpose: global.json takes any 10.0 SDK from 10.0.100 up, and this image ships nowhere.
-FROM mcr.microsoft.com/dotnet/sdk:10.0
+# The SDK tag floats on purpose: global.json takes any 11.0 SDK from 11.0.100 up, and this image ships nowhere.
+FROM mcr.microsoft.com/dotnet/sdk:11.0
 
 ENV DEBIAN_FRONTEND=noninteractive \
     DOTNET_NOLOGO=1 \

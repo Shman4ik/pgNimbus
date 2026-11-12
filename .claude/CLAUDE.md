@@ -2,7 +2,7 @@
 
 ## What this is
 
-A fast, open-source PostgreSQL GUI client (.NET 10 + Avalonia 12), MIT
+A fast, open-source PostgreSQL GUI client (.NET 11 + Avalonia 12), MIT
 licensed. Windows is the primary target; the core engine stays
 cross-platform-capable. The thesis: **truly fast + open source + modern UI** —
 a gap none of pgAdmin/DBeaver (heavy), TablePlus (fast but paid/closed), or
@@ -1983,7 +1983,7 @@ Moved to [`.claude/rules/logo-assets.md`](rules/logo-assets.md), which loads whe
   ~42 MB), and a built worktree weighed ~4.6 GB. Consequence: a Debug `bin/`
   isn't portable across OS/arch — publish with `-r` for that, as the release
   pipeline already does. The host RID is `NETCoreSdkPortableRuntimeIdentifier`:
-  a distro-built SDK (the apt `dotnet-sdk-10.0` the sandbox bootstrap installs)
+  a distro-built SDK (the apt `dotnet-sdk-11.0` the sandbox bootstrap installs)
   reports `ubuntu.24.04-x64` as its own RID, which matches no package asset, so
   every native library was trimmed and nothing that draws could start.
 

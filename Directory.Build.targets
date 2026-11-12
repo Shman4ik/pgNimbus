@@ -13,7 +13,7 @@
        removal. The price: a Debug bin/ no longer runs when copied to another
        OS or architecture; publish with -r for that. -->
   <!-- The portable RID, not NETCoreSdkRuntimeIdentifier: a distro-built SDK
-       (Ubuntu's dotnet-sdk-10.0 package, the bootstrap CLAUDE.md prescribes)
+       (Ubuntu's dotnet-sdk-11.0 package, the bootstrap CLAUDE.md prescribes)
        reports its own RID there, ubuntu.24.04-x64, which matches no package
        asset, so every native library was trimmed away and nothing that draws
        could start. -->

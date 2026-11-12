@@ -41,7 +41,7 @@ public class ShortcutDocsTests
         }
     }
 
-    // The tests run from bin/<config>/net10.0; walk up to the directory that
+    // The tests run from bin/<config>/net11.0; walk up to the directory that
     // holds the solution rather than hardcoding a relative hop count.
     private static string RepositoryRoot()
     {

@@ -31,7 +31,7 @@ shift
 mkdir -p "$out_dir"
 out_dir=$(cd "$out_dir" && pwd)
 
-image=${PGNIMBUS_SDK_IMAGE:-mcr.microsoft.com/dotnet/sdk:10.0}
+image=${PGNIMBUS_SDK_IMAGE:-mcr.microsoft.com/dotnet/sdk:11.0}
 
 # Git Bash rewrites arguments that look like Unix paths before handing them to
 # docker.exe, which turns "/src" into a Windows path and the mount into nonsense.

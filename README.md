@@ -17,7 +17,7 @@
   <a href="https://github.com/Shman4ik/pgNimbus/releases"><img src="https://img.shields.io/github/v/release/Shman4ik/pgNimbus?label=release" alt="Latest release"></a>
   <a href="https://apps.microsoft.com/detail/9N6SZT42XJ24"><img src="https://img.shields.io/badge/Microsoft%20Store-install-0078D4?logo=windows" alt="Microsoft Store"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT license"></a>
-  <img src="https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet" alt=".NET 10">
+  <img src="https://img.shields.io/badge/.NET-11-512BD4?logo=dotnet" alt=".NET 11">
   <img src="https://img.shields.io/badge/Avalonia-12-8B44AC" alt="Avalonia 12">
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey" alt="Platforms">
   <a href="https://buymeacoffee.com/shman4ik"><img src="website/assets/bmc-badge.svg" alt="Buy me a coffee"></a>
@@ -164,7 +164,7 @@ The backlog is tracked as [issues labeled `roadmap`](https://github.com/Shman4ik
 
 ## 🧱 Building and running
 
-Requires the [.NET 10 SDK](https://dotnet.microsoft.com/download).
+Requires the [.NET 11 SDK](https://dotnet.microsoft.com/download).
 
 ```bash
 dotnet build

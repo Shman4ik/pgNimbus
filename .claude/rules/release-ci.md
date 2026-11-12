@@ -472,13 +472,18 @@ pinned NuGet sources):
   additionally runs `dependency-review-action` on PRs to block newly-added
   vulnerable packages at review time, a required check beside `build-test`
   since 2026-09-30.
-- **Pinned SDK line** — `global.json` carries `sdk.version` `10.0.100` with
-  `rollForward: latestFeature`: any 10.0 SDK at or above it builds, so the
+- **Pinned SDK line** — `global.json` carries `sdk.version` `11.0.100` with
+  `rollForward: latestFeature`: any 11.0 SDK at or above it builds, so the
   1xx-band SDK Ubuntu's apt package ships (the verify skill's sandbox recipe)
-  still works, while an 11.0 SDK does not pick the build up. It is a floor, not
-  the release's exact SDK (CI installs the newest `10.0.x`); the runtime pack a
-  release actually links is what the SBOM records (above), and
-  `sbom_add_runtime.py` reads the major.minor from this file.
+  still works, while a 10.0 or 12.0 SDK does not pick the build up. It is a
+  floor, not the release's exact SDK (CI installs the newest `11.0.x`); the
+  runtime pack a release actually links is what the SBOM records (above), and
+  `sbom_add_runtime.py` reads the major.minor from this file. Moving to a new
+  .NET major (10 to 11 on 2026-11-12, two days after 11.0.0 shipped) changes
+  this file, every `TargetFramework`, the `dotnet-version` in each workflow,
+  the `sdk:` image tags in `.oss-scanner/Dockerfile` and
+  `scripts/screenshots/render-linux.sh`, and the `bin/Release/net*` paths in
+  `scripts/benchmarks/run-benchmarks.sh`, in one change.
 - **Pinned NuGet sources** — the repo-root `nuget.config` clears every
   package source but nuget.org and maps every package id to it with
   `packageSourceMapping`. Without it, a restore reads whatever sources a
