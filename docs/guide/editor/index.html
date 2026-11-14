@@ -1369,9 +1369,54 @@ schema offers:</p>
 </table>
 <p>A table, view or materialized view offers <strong>Browse Rows</strong> (what a double-click
 does), <strong>Copy Name</strong> and its reconstructed DDL; a table also offers the Alter
-Table dialog. A function or procedure offers its source, and so do the indexes and
-triggers listed under a table when Show Advanced Objects is on (a double-click
-opens it too, in a new tab). An extension offers install or drop.</p>
+Table dialog and a backup. A function or procedure offers its source, and so do
+the indexes and triggers listed under a table when Show Advanced Objects is on (a
+double-click opens it too, in a new tab). An extension offers install or drop.</p>
+<p>Every relation also has a <strong>Maintenance</strong> submenu. Each item shows only where
+PostgreSQL accepts it:</p>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Shown for</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Analyze</td>
+<td>Tables, materialized views</td>
+<td>Runs <code>ANALYZE</code> at once, so the planner has fresh statistics</td>
+</tr>
+<tr>
+<td>Vacuum</td>
+<td>Tables, materialized views</td>
+<td>Runs a plain <code>VACUUM</code> (not <code>FULL</code>) at once</td>
+</tr>
+<tr>
+<td>Truncate…</td>
+<td>Tables</td>
+<td>Deletes every row, after a confirmation. Fails if another table's foreign key references it</td>
+</tr>
+<tr>
+<td>Rename…</td>
+<td>All</td>
+<td>Asks for the new name, then runs <code>ALTER … RENAME TO</code></td>
+</tr>
+<tr>
+<td>Drop…</td>
+<td>All</td>
+<td>Drops it, after a confirmation. Fails if a view or a foreign key depends on it</td>
+</tr>
+</tbody>
+</table>
+<p>Truncate and Drop never cascade: when the server refuses, its message shows
+above the tree. The status line says when Analyze or Vacuum is done. The same
+five commands are in the command palette (<kbd>Ctrl</kbd>+<kbd>K</kbd>). There
+they act on the relation selected in the tree, or else on the table the current
+tab browses. On a read-only connection, Truncate, Rename and Drop are refused.
+In a production window with writes off, all five are refused until you allow
+writes.</p>
 <h2 id="completion">Completion<a class="headerlink" href="#completion" title="Permanent link">&para;</a></h2>
 <p>Completion triggers as you type, or on demand with
 <kbd>Ctrl</kbd>+<kbd>Space</kbd> (literal <kbd>Ctrl</kbd> on every platform,
