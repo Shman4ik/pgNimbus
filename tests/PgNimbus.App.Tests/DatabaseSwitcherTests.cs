@@ -184,6 +184,7 @@ public class DatabaseSwitcherTests
         {
             var (window, vm) = Scenarios.Shell();
             vm.ListDatabases = _ => Task.FromResult(Databases);
+            vm.SwitchToDatabase = null;
             Ui.Show(window);
 
             // Not awaited: the palette's table fetch never returns against the
@@ -214,6 +215,124 @@ public class DatabaseSwitcherTests
         });
     }
 
+    [Test]
+    public async Task Staged_changes_a_transaction_and_a_running_query_are_asked_about_before_connecting()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, vm) = Scenarios.Shell();
+            var switched = new List<string>();
+            var asked = new List<string>();
+            var answer = false;
+            vm.SwitchToDatabase = name =>
+            {
+                switched.Add(name);
+                return Task.CompletedTask;
+            };
+            vm.ConfirmSwitchDatabaseRequested = message =>
+            {
+                asked.Add(message);
+                return Task.FromResult(answer);
+            };
+            Ui.Show(window);
+
+            // (a) staged safe-mode changes.
+            var staged = new PgNimbus.Core.Query.PendingChangeSet("public", "orders", ["id"]);
+            staged.StageEdit([1L], "status", "paid");
+            staged.StageEdit([2L], "status", "paid");
+            staged.StageDelete([3L]);
+            vm.ActiveTab.PendingChanges = staged;
+
+            await vm.SwitchToDatabaseAsync("analytics");
+            await Assert.That(asked.Single()).IsEqualTo("Open analytics in this window? 3 staged changes will be discarded.");
+            await Assert.That(switched.Count).IsEqualTo(0);
+            await Assert.That(vm.ActiveTab.PendingChanges!.Count).IsEqualTo(3);
+            await Assert.That(vm.ActiveTab.Status).IsEqualTo("Stayed on shop.");
+
+            // (b) an open transaction and (c) a running query, together.
+            vm.ActiveTab.PendingChanges = null;
+            vm.IsInTransaction = true;
+            vm.ActiveTab.IsRunning = true;
+            await vm.SwitchToDatabaseAsync("analytics");
+            await Assert.That(asked[^1]).IsEqualTo(
+                "Open analytics in this window? The open transaction will be rolled back and the running query will be cancelled.");
+            await Assert.That(switched.Count).IsEqualTo(0);
+            await Assert.That(vm.IsInTransaction).IsTrue();
+            await Assert.That(vm.ActiveTab.IsRunning).IsTrue();
+
+            // Yes goes ahead (and only then connects).
+            answer = true;
+            await vm.SwitchToDatabaseAsync("analytics");
+            await Assert.That(switched).IsEquivalentTo(new[] { "analytics" });
+
+            // With no one to ask, nothing is lost: the switch is refused.
+            vm.ConfirmSwitchDatabaseRequested = null;
+            await vm.SwitchToDatabaseAsync("postgres");
+            await Assert.That(switched.Count).IsEqualTo(1);
+
+            vm.ActiveTab.IsRunning = false;
+            vm.IsInTransaction = false;
+            window.Close();
+        });
+    }
+
+    [Test]
+    public async Task Unsaved_sql_alone_asks_nothing_and_rides_the_workspace_snapshot()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, vm) = Scenarios.Shell();
+            var asked = 0;
+            var switched = 0;
+            vm.SwitchToDatabase = _ =>
+            {
+                switched++;
+                return Task.CompletedTask;
+            };
+            vm.ConfirmSwitchDatabaseRequested = _ =>
+            {
+                asked++;
+                return Task.FromResult(false);
+            };
+            Ui.Show(window);
+            vm.ActiveTab.Sql = "SELECT 'typed, never saved';";
+
+            await Assert.That(vm.DescribeSwitchLosses()).IsNull();
+            await vm.SwitchToDatabaseAsync("analytics");
+            await Assert.That(asked).IsEqualTo(0);
+            await Assert.That(switched).IsEqualTo(1);
+
+            // What the old window's close saves under its own host/database key.
+            await Assert.That(vm.ActiveTab.ToWorkspaceTab().Sql).IsEqualTo("SELECT 'typed, never saved';");
+
+            window.Close();
+        });
+    }
+
+    [Test]
+    public async Task The_confirm_is_the_shared_dialog_naming_what_is_lost()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, vm) = Scenarios.Shell();
+            Ui.Show(window);
+            vm.IsInTransaction = true;
+            var switching = vm.SwitchToDatabaseAsync("analytics");
+            Ui.Settle();
+
+            var dialog = window.OwnedWindows.OfType<ConfirmDialog>().Single();
+            var text = dialog.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text).ToList();
+            await Assert.That(text).Contains("Open analytics in this window? The open transaction will be rolled back.");
+            dialog.FindControl<Button>("CancelButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Ui.Settle();
+            await switching;
+            await Assert.That(vm.ActiveTab.Status).IsEqualTo("Stayed on shop.");
+
+            vm.IsInTransaction = false;
+            window.Close();
+        });
+    }
+
     /// <summary>
     /// At rest the button must not move the name: its padding is taken back by a
     /// negative margin, so the screenshot baselines (whose fixture can't switch,
@@ -225,6 +344,7 @@ public class DatabaseSwitcherTests
         await Ui.Run(async () =>
         {
             var (window, vm) = Scenarios.Shell();
+            vm.SwitchToDatabase = null;
             Ui.Show(window);
             var button = window.FindControl<Button>("DatabaseSwitchButton")!;
             var breadcrumb = window.FindControl<StackPanel>("ConnectionBreadcrumb")!;

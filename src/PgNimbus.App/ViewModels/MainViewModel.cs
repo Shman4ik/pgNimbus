@@ -517,6 +517,20 @@ public sealed partial class MainViewModel : ObservableObject
         }
 
         var tab = ActiveTab;
+
+        // The old window's connection ends with the switch. What it would take
+        // with it is asked about first, before anything connects; unsaved SQL
+        // is not, since the workspace snapshot keeps it for this database.
+        if (DescribeSwitchLosses() is { } losses)
+        {
+            if (ConfirmSwitchDatabaseRequested is not { } confirm
+                || !await confirm($"Open {database} in this window? {losses}"))
+            {
+                tab.Status = $"Stayed on {ConnectionDatabase}.";
+                return;
+            }
+        }
+
         tab.Status = $"Connecting to {database}…";
         try
         {
@@ -525,6 +539,76 @@ public sealed partial class MainViewModel : ObservableObject
         catch (Exception ex)
         {
             tab.Status = $"Couldn't open database {database}: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// Asks whether to go ahead when switching databases would lose work: the
+    /// message names it. Wired by MainWindow to the shared <c>ConfirmDialog</c>;
+    /// with no handler such a switch is refused.
+    /// </summary>
+    public Func<string, Task<bool>>? ConfirmSwitchDatabaseRequested { get; set; }
+
+    /// <summary>
+    /// What ending this window's connection would lose, as a sentence ("3 staged
+    /// changes will be discarded and the open transaction will be rolled back."),
+    /// or null when nothing would be.
+    /// </summary>
+    public string? DescribeSwitchLosses()
+    {
+        var parts = new List<string>();
+        var staged = Tabs.Sum(t => t.PendingChanges?.Count ?? 0);
+        if (staged > 0)
+        {
+            parts.Add(staged == 1 ? "1 staged change will be discarded" : $"{staged} staged changes will be discarded");
+        }
+
+        if (IsInTransaction || _engine.IsInTransaction)
+        {
+            parts.Add("the open transaction will be rolled back");
+        }
+
+        var running = Tabs.Count(t => t.IsRunning);
+        if (running > 0)
+        {
+            parts.Add(running == 1 ? "the running query will be cancelled" : $"{running} running queries will be cancelled");
+        }
+
+        if (parts.Count == 0)
+        {
+            return null;
+        }
+
+        var sentence = parts.Count == 1
+            ? parts[0]
+            : string.Join(", ", parts.Take(parts.Count - 1)) + " and " + parts[^1];
+        return char.ToUpperInvariant(sentence[0]) + sentence[1..] + ".";
+    }
+
+    /// <summary>
+    /// Called once the switch has connected, just before this window closes: its
+    /// running queries are cancelled and an open transaction is rolled back, as
+    /// the confirm said. An ordinary close does neither (the pool's disposal
+    /// leaves a rented connection alone), so the switch does it explicitly.
+    /// </summary>
+    public async Task EndConnectionWorkAsync()
+    {
+        foreach (var running in Tabs.Where(t => t.IsRunning))
+        {
+            running.CancelCommand.Execute(null);
+        }
+
+        if (_engine.IsInTransaction)
+        {
+            try
+            {
+                await _engine.RollbackAsync(CancellationToken.None);
+            }
+            catch (Exception)
+            {
+                // The connection is being abandoned anyway; a failed ROLLBACK
+                // leaves the server to end the session when the socket closes.
+            }
         }
     }
 

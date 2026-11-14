@@ -562,6 +562,7 @@ public partial class MainWindow : Window, IEditCommandTarget
 
         _viewModel = vm;
         _viewModel.ConfirmAllowWritesRequested = ConfirmAllowWritesAsync;
+        _viewModel.ConfirmSwitchDatabaseRequested = message => new ConfirmDialog(message, "Switch Database").ShowDialog<bool>(this);
         // Palette actions that touch the window are handled here.
         _viewModel.ThemeToggleRequested += ToggleTheme;
         _viewModel.SwitchConnectionRequested += SwitchConnection;

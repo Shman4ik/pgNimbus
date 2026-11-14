@@ -613,12 +613,8 @@ public partial class App : Application
             MainWindow window;
             if (profile is not null)
             {
-                var target = profile with { Database = database };
-                dataSource = target.CreateDataSource(password, lease is null ? null : (lease.Tunnel.LocalHost, lease.Tunnel.LocalPort));
-                await using (await dataSource.OpenConnectionAsync())
-                {
-                }
-
+                (var target, dataSource) = await DatabaseSwitch.ConnectAsync(
+                    profile, database, password, lease is null ? null : (lease.Tunnel.LocalHost, lease.Tunnel.LocalPort));
                 window = BuildMainWindow(dataSource, accentColor, lease, target, password);
                 ForgetSessionPasswordsOnClose(window, profile.Id);
             }
@@ -626,16 +622,7 @@ public partial class App : Application
             {
                 // PGNIMBUS_CONN: the data source's string, which Npgsql hands
                 // back without its password, with the database swapped.
-                var builder = new NpgsqlConnectionStringBuilder(connectionString)
-                {
-                    Database = database,
-                    Password = toolConnection.Password,
-                };
-                dataSource = NpgsqlDataSource.Create(builder.ConnectionString);
-                await using (await dataSource.OpenConnectionAsync())
-                {
-                }
-
+                dataSource = await DatabaseSwitch.ConnectAsync(connectionString, database, toolConnection.Password);
                 window = BuildMainWindow(dataSource, accentColor, lease, toolConnection: toolConnection.ForDatabase(database));
             }
 
@@ -707,6 +694,14 @@ public partial class App : Application
             && ReferenceEquals(desktop.MainWindow, current))
         {
             desktop.MainWindow = window;
+        }
+
+        // The confirm before the connect named what this would end; end it for
+        // real (an ordinary close leaves a transaction open and a query running
+        // on the server until the process exits), then close.
+        if (current.DataContext is MainViewModel previous)
+        {
+            await previous.EndConnectionWorkAsync();
         }
 
         current.Close();

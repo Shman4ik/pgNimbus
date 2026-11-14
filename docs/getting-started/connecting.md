@@ -335,9 +335,14 @@ pgNimbus connects with the same profile, password and SSH tunnel, with only the
 database changed. The profile itself is not changed. If the connection fails (for
 example, your role has no `CONNECT` privilege), the window stays where it was and
 the status line shows the error. When it succeeds, the window works exactly as
-after **Switch connection**: the tabs of the old database are saved for it, and
-an open transaction or staged changes end with its connection. On a production
+after **Switch connection**: the tabs of the old database, unsaved text
+included, are saved for it and come back when you return to it. On a production
 profile, writes are off again in the new window.
+
+If the window has staged changes, an open transaction or a running query,
+pgNimbus asks first and says what will be lost: staged changes are discarded,
+the transaction is rolled back and the query is cancelled. Choose **Cancel** to
+stay where you are.
 
 To keep the current database open as well, right-click a database in the list and
 choose **Open in New Window**.
