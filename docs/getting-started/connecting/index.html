@@ -450,6 +450,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Where your password goes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-password-file-pgpass" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A password file (.pgpass)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -503,6 +520,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#timeouts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Timeouts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#encryption-tls" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -519,6 +547,17 @@
     <span class="md-ellipsis">
       
         Root certificate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#client-certificate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Client certificate
       
     </span>
   </a>
@@ -977,6 +1016,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Where your password goes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-password-file-pgpass" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A password file (.pgpass)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1030,6 +1086,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#timeouts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Timeouts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#encryption-tls" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1046,6 +1113,17 @@
     <span class="md-ellipsis">
       
         Root certificate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#client-certificate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Client certificate
       
     </span>
   </a>
@@ -1201,6 +1279,13 @@ Passwords that the OS store refused are kept in memory only until the last
 window using that connection closes.
 Deleting a profile attempts to remove database and SSH credentials from both
 locations and reports failures.</p>
+<h3 id="a-password-file-pgpass">A password file (<code>.pgpass</code>)<a class="headerlink" href="#a-password-file-pgpass" title="Permanent link">&para;</a></h3>
+<p>Leave the <strong>Password</strong> field empty and pgNimbus connects with no password of
+its own. The server then gets the one in your PostgreSQL password file, the
+same file psql reads: the file named by <code>PGPASSFILE</code>, otherwise <code>~/.pgpass</code>
+(<code>%APPDATA%\postgresql\pgpass.conf</code> on Windows). Each line is
+<code>host:port:database:username:password</code>, and <code>*</code> matches anything. Backups and
+restores read the same file. A password typed in the field wins over the file.</p>
 <p>Credential protection does not cover your queries. Three files keep SQL text on
 disk, unencrypted, in <code>&lt;appdata&gt;/pgNimbus/</code> (on Windows, <code>%AppData%\pgNimbus</code>;
 see <a href="../installation/#where-pgnimbus-keeps-its-files">where pgNimbus keeps its files</a>):</p>
@@ -1314,6 +1399,26 @@ for that session.</p>
 switch it off for its own session with <code>SET default_transaction_read_only =
 off</code>. To make writes impossible, connect as a role that has no write
 privileges.</p>
+<h2 id="timeouts">Timeouts<a class="headerlink" href="#timeouts" title="Permanent link">&para;</a></h2>
+<p>Open <strong>Advanced</strong> under the form to give a profile a <strong>Statement Timeout</strong> and
+a <strong>Lock Timeout</strong>, in seconds. Every session the profile opens starts with
+PostgreSQL's <code>statement_timeout</code> and <code>lock_timeout</code> set to them, so the server
+cancels a statement that runs longer, or that waits longer for a lock another
+session holds. It applies to everything the window sends: your queries, the
+grid's edits, schema actions and pgNimbus's own reads. A statement cut short
+reports <code>canceling statement due to statement timeout</code> (or <code>lock timeout</code>); it
+is an ordinary error, and the connection stays usable.</p>
+<p>Leave a field empty, or enter 0, for no timeout from pgNimbus. The server's
+own setting then applies, including one set for your role with
+<code>ALTER ROLE … SET statement_timeout</code>. A value in the profile overrides those.</p>
+<p>Three long operations are not cut short by the statement timeout, because you
+start them on purpose and can stop them: exporting every row of a table, an
+import, and backups and restores. The lock timeout still applies to an import.
+<code>EXPLAIN ANALYZE</code> runs the statement, so the timeout applies to it as it would
+to a run.</p>
+<p>The timeouts travel as startup options, like read-only. A connection pooler
+that drops startup options (PgBouncer with <code>options</code> in
+<code>ignore_startup_parameters</code>) drops them too, and nothing in the window says so.</p>
 <h2 id="encryption-tls">Encryption (TLS)<a class="headerlink" href="#encryption-tls" title="Permanent link">&para;</a></h2>
 <p><strong>SSL Mode</strong> decides whether the connection is encrypted and what pgNimbus
 checks about the server. The list describes each mode. In short:</p>
@@ -1395,6 +1500,25 @@ typing the path:</p>
 <p>Leave the field empty to use the operating system's store. The path is saved
 with the profile. It is not a secret. A pasted connection string fills it from
 <code>sslrootcert=</code> (libpq, URIs, JDBC) or <code>Root Certificate=</code> (Npgsql).</p>
+<h3 id="client-certificate">Client certificate<a class="headerlink" href="#client-certificate" title="Permanent link">&para;</a></h3>
+<p>Some servers sign you in with a certificate instead of a password, or ask for
+both: a <code>cert</code> line in <code>pg_hba.conf</code>, or <code>clientcert=verify-full</code>. Open
+<strong>Advanced</strong> under the form and give <strong>Client Certificate</strong> and <strong>Client Key</strong>
+the two files, with <strong>Browse…</strong> or by typing the paths. The paths are saved
+with the profile, are not secrets, and appear in the connection string preview
+as <code>sslcert=</code> and <code>sslkey=</code>. A pasted string fills them from <code>sslcert=</code> and
+<code>sslkey=</code> (libpq, URIs, JDBC), <code>SSL Certificate=</code> and <code>SSL Key=</code> (Npgsql), or
+<code>PGSSLCERT=</code> and <code>PGSSLKEY=</code> in front of a psql command. A path on another
+machine (<code>\\server\share\…</code>, a URL) is not taken from a paste.</p>
+<p>Left empty, pgNimbus does what psql does: it uses <code>PGSSLCERT</code> and <code>PGSSLKEY</code>,
+or <code>~/.postgresql/postgresql.crt</code> and <code>postgresql.key</code>
+(<code>%APPDATA%\postgresql\</code> on Windows), if they exist. Backups and restores get
+the same certificate.</p>
+<p>pgNimbus does not support a key protected by a passphrase, and says so before
+it connects. Save a copy without the passphrase
+(<code>openssl pkey -in client.key -out client-plain.key</code>) and make it readable only
+by you. On Linux and macOS, <code>pg_dump</code> and <code>pg_restore</code> refuse a key file that
+other users can read (<code>chmod 600</code>).</p>
 <h3 id="through-an-ssh-tunnel">Through an SSH tunnel<a class="headerlink" href="#through-an-ssh-tunnel" title="Permanent link">&para;</a></h3>
 <p>Verify full works through an SSH tunnel. The tunnel connects pgNimbus to a
 local port, but the certificate is still checked against the database host you
