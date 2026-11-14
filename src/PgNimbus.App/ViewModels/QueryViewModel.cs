@@ -2968,7 +2968,9 @@ public sealed partial class QueryViewModel : ObservableObject
 
             if (source.Sql is { } sql)
             {
-                switch (await _engine.ExecuteAsync(sql, ct, maxRows: null))
+                // A profile's statement timeout is for a statement that runs
+                // away; an export runs long on purpose and has Cancel.
+                switch (await _engine.ExecuteAsync(sql, ct, maxRows: null, withoutStatementTimeout: true))
                 {
                     case ResultSet set:
                         columns = [.. set.Columns.Select(c => c.Name)];

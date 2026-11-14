@@ -21,6 +21,17 @@ namespace PgNimbus.Core.Backup;
 /// </param>
 /// <param name="HostAddress">The address to open the socket to, when it differs from <see cref="Host"/> (the tunnel's <c>127.0.0.1</c>).</param>
 /// <param name="Port">The port the socket goes to: the tunnel's local port when tunnelled.</param>
+/// <param name="ClientCertificatePath">
+/// The profile's client certificate, as libpq's <c>sslcert</c>. Unset, libpq
+/// reads <c>PGSSLCERT</c> (kept in the child's environment) or its default
+/// file, as Npgsql does for the window's sessions.
+/// </param>
+/// <param name="ClientKeyPath">The certificate's key, as libpq's <c>sslkey</c>.</param>
+/// <remarks>
+/// The profile's statement and lock timeouts are deliberately not passed on:
+/// a dump or a restore is one long operation the user started and can stop,
+/// and pg_dump and pg_restore set both to zero for their own sessions anyway.
+/// </remarks>
 public sealed record PgToolConnection(
     string Host,
     int Port,
@@ -29,7 +40,9 @@ public sealed record PgToolConnection(
     string? Password,
     SslMode SslMode,
     string? RootCertificatePath,
-    string? HostAddress = null)
+    string? HostAddress = null,
+    string? ClientCertificatePath = null,
+    string? ClientKeyPath = null)
 {
     /// <summary>Seconds a tool waits for the server to answer before giving up, like the app's own sessions.</summary>
     public const int ConnectTimeoutSeconds = 10;
@@ -48,7 +61,11 @@ public sealed record PgToolConnection(
             string.IsNullOrEmpty(password) ? null : password,
             profile.SslMode,
             profile.UsesRootCertificate ? profile.RootCertificatePath : null,
-            tunnelEndpoint?.Host);
+            tunnelEndpoint?.Host,
+            NullIfBlank(profile.ClientCertificatePath),
+            NullIfBlank(profile.ClientKeyPath));
+
+    private static string? NullIfBlank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     /// <summary>
     /// The connection an Npgsql connection string names, for a window opened
@@ -73,7 +90,9 @@ public sealed record PgToolConnection(
             builder.Username,
             builder.Password,
             sslMode,
-            sslMode is SslMode.VerifyCa or SslMode.VerifyFull ? builder.RootCertificate : null);
+            sslMode is SslMode.VerifyCa or SslMode.VerifyFull ? builder.RootCertificate : null,
+            ClientCertificatePath: NullIfBlank(builder.SslCertificate),
+            ClientKeyPath: NullIfBlank(builder.SslKey));
     }
 
     /// <summary>The same connection to another database on the server (a restore into a new one).</summary>
@@ -119,6 +138,16 @@ public sealed record PgToolConnection(
             {
                 parts.Add(("sslrootcert", root));
             }
+        }
+
+        if (ClientCertificatePath is not null)
+        {
+            parts.Add(("sslcert", ClientCertificatePath));
+        }
+
+        if (ClientKeyPath is not null)
+        {
+            parts.Add(("sslkey", ClientKeyPath));
         }
 
         parts.Add(("gssencmode", "disable"));

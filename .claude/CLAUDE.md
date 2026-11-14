@@ -533,6 +533,21 @@ Three rules about it:
    open, so the listener has to keep accepting or the retry waits out the
    connect timeout in the backlog. Not exercised: Verify full against a real
    server certificate (CI's `postgres:17` has TLS off).
+   **Client certificates and `.pgpass`** (2026-11, the dialog's Advanced
+   block). `ConnectionProfile.ClientCertificatePath`/`ClientKeyPath` are paths
+   (safe in JSON), written as Npgsql's `SSL Certificate`/`SSL Key` in every
+   mode, as libpq's `sslcert`/`sslkey` for pg_dump/pg_restore
+   (`PgToolConnection`), as `sslcert=`/`sslkey=` in the preview (part of the
+   target, like `sslrootcert`), and parsed from a paste (also `PGSSLCERT`/
+   `PGSSLKEY`) with `sslrootcert`'s refusal of a path on another machine. Unset,
+   Npgsql and libpq both read `PGSSLCERT`/`PGSSLKEY` and `~/.postgresql/
+   postgresql.crt|key` themselves (found in Npgsql 10's binary, not assumed).
+   **A passphrase-protected key is refused, not stored**
+   (`ClientCertificates.Check`, run by Test/Connect): libpq's `sslpassword` has
+   no environment variable, so pg_dump could only get it on a command line.
+   `.pgpass` needed no code: an empty password field passes `null`, and Npgsql
+   reads `PGPASSFILE` or the default file (`AdvancedConnectionSettingsTests`
+   proves both halves against local listeners, mTLS included).
 5. **Crashes are logged and shown, never silent.** Critical/unhandled errors
    append to a plain-text log at `<appdata>/pgNimbus/logs/pgnimbus.log`
    (`PgNimbus.Core.Diagnostics.CrashLog` does the file I/O — directory-injectable
@@ -2101,6 +2116,19 @@ Moved to [`.claude/rules/logo-assets.md`](rules/logo-assets.md), which loads whe
   `''` escapes), so a LIKE chip's escaped `%`/`_` survives the round trip; any
   other `E'…'` stays a raw chip. `SqlLexer`, `SqlScriptSplitter` and #286's
   Explain check still assume `on` for text the user types.
+  **Per-profile timeouts ride the same `Options`** (2026-11, ROADMAP T3's last
+  part): `StatementTimeoutSeconds`/`LockTimeoutSeconds` become `-c
+  statement_timeout=Ns -c lock_timeout=Ns` between the read-only switch and the
+  standard-strings option (`SessionOptions(readOnly, s, l)`; null or 0 writes
+  nothing, so a role's `ALTER ROLE … SET` still applies), in both of a
+  production window's pools. A timeout is an ordinary error (57014/55P03), never
+  a loss. Exempt from the statement timeout, by a session-level `SET
+  statement_timeout = 0` that the pool's `DISCARD ALL` undoes: the full-result
+  export (`QueryEngine.ExecuteAsync(withoutStatementTimeout: true)`) and the
+  import's COPY. pg_dump/pg_restore never get them (they zero both anyway).
+  EXPLAIN ANALYZE, monitoring reads and the catalog reads keep them; the staged
+  commit's 5 s row-lock wait overrides the lock timeout for its check and puts
+  the session's value back.
   **A profile's read-only is never downgraded by the server's "writable"**
   (2026-09 security audit, finding 17). The startup option travels through
   whatever sits in front of the server, and PgBouncer with
