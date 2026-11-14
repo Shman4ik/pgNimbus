@@ -540,6 +540,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#where-an-error-is" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where an error is
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1030,6 +1041,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#where-an-error-is" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where an error is
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1292,6 +1314,14 @@ batches, so the first screenful of a large <code>SELECT</code> appears immediate
 carries across them. <code>BEGIN … COMMIT</code>, <code>SET</code>, and temporary tables all behave as
 they would in <code>psql</code>. Each statement gets its own result section and timing, and
 the script stops at the first error.</p>
+<h3 id="where-an-error-is">Where an error is<a class="headerlink" href="#where-an-error-is" title="Permanent link">&para;</a></h3>
+<p>When PostgreSQL says where a statement failed, the editor puts a red wavy line
+under that token and scrolls it into view. The error text ends with its line and
+column, for example <code>(line 3, column 15)</code>. This works for the whole tab, the
+statement at the cursor, a selection, and each failed section of a script. The
+cursor does not move. The mark goes away when you edit the text or run the tab
+again. Errors inside a function body are not marked, because that place is not in
+your text. Errors from the Explain commands are not marked either.</p>
 <h2 id="schema-tree">Schema tree<a class="headerlink" href="#schema-tree" title="Permanent link">&para;</a></h2>
 <p>The sidebar reads pg_catalog directly, so it shows what Postgres actually has:
 tables, views, materialized views and partitioned tables, with primary keys and
