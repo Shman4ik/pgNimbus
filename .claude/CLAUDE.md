@@ -1238,7 +1238,10 @@ Three rules about it:
    same-prefixed column and — being longer — even to SET.
 2. **Double-click triggers the default action.** Anywhere a list/tree item
    has an obvious primary action, double-clicking it must perform that
-   action: schema-tree table → browse, function → source, saved query /
+   action: schema-tree table → browse, function, procedure, index or trigger → source
+   (an index's and trigger's definition is already read with the tree, so its
+   tab opens with no catalog call, and its one-item menu is "Source (DDL)",
+   like a function's), saved query /
    history entry → open in a new tab, connection profile → connect, result
    cell → inline edit when the result set is editable, inspector when it's
    read-only (Space quick-peeks the current cell in the inspector in both
