@@ -192,7 +192,7 @@ public sealed class IndexesGroupNode : SchemaTreeNode
     }
 }
 
-public sealed class IndexNode : SchemaTreeNode
+public sealed class IndexNode : SchemaTreeNode, ISourceDefinitionNode
 {
     public IndexNode(IndexInfo info)
     {
@@ -213,6 +213,10 @@ public sealed class IndexNode : SchemaTreeNode
 
     /// <summary>The full CREATE INDEX definition, shown on hover.</summary>
     public string Tooltip => Definition;
+
+    public string SourceTitle => $"{Name} · source";
+
+    public string SourceSql => ISourceDefinitionNode.AsStatement(Definition);
 }
 
 /// <summary>"Triggers" sub-group under a table/view — lazily lists its user triggers.</summary>
@@ -245,7 +249,7 @@ public sealed class TriggersGroupNode : SchemaTreeNode
     }
 }
 
-public sealed class TriggerNode : SchemaTreeNode
+public sealed class TriggerNode : SchemaTreeNode, ISourceDefinitionNode
 {
     public TriggerNode(TriggerInfo info)
     {
@@ -263,4 +267,27 @@ public sealed class TriggerNode : SchemaTreeNode
 
     /// <summary>The full CREATE TRIGGER definition, shown on hover.</summary>
     public string Tooltip => Definition;
+
+    public string SourceTitle => $"{Name} · source";
+
+    public string SourceSql => ISourceDefinitionNode.AsStatement(Definition);
+}
+
+/// <summary>
+/// A node whose source is already in hand: <c>pg_get_indexdef</c> and
+/// <c>pg_get_triggerdef(oid, true)</c> are read with the node list itself, so
+/// opening the source needs no second catalog read (and nothing on the UI thread).
+/// </summary>
+public interface ISourceDefinitionNode
+{
+    string SourceTitle { get; }
+
+    string SourceSql { get; }
+
+    /// <summary>The server's definition ends without a semicolon; add one so the tab runs as it reads.</summary>
+    static string AsStatement(string definition)
+    {
+        var text = definition.TrimEnd();
+        return text.EndsWith(';') ? text : text + ";";
+    }
 }

@@ -164,6 +164,14 @@ public partial class SchemaTreePanel : UserControl
         }
     }
 
+    private void OnShowDefinitionSourceClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem { Tag: ISourceDefinitionNode node } && Model?.ShowDefinitionSourceRequested is { } showSource)
+        {
+            showSource(node);
+        }
+    }
+
     // --- Schema actions ----------------------------------------------------
 
     private async void OnNewTableClick(object? sender, RoutedEventArgs e)
@@ -394,6 +402,11 @@ public partial class SchemaTreePanel : UserControl
             // context menu's "Source (DDL)".
             case FunctionNode { HasSource: true } function when Model.ShowFunctionSourceRequested is { } showSource:
                 _ = showSource(function);
+                acted = true;
+                break;
+            // Indexes and triggers: their source, in a new tab, like a function.
+            case ISourceDefinitionNode node when Model.ShowDefinitionSourceRequested is { } showDefinition:
+                showDefinition(node);
                 acted = true;
                 break;
         }

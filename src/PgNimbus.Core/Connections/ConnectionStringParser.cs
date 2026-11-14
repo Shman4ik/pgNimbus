@@ -34,7 +34,9 @@ public sealed record ParsedConnectionString(
     string? Username = null,
     string? Password = null,
     SslMode? SslMode = null,
-    string? RootCertificatePath = null);
+    string? RootCertificatePath = null,
+    string? ClientCertificatePath = null,
+    string? ClientKeyPath = null);
 
 /// <summary>
 /// Accepts a connection string in any of the syntaxes people actually have
@@ -145,6 +147,16 @@ public static class ConnectionStringParser
         if (!string.IsNullOrEmpty(parsed.RootCertificatePath))
         {
             builder.RootCertificate = parsed.RootCertificatePath;
+        }
+
+        if (!string.IsNullOrEmpty(parsed.ClientCertificatePath))
+        {
+            builder.SslCertificate = parsed.ClientCertificatePath;
+        }
+
+        if (!string.IsNullOrEmpty(parsed.ClientKeyPath))
+        {
+            builder.SslKey = parsed.ClientKeyPath;
         }
 
         return builder.ConnectionString;
@@ -481,6 +493,8 @@ public static class ConnectionStringParser
                     "PGPASSWORD" => fields.TrySetByKeyword("password", value, out error),
                     "PGSSLMODE" => fields.TrySetByKeyword("sslmode", value, out error),
                     "PGSSLROOTCERT" => fields.TrySetByKeyword("sslrootcert", value, out error),
+                    "PGSSLCERT" => fields.TrySetByKeyword("sslcert", value, out error),
+                    "PGSSLKEY" => fields.TrySetByKeyword("sslkey", value, out error),
                     _ => true, // unrelated env var (e.g. LANG=C) — skip
                 };
 
@@ -660,6 +674,8 @@ public static class ConnectionStringParser
         public string? Password;
         public SslMode? SslMode;
         public string? RootCertificatePath;
+        public string? ClientCertificatePath;
+        public string? ClientKeyPath;
 
         // libpq treats sslmode=require with a root certificate as verify-ca
         // (it checks the chain when it has a CA to check against); Npgsql
@@ -668,7 +684,9 @@ public static class ConnectionStringParser
         public ParsedConnectionString ToRecord() => new(
             Host, Port, Database, Username, Password,
             SslMode == Connections.SslMode.Require && !string.IsNullOrEmpty(RootCertificatePath) ? Connections.SslMode.VerifyCa : SslMode,
-            RootCertificatePath);
+            RootCertificatePath,
+            ClientCertificatePath,
+            ClientKeyPath);
 
         public void Overlay(ParsedConnectionString other)
         {
@@ -679,6 +697,8 @@ public static class ConnectionStringParser
             Password = other.Password ?? Password;
             SslMode = other.SslMode ?? SslMode;
             RootCertificatePath = other.RootCertificatePath ?? RootCertificatePath;
+            ClientCertificatePath = other.ClientCertificatePath ?? ClientCertificatePath;
+            ClientKeyPath = other.ClientKeyPath ?? ClientKeyPath;
         }
 
         /// <summary>
@@ -752,6 +772,28 @@ public static class ConnectionStringParser
                     RootCertificatePath = value.Trim().Equals("system", StringComparison.OrdinalIgnoreCase)
                         ? string.Empty
                         : value.Trim();
+                    return true;
+                // libpq's and pgjdbc's sslcert and sslkey, Npgsql's SSL
+                // Certificate and SSL Key. Refused from another machine for the
+                // root certificate's reason, and because a key read over SMB is
+                // a key handed to whoever runs that share.
+                case "sslcert" or "sslcertificate":
+                    if (IsRemotePath(value.Trim()))
+                    {
+                        error = "A client certificate on another machine is not taken from a pasted connection string. Copy the file to this computer and choose it in the Client Certificate field.";
+                        return false;
+                    }
+
+                    ClientCertificatePath = value.Trim();
+                    return true;
+                case "sslkey":
+                    if (IsRemotePath(value.Trim()))
+                    {
+                        error = "A client key on another machine is not taken from a pasted connection string. Copy the file to this computer and choose it in the Client Key field.";
+                        return false;
+                    }
+
+                    ClientKeyPath = value.Trim();
                     return true;
                 default:
                     // Unknown keywords (Timeout, application_name, Pooling,

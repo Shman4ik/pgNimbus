@@ -34,6 +34,16 @@ public sealed class ImportService(WriteGatedDataSource dataSource)
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
 
+        // The profile's statement timeout (a startup option) is for a statement
+        // that runs away; a COPY of a big file runs long on purpose and has
+        // Cancel. Session-level: the pool's reset puts the timeout back when the
+        // connection is returned. The lock timeout stays, so a COPY into a table
+        // someone holds still fails fast.
+        await using (var lift = new NpgsqlCommand(InternalSql.Tag("SET statement_timeout = 0"), connection))
+        {
+            await lift.ExecuteNonQueryAsync(ct);
+        }
+
         if (createTable)
         {
             foreach (var column in columns)

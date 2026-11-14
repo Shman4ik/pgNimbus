@@ -1076,6 +1076,7 @@ public sealed partial class MainViewModel : ObservableObject
         SchemaTree.ShowTableSourceRequested = ShowSourceAsync;
         SchemaTree.PreviewTableRequested = PreviewTableAsync;
         SchemaTree.ShowFunctionSourceRequested = ShowFunctionSourceAsync;
+        SchemaTree.ShowDefinitionSourceRequested = ShowDefinitionSource;
         SchemaTree.SetExtensionInstalledRequested = SetExtensionInstalledAsync;
         SchemaTree.AlterTableViewModelFactory = CreateAlterTableViewModel;
         SchemaTree.NewTableRequested = NewTableAsync;
@@ -1612,6 +1613,14 @@ public sealed partial class MainViewModel : ObservableObject
         var tab = NewTab();
         tab.DefaultTitle = $"{function.Name} · source";
         tab.Sql = ddl;
+    }
+
+    /// <summary>Opens an index's or trigger's definition (already read with the tree) in a new tab.</summary>
+    public void ShowDefinitionSource(ISourceDefinitionNode node)
+    {
+        var tab = NewTab();
+        tab.DefaultTitle = node.SourceTitle;
+        tab.Sql = node.SourceSql;
     }
 
     /// <summary>

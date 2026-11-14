@@ -319,6 +319,40 @@ public partial class ConnectionDialog : Window
         }
     }
 
+    private async void OnBrowseClientCertificateClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is ConnectionDialogViewModel vm
+            && await PickFileAsync("Choose client certificate", "Certificates", ["*.crt", "*.pem", "*.cer", "*.der", "*.pfx", "*.p12"]) is { } path)
+        {
+            vm.ClientCertificatePath = path;
+        }
+    }
+
+    private async void OnBrowseClientKeyClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is ConnectionDialogViewModel vm
+            && await PickFileAsync("Choose client key", "Keys", ["*.key", "*.pem", "*.der"]) is { } path)
+        {
+            vm.ClientKeyPath = path;
+        }
+    }
+
+    private async Task<string?> PickFileAsync(string title, string kind, IReadOnlyList<string> patterns)
+    {
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = title,
+            AllowMultiple = false,
+            FileTypeFilter =
+            [
+                new FilePickerFileType(kind) { Patterns = patterns },
+                FilePickerFileTypes.All,
+            ],
+        });
+
+        return files.Count > 0 ? files[0].TryGetLocalPath() : null;
+    }
+
     private void OnAccentSwatchClick(object? sender, RoutedEventArgs e) =>
         Dispatcher.UIThread.Post(() => AccentButton.Flyout?.Hide());
 

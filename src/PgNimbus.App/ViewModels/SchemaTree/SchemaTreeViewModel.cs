@@ -164,6 +164,9 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
     /// <summary>Opens a function's source in a new query tab.</summary>
     public Func<FunctionNode, Task>? ShowFunctionSourceRequested { get; set; }
 
+    /// <summary>Opens an index's or trigger's definition in a new query tab.</summary>
+    public Action<ISourceDefinitionNode>? ShowDefinitionSourceRequested { get; set; }
+
     /// <summary>Installs or drops an extension, then refreshes its node.</summary>
     public Func<ExtensionNode, bool, Task>? SetExtensionInstalledRequested { get; set; }
 

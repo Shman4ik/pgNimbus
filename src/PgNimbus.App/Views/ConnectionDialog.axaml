@@ -15,6 +15,20 @@
         MinWidth="620" MinHeight="520"
         WindowStartupLocation="CenterScreen">
 
+    <Window.Styles>
+        <!-- The Backup window's disclosure button: a flat toolbar button with a
+             chevron that is swapped, not turned, so no baseline catches it
+             half-way (an Expander's chevron animates). -->
+        <Style Selector="Button.disclosure">
+            <Setter Property="Padding" Value="4,3" />
+            <Setter Property="Margin" Value="-4,0,0,0" />
+        </Style>
+        <Style Selector="Button.disclosure PathIcon">
+            <Setter Property="Width" Value="10" />
+            <Setter Property="Height" Value="10" />
+        </Style>
+    </Window.Styles>
+
     <!-- The outer panel carries no margin so the About overlay's backdrop can reach the
          window edges; the form keeps its own inset. Named because
          NimbusWindowChrome hangs the maximized window's OffScreenMargin on it. -->
@@ -147,7 +161,7 @@
 
         <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
         <!-- Right margin keeps the scrollbar (shown once the SSH section expands) off the field edges -->
-        <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" Margin="0,0,14,0">
+        <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" Margin="0,0,14,0">
 
             <TextBlock Grid.Row="0" Text="Name" />
             <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
@@ -340,7 +354,58 @@
                 </Grid>
             </Border>
 
-            <StackPanel Grid.Row="11">
+            <!-- Advanced: a client certificate (mutual TLS) and the session's
+                 timeouts. Collapsed by default and open by itself for a profile
+                 that uses any of it (ConnectionDialogViewModel.IsAdvancedOpen). -->
+            <StackPanel Grid.Row="11" Margin="0,0,0,8">
+                <Button Name="AdvancedToggle" Classes="toolbar disclosure" HorizontalAlignment="Left"
+                        Command="{Binding ToggleAdvancedCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <PathIcon Data="{StaticResource ChevronRightIconGeometry}" IsVisible="{Binding !IsAdvancedOpen}" />
+                        <PathIcon Data="{StaticResource ChevronRightIconGeometry}" RenderTransform="rotate(90deg)" IsVisible="{Binding IsAdvancedOpen}" />
+                        <TextBlock Text="Advanced" />
+                    </StackPanel>
+                </Button>
+                <Border Name="AdvancedBlock" Classes="card" Padding="10" Margin="0,6,0,0" IsVisible="{Binding IsAdvancedOpen}">
+                    <Grid RowDefinitions="Auto,Auto,Auto,Auto">
+                        <!-- For a server that authenticates by certificate (pg_hba
+                             "cert", or clientcert=verify-full). Blank: PGSSLCERT, then
+                             ~/.postgresql/postgresql.crt, as libpq does. -->
+                        <StackPanel Grid.Row="0" Margin="0,0,0,8">
+                            <TextBlock Text="Client Certificate" />
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBox Name="ClientCertificateBox" Grid.Column="0" Text="{Binding ClientCertificatePath}" Margin="0,0,6,0"
+                                         PlaceholderText="None (libpq's default file, if any)" />
+                                <Button Grid.Column="1" Classes="soft" Content="Browse…" Click="OnBrowseClientCertificateClick" />
+                            </Grid>
+                        </StackPanel>
+                        <StackPanel Grid.Row="1" Margin="0,0,0,8">
+                            <TextBlock Text="Client Key" />
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBox Name="ClientKeyBox" Grid.Column="0" Text="{Binding ClientKeyPath}" Margin="0,0,6,0"
+                                         PlaceholderText="None (no passphrase supported)" />
+                                <Button Grid.Column="1" Classes="soft" Content="Browse…" Click="OnBrowseClientKeyClick" />
+                            </Grid>
+                        </StackPanel>
+                        <Grid Grid.Row="2" ColumnDefinitions="*,*" Margin="0,0,0,6">
+                            <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                                <TextBlock Text="Statement Timeout (s)" />
+                                <NumericUpDown Name="StatementTimeoutBox" Value="{Binding StatementTimeout}" Minimum="0" Maximum="2147483"
+                                               FormatString="0" ShowButtonSpinner="False" PlaceholderText="None" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="Lock Timeout (s)" />
+                                <NumericUpDown Name="LockTimeoutBox" Value="{Binding LockTimeout}" Minimum="0" Maximum="2147483"
+                                               FormatString="0" ShowButtonSpinner="False" PlaceholderText="None" />
+                            </StackPanel>
+                        </Grid>
+                        <TextBlock Grid.Row="3" Classes="secondary" FontSize="11" TextWrapping="Wrap"
+                                   Text="The server cancels a statement that runs, or waits for a lock, longer than this. Empty keeps the server's and the role's own settings. Exports, imports and backups are not cut short." />
+                    </Grid>
+                </Border>
+            </StackPanel>
+
+            <StackPanel Grid.Row="12">
                 <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource AppDangerBrush}" TextWrapping="Wrap"
                            IsVisible="{Binding ErrorMessage, Converter={x:Static conv:ObjectConverters.IsNotNull}}" Margin="0,0,0,8" />
                 <TextBlock Text="{Binding StatusMessage}" Foreground="MediumSeaGreen" TextWrapping="Wrap"

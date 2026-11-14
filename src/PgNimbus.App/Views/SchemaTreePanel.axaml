@@ -232,6 +232,11 @@
         </DataTemplate>
         <DataTemplate DataType="vm:IndexNode">
             <DockPanel HorizontalSpacing="6" ToolTip.Tip="{Binding Tooltip}" ToolTip.ShowDelay="200">
+                <DockPanel.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="Source (DDL)" Tag="{Binding}" Click="OnShowDefinitionSourceClick" />
+                    </ContextMenu>
+                </DockPanel.ContextMenu>
                 <PathIcon DockPanel.Dock="Left" Data="{StaticResource SortIconGeometry}" Width="11" Height="11" Opacity="0.5" VerticalAlignment="Center" />
                 <TextBlock DockPanel.Dock="Left" Text="{Binding Name}" />
                 <TextBlock TextTrimming="CharacterEllipsis" Text="{Binding Detail}" Classes="secondary" FontSize="11" VerticalAlignment="Center" />
@@ -245,6 +250,11 @@
         </DataTemplate>
         <DataTemplate DataType="vm:TriggerNode">
             <DockPanel HorizontalSpacing="6" ToolTip.Tip="{Binding Tooltip}" ToolTip.ShowDelay="200">
+                <DockPanel.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="Source (DDL)" Tag="{Binding}" Click="OnShowDefinitionSourceClick" />
+                    </ContextMenu>
+                </DockPanel.ContextMenu>
                 <PathIcon DockPanel.Dock="Left" Data="{StaticResource FlashIconGeometry}" Width="11" Height="11" Opacity="0.5" VerticalAlignment="Center" />
                 <TextBlock DockPanel.Dock="Left" Text="{Binding Name}" />
                 <TextBlock TextTrimming="CharacterEllipsis" Text="{Binding Detail}" Classes="secondary" FontSize="11" VerticalAlignment="Center" />
