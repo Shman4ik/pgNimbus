@@ -323,6 +323,25 @@ current window at a different server without restarting the app.
 
 Both are also in the menu behind the ☰ button and in the command palette.
 
+## Another database on the same server
+
+You don't need a profile for each database on a server. Click the database name
+in the title bar (the part after `›`), or run **Switch database…** from the
+command palette. The list shows the databases your role may connect to; the
+current one has a check mark. Type to narrow the list, then press
+<kbd>Enter</kbd> or click a database to open it in this window.
+
+pgNimbus connects with the same profile, password and SSH tunnel, with only the
+database changed. The profile itself is not changed. If the connection fails (for
+example, your role has no `CONNECT` privilege), the window stays where it was and
+the status line shows the error. When it succeeds, the window works exactly as
+after **Switch connection**: the tabs of the old database are saved for it, and
+an open transaction or staged changes end with its connection. On a production
+profile, writes are off again in the new window.
+
+To keep the current database open as well, right-click a database in the list and
+choose **Open in New Window**.
+
 ## If the connection drops
 
 A connection dropped by laptop sleep, a network blip or an SSH tunnel hiccup is

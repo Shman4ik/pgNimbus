@@ -456,6 +456,97 @@ public sealed partial class MainViewModel : ObservableObject
     /// </summary>
     public Func<string, Task>? OpenDatabaseInNewWindow { get; set; }
 
+    private Func<string, Task>? _switchToDatabase;
+
+    /// <summary>
+    /// Re-points this window at another database of the same server, exactly as
+    /// Switch Connection does for a profile that differs only in the database:
+    /// it connects first, then a new window takes this one's place and this one
+    /// closes. Throws, leaving this window as it was, when the connect fails. Set
+    /// by the host; null (no profile and no connection string to swap the
+    /// database in) hides the switch.
+    /// </summary>
+    public Func<string, Task>? SwitchToDatabase
+    {
+        get => _switchToDatabase;
+        set
+        {
+            _switchToDatabase = value;
+            OnPropertyChanged(nameof(CanSwitchDatabase));
+        }
+    }
+
+    /// <summary>Whether the title bar's database name opens the database list.</summary>
+    public bool CanSwitchDatabase => SwitchToDatabase is not null;
+
+    /// <summary>Reads the server's databases for the list; a seam so a test can list without a server.</summary>
+    public Func<CancellationToken, Task<IReadOnlyList<string>>>? ListDatabases { get; set; }
+
+    /// <summary>Raised to open the database list (the palette's "Switch database…"); MainWindow opens the breadcrumb's flyout.</summary>
+    public event Action? SwitchDatabaseRequested;
+
+    [RelayCommand]
+    private void SwitchDatabase()
+    {
+        if (!CanSwitchDatabase)
+        {
+            ActiveTab.Status = "This window can't switch databases: it has no connection profile to open another database with.";
+            return;
+        }
+
+        SwitchDatabaseRequested?.Invoke();
+    }
+
+    /// <summary>A fresh database list for the flyout, wired to this window's switch and new-window paths.</summary>
+    public DatabaseSwitcherViewModel CreateDatabaseSwitcher() => new(
+        ConnectionDatabase,
+        ListDatabases ?? _schemaService.GetDatabasesAsync,
+        SwitchToDatabaseAsync,
+        OpenDatabaseInNewWindow is null ? null : OpenDatabaseInNewWindowAsync);
+
+    /// <summary>
+    /// Opens <paramref name="database"/> in this window. A connect that fails
+    /// (no CONNECT privilege, the database dropped meanwhile) leaves the window
+    /// on its database and says why on the status line.
+    /// </summary>
+    public async Task SwitchToDatabaseAsync(string database)
+    {
+        if (SwitchToDatabase is not { } switchTo || database == ConnectionDatabase)
+        {
+            return;
+        }
+
+        var tab = ActiveTab;
+        tab.Status = $"Connecting to {database}…";
+        try
+        {
+            await switchTo(database);
+        }
+        catch (Exception ex)
+        {
+            tab.Status = $"Couldn't open database {database}: {ex.Message}";
+        }
+    }
+
+    /// <summary>Opens <paramref name="database"/> in a new window; a failure is reported like <see cref="SwitchToDatabaseAsync"/>'s.</summary>
+    public async Task OpenDatabaseInNewWindowAsync(string database)
+    {
+        if (OpenDatabaseInNewWindow is not { } open)
+        {
+            return;
+        }
+
+        var tab = ActiveTab;
+        try
+        {
+            await open(database);
+        }
+        catch (Exception ex)
+        {
+            tab.Status = $"Couldn't open database {database}: {ex.Message}";
+        }
+    }
+
     /// <summary>
     /// Restores a pg_dump archive (palette, ☰ menu, the macOS File menu). Not on
     /// a read-only connection: the server would refuse the CREATE DATABASE and
@@ -2203,6 +2294,7 @@ public sealed partial class MainViewModel : ObservableObject
         CommandId.AllowWrites => CanToggleWrites && !WritesAllowed,
         CommandId.LockWrites => CanToggleWrites && WritesAllowed,
         CommandId.RateInStore => CanRateInStore,
+        CommandId.SwitchDatabase => CanSwitchDatabase,
         _ => true,
     };
 

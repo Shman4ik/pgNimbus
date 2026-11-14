@@ -138,8 +138,29 @@
                         <TextBlock Name="ConnectionNameText" Text="{Binding ConnectionName}" FontSize="12" Opacity="0.75" VerticalAlignment="Center"
                                    MaxWidth="260" TextTrimming="CharacterEllipsis" />
                         <TextBlock Text="›" FontSize="12" Opacity="0.45" VerticalAlignment="Center" Margin="6,0" />
+                        <!-- The database name is the way to another database of this
+                             server: a click lists them (DatabaseSwitcherView), as does
+                             the palette's "Switch database…". A flat toolbar button
+                             whose padding the negative margin takes back, so at rest
+                             the name sits exactly where the plain text did; the wash
+                             shows on hover. Plain text where the window can't switch
+                             (no profile behind it). -->
+                        <Button Name="DatabaseSwitchButton" Classes="toolbar" Padding="6,3" Margin="-6,-3"
+                                VerticalAlignment="Center" CornerRadius="4"
+                                IsVisible="{Binding CanSwitchDatabase}"
+                                cmd:CommandTip.Text="Switch to another database on this server"
+                                cmd:CommandTip.Command="SwitchDatabase">
+                            <TextBlock Text="{Binding ConnectionDatabase}" FontSize="12" Opacity="0.75" VerticalAlignment="Center"
+                                       MaxWidth="200" TextTrimming="CharacterEllipsis" />
+                            <Button.Flyout>
+                                <Flyout Placement="BottomEdgeAlignedLeft">
+                                    <views:DatabaseSwitcherView Name="DatabaseSwitcher" />
+                                </Flyout>
+                            </Button.Flyout>
+                        </Button>
                         <TextBlock Text="{Binding ConnectionDatabase}" FontSize="12" Opacity="0.75" VerticalAlignment="Center"
-                                   MaxWidth="200" TextTrimming="CharacterEllipsis" />
+                                   MaxWidth="200" TextTrimming="CharacterEllipsis"
+                                   IsVisible="{Binding !CanSwitchDatabase}" />
                     </StackPanel>
                     <!-- Read-only mark: only on a connection that can't write (a
                          read-only profile or role, or a standby), so the write state

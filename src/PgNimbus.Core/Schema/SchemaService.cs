@@ -322,6 +322,35 @@ public sealed class SchemaService(WriteGatedDataSource dataSource)
             : SessionWriteState.ReadWrite;
     }
 
+    /// <summary>
+    /// The databases of this server a window could switch to: those that accept
+    /// connections, are not templates, and that the session's role may connect to
+    /// (<c>has_database_privilege</c>, which expands memberships and PUBLIC),
+    /// sorted by name. The current database is among them.
+    /// </summary>
+    public async Task<IReadOnlyList<string>> GetDatabasesAsync(CancellationToken ct)
+    {
+        await using var connection = await _dataSource.OpenConnectionAsync(ct);
+        await using var command = new NpgsqlCommand(
+            InternalSql.Tag("""
+                SELECT d.datname
+                FROM pg_catalog.pg_database d
+                WHERE d.datallowconn
+                  AND NOT d.datistemplate
+                  AND pg_catalog.has_database_privilege(d.oid, 'CONNECT')
+                ORDER BY d.datname
+                """),
+            connection);
+        await using var reader = await command.ExecuteReaderAsync(ct);
+        var names = new List<string>();
+        while (await reader.ReadAsync(ct))
+        {
+            names.Add(reader.GetString(0));
+        }
+
+        return names;
+    }
+
     public async Task<IReadOnlyList<TableInfo>> GetTablesAsync(string schema, CancellationToken ct)
     {
         // Size only for relations with their own storage (ordinary tables and

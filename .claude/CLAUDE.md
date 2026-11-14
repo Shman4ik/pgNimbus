@@ -2153,6 +2153,20 @@ Moved to [`.claude/rules/logo-assets.md`](rules/logo-assets.md), which loads whe
   request). Tests: `ProductionWriteGateTests` (Core, live half on
   `PGNIMBUS_TEST_CONN`), `ProductionEnvironmentTests`; scenarios
   `main-window-production`, `main-window-production-writes-on`.
+- **Another database of the server is the breadcrumb's database name**
+  (2026-11). It is a flat `toolbar` button whose padding a negative margin takes
+  back (the baselines' fixture can't switch and shows the old plain text;
+  `DatabaseSwitcherTests` checks the two sit at the same spot), opening
+  `DatabaseSwitcherView` (filter box + `ListBox.emphasized`, like the tab finder)
+  over `SchemaService.GetDatabasesAsync` (`datallowconn`, no templates,
+  `has_database_privilege(oid, 'CONNECT')`, tagged); the palette's
+  `SwitchDatabase` opens the same flyout. Choosing a row is Switch Connection
+  with only the database changed, through the restore's "Open in New Window"
+  path (hard rule 8), now `App.ConnectToDatabaseAsync`: connect first (a failure
+  goes to the status line, the window untouched), then the new window takes the
+  old one's place and size and the old one closes normally. The row's menu is
+  Open in New Window. `MainViewModel.SwitchToDatabase` is null, and the name
+  plain text, for a window with neither a profile nor a `PGNIMBUS_CONN` string.
 - **json/jsonb are a first-class editable type.** `ColumnValueEditorClassifier`
   maps them to `ColumnValueEditor.Json` (jsonpath isn't JSON-shaped so it takes
   the plain-cast `CastText` path below; hstore stays `Text` — its display needs

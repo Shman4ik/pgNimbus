@@ -1,0 +1,34 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PgNimbus.App.ViewModels"
+             x:Class="PgNimbus.App.Views.DatabaseSwitcherView"
+             x:DataType="vm:DatabaseSwitcherViewModel"
+             Width="260">
+    <!-- The title bar's database list: the server's databases this role may
+         connect to, the current one checked. Shaped like the tab finder (a search
+         box driving an emphasized list): typing filters, Up/Down move, Enter or a
+         click opens the database in this window, and a row's right-click menu
+         opens it in a new one. -->
+    <StackPanel Spacing="6">
+        <TextBox Name="FilterBox" Text="{Binding Filter}" PlaceholderText="Find a database…" />
+        <TextBlock Classes="secondary" Text="Reading the databases…" FontSize="12" Margin="4,2"
+                   IsVisible="{Binding IsLoading}" />
+        <TextBlock Name="MessageText" Classes="secondary" Text="{Binding Message}" FontSize="12" Margin="4,2"
+                   TextWrapping="Wrap" IsVisible="{Binding HasMessage}" />
+        <ListBox Name="DatabaseList" Classes="emphasized" MaxHeight="320"
+                 ItemsSource="{Binding Shown}" SelectedItem="{Binding Selected, Mode=TwoWay}"
+                 IsVisible="{Binding !HasMessage}">
+            <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:DatabaseSwitcherItem">
+                    <Grid ColumnDefinitions="16,*" Background="Transparent">
+                        <PathIcon Grid.Column="0" Data="{StaticResource CheckIconGeometry}" Width="10" Height="10"
+                                  HorizontalAlignment="Left" VerticalAlignment="Center"
+                                  IsVisible="{Binding IsCurrent}" />
+                        <TextBlock Grid.Column="1" Text="{Binding Name}" VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}" />
+                    </Grid>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+    </StackPanel>
+</UserControl>

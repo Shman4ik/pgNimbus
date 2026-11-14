@@ -70,6 +70,12 @@ public partial class MainWindow : Window, IEditCommandTarget
             tabFlyout.Opened += (_, _) => OpenTabList();
         }
 
+        // The breadcrumb's database list is read fresh on every open.
+        if (DatabaseSwitchButton.Flyout is Flyout databaseFlyout)
+        {
+            databaseFlyout.Opened += (_, _) => OpenDatabaseList();
+        }
+
         // Drag a tab along the strip to reorder it. Pressed is tunneled so the
         // drag candidate is noted before the ListBoxItem handles selection;
         // moves/releases bubble up from the item that holds the pointer capture.
@@ -534,6 +540,7 @@ public partial class MainWindow : Window, IEditCommandTarget
         {
             _viewModel.ThemeToggleRequested -= ToggleTheme;
             _viewModel.SwitchConnectionRequested -= SwitchConnection;
+            _viewModel.SwitchDatabaseRequested -= ShowDatabaseList;
             _viewModel.NewWindowRequested -= OpenNewWindow;
             _viewModel.ImportPlanRequested -= ShowImportPlanDialog;
         _viewModel.ActivityRequested -= ShowActivityWindow;
@@ -558,6 +565,7 @@ public partial class MainWindow : Window, IEditCommandTarget
         // Palette actions that touch the window are handled here.
         _viewModel.ThemeToggleRequested += ToggleTheme;
         _viewModel.SwitchConnectionRequested += SwitchConnection;
+        _viewModel.SwitchDatabaseRequested += ShowDatabaseList;
         _viewModel.NewWindowRequested += OpenNewWindow;
         // FormatSqlRequested / ExpandStarRequested / FindRequested are handled by
         // QueryEditorPanel, which subscribes to them off its own DataContext.
@@ -939,6 +947,34 @@ public partial class MainWindow : Window, IEditCommandTarget
             viewer.Offset = viewer.Offset.WithX(Math.Min(viewer.Extent.Width - viewer.Viewport.Width, viewer.Offset.X + TabScrollStep));
         }
     }
+
+    // The palette's "Switch database…": the same list, opened from the breadcrumb
+    // button it hangs off (posted, so the closing palette can't take focus back).
+    private void ShowDatabaseList() =>
+        Dispatcher.UIThread.Post(() => DatabaseSwitchButton.Flyout?.ShowAt(DatabaseSwitchButton));
+
+    private DatabaseSwitcherViewModel? _databaseSwitcher;
+
+    private void OpenDatabaseList()
+    {
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        if (_databaseSwitcher is not null)
+        {
+            _databaseSwitcher.CloseRequested -= CloseDatabaseList;
+        }
+
+        _databaseSwitcher = _viewModel.CreateDatabaseSwitcher();
+        _databaseSwitcher.CloseRequested += CloseDatabaseList;
+        DatabaseSwitcher.DataContext = _databaseSwitcher;
+        _ = _databaseSwitcher.LoadAsync();
+        DatabaseSwitcher.FocusFilter();
+    }
+
+    private void CloseDatabaseList() => DatabaseSwitchButton.Flyout?.Hide();
 
     private void OpenTabList()
     {
