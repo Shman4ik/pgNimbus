@@ -115,59 +115,241 @@ public class TableMaintenanceTests
         return await command.ExecuteScalarAsync();
     }
 
+    private static Task<object?> CountAsync(NpgsqlDataSource dataSource, string schema, string table) =>
+        ScalarAsync(dataSource, $"SELECT count(*) FROM {TableMaintenance.QualifiedName(schema, table)}");
+
+    private static async Task<bool> ExistsAsync(NpgsqlDataSource dataSource, string schema, string table) =>
+        (bool)(await ScalarAsync(dataSource,
+            $"SELECT to_regclass({SqlLiteral.Quote(TableMaintenance.QualifiedName(schema, table))}) IS NOT NULL"))!;
+
+    // The last time ANALYZE or VACUUM touched a relation, from the cumulative
+    // statistics (flushed when the maintenance command ends).
+    private static async Task<bool> StatSetAsync(NpgsqlDataSource dataSource, string column, string schema, string table)
+    {
+        for (var attempt = 0; attempt < 20; attempt++)
+        {
+            await ScalarAsync(dataSource, "SELECT pg_stat_clear_snapshot()");
+            var value = await ScalarAsync(dataSource,
+                $"SELECT {column} IS NOT NULL FROM pg_stat_user_tables WHERE schemaname = {SqlLiteral.Quote(schema)} AND relname = {SqlLiteral.Quote(table)}");
+            if (value is true)
+            {
+                return true;
+            }
+
+            await Task.Delay(100);
+        }
+
+        return false;
+    }
+
+    private static async Task<(NpgsqlDataSource DataSource, string Schema)> LiveSchemaAsync()
+    {
+        var dataSource = NpgsqlDataSource.Create(ConnectionString!);
+        var schema = $"Maint \"{Guid.NewGuid():N}\"";
+        await ScalarAsync(dataSource, $"CREATE SCHEMA {SqlIdentifier.Quote(schema)}");
+        return (dataSource, schema);
+    }
+
+    private static async Task DropLiveSchemaAsync(NpgsqlDataSource dataSource, string schema)
+    {
+        await ScalarAsync(dataSource, $"DROP SCHEMA {SqlIdentifier.Quote(schema)} CASCADE");
+        await dataSource.DisposeAsync();
+    }
+
+    /// <summary>
+    /// Every action on a name with quotes, uppercase, a space and a newline,
+    /// while a table of the very same name sits in <c>public</c>, on the
+    /// search_path: only the qualified one is touched.
+    /// </summary>
     [Test]
-    public async Task Live_every_action_runs_against_an_odd_name_and_restrict_is_kept()
+    public async Task Live_each_action_touches_only_the_odd_named_table_it_names()
     {
         SkipIfNoConnection();
-        await using var dataSource = NpgsqlDataSource.Create(ConnectionString!);
+        var (dataSource, schema) = await LiveSchemaAsync();
+        var table = $"Odd \"T\"\nable {Guid.NewGuid().ToString("N")[..8]}";
+        var decoy = TableMaintenance.QualifiedName("public", table);
         var editor = new SchemaEditor(dataSource);
-        var schema = $"Maint \"{Guid.NewGuid():N}\"";
-        var quotedSchema = SqlIdentifier.Quote(schema);
-        const string Table = "Odd\nTable";
-        await ScalarAsync(dataSource, $"CREATE SCHEMA {quotedSchema}");
         try
         {
             await ScalarAsync(dataSource,
-                $"CREATE TABLE {TableMaintenance.QualifiedName(schema, Table)} (id int PRIMARY KEY); " +
-                $"INSERT INTO {TableMaintenance.QualifiedName(schema, Table)} VALUES (1), (2); " +
-                $"CREATE TABLE {quotedSchema}.child (id int REFERENCES {TableMaintenance.QualifiedName(schema, Table)})");
+                $"CREATE TABLE {TableMaintenance.QualifiedName(schema, table)} (id int); " +
+                $"INSERT INTO {TableMaintenance.QualifiedName(schema, table)} VALUES (1), (2); " +
+                $"CREATE TABLE {decoy} (id int); INSERT INTO {decoy} VALUES (1), (2), (3)");
 
-            // VACUUM can't run in a transaction block: this proves it went alone.
-            await editor.RunMaintenanceAsync(TableMaintenance.Vacuum(schema, Table), CancellationToken.None);
-            await editor.RunMaintenanceAsync(TableMaintenance.Analyze(schema, Table), CancellationToken.None);
-
-            // Referenced by child's foreign key: RESTRICT refuses both.
-            await Assert.That(async () => await editor.RunMaintenanceAsync(TableMaintenance.Truncate(schema, Table), CancellationToken.None))
-                .Throws<PostgresException>();
-            await Assert.That(async () => await editor.RunMaintenanceAsync(TableMaintenance.Drop(schema, Table, RelationKind.Table), CancellationToken.None))
-                .Throws<PostgresException>();
-            await Assert.That(await ScalarAsync(dataSource, $"SELECT count(*) FROM {TableMaintenance.QualifiedName(schema, Table)}"))
-                .IsEqualTo(2L);
-
-            await ScalarAsync(dataSource, $"DROP TABLE {quotedSchema}.child");
-            await editor.RunMaintenanceAsync(TableMaintenance.Truncate(schema, Table), CancellationToken.None);
-            await Assert.That(await ScalarAsync(dataSource, $"SELECT count(*) FROM {TableMaintenance.QualifiedName(schema, Table)}"))
-                .IsEqualTo(0L);
-
-            const string Renamed = "Renamed \"T\"";
-            await editor.RunMaintenanceAsync(TableMaintenance.Rename(schema, Table, RelationKind.Table, Renamed), CancellationToken.None);
+            await editor.RunMaintenanceAsync(TableMaintenance.Analyze(schema, table), CancellationToken.None);
+            await editor.RunMaintenanceAsync(TableMaintenance.Vacuum(schema, table), CancellationToken.None);
+            await Assert.That(await StatSetAsync(dataSource, "last_analyze", schema, table)).IsTrue();
+            await Assert.That(await StatSetAsync(dataSource, "last_vacuum", schema, table)).IsTrue();
             await Assert.That(await ScalarAsync(dataSource,
-                $"SELECT to_regclass({SqlLiteral.Quote(TableMaintenance.QualifiedName(schema, Renamed))}) IS NOT NULL")).IsEqualTo(true);
+                $"SELECT last_analyze IS NULL AND last_vacuum IS NULL FROM pg_stat_user_tables WHERE schemaname = 'public' AND relname = {SqlLiteral.Quote(table)}"))
+                .IsEqualTo(true);
 
-            await editor.RunMaintenanceAsync(TableMaintenance.Drop(schema, Renamed, RelationKind.Table), CancellationToken.None);
-            await Assert.That(await ScalarAsync(dataSource,
-                $"SELECT to_regclass({SqlLiteral.Quote(TableMaintenance.QualifiedName(schema, Renamed))}) IS NULL")).IsEqualTo(true);
+            await editor.RunMaintenanceAsync(TableMaintenance.Truncate(schema, table), CancellationToken.None);
+            await Assert.That(await CountAsync(dataSource, schema, table)).IsEqualTo(0L);
+            await Assert.That(await CountAsync(dataSource, "public", table)).IsEqualTo(3L);
 
-            await ScalarAsync(dataSource, $"CREATE MATERIALIZED VIEW {quotedSchema}.mv AS SELECT 1 AS x; CREATE VIEW {quotedSchema}.v AS SELECT 1 AS x");
-            await editor.RunMaintenanceAsync(TableMaintenance.Vacuum(schema, "mv"), CancellationToken.None);
-            await editor.RunMaintenanceAsync(TableMaintenance.Rename(schema, "mv", RelationKind.MaterializedView, "mv2"), CancellationToken.None);
-            await editor.RunMaintenanceAsync(TableMaintenance.Drop(schema, "mv2", RelationKind.MaterializedView), CancellationToken.None);
-            await editor.RunMaintenanceAsync(TableMaintenance.Rename(schema, "v", RelationKind.View, "v2"), CancellationToken.None);
-            await editor.RunMaintenanceAsync(TableMaintenance.Drop(schema, "v2", RelationKind.View), CancellationToken.None);
+            var renamed = table + " Renamed";
+            await editor.RunMaintenanceAsync(TableMaintenance.Rename(schema, table, RelationKind.Table, renamed), CancellationToken.None);
+            await Assert.That(await ExistsAsync(dataSource, schema, renamed)).IsTrue();
+            await Assert.That(await ExistsAsync(dataSource, schema, table)).IsFalse();
+            await Assert.That(await ExistsAsync(dataSource, "public", table)).IsTrue();
+
+            await editor.RunMaintenanceAsync(TableMaintenance.Drop(schema, renamed, RelationKind.Table), CancellationToken.None);
+            await Assert.That(await ExistsAsync(dataSource, schema, renamed)).IsFalse();
+            await Assert.That(await CountAsync(dataSource, "public", table)).IsEqualTo(3L);
         }
         finally
         {
-            await ScalarAsync(dataSource, $"DROP SCHEMA {quotedSchema} CASCADE");
+            await ScalarAsync(dataSource, $"DROP TABLE IF EXISTS {decoy}");
+            await DropLiveSchemaAsync(dataSource, schema);
+        }
+    }
+
+    [Test]
+    public async Task Live_a_partitioned_parent_is_analyzed_vacuumed_truncated_and_dropped_with_its_partitions()
+    {
+        SkipIfNoConnection();
+        var (dataSource, schema) = await LiveSchemaAsync();
+        var s = SqlIdentifier.Quote(schema);
+        var editor = new SchemaEditor(dataSource);
+        try
+        {
+            await ScalarAsync(dataSource,
+                $"CREATE TABLE {s}.\"Parent\" (id int) PARTITION BY RANGE (id); " +
+                $"CREATE TABLE {s}.p1 PARTITION OF {s}.\"Parent\" FOR VALUES FROM (0) TO (10); " +
+                $"CREATE TABLE {s}.p2 PARTITION OF {s}.\"Parent\" FOR VALUES FROM (10) TO (20); " +
+                $"INSERT INTO {s}.\"Parent\" VALUES (1), (15)");
+
+            await editor.RunMaintenanceAsync(TableMaintenance.Analyze(schema, "Parent"), CancellationToken.None);
+            await editor.RunMaintenanceAsync(TableMaintenance.Vacuum(schema, "Parent"), CancellationToken.None);
+            await editor.RunMaintenanceAsync(TableMaintenance.Truncate(schema, "Parent"), CancellationToken.None);
+            await Assert.That(await CountAsync(dataSource, schema, "p1")).IsEqualTo(0L);
+            await Assert.That(await CountAsync(dataSource, schema, "p2")).IsEqualTo(0L);
+
+            await editor.RunMaintenanceAsync(TableMaintenance.Rename(schema, "Parent", RelationKind.PartitionedTable, "Parent2"), CancellationToken.None);
+            await editor.RunMaintenanceAsync(TableMaintenance.Drop(schema, "Parent2", RelationKind.PartitionedTable), CancellationToken.None);
+            await Assert.That(await ExistsAsync(dataSource, schema, "Parent2")).IsFalse();
+            await Assert.That(await ExistsAsync(dataSource, schema, "p1")).IsFalse();
+            await Assert.That(await ExistsAsync(dataSource, schema, "p2")).IsFalse();
+        }
+        finally
+        {
+            await DropLiveSchemaAsync(dataSource, schema);
+        }
+    }
+
+    [Test]
+    public async Task Live_a_referenced_table_is_refused_truncate_and_drop_and_left_intact()
+    {
+        SkipIfNoConnection();
+        var (dataSource, schema) = await LiveSchemaAsync();
+        var s = SqlIdentifier.Quote(schema);
+        var editor = new SchemaEditor(dataSource);
+        try
+        {
+            await ScalarAsync(dataSource,
+                $"CREATE TABLE {s}.parent (id int PRIMARY KEY); INSERT INTO {s}.parent VALUES (1), (2); " +
+                $"CREATE TABLE {s}.child (id int REFERENCES {s}.parent)");
+
+            var truncate = await Assert.That(async () => await editor.RunMaintenanceAsync(TableMaintenance.Truncate(schema, "parent"), CancellationToken.None))
+                .Throws<PostgresException>();
+            await Assert.That(truncate!.SqlState).IsEqualTo(PostgresErrorCodes.FeatureNotSupported);
+            await Assert.That(truncate.Message).Contains("foreign key");
+
+            var drop = await Assert.That(async () => await editor.RunMaintenanceAsync(TableMaintenance.Drop(schema, "parent", RelationKind.Table), CancellationToken.None))
+                .Throws<PostgresException>();
+            await Assert.That(drop!.SqlState).IsEqualTo(PostgresErrorCodes.DependentObjectsStillExist);
+            await Assert.That(drop.Message).Contains("depend");
+
+            await Assert.That(await CountAsync(dataSource, schema, "parent")).IsEqualTo(2L);
+        }
+        finally
+        {
+            await DropLiveSchemaAsync(dataSource, schema);
+        }
+    }
+
+    [Test]
+    public async Task Live_views_and_materialized_views_take_their_own_keyword()
+    {
+        SkipIfNoConnection();
+        var (dataSource, schema) = await LiveSchemaAsync();
+        var s = SqlIdentifier.Quote(schema);
+        var editor = new SchemaEditor(dataSource);
+        try
+        {
+            await ScalarAsync(dataSource, $"CREATE MATERIALIZED VIEW {s}.\"Mv\" AS SELECT 1 AS x; CREATE VIEW {s}.\"V w\" AS SELECT 1 AS x");
+
+            await editor.RunMaintenanceAsync(TableMaintenance.Analyze(schema, "Mv"), CancellationToken.None);
+            await editor.RunMaintenanceAsync(TableMaintenance.Vacuum(schema, "Mv"), CancellationToken.None);
+            await editor.RunMaintenanceAsync(TableMaintenance.Rename(schema, "Mv", RelationKind.MaterializedView, "Mv2"), CancellationToken.None);
+            await editor.RunMaintenanceAsync(TableMaintenance.Drop(schema, "Mv2", RelationKind.MaterializedView), CancellationToken.None);
+            await Assert.That(await ExistsAsync(dataSource, schema, "Mv2")).IsFalse();
+
+            await editor.RunMaintenanceAsync(TableMaintenance.Rename(schema, "V w", RelationKind.View, "V w2"), CancellationToken.None);
+            await editor.RunMaintenanceAsync(TableMaintenance.Drop(schema, "V w2", RelationKind.View), CancellationToken.None);
+            await Assert.That(await ExistsAsync(dataSource, schema, "V w2")).IsFalse();
+        }
+        finally
+        {
+            await DropLiveSchemaAsync(dataSource, schema);
+        }
+    }
+
+    [Test]
+    public async Task Live_a_rename_to_a_taken_name_is_refused_by_the_server()
+    {
+        SkipIfNoConnection();
+        var (dataSource, schema) = await LiveSchemaAsync();
+        var s = SqlIdentifier.Quote(schema);
+        var editor = new SchemaEditor(dataSource);
+        try
+        {
+            await ScalarAsync(dataSource, $"CREATE TABLE {s}.a (id int); CREATE TABLE {s}.b (id int)");
+
+            var taken = await Assert.That(async () => await editor.RunMaintenanceAsync(TableMaintenance.Rename(schema, "a", RelationKind.Table, "b"), CancellationToken.None))
+                .Throws<PostgresException>();
+            await Assert.That(taken!.SqlState).IsEqualTo(PostgresErrorCodes.DuplicateTable);
+            await Assert.That(await ExistsAsync(dataSource, schema, "a")).IsTrue();
+        }
+        finally
+        {
+            await DropLiveSchemaAsync(dataSource, schema);
+        }
+    }
+
+    /// <summary>
+    /// VACUUM can't run inside a transaction block. With the window's explicit
+    /// transaction open on the same data source, the editor still vacuums, on a
+    /// pooled connection of its own.
+    /// </summary>
+    [Test]
+    public async Task Live_vacuum_runs_on_its_own_connection_while_an_explicit_transaction_is_open()
+    {
+        SkipIfNoConnection();
+        var (dataSource, schema) = await LiveSchemaAsync();
+        var s = SqlIdentifier.Quote(schema);
+        var editor = new SchemaEditor(dataSource);
+        var engine = new QueryEngine(dataSource);
+        try
+        {
+            await ScalarAsync(dataSource, $"CREATE TABLE {s}.t (id int); INSERT INTO {s}.t VALUES (1)");
+            await engine.BeginTransactionAsync(CancellationToken.None);
+            await Assert.That(engine.IsInTransaction).IsTrue();
+
+            await editor.RunMaintenanceAsync(TableMaintenance.Vacuum(schema, "t"), CancellationToken.None);
+
+            await Assert.That(await StatSetAsync(dataSource, "last_vacuum", schema, "t")).IsTrue();
+            await engine.RollbackAsync(CancellationToken.None);
+        }
+        finally
+        {
+            if (engine.IsInTransaction)
+            {
+                await engine.RollbackAsync(CancellationToken.None);
+            }
+
+            await DropLiveSchemaAsync(dataSource, schema);
         }
     }
 }

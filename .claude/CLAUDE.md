@@ -1046,21 +1046,12 @@ Three rules about it:
    and a view's backup would be the one CREATE VIEW that Source (DDL) already shows).
    The two Back Up items were the owner's call (issue #381): backing up one table
    before a risky migration is the commonest simple backup there is.
-   **Maintenance ▸** is the sixth item, one submenu by the owner's call (2026-11),
-   holding Analyze, Vacuum, Truncate…, Rename…, Drop…, each shown only where
-   PostgreSQL accepts it (`Core/Schema/TableMaintenance.Applies`: views get Rename
-   and Drop, materialized views also Analyze and Vacuum, Truncate is for tables).
-   The same five are palette-only commands acting on the tree's selected relation,
-   else the active tab's browsed table. All go through
-   `MainViewModel.RunTableMaintenanceAsync`: Truncate and Drop confirm (naming
-   `schema.table` and the database), Rename asks in `SaveQueryDialog`, each runs
-   PostgreSQL's plain RESTRICT form off the UI thread on a pooled connection
-   (VACUUM can't run in a transaction block), and a failure lands in the
-   sidebar's strip like Drop Schema's. A read-only connection refuses the three
-   writes up front with the grid's hint; a production window with writes off
-   refuses all five, since the server allows ANALYZE and VACUUM on a read-only
-   session (Server Activity's reasoning). No Refresh, Reindex or Cascade
-   variants. Tests: `TableMaintenanceTests` (Core and App).
+   **Maintenance ▸** (2026-11, the owner's call) holds Analyze, Vacuum, Truncate…,
+   Rename…, Drop…: tables and partitioned parents get all five, materialized views
+   all but Truncate, views Rename and Drop. Which kind gets what, and every statement
+   (plain RESTRICT forms), is `Core/Schema/TableMaintenance`; the confirms and the
+   read-only/production gating are `MainViewModel.RunTableMaintenanceAsync`, shared
+   with the five palette rows. Tests: `TableMaintenanceTests` (Core, live; App), `MenuTests`.
    Every menu label is Title Case on every platform (DESIGN.md rule 18): the
    native menu bar already was, and the context menus under it said "Copy name"
    and "Drop schema...". `MenuTests` pins the schema and relation menus.

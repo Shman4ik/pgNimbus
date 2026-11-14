@@ -194,9 +194,74 @@ public class TableMaintenanceTests
             }
 
             // The server allows VACUUM and ANALYZE on a read-only session.
+            await Assert.That(vm.CanToggleWrites).IsFalse();
             await vm.RunTableMaintenanceAsync(Customers, TableMaintenanceAction.Vacuum);
-            await Assert.That(sent).IsEquivalentTo(["VACUUM \"public\".\"customers\""]);
+            await vm.RunTableMaintenanceAsync(Customers, TableMaintenanceAction.Analyze);
+            await Assert.That(sent).IsEquivalentTo(["VACUUM \"public\".\"customers\"", "ANALYZE \"public\".\"customers\""]);
 
+            window.Close();
+        });
+    }
+
+    [Test]
+    public async Task A_production_window_with_writes_allowed_runs_all_five()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, vm, sent) = Shell(environment: ConnectionEnvironment.Production);
+            vm.ConfirmAllowWritesRequested = () => Task.FromResult(true);
+            vm.WriteStateProbe = _ => Task.FromResult(
+                vm.WritesAllowed ? SessionWriteState.ReadWrite : SessionWriteState.ReadOnly);
+            await vm.AllowWritesCommand.ExecuteAsync(null);
+            await Assert.That(vm.WritesAllowed).IsTrue();
+            await Assert.That(vm.ConnectionReadOnlyHint).IsNull();
+
+            vm.ConfirmMaintenanceRequested = (_, _) => Task.FromResult(true);
+            vm.RenameRelationRequested = (_, _) => Task.FromResult<string?>("clients");
+
+            // Not awaited: after Rename and Drop the schema refresh waits on the
+            // fixture's unroutable data source.
+            foreach (var action in Enum.GetValues<TableMaintenanceAction>())
+            {
+                _ = vm.RunTableMaintenanceAsync(Customers, action);
+                Ui.Settle();
+            }
+
+            Ui.SettleUntil(() => sent.Count == 5);
+            await Assert.That(sent).IsEquivalentTo([
+                "ANALYZE \"public\".\"customers\"",
+                "VACUUM \"public\".\"customers\"",
+                "TRUNCATE TABLE \"public\".\"customers\"",
+                "ALTER TABLE \"public\".\"customers\" RENAME TO \"clients\"",
+                "DROP TABLE \"public\".\"customers\"",
+            ]);
+            window.Close();
+        });
+    }
+
+    [Test]
+    [Arguments(RelationKind.Table, TableMaintenanceAction.Truncate, "Truncate table \"public.r\" in database \"shop\"? Every row in it is deleted, and this can't be undone.")]
+    [Arguments(RelationKind.PartitionedTable, TableMaintenanceAction.Truncate, "Truncate table \"public.r\" in database \"shop\"? Every row in it and in all its partitions is deleted, and this can't be undone.")]
+    [Arguments(RelationKind.Table, TableMaintenanceAction.Drop, "Drop table \"public.r\" in database \"shop\"? The table and every row in it are removed, and this can't be undone.")]
+    [Arguments(RelationKind.PartitionedTable, TableMaintenanceAction.Drop, "Drop table \"public.r\" in database \"shop\"? The table and all its partitions, with every row in them, are removed, and this can't be undone.")]
+    [Arguments(RelationKind.MaterializedView, TableMaintenanceAction.Drop, "Drop materialized view \"public.r\" in database \"shop\"? The materialized view and its data are removed, and this can't be undone.")]
+    [Arguments(RelationKind.View, TableMaintenanceAction.Drop, "Drop view \"public.r\" in database \"shop\"? The view is removed, and this can't be undone.")]
+    public async Task The_confirm_says_what_is_lost_for_each_kind(RelationKind kind, TableMaintenanceAction action, string start)
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, vm, sent) = Shell();
+            string? message = null;
+            vm.ConfirmMaintenanceRequested = (text, _) =>
+            {
+                message = text;
+                return Task.FromResult(false);
+            };
+
+            await vm.RunTableMaintenanceAsync(new("public", "r", kind), action);
+
+            await Assert.That(message).StartsWith(start);
+            await Assert.That(sent).IsEmpty();
             window.Close();
         });
     }

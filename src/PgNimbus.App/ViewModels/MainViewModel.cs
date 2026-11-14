@@ -1822,7 +1822,10 @@ public sealed partial class MainViewModel : ObservableObject
             return;
         }
 
-        var productionLocked = _writeGate is not null && !WritesAllowed;
+        // CanToggleWrites: only a production window that can allow writes holds
+        // a write gate (App passes one only when CanAllowWrites), so an ordinary
+        // read-only profile still vacuums and analyzes.
+        var productionLocked = CanToggleWrites && !WritesAllowed;
         if (ConnectionReadOnlyHint is { } hint && (TableMaintenance.Writes(action) || productionLocked))
         {
             Refuse(tab, $"Can't {verb} \"{display}\": {hint}");
@@ -1834,9 +1837,12 @@ public sealed partial class MainViewModel : ObservableObject
         switch (action)
         {
             case TableMaintenanceAction.Truncate:
+                var truncated = target.Kind == RelationKind.PartitionedTable
+                    ? "Every row in it and in all its partitions is deleted"
+                    : "Every row in it is deleted";
                 if (ConfirmMaintenanceRequested is not { } confirmTruncate
                     || !await confirmTruncate(
-                        $"Truncate table \"{display}\"{database}? Every row in it is deleted, and this can't be undone. " +
+                        $"Truncate table \"{display}\"{database}? {truncated}, and this can't be undone. " +
                         "It fails if another table's foreign key references it.",
                         "Truncate"))
                 {
@@ -1850,6 +1856,7 @@ public sealed partial class MainViewModel : ObservableObject
                 {
                     RelationKind.View => "The view is removed",
                     RelationKind.MaterializedView => "The materialized view and its data are removed",
+                    RelationKind.PartitionedTable => "The table and all its partitions, with every row in them, are removed",
                     _ => "The table and every row in it are removed",
                 };
                 if (ConfirmMaintenanceRequested is not { } confirmDrop
