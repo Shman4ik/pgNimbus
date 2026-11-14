@@ -50,8 +50,9 @@ schema offers:
 
 A table, view or materialized view offers **Browse Rows** (what a double-click
 does), **Copy Name** and its reconstructed DDL; a table also offers the Alter
-Table dialog. A function offers its source, and an extension offers install or
-drop.
+Table dialog. A function or procedure offers its source, and so do the indexes and
+triggers listed under a table when Show Advanced Objects is on (a double-click
+opens it too, in a new tab). An extension offers install or drop.
 
 ## Completion
 
