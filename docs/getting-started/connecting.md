@@ -4,6 +4,16 @@ pgNimbus opens the connection dialog on launch.
 
 ![The connection dialog, with saved profiles on the left and the paste-anything import box at the top](../screenshots/connection-dialog.png)
 
+## Supported PostgreSQL versions
+
+The test suite passes on PostgreSQL 12 to 18 (the official `postgres:12` to
+`postgres:18` images), with no failures. Two groups of tests skip on older
+servers because they need newer syntax: the per-membership `NOINHERIT` roles
+test needs 16 (skipped on 12 to 15), and the four multirange tests need 14
+(skipped on 12 and 13). The function list reads a catalog column from 14 and
+falls back below it. PostgreSQL 19 was not tested. PostgreSQL's own policy ends
+support for a major release five years after it ships.
+
 ## Paste anything
 
 The box at the top of the dialog accepts whatever form of connection string you

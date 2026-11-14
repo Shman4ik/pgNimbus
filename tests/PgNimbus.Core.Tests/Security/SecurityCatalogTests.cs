@@ -154,6 +154,14 @@ public class SecurityCatalogTests
         SkipIfNoConnection();
         await using var dataSource = CreateDataSource();
         var ct = CancellationToken.None;
+        await using (var versionCheck = await dataSource.OpenConnectionAsync(ct))
+        {
+            if (versionCheck.PostgreSqlVersion.Major < 16)
+            {
+                Skip.Test("A NOINHERIT edge on one membership (GRANT … WITH INHERIT FALSE) needs PostgreSQL 16; before it inheritance is a flag of the member role.");
+            }
+        }
+
         await ResetFixtureAsync(dataSource);
 
         try
