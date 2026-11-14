@@ -63,6 +63,23 @@ internal static class SslModeExtensions
 /// the OS store: the provider bundles that RDS, Cloud SQL and Supabase publish,
 /// which no OS trusts. Only the verifying modes read it. A path, not a secret.
 /// </param>
+/// <param name="ClientCertificatePath">
+/// A client certificate file (PEM, DER or PKCS#12) the server checks for
+/// certificate authentication (mutual TLS, a pg_hba <c>cert</c> line or
+/// <c>clientcert=verify-full</c>). Unset, Npgsql and libpq look for
+/// <c>PGSSLCERT</c> and then <c>~/.postgresql/postgresql.crt</c>
+/// (<c>%APPDATA%\postgresql\postgresql.crt</c> on Windows) by themselves. A
+/// path, not a secret: the key next to it is the secret, and a key protected by
+/// a passphrase is refused (<see cref="ClientCertificates.Check"/>).
+/// </param>
+/// <param name="ClientKeyPath">The private key of <paramref name="ClientCertificatePath"/>, for a PEM or DER certificate. A path.</param>
+/// <param name="StatementTimeoutSeconds">
+/// The session's <c>statement_timeout</c>, set as a startup option like
+/// <paramref name="ReadOnly"/>'s, so the server enforces it on every path and
+/// the pool's reset puts it back. Null means none from pgNimbus: the server's
+/// and the role's own settings apply, as they always did.
+/// </param>
+/// <param name="LockTimeoutSeconds">The session's <c>lock_timeout</c>, the same way.</param>
 public sealed record ConnectionProfile(
     Guid Id,
     string Name,
@@ -75,7 +92,11 @@ public sealed record ConnectionProfile(
     SshTunnelOptions? SshTunnel = null,
     bool ReadOnly = false,
     string? RootCertificatePath = null,
-    ConnectionEnvironment Environment = ConnectionEnvironment.None)
+    ConnectionEnvironment Environment = ConnectionEnvironment.None,
+    string? ClientCertificatePath = null,
+    string? ClientKeyPath = null,
+    int? StatementTimeoutSeconds = null,
+    int? LockTimeoutSeconds = null)
 {
     public const int DefaultPort = 5432;
 
@@ -122,8 +143,51 @@ public sealed record ConnectionProfile(
     /// <paramref name="readOnly"/>. Space-separated, as libpq's <c>options</c>
     /// takes several <c>-c</c> switches.
     /// </summary>
-    public static string SessionOptions(bool readOnly) =>
-        readOnly ? $"{ReadOnlySessionOption} {StandardStringsSessionOption}" : StandardStringsSessionOption;
+    public static string SessionOptions(bool readOnly) => SessionOptions(readOnly, null, null);
+
+    /// <summary>
+    /// The <c>Options</c> value with the profile's timeouts too:
+    /// <c>-c statement_timeout=30s</c> and <c>-c lock_timeout=5s</c> after the
+    /// read-only switch, the standard-strings option last. A timeout of zero or
+    /// none writes nothing, which leaves the server's and the role's settings
+    /// in force (a startup option would override an <c>ALTER ROLE … SET</c>).
+    /// </summary>
+    public static string SessionOptions(bool readOnly, int? statementTimeoutSeconds, int? lockTimeoutSeconds)
+    {
+        var parts = new List<string>(4);
+        if (readOnly)
+        {
+            parts.Add(ReadOnlySessionOption);
+        }
+
+        if (TimeoutOption("statement_timeout", statementTimeoutSeconds) is { } statement)
+        {
+            parts.Add(statement);
+        }
+
+        if (TimeoutOption("lock_timeout", lockTimeoutSeconds) is { } lockTimeout)
+        {
+            parts.Add(lockTimeout);
+        }
+
+        parts.Add(StandardStringsSessionOption);
+        return string.Join(' ', parts);
+    }
+
+    /// <summary>The longest timeout a setting holds: its value is an <c>int</c> of milliseconds.</summary>
+    public const int MaxTimeoutSeconds = int.MaxValue / 1000;
+
+    /// <summary>
+    /// A timeout as the profile keeps it: null for none, zero included (zero is
+    /// "no timeout" to the server too), and never past <see cref="MaxTimeoutSeconds"/>.
+    /// </summary>
+    public static int? NormalizeTimeout(int? seconds) =>
+        seconds is > 0 ? Math.Min(seconds.Value, MaxTimeoutSeconds) : null;
+
+    private static string? TimeoutOption(string setting, int? seconds) =>
+        NormalizeTimeout(seconds) is { } value
+            ? string.Create(System.Globalization.CultureInfo.InvariantCulture, $"-c {setting}={value}s")
+            : null;
 
     /// <summary>
     /// <paramref name="connectionString"/> with <see cref="StandardStringsSessionOption"/>
@@ -223,11 +287,24 @@ public sealed record ConnectionProfile(
             ArrayNullabilityMode = ArrayNullability,
         };
 
-        builder.Options = SessionOptions(readOnly ?? StartsReadOnly);
+        builder.Options = SessionOptions(readOnly ?? StartsReadOnly, StatementTimeoutSeconds, LockTimeoutSeconds);
 
         if (UsesRootCertificate)
         {
             builder.RootCertificate = RootCertificatePath;
+        }
+
+        // Written whatever the mode: a client certificate is only sent once TLS
+        // is up, so under Disable it is simply never used, and under Prefer a
+        // server that asks for one gets it.
+        if (!string.IsNullOrWhiteSpace(ClientCertificatePath))
+        {
+            builder.SslCertificate = ClientCertificatePath;
+        }
+
+        if (!string.IsNullOrWhiteSpace(ClientKeyPath))
+        {
+            builder.SslKey = ClientKeyPath;
         }
 
         return builder.ConnectionString;

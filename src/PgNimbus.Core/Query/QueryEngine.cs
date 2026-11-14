@@ -593,6 +593,16 @@ public sealed class QueryEngine(WriteGatedDataSource dataSource)
     /// the rest as the row cap does. A streamed result is bounded by its consumer, which
     /// stops enumerating; abandoning the stream cancels the query (see <c>StreamBatches</c>).
     /// </param>
+    /// <param name="withoutStatementTimeout">
+    /// Runs the statement with <c>statement_timeout</c> off for its connection,
+    /// whatever the profile's timeout says: for an export, which re-runs a browse
+    /// query with no limit and streams every row to a file. A profile's timeout
+    /// is there for a statement that runs away, and an export is long by design,
+    /// started on purpose and stopped with Cancel. The <c>SET</c> is session-level
+    /// and the pool's reset (<c>DISCARD ALL</c>) puts the startup option back when
+    /// the connection is returned. Ignored inside the user's transaction, where
+    /// nothing is re-run for an export.
+    /// </param>
     /// <remarks>
     /// The statement is executed exactly once, whatever it is. Columns Npgsql
     /// can't materialize as objects (unmapped composites, extension types with no
@@ -602,7 +612,7 @@ public sealed class QueryEngine(WriteGatedDataSource dataSource)
     /// and nothing to vouch for: a <c>SELECT</c> of a VOLATILE function that writes
     /// runs its side effect once, like everything else.
     /// </remarks>
-    public async Task<StatementResult> ExecuteAsync(string sql, CancellationToken ct, int? maxRows = null, long? maxBytes = null)
+    public async Task<StatementResult> ExecuteAsync(string sql, CancellationToken ct, int? maxRows = null, long? maxBytes = null, bool withoutStatementTimeout = false)
     {
         // Inside a transaction the statement runs on the shared session
         // connection and its result is fully materialized: a lazily-streaming
@@ -636,6 +646,14 @@ public sealed class QueryEngine(WriteGatedDataSource dataSource)
             try
             {
                 connection = await _dataSource.OpenConnectionAsync(ct);
+                if (withoutStatementTimeout)
+                {
+                    // Before anything of the statement is sent, so a loss here is
+                    // retried like one during open; a SET is safe to send twice.
+                    await using var lift = new NpgsqlCommand(InternalSql.Tag("SET statement_timeout = 0"), connection);
+                    await lift.ExecuteNonQueryAsync(ct);
+                }
+
                 command = new NpgsqlCommand(sql, connection);
 
                 // Describe before executing: the one round trip that finds the

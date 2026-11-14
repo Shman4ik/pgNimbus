@@ -74,6 +74,37 @@ public sealed class ScriptResultViewModel
 
     public const int MaxDisplayRows = QueryViewModel.MaxDisplayRows;
 
+    /// <summary>
+    /// The server's 1-based error position inside this statement, as it was sent;
+    /// null for a section that didn't fail or whose error names no place.
+    /// </summary>
+    public int? ErrorPosition { get; private init; }
+
+    /// <summary>The whole text the run split this statement out of (for the error marker).</summary>
+    public string? ExecutedSql { get; private init; }
+
+    /// <summary>Where <see cref="ExecutedSql"/> started in the editor's text, or null when it wasn't the editor's text.</summary>
+    public int? DocumentOffset { get; private init; }
+
+    /// <summary>
+    /// A section that also remembers where its statement came from, so selecting it
+    /// after a failure can mark the error in the editor
+    /// (<see cref="QueryViewModel.ErrorMarker"/>).
+    /// </summary>
+    public static ScriptResultViewModel From(int index, string sql, StatementResult result, string executedSql, int? documentOffset)
+    {
+        var section = From(index, sql, result);
+        return new ScriptResultViewModel(
+            section.Index, section.Sql, section.Label, section.Summary, section.HasError, section.StatusText,
+            section.Columns, section.ColumnNames, section.Rows, section.RowCountText, section.TimingText,
+            section.CapText, section.Plan)
+        {
+            ErrorPosition = (result as QueryError)?.Position,
+            ExecutedSql = executedSql,
+            DocumentOffset = documentOffset,
+        };
+    }
+
     public static ScriptResultViewModel From(int index, string sql, StatementResult result)
     {
         var keyword = FirstKeyword(sql);
@@ -133,9 +164,7 @@ public sealed class ScriptResultViewModel
                     $"{index} · {keyword}",
                     "Error",
                     hasError: true,
-                    statusText: error.RolledBack
-                        ? $"Error: {error.Message} — transaction rolled back"
-                        : $"Error: {error.Message}",
+                    statusText: QueryViewModel.ErrorStatus(error),
                     columns: [],
                     columnNames: [],
                     rows: [],

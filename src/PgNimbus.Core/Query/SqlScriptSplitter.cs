@@ -21,16 +21,34 @@ public static class SqlScriptSplitter
 {
     public static IReadOnlyList<string> Split(string sql)
     {
-        var statements = new List<string>();
-        foreach (var (start, end) in RawSpans(sql))
+        var spans = SplitSpans(sql);
+        var statements = new List<string>(spans.Count);
+        foreach (var (start, end) in spans)
         {
-            if (HasSignificantText(sql, start, end))
-            {
-                statements.Add(sql[start..end].Trim());
-            }
+            statements.Add(sql[start..end]);
         }
 
         return statements;
+    }
+
+    /// <summary>
+    /// The <c>[Start, End)</c> spans of exactly the statements <see cref="Split"/>
+    /// returns, in the same order: <c>sql[Start..End]</c> is the trimmed statement
+    /// text. Lets a caller map a position inside a sent statement (a server error's
+    /// <c>Position</c>) back to an offset in the text it was split from.
+    /// </summary>
+    public static IReadOnlyList<(int Start, int End)> SplitSpans(string sql)
+    {
+        var spans = new List<(int Start, int End)>();
+        foreach (var (start, end) in RawSpans(sql))
+        {
+            if (HasSignificantText(sql, start, end) && TrimSpan(sql, start, end) is { } span)
+            {
+                spans.Add(span);
+            }
+        }
+
+        return spans;
     }
 
     /// <summary>
