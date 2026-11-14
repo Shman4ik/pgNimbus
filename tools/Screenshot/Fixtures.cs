@@ -58,7 +58,8 @@ public static class Fixtures
     public static MainViewModel MainWindowViewModel(
         WorkspaceEntry? workspace = null,
         bool readOnlyProfile = false,
-        ConnectionEnvironment environment = ConnectionEnvironment.None)
+        ConnectionEnvironment environment = ConnectionEnvironment.None,
+        NpgsqlDataSource? liveDataSource = null)
     {
         var dataDirectory = IsolatedAppData.NewDirectory("main-window");
 
@@ -66,7 +67,7 @@ public static class Fixtures
         // a gate that can switch to a second pool (offline here, like the first).
         var production = environment == ConnectionEnvironment.Production;
         var dataSource = new WriteGatedDataSource(
-            DataSource,
+            liveDataSource ?? DataSource,
             production && !readOnlyProfile ? () => NpgsqlDataSource.Create(OfflineConnectionString) : null);
         var schemaService = new SchemaService(dataSource);
         var schemaTree = new SchemaTreeViewModel(schemaService, showSizes: true);
@@ -98,6 +99,12 @@ public static class Fixtures
             backups: new FakeBackupService(),
             restores: new FakeRestoreService(),
             savedPlanStore: new SavedPlanStore(Path.Combine(dataDirectory, "query-lab")));
+
+        // Switchable, as every real window with a profile behind it is, so the
+        // title bar draws the database-name button the app shows (App.BuildMainWindow
+        // sets the real switch). Neither seam reaches a server.
+        viewModel.ListDatabases = _ => Task.FromResult<IReadOnlyList<string>>(["analytics", "postgres", "shop"]);
+        viewModel.SwitchToDatabase = _ => Task.CompletedTask;
 
         SeedSavedQueries(viewModel.SavedQueries);
 

@@ -709,6 +709,18 @@ public static class CommandCatalog
             Chord = new(CommandKey.O, CmdShift),
             Surfaces = Everywhere,
         },
+        // Another database of the same server, in this window: the list the
+        // title bar's database name opens. Palette only, no chord and no ☰ item
+        // (UI design rule 1): the breadcrumb is its visible home. Listed only in
+        // a window that can switch (MainViewModel.CanSwitchDatabase).
+        new()
+        {
+            Id = CommandId.SwitchDatabase,
+            Title = "Switch database…",
+            Category = CommandCategory.Navigation,
+            Glyph = "⇆",
+            Surfaces = PaletteOnly,
+        },
         new()
         {
             Id = CommandId.NewWindow,

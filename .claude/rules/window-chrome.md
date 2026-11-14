@@ -253,4 +253,7 @@ paths:
   (`user@host:port/database` from the profile, plus the SSH hop). `ConnectionHost`
   is still the host, and still the workspace and history key. The screenshot
   fixture has no profile, so its bar still reads `localhost › shop`. Tests:
-  `ConnectionBreadcrumbTests`.
+  `ConnectionBreadcrumbTests`. The database segment is a button opening the
+  server's database list (2026-11, see CLAUDE.md's "Another database of the
+  server"); the whole left cluster already has the `User` role, so it takes clicks
+  rather than dragging the window.

@@ -2207,6 +2207,30 @@ Moved to [`.claude/rules/logo-assets.md`](rules/logo-assets.md), which loads whe
   request). Tests: `ProductionWriteGateTests` (Core, live half on
   `PGNIMBUS_TEST_CONN`), `ProductionEnvironmentTests`; scenarios
   `main-window-production`, `main-window-production-writes-on`.
+- **Another database of the server is the breadcrumb's database name**
+  (2026-11). It is a flat `toolbar` button whose padding a negative margin takes
+  back, so at rest it draws exactly as the plain text did (the main-window
+  frames rendered byte-identical; the fixture is switchable through
+  `MainViewModel.SwitchToDatabase`/`ListDatabases` like a real window), opening
+  `DatabaseSwitcherView` (filter box + `ListBox.emphasized`, like the tab finder)
+  over `SchemaService.GetDatabasesAsync` (`datallowconn`, no templates,
+  `has_database_privilege(oid, 'CONNECT')`, tagged); the palette's
+  `SwitchDatabase` opens the same flyout. Choosing a row is Switch Connection
+  with only the database changed, through the restore's "Open in New Window"
+  path (hard rule 8), now `Core/Connections/DatabaseSwitch` under
+  `App.ConnectToDatabaseAsync`: connect first (a failure goes to the status line,
+  the window untouched), then the new window takes the old one's place and size
+  and the old one closes. **Staged changes, an open transaction or a running
+  query are asked about first** (`ConfirmDialog`, naming each, before anything
+  connects), and on Yes the switch rolls the transaction back and cancels the
+  queries itself (`MainViewModel.EndConnectionWorkAsync`): an ordinary window
+  close does neither, since disposing the pool leaves a rented connection alone
+  (measured: "idle in transaction" until the process exits, and a statement
+  runs on to its end). Unsaved SQL needs no question, the workspace snapshot
+  keeps it under the old database's key. Live tests: `DatabaseSwitchTests`,
+  `DatabaseSwitchLiveTests`. The row's menu is
+  Open in New Window. `MainViewModel.SwitchToDatabase` is null, and the name
+  plain text, for a window with neither a profile nor a `PGNIMBUS_CONN` string.
 - **json/jsonb are a first-class editable type.** `ColumnValueEditorClassifier`
   maps them to `ColumnValueEditor.Json` (jsonpath isn't JSON-shaped so it takes
   the plain-cast `CastText` path below; hstore stays `Text` — its display needs

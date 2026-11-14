@@ -456,6 +456,181 @@ public sealed partial class MainViewModel : ObservableObject
     /// </summary>
     public Func<string, Task>? OpenDatabaseInNewWindow { get; set; }
 
+    private Func<string, Task>? _switchToDatabase;
+
+    /// <summary>
+    /// Re-points this window at another database of the same server, exactly as
+    /// Switch Connection does for a profile that differs only in the database:
+    /// it connects first, then a new window takes this one's place and this one
+    /// closes. Throws, leaving this window as it was, when the connect fails. Set
+    /// by the host; null (no profile and no connection string to swap the
+    /// database in) hides the switch.
+    /// </summary>
+    public Func<string, Task>? SwitchToDatabase
+    {
+        get => _switchToDatabase;
+        set
+        {
+            _switchToDatabase = value;
+            OnPropertyChanged(nameof(CanSwitchDatabase));
+        }
+    }
+
+    /// <summary>Whether the title bar's database name opens the database list.</summary>
+    public bool CanSwitchDatabase => SwitchToDatabase is not null;
+
+    /// <summary>Reads the server's databases for the list; a seam so a test can list without a server.</summary>
+    public Func<CancellationToken, Task<IReadOnlyList<string>>>? ListDatabases { get; set; }
+
+    /// <summary>Raised to open the database list (the palette's "Switch database…"); MainWindow opens the breadcrumb's flyout.</summary>
+    public event Action? SwitchDatabaseRequested;
+
+    [RelayCommand]
+    private void SwitchDatabase()
+    {
+        if (!CanSwitchDatabase)
+        {
+            ActiveTab.Status = "This window can't switch databases: it has no connection profile to open another database with.";
+            return;
+        }
+
+        SwitchDatabaseRequested?.Invoke();
+    }
+
+    /// <summary>A fresh database list for the flyout, wired to this window's switch and new-window paths.</summary>
+    public DatabaseSwitcherViewModel CreateDatabaseSwitcher() => new(
+        ConnectionDatabase,
+        ListDatabases ?? _schemaService.GetDatabasesAsync,
+        SwitchToDatabaseAsync,
+        OpenDatabaseInNewWindow is null ? null : OpenDatabaseInNewWindowAsync);
+
+    /// <summary>
+    /// Opens <paramref name="database"/> in this window. A connect that fails
+    /// (no CONNECT privilege, the database dropped meanwhile) leaves the window
+    /// on its database and says why on the status line.
+    /// </summary>
+    public async Task SwitchToDatabaseAsync(string database)
+    {
+        if (SwitchToDatabase is not { } switchTo || database == ConnectionDatabase)
+        {
+            return;
+        }
+
+        var tab = ActiveTab;
+
+        // The old window's connection ends with the switch. What it would take
+        // with it is asked about first, before anything connects; unsaved SQL
+        // is not, since the workspace snapshot keeps it for this database.
+        if (DescribeSwitchLosses() is { } losses)
+        {
+            if (ConfirmSwitchDatabaseRequested is not { } confirm
+                || !await confirm($"Open {database} in this window? {losses}"))
+            {
+                tab.Status = $"Stayed on {ConnectionDatabase}.";
+                return;
+            }
+        }
+
+        tab.Status = $"Connecting to {database}…";
+        try
+        {
+            await switchTo(database);
+        }
+        catch (Exception ex)
+        {
+            tab.Status = $"Couldn't open database {database}: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// Asks whether to go ahead when switching databases would lose work: the
+    /// message names it. Wired by MainWindow to the shared <c>ConfirmDialog</c>;
+    /// with no handler such a switch is refused.
+    /// </summary>
+    public Func<string, Task<bool>>? ConfirmSwitchDatabaseRequested { get; set; }
+
+    /// <summary>
+    /// What ending this window's connection would lose, as a sentence ("3 staged
+    /// changes will be discarded and the open transaction will be rolled back."),
+    /// or null when nothing would be.
+    /// </summary>
+    public string? DescribeSwitchLosses()
+    {
+        var parts = new List<string>();
+        var staged = Tabs.Sum(t => t.PendingChanges?.Count ?? 0);
+        if (staged > 0)
+        {
+            parts.Add(staged == 1 ? "1 staged change will be discarded" : $"{staged} staged changes will be discarded");
+        }
+
+        if (IsInTransaction || _engine.IsInTransaction)
+        {
+            parts.Add("the open transaction will be rolled back");
+        }
+
+        var running = Tabs.Count(t => t.IsRunning);
+        if (running > 0)
+        {
+            parts.Add(running == 1 ? "the running query will be cancelled" : $"{running} running queries will be cancelled");
+        }
+
+        if (parts.Count == 0)
+        {
+            return null;
+        }
+
+        var sentence = parts.Count == 1
+            ? parts[0]
+            : string.Join(", ", parts.Take(parts.Count - 1)) + " and " + parts[^1];
+        return char.ToUpperInvariant(sentence[0]) + sentence[1..] + ".";
+    }
+
+    /// <summary>
+    /// Called once the switch has connected, just before this window closes: its
+    /// running queries are cancelled and an open transaction is rolled back, as
+    /// the confirm said. An ordinary close does neither (the pool's disposal
+    /// leaves a rented connection alone), so the switch does it explicitly.
+    /// </summary>
+    public async Task EndConnectionWorkAsync()
+    {
+        foreach (var running in Tabs.Where(t => t.IsRunning))
+        {
+            running.CancelCommand.Execute(null);
+        }
+
+        if (_engine.IsInTransaction)
+        {
+            try
+            {
+                await _engine.RollbackAsync(CancellationToken.None);
+            }
+            catch (Exception)
+            {
+                // The connection is being abandoned anyway; a failed ROLLBACK
+                // leaves the server to end the session when the socket closes.
+            }
+        }
+    }
+
+    /// <summary>Opens <paramref name="database"/> in a new window; a failure is reported like <see cref="SwitchToDatabaseAsync"/>'s.</summary>
+    public async Task OpenDatabaseInNewWindowAsync(string database)
+    {
+        if (OpenDatabaseInNewWindow is not { } open)
+        {
+            return;
+        }
+
+        var tab = ActiveTab;
+        try
+        {
+            await open(database);
+        }
+        catch (Exception ex)
+        {
+            tab.Status = $"Couldn't open database {database}: {ex.Message}";
+        }
+    }
+
     /// <summary>
     /// Restores a pg_dump archive (palette, ☰ menu, the macOS File menu). Not on
     /// a read-only connection: the server would refuse the CREATE DATABASE and
@@ -2212,6 +2387,7 @@ public sealed partial class MainViewModel : ObservableObject
         CommandId.AllowWrites => CanToggleWrites && !WritesAllowed,
         CommandId.LockWrites => CanToggleWrites && WritesAllowed,
         CommandId.RateInStore => CanRateInStore,
+        CommandId.SwitchDatabase => CanSwitchDatabase,
         _ => true,
     };
 
