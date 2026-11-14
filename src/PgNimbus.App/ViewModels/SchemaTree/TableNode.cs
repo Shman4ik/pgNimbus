@@ -53,6 +53,18 @@ public sealed class TableNode : SchemaTreeNode
     /// </summary>
     public bool CanBackUp => Kind is RelationKind.Table or RelationKind.PartitionedTable;
 
+    /// <summary>
+    /// Whether the Maintenance submenu's Analyze and Vacuum apply: relations with
+    /// storage of their own (a plain view is skipped by the server with a warning).
+    /// </summary>
+    public bool CanAnalyze => TableMaintenance.Applies(TableMaintenanceAction.Analyze, Kind);
+
+    /// <summary>Whether Truncate… applies: tables and partitioned parents only.</summary>
+    public bool CanTruncate => TableMaintenance.Applies(TableMaintenanceAction.Truncate, Kind);
+
+    /// <summary>"table", "view" or "materialized view", for the submenu's confirms.</summary>
+    public string KindNoun => TableMaintenance.Noun(Kind);
+
     /// <summary>Only relations with real storage carry indexes (tables, matviews, partitioned parents) — not plain views.</summary>
     private bool CanHaveIndexes => Kind is RelationKind.Table or RelationKind.MaterializedView or RelationKind.PartitionedTable;
 

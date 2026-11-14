@@ -102,6 +102,13 @@ public enum CommandId
 
     // Appended; filed under navigation beside Switch connection.
     SwitchDatabase,
+    // Appended; the relation's Maintenance submenu, filed under navigation
+    // after the backup pair.
+    AnalyzeTable,
+    VacuumTable,
+    TruncateTable,
+    RenameTable,
+    DropTable,
 }
 
 /// <summary>

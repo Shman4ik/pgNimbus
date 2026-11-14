@@ -185,6 +185,20 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
     /// <summary>DROP SCHEMA (the bool is CASCADE), then reload the tree and the caches derived from it.</summary>
     public Func<SchemaNode, bool, Task>? DropSchemaRequested { get; set; }
 
+    /// <summary>
+    /// A relation's Maintenance submenu (Analyze, Vacuum, Truncate…, Rename…,
+    /// Drop…). The host confirms, asks for a new name, runs the statement and
+    /// refreshes; the palette's rows of the same commands go the same way.
+    /// </summary>
+    public Func<TableNode, TableMaintenanceAction, Task>? MaintenanceRequested { get; set; }
+
+    /// <summary>
+    /// The row selected in the tree (written by the view, one way), which the
+    /// palette's maintenance commands act on when it is a relation.
+    /// </summary>
+    [ObservableProperty]
+    private object? _selectedNode;
+
     /// <summary>Adds/removes a schema from the editor completion's exclusion set (persisted per connection by the host).</summary>
     public Func<SchemaNode, bool, Task>? SetSchemaExcludedFromCompletionRequested { get; set; }
 
