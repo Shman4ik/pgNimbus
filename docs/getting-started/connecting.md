@@ -6,14 +6,13 @@ pgNimbus opens the connection dialog on launch.
 
 ## Supported PostgreSQL versions
 
-pgNimbus is tested with PostgreSQL 14 to 18. The full test suite passes on 16,
-17 and 18. On 14 and 15 it passes except one test of per-membership
-`NOINHERIT` roles, which needs PostgreSQL 16; the app itself reads role
-membership correctly there.
-
-Below 14 it is known not to work fully: the function list that completion and
-the schema tree read uses a catalog column that PostgreSQL 14 introduced
-(`pg_type.typsubscript`), so that read fails on 13 and 12.
+The test suite passes on PostgreSQL 12 to 18 (the official `postgres:12` to
+`postgres:18` images), with no failures. Two groups of tests skip on older
+servers because they need newer syntax: the per-membership `NOINHERIT` roles
+test needs 16 (skipped on 12 to 15), and the four multirange tests need 14
+(skipped on 12 and 13). The function list reads a catalog column from 14 and
+falls back below it. PostgreSQL 19 was not tested. PostgreSQL's own policy ends
+support for a major release five years after it ships.
 
 ## Paste anything
 
