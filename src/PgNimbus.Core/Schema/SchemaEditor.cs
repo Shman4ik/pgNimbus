@@ -74,6 +74,13 @@ public sealed class SchemaEditor(WriteGatedDataSource dataSource)
     public Task DropExtensionAsync(string name, CancellationToken ct) =>
         ExecuteAsync($"DROP EXTENSION {SqlIdentifier.Quote(name)}", ct);
 
+    /// <summary>
+    /// Runs one statement built by <see cref="TableMaintenance"/> on a pooled
+    /// connection of its own, in autocommit: never on the window's explicit
+    /// transaction, since VACUUM cannot run inside a transaction block.
+    /// </summary>
+    public Task RunMaintenanceAsync(string statement, CancellationToken ct) => ExecuteAsync(statement, ct);
+
     private async Task ExecuteAsync(string sql, CancellationToken ct)
     {
         await using var connection = await _dataSource.OpenConnectionAsync(ct);

@@ -1038,7 +1038,7 @@ Three rules about it:
    18-item Create submenu; pgNimbus's schema menu is seven — New Table…, Copy
    Name, Refresh, Back Up Schema…, Exclude from Autocomplete, Drop Schema…, Drop
    Schema (Cascade)… — and each earns its place the same way a toolbar button would.
-   A relation's menu is five (2026-09; Back Up Table… since 2026-10): **Browse Rows** first, because it is what
+   A relation's menu is six (2026-09; Back Up Table… since 2026-10, Maintenance since 2026-11): **Browse Rows** first, because it is what
    a double-click does and the menu used to offer only Source (DDL) and Alter
    Table…, so the commonest reason to right-click a table had no row; then Copy
    Name, Source (DDL), and Alter Table… and Back Up Table… for tables and partitioned parents only
@@ -1046,6 +1046,21 @@ Three rules about it:
    and a view's backup would be the one CREATE VIEW that Source (DDL) already shows).
    The two Back Up items were the owner's call (issue #381): backing up one table
    before a risky migration is the commonest simple backup there is.
+   **Maintenance ▸** is the sixth item, one submenu by the owner's call (2026-11),
+   holding Analyze, Vacuum, Truncate…, Rename…, Drop…, each shown only where
+   PostgreSQL accepts it (`Core/Schema/TableMaintenance.Applies`: views get Rename
+   and Drop, materialized views also Analyze and Vacuum, Truncate is for tables).
+   The same five are palette-only commands acting on the tree's selected relation,
+   else the active tab's browsed table. All go through
+   `MainViewModel.RunTableMaintenanceAsync`: Truncate and Drop confirm (naming
+   `schema.table` and the database), Rename asks in `SaveQueryDialog`, each runs
+   PostgreSQL's plain RESTRICT form off the UI thread on a pooled connection
+   (VACUUM can't run in a transaction block), and a failure lands in the
+   sidebar's strip like Drop Schema's. A read-only connection refuses the three
+   writes up front with the grid's hint; a production window with writes off
+   refuses all five, since the server allows ANALYZE and VACUUM on a read-only
+   session (Server Activity's reasoning). No Refresh, Reindex or Cascade
+   variants. Tests: `TableMaintenanceTests` (Core and App).
    Every menu label is Title Case on every platform (DESIGN.md rule 18): the
    native menu bar already was, and the context menus under it said "Copy name"
    and "Drop schema...". `MenuTests` pins the schema and relation menus.

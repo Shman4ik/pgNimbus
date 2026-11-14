@@ -7,6 +7,7 @@ using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using PgNimbus.App.ViewModels;
 using PgNimbus.Core.Query;
+using PgNimbus.Core.Schema;
 
 namespace PgNimbus.App.Views;
 
@@ -186,6 +187,27 @@ public partial class SchemaTreePanel : UserControl
         if (sender is MenuItem { Tag: TableNode table })
         {
             Model?.BackUpTableRequested?.Invoke(table);
+        }
+    }
+
+    // The relation's Maintenance submenu. The host (MainViewModel) does the
+    // confirm, the naming prompt and the refresh, so the palette's rows of the
+    // same commands behave exactly like these.
+    private void OnAnalyzeTableClick(object? sender, RoutedEventArgs e) => RequestMaintenance(sender, TableMaintenanceAction.Analyze);
+
+    private void OnVacuumTableClick(object? sender, RoutedEventArgs e) => RequestMaintenance(sender, TableMaintenanceAction.Vacuum);
+
+    private void OnTruncateTableClick(object? sender, RoutedEventArgs e) => RequestMaintenance(sender, TableMaintenanceAction.Truncate);
+
+    private void OnRenameTableClick(object? sender, RoutedEventArgs e) => RequestMaintenance(sender, TableMaintenanceAction.Rename);
+
+    private void OnDropTableClick(object? sender, RoutedEventArgs e) => RequestMaintenance(sender, TableMaintenanceAction.Drop);
+
+    private async void RequestMaintenance(object? sender, TableMaintenanceAction action)
+    {
+        if (sender is MenuItem { Tag: TableNode table } && Model?.MaintenanceRequested is { } maintain)
+        {
+            await maintain(table, action);
         }
     }
 
