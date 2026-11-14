@@ -99,6 +99,14 @@ public enum CommandId
 
     // Appended; filed under navigation after the cheat sheet, the About box's neighbour.
     RateInStore,
+
+    // Appended; the relation's Maintenance submenu, filed under navigation
+    // after the backup pair.
+    AnalyzeTable,
+    VacuumTable,
+    TruncateTable,
+    RenameTable,
+    DropTable,
 }
 
 /// <summary>

@@ -1084,6 +1084,7 @@ public sealed partial class MainViewModel : ObservableObject
         SchemaTree.BackUpTableRequested = table =>
             RequestBackup(BackupScope.ForTable(table.Schema, table.Name, table.Kind == RelationKind.PartitionedTable));
         SchemaTree.DropSchemaRequested = DropSchemaAsync;
+        SchemaTree.MaintenanceRequested = (table, action) => RunTableMaintenanceAsync(new(table.Schema, table.Name, table.Kind), action);
         SchemaTree.SetSchemaExcludedFromCompletionRequested = SetSchemaExcludedFromCompletionAsync;
         SchemaTree.ManageRolesRequested = ManageRolesAsync;
         SchemaTree.IsSchemaExcludedFromCompletion = _excludedSchemas.Contains;
@@ -1709,6 +1710,249 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
+    /// <summary>The relation a Maintenance action runs on.</summary>
+    public sealed record MaintenanceTarget(string Schema, string Name, RelationKind Kind);
+
+    /// <summary>
+    /// Confirms Truncate… and Drop… (the message, then the confirm button's
+    /// label). The view shows the shared <c>ConfirmDialog</c>; without a handler
+    /// nothing runs.
+    /// </summary>
+    public Func<string, string, Task<bool>>? ConfirmMaintenanceRequested { get; set; }
+
+    /// <summary>
+    /// Asks for a relation's new name (the heading, then the current name);
+    /// null is a cancel. Without a handler, Rename… does nothing.
+    /// </summary>
+    public Func<string, string, Task<string?>>? RenameRelationRequested { get; set; }
+
+    /// <summary>
+    /// Replaces the server round trip of every maintenance statement. The tests'
+    /// seam (it records what would have been sent); null in the app.
+    /// </summary>
+    public Func<string, CancellationToken, Task>? MaintenanceRunner { get; set; }
+
+    // The palette's target: the relation selected in the schema tree, else the
+    // table the active tab browses. A browsed relation's kind comes from the
+    // palette's relation list when it is loaded, and is taken as a table until
+    // then (RunOnCurrentTargetAsync looks it up before running anything).
+    private MaintenanceTarget? CurrentMaintenanceTarget()
+    {
+        if (SchemaTree.SelectedNode is TableNode table)
+        {
+            return new(table.Schema, table.Name, table.Kind);
+        }
+
+        if (ActiveTab?.BrowsedTableName is { } browsed)
+        {
+            var kind = _relationCache?.FirstOrDefault(r => r.Schema == browsed.Schema && r.Name == browsed.Name)?.Kind
+                ?? RelationKind.Table;
+            return new(browsed.Schema, browsed.Name, kind);
+        }
+
+        return null;
+    }
+
+    private bool MaintenanceListed(TableMaintenanceAction action) =>
+        CurrentMaintenanceTarget() is { } target && TableMaintenance.Applies(action, target.Kind);
+
+    [RelayCommand]
+    private Task AnalyzeTableAsync() => RunOnCurrentTargetAsync(TableMaintenanceAction.Analyze);
+
+    [RelayCommand]
+    private Task VacuumTableAsync() => RunOnCurrentTargetAsync(TableMaintenanceAction.Vacuum);
+
+    [RelayCommand]
+    private Task TruncateTableAsync() => RunOnCurrentTargetAsync(TableMaintenanceAction.Truncate);
+
+    [RelayCommand]
+    private Task RenameTableAsync() => RunOnCurrentTargetAsync(TableMaintenanceAction.Rename);
+
+    [RelayCommand]
+    private Task DropTableAsync() => RunOnCurrentTargetAsync(TableMaintenanceAction.Drop);
+
+    private async Task RunOnCurrentTargetAsync(TableMaintenanceAction action)
+    {
+        if (CurrentMaintenanceTarget() is not { } target)
+        {
+            ActiveTab.Status = "Select a table in the schema tree, or browse one, first.";
+            ActiveTab.HasError = true;
+            return;
+        }
+
+        if (SchemaTree.SelectedNode is not TableNode)
+        {
+            // A browsed relation may be a view: ask the catalog what it is, so
+            // the statement takes the right keyword (DROP VIEW, not DROP TABLE).
+            try
+            {
+                var relations = await GetRelationsAsync();
+                if (relations.FirstOrDefault(r => r.Schema == target.Schema && r.Name == target.Name) is { } relation)
+                {
+                    target = target with { Kind = relation.Kind };
+                }
+            }
+            catch
+            {
+                // No catalog: the server refuses a wrong keyword with its own message.
+            }
+        }
+
+        await RunTableMaintenanceAsync(target, action);
+    }
+
+    /// <summary>
+    /// One action of a relation's Maintenance submenu or its palette row.
+    /// Analyze and Vacuum run at once; Truncate and Drop confirm first, naming
+    /// the relation and the database; Rename asks for the new name. The
+    /// statement runs off the UI thread on a pooled connection of its own (never
+    /// the window's explicit transaction: VACUUM can't run in one), and a
+    /// failure, the server's refusal included, lands in the sidebar's message
+    /// strip like every schema action's, and on the status line.
+    /// <para>
+    /// A read-only connection refuses the three that write up front, with the
+    /// hint the grid shows; a production window with writes off refuses all
+    /// five, because the server allows ANALYZE and VACUUM on a read-only session
+    /// (the same reasoning as Server Activity's Cancel and Terminate). After a
+    /// Rename or Drop the tree, the palette's relation list and the completion
+    /// cache are reloaded.
+    /// </para>
+    /// </summary>
+    public async Task RunTableMaintenanceAsync(MaintenanceTarget target, TableMaintenanceAction action)
+    {
+        var tab = ActiveTab;
+        var display = $"{target.Schema}.{target.Name}";
+        var noun = TableMaintenance.Noun(target.Kind);
+        var verb = action.ToString().ToLowerInvariant();
+
+        if (!TableMaintenance.Applies(action, target.Kind))
+        {
+            Refuse(tab, $"Can't {verb} \"{display}\": it is a {noun}.");
+            return;
+        }
+
+        // CanToggleWrites: only a production window that can allow writes holds
+        // a write gate (App passes one only when CanAllowWrites), so an ordinary
+        // read-only profile still vacuums and analyzes.
+        var productionLocked = CanToggleWrites && !WritesAllowed;
+        if (ConnectionReadOnlyHint is { } hint && (TableMaintenance.Writes(action) || productionLocked))
+        {
+            Refuse(tab, $"Can't {verb} \"{display}\": {hint}");
+            return;
+        }
+
+        var database = string.IsNullOrEmpty(ConnectionDatabase) ? "" : $" in database \"{ConnectionDatabase}\"";
+        string? newName = null;
+        switch (action)
+        {
+            case TableMaintenanceAction.Truncate:
+                var truncated = target.Kind == RelationKind.PartitionedTable
+                    ? "Every row in it and in all its partitions is deleted"
+                    : "Every row in it is deleted";
+                if (ConfirmMaintenanceRequested is not { } confirmTruncate
+                    || !await confirmTruncate(
+                        $"Truncate table \"{display}\"{database}? {truncated}, and this can't be undone. " +
+                        "It fails if another table's foreign key references it.",
+                        "Truncate"))
+                {
+                    return;
+                }
+
+                break;
+
+            case TableMaintenanceAction.Drop:
+                var lost = target.Kind switch
+                {
+                    RelationKind.View => "The view is removed",
+                    RelationKind.MaterializedView => "The materialized view and its data are removed",
+                    RelationKind.PartitionedTable => "The table and all its partitions, with every row in them, are removed",
+                    _ => "The table and every row in it are removed",
+                };
+                if (ConfirmMaintenanceRequested is not { } confirmDrop
+                    || !await confirmDrop(
+                        $"Drop {noun} \"{display}\"{database}? {lost}, and this can't be undone. " +
+                        "It fails if a view or another table's foreign key depends on it.",
+                        "Drop"))
+                {
+                    return;
+                }
+
+                break;
+
+            case TableMaintenanceAction.Rename:
+                if (RenameRelationRequested is not { } ask
+                    || (await ask($"Rename {noun} \"{display}\"", target.Name))?.Trim() is not { Length: > 0 } typed
+                    || typed == target.Name)
+                {
+                    return;
+                }
+
+                if (TableMaintenance.CheckNewName(typed) is { } problem)
+                {
+                    Refuse(tab, problem);
+                    return;
+                }
+
+                newName = typed;
+                break;
+        }
+
+        var sql = TableMaintenance.For(action, target.Schema, target.Name, target.Kind, newName);
+        SchemaTree.ErrorMessage = null;
+        tab.HasError = false;
+        tab.Status = action switch
+        {
+            TableMaintenanceAction.Analyze => $"Analyzing {display}…",
+            TableMaintenanceAction.Vacuum => $"Vacuuming {display}…",
+            TableMaintenanceAction.Truncate => $"Truncating {display}…",
+            TableMaintenanceAction.Rename => $"Renaming {display}…",
+            _ => $"Dropping {display}…",
+        };
+
+        var started = System.Diagnostics.Stopwatch.StartNew();
+        try
+        {
+            // The tests' seam runs inline: a thread-pool hop under a loaded test
+            // run outlasted the headless settle loop.
+            await (MaintenanceRunner is { } seam
+                ? seam(sql, CancellationToken.None)
+                : Task.Run(() => _schemaEditor.RunMaintenanceAsync(sql, CancellationToken.None)));
+        }
+        catch (Exception ex)
+        {
+            SchemaTree.ErrorMessage = ex.Message;
+            tab.Status = $"Couldn't {verb} {display}: {ex.Message}";
+            tab.HasError = true;
+            return;
+        }
+
+        var took = started.Elapsed.TotalSeconds.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture);
+        tab.Status = action switch
+        {
+            TableMaintenanceAction.Analyze => $"Analyzed {display} in {took} s",
+            TableMaintenanceAction.Vacuum => $"Vacuumed {display} in {took} s",
+            TableMaintenanceAction.Truncate => $"Truncated {display}",
+            TableMaintenanceAction.Rename => $"Renamed {display} to {target.Schema}.{newName}",
+            _ => $"Dropped {display}",
+        };
+
+        if (action is TableMaintenanceAction.Rename or TableMaintenanceAction.Drop)
+        {
+            if (SchemaTree.SelectedNode is TableNode selected && selected.Schema == target.Schema && selected.Name == target.Name)
+            {
+                SchemaTree.SelectedNode = null;
+            }
+
+            await RefreshSchemaAsync();
+        }
+    }
+
+    private void Refuse(QueryViewModel tab, string message)
+    {
+        tab.Status = message;
+        tab.HasError = true;
+    }
+
     /// <summary>
     /// Adds/removes a schema from the completion exclusion set, persists it for
     /// this connection, and rebuilds the completion cache so the change is live
@@ -2212,6 +2456,11 @@ public sealed partial class MainViewModel : ObservableObject
         CommandId.AllowWrites => CanToggleWrites && !WritesAllowed,
         CommandId.LockWrites => CanToggleWrites && WritesAllowed,
         CommandId.RateInStore => CanRateInStore,
+        CommandId.AnalyzeTable => MaintenanceListed(TableMaintenanceAction.Analyze),
+        CommandId.VacuumTable => MaintenanceListed(TableMaintenanceAction.Vacuum),
+        CommandId.TruncateTable => MaintenanceListed(TableMaintenanceAction.Truncate),
+        CommandId.RenameTable => MaintenanceListed(TableMaintenanceAction.Rename),
+        CommandId.DropTable => MaintenanceListed(TableMaintenanceAction.Drop),
         _ => true,
     };
 

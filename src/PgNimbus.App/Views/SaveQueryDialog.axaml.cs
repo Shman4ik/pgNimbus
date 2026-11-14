@@ -34,6 +34,10 @@ public partial class SaveQueryDialog : Window
 
     private Guid? _conflictId;
 
+    // The primary button's word when nothing collides: "Save", or "Rename"
+    // when the dialog names a relation for the schema tree's Rename….
+    private readonly string _saveLabel = "Save";
+
     public SaveQueryDialog()
     {
         InitializeComponent();
@@ -57,10 +61,12 @@ public partial class SaveQueryDialog : Window
         Guid? currentId,
         Func<string, (Guid Id, string Name)?> findByName,
         string noun,
-        string windowTitle)
+        string windowTitle,
+        string saveLabel = "Save")
         : this()
     {
         Title = windowTitle;
+        _saveLabel = saveLabel;
         HeadingText.Text = heading;
         _currentId = currentId;
         _findByName = findByName;
@@ -104,7 +110,7 @@ public partial class SaveQueryDialog : Window
         ConflictText.Text = _conflictId is null
             ? string.Empty
             : $"A {_noun} named \u201c{match!.Value.Name}\u201d already exists. Saving replaces it.";
-        SaveButton.Content = _conflictId is null ? "Save" : "Replace";
+        SaveButton.Content = _conflictId is null ? _saveLabel : "Replace";
     }
 
     private void OnNameBoxKeyDown(object? sender, KeyEventArgs e)

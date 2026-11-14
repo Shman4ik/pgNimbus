@@ -737,6 +737,51 @@ public static class CommandCatalog
             Glyph = "⤒",
             Surfaces = PaletteOnly,
         },
+        // A relation's Maintenance submenu (Analyze, Vacuum, Truncate…, Rename…,
+        // Drop…). They act on the relation selected in the schema tree, else on
+        // the active tab's browsed table, and the palette lists them only when
+        // there is one and the action applies to its kind. No chords and no ☰
+        // items: maintenance is occasional, and two of these destroy data.
+        new()
+        {
+            Id = CommandId.AnalyzeTable,
+            Title = "Analyze table",
+            Category = CommandCategory.Navigation,
+            Glyph = "∑",
+            Surfaces = PaletteOnly,
+        },
+        new()
+        {
+            Id = CommandId.VacuumTable,
+            Title = "Vacuum table",
+            Category = CommandCategory.Navigation,
+            Glyph = "⟳",
+            Surfaces = PaletteOnly,
+        },
+        new()
+        {
+            Id = CommandId.TruncateTable,
+            Title = "Truncate table…",
+            Category = CommandCategory.Navigation,
+            Glyph = "⌀",
+            Surfaces = PaletteOnly,
+        },
+        new()
+        {
+            Id = CommandId.RenameTable,
+            Title = "Rename table…",
+            Category = CommandCategory.Navigation,
+            Glyph = "✐",
+            Surfaces = PaletteOnly,
+        },
+        new()
+        {
+            Id = CommandId.DropTable,
+            Title = "Drop table…",
+            Category = CommandCategory.Navigation,
+            Glyph = "✕",
+            Surfaces = PaletteOnly,
+        },
         new()
         {
             Id = CommandId.ToggleTheme,

@@ -77,6 +77,17 @@
                         <MenuItem Header="Source (DDL)" Tag="{Binding}" Click="OnShowSourceClick" />
                         <MenuItem Header="Alter Table…" Tag="{Binding}" Click="OnAlterTableClick" IsVisible="{Binding CanAlter}" />
                         <MenuItem Header="Back Up Table…" Tag="{Binding}" Click="OnBackUpTableClick" IsVisible="{Binding CanBackUp}" />
+                        <!-- One submenu for the rest (the owner's call): each item only
+                             where PostgreSQL accepts its statement. Views keep Rename and
+                             Drop; materialized views also Analyze and Vacuum; Truncate is
+                             for tables. Truncate and Drop confirm, Rename asks for a name. -->
+                        <MenuItem Header="Maintenance">
+                            <MenuItem Header="Analyze" Tag="{Binding}" Click="OnAnalyzeTableClick" IsVisible="{Binding CanAnalyze}" />
+                            <MenuItem Header="Vacuum" Tag="{Binding}" Click="OnVacuumTableClick" IsVisible="{Binding CanAnalyze}" />
+                            <MenuItem Header="Truncate…" Tag="{Binding}" Click="OnTruncateTableClick" IsVisible="{Binding CanTruncate}" />
+                            <MenuItem Header="Rename…" Tag="{Binding}" Click="OnRenameTableClick" />
+                            <MenuItem Header="Drop…" Tag="{Binding}" Click="OnDropTableClick" />
+                        </MenuItem>
                     </ContextMenu>
                 </DockPanel.ContextMenu>
                 <!-- One family icon per relation kind (table/view/matview/partitioned)
@@ -333,6 +344,7 @@
                      node's ShownChildren rather than on IsVisible, because a virtualizing
                      panel still realizes a hidden row to learn it takes no space. -->
                 <TreeView Name="SchemaTreeView" Classes="virtualizing" ItemsSource="{Binding ShownSchemas}"
+                          SelectedItem="{Binding SelectedNode, Mode=OneWayToSource}"
                           ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                     <TreeView.Styles>
                         <Style Selector="TreeViewItem">

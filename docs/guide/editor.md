@@ -60,9 +60,28 @@ schema offers:
 
 A table, view or materialized view offers **Browse Rows** (what a double-click
 does), **Copy Name** and its reconstructed DDL; a table also offers the Alter
-Table dialog. A function or procedure offers its source, and so do the indexes and
-triggers listed under a table when Show Advanced Objects is on (a double-click
-opens it too, in a new tab). An extension offers install or drop.
+Table dialog and a backup. A function or procedure offers its source, and so do
+the indexes and triggers listed under a table when Show Advanced Objects is on (a
+double-click opens it too, in a new tab). An extension offers install or drop.
+
+Every relation also has a **Maintenance** submenu. Each item shows only where
+PostgreSQL accepts it:
+
+| Item | Shown for | What it does |
+| --- | --- | --- |
+| Analyze | Tables, materialized views | Runs `ANALYZE` at once, so the planner has fresh statistics |
+| Vacuum | Tables, materialized views | Runs a plain `VACUUM` (not `FULL`) at once |
+| Truncate… | Tables | Deletes every row, after a confirmation. Fails if another table's foreign key references it |
+| Rename… | All | Asks for the new name, then runs `ALTER … RENAME TO` |
+| Drop… | All | Drops it, after a confirmation. Fails if a view or a foreign key depends on it |
+
+Truncate and Drop never cascade: when the server refuses, its message shows
+above the tree. The status line says when Analyze or Vacuum is done. The same
+five commands are in the command palette (<kbd>Ctrl</kbd>+<kbd>K</kbd>). There
+they act on the relation selected in the tree, or else on the table the current
+tab browses. On a read-only connection, Truncate, Rename and Drop are refused.
+In a production window with writes off, all five are refused until you allow
+writes.
 
 ## Completion
 

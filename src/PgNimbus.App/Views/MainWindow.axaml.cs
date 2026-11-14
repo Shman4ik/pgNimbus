@@ -528,6 +528,19 @@ public partial class MainWindow : Window, IEditCommandTarget
         return confirm.ShowDialog<bool>(this);
     }
 
+    // The Maintenance submenu's Truncate… and Drop… (and their palette rows):
+    // the shared destructive confirm, worded by the view model.
+    private Task<bool> ConfirmMaintenanceAsync(string message, string confirmLabel) =>
+        new ConfirmDialog(message, confirmLabel).ShowDialog<bool>(this);
+
+    // The Maintenance submenu's Rename…: the naming dialog Saved Queries'
+    // Rename uses, with nothing to collide with (the server refuses a taken name).
+    private async Task<string?> AskNewRelationNameAsync(string heading, string currentName)
+    {
+        var dialog = new SaveQueryDialog(heading, currentName, null, _ => null, "relation", "pgNimbus — Rename", "Rename");
+        return (await dialog.ShowDialog<SaveQueryResult?>(this))?.Name;
+    }
+
     private void Attach(MainViewModel vm)
     {
         if (_viewModel is not null)
@@ -555,6 +568,8 @@ public partial class MainWindow : Window, IEditCommandTarget
 
         _viewModel = vm;
         _viewModel.ConfirmAllowWritesRequested = ConfirmAllowWritesAsync;
+        _viewModel.ConfirmMaintenanceRequested = ConfirmMaintenanceAsync;
+        _viewModel.RenameRelationRequested = AskNewRelationNameAsync;
         // Palette actions that touch the window are handled here.
         _viewModel.ThemeToggleRequested += ToggleTheme;
         _viewModel.SwitchConnectionRequested += SwitchConnection;

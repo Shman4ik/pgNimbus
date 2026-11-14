@@ -389,10 +389,42 @@ public class MenuTests
             Ui.Show(window);
 
             var table = ContextMenuFor(window, node => node is TableNode { Name: "customers" });
-            await Assert.That(Join(VisibleHeaders(table))).IsEqualTo("Browse Rows | Copy Name | Source (DDL) | Alter Table… | Back Up Table…");
+            await Assert.That(Join(VisibleHeaders(table))).IsEqualTo("Browse Rows | Copy Name | Source (DDL) | Alter Table… | Back Up Table… | Maintenance");
 
             var view = ContextMenuFor(window, node => node is TableNode { Name: "active_customers" });
-            await Assert.That(Join(VisibleHeaders(view))).IsEqualTo("Browse Rows | Copy Name | Source (DDL)");
+            await Assert.That(Join(VisibleHeaders(view))).IsEqualTo("Browse Rows | Copy Name | Source (DDL) | Maintenance");
+
+            window.Close();
+        });
+    }
+
+    /// <summary>
+    /// The Maintenance submenu offers each statement only where PostgreSQL
+    /// accepts it: all five for a table, no Truncate for a materialized view,
+    /// and only Rename and Drop for a view.
+    /// </summary>
+    [Test]
+    public async Task Maintenance_submenu_follows_the_relation_kind()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, vm) = Scenarios.Shell();
+            var analytics = vm.SchemaTree.Schemas.Single(s => s.Name == "analytics");
+            analytics.IsExpanded = true;
+            Ui.Show(window);
+
+            async Task Check(string name, string expected)
+            {
+                var menu = ContextMenuFor(window, node => node is TableNode t && t.Name == name);
+                var maintenance = menu.Items.OfType<MenuItem>().Single(i => (string?)i.Header == "Maintenance");
+                await Assert.That(Join(maintenance.Items.OfType<MenuItem>().Where(i => i.IsVisible).Select(i => i.Header as string)))
+                    .IsEqualTo(expected);
+            }
+
+            await Check("customers", "Analyze | Vacuum | Truncate… | Rename… | Drop…");
+            await Check("events", "Analyze | Vacuum | Truncate… | Rename… | Drop…");
+            await Check("daily_revenue", "Analyze | Vacuum | Rename… | Drop…");
+            await Check("active_customers", "Rename… | Drop…");
 
             window.Close();
         });
