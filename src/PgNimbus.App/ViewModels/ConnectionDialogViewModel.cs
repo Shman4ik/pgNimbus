@@ -224,6 +224,41 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
 
     public bool ShowsRootCertificate => SslMode is SslMode.VerifyCa or SslMode.VerifyFull;
 
+    // The Advanced block: a client certificate for servers that authenticate
+    // by certificate (mutual TLS), and the session's statement and lock
+    // timeouts. Collapsed by default, since most connections need none of it,
+    // and open by itself for a profile that uses any of it, so a setting that
+    // changes how the connection behaves is never hidden.
+
+    /// <summary>Whether the Advanced block is open. The form's state, not the profile's: toggling it saves nothing.</summary>
+    [ObservableProperty]
+    private bool _isAdvancedOpen;
+
+    [RelayCommand]
+    private void ToggleAdvanced() => IsAdvancedOpen = !IsAdvancedOpen;
+
+    /// <summary>A client certificate file (<see cref="ConnectionProfile.ClientCertificatePath"/>). Blank means libpq's defaults.</summary>
+    [ObservableProperty]
+    private string _clientCertificatePath = string.Empty;
+
+    /// <summary>The certificate's private key (<see cref="ConnectionProfile.ClientKeyPath"/>).</summary>
+    [ObservableProperty]
+    private string _clientKeyPath = string.Empty;
+
+    /// <summary>Seconds; null (an empty field) means no timeout from pgNimbus. Not part of the preview: like read-only, it's this app's setting.</summary>
+    [ObservableProperty]
+    private int? _statementTimeout;
+
+    /// <summary>Seconds; null means none, as for <see cref="StatementTimeout"/>.</summary>
+    [ObservableProperty]
+    private int? _lockTimeout;
+
+    /// <summary>True when a profile sets anything the Advanced block holds.</summary>
+    public static bool HasAdvancedSettings(ConnectionProfile? profile) =>
+        profile is not null
+        && (!Blank(profile.ClientCertificatePath) || !Blank(profile.ClientKeyPath)
+            || profile.StatementTimeoutSeconds is not null || profile.LockTimeoutSeconds is not null);
+
     [ObservableProperty]
     private string? _accentColor;
 
@@ -433,6 +468,11 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
             AccentColor = value?.AccentColor;
             ReadOnly = value?.ReadOnly ?? false;
             Environment = value?.Environment ?? ConnectionEnvironment.None;
+            ClientCertificatePath = value?.ClientCertificatePath ?? string.Empty;
+            ClientKeyPath = value?.ClientKeyPath ?? string.Empty;
+            StatementTimeout = value?.StatementTimeoutSeconds;
+            LockTimeout = value?.LockTimeoutSeconds;
+            IsAdvancedOpen = HasAdvancedSettings(value);
             Password = string.Empty;
 
             UseSshTunnel = value?.SshTunnel is not null;
@@ -763,6 +803,10 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         }
     }
     partial void OnRootCertificatePathChanged(string value) => OnConnectionFieldChanged();
+    partial void OnClientCertificatePathChanged(string value) => OnConnectionFieldChanged();
+    partial void OnClientKeyPathChanged(string value) => OnConnectionFieldChanged();
+    partial void OnStatementTimeoutChanged(int? value) => OnFormEdited();
+    partial void OnLockTimeoutChanged(int? value) => OnFormEdited();
 
     private void OnConnectionFieldChanged(bool credentials = false)
     {
@@ -815,6 +859,20 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
             if (parsed.RootCertificatePath is not null)
             {
                 RootCertificatePath = parsed.RootCertificatePath;
+            }
+
+            // A pasted client certificate opens the block it lands in, so the
+            // paste doesn't change something nobody can see.
+            if (parsed.ClientCertificatePath is not null)
+            {
+                ClientCertificatePath = parsed.ClientCertificatePath;
+                IsAdvancedOpen = true;
+            }
+
+            if (parsed.ClientKeyPath is not null)
+            {
+                ClientKeyPath = parsed.ClientKeyPath;
+                IsAdvancedOpen = true;
             }
 
             // No name is written here: a blank Name field already reads as
@@ -907,6 +965,21 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         if (ShowsRootCertificate && !Blank(RootCertificatePath))
         {
             builder.Append(separator).Append("sslrootcert=").Append(Uri.EscapeDataString(RootCertificatePath.Trim()));
+            separator = '&';
+        }
+
+        // Paths, not secrets, and part of the target the way sslrootcert is: a
+        // server that wants a certificate refuses the string without them. The
+        // timeouts are not here, like read-only: they are this app's settings.
+        if (!Blank(ClientCertificatePath))
+        {
+            builder.Append(separator).Append("sslcert=").Append(Uri.EscapeDataString(ClientCertificatePath.Trim()));
+            separator = '&';
+        }
+
+        if (!Blank(ClientKeyPath))
+        {
+            builder.Append(separator).Append("sslkey=").Append(Uri.EscapeDataString(ClientKeyPath.Trim()));
         }
 
         return builder.ToString();
@@ -1130,6 +1203,14 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
             return false;
         }
 
+        if (ClientCertificates.Check(ClientCertificatePath, ClientKeyPath) is { } certificateProblem)
+        {
+            profile = null!;
+            error = certificateProblem;
+            IsAdvancedOpen = true;
+            return false;
+        }
+
         profile = BuildProfile();
         error = null;
         return true;
@@ -1153,7 +1234,11 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
             sshTunnel,
             ReadOnly,
             Blank(RootCertificatePath) ? null : RootCertificatePath.Trim(),
-            Environment);
+            Environment,
+            Blank(ClientCertificatePath) ? null : ClientCertificatePath.Trim(),
+            Blank(ClientKeyPath) ? null : ClientKeyPath.Trim(),
+            ConnectionProfile.NormalizeTimeout(StatementTimeout),
+            ConnectionProfile.NormalizeTimeout(LockTimeout));
     }
 
     /// <summary>

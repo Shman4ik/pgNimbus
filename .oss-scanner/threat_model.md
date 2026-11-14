@@ -18,7 +18,9 @@ product, not a vulnerability. What is not trusted:
 - **The network path**: TLS to the server (`SslModes`, `ConnectionProfile.CreateDataSource`) and the SSH jump host
   (`SshTunnel`, `SshHostKeyVerifier`, `KnownHosts`, `SshAgentClient`).
 - **Text and files the user brings in but did not write**: a pasted connection string or `postgres://` URI
-  (`ConnectionStringParser`), a pasted query plan (`ExplainService.Import`, `ExplainPlanTextParser`), a CSV, TSV or
+  (`ConnectionStringParser`, which refuses an `sslrootcert`, `sslcert` or `sslkey` path on another machine: reading
+  `\\host\share\…` opens an SMB session there, and a client key so read is a key handed to that host's owner), a
+  pasted query plan (`ExplainService.Import`, `ExplainPlanTextParser`), a CSV, TSV or
   JSON file imported into a table (`Import/TabularFileParser`), a `.sql` file opened from disk. A plan saved to Query
   Lab (`QueryLab/SavedPlanStore`, `<appdata>/pgNimbus/query-lab/`) is the same untrusted text, kept: it is read back
   through the same bounded parsers, and two such plans are compared by `PlanAlignment`, `PlanDiff` and
@@ -148,6 +150,9 @@ that only the user can trigger against themselves with their own SQL is not a vu
   typed SQL on a read-only profile (or a locked production window) behind a pooler that drops startup options is
   warned about, not blocked;
   `pgp_sym_encrypt` keys are not redacted.
+- A profile's statement and lock timeouts are startup options like read-only: a pooler that drops them drops them
+  silently. They are a guard against runaway statements, not a security control. A client key protected by a
+  passphrase is refused rather than stored, so the key file's own permissions are what protect it.
 - `Prefer` as the default SSL mode for a loopback host (localhost, 127/8, ::1, a socket directory) is deliberate.
 - The backup runs whichever `pg_dump` it finds in the well-known install folders and on the user's PATH. A program
   planted there already runs as the user, which is outside this model.

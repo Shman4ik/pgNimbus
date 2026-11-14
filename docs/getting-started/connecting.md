@@ -70,6 +70,15 @@ window using that connection closes.
 Deleting a profile attempts to remove database and SSH credentials from both
 locations and reports failures.
 
+### A password file (`.pgpass`)
+
+Leave the **Password** field empty and pgNimbus connects with no password of
+its own. The server then gets the one in your PostgreSQL password file, the
+same file psql reads: the file named by `PGPASSFILE`, otherwise `~/.pgpass`
+(`%APPDATA%\postgresql\pgpass.conf` on Windows). Each line is
+`host:port:database:username:password`, and `*` matches anything. Backups and
+restores read the same file. A password typed in the field wins over the file.
+
 Credential protection does not cover your queries. Three files keep SQL text on
 disk, unencrypted, in `<appdata>/pgNimbus/` (on Windows, `%AppData%\pgNimbus`;
 see [where pgNimbus keeps its files](installation.md#where-pgnimbus-keeps-its-files)):
@@ -207,6 +216,31 @@ switch it off for its own session with `SET default_transaction_read_only =
 off`. To make writes impossible, connect as a role that has no write
 privileges.
 
+## Timeouts
+
+Open **Advanced** under the form to give a profile a **Statement Timeout** and
+a **Lock Timeout**, in seconds. Every session the profile opens starts with
+PostgreSQL's `statement_timeout` and `lock_timeout` set to them, so the server
+cancels a statement that runs longer, or that waits longer for a lock another
+session holds. It applies to everything the window sends: your queries, the
+grid's edits, schema actions and pgNimbus's own reads. A statement cut short
+reports `canceling statement due to statement timeout` (or `lock timeout`); it
+is an ordinary error, and the connection stays usable.
+
+Leave a field empty, or enter 0, for no timeout from pgNimbus. The server's
+own setting then applies, including one set for your role with
+`ALTER ROLE … SET statement_timeout`. A value in the profile overrides those.
+
+Three long operations are not cut short by the statement timeout, because you
+start them on purpose and can stop them: exporting every row of a table, an
+import, and backups and restores. The lock timeout still applies to an import.
+`EXPLAIN ANALYZE` runs the statement, so the timeout applies to it as it would
+to a run.
+
+The timeouts travel as startup options, like read-only. A connection pooler
+that drops startup options (PgBouncer with `options` in
+`ignore_startup_parameters`) drops them too, and nothing in the window says so.
+
 ## Encryption (TLS)
 
 **SSL Mode** decides whether the connection is encrypted and what pgNimbus
@@ -254,6 +288,29 @@ typing the path:
 Leave the field empty to use the operating system's store. The path is saved
 with the profile. It is not a secret. A pasted connection string fills it from
 `sslrootcert=` (libpq, URIs, JDBC) or `Root Certificate=` (Npgsql).
+
+### Client certificate
+
+Some servers sign you in with a certificate instead of a password, or ask for
+both: a `cert` line in `pg_hba.conf`, or `clientcert=verify-full`. Open
+**Advanced** under the form and give **Client Certificate** and **Client Key**
+the two files, with **Browse…** or by typing the paths. The paths are saved
+with the profile, are not secrets, and appear in the connection string preview
+as `sslcert=` and `sslkey=`. A pasted string fills them from `sslcert=` and
+`sslkey=` (libpq, URIs, JDBC), `SSL Certificate=` and `SSL Key=` (Npgsql), or
+`PGSSLCERT=` and `PGSSLKEY=` in front of a psql command. A path on another
+machine (`\\server\share\…`, a URL) is not taken from a paste.
+
+Left empty, pgNimbus does what psql does: it uses `PGSSLCERT` and `PGSSLKEY`,
+or `~/.postgresql/postgresql.crt` and `postgresql.key`
+(`%APPDATA%\postgresql\` on Windows), if they exist. Backups and restores get
+the same certificate.
+
+pgNimbus does not support a key protected by a passphrase, and says so before
+it connects. Save a copy without the passphrase
+(`openssl pkey -in client.key -out client-plain.key`) and make it readable only
+by you. On Linux and macOS, `pg_dump` and `pg_restore` refuse a key file that
+other users can read (`chmod 600`).
 
 ### Through an SSH tunnel
 

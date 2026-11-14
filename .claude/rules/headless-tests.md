@@ -106,8 +106,9 @@ How the fixtures work, and why they're shaped this way:
   commands production sets — not the views. Two seams exist purely for this:
   `SchemaTreeNode.SeedChildren` (fills a node's children and marks it loaded, so
   expanding never reaches for the catalog) and `QueryViewModel.SeedResult`
-  (points the grid at a result set that was never run). Both are documented as
-  harness-only; production still goes through the lazy-load and run paths.
+  (points the grid at a result set that was never run). The UI tests add
+  `QueryViewModel.SeedRunResults` (a failed run's results, applied the way a run
+  applies them, for the error marker). All are documented as test-only; production still goes through the lazy-load and run paths.
 - **Nothing reads or writes the developer's real app data**, and two layers
   make that hold. The claim used to rest on `Fixtures` clearing the lists the
   default stores had loaded, which kept real entries out of a screenshot but did
