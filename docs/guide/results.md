@@ -249,6 +249,27 @@ If a statement inside the transaction fails, pgNimbus rolls the block back for
 you, so you are never stranded in Postgres's aborted-transaction state where
 every subsequent statement errors out.
 
+### Closing a window
+
+Closing a window ends its connection. If the window has staged changes, an open
+transaction or a running query, pgNimbus asks first and says what will be lost:
+staged changes are discarded, the transaction is rolled back and the query is
+cancelled on the server. Choose **Cancel** to keep the window as it was. This
+applies to the close button, <kbd>Alt</kbd>+<kbd>F4</kbd>, <kbd>⌘</kbd><kbd>W</kbd>
+on the last tab, **Switch connection** (asked before the connection dialog
+opens) and quitting on macOS. Unsaved query text is not lost, so it is not asked
+about: it comes back with the connection's tabs.
+
+When the window closes, pgNimbus always ends its work on the server, even if it
+did not ask. It cancels running queries and rolls back the open transaction, so
+no session of a closed window stays `active` or `idle in transaction` holding
+locks. It waits up to a few seconds for a server that does not answer.
+
+A logout, a system shutdown or a process that is killed cannot ask. On a logout
+or shutdown, pgNimbus still sends the cancel and the rollback if it has time. If
+the process is killed, the server rolls back the transaction when it sees the
+connection close, but a long query can run until it ends or next sends rows.
+
 ## Import and export
 
 Import CSV and JSON files, streamed into the table via `COPY`, with type

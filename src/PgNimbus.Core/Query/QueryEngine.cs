@@ -123,6 +123,81 @@ public sealed class QueryEngine(WriteGatedDataSource dataSource)
         }
     }
 
+    /// <summary>How long <see cref="CloseAsync"/> waits for the server before it lets go.</summary>
+    public static readonly TimeSpan CloseTimeout = TimeSpan.FromSeconds(3);
+
+    /// <summary>
+    /// Ends the explicit transaction for good when the window that owns this
+    /// engine goes away: the held connection is taken off the engine at once,
+    /// then rolled back and closed. Disposing the pool does not do it: a pool
+    /// leaves a rented connection alone, so the session stayed
+    /// <c>idle in transaction</c>, holding its locks, until the process exited.
+    /// <para>
+    /// Safe to call more than once, with no transaction open, and on a dead
+    /// connection (the server ended that transaction when the socket dropped).
+    /// It never takes longer than <paramref name="timeout"/>: a ROLLBACK the
+    /// server doesn't answer is cancelled, and whatever is still pending then is
+    /// left to finish in the background (the socket's close rolls it back on the
+    /// server). The work runs on the thread pool, so it completes even when the
+    /// UI thread has stopped pumping (the last window of the app closing). A
+    /// statement still running on the connection when this is called (cancelled
+    /// by the caller first) is waited for, within the same bound, since
+    /// ROLLBACK can't share the connection with it. The engine stays usable:
+    /// a later statement rents a fresh pooled connection.
+    /// </para>
+    /// </summary>
+    public Task CloseAsync(TimeSpan timeout)
+    {
+        var connection = Interlocked.Exchange(ref _transactionConnection, null);
+        if (connection is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        TransactionStateChanged?.Invoke();
+        var work = Task.Run(() => RollbackAndCloseAsync(connection, timeout));
+        return Task.WhenAny(work, Task.Delay(timeout + TimeSpan.FromSeconds(1)));
+    }
+
+    private static async Task RollbackAndCloseAsync(NpgsqlConnection connection, TimeSpan timeout)
+    {
+        using var deadline = new CancellationTokenSource(timeout);
+        try
+        {
+            while (true)
+            {
+                try
+                {
+                    await using var command = new NpgsqlCommand("ROLLBACK", connection);
+                    await command.ExecuteNonQueryAsync(deadline.Token);
+                    break;
+                }
+                catch (NpgsqlOperationInProgressException)
+                {
+                    // A cancelled statement is still reading its error back.
+                    await Task.Delay(50, deadline.Token);
+                }
+            }
+        }
+        catch
+        {
+            // A dead socket, a server that never answered, or the deadline: the
+            // connection is closed below either way, and the server rolls back
+            // a transaction whose connection is gone.
+        }
+        finally
+        {
+            try
+            {
+                await connection.DisposeAsync();
+            }
+            catch
+            {
+                // Nothing left to release that the process exit won't.
+            }
+        }
+    }
+
     // Auto-rollback after a statement failed inside a transaction. A failed
     // statement puts Postgres in the "current transaction is aborted" state where
     // every further statement errors until the block is rolled back, so rather

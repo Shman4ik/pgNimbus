@@ -2228,13 +2228,17 @@ Moved to [`.claude/rules/logo-assets.md`](rules/logo-assets.md), which loads whe
   the window untouched), then the new window takes the old one's place and size
   and the old one closes. **Staged changes, an open transaction or a running
   query are asked about first** (`ConfirmDialog`, naming each, before anything
-  connects), and on Yes the switch rolls the transaction back and cancels the
-  queries itself (`MainViewModel.EndConnectionWorkAsync`): an ordinary window
-  close does neither, since disposing the pool leaves a rented connection alone
-  (measured: "idle in transaction" until the process exits, and a statement
-  runs on to its end). Unsaved SQL needs no question, the workspace snapshot
+  connects), and the old window then closes through `MainWindow.CloseConfirmed`,
+  which doesn't ask again. Unsaved SQL needs no question, the workspace snapshot
   keeps it under the old database's key. Live tests: `DatabaseSwitchTests`,
-  `DatabaseSwitchLiveTests`. The row's menu is
+  `DatabaseSwitchLiveTests`.
+  **Every main-window close asks the same, once** (`MainWindow.CloseQuestion`, a
+  running backup/restore in the same sentence; Switch Connection asks before its
+  dialog; ⌘Q resumes after Close; a logout can't ask), **and `Closed` always ends
+  the server-side work** (`MainViewModel.CloseConnectionAsync`: tabs cancelled,
+  `QueryEngine.CloseAsync` rolls back and closes the held connection in ≤ 3 s,
+  which the pool's disposal never did; the exit waits ≤ 5 s, `ConnectionCleanup`).
+  Tests: `WindowCloseTests`, `WindowCloseLiveTests`. The row's menu is
   Open in New Window. `MainViewModel.SwitchToDatabase` is null, and the name
   plain text, for a window with neither a profile nor a `PGNIMBUS_CONN` string.
 - **json/jsonb are a first-class editable type.** `ColumnValueEditorClassifier`

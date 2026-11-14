@@ -16,6 +16,10 @@ internal static class Program
         try
         {
             BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+
+            // The last window's Closed started its connection teardown (rollback,
+            // pool, tunnel) on the thread pool; give it a bounded moment.
+            ConnectionCleanup.WaitForPending(ConnectionCleanup.ExitWait);
         }
         catch (Exception ex)
         {

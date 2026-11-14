@@ -35,7 +35,7 @@ public class DatabaseSwitchLiveTests
             await vm.BeginTransactionCommand.ExecuteAsync(null);
             await Assert.That(await Ui.WaitUntilAsync(() => vm.IsInTransaction)).IsTrue();
             await Assert.That(await StatesAsync(observer, tag)).Contains("idle in transaction");
-            await Assert.That(vm.DescribeSwitchLosses()).IsEqualTo("The open transaction will be rolled back.");
+            await Assert.That(vm.DescribeConnectionLosses()).IsEqualTo("The open transaction will be rolled back.");
 
             await vm.EndConnectionWorkAsync();
             await Assert.That(await Ui.WaitUntilAsync(() => !vm.IsInTransaction)).IsTrue();
@@ -55,7 +55,7 @@ public class DatabaseSwitchLiveTests
             }
 
             await Assert.That(active).IsTrue();
-            await Assert.That(vm.DescribeSwitchLosses()).IsEqualTo("The running query will be cancelled.");
+            await Assert.That(vm.DescribeConnectionLosses()).IsEqualTo("The running query will be cancelled.");
 
             await vm.EndConnectionWorkAsync();
             await Assert.That(await Ui.WaitUntilAsync(() => !tab.IsRunning, seconds: 15)).IsTrue();

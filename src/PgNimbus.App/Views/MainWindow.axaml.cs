@@ -38,8 +38,18 @@ public partial class MainWindow : Window, IEditCommandTarget
         Closed += (_, _) => Hotkeys.Changed -= BuildKeyBindings;
 
         // Closing this window ends its connection, and the SSH tunnel a running
-        // backup or restore may be using, so either is asked about first.
-        Closing += OnClosingWithToolRunning;
+        // backup or restore may be using, so what that would lose is asked
+        // about first; and however the window went, what it had running on the
+        // server is ended (MainViewModel.CloseConnectionAsync), with the app's
+        // exit waiting a bounded moment for it (ConnectionCleanup).
+        Closing += OnClosingAsync;
+        Closed += (_, _) =>
+        {
+            if (_viewModel is { } vm)
+            {
+                ConnectionCleanup.Track(vm.CloseConnectionAsync());
+            }
+        };
 
         // ActualThemeVariant isn't final at construction time - re-resolve the
         // toggle glyph once the window opens, and again on any live theme switch,
@@ -577,7 +587,7 @@ public partial class MainWindow : Window, IEditCommandTarget
         _viewModel.ConfirmAllowWritesRequested = ConfirmAllowWritesAsync;
         _viewModel.ConfirmMaintenanceRequested = ConfirmMaintenanceAsync;
         _viewModel.RenameRelationRequested = AskNewRelationNameAsync;
-        _viewModel.ConfirmSwitchDatabaseRequested = message => new ConfirmDialog(message, "Switch Database").ShowDialog<bool>(this);
+        _viewModel.ConfirmConnectionLossRequested = (message, label) => new ConfirmDialog(message, label).ShowDialog<bool>(this);
         // Palette actions that touch the window are handled here.
         _viewModel.ThemeToggleRequested += ToggleTheme;
         _viewModel.SwitchConnectionRequested += SwitchConnection;
@@ -1144,9 +1154,21 @@ public partial class MainWindow : Window, IEditCommandTarget
     // Connected handler close it (tearing down its notify listener/tunnel via
     // the Closed hook in App.BuildMainWindow). Cancelling the dialog leaves
     // everything as it was.
-    private void SwitchConnection()
+    private async void SwitchConnection()
     {
         if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            return;
+        }
+
+        // Asked before the dialog opens, like the database switch asks before it
+        // connects: the answer decides whether to pick a connection at all, and
+        // a question popping up over the new window once it is connected would
+        // come after the fact. The close that follows a connect doesn't ask again.
+        if (_viewModel?.DescribeConnectionLosses() is { } losses
+            && !await new ConfirmDialog(
+                $"Switch connection? This window closes once the new connection is open. {losses}", "Switch Connection")
+                .ShowDialog<bool>(this))
         {
             return;
         }
@@ -1421,25 +1443,87 @@ public partial class MainWindow : Window, IEditCommandTarget
         _restoreWindow.Show(this);
     }
 
-    private async void OnClosingWithToolRunning(object? sender, WindowClosingEventArgs e)
+    // Set when a database switch or Switch Connection already asked about this
+    // window's losses, so the close that follows doesn't ask the same again.
+    private bool _lossesConfirmed;
+
+    // True while the close question is on screen: a second close (a quit that
+    // the first answer resumed, a second Alt+F4) waits for that answer.
+    private bool _askingToClose;
+
+    /// <summary>
+    /// Closes the window without asking about its connection's losses, for a
+    /// caller that already asked (the database switch, Switch Connection). A
+    /// running backup or restore is still asked about: neither caller did.
+    /// </summary>
+    public void CloseConfirmed()
     {
-        if (_closingConfirmed)
+        _lossesConfirmed = true;
+        Close();
+    }
+
+    /// <summary>
+    /// What a close would lose, as the one question to ask, or null to close
+    /// at once. A running backup or restore comes first (it has its own Stop
+    /// button label); the connection's losses (staged changes, the open
+    /// transaction, running queries) follow in the same sentence, so the two
+    /// are never asked one after the other.
+    /// </summary>
+    public static (string Message, string Label)? CloseQuestion(bool backupRunning, bool restoreRunning, string? losses)
+    {
+        if (restoreRunning)
         {
+            return (Join("A restore is still running, and closing this window ends its connection. Stop the restore and close? It runs as one transaction, so nothing it did stays.", losses), "Stop Restore");
+        }
+
+        if (backupRunning)
+        {
+            return (Join("A backup is still running, and closing this window ends its connection. Stop the backup and close?", losses), "Stop Backup");
+        }
+
+        return losses is null ? null : ($"Close this window? {losses}", "Close Window");
+
+        static string Join(string first, string? then) => then is null ? first : $"{first} {then}";
+    }
+
+    private async void OnClosingAsync(object? sender, WindowClosingEventArgs e)
+    {
+        // A logout or OS shutdown can't wait for an answer: the window closes and
+        // its Closed path ends the server-side work as far as time allows.
+        if (_closingConfirmed || e.CloseReason == WindowCloseReason.OSShutdown)
+        {
+            return;
+        }
+
+        if (_askingToClose)
+        {
+            e.Cancel = true;
             return;
         }
 
         var backup = _backupWindow?.DataContext as BackupViewModel is { IsRunning: true } b ? b : null;
         var restore = _restoreWindow?.DataContext as RestoreViewModel is { IsRunning: true } r ? r : null;
-        if (backup is null && restore is null)
+        var losses = _lossesConfirmed ? null : _viewModel?.DescribeConnectionLosses();
+        if (CloseQuestion(backup is not null, restore is not null, losses) is not { } question)
         {
             return;
         }
 
+        // Cancelled before the first await, so the close (and a quit that asked
+        // every window to close) stops here until the answer is in.
         e.Cancel = true;
-        var (message, label) = restore is not null
-            ? ("A restore is still running, and closing this window ends its connection. Stop the restore and close? It runs as one transaction, so nothing it did stays.", "Stop Restore")
-            : ("A backup is still running, and closing this window ends its connection. Stop the backup and close?", "Stop Backup");
-        if (!await new ConfirmDialog(message, label).ShowDialog<bool>(this))
+        bool confirmed;
+        _askingToClose = true;
+        try
+        {
+            confirmed = await new ConfirmDialog(question.Message, question.Label).ShowDialog<bool>(this);
+        }
+        finally
+        {
+            _askingToClose = false;
+        }
+
+        if (!confirmed)
         {
             return;
         }
@@ -1456,6 +1540,14 @@ public partial class MainWindow : Window, IEditCommandTarget
 
         _closingConfirmed = true;
         Close();
+
+        // The close was part of quitting the app (macOS ⌘Q): carry the quit on,
+        // so the next window is asked in turn and a clean set of windows quits.
+        if (e.CloseReason == WindowCloseReason.ApplicationShutdown
+            && Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            desktop.TryShutdown();
+        }
     }
 
     // The Explain toolbar button is a single slot with a flyout (minimalist rule);

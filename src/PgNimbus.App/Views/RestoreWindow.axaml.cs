@@ -62,7 +62,11 @@ public partial class RestoreWindow : Window
 
     private async void OnClosing(object? sender, WindowClosingEventArgs e)
     {
-        if (_closingConfirmed || Model is not { IsRunning: true } model)
+        // Closing with its main window (or the app's quit through it): the main
+        // window asks one question for both (MainWindow.CloseQuestion) and
+        // stops the restore itself, so asking here too would ask twice.
+        if (_closingConfirmed || Model is not { IsRunning: true } model
+            || (Owner is MainWindow && e.CloseReason != WindowCloseReason.WindowClosing))
         {
             return;
         }
