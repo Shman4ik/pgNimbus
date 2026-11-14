@@ -631,6 +631,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#another-database-on-the-same-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Another database on the same server
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#if-the-connection-drops" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1208,6 +1219,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#another-database-on-the-same-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Another database on the same server
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#if-the-connection-drops" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1615,6 +1637,25 @@ and prod side by side.</p>
 <p>Switch connection (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd>) repoints the
 current window at a different server without restarting the app.</p>
 <p>Both are also in the menu behind the ☰ button and in the command palette.</p>
+<h2 id="another-database-on-the-same-server">Another database on the same server<a class="headerlink" href="#another-database-on-the-same-server" title="Permanent link">&para;</a></h2>
+<p>You don't need a profile for each database on a server. Click the database name
+in the title bar (the part after <code>›</code>), or run <strong>Switch database…</strong> from the
+command palette. The list shows the databases your role may connect to; the
+current one has a check mark. Type to narrow the list, then press
+<kbd>Enter</kbd> or click a database to open it in this window.</p>
+<p>pgNimbus connects with the same profile, password and SSH tunnel, with only the
+database changed. The profile itself is not changed. If the connection fails (for
+example, your role has no <code>CONNECT</code> privilege), the window stays where it was and
+the status line shows the error. When it succeeds, the window works exactly as
+after <strong>Switch connection</strong>: the tabs of the old database, unsaved text
+included, are saved for it and come back when you return to it. On a production
+profile, writes are off again in the new window.</p>
+<p>If the window has staged changes, an open transaction or a running query,
+pgNimbus asks first and says what will be lost: staged changes are discarded,
+the transaction is rolled back and the query is cancelled. Choose <strong>Cancel</strong> to
+stay where you are.</p>
+<p>To keep the current database open as well, right-click a database in the list and
+choose <strong>Open in New Window</strong>.</p>
 <h2 id="if-the-connection-drops">If the connection drops<a class="headerlink" href="#if-the-connection-drops" title="Permanent link">&para;</a></h2>
 <p>A connection dropped by laptop sleep, a network blip or an SSH tunnel hiccup is
 reopened quietly on your next run. Before it sends a statement, pgNimbus asks
