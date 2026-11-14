@@ -24,6 +24,16 @@ carries across them. `BEGIN … COMMIT`, `SET`, and temporary tables all behave 
 they would in `psql`. Each statement gets its own result section and timing, and
 the script stops at the first error.
 
+### Where an error is
+
+When PostgreSQL says where a statement failed, the editor puts a red wavy line
+under that token and scrolls it into view. The error text ends with its line and
+column, for example `(line 3, column 15)`. This works for the whole tab, the
+statement at the cursor, a selection, and each failed section of a script. The
+cursor does not move. The mark goes away when you edit the text or run the tab
+again. Errors inside a function body are not marked, because that place is not in
+your text. Errors from the Explain commands are not marked either.
+
 ## Schema tree
 
 The sidebar reads pg_catalog directly, so it shows what Postgres actually has:
