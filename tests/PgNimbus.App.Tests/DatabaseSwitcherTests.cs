@@ -229,7 +229,7 @@ public class DatabaseSwitcherTests
                 switched.Add(name);
                 return Task.CompletedTask;
             };
-            vm.ConfirmSwitchDatabaseRequested = message =>
+            vm.ConfirmConnectionLossRequested = (message, _) =>
             {
                 asked.Add(message);
                 return Task.FromResult(answer);
@@ -266,7 +266,7 @@ public class DatabaseSwitcherTests
             await Assert.That(switched).IsEquivalentTo(new[] { "analytics" });
 
             // With no one to ask, nothing is lost: the switch is refused.
-            vm.ConfirmSwitchDatabaseRequested = null;
+            vm.ConfirmConnectionLossRequested = null;
             await vm.SwitchToDatabaseAsync("postgres");
             await Assert.That(switched.Count).IsEqualTo(1);
 
@@ -289,7 +289,7 @@ public class DatabaseSwitcherTests
                 switched++;
                 return Task.CompletedTask;
             };
-            vm.ConfirmSwitchDatabaseRequested = _ =>
+            vm.ConfirmConnectionLossRequested = (_, _) =>
             {
                 asked++;
                 return Task.FromResult(false);
@@ -297,7 +297,7 @@ public class DatabaseSwitcherTests
             Ui.Show(window);
             vm.ActiveTab.Sql = "SELECT 'typed, never saved';";
 
-            await Assert.That(vm.DescribeSwitchLosses()).IsNull();
+            await Assert.That(vm.DescribeConnectionLosses()).IsNull();
             await vm.SwitchToDatabaseAsync("analytics");
             await Assert.That(asked).IsEqualTo(0);
             await Assert.That(switched).IsEqualTo(1);

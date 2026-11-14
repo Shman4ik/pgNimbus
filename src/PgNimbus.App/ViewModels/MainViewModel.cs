@@ -521,10 +521,10 @@ public sealed partial class MainViewModel : ObservableObject
         // The old window's connection ends with the switch. What it would take
         // with it is asked about first, before anything connects; unsaved SQL
         // is not, since the workspace snapshot keeps it for this database.
-        if (DescribeSwitchLosses() is { } losses)
+        if (DescribeConnectionLosses() is { } losses)
         {
-            if (ConfirmSwitchDatabaseRequested is not { } confirm
-                || !await confirm($"Open {database} in this window? {losses}"))
+            if (ConfirmConnectionLossRequested is not { } confirm
+                || !await confirm($"Open {database} in this window? {losses}", "Switch Database"))
             {
                 tab.Status = $"Stayed on {ConnectionDatabase}.";
                 return;
@@ -543,18 +543,20 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Asks whether to go ahead when switching databases would lose work: the
-    /// message names it. Wired by MainWindow to the shared <c>ConfirmDialog</c>;
-    /// with no handler such a switch is refused.
+    /// Asks whether to go ahead when ending this window's connection (a database
+    /// switch, Switch Connection, closing the window) would lose work: the
+    /// message names it, the label is the confirm button's. Wired by MainWindow
+    /// to the shared <c>ConfirmDialog</c>; with no handler the switch is refused.
     /// </summary>
-    public Func<string, Task<bool>>? ConfirmSwitchDatabaseRequested { get; set; }
+    public Func<string, string, Task<bool>>? ConfirmConnectionLossRequested { get; set; }
 
     /// <summary>
     /// What ending this window's connection would lose, as a sentence ("3 staged
     /// changes will be discarded and the open transaction will be rolled back."),
-    /// or null when nothing would be.
+    /// or null when nothing would be. Unsaved SQL is not on the list: the
+    /// workspace snapshot keeps it for this connection.
     /// </summary>
-    public string? DescribeSwitchLosses()
+    public string? DescribeConnectionLosses()
     {
         var parts = new List<string>();
         var staged = Tabs.Sum(t => t.PendingChanges?.Count ?? 0);
@@ -586,30 +588,69 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Called once the switch has connected, just before this window closes: its
-    /// running queries are cancelled and an open transaction is rolled back, as
-    /// the confirm said. An ordinary close does neither (the pool's disposal
-    /// leaves a rented connection alone), so the switch does it explicitly.
+    /// Ends what this window has running on the server: every running query is
+    /// cancelled (the cancel request goes out before this returns, so it reaches
+    /// the server even when the process exits next), and the open transaction's
+    /// connection is rolled back and closed (<see cref="QueryEngine.CloseAsync"/>,
+    /// bounded by <see cref="QueryEngine.CloseTimeout"/>). Staged changes are
+    /// client-side and simply go with the window. Disposing the pool does
+    /// neither of the server-side two: it leaves a rented connection alone, so a
+    /// closed window's transaction stayed <c>idle in transaction</c> and its
+    /// query ran on (measured 2026-11).
     /// </summary>
-    public async Task EndConnectionWorkAsync()
+    public Task EndConnectionWorkAsync()
     {
         foreach (var running in Tabs.Where(t => t.IsRunning))
         {
             running.CancelCommand.Execute(null);
         }
 
-        if (_engine.IsInTransaction)
+        return _engine.CloseAsync(QueryEngine.CloseTimeout);
+    }
+
+    /// <summary>
+    /// Releases the window's connection resources (notify listener, pool, SSH
+    /// tunnel); set by whoever built the window. Run by <see cref="CloseConnectionAsync"/>
+    /// after the server-side work has ended, on the thread pool.
+    /// </summary>
+    public Func<ValueTask>? ReleaseConnection { get; set; }
+
+    /// <summary>
+    /// The window is gone: <see cref="EndConnectionWorkAsync"/>, then
+    /// <see cref="ReleaseConnection"/>. Called from <c>MainWindow</c>'s
+    /// <c>Closed</c>, however the window closed, so no close path can forget it.
+    /// Never throws; the returned task finishes on the thread pool, so the app's
+    /// exit can wait for it with the UI thread already stopped.
+    /// </summary>
+    public Task CloseConnectionAsync()
+    {
+        var ended = EndConnectionWorkAsync();
+        var release = ReleaseConnection;
+        ReleaseConnection = null;
+        return Task.Run(async () =>
         {
             try
             {
-                await _engine.RollbackAsync(CancellationToken.None);
+                await ended;
             }
-            catch (Exception)
+            catch
             {
-                // The connection is being abandoned anyway; a failed ROLLBACK
-                // leaves the server to end the session when the socket closes.
+                // CloseAsync swallows its own failures; nothing to add here.
             }
-        }
+
+            if (release is not null)
+            {
+                try
+                {
+                    await release();
+                }
+                catch
+                {
+                    // A pool or tunnel that fails to close is not worth a crash
+                    // on the way out.
+                }
+            }
+        });
     }
 
     /// <summary>Opens <paramref name="database"/> in a new window; a failure is reported like <see cref="SwitchToDatabaseAsync"/>'s.</summary>

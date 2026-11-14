@@ -409,7 +409,9 @@ profile, writes are off again in the new window.
 If the window has staged changes, an open transaction or a running query,
 pgNimbus asks first and says what will be lost: staged changes are discarded,
 the transaction is rolled back and the query is cancelled. Choose **Cancel** to
-stay where you are.
+stay where you are. **Switch connection** asks the same before its dialog
+opens, and so does closing the window (see
+[Closing a window](../guide/results.md#closing-a-window)).
 
 To keep the current database open as well, right-click a database in the list and
 choose **Open in New Window**.

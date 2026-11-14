@@ -115,7 +115,14 @@ paths:
   arrive as a platform shutdown request, which
   `ClassicDesktopStyleApplicationLifetime` routes straight to `DoShutdown`
   without consulting `ShutdownMode`, as does the `Shutdown()` that
-  `CrashReporter` and `StartupProbe` call directly.
+  `CrashReporter` and `StartupProbe` call directly. **A quit can be cancelled**
+  (2026-11): `DoShutdown` closes each unowned window with
+  `WindowCloseReason.ApplicationShutdown` and gives up when one is left, so a
+  main window that asks about its losses (`MainWindow.OnClosingAsync`, cancelled
+  before its first await) stops the quit; on Close it calls `TryShutdown()` to
+  carry the quit on. `OSShutdown` (a logout) is never asked. `MacShutdown` waits
+  ≤ 5 s for `ConnectionCleanup` before `_exit`, and `Program.Main` does the same.
+  Not tried on a Mac yet.
 - **macOS: the app ends its own process, and must (2026-08).** Shipped 0.7.5
   aborted with SIGABRT on every quit, *after* the shutdown had already run
   cleanly (windows closed, workspace and placement saved). AppKit's

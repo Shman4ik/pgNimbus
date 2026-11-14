@@ -65,6 +65,10 @@ internal static class MacShutdown
 
     private static void ExitNow(int exitCode)
     {
+        // Every window has closed by now; _exit would cut their connection
+        // teardowns (a ROLLBACK, a pool's close) off mid-way.
+        ConnectionCleanup.WaitForPending(ConnectionCleanup.ExitWait);
+
         try
         {
             // _exit runs no atexit handler, so nothing downstream will flush

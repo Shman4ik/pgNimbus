@@ -579,7 +579,18 @@ public partial class App : Application
             if (replaceMainWindow)
             {
                 desktop.MainWindow = mainWindow;
-                previousWindow?.Close();
+
+                // Switch Connection asked about the old window's losses before
+                // this dialog opened (MainWindow.SwitchConnection), so its close
+                // doesn't ask again.
+                if (previousWindow is MainWindow previousMain)
+                {
+                    previousMain.CloseConfirmed();
+                }
+                else
+                {
+                    previousWindow?.Close();
+                }
             }
         };
 
@@ -659,8 +670,9 @@ public partial class App : Application
     /// The title bar's database list: <paramref name="database"/> in place of
     /// <paramref name="current"/>, with Switch Connection's semantics (the new
     /// window is shown, then the old one closes through its ordinary close path:
-    /// workspace saved under its own key, an open transaction and staged changes
-    /// go with its connection, a running backup or restore asks first). Connected
+    /// workspace saved under its own key, staged changes discarded, its running
+    /// queries cancelled and its transaction rolled back, as the confirm before
+    /// the connect said; only a running backup or restore asks again). Connected
     /// before anything changes, so a failure throws with <paramref name="current"/>
     /// untouched. The new window takes the old one's place and size, so the switch
     /// reads as happening in this window.
@@ -696,15 +708,10 @@ public partial class App : Application
             desktop.MainWindow = window;
         }
 
-        // The confirm before the connect named what this would end; end it for
-        // real (an ordinary close leaves a transaction open and a query running
-        // on the server until the process exits), then close.
-        if (current.DataContext is MainViewModel previous)
-        {
-            await previous.EndConnectionWorkAsync();
-        }
-
-        current.Close();
+        // The confirm before the connect named what this ends, so the close
+        // doesn't ask again; its Closed path cancels the queries and rolls the
+        // transaction back, as every close does.
+        current.CloseConfirmed();
     }
 
     // The profile each open main window was connected with.
@@ -893,7 +900,21 @@ public partial class App : Application
         // save it back on close - session state alongside the workspace restore.
         WindowPlacementPersistence.Attach(window, new WindowPlacementStore());
 
-        window.Closed += async (_, _) =>
+        // Run by MainWindow's Closed, after the window's queries are cancelled
+        // and its transaction rolled back (MainViewModel.CloseConnectionAsync).
+        // Order matters: drain the notify listener's connection back to the
+        // pool first, then dispose the data source (the pool itself, which
+        // otherwise leaks on every "switch connection"), then this window's
+        // hold on the SSH tunnel that carries all of it, which closes the
+        // tunnel unless a window opened on a restored database still uses it.
+        viewModel.ReleaseConnection = async () =>
+        {
+            await notifyMonitor.DisposeAsync();
+            await gate.DisposeAsync();
+            tunnel?.Dispose();
+        };
+
+        window.Closed += (_, _) =>
         {
             // A completion refresh still reading this connection's catalog stops
             // here, rather than running on against a pool about to be disposed
@@ -918,15 +939,6 @@ public partial class App : Application
             {
                 // Losing the workspace snapshot is not worth blocking shutdown over.
             }
-
-            // Order matters: drain the notify listener's connection back to the
-            // pool first, then dispose the data source (the pool itself, which
-            // otherwise leaks on every "switch connection"), then this window's
-            // hold on the SSH tunnel that carries all of it, which closes the
-            // tunnel unless a window opened on a restored database still uses it.
-            await notifyMonitor.DisposeAsync();
-            await gate.DisposeAsync();
-            tunnel?.Dispose();
         };
 
         _ = schemaTree.RefreshCommand.ExecuteAsync(null);
