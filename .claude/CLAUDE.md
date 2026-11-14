@@ -2016,10 +2016,14 @@ Moved to [`.claude/rules/logo-assets.md`](rules/logo-assets.md), which loads whe
   marks it. It marks only while the run's text still sits at that offset, and is
   cleared by the next run, an Explain (whose sent text has a prefix; never
   marked) and *any* edit of the tab (simpler than an anchor, and never wrong).
-  The status line gains `(line N, column M)`. `Editor/ErrorMarkerRenderer` draws
+  The status line gains `(line N, column M)`, before any "transaction rolled
+  back" note (`QueryViewModel.ErrorStatus`). `Editor/ErrorMarkerRenderer` draws
   it in `AppDangerBrush`; `QueryEditorPanel` scrolls it into view without moving
   the caret or focus. Tests: `SqlErrorLocationTests`, `ErrorMarkerTests` (seeded
-  through `QueryViewModel.SeedRunResults`; nothing live).
+  through `QueryViewModel.SeedRunResults`) and `ErrorMarkerLiveTests` (gated on
+  `PGNIMBUS_TEST_CONN`: the real run path marks exactly the token the server
+  named, through leading blank lines, emoji and non-BMP text, script statements
+  2 and 3, a selection, end of input, and never a PL/pgSQL body error).
 - **UI-thread work must not grow with the data** (2026-09, UI-thread audit,
   [`docs/dev/design/ui-thread-audit.md`](../docs/dev/design/ui-thread-audit.md);
   kubeNimbus had the same two freezes first). Five rules:

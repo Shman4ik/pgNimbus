@@ -991,9 +991,7 @@ public sealed partial class QueryViewModel : ObservableObject
                     break;
 
                 case QueryError error:
-                    Status = (error.RolledBack
-                        ? $"Error: {error.Message} — transaction rolled back"
-                        : $"Error: {error.Message}") + MarkError(executedSql, statementIndex: 0, error.Position);
+                    Status = ErrorStatus(error, MarkError(executedSql, statementIndex: 0, error.Position));
                     HasError = true;
                     await TryOfferFixAsync(executedSql);
                     break;
@@ -1157,6 +1155,16 @@ public sealed partial class QueryViewModel : ObservableObject
         }
     }
 
+    /// <summary>What a failure inside an explicit transaction adds to its error line.</summary>
+    internal const string RolledBackSuffix = " — transaction rolled back";
+
+    /// <summary>
+    /// A failed statement's status line: the message, then its location in the
+    /// editor (" (line 3, column 15)", or ""), then the rolled-back note.
+    /// </summary>
+    internal static string ErrorStatus(QueryError error, string location = "") =>
+        $"Error: {error.Message}{location}{(error.RolledBack ? RolledBackSuffix : "")}";
+
     // Where the current run's text starts in the document (see RunCoreAsync).
     private int? _runDocumentOffset;
 
@@ -1208,7 +1216,7 @@ public sealed partial class QueryViewModel : ObservableObject
         {
             HasError = results[0] is QueryError;
             Status = results[0] is QueryError error
-                ? $"Error: {error.Message}" + MarkError(executedSql, 0, error.Position)
+                ? ErrorStatus(error, MarkError(executedSql, 0, error.Position))
                 : "Done";
             return;
         }
@@ -1262,7 +1270,11 @@ public sealed partial class QueryViewModel : ObservableObject
         // A failed section marks its own statement; any other section shows no marker.
         if (value.ErrorPosition is { } position && value.ExecutedSql is { } sectionScript)
         {
-            Status += MarkError(sectionScript, value.Index - 1, position, value.DocumentOffset);
+            // The location belongs to the message, ahead of a "transaction rolled back".
+            var location = MarkError(sectionScript, value.Index - 1, position, value.DocumentOffset);
+            Status = value.StatusText.EndsWith(RolledBackSuffix, StringComparison.Ordinal)
+                ? value.StatusText[..^RolledBackSuffix.Length] + location + RolledBackSuffix
+                : value.StatusText + location;
         }
         else
         {

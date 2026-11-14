@@ -145,6 +145,30 @@ public class ErrorMarkerTests
     }
 
     [Test]
+    public async Task The_location_sits_before_the_rolled_back_note()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, vm) = Scenarios.Shell();
+            Ui.Show(window);
+            var tab = vm.ActiveTab;
+            tab.Sql = "SELECT nope;";
+            Ui.Settle();
+            var rolledBack = new QueryError { Message = "boom", Position = 8, RolledBack = true, Elapsed = TimeSpan.Zero };
+
+            tab.SeedRunResults(tab.Sql, 0, [rolledBack]);
+            await Assert.That(tab.Status).IsEqualTo("Error: boom (line 1, column 8) — transaction rolled back");
+
+            tab.Sql = "SELECT 1;\nSELECT nope;";
+            Ui.Settle();
+            tab.SeedRunResults(tab.Sql, 0, [Ok(), rolledBack]);
+            await Assert.That(tab.Status).IsEqualTo("Error: boom (line 2, column 8) — transaction rolled back");
+
+            window.Close();
+        });
+    }
+
+    [Test]
     public async Task Switching_tabs_shows_each_tabs_own_marker()
     {
         await Ui.Run(async () =>

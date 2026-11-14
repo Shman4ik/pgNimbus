@@ -164,9 +164,7 @@ public sealed class ScriptResultViewModel
                     $"{index} · {keyword}",
                     "Error",
                     hasError: true,
-                    statusText: error.RolledBack
-                        ? $"Error: {error.Message} — transaction rolled back"
-                        : $"Error: {error.Message}",
+                    statusText: QueryViewModel.ErrorStatus(error),
                     columns: [],
                     columnNames: [],
                     rows: [],
