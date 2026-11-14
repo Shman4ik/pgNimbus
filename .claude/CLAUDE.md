@@ -1053,7 +1053,7 @@ Three rules about it:
    18-item Create submenu; pgNimbus's schema menu is seven — New Table…, Copy
    Name, Refresh, Back Up Schema…, Exclude from Autocomplete, Drop Schema…, Drop
    Schema (Cascade)… — and each earns its place the same way a toolbar button would.
-   A relation's menu is five (2026-09; Back Up Table… since 2026-10): **Browse Rows** first, because it is what
+   A relation's menu is six (2026-09; Back Up Table… since 2026-10, Maintenance since 2026-11): **Browse Rows** first, because it is what
    a double-click does and the menu used to offer only Source (DDL) and Alter
    Table…, so the commonest reason to right-click a table had no row; then Copy
    Name, Source (DDL), and Alter Table… and Back Up Table… for tables and partitioned parents only
@@ -1061,6 +1061,12 @@ Three rules about it:
    and a view's backup would be the one CREATE VIEW that Source (DDL) already shows).
    The two Back Up items were the owner's call (issue #381): backing up one table
    before a risky migration is the commonest simple backup there is.
+   **Maintenance ▸** (2026-11, the owner's call) holds Analyze, Vacuum, Truncate…,
+   Rename…, Drop…: tables and partitioned parents get all five, materialized views
+   all but Truncate, views Rename and Drop. Which kind gets what, and every statement
+   (plain RESTRICT forms), is `Core/Schema/TableMaintenance`; the confirms and the
+   read-only/production gating are `MainViewModel.RunTableMaintenanceAsync`, shared
+   with the five palette rows. Tests: `TableMaintenanceTests` (Core, live; App), `MenuTests`.
    Every menu label is Title Case on every platform (DESIGN.md rule 18): the
    native menu bar already was, and the context menus under it said "Copy name"
    and "Drop schema...". `MenuTests` pins the schema and relation menus.
