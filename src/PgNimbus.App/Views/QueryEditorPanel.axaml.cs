@@ -17,6 +17,7 @@ using Avalonia.VisualTree;
 using AvaloniaEdit;
 using AvaloniaEdit.CodeCompletion;
 using AvaloniaEdit.Document;
+using AvaloniaEdit.Editing;
 using AvaloniaEdit.Highlighting;
 using AvaloniaEdit.Rendering;
 using AvaloniaEdit.Highlighting.Xshd;
@@ -88,6 +89,8 @@ public partial class QueryEditorPanel : UserControl
     // opened via Ctrl+F / Ctrl+H (from the host's OnKeyDown) or the palette.
     private SearchPanel? _searchPanel;
     private readonly BracketHighlightRenderer _bracketRenderer;
+    // Underlines where the active tab's last failed run went wrong (QueryViewModel.ErrorMarker).
+    private readonly ErrorMarkerRenderer _errorRenderer;
     // The argument hint is live from "(" (or Ctrl+Shift+Space, or accepting a
     // function) until the caret leaves the call: only then does a caret move
     // re-read it. Plain navigation through existing calls never opens it.
@@ -130,6 +133,7 @@ public partial class QueryEditorPanel : UserControl
         // Must exist before LoadSqlHighlighting - the theme pass that call
         // triggers also resolves this renderer's brush.
         _bracketRenderer = new BracketHighlightRenderer(SqlEditor.TextArea.TextView);
+        _errorRenderer = new ErrorMarkerRenderer(SqlEditor.TextArea.TextView);
         LoadSqlHighlighting();
 
         SqlEditor.TextChanged += (_, _) =>
@@ -154,6 +158,11 @@ public partial class QueryEditorPanel : UserControl
 
             var selected = SqlEditor.SelectedText;
             _activeQuery.SelectedSql = string.IsNullOrEmpty(selected) ? null : selected;
+            // A rectangular selection's text is not one run of the document, so a
+            // failure in it has no offset to be marked at.
+            _activeQuery.SelectedSqlOffset = string.IsNullOrEmpty(selected) || SqlEditor.TextArea.Selection is RectangleSelection
+                ? null
+                : SqlEditor.SelectionStart;
         };
 
         // The schema tree (drag source) lives in SchemaTreePanel; the editor is
@@ -417,6 +426,24 @@ public partial class QueryEditorPanel : UserControl
         // Seed the newly-attached tab's caret copy from where the editor actually sits,
         // so Explain doesn't target a statement based on the previous tab's offset.
         _activeQuery.CaretOffset = SqlEditor.CaretOffset;
+
+        // The tab's error marker comes back with it, without scrolling to it.
+        _errorRenderer.Span = _activeQuery.ErrorMarker;
+    }
+
+    /// <summary>The span the editor underlines as the last run's error, or null (for tests).</summary>
+    public SqlErrorSpan? ShownErrorMarker => _errorRenderer.Span;
+
+    // A run's error marker: drawn, and scrolled into view. Neither the caret nor
+    // focus moves: the user may be typing elsewhere while the run finishes.
+    private void ShowErrorMarker(SqlErrorSpan? span)
+    {
+        _errorRenderer.Span = span;
+        if (span is { } s && s.End <= SqlEditor.Document.TextLength)
+        {
+            var location = SqlEditor.Document.GetLocation(s.Start);
+            SqlEditor.ScrollTo(location.Line, location.Column);
+        }
     }
 
     // ViewModel → editor half of the manual two-way sync: an external Sql change
@@ -424,6 +451,12 @@ public partial class QueryEditorPanel : UserControl
     // into this tab) pushes into the editor under the re-entrancy guard.
     private void OnActiveQueryPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(QueryViewModel.ErrorMarker) && _activeQuery is not null)
+        {
+            ShowErrorMarker(_activeQuery.ErrorMarker);
+            return;
+        }
+
         if (e.PropertyName != nameof(QueryViewModel.Sql) || _activeQuery is null)
         {
             return;
@@ -499,6 +532,12 @@ public partial class QueryEditorPanel : UserControl
         textView.CurrentLineBackground = new SolidColorBrush(Color.Parse(dark ? "#0DFFFFFF" : "#0D000000"));
         textView.CurrentLineBorder = new Pen(Brushes.Transparent);
         _bracketRenderer.Brush = new SolidColorBrush(Color.Parse(dark ? "#40569CD6" : "#332B5FBF"));
+        // The error underline is the app's fixed danger red; found once the panel
+        // is attached (a detached control's resource lookup finds nothing).
+        if (this.TryFindResource("AppDangerBrush", ActualThemeVariant, out var danger) && danger is IBrush dangerBrush)
+        {
+            _errorRenderer.Brush = dangerBrush;
+        }
         // Find-match highlight: same accent-tinted wash family as the bracket pair.
         _searchPanel?.SetSearchResultsBrush(EditorDefaults.SearchResultsBrush(ActualThemeVariant));
 
@@ -889,10 +928,13 @@ public partial class QueryEditorPanel : UserControl
         // multi-statement script doesn't require selecting it by hand first.
         if (CommandBindings.Matches(CommandId.RunStatementUnderCursor, e))
         {
+            var text = SqlEditor.Text;
             if (_activeQuery is { } query
-                && SqlScriptSplitter.StatementAt(SqlEditor.Text, SqlEditor.CaretOffset) is { } statement)
+                && SqlScriptSplitter.StatementSpanAt(text, SqlEditor.CaretOffset) is { } span)
             {
-                _ = query.RunStatementAsync(statement);
+                // The span's text is what StatementAt returns; its start is where a
+                // failure in it is marked.
+                _ = query.RunStatementAsync(text[span.Start..span.End], span.Start);
             }
 
             e.Handled = true;

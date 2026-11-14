@@ -85,6 +85,25 @@ public sealed partial class QueryViewModel : ObservableObject
     public string? SelectedSql { get; set; }
 
     /// <summary>
+    /// Where <see cref="SelectedSql"/> starts in the document, pushed with it; null
+    /// when the selection is not one contiguous run of the text (a rectangular
+    /// selection), which leaves a failed selection run unmarked rather than marked
+    /// in the wrong place. Read only to place the error marker.
+    /// </summary>
+    public int? SelectedSqlOffset { get; set; }
+
+    /// <summary>
+    /// Where the last failed run's server error points, in document offsets: the
+    /// failing token, which the editor underlines. Null when there is no such place:
+    /// no error, no position, an error inside a function body (the server reports
+    /// that as an internal position, not a position in the user's text), an Explain
+    /// (its sent text has a prefix the user didn't type), or text that changed since
+    /// the run. Cleared by the next run and by any edit of the tab's text.
+    /// </summary>
+    [ObservableProperty]
+    private SqlErrorSpan? _errorMarker;
+
+    /// <summary>
     /// The SQL editor's caret offset, pushed from the view as the caret moves.
     /// Read by the Explain commands to pick the statement to explain when nothing
     /// is selected (see <see cref="ExplainTarget"/>). Not observable — pure
@@ -613,7 +632,7 @@ public sealed partial class QueryViewModel : ObservableObject
         // selection run doesn't touch the tab's dirty flag: only part ran.
         if (!string.IsNullOrWhiteSpace(SelectedSql))
         {
-            await RunCoreAsync(SelectedSql, trackAsFullRun: false);
+            await RunCoreAsync(SelectedSql, trackAsFullRun: false, SelectedSqlOffset);
             return;
         }
 
@@ -632,7 +651,7 @@ public sealed partial class QueryViewModel : ObservableObject
             ? BrowseSqlParser.TryParse(Sql, table.Schema, table.Name, table.Columns)
             : null;
 
-        await RunCoreAsync(Sql, trackAsFullRun: true);
+        await RunCoreAsync(Sql, trackAsFullRun: true, documentOffset: 0);
 
         if (shape is null && Browse is null)
         {
@@ -763,10 +782,18 @@ public sealed partial class QueryViewModel : ObservableObject
     /// the grid and status bar reflect this one statement's outcome. A no-op
     /// while a run is already in flight, same as <see cref="RunCommand"/>.
     /// </summary>
-    public Task RunStatementAsync(string statementSql) =>
-        CanRun() ? RunCoreAsync(statementSql, trackAsFullRun: false) : Task.CompletedTask;
+    /// <param name="statementSql">The statement to run.</param>
+    /// <param name="documentOffset">
+    /// Where <paramref name="statementSql"/> starts in the editor's text, so a failure
+    /// can be marked there; null when it isn't the editor's text.
+    /// </param>
+    public Task RunStatementAsync(string statementSql, int? documentOffset = null) =>
+        CanRun() ? RunCoreAsync(statementSql, trackAsFullRun: false, documentOffset) : Task.CompletedTask;
 
-    private async Task RunCoreAsync(string executedSql, bool trackAsFullRun)
+    // documentOffset: where executedSql starts in Sql (0 for the whole buffer, the
+    // selection's start for a selection), or null when it is not the editor's text.
+    // Only used to place the error marker.
+    private async Task RunCoreAsync(string executedSql, bool trackAsFullRun, int? documentOffset = null)
     {
         _cts = new CancellationTokenSource();
         var ct = _cts.Token;
@@ -792,6 +819,8 @@ public sealed partial class QueryViewModel : ObservableObject
         IsRunning = true;
         Status = "Running...";
         HasError = false;
+        ErrorMarker = null;
+        _runDocumentOffset = documentOffset;
         FixSuggestionSql = null;
         FixSuggestionText = null;
         RowCountText = null;
@@ -827,7 +856,7 @@ public sealed partial class QueryViewModel : ObservableObject
             var statements = SqlScriptSplitter.Split(executedSql);
             if (statements.Count > 1)
             {
-                await RunScriptAsync(statements, stopwatch, ct);
+                await RunScriptAsync(executedSql, documentOffset, statements, stopwatch, ct);
                 if (HasError)
                 {
                     await TryOfferFixAsync(executedSql);
@@ -840,7 +869,13 @@ public sealed partial class QueryViewModel : ObservableObject
             // Ask for one row past the cap: receiving it proves the result was
             // actually cut short, so an exactly-at-the-cap result isn't
             // mislabeled as truncated.
-            var result = await _engine.ExecuteAsync(executedSql, ct, MaxDisplayRows + 1, maxBytes: MaxDisplayBytes);
+            //
+            // The statement goes out trimmed, as each script statement does: then a
+            // server error's position counts from a known offset in the editor
+            // (SqlErrorLocation.MapInScript), whatever Npgsql would have made of
+            // leading whitespace or a trailing semicolon.
+            var sent = statements.Count == 1 ? statements[0] : executedSql;
+            var result = await _engine.ExecuteAsync(sent, ct, MaxDisplayRows + 1, maxBytes: MaxDisplayBytes);
             if (result is ResultSet or MaterializedResultSet)
             {
                 _resultSql = executedSql;
@@ -956,9 +991,7 @@ public sealed partial class QueryViewModel : ObservableObject
                     break;
 
                 case QueryError error:
-                    Status = error.RolledBack
-                        ? $"Error: {error.Message} — transaction rolled back"
-                        : $"Error: {error.Message}";
+                    Status = ErrorStatus(error, MarkError(executedSql, statementIndex: 0, error.Position));
                     HasError = true;
                     await TryOfferFixAsync(executedSql);
                     break;
@@ -1013,7 +1046,7 @@ public sealed partial class QueryViewModel : ObservableObject
     // queues each one and posts a drain only when none is waiting, so a script
     // of ten thousand quick statements is a few dozen UI updates, not ten
     // thousand round trips each waited on.
-    private async Task RunScriptAsync(IReadOnlyList<string> statements, Stopwatch stopwatch, CancellationToken ct)
+    private async Task RunScriptAsync(string executedSql, int? documentOffset, IReadOnlyList<string> statements, Stopwatch stopwatch, CancellationToken ct)
     {
         var index = 0;
         var pending = new List<ScriptResultViewModel>();
@@ -1050,7 +1083,7 @@ public sealed partial class QueryViewModel : ObservableObject
                 await foreach (var result in _engine.ExecuteScriptAsync(statements, MaxDisplayRows, ct, budget).WithCancellation(ct))
                 {
                     index++;
-                    var section = ScriptResultViewModel.From(index, statements[index - 1], result);
+                    var section = ScriptResultViewModel.From(index, statements[index - 1], result, executedSql, documentOffset);
 
                     lock (pending)
                     {
@@ -1122,6 +1155,78 @@ public sealed partial class QueryViewModel : ObservableObject
         }
     }
 
+    /// <summary>What a failure inside an explicit transaction adds to its error line.</summary>
+    internal const string RolledBackSuffix = " — transaction rolled back";
+
+    /// <summary>
+    /// A failed statement's status line: the message, then its location in the
+    /// editor (" (line 3, column 15)", or ""), then the rolled-back note.
+    /// </summary>
+    internal static string ErrorStatus(QueryError error, string location = "") =>
+        $"Error: {error.Message}{location}{(error.RolledBack ? RolledBackSuffix : "")}";
+
+    // Where the current run's text starts in the document (see RunCoreAsync).
+    private int? _runDocumentOffset;
+
+    /// <summary>
+    /// Places <see cref="ErrorMarker"/> for a server error at <paramref name="position"/>
+    /// in statement <paramref name="statementIndex"/> of <paramref name="executedSql"/>,
+    /// and returns the location to append to the error text (" (line 3, column 15)"),
+    /// or "" when nothing is marked. Marks only when the executed text still sits at
+    /// its offset in the tab: typed over during the run, or a section selected after
+    /// an edit, it would point at the wrong place. One comparison and one line count
+    /// per failed run, never per keystroke.
+    /// </summary>
+    private string MarkError(string executedSql, int statementIndex, int? position, int? documentOffset = null)
+    {
+        ErrorMarker = null;
+        var offset = documentOffset ?? _runDocumentOffset;
+        if (position is null || offset is not { } start
+            || start < 0 || start + executedSql.Length > Sql.Length
+            || !Sql.AsSpan(start, executedSql.Length).SequenceEqual(executedSql))
+        {
+            return "";
+        }
+
+        if (SqlErrorLocation.MapInScript(executedSql, start, statementIndex, position) is not { } span)
+        {
+            return "";
+        }
+
+        ErrorMarker = span;
+        var (line, column) = SqlErrorLocation.LineColumn(Sql, span.Start);
+        return $" (line {line}, column {column})";
+    }
+
+    /// <summary>
+    /// Shows a failed run that never ran: the headless tests' entry point, as
+    /// <see cref="SeedResult"/> is for rows. Takes the results the engine would have
+    /// returned for <paramref name="executedSql"/> (one per statement it splits into)
+    /// and applies them the way a run does: one statement sets the status line, more
+    /// fill the script sections and select the first failure. Never called in production.
+    /// </summary>
+    public void SeedRunResults(string executedSql, int? documentOffset, IReadOnlyList<StatementResult> results)
+    {
+        ErrorMarker = null;
+        _runDocumentOffset = documentOffset;
+        SelectedSection = null;
+        ResultSections.Clear();
+        var statements = SqlScriptSplitter.Split(executedSql);
+        if (statements.Count <= 1)
+        {
+            HasError = results[0] is QueryError;
+            Status = results[0] is QueryError error
+                ? ErrorStatus(error, MarkError(executedSql, 0, error.Position))
+                : "Done";
+            return;
+        }
+
+        ResultSections.AddRange([.. results.Select((result, i) =>
+            ScriptResultViewModel.From(i + 1, statements[i], result, executedSql, documentOffset))]);
+        SelectedSection = ResultSections.FirstOrDefault(s => s.HasError) ?? ResultSections[0];
+        NotifyScriptResultChanged();
+    }
+
     private bool CanApplyFix() => FixSuggestionSql is not null && !IsRunning;
 
     /// <summary>Applies the staged identifier fix to the editor and re-runs the query.</summary>
@@ -1162,6 +1267,20 @@ public sealed partial class QueryViewModel : ObservableObject
         Rows = value.Rows;
         Status = value.StatusText;
         HasError = value.HasError;
+        // A failed section marks its own statement; any other section shows no marker.
+        if (value.ErrorPosition is { } position && value.ExecutedSql is { } sectionScript)
+        {
+            // The location belongs to the message, ahead of a "transaction rolled back".
+            var location = MarkError(sectionScript, value.Index - 1, position, value.DocumentOffset);
+            Status = value.StatusText.EndsWith(RolledBackSuffix, StringComparison.Ordinal)
+                ? value.StatusText[..^RolledBackSuffix.Length] + location + RolledBackSuffix
+                : value.StatusText + location;
+        }
+        else
+        {
+            ErrorMarker = null;
+        }
+
         RowCountText = value.RowCountText;
         TimingText = value.TimingText;
         CapText = value.CapText;
@@ -1445,6 +1564,9 @@ public sealed partial class QueryViewModel : ObservableObject
         IsRunning = true;
         Status = analyze ? "Running EXPLAIN ANALYZE..." : "Running EXPLAIN...";
         HasError = false;
+        // An Explain sends "EXPLAIN ..." around text it may have cut out of the
+        // editor, so its errors are not marked; a marker from the last run goes.
+        ErrorMarker = null;
         // Hide any plan already on screen until this run yields a fresh one, so a
         // failed or cancelled re-run can't leave a stale plan beside the new error.
         IsShowingPlan = false;
@@ -1568,11 +1690,17 @@ public sealed partial class QueryViewModel : ObservableObject
         FixSuggestionSql = null;
         FixSuggestionText = null;
 
+        // The error marker points at text that just changed. Cleared on any edit,
+        // not only one touching the marked token: simpler than tracking an anchor
+        // across edits, and a marker can never point at the wrong place.
+        ErrorMarker = null;
+
         // Any change to the buffer drops a stale selection: the view re-pushes
         // the live one on the next SelectionChanged. This also keeps programmatic
         // "set Sql, then RunCommand" callers (apply-fix, browse, import preview)
         // running the whole buffer they just set, not a leftover highlight.
         SelectedSql = null;
+        SelectedSqlOffset = null;
 
         IsShowingPlan = false;
         // Two different dirty meanings share one flag/dot: a scratch tab (no
@@ -2406,7 +2534,7 @@ public sealed partial class QueryViewModel : ObservableObject
         // Full buffer, never the current selection: a background reload after an
         // out-of-band change re-runs what's on screen, independent of any live
         // highlight (unlike the user-driven RunCommand).
-        Browse is { } browse ? browse.LoadAsync() : RunCoreAsync(Sql, trackAsFullRun: true);
+        Browse is { } browse ? browse.LoadAsync() : RunCoreAsync(Sql, trackAsFullRun: true, documentOffset: 0);
 
     // --- Safe mode: staged changes ------------------------------------------
 

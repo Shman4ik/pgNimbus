@@ -2019,6 +2019,29 @@ Moved to [`.claude/rules/logo-assets.md`](rules/logo-assets.md), which loads whe
   (via `TextChanged` + `PropertyChanged`, with a re-entrancy guard), not via
   XAML `Binding`. Both the main SQL editor (`_suppressEditorSync`) and the
   cell inspector's JSON editor (`_suppressInspectorSync`) follow this pattern.
+- **A failed run marks where the server says it failed** (2026-11). The engine
+  keeps `PostgresException.Position` as `QueryError.Position` (1-based code
+  points of the text it sent; an error inside a function body has only an
+  internal position, so it is null). The Core-pure `Query/SqlErrorLocation` maps
+  it to the document: code points to UTF-16, then through the offset the sent
+  statement starts at (`SqlScriptSplitter.SplitSpans`, the spans of exactly what
+  `Split` returns), to the lexer token there. For that offset to be known, **a
+  single-statement run sends the trimmed statement** (`Split`'s text), as a
+  script statement always did. `QueryViewModel.ErrorMarker` is the span; every
+  run path passes where its text starts (0 for the tab, `SelectedSqlOffset` for
+  a selection, null for a rectangular one, the span start for the statement at
+  the caret), and script sections carry theirs, so selecting a failed section
+  marks it. It marks only while the run's text still sits at that offset, and is
+  cleared by the next run, an Explain (whose sent text has a prefix; never
+  marked) and *any* edit of the tab (simpler than an anchor, and never wrong).
+  The status line gains `(line N, column M)`, before any "transaction rolled
+  back" note (`QueryViewModel.ErrorStatus`). `Editor/ErrorMarkerRenderer` draws
+  it in `AppDangerBrush`; `QueryEditorPanel` scrolls it into view without moving
+  the caret or focus. Tests: `SqlErrorLocationTests`, `ErrorMarkerTests` (seeded
+  through `QueryViewModel.SeedRunResults`) and `ErrorMarkerLiveTests` (gated on
+  `PGNIMBUS_TEST_CONN`: the real run path marks exactly the token the server
+  named, through leading blank lines, emoji and non-BMP text, script statements
+  2 and 3, a selection, end of input, and never a PL/pgSQL body error).
 - **UI-thread work must not grow with the data** (2026-09, UI-thread audit,
   [`docs/dev/design/ui-thread-audit.md`](../docs/dev/design/ui-thread-audit.md);
   kubeNimbus had the same two freezes first). Five rules:
