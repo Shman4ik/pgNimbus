@@ -188,6 +188,15 @@ public sealed class ResultExporterRangeTests
         }
 
         await using var dataSource = NpgsqlDataSource.Create(ConnectionString!);
+        if (type.Contains("multirange", StringComparison.Ordinal))
+        {
+            await using var versionCheck = await dataSource.OpenConnectionAsync();
+            if (versionCheck.PostgreSqlVersion.Major < 14)
+            {
+                Skip.Test("Multirange types need PostgreSQL 14 or newer.");
+            }
+        }
+
         object value;
         string wireType;
         await using (var read = dataSource.CreateCommand($"SELECT {expression}"))

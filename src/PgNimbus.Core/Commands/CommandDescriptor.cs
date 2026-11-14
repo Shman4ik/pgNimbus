@@ -100,6 +100,8 @@ public enum CommandId
     // Appended; filed under navigation after the cheat sheet, the About box's neighbour.
     RateInStore,
 
+    // Appended; filed under navigation beside Switch connection.
+    SwitchDatabase,
     // Appended; the relation's Maintenance submenu, filed under navigation
     // after the backup pair.
     AnalyzeTable,

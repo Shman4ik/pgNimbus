@@ -197,6 +197,7 @@ public static class CommandBindings
         [CommandId.NotifyMonitor] = vm => vm.ShowNotifyMonitorCommand,
         [CommandId.SecurityManager] = vm => vm.ShowSecurityCommand,
         [CommandId.SwitchConnection] = vm => vm.SwitchConnectionCommand,
+        [CommandId.SwitchDatabase] = vm => vm.SwitchDatabaseCommand,
         [CommandId.NewWindow] = vm => vm.OpenNewWindowCommand,
         [CommandId.BackupDatabase] = vm => vm.BackupDatabaseCommand,
         [CommandId.RestoreBackup] = vm => vm.RestoreBackupCommand,

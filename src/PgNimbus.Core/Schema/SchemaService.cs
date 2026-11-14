@@ -268,6 +268,9 @@ public sealed class SchemaService(WriteGatedDataSource dataSource)
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
+        // Before PG14 a never-analyzed table stores reltuples = 0, the same as an
+        // analyzed empty one, so 0 says nothing there: no estimate is shown.
+        var zeroIsUnknown = connection.PostgreSqlVersion.Major < 14;
         await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         command.Parameters.AddWithValue("schema", schema);
         await using var reader = await command.ExecuteReaderAsync(ct);
@@ -279,7 +282,7 @@ public sealed class SchemaService(WriteGatedDataSource dataSource)
             {
                 Comment = reader.IsDBNull(3) ? null : reader.GetString(3),
                 // -1 (PG 14+) on a table never analyzed: no estimate yet.
-                RowEstimate = reader.IsDBNull(4) || reader.GetDouble(4) < 0 ? null : (long)reader.GetDouble(4),
+                RowEstimate = reader.IsDBNull(4) || reader.GetDouble(4) < 0 || (zeroIsUnknown && reader.GetDouble(4) == 0) ? null : (long)reader.GetDouble(4),
             });
         }
 
@@ -320,6 +323,35 @@ public sealed class SchemaService(WriteGatedDataSource dataSource)
         return reader.GetBoolean(0) ? SessionWriteState.Standby
             : reader.GetBoolean(1) ? SessionWriteState.ReadOnly
             : SessionWriteState.ReadWrite;
+    }
+
+    /// <summary>
+    /// The databases of this server a window could switch to: those that accept
+    /// connections, are not templates, and that the session's role may connect to
+    /// (<c>has_database_privilege</c>, which expands memberships and PUBLIC),
+    /// sorted by name. The current database is among them.
+    /// </summary>
+    public async Task<IReadOnlyList<string>> GetDatabasesAsync(CancellationToken ct)
+    {
+        await using var connection = await _dataSource.OpenConnectionAsync(ct);
+        await using var command = new NpgsqlCommand(
+            InternalSql.Tag("""
+                SELECT d.datname
+                FROM pg_catalog.pg_database d
+                WHERE d.datallowconn
+                  AND NOT d.datistemplate
+                  AND pg_catalog.has_database_privilege(d.oid, 'CONNECT')
+                ORDER BY d.datname
+                """),
+            connection);
+        await using var reader = await command.ExecuteReaderAsync(ct);
+        var names = new List<string>();
+        while (await reader.ReadAsync(ct))
+        {
+            names.Add(reader.GetString(0));
+        }
+
+        return names;
     }
 
     public async Task<IReadOnlyList<TableInfo>> GetTablesAsync(string schema, CancellationToken ct)
@@ -604,7 +636,7 @@ public sealed class SchemaService(WriteGatedDataSource dataSource)
     {
         // `internal`: see FunctionInfo.IsInternal. Every test is a catalog
         // fact, one EXISTS per place the server keeps machinery.
-        const string sql = """
+        const string template = """
             SELECT p.proname,
                    pg_catalog.pg_get_function_identity_arguments(p.oid),
                    COALESCE(pg_catalog.pg_get_function_result(p.oid), ''),
@@ -637,6 +669,11 @@ public sealed class SchemaService(WriteGatedDataSource dataSource)
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(ct);
+        // pg_type.typsubscript (subscripting support functions) is PG14+; before
+        // that there is no such machinery to mark, so the test is left out.
+        var sql = connection.PostgreSqlVersion.Major >= 14
+            ? template
+            : template.Replace(", t.typsubscript", "");
         await using var command = new NpgsqlCommand(InternalSql.Tag(sql), connection);
         command.Parameters.AddWithValue("schema", schema);
         await using var reader = await command.ExecuteReaderAsync(ct);

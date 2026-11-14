@@ -4,6 +4,16 @@ pgNimbus opens the connection dialog on launch.
 
 ![The connection dialog, with saved profiles on the left and the paste-anything import box at the top](../screenshots/connection-dialog.png)
 
+## Supported PostgreSQL versions
+
+The test suite passes on PostgreSQL 12 to 18 (the official `postgres:12` to
+`postgres:18` images), with no failures. Two groups of tests skip on older
+servers because they need newer syntax: the per-membership `NOINHERIT` roles
+test needs 16 (skipped on 12 to 15), and the four multirange tests need 14
+(skipped on 12 and 13). The function list reads a catalog column from 14 and
+falls back below it. PostgreSQL 19 was not tested. PostgreSQL's own policy ends
+support for a major release five years after it ships.
+
 ## Paste anything
 
 The box at the top of the dialog accepts whatever form of connection string you
@@ -379,6 +389,30 @@ Switch connection (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd>) repoints the
 current window at a different server without restarting the app.
 
 Both are also in the menu behind the ☰ button and in the command palette.
+
+## Another database on the same server
+
+You don't need a profile for each database on a server. Click the database name
+in the title bar (the part after `›`), or run **Switch database…** from the
+command palette. The list shows the databases your role may connect to; the
+current one has a check mark. Type to narrow the list, then press
+<kbd>Enter</kbd> or click a database to open it in this window.
+
+pgNimbus connects with the same profile, password and SSH tunnel, with only the
+database changed. The profile itself is not changed. If the connection fails (for
+example, your role has no `CONNECT` privilege), the window stays where it was and
+the status line shows the error. When it succeeds, the window works exactly as
+after **Switch connection**: the tabs of the old database, unsaved text
+included, are saved for it and come back when you return to it. On a production
+profile, writes are off again in the new window.
+
+If the window has staged changes, an open transaction or a running query,
+pgNimbus asks first and says what will be lost: staged changes are discarded,
+the transaction is rolled back and the query is cancelled. Choose **Cancel** to
+stay where you are.
+
+To keep the current database open as well, right-click a database in the list and
+choose **Open in New Window**.
 
 ## If the connection drops
 

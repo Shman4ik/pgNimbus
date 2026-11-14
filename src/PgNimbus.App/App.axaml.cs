@@ -587,15 +587,17 @@ public partial class App : Application
     }
 
     /// <summary>
-    /// Opens a main window on <paramref name="database"/> of the same server,
+    /// Builds a main window on <paramref name="database"/> of the same server,
     /// connected the way the window that asked is: its profile with the
     /// database swapped (not saved; the connection list doesn't grow), its
     /// password, and another hold on its SSH tunnel, since signing in to the jump
     /// host again would need the SSH secret, which no window keeps. One real
     /// connection is opened first, as the connection dialog does, so a failure
-    /// lands in the restore window that asked rather than in a broken window.
+    /// throws to the caller, with nothing left open, rather than producing a
+    /// broken window. The window is not shown. A production profile's window
+    /// starts with writes locked, as every new window does.
     /// </summary>
-    private static async Task OpenDatabaseInNewWindowAsync(
+    private static async Task<MainWindow> ConnectToDatabaseAsync(
         string database,
         string connectionString,
         PgToolConnection toolConnection,
@@ -611,12 +613,8 @@ public partial class App : Application
             MainWindow window;
             if (profile is not null)
             {
-                var target = profile with { Database = database };
-                dataSource = target.CreateDataSource(password, lease is null ? null : (lease.Tunnel.LocalHost, lease.Tunnel.LocalPort));
-                await using (await dataSource.OpenConnectionAsync())
-                {
-                }
-
+                (var target, dataSource) = await DatabaseSwitch.ConnectAsync(
+                    profile, database, password, lease is null ? null : (lease.Tunnel.LocalHost, lease.Tunnel.LocalPort));
                 window = BuildMainWindow(dataSource, accentColor, lease, target, password);
                 ForgetSessionPasswordsOnClose(window, profile.Id);
             }
@@ -624,22 +622,13 @@ public partial class App : Application
             {
                 // PGNIMBUS_CONN: the data source's string, which Npgsql hands
                 // back without its password, with the database swapped.
-                var builder = new NpgsqlConnectionStringBuilder(connectionString)
-                {
-                    Database = database,
-                    Password = toolConnection.Password,
-                };
-                dataSource = NpgsqlDataSource.Create(builder.ConnectionString);
-                await using (await dataSource.OpenConnectionAsync())
-                {
-                }
-
+                dataSource = await DatabaseSwitch.ConnectAsync(connectionString, database, toolConnection.Password);
                 window = BuildMainWindow(dataSource, accentColor, lease, toolConnection: toolConnection.ForDatabase(database));
             }
 
             dataSource = null;
             lease = null;
-            window.Show();
+            return window;
         }
         finally
         {
@@ -650,6 +639,72 @@ public partial class App : Application
 
             lease?.Dispose();
         }
+    }
+
+    /// <summary>
+    /// "Open in New Window": after a restore into a new database, and on a row of
+    /// the title bar's database list. The window joins the others.
+    /// </summary>
+    private static async Task OpenDatabaseInNewWindowAsync(
+        string database,
+        string connectionString,
+        PgToolConnection toolConnection,
+        string? accentColor,
+        SshTunnelLease? tunnel,
+        ConnectionProfile? profile,
+        string? password) =>
+        (await ConnectToDatabaseAsync(database, connectionString, toolConnection, accentColor, tunnel, profile, password)).Show();
+
+    /// <summary>
+    /// The title bar's database list: <paramref name="database"/> in place of
+    /// <paramref name="current"/>, with Switch Connection's semantics (the new
+    /// window is shown, then the old one closes through its ordinary close path:
+    /// workspace saved under its own key, an open transaction and staged changes
+    /// go with its connection, a running backup or restore asks first). Connected
+    /// before anything changes, so a failure throws with <paramref name="current"/>
+    /// untouched. The new window takes the old one's place and size, so the switch
+    /// reads as happening in this window.
+    /// </summary>
+    private static async Task SwitchDatabaseInWindowAsync(
+        MainWindow current,
+        string database,
+        string connectionString,
+        PgToolConnection toolConnection,
+        string? accentColor,
+        SshTunnelLease? tunnel,
+        ConnectionProfile? profile,
+        string? password)
+    {
+        var window = await ConnectToDatabaseAsync(database, connectionString, toolConnection, accentColor, tunnel, profile, password);
+        window.WindowStartupLocation = WindowStartupLocation.Manual;
+        if (current.WindowState == WindowState.Normal)
+        {
+            window.WindowState = WindowState.Normal;
+            window.Position = current.Position;
+            window.Width = current.ClientSize.Width;
+            window.Height = current.ClientSize.Height;
+        }
+        else if (current.WindowState is WindowState.Maximized or WindowState.FullScreen)
+        {
+            window.WindowState = current.WindowState;
+        }
+
+        window.Show();
+        if (Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop
+            && ReferenceEquals(desktop.MainWindow, current))
+        {
+            desktop.MainWindow = window;
+        }
+
+        // The confirm before the connect named what this would end; end it for
+        // real (an ordinary close leaves a transaction open and a query running
+        // on the server until the process exits), then close.
+        if (current.DataContext is MainViewModel previous)
+        {
+            await previous.EndConnectionWorkAsync();
+        }
+
+        current.Close();
     }
 
     // The profile each open main window was connected with.
@@ -824,6 +879,15 @@ public partial class App : Application
         {
             DataContext = viewModel,
         };
+
+        // The title bar's database list: another database of this server in this
+        // window, connected the same way (the profile, password and tunnel).
+        if (toolConnection is not null)
+        {
+            var tools = toolConnection;
+            viewModel.SwitchToDatabase = database =>
+                SwitchDatabaseInWindowAsync(window, database, dataSource.ConnectionString, tools, accentColor, tunnel, profile, password);
+        }
 
         // Restore last session's window placement before the window shows, and
         // save it back on close - session state alongside the workspace restore.
