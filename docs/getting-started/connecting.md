@@ -4,6 +4,17 @@ pgNimbus opens the connection dialog on launch.
 
 ![The connection dialog, with saved profiles on the left and the paste-anything import box at the top](../screenshots/connection-dialog.png)
 
+## Supported PostgreSQL versions
+
+pgNimbus is tested with PostgreSQL 14 to 18. The full test suite passes on 16,
+17 and 18. On 14 and 15 it passes except one test of per-membership
+`NOINHERIT` roles, which needs PostgreSQL 16; the app itself reads role
+membership correctly there.
+
+Below 14 it is known not to work fully: the function list that completion and
+the schema tree read uses a catalog column that PostgreSQL 14 introduced
+(`pg_type.typsubscript`), so that read fails on 13 and 12.
+
 ## Paste anything
 
 The box at the top of the dialog accepts whatever form of connection string you
