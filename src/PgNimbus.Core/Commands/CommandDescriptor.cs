@@ -1,3 +1,5 @@
+using PgNimbus.Core.Localization;
+
 namespace PgNimbus.Core.Commands;
 
 /// <summary>
@@ -168,10 +170,16 @@ public sealed record CommandDescriptor
     public required CommandId Id { get; init; }
 
     /// <summary>The command-palette label — the long, searchable one.</summary>
-    public required string Title { get; init; }
+    public string Title => Strings.Get(TitleKey);
+
+    /// <summary>The table entry behind <see cref="Title"/>.</summary>
+    public required StringKey TitleKey { get; init; }
 
     /// <summary>A shorter label for the cheat sheet and docs; falls back to <see cref="Title"/>.</summary>
-    public string? CheatTitle { get; init; }
+    public string? CheatTitle => CheatTitleKey is { } key ? Strings.Get(key) : null;
+
+    /// <summary>The table entry behind <see cref="CheatTitle"/>, if the command has a shorter one.</summary>
+    public StringKey? CheatTitleKey { get; init; }
 
     public required CommandCategory Category { get; init; }
 
@@ -204,13 +212,16 @@ public sealed record CommandDescriptor
 
     /// <summary>
     /// Free text for gestures that aren't a chord at all ("Double-click",
-    /// "context menu") or a range too wide to enumerate ("{cmd}+1 … {cmd}+9").
-    /// Rendered as quiet text next to (or instead of) the key caps; "{cmd}+" is
+    /// "context menu") or a range too wide to enumerate ("{key:cmd}+1 … {key:cmd}+9").
+    /// Rendered as quiet text next to (or instead of) the key caps; "{key:cmd}+" is
     /// spelled per scheme ("Ctrl+" or "⌘"), and "{chord:Run}" is another
     /// command's primary chord, spelled per scheme ("Ctrl+Enter" or "⌘↩"), for a
     /// panel that answers that command's chord with its own action.
     /// </summary>
-    public string? GestureNote { get; init; }
+    public string? GestureNote => GestureNoteKey is { } key ? Strings.Get(key) : null;
+
+    /// <summary>The table entry behind <see cref="GestureNote"/>.</summary>
+    public StringKey? GestureNoteKey { get; init; }
 
     public CommandSurface Surfaces { get; init; } = CommandSurface.CheatSheet;
 
@@ -295,7 +306,7 @@ public sealed record CommandDescriptor
     /// </summary>
     public string? GestureNoteFor(ChordScheme scheme)
     {
-        const string Placeholder = "{cmd}+";
+        const string Placeholder = "{key:cmd}+";
         if (GestureNote is not { } note)
         {
             return null;
@@ -304,7 +315,7 @@ public sealed record CommandDescriptor
         note = SpellChordPlaceholders(note, scheme);
         if (scheme == ChordScheme.Ctrl)
         {
-            return note.Replace("{cmd}", "Ctrl", StringComparison.Ordinal);
+            return note.Replace("{key:cmd}", "Ctrl", StringComparison.Ordinal);
         }
 
         var result = new System.Text.StringBuilder(note.Length);
@@ -315,7 +326,7 @@ public sealed record CommandDescriptor
             if (at < 0)
             {
                 result.Append(note, index, note.Length - index);
-                return result.Replace("{cmd}", "⌘").ToString();
+                return result.Replace("{key:cmd}", "⌘").ToString();
             }
 
             result.Append(note, index, at - index);

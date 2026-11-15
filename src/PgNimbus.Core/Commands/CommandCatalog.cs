@@ -1,3 +1,5 @@
+using PgNimbus.Core.Localization;
+
 namespace PgNimbus.Core.Commands;
 
 /// <summary>
@@ -33,7 +35,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.Run,
-            Title = "Run query",
+            TitleKey = StringKey.Command_Run,
             Category = CommandCategory.Query,
             Glyph = "▶",
             Chord = new(CommandKey.Enter, Cmd),
@@ -43,7 +45,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.RunStatementUnderCursor,
-            Title = "Run just the statement under the cursor",
+            TitleKey = StringKey.Command_RunStatementUnderCursor,
             Category = CommandCategory.Query,
             Scope = CommandScope.Editor,
             Chord = new(CommandKey.Enter, Shift),
@@ -52,7 +54,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.Cancel,
-            Title = "Cancel query",
+            TitleKey = StringKey.Command_Cancel,
             Category = CommandCategory.Query,
             Glyph = "■",
             Chord = new(CommandKey.Escape),
@@ -63,8 +65,8 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.Explain,
-            Title = "Explain",
-            CheatTitle = "Explain — estimated plan",
+            TitleKey = StringKey.Command_Explain,
+            CheatTitleKey = StringKey.Command_Explain_Cheat,
             Category = CommandCategory.Query,
             Glyph = "⚡",
             Chord = new(CommandKey.E, Cmd),
@@ -73,8 +75,8 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.ExplainAnalyze,
-            Title = "Explain Analyze",
-            CheatTitle = "Explain Analyze — runs the query",
+            TitleKey = StringKey.Command_ExplainAnalyze,
+            CheatTitleKey = StringKey.Command_ExplainAnalyze_Cheat,
             Category = CommandCategory.Query,
             Glyph = "⚡",
             Chord = new(CommandKey.E, CmdShift),
@@ -83,7 +85,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.ImportPlan,
-            Title = "Import query plan (paste EXPLAIN JSON or text)…",
+            TitleKey = StringKey.Command_ImportPlan,
             Category = CommandCategory.Query,
             Glyph = "⭳",
             Surfaces = PaletteOnly,
@@ -91,8 +93,8 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.QueryLab,
-            Title = "Query Lab (compare saved plans)",
-            CheatTitle = "Query Lab",
+            TitleKey = StringKey.Command_QueryLab,
+            CheatTitleKey = StringKey.Command_QueryLab_Cheat,
             Category = CommandCategory.Query,
             Glyph = "⇄",
             Surfaces = PaletteOnly,
@@ -100,7 +102,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.SavePlanToQueryLab,
-            Title = "Save plan to Query Lab…",
+            TitleKey = StringKey.Command_SavePlanToQueryLab,
             Category = CommandCategory.Query,
             Glyph = "⇄",
             Surfaces = PaletteOnly,
@@ -108,7 +110,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.ComparePlan,
-            Title = "Compare plan in Query Lab…",
+            TitleKey = StringKey.Command_ComparePlan,
             Category = CommandCategory.Query,
             Glyph = "⇄",
             Surfaces = PaletteOnly,
@@ -116,8 +118,8 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.FormatSql,
-            Title = "Format SQL",
-            CheatTitle = "Format the statement under the cursor",
+            TitleKey = StringKey.Command_FormatSql,
+            CheatTitleKey = StringKey.Command_FormatSql_Cheat,
             Category = CommandCategory.Query,
             Scope = CommandScope.Editor,
             Glyph = "❖",
@@ -128,7 +130,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.ExpandStar,
-            Title = "Expand SELECT * into columns",
+            TitleKey = StringKey.Command_ExpandStar,
             Category = CommandCategory.Query,
             Glyph = "✳",
             // Shift+8 is "*" on most layouts — the gesture spells the command.
@@ -138,7 +140,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.BeginTransaction,
-            Title = "Begin transaction",
+            TitleKey = StringKey.Command_BeginTransaction,
             Category = CommandCategory.Query,
             Glyph = "⛃",
             Chord = new(CommandKey.B, CmdShift),
@@ -147,7 +149,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.CommitTransaction,
-            Title = "Commit transaction",
+            TitleKey = StringKey.Command_CommitTransaction,
             Category = CommandCategory.Query,
             Glyph = "✓",
             // Enter confirms, Backspace undoes — the pair reads at a glance.
@@ -157,7 +159,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.RollbackTransaction,
-            Title = "Rollback transaction",
+            TitleKey = StringKey.Command_RollbackTransaction,
             Category = CommandCategory.Query,
             Glyph = "↺",
             Chord = new(CommandKey.Backspace, CmdShift),
@@ -166,7 +168,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.ToggleSafeMode,
-            Title = "Toggle safe mode (stage grid changes, review & commit)",
+            TitleKey = StringKey.Command_ToggleSafeMode,
             Category = CommandCategory.Query,
             Glyph = "⛨",
             // Deliberately no chord: flipping it by accident changes whether
@@ -180,7 +182,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.AllowWrites,
-            Title = "Allow writes in this window",
+            TitleKey = StringKey.Command_AllowWrites,
             Category = CommandCategory.Query,
             Glyph = "✎",
             Surfaces = PaletteOnly,
@@ -188,7 +190,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.LockWrites,
-            Title = "Turn writes off in this window",
+            TitleKey = StringKey.Command_LockWrites,
             Category = CommandCategory.Query,
             Glyph = "⊘",
             Surfaces = PaletteOnly,
@@ -198,7 +200,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.NewTab,
-            Title = "New query tab",
+            TitleKey = StringKey.Command_NewTab,
             Category = CommandCategory.Tabs,
             Glyph = "＋",
             Chord = new(CommandKey.T, Cmd),
@@ -207,7 +209,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.CloseTab,
-            Title = "Close tab",
+            TitleKey = StringKey.Command_CloseTab,
             Category = CommandCategory.Tabs,
             Glyph = "✕",
             Chord = new(CommandKey.W, Cmd),
@@ -220,7 +222,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.ReopenClosedTab,
-            Title = "Reopen closed tab",
+            TitleKey = StringKey.Command_ReopenClosedTab,
             Category = CommandCategory.Tabs,
             Glyph = "↶",
             Chord = new(CommandKey.T, CmdShift),
@@ -231,7 +233,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.CloseOtherTabs,
-            Title = "Close other tabs",
+            TitleKey = StringKey.Command_CloseOtherTabs,
             Category = CommandCategory.Tabs,
             Glyph = "✕",
             Surfaces = PaletteOnly,
@@ -239,7 +241,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.CloseTabsToTheRight,
-            Title = "Close tabs to the right",
+            TitleKey = StringKey.Command_CloseTabsToTheRight,
             Category = CommandCategory.Tabs,
             Glyph = "✕",
             Surfaces = PaletteOnly,
@@ -250,7 +252,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.RenameTab,
-            Title = "Rename tab",
+            TitleKey = StringKey.Command_RenameTab,
             Category = CommandCategory.Tabs,
             Glyph = "✎",
             Surfaces = PaletteOnly,
@@ -258,7 +260,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.NextTab,
-            Title = "Next tab",
+            TitleKey = StringKey.Command_NextTab,
             Category = CommandCategory.Tabs,
             Glyph = "›",
             Chord = new(CommandKey.PageDown, Cmd),
@@ -275,7 +277,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.PreviousTab,
-            Title = "Previous tab",
+            TitleKey = StringKey.Command_PreviousTab,
             Category = CommandCategory.Tabs,
             Glyph = "‹",
             Chord = new(CommandKey.PageUp, Cmd),
@@ -289,17 +291,17 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.GoToTabByNumber,
-            Title = "Go to tab 1…9",
+            TitleKey = StringKey.Command_GoToTabByNumber,
             Category = CommandCategory.Tabs,
             // Nine bindings would be nine near-identical palette rows; the
             // window binds the digits in a loop and this documents the range.
-            GestureNote = "{cmd}+1 … {cmd}+9",
+            GestureNoteKey = StringKey.Command_GoToTabByNumber_Note,
             Surfaces = SheetOnly,
         },
         new()
         {
             Id = CommandId.OpenFile,
-            Title = "Open file…",
+            TitleKey = StringKey.Command_OpenFile,
             Category = CommandCategory.Tabs,
             Glyph = "↥",
             Chord = new(CommandKey.O, Cmd),
@@ -318,8 +320,8 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.Save,
-            Title = "Save",
-            CheatTitle = "Save — to the tab's file, or to Saved Queries",
+            TitleKey = StringKey.Command_Save,
+            CheatTitleKey = StringKey.Command_Save_Cheat,
             Category = CommandCategory.Tabs,
             Glyph = "↧",
             Chord = new(CommandKey.S, Cmd),
@@ -328,8 +330,8 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.SaveAs,
-            Title = "Save as…",
-            CheatTitle = "Save as — a new file, or a new saved query",
+            TitleKey = StringKey.Command_SaveAs,
+            CheatTitleKey = StringKey.Command_SaveAs_Cheat,
             Category = CommandCategory.Tabs,
             Glyph = "↧",
             Chord = new(CommandKey.S, CmdShift),
@@ -338,7 +340,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.SaveQuery,
-            Title = "Save to Saved Queries…",
+            TitleKey = StringKey.Command_SaveQuery,
             Category = CommandCategory.Tabs,
             Glyph = "☆",
             Surfaces = PaletteOnly,
@@ -346,7 +348,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.SaveFile,
-            Title = "Save to file…",
+            TitleKey = StringKey.Command_SaveFile,
             Category = CommandCategory.Tabs,
             Glyph = "↧",
             Surfaces = PaletteOnly,
@@ -356,7 +358,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.Completion,
-            Title = "Autocomplete (also triggers while typing)",
+            TitleKey = StringKey.Command_Completion,
             Category = CommandCategory.Editor,
             Scope = CommandScope.Editor,
             // Literal Ctrl on every platform: Cmd+Space is Spotlight on macOS.
@@ -366,7 +368,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.ParameterHints,
-            Title = "Show the argument hint (also opens after typing \"(\")",
+            TitleKey = StringKey.Command_ParameterHints,
             Category = CommandCategory.Editor,
             Scope = CommandScope.Editor,
             // Literal Ctrl, like completion: Cmd+Shift+Space is taken on macOS.
@@ -376,7 +378,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.Find,
-            Title = "Find in editor",
+            TitleKey = StringKey.Command_Find,
             Category = CommandCategory.Editor,
             Glyph = "⌕",
             Chord = new(CommandKey.F, Cmd),
@@ -385,7 +387,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.FindReplace,
-            Title = "Find & replace in editor",
+            TitleKey = StringKey.Command_FindReplace,
             Category = CommandCategory.Editor,
             Glyph = "⌕",
             Chord = new(CommandKey.H, Cmd),
@@ -394,7 +396,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.FindNextPrevious,
-            Title = "Next / previous match",
+            TitleKey = StringKey.Command_FindNextPrevious,
             Category = CommandCategory.Editor,
             Scope = CommandScope.Editor,
             Chord = new(CommandKey.F3),
@@ -404,7 +406,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.ToggleLineComment,
-            Title = "Toggle line comment",
+            TitleKey = StringKey.Command_ToggleLineComment,
             Category = CommandCategory.Editor,
             Scope = CommandScope.Editor,
             Glyph = "—",
@@ -414,7 +416,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.DuplicateLine,
-            Title = "Duplicate line (or selection)",
+            TitleKey = StringKey.Command_DuplicateLine,
             Category = CommandCategory.Editor,
             Scope = CommandScope.Editor,
             Chord = new(CommandKey.D, CmdShift),
@@ -423,7 +425,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.MoveLineUp,
-            Title = "Move line up",
+            TitleKey = StringKey.Command_MoveLineUp,
             Category = CommandCategory.Editor,
             Scope = CommandScope.Editor,
             Chord = new(CommandKey.Up, Alt),
@@ -432,7 +434,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.MoveLineDown,
-            Title = "Move line down",
+            TitleKey = StringKey.Command_MoveLineDown,
             Category = CommandCategory.Editor,
             Scope = CommandScope.Editor,
             Chord = new(CommandKey.Down, Alt),
@@ -441,7 +443,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.DeleteLine,
-            Title = "Delete whole line",
+            TitleKey = StringKey.Command_DeleteLine,
             Category = CommandCategory.Editor,
             Scope = CommandScope.Editor,
             Chord = new(CommandKey.D, Cmd),
@@ -450,7 +452,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.UndoRedo,
-            Title = "Undo / Redo",
+            TitleKey = StringKey.Command_UndoRedo,
             Category = CommandCategory.Editor,
             Scope = CommandScope.Editor,
             Chord = new(CommandKey.Z, Cmd),
@@ -460,7 +462,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.ToggleWordWrap,
-            Title = "Toggle word wrap",
+            TitleKey = StringKey.Command_ToggleWordWrap,
             Category = CommandCategory.Editor,
             Glyph = "↩",
             Chord = new(CommandKey.Z, Alt),
@@ -469,8 +471,8 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.ToggleAutoAlias,
-            Title = "Toggle auto-alias tables (orders → orders o)",
-            CheatTitle = "Toggle auto-alias on table completion",
+            TitleKey = StringKey.Command_ToggleAutoAlias,
+            CheatTitleKey = StringKey.Command_ToggleAutoAlias_Cheat,
             Category = CommandCategory.Editor,
             Glyph = "a",
             Chord = new(CommandKey.A, CmdShift),
@@ -479,18 +481,18 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.ZoomEditor,
-            Title = "Zoom font size in / out",
+            TitleKey = StringKey.Command_ZoomEditor,
             Category = CommandCategory.Editor,
             Scope = CommandScope.Editor,
             Chord = new(CommandKey.Plus, Cmd),
             AltChord = new(CommandKey.Minus, Cmd),
-            GestureNote = "{cmd}+wheel",
+            GestureNoteKey = StringKey.Command_ZoomEditor_Note,
             Surfaces = SheetOnly,
         },
         new()
         {
             Id = CommandId.ResetEditorZoom,
-            Title = "Reset font size",
+            TitleKey = StringKey.Command_ResetEditorZoom,
             Category = CommandCategory.Editor,
             Scope = CommandScope.Editor,
             Chord = new(CommandKey.D0, Cmd),
@@ -499,7 +501,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.WordNavigation,
-            Title = "Move to word start / end",
+            TitleKey = StringKey.Command_WordNavigation,
             Category = CommandCategory.Editor,
             Scope = CommandScope.Editor,
             Chord = new(CommandKey.Left, Cmd),
@@ -511,18 +513,18 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.EditCell,
-            Title = "Edit selected cell",
+            TitleKey = StringKey.Command_EditCell,
             Category = CommandCategory.Results,
             Scope = CommandScope.Results,
             Chord = new(CommandKey.F2),
-            GestureNote = "double-click",
+            GestureNoteKey = StringKey.Command_EditCell_Note,
             Surfaces = SheetOnly,
         },
         new()
         {
             Id = CommandId.CommitCellEdit,
-            Title = "Commit / cancel cell edit",
-            CheatTitle = "Commit / cancel a cell edit; stage / revert row-detail edits",
+            TitleKey = StringKey.Command_CommitCellEdit,
+            CheatTitleKey = StringKey.Command_CommitCellEdit_Cheat,
             Category = CommandCategory.Results,
             Scope = CommandScope.Results,
             Chord = new(CommandKey.Enter),
@@ -532,11 +534,11 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.InspectCell,
-            Title = "Inspect cell (full value, pretty-printed JSON)",
+            TitleKey = StringKey.Command_InspectCell,
             Category = CommandCategory.Results,
             Scope = CommandScope.Results,
             Chord = new(CommandKey.Space),
-            GestureNote = "double-click (read-only) / context menu",
+            GestureNoteKey = StringKey.Command_InspectCell_Note,
             Surfaces = SheetOnly,
         },
         new()
@@ -548,16 +550,16 @@ public static class CommandCatalog
             // shadowing the global one. It used to reach the window and run
             // the query behind the overlay.
             Id = CommandId.SaveInspectedValue,
-            Title = "Save the value being edited in the cell inspector",
+            TitleKey = StringKey.Command_SaveInspectedValue,
             Category = CommandCategory.Results,
             Scope = CommandScope.Results,
-            GestureNote = "{chord:Run} in the cell inspector's editor",
+            GestureNoteKey = StringKey.Command_SaveInspectedValue_Note,
             Surfaces = SheetOnly,
         },
         new()
         {
             Id = CommandId.CopySelection,
-            Title = "Copy the selected cells",
+            TitleKey = StringKey.Command_CopySelection,
             Category = CommandCategory.Results,
             Scope = CommandScope.Results,
             Chord = new(CommandKey.C, Cmd),
@@ -566,7 +568,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.DeleteRow,
-            Title = "Delete the selected row (editable results)",
+            TitleKey = StringKey.Command_DeleteRow,
             Category = CommandCategory.Results,
             Scope = CommandScope.Results,
             Chord = new(CommandKey.Delete),
@@ -578,8 +580,8 @@ public static class CommandCatalog
             // own right (Tab through the fields), and the chord has to close
             // it from there as well as open it from the grid.
             Id = CommandId.RowDetails,
-            Title = "Toggle row details (the selected row as a name/value form)",
-            CheatTitle = "Show / hide row details",
+            TitleKey = StringKey.Command_RowDetails,
+            CheatTitleKey = StringKey.Command_RowDetails_Cheat,
             Category = CommandCategory.Results,
             Glyph = "▤",
             Chord = new(CommandKey.I, Cmd),
@@ -592,19 +594,19 @@ public static class CommandCatalog
             // so the gesture is documented here as a note rather than as a
             // second Ctrl/Cmd+F that would clash with the global one.
             Id = CommandId.FilterRows,
-            Title = "Filter rows of the browsed table…",
+            TitleKey = StringKey.Command_FilterRows,
             Category = CommandCategory.Results,
             Glyph = "▽",
-            GestureNote = "{cmd}+F in the results grid while browsing a table",
+            GestureNoteKey = StringKey.Command_FilterRows_Note,
             Surfaces = PaletteAndSheet,
         },
         new()
         {
             Id = CommandId.SetCellNull,
-            Title = "Set cell to NULL",
+            TitleKey = StringKey.Command_SetCellNull,
             Category = CommandCategory.Results,
             Scope = CommandScope.Results,
-            GestureNote = "context menu",
+            GestureNoteKey = StringKey.Command_SetCellNull_Note,
             Surfaces = SheetOnly,
         },
 
@@ -612,7 +614,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.CommandPalette,
-            Title = "Command palette (jump to table / query / action)",
+            TitleKey = StringKey.Command_CommandPalette,
             Category = CommandCategory.Navigation,
             Chord = new(CommandKey.K, Cmd),
             AltChord = new(CommandKey.P, Cmd),
@@ -621,7 +623,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.RefreshSchema,
-            Title = "Refresh database & schema",
+            TitleKey = StringKey.Command_RefreshSchema,
             Category = CommandCategory.Navigation,
             Glyph = "⟳",
             Chord = new(CommandKey.R, CmdShift),
@@ -630,7 +632,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.FocusSwap,
-            Title = "Switch focus: editor ↔ results grid",
+            TitleKey = StringKey.Command_FocusSwap,
             Category = CommandCategory.Navigation,
             Chord = new(CommandKey.F6),
             Surfaces = SheetOnly,
@@ -638,8 +640,8 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.ToggleSidebar,
-            Title = "Toggle sidebar",
-            CheatTitle = "Collapse / show the sidebar",
+            TitleKey = StringKey.Command_ToggleSidebar,
+            CheatTitleKey = StringKey.Command_ToggleSidebar_Cheat,
             Category = CommandCategory.Navigation,
             Glyph = "◫",
             Chord = new(CommandKey.B, Cmd),
@@ -648,15 +650,15 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.PreviewTable,
-            Title = "Preview a table (in the schema tree)",
+            TitleKey = StringKey.Command_PreviewTable,
             Category = CommandCategory.Navigation,
-            GestureNote = "Double-click",
+            GestureNoteKey = StringKey.Command_PreviewTable_Note,
             Surfaces = SheetOnly,
         },
         new()
         {
             Id = CommandId.ServerActivity,
-            Title = "Server activity",
+            TitleKey = StringKey.Command_ServerActivity,
             Category = CommandCategory.Navigation,
             Glyph = "∿",
             Chord = new(CommandKey.M, CmdShift),
@@ -665,8 +667,8 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.DatabaseOverview,
-            Title = "Database overview (sizes, cache hit, unused indexes)",
-            CheatTitle = "Database overview",
+            TitleKey = StringKey.Command_DatabaseOverview,
+            CheatTitleKey = StringKey.Command_DatabaseOverview_Cheat,
             Category = CommandCategory.Navigation,
             Glyph = "▦",
             Chord = new(CommandKey.G, CmdShift),
@@ -675,8 +677,8 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.SlowQueries,
-            Title = "Slow queries (pg_stat_statements)",
-            CheatTitle = "Slow queries",
+            TitleKey = StringKey.Command_SlowQueries,
+            CheatTitleKey = StringKey.Command_SlowQueries_Cheat,
             Category = CommandCategory.Navigation,
             Glyph = "⧗",
             Surfaces = PaletteOnly,
@@ -684,7 +686,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.NotifyMonitor,
-            Title = "LISTEN / NOTIFY monitor",
+            TitleKey = StringKey.Command_NotifyMonitor,
             Category = CommandCategory.Navigation,
             Glyph = "⚑",
             Chord = new(CommandKey.L, CmdShift),
@@ -693,8 +695,8 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.SecurityManager,
-            Title = "Roles and permissions…",
-            CheatTitle = "Roles and permissions",
+            TitleKey = StringKey.Command_SecurityManager,
+            CheatTitleKey = StringKey.Command_SecurityManager_Cheat,
             Category = CommandCategory.Navigation,
             Glyph = "⚿",
             Chord = new(CommandKey.U, CmdShift),
@@ -703,7 +705,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.SwitchConnection,
-            Title = "Switch connection…",
+            TitleKey = StringKey.Command_SwitchConnection,
             Category = CommandCategory.Navigation,
             Glyph = "⇄",
             Chord = new(CommandKey.O, CmdShift),
@@ -716,7 +718,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.SwitchDatabase,
-            Title = "Switch database…",
+            TitleKey = StringKey.Command_SwitchDatabase,
             Category = CommandCategory.Navigation,
             Glyph = "⇆",
             Surfaces = PaletteOnly,
@@ -724,7 +726,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.NewWindow,
-            Title = "Open connection in new window…",
+            TitleKey = StringKey.Command_NewWindow,
             Category = CommandCategory.Navigation,
             Glyph = "⧉",
             Chord = new(CommandKey.N, CmdShift),
@@ -736,7 +738,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.BackupDatabase,
-            Title = "Back up database…",
+            TitleKey = StringKey.Command_BackupDatabase,
             Category = CommandCategory.Navigation,
             Glyph = "⤓",
             Surfaces = PaletteOnly,
@@ -744,7 +746,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.RestoreBackup,
-            Title = "Restore backup…",
+            TitleKey = StringKey.Command_RestoreBackup,
             Category = CommandCategory.Navigation,
             Glyph = "⤒",
             Surfaces = PaletteOnly,
@@ -757,7 +759,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.AnalyzeTable,
-            Title = "Analyze table",
+            TitleKey = StringKey.Command_AnalyzeTable,
             Category = CommandCategory.Navigation,
             Glyph = "∑",
             Surfaces = PaletteOnly,
@@ -765,7 +767,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.VacuumTable,
-            Title = "Vacuum table",
+            TitleKey = StringKey.Command_VacuumTable,
             Category = CommandCategory.Navigation,
             Glyph = "⟳",
             Surfaces = PaletteOnly,
@@ -773,7 +775,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.TruncateTable,
-            Title = "Truncate table…",
+            TitleKey = StringKey.Command_TruncateTable,
             Category = CommandCategory.Navigation,
             Glyph = "⌀",
             Surfaces = PaletteOnly,
@@ -781,7 +783,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.RenameTable,
-            Title = "Rename table…",
+            TitleKey = StringKey.Command_RenameTable,
             Category = CommandCategory.Navigation,
             Glyph = "✐",
             Surfaces = PaletteOnly,
@@ -789,7 +791,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.DropTable,
-            Title = "Drop table…",
+            TitleKey = StringKey.Command_DropTable,
             Category = CommandCategory.Navigation,
             Glyph = "✕",
             Surfaces = PaletteOnly,
@@ -797,7 +799,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.ToggleTheme,
-            Title = "Toggle light/dark theme",
+            TitleKey = StringKey.Command_ToggleTheme,
             Category = CommandCategory.Navigation,
             Glyph = "◐",
             Surfaces = PaletteOnly,
@@ -805,7 +807,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.Preferences,
-            Title = "Settings…",
+            TitleKey = StringKey.Command_Preferences,
             Category = CommandCategory.Navigation,
             Glyph = "⚙",
             Chord = new(CommandKey.Comma, Cmd),
@@ -814,7 +816,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.ShortcutsWindow,
-            Title = "Keyboard shortcuts",
+            TitleKey = StringKey.Command_ShortcutsWindow,
             Category = CommandCategory.Navigation,
             Glyph = "?",
             Chord = new(CommandKey.F1),
@@ -830,7 +832,7 @@ public static class CommandCatalog
         new()
         {
             Id = CommandId.RateInStore,
-            Title = "Rate pgNimbus in the Microsoft Store",
+            TitleKey = StringKey.Command_RateInStore,
             Category = CommandCategory.Navigation,
             Glyph = "☆",
             Surfaces = PaletteOnly,
@@ -868,11 +870,11 @@ public static class CommandCatalog
     /// <summary>The heading a category is shown under.</summary>
     public static string CategoryTitle(CommandCategory category) => category switch
     {
-        CommandCategory.Query => "Query",
-        CommandCategory.Tabs => "Tabs & files",
-        CommandCategory.Editor => "SQL editor",
-        CommandCategory.Results => "Results grid",
-        CommandCategory.Navigation => "Navigation",
+        CommandCategory.Query => Strings.Command_Category_Query,
+        CommandCategory.Tabs => Strings.Command_Category_Tabs,
+        CommandCategory.Editor => Strings.Command_Category_Editor,
+        CommandCategory.Results => Strings.Command_Category_Results,
+        CommandCategory.Navigation => Strings.Command_Category_Navigation,
         _ => category.ToString(),
     };
 }
