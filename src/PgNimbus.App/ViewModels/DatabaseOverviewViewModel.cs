@@ -3,6 +3,7 @@ using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PgNimbus.Core;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Monitoring;
 using PgNimbus.Core.Schema;
 
@@ -17,9 +18,9 @@ public sealed record RelationSizeRow(RelationSize Relation)
 
     public string Kind => Relation.Kind switch
     {
-        RelationKind.MaterializedView => "matview",
-        RelationKind.PartitionedTable => "partitioned",
-        _ => "table",
+        RelationKind.MaterializedView => Strings.Monitoring_OverviewKindMatview,
+        RelationKind.PartitionedTable => Strings.Monitoring_OverviewKindPartitioned,
+        _ => Strings.Monitoring_OverviewKindTable,
     };
 
     public string Total => ByteSize.Format(Relation.TotalBytes);
@@ -139,9 +140,10 @@ public sealed partial class DatabaseOverviewViewModel(DatabaseStatsService servi
             UnusedIndexes.ReplaceAll(unused.Select(index => new UnusedIndexRow(index)));
 
             var unusedBytes = unused.Sum(i => i.IndexBytes);
-            Status = $"{LargestRelations.Count} relation{Plural(LargestRelations.Count)} · "
-                + $"{UnusedIndexes.Count} unused index{(UnusedIndexes.Count == 1 ? "" : "es")}"
-                + (unusedBytes > 0 ? $" wasting {ByteSize.Format(unusedBytes)}" : "")
+            Status = Strings.Monitoring_OverviewRelations(LargestRelations.Count) + " · "
+                + (unusedBytes > 0
+                    ? Strings.Monitoring_OverviewUnusedIndexesWasting(UnusedIndexes.Count, ByteSize.Format(unusedBytes))
+                    : Strings.Monitoring_OverviewUnusedIndexes(UnusedIndexes.Count))
                 + $" · {DateTime.Now:HH:mm:ss}";
         }
         catch (OperationCanceledException)
@@ -153,8 +155,6 @@ public sealed partial class DatabaseOverviewViewModel(DatabaseStatsService servi
             Status = ex.Message;
         }
     }
-
-    private static string Plural(int n) => n == 1 ? "" : "s";
 
     private static string FormatRatio(double? ratio) =>
         ratio is { } r ? r.ToString("P1", CultureInfo.InvariantCulture) : "—";
