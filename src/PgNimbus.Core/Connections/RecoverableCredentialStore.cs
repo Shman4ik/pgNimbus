@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+using PgNimbus.Core.Localization;
 
 namespace PgNimbus.Core.Connections;
 
@@ -116,7 +117,7 @@ public sealed class RecoverableCredentialStore(ICredentialStore persistent, stri
             {
                 // A failed delete must not resurrect the credential within this session.
                 _deleteFailed.Add(connectionId);
-                _warnings[connectionId] = "A saved password could not be deleted. Unlock your OS credential store and retry, or remove the pgNimbus entry in your system password manager.";
+                _warnings[connectionId] = Strings.Connection_CredentialDeleteFailed;
                 UpdateWarning();
             }
         }
@@ -233,7 +234,7 @@ public sealed class RecoverableCredentialStore(ICredentialStore persistent, stri
 
     private void Warn(Guid id)
     {
-        _warnings[id] = "Password storage is unavailable or migration could not finish. You can connect using the password in this dialog, but changes may last only for this session. Check your OS credential store (Keychain on macOS; Secret Service and libsecret-1 on Linux), then re-enter the password. Existing legacy credential files are kept until migration is verified.";
+        _warnings[id] = Strings.Connection_CredentialStorageUnavailable;
         UpdateWarning();
     }
 
@@ -248,9 +249,7 @@ public sealed class RecoverableCredentialStore(ICredentialStore persistent, stri
         var messages = _warnings.Values.Distinct().ToList();
         if (_legacyLeft.Count > 0)
         {
-            messages.Add(_legacyLeft.Count == 1
-                ? "An old unencrypted credential file could not be moved into your OS credential store and is still on disk. Open the connection it belongs to and save its password again to remove it."
-                : string.Create(CultureInfo.InvariantCulture, $"{_legacyLeft.Count} old unencrypted credential files could not be moved into your OS credential store and are still on disk. Open the connections they belong to and save their passwords again to remove them."));
+            messages.Add(Strings.Connection_LegacyCredentialLeft(_legacyLeft.Count));
         }
 
         Volatile.Write(ref _warning, messages.Count == 0 ? null : string.Join("\n", messages));
@@ -262,4 +261,4 @@ public sealed class RecoverableCredentialStore(ICredentialStore persistent, stri
 }
 
 /// <summary>Deliberately excludes native messages, which may contain sensitive data.</summary>
-public sealed class CredentialStoreException() : Exception("The OS credential store is unavailable.");
+public sealed class CredentialStoreException() : Exception(Strings.Connection_CredentialStoreUnavailable);

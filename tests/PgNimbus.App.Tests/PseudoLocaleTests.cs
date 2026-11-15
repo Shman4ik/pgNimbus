@@ -34,12 +34,29 @@ public partial class PseudoLocaleTests
         ["preferences-window"] = typeof(Views.PreferencesView),
         ["preferences-window-appearance"] = typeof(Views.PreferencesView),
         ["preferences-window-data"] = typeof(Views.PreferencesView),
+        ["connection-dialog"] = null,
+        ["connection-dialog-ssh-agent"] = null,
+        ["connection-dialog-wide"] = null,
+        ["connection-credential-warning"] = null,
+        ["connection-dialog-verify-full"] = null,
     };
 
     /// <summary>Text that is data in the fixtures, or a name never translated.</summary>
     private static readonly HashSet<string> DataText =
     [
         "pgNimbus",
+        "Local shop",
+        "Staging",
+        "Production",
+        "pgnimbus@localhost/shop",
+        "pgnimbus@127.0.0.1/shop",
+        "app@db.staging.example/shop",
+        "reporting@db.example.com:6432/shop",
+        "localhost/shop",
+        "127.0.0.1/shop",
+        "db.example.com/shop",
+        "localhost",
+        "postgres",
     ];
 
     [GeneratedRegex(@"\p{L}{2,}")]

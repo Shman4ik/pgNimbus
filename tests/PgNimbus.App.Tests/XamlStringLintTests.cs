@@ -19,7 +19,7 @@ public partial class XamlStringLintTests
     [
         "ActivityWindow.axaml", "AddRowDialog.axaml", "AlterTableDialog.axaml", "BackupWindow.axaml",
         "BrowseFilterBar.axaml", "CellValueView.axaml", "ColumnValueEditorView.axaml", "ConfirmDialog.axaml",
-        "ConnectionDialog.axaml", "CrashWindow.axaml", "DatabaseOverviewWindow.axaml", "DatabaseSwitcherView.axaml",
+        "CrashWindow.axaml", "DatabaseOverviewWindow.axaml", "DatabaseSwitcherView.axaml",
         "FilterEditorView.axaml", "HostKeyDialog.axaml", "ImportDialog.axaml", "ImportPlanDialog.axaml",
         "MainWindow.axaml", "NotifyMonitorWindow.axaml", "PendingChangesDialog.axaml", "PgToolGuideView.axaml",
         "QueryEditorPanel.axaml", "QueryLabWindow.axaml", "RestoreWindow.axaml",

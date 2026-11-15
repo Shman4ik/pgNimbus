@@ -1,3 +1,5 @@
+using PgNimbus.Core.Localization;
+
 namespace PgNimbus.Core.Connections;
 
 /// <summary>
@@ -213,23 +215,21 @@ public sealed class SshHostKeyVerifier
             {
                 var where = user.Result == KnownHostsResult.Revoked ? user : own;
                 return new SshTunnelException(
-                    $"The {keyType} key that {server} presented ({fingerprint}) is marked @revoked in {where.Path} (line {where.Entry!.LineNumber}). pgNimbus did not connect.");
+                    Strings.Connection_SshHostKeyRevoked(keyType, server, fingerprint, where.Path, where.Entry!.LineNumber));
             }
 
             case HostKeyDecision.Changed:
             {
                 var where = user.Result == KnownHostsResult.Mismatch ? user : own;
                 return new SshTunnelException(
-                    $"The host key of {server} has changed. {where.Path} (line {where.Entry!.LineNumber}) knows its {keyType} key as {where.Entry.Fingerprint}, but the server now presents {fingerprint}. "
-                    + "This happens when the server was reinstalled or its keys were regenerated, and also when someone between you and the server is intercepting the connection. pgNimbus did not connect. "
-                    + $"If you know the key really changed, remove that line from {where.Path} and connect again; you will be asked to confirm the new key.");
+                    Strings.Connection_SshHostKeyChanged(server, where.Path, where.Entry!.LineNumber, keyType, where.Entry.Fingerprint, fingerprint));
             }
 
             default:
                 return new SshTunnelException(
                     askFailure is null
-                        ? $"The {keyType} key of {server} ({fingerprint}) was not accepted, so pgNimbus did not connect."
-                        : $"The {keyType} key of {server} ({fingerprint}) could not be confirmed ({askFailure.Message}), so pgNimbus did not connect.",
+                        ? Strings.Connection_SshHostKeyNotAccepted(keyType, server, fingerprint)
+                        : Strings.Connection_SshHostKeyNotConfirmed(keyType, server, fingerprint, askFailure.Message),
                     askFailure);
         }
     }

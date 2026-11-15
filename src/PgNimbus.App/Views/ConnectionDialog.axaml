@@ -8,9 +8,10 @@
         xmlns:nui="using:Nimbus.Ui.Controls"
         xmlns:sys="using:System"
         xmlns:chrome="using:Avalonia.Controls.Chrome"
+        xmlns:l="using:PgNimbus.App.Localization"
         x:Class="PgNimbus.App.Views.ConnectionDialog"
         x:DataType="vm:ConnectionDialogViewModel"
-        Title="pgNimbus — Connect"
+        Title="{l:Tr Connection_WindowTitle}"
         Width="720" Height="600"
         MinWidth="620" MinHeight="520"
         WindowStartupLocation="CenterScreen">
@@ -55,7 +56,7 @@
     <Border Name="ConnectBar" Grid.Row="0" Height="40" Background="Transparent"
             chrome:WindowDecorationProperties.ElementRole="TitleBar"
             BorderThickness="0,0,0,1" BorderBrush="{StaticResource CardBorderBrush}">
-        <TextBlock Name="BarHeading" Text="Saved connections" FontWeight="SemiBold" VerticalAlignment="Center" />
+        <TextBlock Name="BarHeading" Text="{l:Tr Connection_SavedConnections}" FontWeight="SemiBold" VerticalAlignment="Center" />
     </Border>
 
     <!-- The list and the form are one block, capped at 1000 x 760, centred
@@ -86,10 +87,10 @@
                         </ListBox.KeyBindings>
                         <ListBox.ContextMenu>
                             <ContextMenu>
-                                <MenuItem Header="Connect" Command="{Binding ConnectCommand}" />
-                                <MenuItem Header="Duplicate" Command="{Binding DuplicateCommand}" />
+                                <MenuItem Header="{l:Tr Connection_Connect}" Command="{Binding ConnectCommand}" />
+                                <MenuItem Header="{l:Tr Connection_MenuDuplicate}" Command="{Binding DuplicateCommand}" />
                                 <Separator />
-                                <MenuItem Header="Delete…" Click="OnDeleteProfileClick" />
+                                <MenuItem Header="{l:Tr Connection_MenuDelete}" Click="OnDeleteProfileClick" />
                             </ContextMenu>
                         </ListBox.ContextMenu>
                         <ListBox.ItemTemplate>
@@ -101,7 +102,7 @@
                                         <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                                         <PathIcon Data="{StaticResource LockIconGeometry}" Width="10" Height="10" Opacity="0.6"
                                                   VerticalAlignment="Center" IsVisible="{Binding ReadOnly}"
-                                                  ToolTip.Tip="Read-only session" />
+                                                  ToolTip.Tip="{l:Tr Connection_ReadOnlySession}" />
                                         <Border Classes="envTag" Padding="4,0" VerticalAlignment="Center"
                                                 Classes.staging="{Binding Environment, Converter={x:Static converters:EnvironmentText.IsStaging}}"
                                                 Classes.production="{Binding Environment, Converter={x:Static converters:EnvironmentText.IsProduction}}"
@@ -119,7 +120,7 @@
                         </ListBox.ItemTemplate>
                     </ListBox>
                     <TextBlock IsVisible="{Binding HasNoProfiles}" IsHitTestVisible="False"
-                               Text="No saved connections yet — fill in the form and it's kept here as you type"
+                               Text="{l:Tr Connection_NoSavedConnections}"
                                TextWrapping="Wrap" TextAlignment="Center" Opacity="0.6" FontSize="12"
                                Margin="12" HorizontalAlignment="Center" VerticalAlignment="Center" />
                 </Grid>
@@ -136,8 +137,8 @@
              ConnectionDialog.axaml.cs). -->
         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,14,12">
             <TextBox Name="ImportBox" Grid.Column="0" Text="{Binding ImportText}" Margin="0,0,6,0"
-                     PlaceholderText="Paste a connection string (postgres://…, jdbc:…, Key=Value;…, psql …)"
-                     ToolTip.Tip="Paste a postgres:// URI, JDBC URL, Npgsql Key=Value string, libpq keyword string or psql command line and the fields fill in by themselves">
+                     PlaceholderText="{l:Tr Connection_ImportPlaceholder}"
+                     ToolTip.Tip="{l:Tr Connection_ImportTooltip}">
                 <TextBox.KeyBindings>
                     <KeyBinding Gesture="Enter" Command="{Binding ImportConnectionStringCommand}" />
                 </TextBox.KeyBindings>
@@ -147,13 +148,13 @@
                  menu's second item, marked for exclusion from history and cleared after 30 s
                  (Platform/SecretClipboard). No second button: UI rule 1. -->
             <Button Name="CopyConnectionStringButton" Grid.Column="1" Classes="chip" Padding="7" Click="OnCopyConnectionStringClick"
-                    ToolTip.Tip="Copy the connection string without the password. Right-click to copy it with the password.">
+                    ToolTip.Tip="{l:Tr Connection_CopyTooltip}">
                 <PathIcon Data="{StaticResource ClipboardIconGeometry}" Width="14" Height="14" />
                 <Button.ContextMenu>
                     <ContextMenu>
-                        <MenuItem Name="CopyWithoutPasswordMenuItem" Header="Copy Without Password" Click="OnCopyConnectionStringClick" />
-                        <MenuItem Name="CopyWithPasswordMenuItem" Header="Copy With Password" Click="OnCopyConnectionStringWithPasswordClick"
-                                  ToolTip.Tip="Includes the password. Kept out of clipboard history where the system allows it, and cleared from the clipboard after 30 seconds." />
+                        <MenuItem Name="CopyWithoutPasswordMenuItem" Header="{l:Tr Connection_CopyWithoutPassword}" Click="OnCopyConnectionStringClick" />
+                        <MenuItem Name="CopyWithPasswordMenuItem" Header="{l:Tr Connection_CopyWithPassword}" Click="OnCopyConnectionStringWithPasswordClick"
+                                  ToolTip.Tip="{l:Tr Connection_CopyWithPasswordTooltip}" />
                     </ContextMenu>
                 </Button.ContextMenu>
             </Button>
@@ -163,7 +164,7 @@
         <!-- Right margin keeps the scrollbar (shown once the SSH section expands) off the field edges -->
         <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" Margin="0,0,14,0">
 
-            <TextBlock Grid.Row="0" Text="Name" />
+            <TextBlock Grid.Row="0" Text="{l:Tr Connection_Name}" />
             <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
                 <!-- Placeholders, not pre-filled text: the defaults show dim and
                      vanish the moment you type, and a field left blank still
@@ -176,7 +177,7 @@
                      behind it, rather than a permanent eight-circle row. -->
                 <Button Name="AccentButton" Grid.Column="1" Classes="soft" Width="32" Height="32" Padding="0"
                         VerticalAlignment="Center" HorizontalContentAlignment="Center"
-                        ToolTip.Tip="Accent color — tints this connection's window so prod and dev are told apart at a glance">
+                        ToolTip.Tip="{l:Tr Connection_AccentColorTooltip}">
                     <Ellipse Width="14" Height="14"
                              Fill="{Binding AccentColor, Converter={x:Static converters:HexToBrushConverter.Instance}}"
                              Stroke="{DynamicResource SystemControlForegroundBaseLowBrush}" StrokeThickness="1" />
@@ -187,7 +188,7 @@
                                         Click="OnAccentSwatchClick"
                                         Width="24" Height="24" MinHeight="0" Padding="0" CornerRadius="12"
                                         Background="Transparent" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="1"
-                                        ToolTip.Tip="No accent color" />
+                                        ToolTip.Tip="{l:Tr Connection_NoAccentColor}" />
                                 <ItemsControl ItemsSource="{Binding AccentColorSwatches}">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
@@ -212,23 +213,23 @@
                 </Button>
             </Grid>
 
-            <TextBlock Grid.Row="2" Text="Host / Port" />
+            <TextBlock Grid.Row="2" Text="{l:Tr Connection_HostPort}" />
             <Grid Grid.Row="3" ColumnDefinitions="*,80" Margin="0,0,0,8">
-                <TextBox Grid.Column="0" Text="{Binding Host}" Margin="0,0,6,0" PlaceholderText="localhost" />
+                <TextBox Grid.Column="0" Text="{Binding Host}" Margin="0,0,6,0" PlaceholderText="{x:Static vm:ConnectionDialogViewModel.DefaultHost}" />
                 <NumericUpDown Grid.Column="1" Value="{Binding Port}" Minimum="1" Maximum="65535" FormatString="0" ShowButtonSpinner="False"
                                PlaceholderText="5432" />
             </Grid>
 
-            <TextBlock Grid.Row="4" Text="Database" />
-            <TextBox Grid.Row="5" Text="{Binding Database}" Margin="0,0,0,8" PlaceholderText="postgres" />
+            <TextBlock Grid.Row="4" Text="{l:Tr Connection_Database}" />
+            <TextBox Grid.Row="5" Text="{Binding Database}" Margin="0,0,0,8" PlaceholderText="{x:Static vm:ConnectionDialogViewModel.DefaultDatabase}" />
 
             <Grid Grid.Row="6" ColumnDefinitions="*,*" Margin="0,0,0,8">
                 <StackPanel Grid.Column="0" Margin="0,0,6,0">
-                    <TextBlock Text="Username" />
-                    <TextBox Text="{Binding Username}" PlaceholderText="postgres" />
+                    <TextBlock Text="{l:Tr Connection_Username}" />
+                    <TextBox Text="{Binding Username}" PlaceholderText="{x:Static vm:ConnectionDialogViewModel.DefaultUsername}" />
                 </StackPanel>
                 <StackPanel Grid.Column="1">
-                    <TextBlock Text="SSL Mode" />
+                    <TextBlock Text="{l:Tr Connection_SslMode}" />
                     <!-- Each mode says what it checks (audit 2026-09, finding 9): the
                          bare enum names made Require read as the safe choice. The
                          closed box shows the name alone, one line beside Username. -->
@@ -243,7 +244,7 @@
                                 <StackPanel MaxWidth="300" Margin="0,2">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
                                         <TextBlock Text="{Binding Converter={x:Static converters:SslModeText.Label}}" />
-                                        <TextBlock Text="Recommended" FontSize="11" VerticalAlignment="Center"
+                                        <TextBlock Text="{l:Tr Connection_Recommended}" FontSize="11" VerticalAlignment="Center"
                                                    Foreground="{StaticResource AppAccentBrush}"
                                                    IsVisible="{Binding Converter={x:Static converters:SslModeText.IsRecommended}}" />
                                     </StackPanel>
@@ -260,16 +261,16 @@
                  Cloud SQL and Supabase publish. Only the modes that check the
                  certificate read it, so only they show it. -->
             <StackPanel Grid.Row="7" Margin="0,0,0,8" IsVisible="{Binding ShowsRootCertificate}">
-                <TextBlock Text="Root Certificate" />
+                <TextBlock Text="{l:Tr Connection_RootCertificate}" />
                 <Grid ColumnDefinitions="*,Auto">
                     <TextBox Name="RootCertificateBox" Grid.Column="0" Text="{Binding RootCertificatePath}" Margin="0,0,6,0"
-                             PlaceholderText="System trust store (default)" />
-                    <Button Grid.Column="1" Classes="soft" Content="Browse…" Click="OnBrowseRootCertificateClick" />
+                             PlaceholderText="{l:Tr Connection_RootCertificatePlaceholder}" />
+                    <Button Grid.Column="1" Classes="soft" Content="{l:Tr Common_Browse}" Click="OnBrowseRootCertificateClick" />
                 </Grid>
             </StackPanel>
 
             <StackPanel Grid.Row="8" Margin="0,0,0,8">
-                <TextBlock Text="Password" />
+                <TextBlock Text="{l:Tr Connection_Password}" />
                 <!-- revealPasswordButton = Fluent's built-in eye toggle -->
                 <TextBox Name="PasswordBox" Text="{Binding Password}" PasswordChar="•" Classes="revealPasswordButton" />
             </StackPanel>
@@ -281,7 +282,7 @@
                 <!-- Which environment this is (ROADMAP T3): a label in the window,
                      and for production, writes off until a window allows them. -->
                 <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,6">
-                    <TextBlock Grid.Column="0" Text="Environment" VerticalAlignment="Center" Margin="0,0,12,0" />
+                    <TextBlock Grid.Column="0" Text="{l:Tr Connection_Environment}" VerticalAlignment="Center" Margin="0,0,12,0" />
                     <ComboBox Name="EnvironmentCombo" Grid.Column="1" MinWidth="150"
                               ItemsSource="{Binding Environments}" SelectedItem="{Binding Environment}">
                         <ComboBox.ItemTemplate>
@@ -295,12 +296,12 @@
                            IsVisible="{Binding IsProductionEnvironment}"
                            Text="{Binding EnvironmentHint}" />
                 <Grid ColumnDefinitions="*,Auto" Background="Transparent"
-                      ToolTip.Tip="Every statement runs in a read-only transaction, so the server refuses INSERT, UPDATE, DELETE and DDL. It guards against mistakes; to make writes impossible, use a role without write privileges.">
-                    <TextBlock Grid.Column="0" Text="Read-only session" VerticalAlignment="Center" Margin="0,0,12,0" />
+                      ToolTip.Tip="{l:Tr Connection_ReadOnlyTooltip}">
+                    <TextBlock Grid.Column="0" Text="{l:Tr Connection_ReadOnlySession}" VerticalAlignment="Center" Margin="0,0,12,0" />
                     <ToggleSwitch Name="ReadOnlySwitch" Grid.Column="1" IsChecked="{Binding ReadOnly}" OnContent="" OffContent="" />
                 </Grid>
                 <Grid ColumnDefinitions="*,Auto">
-                    <TextBlock Grid.Column="0" Text="Connect through an SSH tunnel" VerticalAlignment="Center" Margin="0,0,12,0" />
+                    <TextBlock Grid.Column="0" Text="{l:Tr Connection_UseSshTunnel}" VerticalAlignment="Center" Margin="0,0,12,0" />
                     <ToggleSwitch Name="SshTunnelSwitch" Grid.Column="1" IsChecked="{Binding UseSshTunnel}" OnContent="" OffContent="" />
                 </Grid>
             </StackPanel>
@@ -309,7 +310,7 @@
                     Classes="card"
                     Padding="10" Margin="0,0,0,8">
                 <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
-                    <TextBlock Grid.Row="0" Text="SSH Host / Port" />
+                    <TextBlock Grid.Row="0" Text="{l:Tr Connection_SshHostPort}" />
                     <Grid Grid.Row="1" ColumnDefinitions="*,80" Margin="0,0,0,8">
                         <TextBox Grid.Column="0" Text="{Binding SshHost}" Margin="0,0,6,0" />
                         <NumericUpDown Grid.Column="1" Value="{Binding SshPort}" Minimum="1" Maximum="65535" FormatString="0" ShowButtonSpinner="False" />
@@ -317,11 +318,11 @@
 
                     <Grid Grid.Row="2" ColumnDefinitions="*,*" Margin="0,0,0,8">
                         <StackPanel Grid.Column="0" Margin="0,0,6,0">
-                            <TextBlock Text="SSH Username" />
+                            <TextBlock Text="{l:Tr Connection_SshUsername}" />
                             <TextBox Text="{Binding SshUsername}" />
                         </StackPanel>
                         <StackPanel Grid.Column="1">
-                            <TextBlock Text="Auth Method" />
+                            <TextBlock Text="{l:Tr Connection_SshAuthMethod}" />
                             <ComboBox ItemsSource="{Binding SshAuthMethods}" SelectedItem="{Binding SshAuthMethod}" HorizontalAlignment="Stretch">
                                 <ComboBox.ItemTemplate>
                                     <DataTemplate x:DataType="conn:SshAuthMethod">
@@ -335,17 +336,17 @@
                     <!-- A blank path means ssh's own defaults (id_ed25519, id_ecdsa,
                          id_rsa under ~/.ssh), which the placeholder says; ~ expands. -->
                     <StackPanel Grid.Row="3" Margin="0,0,0,8" IsVisible="{Binding IsSshKeyFileAuth}">
-                        <TextBlock Text="Private Key Path" />
+                        <TextBlock Text="{l:Tr Connection_PrivateKeyPath}" />
                         <Grid ColumnDefinitions="*,Auto">
                             <TextBox Grid.Column="0" Text="{Binding SshPrivateKeyPath}" Margin="0,0,6,0"
-                                     PlaceholderText="~/.ssh/id_ed25519 (default)" />
-                            <Button Grid.Column="1" Classes="soft" Content="Browse…" Click="OnBrowseSshKeyClick" />
+                                     PlaceholderText="{l:Tr Connection_PrivateKeyPlaceholder}" />
+                            <Button Grid.Column="1" Classes="soft" Content="{l:Tr Common_Browse}" Click="OnBrowseSshKeyClick" />
                         </Grid>
                     </StackPanel>
 
                     <TextBlock Grid.Row="3" IsVisible="{Binding IsSshAgentAuth}" Margin="0,0,0,2"
                                TextWrapping="Wrap" FontSize="12" Opacity="0.6"
-                               Text="Signs in with the keys your SSH agent holds, so a key with a passphrase needs nothing typed here." />
+                               Text="{l:Tr Connection_SshAgentHint}" />
 
                     <StackPanel Grid.Row="4" IsVisible="{Binding ShowsSshSecret}">
                         <TextBlock Text="{Binding SshSecretLabel}" />
@@ -363,7 +364,7 @@
                     <StackPanel Orientation="Horizontal" Spacing="6">
                         <PathIcon Data="{StaticResource ChevronRightIconGeometry}" IsVisible="{Binding !IsAdvancedOpen}" />
                         <PathIcon Data="{StaticResource ChevronRightIconGeometry}" RenderTransform="rotate(90deg)" IsVisible="{Binding IsAdvancedOpen}" />
-                        <TextBlock Text="Advanced" />
+                        <TextBlock Text="{l:Tr Connection_Advanced}" />
                     </StackPanel>
                 </Button>
                 <Border Name="AdvancedBlock" Classes="card" Padding="10" Margin="0,6,0,0" IsVisible="{Binding IsAdvancedOpen}">
@@ -372,35 +373,35 @@
                              "cert", or clientcert=verify-full). Blank: PGSSLCERT, then
                              ~/.postgresql/postgresql.crt, as libpq does. -->
                         <StackPanel Grid.Row="0" Margin="0,0,0,8">
-                            <TextBlock Text="Client Certificate" />
+                            <TextBlock Text="{l:Tr Connection_ClientCertificate}" />
                             <Grid ColumnDefinitions="*,Auto">
                                 <TextBox Name="ClientCertificateBox" Grid.Column="0" Text="{Binding ClientCertificatePath}" Margin="0,0,6,0"
-                                         PlaceholderText="None (libpq's default file, if any)" />
-                                <Button Grid.Column="1" Classes="soft" Content="Browse…" Click="OnBrowseClientCertificateClick" />
+                                         PlaceholderText="{l:Tr Connection_ClientCertificatePlaceholder}" />
+                                <Button Grid.Column="1" Classes="soft" Content="{l:Tr Common_Browse}" Click="OnBrowseClientCertificateClick" />
                             </Grid>
                         </StackPanel>
                         <StackPanel Grid.Row="1" Margin="0,0,0,8">
-                            <TextBlock Text="Client Key" />
+                            <TextBlock Text="{l:Tr Connection_ClientKey}" />
                             <Grid ColumnDefinitions="*,Auto">
                                 <TextBox Name="ClientKeyBox" Grid.Column="0" Text="{Binding ClientKeyPath}" Margin="0,0,6,0"
-                                         PlaceholderText="None (no passphrase supported)" />
-                                <Button Grid.Column="1" Classes="soft" Content="Browse…" Click="OnBrowseClientKeyClick" />
+                                         PlaceholderText="{l:Tr Connection_ClientKeyPlaceholder}" />
+                                <Button Grid.Column="1" Classes="soft" Content="{l:Tr Common_Browse}" Click="OnBrowseClientKeyClick" />
                             </Grid>
                         </StackPanel>
                         <Grid Grid.Row="2" ColumnDefinitions="*,*" Margin="0,0,0,6">
                             <StackPanel Grid.Column="0" Margin="0,0,6,0">
-                                <TextBlock Text="Statement Timeout (s)" />
+                                <TextBlock Text="{l:Tr Connection_StatementTimeout}" />
                                 <NumericUpDown Name="StatementTimeoutBox" Value="{Binding StatementTimeout}" Minimum="0" Maximum="2147483"
-                                               FormatString="0" ShowButtonSpinner="False" PlaceholderText="None" />
+                                               FormatString="0" ShowButtonSpinner="False" PlaceholderText="{l:Tr Connection_TimeoutNone}" />
                             </StackPanel>
                             <StackPanel Grid.Column="1">
-                                <TextBlock Text="Lock Timeout (s)" />
+                                <TextBlock Text="{l:Tr Connection_LockTimeout}" />
                                 <NumericUpDown Name="LockTimeoutBox" Value="{Binding LockTimeout}" Minimum="0" Maximum="2147483"
-                                               FormatString="0" ShowButtonSpinner="False" PlaceholderText="None" />
+                                               FormatString="0" ShowButtonSpinner="False" PlaceholderText="{l:Tr Connection_TimeoutNone}" />
                             </StackPanel>
                         </Grid>
                         <TextBlock Grid.Row="3" Classes="secondary" FontSize="11" TextWrapping="Wrap"
-                                   Text="The server cancels a statement that runs, or waits for a lock, longer than this. Empty keeps the server's and the role's own settings. Exports, imports and backups are not cut short." />
+                                   Text="{l:Tr Connection_TimeoutHint}" />
                     </Grid>
                 </Border>
             </StackPanel>
@@ -419,7 +420,7 @@
     </Grid>
 
     <StackPanel Grid.Row="1" Grid.ColumnSpan="2">
-        <TextBlock Text="Accessing password store…" IsVisible="{Binding IsCredentialBusy}" Margin="0,8,0,0" />
+        <TextBlock Text="{l:Tr Connection_AccessingPasswordStore}" IsVisible="{Binding IsCredentialBusy}" Margin="0,8,0,0" />
         <TextBlock Text="{Binding CredentialWarning}" TextWrapping="Wrap" Margin="0,8,0,0"
                    IsVisible="{Binding CredentialWarning, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
     </StackPanel>
@@ -437,8 +438,8 @@
     <Grid Grid.Row="2" Grid.ColumnSpan="2" ColumnDefinitions="240,*,Auto" Margin="0,8,0,0">
         <Button Name="NewConnectionButton" Grid.Column="0" Classes="soft" Width="32" Height="32" Padding="0"
                 HorizontalAlignment="Left" HorizontalContentAlignment="Center"
-                Command="{Binding NewCommand}" ToolTip.Tip="New Connection"
-                AutomationProperties.Name="New Connection">
+                Command="{Binding NewCommand}" ToolTip.Tip="{l:Tr Connection_NewConnection}"
+                AutomationProperties.Name="{l:Tr Connection_NewConnection}">
             <PathIcon Data="{StaticResource PlusIconGeometry}" Width="14" Height="14" />
         </Button>
 
@@ -465,9 +466,9 @@
             <!-- IsDefault: Enter anywhere in the dialog connects, so a preselected
                  profile needs no click at all. Primary last, as in every dialog
                  (DESIGN.md rule 16). -->
-            <Button Classes="soft" Content="Test" Command="{Binding TestConnectionCommand}" IsEnabled="{Binding !IsTesting}"
-                    ToolTip.Tip="Verify the connection (and SSH tunnel, if enabled) without opening it" />
-            <Button Name="ConnectButton" Classes="accent" Content="Connect" Command="{Binding ConnectCommand}" IsEnabled="{Binding !IsConnecting}"
+            <Button Classes="soft" Content="{l:Tr Connection_Test}" Command="{Binding TestConnectionCommand}" IsEnabled="{Binding !IsTesting}"
+                    ToolTip.Tip="{l:Tr Connection_TestTooltip}" />
+            <Button Name="ConnectButton" Classes="accent" Content="{l:Tr Connection_Connect}" Command="{Binding ConnectCommand}" IsEnabled="{Binding !IsConnecting}"
                     IsDefault="True" />
         </StackPanel>
     </Grid>
@@ -481,7 +482,7 @@
          connect form is often the only window open, and macOS's app-menu "About
          pgNimbus" has to land somewhere (see ConnectionDialogViewModel.IsAboutOpen). -->
     <nui:OverlayPanel IsOpen="{Binding IsAboutOpen, Mode=TwoWay}"
-                      Title="About" PanelWidth="340" PanelMaxHeight="400">
+                      Title="{l:Tr Connection_AboutTitle}" PanelWidth="340" PanelMaxHeight="400">
         <views:AboutView />
     </nui:OverlayPanel>
 

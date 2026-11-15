@@ -7,6 +7,7 @@ using PgNimbus.Core.Connections;
 // Type alias rather than `using Npgsql`: that namespace has its own SslMode,
 // which would collide with Core's on every field in this view model.
 using NpgsqlDataSource = Npgsql.NpgsqlDataSource;
+using PgNimbus.Core.Localization;
 
 namespace PgNimbus.App.ViewModels;
 
@@ -291,7 +292,7 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
     /// it doesn't promise that it can.
     /// </summary>
     public string EnvironmentHint => ReadOnly && IsProductionEnvironment
-        ? "Read-only session is on, so writes stay off in every window."
+        ? Strings.Connection_EnvironmentHintReadOnly
         : Environment.Description();
 
     [ObservableProperty]
@@ -320,14 +321,14 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
     /// <summary>The agent holds the unlocked key itself; there is nothing to type or to store.</summary>
     public bool ShowsSshSecret => SshAuthMethod != SshAuthMethod.Agent;
 
-    public string SshSecretLabel => SshAuthMethod == SshAuthMethod.PrivateKey ? "Key Passphrase" : "SSH Password";
+    public string SshSecretLabel => SshAuthMethod == SshAuthMethod.PrivateKey ? Strings.Connection_SshKeyPassphrase : Strings.Connection_SshPassword;
 
     /// <summary>The names the auth-method picker shows; the enum's own names read as code.</summary>
     public static string DescribeSshAuthMethod(SshAuthMethod method) => method switch
     {
-        SshAuthMethod.Agent => "SSH agent",
-        SshAuthMethod.PrivateKey => "Key file",
-        _ => "Password",
+        SshAuthMethod.Agent => Strings.Connection_SshAuthAgent,
+        SshAuthMethod.PrivateKey => Strings.Connection_SshAuthKeyFile,
+        _ => Strings.Connection_SshAuthPassword,
     };
 
     [ObservableProperty]
@@ -417,6 +418,11 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         _persistLastProfileId = persistLastProfileId;
 
         Profiles.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasNoProfiles));
+        Localizer.WhenChanged(this, static vm =>
+        {
+            vm.OnPropertyChanged(nameof(EnvironmentHint));
+            vm.OnPropertyChanged(nameof(SshSecretLabel));
+        });
 
         // Old base64 .cred files (non-Windows) move into the OS store in one pass,
         // queued first so every read below sees the result, and whatever can't
@@ -582,7 +588,7 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            ErrorMessage = $"Couldn't save the connection: {ex.Message}";
+            ErrorMessage = Strings.Connection_SaveFailed(ex.Message);
         }
     }
 
@@ -704,7 +710,7 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         // form shows rather than what was stored before the last keystrokes.
         FlushCredentials();
 
-        var copy = source with { Id = Guid.NewGuid(), Name = $"{source.Name} (copy)" };
+        var copy = source with { Id = Guid.NewGuid(), Name = Strings.Connection_CopyName(source.Name) };
         Profiles.Insert(Profiles.IndexOf(source) + 1, copy);
         _store.Save(Profiles);
 
@@ -1067,11 +1073,11 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
 
             var serverVersion = await ConnectionTester.TestAsync(
                 profile, string.IsNullOrEmpty(Password) ? null : Password, endpoint);
-            StatusMessage = $"Connection successful — PostgreSQL {serverVersion}";
+            StatusMessage = Strings.Connection_TestSucceeded(serverVersion);
         }
         catch (Exception ex)
         {
-            ErrorMessage = WithTlsHint($"Connection test failed: {ex.Message}", ex, profile.SslMode);
+            ErrorMessage = WithTlsHint(Strings.Connection_TestFailed(ex.Message), ex, profile.SslMode);
         }
         finally
         {
@@ -1110,7 +1116,7 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         }
 
         ErrorMessage = null;
-        StatusMessage = $"Connecting to {profile.Name}…";
+        StatusMessage = Strings.Connection_Connecting(profile.Name);
         IsConnecting = true;
 
         SshTunnel? tunnel = null;
@@ -1167,7 +1173,7 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
             }
 
             tunnel?.Dispose();
-            ErrorMessage = WithTlsHint($"Connection failed: {ex.Message}", ex, profile.SslMode);
+            ErrorMessage = WithTlsHint(Strings.Connection_ConnectFailed(ex.Message), ex, profile.SslMode);
         }
         finally
         {
@@ -1199,7 +1205,7 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         if (UseSshTunnel && (string.IsNullOrWhiteSpace(SshHost) || string.IsNullOrWhiteSpace(SshUsername)))
         {
             profile = null!;
-            error = "SSH host and username are required when the tunnel is enabled.";
+            error = Strings.Connection_SshRequired;
             return false;
         }
 
