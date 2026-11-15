@@ -850,12 +850,30 @@ public static class Scenarios
     /// saved passwords, and a screenshot run must never read — let alone
     /// publish — either.
     /// </summary>
-    public static Window ConnectionDialog()
+    public static Window ConnectionDialog() => BuildConnectionDialog(new MemoryCredentialStore());
+
+    // A store whose warning is composed on read, as the real one's is.
+    private sealed class WarningCredentialStore : ICredentialStore
+    {
+        public string? Warning => PgNimbus.Core.Localization.Strings.Connection_CredentialStorageUnavailable;
+
+        public void SavePassword(Guid connectionId, string password)
+        {
+        }
+
+        public string? LoadPassword(Guid connectionId) => null;
+
+        public void DeletePassword(Guid connectionId)
+        {
+        }
+    }
+
+    private static Window BuildConnectionDialog(ICredentialStore credentials)
     {
         var scratch = IsolatedAppData.NewDirectory("connection-dialog");
         var viewModel = new ConnectionDialogViewModel(
             new ConnectionProfileStore(Path.Combine(scratch, "connections.json")),
-            new MemoryCredentialStore());
+            credentials);
 
         foreach (var profile in Fixtures.ConnectionProfiles())
         {
@@ -921,9 +939,10 @@ public static class Scenarios
 
     public static Window ConnectionCredentialWarning()
     {
-        var window = ConnectionDialog();
+        var store = new WarningCredentialStore();
+        var window = BuildConnectionDialog(store);
         var vm = (ConnectionDialogViewModel)window.DataContext!;
-        vm.CredentialWarning = PgNimbus.Core.Localization.Strings.Connection_CredentialStorageUnavailable;
+        vm.CredentialWarning = store.Warning;
         return window;
     }
 

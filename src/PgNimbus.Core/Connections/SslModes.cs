@@ -3,10 +3,17 @@ using PgNimbus.Core.Localization;
 namespace PgNimbus.Core.Connections;
 
 /// <summary>What the SSL mode picker shows for one <see cref="SslMode"/>.</summary>
-/// <param name="Label">The mode's name as people write it ("Verify full", not "VerifyFull").</param>
-/// <param name="Description">One line saying what the mode protects against, and what it does not.</param>
+/// <param name="LabelKey">The mode's name as people write it ("Verify full", not "VerifyFull"). A key, so a picker follows a change of language.</param>
+/// <param name="DescriptionKey">One line saying what the mode protects against, and what it does not.</param>
 /// <param name="Recommended">The mode the picker marks as the one to use.</param>
-public sealed record SslModeInfo(SslMode Mode, string Label, string Description, bool Recommended = false);
+public sealed record SslModeInfo(SslMode Mode, StringKey LabelKey, StringKey DescriptionKey, bool Recommended = false)
+{
+    /// <summary>The mode's name in the language in use.</summary>
+    public string Label => Strings.Get(LabelKey);
+
+    /// <summary>The one line in the language in use.</summary>
+    public string Description => Strings.Get(DescriptionKey);
+}
 
 /// <summary>
 /// The SSL mode picker's text. The bare enum names used to be all it showed, and
@@ -20,12 +27,12 @@ public static class SslModes
     // Built on each read, in the language in force then.
     private static SslModeInfo[] Infos() =>
     [
-        new(SslMode.Disable, Strings.Connection_SslDisable, Strings.Connection_SslDisableHint),
-        new(SslMode.Allow, Strings.Connection_SslAllow, Strings.Connection_SslAllowHint),
-        new(SslMode.Prefer, Strings.Connection_SslPrefer, Strings.Connection_SslPreferHint),
-        new(SslMode.Require, Strings.Connection_SslRequire, Strings.Connection_SslRequireHint),
-        new(SslMode.VerifyCa, Strings.Connection_SslVerifyCa, Strings.Connection_SslVerifyCaHint),
-        new(SslMode.VerifyFull, Strings.Connection_SslVerifyFull, Strings.Connection_SslVerifyFullHint,
+        new(SslMode.Disable, StringKey.Connection_SslDisable, StringKey.Connection_SslDisableHint),
+        new(SslMode.Allow, StringKey.Connection_SslAllow, StringKey.Connection_SslAllowHint),
+        new(SslMode.Prefer, StringKey.Connection_SslPrefer, StringKey.Connection_SslPreferHint),
+        new(SslMode.Require, StringKey.Connection_SslRequire, StringKey.Connection_SslRequireHint),
+        new(SslMode.VerifyCa, StringKey.Connection_SslVerifyCa, StringKey.Connection_SslVerifyCaHint),
+        new(SslMode.VerifyFull, StringKey.Connection_SslVerifyFull, StringKey.Connection_SslVerifyFullHint,
             Recommended: true),
     ];
 

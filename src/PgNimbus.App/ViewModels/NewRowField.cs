@@ -24,7 +24,7 @@ namespace PgNimbus.App.ViewModels;
 public sealed partial class NewRowField : ObservableObject
 {
     /// <summary>A field for <paramref name="column"/>, showing <paramref name="placeholder"/> while blank.</summary>
-    public static NewRowField For(ColumnDetail column, string? placeholder = null) => new()
+    public static NewRowField For(ColumnDetail column, StringKey? placeholder = null) => new()
     {
         Name = column.Name,
         DataType = column.DataType,
@@ -34,11 +34,24 @@ public sealed partial class NewRowField : ObservableObject
         Editor = column.Editor,
         EnumLabels = column.EnumLabels,
         DomainBaseType = column.DomainBaseType,
-        Placeholder = placeholder ?? Strings.Editor_PlaceholderDefault,
+        PlaceholderKey = placeholder ?? StringKey.Editor_PlaceholderDefault,
     };
 
-    /// <summary>What a blank input reads as: "default" in the Add-row dialog, where blank means the column default.</summary>
-    public string Placeholder { get; init; } = Strings.Editor_PlaceholderDefault;
+    public NewRowField()
+    {
+        // Text composed on read follows a change of language while the field is on screen.
+        Localizer.WhenChanged(this, static f =>
+        {
+            f.OnPropertyChanged(nameof(Placeholder));
+            f.OnPropertyChanged(nameof(NullAutomationName));
+            f.OnPropertyChanged(nameof(TypeLabel));
+        });
+    }
+
+    /// <summary>The text a blank input reads as, by key: "default" in the Add-row dialog, where blank means the column default.</summary>
+    public StringKey PlaceholderKey { get; init; } = StringKey.Editor_PlaceholderDefault;
+
+    public string Placeholder => Strings.Get(PlaceholderKey);
 
     public string Name { get; init; } = string.Empty;
 

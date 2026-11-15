@@ -175,8 +175,8 @@ public sealed partial class BrowseFilterViewModel : ObservableObject
     private NewRowField CreateValueField(string? initial)
     {
         var field = Detail is { } detail && !IsTextSearch(Operator)
-            ? NewRowField.For(detail, Strings.Editor_PlaceholderValue)
-            : new NewRowField { Name = Column, DataType = "text", Placeholder = Strings.Editor_PlaceholderValue };
+            ? NewRowField.For(detail, StringKey.Editor_PlaceholderValue)
+            : new NewRowField { Name = Column, DataType = "text", PlaceholderKey = StringKey.Editor_PlaceholderValue };
 
         if (!string.IsNullOrEmpty(initial))
         {

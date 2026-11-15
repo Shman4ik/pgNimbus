@@ -123,12 +123,18 @@
                                 <TextBlock Text="{Binding Sql, Converter={x:Static conv2:HistoryText.OneLine}}"
                                            TextTrimming="CharacterEllipsis" MaxLines="2" TextWrapping="Wrap" FontSize="12"
                                            ToolTip.Tip="{Binding Sql, Converter={x:Static conv2:HistoryText.Tip}}" />
-                                <TextBlock Classes="secondary" FontSize="11" TextTrimming="CharacterEllipsis"
-                                           ToolTip.Tip="{Binding Converter={x:Static conv2:HistoryText.Detail}}">
+                                <TextBlock Classes="secondary" FontSize="11" TextTrimming="CharacterEllipsis">
+                                    <ToolTip.Tip>
+                                        <MultiBinding Converter="{x:Static conv2:HistoryText.Detail}">
+                                            <Binding />
+                                            <Binding Path="$parent[ListBox].((vm:SavedQueriesViewModel)DataContext).LanguageStamp" />
+                                        </MultiBinding>
+                                    </ToolTip.Tip>
                                     <TextBlock.Text>
                                         <MultiBinding Converter="{x:Static conv2:HistoryText.Meta}">
                                             <Binding />
                                             <Binding Path="$parent[ListBox].((vm:SavedQueriesViewModel)DataContext).CurrentConnection" />
+                                            <Binding Path="$parent[ListBox].((vm:SavedQueriesViewModel)DataContext).LanguageStamp" />
                                         </MultiBinding>
                                     </TextBlock.Text>
                                 </TextBlock>

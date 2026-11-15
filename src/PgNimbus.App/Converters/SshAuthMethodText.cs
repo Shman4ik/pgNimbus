@@ -1,6 +1,7 @@
 using Avalonia.Data.Converters;
 using PgNimbus.App.ViewModels;
 using PgNimbus.Core.Connections;
+using PgNimbus.Core.Localization;
 
 namespace PgNimbus.App.Converters;
 
@@ -8,5 +9,5 @@ namespace PgNimbus.App.Converters;
 public static class SshAuthMethodText
 {
     public static readonly IValueConverter Instance =
-        new FuncValueConverter<SshAuthMethod, string>(ConnectionDialogViewModel.DescribeSshAuthMethod);
+        new FuncValueConverter<SshAuthMethod, StringKey>(ConnectionDialogViewModel.SshAuthMethodKey);
 }

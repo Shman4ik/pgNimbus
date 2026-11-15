@@ -31,7 +31,7 @@ public static class HistoryText
     public static readonly IValueConverter Tip = new FuncValueConverter<string?, string?>(sql =>
         sql is null ? null : HistoryLabel.Tip(sql));
 
-    /// <summary>Values: the entry, then the current connection's label.</summary>
+    /// <summary>Values: the entry, then the current connection's label, then the language stamp (only there to run it again).</summary>
     public static readonly IMultiValueConverter Meta = new FuncMultiValueConverter<object?, string>(values =>
     {
         var list = values.ToList();
@@ -40,6 +40,7 @@ public static class HistoryText
             : string.Empty;
     });
 
-    public static readonly IValueConverter Detail = new FuncValueConverter<QueryHistoryEntry?, string>(entry =>
-        entry is null ? string.Empty : HistoryLabel.Detail(entry, Now()));
+    /// <summary>Values: the entry, then the language stamp (only there to run it again).</summary>
+    public static readonly IMultiValueConverter Detail = new FuncMultiValueConverter<object?, string>(values =>
+        values.FirstOrDefault() is QueryHistoryEntry entry ? HistoryLabel.Detail(entry, Now()) : string.Empty);
 }

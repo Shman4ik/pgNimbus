@@ -943,7 +943,28 @@ public sealed partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(EnvironmentTip));
         OnPropertyChanged(nameof(ReadOnlyMarkTip));
         OnPropertyChanged(nameof(ResultsReadOnlyTip));
+
+        // An open palette lists titles and category tags in the old language.
+        if (CommandPalette.IsOpen)
+        {
+            CommandPalette.Refresh(PaletteItems());
+        }
     }
+
+    // The palette's candidates in the current language: actions, recent files and
+    // saved queries, then the tables once they have been fetched.
+    private List<PaletteItem> PaletteItems()
+    {
+        var items = BuildActionItems().Concat(BuildRecentFileItems()).Concat(BuildSavedQueryItems()).ToList();
+        if (_paletteHasTables && _relationCache is not null)
+        {
+            items.AddRange(BuildTableItems(_relationCache));
+        }
+
+        return items;
+    }
+
+    private bool _paletteHasTables;
 
     // Whether the hint now held is the production lock's: the read-only mark is
     // hidden then (the switch says it). Remembered when the hint is set, since the
@@ -2665,8 +2686,8 @@ public sealed partial class MainViewModel : ObservableObject
     /// </summary>
     public async Task OpenCommandPaletteAsync()
     {
-        var baseItems = BuildActionItems().Concat(BuildRecentFileItems()).Concat(BuildSavedQueryItems()).ToList();
-        CommandPalette.Open(baseItems);
+        _paletteHasTables = false;
+        CommandPalette.Open(PaletteItems());
 
         try
         {
@@ -2684,7 +2705,8 @@ public sealed partial class MainViewModel : ObservableObject
             return; // dismissed before the tables arrived
         }
 
-        CommandPalette.SetItems(baseItems.Concat(BuildTableItems(_relationCache)).ToList());
+        _paletteHasTables = true;
+        CommandPalette.SetItems(PaletteItems());
     }
 
     // One row per catalog entry flagged for the palette, in catalog order —

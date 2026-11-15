@@ -44,26 +44,28 @@ public static class PgTypeVisuals
     private static readonly Dictionary<PgTypeCategory, Geometry?> GeometryCache = new();
 
     /// <summary>The friendly family label for an already-resolved category, or empty for Other.</summary>
-    public static string LabelFor(PgTypeCategory category) => category switch
+    public static StringKey? KeyFor(PgTypeCategory category) => category switch
     {
-        PgTypeCategory.Numeric => Strings.Sidebar_TypeNumeric,
-        PgTypeCategory.Text => Strings.Sidebar_TypeText,
-        PgTypeCategory.Boolean => Strings.Sidebar_TypeBoolean,
-        PgTypeCategory.DateTime => Strings.Sidebar_TypeDateTime,
-        PgTypeCategory.Uuid => Strings.Sidebar_TypeUuid,
-        PgTypeCategory.Json => Strings.Sidebar_TypeJson,
-        PgTypeCategory.Network => Strings.Sidebar_TypeNetwork,
-        PgTypeCategory.Geometric => Strings.Sidebar_TypeGeometric,
-        PgTypeCategory.Range => Strings.Sidebar_TypeRange,
-        PgTypeCategory.Binary => Strings.Sidebar_TypeBinary,
-        PgTypeCategory.BitString => Strings.Sidebar_TypeBitString,
-        PgTypeCategory.Vector => Strings.Sidebar_TypeVector,
-        PgTypeCategory.FullText => Strings.Sidebar_TypeFullText,
-        PgTypeCategory.Array => Strings.Sidebar_TypeArray,
-        PgTypeCategory.Enum => Strings.Sidebar_TypeEnum,
-        PgTypeCategory.Composite => Strings.Sidebar_TypeComposite,
-        _ => string.Empty,
+        PgTypeCategory.Numeric => StringKey.Sidebar_TypeNumeric,
+        PgTypeCategory.Text => StringKey.Sidebar_TypeText,
+        PgTypeCategory.Boolean => StringKey.Sidebar_TypeBoolean,
+        PgTypeCategory.DateTime => StringKey.Sidebar_TypeDateTime,
+        PgTypeCategory.Uuid => StringKey.Sidebar_TypeUuid,
+        PgTypeCategory.Json => StringKey.Sidebar_TypeJson,
+        PgTypeCategory.Network => StringKey.Sidebar_TypeNetwork,
+        PgTypeCategory.Geometric => StringKey.Sidebar_TypeGeometric,
+        PgTypeCategory.Range => StringKey.Sidebar_TypeRange,
+        PgTypeCategory.Binary => StringKey.Sidebar_TypeBinary,
+        PgTypeCategory.BitString => StringKey.Sidebar_TypeBitString,
+        PgTypeCategory.Vector => StringKey.Sidebar_TypeVector,
+        PgTypeCategory.FullText => StringKey.Sidebar_TypeFullText,
+        PgTypeCategory.Array => StringKey.Sidebar_TypeArray,
+        PgTypeCategory.Enum => StringKey.Sidebar_TypeEnum,
+        PgTypeCategory.Composite => StringKey.Sidebar_TypeComposite,
+        _ => null,
     };
+
+    public static string LabelFor(PgTypeCategory category) => KeyFor(category) is { } key ? Strings.Get(key) : string.Empty;
 
     /// <summary>The icon for an already-resolved category, or null when the family has no glyph (Other) or the path failed to parse.</summary>
     public static Geometry? IconFor(PgTypeCategory category)
@@ -109,7 +111,7 @@ public sealed class PgTypeLabelConverter : IValueConverter
     public static readonly PgTypeLabelConverter Instance = new();
 
     public object? Convert(object? value, System.Type targetType, object? parameter, CultureInfo culture) =>
-        value is PgTypeCategory category ? PgTypeVisuals.LabelFor(category) : string.Empty;
+        value is PgTypeCategory category ? PgTypeVisuals.KeyFor(category) : null;
 
     public object? ConvertBack(object? value, System.Type targetType, object? parameter, CultureInfo culture) =>
         throw new System.NotSupportedException();

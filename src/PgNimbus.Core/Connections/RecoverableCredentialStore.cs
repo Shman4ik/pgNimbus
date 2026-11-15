@@ -30,16 +30,38 @@ public sealed class RecoverableCredentialStore(ICredentialStore persistent, stri
     // Ids whose native delete failed: read as "no password" until saved again.
     private readonly HashSet<Guid> _deleteFailed = [];
 
-    private readonly Dictionary<Guid, string> _warnings = [];
+    private readonly Dictionary<Guid, StringKey> _warnings = [];
 
     // Legacy files still on disk that could not be migrated or removed.
     private readonly HashSet<Guid> _legacyLeft = [];
 
     private bool _migrationPassDone;
-    private string? _warning;
+
+    // What UpdateWarning last found, as keys and a count: the text is written on
+    // each read, so a warning on screen follows a change of language.
+    private sealed record WarningState(StringKey[] Keys, int LegacyLeft);
+
+    private WarningState? _warning;
 
     // UI callers must not wait behind another window's native store operation.
-    public string? Warning => Volatile.Read(ref _warning);
+    public string? Warning
+    {
+        get
+        {
+            if (Volatile.Read(ref _warning) is not { } state)
+            {
+                return null;
+            }
+
+            var messages = state.Keys.Select(Strings.Get).ToList();
+            if (state.LegacyLeft > 0)
+            {
+                messages.Add(Strings.Connection_LegacyCredentialLeft(state.LegacyLeft));
+            }
+
+            return string.Join("\n", messages);
+        }
+    }
 
     public void SavePassword(Guid connectionId, string password)
     {
@@ -117,7 +139,7 @@ public sealed class RecoverableCredentialStore(ICredentialStore persistent, stri
             {
                 // A failed delete must not resurrect the credential within this session.
                 _deleteFailed.Add(connectionId);
-                _warnings[connectionId] = Strings.Connection_CredentialDeleteFailed;
+                _warnings[connectionId] = StringKey.Connection_CredentialDeleteFailed;
                 UpdateWarning();
             }
         }
@@ -234,7 +256,7 @@ public sealed class RecoverableCredentialStore(ICredentialStore persistent, stri
 
     private void Warn(Guid id)
     {
-        _warnings[id] = Strings.Connection_CredentialStorageUnavailable;
+        _warnings[id] = StringKey.Connection_CredentialStorageUnavailable;
         UpdateWarning();
     }
 
@@ -246,13 +268,8 @@ public sealed class RecoverableCredentialStore(ICredentialStore persistent, stri
 
     private void UpdateWarning()
     {
-        var messages = _warnings.Values.Distinct().ToList();
-        if (_legacyLeft.Count > 0)
-        {
-            messages.Add(Strings.Connection_LegacyCredentialLeft(_legacyLeft.Count));
-        }
-
-        Volatile.Write(ref _warning, messages.Count == 0 ? null : string.Join("\n", messages));
+        var keys = _warnings.Values.Distinct().ToArray();
+        Volatile.Write(ref _warning, keys.Length == 0 && _legacyLeft.Count == 0 ? null : new WarningState(keys, _legacyLeft.Count));
     }
 
     private static bool IsStorageFailure(Exception ex) => ex is CredentialStoreException or IOException

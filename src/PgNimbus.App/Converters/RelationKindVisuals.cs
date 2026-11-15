@@ -32,14 +32,16 @@ public static class RelationKindVisuals
 
     private static readonly Dictionary<RelationKind, Geometry?> GeometryCache = new();
 
-    public static string LabelFor(RelationKind kind) => kind switch
+    public static StringKey KeyFor(RelationKind kind) => kind switch
     {
-        RelationKind.Table => Strings.Sidebar_KindTable,
-        RelationKind.View => Strings.Sidebar_KindView,
-        RelationKind.MaterializedView => Strings.Sidebar_KindMaterializedView,
-        RelationKind.PartitionedTable => Strings.Sidebar_KindPartitionedTable,
-        _ => Strings.Sidebar_KindRelation,
+        RelationKind.Table => StringKey.Sidebar_KindTable,
+        RelationKind.View => StringKey.Sidebar_KindView,
+        RelationKind.MaterializedView => StringKey.Sidebar_KindMaterializedView,
+        RelationKind.PartitionedTable => StringKey.Sidebar_KindPartitionedTable,
+        _ => StringKey.Sidebar_KindRelation,
     };
+
+    public static string LabelFor(RelationKind kind) => Strings.Get(KeyFor(kind));
 
     public static Geometry? IconFor(RelationKind kind)
     {
@@ -84,7 +86,7 @@ public sealed class RelationKindLabelConverter : IValueConverter
     public static readonly RelationKindLabelConverter Instance = new();
 
     public object? Convert(object? value, System.Type targetType, object? parameter, CultureInfo culture) =>
-        value is RelationKind kind ? RelationKindVisuals.LabelFor(kind) : string.Empty;
+        value is RelationKind kind ? RelationKindVisuals.KeyFor(kind) : null;
 
     public object? ConvertBack(object? value, System.Type targetType, object? parameter, CultureInfo culture) =>
         throw new System.NotSupportedException();
