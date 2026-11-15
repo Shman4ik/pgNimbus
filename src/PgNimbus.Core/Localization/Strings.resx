@@ -18,6 +18,70 @@
   </data>
 
   <!-- ===== Common ===== -->
+  <data name="Common_Cancel" xml:space="preserve">
+    <value>Cancel</value>
+    <comment>A button that closes a dialog and changes nothing.</comment>
+  </data>
+  <data name="Common_Close" xml:space="preserve">
+    <value>Close</value>
+    <comment>A button or menu item that closes a window, a panel or a tab.</comment>
+  </data>
+  <data name="Common_Save" xml:space="preserve">
+    <value>Save</value>
+    <comment>A button that saves what was edited.</comment>
+  </data>
+  <data name="Common_Delete" xml:space="preserve">
+    <value>Delete</value>
+    <comment>A button or menu item that deletes the selected thing.</comment>
+  </data>
+  <data name="Common_Apply" xml:space="preserve">
+    <value>Apply</value>
+    <comment>A button that applies what was set in a dialog or panel.</comment>
+  </data>
+  <data name="Common_Refresh" xml:space="preserve">
+    <value>Refresh</value>
+    <comment>A button that reads the shown information again from the server.</comment>
+  </data>
+  <data name="Common_Copy" xml:space="preserve">
+    <value>Copy</value>
+    <comment>A button or menu item that copies to the clipboard.</comment>
+  </data>
+  <data name="Common_Stop" xml:space="preserve">
+    <value>Stop</value>
+    <comment>A button that stops a running operation.</comment>
+  </data>
+  <data name="Common_Discard" xml:space="preserve">
+    <value>Discard</value>
+    <comment>A button that throws away unsaved or staged changes.</comment>
+  </data>
+  <data name="Common_Remove" xml:space="preserve">
+    <value>Remove</value>
+    <comment>A button that removes an item from a list.</comment>
+  </data>
+  <data name="Common_Add" xml:space="preserve">
+    <value>Add</value>
+    <comment>A button that adds an item.</comment>
+  </data>
+  <data name="Common_Rename" xml:space="preserve">
+    <value>Rename</value>
+    <comment>A button that renames an item.</comment>
+  </data>
+  <data name="Common_Commit" xml:space="preserve">
+    <value>Commit</value>
+    <comment>A button that commits a transaction or staged changes to the database (a database COMMIT).</comment>
+  </data>
+  <data name="Common_Browse" xml:space="preserve">
+    <value>Browse…</value>
+    <comment>A button that opens a file or folder chooser.</comment>
+  </data>
+  <data name="Common_Retry" xml:space="preserve">
+    <value>Retry</value>
+    <comment>A button that tries a failed operation again.</comment>
+  </data>
+  <data name="Common_Open" xml:space="preserve">
+    <value>Open</value>
+    <comment>A button that opens the selected item.</comment>
+  </data>
 
   <!-- ===== Framework ===== -->
   <data name="Framework_Cut" xml:space="preserve">
