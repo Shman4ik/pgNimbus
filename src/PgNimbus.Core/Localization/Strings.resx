@@ -150,6 +150,430 @@
   <!-- ===== Connection ===== -->
 
   <!-- ===== Commands ===== -->
+  <data name="Command_Run" xml:space="preserve">
+    <value>Run query</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Run query". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_RunStatementUnderCursor" xml:space="preserve">
+    <value>Run just the statement under the cursor</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Run just the statement under the cursor". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_Cancel" xml:space="preserve">
+    <value>Cancel query</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Cancel query". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_Explain" xml:space="preserve">
+    <value>Explain</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Explain". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_Explain_Cheat" xml:space="preserve">
+    <value>Explain — estimated plan</value>
+    <comment>Keyboard shortcut sheet (F1) and the shortcuts reference: a shorter name for the command, shown there instead of its palette name.</comment>
+  </data>
+  <data name="Command_ExplainAnalyze" xml:space="preserve">
+    <value>Explain Analyze</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Explain Analyze". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_ExplainAnalyze_Cheat" xml:space="preserve">
+    <value>Explain Analyze — runs the query</value>
+    <comment>Keyboard shortcut sheet (F1) and the shortcuts reference: a shorter name for the command, shown there instead of its palette name.</comment>
+  </data>
+  <data name="Command_ImportPlan" xml:space="preserve">
+    <value>Import query plan (paste EXPLAIN JSON or text)…</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Import query plan (paste EXPLAIN JSON or text)…". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_QueryLab" xml:space="preserve">
+    <value>Query Lab (compare saved plans)</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Query Lab (compare saved plans)". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_QueryLab_Cheat" xml:space="preserve">
+    <value>Query Lab</value>
+    <comment>Keyboard shortcut sheet (F1) and the shortcuts reference: a shorter name for the command, shown there instead of its palette name.</comment>
+  </data>
+  <data name="Command_SavePlanToQueryLab" xml:space="preserve">
+    <value>Save plan to Query Lab…</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Save plan to Query Lab…". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_ComparePlan" xml:space="preserve">
+    <value>Compare plan in Query Lab…</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Compare plan in Query Lab…". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_FormatSql" xml:space="preserve">
+    <value>Format SQL</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Format SQL". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_FormatSql_Cheat" xml:space="preserve">
+    <value>Format the statement under the cursor</value>
+    <comment>Keyboard shortcut sheet (F1) and the shortcuts reference: a shorter name for the command, shown there instead of its palette name.</comment>
+  </data>
+  <data name="Command_ExpandStar" xml:space="preserve">
+    <value>Expand SELECT * into columns</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Expand SELECT * into columns". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_BeginTransaction" xml:space="preserve">
+    <value>Begin transaction</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Begin transaction". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_CommitTransaction" xml:space="preserve">
+    <value>Commit transaction</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Commit transaction". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_RollbackTransaction" xml:space="preserve">
+    <value>Rollback transaction</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Rollback transaction". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_ToggleSafeMode" xml:space="preserve">
+    <value>Toggle safe mode (stage grid changes, review &amp; commit)</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Toggle safe mode (stage grid changes, review &amp; commit)". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_AllowWrites" xml:space="preserve">
+    <value>Allow writes in this window</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Allow writes in this window". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_LockWrites" xml:space="preserve">
+    <value>Turn writes off in this window</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Turn writes off in this window". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_NewTab" xml:space="preserve">
+    <value>New query tab</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "New query tab". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_CloseTab" xml:space="preserve">
+    <value>Close tab</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Close tab". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_ReopenClosedTab" xml:space="preserve">
+    <value>Reopen closed tab</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Reopen closed tab". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_CloseOtherTabs" xml:space="preserve">
+    <value>Close other tabs</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Close other tabs". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_CloseTabsToTheRight" xml:space="preserve">
+    <value>Close tabs to the right</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Close tabs to the right". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_RenameTab" xml:space="preserve">
+    <value>Rename tab</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Rename tab". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_NextTab" xml:space="preserve">
+    <value>Next tab</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Next tab". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_PreviousTab" xml:space="preserve">
+    <value>Previous tab</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Previous tab". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_GoToTabByNumber" xml:space="preserve">
+    <value>Go to tab 1…9</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Go to tab 1…9". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_GoToTabByNumber_Note" xml:space="preserve">
+    <value>{key:cmd}+1 … {key:cmd}+9</value>
+    <comment>Keyboard shortcut sheet (F1) and the command palette's shortcut column: a gesture that is not a plain key chord, written next to or instead of the key caps. Keep {key:cmd} and {chord:...} exactly as written, braces included (they are not placeholders to translate): the app replaces {key:cmd} with Ctrl or the Command key, and {chord:Name} with another command's shortcut.</comment>
+  </data>
+  <data name="Command_OpenFile" xml:space="preserve">
+    <value>Open file…</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Open file…". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_Save" xml:space="preserve">
+    <value>Save</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Save". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_Save_Cheat" xml:space="preserve">
+    <value>Save — to the tab's file, or to Saved Queries</value>
+    <comment>Keyboard shortcut sheet (F1) and the shortcuts reference: a shorter name for the command, shown there instead of its palette name.</comment>
+  </data>
+  <data name="Command_SaveAs" xml:space="preserve">
+    <value>Save as…</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Save as…". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_SaveAs_Cheat" xml:space="preserve">
+    <value>Save as — a new file, or a new saved query</value>
+    <comment>Keyboard shortcut sheet (F1) and the shortcuts reference: a shorter name for the command, shown there instead of its palette name.</comment>
+  </data>
+  <data name="Command_SaveQuery" xml:space="preserve">
+    <value>Save to Saved Queries…</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Save to Saved Queries…". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_SaveFile" xml:space="preserve">
+    <value>Save to file…</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Save to file…". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_Completion" xml:space="preserve">
+    <value>Autocomplete (also triggers while typing)</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Autocomplete (also triggers while typing)". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_ParameterHints" xml:space="preserve">
+    <value>Show the argument hint (also opens after typing "(")</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Show the argument hint (also opens after typing "(")". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_Find" xml:space="preserve">
+    <value>Find in editor</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Find in editor". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_FindReplace" xml:space="preserve">
+    <value>Find &amp; replace in editor</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Find &amp; replace in editor". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_FindNextPrevious" xml:space="preserve">
+    <value>Next / previous match</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Next / previous match". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_ToggleLineComment" xml:space="preserve">
+    <value>Toggle line comment</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Toggle line comment". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_DuplicateLine" xml:space="preserve">
+    <value>Duplicate line (or selection)</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Duplicate line (or selection)". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_MoveLineUp" xml:space="preserve">
+    <value>Move line up</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Move line up". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_MoveLineDown" xml:space="preserve">
+    <value>Move line down</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Move line down". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_DeleteLine" xml:space="preserve">
+    <value>Delete whole line</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Delete whole line". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_UndoRedo" xml:space="preserve">
+    <value>Undo / Redo</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Undo / Redo". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_ToggleWordWrap" xml:space="preserve">
+    <value>Toggle word wrap</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Toggle word wrap". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_ToggleAutoAlias" xml:space="preserve">
+    <value>Toggle auto-alias tables (orders → orders o)</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Toggle auto-alias tables (orders → orders o)". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_ToggleAutoAlias_Cheat" xml:space="preserve">
+    <value>Toggle auto-alias on table completion</value>
+    <comment>Keyboard shortcut sheet (F1) and the shortcuts reference: a shorter name for the command, shown there instead of its palette name.</comment>
+  </data>
+  <data name="Command_ZoomEditor" xml:space="preserve">
+    <value>Zoom font size in / out</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Zoom font size in / out". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_ZoomEditor_Note" xml:space="preserve">
+    <value>{key:cmd}+wheel</value>
+    <comment>Keyboard shortcut sheet (F1) and the command palette's shortcut column: a gesture that is not a plain key chord, written next to or instead of the key caps. Keep {key:cmd} and {chord:...} exactly as written, braces included (they are not placeholders to translate): the app replaces {key:cmd} with Ctrl or the Command key, and {chord:Name} with another command's shortcut.</comment>
+  </data>
+  <data name="Command_ResetEditorZoom" xml:space="preserve">
+    <value>Reset font size</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Reset font size". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_WordNavigation" xml:space="preserve">
+    <value>Move to word start / end</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Move to word start / end". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_EditCell" xml:space="preserve">
+    <value>Edit selected cell</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Edit selected cell". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_EditCell_Note" xml:space="preserve">
+    <value>double-click</value>
+    <comment>Keyboard shortcut sheet (F1) and the command palette's shortcut column: a gesture that is not a plain key chord, written next to or instead of the key caps.</comment>
+  </data>
+  <data name="Command_CommitCellEdit" xml:space="preserve">
+    <value>Commit / cancel cell edit</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Commit / cancel cell edit". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_CommitCellEdit_Cheat" xml:space="preserve">
+    <value>Commit / cancel a cell edit; stage / revert row-detail edits</value>
+    <comment>Keyboard shortcut sheet (F1) and the shortcuts reference: a shorter name for the command, shown there instead of its palette name.</comment>
+  </data>
+  <data name="Command_InspectCell" xml:space="preserve">
+    <value>Inspect cell (full value, pretty-printed JSON)</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Inspect cell (full value, pretty-printed JSON)". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_InspectCell_Note" xml:space="preserve">
+    <value>double-click (read-only) / context menu</value>
+    <comment>Keyboard shortcut sheet (F1) and the command palette's shortcut column: a gesture that is not a plain key chord, written next to or instead of the key caps.</comment>
+  </data>
+  <data name="Command_SaveInspectedValue" xml:space="preserve">
+    <value>Save the value being edited in the cell inspector</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Save the value being edited in the cell inspector". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_SaveInspectedValue_Note" xml:space="preserve">
+    <value>{chord:Run} in the cell inspector's editor</value>
+    <comment>Keyboard shortcut sheet (F1) and the command palette's shortcut column: a gesture that is not a plain key chord, written next to or instead of the key caps. Keep {key:cmd} and {chord:...} exactly as written, braces included (they are not placeholders to translate): the app replaces {key:cmd} with Ctrl or the Command key, and {chord:Name} with another command's shortcut.</comment>
+  </data>
+  <data name="Command_CopySelection" xml:space="preserve">
+    <value>Copy the selected cells</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Copy the selected cells". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_DeleteRow" xml:space="preserve">
+    <value>Delete the selected row (editable results)</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Delete the selected row (editable results)". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_RowDetails" xml:space="preserve">
+    <value>Toggle row details (the selected row as a name/value form)</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Toggle row details (the selected row as a name/value form)". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_RowDetails_Cheat" xml:space="preserve">
+    <value>Show / hide row details</value>
+    <comment>Keyboard shortcut sheet (F1) and the shortcuts reference: a shorter name for the command, shown there instead of its palette name.</comment>
+  </data>
+  <data name="Command_FilterRows" xml:space="preserve">
+    <value>Filter rows of the browsed table…</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Filter rows of the browsed table…". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_FilterRows_Note" xml:space="preserve">
+    <value>{key:cmd}+F in the results grid while browsing a table</value>
+    <comment>Keyboard shortcut sheet (F1) and the command palette's shortcut column: a gesture that is not a plain key chord, written next to or instead of the key caps. Keep {key:cmd} and {chord:...} exactly as written, braces included (they are not placeholders to translate): the app replaces {key:cmd} with Ctrl or the Command key, and {chord:Name} with another command's shortcut.</comment>
+  </data>
+  <data name="Command_SetCellNull" xml:space="preserve">
+    <value>Set cell to NULL</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Set cell to NULL". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_SetCellNull_Note" xml:space="preserve">
+    <value>context menu</value>
+    <comment>Keyboard shortcut sheet (F1) and the command palette's shortcut column: a gesture that is not a plain key chord, written next to or instead of the key caps.</comment>
+  </data>
+  <data name="Command_CommandPalette" xml:space="preserve">
+    <value>Command palette (jump to table / query / action)</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Command palette (jump to table / query / action)". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_RefreshSchema" xml:space="preserve">
+    <value>Refresh database &amp; schema</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Refresh database &amp; schema". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_FocusSwap" xml:space="preserve">
+    <value>Switch focus: editor ↔ results grid</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Switch focus: editor ↔ results grid". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_ToggleSidebar" xml:space="preserve">
+    <value>Toggle sidebar</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Toggle sidebar". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_ToggleSidebar_Cheat" xml:space="preserve">
+    <value>Collapse / show the sidebar</value>
+    <comment>Keyboard shortcut sheet (F1) and the shortcuts reference: a shorter name for the command, shown there instead of its palette name.</comment>
+  </data>
+  <data name="Command_PreviewTable" xml:space="preserve">
+    <value>Preview a table (in the schema tree)</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Preview a table (in the schema tree)". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_PreviewTable_Note" xml:space="preserve">
+    <value>Double-click</value>
+    <comment>Keyboard shortcut sheet (F1) and the command palette's shortcut column: a gesture that is not a plain key chord, written next to or instead of the key caps.</comment>
+  </data>
+  <data name="Command_ServerActivity" xml:space="preserve">
+    <value>Server activity</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Server activity". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_DatabaseOverview" xml:space="preserve">
+    <value>Database overview (sizes, cache hit, unused indexes)</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Database overview (sizes, cache hit, unused indexes)". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_DatabaseOverview_Cheat" xml:space="preserve">
+    <value>Database overview</value>
+    <comment>Keyboard shortcut sheet (F1) and the shortcuts reference: a shorter name for the command, shown there instead of its palette name.</comment>
+  </data>
+  <data name="Command_SlowQueries" xml:space="preserve">
+    <value>Slow queries (pg_stat_statements)</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Slow queries (pg_stat_statements)". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_SlowQueries_Cheat" xml:space="preserve">
+    <value>Slow queries</value>
+    <comment>Keyboard shortcut sheet (F1) and the shortcuts reference: a shorter name for the command, shown there instead of its palette name.</comment>
+  </data>
+  <data name="Command_NotifyMonitor" xml:space="preserve">
+    <value>LISTEN / NOTIFY monitor</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "LISTEN / NOTIFY monitor". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_SecurityManager" xml:space="preserve">
+    <value>Roles and permissions…</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Roles and permissions…". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_SecurityManager_Cheat" xml:space="preserve">
+    <value>Roles and permissions</value>
+    <comment>Keyboard shortcut sheet (F1) and the shortcuts reference: a shorter name for the command, shown there instead of its palette name.</comment>
+  </data>
+  <data name="Command_SwitchConnection" xml:space="preserve">
+    <value>Switch connection…</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Switch connection…". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_SwitchDatabase" xml:space="preserve">
+    <value>Switch database…</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Switch database…". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_NewWindow" xml:space="preserve">
+    <value>Open connection in new window…</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Open connection in new window…". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_BackupDatabase" xml:space="preserve">
+    <value>Back up database…</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Back up database…". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_RestoreBackup" xml:space="preserve">
+    <value>Restore backup…</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Restore backup…". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_AnalyzeTable" xml:space="preserve">
+    <value>Analyze table</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Analyze table". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_VacuumTable" xml:space="preserve">
+    <value>Vacuum table</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Vacuum table". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_TruncateTable" xml:space="preserve">
+    <value>Truncate table…</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Truncate table…". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_RenameTable" xml:space="preserve">
+    <value>Rename table…</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Rename table…". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_DropTable" xml:space="preserve">
+    <value>Drop table…</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Drop table…". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_ToggleTheme" xml:space="preserve">
+    <value>Toggle light/dark theme</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Toggle light/dark theme". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_Preferences" xml:space="preserve">
+    <value>Settings…</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Settings…". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_ShortcutsWindow" xml:space="preserve">
+    <value>Keyboard shortcuts</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Keyboard shortcuts". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_RateInStore" xml:space="preserve">
+    <value>Rate pgNimbus in the Microsoft Store</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Rate pgNimbus in the Microsoft Store". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_Category_Query" xml:space="preserve">
+    <value>Query</value>
+    <comment>Keyboard shortcut sheet (F1) section heading (shown in capitals in English) and heading in the shortcuts reference: the commands that run, explain and format queries and manage transactions.</comment>
+  </data>
+  <data name="Command_Category_Tabs" xml:space="preserve">
+    <value>Tabs &amp; files</value>
+    <comment>Keyboard shortcut sheet (F1) section heading (shown in capitals in English) and heading in the shortcuts reference: the commands for tabs and files.</comment>
+  </data>
+  <data name="Command_Category_Editor" xml:space="preserve">
+    <value>SQL editor</value>
+    <comment>Keyboard shortcut sheet (F1) section heading (shown in capitals in English) and heading in the shortcuts reference: the SQL editor's commands.</comment>
+  </data>
+  <data name="Command_Category_Results" xml:space="preserve">
+    <value>Results grid</value>
+    <comment>Keyboard shortcut sheet (F1) section heading (shown in capitals in English) and heading in the shortcuts reference: the results grid's commands.</comment>
+  </data>
+  <data name="Command_Category_Navigation" xml:space="preserve">
+    <value>Navigation</value>
+    <comment>Keyboard shortcut sheet (F1) section heading (shown in capitals in English) and heading in the shortcuts reference: navigation and application commands: windows, connections, settings.</comment>
+  </data>
 
   <!-- ===== Shell ===== -->
 
