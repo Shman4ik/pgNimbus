@@ -1450,6 +1450,547 @@
   <!-- ===== Shell ===== -->
 
   <!-- ===== Sidebar ===== -->
+  <data name="Sidebar_NewTable" xml:space="preserve">
+    <value>New Table…</value>
+    <comment>Sidebar tree, right-click menu of a schema: opens a CREATE TABLE template in a new tab.</comment>
+  </data>
+  <data name="Sidebar_CopyName" xml:space="preserve">
+    <value>Copy Name</value>
+    <comment>Sidebar tree, right-click menu item of a schema, table or role: copies its name to the clipboard.</comment>
+  </data>
+  <data name="Sidebar_BackUpSchema" xml:space="preserve">
+    <value>Back Up Schema…</value>
+    <comment>Sidebar tree, right-click menu of a schema: opens the backup window for this schema.</comment>
+  </data>
+  <data name="Sidebar_ExcludeFromAutocomplete" xml:space="preserve">
+    <value>Exclude from Autocomplete</value>
+    <comment>Sidebar tree, right-click menu of a schema: a check item; when checked the schema is left out of editor completion.</comment>
+  </data>
+  <data name="Sidebar_ExcludeFromAutocompleteTip" xml:space="preserve">
+    <value>Keep this schema's tables, columns and functions out of editor completion. It stays in the tree.</value>
+    <comment>Tooltip of the menu item "Exclude from Autocomplete" in a schema's right-click menu.</comment>
+  </data>
+  <data name="Sidebar_ExcludedFromAutocompleteTip" xml:space="preserve">
+    <value>Excluded from autocomplete</value>
+    <comment>Sidebar tree, tooltip of the small crossed-eye icon beside a schema that is left out of editor completion.</comment>
+  </data>
+  <data name="Sidebar_DropSchema" xml:space="preserve">
+    <value>Drop Schema…</value>
+    <comment>Sidebar tree, right-click menu of a schema: drops the schema after a confirmation; it fails if the schema holds objects.</comment>
+  </data>
+  <data name="Sidebar_DropSchemaCascade" xml:space="preserve">
+    <value>Drop Schema (Cascade)…</value>
+    <comment>Sidebar tree, right-click menu of a schema: drops the schema and everything in it after a confirmation.</comment>
+  </data>
+  <data name="Sidebar_BrowseRows" xml:space="preserve">
+    <value>Browse Rows</value>
+    <comment>Sidebar tree, right-click menu of a table, view or materialized view: opens the rows of the relation in a new tab (what a double-click does).</comment>
+  </data>
+  <data name="Sidebar_SourceDdl" xml:space="preserve">
+    <value>Source (DDL)</value>
+    <comment>Sidebar tree, right-click menu item of a table, function, index or trigger: opens its CREATE statement in a new tab. DDL means data definition language (the CREATE statement).</comment>
+  </data>
+  <data name="Sidebar_AlterTable" xml:space="preserve">
+    <value>Alter Table…</value>
+    <comment>Sidebar tree, right-click menu of a table, view or materialized view: opens the dialog that adds and drops columns.</comment>
+  </data>
+  <data name="Sidebar_BackUpTable" xml:space="preserve">
+    <value>Back Up Table…</value>
+    <comment>Sidebar tree, right-click menu of a table, view or materialized view: opens the backup window for this table.</comment>
+  </data>
+  <data name="Sidebar_Maintenance" xml:space="preserve">
+    <value>Maintenance</value>
+    <comment>Sidebar tree, right-click menu of a table, view or materialized view: submenu holding Analyze, Vacuum, Truncate, Rename and Drop.</comment>
+  </data>
+  <data name="Sidebar_Analyze" xml:space="preserve">
+    <value>Analyze</value>
+    <comment>Sidebar tree, Maintenance submenu: runs ANALYZE (refreshes the planner's statistics) on the relation. Analyze is the PostgreSQL command name.</comment>
+  </data>
+  <data name="Sidebar_Vacuum" xml:space="preserve">
+    <value>Vacuum</value>
+    <comment>Sidebar tree, Maintenance submenu: runs VACUUM (reclaims space) on the relation. Vacuum is the PostgreSQL command name.</comment>
+  </data>
+  <data name="Sidebar_Truncate" xml:space="preserve">
+    <value>Truncate…</value>
+    <comment>Sidebar tree, Maintenance submenu: removes every row of the table after a confirmation. Truncate is the PostgreSQL command name.</comment>
+  </data>
+  <data name="Sidebar_RenameItem" xml:space="preserve">
+    <value>Rename…</value>
+    <comment>Menu item that asks for a new name: a relation in the sidebar tree (Maintenance submenu) or a saved query in the saved queries list.</comment>
+  </data>
+  <data name="Sidebar_DropItem" xml:space="preserve">
+    <value>Drop…</value>
+    <comment>Sidebar tree menu item that drops a relation (Maintenance submenu) or an extension after a confirmation.</comment>
+  </data>
+  <data name="Sidebar_InstallExtension" xml:space="preserve">
+    <value>Install</value>
+    <comment>Sidebar tree, right-click menu of an extension that is not installed: installs it in the database after a confirmation.</comment>
+  </data>
+  <data name="Sidebar_RolesAndPermissions" xml:space="preserve">
+    <value>Roles and Permissions…</value>
+    <comment>Sidebar tree, right-click menu of the Roles group or of one role: opens the roles and permissions window.</comment>
+  </data>
+  <data name="Sidebar_Superuser" xml:space="preserve">
+    <value>Superuser</value>
+    <comment>Sidebar tree, tooltip of the key icon beside a role that is a PostgreSQL superuser.</comment>
+  </data>
+  <data name="Sidebar_Loading" xml:space="preserve">
+    <value>Loading...</value>
+    <comment>Sidebar tree: italic placeholder row shown under a node while its children load.</comment>
+  </data>
+  <data name="Sidebar_ErrorRetryTip" xml:space="preserve">
+    <value>Collapse and expand to try again</value>
+    <comment>Sidebar tree, tooltip of a red error row that replaced a node's children after loading failed.</comment>
+  </data>
+  <data name="Sidebar_ReloadTip" xml:space="preserve">
+    <value>Reload the tree, autocomplete and palette from the server</value>
+    <comment>Sidebar, tooltip of the refresh button beside the filter box. The keyboard shortcut is appended by the app.</comment>
+  </data>
+  <data name="Sidebar_TreeOptions" xml:space="preserve">
+    <value>Tree options</value>
+    <comment>Sidebar, tooltip of the button beside the filter box that opens the tree's options menu.</comment>
+  </data>
+  <data name="Sidebar_ShowAdvancedObjects" xml:space="preserve">
+    <value>Show Advanced Objects</value>
+    <comment>Sidebar tree options menu: a check item that also shows functions, sequences, types, indexes, triggers and extensions.</comment>
+  </data>
+  <data name="Sidebar_ShowAdvancedObjectsTip" xml:space="preserve">
+    <value>Also show functions, sequences, types, indexes, triggers and extensions</value>
+    <comment>Tooltip of the menu item "Show Advanced Objects".</comment>
+  </data>
+  <data name="Sidebar_ExpandAllSchemas" xml:space="preserve">
+    <value>Expand All Schemas</value>
+    <comment>Sidebar tree options menu: opens every schema one level deep.</comment>
+  </data>
+  <data name="Sidebar_CollapseAll" xml:space="preserve">
+    <value>Collapse All</value>
+    <comment>Sidebar tree options menu: closes every node of the tree.</comment>
+  </data>
+  <data name="Sidebar_FilterPlaceholder" xml:space="preserve">
+    <value>Filter schemas &amp; tables…</value>
+    <comment>Sidebar, placeholder text of the filter box above the schema tree.</comment>
+  </data>
+  <data name="Sidebar_ClearFilter" xml:space="preserve">
+    <value>Clear filter</value>
+    <comment>Sidebar, tooltip of the small x button inside the schema filter box.</comment>
+  </data>
+  <data name="Sidebar_LoadingSchema" xml:space="preserve">
+    <value>Loading schema…</value>
+    <comment>Sidebar tree: centred status text while the schema list loads for the first time.</comment>
+  </data>
+  <data name="Sidebar_NoMatches" xml:space="preserve">
+    <value>Nothing matches “{filter}”</value>
+    <comment>Sidebar tree: shown in the empty panel when the filter box text matches nothing. {filter} is what was typed, such as orders.</comment>
+  </data>
+  <data name="Sidebar_Functions" xml:space="preserve">
+    <value>Functions</value>
+    <comment>Sidebar tree: name of a group node holding a schema's functions and procedures.</comment>
+  </data>
+  <data name="Sidebar_Sequences" xml:space="preserve">
+    <value>Sequences</value>
+    <comment>Sidebar tree: name of a group node holding a schema's sequences.</comment>
+  </data>
+  <data name="Sidebar_Types" xml:space="preserve">
+    <value>Types</value>
+    <comment>Sidebar tree: name of a group node holding a schema's user-defined types (enums, composites, domains).</comment>
+  </data>
+  <data name="Sidebar_Indexes" xml:space="preserve">
+    <value>Indexes</value>
+    <comment>Sidebar tree: name of a group node holding a table's indexes.</comment>
+  </data>
+  <data name="Sidebar_Triggers" xml:space="preserve">
+    <value>Triggers</value>
+    <comment>Sidebar tree: name of a group node holding a table's triggers.</comment>
+  </data>
+  <data name="Sidebar_Roles" xml:space="preserve">
+    <value>Roles</value>
+    <comment>Sidebar tree: name of a group node holding the server's roles.</comment>
+  </data>
+  <data name="Sidebar_Extensions" xml:space="preserve">
+    <value>Extensions</value>
+    <comment>Sidebar tree: name of a group node holding the server's extensions.</comment>
+  </data>
+  <data name="Sidebar_NoSequences" xml:space="preserve">
+    <value>No sequences</value>
+    <comment>Sidebar tree: grey italic row shown inside an expanded group that has nothing in it: no sequences.</comment>
+  </data>
+  <data name="Sidebar_NoUserTypes" xml:space="preserve">
+    <value>No user types</value>
+    <comment>Sidebar tree: grey italic row shown inside an expanded group that has nothing in it: no user-defined types.</comment>
+  </data>
+  <data name="Sidebar_NoIndexes" xml:space="preserve">
+    <value>No indexes</value>
+    <comment>Sidebar tree: grey italic row shown inside an expanded group that has nothing in it: no indexes.</comment>
+  </data>
+  <data name="Sidebar_NoTriggers" xml:space="preserve">
+    <value>No triggers</value>
+    <comment>Sidebar tree: grey italic row shown inside an expanded group that has nothing in it: no triggers.</comment>
+  </data>
+  <data name="Sidebar_FunctionProcedure" xml:space="preserve">
+    <value>procedure</value>
+    <comment>Sidebar tree, dim tag after a function's return type: the routine is a procedure.</comment>
+  </data>
+  <data name="Sidebar_FunctionAggregate" xml:space="preserve">
+    <value>aggregate</value>
+    <comment>Sidebar tree, dim tag after a function's return type: the routine is an aggregate function.</comment>
+  </data>
+  <data name="Sidebar_FunctionWindow" xml:space="preserve">
+    <value>window</value>
+    <comment>Sidebar tree, dim tag after a function's return type: the routine is a window function.</comment>
+  </data>
+  <data name="Sidebar_ExtensionAvailable" xml:space="preserve">
+    <value>{version} available</value>
+    <comment>Sidebar tree, dim text after an extension that is not installed. {version} is the version that would be installed, such as 1.4.</comment>
+  </data>
+  <data name="Sidebar_SequenceDetailAt" xml:space="preserve">
+    <value>{type}  ·  at {value}</value>
+    <comment>Sidebar tree, dim text after a sequence that has been used. {type} is its value type, such as bigint; {value} is its current value, such as 42.</comment>
+  </data>
+  <data name="Sidebar_SequenceIncrement" xml:space="preserve">
+    <value>increment {value}</value>
+    <comment>Sidebar tree, one line of a sequence's tooltip. {value} is the step, such as 1.</comment>
+  </data>
+  <data name="Sidebar_SequenceCurrent" xml:space="preserve">
+    <value>current {value}</value>
+    <comment>Sidebar tree, one line of a sequence's tooltip. {value} is the last value handed out, such as 42.</comment>
+  </data>
+  <data name="Sidebar_SequenceNotUsed" xml:space="preserve">
+    <value>not yet used</value>
+    <comment>Sidebar tree, one line of a sequence's tooltip: the sequence has not handed out a value yet.</comment>
+  </data>
+  <data name="Sidebar_SequenceRange" xml:space="preserve">
+    <value>range {min} … {max}</value>
+    <comment>Sidebar tree, one line of a sequence's tooltip. {min} and {max} are its smallest and largest value, such as 1 and 9223372036854775807.</comment>
+  </data>
+  <data name="Sidebar_SequenceCycles" xml:space="preserve">
+    <value>cycles</value>
+    <comment>Sidebar tree, last line of a sequence's tooltip: it starts over after reaching its limit.</comment>
+  </data>
+  <data name="Sidebar_EnumDetail_one" xml:space="preserve">
+    <value>enum  ·  {count} label</value>
+    <comment>Sidebar tree, dim text after a user-defined type: an enum with one label. {count} is 1.</comment>
+  </data>
+  <data name="Sidebar_EnumDetail_other" xml:space="preserve">
+    <value>enum  ·  {count} labels</value>
+    <comment>Sidebar tree, dim text after a user-defined type: an enum with several labels. {count} is how many, such as 5.</comment>
+  </data>
+  <data name="Sidebar_CompositeDetail_one" xml:space="preserve">
+    <value>composite  ·  {count} field</value>
+    <comment>Sidebar tree, dim text after a user-defined type: a composite type with one field. {count} is 1.</comment>
+  </data>
+  <data name="Sidebar_CompositeDetail_other" xml:space="preserve">
+    <value>composite  ·  {count} fields</value>
+    <comment>Sidebar tree, dim text after a user-defined type: a composite type with several fields. {count} is how many, such as 3.</comment>
+  </data>
+  <data name="Sidebar_DomainDetail" xml:space="preserve">
+    <value>domain → {baseType}</value>
+    <comment>Sidebar tree, dim text after a user-defined type: a domain. {baseType} is the type it is built on, such as text.</comment>
+  </data>
+  <data name="Sidebar_DomainDetailNotNull" xml:space="preserve">
+    <value>domain → {baseType}  ·  NOT NULL</value>
+    <comment>Sidebar tree, dim text after a user-defined type: a domain that refuses NULL. {baseType} is the type it is built on, such as text. Keep NOT NULL as written (SQL).</comment>
+  </data>
+  <data name="Sidebar_DomainTip" xml:space="preserve">
+    <value>domain over {baseType}</value>
+    <comment>Sidebar tree, tooltip of a domain type. {baseType} is the type it is built on, such as text.</comment>
+  </data>
+  <data name="Sidebar_DomainTipNotNull" xml:space="preserve">
+    <value>domain over {baseType} (NOT NULL)</value>
+    <comment>Sidebar tree, tooltip of a domain type that refuses NULL. {baseType} is the type it is built on, such as text. Keep NOT NULL as written (SQL).</comment>
+  </data>
+  <data name="Sidebar_PrimaryKey" xml:space="preserve">
+    <value>primary key</value>
+    <comment>Sidebar tree, dim tag after an index name: the index backs the table's primary key.</comment>
+  </data>
+  <data name="Sidebar_Unique" xml:space="preserve">
+    <value>unique</value>
+    <comment>Sidebar tree, dim tag after an index name: the index enforces uniqueness.</comment>
+  </data>
+  <data name="Sidebar_Disabled" xml:space="preserve">
+    <value>disabled</value>
+    <comment>Sidebar tree, dim tag after a trigger name: the trigger does not fire.</comment>
+  </data>
+  <data name="Sidebar_SourceTitle" xml:space="preserve">
+    <value>{name} · source</value>
+    <comment>Title of the editor tab that shows an index's or trigger's definition. {name} is the object's name, such as orders_pkey.</comment>
+  </data>
+  <data name="Sidebar_DropButton" xml:space="preserve">
+    <value>Drop</value>
+    <comment>Sidebar: the confirm button of the dialogs that drop a schema or an extension. Drop is the SQL verb and the action is destructive.</comment>
+  </data>
+  <data name="Sidebar_InstallButton" xml:space="preserve">
+    <value>Install</value>
+    <comment>Sidebar: the confirm button of the dialog that installs an extension.</comment>
+  </data>
+  <data name="Sidebar_DropSchemaConfirm" xml:space="preserve">
+    <value>Drop schema "{schema}"? This fails if the schema still contains objects.</value>
+    <comment>Confirmation dialog for the plain Drop Schema action. {schema} is the schema name, such as sales.</comment>
+  </data>
+  <data name="Sidebar_DropSchemaCascadeConfirm" xml:space="preserve">
+    <value>Drop schema "{schema}" and everything in it? Tables, views and their data are removed.</value>
+    <comment>Confirmation dialog for Drop Schema (Cascade). {schema} is the schema name, such as sales.</comment>
+  </data>
+  <data name="Sidebar_InstallExtensionConfirm" xml:space="preserve">
+    <value>Install extension "{extension}" in database "{database}"? This runs against it directly.</value>
+    <comment>Confirmation dialog before installing an extension. {extension} is its name, such as pg_trgm; {database} is the connected database name, such as shop.</comment>
+  </data>
+  <data name="Sidebar_InstallExtensionConfirmNoDb" xml:space="preserve">
+    <value>Install extension "{extension}"? This runs against the connected database.</value>
+    <comment>Confirmation dialog before installing an extension when the database name is not known. {extension} is its name, such as pg_trgm.</comment>
+  </data>
+  <data name="Sidebar_DropExtensionConfirm" xml:space="preserve">
+    <value>Drop extension "{extension}"? Objects it provides will be removed.</value>
+    <comment>Confirmation dialog before dropping an extension. {extension} is its name, such as pg_trgm.</comment>
+  </data>
+  <data name="Sidebar_SavedQueriesHeading" xml:space="preserve">
+    <value>SAVED QUERIES</value>
+    <comment>Sidebar, Queries tab: heading of the saved queries list (shown in capitals in English).</comment>
+  </data>
+  <data name="Sidebar_OpenInNewTab" xml:space="preserve">
+    <value>Open in New Tab</value>
+    <comment>Sidebar, Queries tab: right-click menu item of a saved query or a history entry: opens its SQL in a new editor tab.</comment>
+  </data>
+  <data name="Sidebar_SavedQueriesEmpty" xml:space="preserve">
+    <value>Nothing saved yet. Right-click a query tab and choose Save query, or press the Save shortcut.</value>
+    <comment>Sidebar, Queries tab: hint shown instead of the saved queries list when it is empty.</comment>
+  </data>
+  <data name="Sidebar_HistoryHeading" xml:space="preserve">
+    <value>HISTORY</value>
+    <comment>Sidebar, Queries tab: heading of the run history list (shown in capitals in English).</comment>
+  </data>
+  <data name="Sidebar_HistoryScopeTip" xml:space="preserve">
+    <value>Only queries run against the current connection</value>
+    <comment>Sidebar, Queries tab: tooltip of the toggle button beside the history search box.</comment>
+  </data>
+  <data name="Sidebar_HistorySearchPlaceholder" xml:space="preserve">
+    <value>Search history…</value>
+    <comment>Sidebar, Queries tab: placeholder text of the history search box.</comment>
+  </data>
+  <data name="Sidebar_ClearSearch" xml:space="preserve">
+    <value>Clear search</value>
+    <comment>Sidebar, Queries tab: tooltip of the small x button inside the history search box.</comment>
+  </data>
+  <data name="Sidebar_HistoryOffHint" xml:space="preserve">
+    <value>History is off, so queries you run are not recorded. Turn it on in Settings.</value>
+    <comment>Sidebar, Queries tab: hint above the history list when recording of history is switched off. Settings is the name of the settings page.</comment>
+  </data>
+  <data name="Sidebar_PinTip" xml:space="preserve">
+    <value>Pin this entry so it stays on top and survives Clear History</value>
+    <comment>Sidebar, Queries tab: tooltip of the pin button on a history entry. Clear History is the name of a menu item.</comment>
+  </data>
+  <data name="Sidebar_CopySql" xml:space="preserve">
+    <value>Copy SQL</value>
+    <comment>Sidebar, Queries tab: right-click menu item of a history entry: copies its SQL text.</comment>
+  </data>
+  <data name="Sidebar_Pin" xml:space="preserve">
+    <value>Pin</value>
+    <comment>Sidebar, Queries tab: right-click menu item of a history entry that is not pinned.</comment>
+  </data>
+  <data name="Sidebar_Unpin" xml:space="preserve">
+    <value>Unpin</value>
+    <comment>Sidebar, Queries tab: right-click menu item of a history entry that is pinned.</comment>
+  </data>
+  <data name="Sidebar_ClearHistory" xml:space="preserve">
+    <value>Clear History</value>
+    <comment>Sidebar, Queries tab: right-click menu item that removes every history entry that is not pinned.</comment>
+  </data>
+  <data name="Sidebar_ClearHistoryTip" xml:space="preserve">
+    <value>Remove every entry that isn't pinned</value>
+    <comment>Sidebar, Queries tab: tooltip of the menu item Clear History.</comment>
+  </data>
+  <data name="Sidebar_HistoryEmpty" xml:space="preserve">
+    <value>Queries you run will appear here</value>
+    <comment>Sidebar, Queries tab: hint shown instead of the history list when it is empty.</comment>
+  </data>
+  <data name="Sidebar_HistoryNoMatches" xml:space="preserve">
+    <value>Nothing in history matches</value>
+    <comment>Sidebar, Queries tab: hint shown when the history search matches no entry.</comment>
+  </data>
+  <data name="Sidebar_RenameSavedQueryTitle" xml:space="preserve">
+    <value>Rename saved query</value>
+    <comment>Sidebar, Queries tab: title of the naming dialog opened by Rename… on a saved query.</comment>
+  </data>
+  <data name="Sidebar_History_YesterdayAt" xml:space="preserve">
+    <value>Yesterday {time}</value>
+    <comment>Sidebar, Queries tab, a history row: when the statement ran, yesterday. {time} is a 24-hour clock time, such as 09:41.</comment>
+  </data>
+  <data name="Sidebar_History_WeekdayAt" xml:space="preserve">
+    <value>{weekday} {time}</value>
+    <comment>Sidebar, Queries tab, a history row: when the statement ran, within the last week. {weekday} is the short weekday name (the Sidebar_Weekday_ entries); {time} is a 24-hour clock time, such as 09:41.</comment>
+  </data>
+  <data name="Sidebar_History_MonthDay" xml:space="preserve">
+    <value>{month} {day}</value>
+    <comment>Sidebar, Queries tab, a history row: when the statement ran earlier this year. {month} is the short month name (the Sidebar_Month_ entries); {day} is the day of the month, such as 18.</comment>
+  </data>
+  <data name="Sidebar_History_Ran" xml:space="preserve">
+    <value>Ran {at}</value>
+    <comment>Sidebar, Queries tab, a history row: tooltip with the full time. {at} is a date and time, such as 2026-07-18 09:41:00.</comment>
+  </data>
+  <data name="Sidebar_History_RanOn" xml:space="preserve">
+    <value>Ran {at} on {connection}</value>
+    <comment>Sidebar, Queries tab, a history row: tooltip with the full time and the connection. {at} is a date and time, such as 2026-07-18 09:41:00; {connection} is the connection's name, such as prod/shop.</comment>
+  </data>
+  <data name="Sidebar_Weekday_Mon" xml:space="preserve">
+    <value>Mon</value>
+    <comment>Short name of a weekday (three letters in English), used in a history row's time.</comment>
+  </data>
+  <data name="Sidebar_Weekday_Tue" xml:space="preserve">
+    <value>Tue</value>
+    <comment>Short name of a weekday (three letters in English), used in a history row's time.</comment>
+  </data>
+  <data name="Sidebar_Weekday_Wed" xml:space="preserve">
+    <value>Wed</value>
+    <comment>Short name of a weekday (three letters in English), used in a history row's time.</comment>
+  </data>
+  <data name="Sidebar_Weekday_Thu" xml:space="preserve">
+    <value>Thu</value>
+    <comment>Short name of a weekday (three letters in English), used in a history row's time.</comment>
+  </data>
+  <data name="Sidebar_Weekday_Fri" xml:space="preserve">
+    <value>Fri</value>
+    <comment>Short name of a weekday (three letters in English), used in a history row's time.</comment>
+  </data>
+  <data name="Sidebar_Weekday_Sat" xml:space="preserve">
+    <value>Sat</value>
+    <comment>Short name of a weekday (three letters in English), used in a history row's time.</comment>
+  </data>
+  <data name="Sidebar_Weekday_Sun" xml:space="preserve">
+    <value>Sun</value>
+    <comment>Short name of a weekday (three letters in English), used in a history row's time.</comment>
+  </data>
+  <data name="Sidebar_Month_Jan" xml:space="preserve">
+    <value>Jan</value>
+    <comment>Short name of a month (three letters in English), used in a history row's date.</comment>
+  </data>
+  <data name="Sidebar_Month_Feb" xml:space="preserve">
+    <value>Feb</value>
+    <comment>Short name of a month (three letters in English), used in a history row's date.</comment>
+  </data>
+  <data name="Sidebar_Month_Mar" xml:space="preserve">
+    <value>Mar</value>
+    <comment>Short name of a month (three letters in English), used in a history row's date.</comment>
+  </data>
+  <data name="Sidebar_Month_Apr" xml:space="preserve">
+    <value>Apr</value>
+    <comment>Short name of a month (three letters in English), used in a history row's date.</comment>
+  </data>
+  <data name="Sidebar_Month_May" xml:space="preserve">
+    <value>May</value>
+    <comment>Short name of a month (three letters in English), used in a history row's date.</comment>
+  </data>
+  <data name="Sidebar_Month_Jun" xml:space="preserve">
+    <value>Jun</value>
+    <comment>Short name of a month (three letters in English), used in a history row's date.</comment>
+  </data>
+  <data name="Sidebar_Month_Jul" xml:space="preserve">
+    <value>Jul</value>
+    <comment>Short name of a month (three letters in English), used in a history row's date.</comment>
+  </data>
+  <data name="Sidebar_Month_Aug" xml:space="preserve">
+    <value>Aug</value>
+    <comment>Short name of a month (three letters in English), used in a history row's date.</comment>
+  </data>
+  <data name="Sidebar_Month_Sep" xml:space="preserve">
+    <value>Sep</value>
+    <comment>Short name of a month (three letters in English), used in a history row's date.</comment>
+  </data>
+  <data name="Sidebar_Month_Oct" xml:space="preserve">
+    <value>Oct</value>
+    <comment>Short name of a month (three letters in English), used in a history row's date.</comment>
+  </data>
+  <data name="Sidebar_Month_Nov" xml:space="preserve">
+    <value>Nov</value>
+    <comment>Short name of a month (three letters in English), used in a history row's date.</comment>
+  </data>
+  <data name="Sidebar_Month_Dec" xml:space="preserve">
+    <value>Dec</value>
+    <comment>Short name of a month (three letters in English), used in a history row's date.</comment>
+  </data>
+
+  <data name="Sidebar_KindTable" xml:space="preserve">
+    <value>Table</value>
+    <comment>Sidebar tree, tooltip of the icon beside a relation: what kind of relation it is: an ordinary table.</comment>
+  </data>
+  <data name="Sidebar_KindView" xml:space="preserve">
+    <value>View</value>
+    <comment>Sidebar tree, tooltip of the icon beside a relation: what kind of relation it is: a view.</comment>
+  </data>
+  <data name="Sidebar_KindMaterializedView" xml:space="preserve">
+    <value>Materialized view</value>
+    <comment>Sidebar tree, tooltip of the icon beside a relation: what kind of relation it is: a materialized view.</comment>
+  </data>
+  <data name="Sidebar_KindPartitionedTable" xml:space="preserve">
+    <value>Partitioned table</value>
+    <comment>Sidebar tree, tooltip of the icon beside a relation: what kind of relation it is: a partitioned table.</comment>
+  </data>
+  <data name="Sidebar_KindRelation" xml:space="preserve">
+    <value>Relation</value>
+    <comment>Sidebar tree, tooltip of the icon beside a relation: what kind of relation it is: fallback for any other kind.</comment>
+  </data>
+  <data name="Sidebar_TypeNumeric" xml:space="preserve">
+    <value>Numeric</value>
+    <comment>Sidebar tree, tooltip of the icon beside a column: the family of its data type: numbers.</comment>
+  </data>
+  <data name="Sidebar_TypeText" xml:space="preserve">
+    <value>Text</value>
+    <comment>Sidebar tree, tooltip of the icon beside a column: the family of its data type: character data.</comment>
+  </data>
+  <data name="Sidebar_TypeBoolean" xml:space="preserve">
+    <value>Boolean</value>
+    <comment>Sidebar tree, tooltip of the icon beside a column: the family of its data type: true/false.</comment>
+  </data>
+  <data name="Sidebar_TypeDateTime" xml:space="preserve">
+    <value>Date / time</value>
+    <comment>Sidebar tree, tooltip of the icon beside a column: the family of its data type: dates and times.</comment>
+  </data>
+  <data name="Sidebar_TypeUuid" xml:space="preserve">
+    <value>UUID</value>
+    <comment>Sidebar tree, tooltip of the icon beside a column: the family of its data type: UUID values.</comment>
+  </data>
+  <data name="Sidebar_TypeJson" xml:space="preserve">
+    <value>JSON</value>
+    <comment>Sidebar tree, tooltip of the icon beside a column: the family of its data type: json and jsonb.</comment>
+  </data>
+  <data name="Sidebar_TypeNetwork" xml:space="preserve">
+    <value>Network address</value>
+    <comment>Sidebar tree, tooltip of the icon beside a column: the family of its data type: inet, cidr, macaddr.</comment>
+  </data>
+  <data name="Sidebar_TypeGeometric" xml:space="preserve">
+    <value>Geometric</value>
+    <comment>Sidebar tree, tooltip of the icon beside a column: the family of its data type: points, lines, polygons.</comment>
+  </data>
+  <data name="Sidebar_TypeRange" xml:space="preserve">
+    <value>Range</value>
+    <comment>Sidebar tree, tooltip of the icon beside a column: the family of its data type: range types.</comment>
+  </data>
+  <data name="Sidebar_TypeBinary" xml:space="preserve">
+    <value>Binary</value>
+    <comment>Sidebar tree, tooltip of the icon beside a column: the family of its data type: bytea.</comment>
+  </data>
+  <data name="Sidebar_TypeBitString" xml:space="preserve">
+    <value>Bit string</value>
+    <comment>Sidebar tree, tooltip of the icon beside a column: the family of its data type: bit and varbit.</comment>
+  </data>
+  <data name="Sidebar_TypeVector" xml:space="preserve">
+    <value>Vector</value>
+    <comment>Sidebar tree, tooltip of the icon beside a column: the family of its data type: vector embeddings (pgvector).</comment>
+  </data>
+  <data name="Sidebar_TypeFullText" xml:space="preserve">
+    <value>Full-text search</value>
+    <comment>Sidebar tree, tooltip of the icon beside a column: the family of its data type: tsvector and tsquery.</comment>
+  </data>
+  <data name="Sidebar_TypeArray" xml:space="preserve">
+    <value>Array</value>
+    <comment>Sidebar tree, tooltip of the icon beside a column: the family of its data type: arrays.</comment>
+  </data>
+  <data name="Sidebar_TypeEnum" xml:space="preserve">
+    <value>Enum</value>
+    <comment>Sidebar tree, tooltip of the icon beside a column: the family of its data type: enumerated types.</comment>
+  </data>
+  <data name="Sidebar_TypeComposite" xml:space="preserve">
+    <value>Composite</value>
+    <comment>Sidebar tree, tooltip of the icon beside a column: the family of its data type: composite (row) types.</comment>
+  </data>
 
   <!-- ===== Editor ===== -->
 

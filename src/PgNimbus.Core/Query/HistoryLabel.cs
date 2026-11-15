@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using PgNimbus.Core.Localization;
 
 namespace PgNimbus.Core.Query;
 
@@ -80,6 +81,23 @@ public static class HistoryLabel
         return end >= sql.Length ? sql : sql[..end].TrimEnd() + "\n…";
     }
 
+    // Short names are words, so they are table entries (a language can write its own),
+    // indexed by DayOfWeek (Sunday first) and by month - 1.
+    private static readonly StringKey[] Weekdays =
+    [
+        StringKey.Sidebar_Weekday_Sun, StringKey.Sidebar_Weekday_Mon, StringKey.Sidebar_Weekday_Tue,
+        StringKey.Sidebar_Weekday_Wed, StringKey.Sidebar_Weekday_Thu, StringKey.Sidebar_Weekday_Fri,
+        StringKey.Sidebar_Weekday_Sat,
+    ];
+
+    private static readonly StringKey[] Months =
+    [
+        StringKey.Sidebar_Month_Jan, StringKey.Sidebar_Month_Feb, StringKey.Sidebar_Month_Mar,
+        StringKey.Sidebar_Month_Apr, StringKey.Sidebar_Month_May, StringKey.Sidebar_Month_Jun,
+        StringKey.Sidebar_Month_Jul, StringKey.Sidebar_Month_Aug, StringKey.Sidebar_Month_Sep,
+        StringKey.Sidebar_Month_Oct, StringKey.Sidebar_Month_Nov, StringKey.Sidebar_Month_Dec,
+    ];
+
     /// <summary>
     /// When the entry ran, as short as it can be said relative to
     /// <paramref name="now"/>: the time today, "Yesterday" and the time, the
@@ -95,9 +113,10 @@ public static class HistoryLabel
         return days switch
         {
             <= 0 => time,
-            1 => "Yesterday " + time,
-            < 7 => at.ToString("ddd ", CultureInfo.InvariantCulture) + time,
-            _ when at.Year == now.Year => at.ToString("MMM d", CultureInfo.InvariantCulture),
+            1 => Strings.Sidebar_History_YesterdayAt(time),
+            < 7 => Strings.Sidebar_History_WeekdayAt(Strings.Get(Weekdays[(int)at.DayOfWeek]), time),
+            _ when at.Year == now.Year => Strings.Sidebar_History_MonthDay(
+                Strings.Get(Months[at.Month - 1]), at.Day.ToString(CultureInfo.InvariantCulture)),
             _ => at.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
         };
     }
@@ -153,6 +172,8 @@ public static class HistoryLabel
     public static string Detail(QueryHistoryEntry entry, DateTimeOffset now)
     {
         var at = entry.ExecutedAt.ToOffset(now.Offset).ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
-        return string.IsNullOrEmpty(entry.Connection) ? "Ran " + at : $"Ran {at} on {entry.Connection}";
+        return string.IsNullOrEmpty(entry.Connection)
+            ? Strings.Sidebar_History_Ran(at)
+            : Strings.Sidebar_History_RanOn(at, entry.Connection);
     }
 }

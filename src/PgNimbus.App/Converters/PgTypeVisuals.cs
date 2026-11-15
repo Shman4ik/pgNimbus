@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using Avalonia.Data.Converters;
 using Avalonia.Media;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Schema;
 
 namespace PgNimbus.App.Converters;
@@ -40,31 +41,29 @@ public static class PgTypeVisuals
         [PgTypeCategory.Composite] = "M10,10.02H15V21H10V10.02M17,21H20C21.1,21 22,20.1 22,19V10H17V21M20,3H5C3.9,3 3,3.9 3,5V8H22V5C22,3.9 21.1,3 20,3M3,19C3,20.1 3.9,21 5,21H8V10H3V19Z",
     };
 
-    private static readonly Dictionary<PgTypeCategory, string> Labels = new()
-    {
-        [PgTypeCategory.Numeric] = "Numeric",
-        [PgTypeCategory.Text] = "Text",
-        [PgTypeCategory.Boolean] = "Boolean",
-        [PgTypeCategory.DateTime] = "Date / time",
-        [PgTypeCategory.Uuid] = "UUID",
-        [PgTypeCategory.Json] = "JSON",
-        [PgTypeCategory.Network] = "Network address",
-        [PgTypeCategory.Geometric] = "Geometric",
-        [PgTypeCategory.Range] = "Range",
-        [PgTypeCategory.Binary] = "Binary",
-        [PgTypeCategory.BitString] = "Bit string",
-        [PgTypeCategory.Vector] = "Vector",
-        [PgTypeCategory.FullText] = "Full-text search",
-        [PgTypeCategory.Array] = "Array",
-        [PgTypeCategory.Enum] = "Enum",
-        [PgTypeCategory.Composite] = "Composite",
-    };
-
     private static readonly Dictionary<PgTypeCategory, Geometry?> GeometryCache = new();
 
     /// <summary>The friendly family label for an already-resolved category, or empty for Other.</summary>
-    public static string LabelFor(PgTypeCategory category) =>
-        Labels.TryGetValue(category, out var label) ? label : string.Empty;
+    public static string LabelFor(PgTypeCategory category) => category switch
+    {
+        PgTypeCategory.Numeric => Strings.Sidebar_TypeNumeric,
+        PgTypeCategory.Text => Strings.Sidebar_TypeText,
+        PgTypeCategory.Boolean => Strings.Sidebar_TypeBoolean,
+        PgTypeCategory.DateTime => Strings.Sidebar_TypeDateTime,
+        PgTypeCategory.Uuid => Strings.Sidebar_TypeUuid,
+        PgTypeCategory.Json => Strings.Sidebar_TypeJson,
+        PgTypeCategory.Network => Strings.Sidebar_TypeNetwork,
+        PgTypeCategory.Geometric => Strings.Sidebar_TypeGeometric,
+        PgTypeCategory.Range => Strings.Sidebar_TypeRange,
+        PgTypeCategory.Binary => Strings.Sidebar_TypeBinary,
+        PgTypeCategory.BitString => Strings.Sidebar_TypeBitString,
+        PgTypeCategory.Vector => Strings.Sidebar_TypeVector,
+        PgTypeCategory.FullText => Strings.Sidebar_TypeFullText,
+        PgTypeCategory.Array => Strings.Sidebar_TypeArray,
+        PgTypeCategory.Enum => Strings.Sidebar_TypeEnum,
+        PgTypeCategory.Composite => Strings.Sidebar_TypeComposite,
+        _ => string.Empty,
+    };
 
     /// <summary>The icon for an already-resolved category, or null when the family has no glyph (Other) or the path failed to parse.</summary>
     public static Geometry? IconFor(PgTypeCategory category)

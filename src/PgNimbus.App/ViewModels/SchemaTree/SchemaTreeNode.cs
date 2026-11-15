@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using PgNimbus.Core.Localization;
 
 namespace PgNimbus.App.ViewModels;
 
@@ -36,7 +37,38 @@ public abstract partial class SchemaTreeNode : ObservableObject
     [ObservableProperty]
     private bool _isFilteredIn = true;
 
-    public string Name { get; init; } = string.Empty;
+    private string _name = string.Empty;
+    private Func<string>? _nameText;
+
+    public string Name
+    {
+        get => _name;
+        set => SetProperty(ref _name, value);
+    }
+
+    /// <summary>
+    /// Sets <see cref="Name"/> to words from the string table (a group's name, an
+    /// "empty" row). <see cref="RefreshLanguage"/> computes it again after a change
+    /// of language; <paramref name="text"/> must not capture anything (make it static).
+    /// </summary>
+    protected void SetLocalizedName(Func<string> text)
+    {
+        _nameText = text;
+        Name = text();
+    }
+
+    /// <summary>
+    /// Called by the tree's view model on every node it holds after a change of
+    /// language: a node whose text is composed from <c>Strings</c> raises its
+    /// change here. The default recomputes a name set with <see cref="SetLocalizedName"/>.
+    /// </summary>
+    public virtual void RefreshLanguage()
+    {
+        if (_nameText is { } text)
+        {
+            Name = text();
+        }
+    }
 
     /// <summary>Every child this node has loaded: the source of truth the filter reads.</summary>
     public RangeObservableCollection<SchemaTreeNode> Children { get; } = [];
@@ -140,4 +172,11 @@ public sealed class PlaceholderNode : SchemaTreeNode;
 public sealed class ErrorNode : SchemaTreeNode;
 
 /// <summary>A dim "(nothing here)" leaf shown when a loaded group turns out to be empty.</summary>
-public sealed class EmptyNode : SchemaTreeNode;
+public sealed class EmptyNode : SchemaTreeNode
+{
+    public EmptyNode()
+    {
+    }
+
+    public EmptyNode(Func<string> text) => SetLocalizedName(text);
+}

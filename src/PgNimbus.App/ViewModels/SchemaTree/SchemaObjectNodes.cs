@@ -1,3 +1,4 @@
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Schema;
 
 namespace PgNimbus.App.ViewModels;
@@ -11,7 +12,7 @@ public sealed class SequencesGroupNode : SchemaTreeNode
     {
         _schemaService = schemaService;
         Schema = schema;
-        Name = "Sequences";
+        SetLocalizedName(static () => Strings.Sidebar_Sequences);
         MarkExpandable();
     }
 
@@ -22,7 +23,7 @@ public sealed class SequencesGroupNode : SchemaTreeNode
         var sequences = await _schemaService.GetSequencesAsync(Schema, CancellationToken.None);
         if (sequences.Count == 0)
         {
-            return [new EmptyNode { Name = "No sequences" }];
+            return [new EmptyNode(static () => Strings.Sidebar_NoSequences)];
         }
 
         return sequences.Select(s => (SchemaTreeNode)new SequenceNode(s)).ToList();
@@ -58,7 +59,7 @@ public sealed class SequenceNode : SchemaTreeNode
     public bool Cycle { get; }
 
     /// <summary>The dim detail after the name — the value type and, if the sequence has advanced, its current value.</summary>
-    public string Detail => LastValue is { } last ? $"{DataType}  ·  at {last}" : DataType;
+    public string Detail => LastValue is { } last ? Strings.Sidebar_SequenceDetailAt(DataType, last.ToString()) : DataType;
 
     public string Tooltip
     {
@@ -67,17 +68,24 @@ public sealed class SequenceNode : SchemaTreeNode
             var parts = new List<string>
             {
                 $"{Name}  ({DataType})",
-                $"increment {IncrementBy}",
-                LastValue is { } last ? $"current {last}" : "not yet used",
-                $"range {MinValue} … {MaxValue}",
+                Strings.Sidebar_SequenceIncrement(IncrementBy.ToString()),
+                LastValue is { } last ? Strings.Sidebar_SequenceCurrent(last.ToString()) : Strings.Sidebar_SequenceNotUsed,
+                Strings.Sidebar_SequenceRange(MinValue.ToString(), MaxValue.ToString()),
             };
             if (Cycle)
             {
-                parts.Add("cycles");
+                parts.Add(Strings.Sidebar_SequenceCycles);
             }
 
             return string.Join("\n", parts);
         }
+    }
+
+    public override void RefreshLanguage()
+    {
+        base.RefreshLanguage();
+        OnPropertyChanged(nameof(Detail));
+        OnPropertyChanged(nameof(Tooltip));
     }
 }
 
@@ -90,7 +98,7 @@ public sealed class TypesGroupNode : SchemaTreeNode
     {
         _schemaService = schemaService;
         Schema = schema;
-        Name = "Types";
+        SetLocalizedName(static () => Strings.Sidebar_Types);
         MarkExpandable();
     }
 
@@ -101,7 +109,7 @@ public sealed class TypesGroupNode : SchemaTreeNode
         var types = await _schemaService.GetUserTypesAsync(Schema, CancellationToken.None);
         if (types.Count == 0)
         {
-            return [new EmptyNode { Name = "No user types" }];
+            return [new EmptyNode(static () => Strings.Sidebar_NoUserTypes)];
         }
 
         return types.Select(t => (SchemaTreeNode)new UserTypeNode(t)).ToList();
@@ -147,9 +155,11 @@ public sealed class UserTypeNode : SchemaTreeNode
     /// <summary>The dim detail after the name — kind plus a compact summary of the type's shape.</summary>
     public string Detail => TypType switch
     {
-        'e' => $"enum  ·  {EnumLabels.Count} label{(EnumLabels.Count == 1 ? "" : "s")}",
-        'c' => $"composite  ·  {CompositeFields.Count} field{(CompositeFields.Count == 1 ? "" : "s")}",
-        'd' => DomainNotNull ? $"domain → {DomainBaseType}  ·  NOT NULL" : $"domain → {DomainBaseType}",
+        'e' => Strings.Sidebar_EnumDetail(EnumLabels.Count),
+        'c' => Strings.Sidebar_CompositeDetail(CompositeFields.Count),
+        'd' => DomainNotNull
+            ? Strings.Sidebar_DomainDetailNotNull(DomainBaseType ?? string.Empty)
+            : Strings.Sidebar_DomainDetail(DomainBaseType ?? string.Empty),
         _ => string.Empty,
     };
 
@@ -157,9 +167,18 @@ public sealed class UserTypeNode : SchemaTreeNode
     {
         'e' => EnumLabels.Count == 0 ? Name : string.Join("  |  ", EnumLabels),
         'c' => CompositeFields.Count == 0 ? Name : string.Join("\n", CompositeFields),
-        'd' => DomainNotNull ? $"domain over {DomainBaseType} (NOT NULL)" : $"domain over {DomainBaseType}",
+        'd' => DomainNotNull
+            ? Strings.Sidebar_DomainTipNotNull(DomainBaseType ?? string.Empty)
+            : Strings.Sidebar_DomainTip(DomainBaseType ?? string.Empty),
         _ => Name,
     };
+
+    public override void RefreshLanguage()
+    {
+        base.RefreshLanguage();
+        OnPropertyChanged(nameof(Detail));
+        OnPropertyChanged(nameof(Tooltip));
+    }
 }
 
 /// <summary>"Indexes" sub-group under a table/matview — lazily lists its indexes.</summary>
@@ -172,7 +191,7 @@ public sealed class IndexesGroupNode : SchemaTreeNode
         _schemaService = schemaService;
         Schema = schema;
         Table = table;
-        Name = "Indexes";
+        SetLocalizedName(static () => Strings.Sidebar_Indexes);
         MarkExpandable();
     }
 
@@ -185,7 +204,7 @@ public sealed class IndexesGroupNode : SchemaTreeNode
         var indexes = await _schemaService.GetIndexesAsync(Schema, Table, CancellationToken.None);
         if (indexes.Count == 0)
         {
-            return [new EmptyNode { Name = "No indexes" }];
+            return [new EmptyNode(static () => Strings.Sidebar_NoIndexes)];
         }
 
         return indexes.Select(i => (SchemaTreeNode)new IndexNode(i)).ToList();
@@ -209,12 +228,12 @@ public sealed class IndexNode : SchemaTreeNode, ISourceDefinitionNode
     public string Definition { get; }
 
     /// <summary>The dim tag after the name: primary key / unique / (nothing for a plain index).</summary>
-    public string Detail => IsPrimary ? "primary key" : IsUnique ? "unique" : string.Empty;
+    public string Detail => IsPrimary ? Strings.Sidebar_PrimaryKey : IsUnique ? Strings.Sidebar_Unique : string.Empty;
 
     /// <summary>The full CREATE INDEX definition, shown on hover.</summary>
     public string Tooltip => Definition;
 
-    public string SourceTitle => $"{Name} · source";
+    public string SourceTitle => Strings.Sidebar_SourceTitle(Name);
 
     public string SourceSql => ISourceDefinitionNode.AsStatement(Definition);
 }
@@ -229,7 +248,7 @@ public sealed class TriggersGroupNode : SchemaTreeNode
         _schemaService = schemaService;
         Schema = schema;
         Table = table;
-        Name = "Triggers";
+        SetLocalizedName(static () => Strings.Sidebar_Triggers);
         MarkExpandable();
     }
 
@@ -242,7 +261,7 @@ public sealed class TriggersGroupNode : SchemaTreeNode
         var triggers = await _schemaService.GetTriggersAsync(Schema, Table, CancellationToken.None);
         if (triggers.Count == 0)
         {
-            return [new EmptyNode { Name = "No triggers" }];
+            return [new EmptyNode(static () => Strings.Sidebar_NoTriggers)];
         }
 
         return triggers.Select(t => (SchemaTreeNode)new TriggerNode(t)).ToList();
@@ -263,12 +282,12 @@ public sealed class TriggerNode : SchemaTreeNode, ISourceDefinitionNode
     public string Definition { get; }
 
     /// <summary>A dim "disabled" tag for a trigger that won't fire; empty when enabled.</summary>
-    public string Detail => Enabled ? string.Empty : "disabled";
+    public string Detail => Enabled ? string.Empty : Strings.Sidebar_Disabled;
 
     /// <summary>The full CREATE TRIGGER definition, shown on hover.</summary>
     public string Tooltip => Definition;
 
-    public string SourceTitle => $"{Name} · source";
+    public string SourceTitle => Strings.Sidebar_SourceTitle(Name);
 
     public string SourceSql => ISourceDefinitionNode.AsStatement(Definition);
 }
