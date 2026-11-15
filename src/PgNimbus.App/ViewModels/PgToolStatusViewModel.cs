@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PgNimbus.App.Platform;
 using PgNimbus.Core.Backup;
+using PgNimbus.Core.Localization;
 
 namespace PgNimbus.App.ViewModels;
 
@@ -66,6 +67,17 @@ public sealed partial class PgToolStatusViewModel : ObservableObject
         _scan = scan ?? (refresh => refresh ? PgToolCatalog.RescanAsync() : PgToolCatalog.GetAsync());
         _setFolder = setFolder ?? PgToolCatalog.SetConfiguredDirectory;
         _guide = guide ?? PgToolInstallGuide.ForThisMachine;
+        Localizer.WhenChanged(this, static vm => vm.OnLanguageChanged());
+    }
+
+    // What a finished search wrote into the lines is words, so it is written again in the new language.
+    private void OnLanguageChanged()
+    {
+        OnPropertyChanged(nameof(FolderLabel));
+        if (_lastScan is { } scan && State != PgToolState.Searching)
+        {
+            Apply(scan);
+        }
     }
 
     /// <summary>
@@ -124,8 +136,8 @@ public sealed partial class PgToolStatusViewModel : ObservableObject
 
     /// <summary>The Settings card's folder line.</summary>
     public string FolderLabel => ConfiguredDirectory is { } folder
-        ? $"From the folder you chose: {folder}"
-        : "Found automatically";
+        ? Strings.Settings_PgToolsFromFolder(folder)
+        : Strings.Settings_PgToolsFoundAutomatically;
 
     /// <summary>Raised when <see cref="Install"/> may have changed, so the owner can re-check what it can run.</summary>
     public event Action? Changed;
@@ -134,7 +146,7 @@ public sealed partial class PgToolStatusViewModel : ObservableObject
     public async Task LoadAsync(bool refresh = false)
     {
         State = PgToolState.Searching;
-        StatusLine = $"Looking for {PgToolInstall.ToolName(_tool)}…";
+        StatusLine = Strings.Settings_PgToolsLooking(PgToolInstall.ToolName(_tool));
         Changed?.Invoke();
         Apply(await _scan(refresh));
     }
@@ -146,7 +158,7 @@ public sealed partial class PgToolStatusViewModel : ObservableObject
     public async Task UseFolderAsync(string? directory)
     {
         State = PgToolState.Searching;
-        StatusLine = $"Looking for {PgToolInstall.ToolName(_tool)}…";
+        StatusLine = Strings.Settings_PgToolsLooking(PgToolInstall.ToolName(_tool));
         Changed?.Invoke();
         Apply(await _setFolder(directory));
     }
@@ -176,9 +188,9 @@ public sealed partial class PgToolStatusViewModel : ObservableObject
         }
 
         State = PgToolState.Missing;
-        var needed = _tool == PgTool.PgDump && Server is { } s ? $"{name} {s.MajorLabel} or newer" : name;
-        Headline = $"pgNimbus needs {needed}";
-        StatusLine = $"{name} not found";
+        var needed = _tool == PgTool.PgDump && Server is { } s ? Strings.Settings_PgToolsNeededVersion(name, s.MajorLabel) : name;
+        Headline = Strings.Settings_PgToolsNeeds(needed);
+        StatusLine = Strings.Settings_PgToolsNotFound(name);
         Explanation = Explain(scan);
 
         var steps = _guide(_tool == PgTool.PgDump ? Server : null);
@@ -199,30 +211,29 @@ public sealed partial class PgToolStatusViewModel : ObservableObject
     {
         var name = PgToolInstall.ToolName(_tool);
         var what = _tool == PgTool.PgDump
-            ? "Backups are made by pg_dump, PostgreSQL's own backup program, which comes with pg_restore."
-            : "Backups are restored by pg_restore, PostgreSQL's own restore program, which comes with pg_dump.";
+            ? Strings.Settings_PgToolsExplainDump
+            : Strings.Settings_PgToolsExplainRestore;
         var parts = new List<string> { what };
 
         if (scan.ConfiguredDirectory is { } folder)
         {
             parts.Add(scan.Problems.FirstOrDefault() is { } problem
-                ? $"Settings point pgNimbus at {folder}, but {problem.Reason}."
-                : $"Settings point pgNimbus at {folder}.");
+                ? Strings.Settings_PgToolsFolderProblem(folder, problem.Reason)
+                : Strings.Settings_PgToolsFolderNoProblem(folder));
         }
 
         if (_tool == PgTool.PgDump && Server is { } server && scan.Newest is { } newest)
         {
-            parts.Add($"The newest {name} on this computer is {newest.Version}, in {newest.Directory}. "
-                      + $"This server runs PostgreSQL {server}, and {name} has to be {server.MajorLabel} or newer to back it up.");
+            parts.Add(Strings.Settings_PgToolsTooOld(name, newest.Version.ToString(), newest.Directory, server.ToString(), server.MajorLabel));
         }
         else if (scan.ConfiguredDirectory is null)
         {
-            parts.Add($"pgNimbus didn't find {name} on this computer.");
+            parts.Add(Strings.Settings_PgToolsNoneOnComputer(name));
         }
 
         foreach (var problem in scan.ConfiguredDirectory is null ? scan.Problems.Take(3) : [])
         {
-            parts.Add($"There's a {name} in {problem.Directory}, but {problem.Reason}.");
+            parts.Add(Strings.Settings_PgToolsOtherProblem(name, problem.Directory, problem.Reason));
         }
 
         // One thought per line: what the program is, what was found, what's wrong with it.

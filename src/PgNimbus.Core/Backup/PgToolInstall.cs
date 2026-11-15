@@ -33,8 +33,8 @@ public sealed record PgToolInstall(string Directory, PgVersion Version, string? 
     /// </summary>
     public string Describe(PgTool tool) =>
         Source is null
-            ? $"{ToolName(tool)} {Version} · {Directory}"
-            : $"{ToolName(tool)} {Version} from {Source} · {Directory}";
+            ? Localization.Strings.Settings_PgToolsInstalled(ToolName(tool), Version.ToString(), Directory)
+            : Localization.Strings.Settings_PgToolsInstalledFrom(ToolName(tool), Version.ToString(), Source, Directory);
 
     /// <summary>The program's file name on this platform.</summary>
     public static string ExecutableName(PgTool tool) =>
