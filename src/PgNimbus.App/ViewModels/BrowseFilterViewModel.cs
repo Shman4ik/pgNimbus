@@ -1,13 +1,16 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Query;
 using PgNimbus.Core.Schema;
 
 namespace PgNimbus.App.ViewModels;
 
 /// <summary>One entry of the operator picker: the operator and the label it reads as.</summary>
-public sealed record FilterOperatorOption(FilterOperator Operator, string Label)
+public sealed record FilterOperatorOption(FilterOperator Operator)
 {
-    public static FilterOperatorOption Of(FilterOperator op) => new(op, RowFilterSql.Label(op));
+    public string Label => RowFilterSql.Label(Operator);
+
+    public static FilterOperatorOption Of(FilterOperator op) => new(op);
 
     public override string ToString() => Label;
 }
@@ -33,6 +36,15 @@ public sealed partial class BrowseFilterViewModel : ObservableObject
         _operators = OperatorsForColumn(column);
         _operator = op is { } chosen ? FilterOperatorOption.Of(chosen) : _operators.FirstOrDefault();
         _value = CreateValueField(value);
+        Localizer.WhenChanged(this, static vm => vm.OnLanguageChanged());
+    }
+
+    // The chip's text names the operator, so it is written again in the new language.
+    private void OnLanguageChanged()
+    {
+        OnPropertyChanged(nameof(Summary));
+        OnPropertyChanged(nameof(EditAutomationName));
+        OnPropertyChanged(nameof(RemoveAutomationName));
     }
 
     /// <summary>Raised when anything that changes the predicate changes — the bar's cue to refresh its preview.</summary>
@@ -60,6 +72,12 @@ public sealed partial class BrowseFilterViewModel : ObservableObject
             return $"{head} {shown}";
         }
     }
+
+    /// <summary>The chip's accessibility name: edit this condition.</summary>
+    public string EditAutomationName => Strings.Filter_EditCondition(Summary);
+
+    /// <summary>The chip's remove button's accessibility name.</summary>
+    public string RemoveAutomationName => Strings.Filter_RemoveCondition(Summary);
 
     /// <summary>The chip's tooltip: the SQL this condition adds.</summary>
     public string? PredicateText => Predicate();
@@ -91,14 +109,14 @@ public sealed partial class BrowseFilterViewModel : ObservableObject
     {
         if (Detail is not { } detail || Operator is null)
         {
-            return $"{Column}: pick a column and a comparison.";
+            return Strings.Filter_PickColumn(Column);
         }
 
         // The input's own check (a malformed number, bad JSON) is the one the
         // user already sees under the box; report it rather than a second phrasing.
         if (ShowsValue && Value.ValidationError is { } inputError)
         {
-            return $"{Column}: {inputError}";
+            return Strings.Editor_FieldError(Column, inputError);
         }
 
         return RowFilterSql.Validate(ToFilter(), detail.Editor, detail.DataType, detail.DomainBaseType);
@@ -157,8 +175,8 @@ public sealed partial class BrowseFilterViewModel : ObservableObject
     private NewRowField CreateValueField(string? initial)
     {
         var field = Detail is { } detail && !IsTextSearch(Operator)
-            ? NewRowField.For(detail, "value")
-            : new NewRowField { Name = Column, DataType = "text", Placeholder = "value" };
+            ? NewRowField.For(detail, Strings.Editor_PlaceholderValue)
+            : new NewRowField { Name = Column, DataType = "text", Placeholder = Strings.Editor_PlaceholderValue };
 
         if (!string.IsNullOrEmpty(initial))
         {

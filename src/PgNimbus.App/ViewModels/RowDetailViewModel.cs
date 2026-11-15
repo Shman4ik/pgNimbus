@@ -3,6 +3,7 @@ using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PgNimbus.App.Converters;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Query;
 using PgNimbus.Core.Schema;
 
@@ -101,6 +102,17 @@ public sealed partial class RowDetailViewModel : ObservableObject
     {
         _owner = owner;
         _owner.PropertyChanged += OnOwnerPropertyChanged;
+        Localizer.WhenChanged(this, static vm => vm.OnLanguageChanged());
+    }
+
+    // The heading, note and button text are composed on load, so a language change shows them again (unstaged edits are never dropped for it).
+    private void OnLanguageChanged()
+    {
+        OnPropertyChanged(nameof(StageLabel));
+        if (!HasChanges)
+        {
+            Load(Row, force: true);
+        }
     }
 
     public RangeObservableCollection<RowDetailField> Fields { get; } = [];
@@ -111,7 +123,7 @@ public sealed partial class RowDetailViewModel : ObservableObject
     public bool HasRow => Row is not null;
 
     [ObservableProperty]
-    private string _heading = "Row details";
+    private string _heading = Strings.RowDetail_Heading;
 
     /// <summary>The table the row belongs to ("public.orders"), when the result maps to one.</summary>
     [ObservableProperty]
@@ -119,7 +131,7 @@ public sealed partial class RowDetailViewModel : ObservableObject
 
     /// <summary>What the sidebar says when there's no row, or why the row can't be edited.</summary>
     [ObservableProperty]
-    private string? _note = "Select a row to see its fields.";
+    private string? _note = Strings.RowDetail_SelectRow;
 
     [ObservableProperty]
     private string? _error;
@@ -132,9 +144,8 @@ public sealed partial class RowDetailViewModel : ObservableObject
 
     public string StageLabel => ChangedCount switch
     {
-        0 => "Stage",
-        1 => "Stage 1 change",
-        var n => $"Stage {n} changes",
+        0 => Strings.RowDetail_Stage,
+        var n => Strings.RowDetail_StageChanges(n),
     };
 
     /// <summary>Raised after Stage with the row instance the grid now holds, so the view can keep it selected.</summary>
@@ -213,16 +224,16 @@ public sealed partial class RowDetailViewModel : ObservableObject
         if (row is null)
         {
             Fields.ReplaceAll([]);
-            Heading = "Row details";
-            Note = "Select a row in the grid to see its fields.";
+            Heading = Strings.RowDetail_Heading;
+            Note = Strings.RowDetail_SelectRowInGrid;
             return;
         }
 
         var editable = _owner.IsEditable;
         var index = _owner.Rows.IndexOf(row);
         var offset = _owner.Browse?.Offset ?? 0;
-        Heading = index >= 0 ? $"Row {offset + index + 1:N0} of {offset + _owner.Rows.Count:N0}" : "Row details";
-        Note = editable ? null : _owner.ReadOnlyHint is { } hint ? $"Read-only: {hint}" : "Read-only: this result isn't mapped to one table.";
+        Heading = index >= 0 ? Strings.RowDetail_RowOf((offset + index + 1).ToString("N0"), (offset + _owner.Rows.Count).ToString("N0")) : Strings.RowDetail_Heading;
+        Note = editable ? null : _owner.ReadOnlyHint is { } hint ? Strings.RowDetail_ReadOnlyBecause(hint) : Strings.RowDetail_ReadOnlyUnmapped;
 
         // One Reset for the whole form, and no more fields than the grid has
         // columns (QueryViewModel.MaxGridColumns): each field is a stack of type-aware
@@ -240,24 +251,24 @@ public sealed partial class RowDetailViewModel : ObservableObject
             string? reason = null;
             if (!editable || meta is null)
             {
-                reason = editable ? "not a column of the table" : null;
+                reason = editable ? Strings.RowDetail_NotAColumn : null;
             }
             else if (context!.PrimaryKeyColumns.Contains(name))
             {
                 // The type label carries it ("bigint · primary key"); a second
                 // line saying the same would only push the form down.
                 reason = string.Empty;
-                typeLabel += " · primary key";
+                typeLabel = Strings.RowDetail_PrimaryKeyType(typeLabel);
             }
             else if (CellText.IsShortened(value, _owner.ColumnTypeName(i)) || QueryEngine.IsUnreadableCell(value))
             {
                 // The form would hold the value in a one-box editor at best and
                 // a preview at worst; the inspector carries the whole thing.
-                reason = QueryEngine.IsUnreadableCell(value) ? "unreadable type" : "large value: open it in the inspector";
+                reason = QueryEngine.IsUnreadableCell(value) ? Strings.RowDetail_UnreadableType : Strings.RowDetail_LargeValue;
             }
 
             var field = reason is null && editable && meta is not null
-                ? new RowDetailField(i, name, typeLabel, value, NewRowField.For(meta, placeholder: "empty string"), null, _owner.ColumnTypeName(i))
+                ? new RowDetailField(i, name, typeLabel, value, NewRowField.For(meta, placeholder: Strings.Editor_PlaceholderEmptyString), null, _owner.ColumnTypeName(i))
                 : new RowDetailField(i, name, typeLabel, value, null, reason is { Length: 0 } ? null : reason, _owner.ColumnTypeName(i)) { CanInspect = CellText.IsShortened(value, _owner.ColumnTypeName(i)) };
             field.PropertyChanged += OnFieldChanged;
             fields.Add(field);
@@ -276,7 +287,7 @@ public sealed partial class RowDetailViewModel : ObservableObject
 
         if (Fields.FirstOrDefault(f => f.IsChanged && f.Editor is { IsNull: false, HasValidationError: true }) is { } invalid)
         {
-            Error = $"{invalid.Name}: {invalid.Editor!.ValidationError}";
+            Error = Strings.Editor_FieldError(invalid.Name, invalid.Editor!.ValidationError);
             return;
         }
 

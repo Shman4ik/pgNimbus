@@ -25,6 +25,7 @@ using AvaloniaEdit.Search;
 using PgNimbus.App.Completion;
 using PgNimbus.App.ViewModels;
 using PgNimbus.Core.Commands;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Query;
 using PgNimbus.Core.Text;
 
@@ -1354,7 +1355,7 @@ public partial class QueryEditorPanel : UserControl
         if (hints.Count > MaxSignatureLines)
         {
             inlines.Add(new LineBreak());
-            inlines.Add(new Run($"+{hints.Count - MaxSignatureLines} more") { FontStyle = FontStyle.Italic });
+            inlines.Add(new Run(Strings.Editor_SignatureMore(hints.Count - MaxSignatureLines)) { FontStyle = FontStyle.Italic });
         }
 
         SignatureText.Inlines = inlines;

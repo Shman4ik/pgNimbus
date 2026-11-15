@@ -1,3 +1,4 @@
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Query;
 
 namespace PgNimbus.Core.Text;
@@ -51,7 +52,7 @@ public static partial class SqlCompletionContext
         refusal = null;
         if (SqlScriptSplitter.StatementSpanAt(sql, caret) is not { } stmt)
         {
-            refusal = "No statement at the caret.";
+            refusal = Strings.Editor_StarNoStatement;
             return null;
         }
 
@@ -63,7 +64,7 @@ public static partial class SqlCompletionContext
 
         if (FindSelectListSpan(masked) is not { } span)
         {
-            refusal = "No SELECT list in this statement.";
+            refusal = Strings.Editor_StarNoSelectList;
             return null;
         }
 
@@ -80,7 +81,7 @@ public static partial class SqlCompletionContext
 
         if (listStart >= listEnd)
         {
-            refusal = "No SELECT list in this statement.";
+            refusal = Strings.Editor_StarNoSelectList;
             return null;
         }
 
@@ -108,19 +109,19 @@ public static partial class SqlCompletionContext
             {
                 if (mergesColumns)
                 {
-                    refusal = "Can't expand *: USING / NATURAL JOIN merges columns, so an explicit list would change the result.";
+                    refusal = Strings.Editor_StarUsing;
                     return null;
                 }
 
                 if (tables.Count == 0 || !fromFullyRead)
                 {
-                    refusal = "Can't expand *: FROM has a subquery or function whose columns aren't known.";
+                    refusal = Strings.Editor_StarSubquery;
                     return null;
                 }
 
                 if (!TryExpandBareStar(tables, columnsFor, items, out var unknown))
                 {
-                    refusal = $"Can't expand *: the columns of {unknown} aren't known.";
+                    refusal = Strings.Editor_StarUnknownColumns(unknown);
                     return null;
                 }
 
@@ -132,7 +133,7 @@ public static partial class SqlCompletionContext
             {
                 if (!TryExpandQualifiedStar(item[..^2], tables, columnsFor, items))
                 {
-                    refusal = $"Can't expand {item}: its columns aren't known.";
+                    refusal = Strings.Editor_StarItemUnknown(item);
                     return null;
                 }
 
@@ -147,7 +148,7 @@ public static partial class SqlCompletionContext
 
         if (!expandedAny)
         {
-            refusal = "No * in the select list.";
+            refusal = Strings.Editor_StarNone;
             return null;
         }
 

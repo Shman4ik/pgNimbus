@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="using:PgNimbus.App.Localization"
              xmlns:vm="using:PgNimbus.App.ViewModels"
              x:Class="PgNimbus.App.Views.ColumnValueEditorView"
              x:DataType="vm:NewRowField">
@@ -38,7 +39,7 @@
                                 HorizontalAlignment="Stretch"
                                 AutomationProperties.Name="{Binding Name}" />
             <TextBox Grid.Column="2" Text="{Binding TimeText, Mode=TwoWay}"
-                     PlaceholderText="HH:MM:SS" FontSize="12" />
+                     PlaceholderText="{l:Tr Editor_TimePlaceholder}" FontSize="12" />
         </Grid>
         <TextBlock Text="{Binding ValidationError}" FontSize="10"
                    Foreground="{DynamicResource AppDangerBrush}" TextWrapping="Wrap" Margin="2,2,0,0"

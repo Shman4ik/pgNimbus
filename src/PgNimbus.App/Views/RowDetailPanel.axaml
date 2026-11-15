@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="using:PgNimbus.App.Localization"
              xmlns:vm="using:PgNimbus.App.ViewModels"
              xmlns:views="using:PgNimbus.App.Views"
              xmlns:conv="using:Avalonia.Data.Converters"
@@ -66,16 +67,16 @@
                 <!-- Disabled while there are unstaged edits: Stage or Revert first. -->
                 <Button Classes="chip" Content="‹" FontSize="14" Width="26" Height="24" Padding="0"
                         Command="{Binding PreviousRowCommand}"
-                        ToolTip.Tip="Previous row"
-                        AutomationProperties.Name="Previous row" />
+                        ToolTip.Tip="{l:Tr RowDetail_PreviousRow}"
+                        AutomationProperties.Name="{l:Tr RowDetail_PreviousRow}" />
                 <Button Classes="chip" Content="›" FontSize="14" Width="26" Height="24" Padding="0"
                         Command="{Binding NextRowCommand}"
-                        ToolTip.Tip="Next row"
-                        AutomationProperties.Name="Next row" />
+                        ToolTip.Tip="{l:Tr RowDetail_NextRow}"
+                        AutomationProperties.Name="{l:Tr RowDetail_NextRow}" />
                 <Button Name="CloseButton" Classes="chip" Content="✕" FontSize="10"
                         Width="24" Height="24" Padding="0" Margin="6,0,0,0"
-                        cmd:CommandTip.Text="Close" cmd:CommandTip.Keys="Escape"
-                        AutomationProperties.Name="Close row details" />
+                        cmd:CommandTip.Text="{l:Tr Common_Close}" cmd:CommandTip.Keys="Escape"
+                        AutomationProperties.Name="{l:Tr RowDetail_CloseAutomation}" />
             </StackPanel>
         </Grid>
 
@@ -96,7 +97,7 @@
                     HorizontalAlignment="Center" VerticalAlignment="Center">
             <PathIcon Data="{StaticResource TableIconGeometry}" Width="26" Height="26"
                       Opacity="0.28" HorizontalAlignment="Center" />
-            <TextBlock Text="No row selected" FontSize="13" FontWeight="SemiBold"
+            <TextBlock Text="{l:Tr RowDetail_NoRowSelected}" FontSize="13" FontWeight="SemiBold"
                        Opacity="0.6" HorizontalAlignment="Center" />
             <TextBlock Text="{Binding Note}" FontSize="11.5" Opacity="0.6" TextWrapping="Wrap"
                        TextAlignment="Center" />
@@ -122,10 +123,10 @@
                                          IsChecked and no Command (DESIGN rule 6). -->
                                     <Panel Grid.Column="1" IsVisible="{Binding IsEditable}">
                                         <ToggleButton x:DataType="vm:NewRowField" DataContext="{Binding Editor}"
-                                                      Classes="chip" Content="NULL" FontSize="10" Padding="7,1"
+                                                      Classes="chip" Content="{l:Tr Editor_NullLabel}" FontSize="10" Padding="7,1"
                                                       IsChecked="{Binding IsNull, Mode=TwoWay}"
-                                                      ToolTip.Tip="Set this field to NULL"
-                                                      AutomationProperties.Name="{Binding Name, StringFormat='{}{0} is NULL'}" />
+                                                      ToolTip.Tip="{l:Tr RowDetail_SetNullTip}"
+                                                      AutomationProperties.Name="{Binding NullAutomationName}" />
                                     </Panel>
                                 </Grid>
 
@@ -138,12 +139,12 @@
                                         <SelectableTextBlock Text="{Binding DisplayText}" FontSize="12" TextWrapping="Wrap"
                                                              VerticalAlignment="Center"
                                                              Classes.null="{Binding IsNull}" />
-                                        <Button Grid.Column="1" Classes="chip" Content="Inspect" FontSize="10" Padding="7,1"
+                                        <Button Grid.Column="1" Classes="chip" Content="{l:Tr RowDetail_Inspect}" FontSize="10" Padding="7,1"
                                                 Margin="6,0,0,0" VerticalAlignment="Top"
                                                 IsVisible="{Binding CanInspect}"
                                                 Command="{Binding $parent[views:RowDetailPanel].((vm:RowDetailViewModel)DataContext).InspectCommand}"
                                                 CommandParameter="{Binding}"
-                                                ToolTip.Tip="Open the full value in the cell inspector" />
+                                                ToolTip.Tip="{l:Tr RowDetail_InspectTip}" />
                                     </Grid>
                                 </Border>
                                 <TextBlock Text="{Binding ReadOnlyReason}" FontSize="10.5" Opacity="0.6"
@@ -169,16 +170,16 @@
                            Foreground="{DynamicResource AppDangerBrush}"
                            IsVisible="{Binding Error, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
                 <Grid ColumnDefinitions="*,Auto,Auto">
-                    <TextBlock Text="Reviewed before commit" FontSize="10.5" Opacity="0.6"
+                    <TextBlock Text="{l:Tr RowDetail_ReviewedHint}" FontSize="10.5" Opacity="0.6"
                                VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
-                               ToolTip.Tip="Staged changes are listed, checked for conflicts and committed from the status bar" />
-                    <Button Grid.Column="1" Classes="soft" Content="Revert" FontSize="12" Padding="10,3" MinHeight="0"
+                               ToolTip.Tip="{l:Tr RowDetail_ReviewedTip}" />
+                    <Button Grid.Column="1" Classes="soft" Content="{l:Tr RowDetail_Revert}" FontSize="12" Padding="10,3" MinHeight="0"
                             Command="{Binding RevertCommand}"
-                            cmd:CommandTip.Text="Put every field back to the row's values" cmd:CommandTip.Keys="Escape" />
+                            cmd:CommandTip.Text="{l:Tr RowDetail_RevertTip}" cmd:CommandTip.Keys="Escape" />
                     <Button Grid.Column="2" Classes="accent" Content="{Binding StageLabel}" FontSize="12" Padding="12,3" MinHeight="0"
                             Margin="6,0,0,0"
                             Command="{Binding StageCommand}"
-                            ToolTip.Tip="Stage these changes; review and commit them from the status bar (Enter)" />
+                            ToolTip.Tip="{l:Tr RowDetail_StageTip}" />
                 </Grid>
             </StackPanel>
         </Border>

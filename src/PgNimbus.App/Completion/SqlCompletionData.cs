@@ -4,6 +4,7 @@ using Avalonia.Media;
 using AvaloniaEdit.CodeCompletion;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Editing;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Text;
 
 namespace PgNimbus.App.Completion;
@@ -163,23 +164,23 @@ public sealed class SqlCompletionData(string text, SqlCompletionKind kind, strin
 
     private string KindLabel => Kind switch
     {
-        SqlCompletionKind.Keyword => "keyword",
-        SqlCompletionKind.Function => "function",
-        SqlCompletionKind.Schema => "schema",
-        SqlCompletionKind.Table => "table",
-        SqlCompletionKind.Column => "column",
-        SqlCompletionKind.Alias => "alias",
-        SqlCompletionKind.Cte => "CTE",
-        SqlCompletionKind.JoinCondition => "FK join condition",
-        SqlCompletionKind.Type => "type",
-        SqlCompletionKind.Value => "value",
-        SqlCompletionKind.Sequence => "sequence",
-        SqlCompletionKind.Snippet => "snippet",
-        SqlCompletionKind.Role => "role",
-        SqlCompletionKind.Setting => "setting",
-        SqlCompletionKind.Extension => "extension",
-        SqlCompletionKind.Index => "index",
-        _ => "item",
+        SqlCompletionKind.Keyword => Strings.Editor_KindKeyword,
+        SqlCompletionKind.Function => Strings.Editor_KindFunction,
+        SqlCompletionKind.Schema => Strings.Editor_KindSchema,
+        SqlCompletionKind.Table => Strings.Editor_KindTable,
+        SqlCompletionKind.Column => Strings.Editor_KindColumn,
+        SqlCompletionKind.Alias => Strings.Editor_KindAlias,
+        SqlCompletionKind.Cte => Strings.Editor_KindCte,
+        SqlCompletionKind.JoinCondition => Strings.Editor_KindJoinCondition,
+        SqlCompletionKind.Type => Strings.Editor_KindType,
+        SqlCompletionKind.Value => Strings.Editor_KindValue,
+        SqlCompletionKind.Sequence => Strings.Editor_KindSequence,
+        SqlCompletionKind.Snippet => Strings.Editor_KindSnippet,
+        SqlCompletionKind.Role => Strings.Editor_KindRole,
+        SqlCompletionKind.Setting => Strings.Editor_KindSetting,
+        SqlCompletionKind.Extension => Strings.Editor_KindExtension,
+        SqlCompletionKind.Index => Strings.Editor_KindIndex,
+        _ => Strings.Editor_KindItem,
     };
 
     // Bound by the popup row template in Theme.axaml.
