@@ -1454,6 +1454,802 @@
   <!-- ===== Editor ===== -->
 
   <!-- ===== Results ===== -->
+  <data name="Results_StaleFiltersTip" xml:space="preserve">
+    <value>The query was edited: run it to update the filters</value>
+    <comment>Results area: tooltip over the dimmed browse filter chips after the page query was edited by hand.</comment>
+  </data>
+  <data name="Results_CopyAsMenu" xml:space="preserve">
+    <value>Copy As</value>
+    <comment>Results grid context menu: submenu heading for copying the selection in another format.</comment>
+  </data>
+  <data name="Results_FormatCsv" xml:space="preserve">
+    <value>CSV</value>
+    <comment>Format name (comma-separated values) in the grid's Copy As submenu and in file save dialogs. Usually left as is.</comment>
+  </data>
+  <data name="Results_FormatJson" xml:space="preserve">
+    <value>JSON</value>
+    <comment>Format name (JSON) in the grid's Copy As submenu and in file save dialogs. Usually left as is.</comment>
+  </data>
+  <data name="Results_CopyAsMarkdown" xml:space="preserve">
+    <value>Markdown Table</value>
+    <comment>Results grid context menu, Copy As submenu: copies the selection as a Markdown table.</comment>
+  </data>
+  <data name="Results_CopyAsInsert" xml:space="preserve">
+    <value>INSERT Statements</value>
+    <comment>Results grid context menu, Copy As submenu: copies the selection as SQL INSERT statements. INSERT is an SQL keyword.</comment>
+  </data>
+  <data name="Results_InspectCell" xml:space="preserve">
+    <value>Inspect Cell…</value>
+    <comment>Results grid context menu: opens the cell inspector on the cell.</comment>
+  </data>
+  <data name="Results_RowDetails" xml:space="preserve">
+    <value>Row Details</value>
+    <comment>Results grid context menu: opens the row as a form.</comment>
+  </data>
+  <data name="Results_FilterMenu" xml:space="preserve">
+    <value>Filter</value>
+    <comment>Results grid context menu (browse mode): submenu of filters made from the clicked cell.</comment>
+  </data>
+  <data name="Results_SetCellNull" xml:space="preserve">
+    <value>Set Cell to NULL</value>
+    <comment>Results grid context menu: sets the cell's value to NULL. NULL is the SQL keyword.</comment>
+  </data>
+  <data name="Results_FollowForeignKey" xml:space="preserve">
+    <value>Follow Foreign Key</value>
+    <comment>Results grid context menu: placeholder text of the item that jumps to the referenced row. It is replaced with the specific text when the menu opens.</comment>
+  </data>
+  <data name="Results_ReferencingRows" xml:space="preserve">
+    <value>Referencing Rows</value>
+    <comment>Results grid context menu: submenu listing tables that have rows pointing at this row.</comment>
+  </data>
+  <data name="Results_AddRow" xml:space="preserve">
+    <value>Add Row…</value>
+    <comment>Results grid context menu: opens the dialog that inserts a new row.</comment>
+  </data>
+  <data name="Results_DeleteSelectedRows" xml:space="preserve">
+    <value>Delete Selected Rows</value>
+    <comment>Results grid context menu: deletes the selected rows.</comment>
+  </data>
+  <data name="Results_NoResultsYet" xml:space="preserve">
+    <value>No results yet</value>
+    <comment>Results area: heading of the empty state before any query has run.</comment>
+  </data>
+  <data name="Results_NoRowsMatch" xml:space="preserve">
+    <value>No rows match these conditions</value>
+    <comment>Results area: heading of the empty state when browse filters match no rows.</comment>
+  </data>
+  <data name="Results_ClearConditions" xml:space="preserve">
+    <value>Clear conditions</value>
+    <comment>Results area: button in the no-match empty state that removes all filters.</comment>
+  </data>
+  <data name="Results_RunHintNone" xml:space="preserve">
+    <value>Run a query</value>
+    <comment>Results area: hint under 'No results yet' when no keyboard gesture is known.</comment>
+  </data>
+  <data name="Results_RunHintOne" xml:space="preserve">
+    <value>Run a query with {gesture}</value>
+    <comment>Results area: hint under 'No results yet'. {gesture} is a keyboard shortcut, such as Ctrl+Enter.</comment>
+  </data>
+  <data name="Results_RunHintTwo" xml:space="preserve">
+    <value>Run a query with {first} or {second}</value>
+    <comment>Results area: hint under 'No results yet'. {first} and {second} are keyboard shortcuts, such as Ctrl+Enter and F5.</comment>
+  </data>
+  <data name="Results_PlanColor" xml:space="preserve">
+    <value>Color:</value>
+    <comment>Query plan header (tree view): label before the buttons that choose what the heat bars show.</comment>
+  </data>
+  <data name="Results_PlanMetricTime" xml:space="preserve">
+    <value>Time</value>
+    <comment>Query plan header: button that colors the tree's bars by execution time.</comment>
+  </data>
+  <data name="Results_PlanMetricRows" xml:space="preserve">
+    <value>Rows</value>
+    <comment>Query plan header: button that colors the tree's bars by row count.</comment>
+  </data>
+  <data name="Results_PlanMetricCost" xml:space="preserve">
+    <value>Cost</value>
+    <comment>Query plan header: button that colors the tree's bars by planner cost.</comment>
+  </data>
+  <data name="Results_PlanMetricBuffers" xml:space="preserve">
+    <value>Buffers</value>
+    <comment>Query plan header: button that colors the tree's bars by buffer (block) usage.</comment>
+  </data>
+  <data name="Results_PlanCompare" xml:space="preserve">
+    <value>Compare ▾</value>
+    <comment>Query plan header: button that opens a menu to save the plan or compare it with a saved one. Keep the ▾ arrow.</comment>
+  </data>
+  <data name="Results_PlanCompareTip" xml:space="preserve">
+    <value>Save this plan to Query Lab, or compare it with a saved one</value>
+    <comment>Query plan header: tooltip of the Compare button. Query Lab is a feature name.</comment>
+  </data>
+  <data name="Results_PlanSaveToLab" xml:space="preserve">
+    <value>Save to Query Lab…</value>
+    <comment>Query plan header, Compare menu: saves the plan in Query Lab.</comment>
+  </data>
+  <data name="Results_PlanCompareWith" xml:space="preserve">
+    <value>Compare With</value>
+    <comment>Query plan header, Compare menu: submenu listing saved plans to compare with.</comment>
+  </data>
+  <data name="Results_PlanOpenLab" xml:space="preserve">
+    <value>Open Query Lab</value>
+    <comment>Query plan header, Compare menu: opens the Query Lab window.</comment>
+  </data>
+  <data name="Results_PlanExport" xml:space="preserve">
+    <value>Export ▾</value>
+    <comment>Query plan header: button that opens a menu to copy or save the plan. Keep the ▾ arrow.</comment>
+  </data>
+  <data name="Results_PlanExportTip" xml:space="preserve">
+    <value>Copy or save this plan</value>
+    <comment>Query plan header: tooltip of the Export button.</comment>
+  </data>
+  <data name="Results_PlanCopyJson" xml:space="preserve">
+    <value>Copy as JSON</value>
+    <comment>Query plan header, Export menu: copies the plan as JSON.</comment>
+  </data>
+  <data name="Results_PlanCopyText" xml:space="preserve">
+    <value>Copy as Text</value>
+    <comment>Query plan header, Export menu: copies the plan as text.</comment>
+  </data>
+  <data name="Results_PlanSaveJson" xml:space="preserve">
+    <value>Save as .json…</value>
+    <comment>Query plan header, Export menu: saves the plan to a .json file. Keep the extension.</comment>
+  </data>
+  <data name="Results_PlanSaveText" xml:space="preserve">
+    <value>Save as .txt…</value>
+    <comment>Query plan header, Export menu: saves the plan to a .txt file. Keep the extension.</comment>
+  </data>
+  <data name="Results_PlanViewText" xml:space="preserve">
+    <value>Text</value>
+    <comment>Query plan header: button that shows the plan as text.</comment>
+  </data>
+  <data name="Results_PlanViewTree" xml:space="preserve">
+    <value>Tree</value>
+    <comment>Query plan header: button that shows the plan as a tree.</comment>
+  </data>
+  <data name="Results_PlanCloseTip" xml:space="preserve">
+    <value>Close the plan and show results</value>
+    <comment>Query plan header: tooltip of the ✕ button.</comment>
+  </data>
+  <data name="Results_InspectorView" xml:space="preserve">
+    <value>View</value>
+    <comment>Cell inspector: button that shows the value read-only (the other half of View / Edit).</comment>
+  </data>
+  <data name="Results_InspectorEdit" xml:space="preserve">
+    <value>Edit</value>
+    <comment>Cell inspector: button that switches to editing the value.</comment>
+  </data>
+  <data name="Results_InspectorTree" xml:space="preserve">
+    <value>Tree</value>
+    <comment>Cell inspector: toggle button that shows a JSON value as a tree.</comment>
+  </data>
+  <data name="Results_InspectorTreeTip" xml:space="preserve">
+    <value>Toggle tree / text view</value>
+    <comment>Cell inspector: tooltip of the Tree toggle.</comment>
+  </data>
+  <data name="Results_InspectorWrap" xml:space="preserve">
+    <value>Wrap</value>
+    <comment>Cell inspector: toggle button for word wrap.</comment>
+  </data>
+  <data name="Results_InspectorWrapTip" xml:space="preserve">
+    <value>Toggle word wrap</value>
+    <comment>Cell inspector: tooltip of the Wrap toggle.</comment>
+  </data>
+  <data name="Results_InspectorFormat" xml:space="preserve">
+    <value>Format</value>
+    <comment>Cell inspector (editing JSON): button that pretty-prints the text.</comment>
+  </data>
+  <data name="Results_InspectorFormatTip" xml:space="preserve">
+    <value>Pretty-print</value>
+    <comment>Cell inspector: tooltip of the Format button.</comment>
+  </data>
+  <data name="Results_InspectorMinify" xml:space="preserve">
+    <value>Minify</value>
+    <comment>Cell inspector (editing JSON): button that collapses the text to one line.</comment>
+  </data>
+  <data name="Results_InspectorMinifyTip" xml:space="preserve">
+    <value>Collapse to one line</value>
+    <comment>Cell inspector: tooltip of the Minify button.</comment>
+  </data>
+  <data name="Results_FilterIsTrue" xml:space="preserve">
+    <value>{column} is true</value>
+    <comment>Results grid context menu, Filter submenu: keep rows where a boolean column is true. {column} is a column name, such as active.</comment>
+  </data>
+  <data name="Results_FilterIsFalse" xml:space="preserve">
+    <value>{column} is false</value>
+    <comment>Results grid context menu, Filter submenu: keep rows where a boolean column is false. {column} is a column name, such as active.</comment>
+  </data>
+  <data name="Results_FilterEquals" xml:space="preserve">
+    <value>{column} = {value}</value>
+    <comment>Results grid context menu, Filter submenu: keep rows equal to the clicked cell. {column} is a column name, {value} the cell's text (shortened), such as status = open.</comment>
+  </data>
+  <data name="Results_FilterNotEquals" xml:space="preserve">
+    <value>{column} ≠ {value}</value>
+    <comment>Results grid context menu, Filter submenu: keep rows different from the clicked cell. {column} is a column name, {value} the cell's text (shortened).</comment>
+  </data>
+  <data name="Results_FilterContains" xml:space="preserve">
+    <value>{column} contains {value}</value>
+    <comment>Results grid context menu, Filter submenu: keep rows whose text contains the clicked cell's value. {column} is a column name, {value} the cell's text (shortened).</comment>
+  </data>
+  <data name="Results_FilterIsNull" xml:space="preserve">
+    <value>{column} is null</value>
+    <comment>Results grid context menu, Filter submenu: keep rows where the column is NULL. {column} is a column name.</comment>
+  </data>
+  <data name="Results_FilterIsNotNull" xml:space="preserve">
+    <value>{column} is not null</value>
+    <comment>Results grid context menu, Filter submenu: keep rows where the column is not NULL. {column} is a column name.</comment>
+  </data>
+  <data name="Results_FollowFk" xml:space="preserve">
+    <value>Follow {column} → {target}</value>
+    <comment>Results grid context menu: jumps to the row a foreign key points at. {column} is the clicked column, {target} the referenced table, such as public.customers.</comment>
+  </data>
+  <data name="Results_CantFollowColumn" xml:space="preserve">
+    <value>Can't follow: column {column} isn't in this result set.</value>
+    <comment>Status line: following a foreign key failed because a key column is not in the result. {column} is a column name.</comment>
+  </data>
+  <data name="Results_CantFollowNull" xml:space="preserve">
+    <value>Can't follow a NULL key — it references no row.</value>
+    <comment>Status line: the clicked foreign key cell is NULL, so there is no row to jump to.</comment>
+  </data>
+  <data name="Results_DiscardInspectorEdit" xml:space="preserve">
+    <value>Discard your changes to "{column}"?</value>
+    <comment>Confirm dialog: shown when closing the cell inspector with an unsaved edit. {column} is a column name.</comment>
+  </data>
+  <data name="Results_DeleteRowsConfirm_one" xml:space="preserve">
+    <value>Delete this row? This can't be undone.</value>
+    <comment>Confirm dialog: deleting one row from the grid.</comment>
+  </data>
+  <data name="Results_DeleteRowsConfirm_other" xml:space="preserve">
+    <value>Delete these {number} rows? This can't be undone.</value>
+    <comment>Confirm dialog: deleting several rows from the grid. {number} is how many, such as 12.</comment>
+  </data>
+  <data name="Results_ImportTitle" xml:space="preserve">
+    <value>Import CSV or JSON</value>
+    <comment>Title of the file picker for importing a file into a table.</comment>
+  </data>
+  <data name="Results_ImportFileType" xml:space="preserve">
+    <value>CSV or JSON</value>
+    <comment>File type filter in the import file picker.</comment>
+  </data>
+  <data name="Results_AllFiles" xml:space="preserve">
+    <value>All files</value>
+    <comment>File type filter in a file picker: every file.</comment>
+  </data>
+  <data name="Results_FileTypeText" xml:space="preserve">
+    <value>Text</value>
+    <comment>File type name in the save dialog for a plan saved as .txt.</comment>
+  </data>
+  <data name="Results_ImportReading" xml:space="preserve">
+    <value>Reading {file}…</value>
+    <comment>Status line while an import file is read. {file} is a file name, such as data.csv.</comment>
+  </data>
+  <data name="Results_ImportNothing" xml:space="preserve">
+    <value>Nothing to import — the file has no rows.</value>
+    <comment>Status line: the import file was empty.</comment>
+  </data>
+  <data name="Results_ImportFailed" xml:space="preserve">
+    <value>Import failed: {message}</value>
+    <comment>Status line: importing failed. {message} is the reason.</comment>
+  </data>
+  <data name="Results_Imported_one" xml:space="preserve">
+    <value>Imported {number} row into {table}</value>
+    <comment>Status line after an import, singular. {number} is how many rows, {table} is schema.table.</comment>
+  </data>
+  <data name="Results_Imported_other" xml:space="preserve">
+    <value>Imported {number} rows into {table}</value>
+    <comment>Status line after an import, plural. {number} is how many rows, such as 1,200; {table} is schema.table.</comment>
+  </data>
+  <data name="Results_ExportFailed" xml:space="preserve">
+    <value>Export failed: {message}</value>
+    <comment>Status line: writing an export file failed. {message} is the reason.</comment>
+  </data>
+  <data name="Results_NoSavedPlans" xml:space="preserve">
+    <value>No saved plans</value>
+    <comment>Query plan header, Compare With submenu: shown when Query Lab holds no saved plan.</comment>
+  </data>
+  <data name="Results_MoreInQueryLab" xml:space="preserve">
+    <value>More in Query Lab…</value>
+    <comment>Query plan header, Compare With submenu: opens Query Lab. Query Lab is a feature name.</comment>
+  </data>
+  <data name="Results_PlanCopied" xml:space="preserve">
+    <value>Plan copied to clipboard</value>
+    <comment>Status line after copying a query plan.</comment>
+  </data>
+  <data name="Results_SavePlanTitle" xml:space="preserve">
+    <value>Save query plan</value>
+    <comment>Title of the save dialog for a query plan.</comment>
+  </data>
+  <data name="Results_PlanSaved" xml:space="preserve">
+    <value>Plan saved to {file}</value>
+    <comment>Status line after saving a query plan. {file} is a file name, such as plan.json.</comment>
+  </data>
+  <data name="Results_SaveFailed" xml:space="preserve">
+    <value>Save failed: {message}</value>
+    <comment>Status line: saving a plan file failed. {message} is the reason.</comment>
+  </data>
+  <data name="Results_HeaderPrimaryKey" xml:space="preserve">
+    <value>primary key</value>
+    <comment>Tooltip of a results column header: the column is part of the primary key.</comment>
+  </data>
+  <data name="Results_HeaderNotNull" xml:space="preserve">
+    <value>not null</value>
+    <comment>Tooltip of a results column header: the column cannot be NULL.</comment>
+  </data>
+  <data name="Results_TimePlaceholder" xml:space="preserve">
+    <value>HH:MM:SS</value>
+    <comment>Placeholder of the time box in a grid cell editor for a timestamp: the format to type.</comment>
+  </data>
+  <data name="Results_TabTitle" xml:space="preserve">
+    <value>Query</value>
+    <comment>Default name of a query tab when nothing better is known.</comment>
+  </data>
+  <data name="Results_TabTitleNumbered" xml:space="preserve">
+    <value>Query {number}</value>
+    <comment>Default name of a new scratch query tab. {number} counts the tabs, such as 3.</comment>
+  </data>
+  <data name="Results_DirtyScratch" xml:space="preserve">
+    <value>Edited since the last run</value>
+    <comment>Tooltip of the dirty dot on a tab that was never saved to a file.</comment>
+  </data>
+  <data name="Results_DirtyFile" xml:space="preserve">
+    <value>Unsaved changes: this tab differs from the file on disk</value>
+    <comment>Tooltip of the dirty dot on a tab opened from a file.</comment>
+  </data>
+  <data name="Results_ColumnCap" xml:space="preserve">
+    <value>showing {shown} of {total} columns</value>
+    <comment>Status bar: the grid shows fewer columns than the result has. {shown} and {total} are numbers, such as 300 and 5,000.</comment>
+  </data>
+  <data name="Results_CapRows" xml:space="preserve">
+    <value>capped at {max} rows — refine the query for the full set</value>
+    <comment>Status bar warning: the result was cut at a row limit. {max} is the limit, such as 100,000.</comment>
+  </data>
+  <data name="Results_CapBytes" xml:space="preserve">
+    <value>capped at {megabytes} MB of results, refine the query for the full set</value>
+    <comment>Status bar warning: the result was cut at a size limit. {megabytes} is a number, such as 256.</comment>
+  </data>
+  <data name="Results_CapScript" xml:space="preserve">
+    <value>later rows not kept: the script's results reached {max} rows or {megabytes} MB</value>
+    <comment>Status bar warning: a script's results together reached a limit. {max} is a row count, {megabytes} a size in MB.</comment>
+  </data>
+  <data name="Results_OtherTableStatus" xml:space="preserve">
+    <value>This query doesn't read {table}, the table this tab browsed, so it ran as an ordinary query: no filters, no editing.</value>
+    <comment>Status line: a browse-shaped query read another table. {table} is schema.table.</comment>
+  </data>
+  <data name="Results_WritesAllowedHint" xml:space="preserve">
+    <value>writes are allowed now. Run the query again to edit these rows.</value>
+    <comment>Completes the tooltip 'Results are read-only: …' after writes were allowed in a production window.</comment>
+  </data>
+  <data name="Results_OtherTableHint" xml:space="preserve">
+    <value>the query doesn't read {table}, the table this tab browsed. Write {table} in full to browse and edit it.</value>
+    <comment>Completes the tooltip 'Results are read-only: …'. {table} is schema.table, such as public.orders.</comment>
+  </data>
+  <data name="Results_StatusReady" xml:space="preserve">
+    <value>Ready</value>
+    <comment>Status line of a tab that has not run anything.</comment>
+  </data>
+  <data name="Results_StatusRunning" xml:space="preserve">
+    <value>Running...</value>
+    <comment>Status line while a query runs. Keep the three dots.</comment>
+  </data>
+  <data name="Results_StatusDone" xml:space="preserve">
+    <value>Done</value>
+    <comment>Status line after a query finished.</comment>
+  </data>
+  <data name="Results_StatusCancelled" xml:space="preserve">
+    <value>Cancelled</value>
+    <comment>Status line after a query was cancelled.</comment>
+  </data>
+  <data name="Results_StatusError" xml:space="preserve">
+    <value>Error: {message}</value>
+    <comment>Status line after a failure. {message} is the reason.</comment>
+  </data>
+  <data name="Results_ErrorStatus" xml:space="preserve">
+    <value>Error: {message}{location}{note}</value>
+    <comment>Status line after a failed statement. {message} is the server's message, {location} is empty or the text '(line 3, column 15)' with a leading space, {note} is empty or the text 'transaction rolled back' with a leading space.</comment>
+  </data>
+  <data name="Results_ErrorLocation" xml:space="preserve">
+    <value> (line {line}, column {column})</value>
+    <comment>Added to an error status line: where in the editor the error is. Keep the leading space. {line} and {column} are numbers.</comment>
+  </data>
+  <data name="Results_ErrorRolledBack" xml:space="preserve">
+    <value> — transaction rolled back</value>
+    <comment>Added to an error status line when the statement ran in a transaction that was rolled back. Keep the leading space.</comment>
+  </data>
+  <data name="Results_TimingFirstByte" xml:space="preserve">
+    <value>{total} ms · first byte {first} ms</value>
+    <comment>Status bar timing of a query. {total} is the elapsed milliseconds, {first} the milliseconds until the first row arrived, such as 42 and 7.</comment>
+  </data>
+  <data name="Results_TimingMs" xml:space="preserve">
+    <value>{ms} ms</value>
+    <comment>Status bar timing: milliseconds. {ms} is a number, such as 42.</comment>
+  </data>
+  <data name="Results_TimingTotal" xml:space="preserve">
+    <value>{ms} ms total</value>
+    <comment>Status bar timing of a whole script, in milliseconds. {ms} is a number, such as 420.</comment>
+  </data>
+  <data name="Results_RowsAffected" xml:space="preserve">
+    <value>{rows} affected</value>
+    <comment>Status bar: how many rows a command changed. {rows} is a count with its unit, such as 5 rows.</comment>
+  </data>
+  <data name="Results_Rows_one" xml:space="preserve">
+    <value>{number} row</value>
+    <comment>A count of rows, singular. {number} is 1.</comment>
+  </data>
+  <data name="Results_Rows_other" xml:space="preserve">
+    <value>{number} rows</value>
+    <comment>A count of rows, plural. {number} is the count, such as 1,200.</comment>
+  </data>
+  <data name="Results_ScriptOk_one" xml:space="preserve">
+    <value>Script: {count} statement OK</value>
+    <comment>Status line after a script ran without error, singular: one statement.</comment>
+  </data>
+  <data name="Results_ScriptOk_other" xml:space="preserve">
+    <value>Script: {count} statements OK</value>
+    <comment>Status line after a script ran without error. {count} is how many statements, such as 12.</comment>
+  </data>
+  <data name="Results_DidYouMean" xml:space="preserve">
+    <value>Did you mean {replacement}?</value>
+    <comment>Suggestion under a failed query: a name that differs only in capitals. {replacement} is the fixed name, such as "Spells".</comment>
+  </data>
+  <data name="Results_QuoteIdentifiers" xml:space="preserve">
+    <value>Quote {number} identifiers to match the database?</value>
+    <comment>Suggestion under a failed query: several names need quotes to match the database. {number} is how many.</comment>
+  </data>
+  <data name="Results_PlanImported" xml:space="preserve">
+    <value>Imported plan</value>
+    <comment>Summary of a plan tab opened from pasted text, and its status line.</comment>
+  </data>
+  <data name="Results_PlanSavedSummary" xml:space="preserve">
+    <value>Saved plan</value>
+    <comment>Summary of a plan tab opened from Query Lab.</comment>
+  </data>
+  <data name="Results_PlanSavedStatus" xml:space="preserve">
+    <value>Saved plan “{name}”</value>
+    <comment>Status line when a saved plan was opened. {name} is the name the person gave it.</comment>
+  </data>
+  <data name="Results_PlanPlanning" xml:space="preserve">
+    <value>Planning: {ms} ms</value>
+    <comment>Plan header summary: planning time. {ms} is milliseconds with decimals, such as 0.123.</comment>
+  </data>
+  <data name="Results_PlanExecution" xml:space="preserve">
+    <value>Execution: {ms} ms</value>
+    <comment>Plan header summary: execution time. {ms} is milliseconds with decimals, such as 12.345.</comment>
+  </data>
+  <data name="Results_PlanRunWriteTitle" xml:space="preserve">
+    <value>EXPLAIN ANALYZE executed this write</value>
+    <comment>Plan warning title: a hand-written EXPLAIN ANALYZE ran a data-changing statement. EXPLAIN ANALYZE is SQL.</comment>
+  </data>
+  <data name="Results_PlanRunWriteDetail" xml:space="preserve">
+    <value>Run executes the statement as written, so its changes were applied (subject to the surrounding transaction). The Explain command analyzes a write inside a transaction it always rolls back.</value>
+    <comment>Plan warning detail that goes with 'EXPLAIN ANALYZE executed this write'. Run and Explain are command names.</comment>
+  </data>
+  <data name="Results_PlanRolledBackTitle" xml:space="preserve">
+    <value>Data-modifying statement rolled back</value>
+    <comment>Plan warning title: the analyzed statement changes data but was rolled back.</comment>
+  </data>
+  <data name="Results_PlanRolledBackDetail" xml:space="preserve">
+    <value>EXPLAIN ANALYZE executed this statement inside a transaction and rolled it back, so no changes were persisted.</value>
+    <comment>Plan warning detail that goes with 'Data-modifying statement rolled back'.</comment>
+  </data>
+  <data name="Results_StatusRunningExplainAnalyze" xml:space="preserve">
+    <value>Running EXPLAIN ANALYZE...</value>
+    <comment>Status line while EXPLAIN ANALYZE runs. Keep the three dots.</comment>
+  </data>
+  <data name="Results_StatusRunningExplain" xml:space="preserve">
+    <value>Running EXPLAIN...</value>
+    <comment>Status line while EXPLAIN runs. Keep the three dots.</comment>
+  </data>
+  <data name="Results_StatusPlanReady" xml:space="preserve">
+    <value>Plan ready</value>
+    <comment>Status line after a query plan was produced.</comment>
+  </data>
+  <data name="Results_StatusExplainFailed" xml:space="preserve">
+    <value>Explain failed: {message}</value>
+    <comment>Status line: EXPLAIN failed. {message} is the reason.</comment>
+  </data>
+  <data name="Results_ElapsedSeconds" xml:space="preserve">
+    <value>{seconds} s</value>
+    <comment>Elapsed time of a running query in seconds. {seconds} is a number with one decimal, such as 2.5.</comment>
+  </data>
+  <data name="Results_HintScriptReadOnly" xml:space="preserve">
+    <value>multi-statement scripts run read-only — run the statement on its own to edit.</value>
+    <comment>Completes the tooltip 'Results are read-only: …' for a script's results.</comment>
+  </data>
+  <data name="Results_TheTable" xml:space="preserve">
+    <value>the table</value>
+    <comment>Used inside sentences when the table's name is not known, as in 'the table has no primary key'.</comment>
+  </data>
+  <data name="Results_HintNoPrimaryKey" xml:space="preserve">
+    <value>{table} has no primary key, so rows can't be targeted exactly.</value>
+    <comment>Completes the tooltip 'Results are read-only: …'. {table} is schema.table or the words 'the table'.</comment>
+  </data>
+  <data name="Results_HintComputedColumns" xml:space="preserve">
+    <value>some columns are expressions or system columns, not table columns.</value>
+    <comment>Completes the tooltip 'Results are read-only: …'.</comment>
+  </data>
+  <data name="Results_HintMultipleTables" xml:space="preserve">
+    <value>the result combines columns from more than one table.</value>
+    <comment>Completes the tooltip 'Results are read-only: …'.</comment>
+  </data>
+  <data name="Results_HintRepeatedColumn" xml:space="preserve">
+    <value>the same column appears more than once.</value>
+    <comment>Completes the tooltip 'Results are read-only: …'.</comment>
+  </data>
+  <data name="Results_HintNotPlainTable" xml:space="preserve">
+    <value>the source is a view, function, or another relation whose rows can't be updated by key.</value>
+    <comment>Completes the tooltip 'Results are read-only: …'.</comment>
+  </data>
+  <data name="Results_HintRenamedColumns" xml:space="preserve">
+    <value>columns are renamed (AS …), so edits can't be mapped back to the table's real columns.</value>
+    <comment>Completes the tooltip 'Results are read-only: …'. AS is the SQL keyword.</comment>
+  </data>
+  <data name="Results_HintPrimaryKeyNotSelected" xml:space="preserve">
+    <value>the primary key of {table} isn't in the result — include it to edit.</value>
+    <comment>Completes the tooltip 'Results are read-only: …'. {table} is schema.table or the words 'the table'.</comment>
+  </data>
+  <data name="Results_HintRepeatedTable" xml:space="preserve">
+    <value>the query reads the same table more than once (a self-join), so an edit could change a different row than the one it shows.</value>
+    <comment>Completes the tooltip 'Results are read-only: …'.</comment>
+  </data>
+  <data name="Results_HintNotMappable" xml:space="preserve">
+    <value>this result set can't be mapped back to a table.</value>
+    <comment>Completes the tooltip 'Results are read-only: …'.</comment>
+  </data>
+  <data name="Results_HintUnreadableKeyTable" xml:space="preserve">
+    <value>a primary-key column of {table} has a type pgNimbus can't read, so rows can't be identified exactly.</value>
+    <comment>Completes the tooltip 'Results are read-only: …'. {table} is schema.table or the words 'the table'.</comment>
+  </data>
+  <data name="Results_HintUnreadableKeyColumn" xml:space="preserve">
+    <value>primary-key column {column} ({type}) has a type pgNimbus can't read, so rows can't be identified exactly.</value>
+    <comment>Completes the tooltip 'Results are read-only: …'. {column} is a column name, {type} its PostgreSQL type, such as hstore.</comment>
+  </data>
+  <data name="Results_EditUnavailable" xml:space="preserve">
+    <value>Editing isn't available for this result set.</value>
+    <comment>Status line or message when an edit is tried on read-only results.</comment>
+  </data>
+  <data name="Results_EditPkUnsupported" xml:space="preserve">
+    <value>Editing primary key columns isn't supported yet.</value>
+    <comment>Status line when someone edits a primary key column.</comment>
+  </data>
+  <data name="Results_EditPkMissing" xml:space="preserve">
+    <value>Cannot edit: primary key column isn't present in this result set.</value>
+    <comment>Status line when the result lacks the primary key column needed to find the row.</comment>
+  </data>
+  <data name="Results_CellSaved" xml:space="preserve">
+    <value>Saved {cell}</value>
+    <comment>Status line after an inline edit was saved. {cell} is schema.table.column, such as public.orders.status.</comment>
+  </data>
+  <data name="Results_UpdateFailed" xml:space="preserve">
+    <value>Update failed: {message}</value>
+    <comment>Status line: saving an edit failed. {message} is the reason.</comment>
+  </data>
+  <data name="Results_InvalidValue" xml:space="preserve">
+    <value>Invalid value for {column}: {error}</value>
+    <comment>Message when an edited value is not valid for its column. {column} is a column name, {error} the reason.</comment>
+  </data>
+  <data name="Results_EditPartOfKey" xml:space="preserve">
+    <value>{column} is part of the primary key, and editing key columns isn't supported yet.</value>
+    <comment>Message when someone edits a key column. {column} is a column name.</comment>
+  </data>
+  <data name="Results_StagedCell" xml:space="preserve">
+    <value>Staged {cell} — nothing applied until you commit</value>
+    <comment>Status line after an edit was staged (safe mode). {cell} is schema.table.column.</comment>
+  </data>
+  <data name="Results_StagedFields" xml:space="preserve">
+    <value>Staged {number} fields of {table} — nothing applied until you commit</value>
+    <comment>Status line after several fields of one row were staged. {number} is how many, {table} is schema.table.</comment>
+  </data>
+  <data name="Results_PkNotNull" xml:space="preserve">
+    <value>Primary key columns can't be set to NULL.</value>
+    <comment>Status line when someone sets a primary key cell to NULL.</comment>
+  </data>
+  <data name="Results_CellSetNull" xml:space="preserve">
+    <value>Set {cell} to NULL</value>
+    <comment>Status line after a cell was set to NULL. {cell} is schema.table.column.</comment>
+  </data>
+  <data name="Results_DeleteUnavailable" xml:space="preserve">
+    <value>Delete isn't available for this result set.</value>
+    <comment>Status line when delete is tried on read-only results.</comment>
+  </data>
+  <data name="Results_DeletePkMissing" xml:space="preserve">
+    <value>Cannot delete: a primary key column isn't present in this result set.</value>
+    <comment>Status line when the result lacks the key needed to delete a row.</comment>
+  </data>
+  <data name="Results_Deleted_one" xml:space="preserve">
+    <value>Deleted 1 row</value>
+    <comment>Status line after deleting one row.</comment>
+  </data>
+  <data name="Results_Deleted_other" xml:space="preserve">
+    <value>Deleted {number} rows</value>
+    <comment>Status line after deleting rows. {number} is how many, such as 1,200.</comment>
+  </data>
+  <data name="Results_DeleteFailed" xml:space="preserve">
+    <value>Delete failed, nothing deleted: {message}</value>
+    <comment>Status line: deleting rows failed and nothing was deleted. {message} is the reason.</comment>
+  </data>
+  <data name="Results_StagedDeletes_one" xml:space="preserve">
+    <value>Staged {count} delete — nothing applied until you commit</value>
+    <comment>Status line after one delete was staged (safe mode).</comment>
+  </data>
+  <data name="Results_StagedDeletes_other" xml:space="preserve">
+    <value>Staged {count} deletes — nothing applied until you commit</value>
+    <comment>Status line after deletes were staged (safe mode). {count} is how many.</comment>
+  </data>
+  <data name="Results_UnstagedDeletes_one" xml:space="preserve">
+    <value>Unstaged {count} delete</value>
+    <comment>Status line after one staged delete was taken back.</comment>
+  </data>
+  <data name="Results_UnstagedDeletes_other" xml:space="preserve">
+    <value>Unstaged {count} deletes</value>
+    <comment>Status line after staged deletes were taken back. {count} is how many.</comment>
+  </data>
+  <data name="Results_StagedUnstagedDeletes_one" xml:space="preserve">
+    <value>Staged {count} delete, unstaged {unstaged}</value>
+    <comment>Status line after toggling staged deletes, singular. {unstaged} is how many were taken back.</comment>
+  </data>
+  <data name="Results_StagedUnstagedDeletes_other" xml:space="preserve">
+    <value>Staged {count} deletes, unstaged {unstaged}</value>
+    <comment>Status line after toggling staged deletes. {count} is how many were staged, {unstaged} how many were taken back.</comment>
+  </data>
+  <data name="Results_StagingUnavailable" xml:space="preserve">
+    <value>Staging isn't available for this result set.</value>
+    <comment>Message in the Add-row dialog when changes can't be staged.</comment>
+  </data>
+  <data name="Results_StagedInsert" xml:space="preserve">
+    <value>Staged 1 insert — nothing applied until you commit</value>
+    <comment>Status line after an insert was staged (safe mode).</comment>
+  </data>
+  <data name="Results_Committed_one" xml:space="preserve">
+    <value>Committed {count} staged change in one transaction — {affected} affected</value>
+    <comment>Status line after committing staged changes, singular. {affected} is a row count with its unit, such as 1 row.</comment>
+  </data>
+  <data name="Results_Committed_other" xml:space="preserve">
+    <value>Committed {count} staged changes in one transaction — {affected} affected</value>
+    <comment>Status line after committing staged changes. {count} is how many, {affected} a row count with its unit, such as 5 rows.</comment>
+  </data>
+  <data name="Results_CommitFailed" xml:space="preserve">
+    <value>Commit failed — no staged changes were applied: {message}</value>
+    <comment>Status line: committing failed and nothing was applied. {message} is the reason.</comment>
+  </data>
+  <data name="Results_Restaged_one" xml:space="preserve">
+    <value>{count} row restaged on the current values</value>
+    <comment>Part of the status line after 'Reload and restage': one row.</comment>
+  </data>
+  <data name="Results_Restaged_other" xml:space="preserve">
+    <value>{count} rows restaged on the current values</value>
+    <comment>Part of the status line after 'Reload and restage'. {count} is how many rows.</comment>
+  </data>
+  <data name="Results_StagedDropped_one" xml:space="preserve">
+    <value>{count} staged row dropped (deleted elsewhere)</value>
+    <comment>Part of the status line after 'Reload and restage': one staged row was dropped.</comment>
+  </data>
+  <data name="Results_StagedDropped_other" xml:space="preserve">
+    <value>{count} staged rows dropped (deleted elsewhere)</value>
+    <comment>Part of the status line after 'Reload and restage'. {count} is how many rows.</comment>
+  </data>
+  <data name="Results_ReloadedNothing" xml:space="preserve">
+    <value>Reloaded — review and commit again</value>
+    <comment>Status line after 'Reload and restage' when nothing needed to change.</comment>
+  </data>
+  <data name="Results_Reloaded" xml:space="preserve">
+    <value>Reloaded: {parts} — review and commit again</value>
+    <comment>Status line after 'Reload and restage'. {parts} is a list of phrases, such as '2 rows restaged on the current values'.</comment>
+  </data>
+  <data name="Results_StagedLeft_one" xml:space="preserve">
+    <value>{count} staged change left</value>
+    <comment>Part of a status line: one staged change remains.</comment>
+  </data>
+  <data name="Results_StagedLeft_other" xml:space="preserve">
+    <value>{count} staged changes left</value>
+    <comment>Part of a status line. {count} is how many staged changes remain.</comment>
+  </data>
+  <data name="Results_UnstagedConflicts_one" xml:space="preserve">
+    <value>Unstaged {count} conflicting row; {left}</value>
+    <comment>Status line after unstaging conflicting rows, singular. {left} is the phrase '3 staged changes left'.</comment>
+  </data>
+  <data name="Results_UnstagedConflicts_other" xml:space="preserve">
+    <value>Unstaged {count} conflicting rows; {left}</value>
+    <comment>Status line after unstaging conflicting rows. {count} is how many, {left} is the phrase '3 staged changes left'.</comment>
+  </data>
+  <data name="Results_Discarded_one" xml:space="preserve">
+    <value>Discarded {count} staged change</value>
+    <comment>Status line after discarding one staged change.</comment>
+  </data>
+  <data name="Results_Discarded_other" xml:space="preserve">
+    <value>Discarded {count} staged changes</value>
+    <comment>Status line after discarding staged changes. {count} is how many.</comment>
+  </data>
+  <data name="Results_CommitFirst" xml:space="preserve">
+    <value>Commit or discard the staged changes for {table} first.</value>
+    <comment>Message when staging in another table while changes are staged. {table} is schema.table.</comment>
+  </data>
+  <data name="Results_CantStageRow" xml:space="preserve">
+    <value>Can't stage this row: its key column {column} couldn't be read, so the row can't be identified exactly.</value>
+    <comment>Message when a row's key cell could not be read. {column} is a column name.</comment>
+  </data>
+  <data name="Results_PendingSummary" xml:space="preserve">
+    <value>{count} staged · {table}</value>
+    <comment>Status bar: how many changes are staged. {count} is a number, {table} is schema.table.</comment>
+  </data>
+  <data name="Results_ExportShortfallScript" xml:space="preserve">
+    <value>a statement from a script can't be run again on its own.</value>
+    <comment>Completes the export status line 'Exported only the N rows shown to file: …'.</comment>
+  </data>
+  <data name="Results_ExportShortfallTransaction" xml:space="preserve">
+    <value>inside a transaction the rest can't be read. Commit or roll back, then export again.</value>
+    <comment>Completes the export status line 'Exported only the N rows shown to file: …'.</comment>
+  </data>
+  <data name="Results_ExportShortfallQuery" xml:space="preserve">
+    <value>a query you wrote isn't run again for the rest. Browse the table to export every row.</value>
+    <comment>Completes the export status line 'Exported only the N rows shown to file: …'.</comment>
+  </data>
+  <data name="Results_Exporting" xml:space="preserve">
+    <value>Exporting...</value>
+    <comment>Status line while an export runs. Keep the three dots.</comment>
+  </data>
+  <data name="Results_ExportNoRows" xml:space="preserve">
+    <value>Export failed: the query returned no rows this time.</value>
+    <comment>Status line: the query behind an export returned nothing.</comment>
+  </data>
+  <data name="Results_ExportingProgress" xml:space="preserve">
+    <value>Exporting... {rows}</value>
+    <comment>Status line while exporting. {rows} is a count with its unit, such as 5,000 rows.</comment>
+  </data>
+  <data name="Results_ExportedPartial" xml:space="preserve">
+    <value>Exported only the {rows} shown to {file}: {reason}</value>
+    <comment>Status line after an export that holds only the rows on screen. {rows} is a count with its unit, such as 100 rows; {file} a file name; {reason} a sentence saying why.</comment>
+  </data>
+  <data name="Results_Exported" xml:space="preserve">
+    <value>Exported {rows} to {file}</value>
+    <comment>Status line after an export. {rows} is a count with its unit, such as 5,000 rows; {file} a file name.</comment>
+  </data>
+  <data name="Results_ExportCancelled" xml:space="preserve">
+    <value>Export cancelled</value>
+    <comment>Status line after an export was cancelled.</comment>
+  </data>
+  <data name="Results_Copying" xml:space="preserve">
+    <value>Copying {rows}...</value>
+    <comment>Status line while a big selection is copied. {rows} is a count with its unit, such as 5,000 rows. Keep the three dots.</comment>
+  </data>
+  <data name="Results_NotCopied" xml:space="preserve">
+    <value>Not copied: {rows} come to more than {megabytes}M characters of text. Export them to a file instead.</value>
+    <comment>Status line when a selection is too big to copy. {rows} is a count with its unit, such as 200,000 rows; {megabytes} is a number of millions of characters.</comment>
+  </data>
+  <data name="Results_Copied" xml:space="preserve">
+    <value>Copied {rows}</value>
+    <comment>Status line after copying. {rows} is a count with its unit, such as 5 rows.</comment>
+  </data>
+  <data name="Results_DraftPlaceholder" xml:space="preserve">
+    <value>Pick a column, a comparison and a value</value>
+    <comment>Filter editor: shown in place of the SQL preview while the condition is not complete.</comment>
+  </data>
+  <data name="Results_BrowseNoMore" xml:space="preserve">
+    <value>No more rows</value>
+    <comment>Paging label when a page past the end is empty.</comment>
+  </data>
+  <data name="Results_BrowseNoMatch" xml:space="preserve">
+    <value>No matching rows</value>
+    <comment>Paging label when filters match no rows.</comment>
+  </data>
+  <data name="Results_BrowseNoRows" xml:space="preserve">
+    <value>No rows</value>
+    <comment>Paging label for an empty table.</comment>
+  </data>
+  <data name="Results_BrowseRange" xml:space="preserve">
+    <value>Rows {from}–{to}</value>
+    <comment>Paging label: the row range on this page. {from} and {to} are numbers, such as 1 and 100.</comment>
+  </data>
+  <data name="Results_SectionSummary" xml:space="preserve">
+    <value>{rows} · {time}</value>
+    <comment>Script section chip, second line. {rows} is a count with its unit (5 rows), {time} the duration (12 ms).</comment>
+  </data>
+  <data name="Results_SectionSummaryAffected" xml:space="preserve">
+    <value>{rows} affected · {time}</value>
+    <comment>Script section chip, second line for a command. {rows} is a count with its unit (5 rows), {time} the duration (12 ms).</comment>
+  </data>
+  <data name="Results_SectionError" xml:space="preserve">
+    <value>Error</value>
+    <comment>Script section chip, second line: the statement failed.</comment>
+  </data>
 
   <!-- ===== Dialogs ===== -->
 

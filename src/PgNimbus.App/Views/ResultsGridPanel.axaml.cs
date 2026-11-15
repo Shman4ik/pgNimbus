@@ -19,6 +19,7 @@ using PgNimbus.App.ViewModels;
 using PgNimbus.Core.Commands;
 using PgNimbus.Core.Export;
 using PgNimbus.Core.Import;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Query;
 using PgNimbus.Core.Schema;
 
@@ -83,6 +84,7 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
     public ResultsGridPanel()
     {
         InitializeComponent();
+        Localizer.WhenChanged(this, static panel => panel.UpdateRunHint());
 
         // Column resizing is the DataGrid's own, but the cap that keeps one long
         // value from blowing a column past the viewport has to be lifted for the
@@ -150,16 +152,36 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
     // re-spelled when the scheme preference changes.
     private void UpdateRunHint()
     {
+        // The sentence is one table entry per chord count; the chords are put in
+        // afterwards, in SemiBold, at the markers the placeholders were given.
+        const string first = "\u0001";
+        const string second = "\u0002";
         var chords = CommandBindings.LabelsFor(CommandId.Run);
-        var inlines = new InlineCollection { new Run("Run a query") };
-        for (var i = 0; i < chords.Count; i++)
+        var sentence = chords.Count switch
         {
-            inlines.Add(new Run(i == 0 ? " with " : " or "));
-            inlines.Add(new Run(chords[i]) { FontWeight = FontWeight.SemiBold });
+            0 => Strings.Results_RunHintNone,
+            1 => Strings.Results_RunHintOne(first),
+            _ => Strings.Results_RunHintTwo(first, second),
+        };
+
+        var inlines = new InlineCollection();
+        foreach (var part in RunHintMarkers().Split(sentence))
+        {
+            if (part == first || part == second)
+            {
+                inlines.Add(new Run(chords[part == first ? 0 : 1]) { FontWeight = FontWeight.SemiBold });
+            }
+            else if (part.Length > 0)
+            {
+                inlines.Add(new Run(part));
+            }
         }
 
         RunHintText.Inlines = inlines;
     }
+
+    [System.Text.RegularExpressions.GeneratedRegex("([\u0001\u0002])")]
+    private static partial System.Text.RegularExpressions.Regex RunHintMarkers();
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
@@ -231,10 +253,10 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
     public bool OpenInspectorSearch() => InspectorValue.OpenSearch();
 
     /// <summary>Command-bar "Export → CSV": save the current result set as CSV.</summary>
-    public void ExportCsv() => _ = ExportAsync(ExportFormat.Csv, "csv", "CSV");
+    public void ExportCsv() => _ = ExportAsync(ExportFormat.Csv, "csv", Strings.Results_FormatCsv);
 
     /// <summary>Command-bar "Export → JSON": save the current result set as JSON.</summary>
-    public void ExportJson() => _ = ExportAsync(ExportFormat.Json, "json", "JSON");
+    public void ExportJson() => _ = ExportAsync(ExportFormat.Json, "json", Strings.Results_FormatJson);
 
     /// <summary>Command-bar "Import": pick a CSV/JSON file and load it into a table.</summary>
     public void Import() => _ = ImportAsync();
@@ -938,7 +960,7 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
         if (ForeignKeyNavigator.FindReferencedRow(schema, table, column, foreignKeys) is { } forward)
         {
             _followHop = forward;
-            _followFkItem.Header = EscapeMenuHeader($"Follow {column} → {forward.QualifiedTarget}");
+            _followFkItem.Header = EscapeMenuHeader(Strings.Results_FollowFk(column, forward.QualifiedTarget));
             _followFkItem.IsVisible = true;
         }
 
@@ -992,22 +1014,22 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
             var shown = text.Length > 40 ? text[..40] + "…" : text;
             if (value is bool b)
             {
-                entries.Add(($"{column} is {(b ? "true" : "false")}", b ? FilterOperator.IsTrue : FilterOperator.IsFalse, null));
+                entries.Add((b ? Strings.Results_FilterIsTrue(column) : Strings.Results_FilterIsFalse(column), b ? FilterOperator.IsTrue : FilterOperator.IsFalse, null));
             }
             else if (ops.Contains(FilterOperator.Equals))
             {
-                entries.Add(($"{column} = {shown}", FilterOperator.Equals, text));
-                entries.Add(($"{column} ≠ {shown}", FilterOperator.NotEquals, text));
+                entries.Add((Strings.Results_FilterEquals(column, shown), FilterOperator.Equals, text));
+                entries.Add((Strings.Results_FilterNotEquals(column, shown), FilterOperator.NotEquals, text));
             }
             else
             {
                 // json and friends have no equality; a text search is the honest offer.
-                entries.Add(($"{column} contains {shown}", FilterOperator.Contains, text));
+                entries.Add((Strings.Results_FilterContains(column, shown), FilterOperator.Contains, text));
             }
         }
 
-        entries.Add(($"{column} is null", FilterOperator.IsNull, null));
-        entries.Add(($"{column} is not null", FilterOperator.IsNotNull, null));
+        entries.Add((Strings.Results_FilterIsNull(column), FilterOperator.IsNull, null));
+        entries.Add((Strings.Results_FilterIsNotNull(column), FilterOperator.IsNotNull, null));
 
         filterItem.ItemsSource = entries.Select(entry =>
         {
@@ -1046,7 +1068,7 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
             var index = query.ColumnNames.IndexOf(hop.SourceColumns[i]);
             if (index < 0 || index >= row.Length)
             {
-                query.Status = $"Can't follow: column {hop.SourceColumns[i]} isn't in this result set.";
+                query.Status = Strings.Results_CantFollowColumn(hop.SourceColumns[i]);
                 return;
             }
 
@@ -1055,7 +1077,7 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
 
         if (ForeignKeyNavigator.BuildFilter(hop.TargetColumns, values) is not { } filter)
         {
-            query.Status = "Can't follow a NULL key — it references no row.";
+            query.Status = Strings.Results_CantFollowNull;
             return;
         }
 
@@ -1151,7 +1173,7 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
             return true;
         }
 
-        var confirm = new ConfirmDialog($"Discard your changes to \"{column}\"?", "Discard");
+        var confirm = new ConfirmDialog(Strings.Results_DiscardInspectorEdit(column), Strings.Common_Discard);
         return await confirm.ShowDialog<bool>(owner);
     }
 
@@ -1226,8 +1248,7 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
             return;
         }
 
-        var noun = rows.Count == 1 ? "this row" : $"these {rows.Count} rows";
-        var confirm = new ConfirmDialog($"Delete {noun}? This can't be undone.", "Delete");
+        var confirm = new ConfirmDialog(Strings.Results_DeleteRowsConfirm(rows.Count, rows.Count.ToString("N0")), Strings.Common_Delete);
         if (await confirm.ShowDialog<bool>(owner))
         {
             await query.DeleteRowsAsync(rows);
@@ -1297,12 +1318,12 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
 
         var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = "Import CSV or JSON",
+            Title = Strings.Results_ImportTitle,
             AllowMultiple = false,
             FileTypeFilter =
             [
-                new FilePickerFileType("CSV or JSON") { Patterns = ["*.csv", "*.json"] },
-                new FilePickerFileType("All files") { Patterns = ["*"] },
+                new FilePickerFileType(Strings.Results_ImportFileType) { Patterns = ["*.csv", "*.json"] },
+                new FilePickerFileType(Strings.Results_AllFiles) { Patterns = ["*"] },
             ],
         });
 
@@ -1319,7 +1340,7 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
             // sparse JSON could build a matrix no machine has memory for.
             var isJson = files[0].Name.EndsWith(".json", StringComparison.OrdinalIgnoreCase);
             var previousStatus = _model.ActiveTab.Status;
-            _model.ActiveTab.Status = $"Reading {files[0].Name}…";
+            _model.ActiveTab.Status = Strings.Results_ImportReading(files[0].Name);
             await using var stream = await files[0].OpenReadAsync();
             var (data, types) = await Task.Run(async () =>
             {
@@ -1333,7 +1354,7 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
 
             if (data.Columns.Count == 0)
             {
-                _model.ActiveTab.Status = "Nothing to import — the file has no rows.";
+                _model.ActiveTab.Status = Strings.Results_ImportNothing;
                 return;
             }
 
@@ -1346,7 +1367,7 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
         }
         catch (Exception ex)
         {
-            _model.ActiveTab.Status = $"Import failed: {ex.Message}";
+            _model.ActiveTab.Status = Strings.Results_ImportFailed(ex.Message);
             _model.ActiveTab.HasError = true;
         }
     }
@@ -1363,7 +1384,7 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
         var tab = _model.ActiveTab;
         tab.Sql = $"SELECT * FROM {SqlIdentifier.QuoteIfNeeded(schema)}.{SqlIdentifier.QuoteIfNeeded(table)} LIMIT 100;";
         await tab.RunCommand.ExecuteAsync(null);
-        tab.Status = $"Imported {count:N0} row{(count == 1 ? "" : "s")} into {schema}.{table}";
+        tab.Status = Strings.Results_Imported(count, count.ToString("N0"), $"{schema}.{table}");
     }
 
     /// <summary>A usable default table name from the file name: lower-cased, non-alphanumerics collapsed to '_'.</summary>
@@ -1415,7 +1436,7 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
         catch (Exception ex)
         {
             // Typically the file is open in the spreadsheet that last read it.
-            query.Status = $"Export failed: {ex.Message}";
+            query.Status = Strings.Results_ExportFailed(ex.Message);
             query.HasError = true;
             return;
         }
@@ -1467,7 +1488,7 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
         var recent = model.QueryLab.RecentPlans(ComparePlanMenuLimit + 1).Where(p => p.Id != own).Take(ComparePlanMenuLimit).ToList();
         if (recent.Count == 0)
         {
-            compare.Items.Add(new MenuItem { Header = "No saved plans", IsEnabled = false });
+            compare.Items.Add(new MenuItem { Header = Strings.Results_NoSavedPlans, IsEnabled = false });
         }
 
         foreach (var plan in recent)
@@ -1478,7 +1499,7 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
         }
 
         compare.Items.Add(new Separator());
-        var more = new MenuItem { Header = "More in Query Lab…" };
+        var more = new MenuItem { Header = Strings.Results_MoreInQueryLab };
         more.Click += (_, _) => model.ComparePlanCommand.Execute(null);
         compare.Items.Add(more);
     }
@@ -1492,10 +1513,10 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
     private void OnCopyPlanText(object? sender, RoutedEventArgs e) => _ = CopyToClipboardAsync(_activeQuery?.ExplainText);
 
     private void OnSavePlanJson(object? sender, RoutedEventArgs e) =>
-        _ = SavePlanAsync(_activeQuery?.PlanJson, "json", "JSON", ["*.json"]);
+        _ = SavePlanAsync(_activeQuery?.PlanJson, "json", Strings.Results_FormatJson, ["*.json"]);
 
     private void OnSavePlanText(object? sender, RoutedEventArgs e) =>
-        _ = SavePlanAsync(_activeQuery?.ExplainText, "txt", "Text", ["*.txt"]);
+        _ = SavePlanAsync(_activeQuery?.ExplainText, "txt", Strings.Results_FileTypeText, ["*.txt"]);
 
     private async Task CopyToClipboardAsync(string? text)
     {
@@ -1507,7 +1528,7 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
         await clipboard.SetTextAsync(text);
         if (_activeQuery is not null)
         {
-            _activeQuery.Status = "Plan copied to clipboard";
+            _activeQuery.Status = Strings.Results_PlanCopied;
         }
     }
 
@@ -1520,7 +1541,7 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
 
         var file = await storageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
-            Title = "Save query plan",
+            Title = Strings.Results_SavePlanTitle,
             SuggestedFileName = $"plan.{extension}",
             DefaultExtension = extension,
             FileTypeChoices = [new FilePickerFileType(typeName) { Patterns = patterns }],
@@ -1538,12 +1559,12 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
             await writer.WriteAsync(content);
             if (_activeQuery is not null)
             {
-                _activeQuery.Status = $"Plan saved to {file.Name}";
+                _activeQuery.Status = Strings.Results_PlanSaved(file.Name);
             }
         }
         catch (Exception ex) when (_activeQuery is not null)
         {
-            _activeQuery.Status = $"Save failed: {ex.Message}";
+            _activeQuery.Status = Strings.Results_SaveFailed(ex.Message);
             _activeQuery.HasError = true;
         }
     }
@@ -1837,12 +1858,12 @@ public partial class ResultsGridPanel : UserControl, IEditCommandTarget
             var flags = new System.Collections.Generic.List<string>(2);
             if (meta.IsPrimaryKey)
             {
-                flags.Add("primary key");
+                flags.Add(Strings.Results_HeaderPrimaryKey);
             }
 
             if (meta.NotNull)
             {
-                flags.Add("not null");
+                flags.Add(Strings.Results_HeaderNotNull);
             }
 
             if (flags.Count > 0)

@@ -1,4 +1,6 @@
 using Avalonia.Collections;
+using CommunityToolkit.Mvvm.ComponentModel;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Query;
 
 namespace PgNimbus.App.ViewModels;
@@ -8,13 +10,13 @@ namespace PgNimbus.App.ViewModels;
 /// displayed as its own selectable section (the strip above the results grid).
 /// Immutable display data — selecting it re-points the shared grid at these rows.
 /// </summary>
-public sealed class ScriptResultViewModel
+public sealed class ScriptResultViewModel : ObservableObject
 {
     private ScriptResultViewModel(
         int index,
         string sql,
         string label,
-        string summary,
+        Func<string> summary,
         bool hasError,
         string statusText,
         IReadOnlyList<ColumnInfo> columns,
@@ -28,7 +30,7 @@ public sealed class ScriptResultViewModel
         Index = index;
         Sql = sql;
         Label = label;
-        Summary = summary;
+        _summary = summary;
         HasError = hasError;
         StatusText = statusText;
         Columns = columns;
@@ -38,6 +40,7 @@ public sealed class ScriptResultViewModel
         TimingText = timingText;
         CapText = capText;
         Plan = plan;
+        Localizer.WhenChanged(this, static section => section.OnPropertyChanged(nameof(Summary)));
     }
 
     /// <summary>1-based position of this statement in the script.</summary>
@@ -50,7 +53,10 @@ public sealed class ScriptResultViewModel
     public string Label { get; }
 
     /// <summary>Secondary strip line — row count / rows affected / "Error".</summary>
-    public string Summary { get; }
+    public string Summary => _summary();
+
+    // The line is composed from the string table, so it is read again after a language change.
+    private readonly Func<string> _summary;
 
     public bool HasError { get; }
 
@@ -95,7 +101,7 @@ public sealed class ScriptResultViewModel
     {
         var section = From(index, sql, result);
         return new ScriptResultViewModel(
-            section.Index, section.Sql, section.Label, section.Summary, section.HasError, section.StatusText,
+            section.Index, section.Sql, section.Label, section._summary, section.HasError, section.StatusText,
             section.Columns, section.ColumnNames, section.Rows, section.RowCountText, section.TimingText,
             section.CapText, section.Plan)
         {
@@ -116,7 +122,7 @@ public sealed class ScriptResultViewModel
             {
                 var names = set.Columns.Select(c => c.Name).ToList();
                 var rowText = RowLabel(set.Rows.Count);
-                var timeText = $"{ms:F0} ms";
+                var timeText = Strings.Results_TimingMs(ms.ToString("F0"));
                 var capText = set.Truncated
                     ? QueryViewModel.CapTextFor(set.CappedBy == ResultCap.None ? ResultCap.Rows : set.CappedBy)
                     : null;
@@ -125,9 +131,9 @@ public sealed class ScriptResultViewModel
                     index,
                     sql,
                     $"{index} · {keyword}",
-                    $"{rowText} · {timeText}",
+                    () => Strings.Results_SectionSummary(rowText, timeText),
                     hasError: false,
-                    statusText: "Done",
+                    statusText: Strings.Results_StatusDone,
                     columns: set.Columns,
                     columnNames: names,
                     rows: new AvaloniaList<object?[]>(set.Rows),
@@ -140,18 +146,18 @@ public sealed class ScriptResultViewModel
             case CommandResult command:
             {
                 var affected = RowLabel(command.RowsAffected);
-                var timeText = $"{ms:F0} ms";
+                var timeText = Strings.Results_TimingMs(ms.ToString("F0"));
                 return new ScriptResultViewModel(
                     index,
                     sql,
                     $"{index} · {command.CommandTag}",
-                    $"{affected} affected · {timeText}",
+                    () => Strings.Results_SectionSummaryAffected(affected, timeText),
                     hasError: false,
                     statusText: command.CommandTag,
                     columns: [],
                     columnNames: [],
                     rows: [],
-                    rowCountText: $"{affected} affected",
+                    rowCountText: Strings.Results_RowsAffected(affected),
                     timingText: timeText,
                     capText: null);
             }
@@ -162,7 +168,7 @@ public sealed class ScriptResultViewModel
                     index,
                     sql,
                     $"{index} · {keyword}",
-                    "Error",
+                    () => Strings.Results_SectionError,
                     hasError: true,
                     statusText: QueryViewModel.ErrorStatus(error),
                     columns: [],
@@ -175,11 +181,11 @@ public sealed class ScriptResultViewModel
 
             default:
                 return new ScriptResultViewModel(
-                    index, sql, $"{index}", string.Empty, false, string.Empty, [], [], [], null, null, null);
+                    index, sql, $"{index}", () => string.Empty, false, string.Empty, [], [], [], null, null, null);
         }
     }
 
-    private static string RowLabel(long count) => count == 1 ? "1 row" : $"{count:N0} rows";
+    private static string RowLabel(long count) => Strings.Results_Rows(count, count.ToString("N0"));
 
     // The leading SQL keyword (SELECT / INSERT / UPDATE / …), upper-cased, as the
     // statement's short label. Cheap span scan — no need for the tab-title regex.

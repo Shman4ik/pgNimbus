@@ -7,6 +7,7 @@ using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using PgNimbus.App.Converters;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Schema;
 
 namespace PgNimbus.App;
@@ -215,7 +216,7 @@ public sealed class ResultTextColumn : DataGridTextColumn
                         new TextBox
                         {
                             Text = timestamp?.ToString("HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty,
-                            PlaceholderText = "HH:MM:SS",
+                            PlaceholderText = Strings.Results_TimePlaceholder,
                             MinWidth = 84,
                         },
                     },
