@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Security;
 
 namespace PgNimbus.App.ViewModels.Security;
@@ -116,7 +117,7 @@ public sealed partial class RolesTabViewModel(RoleService roleService, SecurityE
         }
         catch (Exception ex)
         {
-            _host.ReportError("Roles", ex);
+            _host.ReportError(Strings.Security_TabRoles, ex);
         }
 
         return Task.CompletedTask;
@@ -268,6 +269,15 @@ public sealed partial class RolesTabViewModel(RoleService roleService, SecurityE
         }
     }
 
+    /// <summary>Every row says its text again: the attribute words, the detail labels and the expiry note.</summary>
+    internal void OnLanguageChanged()
+    {
+        foreach (var row in _all)
+        {
+            row.NotifyLanguageChanged();
+        }
+    }
+
     /// <summary>
     /// Hands the selected role's <c>CREATE ROLE</c> statement to the editor.
     /// The password is passed as null — a role's password is not in
@@ -285,7 +295,7 @@ public sealed partial class RolesTabViewModel(RoleService roleService, SecurityE
         }
 
         var definition = ToDefinition(row.Attributes, DirectGroupsOf(row.Name));
-        openSql($"role · {row.Name}", RoleScriptBuilder.Create(definition, password: null));
+        openSql(Strings.Security_RoleScriptTabTitle(row.Name), RoleScriptBuilder.Create(definition, password: null));
     }
 
     /// <summary>
@@ -313,12 +323,25 @@ public sealed partial class RolesTabViewModel(RoleService roleService, SecurityE
 }
 
 /// <summary>One role in the list, and the detail rows the pane beside it shows.</summary>
-public sealed class RoleRowViewModel
+public sealed class RoleRowViewModel : ObservableObject
 {
     public RoleRowViewModel(RoleAttributes attributes, int memberOfCount)
     {
         Attributes = attributes;
         MemberOfCount = memberOfCount;
+        Rebuild();
+    }
+
+    /// <summary>Re-words everything this row says, for a new language.</summary>
+    public void NotifyLanguageChanged()
+    {
+        Rebuild();
+        OnPropertyChanged(string.Empty);
+    }
+
+    private void Rebuild()
+    {
+        var attributes = Attributes;
 
         // Same shape and vocabulary as RoleNode in the schema tree, extended by
         // the attributes that tree does not carry — one role must not read as
@@ -326,37 +349,37 @@ public sealed class RoleRowViewModel
         var flags = new List<string>();
         if (attributes.IsSuperuser)
         {
-            flags.Add("superuser");
+            flags.Add(Strings.Security_FlagSuperuser);
         }
 
         if (attributes.CanLogin)
         {
-            flags.Add("login");
+            flags.Add(Strings.Security_FlagLogin);
         }
 
         if (attributes.CanCreateDb)
         {
-            flags.Add("createdb");
+            flags.Add(Strings.Security_FlagCreateDb);
         }
 
         if (attributes.CanCreateRole)
         {
-            flags.Add("createrole");
+            flags.Add(Strings.Security_FlagCreateRole);
         }
 
         if (attributes.CanReplicate)
         {
-            flags.Add("replication");
+            flags.Add(Strings.Security_FlagReplication);
         }
 
         if (attributes.BypassRls)
         {
-            flags.Add("bypassrls");
+            flags.Add(Strings.Security_FlagBypassRls);
         }
 
         if (!attributes.Inherit)
         {
-            flags.Add("noinherit");
+            flags.Add(Strings.Security_FlagNoInherit);
         }
 
         AttributesLabel = string.Join(" · ", flags);
@@ -364,26 +387,26 @@ public sealed class RoleRowViewModel
         ValidUntilText = attributes.ValidUntil is not { } until
             ? ""
             : attributes.IsExpired
-                ? "expired"
+                ? Strings.Security_Expired
                 : until.LocalDateTime.ToString("yyyy-MM-dd");
 
         Details =
         [
-            new RoleDetailRow("Login", YesNo(attributes.CanLogin)),
-            new RoleDetailRow("Superuser", YesNo(attributes.IsSuperuser)),
-            new RoleDetailRow("Inherit", YesNo(attributes.Inherit),
+            new RoleDetailRow(Strings.Security_DetailLogin, YesNo(attributes.CanLogin)),
+            new RoleDetailRow(Strings.Security_AttrSuperuser, YesNo(attributes.IsSuperuser)),
+            new RoleDetailRow(Strings.Security_AttrInherit, YesNo(attributes.Inherit),
                 IsWarning: !attributes.Inherit,
-                Note: attributes.Inherit ? null : "group privileges need SET ROLE"),
-            new RoleDetailRow("Create DB", YesNo(attributes.CanCreateDb)),
-            new RoleDetailRow("Create role", YesNo(attributes.CanCreateRole)),
-            new RoleDetailRow("Replication", YesNo(attributes.CanReplicate)),
-            new RoleDetailRow("Bypass RLS", YesNo(attributes.BypassRls)),
-            new RoleDetailRow("Connection limit",
-                attributes.ConnectionLimit < 0 ? "no limit" : attributes.ConnectionLimit.ToString()),
-            new RoleDetailRow("Valid until",
-                ValidUntilText.Length == 0 ? "no expiry" : ValidUntilText,
+                Note: attributes.Inherit ? null : Strings.Security_GroupPrivilegesNeedSetRole),
+            new RoleDetailRow(Strings.Security_AttrCreateDb, YesNo(attributes.CanCreateDb)),
+            new RoleDetailRow(Strings.Security_AttrCreateRole, YesNo(attributes.CanCreateRole)),
+            new RoleDetailRow(Strings.Security_AttrReplication, YesNo(attributes.CanReplicate)),
+            new RoleDetailRow(Strings.Security_AttrBypassRls, YesNo(attributes.BypassRls)),
+            new RoleDetailRow(Strings.Security_DetailConnectionLimit,
+                attributes.ConnectionLimit < 0 ? Strings.Security_NoLimit : attributes.ConnectionLimit.ToString()),
+            new RoleDetailRow(Strings.Security_ColValidUntil,
+                ValidUntilText.Length == 0 ? Strings.Security_NoExpiry : ValidUntilText,
                 IsWarning: attributes.IsExpired),
-            new RoleDetailRow("Comment", attributes.Comment is { Length: > 0 } c ? c : "—"),
+            new RoleDetailRow(Strings.Security_DetailComment, attributes.Comment is { Length: > 0 } c ? c : "—"),
         ];
     }
 
@@ -391,20 +414,20 @@ public sealed class RoleRowViewModel
 
     public string Name => Attributes.Name;
 
-    public string AttributesLabel { get; }
+    public string AttributesLabel { get; private set; } = "";
 
     public int MemberOfCount { get; }
 
     /// <summary>Empty when the role never expires, "expired" once it has — the state worth spotting in a list.</summary>
-    public string ValidUntilText { get; }
+    public string ValidUntilText { get; private set; } = "";
 
     public bool IsExpired => Attributes.IsExpired;
 
     public bool IsPredefined => Attributes.IsPredefined;
 
-    public IReadOnlyList<RoleDetailRow> Details { get; }
+    public IReadOnlyList<RoleDetailRow> Details { get; private set; } = [];
 
-    private static string YesNo(bool value) => value ? "yes" : "no";
+    private static string YesNo(bool value) => value ? Strings.Security_Yes : Strings.Security_No;
 }
 
 /// <summary>One label/value line of the detail pane.</summary>

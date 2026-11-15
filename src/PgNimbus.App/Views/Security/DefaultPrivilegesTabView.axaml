@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="using:PgNimbus.App.Localization"
              xmlns:vm="using:PgNimbus.App.ViewModels.Security"
              x:Class="PgNimbus.App.Views.Security.DefaultPrivilegesTabView"
              x:DataType="vm:DefaultPrivilegesTabViewModel">
@@ -12,8 +13,8 @@
         <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="6" Margin="0,0,0,8">
             <Button Classes="soft"
                     Command="{Binding CopySelectedAsSqlCommand}"
-                    ToolTip.Tip="Open the ALTER DEFAULT PRIVILEGES statement this row represents in a new editor tab">
-                <TextBlock Text="Copy as SQL" VerticalAlignment="Center" />
+                    ToolTip.Tip="{l:Tr Security_CopyAsSqlTip}">
+                <TextBlock Text="{l:Tr Security_CopyAsSql}" VerticalAlignment="Center" />
             </Button>
         </StackPanel>
 
@@ -27,11 +28,11 @@
                           CanUserResizeColumns="True" CanUserSortColumns="False"
                           GridLinesVisibility="Horizontal" HeadersVisibility="Column">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="Created by" Binding="{Binding OwnerRole}" Width="160" />
-                        <DataGridTextColumn Header="In schema" Binding="{Binding SchemaLabel}" Width="160" />
-                        <DataGridTextColumn Header="Applies to" Binding="{Binding AppliesToLabel}" Width="110" />
-                        <DataGridTextColumn Header="Grantee" Binding="{Binding GranteeLabel}" Width="160" />
-                        <DataGridTemplateColumn Header="Privileges" Width="*">
+                        <DataGridTextColumn Header="{l:Tr Security_ColCreatedBy}" Binding="{Binding OwnerRole}" Width="160" />
+                        <DataGridTextColumn Header="{l:Tr Security_ColInSchema}" Binding="{Binding SchemaLabel}" Width="160" />
+                        <DataGridTextColumn Header="{l:Tr Security_ColAppliesTo}" Binding="{Binding AppliesToLabel}" Width="110" />
+                        <DataGridTextColumn Header="{l:Tr Security_ColGrantee}" Binding="{Binding GranteeLabel}" Width="160" />
+                        <DataGridTemplateColumn Header="{l:Tr Security_ColPrivileges}" Width="*">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate x:DataType="vm:DefaultPrivilegeRow">
                                     <StackPanel Orientation="Horizontal" Spacing="8" Margin="12,0" VerticalAlignment="Center">
@@ -52,10 +53,10 @@
                      empty grid says none of them. -->
                 <StackPanel IsVisible="{Binding !HasRows}" Spacing="6" MaxWidth="560"
                             HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <TextBlock Text="No default privileges are configured."
+                    <TextBlock Text="{l:Tr Security_NoDefaultPrivileges}"
                                FontWeight="SemiBold" HorizontalAlignment="Center" />
                     <TextBlock TextWrapping="Wrap" TextAlignment="Center" Opacity="0.65" FontSize="12"
-                               Text="Every object created from now on will carry only the built-in defaults: its owner gets everything, PUBLIC gets EXECUTE on functions and USAGE on types, and nothing at all on tables and sequences." />
+                               Text="{l:Tr Security_NoDefaultPrivilegesHint}" />
                 </StackPanel>
             </Panel>
         </Border>
@@ -64,9 +65,9 @@
              visible in the grid above, and both are why the tab exists. -->
         <StackPanel Grid.Row="2" Margin="4,8,4,0" Spacing="4">
             <TextBlock FontSize="11" Opacity="0.6" TextWrapping="Wrap"
-                       Text="These do not affect objects that already exist. They apply to objects created from now on, which is why a GRANT … ON ALL TABLES IN SCHEMA … and a default privilege are both needed: neither replaces the other." />
+                       Text="{l:Tr Security_DefaultsNoteExisting}" />
             <TextBlock FontSize="11" Opacity="0.6" TextWrapping="Wrap"
-                       Text="They are keyed to the role that creates the object, not to the schema it lands in. A default privilege set for the wrong creator runs fine and silently does nothing — the single most common reason someone says they set default privileges and nothing changed." />
+                       Text="{l:Tr Security_DefaultsNoteCreator}" />
         </StackPanel>
 
     </Grid>

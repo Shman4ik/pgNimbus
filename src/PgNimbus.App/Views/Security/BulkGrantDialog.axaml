@@ -1,9 +1,10 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:l="using:PgNimbus.App.Localization"
         xmlns:vm="using:PgNimbus.App.ViewModels.Security"
         x:Class="PgNimbus.App.Views.Security.BulkGrantDialog"
         x:DataType="vm:BulkGrantViewModel"
-        Title="pgNimbus — Bulk grant"
+        Title="{l:Tr Security_BulkWindowTitle}"
         Width="660" Height="640"
         MinWidth="520" MinHeight="480"
         WindowStartupLocation="CenterOwner">
@@ -11,36 +12,36 @@
     <Grid Margin="20" RowDefinitions="Auto,Auto,*,Auto">
 
         <StackPanel Grid.Row="0" Spacing="4" Margin="0,0,0,12">
-            <TextBlock Classes="dialogTitle" Text="Give a role access to a whole schema" />
+            <TextBlock Classes="dialogTitle" Text="{l:Tr Security_BulkTitle}" />
             <TextBlock Classes="dialogHint"
-                       Text="The script always starts with USAGE on the schema itself — without it every table grant below is inert. Nothing runs from here: the script opens in the editor for you to read and run." />
+                       Text="{l:Tr Security_BulkHint}" />
         </StackPanel>
 
         <Border Grid.Row="1" Classes="card" Padding="14" Margin="0,0,0,12">
             <StackPanel Spacing="10">
 
                 <Grid ColumnDefinitions="110,*,110,*">
-                    <TextBlock Grid.Column="0" Text="Schema" VerticalAlignment="Center" FontSize="12" />
+                    <TextBlock Grid.Column="0" Text="{l:Tr Security_Schema}" VerticalAlignment="Center" FontSize="12" />
                     <ComboBox Grid.Column="1" HorizontalAlignment="Stretch"
                               ItemsSource="{Binding Schemas}"
                               SelectedItem="{Binding Schema, Mode=TwoWay}"
-                              PlaceholderText="Pick a schema" />
+                              PlaceholderText="{l:Tr Security_SchemaPlaceholder}" />
 
-                    <TextBlock Grid.Column="2" Text="Grantee" VerticalAlignment="Center" FontSize="12" Margin="16,0,0,0" />
+                    <TextBlock Grid.Column="2" Text="{l:Tr Security_Grantee}" VerticalAlignment="Center" FontSize="12" Margin="16,0,0,0" />
                     <ComboBox Grid.Column="3" HorizontalAlignment="Stretch"
                               ItemsSource="{Binding Grantees}"
                               SelectedItem="{Binding Grantee, Mode=TwoWay}"
-                              PlaceholderText="Pick a role" />
+                              PlaceholderText="{l:Tr Security_GranteePlaceholder}" />
                 </Grid>
 
                 <Grid ColumnDefinitions="110,*">
-                    <TextBlock Grid.Column="0" Text="Preset" VerticalAlignment="Center" FontSize="12" />
+                    <TextBlock Grid.Column="0" Text="{l:Tr Security_Preset}" VerticalAlignment="Center" FontSize="12" />
                     <ComboBox Grid.Column="1" HorizontalAlignment="Stretch"
                               ItemsSource="{Binding Presets}"
                               SelectedItem="{Binding Preset, Mode=TwoWay}">
                         <ComboBox.ItemTemplate>
                             <DataTemplate x:DataType="vm:BulkGrantPresetOption">
-                                <TextBlock Text="{Binding Label}" />
+                                <ContentControl Content="{Binding LabelKey}" />
                             </DataTemplate>
                         </ComboBox.ItemTemplate>
                     </ComboBox>
@@ -53,23 +54,23 @@
                      covers only what exists right now, so the next migration
                      creates a table the role cannot read. -->
                 <CheckBox IsChecked="{Binding IncludeFutureObjects, Mode=TwoWay}"
-                          Content="Also cover objects created later (adds ALTER DEFAULT PRIVILEGES)" />
+                          Content="{l:Tr Security_IncludeFuture}" />
 
                 <TextBlock TextWrapping="Wrap" FontSize="11.5" Opacity="0.7" Margin="26,-4,0,0"
-                           Text="Without this, the grant reaches only the tables, views and sequences that exist at the moment it runs. Anything a later migration creates is not covered." />
+                           Text="{l:Tr Security_IncludeFutureHint}" />
 
                 <Grid ColumnDefinitions="110,*" IsEnabled="{Binding IncludeFutureObjects}">
-                    <TextBlock Grid.Column="0" Text="Created by" VerticalAlignment="Center" FontSize="12" />
+                    <TextBlock Grid.Column="0" Text="{l:Tr Security_CreatedBy}" VerticalAlignment="Center" FontSize="12" />
                     <ComboBox Grid.Column="1" HorizontalAlignment="Stretch"
                               ItemsSource="{Binding CreatorRoles}"
                               SelectedItem="{Binding FutureObjectsOwner, Mode=TwoWay}"
-                              PlaceholderText="The role that will create the objects" />
+                              PlaceholderText="{l:Tr Security_CreatedByPlaceholder}" />
                 </Grid>
 
                 <TextBlock TextWrapping="Wrap" FontSize="11.5" Margin="110,-4,0,0"
                            Foreground="{StaticResource AppWarningBrush}"
                            IsVisible="{Binding IncludeFutureObjects}"
-                           Text="ALTER DEFAULT PRIVILEGES is keyed to the role that creates an object, not to the schema the object lands in. Point it at the wrong creator and it runs cleanly and does nothing — name the role your migrations connect as." />
+                           Text="{l:Tr Security_CreatedByWarning}" />
 
             </StackPanel>
         </Border>
@@ -85,8 +86,8 @@
         </Border>
 
         <StackPanel Grid.Row="3" Classes="dialogButtons">
-            <Button Classes="soft" Content="Cancel" Click="OnCancelClick" />
-            <Button Classes="accent" Content="Open in editor" Click="OnOpenClick"
+            <Button Classes="soft" Content="{l:Tr Common_Cancel}" Click="OnCancelClick" />
+            <Button Classes="accent" Content="{l:Tr Security_OpenInEditor}" Click="OnOpenClick"
                     IsEnabled="{Binding CanOpen}" />
         </StackPanel>
 

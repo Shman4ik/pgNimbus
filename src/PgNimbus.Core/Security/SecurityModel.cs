@@ -1,3 +1,4 @@
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Query;
 
 namespace PgNimbus.Core.Security;
@@ -461,13 +462,13 @@ public sealed record EffectivePrivilege(
     /// <summary>The one-line explanation the "why?" column and the access sentence share.</summary>
     public string Explanation => Source switch
     {
-        PrivilegeSource.None => "not granted",
-        PrivilegeSource.Direct => GrantedBy is { Length: > 0 } g ? $"granted directly by {g}" : "granted directly",
-        PrivilegeSource.Inherited => $"inherited from {Via}",
-        PrivilegeSource.Public => "granted to PUBLIC",
-        PrivilegeSource.Owner => "owns the object",
-        PrivilegeSource.Superuser => "superuser",
-        PrivilegeSource.Unknown => "granted, source not visible from here",
+        PrivilegeSource.None => Strings.Security_ExplainNone,
+        PrivilegeSource.Direct => GrantedBy is { Length: > 0 } g ? Strings.Security_ExplainDirectBy(g) : Strings.Security_ExplainDirect,
+        PrivilegeSource.Inherited => Strings.Security_ExplainInherited(Via),
+        PrivilegeSource.Public => Strings.Security_ExplainPublic,
+        PrivilegeSource.Owner => Strings.Security_ExplainOwner,
+        PrivilegeSource.Superuser => Strings.Security_ExplainSuperuser,
+        PrivilegeSource.Unknown => Strings.Security_ExplainUnknown,
         _ => "",
     };
 }
@@ -477,4 +478,28 @@ public sealed record EffectivePrivilege(
 /// it has been granted elsewhere. Listing these up front is what turns
 /// Postgres's opaque 2BP01 into an actionable dialog.
 /// </summary>
-public sealed record RoleDependency(string Kind, string Identity);
+public sealed record RoleDependency(string Kind, string Identity)
+{
+    /// <summary>
+    /// <see cref="Kind"/> as a person reads it. The query names kinds in English
+    /// (it is data the server's catalog turned into words); this maps the ones it
+    /// can produce to the table and leaves anything else as it came.
+    /// </summary>
+    public string KindText => Kind switch
+    {
+        "table" => Strings.Security_KindTable,
+        "partitioned table" => Strings.Security_KindPartitionedTable,
+        "view" => Strings.Security_KindView,
+        "materialized view" => Strings.Security_KindMaterializedView,
+        "sequence" => Strings.Security_KindSequence,
+        "foreign table" => Strings.Security_KindForeignTable,
+        "schema" => Strings.Security_KindSchema,
+        "procedure" => Strings.Security_KindProcedure,
+        "function" => Strings.Security_KindFunction,
+        "type" => Strings.Security_KindType,
+        "database" => Strings.Security_KindDatabase,
+        "privilege on table" => Strings.Security_KindPrivilegeOnTable,
+        "privilege on schema" => Strings.Security_KindPrivilegeOnSchema,
+        _ => Kind,
+    };
+}

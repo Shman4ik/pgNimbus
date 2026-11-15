@@ -5537,6 +5537,974 @@
   </data>
 
   <!-- ===== Security ===== -->
+  <data name="Security_WindowTitle" xml:space="preserve">
+    <value>pgNimbus — Roles and Permissions</value>
+    <comment>Window title of the Roles and Permissions window. Keep the product name pgNimbus.</comment>
+  </data>
+  <data name="Security_Database" xml:space="preserve">
+    <value>DATABASE</value>
+    <comment>Roles and Permissions window, top bar: small capitals label above the connected database's name.</comment>
+  </data>
+  <data name="Security_ConnectedAs" xml:space="preserve">
+    <value>CONNECTED AS</value>
+    <comment>Roles and Permissions window, top bar: small capitals label above the role this connection acts as.</comment>
+  </data>
+  <data name="Security_ConnectedAsTip" xml:space="preserve">
+    <value>The role this window reads the catalog as — it only ever sees what this role is allowed to see</value>
+    <comment>Tooltip of the CONNECTED AS block in the Roles and Permissions window.</comment>
+  </data>
+  <data name="Security_Server" xml:space="preserve">
+    <value>SERVER</value>
+    <comment>Roles and Permissions window, top bar: small capitals label above the PostgreSQL version of the server.</comment>
+  </data>
+  <data name="Security_RefreshTip" xml:space="preserve">
+    <value>Re-read roles, privileges and policies from the catalog</value>
+    <comment>Tooltip of the Refresh button of the Roles and Permissions window.</comment>
+  </data>
+  <data name="Security_TabRoles" xml:space="preserve">
+    <value>Roles</value>
+    <comment>Roles and Permissions window: name of the first tab, the list of roles. Also names that area in an error line ("Roles: message").</comment>
+  </data>
+  <data name="Security_TabPermissions" xml:space="preserve">
+    <value>Permissions</value>
+    <comment>Roles and Permissions window: name of the second tab, the permissions matrix. Also names that area in an error line.</comment>
+  </data>
+  <data name="Security_TabDefaultPrivileges" xml:space="preserve">
+    <value>Default privileges</value>
+    <comment>Roles and Permissions window: name of the third tab (PostgreSQL's ALTER DEFAULT PRIVILEGES). Also names that area in an error line.</comment>
+  </data>
+  <data name="Security_TabRls" xml:space="preserve">
+    <value>Row-level security</value>
+    <comment>Roles and Permissions window: name of the fourth tab (PostgreSQL row-level security policies). Also names that area in an error line.</comment>
+  </data>
+  <data name="Security_AreaObjects" xml:space="preserve">
+    <value>Objects</value>
+    <comment>Names what failed to load in an error line of the Roles and Permissions window: the list of database objects (tables, schemas and so on). Used as {what} in Security_ErrorStatus.</comment>
+  </data>
+  <data name="Security_AreaAccess" xml:space="preserve">
+    <value>Access</value>
+    <comment>Names what failed to load in an error line of the Roles and Permissions window: the plain-language sentence about what a role can do. Used as {what} in Security_ErrorStatus.</comment>
+  </data>
+  <data name="Security_ErrorStatus" xml:space="preserve">
+    <value>{what}: {message}</value>
+    <comment>Status line of the Roles and Permissions window after something failed to load. {what} names the part, such as Roles or Permissions; {message} is the error text from the server.</comment>
+  </data>
+  <data name="Security_ReadingRoles" xml:space="preserve">
+    <value>Reading roles…</value>
+    <comment>Status line of the Roles and Permissions window while it reads the catalog for the first time.</comment>
+  </data>
+  <data name="Security_RolesStatus_one" xml:space="preserve">
+    <value>{count} role · {time}</value>
+    <comment>Status line of the Roles and Permissions window after a read. Singular. {count} is how many roles (not counting built-in ones), {time} the time of the read such as 09:41:02.</comment>
+  </data>
+  <data name="Security_RolesStatus_other" xml:space="preserve">
+    <value>{count} roles · {time}</value>
+    <comment>Status line of the Roles and Permissions window after a read. Plural. {count} is how many roles (not counting built-in ones), such as 5; {time} the time of the read such as 09:41:02.</comment>
+  </data>
+  <data name="Security_FilterRoles" xml:space="preserve">
+    <value>Filter roles…</value>
+    <comment>Roles tab: placeholder of the filter box above the list of roles.</comment>
+  </data>
+  <data name="Security_BuiltinRolesChip" xml:space="preserve">
+    <value>pg_*</value>
+    <comment>Roles tab: label of the small toggle that also lists the built-in roles whose names start with pg_. A name pattern; leave it as it is.</comment>
+  </data>
+  <data name="Security_BuiltinRolesTip" xml:space="preserve">
+    <value>Also list the built-in pg_* roles the server ships with</value>
+    <comment>Roles tab: tooltip of the pg_* toggle next to the filter box.</comment>
+  </data>
+  <data name="Security_ColRole" xml:space="preserve">
+    <value>Role</value>
+    <comment>Roles tab: column header of the role names.</comment>
+  </data>
+  <data name="Security_ColAttributes" xml:space="preserve">
+    <value>Attributes</value>
+    <comment>Roles tab: column header of the short list of attributes of each role.</comment>
+  </data>
+  <data name="Security_ColValidUntil" xml:space="preserve">
+    <value>Valid until</value>
+    <comment>Roles tab: column header of the role's password expiry date. Also the label of that row in the role's details.</comment>
+  </data>
+  <data name="Security_NoRoleMatches" xml:space="preserve">
+    <value>No role matches that filter.</value>
+    <comment>Roles tab: shown over the empty list when the filter box matches no role.</comment>
+  </data>
+  <data name="Security_NewRole" xml:space="preserve">
+    <value>New role…</value>
+    <comment>Roles tab: button that opens the dialog to create a role.</comment>
+  </data>
+  <data name="Security_NewRoleTip" xml:space="preserve">
+    <value>Create a role, with the CREATE ROLE statement shown before it runs</value>
+    <comment>Roles tab: tooltip of the New role button. CREATE ROLE is the SQL statement.</comment>
+  </data>
+  <data name="Security_Edit" xml:space="preserve">
+    <value>Edit…</value>
+    <comment>Roles tab: button and right-click menu item that open the dialog to change the selected role.</comment>
+  </data>
+  <data name="Security_EditTip" xml:space="preserve">
+    <value>Change the selected role's attributes and memberships</value>
+    <comment>Roles tab: tooltip of the Edit button.</comment>
+  </data>
+  <data name="Security_DropRole" xml:space="preserve">
+    <value>Drop…</value>
+    <comment>Roles tab: button that opens the dialog to delete (drop) the selected role.</comment>
+  </data>
+  <data name="Security_DropRoleTip" xml:space="preserve">
+    <value>Work out what the role owns and holds, then generate the drop recipe</value>
+    <comment>Roles tab: tooltip of the Drop button.</comment>
+  </data>
+  <data name="Security_CreateRoleScript" xml:space="preserve">
+    <value>CREATE ROLE script</value>
+    <comment>Roles tab: button that opens the selected role's CREATE ROLE statement in a new query tab. CREATE ROLE is SQL.</comment>
+  </data>
+  <data name="Security_CreateRoleScriptTip" xml:space="preserve">
+    <value>Open this role's CREATE ROLE statement in a new query tab. It carries no password — pgNimbus never reads password hashes.</value>
+    <comment>Roles tab: tooltip of the CREATE ROLE script button.</comment>
+  </data>
+  <data name="Security_MenuCopyName" xml:space="preserve">
+    <value>Copy Name</value>
+    <comment>Roles tab, right-click menu on a role: copies the role's name to the clipboard.</comment>
+  </data>
+  <data name="Security_MenuCreateRoleScript" xml:space="preserve">
+    <value>CREATE ROLE Script</value>
+    <comment>Roles tab, right-click menu on a role: opens the CREATE ROLE statement in a new query tab. CREATE ROLE is SQL.</comment>
+  </data>
+  <data name="Security_MenuDropRole" xml:space="preserve">
+    <value>Drop Role…</value>
+    <comment>Roles tab, right-click menu on a role: opens the dialog to delete the role.</comment>
+  </data>
+  <data name="Security_SelectRoleHint" xml:space="preserve">
+    <value>Select a role to see its attributes and where it sits in the membership graph.</value>
+    <comment>Roles tab: shown in the empty detail pane while no role is selected.</comment>
+  </data>
+  <data name="Security_MemberOf" xml:space="preserve">
+    <value>MEMBER OF</value>
+    <comment>Small capitals heading above the groups a role belongs to. Used in the Roles tab and in the role dialog.</comment>
+  </data>
+  <data name="Security_Members" xml:space="preserve">
+    <value>MEMBERS</value>
+    <comment>Roles tab, role details: small capitals heading above the roles that belong to the selected role.</comment>
+  </data>
+  <data name="Security_SessionDefaults" xml:space="preserve">
+    <value>SESSION DEFAULTS</value>
+    <comment>Roles tab, role details: small capitals heading above the per-role settings (ALTER ROLE … SET).</comment>
+  </data>
+  <data name="Security_NoInheritNeedsSetRole" xml:space="preserve">
+    <value>NOINHERIT · needs SET ROLE</value>
+    <comment>Roles tab, membership tree: marks a membership whose privileges only apply after SET ROLE. NOINHERIT and SET ROLE are SQL keywords and stay as they are.</comment>
+  </data>
+  <data name="Security_BelongsToNoGroup" xml:space="preserve">
+    <value>Belongs to no group.</value>
+    <comment>Roles tab, role details: shown under MEMBER OF when the role is in no group.</comment>
+  </data>
+  <data name="Security_NoRoleBelongs" xml:space="preserve">
+    <value>No role belongs to this one.</value>
+    <comment>Roles tab, role details: shown under MEMBERS when the role has no members.</comment>
+  </data>
+  <data name="Security_FlagSuperuser" xml:space="preserve">
+    <value>superuser</value>
+    <comment>Roles tab: one word in a role's short attribute list, joined with a dot. Matches the SQL attribute SUPERUSER; a translation may keep it.</comment>
+  </data>
+  <data name="Security_FlagLogin" xml:space="preserve">
+    <value>login</value>
+    <comment>Roles tab: one word in a role's short attribute list. Matches the SQL attribute LOGIN; a translation may keep it.</comment>
+  </data>
+  <data name="Security_FlagCreateDb" xml:space="preserve">
+    <value>createdb</value>
+    <comment>Roles tab: one word in a role's short attribute list. Matches the SQL attribute CREATEDB; a translation may keep it.</comment>
+  </data>
+  <data name="Security_FlagCreateRole" xml:space="preserve">
+    <value>createrole</value>
+    <comment>Roles tab: one word in a role's short attribute list. Matches the SQL attribute CREATEROLE; a translation may keep it.</comment>
+  </data>
+  <data name="Security_FlagReplication" xml:space="preserve">
+    <value>replication</value>
+    <comment>Roles tab: one word in a role's short attribute list. Matches the SQL attribute REPLICATION; a translation may keep it.</comment>
+  </data>
+  <data name="Security_FlagBypassRls" xml:space="preserve">
+    <value>bypassrls</value>
+    <comment>Roles tab: one word in a role's short attribute list. Matches the SQL attribute BYPASSRLS; a translation may keep it.</comment>
+  </data>
+  <data name="Security_FlagNoInherit" xml:space="preserve">
+    <value>noinherit</value>
+    <comment>Roles tab: one word in a role's short attribute list. Matches the SQL attribute NOINHERIT; a translation may keep it.</comment>
+  </data>
+  <data name="Security_Expired" xml:space="preserve">
+    <value>expired</value>
+    <comment>Roles tab: shown in the Valid until column when the role's expiry date has passed.</comment>
+  </data>
+  <data name="Security_DetailLogin" xml:space="preserve">
+    <value>Login</value>
+    <comment>Roles tab, role details: label of the row that says whether the role can log in.</comment>
+  </data>
+  <data name="Security_AttrSuperuser" xml:space="preserve">
+    <value>Superuser</value>
+    <comment>Label of the superuser attribute of a role: a row in the Roles tab's details and a check box in the role dialog.</comment>
+  </data>
+  <data name="Security_AttrInherit" xml:space="preserve">
+    <value>Inherit</value>
+    <comment>Label of the inherit attribute of a role (it uses the privileges of the groups it belongs to): a row in the Roles tab's details and a check box in the role dialog.</comment>
+  </data>
+  <data name="Security_AttrCreateDb" xml:space="preserve">
+    <value>Create DB</value>
+    <comment>Label of the attribute that lets a role create databases: a row in the Roles tab's details and a check box in the role dialog.</comment>
+  </data>
+  <data name="Security_AttrCreateRole" xml:space="preserve">
+    <value>Create role</value>
+    <comment>Label of the attribute that lets a role create other roles: a row in the Roles tab's details and a check box in the role dialog.</comment>
+  </data>
+  <data name="Security_AttrReplication" xml:space="preserve">
+    <value>Replication</value>
+    <comment>Label of the replication attribute of a role: a row in the Roles tab's details and a check box in the role dialog.</comment>
+  </data>
+  <data name="Security_AttrBypassRls" xml:space="preserve">
+    <value>Bypass RLS</value>
+    <comment>Label of the attribute that makes a role skip row-level security: a row in the Roles tab's details and a check box in the role dialog.</comment>
+  </data>
+  <data name="Security_DetailConnectionLimit" xml:space="preserve">
+    <value>Connection limit</value>
+    <comment>Roles tab, role details: label of the row with the most connections the role may hold.</comment>
+  </data>
+  <data name="Security_DetailComment" xml:space="preserve">
+    <value>Comment</value>
+    <comment>Roles tab, role details: label of the row with the role's comment.</comment>
+  </data>
+  <data name="Security_GroupPrivilegesNeedSetRole" xml:space="preserve">
+    <value>group privileges need SET ROLE</value>
+    <comment>Roles tab, role details: small note beside Inherit = no. SET ROLE is SQL.</comment>
+  </data>
+  <data name="Security_Yes" xml:space="preserve">
+    <value>yes</value>
+    <comment>Roles tab, role details: the value of a yes-or-no attribute that is on.</comment>
+  </data>
+  <data name="Security_No" xml:space="preserve">
+    <value>no</value>
+    <comment>Roles tab, role details: the value of a yes-or-no attribute that is off.</comment>
+  </data>
+  <data name="Security_NoLimit" xml:space="preserve">
+    <value>no limit</value>
+    <comment>A role has no connection limit. Shown in the Roles tab's details and as the placeholder of the connection limit box in the role dialog.</comment>
+  </data>
+  <data name="Security_NoExpiry" xml:space="preserve">
+    <value>no expiry</value>
+    <comment>A role's password never expires. Shown in the Roles tab's details and as the placeholder of the date box in the role dialog.</comment>
+  </data>
+  <data name="Security_RoleScriptTabTitle" xml:space="preserve">
+    <value>role · {name}</value>
+    <comment>Title of the query tab that opens with a role's CREATE ROLE statement. {name} is the role's name, such as app_ro.</comment>
+  </data>
+  <data name="Security_RoleNew" xml:space="preserve">
+    <value>New role</value>
+    <comment>Title of the role dialog when it creates a role.</comment>
+  </data>
+  <data name="Security_RoleAlter" xml:space="preserve">
+    <value>Alter role “{name}”</value>
+    <comment>Title of the role dialog when it changes a role. {name} is the role's name, such as app_ro. Keep the quotation marks around it.</comment>
+  </data>
+  <data name="Security_RoleName" xml:space="preserve">
+    <value>NAME</value>
+    <comment>Role dialog: small capitals label of the role name box.</comment>
+  </data>
+  <data name="Security_RoleNamePlaceholder" xml:space="preserve">
+    <value>app_ro</value>
+    <comment>Role dialog: example role name shown dimmed in the empty name box. An identifier; a translation may keep it.</comment>
+  </data>
+  <data name="Security_CanLogIn" xml:space="preserve">
+    <value>Can log in</value>
+    <comment>Role dialog: check box that lets the role log in.</comment>
+  </data>
+  <data name="Security_Password" xml:space="preserve">
+    <value>PASSWORD</value>
+    <comment>Role dialog: small capitals label of the password box.</comment>
+  </data>
+  <data name="Security_PasswordConfirm" xml:space="preserve">
+    <value>CONFIRM</value>
+    <comment>Role dialog: small capitals label of the box that repeats the password.</comment>
+  </data>
+  <data name="Security_Attributes" xml:space="preserve">
+    <value>ATTRIBUTES</value>
+    <comment>Role dialog: small capitals heading above the attribute check boxes.</comment>
+  </data>
+  <data name="Security_InheritTip" xml:space="preserve">
+    <value>Off means the role must SET ROLE before a group's privileges apply</value>
+    <comment>Role dialog: tooltip of the Inherit check box. SET ROLE is SQL.</comment>
+  </data>
+  <data name="Security_BypassRlsTip" xml:space="preserve">
+    <value>Skips every row-level security policy, always</value>
+    <comment>Role dialog: tooltip of the Bypass RLS check box.</comment>
+  </data>
+  <data name="Security_ConnectionLimit" xml:space="preserve">
+    <value>CONNECTION LIMIT</value>
+    <comment>Role dialog: small capitals label of the box with the most connections the role may hold.</comment>
+  </data>
+  <data name="Security_ValidUntil" xml:space="preserve">
+    <value>VALID UNTIL</value>
+    <comment>Role dialog: small capitals label of the date box where the role's password expires.</comment>
+  </data>
+  <data name="Security_BuiltinRoles" xml:space="preserve">
+    <value>BUILT-IN ROLES</value>
+    <comment>Role dialog: small capitals heading above the check boxes for roles PostgreSQL ships with, such as pg_read_all_data.</comment>
+  </data>
+  <data name="Security_Comment" xml:space="preserve">
+    <value>COMMENT</value>
+    <comment>Role dialog: small capitals label of the comment box.</comment>
+  </data>
+  <data name="Security_CommentPlaceholder" xml:space="preserve">
+    <value>what this role is for</value>
+    <comment>Role dialog: placeholder of the comment box.</comment>
+  </data>
+  <data name="Security_GeneratedSql" xml:space="preserve">
+    <value>GENERATED SQL</value>
+    <comment>Role dialog: small capitals heading above the SQL statement the dialog will run.</comment>
+  </data>
+  <data name="Security_HintReadAllData" xml:space="preserve">
+    <value>SELECT on every table, view and sequence, in every schema</value>
+    <comment>Role dialog: hint beside the pg_read_all_data check box. SELECT is SQL.</comment>
+  </data>
+  <data name="Security_HintWriteAllData" xml:space="preserve">
+    <value>INSERT, UPDATE and DELETE on every table</value>
+    <comment>Role dialog: hint beside the pg_write_all_data check box. INSERT, UPDATE and DELETE are SQL.</comment>
+  </data>
+  <data name="Security_HintMonitor" xml:space="preserve">
+    <value>read the statistics and monitoring views without superuser</value>
+    <comment>Role dialog: hint beside the pg_monitor check box.</comment>
+  </data>
+  <data name="Security_HintLoginRole" xml:space="preserve">
+    <value>login role</value>
+    <comment>Role dialog: hint beside a role in the MEMBER OF list: this role can log in.</comment>
+  </data>
+  <data name="Security_HintGroupRole" xml:space="preserve">
+    <value>group role</value>
+    <comment>Role dialog: hint beside a role in the MEMBER OF list: this role cannot log in, so it is a group.</comment>
+  </data>
+  <data name="Security_NeedsName" xml:space="preserve">
+    <value>A role needs a name.</value>
+    <comment>Role dialog: validation message under the form.</comment>
+  </data>
+  <data name="Security_PasswordsDiffer" xml:space="preserve">
+    <value>The two passwords do not match.</value>
+    <comment>Role dialog: validation message under the form.</comment>
+  </data>
+  <data name="Security_PasswordNeedsPg10" xml:space="preserve">
+    <value>Setting a password needs PostgreSQL 10 or later. Set it with psql's \password on this server.</value>
+    <comment>Role dialog: validation message under the form, shown on a server older than PostgreSQL 10. psql's \password is a psql command and stays as written.</comment>
+  </data>
+  <data name="Security_NothingChanged" xml:space="preserve">
+    <value>Nothing has changed yet.</value>
+    <comment>Role dialog: validation message under the form while nothing differs from the saved role.</comment>
+  </data>
+  <data name="Security_LoginWithoutPassword" xml:space="preserve">
+    <value>This role can log in but has no password. That works only if pg_hba.conf authenticates it another way.</value>
+    <comment>Role dialog: warning under the form. pg_hba.conf is the name of a server configuration file.</comment>
+  </data>
+  <data name="Security_NonAsciiPassword" xml:space="preserve">
+    <value>This password has characters outside ASCII. Some PostgreSQL clients normalize those before they log in, and pgNimbus can't do the same here, so they may be refused. An ASCII password always works.</value>
+    <comment>Role dialog: warning under the form when the password has characters outside plain ASCII (accented letters and similar). ASCII means the basic Latin letters, digits and punctuation.</comment>
+  </data>
+  <data name="Security_DropWindowTitle" xml:space="preserve">
+    <value>pgNimbus — Drop role</value>
+    <comment>Window title of the dialog that drops a role. Keep the product name pgNimbus.</comment>
+  </data>
+  <data name="Security_DropHint" xml:space="preserve">
+    <value>A role that owns objects or holds privileges cannot be dropped outright. Reassigning its objects and clearing its privileges first is what makes DROP ROLE succeed.</value>
+    <comment>Drop role dialog: explanation under the role's name. DROP ROLE is SQL.</comment>
+  </data>
+  <data name="Security_OwnedHeader" xml:space="preserve">
+    <value>Objects it owns</value>
+    <comment>Drop role dialog: heading above the list of objects the role owns, before the list has loaded.</comment>
+  </data>
+  <data name="Security_OwnedHeaderCount" xml:space="preserve">
+    <value>Objects it owns ({count})</value>
+    <comment>Drop role dialog: heading above the list of objects the role owns. {count} is how many, such as 3.</comment>
+  </data>
+  <data name="Security_GrantsHeader" xml:space="preserve">
+    <value>Privileges it holds</value>
+    <comment>Drop role dialog: heading above the list of privileges granted to the role, before the list has loaded.</comment>
+  </data>
+  <data name="Security_GrantsHeaderCount" xml:space="preserve">
+    <value>Privileges it holds ({count})</value>
+    <comment>Drop role dialog: heading above the list of privileges granted to the role. {count} is how many, such as 3.</comment>
+  </data>
+  <data name="Security_GrantsHeaderTruncated" xml:space="preserve">
+    <value>Privileges it holds ({count}+, list truncated)</value>
+    <comment>Drop role dialog: heading above the list of privileges granted to the role when the list was cut at a limit. {count} is that limit, such as 200; the plus sign means more exist.</comment>
+  </data>
+  <data name="Security_ColKind" xml:space="preserve">
+    <value>Kind</value>
+    <comment>Drop role dialog: column header of the kind of object (table, view, schema …).</comment>
+  </data>
+  <data name="Security_ColObject" xml:space="preserve">
+    <value>Object</value>
+    <comment>Drop role dialog: column header of the object's name.</comment>
+  </data>
+  <data name="Security_OwnsNothing" xml:space="preserve">
+    <value>Owns nothing in this database.</value>
+    <comment>Drop role dialog: shown in place of the list of owned objects when it is empty.</comment>
+  </data>
+  <data name="Security_HoldsNoPrivileges" xml:space="preserve">
+    <value>Holds no privileges in this database.</value>
+    <comment>Drop role dialog: shown in place of the list of granted privileges when it is empty.</comment>
+  </data>
+  <data name="Security_ReassignTo" xml:space="preserve">
+    <value>Reassign owned objects to</value>
+    <comment>Drop role dialog: label of the drop-down that picks the role that takes over the objects.</comment>
+  </data>
+  <data name="Security_ReassignNobody" xml:space="preserve">
+    <value>Nobody — delete the owned objects</value>
+    <comment>Drop role dialog: the drop-down choice that gives the objects to no one, so they are deleted.</comment>
+  </data>
+  <data name="Security_GrantMembership" xml:space="preserve">
+    <value>Grant myself the memberships the script needs</value>
+    <comment>Drop role dialog: check box text.</comment>
+  </data>
+  <data name="Security_GrantMembershipTip" xml:space="preserve">
+    <value>REASSIGN OWNED and DROP OWNED require the privileges of the role being emptied. The script grants them to you and gives back the one that outlives it.</value>
+    <comment>Drop role dialog: tooltip of the check box. REASSIGN OWNED and DROP OWNED are SQL statements.</comment>
+  </data>
+  <data name="Security_WillDeleteOwned" xml:space="preserve">
+    <value>With no successor named, DROP OWNED deletes the objects this role owns instead of transferring them.</value>
+    <comment>Drop role dialog: warning shown when no role is chosen to take over the objects. DROP OWNED is SQL.</comment>
+  </data>
+  <data name="Security_DropCurrentDatabaseOnly" xml:space="preserve">
+    <value>REASSIGN OWNED and DROP OWNED act on the current database only. If this role owns objects in other databases, run the script again while connected to each of them before the role will drop.</value>
+    <comment>Drop role dialog: note under the form. REASSIGN OWNED and DROP OWNED are SQL statements.</comment>
+  </data>
+  <data name="Security_OpenInEditor" xml:space="preserve">
+    <value>Open in editor</value>
+    <comment>Button in the drop role dialog and the bulk grant dialog: opens the generated script in a new query tab.</comment>
+  </data>
+  <data name="Security_OpenInEditorDropTip" xml:space="preserve">
+    <value>Run it yourself — and re-run it in every other database this role owns objects in</value>
+    <comment>Drop role dialog: tooltip of the Open in editor button.</comment>
+  </data>
+  <data name="Security_RunIt" xml:space="preserve">
+    <value>Run it</value>
+    <comment>Drop role dialog: the button that runs the generated script now.</comment>
+  </data>
+  <data name="Security_DropRoleTabTitle" xml:space="preserve">
+    <value>drop role · {name}</value>
+    <comment>Title of the query tab that opens with the drop-role script. {name} is the role's name, such as legacy_etl.</comment>
+  </data>
+  <data name="Security_KindTable" xml:space="preserve">
+    <value>table</value>
+    <comment>Drop role dialog, Kind column: a table.</comment>
+  </data>
+  <data name="Security_KindPartitionedTable" xml:space="preserve">
+    <value>partitioned table</value>
+    <comment>Drop role dialog, Kind column: a partitioned table.</comment>
+  </data>
+  <data name="Security_KindView" xml:space="preserve">
+    <value>view</value>
+    <comment>Drop role dialog, Kind column: a view.</comment>
+  </data>
+  <data name="Security_KindMaterializedView" xml:space="preserve">
+    <value>materialized view</value>
+    <comment>Drop role dialog, Kind column: a materialized view.</comment>
+  </data>
+  <data name="Security_KindSequence" xml:space="preserve">
+    <value>sequence</value>
+    <comment>Drop role dialog, Kind column: a sequence.</comment>
+  </data>
+  <data name="Security_KindForeignTable" xml:space="preserve">
+    <value>foreign table</value>
+    <comment>Drop role dialog, Kind column: a foreign table.</comment>
+  </data>
+  <data name="Security_KindSchema" xml:space="preserve">
+    <value>schema</value>
+    <comment>Drop role dialog, Kind column: a schema.</comment>
+  </data>
+  <data name="Security_KindProcedure" xml:space="preserve">
+    <value>procedure</value>
+    <comment>Drop role dialog, Kind column: a procedure.</comment>
+  </data>
+  <data name="Security_KindFunction" xml:space="preserve">
+    <value>function</value>
+    <comment>Drop role dialog, Kind column: a function.</comment>
+  </data>
+  <data name="Security_KindType" xml:space="preserve">
+    <value>type</value>
+    <comment>Drop role dialog, Kind column: a data type.</comment>
+  </data>
+  <data name="Security_KindDatabase" xml:space="preserve">
+    <value>database</value>
+    <comment>Drop role dialog, Kind column: a database.</comment>
+  </data>
+  <data name="Security_KindPrivilegeOnTable" xml:space="preserve">
+    <value>privilege on table</value>
+    <comment>Drop role dialog, Kind column of the privileges list: a privilege granted on a table.</comment>
+  </data>
+  <data name="Security_KindPrivilegeOnSchema" xml:space="preserve">
+    <value>privilege on schema</value>
+    <comment>Drop role dialog, Kind column of the privileges list: a privilege granted on a schema.</comment>
+  </data>
+  <data name="Security_BulkWindowTitle" xml:space="preserve">
+    <value>pgNimbus — Bulk grant</value>
+    <comment>Window title of the bulk grant dialog. Keep the product name pgNimbus.</comment>
+  </data>
+  <data name="Security_BulkTitle" xml:space="preserve">
+    <value>Give a role access to a whole schema</value>
+    <comment>Bulk grant dialog: heading.</comment>
+  </data>
+  <data name="Security_BulkHint" xml:space="preserve">
+    <value>The script always starts with USAGE on the schema itself — without it every table grant below is inert. Nothing runs from here: the script opens in the editor for you to read and run.</value>
+    <comment>Bulk grant dialog: explanation under the heading. USAGE is a SQL privilege name and stays as written.</comment>
+  </data>
+  <data name="Security_Schema" xml:space="preserve">
+    <value>Schema</value>
+    <comment>Label or placeholder of a schema picker: the bulk grant dialog, the Permissions tab and the Row-level security tab.</comment>
+  </data>
+  <data name="Security_Grantee" xml:space="preserve">
+    <value>Grantee</value>
+    <comment>Bulk grant dialog: label of the picker for the role that gets access.</comment>
+  </data>
+  <data name="Security_SchemaPlaceholder" xml:space="preserve">
+    <value>Pick a schema</value>
+    <comment>Bulk grant dialog: placeholder of the schema picker.</comment>
+  </data>
+  <data name="Security_GranteePlaceholder" xml:space="preserve">
+    <value>Pick a role</value>
+    <comment>Bulk grant dialog: placeholder of the role picker.</comment>
+  </data>
+  <data name="Security_Preset" xml:space="preserve">
+    <value>Preset</value>
+    <comment>Bulk grant dialog: label of the picker for how much access to give.</comment>
+  </data>
+  <data name="Security_PresetReadOnly" xml:space="preserve">
+    <value>Read only</value>
+    <comment>Bulk grant dialog: name of a preset in the picker.</comment>
+  </data>
+  <data name="Security_PresetReadOnlyDescription" xml:space="preserve">
+    <value>SELECT on every table and view, plus USAGE and SELECT on sequences.</value>
+    <comment>Bulk grant dialog: what the Read only preset does. SELECT and USAGE are SQL privilege names.</comment>
+  </data>
+  <data name="Security_PresetReadWrite" xml:space="preserve">
+    <value>Read and write</value>
+    <comment>Bulk grant dialog: name of a preset in the picker.</comment>
+  </data>
+  <data name="Security_PresetReadWriteDescription" xml:space="preserve">
+    <value>SELECT, INSERT, UPDATE and DELETE on tables, plus USAGE, SELECT and UPDATE on sequences.</value>
+    <comment>Bulk grant dialog: what the Read and write preset does. SELECT, INSERT, UPDATE, DELETE and USAGE are SQL privilege names.</comment>
+  </data>
+  <data name="Security_PresetFull" xml:space="preserve">
+    <value>Everything in the schema</value>
+    <comment>Bulk grant dialog: name of a preset in the picker.</comment>
+  </data>
+  <data name="Security_PresetFullDescription" xml:space="preserve">
+    <value>ALL PRIVILEGES on tables, sequences and functions, plus CREATE on the schema itself.</value>
+    <comment>Bulk grant dialog: what the Everything in the schema preset does. ALL PRIVILEGES and CREATE are SQL.</comment>
+  </data>
+  <data name="Security_PresetRevokeAll" xml:space="preserve">
+    <value>Revoke everything</value>
+    <comment>Bulk grant dialog: name of a preset in the picker.</comment>
+  </data>
+  <data name="Security_PresetRevokeAllDescription" xml:space="preserve">
+    <value>REVOKE ALL on tables, sequences, functions and the schema — and on default privileges too.</value>
+    <comment>Bulk grant dialog: what the Revoke everything preset does. REVOKE ALL is SQL.</comment>
+  </data>
+  <data name="Security_IncludeFuture" xml:space="preserve">
+    <value>Also cover objects created later (adds ALTER DEFAULT PRIVILEGES)</value>
+    <comment>Bulk grant dialog: check box text. ALTER DEFAULT PRIVILEGES is a SQL statement.</comment>
+  </data>
+  <data name="Security_IncludeFutureHint" xml:space="preserve">
+    <value>Without this, the grant reaches only the tables, views and sequences that exist at the moment it runs. Anything a later migration creates is not covered.</value>
+    <comment>Bulk grant dialog: explanation under the check box about objects created later.</comment>
+  </data>
+  <data name="Security_CreatedBy" xml:space="preserve">
+    <value>Created by</value>
+    <comment>Bulk grant dialog: label of the picker for the role that will create the future objects.</comment>
+  </data>
+  <data name="Security_CreatedByPlaceholder" xml:space="preserve">
+    <value>The role that will create the objects</value>
+    <comment>Bulk grant dialog: placeholder of the Created by picker.</comment>
+  </data>
+  <data name="Security_CreatedByWarning" xml:space="preserve">
+    <value>ALTER DEFAULT PRIVILEGES is keyed to the role that creates an object, not to the schema the object lands in. Point it at the wrong creator and it runs cleanly and does nothing — name the role your migrations connect as.</value>
+    <comment>Bulk grant dialog: warning under the Created by picker. ALTER DEFAULT PRIVILEGES is a SQL statement.</comment>
+  </data>
+  <data name="Security_GrantsTabTitle" xml:space="preserve">
+    <value>grants · {name}</value>
+    <comment>Title of the query tab that opens with a GRANT script. {name} is a schema or an object, such as sales.orders.</comment>
+  </data>
+  <data name="Security_ObjectFilterPlaceholder" xml:space="preserve">
+    <value>Filter objects</value>
+    <comment>Permissions tab: placeholder of the box that filters the list of objects.</comment>
+  </data>
+  <data name="Security_BulkGrant" xml:space="preserve">
+    <value>Bulk grant…</value>
+    <comment>Permissions tab: button that opens the bulk grant dialog.</comment>
+  </data>
+  <data name="Security_BulkGrantTip" xml:space="preserve">
+    <value>Give a role access to a whole schema, including objects created later</value>
+    <comment>Permissions tab: tooltip of the Bulk grant button.</comment>
+  </data>
+  <data name="Security_EditGrants" xml:space="preserve">
+    <value>Edit grants</value>
+    <comment>Permissions tab: toggle button that lets the cells of the matrix be clicked to stage changes.</comment>
+  </data>
+  <data name="Security_EditGrantsTip" xml:space="preserve">
+    <value>Click cells to stage a GRANT or REVOKE; nothing runs until you review the script</value>
+    <comment>Permissions tab: tooltip of the Edit grants button. GRANT and REVOKE are SQL.</comment>
+  </data>
+  <data name="Security_ReviewChanges" xml:space="preserve">
+    <value>Review changes</value>
+    <comment>Permissions tab: button that opens the staged GRANT and REVOKE statements in a new query tab.</comment>
+  </data>
+  <data name="Security_RoleFilterPlaceholder" xml:space="preserve">
+    <value>Filter roles</value>
+    <comment>Permissions tab: placeholder of the box that filters the roles in the matrix.</comment>
+  </data>
+  <data name="Security_BuiltinRolesToggle" xml:space="preserve">
+    <value>Built-in roles</value>
+    <comment>Permissions tab: toggle that also shows the roles PostgreSQL ships with.</comment>
+  </data>
+  <data name="Security_BuiltinRolesToggleTip" xml:space="preserve">
+    <value>Show the pg_* roles initdb created</value>
+    <comment>Permissions tab: tooltip of the Built-in roles toggle. initdb is the PostgreSQL program that creates a cluster.</comment>
+  </data>
+  <data name="Security_ColRoleCaps" xml:space="preserve">
+    <value>ROLE</value>
+    <comment>Permissions tab: small capitals header of the role names above the matrix.</comment>
+  </data>
+  <data name="Security_ColHowCaps" xml:space="preserve">
+    <value>HOW</value>
+    <comment>Permissions tab: small capitals header of the column that says how each role gets its privileges (directly, inherited, owner …).</comment>
+  </data>
+  <data name="Security_ColumnGrants" xml:space="preserve">
+    <value>COLUMN GRANTS</value>
+    <comment>Permissions tab: small capitals heading above the privileges granted on single columns.</comment>
+  </data>
+  <data name="Security_KindOptionTable" xml:space="preserve">
+    <value>Table</value>
+    <comment>Permissions tab: choice in the picker of what kind of object to show.</comment>
+  </data>
+  <data name="Security_KindOptionSequence" xml:space="preserve">
+    <value>Sequence</value>
+    <comment>Permissions tab: choice in the picker of what kind of object to show.</comment>
+  </data>
+  <data name="Security_KindOptionSchema" xml:space="preserve">
+    <value>Schema</value>
+    <comment>Permissions tab: choice in the picker of what kind of object to show.</comment>
+  </data>
+  <data name="Security_KindOptionDatabase" xml:space="preserve">
+    <value>Database</value>
+    <comment>Permissions tab: choice in the picker of what kind of object to show.</comment>
+  </data>
+  <data name="Security_KindOptionFunction" xml:space="preserve">
+    <value>Function</value>
+    <comment>Permissions tab: choice in the picker of what kind of object to show.</comment>
+  </data>
+  <data name="Security_KindOptionType" xml:space="preserve">
+    <value>Type</value>
+    <comment>Permissions tab: choice in the picker of what kind of object to show.</comment>
+  </data>
+  <data name="Security_NoPendingChanges" xml:space="preserve">
+    <value>No pending changes</value>
+    <comment>Permissions tab: label beside Edit grants while nothing is staged.</comment>
+  </data>
+  <data name="Security_PendingChanges_one" xml:space="preserve">
+    <value>{count} pending change</value>
+    <comment>Permissions tab: label beside Edit grants. Singular. {count} is how many changes are staged.</comment>
+  </data>
+  <data name="Security_PendingChanges_other" xml:space="preserve">
+    <value>{count} pending changes</value>
+    <comment>Permissions tab: label beside Edit grants. Plural. {count} is how many changes are staged, such as 3.</comment>
+  </data>
+  <data name="Security_DefaultAclNote" xml:space="preserve">
+    <value>No GRANT or REVOKE has ever been run on this object. {owner} owns it and holds every privilege; everyone else has only what Postgres grants by default for this object type.</value>
+    <comment>Permissions tab: banner shown when the object's privileges were never changed. GRANT and REVOKE are SQL. {owner} is the owning role's name, such as postgres.</comment>
+  </data>
+  <data name="Security_CellTip" xml:space="preserve">
+    <value>{privilege} — {explanation}</value>
+    <comment>Permissions tab: tooltip of a cell of the matrix. {privilege} is the SQL privilege such as SELECT; {explanation} says why the role has it or not, such as inherited from readers.</comment>
+  </data>
+  <data name="Security_CellTipPendingRevoke" xml:space="preserve">
+    <value>Pending: REVOKE</value>
+    <comment>Permissions tab: second line of a cell's tooltip when a REVOKE is staged for it. REVOKE is SQL.</comment>
+  </data>
+  <data name="Security_CellTipPendingGrant" xml:space="preserve">
+    <value>Pending: GRANT</value>
+    <comment>Permissions tab: second line of a cell's tooltip when a GRANT is staged for it. GRANT is SQL.</comment>
+  </data>
+  <data name="Security_CellTipNotRevocable" xml:space="preserve">
+    <value>Ownership and superuser are not grants, so this cannot be revoked.</value>
+    <comment>Permissions tab: second line of a cell's tooltip when the privilege comes from owning the object or being a superuser.</comment>
+  </data>
+  <data name="Security_SourceSuperuser" xml:space="preserve">
+    <value>superuser</value>
+    <comment>Permissions tab, HOW column: the role has everything because it is a superuser.</comment>
+  </data>
+  <data name="Security_SourceOwner" xml:space="preserve">
+    <value>owner</value>
+    <comment>Permissions tab, HOW column: the role has everything because it owns the object.</comment>
+  </data>
+  <data name="Security_SourceVia" xml:space="preserve">
+    <value>via {role}</value>
+    <comment>Permissions tab, HOW column: the role has the privileges through its membership in another role. {role} is that group role, such as readers.</comment>
+  </data>
+  <data name="Security_SourceDirect" xml:space="preserve">
+    <value>direct</value>
+    <comment>Permissions tab, HOW column: the privilege was granted to the role itself.</comment>
+  </data>
+  <data name="Security_SourcePublic" xml:space="preserve">
+    <value>PUBLIC</value>
+    <comment>Permissions tab, HOW column: the privilege was granted to PUBLIC, the SQL keyword for every role. A translation may keep it.</comment>
+  </data>
+  <data name="Security_SourceUnknown" xml:space="preserve">
+    <value>not visible</value>
+    <comment>Permissions tab, HOW column: the server says the role has the privilege but the catalog does not show why.</comment>
+  </data>
+  <data name="Security_PublicGrantee" xml:space="preserve">
+    <value>PUBLIC</value>
+    <comment>The grantee shown for a privilege or policy that applies to every role: the SQL keyword PUBLIC. A translation may keep it. A role that is merely named PUBLIC is shown in quotation marks by the app, so the two can be told apart.</comment>
+  </data>
+  <data name="Security_ExplainNone" xml:space="preserve">
+    <value>not granted</value>
+    <comment>Why a role does or does not have a privilege (tooltip of a matrix cell, and part of the sentence under the matrix): it was not granted.</comment>
+  </data>
+  <data name="Security_ExplainDirectBy" xml:space="preserve">
+    <value>granted directly by {grantor}</value>
+    <comment>Why a role has a privilege: it was granted to the role itself. {grantor} is the role that ran the GRANT, such as postgres.</comment>
+  </data>
+  <data name="Security_ExplainDirect" xml:space="preserve">
+    <value>granted directly</value>
+    <comment>Why a role has a privilege: it was granted to the role itself, by a role we cannot name.</comment>
+  </data>
+  <data name="Security_ExplainInherited" xml:space="preserve">
+    <value>inherited from {role}</value>
+    <comment>Why a role has a privilege: through its membership in a group role. {role} is that group, such as readers.</comment>
+  </data>
+  <data name="Security_ExplainPublic" xml:space="preserve">
+    <value>granted to PUBLIC</value>
+    <comment>Why a role has a privilege: it was granted to PUBLIC, the SQL keyword for every role.</comment>
+  </data>
+  <data name="Security_ExplainOwner" xml:space="preserve">
+    <value>owns the object</value>
+    <comment>Why a role has a privilege: it owns the object.</comment>
+  </data>
+  <data name="Security_ExplainSuperuser" xml:space="preserve">
+    <value>superuser</value>
+    <comment>Why a role has a privilege: it is a superuser.</comment>
+  </data>
+  <data name="Security_ExplainUnknown" xml:space="preserve">
+    <value>granted, source not visible from here</value>
+    <comment>Why a role has a privilege: the server says yes but the catalog the app can read does not explain it.</comment>
+  </data>
+  <data name="Security_ListSeparator" xml:space="preserve">
+    <value>, </value>
+    <comment>Separator between the items of a list of privileges, such as SELECT, INSERT and UPDATE. Put a space after it if your language uses one.</comment>
+  </data>
+  <data name="Security_ListAnd" xml:space="preserve">
+    <value>{head} and {last}</value>
+    <comment>Joins a list of privileges with and: {head} is the items before the last one, joined by the list separator (SELECT, INSERT), {last} is the last one (UPDATE).</comment>
+  </data>
+  <data name="Security_ListOr" xml:space="preserve">
+    <value>{head} or {last}</value>
+    <comment>Joins a list of privileges with or: {head} is the items before the last one, joined by the list separator (SELECT, INSERT), {last} is the last one (UPDATE).</comment>
+  </data>
+  <data name="Security_SentenceNone" xml:space="preserve">
+    <value>{role} has no privileges on {object}.</value>
+    <comment>Permissions tab, sentence under the matrix. {role} is a role name, {object} the object such as sales.orders.</comment>
+  </data>
+  <data name="Security_SentenceNoneBlocked" xml:space="preserve">
+    <value>{role} has no privileges on {object}. {role} also lacks USAGE on schema {schema}, which blocks access to everything in it.</value>
+    <comment>Permissions tab, sentence under the matrix. {role} is a role name, {object} the object such as sales.orders, {schema} its schema. USAGE is a SQL privilege name.</comment>
+  </data>
+  <data name="Security_SentenceBlocked_one" xml:space="preserve">
+    <value>{role} holds {privileges} on {object} — {explanation} — but cannot use it: it lacks USAGE on schema {schema}, which every object in it needs first.</value>
+    <comment>Permissions tab, sentence under the matrix. Singular: one privilege is held but unusable. {role} is a role name, {privileges} the privilege such as SELECT, {object} the object, {explanation} why the role has it, {schema} the schema. "it" is the privilege. USAGE is a SQL privilege name.</comment>
+  </data>
+  <data name="Security_SentenceBlocked_other" xml:space="preserve">
+    <value>{role} holds {privileges} on {object} — {explanation} — but cannot use them: it lacks USAGE on schema {schema}, which every object in it needs first.</value>
+    <comment>Permissions tab, sentence under the matrix. Plural: several privileges are held but unusable. {role} is a role name, {privileges} a list such as SELECT and INSERT, {object} the object, {explanation} why the role has them, {schema} the schema. "them" is the privileges. USAGE is a SQL privilege name.</comment>
+  </data>
+  <data name="Security_SentenceBlockedDenied_one" xml:space="preserve">
+    <value>{role} holds {privileges} on {object} — {explanation} — but cannot use it: it lacks USAGE on schema {schema}, which every object in it needs first. It has no {denied} grant either.</value>
+    <comment>Permissions tab, sentence under the matrix. Singular: one privilege is held but unusable, and others are missing. Same placeholders as Security_SentenceBlocked_one, plus {denied}, the missing privileges as a list joined with or, such as INSERT or UPDATE.</comment>
+  </data>
+  <data name="Security_SentenceBlockedDenied_other" xml:space="preserve">
+    <value>{role} holds {privileges} on {object} — {explanation} — but cannot use them: it lacks USAGE on schema {schema}, which every object in it needs first. It has no {denied} grant either.</value>
+    <comment>Permissions tab, sentence under the matrix. Plural: several privileges are held but unusable, and others are missing. Same placeholders as Security_SentenceBlocked_other, plus {denied}, the missing privileges as a list joined with or, such as INSERT or UPDATE.</comment>
+  </data>
+  <data name="Security_SentenceCan" xml:space="preserve">
+    <value>{role} can {privileges} {object} — {explanation}.</value>
+    <comment>Permissions tab, sentence under the matrix. {role} is a role name, {privileges} what it can do as SQL verbs such as SELECT and INSERT, {object} the object such as sales.orders, {explanation} why, such as inherited from readers.</comment>
+  </data>
+  <data name="Security_SentenceCanCannot" xml:space="preserve">
+    <value>{role} can {privileges} {object} — {explanation}. It cannot {denied}.</value>
+    <comment>Permissions tab, sentence under the matrix. Same placeholders as Security_SentenceCan, plus {denied}, what the role cannot do as a list joined with or, such as INSERT or UPDATE.</comment>
+  </data>
+  <data name="Security_CopyAsSql" xml:space="preserve">
+    <value>Copy as SQL</value>
+    <comment>Default privileges tab: button that opens the selected row's ALTER DEFAULT PRIVILEGES statement in a new query tab.</comment>
+  </data>
+  <data name="Security_CopyAsSqlTip" xml:space="preserve">
+    <value>Open the ALTER DEFAULT PRIVILEGES statement this row represents in a new editor tab</value>
+    <comment>Default privileges tab: tooltip of the Copy as SQL button. ALTER DEFAULT PRIVILEGES is SQL.</comment>
+  </data>
+  <data name="Security_ColCreatedBy" xml:space="preserve">
+    <value>Created by</value>
+    <comment>Default privileges tab: column header of the role that will create the objects the default applies to.</comment>
+  </data>
+  <data name="Security_ColInSchema" xml:space="preserve">
+    <value>In schema</value>
+    <comment>Default privileges tab: column header of the schema the default applies in.</comment>
+  </data>
+  <data name="Security_ColAppliesTo" xml:space="preserve">
+    <value>Applies to</value>
+    <comment>Default privileges tab: column header of the kind of object the default applies to (tables, sequences …).</comment>
+  </data>
+  <data name="Security_ColGrantee" xml:space="preserve">
+    <value>Grantee</value>
+    <comment>Default privileges tab: column header of the role that gets the privileges.</comment>
+  </data>
+  <data name="Security_ColPrivileges" xml:space="preserve">
+    <value>Privileges</value>
+    <comment>Default privileges tab: column header of the list of privileges.</comment>
+  </data>
+  <data name="Security_AllSchemas" xml:space="preserve">
+    <value>(all schemas)</value>
+    <comment>Shown instead of a schema name in the Default privileges tab (the default applies in every schema) and as the first choice of the schema filter in the Row-level security tab. Keep the parentheses.</comment>
+  </data>
+  <data name="Security_AppliesToTables" xml:space="preserve">
+    <value>Tables</value>
+    <comment>Default privileges tab, Applies to column: the default applies to tables.</comment>
+  </data>
+  <data name="Security_AppliesToSequences" xml:space="preserve">
+    <value>Sequences</value>
+    <comment>Default privileges tab, Applies to column: the default applies to sequences.</comment>
+  </data>
+  <data name="Security_AppliesToFunctions" xml:space="preserve">
+    <value>Functions</value>
+    <comment>Default privileges tab, Applies to column: the default applies to functions.</comment>
+  </data>
+  <data name="Security_AppliesToTypes" xml:space="preserve">
+    <value>Types</value>
+    <comment>Default privileges tab, Applies to column: the default applies to data types.</comment>
+  </data>
+  <data name="Security_AppliesToSchemas" xml:space="preserve">
+    <value>Schemas</value>
+    <comment>Default privileges tab, Applies to column: the default applies to schemas.</comment>
+  </data>
+  <data name="Security_NoDefaultPrivileges" xml:space="preserve">
+    <value>No default privileges are configured.</value>
+    <comment>Default privileges tab: heading shown when there are none.</comment>
+  </data>
+  <data name="Security_NoDefaultPrivilegesHint" xml:space="preserve">
+    <value>Every object created from now on will carry only the built-in defaults: its owner gets everything, PUBLIC gets EXECUTE on functions and USAGE on types, and nothing at all on tables and sequences.</value>
+    <comment>Default privileges tab: explanation under the heading shown when there are none. PUBLIC, EXECUTE and USAGE are SQL words and stay as written.</comment>
+  </data>
+  <data name="Security_DefaultsNoteExisting" xml:space="preserve">
+    <value>These do not affect objects that already exist. They apply to objects created from now on, which is why a GRANT … ON ALL TABLES IN SCHEMA … and a default privilege are both needed: neither replaces the other.</value>
+    <comment>Default privileges tab: first note under the list. The GRANT statement is SQL and stays as written.</comment>
+  </data>
+  <data name="Security_DefaultsNoteCreator" xml:space="preserve">
+    <value>They are keyed to the role that creates the object, not to the schema it lands in. A default privilege set for the wrong creator runs fine and silently does nothing — the single most common reason someone says they set default privileges and nothing changed.</value>
+    <comment>Default privileges tab: second note under the list.</comment>
+  </data>
+  <data name="Security_DefaultPrivilegesTabTitle" xml:space="preserve">
+    <value>{owner} · default privileges</value>
+    <comment>Title of the query tab that opens with an ALTER DEFAULT PRIVILEGES statement. {owner} is the role that creates the objects, such as app_rw.</comment>
+  </data>
+  <data name="Security_SchemaFilterTip" xml:space="preserve">
+    <value>Only schemas that have row-level security anywhere are listed</value>
+    <comment>Row-level security tab: tooltip of the schema filter.</comment>
+  </data>
+  <data name="Security_CopyPolicyAsSql" xml:space="preserve">
+    <value>Copy policy as SQL</value>
+    <comment>Row-level security tab: button that opens the selected policy's CREATE POLICY statement in a new query tab.</comment>
+  </data>
+  <data name="Security_CopyPolicyAsSqlTip" xml:space="preserve">
+    <value>Open the selected policy's CREATE POLICY statement in a new editor tab — Postgres cannot change a policy's command or permissiveness in place, so re-creating it is how one gets edited</value>
+    <comment>Row-level security tab: tooltip of the Copy policy as SQL button. CREATE POLICY is SQL.</comment>
+  </data>
+  <data name="Security_PoliciesInert" xml:space="preserve">
+    <value>Policies inert — RLS is off</value>
+    <comment>Row-level security tab, list of tables: warning on a table that has policies but row-level security is switched off. RLS means row-level security.</comment>
+  </data>
+  <data name="Security_PoliciesDoNothing" xml:space="preserve">
+    <value>These policies do nothing.</value>
+    <comment>Row-level security tab: heading of a warning about a table whose policies have no effect.</comment>
+  </data>
+  <data name="Security_PoliciesDoNothingHint" xml:space="preserve">
+    <value>Row-level security was never switched on for this table, so every policy below is inert and every role reads every row. Writing policies does not enable it — ALTER TABLE … ENABLE ROW LEVEL SECURITY does.</value>
+    <comment>Row-level security tab: explanation of the warning. The ALTER TABLE statement is SQL and stays as written.</comment>
+  </data>
+  <data name="Security_YouBypass" xml:space="preserve">
+    <value>You bypass these policies.</value>
+    <comment>Row-level security tab: heading of a warning that the connected role is not subject to the policies.</comment>
+  </data>
+  <data name="Security_DeniesEverything" xml:space="preserve">
+    <value>Row-level security is enabled and this table has no policies, so it returns no rows to any role that does not bypass it. That is the default-deny state, not a misconfiguration in itself.</value>
+    <comment>Row-level security tab: note on a table with row-level security on and no policies.</comment>
+  </data>
+  <data name="Security_PolicyAppliesTo" xml:space="preserve">
+    <value>Applies to</value>
+    <comment>Row-level security tab: label before the roles a policy applies to.</comment>
+  </data>
+  <data name="Security_PolicyUsing" xml:space="preserve">
+    <value>USING — which existing rows are visible</value>
+    <comment>Row-level security tab: label above a policy's USING expression. USING is the SQL keyword and stays first.</comment>
+  </data>
+  <data name="Security_PolicyWithCheck" xml:space="preserve">
+    <value>WITH CHECK — which new or updated rows are allowed</value>
+    <comment>Row-level security tab: label above a policy's WITH CHECK expression. WITH CHECK is the SQL keyword and stays first.</comment>
+  </data>
+  <data name="Security_NoPolicies" xml:space="preserve">
+    <value>This table has no policies.</value>
+    <comment>Row-level security tab: shown in the details of a table without policies.</comment>
+  </data>
+  <data name="Security_NoRlsTables" xml:space="preserve">
+    <value>No table here uses row-level security.</value>
+    <comment>Row-level security tab: heading shown when no table has row-level security or a policy.</comment>
+  </data>
+  <data name="Security_NoRlsTablesHint" xml:space="preserve">
+    <value>Tables appear here as soon as they have row security enabled or carry a policy, in either order.</value>
+    <comment>Row-level security tab: explanation under the heading shown when no table has row-level security.</comment>
+  </data>
+  <data name="Security_RlsEnabledForce" xml:space="preserve">
+    <value>Enabled · FORCE</value>
+    <comment>Row-level security tab: state of a table. Row-level security is on and also applies to the table's owner (SQL option FORCE).</comment>
+  </data>
+  <data name="Security_RlsEnabled" xml:space="preserve">
+    <value>Enabled</value>
+    <comment>Row-level security tab: state of a table. Row-level security is on.</comment>
+  </data>
+  <data name="Security_RlsNotEnabled" xml:space="preserve">
+    <value>Not enabled</value>
+    <comment>Row-level security tab: state of a table. Row-level security is off.</comment>
+  </data>
+  <data name="Security_PolicyCount_one" xml:space="preserve">
+    <value>{count} policy</value>
+    <comment>Row-level security tab: how many policies a table has. Singular.</comment>
+  </data>
+  <data name="Security_PolicyCount_other" xml:space="preserve">
+    <value>{count} policies</value>
+    <comment>Row-level security tab: how many policies a table has. Plural. {count} is the number, such as 3.</comment>
+  </data>
+  <data name="Security_PolicyForEveryone" xml:space="preserve">
+    <value>public (every role)</value>
+    <comment>Row-level security tab: the policy applies to every role (the SQL keyword PUBLIC).</comment>
+  </data>
+  <data name="Security_BypassUnknown" xml:space="preserve">
+    <value>{role} sees every row in this table, whatever the policies below say. Its role attributes could not be read, so this is either a superuser or BYPASSRLS role (which bypasses every table, always) or ownership of a table that is not FORCE ROW LEVEL SECURITY.</value>
+    <comment>Row-level security tab: warning body. {role} is the connected role. BYPASSRLS and FORCE ROW LEVEL SECURITY are SQL and stay as written.</comment>
+  </data>
+  <data name="Security_BypassSuperuser" xml:space="preserve">
+    <value>{role} is a superuser, so it bypasses row-level security on every table in the cluster. That is unconditional: FORCE ROW LEVEL SECURITY does not apply the policies to it. Test these policies as the role your application connects as.</value>
+    <comment>Row-level security tab: warning body. {role} is the connected role. FORCE ROW LEVEL SECURITY is SQL and stays as written.</comment>
+  </data>
+  <data name="Security_BypassAttribute" xml:space="preserve">
+    <value>{role} has the BYPASSRLS attribute, so it bypasses row-level security on every table, always. FORCE ROW LEVEL SECURITY does not apply the policies to it. Test these policies as the role your application connects as.</value>
+    <comment>Row-level security tab: warning body. {role} is the connected role. BYPASSRLS and FORCE ROW LEVEL SECURITY are SQL and stay as written.</comment>
+  </data>
+  <data name="Security_BypassOwner" xml:space="preserve">
+    <value>{role} owns this table, or is a member of the role that does, and the table is not FORCE ROW LEVEL SECURITY — so the policies below are not applied to it, though they are applied to every other role. ALTER TABLE … FORCE ROW LEVEL SECURITY makes them apply to the owner too.</value>
+    <comment>Row-level security tab: warning body. {role} is the connected role. FORCE ROW LEVEL SECURITY and the ALTER TABLE statement are SQL and stay as written.</comment>
+  </data>
+  <data name="Security_ObjectDropped" xml:space="preserve">
+    <value>{object} no longer exists — it was dropped since the object list was built.</value>
+    <comment>Error line of the Roles and Permissions window. {object} is the name of the object, such as sales.orders.</comment>
+  </data>
 
   <!-- ===== Backup ===== -->
   <data name="Backup_WindowTitle" xml:space="preserve">
