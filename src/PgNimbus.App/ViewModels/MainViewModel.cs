@@ -9,6 +9,7 @@ using PgNimbus.Core.Backup;
 using PgNimbus.Core.Commands;
 using PgNimbus.Core.Connections;
 using PgNimbus.Core.Import;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Monitoring;
 using PgNimbus.Core.Query;
 using PgNimbus.Core.QueryLab;
@@ -195,7 +196,7 @@ public sealed partial class MainViewModel : ObservableObject
         {
             if (ActiveTab is { } tab)
             {
-                tab.Status = "Filters apply while browsing a table: double-click one in the sidebar. A query you wrote is never rewritten; add a WHERE to it instead.";
+                tab.Status = Strings.Shell_FiltersNeedBrowse;
                 tab.HasError = false;
             }
 
@@ -357,8 +358,8 @@ public sealed partial class MainViewModel : ObservableObject
     {
         AutoAliasTables = !AutoAliasTables;
         ActiveTab.Status = AutoAliasTables
-            ? "Auto-alias tables: on (orders → orders o)"
-            : "Auto-alias tables: off";
+            ? Strings.Shell_AutoAliasOn
+            : Strings.Shell_AutoAliasOff;
     }
 
     /// <summary>
@@ -372,8 +373,8 @@ public sealed partial class MainViewModel : ObservableObject
     {
         SafeModeEdits = !SafeModeEdits;
         ActiveTab.Status = SafeModeEdits
-            ? "Safe mode: on — grid edits, deletes, and inserts are staged for review"
-            : "Safe mode: off — grid changes apply immediately";
+            ? Strings.Shell_SafeModeOn
+            : Strings.Shell_SafeModeOff;
     }
 
     [RelayCommand]
@@ -396,7 +397,7 @@ public sealed partial class MainViewModel : ObservableObject
             return capture;
         }
 
-        ActiveTab.Status = "No plan on screen: run Explain or Explain Analyze, or import a plan, first";
+        ActiveTab.Status = Strings.Shell_NoPlanOnScreen;
         ActiveTab.HasError = true;
         return null;
     }
@@ -490,7 +491,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         if (!CanSwitchDatabase)
         {
-            ActiveTab.Status = "This window can't switch databases: it has no connection profile to open another database with.";
+            ActiveTab.Status = Strings.Shell_CantSwitchDatabase;
             return;
         }
 
@@ -524,21 +525,21 @@ public sealed partial class MainViewModel : ObservableObject
         if (DescribeConnectionLosses() is { } losses)
         {
             if (ConfirmConnectionLossRequested is not { } confirm
-                || !await confirm($"Open {database} in this window? {losses}", "Switch Database"))
+                || !await confirm(Strings.Shell_SwitchDatabaseConfirm(database, losses), Strings.Shell_SwitchDatabaseButton))
             {
-                tab.Status = $"Stayed on {ConnectionDatabase}.";
+                tab.Status = Strings.Shell_StayedOn(ConnectionDatabase);
                 return;
             }
         }
 
-        tab.Status = $"Connecting to {database}…";
+        tab.Status = Strings.Shell_ConnectingTo(database);
         try
         {
             await switchTo(database);
         }
         catch (Exception ex)
         {
-            tab.Status = $"Couldn't open database {database}: {ex.Message}";
+            tab.Status = Strings.Shell_OpenDatabaseFailed(database, ex.Message);
         }
     }
 
@@ -562,18 +563,18 @@ public sealed partial class MainViewModel : ObservableObject
         var staged = Tabs.Sum(t => t.PendingChanges?.Count ?? 0);
         if (staged > 0)
         {
-            parts.Add(staged == 1 ? "1 staged change will be discarded" : $"{staged} staged changes will be discarded");
+            parts.Add(Strings.Shell_LossStaged(staged));
         }
 
         if (IsInTransaction || _engine.IsInTransaction)
         {
-            parts.Add("the open transaction will be rolled back");
+            parts.Add(Strings.Shell_LossTransaction);
         }
 
         var running = Tabs.Count(t => t.IsRunning);
         if (running > 0)
         {
-            parts.Add(running == 1 ? "the running query will be cancelled" : $"{running} running queries will be cancelled");
+            parts.Add(Strings.Shell_LossRunning(running));
         }
 
         if (parts.Count == 0)
@@ -581,10 +582,15 @@ public sealed partial class MainViewModel : ObservableObject
             return null;
         }
 
-        var sentence = parts.Count == 1
-            ? parts[0]
-            : string.Join(", ", parts.Take(parts.Count - 1)) + " and " + parts[^1];
-        return char.ToUpperInvariant(sentence[0]) + sentence[1..] + ".";
+        // Three kinds of loss at most, so the joins are whole entries: a translation
+        // orders and punctuates them its own way.
+        var phrase = parts.Count switch
+        {
+            1 => parts[0],
+            2 => Strings.Shell_LossesTwo(parts[0], parts[1]),
+            _ => Strings.Shell_LossesThree(parts[0], parts[1], parts[2]),
+        };
+        return Strings.Shell_LossesSentence(char.ToUpperInvariant(phrase[0]) + phrase[1..]);
     }
 
     /// <summary>
@@ -668,7 +674,7 @@ public sealed partial class MainViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            tab.Status = $"Couldn't open database {database}: {ex.Message}";
+            tab.Status = Strings.Shell_OpenDatabaseFailed(database, ex.Message);
         }
     }
 
@@ -683,14 +689,14 @@ public sealed partial class MainViewModel : ObservableObject
     {
         if (Restores is null)
         {
-            ActiveTab.Status = "Restoring needs a connection that pg_restore can use, and this window has none.";
+            ActiveTab.Status = Strings.Shell_RestoreNeedsConnection;
             ActiveTab.HasError = true;
             return;
         }
 
         if (IsReadOnlyConnection)
         {
-            ActiveTab.Status = "This connection is read-only, so it can't restore a backup. Connect with a profile that can write.";
+            ActiveTab.Status = Strings.Shell_RestoreReadOnly;
             ActiveTab.HasError = true;
             return;
         }
@@ -702,7 +708,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         if (Backups is null)
         {
-            ActiveTab.Status = "Backups need a connection that pg_dump can use, and this window has none.";
+            ActiveTab.Status = Strings.Shell_BackupNeedsConnection;
             ActiveTab.HasError = true;
             return;
         }
@@ -820,19 +826,14 @@ public sealed partial class MainViewModel : ObservableObject
     // production window allows or locks writes).
     private bool _expectReadOnly;
 
-    private const string ReadOnlySessionHint = "the connection is read-only, so the server refuses writes.";
+    private static string ReadOnlySessionHint => Strings.Shell_ReadOnlySessionHint;
 
     /// <summary>Why a production window with writes off can't write.</summary>
-    public const string ProductionLockedHint =
-        "this is a production connection, and writes are off in this window until you allow them.";
+    public static string ProductionLockedHint => Strings.Shell_ProductionLockedHint;
 
-    private const string ProductionNotEnforcedHint =
-        "writes should be off on this production connection, but the server or a connection pooler did not apply that option, and the server accepts writes. " +
-        "pgNimbus keeps the grid read-only, but only pgNimbus blocks writes now: SQL you run can still change data.";
+    private static string ProductionNotEnforcedHint => Strings.Shell_ProductionNotEnforcedHint;
 
-    private const string ReadOnlyNotEnforcedHint =
-        "the profile asks for a read-only connection, but the server or a connection pooler did not apply that option, and the server accepts writes. " +
-        "pgNimbus keeps the grid read-only, but only pgNimbus blocks writes now: SQL you run can still change data. Don't rely on this profile's protection in this session.";
+    private static string ReadOnlyNotEnforcedHint => Strings.Shell_ReadOnlyNotEnforcedHint;
 
     /// <summary>
     /// Replaces the server query behind every <see cref="DetectWriteStateAsync"/>
@@ -870,15 +871,14 @@ public sealed partial class MainViewModel : ObservableObject
             // reworded, and the tabs keep refusing edit contexts.
             IsReadOnlyNotEnforced = true;
             ConnectionReadOnlyHint = _writeGate is null ? ReadOnlyNotEnforcedHint : ProductionNotEnforcedHint;
-            ActiveTab.Status = "Read-only was not applied: the server or a connection pooler ignored the profile's read-only option. " +
-                "The grid stays read-only, but SQL you run can write.";
+            ActiveTab.Status = Strings.Shell_ReadOnlyNotApplied_Status;
             return;
         }
 
         IsReadOnlyNotEnforced = false;
         ConnectionReadOnlyHint = state switch
         {
-            SessionWriteState.Standby => "the server is a standby replica, which refuses writes.",
+            SessionWriteState.Standby => Strings.Shell_StandbyHint,
             SessionWriteState.ReadOnly => _writeGate is not null && !WritesAllowed ? ProductionLockedHint : ReadOnlySessionHint,
             _ => null,
         };
@@ -919,11 +919,36 @@ public sealed partial class MainViewModel : ObservableObject
     /// switch doesn't: a window that is read-only only because its writes are
     /// off already says so in the switch.
     /// </summary>
-    public bool ShowReadOnlyMark => IsReadOnlyConnection && ConnectionReadOnlyHint != ProductionLockedHint;
+    public bool ShowReadOnlyMark => IsReadOnlyConnection && !_hintIsProductionLocked;
 
     public string WritesToggleTip => WritesAllowed
-        ? "Production: writes are allowed in this window. Click to turn them off."
-        : "Production: writes are off in this window, and the server refuses them. Click to allow writes for this window.";
+        ? Strings.Shell_WritesToggleOn
+        : Strings.Shell_WritesToggleOff;
+
+    /// <summary>The title bar's environment tag (Development, Staging) says what it is on hover.</summary>
+    public string EnvironmentTip => Strings.Shell_EnvironmentTip(EnvironmentTag ?? "");
+
+    /// <summary>What the read-only mark in the title bar says on hover: why this connection can't write.</summary>
+    public string? ReadOnlyMarkTip => ConnectionReadOnlyHint is { } hint ? Strings.Shell_ReadOnlyTip(hint) : null;
+
+    /// <summary>What the status bar's read-only tag says on hover: why the active tab's result can't be edited.</summary>
+    public string? ResultsReadOnlyTip => ActiveTab?.ReadOnlyHint is { } hint ? Strings.Shell_ResultsReadOnlyTip(hint) : null;
+
+    // The active tab's reason changes with every run; the tip follows it.
+    partial void OnActiveTabChanged(QueryViewModel value) => OnPropertyChanged(nameof(ResultsReadOnlyTip));
+
+    private void OnLanguageChanged()
+    {
+        OnPropertyChanged(nameof(WritesToggleTip));
+        OnPropertyChanged(nameof(EnvironmentTip));
+        OnPropertyChanged(nameof(ReadOnlyMarkTip));
+        OnPropertyChanged(nameof(ResultsReadOnlyTip));
+    }
+
+    // Whether the hint now held is the production lock's: the read-only mark is
+    // hidden then (the switch says it). Remembered when the hint is set, since the
+    // hint is text in the language of the moment and cannot be compared later.
+    private bool _hintIsProductionLocked;
 
     /// <summary>
     /// Asks the user to confirm allowing writes; the view shows a confirm naming
@@ -944,8 +969,8 @@ public sealed partial class MainViewModel : ObservableObject
         if (_writeGate is null)
         {
             ActiveTab.Status = IsProduction
-                ? "This production profile is read-only, so its windows can't allow writes. Turn off Read-only session in the profile."
-                : "Only a production profile's window turns writes on and off.";
+                ? Strings.Shell_ProductionProfileReadOnly
+                : Strings.Shell_OnlyProductionToggles;
             ActiveTab.HasError = true;
             return;
         }
@@ -966,7 +991,7 @@ public sealed partial class MainViewModel : ObservableObject
         IsReadOnlyNotEnforced = false;
         ConnectionReadOnlyHint = null;
         ApplyWriteStateToActivity();
-        ActiveTab.Status = "Writes are allowed in this window. Other windows on this profile still have them off.";
+        ActiveTab.Status = Strings.Shell_WritesAllowedStatus;
         ActiveTab.HasError = false;
         await DetectWriteStateAsync();
     }
@@ -986,7 +1011,7 @@ public sealed partial class MainViewModel : ObservableObject
 
         if (IsInTransaction)
         {
-            ActiveTab.Status = "Commit or roll back the open transaction first: it holds a connection that can write.";
+            ActiveTab.Status = Strings.Shell_CommitFirst;
             ActiveTab.HasError = true;
             return;
         }
@@ -997,7 +1022,7 @@ public sealed partial class MainViewModel : ObservableObject
         IsReadOnlyNotEnforced = false;
         ConnectionReadOnlyHint = ProductionLockedHint;
         ApplyWriteStateToActivity();
-        ActiveTab.Status = "Writes are off in this window again.";
+        ActiveTab.Status = Strings.Shell_WritesOffAgain;
         ActiveTab.HasError = false;
 
         // A pooler that drops the startup option shows up here as a writable
@@ -1014,12 +1039,14 @@ public sealed partial class MainViewModel : ObservableObject
     // The server allows both on a read-only session, so this is pgNimbus's check.
     private void ApplyWriteStateToActivity() =>
         Activity.SignalsLockedHint = _writeGate is not null && !WritesAllowed
-            ? "Writes are off in this production window, so it doesn't cancel or terminate other sessions. Allow writes first."
+            ? Strings.Shell_SignalsLockedHint
             : null;
 
     partial void OnConnectionReadOnlyHintChanged(string? oldValue, string? newValue)
     {
+        _hintIsProductionLocked = newValue is not null && newValue == ProductionLockedHint;
         OnPropertyChanged(nameof(ShowReadOnlyMark));
+        OnPropertyChanged(nameof(ReadOnlyMarkTip));
         foreach (var tab in Tabs)
         {
             tab.ApplyConnectionReadOnly(oldValue);
@@ -1179,7 +1206,7 @@ public sealed partial class MainViewModel : ObservableObject
         _persistWordWrapEditor?.Invoke(value);
         if (ActiveTab is not null)
         {
-            ActiveTab.Status = value ? "Word wrap: on" : "Word wrap: off";
+            ActiveTab.Status = value ? Strings.Shell_WordWrapOn : Strings.Shell_WordWrapOff;
         }
     }
 
@@ -1252,6 +1279,7 @@ public sealed partial class MainViewModel : ObservableObject
         IRestoreService? restores = null,
         SavedPlanStore? savedPlanStore = null)
     {
+        Localizer.WhenChanged(this, static vm => vm.OnLanguageChanged());
         Backups = backups;
         Restores = restores;
         CompletionUsage = completionUsage ?? new CompletionUsage();
@@ -1264,6 +1292,7 @@ public sealed partial class MainViewModel : ObservableObject
         Environment = environment;
         _writeGate = writeGate;
         _connectionReadOnlyHint = readOnlyConnection ? (writeGate is null ? ReadOnlySessionHint : ProductionLockedHint) : null;
+        _hintIsProductionLocked = readOnlyConnection && writeGate is not null;
         _expectReadOnly = readOnlyConnection;
         _autoAliasTables = autoAliasTables;
         _persistAutoAliasTables = persistAutoAliasTables;
@@ -1469,7 +1498,7 @@ public sealed partial class MainViewModel : ObservableObject
 
             if (plan is null)
             {
-                tab.Status = "The imported plan could not be read back. Import it again with Import query plan…";
+                tab.Status = Strings.Shell_ImportedPlanUnreadable;
                 continue;
             }
 
@@ -1579,7 +1608,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         if (status.IsStale && ActiveTab is { } tab)
         {
-            tab.Status = $"Autocomplete kept the previous catalog: refresh failed ({status.Error})";
+            tab.Status = Strings.Shell_CompletionCatalogStale(status.Error);
         }
     }
 
@@ -1616,11 +1645,11 @@ public sealed partial class MainViewModel : ObservableObject
         try
         {
             await _engine.BeginTransactionAsync(CancellationToken.None);
-            ActiveTab.Status = "Transaction started — BEGIN";
+            ActiveTab.Status = Strings.Shell_TransactionStarted;
         }
         catch (Exception ex)
         {
-            ActiveTab.Status = $"Couldn't begin transaction: {ex.Message}";
+            ActiveTab.Status = Strings.Shell_TransactionBeginFailed(ex.Message);
             ActiveTab.HasError = true;
         }
     }
@@ -1632,11 +1661,11 @@ public sealed partial class MainViewModel : ObservableObject
         try
         {
             await _engine.CommitAsync(CancellationToken.None);
-            ActiveTab.Status = "Transaction committed — COMMIT";
+            ActiveTab.Status = Strings.Shell_TransactionCommitted;
         }
         catch (Exception ex)
         {
-            ActiveTab.Status = $"Commit failed: {ex.Message}";
+            ActiveTab.Status = Strings.Shell_TransactionCommitFailed(ex.Message);
             ActiveTab.HasError = true;
         }
     }
@@ -1648,11 +1677,11 @@ public sealed partial class MainViewModel : ObservableObject
         try
         {
             await _engine.RollbackAsync(CancellationToken.None);
-            ActiveTab.Status = "Transaction rolled back — ROLLBACK";
+            ActiveTab.Status = Strings.Shell_TransactionRolledBack;
         }
         catch (Exception ex)
         {
-            ActiveTab.Status = $"Rollback failed: {ex.Message}";
+            ActiveTab.Status = Strings.Shell_TransactionRollbackFailed(ex.Message);
             ActiveTab.HasError = true;
         }
     }
@@ -1727,7 +1756,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         var tab = new QueryViewModel(_engine, _explainService, GetReconcilerAsync, () => SafeModeEdits, _schemaService, () => ShowFilterBar, () => ConnectionReadOnlyHint)
         {
-            DefaultTitle = $"Query {Tabs.Count + 1}",
+            DefaultTitle = Strings.Shell_QueryTabName(Tabs.Count + 1),
             IsPlanTextView = !PlanTreeView,
         };
         tab.PropertyChanged += (_, e) =>
@@ -1735,6 +1764,10 @@ public sealed partial class MainViewModel : ObservableObject
             if (e.PropertyName == nameof(QueryViewModel.IsPlanTextView))
             {
                 PlanTreeView = !tab.IsPlanTextView;
+            }
+            else if (e.PropertyName == nameof(QueryViewModel.ReadOnlyHint) && ReferenceEquals(tab, ActiveTab))
+            {
+                OnPropertyChanged(nameof(ResultsReadOnlyTip));
             }
         };
         tab.Executed += SavedQueries.RecordExecution;
@@ -1817,7 +1850,7 @@ public sealed partial class MainViewModel : ObservableObject
         var ddl = await _ddlService.GenerateAsync(table.Schema, table.Name, CancellationToken.None);
 
         var tab = NewTab();
-        tab.DefaultTitle = $"{table.Name} · source";
+        tab.DefaultTitle = Strings.Shell_TabSourceTitle(table.Name);
         tab.Sql = ddl;
     }
 
@@ -1827,7 +1860,7 @@ public sealed partial class MainViewModel : ObservableObject
         var ddl = await _ddlService.GenerateFunctionAsync(function.Schema, function.Name, function.Arguments, CancellationToken.None);
 
         var tab = NewTab();
-        tab.DefaultTitle = $"{function.Name} · source";
+        tab.DefaultTitle = Strings.Shell_TabSourceTitle(function.Name);
         tab.Sql = ddl;
     }
 
@@ -1873,7 +1906,7 @@ public sealed partial class MainViewModel : ObservableObject
     // chose (UI rule 4): it yields to the SQL-derived name once the tab is used
     // for a query, so it is never written as a TitleOverride, and a restored
     // or reopened plan gets it back from here.
-    private const string ImportedPlanTitle = "Imported plan";
+    private static string ImportedPlanTitle => Strings.Shell_ImportedPlanTitle;
 
     /// <summary>
     /// Drops a generated script into a new tab, where it can be read, edited and
@@ -1900,7 +1933,7 @@ public sealed partial class MainViewModel : ObservableObject
     public Task NewTableAsync(SchemaNode schema)
     {
         var tab = NewTab();
-        tab.DefaultTitle = $"{schema.Name} · new table";
+        tab.DefaultTitle = Strings.Shell_TabNewTableTitle(schema.Name);
         tab.Sql = DdlTemplates.NewTable(schema.Name);
         return Task.CompletedTask;
     }
@@ -1991,7 +2024,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         if (CurrentMaintenanceTarget() is not { } target)
         {
-            ActiveTab.Status = "Select a table in the schema tree, or browse one, first.";
+            ActiveTab.Status = Strings.Shell_SelectTableFirst;
             ActiveTab.HasError = true;
             return;
         }
@@ -2039,11 +2072,18 @@ public sealed partial class MainViewModel : ObservableObject
         var tab = ActiveTab;
         var display = $"{target.Schema}.{target.Name}";
         var noun = TableMaintenance.Noun(target.Kind);
-        var verb = action.ToString().ToLowerInvariant();
+        var verb = action switch
+        {
+            TableMaintenanceAction.Analyze => Strings.Shell_MaintVerb_Analyze,
+            TableMaintenanceAction.Vacuum => Strings.Shell_MaintVerb_Vacuum,
+            TableMaintenanceAction.Truncate => Strings.Shell_MaintVerb_Truncate,
+            TableMaintenanceAction.Rename => Strings.Shell_MaintVerb_Rename,
+            _ => Strings.Shell_MaintVerb_Drop,
+        };
 
         if (!TableMaintenance.Applies(action, target.Kind))
         {
-            Refuse(tab, $"Can't {verb} \"{display}\": it is a {noun}.");
+            Refuse(tab, Strings.Shell_MaintCantApply(verb, display, noun));
             return;
         }
 
@@ -2053,23 +2093,22 @@ public sealed partial class MainViewModel : ObservableObject
         var productionLocked = CanToggleWrites && !WritesAllowed;
         if (ConnectionReadOnlyHint is { } hint && (TableMaintenance.Writes(action) || productionLocked))
         {
-            Refuse(tab, $"Can't {verb} \"{display}\": {hint}");
+            Refuse(tab, Strings.Shell_MaintCantReason(verb, display, hint));
             return;
         }
 
-        var database = string.IsNullOrEmpty(ConnectionDatabase) ? "" : $" in database \"{ConnectionDatabase}\"";
+        var database = string.IsNullOrEmpty(ConnectionDatabase) ? "" : Strings.Shell_InDatabase(ConnectionDatabase);
         string? newName = null;
         switch (action)
         {
             case TableMaintenanceAction.Truncate:
                 var truncated = target.Kind == RelationKind.PartitionedTable
-                    ? "Every row in it and in all its partitions is deleted"
-                    : "Every row in it is deleted";
+                    ? Strings.Shell_TruncateEffectPartitioned
+                    : Strings.Shell_TruncateEffect;
                 if (ConfirmMaintenanceRequested is not { } confirmTruncate
                     || !await confirmTruncate(
-                        $"Truncate table \"{display}\"{database}? {truncated}, and this can't be undone. " +
-                        "It fails if another table's foreign key references it.",
-                        "Truncate"))
+                        Strings.Shell_TruncateConfirm(display, database, truncated),
+                        Strings.Shell_TruncateButton))
                 {
                     return;
                 }
@@ -2079,16 +2118,15 @@ public sealed partial class MainViewModel : ObservableObject
             case TableMaintenanceAction.Drop:
                 var lost = target.Kind switch
                 {
-                    RelationKind.View => "The view is removed",
-                    RelationKind.MaterializedView => "The materialized view and its data are removed",
-                    RelationKind.PartitionedTable => "The table and all its partitions, with every row in them, are removed",
-                    _ => "The table and every row in it are removed",
+                    RelationKind.View => Strings.Shell_DropEffectView,
+                    RelationKind.MaterializedView => Strings.Shell_DropEffectMaterializedView,
+                    RelationKind.PartitionedTable => Strings.Shell_DropEffectPartitioned,
+                    _ => Strings.Shell_DropEffectTable,
                 };
                 if (ConfirmMaintenanceRequested is not { } confirmDrop
                     || !await confirmDrop(
-                        $"Drop {noun} \"{display}\"{database}? {lost}, and this can't be undone. " +
-                        "It fails if a view or another table's foreign key depends on it.",
-                        "Drop"))
+                        Strings.Shell_DropConfirm(noun, display, database, lost),
+                        Strings.Shell_DropButton))
                 {
                     return;
                 }
@@ -2097,7 +2135,7 @@ public sealed partial class MainViewModel : ObservableObject
 
             case TableMaintenanceAction.Rename:
                 if (RenameRelationRequested is not { } ask
-                    || (await ask($"Rename {noun} \"{display}\"", target.Name))?.Trim() is not { Length: > 0 } typed
+                    || (await ask(Strings.Shell_RenameHeading(noun, display), target.Name))?.Trim() is not { Length: > 0 } typed
                     || typed == target.Name)
                 {
                     return;
@@ -2118,11 +2156,11 @@ public sealed partial class MainViewModel : ObservableObject
         tab.HasError = false;
         tab.Status = action switch
         {
-            TableMaintenanceAction.Analyze => $"Analyzing {display}…",
-            TableMaintenanceAction.Vacuum => $"Vacuuming {display}…",
-            TableMaintenanceAction.Truncate => $"Truncating {display}…",
-            TableMaintenanceAction.Rename => $"Renaming {display}…",
-            _ => $"Dropping {display}…",
+            TableMaintenanceAction.Analyze => Strings.Shell_MaintRunningAnalyze(display),
+            TableMaintenanceAction.Vacuum => Strings.Shell_MaintRunningVacuum(display),
+            TableMaintenanceAction.Truncate => Strings.Shell_MaintRunningTruncate(display),
+            TableMaintenanceAction.Rename => Strings.Shell_MaintRunningRename(display),
+            _ => Strings.Shell_MaintRunningDrop(display),
         };
 
         var started = System.Diagnostics.Stopwatch.StartNew();
@@ -2137,7 +2175,7 @@ public sealed partial class MainViewModel : ObservableObject
         catch (Exception ex)
         {
             SchemaTree.ErrorMessage = ex.Message;
-            tab.Status = $"Couldn't {verb} {display}: {ex.Message}";
+            tab.Status = Strings.Shell_MaintFailed(verb, display, ex.Message);
             tab.HasError = true;
             return;
         }
@@ -2145,11 +2183,11 @@ public sealed partial class MainViewModel : ObservableObject
         var took = started.Elapsed.TotalSeconds.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture);
         tab.Status = action switch
         {
-            TableMaintenanceAction.Analyze => $"Analyzed {display} in {took} s",
-            TableMaintenanceAction.Vacuum => $"Vacuumed {display} in {took} s",
-            TableMaintenanceAction.Truncate => $"Truncated {display}",
-            TableMaintenanceAction.Rename => $"Renamed {display} to {target.Schema}.{newName}",
-            _ => $"Dropped {display}",
+            TableMaintenanceAction.Analyze => Strings.Shell_MaintDoneAnalyze(display, took),
+            TableMaintenanceAction.Vacuum => Strings.Shell_MaintDoneVacuum(display, took),
+            TableMaintenanceAction.Truncate => Strings.Shell_MaintDoneTruncate(display),
+            TableMaintenanceAction.Rename => Strings.Shell_MaintDoneRename(display, $"{target.Schema}.{newName}"),
+            _ => Strings.Shell_MaintDoneDrop(display),
         };
 
         if (action is TableMaintenanceAction.Rename or TableMaintenanceAction.Drop)
@@ -2189,8 +2227,8 @@ public sealed partial class MainViewModel : ObservableObject
         schema.ExcludedFromCompletion = excluded;
         _persistExcludedSchemas?.Invoke(_excludedSchemas.ToList());
         ActiveTab.Status = excluded
-            ? $"Schema \"{schema.Name}\" excluded from autocomplete"
-            : $"Schema \"{schema.Name}\" back in autocomplete";
+            ? Strings.Shell_SchemaExcluded(schema.Name)
+            : Strings.Shell_SchemaIncluded(schema.Name);
 
         // Only the completion cache is derived from the exclusion set; the tree
         // and the palette deliberately still show everything, so a full
@@ -2329,7 +2367,7 @@ public sealed partial class MainViewModel : ObservableObject
 
         tab.CaretOffset = closed.CaretOffset;
         tab.PendingCaretOffset = closed.CaretOffset;
-        tab.Status = $"Reopened “{tab.TabTitle}”";
+        tab.Status = Strings.Shell_ReopenedTab(tab.TabTitle);
 
         Tabs.Insert(Math.Clamp(closed.Index, 0, Tabs.Count), tab);
         ActiveTab = tab;
@@ -2409,13 +2447,8 @@ public sealed partial class MainViewModel : ObservableObject
 
         var how = CommandCatalog.ChordFor(CommandId.ReopenClosedTab, Hotkeys.Scheme) is { } chord
             ? chord.Label(Hotkeys.Scheme)
-            : "Reopen closed tab";
-        var what = unsaved.Count == 1
-            ? $"Closed “{unsaved[0].Title}”, which had unsaved SQL."
-            : $"Closed {unsaved.Count} tabs with unsaved SQL.";
-        ActiveTab.Status = unsaved.Count == 1
-            ? $"{what} {how} reopens it."
-            : $"{what} {how} reopens them one at a time.";
+            : Strings.Command_ReopenClosedTab;
+        ActiveTab.Status = Strings.Shell_ClosedUnsaved(unsaved.Count, unsaved[0].Title, how);
         ActiveTab.HasError = false;
     }
 
@@ -2433,7 +2466,7 @@ public sealed partial class MainViewModel : ObservableObject
             // never momentarily empty — same reason the successor below is
             // selected first. It is about to be the only tab, so it is "Query 1"
             // however many tabs this session has been through.
-            NewTab().DefaultTitle = "Query 1";
+            NewTab().DefaultTitle = Strings.Shell_QueryTabName(1);
         }
 
         var index = Tabs.IndexOf(tab);
@@ -2659,7 +2692,7 @@ public sealed partial class MainViewModel : ObservableObject
     private IEnumerable<PaletteItem> BuildActionItems() =>
         CommandCatalog.On(CommandSurface.Palette).Where(IsInPalette).Select(descriptor => new PaletteItem(
             descriptor.Title,
-            "Action",
+            Strings.Shell_PaletteAction,
             descriptor.Glyph,
             Invoke(() => CommandBindings.Resolve(descriptor.Id, this)),
             descriptor.ShortcutLabel(Hotkeys.Scheme)));
@@ -2684,7 +2717,7 @@ public sealed partial class MainViewModel : ObservableObject
     private IEnumerable<PaletteItem> BuildSavedQueryItems() =>
         SavedQueries.SavedQueries.Select(q => new PaletteItem(
             q.Name,
-            "Saved query",
+            Strings.Shell_PaletteSavedQuery,
             "★",
             () => { SavedQueries.LoadSavedQueryCommand.Execute(q); return Task.CompletedTask; }));
 
@@ -2695,7 +2728,7 @@ public sealed partial class MainViewModel : ObservableObject
     private IEnumerable<PaletteItem> BuildRecentFileItems() =>
         _recentSqlFiles.Select(path => new PaletteItem(
             Path.GetFileName(path),
-            "Recent file",
+            Strings.Shell_PaletteRecentFile,
             "▢",
             () => { OpenRecentFileRequested?.Invoke(path); return Task.CompletedTask; },
             Path.GetDirectoryName(path)));
@@ -2703,7 +2736,7 @@ public sealed partial class MainViewModel : ObservableObject
     private IEnumerable<PaletteItem> BuildTableItems(IReadOnlyList<RelationInfo> relations) =>
         relations.Select(r => new PaletteItem(
             $"{r.Schema}.{r.Name}",
-            "Table",
+            Strings.Shell_PaletteTable,
             GlyphFor(r.Kind),
             () => PreviewTableAsync(r.Schema, r.Name)));
 

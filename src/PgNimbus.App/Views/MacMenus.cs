@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input;
+using PgNimbus.Core.Localization;
 
 namespace PgNimbus.App.Views;
 
@@ -43,20 +44,20 @@ public static class MacMenus
         {
             Items =
             {
-                EditItem(window, "Undo", EditCommand.Undo),
-                EditItem(window, "Redo", EditCommand.Redo),
+                EditItem(window, Strings.Shell_MenuUndo, EditCommand.Undo),
+                EditItem(window, Strings.Shell_MenuRedo, EditCommand.Redo),
                 new NativeMenuItemSeparator(),
-                EditItem(window, "Cut", EditCommand.Cut),
-                EditItem(window, "Copy", EditCommand.Copy),
-                EditItem(window, "Paste", EditCommand.Paste),
-                EditItem(window, "Select All", EditCommand.SelectAll),
+                EditItem(window, Strings.Shell_MenuCut, EditCommand.Cut),
+                EditItem(window, Strings.Common_Copy, EditCommand.Copy),
+                EditItem(window, Strings.Shell_MenuPaste, EditCommand.Paste),
+                EditItem(window, Strings.Shell_MenuSelectAll, EditCommand.SelectAll),
             },
         };
 
         if (includeFind)
         {
             menu.Items.Add(new NativeMenuItemSeparator());
-            menu.Items.Add(EditItem(window, "Find…", EditCommand.Find));
+            menu.Items.Add(EditItem(window, Strings.Shell_MenuFind, EditCommand.Find));
         }
 
         return menu;
@@ -65,13 +66,15 @@ public static class MacMenus
     private static NativeMenuItem EditItem(TopLevel window, string header, EditCommand command) =>
         Action(header, () => EditCommands.Execute(window, command), EditCommands.GestureFor(command));
 
-    /// <summary>The Appearance submenu's rows, in order: the persisted theme value and its label.</summary>
-    private static readonly (string Value, string Header)[] Themes =
-    [
-        ("system", "System"),
-        ("light", "Light"),
-        ("dark", "Dark"),
-    ];
+    /// <summary>The Appearance submenu's rows, in order: the persisted theme value; the label is <see cref="ThemeHeader"/>.</summary>
+    private static readonly string[] Themes = ["system", "light", "dark"];
+
+    private static string ThemeHeader(string value) => value switch
+    {
+        "light" => Strings.Shell_ThemeLight,
+        "dark" => Strings.Shell_ThemeDark,
+        _ => Strings.Shell_ThemeSystem,
+    };
 
     /// <summary>
     /// View → Appearance: System / Light / Dark as radio items, the current one
@@ -85,9 +88,9 @@ public static class MacMenus
     public static NativeMenu Appearance()
     {
         var menu = new NativeMenu();
-        foreach (var (value, header) in Themes)
+        foreach (var value in Themes)
         {
-            var item = new NativeMenuItem(header) { ToggleType = MenuItemToggleType.Radio };
+            var item = new NativeMenuItem(ThemeHeader(value)) { ToggleType = MenuItemToggleType.Radio };
             item.Click += (_, _) =>
             {
                 App.SetTheme(value);
@@ -113,7 +116,7 @@ public static class MacMenus
         {
             if (menu.Items[i] is NativeMenuItem item)
             {
-                item.IsChecked = Themes[i].Value == current;
+                item.IsChecked = Themes[i] == current;
             }
         }
     }
@@ -131,7 +134,7 @@ public static class MacMenus
     /// </summary>
     private static NativeMenuItem ZoomItem(Window window)
     {
-        var item = Action("Zoom", () =>
+        var item = Action(Strings.Shell_MenuZoom, () =>
         {
             if (window.CanMaximize)
             {
@@ -150,7 +153,7 @@ public static class MacMenus
         {
             Items =
             {
-                Action("Minimize", () => window.WindowState = WindowState.Minimized, new KeyGesture(Key.M, Hotkeys.Command)),
+                Action(Strings.Shell_MenuMinimize, () => window.WindowState = WindowState.Minimized, new KeyGesture(Key.M, Hotkeys.Command)),
                 // Greyed out, as AppKit does, for a window that can't be maximized
                 // (the connect form): zooming it would sidestep its size cap.
                 ZoomItem(window),
@@ -167,7 +170,7 @@ public static class MacMenus
         }
 
         menu.Items.Add(new NativeMenuItemSeparator());
-        menu.Items.Add(Action("Bring All to Front", BringAllToFront));
+        menu.Items.Add(Action(Strings.Shell_MenuBringAllToFront, BringAllToFront));
 
         var fixedCount = menu.Items.Count;
         menu.NeedsUpdate += (_, _) => RebuildWindowList(menu, fixedCount);
