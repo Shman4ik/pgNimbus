@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:PgNimbus.App.ViewModels"
              xmlns:views="using:PgNimbus.App.Views"
+             xmlns:l="using:PgNimbus.App.Localization"
              x:Class="PgNimbus.App.Views.PreferencesView"
              x:DataType="vm:PreferencesViewModel">
 
@@ -34,7 +35,26 @@
         <TabItem Header="General">
             <ScrollViewer HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Margin="20,14,20,20" Spacing="6">
-                    <TextBlock Classes="sectionHeader" Text="STARTUP" Margin="4,0,4,4" />
+                    <TextBlock Classes="sectionHeader" Text="{l:Tr Settings_LanguageSection}" Margin="4,0,4,4" />
+                    <Border Classes="card" Padding="14,12">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Spacing="2" Margin="0,0,16,0">
+                                <TextBlock Classes="label" Text="{l:Tr Settings_Language}" />
+                                <TextBlock Classes="hint" Text="{l:Tr Settings_LanguageHint}" />
+                            </StackPanel>
+                            <ComboBox Name="LanguageBox" Grid.Column="1" MinWidth="130" VerticalAlignment="Center"
+                                      ItemsSource="{Binding Languages}"
+                                      SelectedItem="{Binding SelectedLanguage}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:LanguageOption">
+                                        <TextBlock Text="{Binding Label}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </Grid>
+                    </Border>
+
+                    <TextBlock Classes="sectionHeader" Text="STARTUP" Margin="4,10,4,4" />
                     <Border Classes="card" Padding="14,12">
                         <Grid ColumnDefinitions="*,Auto">
                             <StackPanel Spacing="2" Margin="0,0,16,0">

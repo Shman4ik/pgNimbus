@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!--
+    pgNimbus's interface text, in English: the base every translation follows.
+    How to translate: docs/dev/translating.md. How to add a string: .claude/CLAUDE.md,
+    "Localization". Keys are grouped by area under the markers below; add a new key
+    under its area's marker. A <comment> says where the text shows and what each
+    {placeholder} holds.
+  -->
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <!-- ===== Language ===== -->
+  <data name="_LanguageName" xml:space="preserve">
+    <value>English</value>
+    <comment>The name of this file's language, written in that language. Shown in Settings.</comment>
+  </data>
+
+  <!-- ===== Common ===== -->
+
+  <!-- ===== Framework ===== -->
+  <data name="Framework_Cut" xml:space="preserve">
+    <value>Cut</value>
+    <comment>The right-click menu of every text box.</comment>
+  </data>
+  <data name="Framework_Copy" xml:space="preserve">
+    <value>Copy</value>
+    <comment>The right-click menu of every text box.</comment>
+  </data>
+  <data name="Framework_Paste" xml:space="preserve">
+    <value>Paste</value>
+    <comment>The right-click menu of every text box.</comment>
+  </data>
+  <data name="Framework_Day" xml:space="preserve">
+    <value>day</value>
+    <comment>A date picker's day part.</comment>
+  </data>
+  <data name="Framework_Month" xml:space="preserve">
+    <value>month</value>
+    <comment>A date picker's month part.</comment>
+  </data>
+  <data name="Framework_Year" xml:space="preserve">
+    <value>year</value>
+    <comment>A date picker's year part.</comment>
+  </data>
+  <data name="Framework_Hour" xml:space="preserve">
+    <value>hour</value>
+    <comment>A time picker's hour part.</comment>
+  </data>
+  <data name="Framework_Minute" xml:space="preserve">
+    <value>minute</value>
+    <comment>A time picker's minute part.</comment>
+  </data>
+  <data name="Framework_Second" xml:space="preserve">
+    <value>second</value>
+    <comment>A time picker's second part.</comment>
+  </data>
+
+  <!-- ===== About ===== -->
+  <data name="About_Tagline" xml:space="preserve">
+    <value>A fast, open-source PostgreSQL client</value>
+  </data>
+  <data name="About_GitHub" xml:space="preserve">
+    <value>pgNimbus on GitHub</value>
+  </data>
+
+  <!-- ===== Settings ===== -->
+  <data name="Settings_LanguageSection" xml:space="preserve">
+    <value>LANGUAGE</value>
+    <comment>Settings, General tab: section header. Written in capitals in English; write it as your language writes a heading.</comment>
+  </data>
+  <data name="Settings_Language" xml:space="preserve">
+    <value>Language</value>
+    <comment>Settings, General tab: the setting's name.</comment>
+  </data>
+  <data name="Settings_LanguageHint" xml:space="preserve">
+    <value>Menus, dialogs and messages. SQL, server messages and your data stay as they are, and a string with no translation yet shows in English.</value>
+    <comment>Settings, General tab: under the Language setting.</comment>
+  </data>
+  <data name="Settings_LanguageSystem" xml:space="preserve">
+    <value>System ({language})</value>
+    <comment>Settings, General tab: the first choice in the Language list, which follows the operating system. {language} is that language's name in itself, such as English or 简体中文.</comment>
+  </data>
+
+  <!-- ===== Connection ===== -->
+
+  <!-- ===== Commands ===== -->
+
+  <!-- ===== Shell ===== -->
+
+  <!-- ===== Sidebar ===== -->
+
+  <!-- ===== Editor ===== -->
+
+  <!-- ===== Results ===== -->
+
+  <!-- ===== Dialogs ===== -->
+
+  <!-- ===== Monitoring ===== -->
+
+  <!-- ===== Security ===== -->
+
+  <!-- ===== Backup ===== -->
+
+  <!-- ===== QueryLab ===== -->
+
+  <!-- ===== Crash ===== -->
+
+  <!-- ===== Core ===== -->
+</root>

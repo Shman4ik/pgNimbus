@@ -72,6 +72,13 @@ public sealed record AppSettings
     public string InterfaceFont { get; set; } = "auto";
 
     /// <summary>
+    /// The interface language: <c>"auto"</c> (the default: the operating system's
+    /// language when this build carries it, else English) or a tag from
+    /// <c>Localizer.Available</c> such as <c>"zh-Hans"</c>. Read once at startup.
+    /// </summary>
+    public string Language { get; set; } = "auto";
+
+    /// <summary>
     /// The monospace family for code, values and identifiers, by name. Null (the
     /// default) is the bundled JetBrains Mono NL. A name that is no longer installed
     /// falls back to the bundled face rather than to a proportional one.

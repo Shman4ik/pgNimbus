@@ -5,6 +5,7 @@ using Nimbus.Ui.Fonts;
 using PgNimbus.App.Platform;
 using PgNimbus.App.Views;
 using PgNimbus.Core.Commands;
+using PgNimbus.Core.Localization;
 
 namespace PgNimbus.App.ViewModels;
 
@@ -26,6 +27,25 @@ public sealed record CodeFontOption(string? Name)
 }
 
 /// <summary>
+/// One row of the Language list: <c>"auto"</c> (named after what it resolves to on
+/// this machine) or a language the build carries, named in itself.
+/// </summary>
+public sealed partial class LanguageOption(string setting, string nativeName) : ObservableObject
+{
+    /// <summary>What <c>AppSettings.Language</c> stores for this row.</summary>
+    public string Setting { get; } = setting;
+
+    /// <summary>What the list shows: "简体中文", or "System (English)" for auto.</summary>
+    public string Label => Setting == "auto" ? Strings.Settings_LanguageSystem(nativeName) : nativeName;
+
+    internal void Relabel(string name)
+    {
+        nativeName = name;
+        OnPropertyChanged(nameof(Label));
+    }
+}
+
+/// <summary>
 /// Backs the preferences window. Every change applies immediately and persists
 /// through the same per-setting App helpers the inline toggles use, so the
 /// page and the rest of the UI can't disagree.
@@ -41,6 +61,13 @@ public sealed partial class PreferencesViewModel : ObservableObject
     /// <summary>0 = auto (Cmd on macOS, Ctrl elsewhere), 1 = always Ctrl, 2 = always Cmd.</summary>
     [ObservableProperty]
     private int _hotkeySchemeIndex;
+
+    /// <summary>The interface languages: "System (…)" first, then each one the build carries.</summary>
+    public IReadOnlyList<LanguageOption> Languages { get; }
+
+    /// <summary>The chosen language; changing it switches the interface at once.</summary>
+    [ObservableProperty]
+    private LanguageOption _selectedLanguage;
 
     /// <summary>Skip the connection dialog at startup and open the last-used connection outright.</summary>
     [ObservableProperty]
@@ -101,6 +128,15 @@ public sealed partial class PreferencesViewModel : ObservableObject
         _main = main;
         _selectedTab = main.PreferencesTab;
         var settings = App.LoadSettings();
+        var systemLanguage = SystemLanguageName();
+        Languages =
+        [
+            new LanguageOption("auto", systemLanguage),
+            .. Localizer.Available.Select(l => new LanguageOption(l.Tag, l.NativeName)),
+        ];
+        _selectedLanguage = Languages.FirstOrDefault(l => string.Equals(l.Setting, settings.Language, StringComparison.OrdinalIgnoreCase))
+            ?? Languages[0];
+        Localizer.WhenChanged(this, static vm => vm.OnLanguageChanged());
         _themeIndex = settings.Theme switch { "light" => 1, "dark" => 2, _ => 0 };
         _hotkeySchemeIndex = settings.HotkeyScheme switch { "windows" => 1, "mac" => 2, _ => 0 };
         _autoConnectLastProfile = settings.AutoConnectLastProfile;
@@ -315,6 +351,21 @@ public sealed partial class PreferencesViewModel : ObservableObject
         {
             OnPropertyChanged(nameof(ShowSchemaSizes));
         }
+    }
+
+    /// <summary>The name of the language "auto" picks on this machine.</summary>
+    private static string SystemLanguageName()
+    {
+        var tag = Localizer.Resolve("auto", SystemLanguages.Preferred());
+        return Localizer.Available.FirstOrDefault(l => l.Tag == tag)?.NativeName ?? "English";
+    }
+
+    partial void OnSelectedLanguageChanged(LanguageOption value) => App.SetLanguage(value.Setting);
+
+    private void OnLanguageChanged()
+    {
+        Languages[0].Relabel(SystemLanguageName());
+        OnPropertyChanged(nameof(EditorFontSizeHint));
     }
 
     partial void OnThemeIndexChanged(int value) =>
