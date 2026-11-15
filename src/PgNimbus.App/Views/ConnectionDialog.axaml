@@ -107,7 +107,7 @@
                                                 Classes.staging="{Binding Environment, Converter={x:Static converters:EnvironmentText.IsStaging}}"
                                                 Classes.production="{Binding Environment, Converter={x:Static converters:EnvironmentText.IsProduction}}"
                                                 IsVisible="{Binding Environment, Converter={x:Static converters:EnvironmentText.HasTag}}">
-                                            <ContentControl Content="{Binding Environment, Converter={x:Static converters:EnvironmentText.Tag}}" FontSize="10" />
+                                            <TextBlock l:KeyText.Key="{Binding Environment, Converter={x:Static converters:EnvironmentText.Tag}}" FontSize="10" />
                                         </Border>
                                     </StackPanel>
                                     <!-- user@host[:port]/database - enough to tell two
@@ -236,26 +236,20 @@
                     <ComboBox Name="SslModeCombo" ItemsSource="{Binding SslModes}" SelectedItem="{Binding SslMode}" HorizontalAlignment="Stretch">
                         <ComboBox.SelectionBoxItemTemplate>
                             <DataTemplate x:DataType="conn:SslMode">
-                                <ContentControl Content="{Binding Converter={x:Static converters:SslModeText.Label}}" />
+                                <TextBlock l:KeyText.Key="{Binding Converter={x:Static converters:SslModeText.Label}}" />
                             </DataTemplate>
                         </ComboBox.SelectionBoxItemTemplate>
                         <ComboBox.ItemTemplate>
                             <DataTemplate x:DataType="conn:SslMode">
                                 <StackPanel MaxWidth="300" Margin="0,2">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <ContentControl Content="{Binding Converter={x:Static converters:SslModeText.Label}}" />
+                                        <TextBlock l:KeyText.Key="{Binding Converter={x:Static converters:SslModeText.Label}}" />
                                         <TextBlock Text="{l:Tr Connection_Recommended}" FontSize="11" VerticalAlignment="Center"
                                                    Foreground="{StaticResource AppAccentBrush}"
                                                    IsVisible="{Binding Converter={x:Static converters:SslModeText.IsRecommended}}" />
                                     </StackPanel>
-                                    <ContentControl FontSize="11" Opacity="0.6"
-                                                    Content="{Binding Converter={x:Static converters:SslModeText.Description}}">
-                                        <ContentControl.Styles>
-                                            <Style Selector="TextBlock">
-                                                <Setter Property="TextWrapping" Value="Wrap" />
-                                            </Style>
-                                        </ContentControl.Styles>
-                                    </ContentControl>
+                                    <TextBlock Classes="secondary" FontSize="11" TextWrapping="Wrap"
+                                               l:KeyText.Key="{Binding Converter={x:Static converters:SslModeText.Description}}" />
                                 </StackPanel>
                             </DataTemplate>
                         </ComboBox.ItemTemplate>
@@ -293,7 +287,7 @@
                               ItemsSource="{Binding Environments}" SelectedItem="{Binding Environment}">
                         <ComboBox.ItemTemplate>
                             <DataTemplate x:DataType="conn:ConnectionEnvironment">
-                                <ContentControl Content="{Binding Converter={x:Static converters:EnvironmentText.Label}}" />
+                                <TextBlock l:KeyText.Key="{Binding Converter={x:Static converters:EnvironmentText.Label}}" />
                             </DataTemplate>
                         </ComboBox.ItemTemplate>
                     </ComboBox>
@@ -332,7 +326,7 @@
                             <ComboBox ItemsSource="{Binding SshAuthMethods}" SelectedItem="{Binding SshAuthMethod}" HorizontalAlignment="Stretch">
                                 <ComboBox.ItemTemplate>
                                     <DataTemplate x:DataType="conn:SshAuthMethod">
-                                        <ContentControl Content="{Binding Converter={x:Static converters:SshAuthMethodText.Instance}}" />
+                                        <TextBlock l:KeyText.Key="{Binding Converter={x:Static converters:SshAuthMethodText.Instance}}" />
                                     </DataTemplate>
                                 </ComboBox.ItemTemplate>
                             </ComboBox>
