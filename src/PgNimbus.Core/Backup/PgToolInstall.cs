@@ -53,7 +53,33 @@ public sealed record PgToolInstall(string Directory, PgVersion Version, string? 
 /// A directory that holds <c>pg_dump</c> but where it could not be used, kept so
 /// the window can say what it found instead of claiming nothing is installed.
 /// </summary>
-public sealed record PgToolProblem(string Directory, string Reason);
+public sealed record PgToolProblem
+{
+    private readonly Func<string> _reason;
+
+    /// <param name="directory">The folder.</param>
+    /// <param name="reason">Why, as a clause for a sentence ("it didn't start").</param>
+    public PgToolProblem(string directory, string reason)
+        : this(directory, () => reason)
+    {
+    }
+
+    /// <param name="directory">The folder.</param>
+    /// <param name="reason">
+    /// Writes the reason in the language in use when it is asked, so a window
+    /// that stays open follows a language change.
+    /// </param>
+    public PgToolProblem(string directory, Func<string> reason)
+    {
+        Directory = directory;
+        _reason = reason;
+    }
+
+    public string Directory { get; }
+
+    /// <summary>Why, as a clause for a sentence ("it didn't start").</summary>
+    public string Reason => _reason();
+}
 
 /// <summary>
 /// What a search found: every working install, newest first, and the

@@ -3,9 +3,10 @@
         xmlns:vm="using:PgNimbus.App.ViewModels"
         xmlns:views="using:PgNimbus.App.Views"
         xmlns:conv="using:Avalonia.Data.Converters"
+        xmlns:l="using:PgNimbus.App.Localization"
         x:Class="PgNimbus.App.Views.RestoreWindow"
         x:DataType="vm:RestoreViewModel"
-        Title="pgNimbus — Restore"
+        Title="{l:Tr Restore_WindowTitle}"
         Width="620" SizeToContent="Height"
         MinWidth="480"
         CanResize="False"
@@ -68,16 +69,16 @@
         <!-- No file yet. -->
         <Border Name="ChooseFileCard" Classes="card" Padding="16,14" IsVisible="{Binding IsChoosingFile}">
             <StackPanel Spacing="4">
-                <TextBlock Text="Choose a backup made by pg_dump" FontWeight="SemiBold" />
+                <TextBlock Text="{l:Tr Restore_ChooseTitle}" FontWeight="SemiBold" />
                 <TextBlock Classes="choiceHint"
-                           Text="A .dump file, like the ones Back Up Database… saves, or a .backup or .tar archive. You'll see what it holds before anything is restored." />
+                           Text="{l:Tr Restore_ChooseHint}" />
             </StackPanel>
         </Border>
 
         <!-- Reading the file's table of contents. -->
         <Border Classes="card" Padding="16,14" IsVisible="{Binding IsInspecting}">
             <StackPanel Spacing="8">
-                <TextBlock Text="{Binding FileName, StringFormat='Reading {0}…'}" />
+                <TextBlock Text="{Binding ReadingText}" />
                 <ProgressBar IsIndeterminate="True" />
             </StackPanel>
         </Border>
@@ -95,7 +96,7 @@
         <Border Name="FormCard" Classes="card" Padding="16,14" IsVisible="{Binding ShowForm}">
             <StackPanel Spacing="14">
                 <StackPanel>
-                    <TextBlock Classes="fieldLabel" Text="Backup" />
+                    <TextBlock Classes="fieldLabel" Text="{l:Tr Restore_BackupLabel}" />
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Spacing="2">
                             <TextBlock Name="FileNameText" Text="{Binding FileName}" TextTrimming="CharacterEllipsis"
@@ -103,7 +104,7 @@
                             <TextBlock Name="SummaryText" Classes="choiceHint" Text="{Binding ArchiveSummary}" />
                             <TextBlock Classes="choiceHint" Text="{Binding ContentSummary}" />
                         </StackPanel>
-                        <Button Grid.Column="1" Classes="soft" Content="Change…" Margin="8,0,0,0" VerticalAlignment="Top"
+                        <Button Grid.Column="1" Classes="soft" Content="{l:Tr Backup_Change}" Margin="8,0,0,0" VerticalAlignment="Top"
                                 Click="OnChooseFileClick" />
                     </Grid>
                     <TextBlock Classes="warning" Text="{Binding VersionWarning}" Margin="0,6,0,0"
@@ -111,29 +112,29 @@
                 </StackPanel>
 
                 <StackPanel Spacing="8">
-                    <TextBlock Classes="fieldLabel" Text="Restore into" Margin="0" />
+                    <TextBlock Classes="fieldLabel" Text="{l:Tr Restore_RestoreInto}" Margin="0" />
                     <RadioButton Name="NewDatabaseChoice" GroupName="target" IsChecked="{Binding IntoNewDatabase}">
                         <StackPanel Spacing="4">
-                            <TextBlock Text="A new database" />
+                            <TextBlock Text="{l:Tr Restore_NewDatabase}" />
                             <TextBox Name="NewDatabaseNameBox" Text="{Binding NewDatabaseName}" Width="300" HorizontalAlignment="Left"
                                      IsEnabled="{Binding IntoNewDatabase}" />
                             <TextBlock Classes="error" Text="{Binding NameError}"
                                        IsVisible="{Binding NameError, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
                             <TextBlock Classes="choiceHint"
-                                       Text="Nothing that exists is touched. If the restore fails, the new database is removed again." />
+                                       Text="{l:Tr Restore_NewDatabaseHint}" />
                         </StackPanel>
                     </RadioButton>
                     <RadioButton Name="CurrentDatabaseChoice" GroupName="target" IsChecked="{Binding IntoCurrentDatabase}">
                         <StackPanel Spacing="1">
                             <TextBlock Text="{Binding CurrentDatabaseLabel}" />
                             <TextBlock Classes="choiceHint"
-                                       Text="What the backup holds is dropped and created again from it; other objects stay. pgNimbus asks before it starts." />
+                                       Text="{l:Tr Restore_CurrentDatabaseHint}" />
                         </StackPanel>
                     </RadioButton>
                 </StackPanel>
 
                 <StackPanel Spacing="2">
-                    <CheckBox Name="KeepOwnersBox" IsChecked="{Binding KeepOwners}" Content="Keep owners and permissions" />
+                    <CheckBox Name="KeepOwnersBox" IsChecked="{Binding KeepOwners}" Content="{l:Tr Restore_KeepOwners}" />
                     <TextBlock Name="OwnersNoteText" Text="{Binding OwnersNote}" Margin="28,0,0,0"
                                Classes="choiceHint" Classes.warning="{Binding HasMissingRoles}" />
                 </StackPanel>
@@ -153,7 +154,7 @@
                 </Grid>
                 <ProgressBar Minimum="0" Maximum="100" Value="{Binding ProgressPercent}" />
                 <TextBlock Classes="dialogHint"
-                           Text="It's one transaction: Stop leaves everything as it was, and removes a new database again." />
+                           Text="{l:Tr Restore_StopNote}" />
             </StackPanel>
         </Border>
 
@@ -170,13 +171,13 @@
                     <StackPanel Orientation="Horizontal" Spacing="6">
                         <PathIcon Data="{StaticResource ChevronRightIconGeometry}" IsVisible="{Binding !IsLogShown}" />
                         <PathIcon Data="{StaticResource ChevronRightIconGeometry}" RenderTransform="rotate(90deg)" IsVisible="{Binding IsLogShown}" />
-                        <TextBlock Text="pg_restore's log" />
+                        <TextBlock Text="{l:Tr Restore_LogToggle}" />
                     </StackPanel>
                 </Button>
                 <Border Classes="commandBox" IsVisible="{Binding IsLogShown}">
                     <Grid RowDefinitions="Auto,Auto">
                         <views:ReadOnlyTextView Classes="mono" FontSize="11" Height="200" Text="{Binding Log}" />
-                        <Button Grid.Row="1" Classes="soft" Content="Copy Log" HorizontalAlignment="Left" Margin="0,6,0,0"
+                        <Button Grid.Row="1" Classes="soft" Content="{l:Tr Backup_CopyLog}" HorizontalAlignment="Left" Margin="0,6,0,0"
                                 Click="OnCopyLogClick" />
                     </Grid>
                 </Border>
@@ -185,37 +186,37 @@
 
         <!-- One row of buttons per state, the primary last (DESIGN.md rule 16). -->
         <StackPanel Classes="dialogButtons" IsVisible="{Binding ShowToolsMissing}">
-            <Button Classes="soft" Content="Choose Folder…" Click="OnChooseToolsFolderClick"
-                    ToolTip.Tip="Pick the folder that holds pg_dump and pg_restore" />
-            <Button Classes="soft" Content="Look Again" Command="{Binding Tools.LookAgainCommand}" />
-            <Button Classes="soft" Content="Use Automatic Search" Command="{Binding Tools.UseAutomaticSearchCommand}"
+            <Button Classes="soft" Content="{l:Tr Settings_PgToolsChooseFolder}" Click="OnChooseToolsFolderClick"
+                    ToolTip.Tip="{l:Tr Settings_PgToolsChooseFolderTip}" />
+            <Button Classes="soft" Content="{l:Tr Settings_PgToolsLookAgain}" Command="{Binding Tools.LookAgainCommand}" />
+            <Button Classes="soft" Content="{l:Tr Backup_UseAutomaticSearch}" Command="{Binding Tools.UseAutomaticSearchCommand}"
                     IsVisible="{Binding Tools.IsConfigured}" />
-            <Button Classes="soft" Content="Cancel" IsCancel="{Binding ShowToolsMissing}" Click="OnCloseClick" />
+            <Button Classes="soft" Content="{l:Tr Common_Cancel}" IsCancel="{Binding ShowToolsMissing}" Click="OnCloseClick" />
         </StackPanel>
         <StackPanel Classes="dialogButtons" IsVisible="{Binding IsChoosingFile}">
-            <Button Classes="soft" Content="Cancel" IsCancel="{Binding IsChoosingFile}" Click="OnCloseClick" />
-            <Button Name="ChooseFileButton" Classes="accent" Content="Choose File…" IsDefault="{Binding IsChoosingFile}"
+            <Button Classes="soft" Content="{l:Tr Common_Cancel}" IsCancel="{Binding IsChoosingFile}" Click="OnCloseClick" />
+            <Button Name="ChooseFileButton" Classes="accent" Content="{l:Tr Restore_ChooseFile}" IsDefault="{Binding IsChoosingFile}"
                     Click="OnChooseFileClick" />
         </StackPanel>
         <StackPanel Classes="dialogButtons" IsVisible="{Binding IsUnusable}">
-            <Button Classes="soft" Content="Close" IsCancel="{Binding IsUnusable}" Click="OnCloseClick" />
-            <Button Classes="accent" Content="Choose Another File…" IsDefault="{Binding IsUnusable}" Click="OnChooseFileClick" />
+            <Button Classes="soft" Content="{l:Tr Common_Close}" IsCancel="{Binding IsUnusable}" Click="OnCloseClick" />
+            <Button Classes="accent" Content="{l:Tr Restore_ChooseAnother}" IsDefault="{Binding IsUnusable}" Click="OnChooseFileClick" />
         </StackPanel>
         <StackPanel Classes="dialogButtons" IsVisible="{Binding ShowForm}">
-            <Button Classes="soft" Content="Cancel" IsCancel="{Binding ShowForm}" Click="OnCloseClick" />
-            <Button Name="StartButton" Classes="accent" Content="Restore" IsDefault="{Binding ShowForm}" Command="{Binding StartCommand}" />
+            <Button Classes="soft" Content="{l:Tr Common_Cancel}" IsCancel="{Binding ShowForm}" Click="OnCloseClick" />
+            <Button Name="StartButton" Classes="accent" Content="{l:Tr Restore_Start}" IsDefault="{Binding ShowForm}" Command="{Binding StartCommand}" />
         </StackPanel>
         <StackPanel Classes="dialogButtons" IsVisible="{Binding IsRunning}">
-            <Button Name="StopButton" Classes="soft danger" Content="Stop" Command="{Binding StopCommand}" />
+            <Button Name="StopButton" Classes="soft danger" Content="{l:Tr Common_Stop}" Command="{Binding StopCommand}" />
         </StackPanel>
         <StackPanel Classes="dialogButtons" IsVisible="{Binding IsSucceeded}">
-            <Button Classes="soft" Content="Close" IsCancel="{Binding IsSucceeded}" Click="OnCloseClick" />
-            <Button Name="OpenDatabaseButton" Classes="accent" Content="Open in New Window" IsDefault="{Binding CanOpenDatabase}"
+            <Button Classes="soft" Content="{l:Tr Common_Close}" IsCancel="{Binding IsSucceeded}" Click="OnCloseClick" />
+            <Button Name="OpenDatabaseButton" Classes="accent" Content="{l:Tr Restore_OpenInNewWindow}" IsDefault="{Binding CanOpenDatabase}"
                     Command="{Binding OpenDatabaseCommand}" IsVisible="{Binding CanOpenDatabase}" />
         </StackPanel>
         <StackPanel Classes="dialogButtons" IsVisible="{Binding IsFailed}">
-            <Button Classes="soft" Content="Close" IsCancel="{Binding IsFailed}" Click="OnCloseClick" />
-            <Button Name="TryAgainButton" Classes="accent" Content="Try Again" IsDefault="{Binding IsFailed}" Command="{Binding TryAgainCommand}" />
+            <Button Classes="soft" Content="{l:Tr Common_Close}" IsCancel="{Binding IsFailed}" Click="OnCloseClick" />
+            <Button Name="TryAgainButton" Classes="accent" Content="{l:Tr Backup_TryAgain}" IsDefault="{Binding IsFailed}" Command="{Binding TryAgainCommand}" />
         </StackPanel>
     </StackPanel>
 

@@ -3,6 +3,7 @@ using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using PgNimbus.App.ViewModels;
+using PgNimbus.Core.Localization;
 
 namespace PgNimbus.App.Views;
 
@@ -58,7 +59,7 @@ public partial class RestoreWindow : Window
     }
 
     private async Task<bool> ConfirmReplaceAsync(string message) =>
-        await new ConfirmDialog(message, "Restore and Replace").ShowDialog<bool>(this);
+        await new ConfirmDialog(message, Strings.Restore_ConfirmReplaceButton).ShowDialog<bool>(this);
 
     private async void OnClosing(object? sender, WindowClosingEventArgs e)
     {
@@ -73,8 +74,8 @@ public partial class RestoreWindow : Window
 
         e.Cancel = true;
         var stop = await new ConfirmDialog(
-            "A restore is still running. Stop it and close the window? It runs as one transaction, so nothing it did stays.",
-            "Stop Restore").ShowDialog<bool>(this);
+            Strings.Restore_ConfirmStop,
+            Strings.Restore_ConfirmStopButton).ShowDialog<bool>(this);
         if (!stop)
         {
             return;
@@ -97,13 +98,13 @@ public partial class RestoreWindow : Window
         var folder = model.ArchivePath is { } current ? Path.GetDirectoryName(current) : App.LoadSettings().LastBackupFolder;
         var files = await storage.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = "Choose a backup to restore",
+            Title = Strings.Restore_OpenDialogTitle,
             AllowMultiple = false,
             SuggestedStartLocation = string.IsNullOrEmpty(folder) ? null : await storage.TryGetFolderFromPathAsync(folder),
             FileTypeFilter =
             [
-                new FilePickerFileType("pg_dump archive") { Patterns = ["*.dump", "*.backup", "*.tar", "*.pgdump"] },
-                new FilePickerFileType("All files") { Patterns = ["*"] },
+                new FilePickerFileType(Strings.Restore_FilterArchive) { Patterns = ["*.dump", "*.backup", "*.tar", "*.pgdump"] },
+                new FilePickerFileType(Strings.Restore_FilterAll) { Patterns = ["*"] },
             ],
         });
 

@@ -26,8 +26,8 @@ public sealed record BackupScope(BackupScopeKind Kind, string? Schema = null, st
     /// <summary>"shop", "schema sales", "table sales.orders": what the window's title names.</summary>
     public string Describe(string database) => Kind switch
     {
-        BackupScopeKind.Schema => $"schema {Schema}",
-        BackupScopeKind.Table => $"table {Schema}.{Table}",
+        BackupScopeKind.Schema => Localization.Strings.Backup_ScopeSchema(Schema ?? ""),
+        BackupScopeKind.Table => Localization.Strings.Backup_ScopeTable($"{Schema}.{Table}"),
         _ => database,
     };
 

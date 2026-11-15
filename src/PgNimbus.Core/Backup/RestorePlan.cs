@@ -63,22 +63,22 @@ public sealed record RestorePlan(string ArchivePath, RestoreTarget Target, strin
     {
         if (string.IsNullOrWhiteSpace(name))
         {
-            return "Give the new database a name.";
+            return Localization.Strings.Restore_NameEmpty;
         }
 
         if (name != name.Trim())
         {
-            return "The name can't start or end with a space.";
+            return Localization.Strings.Restore_NameSpaces;
         }
 
         if (System.Text.Encoding.UTF8.GetByteCount(name) > MaxDatabaseNameBytes)
         {
-            return $"The name is too long: PostgreSQL keeps {MaxDatabaseNameBytes} bytes.";
+            return Localization.Strings.Restore_NameTooLong(MaxDatabaseNameBytes.ToString(System.Globalization.CultureInfo.InvariantCulture));
         }
 
         if (name.Any(char.IsControl))
         {
-            return "The name can't hold control characters.";
+            return Localization.Strings.Restore_NameControl;
         }
 
         return null;
@@ -96,7 +96,32 @@ public enum RestoreStage
 }
 
 /// <summary>One look at a running restore.</summary>
-public sealed record RestoreProgress(RestoreStage Stage, string? CurrentItem, double? Fraction, TimeSpan Elapsed);
+public sealed record RestoreProgress(RestoreStage Stage, RestoreItemKind ItemKind, string? ItemName, double? Fraction, TimeSpan Elapsed)
+{
+    /// <summary>"Creating TABLE public.customers", "Restoring rows of sales.orders", written in the language in use.</summary>
+    public string? CurrentItem => RestoreItem.Describe(ItemKind, ItemName);
+}
+
+/// <summary>What pg_restore is doing to the object named in a progress line.</summary>
+public enum RestoreItemKind
+{
+    None,
+    RestoringRows,
+    Creating,
+    Dropping,
+}
+
+/// <summary>The words for a progress line.</summary>
+public static class RestoreItem
+{
+    public static string? Describe(RestoreItemKind kind, string? name) => kind switch
+    {
+        RestoreItemKind.RestoringRows => Localization.Strings.Restore_ItemRows(name ?? ""),
+        RestoreItemKind.Creating => Localization.Strings.Restore_ItemCreating(name ?? ""),
+        RestoreItemKind.Dropping => Localization.Strings.Restore_ItemDropping(name ?? ""),
+        _ => null,
+    };
+}
 
 /// <summary>
 /// Turns pg_restore's <c>--verbose</c> lines into progress: one line per
@@ -124,8 +149,14 @@ public sealed class PgRestoreProgressTracker
 
     public RestoreStage Stage { get; private set; } = RestoreStage.Connecting;
 
+    /// <summary>What is being done to <see cref="ItemName"/>.</summary>
+    public RestoreItemKind ItemKind { get; private set; }
+
+    /// <summary>The object pg_restore is on: "public.customers", "TABLE public.customers".</summary>
+    public string? ItemName { get; private set; }
+
     /// <summary>"Creating TABLE public.customers", "Restoring rows of sales.orders".</summary>
-    public string? CurrentItem { get; private set; }
+    public string? CurrentItem => RestoreItem.Describe(ItemKind, ItemName);
 
     public double Fraction => Math.Clamp((double)_done / _total, 0, 1);
 
@@ -143,7 +174,8 @@ public sealed class PgRestoreProgressTracker
         {
             _done++;
             Stage = RestoreStage.RestoringData;
-            CurrentItem = "Restoring rows of " + Unquote(rest["processing data for table ".Length..]);
+            ItemKind = RestoreItemKind.RestoringRows;
+            ItemName = Unquote(rest["processing data for table ".Length..]);
             return true;
         }
 
@@ -151,7 +183,8 @@ public sealed class PgRestoreProgressTracker
         {
             _done++;
             Stage = Stage == RestoreStage.RestoringData ? RestoreStage.Finishing : RestoreStage.Creating;
-            CurrentItem = "Creating " + Unquote(rest["creating ".Length..]);
+            ItemKind = RestoreItemKind.Creating;
+            ItemName = Unquote(rest["creating ".Length..]);
             return true;
         }
 
@@ -159,7 +192,8 @@ public sealed class PgRestoreProgressTracker
         {
             _done++;
             Stage = RestoreStage.Dropping;
-            CurrentItem = "Dropping " + Unquote(rest["dropping ".Length..]);
+            ItemKind = RestoreItemKind.Dropping;
+            ItemName = Unquote(rest["dropping ".Length..]);
             return true;
         }
 
@@ -177,10 +211,11 @@ public sealed class PgRestoreProgressTracker
     {
         _done = _total;
         Stage = RestoreStage.Finishing;
-        CurrentItem = null;
+        ItemKind = RestoreItemKind.None;
+        ItemName = null;
     }
 
-    public RestoreProgress Snapshot(TimeSpan elapsed) => new(Stage, CurrentItem, Fraction, elapsed);
+    public RestoreProgress Snapshot(TimeSpan elapsed) => new(Stage, ItemKind, ItemName, Fraction, elapsed);
 
     // `TABLE "public.customers"` → `TABLE public.customers`; the quotes are
     // pg_restore's own, around the whole name.

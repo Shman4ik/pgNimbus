@@ -3,9 +3,10 @@
         xmlns:vm="using:PgNimbus.App.ViewModels"
         xmlns:views="using:PgNimbus.App.Views"
         xmlns:conv="using:Avalonia.Data.Converters"
+        xmlns:l="using:PgNimbus.App.Localization"
         x:Class="PgNimbus.App.Views.BackupWindow"
         x:DataType="vm:BackupViewModel"
-        Title="pgNimbus — Back Up"
+        Title="{l:Tr Backup_WindowTitle}"
         Width="620" SizeToContent="Height"
         MinWidth="480"
         CanResize="False"
@@ -66,28 +67,28 @@
         <Border Name="FormCard" Classes="card" Padding="16,14" IsVisible="{Binding ShowForm}">
             <StackPanel Spacing="14">
                 <StackPanel>
-                    <TextBlock Classes="fieldLabel" Text="Save to" />
+                    <TextBlock Classes="fieldLabel" Text="{l:Tr Backup_SaveTo}" />
                     <Grid ColumnDefinitions="*,Auto">
                         <TextBox Name="OutputPathBox" Text="{Binding OutputPath}" IsReadOnly="True"
                                  ToolTip.Tip="{Binding OutputPath}" />
-                        <Button Grid.Column="1" Name="ChangeFileButton" Classes="soft" Content="Change…" Margin="8,0,0,0"
+                        <Button Grid.Column="1" Name="ChangeFileButton" Classes="soft" Content="{l:Tr Backup_Change}" Margin="8,0,0,0"
                                 VerticalAlignment="Center" Click="OnChangeFileClick" />
                     </Grid>
                     <TextBlock Classes="dialogHint" Text="{Binding FormatHint}" Margin="0,6,0,0" />
                 </StackPanel>
 
                 <StackPanel Spacing="8">
-                    <TextBlock Classes="fieldLabel" Text="What to save" Margin="0" />
+                    <TextBlock Classes="fieldLabel" Text="{l:Tr Backup_WhatToSave}" Margin="0" />
                     <RadioButton Name="EverythingChoice" GroupName="content" IsChecked="{Binding Everything}">
                         <StackPanel Spacing="1">
-                            <TextBlock Text="Everything" />
-                            <TextBlock Classes="choiceHint" Text="The structure and every row." />
+                            <TextBlock Text="{l:Tr Backup_Everything}" />
+                            <TextBlock Classes="choiceHint" Text="{l:Tr Backup_EverythingHint}" />
                         </StackPanel>
                     </RadioButton>
                     <RadioButton Name="StructureOnlyChoice" GroupName="content" IsChecked="{Binding StructureOnly}">
                         <StackPanel Spacing="1">
-                            <TextBlock Text="Structure only" />
-                            <TextBlock Classes="choiceHint" Text="Tables, views, functions, types and permissions, without the rows." />
+                            <TextBlock Text="{l:Tr Backup_StructureOnly}" />
+                            <TextBlock Classes="choiceHint" Text="{l:Tr Backup_StructureOnlyHint}" />
                         </StackPanel>
                     </RadioButton>
                 </StackPanel>
@@ -103,7 +104,7 @@
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <PathIcon Data="{StaticResource ChevronRightIconGeometry}" IsVisible="{Binding !IsCommandShown}" />
                                 <PathIcon Data="{StaticResource ChevronRightIconGeometry}" RenderTransform="rotate(90deg)" IsVisible="{Binding IsCommandShown}" />
-                                <TextBlock Text="Command" />
+                                <TextBlock Text="{l:Tr Backup_Command}" />
                             </StackPanel>
                         </Button>
                         <TextBlock Grid.Column="1" Name="ToolLine" Classes="dialogHint" Text="{Binding Tools.StatusLine}"
@@ -115,11 +116,11 @@
                             <Grid ColumnDefinitions="*,Auto">
                                 <SelectableTextBlock Name="CommandPreviewText" Classes="mono" Text="{Binding CommandPreview}"
                                                      FontSize="11" TextWrapping="Wrap" />
-                                <Button Grid.Column="1" Classes="soft" Content="Copy" Margin="8,0,0,0" VerticalAlignment="Top"
+                                <Button Grid.Column="1" Classes="soft" Content="{l:Tr Common_Copy}" Margin="8,0,0,0" VerticalAlignment="Top"
                                         Click="OnCopyCommandClick" />
                             </Grid>
                             <TextBlock Classes="dialogHint" FontSize="11"
-                                       Text="Without the password: pgNimbus passes it to pg_dump in the environment, never on the command line." />
+                                       Text="{l:Tr Backup_CommandNote}" />
                         </StackPanel>
                     </Border>
                 </StackPanel>
@@ -141,7 +142,7 @@
                 <ProgressBar Minimum="0" Maximum="100" Value="{Binding ProgressPercent}"
                              IsIndeterminate="{Binding ProgressIsIndeterminate}" />
                 <TextBlock Classes="dialogHint"
-                           Text="You can keep working in the main window. Stop deletes the unfinished file; one already at that path stays as it was." />
+                           Text="{l:Tr Backup_StopNote}" />
             </StackPanel>
         </Border>
 
@@ -159,13 +160,13 @@
                     <StackPanel Orientation="Horizontal" Spacing="6">
                         <PathIcon Data="{StaticResource ChevronRightIconGeometry}" IsVisible="{Binding !IsLogShown}" />
                         <PathIcon Data="{StaticResource ChevronRightIconGeometry}" RenderTransform="rotate(90deg)" IsVisible="{Binding IsLogShown}" />
-                        <TextBlock Text="pg_dump's log" />
+                        <TextBlock Text="{l:Tr Backup_LogToggle}" />
                     </StackPanel>
                 </Button>
                 <Border Classes="commandBox" IsVisible="{Binding IsLogShown}">
                     <Grid RowDefinitions="Auto,Auto">
                         <views:ReadOnlyTextView Classes="mono" FontSize="11" Height="200" Text="{Binding Log}" />
-                        <Button Grid.Row="1" Classes="soft" Content="Copy Log" HorizontalAlignment="Left" Margin="0,6,0,0"
+                        <Button Grid.Row="1" Classes="soft" Content="{l:Tr Backup_CopyLog}" HorizontalAlignment="Left" Margin="0,6,0,0"
                                 Click="OnCopyLogClick" />
                     </Grid>
                 </Border>
@@ -174,28 +175,28 @@
 
         <!-- One row of buttons per state, the primary last (DESIGN.md rule 16). -->
         <StackPanel Classes="dialogButtons" IsVisible="{Binding IsSetup}">
-            <Button Classes="soft" Content="Choose Folder…" Click="OnChooseToolsFolderClick"
+            <Button Classes="soft" Content="{l:Tr Settings_PgToolsChooseFolder}" Click="OnChooseToolsFolderClick"
                     IsVisible="{Binding Tools.IsMissing}"
-                    ToolTip.Tip="Pick the folder that holds pg_dump and pg_restore" />
-            <Button Classes="soft" Content="Look Again" Command="{Binding Tools.LookAgainCommand}"
+                    ToolTip.Tip="{l:Tr Settings_PgToolsChooseFolderTip}" />
+            <Button Classes="soft" Content="{l:Tr Settings_PgToolsLookAgain}" Command="{Binding Tools.LookAgainCommand}"
                     IsVisible="{Binding Tools.IsMissing}" />
-            <Button Classes="soft" Content="Use Automatic Search" Command="{Binding Tools.UseAutomaticSearchCommand}"
+            <Button Classes="soft" Content="{l:Tr Backup_UseAutomaticSearch}" Command="{Binding Tools.UseAutomaticSearchCommand}"
                     IsVisible="{Binding ShowUseAutomaticSearch}" />
-            <Button Classes="soft" Content="Cancel" IsCancel="{Binding IsSetup}" Click="OnCloseClick" />
-            <Button Name="StartButton" Classes="accent" Content="Back Up" IsDefault="{Binding ShowForm}"
+            <Button Classes="soft" Content="{l:Tr Common_Cancel}" IsCancel="{Binding IsSetup}" Click="OnCloseClick" />
+            <Button Name="StartButton" Classes="accent" Content="{l:Tr Backup_StartButton}" IsDefault="{Binding ShowForm}"
                     Command="{Binding StartCommand}" IsVisible="{Binding !Tools.IsMissing}" />
         </StackPanel>
         <StackPanel Classes="dialogButtons" IsVisible="{Binding IsRunning}">
-            <Button Name="StopButton" Classes="soft danger" Content="Stop" Command="{Binding StopCommand}" />
+            <Button Name="StopButton" Classes="soft danger" Content="{l:Tr Common_Stop}" Command="{Binding StopCommand}" />
         </StackPanel>
         <StackPanel Classes="dialogButtons" IsVisible="{Binding IsSucceeded}">
-            <Button Classes="soft" Content="Back Up Again" Command="{Binding BackUpAgainCommand}" />
-            <Button Classes="soft" Content="Close" IsCancel="{Binding IsSucceeded}" Click="OnCloseClick" />
-            <Button Name="ShowInFolderButton" Classes="accent" Content="Show in Folder" IsDefault="{Binding IsSucceeded}" Click="OnShowInFolderClick" />
+            <Button Classes="soft" Content="{l:Tr Backup_BackUpAgain}" Command="{Binding BackUpAgainCommand}" />
+            <Button Classes="soft" Content="{l:Tr Common_Close}" IsCancel="{Binding IsSucceeded}" Click="OnCloseClick" />
+            <Button Name="ShowInFolderButton" Classes="accent" Content="{l:Tr Backup_ShowInFolder}" IsDefault="{Binding IsSucceeded}" Click="OnShowInFolderClick" />
         </StackPanel>
         <StackPanel Classes="dialogButtons" IsVisible="{Binding IsFailed}">
-            <Button Classes="soft" Content="Close" IsCancel="{Binding IsFailed}" Click="OnCloseClick" />
-            <Button Name="TryAgainButton" Classes="accent" Content="Try Again" IsDefault="{Binding IsFailed}" Command="{Binding TryAgainCommand}" />
+            <Button Classes="soft" Content="{l:Tr Common_Close}" IsCancel="{Binding IsFailed}" Click="OnCloseClick" />
+            <Button Name="TryAgainButton" Classes="accent" Content="{l:Tr Backup_TryAgain}" IsDefault="{Binding IsFailed}" Command="{Binding TryAgainCommand}" />
         </StackPanel>
     </StackPanel>
 

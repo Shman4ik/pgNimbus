@@ -69,7 +69,7 @@ public sealed class PgToolLog
             lock (_gate)
             {
                 var lines = _dropped > 0
-                    ? new[] { $"({_dropped} earlier lines not kept)" }.Concat(_lines)
+                    ? new[] { Localization.Strings.Backup_LogDropped(_dropped) }.Concat(_lines)
                     : _lines;
                 return string.Join('\n', lines);
             }
@@ -145,61 +145,61 @@ public static class PgToolErrorHints
 
         if (Has("password authentication failed") || Has("no password supplied"))
         {
-            return "The server refused the password pgNimbus connected this window with. If it changed since, reconnect and try again.";
+            return Localization.Strings.Backup_HintPassword;
         }
 
         if (tool == PgTool.PgRestore && Has("role ") && Has("does not exist"))
         {
-            return "The backup names a role this server doesn't have. Turn off Keep owners and permissions to make you the owner of everything, or create the role first.";
+            return Localization.Strings.Backup_HintRoleMissing;
         }
 
         // A backup of one schema or table keeps its foreign keys, views and
         // column types that point outside it, and a new database has none of that.
         if (tool == PgTool.PgRestore && Has("does not exist"))
         {
-            return "The backup refers to something it doesn't contain, such as a table in another schema. A schema or table backup needs what it points to, so restore it into a database that has it, like the one it came from.";
+            return Localization.Strings.Backup_HintPointsOutside;
         }
 
         if (tool == PgTool.PgRestore && Has("must be owner of"))
         {
-            return "Something in the backup belongs to a role you can't act for. Turn off Keep owners and permissions, or restore as that role.";
+            return Localization.Strings.Backup_HintMustBeOwner;
         }
 
         if (tool == PgTool.PgRestore && Has("permission denied"))
         {
-            return "Your role can't create everything the backup holds here. Restore into a new database, which you own, or use a role that can.";
+            return Localization.Strings.Backup_HintRestorePermission;
         }
 
         if (Has("server version mismatch"))
         {
-            return "This pg_dump is older than the server. Install a newer one; Settings, on the Data tab, shows which one pgNimbus uses.";
+            return Localization.Strings.Backup_HintToolTooOld;
         }
 
         if (Has("permission denied"))
         {
-            return "Your role can't read everything this covers. Use a role that can, or back up a schema or table it can read.";
+            return Localization.Strings.Backup_HintBackupPermission;
         }
 
         if (Has("root certificate file") || Has("certificate verify failed") || Has("SSL error"))
         {
-            return "The server's certificate couldn't be checked. Check the connection's SSL settings and root certificate.";
+            return Localization.Strings.Backup_HintCertificate;
         }
 
         if (Has("could not connect") || Has("Connection refused") || Has("timeout expired") || Has("could not translate host name"))
         {
             return tunnelled
-                ? $"{PgToolInstall.ToolName(tool)} couldn't reach the server through this window's SSH tunnel. Keep the window connected while it runs."
-                : $"{PgToolInstall.ToolName(tool)} couldn't reach the server. Check that it's up and that this computer can reach it.";
+                ? Localization.Strings.Backup_HintUnreachableTunnel(PgToolInstall.ToolName(tool))
+                : Localization.Strings.Backup_HintUnreachable(PgToolInstall.ToolName(tool));
         }
 
         if (Has("No space left on device") || Has("could not write to output file") || Has("could not open output file"))
         {
-            return "The file couldn't be written. Check that the folder exists, that you can write to it, and that the disk has room.";
+            return Localization.Strings.Backup_HintCannotWrite;
         }
 
         if (tool == PgTool.PgDump && Has("does not exist"))
         {
-            return "Something this covers was dropped or renamed since the window loaded it. Refresh the schema and try again.";
+            return Localization.Strings.Backup_HintObjectGone;
         }
 
         return null;

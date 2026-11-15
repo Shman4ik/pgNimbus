@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PgNimbus.Core;
 using PgNimbus.Core.Backup;
+using PgNimbus.Core.Localization;
 
 namespace PgNimbus.App.ViewModels;
 
@@ -29,6 +30,11 @@ public sealed partial class BackupViewModel : ObservableObject, IDisposable
     private readonly Action<string?>? _persistFolder;
     private readonly Func<DateTime> _now;
     private CancellationTokenSource? _run;
+    private BackupProgress? _progress;
+    private BackupResult? _result;
+    private bool _stoppedOverFile;
+    private bool? _hintTunnelled;
+    private string? _setupReason;
 
     public BackupViewModel(
         IBackupService service,
@@ -46,6 +52,7 @@ public sealed partial class BackupViewModel : ObservableObject, IDisposable
         _now = now ?? (() => DateTime.Now);
         Tools = tools ?? new PgToolStatusViewModel(PgTool.PgDump);
         Tools.Changed += OnToolsChanged;
+        Localizer.WhenChanged(this, static vm => vm.OnLanguageChanged());
         var folder = !string.IsNullOrWhiteSpace(lastFolder) && Directory.Exists(lastFolder)
             ? lastFolder
             : Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
@@ -56,7 +63,24 @@ public sealed partial class BackupViewModel : ObservableObject, IDisposable
     public BackupScope Scope { get; }
 
     /// <summary>The window's heading: "Back up shop", "Back up schema sales", "Back up table sales.orders".</summary>
-    public string Title => $"Back up {Scope.Describe(_service.DatabaseName)}";
+    public string Title => Scope.Kind switch
+    {
+        BackupScopeKind.Schema => Strings.Backup_TitleSchema(Scope.Schema ?? ""),
+        BackupScopeKind.Table => Strings.Backup_TitleTable($"{Scope.Schema}.{Scope.Table}"),
+        _ => Strings.Backup_TitleDatabase(_service.DatabaseName),
+    };
+
+    // Everything below that is words is composed from what happened, so it is written again in the new language.
+    private void OnLanguageChanged()
+    {
+        OnPropertyChanged(nameof(Title));
+        OnPropertyChanged(nameof(FormatHint));
+        OnPropertyChanged(nameof(SetupError));
+        OnPropertyChanged(nameof(ProgressText));
+        OnPropertyChanged(nameof(ResultTitle));
+        OnPropertyChanged(nameof(ResultDetail));
+        OnPropertyChanged(nameof(ResultHint));
+    }
 
     /// <summary>The line under the heading: the connection the backup reads (its profile and host).</summary>
     public string ConnectionLabel { get; }
@@ -99,8 +123,8 @@ public sealed partial class BackupViewModel : ObservableObject, IDisposable
 
     /// <summary>What the chosen file will be, under the file name.</summary>
     public string FormatHint => BackupPlan.FormatFor(OutputPath) == BackupFormat.SqlScript
-        ? "A SQL script you can read and keep in Git. Restore it with psql."
-        : "pg_dump's archive: compressed, and what Restore Backup… (or pg_restore) restores. Save as .sql for a readable script.";
+        ? Strings.Backup_FormatHintScript
+        : Strings.Backup_FormatHintArchive;
 
     /// <summary>
     /// The pg_dump command line, without the password (which never is an
@@ -128,9 +152,14 @@ public sealed partial class BackupViewModel : ObservableObject, IDisposable
     public bool IsFailed => State is BackupWindowState.Failed or BackupWindowState.Cancelled;
 
     /// <summary>Why the form can't run yet (the server's version couldn't be read), or null.</summary>
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(StartCommand))]
-    private string? _setupError;
+    public string? SetupError => _setupReason is null ? null : Strings.Backup_SetupErrorVersion(_setupReason);
+
+    private void SetSetupReason(string? reason)
+    {
+        _setupReason = reason;
+        OnPropertyChanged(nameof(SetupError));
+        StartCommand.NotifyCanExecuteChanged();
+    }
 
     /// <summary>Whether the pg_dump command line is shown under the form.</summary>
     [ObservableProperty]
@@ -156,8 +185,16 @@ public sealed partial class BackupViewModel : ObservableObject, IDisposable
     private bool _progressIsIndeterminate = true;
 
     /// <summary>"Saving sales.orders · table 23 of 41".</summary>
-    [ObservableProperty]
-    private string _progressText = "";
+    public string ProgressText => _progress switch
+    {
+        null => Strings.Backup_ProgressConnecting,
+        { Stage: BackupStage.SavingData, CurrentTable: { } table, TablesTotal: > 0 } progress =>
+            Strings.Backup_ProgressSavingTable(table, Math.Min(progress.TablesDone + 1, progress.TablesTotal), progress.TablesTotal),
+        { Stage: BackupStage.SavingData, CurrentTable: { } table } => Strings.Backup_ProgressSaving(table),
+        { Stage: BackupStage.SavingStructure } => Strings.Backup_ProgressStructure,
+        { Stage: BackupStage.Finishing } => Strings.Backup_ProgressFinishing,
+        _ => Strings.Backup_ProgressReading,
+    };
 
     /// <summary>"1:12 · 184 MB".</summary>
     [ObservableProperty]
@@ -166,16 +203,31 @@ public sealed partial class BackupViewModel : ObservableObject, IDisposable
     // --- Result -----------------------------------------------------------
 
     /// <summary>"Saved 48.2 MB in 0:42", or what went wrong.</summary>
-    [ObservableProperty]
-    private string _resultTitle = "";
+    public string ResultTitle => _result?.Outcome switch
+    {
+        null => "",
+        BackupOutcome.Succeeded => Strings.Backup_ResultSaved(ByteSize.Format(_result.Bytes), ClockText(_result.Elapsed)),
+        BackupOutcome.Cancelled => Strings.Backup_ResultStopped,
+        _ => Strings.Backup_ResultFailed,
+    };
 
     /// <summary>The line under it: where the file is, or pg_dump's error.</summary>
-    [ObservableProperty]
-    private string _resultDetail = "";
+    public string ResultDetail => _result?.Outcome switch
+    {
+        null => "",
+        BackupOutcome.Succeeded => _result.OutputPath,
+        BackupOutcome.Cancelled => _stoppedOverFile ? Strings.Backup_StoppedKept : Strings.Backup_StoppedNothing,
+        _ => _result.Error ?? Strings.Backup_FailedNoReason,
+    };
 
-    /// <summary>What to do about the error, when it is a familiar one.</summary>
-    [ObservableProperty]
-    private string? _resultHint;
+    /// <summary>
+    /// What to do about the error, when it is a familiar one. One of this app's own
+    /// sentences is written again in the language in use; any other is kept as the
+    /// service wrote it.
+    /// </summary>
+    public string? ResultHint => _result is not { Outcome: not BackupOutcome.Succeeded and not BackupOutcome.Cancelled } result
+        ? null
+        : _hintTunnelled is { } tunnelled ? PgToolErrorHints.For(result.Error, PgTool.PgDump, tunnelled) : result.Hint;
 
     /// <summary>Everything pg_dump said, for the log under a result.</summary>
     [ObservableProperty]
@@ -196,7 +248,7 @@ public sealed partial class BackupViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            SetupError = $"Couldn't read the server's version: {ex.Message}";
+            SetSetupReason(ex.Message);
         }
 
         await Tools.LoadAsync();
@@ -229,7 +281,8 @@ public sealed partial class BackupViewModel : ObservableObject, IDisposable
         State = BackupWindowState.Running;
         ProgressPercent = 0;
         ProgressIsIndeterminate = true;
-        ProgressText = "Connecting…";
+        _progress = null;
+        OnPropertyChanged(nameof(ProgressText));
         ProgressDetail = "";
         _persistFolder?.Invoke(Path.GetDirectoryName(plan.OutputPath));
 
@@ -304,7 +357,8 @@ public sealed partial class BackupViewModel : ObservableObject, IDisposable
         State = BackupWindowState.Setup;
     }
 
-    private void ShowProgress(BackupProgress progress)
+    /// <summary>Shows how far a running backup is (the service's progress reports, and the screenshot scenarios).</summary>
+    public void ShowProgress(BackupProgress progress)
     {
         if (State != BackupWindowState.Running)
         {
@@ -313,45 +367,49 @@ public sealed partial class BackupViewModel : ObservableObject, IDisposable
 
         ProgressIsIndeterminate = progress.Fraction is null;
         ProgressPercent = (progress.Fraction ?? 0) * 100;
-        ProgressText = progress.Stage switch
-        {
-            BackupStage.SavingData when progress.CurrentTable is { } table && progress.TablesTotal > 0 =>
-                $"Saving {table} · table {Math.Min(progress.TablesDone + 1, progress.TablesTotal)} of {progress.TablesTotal}",
-            BackupStage.SavingData when progress.CurrentTable is { } table => $"Saving {table}",
-            BackupStage.SavingStructure => "Saving the structure…",
-            BackupStage.Finishing => "Saving indexes, constraints and permissions…",
-            _ => "Reading the schema…",
-        };
+        _progress = progress;
+        OnPropertyChanged(nameof(ProgressText));
         ProgressDetail = $"{ClockText(progress.Elapsed)} · {ByteSize.Format(progress.BytesWritten)}";
     }
 
-    private void ShowResult(BackupResult result)
+    /// <summary>Shows how a backup ended (the service's result, and the screenshot scenarios).</summary>
+    public void ShowResult(BackupResult result)
     {
         Log = result.Log;
+        _result = result;
+        _stoppedOverFile = result.Outcome == BackupOutcome.Cancelled && File.Exists(result.OutputPath);
+        // A hint made by PgToolErrorHints is words, so it is written again when the language changes.
+        // Which of its two readings (through a tunnel or not) made it is told by what it equals.
+        _hintTunnelled = null;
+        if (result.Hint is not null)
+        {
+            foreach (var tunnelled in new[] { false, true })
+            {
+                if (PgToolErrorHints.For(result.Error, PgTool.PgDump, tunnelled) == result.Hint)
+                {
+                    _hintTunnelled = tunnelled;
+                    break;
+                }
+            }
+        }
+
         switch (result.Outcome)
         {
             case BackupOutcome.Succeeded:
                 SavedPath = result.OutputPath;
-                ResultTitle = $"Saved {ByteSize.Format(result.Bytes)} in {ClockText(result.Elapsed)}";
-                ResultDetail = result.OutputPath;
-                ResultHint = null;
                 State = BackupWindowState.Succeeded;
                 break;
             case BackupOutcome.Cancelled:
-                ResultTitle = "Backup stopped";
-                ResultDetail = File.Exists(result.OutputPath)
-                    ? "Nothing was saved. The file that was already there is unchanged."
-                    : "Nothing was saved.";
-                ResultHint = null;
                 State = BackupWindowState.Cancelled;
                 break;
             default:
-                ResultTitle = "Backup failed";
-                ResultDetail = result.Error ?? "pg_dump stopped without saying why.";
-                ResultHint = result.Hint;
                 State = BackupWindowState.Failed;
                 break;
         }
+
+        OnPropertyChanged(nameof(ResultTitle));
+        OnPropertyChanged(nameof(ResultDetail));
+        OnPropertyChanged(nameof(ResultHint));
     }
 
     /// <summary>"0:42", "12:05", "1:02:05".</summary>
