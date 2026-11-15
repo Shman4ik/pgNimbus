@@ -1,8 +1,9 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:l="using:PgNimbus.App.Localization"
         xmlns:v="using:PgNimbus.App.Views"
         x:Class="PgNimbus.App.Views.StagedConflictDialog"
-        Title="pgNimbus — Commit rolled back"
+        Title="{l:Tr Dialogs_ConflictTitle}"
         Width="760" Height="520"
         MinWidth="520" MinHeight="300"
         WindowStartupLocation="CenterOwner">
@@ -22,10 +23,10 @@
 
         <!-- Column captions, aligned with each row's grid below. -->
         <Grid Grid.Row="2" Name="ColumnHeader" ColumnDefinitions="150,*,*,*" Margin="10,0,10,4" Opacity="0.6">
-            <TextBlock Grid.Column="0" FontSize="11" Text="Column" />
-            <TextBlock Grid.Column="1" FontSize="11" Text="When you loaded it" />
-            <TextBlock Grid.Column="2" FontSize="11" Text="On the server now" />
-            <TextBlock Grid.Column="3" FontSize="11" Text="You staged" />
+            <TextBlock Grid.Column="0" FontSize="11" Text="{l:Tr Dialogs_ConflictColumn}" />
+            <TextBlock Grid.Column="1" FontSize="11" Text="{l:Tr Dialogs_ConflictLoaded}" />
+            <TextBlock Grid.Column="2" FontSize="11" Text="{l:Tr Dialogs_ConflictServer}" />
+            <TextBlock Grid.Column="3" FontSize="11" Text="{l:Tr Dialogs_ConflictStaged}" />
         </Grid>
 
         <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
@@ -73,11 +74,11 @@
 
         <Grid Grid.Row="5" ColumnDefinitions="*,Auto" Margin="0,16,0,0">
             <TextBlock Grid.Column="0" Classes="dialogHint" VerticalAlignment="Center" Margin="0,0,12,0"
-                       Text="Nothing was committed. Restaging reloads the rows and keeps your values on top of the current ones, for you to review and commit again." />
+                       Text="{l:Tr Dialogs_ConflictNothingCommitted}" />
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                <Button Name="UnstageButton" Classes="soft" Content="Unstage these rows" Click="OnUnstageClick" />
-                <Button Classes="soft" Content="Close" Click="OnCloseClick" IsCancel="True" />
-                <Button Name="RestageButton" Classes="accent" Content="Reload and restage" Click="OnRestageClick" />
+                <Button Name="UnstageButton" Classes="soft" Content="{l:Tr Dialogs_UnstageButton}" Click="OnUnstageClick" />
+                <Button Classes="soft" Content="{l:Tr Common_Close}" Click="OnCloseClick" IsCancel="True" />
+                <Button Name="RestageButton" Classes="accent" Content="{l:Tr Dialogs_RestageButton}" Click="OnRestageClick" />
             </StackPanel>
         </Grid>
 

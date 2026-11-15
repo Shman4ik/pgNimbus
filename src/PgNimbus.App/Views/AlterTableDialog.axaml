@@ -3,9 +3,10 @@
         xmlns:vm="using:PgNimbus.App.ViewModels"
         xmlns:schema="using:PgNimbus.Core.Schema"
         xmlns:conv="using:Avalonia.Data.Converters"
+        xmlns:l="using:PgNimbus.App.Localization"
         x:Class="PgNimbus.App.Views.AlterTableDialog"
         x:DataType="vm:AlterTableViewModel"
-        Title="pgNimbus — Alter Table"
+        Title="{l:Tr Dialogs_AlterTableTitle}"
         Width="520" Height="560"
         WindowStartupLocation="CenterOwner">
 
@@ -24,7 +25,7 @@
                         <Grid ColumnDefinitions="*,Auto,Auto">
                             <TextBlock Grid.Column="0" Text="{Binding Name}" />
                             <TextBlock Grid.Column="1" Text="{Binding DataType}" Opacity="0.7" FontSize="11" Margin="8,0" />
-                            <TextBlock Grid.Column="2" Text="PK" FontSize="10" Opacity="0.7"
+                            <TextBlock Grid.Column="2" Text="{l:Tr Dialogs_PrimaryKeyBadge}" FontSize="10" Opacity="0.7"
                                        IsVisible="{Binding IsPrimaryKey}" />
                         </Grid>
                     </DataTemplate>
@@ -34,26 +35,26 @@
 
         <Border Grid.Row="2" Classes="card" Padding="10" Margin="0,0,0,10">
             <StackPanel>
-                <TextBlock Text="Add column" FontWeight="SemiBold" Margin="0,0,0,6" />
+                <TextBlock Text="{l:Tr Dialogs_AddColumnHeading}" FontWeight="SemiBold" Margin="0,0,0,6" />
                 <Grid ColumnDefinitions="*,120,Auto" Margin="0,0,0,8">
-                    <TextBox Grid.Column="0" Text="{Binding NewColumnName}" PlaceholderText="Column name" Margin="0,0,6,0" />
+                    <TextBox Grid.Column="0" Text="{Binding NewColumnName}" PlaceholderText="{l:Tr Dialogs_ColumnNamePlaceholder}" Margin="0,0,6,0" />
                     <ComboBox Grid.Column="1" ItemsSource="{Binding ColumnTypeOptions}" SelectedItem="{Binding NewColumnType}"
                               HorizontalAlignment="Stretch" Margin="0,0,6,0" />
                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                         <ToggleSwitch IsChecked="{Binding NewColumnNullable}" OnContent="" OffContent="" />
-                        <TextBlock Text="Nullable" VerticalAlignment="Center" />
+                        <TextBlock Text="{l:Tr Dialogs_NullableLabel}" VerticalAlignment="Center" />
                     </StackPanel>
                 </Grid>
-                <Button Classes="accent" Content="Add column" Command="{Binding AddColumnCommand}" HorizontalAlignment="Right" />
+                <Button Classes="accent" Content="{l:Tr Dialogs_AddColumnButton}" Command="{Binding AddColumnCommand}" HorizontalAlignment="Right" />
             </StackPanel>
         </Border>
 
         <Border Grid.Row="3" Classes="card" Padding="10" Margin="0,0,0,10">
             <StackPanel>
-                <TextBlock Text="Rename selected column" FontWeight="SemiBold" Margin="0,0,0,6" />
+                <TextBlock Text="{l:Tr Dialogs_RenameColumnHeading}" FontWeight="SemiBold" Margin="0,0,0,6" />
                 <Grid ColumnDefinitions="*,Auto">
-                    <TextBox Grid.Column="0" Text="{Binding RenameTo}" PlaceholderText="New name" Margin="0,0,6,0" />
-                    <Button Grid.Column="1" Classes="soft" Content="Rename" Command="{Binding RenameColumnCommand}" />
+                    <TextBox Grid.Column="0" Text="{Binding RenameTo}" PlaceholderText="{l:Tr Dialogs_NewNamePlaceholder}" Margin="0,0,6,0" />
+                    <Button Grid.Column="1" Classes="soft" Content="{l:Tr Common_Rename}" Command="{Binding RenameColumnCommand}" />
                 </Grid>
             </StackPanel>
         </Border>
@@ -62,8 +63,8 @@
                    IsVisible="{Binding StatusMessage, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
 
         <StackPanel Grid.Row="5" Classes="dialogButtons" Margin="0,6,0,0">
-            <Button Classes="soft danger" Content="Drop selected column" Command="{Binding DropColumnCommand}" />
-            <Button Classes="soft" Content="Close" Click="OnCloseClick" />
+            <Button Classes="soft danger" Content="{l:Tr Dialogs_DropColumnButton}" Command="{Binding DropColumnCommand}" />
+            <Button Classes="soft" Content="{l:Tr Common_Close}" Click="OnCloseClick" />
         </StackPanel>
 
     </Grid>

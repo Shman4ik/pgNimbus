@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PgNimbus.Core.Import;
+using PgNimbus.Core.Localization;
 
 namespace PgNimbus.App.ViewModels;
 
@@ -47,7 +48,11 @@ public sealed partial class ImportViewModel : ObservableObject
 
     public ObservableCollection<ImportColumnViewModel> Columns { get; } = [];
 
-    public string Summary { get; }
+    /// <summary>What was read from the file, such as "1,200 rows · 4 columns parsed".</summary>
+    public string Summary =>
+        Strings.Dialogs_ImportSummary(
+            Strings.Results_Rows(_data.Rows.Count, _data.Rows.Count.ToString("N0")),
+            Strings.Dialogs_ImportColumns(_data.Columns.Count, _data.Columns.Count));
 
     /// <summary>Raised after a successful load with (schema, table, rows imported).</summary>
     public event Action<string, string, long>? Completed;
@@ -65,7 +70,7 @@ public sealed partial class ImportViewModel : ObservableObject
         _tableName = suggestedTable;
         Schemas = schemas.Count > 0 ? schemas : ["public"];
         _schema = Schemas.Contains("public") ? "public" : Schemas[0];
-        Summary = $"{data.Rows.Count:N0} row{(data.Rows.Count == 1 ? "" : "s")} · {data.Columns.Count} column{(data.Columns.Count == 1 ? "" : "s")} parsed";
+        Localizer.WhenChanged(this, static vm => vm.OnPropertyChanged(nameof(Summary)));
 
         var types = inferredTypes ?? InferTypes(data);
         for (var i = 0; i < data.Columns.Count; i++)
@@ -92,7 +97,7 @@ public sealed partial class ImportViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(TableName))
         {
-            ErrorMessage = "Table name is required.";
+            ErrorMessage = Strings.Dialogs_ImportTableRequired;
             return;
         }
 

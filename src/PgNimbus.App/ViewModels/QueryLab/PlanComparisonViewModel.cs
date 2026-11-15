@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Query;
 using PgNimbus.Core.QueryLab;
 
@@ -31,11 +32,13 @@ public sealed class PlanMetricRowViewModel(PlanMetricRow row)
 }
 
 /// <summary>A warning the analyzer raised on one side only: gone after, or new after.</summary>
-public sealed class WarningChangeViewModel(PlanWarning warning, bool introduced)
+public sealed class WarningChangeViewModel(PlanWarning warning, bool introduced) : ObservableObject
 {
     public string Glyph => introduced ? "⚠" : "✓";
 
-    public string Word => introduced ? "New" : "Gone";
+    public string Word => introduced ? Strings.QueryLab_WarningNew : Strings.QueryLab_WarningGone;
+
+    internal void RefreshText() => OnPropertyChanged(nameof(Word));
 
     public string Title => warning.Title;
 
@@ -57,7 +60,6 @@ public sealed partial class PlanComparisonViewModel : ObservableObject
         AfterLabel = afterLabel;
         Metrics = [.. comparison.Metrics.Select(r => new PlanMetricRowViewModel(r))];
         Notes = [.. comparison.Notes.Select(n => new PlanWarningViewModel(n))];
-        SettingChanges = [.. comparison.Settings.Select(s => $"{s.Name}: {s.Before ?? "default"} → {s.After ?? "default"}")];
         WarningChanges =
         [
             .. comparison.WarningsResolved.Select(w => new WarningChangeViewModel(w, introduced: false)),
@@ -65,21 +67,22 @@ public sealed partial class PlanComparisonViewModel : ObservableObject
         ];
         Roots = [.. comparison.Diff.Roots.Select(r => new PlanDiffNodeViewModel(r))];
 
-        var diff = comparison.Diff;
-        var parts = new List<string>();
-        void Part(int count, string word)
+    }
+
+    /// <summary>Raises the text that is composed from the language, after a change of language.</summary>
+    internal void RefreshText()
+    {
+        OnPropertyChanged(nameof(SettingChanges));
+        OnPropertyChanged(nameof(ChangeSummary));
+        foreach (var change in WarningChanges)
         {
-            if (count > 0)
-            {
-                parts.Add(string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{count:N0} {word}"));
-            }
+            change.RefreshText();
         }
 
-        Part(diff.Changed, "changed");
-        Part(diff.Added, "added");
-        Part(diff.Removed, "removed");
-        Part(diff.Moved, "moved");
-        ChangeSummary = parts.Count == 0 ? "Same plan: every node matches" : string.Join(" · ", parts);
+        foreach (var root in Roots)
+        {
+            root.RefreshText();
+        }
     }
 
     public PlanComparison Comparison { get; }
@@ -92,9 +95,14 @@ public sealed partial class PlanComparisonViewModel : ObservableObject
 
     public IReadOnlyList<PlanWarningViewModel> Notes { get; }
 
-    public IReadOnlyList<string> SettingChanges { get; }
+    /// <summary>"enable_seqscan: default → off", one per planner setting that differs.</summary>
+    public IReadOnlyList<string> SettingChanges =>
+    [
+        .. Comparison.Settings.Select(s => Strings.QueryLab_SettingChange(
+            s.Name, s.Before ?? Strings.QueryLab_SettingDefault, s.After ?? Strings.QueryLab_SettingDefault)),
+    ];
 
-    public bool HasSettingChanges => SettingChanges.Count > 0;
+    public bool HasSettingChanges => Comparison.Settings.Count > 0;
 
     public IReadOnlyList<WarningChangeViewModel> WarningChanges { get; }
 
@@ -103,7 +111,35 @@ public sealed partial class PlanComparisonViewModel : ObservableObject
     public IReadOnlyList<PlanDiffNodeViewModel> Roots { get; }
 
     /// <summary>"1 changed · 1 added · 1 removed", above the plan tree.</summary>
-    public string ChangeSummary { get; }
+    public string ChangeSummary
+    {
+        get
+        {
+            var diff = Comparison.Diff;
+            var parts = new List<string>();
+            if (diff.Changed > 0)
+            {
+                parts.Add(Strings.QueryLab_NodesChanged(diff.Changed, diff.Changed.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)));
+            }
+
+            if (diff.Added > 0)
+            {
+                parts.Add(Strings.QueryLab_NodesAdded(diff.Added, diff.Added.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)));
+            }
+
+            if (diff.Removed > 0)
+            {
+                parts.Add(Strings.QueryLab_NodesRemoved(diff.Removed, diff.Removed.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)));
+            }
+
+            if (diff.Moved > 0)
+            {
+                parts.Add(Strings.QueryLab_NodesMoved(diff.Moved, diff.Moved.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)));
+            }
+
+            return parts.Count == 0 ? Strings.QueryLab_SameNodes : string.Join(" · ", parts);
+        }
+    }
 
     /// <summary>The plan-tree row whose before and after figures the details strip shows.</summary>
     [ObservableProperty]

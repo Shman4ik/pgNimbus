@@ -5,6 +5,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using PgNimbus.Core.Diagnostics;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Security;
 
 namespace PgNimbus.App.Views;
@@ -15,13 +16,14 @@ namespace PgNimbus.App.Views;
 /// It reports what happened, points at the log file on disk, and opens a
 /// pre-filled GitHub issue so a report is one click away. It carries no view
 /// model and touches no app services on purpose — it must render even when the
-/// rest of the app is in a broken state.
+/// rest of the app is in a broken state. Its own labels come from the
+/// translation table (<c>Strings</c> has English compiled in, so that is safe even
+/// then); the GitHub issue it pre-fills and the log are English on purpose, so a
+/// maintainer can read every report.
 /// </summary>
 public partial class CrashWindow : Window
 {
     private const string RepositoryUrl = "https://github.com/Shman4ik/pgNimbus";
-
-    private const string NoLogText = "No log was written: pgNimbus found no application data directory.";
 
     // Null when the app has no data directory to write a log into (see
     // CrashLogger): the window then says so instead of pointing at a file.
@@ -39,8 +41,8 @@ public partial class CrashWindow : Window
         _logPath = logPath;
         _errorSummary = DescribeException(exception);
 
-        ErrorText.Text = _errorSummary;
-        LogPathText.Text = _logPath ?? NoLogText;
+        ErrorText.Text = exception is null ? Strings.Crash_UnknownError : _errorSummary;
+        LogPathText.Text = _logPath ?? Strings.Crash_NoLog;
 
         KeyDown += (_, e) =>
         {
@@ -59,6 +61,7 @@ public partial class CrashWindow : Window
     {
         if (exception is null)
         {
+            // English: this is also the text of the issue, which stays English.
             return "An unknown error occurred.";
         }
 

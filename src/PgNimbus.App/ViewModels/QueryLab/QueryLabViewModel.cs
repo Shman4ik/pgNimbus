@@ -3,17 +3,25 @@ using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PgNimbus.App.Converters;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Query;
 using PgNimbus.Core.QueryLab;
 
 namespace PgNimbus.App.ViewModels;
 
 /// <summary>A saved plan as Query Lab's list shows it.</summary>
-public sealed class SavedPlanItem(SavedPlan plan)
+public sealed class SavedPlanItem(SavedPlan plan) : ObservableObject
 {
     public SavedPlan Plan { get; } = plan;
 
     public string Name => Plan.Name;
+
+    /// <summary>Raises the text that is composed from the language, after a change of language.</summary>
+    internal void RefreshText()
+    {
+        OnPropertyChanged(nameof(Detail));
+        OnPropertyChanged(nameof(Tip));
+    }
 
     /// <summary>"09:41 · 13.4 ms · PG 17.11", "Imported · estimates only".</summary>
     public string Detail => Describe(Plan);
@@ -29,9 +37,9 @@ public sealed class SavedPlanItem(SavedPlan plan)
             };
             lines.Add(Plan.Source switch
             {
-                SavedPlanSource.Explain => "From the Explain command",
-                SavedPlanSource.Run => "From an EXPLAIN that was run",
-                _ => "Imported",
+                SavedPlanSource.Explain => Strings.QueryLab_SourceExplain,
+                SavedPlanSource.Run => Strings.QueryLab_SourceRun,
+                _ => Strings.QueryLab_Imported,
             });
             if (Plan.Connection is { } connection)
             {
@@ -49,19 +57,19 @@ public sealed class SavedPlanItem(SavedPlan plan)
 
     internal static string Describe(SavedPlan plan)
     {
-        var parts = new List<string> { plan.Source == SavedPlanSource.Imported ? "Imported" : HistoryLabel.When(plan.CapturedAt, HistoryText.Now()) };
+        var parts = new List<string> { plan.Source == SavedPlanSource.Imported ? Strings.QueryLab_Imported : HistoryLabel.When(plan.CapturedAt, HistoryText.Now()) };
         if (plan.Summary is { Analyzed: true, ExecutionMs: { } ms })
         {
             parts.Add(PlanMetricRow.Format(ms, PlanMetricUnit.Milliseconds));
         }
         else if (plan.Summary is { Analyzed: false })
         {
-            parts.Add("estimates only");
+            parts.Add(Strings.QueryLab_EstimatesOnly);
         }
 
         if (plan.ServerVersion is { } version)
         {
-            parts.Add("PG " + version);
+            parts.Add(Strings.QueryLab_ServerVersion(version));
         }
 
         return string.Join(" · ", parts);
@@ -69,31 +77,39 @@ public sealed class SavedPlanItem(SavedPlan plan)
 }
 
 /// <summary>A side Query Lab can compare: a saved plan, or the plan a tab is showing that nobody saved.</summary>
-public sealed class PlanChoice
+public sealed class PlanChoice : ObservableObject
 {
-    private PlanChoice(SavedPlan? saved, PlanCapture? capture, string label, string detail)
+    private readonly string? _tabTitle;
+
+    private PlanChoice(SavedPlan? saved, PlanCapture? capture, string? tabTitle)
     {
         Saved = saved;
         Capture = capture;
-        Label = label;
-        Detail = detail;
+        _tabTitle = tabTitle;
     }
 
     public SavedPlan? Saved { get; }
 
     public PlanCapture? Capture { get; }
 
-    public string Label { get; }
+    public string Label => Saved is { } saved ? saved.Name : Strings.QueryLab_UnsavedChoice(_tabTitle);
 
-    public string Detail { get; }
+    public string Detail => Saved is { } saved
+        ? SavedPlanItem.Describe(saved)
+        : Capture!.Plan.ExecutionTimeMs is { } ms ? PlanMetricRow.Format(ms, PlanMetricUnit.Milliseconds) : Strings.QueryLab_EstimatesOnly;
 
     public bool IsUnsaved => Saved is null;
 
-    public static PlanChoice ForSaved(SavedPlan saved) => new(saved, null, saved.Name, SavedPlanItem.Describe(saved));
+    /// <summary>Raises the text that is composed from the language, after a change of language.</summary>
+    internal void RefreshText()
+    {
+        OnPropertyChanged(nameof(Label));
+        OnPropertyChanged(nameof(Detail));
+    }
 
-    public static PlanChoice ForCapture(PlanCapture capture, string tabTitle) =>
-        new(null, capture, $"Unsaved: the plan in “{tabTitle}”",
-            capture.Plan.ExecutionTimeMs is { } ms ? PlanMetricRow.Format(ms, PlanMetricUnit.Milliseconds) : "estimates only");
+    public static PlanChoice ForSaved(SavedPlan saved) => new(saved, null, null);
+
+    public static PlanChoice ForCapture(PlanCapture capture, string tabTitle) => new(null, capture, tabTitle);
 }
 
 /// <summary>
@@ -117,6 +133,25 @@ public sealed partial class QueryLabViewModel : ObservableObject
     {
         _store = store;
         _connection = connection;
+        Localizer.WhenChanged(this, static vm => vm.OnLanguageChanged());
+    }
+
+    // Everything composed from the language and kept on screen: the plan list, the
+    // pickers, the empty text and the comparison. Status text is history.
+    private void OnLanguageChanged()
+    {
+        foreach (var plan in Plans)
+        {
+            plan.RefreshText();
+        }
+
+        foreach (var choice in Choices)
+        {
+            choice.RefreshText();
+        }
+
+        OnPropertyChanged(nameof(EmptyText));
+        Comparison?.RefreshText();
     }
 
     /// <summary>The saved plans, newest first.</summary>
@@ -167,12 +202,12 @@ public sealed partial class QueryLabViewModel : ObservableObject
     /// <summary>What the right-hand side says while there is nothing to compare.</summary>
     public string EmptyText =>
         Choices.Count == 0
-            ? "No saved plans yet. Show a plan in a tab with Explain, Explain Analyze or Import query plan, then choose Save to Query Lab in its Compare menu. Import Plan here adds one without a connection."
+            ? Strings.QueryLab_EmptyNoPlans
             : Before is null || After is null
-                ? "Pick a plan for each side to compare them."
+                ? Strings.QueryLab_EmptyPick
                 : ReferenceEquals(Before, After)
-                    ? "Pick two different plans."
-                    : IsComparing ? "Comparing…" : string.Empty;
+                    ? Strings.QueryLab_EmptySame
+                    : IsComparing ? Strings.QueryLab_Comparing : string.Empty;
 
     /// <summary>Asks for the plan text to import (the view shows <c>ImportPlanDialog</c>); null when cancelled.</summary>
     public Func<Task<ImportedPlan?>>? PickImport { get; set; }
@@ -303,7 +338,7 @@ public sealed partial class QueryLabViewModel : ObservableObject
             After = now;
         }
 
-        Status = $"Saved “{name}” to Query Lab";
+        Status = Strings.QueryLab_SavedStatus(name);
         return saved;
     }
 
@@ -349,8 +384,8 @@ public sealed partial class QueryLabViewModel : ObservableObject
             return;
         }
 
-        var name = SaveQueryNames.Suggest("Imported plan", n => FindByName(n) is not null);
-        if (await AskName("Save the imported plan", name, null) is not { } named)
+        var name = SaveQueryNames.Suggest(Strings.QueryLab_ImportedName, n => FindByName(n) is not null);
+        if (await AskName(Strings.QueryLab_SaveImportedHeading, name, null) is not { } named)
         {
             return;
         }
@@ -362,7 +397,7 @@ public sealed partial class QueryLabViewModel : ObservableObject
     [RelayCommand]
     private async Task RenameAsync(SavedPlanItem? item)
     {
-        if (item is null || AskName is null || await AskName("Rename saved plan", item.Name, item.Plan.Id) is not { } named)
+        if (item is null || AskName is null || await AskName(Strings.QueryLab_RenameHeading, item.Name, item.Plan.Id) is not { } named)
         {
             return;
         }
@@ -399,7 +434,7 @@ public sealed partial class QueryLabViewModel : ObservableObject
         }
 
         _parsed.TryRemove(item.Plan.Id, out _);
-        Status = $"Deleted “{item.Name}”";
+        Status = Strings.QueryLab_DeletedStatus(item.Name);
         await ReloadAsync();
     }
 
@@ -514,5 +549,5 @@ public sealed partial class QueryLabViewModel : ObservableObject
     private ImportedPlan ImportSaved(SavedPlan saved) =>
         _store.ReadPlan(saved.Id) is { } text
             ? ExplainService.Import(text)
-            : throw new FormatException($"The plan saved as “{saved.Name}” is missing from Query Lab's folder.");
+            : throw new FormatException(Strings.QueryLab_PlanMissing(saved.Name));
 }

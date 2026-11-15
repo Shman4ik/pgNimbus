@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using PgNimbus.App.ViewModels;
+using PgNimbus.Core.Localization;
 
 namespace PgNimbus.App.Views;
 
@@ -23,8 +24,8 @@ public partial class AlterTableDialog : Window
                 vm.ConfirmDropColumnRequested = async column =>
                 {
                     var confirm = new ConfirmDialog(
-                        $"Drop column \"{vm.Schema}.{vm.Table}.{column.Name}\"? Its data is lost.",
-                        "Drop");
+                        Strings.Dialogs_DropColumnConfirm($"{vm.Schema}.{vm.Table}.{column.Name}"),
+                        Strings.Dialogs_DropButton);
                     return await confirm.ShowDialog<bool>(this);
                 };
 
