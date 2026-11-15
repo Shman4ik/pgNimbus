@@ -39,6 +39,28 @@ public partial class PseudoLocaleTests
         ["connection-dialog-wide"] = null,
         ["connection-credential-warning"] = null,
         ["connection-dialog-verify-full"] = null,
+        ["main-window"] = null,
+        ["main-window-read-only"] = null,
+        ["main-window-empty"] = null,
+        ["main-window-error"] = null,
+        ["main-window-script"] = null,
+        // main-window-plan and -plan-tree join once Core's PlanAnalyzer warnings are in the table.
+        ["main-window-palette"] = null,
+        ["main-window-sidebar-filter"] = null,
+        ["main-window-cell-inspector"] = null,
+        ["main-window-signature-hint"] = null,
+        ["main-window-completion"] = null,
+        ["main-window-browse-row-details"] = null,
+        ["main-window-browse-no-match"] = null,
+        ["filter-editor"] = null,
+        ["main-window-browse-typed-where"] = null,
+        ["main-window-queries"] = null,
+        ["main-window-read-only-not-applied"] = null,
+        ["main-window-cell-inspector-tree"] = null,
+        ["main-window-cell-inspector-edit"] = null,
+        ["main-window-production"] = null,
+        ["main-window-production-writes-on"] = null,
+        ["shortcuts-window"] = typeof(Views.ShortcutsView),
     };
 
     /// <summary>Text that is data in the fixtures, or a name never translated.</summary>
@@ -57,26 +79,125 @@ public partial class PseudoLocaleTests
         "db.example.com/shop",
         "localhost",
         "postgres",
+        "shop",
+        "Ctrl+K",
+        "Alt",
+        "Backspace",
+        "Ctrl",
+        "Delete",
+        "Enter",
+        "Esc",
+        "PgDn",
+        "PgUp",
+        "Shift",
+        "Space",
+        "Tab",
+        "public",
+        "analytics",
+        "billing",
+        "customers",
+        "orders",
+        "order_items",
+        "products",
+        "active_customers",
+        "daily_revenue",
+        "12.0 MB",
+        "256.0 MB",
+        "40.0 MB",
+        "6.0 MB",
+        "88.0 MB",
+        "customer_id",
+        "id",
+        "metadata",
+        "placed_at",
+        "status",
+        "total",
+        "bigint",
+        "jsonb",
+        "timestamptz",
+        "numeric(12,2)",
+        "order_status",
+        "timestamp with time zone",
+        "Revenue by day",
+        "Slow orders",
+        "Unshipped items",
+        "public.orders",
+        "boolean",
+        "customer",
+        "numeric(10,2)",
+        "paid",
+        "text",
+        "false",
+        "shipped",
+        "\"placed_at\" >= '2026-07-01 00:00:00+00'",
+        "WHERE \"customer\" ILIKE '%zzz%'",
+        "\"customer\" ILIKE '%zzz%'",
+        "WHERE (status = 'paid' OR paid) AND (\"total\" > '50') AND (\"placed_at\" IS NOT NULL)",
+        "\"placed_at\" IS NOT NULL",
+        "\"total\" > '50'",
+        "total > 50",
+        "status = 'paid' OR paid",
+        "Orders",
+        "orders_customer_id_fkey",
+        "Window",
+        "status ≠ cancelled",
+        "total ≥ 50",
+        "\"status\" <> 'cancelled'",
+        "\"total\" >= '50'",
+        "metadata->'notify'->>1",
+    ];
+
+    /// <summary>The words of a key cap, which are written as the key is labelled.</summary>
+    private static readonly HashSet<string> KeyNames =
+    [
+        "Ctrl", "Cmd", "Shift", "Alt", "Option", "Enter", "Return", "Esc", "Tab", "Space", "Backspace",
+        "Delete", "Del", "Home", "End", "PgUp", "PgDn", "Up", "Down", "Left", "Right", "Insert",
     ];
 
     [GeneratedRegex(@"\p{L}{2,}")]
     private static partial Regex Word();
 
+    // SQL a person wrote or the app shows as code: it starts with a statement keyword.
+    [GeneratedRegex(@"^(SELECT|UPDATE|INSERT|DELETE|WITH|WHERE|VACUUM|ANALYZE|EXPLAIN|CREATE|ALTER|DROP|SET|BEGIN|COMMIT|ROLLBACK|GRANT|REVOKE|TRUNCATE)\b")]
+    private static partial Regex Sql();
+
+    // A query history row's second line ("09:41 · 18 ms · 50 rows"): written in the
+    // language in use when the query ran, and kept as written, like a status line.
+    [GeneratedRegex(@"^\d{1,2}:\d{2} · ")]
+    private static partial Regex HistoryLine();
+
+    // A script section's chip: its number and the statement's keyword ("2 · SELECT").
+    [GeneratedRegex(@"^\d+ · [A-Z ]+$")]
+    private static partial Regex ScriptChip();
+
+    /// <summary>
+    /// Built in the pseudo-locale, every string must come from the table. Built in
+    /// English and switched while open (<paramref name="switchWhileOpen"/>), every
+    /// string must also follow the switch: text computed once and kept is what this
+    /// finds, the way a person changing the language in Settings would.
+    /// </summary>
     [Test]
-    public async Task Every_visible_string_in_a_converted_window_comes_from_the_table()
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task Every_visible_string_in_a_converted_window_comes_from_the_table(bool switchWhileOpen)
     {
         try
         {
             await Ui.Run(async () =>
             {
-                Localizer.Load(Localizer.Pseudo);
                 var leftovers = new List<string>();
                 var scanned = 0;
                 foreach (var (name, build) in Scenarios.All.Where(s => Converted.ContainsKey(s.Name)))
                 {
+                    Localizer.Load(switchWhileOpen ? Localizer.English : Localizer.Pseudo);
                     var window = build();
                     Ui.Show(window);
                     Ui.Settle();
+                    if (switchWhileOpen)
+                    {
+                        Localizer.Load(Localizer.Pseudo);
+                        Ui.Settle();
+                    }
 
                     Visual root = Converted[name] is { } scope
                         ? window.GetVisualDescendants().First(v => v.GetType() == scope)
@@ -98,8 +219,15 @@ public partial class PseudoLocaleTests
                     {
                         state();
                         Ui.Settle();
-                        foreach (var (where, text) in Texts(root))
+                        foreach (var (control, where, text) in Texts(root))
                         {
+                            // A status line is written when something happens and kept as
+                            // written, like a log line (CLAUDE.md, "Localization").
+                            if (switchWhileOpen && IsStatusLine(control))
+                            {
+                                continue;
+                            }
+
                             scanned++;
                             var line = $"{name}: {where}: \"{text}\"";
                             if (!IsTranslated(text) && !leftovers.Contains(line))
@@ -128,14 +256,24 @@ public partial class PseudoLocaleTests
     }
 
     private static bool IsTranslated(string text) =>
-        !Word().IsMatch(text) || text.Contains('[') || DataText.Contains(text.Trim());
+        !Word().IsMatch(text) || text.Contains('[') || DataText.Contains(text.Trim())
+        || Sql().IsMatch(text) || HistoryLine().IsMatch(text) || ScriptChip().IsMatch(text) || IsKeys(text);
+
+    /// <summary>A gesture as the key caps spell it: "Ctrl+Shift+F / Alt+Shift+F", "F5", "Ctrl+K".</summary>
+    private static bool IsKeys(string text) =>
+        text.Split(['+', '/', ' '], StringSplitOptions.RemoveEmptyEntries)
+            .All(part => KeyNames.Contains(part) || part.Length <= 2 || (part[0] == 'F' && part[1..].All(char.IsAsciiDigit)));
+
+    private static bool IsStatusLine(Visual? control) =>
+        control is not null && control.GetVisualAncestors().Prepend(control).OfType<StyledElement>()
+            .Any(e => e.Classes.Contains("statusText") || e.Classes.Contains("statusMessage"));
 
     /// <summary>Every piece of text a window shows, with the element it is on.</summary>
-    internal static IEnumerable<(string Where, string Text)> Texts(Visual root)
+    internal static IEnumerable<(Visual? Control, string Where, string Text)> Texts(Visual root)
     {
         if (root is Window { Title: { Length: > 0 } title })
         {
-            yield return ("Window.Title", title);
+            yield return (null, "Window.Title", title);
         }
 
         foreach (var visual in root.GetVisualDescendants())
@@ -147,28 +285,39 @@ public partial class PseudoLocaleTests
 
             if (control is TextBlock { Text: { Length: > 0 } text })
             {
-                yield return (Describe(control), text);
+                yield return (control, Describe(control), text);
             }
 
-            if (ToolTip.GetTip(control) is string tip)
+            // A tooltip that is a key is drawn by StringKeyTemplate in the language in use.
+            var tip = ToolTip.GetTip(control) switch
             {
-                yield return (Describe(control) + " tooltip", tip);
+                string s => s,
+                StringKey key => Strings.Get(key),
+                _ => null,
+            };
+            if (tip is not null)
+            {
+                yield return (control, Describe(control) + " tooltip", tip);
             }
 
             if (control is TextBox { PlaceholderText: { Length: > 0 } placeholder })
             {
-                yield return (Describe(control) + " placeholder", placeholder);
+                yield return (control, Describe(control) + " placeholder", placeholder);
             }
         }
     }
 
     /// <summary>
     /// Text drawn where only data goes: a grid cell or column header, an editor, the
-    /// text a person typed into a box.
+    /// text a person typed into a box, a query plan (the server's EXPLAIN output, as
+    /// text or as the tree's nodes), a JSON value's tree, and completion items (catalog
+    /// names and SQL words).
     /// </summary>
     private static bool IsData(Control control) =>
-        control.GetVisualAncestors().Any(a => a is DataGridCell or DataGridColumnHeader or AvaloniaEdit.TextEditor or TextPresenter)
-        || control is TextPresenter;
+        control.GetVisualAncestors().Any(a => a is DataGridCell or DataGridColumnHeader or AvaloniaEdit.TextEditor or TextPresenter or Views.ReadOnlyTextView)
+        || control is TextPresenter
+        || control is Completion.CompletionLabel
+        || control.DataContext is ViewModels.ExplainNodeViewModel or Core.Json.JsonTreeNode;
 
     private static string Describe(Control control)
     {

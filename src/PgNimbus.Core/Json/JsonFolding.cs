@@ -1,3 +1,4 @@
+using PgNimbus.Core.Localization;
 namespace PgNimbus.Core.Json;
 
 /// <summary>
@@ -8,9 +9,7 @@ namespace PgNimbus.Core.Json;
 public readonly record struct JsonFold(int Start, int End, bool IsObject, int Count)
 {
     /// <summary>What the region reads as while folded, in the tree view's words.</summary>
-    public string Title => IsObject
-        ? Count == 1 ? "{ 1 field }" : $"{{ {Count} fields }}"
-        : Count == 1 ? "[ 1 item ]" : $"[ {Count} items ]";
+    public string Title => IsObject ? Strings.Results_JsonObjectSummary(Count) : Strings.Results_JsonArraySummary(Count);
 }
 
 /// <summary>

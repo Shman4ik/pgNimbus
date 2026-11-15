@@ -1,4 +1,5 @@
 using System.Text.Json;
+using PgNimbus.Core.Localization;
 
 namespace PgNimbus.Core.Json;
 
@@ -247,9 +248,9 @@ public static class JsonTree
     private static JsonTreeNode Leaf(string name, JsonNodeKind kind, string preview, JsonPathSegment[] path) =>
         new(name, kind, Truncate(preview), []) { Path = path };
 
-    private static string SummarizeObject(int count) => count == 1 ? "{ 1 field }" : $"{{ {count} fields }}";
+    private static string SummarizeObject(int count) => Strings.Results_JsonObjectSummary(count);
 
-    private static string SummarizeArray(int count) => count == 1 ? "[ 1 item ]" : $"[ {count} items ]";
+    private static string SummarizeArray(int count) => Strings.Results_JsonArraySummary(count);
 
     // Breadth first from the root, which always opens: each container opens if
     // its children still fit in the rows left, and a level is finished before

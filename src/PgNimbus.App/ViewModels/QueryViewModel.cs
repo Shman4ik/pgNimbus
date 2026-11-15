@@ -1916,23 +1916,16 @@ public sealed partial class QueryViewModel : ObservableObject
         }
     }
 
-    // MainViewModel names a scratch tab "Query N" in English; that name is a default,
-    // not a person's choice, so it is read back as a number and shown in the language
-    // in use now (DefaultTitleNumber is the direct way to say it).
+    // A label set by the app replaces a scratch tab's number.
     partial void OnDefaultTitleChanged(string value)
     {
-        _defaultTitleNumber = NumberedTitle().Match(value) is { Success: true } match
-            ? int.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture)
-            : null;
+        _defaultTitleNumber = null;
         UpdateTabTitle();
     }
 
-    [GeneratedRegex(@"^Query (\d{1,9})$")]
-    private static partial Regex NumberedTitle();
-
     private int? _defaultTitleNumber;
 
-    /// <summary>The N of a scratch tab's default name "Query N", which follows the language; null for any other default.</summary>
+    /// <summary>The N of a scratch tab's default name ("Query N" in English), written in the language in use whenever it is shown; null for any other default. Set it after <see cref="DefaultTitle"/>, which clears it.</summary>
     public int? DefaultTitleNumber
     {
         get => _defaultTitleNumber;

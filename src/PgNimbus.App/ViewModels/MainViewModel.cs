@@ -1756,7 +1756,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         var tab = new QueryViewModel(_engine, _explainService, GetReconcilerAsync, () => SafeModeEdits, _schemaService, () => ShowFilterBar, () => ConnectionReadOnlyHint)
         {
-            DefaultTitle = Strings.Shell_QueryTabName(Tabs.Count + 1),
+            DefaultTitleNumber = Tabs.Count + 1,
             IsPlanTextView = !PlanTreeView,
         };
         tab.PropertyChanged += (_, e) =>
@@ -2342,6 +2342,7 @@ public sealed partial class MainViewModel : ObservableObject
         // moment it becomes active, and that is when it reads the caret to put back.
         var tab = CreateTab();
         tab.DefaultTitle = closed.DefaultTitle;
+        tab.DefaultTitleNumber = closed.DefaultTitleNumber;
         tab.Sql = closed.Sql;
         if (closed.FilePath is { } path)
         {
@@ -2466,7 +2467,7 @@ public sealed partial class MainViewModel : ObservableObject
             // never momentarily empty — same reason the successor below is
             // selected first. It is about to be the only tab, so it is "Query 1"
             // however many tabs this session has been through.
-            NewTab().DefaultTitle = Strings.Shell_QueryTabName(1);
+            NewTab().DefaultTitleNumber = 1;
         }
 
         var index = Tabs.IndexOf(tab);

@@ -351,6 +351,7 @@ public partial class App : Application
         Platform.EditorTypingUndo.Install();
         Nimbus.Ui.Controls.ToolTipHitTesting.Install();
         Localization.FrameworkStrings.Install(this);
+        DataTemplates.Add(Localization.StringKeyTemplate.Instance);
     }
 
     public override void OnFrameworkInitializationCompleted()

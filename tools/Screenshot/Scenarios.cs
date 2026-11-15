@@ -6,6 +6,7 @@ using PgNimbus.App.Views.Security;
 using Avalonia.VisualTree;
 using PgNimbus.Core.Backup;
 using PgNimbus.Core.Connections;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Monitoring;
 using PgNimbus.Core.Query;
 using PgNimbus.Core.QueryLab;
@@ -200,7 +201,7 @@ public static class Scenarios
         var vm = Fixtures.MainWindowViewModel();
         var tab = vm.ActiveTab;
         tab.Sql = "SELECT * FROM Orders WHERE placed_at > now() - interval '30 days';";
-        tab.Status = "Error: relation \"orders\" does not exist";
+        tab.Status = Strings.Results_StatusError("relation \"orders\" does not exist");
         tab.HasError = true;
         return HostMainWindow(vm);
     }
@@ -258,7 +259,7 @@ public static class Scenarios
         _ = browse.AddAndApplyFilterAsync("total", FilterOperator.GreaterOrEqual, "50");
 
         tab.Sql = composed!;
-        tab.SeedResult(columns, rows, rowCountText: $"{rows.Count} rows", timingText: "9 ms · first byte 4 ms");
+        tab.SeedResult(columns, rows, rowCountText: Strings.Results_Rows(rows.Count, rows.Count.ToString("N0")), timingText: Strings.Results_TimingFirstByte("9", "4"));
         tab.EditContext = new EditableTableContext("public", "orders", ["id"], details);
         tab.Browse = browse;
 
@@ -288,7 +289,7 @@ public static class Scenarios
         _ = browse.AddAndApplyFilterAsync("customer", FilterOperator.Contains, "zzz");
 
         tab.Sql = composed!;
-        tab.SeedResult(columns, [], rowCountText: "0 rows", timingText: "3 ms");
+        tab.SeedResult(columns, [], rowCountText: Strings.Results_Rows(0, "0"), timingText: Strings.Results_TimingMs("3"));
         tab.EditContext = new EditableTableContext("public", "orders", ["id"], details);
         tab.Browse = browse;
         return HostMainWindow(vm);
@@ -312,7 +313,7 @@ public static class Scenarios
             """;
 
         tab.Sql = typed;
-        tab.SeedResult(columns, rows, rowCountText: $"{rows.Count} rows", timingText: "7 ms · first byte 3 ms");
+        tab.SeedResult(columns, rows, rowCountText: Strings.Results_Rows(rows.Count, rows.Count.ToString("N0")), timingText: Strings.Results_TimingFirstByte("7", "3"));
         tab.EditContext = new EditableTableContext("public", "orders", ["id"], details);
         var shape = BrowseSqlParser.TryParse(typed, "public", "orders", details)!;
         tab.Browse = TableBrowseViewModel.FromParsed("public", "orders", details, shape, rows.Count, _ => Task.FromResult(0));
@@ -1123,7 +1124,7 @@ public static class Scenarios
     {
         var (columns, rows) = Fixtures.OrdersResult();
         tab.Sql = SampleSql;
-        tab.SeedResult(columns, rows, rowCountText: $"{rows.Count} rows", timingText: "18 ms · first byte 6 ms");
+        tab.SeedResult(columns, rows, rowCountText: Strings.Results_Rows(rows.Count, rows.Count.ToString("N0")), timingText: Strings.Results_TimingFirstByte("18", "6"));
     }
 
     // --- Query Lab --------------------------------------------------------

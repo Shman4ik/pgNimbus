@@ -17,16 +17,13 @@ public partial class XamlStringLintTests
     /// <summary>Views (file names) still holding literal text, emptied slice by slice.</summary>
     private static readonly HashSet<string> Pending =
     [
-        "ActivityWindow.axaml", "AddRowDialog.axaml", "AlterTableDialog.axaml", "BackupWindow.axaml",
-        "BrowseFilterBar.axaml", "CellValueView.axaml", "ColumnValueEditorView.axaml", "ConfirmDialog.axaml",
-        "CrashWindow.axaml", "DatabaseOverviewWindow.axaml", "DatabaseSwitcherView.axaml",
-        "FilterEditorView.axaml", "HostKeyDialog.axaml", "ImportDialog.axaml", "ImportPlanDialog.axaml",
-        "MainWindow.axaml", "NotifyMonitorWindow.axaml", "PendingChangesDialog.axaml", "PgToolGuideView.axaml",
-        "QueryEditorPanel.axaml", "QueryLabWindow.axaml", "RestoreWindow.axaml",
-        "ResultsGridPanel.axaml", "RowDetailPanel.axaml", "SaveQueryDialog.axaml", "SavedQueriesPanel.axaml",
-        "SchemaTreePanel.axaml", "ShortcutsView.axaml", "SlowQueriesWindow.axaml", "StagedConflictDialog.axaml",
-        "App.axaml", "Theme.axaml", "BulkGrantDialog.axaml", "DefaultPrivilegesTabView.axaml", "DropRoleDialog.axaml",
-        "PermissionsTabView.axaml", "RlsTabView.axaml", "RoleDialog.axaml", "RolesTabView.axaml", "SecurityWindow.axaml",
+        "ActivityWindow.axaml", "AlterTableDialog.axaml", "BackupWindow.axaml", "BulkGrantDialog.axaml",
+        "ConfirmDialog.axaml", "CrashWindow.axaml", "DatabaseOverviewWindow.axaml", "DefaultPrivilegesTabView.axaml",
+        "DropRoleDialog.axaml", "HostKeyDialog.axaml", "ImportDialog.axaml", "ImportPlanDialog.axaml",
+        "NotifyMonitorWindow.axaml", "PendingChangesDialog.axaml", "PermissionsTabView.axaml", "PgToolGuideView.axaml",
+        "QueryLabWindow.axaml", "RestoreWindow.axaml", "RlsTabView.axaml", "RoleDialog.axaml",
+        "RolesTabView.axaml", "SaveQueryDialog.axaml", "SecurityWindow.axaml", "SlowQueriesWindow.axaml",
+        "StagedConflictDialog.axaml",
     ];
 
     /// <summary>Literal values that are names, never translated.</summary>

@@ -2376,10 +2376,6 @@
     <value>Rollback failed: {error}</value>
     <comment>Status line at the bottom of the main window: rolling back the transaction failed. {error} is the error text.</comment>
   </data>
-  <data name="Shell_QueryTabName" xml:space="preserve">
-    <value>Query {number}</value>
-    <comment>Name of a new query tab in the tab strip. {number} is its running number, such as 3.</comment>
-  </data>
   <data name="Shell_TabSourceTitle" xml:space="preserve">
     <value>{name} · source</value>
     <comment>Name of the tab that shows the CREATE statement of a table or function. {name} is the table or function name, such as orders. Keep the dot.</comment>
@@ -3783,6 +3779,22 @@
   </data>
 
   <!-- ===== Results ===== -->
+  <data name="Results_JsonObjectSummary_one" xml:space="preserve">
+    <value>{ {count} field }</value>
+    <comment>Cell inspector, JSON tree and folded JSON text: an object folded to one line. {count} is how many members it has. Keep the braces around it: they are JSON's object brackets.</comment>
+  </data>
+  <data name="Results_JsonObjectSummary_other" xml:space="preserve">
+    <value>{ {count} fields }</value>
+    <comment>Cell inspector, JSON tree and folded JSON text: an object folded to one line. {count} is how many members it has. Keep the braces around it: they are JSON's object brackets.</comment>
+  </data>
+  <data name="Results_JsonArraySummary_one" xml:space="preserve">
+    <value>[ {count} item ]</value>
+    <comment>Cell inspector, JSON tree and folded JSON text: an array folded to one line. {count} is how many elements it has. Keep the square brackets around it.</comment>
+  </data>
+  <data name="Results_JsonArraySummary_other" xml:space="preserve">
+    <value>[ {count} items ]</value>
+    <comment>Cell inspector, JSON tree and folded JSON text: an array folded to one line. {count} is how many elements it has. Keep the square brackets around it.</comment>
+  </data>
   <data name="Results_StaleFiltersTip" xml:space="preserve">
     <value>The query was edited: run it to update the filters</value>
     <comment>Results area: tooltip over the dimmed browse filter chips after the page query was edited by hand.</comment>
