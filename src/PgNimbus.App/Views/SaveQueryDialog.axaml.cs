@@ -1,14 +1,30 @@
 using System;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using PgNimbus.App.ViewModels;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Query;
 
 namespace PgNimbus.App.Views;
 
 /// <summary>What the user settled on: the name, and the entry it replaces (null = a new one).</summary>
 public sealed record SaveQueryResult(string Name, Guid? OverwriteId);
+
+/// <summary>
+/// What a naming dialog names, which decides the sentence it says when the name is
+/// taken. A sentence per kind, not a noun dropped into one: other languages cannot
+/// build "A saved plan named … already exists" from a word.
+/// </summary>
+public enum SaveQueryKind
+{
+    SavedQuery,
+    SavedPlan,
+
+    /// <summary>A table or view being renamed: the server refuses a taken name, so nothing collides here.</summary>
+    Relation,
+}
 
 /// <summary>
 /// Names a query on its way into the Saved Queries list. Shown via
@@ -25,8 +41,8 @@ public partial class SaveQueryDialog : Window
 {
     private readonly Func<string, (Guid Id, string Name)?>? _findByName;
 
-    // What a name collides with, in the warning: "saved query", "saved plan".
-    private readonly string _noun = "saved query";
+    // What a name collides with, which words the warning.
+    private readonly SaveQueryKind _kind = SaveQueryKind.SavedQuery;
 
     // The entry this tab is already saved as, if any: matching it is an
     // ordinary update, not a collision, so it must not raise the warning.
@@ -36,7 +52,7 @@ public partial class SaveQueryDialog : Window
 
     // The primary button's word when nothing collides: "Save", or "Rename"
     // when the dialog names a relation for the schema tree's Rename….
-    private readonly string _saveLabel = "Save";
+    private readonly Func<string> _saveLabel = () => Strings.Common_Save;
 
     public SaveQueryDialog()
     {
@@ -45,36 +61,51 @@ public partial class SaveQueryDialog : Window
     }
 
     public SaveQueryDialog(string heading, string initialName, Guid? currentId, Func<string, SavedQuery?> findByName)
+        : this(() => heading, initialName, currentId, findByName)
+    {
+    }
+
+    /// <summary>
+    /// The saved-query dialog with a heading composed on demand, so it follows a change
+    /// of language while the dialog is open.
+    /// </summary>
+    public SaveQueryDialog(Func<string> heading, string initialName, Guid? currentId, Func<string, SavedQuery?> findByName)
         : this(heading, initialName, currentId, name => findByName(name) is { } query ? (query.Id, query.Name) : null,
-            "saved query", "pgNimbus — Save query")
+            SaveQueryKind.SavedQuery, () => Strings.Dialogs_SaveQueryTitle)
     {
     }
 
     /// <summary>
     /// Names any kind of saved item: <paramref name="findByName"/> answers the id and name
-    /// of the item a name already belongs to, and <paramref name="noun"/> says what it is
-    /// in the collision warning ("A saved plan named … already exists").
+    /// of the item a name already belongs to, and <paramref name="kind"/> says what it is
+    /// in the collision warning. The heading, the window title and the primary button's
+    /// word are composed on demand (<paramref name="saveLabel"/> defaults to Save).
     /// </summary>
     public SaveQueryDialog(
-        string heading,
+        Func<string> heading,
         string initialName,
         Guid? currentId,
         Func<string, (Guid Id, string Name)?> findByName,
-        string noun,
-        string windowTitle,
-        string saveLabel = "Save")
+        SaveQueryKind kind,
+        Func<string> windowTitle,
+        Func<string>? saveLabel = null)
         : this()
     {
-        Title = windowTitle;
-        _saveLabel = saveLabel;
-        HeadingText.Text = heading;
+        this.Bind(TitleProperty, Localizer.Observe(windowTitle).ToBinding());
+        if (saveLabel is not null)
+        {
+            _saveLabel = saveLabel;
+        }
+
+        HeadingText.Bind(TextBlock.TextProperty, Localizer.Observe(heading).ToBinding());
         _currentId = currentId;
         _findByName = findByName;
-        _noun = noun;
+        _kind = kind;
 
         NameBox.Text = initialName;
         NameBox.TextChanged += (_, _) => UpdateConflictState();
         UpdateConflictState();
+        Localizer.WhenChanged(this, static dialog => dialog.UpdateConflictState());
 
         // The name is the whole point of the dialog, and it arrives pre-filled
         // with a guess — so select it, the way a rename box does, and typing
@@ -109,8 +140,10 @@ public partial class SaveQueryDialog : Window
         ConflictText.IsVisible = _conflictId is not null;
         ConflictText.Text = _conflictId is null
             ? string.Empty
-            : $"A {_noun} named \u201c{match!.Value.Name}\u201d already exists. Saving replaces it.";
-        SaveButton.Content = _conflictId is null ? _saveLabel : "Replace";
+            : _kind == SaveQueryKind.SavedPlan
+                ? Strings.Dialogs_NameTakenPlan(match!.Value.Name)
+                : Strings.Dialogs_NameTakenQuery(match!.Value.Name);
+        SaveButton.Content = _conflictId is null ? _saveLabel() : Strings.Dialogs_ReplaceButton;
     }
 
     private void OnNameBoxKeyDown(object? sender, KeyEventArgs e)

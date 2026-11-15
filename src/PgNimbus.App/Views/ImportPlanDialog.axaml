@@ -1,16 +1,17 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:l="using:PgNimbus.App.Localization"
         x:Class="PgNimbus.App.Views.ImportPlanDialog"
-        Title="pgNimbus — Import query plan"
+        Title="{l:Tr Dialogs_ImportPlanTitle}"
         Width="640" Height="520"
         MinWidth="420" MinHeight="320"
         WindowStartupLocation="CenterOwner">
 
     <Grid Margin="20" RowDefinitions="Auto,*,Auto,Auto">
         <StackPanel Grid.Row="0" Spacing="4" Margin="0,0,0,10">
-            <TextBlock Classes="dialogTitle" Text="Paste an EXPLAIN plan" />
+            <TextBlock Classes="dialogTitle" Text="{l:Tr Dialogs_ImportPlanHeading}" />
             <TextBlock Classes="dialogHint"
-                       Text="Paste EXPLAIN output in JSON (FORMAT JSON — most reliable) or the plain text layout. It's parsed locally and shown with the warnings strip and time-heat tree; the database isn't touched." />
+                       Text="{l:Tr Dialogs_ImportPlanHint}" />
         </StackPanel>
 
         <Border Grid.Row="1" Classes="card">
@@ -19,7 +20,7 @@
                      ScrollViewer.HorizontalScrollBarVisibility="Auto"
                      ScrollViewer.VerticalScrollBarVisibility="Auto"
                      Classes="mono" FontSize="12.5"
-                     PlaceholderText="[ { &quot;Plan&quot;: { … } } ]  — or —  Seq Scan on t  (cost=…) (actual …)"
+                     PlaceholderText="{l:Tr Dialogs_ImportPlanPlaceholder}"
                      BorderThickness="0" Background="Transparent" />
         </Border>
 
@@ -28,8 +29,8 @@
                    TextWrapping="Wrap" FontSize="12" />
 
         <StackPanel Grid.Row="3" Classes="dialogButtons">
-            <Button Classes="soft" Content="Cancel" Click="OnCancelClick" />
-            <Button Classes="accent" Content="Import" Click="OnImportClick" />
+            <Button Classes="soft" Content="{l:Tr Common_Cancel}" Click="OnCancelClick" />
+            <Button Classes="accent" Content="{l:Tr Dialogs_ImportButton}" Click="OnImportClick" />
         </StackPanel>
     </Grid>
 

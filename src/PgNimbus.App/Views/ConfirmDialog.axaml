@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:l="using:PgNimbus.App.Localization"
         x:Class="PgNimbus.App.Views.ConfirmDialog"
         Title="pgNimbus"
         Width="380" SizeToContent="Height"
@@ -9,8 +10,8 @@
     <StackPanel Margin="20">
         <TextBlock Name="MessageText" TextWrapping="Wrap" FontSize="13" />
         <StackPanel Classes="dialogButtons">
-            <Button Name="CancelButton" Classes="soft" Content="Cancel" IsCancel="True" Click="OnCancelClick" />
-            <Button Name="ConfirmButton" Classes="danger" Content="Delete" Click="OnConfirmClick" />
+            <Button Name="CancelButton" Classes="soft" Content="{l:Tr Common_Cancel}" IsCancel="True" Click="OnCancelClick" />
+            <Button Name="ConfirmButton" Classes="danger" Content="{l:Tr Common_Delete}" Click="OnConfirmClick" />
         </StackPanel>
     </StackPanel>
 

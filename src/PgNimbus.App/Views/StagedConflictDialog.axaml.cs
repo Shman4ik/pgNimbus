@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Data.Converters;
 using Avalonia.Interactivity;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Query;
 
 namespace PgNimbus.App.Views;
@@ -53,18 +54,12 @@ public partial class StagedConflictDialog : Window
 
     public StagedConflictDialog(StagedChangesConflictException conflict) : this()
     {
-        SummaryText.Text = conflict.RowsLocked ? "A staged row is locked by another session"
-            : conflict.Conflicts.Count == 0 ? "The staged changes no longer match the table"
-            : conflict.Conflicts.Count == 1 ? "1 staged row no longer matches the server"
-            : $"{conflict.Conflicts.Count} staged rows no longer match the server";
-        MessageText.Text = conflict.Message;
+        _conflict = conflict;
+        Render();
 
-        var rows = conflict.Conflicts.Take(MaxRowsShown).Select(ToView).ToList();
-        ConflictList.ItemsSource = rows;
-        ConflictList.IsVisible = rows.Count > 0;
-        ColumnHeader.IsVisible = rows.Count > 0;
-        MoreText.IsVisible = conflict.Conflicts.Count > MaxRowsShown;
-        MoreText.Text = $"+{conflict.Conflicts.Count - MaxRowsShown} more conflicting rows not shown.";
+        // Every text below is composed from the conflict, so a change of language
+        // while the dialog is open writes it again.
+        Localizer.WhenChanged(this, static dialog => dialog.Render());
 
         // Restage and unstage act on named rows; a lock or a row-count surprise
         // names none, so the only honest choice left is to close and retry.
@@ -72,15 +67,37 @@ public partial class StagedConflictDialog : Window
         UnstageButton.IsVisible = conflict.Conflicts.Count > 0;
     }
 
+    private readonly StagedChangesConflictException? _conflict;
+
+    private void Render()
+    {
+        if (_conflict is not { } conflict)
+        {
+            return;
+        }
+
+        SummaryText.Text = conflict.RowsLocked ? Strings.Dialogs_ConflictSummaryLocked
+            : conflict.Conflicts.Count == 0 ? Strings.Dialogs_ConflictSummaryMismatch
+            : Strings.Dialogs_ConflictSummaryRows(conflict.Conflicts.Count);
+        MessageText.Text = conflict.Message;
+
+        var rows = conflict.Conflicts.Take(MaxRowsShown).Select(ToView).ToList();
+        ConflictList.ItemsSource = rows;
+        ConflictList.IsVisible = rows.Count > 0;
+        ColumnHeader.IsVisible = rows.Count > 0;
+        MoreText.IsVisible = conflict.Conflicts.Count > MaxRowsShown;
+        MoreText.Text = Strings.Dialogs_ConflictMore(conflict.Conflicts.Count - MaxRowsShown);
+    }
+
     private static ConflictRowView ToView(RowConflict conflict)
     {
-        var header = $"Row {conflict.KeyText}";
+        var header = Strings.Dialogs_ConflictRowHeader(conflict.KeyText);
         var detail = (conflict.Kind, conflict.StagedAs) switch
         {
-            (RowConflictKind.Deleted, StagedRowKind.Delete) => "Already deleted by another session (or its key changed). You staged a delete.",
-            (RowConflictKind.Deleted, _) => "Deleted by another session (or its key changed). You staged an edit.",
-            (_, StagedRowKind.Delete) => "Changed by another session. You staged a delete.",
-            _ => "Changed by another session. You staged an edit.",
+            (RowConflictKind.Deleted, StagedRowKind.Delete) => Strings.Dialogs_ConflictDetailDeletedDelete,
+            (RowConflictKind.Deleted, _) => Strings.Dialogs_ConflictDetailDeletedEdit,
+            (_, StagedRowKind.Delete) => Strings.Dialogs_ConflictDetailChangedDelete,
+            _ => Strings.Dialogs_ConflictDetailChangedEdit,
         };
 
         // A gone row and a staged delete are facts about the whole row, so they
@@ -90,11 +107,11 @@ public partial class StagedConflictDialog : Window
         var cells = conflict.Columns.Select((c, i) => new ConflictCellView(
             c.Column,
             CellDisplay.Format(c.Before, 120),
-            gone ? (i == 0 ? "(row gone)" : "") : CellDisplay.Format(c.Current, 120),
-            c.HasProposed ? CellDisplay.Format(c.Proposed, 120) : deleting ? (i == 0 ? "(delete row)" : "") : "—",
+            gone ? (i == 0 ? Strings.Dialogs_ConflictRowGone : "") : CellDisplay.Format(c.Current, 120),
+            c.HasProposed ? CellDisplay.Format(c.Proposed, 120) : deleting ? (i == 0 ? Strings.Dialogs_ConflictDeleteRow : "") : "—",
             CellDisplay.Format(c.Before, 4000),
-            gone ? "(row gone)" : CellDisplay.Format(c.Current, 4000),
-            c.HasProposed ? CellDisplay.Format(c.Proposed, 4000) : deleting ? "(delete row)" : "",
+            gone ? Strings.Dialogs_ConflictRowGone : CellDisplay.Format(c.Current, 4000),
+            c.HasProposed ? CellDisplay.Format(c.Proposed, 4000) : deleting ? Strings.Dialogs_ConflictDeleteRow : "",
             c.ChangedElsewhere || (gone && i == 0),
             c.HasProposed || (deleting && i == 0))).ToList();
 

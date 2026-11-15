@@ -1,8 +1,9 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:l="using:PgNimbus.App.Localization"
         xmlns:views="using:PgNimbus.App.Views"
         x:Class="PgNimbus.App.Views.PendingChangesDialog"
-        Title="pgNimbus — Staged changes"
+        Title="{l:Tr Dialogs_PendingTitle}"
         Width="620" Height="460"
         MinWidth="460" MinHeight="280"
         WindowStartupLocation="CenterOwner">
@@ -12,7 +13,7 @@
         <TextBlock Grid.Row="0" Name="SummaryText" Classes="dialogTitle" Margin="0,0,0,4" />
 
         <TextBlock Grid.Row="1" Classes="dialogHint" Margin="0,0,0,6"
-                   Text="This SQL runs as one transaction when you commit — everything applies, or nothing does. Each edited or deleted row is first re-read and locked: if another session changed or deleted it since you loaded it, the whole commit rolls back and shows you what changed. Values are shown inline for review; execution is parameterized." />
+                   Text="{l:Tr Dialogs_PendingHint}" />
 
         <TextBlock Grid.Row="2" Name="UncheckedText" IsVisible="False" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,10"
                    Foreground="{DynamicResource AppWarningBrush}" />
@@ -26,9 +27,9 @@
         </Border>
 
         <StackPanel Grid.Row="4" Classes="dialogButtons">
-            <Button Classes="soft danger" Content="Discard all" Click="OnDiscardClick" />
-            <Button Classes="soft" Content="Cancel" Click="OnCancelClick" />
-            <Button Name="CommitButton" Classes="accent" Content="Commit" Click="OnCommitClick" />
+            <Button Classes="soft danger" Content="{l:Tr Dialogs_DiscardAllButton}" Click="OnDiscardClick" />
+            <Button Classes="soft" Content="{l:Tr Common_Cancel}" Click="OnCancelClick" />
+            <Button Name="CommitButton" Classes="accent" Click="OnCommitClick" />
         </StackPanel>
 
     </Grid>

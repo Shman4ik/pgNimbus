@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using PgNimbus.App.ViewModels;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Query;
 using PgNimbus.Core.QueryLab;
 
@@ -63,18 +64,15 @@ public partial class QueryLabWindow : Window
     {
         var model = ViewModel;
         var dialog = new SaveQueryDialog(
-            heading,
+            () => heading,
             initialName,
             currentId,
             name => model?.FindByName(name) is { } plan ? (plan.Id, plan.Name) : null,
-            "saved plan",
-            "pgNimbus — Save plan");
+            SaveQueryKind.SavedPlan,
+            () => Strings.Shell_SavePlanTitle);
         return await dialog.ShowDialog<SaveQueryResult?>(this) is { } result ? (result.Name, result.OverwriteId) : null;
     }
 
     private Task<bool> ConfirmDeleteAsync(SavedPlan plan) =>
-        new ConfirmDialog(
-                $"Delete the saved plan “{plan.Name}” from Query Lab? A tab showing it keeps it until the tab closes.",
-                "Delete")
-            .ShowDialog<bool>(this);
+        new ConfirmDialog(Strings.QueryLab_ConfirmDelete(plan.Name), Strings.Common_Delete).ShowDialog<bool>(this);
 }

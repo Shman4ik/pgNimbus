@@ -1,7 +1,8 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:l="using:PgNimbus.App.Localization"
         x:Class="PgNimbus.App.Views.HostKeyDialog"
-        Title="pgNimbus — Unknown SSH host"
+        Title="{l:Tr Dialogs_HostKeyTitle}"
         Width="480" SizeToContent="Height"
         CanResize="False"
         WindowStartupLocation="CenterOwner">
@@ -14,19 +15,19 @@
          kept, since a changed key will later point at that file. -->
     <StackPanel Margin="20" Spacing="12">
         <StackPanel Spacing="4">
-            <TextBlock Classes="dialogTitle" Text="Unknown SSH host" />
+            <TextBlock Classes="dialogTitle" Text="{l:Tr Dialogs_HostKeyHeading}" />
             <TextBlock Name="HintText" Classes="dialogHint" />
         </StackPanel>
 
         <Border Classes="card" Padding="12,10">
             <Grid ColumnDefinitions="Auto,16,*" RowDefinitions="Auto,6,Auto,6,Auto">
-                <TextBlock Grid.Row="0" Grid.Column="0" Classes="dialogHint" Text="Host" VerticalAlignment="Center" />
+                <TextBlock Grid.Row="0" Grid.Column="0" Classes="dialogHint" Text="{l:Tr Dialogs_HostKeyHost}" VerticalAlignment="Center" />
                 <SelectableTextBlock Grid.Row="0" Grid.Column="2" Name="HostText" FontSize="13" VerticalAlignment="Center" />
 
-                <TextBlock Grid.Row="2" Grid.Column="0" Classes="dialogHint" Text="Key type" VerticalAlignment="Center" />
+                <TextBlock Grid.Row="2" Grid.Column="0" Classes="dialogHint" Text="{l:Tr Dialogs_HostKeyType}" VerticalAlignment="Center" />
                 <SelectableTextBlock Grid.Row="2" Grid.Column="2" Name="KeyTypeText" FontSize="13" VerticalAlignment="Center" />
 
-                <TextBlock Grid.Row="4" Grid.Column="0" Classes="dialogHint" Text="Fingerprint" VerticalAlignment="Center" />
+                <TextBlock Grid.Row="4" Grid.Column="0" Classes="dialogHint" Text="{l:Tr Dialogs_HostKeyFingerprint}" VerticalAlignment="Center" />
                 <!-- Monospace and selectable: a fingerprint is compared character by
                      character, or pasted next to the one in the admin's message. -->
                 <SelectableTextBlock Grid.Row="4" Grid.Column="2" Name="FingerprintText"
@@ -43,8 +44,8 @@
              vouch for a key nobody looked at. ssh makes the user type "yes" for
              the same reason. Esc still cancels. -->
         <StackPanel Classes="dialogButtons">
-            <Button Classes="soft" Content="Cancel" IsCancel="True" Click="OnCancelClick" />
-            <Button Name="AcceptButton" Classes="accent" Content="Accept" Click="OnAcceptClick" />
+            <Button Classes="soft" Content="{l:Tr Common_Cancel}" IsCancel="True" Click="OnCancelClick" />
+            <Button Name="AcceptButton" Classes="accent" Content="{l:Tr Dialogs_AcceptButton}" Click="OnAcceptClick" />
         </StackPanel>
     </StackPanel>
 

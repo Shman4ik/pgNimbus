@@ -2056,10 +2056,6 @@
     <value>pgNimbus — Rename</value>
     <comment>Title of the dialog that asks for a new name of a table or view (from its Maintenance menu). pgNimbus is the product name.</comment>
   </data>
-  <data name="Shell_NounRelation" xml:space="preserve">
-    <value>relation</value>
-    <comment>A noun (lowercase) naming a table or view, used inside the rename dialog's sentence "A relation named … already exists".</comment>
-  </data>
   <data name="Shell_SwitchConnectionConfirm" xml:space="preserve">
     <value>Switch connection? This window closes once the new connection is open. {losses}</value>
     <comment>Confirmation dialog of Switch Connection. {losses} is one or two sentences saying what closing the window would lose, such as "2 staged changes will be discarded."</comment>
@@ -2071,10 +2067,6 @@
   <data name="Shell_SavePlanHeading" xml:space="preserve">
     <value>Save plan to Query Lab</value>
     <comment>Heading of the dialog that names a query plan to save in Query Lab.</comment>
-  </data>
-  <data name="Shell_NounSavedPlan" xml:space="preserve">
-    <value>saved plan</value>
-    <comment>A noun (lowercase) naming a plan saved in Query Lab, used inside the save dialog's sentence "A saved plan named … already exists".</comment>
   </data>
   <data name="Shell_SavePlanTitle" xml:space="preserve">
     <value>pgNimbus — Save plan</value>
@@ -4593,6 +4585,362 @@
   </data>
 
   <!-- ===== Dialogs ===== -->
+  <data name="Dialogs_AlterTableTitle" xml:space="preserve">
+    <value>pgNimbus — Alter Table</value>
+    <comment>Window title of the Alter Table dialog (add, rename or drop a column of a table). pgNimbus is the product name.</comment>
+  </data>
+  <data name="Dialogs_PrimaryKeyBadge" xml:space="preserve">
+    <value>PK</value>
+    <comment>Alter Table dialog, column list: a small badge after a column's type marking that the column is part of the primary key. Keep it very short.</comment>
+  </data>
+  <data name="Dialogs_AddColumnHeading" xml:space="preserve">
+    <value>Add column</value>
+    <comment>Alter Table dialog: heading of the card for adding a column.</comment>
+  </data>
+  <data name="Dialogs_ColumnNamePlaceholder" xml:space="preserve">
+    <value>Column name</value>
+    <comment>Alter Table dialog, add-column card: placeholder of the box for the new column's name.</comment>
+  </data>
+  <data name="Dialogs_NullableLabel" xml:space="preserve">
+    <value>Nullable</value>
+    <comment>Alter Table dialog, add-column card: label of the switch that lets the new column hold NULL.</comment>
+  </data>
+  <data name="Dialogs_AddColumnButton" xml:space="preserve">
+    <value>Add column</value>
+    <comment>Alter Table dialog: button that adds the column.</comment>
+  </data>
+  <data name="Dialogs_RenameColumnHeading" xml:space="preserve">
+    <value>Rename selected column</value>
+    <comment>Alter Table dialog: heading of the card for renaming the column selected in the list.</comment>
+  </data>
+  <data name="Dialogs_NewNamePlaceholder" xml:space="preserve">
+    <value>New name</value>
+    <comment>Alter Table dialog, rename card: placeholder of the box for the column's new name.</comment>
+  </data>
+  <data name="Dialogs_DropColumnButton" xml:space="preserve">
+    <value>Drop selected column</value>
+    <comment>Alter Table dialog: button that drops (deletes) the column selected in the list. It asks for confirmation first.</comment>
+  </data>
+  <data name="Dialogs_DropColumnConfirm" xml:space="preserve">
+    <value>Drop column "{name}"? Its data is lost.</value>
+    <comment>Confirmation dialog of Alter Table's Drop selected column. {name} is the full column name, such as public.orders.status.</comment>
+  </data>
+  <data name="Dialogs_DropButton" xml:space="preserve">
+    <value>Drop</value>
+    <comment>Confirmation dialog of Alter Table's Drop selected column: the button that confirms the drop.</comment>
+  </data>
+  <data name="Dialogs_AlterLoadFailed" xml:space="preserve">
+    <value>Failed to load columns: {error}</value>
+    <comment>Alter Table dialog, status line: the table's columns could not be read. {error} is the server's or the app's error message.</comment>
+  </data>
+  <data name="Dialogs_AlterColumnAdded" xml:space="preserve">
+    <value>Added column "{name}".</value>
+    <comment>Alter Table dialog, status line: a column was added. {name} is the column's name, such as notes.</comment>
+  </data>
+  <data name="Dialogs_AlterAddFailed" xml:space="preserve">
+    <value>Failed to add column: {error}</value>
+    <comment>Alter Table dialog, status line: adding a column failed. {error} is the error message.</comment>
+  </data>
+  <data name="Dialogs_AlterColumnDropped" xml:space="preserve">
+    <value>Dropped column "{name}".</value>
+    <comment>Alter Table dialog, status line: a column was dropped. {name} is the column's name.</comment>
+  </data>
+  <data name="Dialogs_AlterDropFailed" xml:space="preserve">
+    <value>Failed to drop column: {error}</value>
+    <comment>Alter Table dialog, status line: dropping a column failed. {error} is the error message.</comment>
+  </data>
+  <data name="Dialogs_AlterColumnRenamed" xml:space="preserve">
+    <value>Renamed "{oldName}" to "{newName}".</value>
+    <comment>Alter Table dialog, status line: a column was renamed. {oldName} and {newName} are column names, such as note and notes.</comment>
+  </data>
+  <data name="Dialogs_AlterRenameFailed" xml:space="preserve">
+    <value>Failed to rename column: {error}</value>
+    <comment>Alter Table dialog, status line: renaming a column failed. {error} is the error message.</comment>
+  </data>
+  <data name="Dialogs_ImportTitle" xml:space="preserve">
+    <value>pgNimbus — Import</value>
+    <comment>Window title of the dialog that imports a CSV or JSON file into a table. pgNimbus is the product name.</comment>
+  </data>
+  <data name="Dialogs_ImportSchemaLabel" xml:space="preserve">
+    <value>Schema</value>
+    <comment>Import dialog: small label above the box that picks the schema (a PostgreSQL namespace) of the target table.</comment>
+  </data>
+  <data name="Dialogs_ImportTableLabel" xml:space="preserve">
+    <value>Table</value>
+    <comment>Import dialog: small label above the box for the target table's name.</comment>
+  </data>
+  <data name="Dialogs_ImportCreateNew" xml:space="preserve">
+    <value>Create new table</value>
+    <comment>Import dialog: option button. The import creates a new table from the column list.</comment>
+  </data>
+  <data name="Dialogs_ImportAppend" xml:space="preserve">
+    <value>Append to existing table</value>
+    <comment>Import dialog: option button. The import adds rows to a table that already exists.</comment>
+  </data>
+  <data name="Dialogs_ImportColumnsHeading" xml:space="preserve">
+    <value>COLUMNS</value>
+    <comment>Import dialog: small upper-case heading above the list of columns to import.</comment>
+  </data>
+  <data name="Dialogs_ImportButton" xml:space="preserve">
+    <value>Import</value>
+    <comment>Import dialogs (data file and query plan): the button that starts the import.</comment>
+  </data>
+  <data name="Dialogs_ImportColumns_one" xml:space="preserve">
+    <value>{number} column</value>
+    <comment>A count of columns, singular. {number} is 1.</comment>
+  </data>
+  <data name="Dialogs_ImportColumns_other" xml:space="preserve">
+    <value>{number} columns</value>
+    <comment>A count of columns, plural. {number} is the count, such as 12.</comment>
+  </data>
+  <data name="Dialogs_ImportSummary" xml:space="preserve">
+    <value>{rows} · {columns} parsed</value>
+    <comment>Import dialog, title: what was read from the file. {rows} is a count with its unit (1,200 rows), {columns} a count with its unit (4 columns).</comment>
+  </data>
+  <data name="Dialogs_ImportTableRequired" xml:space="preserve">
+    <value>Table name is required.</value>
+    <comment>Import dialog, error line: the table name box is empty.</comment>
+  </data>
+  <data name="Dialogs_ImportPlanTitle" xml:space="preserve">
+    <value>pgNimbus — Import query plan</value>
+    <comment>Window title of the dialog where an EXPLAIN plan is pasted. pgNimbus is the product name.</comment>
+  </data>
+  <data name="Dialogs_ImportPlanHeading" xml:space="preserve">
+    <value>Paste an EXPLAIN plan</value>
+    <comment>Import query plan dialog: heading. EXPLAIN is the SQL command and stays as it is.</comment>
+  </data>
+  <data name="Dialogs_ImportPlanHint" xml:space="preserve">
+    <value>Paste EXPLAIN output in JSON (FORMAT JSON — most reliable) or the plain text layout. It's parsed locally and shown with the warnings strip and time-heat tree; the database isn't touched.</value>
+    <comment>Import query plan dialog: hint under the heading. EXPLAIN and FORMAT JSON are SQL and stay as they are.</comment>
+  </data>
+  <data name="Dialogs_ImportPlanPlaceholder" xml:space="preserve">
+    <value>[ { "Plan": { … } } ]  — or —  Seq Scan on t  (cost=…) (actual …)</value>
+    <comment>Import query plan dialog: the paste box's placeholder, two example plans separated by "or". "Plan" and "Seq Scan on t" are what PostgreSQL prints and stay as they are; translate only "or".</comment>
+  </data>
+  <data name="Dialogs_PendingTitle" xml:space="preserve">
+    <value>pgNimbus — Staged changes</value>
+    <comment>Window title of the dialog that reviews staged changes (safe mode) before they are committed. pgNimbus is the product name.</comment>
+  </data>
+  <data name="Dialogs_PendingHint" xml:space="preserve">
+    <value>This SQL runs as one transaction when you commit — everything applies, or nothing does. Each edited or deleted row is first re-read and locked: if another session changed or deleted it since you loaded it, the whole commit rolls back and shows you what changed. Values are shown inline for review; execution is parameterized.</value>
+    <comment>Staged changes dialog: explanation under the title of what the commit does.</comment>
+  </data>
+  <data name="Dialogs_DiscardAllButton" xml:space="preserve">
+    <value>Discard all</value>
+    <comment>Staged changes dialog: button that throws away every staged change. The database has not been touched yet.</comment>
+  </data>
+  <data name="Dialogs_CommitChanges_one" xml:space="preserve">
+    <value>Commit {count} change</value>
+    <comment>Staged changes dialog: the button that commits the changes, singular. {count} is 1.</comment>
+  </data>
+  <data name="Dialogs_CommitChanges_other" xml:space="preserve">
+    <value>Commit {count} changes</value>
+    <comment>Staged changes dialog: the button that commits the changes, plural. {count} is how many, such as 3.</comment>
+  </data>
+  <data name="Dialogs_PendingUnchecked" xml:space="preserve">
+    <value>Not checked for changes by other sessions (pgNimbus can't read their type): {columns}.</value>
+    <comment>Staged changes dialog: warning naming the columns whose values cannot be compared with the server's current ones. {columns} is a comma-separated list of column names, such as shipping_box, notes.</comment>
+  </data>
+  <data name="Dialogs_ConflictTitle" xml:space="preserve">
+    <value>pgNimbus — Commit rolled back</value>
+    <comment>Window title of the dialog shown when a staged commit was rolled back because another session changed the rows. pgNimbus is the product name.</comment>
+  </data>
+  <data name="Dialogs_ConflictColumn" xml:space="preserve">
+    <value>Column</value>
+    <comment>Commit rolled back dialog: caption of the first column of the table of conflicting values, the column's name.</comment>
+  </data>
+  <data name="Dialogs_ConflictLoaded" xml:space="preserve">
+    <value>When you loaded it</value>
+    <comment>Commit rolled back dialog: caption of the column that shows the value as it was when the user loaded the row.</comment>
+  </data>
+  <data name="Dialogs_ConflictServer" xml:space="preserve">
+    <value>On the server now</value>
+    <comment>Commit rolled back dialog: caption of the column that shows the value the database holds now.</comment>
+  </data>
+  <data name="Dialogs_ConflictStaged" xml:space="preserve">
+    <value>You staged</value>
+    <comment>Commit rolled back dialog: caption of the column that shows the value the user staged.</comment>
+  </data>
+  <data name="Dialogs_ConflictNothingCommitted" xml:space="preserve">
+    <value>Nothing was committed. Restaging reloads the rows and keeps your values on top of the current ones, for you to review and commit again.</value>
+    <comment>Commit rolled back dialog: hint beside the buttons.</comment>
+  </data>
+  <data name="Dialogs_UnstageButton" xml:space="preserve">
+    <value>Unstage these rows</value>
+    <comment>Commit rolled back dialog: button that drops the staged changes of the conflicting rows only.</comment>
+  </data>
+  <data name="Dialogs_RestageButton" xml:space="preserve">
+    <value>Reload and restage</value>
+    <comment>Commit rolled back dialog: button that reloads the conflicting rows and keeps the user's staged values on top.</comment>
+  </data>
+  <data name="Dialogs_ConflictSummaryLocked" xml:space="preserve">
+    <value>A staged row is locked by another session</value>
+    <comment>Commit rolled back dialog: title line when a row is locked by another session.</comment>
+  </data>
+  <data name="Dialogs_ConflictSummaryMismatch" xml:space="preserve">
+    <value>The staged changes no longer match the table</value>
+    <comment>Commit rolled back dialog: title line when no particular row can be named.</comment>
+  </data>
+  <data name="Dialogs_ConflictSummaryRows_one" xml:space="preserve">
+    <value>{count} staged row no longer matches the server</value>
+    <comment>Commit rolled back dialog: title line, singular. {count} is 1.</comment>
+  </data>
+  <data name="Dialogs_ConflictSummaryRows_other" xml:space="preserve">
+    <value>{count} staged rows no longer match the server</value>
+    <comment>Commit rolled back dialog: title line, plural. {count} is how many rows, such as 3.</comment>
+  </data>
+  <data name="Dialogs_ConflictMore_one" xml:space="preserve">
+    <value>+{count} more conflicting row not shown.</value>
+    <comment>Commit rolled back dialog: note under the list when it is cut, singular. {count} is 1.</comment>
+  </data>
+  <data name="Dialogs_ConflictMore_other" xml:space="preserve">
+    <value>+{count} more conflicting rows not shown.</value>
+    <comment>Commit rolled back dialog: note under the list when it is cut, plural. {count} is how many rows are not shown, such as 450.</comment>
+  </data>
+  <data name="Dialogs_ConflictRowHeader" xml:space="preserve">
+    <value>Row {key}</value>
+    <comment>Commit rolled back dialog: header of one conflicting row. {key} is its key, such as order_id = 1042, line = 1.</comment>
+  </data>
+  <data name="Dialogs_ConflictDetailDeletedDelete" xml:space="preserve">
+    <value>Already deleted by another session (or its key changed). You staged a delete.</value>
+    <comment>Commit rolled back dialog: what happened to one row. Another session deleted it, and the user had staged a delete.</comment>
+  </data>
+  <data name="Dialogs_ConflictDetailDeletedEdit" xml:space="preserve">
+    <value>Deleted by another session (or its key changed). You staged an edit.</value>
+    <comment>Commit rolled back dialog: what happened to one row. Another session deleted it, and the user had staged an edit.</comment>
+  </data>
+  <data name="Dialogs_ConflictDetailChangedDelete" xml:space="preserve">
+    <value>Changed by another session. You staged a delete.</value>
+    <comment>Commit rolled back dialog: what happened to one row. Another session changed it, and the user had staged a delete.</comment>
+  </data>
+  <data name="Dialogs_ConflictDetailChangedEdit" xml:space="preserve">
+    <value>Changed by another session. You staged an edit.</value>
+    <comment>Commit rolled back dialog: what happened to one row. Another session changed it, and the user had staged an edit.</comment>
+  </data>
+  <data name="Dialogs_ConflictRowGone" xml:space="preserve">
+    <value>(row gone)</value>
+    <comment>Commit rolled back dialog: shown in a value cell when the row no longer exists on the server.</comment>
+  </data>
+  <data name="Dialogs_ConflictDeleteRow" xml:space="preserve">
+    <value>(delete row)</value>
+    <comment>Commit rolled back dialog: shown in the "You staged" cell when the user staged a delete of the whole row.</comment>
+  </data>
+  <data name="Dialogs_ConflictMessage" xml:space="preserve">
+    <value>Commit rolled back — nothing was applied. {what} by another session since you loaded them. {detail}</value>
+    <comment>Commit rolled back dialog (text under the title) and status line: why the commit was rolled back. {what} is the count part, such as "1 row was changed and 1 row was deleted"; {detail} is one sentence about the first row.</comment>
+  </data>
+  <data name="Dialogs_ConflictChanged_one" xml:space="preserve">
+    <value>{count} row was changed</value>
+    <comment>Part of the rolled-back commit message, singular. {count} is 1.</comment>
+  </data>
+  <data name="Dialogs_ConflictChanged_other" xml:space="preserve">
+    <value>{count} rows were changed</value>
+    <comment>Part of the rolled-back commit message, plural. {count} is how many rows, such as 3.</comment>
+  </data>
+  <data name="Dialogs_ConflictDeleted_one" xml:space="preserve">
+    <value>{count} row was deleted</value>
+    <comment>Part of the rolled-back commit message, singular. {count} is 1.</comment>
+  </data>
+  <data name="Dialogs_ConflictDeleted_other" xml:space="preserve">
+    <value>{count} rows were deleted</value>
+    <comment>Part of the rolled-back commit message, plural. {count} is how many rows, such as 3.</comment>
+  </data>
+  <data name="Dialogs_ConflictBoth" xml:space="preserve">
+    <value>{changed} and {deleted}</value>
+    <comment>Part of the rolled-back commit message: joins the two counts. {changed} is such as "1 row was changed", {deleted} such as "2 rows were deleted".</comment>
+  </data>
+  <data name="Dialogs_ConflictMessageLocked" xml:space="preserve">
+    <value>Commit rolled back — nothing was applied. A staged row is locked by another session's open transaction (waited {seconds} s). Try again once it commits or rolls back.</value>
+    <comment>Status line and dialog text: the commit gave up waiting for a row lock. {seconds} is how long it waited, such as 5.</comment>
+  </data>
+  <data name="Dialogs_ConflictMessageRowCount_one" xml:space="preserve">
+    <value>Commit rolled back — nothing was applied. A staged change was meant to touch {expected} row but touched {affected}; the table's rows no longer match what was staged. Reload and stage the change again.</value>
+    <comment>Status line and dialog text: a staged statement touched another number of rows than expected. Singular. {expected} is 1, {affected} is how many rows it touched, such as 0 or 2.</comment>
+  </data>
+  <data name="Dialogs_ConflictMessageRowCount_other" xml:space="preserve">
+    <value>Commit rolled back — nothing was applied. A staged change was meant to touch {expected} rows but touched {affected}; the table's rows no longer match what was staged. Reload and stage the change again.</value>
+    <comment>Status line and dialog text: a staged statement touched another number of rows than expected. Plural. {expected} is how many it was meant to touch, {affected} how many it touched.</comment>
+  </data>
+  <data name="Dialogs_ConflictStagedDelete" xml:space="preserve">
+    <value>you staged a delete</value>
+    <comment>Part of a sentence about a conflicting row, in brackets at its end: what the user had staged.</comment>
+  </data>
+  <data name="Dialogs_ConflictStagedEdit" xml:space="preserve">
+    <value>you staged {changes}</value>
+    <comment>Part of a sentence about a conflicting row, in brackets at its end. {changes} lists the values the user staged, such as qty = 5, status = 'packed'.</comment>
+  </data>
+  <data name="Dialogs_ConflictRowDeleted" xml:space="preserve">
+    <value>Row {key} no longer exists: another session deleted it or changed its key ({staged}).</value>
+    <comment>One sentence about a conflicting row. {key} is the row's key, such as id = 7; {staged} is what the user had staged, such as "you staged a delete".</comment>
+  </data>
+  <data name="Dialogs_ConflictColumnChange" xml:space="preserve">
+    <value>{column} was {before}, now {after}</value>
+    <comment>One column that another session changed, in a list separated by semicolons. {column} is the column, {before} and {after} are values, such as status was 'packed', now 'shipped'.</comment>
+  </data>
+  <data name="Dialogs_ConflictRowChanged" xml:space="preserve">
+    <value>Row {key} was changed by another session: {changes} ({staged}).</value>
+    <comment>One sentence about a conflicting row. {key} is the row's key; {changes} the list of changed columns; {staged} what the user had staged.</comment>
+  </data>
+  <data name="Dialogs_ConflictRowChangedMore" xml:space="preserve">
+    <value>Row {key} was changed by another session: {changes}; +{count} more column(s) ({staged}).</value>
+    <comment>One sentence about a conflicting row where more columns changed than are listed. {key}, {changes} and {staged} as in the sentence without "more"; {count} is how many columns are not listed, such as 2.</comment>
+  </data>
+  <data name="Dialogs_HostKeyTitle" xml:space="preserve">
+    <value>pgNimbus — Unknown SSH host</value>
+    <comment>Window title of the dialog that asks whether to trust an SSH server's key. pgNimbus is the product name.</comment>
+  </data>
+  <data name="Dialogs_HostKeyHeading" xml:space="preserve">
+    <value>Unknown SSH host</value>
+    <comment>SSH host key dialog: heading.</comment>
+  </data>
+  <data name="Dialogs_HostKeyHost" xml:space="preserve">
+    <value>Host</value>
+    <comment>SSH host key dialog: label of the server's address.</comment>
+  </data>
+  <data name="Dialogs_HostKeyType" xml:space="preserve">
+    <value>Key type</value>
+    <comment>SSH host key dialog: label of the key's type, such as ssh-ed25519.</comment>
+  </data>
+  <data name="Dialogs_HostKeyFingerprint" xml:space="preserve">
+    <value>Fingerprint</value>
+    <comment>SSH host key dialog: label of the key's fingerprint, a SHA256 string.</comment>
+  </data>
+  <data name="Dialogs_HostKeyHint" xml:space="preserve">
+    <value>Neither ~/.ssh/known_hosts nor pgNimbus's own list has a key for {server}, so pgNimbus cannot tell whether this is the right server. Compare the fingerprint with the one the server's administrator gave you before you accept it.</value>
+    <comment>SSH host key dialog: explanation under the heading. {server} is the server and port, such as bastion.example.com:2222.</comment>
+  </data>
+  <data name="Dialogs_HostKeyRemembered" xml:space="preserve">
+    <value>Accept remembers this key in {path}. If the server later presents a different key, the connection is refused until that line is removed.</value>
+    <comment>SSH host key dialog: what Accept does. {path} is the file the key is written to, such as /home/you/.config/pgNimbus/known_hosts.</comment>
+  </data>
+  <data name="Dialogs_HostKeySession" xml:space="preserve">
+    <value>Accept trusts this key until pgNimbus closes: there is no app data folder to remember it in, so you will be asked again next time.</value>
+    <comment>SSH host key dialog: what Accept does when there is no folder to keep the key in.</comment>
+  </data>
+  <data name="Dialogs_AcceptButton" xml:space="preserve">
+    <value>Accept</value>
+    <comment>SSH host key dialog: button that trusts the key.</comment>
+  </data>
+  <data name="Dialogs_SaveQueryTitle" xml:space="preserve">
+    <value>pgNimbus — Save query</value>
+    <comment>Window title of the dialog that names a query to save in the Saved Queries list. pgNimbus is the product name.</comment>
+  </data>
+  <data name="Dialogs_NameLabel" xml:space="preserve">
+    <value>Name</value>
+    <comment>Naming dialogs (save a query, a plan, rename): small label above the name box.</comment>
+  </data>
+  <data name="Dialogs_NameTakenQuery" xml:space="preserve">
+    <value>A saved query named “{name}” already exists. Saving replaces it.</value>
+    <comment>Save query dialog: warning when the typed name belongs to another saved query. {name} is that query's name.</comment>
+  </data>
+  <data name="Dialogs_NameTakenPlan" xml:space="preserve">
+    <value>A saved plan named “{name}” already exists. Saving replaces it.</value>
+    <comment>Save plan dialog (Query Lab): warning when the typed name belongs to another saved plan. {name} is that plan's name.</comment>
+  </data>
+  <data name="Dialogs_ReplaceButton" xml:space="preserve">
+    <value>Replace</value>
+    <comment>Naming dialogs: the primary button, in place of Save, when the typed name already exists.</comment>
+  </data>
 
   <!-- ===== Monitoring ===== -->
   <data name="Monitoring_ActivityTitle" xml:space="preserve">
@@ -5193,8 +5541,364 @@
   <!-- ===== Backup ===== -->
 
   <!-- ===== QueryLab ===== -->
+  <data name="QueryLab_Title" xml:space="preserve">
+    <value>pgNimbus — Query Lab</value>
+    <comment>Window title of Query Lab, where saved query plans are compared. Query Lab is a feature name; pgNimbus is the product name.</comment>
+  </data>
+  <data name="QueryLab_SavedPlans" xml:space="preserve">
+    <value>Saved plans</value>
+    <comment>Query Lab: heading of the list of saved plans on the left.</comment>
+  </data>
+  <data name="QueryLab_ImportPlanButton" xml:space="preserve">
+    <value>Import Plan…</value>
+    <comment>Query Lab: button under the list that opens the paste-a-plan dialog.</comment>
+  </data>
+  <data name="QueryLab_ImportPlanTip" xml:space="preserve">
+    <value>Paste an EXPLAIN plan from another tool or machine and keep it here; no connection needed</value>
+    <comment>Query Lab: tooltip of the Import Plan button.</comment>
+  </data>
+  <data name="QueryLab_CompareAsBefore" xml:space="preserve">
+    <value>Compare as Before</value>
+    <comment>Query Lab, right-click menu of a saved plan: use it as the "before" side of the comparison.</comment>
+  </data>
+  <data name="QueryLab_CompareAsAfter" xml:space="preserve">
+    <value>Compare as After</value>
+    <comment>Query Lab, right-click menu of a saved plan: use it as the "after" side of the comparison.</comment>
+  </data>
+  <data name="QueryLab_OpenInNewTab" xml:space="preserve">
+    <value>Open in New Tab</value>
+    <comment>Query Lab, right-click menu of a saved plan: shows the plan in a new editor tab.</comment>
+  </data>
+  <data name="QueryLab_Rename" xml:space="preserve">
+    <value>Rename…</value>
+    <comment>Query Lab, right-click menu of a saved plan: asks for a new name.</comment>
+  </data>
+  <data name="QueryLab_Delete" xml:space="preserve">
+    <value>Delete…</value>
+    <comment>Query Lab, right-click menu of a saved plan: asks to delete it.</comment>
+  </data>
+  <data name="QueryLab_NoPlansHint" xml:space="preserve">
+    <value>Plans you save from a tab's Compare menu, or import here, are kept on this computer.</value>
+    <comment>Query Lab: shown in the list while no plan is saved. Compare is the name of a menu in the plan header.</comment>
+  </data>
+  <data name="QueryLab_Before" xml:space="preserve">
+    <value>Before</value>
+    <comment>Query Lab: label of the "before" side (a plan picker, a column of the figures).</comment>
+  </data>
+  <data name="QueryLab_After" xml:space="preserve">
+    <value>After</value>
+    <comment>Query Lab: label of the "after" side (a plan picker, a column of the figures).</comment>
+  </data>
+  <data name="QueryLab_PickPlan" xml:space="preserve">
+    <value>Pick a plan</value>
+    <comment>Query Lab: placeholder of a plan picker with nothing chosen.</comment>
+  </data>
+  <data name="QueryLab_SwapTip" xml:space="preserve">
+    <value>Swap before and after</value>
+    <comment>Query Lab: tooltip of the button that exchanges the two sides.</comment>
+  </data>
+  <data name="QueryLab_TabSummary" xml:space="preserve">
+    <value>Summary</value>
+    <comment>Query Lab: name of the tab with the summary figures.</comment>
+  </data>
+  <data name="QueryLab_TabPlanChanges" xml:space="preserve">
+    <value>Plan changes</value>
+    <comment>Query Lab: name of the tab with the merged plan tree.</comment>
+  </data>
+  <data name="QueryLab_ChangeColumn" xml:space="preserve">
+    <value>Change</value>
+    <comment>Query Lab, summary table: caption of the column that shows how a figure changed.</comment>
+  </data>
+  <data name="QueryLab_SettingsDiffer" xml:space="preserve">
+    <value>Planner settings that differ</value>
+    <comment>Query Lab, summary: heading of the list of planner settings that differ between the two plans.</comment>
+  </data>
+  <data name="QueryLab_PlanWarnings" xml:space="preserve">
+    <value>Plan warnings</value>
+    <comment>Query Lab, summary: heading of the list of plan warnings that appeared or went away.</comment>
+  </data>
+  <data name="QueryLab_WhatChanged" xml:space="preserve">
+    <value>What changed</value>
+    <comment>Query Lab, details of a plan node: small heading above the list of differences in what the node does.</comment>
+  </data>
+  <data name="QueryLab_SettingChange" xml:space="preserve">
+    <value>{name}: {before} → {after}</value>
+    <comment>Query Lab, summary: one planner setting that differs. {name} is the setting, {before} and {after} its values or the word for default, such as enable_seqscan: default → off.</comment>
+  </data>
+  <data name="QueryLab_SettingDefault" xml:space="preserve">
+    <value>default</value>
+    <comment>Query Lab, summary: stands for a planner setting's value when it was not changed from the server default.</comment>
+  </data>
+  <data name="QueryLab_SourceExplain" xml:space="preserve">
+    <value>From the Explain command</value>
+    <comment>Query Lab: tooltip line of a saved plan. It was made with the Explain command.</comment>
+  </data>
+  <data name="QueryLab_SourceRun" xml:space="preserve">
+    <value>From an EXPLAIN that was run</value>
+    <comment>Query Lab: tooltip line of a saved plan. It was made by running an EXPLAIN statement. EXPLAIN is SQL.</comment>
+  </data>
+  <data name="QueryLab_Imported" xml:space="preserve">
+    <value>Imported</value>
+    <comment>Query Lab: a saved plan that was pasted in, not made here. Shown in the list line and the tooltip.</comment>
+  </data>
+  <data name="QueryLab_EstimatesOnly" xml:space="preserve">
+    <value>estimates only</value>
+    <comment>Query Lab: a plan that was not run (EXPLAIN without ANALYZE), so it holds the planner's estimates only. Shown in a list line beside the time.</comment>
+  </data>
+  <data name="QueryLab_ServerVersion" xml:space="preserve">
+    <value>PG {version}</value>
+    <comment>Query Lab: the PostgreSQL server version a plan came from, in a list line. {version} is such as 17.11. PG is short for PostgreSQL.</comment>
+  </data>
+  <data name="QueryLab_UnsavedChoice" xml:space="preserve">
+    <value>Unsaved: the plan in “{tab}”</value>
+    <comment>Query Lab: the entry in a plan picker for the plan a tab shows that is not saved. {tab} is the tab's title.</comment>
+  </data>
+  <data name="QueryLab_EmptyNoPlans" xml:space="preserve">
+    <value>No saved plans yet. Show a plan in a tab with Explain, Explain Analyze or Import query plan, then choose Save to Query Lab in its Compare menu. Import Plan here adds one without a connection.</value>
+    <comment>Query Lab: what the right side says while no plan is saved. Explain, Explain Analyze, Import query plan, Save to Query Lab, Compare and Import Plan are names of commands and buttons.</comment>
+  </data>
+  <data name="QueryLab_EmptyPick" xml:space="preserve">
+    <value>Pick a plan for each side to compare them.</value>
+    <comment>Query Lab: what the right side says while one side has no plan chosen.</comment>
+  </data>
+  <data name="QueryLab_EmptySame" xml:space="preserve">
+    <value>Pick two different plans.</value>
+    <comment>Query Lab: what the right side says when both sides are the same plan.</comment>
+  </data>
+  <data name="QueryLab_Comparing" xml:space="preserve">
+    <value>Comparing…</value>
+    <comment>Query Lab: shown while a comparison is being computed.</comment>
+  </data>
+  <data name="QueryLab_SavedStatus" xml:space="preserve">
+    <value>Saved “{name}” to Query Lab</value>
+    <comment>Query Lab, status line: a plan was saved. {name} is the plan's name.</comment>
+  </data>
+  <data name="QueryLab_DeletedStatus" xml:space="preserve">
+    <value>Deleted “{name}”</value>
+    <comment>Query Lab, status line: a saved plan was deleted. {name} is the plan's name.</comment>
+  </data>
+  <data name="QueryLab_SaveImportedHeading" xml:space="preserve">
+    <value>Save the imported plan</value>
+    <comment>Heading of the naming dialog that opens after a plan was pasted into Query Lab.</comment>
+  </data>
+  <data name="QueryLab_RenameHeading" xml:space="preserve">
+    <value>Rename saved plan</value>
+    <comment>Heading of the naming dialog that renames a saved plan.</comment>
+  </data>
+  <data name="QueryLab_ImportedName" xml:space="preserve">
+    <value>Imported plan</value>
+    <comment>Query Lab: the name suggested for a plan that was pasted in. A number is added if the name is taken.</comment>
+  </data>
+  <data name="QueryLab_PlanMissing" xml:space="preserve">
+    <value>The plan saved as “{name}” is missing from Query Lab's folder.</value>
+    <comment>Query Lab, status line: the file of a saved plan could not be found. {name} is the plan's name.</comment>
+  </data>
+  <data name="QueryLab_ConfirmDelete" xml:space="preserve">
+    <value>Delete the saved plan “{name}” from Query Lab? A tab showing it keeps it until the tab closes.</value>
+    <comment>Confirmation dialog of deleting a saved plan. {name} is the plan's name.</comment>
+  </data>
+  <data name="QueryLab_SameNodes" xml:space="preserve">
+    <value>Same plan: every node matches</value>
+    <comment>Query Lab, plan changes tab: line above the tree when the two plans have no difference.</comment>
+  </data>
+  <data name="QueryLab_NodesChanged_one" xml:space="preserve">
+    <value>{number} changed</value>
+    <comment>Query Lab, plan changes tab: part of the line above the tree, the number of plan nodes that changed. Singular.</comment>
+  </data>
+  <data name="QueryLab_NodesChanged_other" xml:space="preserve">
+    <value>{number} changed</value>
+    <comment>Query Lab, plan changes tab: part of the line above the tree, the number of plan nodes that changed. Plural. {number} is such as 2.</comment>
+  </data>
+  <data name="QueryLab_NodesAdded_one" xml:space="preserve">
+    <value>{number} added</value>
+    <comment>Query Lab, plan changes tab: the number of plan nodes that are new. Singular.</comment>
+  </data>
+  <data name="QueryLab_NodesAdded_other" xml:space="preserve">
+    <value>{number} added</value>
+    <comment>Query Lab, plan changes tab: the number of plan nodes that are new. Plural. {number} is such as 2.</comment>
+  </data>
+  <data name="QueryLab_NodesRemoved_one" xml:space="preserve">
+    <value>{number} removed</value>
+    <comment>Query Lab, plan changes tab: the number of plan nodes that are gone. Singular.</comment>
+  </data>
+  <data name="QueryLab_NodesRemoved_other" xml:space="preserve">
+    <value>{number} removed</value>
+    <comment>Query Lab, plan changes tab: the number of plan nodes that are gone. Plural. {number} is such as 2.</comment>
+  </data>
+  <data name="QueryLab_NodesMoved_one" xml:space="preserve">
+    <value>{number} moved</value>
+    <comment>Query Lab, plan changes tab: the number of plan nodes that moved to another place in the tree. Singular.</comment>
+  </data>
+  <data name="QueryLab_NodesMoved_other" xml:space="preserve">
+    <value>{number} moved</value>
+    <comment>Query Lab, plan changes tab: the number of plan nodes that moved to another place in the tree. Plural. {number} is such as 2.</comment>
+  </data>
+  <data name="QueryLab_WarningNew" xml:space="preserve">
+    <value>New</value>
+    <comment>Query Lab, summary: marks a plan warning that appears only in the after plan.</comment>
+  </data>
+  <data name="QueryLab_WarningGone" xml:space="preserve">
+    <value>Gone</value>
+    <comment>Query Lab, summary: marks a plan warning that appears only in the before plan.</comment>
+  </data>
+  <data name="QueryLab_NodeChanged" xml:space="preserve">
+    <value>Changed</value>
+    <comment>Query Lab, plan tree: word beside a node that exists in both plans but differs.</comment>
+  </data>
+  <data name="QueryLab_NodeAdded" xml:space="preserve">
+    <value>Added</value>
+    <comment>Query Lab, plan tree: word beside a node that exists only in the after plan.</comment>
+  </data>
+  <data name="QueryLab_NodeRemoved" xml:space="preserve">
+    <value>Removed</value>
+    <comment>Query Lab, plan tree: word beside a node that exists only in the before plan.</comment>
+  </data>
+  <data name="QueryLab_NodeMoved" xml:space="preserve">
+    <value>Moved</value>
+    <comment>Query Lab, plan tree: word beside a node that is the same but sits somewhere else in the tree.</comment>
+  </data>
+  <data name="QueryLab_NodeSame" xml:space="preserve">
+    <value>Same</value>
+    <comment>Query Lab, plan tree: word beside a node that did not change.</comment>
+  </data>
+  <data name="QueryLab_NodeChangedMoved" xml:space="preserve">
+    <value>Changed, moved</value>
+    <comment>Query Lab, plan tree: word beside a node that differs and also moved.</comment>
+  </data>
+  <data name="QueryLab_NodeAddedMoved" xml:space="preserve">
+    <value>Added, moved</value>
+    <comment>Query Lab, plan tree: word beside a node that is new and sits in a different place than its twin would.</comment>
+  </data>
+  <data name="QueryLab_NodeRemovedMoved" xml:space="preserve">
+    <value>Removed, moved</value>
+    <comment>Query Lab, plan tree: word beside a node that is gone and sat in a different place.</comment>
+  </data>
+  <data name="QueryLab_WasHeader" xml:space="preserve">
+    <value>was {header}</value>
+    <comment>Query Lab, plan tree: after a node's name, says what the node was in the before plan. {header} is such as Seq Scan on orders o.</comment>
+  </data>
+  <data name="QueryLab_LineRows" xml:space="preserve">
+    <value>rows {value}</value>
+    <comment>Query Lab, plan tree: figure line of a node. {value} is the actual row count on both sides, such as 40 → 40.</comment>
+  </data>
+  <data name="QueryLab_LineEstRows" xml:space="preserve">
+    <value>est. rows {value}</value>
+    <comment>Query Lab, plan tree: figure line of a node in a plan that was not run. est. is short for estimated. {value} is the planner's row estimate on both sides.</comment>
+  </data>
+  <data name="QueryLab_LineSelf" xml:space="preserve">
+    <value>self {value}</value>
+    <comment>Query Lab, plan tree: figure line. The time the node spent itself, without its children. {value} is such as 12 ms → 0.4 ms, with a leading ~ when approximate.</comment>
+  </data>
+  <data name="QueryLab_LineHit" xml:space="preserve">
+    <value>hit {value}</value>
+    <comment>Query Lab, plan tree: figure line. Shared buffer blocks found in cache. {value} is a count on both sides.</comment>
+  </data>
+  <data name="QueryLab_LineRead" xml:space="preserve">
+    <value>read {value}</value>
+    <comment>Query Lab, plan tree: figure line. Shared buffer blocks read from disk. {value} is a count on both sides.</comment>
+  </data>
+  <data name="QueryLab_LineDisk" xml:space="preserve">
+    <value>disk: {before} → {after}</value>
+    <comment>Query Lab, plan tree: figure line. What went to disk on each side, such as Sort 4 MB, or the word for none.</comment>
+  </data>
+  <data name="QueryLab_None" xml:space="preserve">
+    <value>none</value>
+    <comment>Query Lab, plan tree: nothing went to disk on that side.</comment>
+  </data>
+  <data name="QueryLab_NeverExecuted" xml:space="preserve">
+    <value>never executed</value>
+    <comment>Query Lab, plan tree: figure line. The node never ran in either plan.</comment>
+  </data>
+  <data name="QueryLab_NeverExecutedBefore" xml:space="preserve">
+    <value>never executed before</value>
+    <comment>Query Lab, plan tree: figure line. The node never ran in the before plan.</comment>
+  </data>
+  <data name="QueryLab_NeverExecutedAfter" xml:space="preserve">
+    <value>never executed after</value>
+    <comment>Query Lab, plan tree: figure line. The node never ran in the after plan.</comment>
+  </data>
+  <data name="QueryLab_FigEstRows" xml:space="preserve">
+    <value>Estimated rows (per loop)</value>
+    <comment>Query Lab, node details: name of a figure, the planner's row estimate for one loop of the node.</comment>
+  </data>
+  <data name="QueryLab_FigActRows" xml:space="preserve">
+    <value>Actual rows (per loop)</value>
+    <comment>Query Lab, node details: name of a figure, the rows the node returned in one loop.</comment>
+  </data>
+  <data name="QueryLab_FigLoops" xml:space="preserve">
+    <value>Loops</value>
+    <comment>Query Lab, node details: name of a figure, how many times the node ran.</comment>
+  </data>
+  <data name="QueryLab_FigInclusiveTime" xml:space="preserve">
+    <value>Time, with children</value>
+    <comment>Query Lab, node details: name of a figure, the node's time including the nodes below it.</comment>
+  </data>
+  <data name="QueryLab_FigSelfTime" xml:space="preserve">
+    <value>Self time</value>
+    <comment>Query Lab, node details: name of a figure, the node's time without the nodes below it.</comment>
+  </data>
+  <data name="QueryLab_FigCost" xml:space="preserve">
+    <value>Estimated cost (planner units)</value>
+    <comment>Query Lab, node details: name of a figure, the planner's cost estimate in its own units, not a time.</comment>
+  </data>
+  <data name="QueryLab_FigBuffersHit" xml:space="preserve">
+    <value>Shared buffers hit</value>
+    <comment>Query Lab, node details: name of a figure, blocks found in PostgreSQL's shared buffer cache.</comment>
+  </data>
+  <data name="QueryLab_FigBuffersRead" xml:space="preserve">
+    <value>Shared buffers read</value>
+    <comment>Query Lab, node details: name of a figure, blocks read from outside the shared buffers.</comment>
+  </data>
+  <data name="QueryLab_FigTempWritten" xml:space="preserve">
+    <value>Temp blocks written</value>
+    <comment>Query Lab, node details: name of a figure, blocks written to temporary files.</comment>
+  </data>
+  <data name="QueryLab_FigDisk" xml:space="preserve">
+    <value>Went to disk</value>
+    <comment>Query Lab, node details: name of a figure, whether the node spilled to disk.</comment>
+  </data>
+  <data name="QueryLab_No" xml:space="preserve">
+    <value>no</value>
+    <comment>Query Lab, node details: the answer "no" to Went to disk.</comment>
+  </data>
 
   <!-- ===== Crash ===== -->
+  <data name="Crash_Title" xml:space="preserve">
+    <value>pgNimbus — Unexpected Error</value>
+    <comment>Window title of the crash window shown after an unexpected failure. pgNimbus is the product name.</comment>
+  </data>
+  <data name="Crash_Heading" xml:space="preserve">
+    <value>pgNimbus ran into an unexpected error</value>
+    <comment>Crash window: heading.</comment>
+  </data>
+  <data name="Crash_Body" xml:space="preserve">
+    <value>The application hit a critical error and has to close. Nothing you were doing was necessarily lost — reopen pgNimbus to carry on.</value>
+    <comment>Crash window: what happened and what to do next.</comment>
+  </data>
+  <data name="Crash_LogLabel" xml:space="preserve">
+    <value>A detailed log was saved to:</value>
+    <comment>Crash window: label above the path of the log file.</comment>
+  </data>
+  <data name="Crash_ReportHint" xml:space="preserve">
+    <value>Please report this so it can be fixed — the button below opens a pre-filled GitHub issue. Attaching the log file above helps a lot.</value>
+    <comment>Crash window: asks the user to report the crash. The GitHub issue it opens is in English on purpose.</comment>
+  </data>
+  <data name="Crash_OpenLog" xml:space="preserve">
+    <value>Open log file</value>
+    <comment>Crash window: button that opens the folder holding the log file.</comment>
+  </data>
+  <data name="Crash_Report" xml:space="preserve">
+    <value>Report on GitHub</value>
+    <comment>Crash window: button that opens a pre-filled GitHub issue in the browser.</comment>
+  </data>
+  <data name="Crash_NoLog" xml:space="preserve">
+    <value>No log was written: pgNimbus found no application data directory.</value>
+    <comment>Crash window: shown in place of the log path when no log could be written.</comment>
+  </data>
+  <data name="Crash_UnknownError" xml:space="preserve">
+    <value>An unknown error occurred.</value>
+    <comment>Crash window: shown in the error box when there is no error message to show.</comment>
+  </data>
 
   <!-- ===== Core ===== -->
 </root>

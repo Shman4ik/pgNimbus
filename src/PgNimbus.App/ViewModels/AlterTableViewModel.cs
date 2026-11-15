@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Schema;
 
 namespace PgNimbus.App.ViewModels;
@@ -69,7 +70,7 @@ public sealed partial class AlterTableViewModel(SchemaEditor schemaEditor, Schem
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Failed to load columns: {ex.Message}";
+            StatusMessage = Strings.Dialogs_AlterLoadFailed(ex.Message);
         }
         finally
         {
@@ -87,14 +88,14 @@ public sealed partial class AlterTableViewModel(SchemaEditor schemaEditor, Schem
         try
         {
             await _schemaEditor.AddColumnAsync(Schema, Table, name, NewColumnType, NewColumnNullable, CancellationToken.None);
-            StatusMessage = $"Added column \"{name}\".";
+            StatusMessage = Strings.Dialogs_AlterColumnAdded(name);
             NewColumnName = string.Empty;
             await LoadAsync();
             SchemaChanged?.Invoke();
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Failed to add column: {ex.Message}";
+            StatusMessage = Strings.Dialogs_AlterAddFailed(ex.Message);
         }
         finally
         {
@@ -121,14 +122,14 @@ public sealed partial class AlterTableViewModel(SchemaEditor schemaEditor, Schem
         try
         {
             await _schemaEditor.DropColumnAsync(Schema, Table, column.Name, CancellationToken.None);
-            StatusMessage = $"Dropped column \"{column.Name}\".";
+            StatusMessage = Strings.Dialogs_AlterColumnDropped(column.Name);
             SelectedColumn = null;
             await LoadAsync();
             SchemaChanged?.Invoke();
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Failed to drop column: {ex.Message}";
+            StatusMessage = Strings.Dialogs_AlterDropFailed(ex.Message);
         }
         finally
         {
@@ -151,7 +152,7 @@ public sealed partial class AlterTableViewModel(SchemaEditor schemaEditor, Schem
         try
         {
             await _schemaEditor.RenameColumnAsync(Schema, Table, column.Name, newName, CancellationToken.None);
-            StatusMessage = $"Renamed \"{column.Name}\" to \"{newName}\".";
+            StatusMessage = Strings.Dialogs_AlterColumnRenamed(column.Name, newName);
             RenameTo = string.Empty;
             SelectedColumn = null;
             await LoadAsync();
@@ -159,7 +160,7 @@ public sealed partial class AlterTableViewModel(SchemaEditor schemaEditor, Schem
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Failed to rename column: {ex.Message}";
+            StatusMessage = Strings.Dialogs_AlterRenameFailed(ex.Message);
         }
         finally
         {

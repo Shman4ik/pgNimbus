@@ -1,6 +1,8 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using PgNimbus.Core.Connections;
+using PgNimbus.Core.Localization;
 
 namespace PgNimbus.App.Views;
 
@@ -23,14 +25,13 @@ public partial class HostKeyDialog : Window
 
     public HostKeyDialog(SshHostKeyPrompt prompt) : this()
     {
-        HintText.Text = $"Neither ~/.ssh/known_hosts nor pgNimbus's own list has a key for {prompt.Server}, so pgNimbus cannot tell whether this is the right server. "
-            + "Compare the fingerprint with the one the server's administrator gave you before you accept it.";
+        HintText.Bind(TextBlock.TextProperty, Localizer.Observe(() => Strings.Dialogs_HostKeyHint(prompt.Server)).ToBinding());
         HostText.Text = prompt.Server;
         KeyTypeText.Text = prompt.KeyType;
         FingerprintText.Text = prompt.Fingerprint;
-        StoreText.Text = prompt.KnownHostsPath is { } path
-            ? $"Accept remembers this key in {path}. If the server later presents a different key, the connection is refused until that line is removed."
-            : "Accept trusts this key until pgNimbus closes: there is no app data folder to remember it in, so you will be asked again next time.";
+        StoreText.Bind(TextBlock.TextProperty, Localizer.Observe(() => prompt.KnownHostsPath is { } path
+            ? Strings.Dialogs_HostKeyRemembered(path)
+            : Strings.Dialogs_HostKeySession).ToBinding());
     }
 
     private void OnAcceptClick(object? sender, RoutedEventArgs e) => Close(true);

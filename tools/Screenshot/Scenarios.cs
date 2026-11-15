@@ -476,7 +476,7 @@ public static class Scenarios
     {
         var taken = new SavedQuery(Guid.NewGuid(), "Daily revenue", "SELECT 1;", DateTimeOffset.Now);
         return new SaveQueryDialog(
-            "Save query",
+            () => Strings.Shell_SaveQueryHeading,
             taken.Name,
             currentId: null,
             name => string.Equals(name.Trim(), taken.Name, StringComparison.OrdinalIgnoreCase) ? taken : null)
