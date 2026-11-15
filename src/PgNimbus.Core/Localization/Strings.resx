@@ -128,6 +128,22 @@
   <data name="About_GitHub" xml:space="preserve">
     <value>pgNimbus on GitHub</value>
   </data>
+  <data name="About_Version" xml:space="preserve">
+    <value>Version {version}</value>
+    <comment>About box: under the name. {version} is the release number, such as 1.4.0.</comment>
+  </data>
+  <data name="About_License" xml:space="preserve">
+    <value>MIT License</value>
+    <comment>About box: the license line when the copyright text is unknown.</comment>
+  </data>
+  <data name="About_CopyrightLicense" xml:space="preserve">
+    <value>{copyright} · MIT License</value>
+    <comment>About box: copyright and license on one line. {copyright} is the copyright notice, such as "Copyright (c) 2026 Name".</comment>
+  </data>
+  <data name="About_RateInStore" xml:space="preserve">
+    <value>Rate pgNimbus in the Microsoft Store</value>
+    <comment>About box: link shown only in the Microsoft Store version.</comment>
+  </data>
 
   <!-- ===== Settings ===== -->
   <data name="Settings_LanguageSection" xml:space="preserve">
@@ -145,6 +161,290 @@
   <data name="Settings_LanguageSystem" xml:space="preserve">
     <value>System ({language})</value>
     <comment>Settings, General tab: the first choice in the Language list, which follows the operating system. {language} is that language's name in itself, such as English or 简体中文.</comment>
+  </data>
+  <data name="Settings_TabGeneral" xml:space="preserve">
+    <value>General</value>
+    <comment>Settings: name of the first tab.</comment>
+  </data>
+  <data name="Settings_TabAppearance" xml:space="preserve">
+    <value>Appearance</value>
+    <comment>Settings: name of the second tab.</comment>
+  </data>
+  <data name="Settings_TabEditor" xml:space="preserve">
+    <value>Editor</value>
+    <comment>Settings: name of the third tab.</comment>
+  </data>
+  <data name="Settings_TabData" xml:space="preserve">
+    <value>Data</value>
+    <comment>Settings: name of the fourth tab.</comment>
+  </data>
+  <data name="Settings_StartupSection" xml:space="preserve">
+    <value>STARTUP</value>
+    <comment>Settings, General tab: section heading. Written in capitals in English; write it as your language writes a heading.</comment>
+  </data>
+  <data name="Settings_AutoConnect" xml:space="preserve">
+    <value>Open the last connection on startup</value>
+    <comment>Settings, General tab, Startup: the setting's name (a switch).</comment>
+  </data>
+  <data name="Settings_AutoConnectHint" xml:space="preserve">
+    <value>Connects straight to whatever you used last instead of waiting at the connection dialog. The dialog is still one Switch connection away, and a failed connect lands back in it with the error.</value>
+    <comment>Settings, General tab, Startup: hint under the setting. "Switch connection" is the name of a menu command.</comment>
+  </data>
+  <data name="Settings_KeyboardSection" xml:space="preserve">
+    <value>KEYBOARD</value>
+    <comment>Settings, General tab: section heading. Written in capitals in English; write it as your language writes a heading.</comment>
+  </data>
+  <data name="Settings_ShortcutModifier" xml:space="preserve">
+    <value>Shortcut modifier</value>
+    <comment>Settings, General tab, Keyboard: the setting's name.</comment>
+  </data>
+  <data name="Settings_ShortcutModifierHint" xml:space="preserve">
+    <value>Auto uses Cmd on macOS and Ctrl elsewhere. Applies immediately to shortcuts, the command palette, and the cheat sheet.</value>
+    <comment>Settings, General tab, Keyboard: hint under the setting. Cmd and Ctrl are key names and stay as they are.</comment>
+  </data>
+  <data name="Settings_ModifierAuto" xml:space="preserve">
+    <value>Auto</value>
+    <comment>Settings, General tab, Keyboard: a choice in the shortcut modifier list (pick Cmd or Ctrl by platform).</comment>
+  </data>
+  <data name="Settings_HistorySection" xml:space="preserve">
+    <value>HISTORY</value>
+    <comment>Settings, General tab: section heading. Written in capitals in English; write it as your language writes a heading.</comment>
+  </data>
+  <data name="Settings_RecordHistory" xml:space="preserve">
+    <value>Record query history</value>
+    <comment>Settings, General tab, History: the setting's name (a switch).</comment>
+  </data>
+  <data name="Settings_RecordHistoryHint" xml:space="preserve">
+    <value>Keeps the text of every query you run in a local file that is not encrypted. Passwords in statements are masked.</value>
+    <comment>Settings, General tab, History: hint under the setting.</comment>
+  </data>
+  <data name="Settings_Theme" xml:space="preserve">
+    <value>Theme</value>
+    <comment>Settings, Appearance tab: the setting's name.</comment>
+  </data>
+  <data name="Settings_ThemeHint" xml:space="preserve">
+    <value>System follows the OS light/dark setting</value>
+    <comment>Settings, Appearance tab: hint under Theme.</comment>
+  </data>
+  <data name="Settings_ThemeSystem" xml:space="preserve">
+    <value>System</value>
+    <comment>Settings, Appearance tab: a choice in the Theme list, following the operating system's light or dark setting.</comment>
+  </data>
+  <data name="Settings_ThemeLight" xml:space="preserve">
+    <value>Light</value>
+    <comment>Settings, Appearance tab: a choice in the Theme list.</comment>
+  </data>
+  <data name="Settings_ThemeDark" xml:space="preserve">
+    <value>Dark</value>
+    <comment>Settings, Appearance tab: a choice in the Theme list.</comment>
+  </data>
+  <data name="Settings_InterfaceFont" xml:space="preserve">
+    <value>Interface font</value>
+    <comment>Settings, Appearance tab: the setting's name.</comment>
+  </data>
+  <data name="Settings_InterfaceFontHint" xml:space="preserve">
+    <value>System is San Francisco on macOS, Segoe UI on Windows and your desktop's font on Linux. Inter looks the same everywhere.</value>
+    <comment>Settings, Appearance tab: hint under Interface font. San Francisco, Segoe UI and Inter are font names and stay as they are; System is the first choice of the list.</comment>
+  </data>
+  <data name="Settings_FontSystem" xml:space="preserve">
+    <value>System</value>
+    <comment>Settings, Appearance tab: a choice in the Interface font list, the operating system's own font.</comment>
+  </data>
+  <data name="Settings_CodeFont" xml:space="preserve">
+    <value>Code font</value>
+    <comment>Settings, Appearance tab: the setting's name.</comment>
+  </data>
+  <data name="Settings_CodeFontHint" xml:space="preserve">
+    <value>For the SQL editor, values, plans and every other place that shows code. Lists the monospace fonts installed on this computer.</value>
+    <comment>Settings, Appearance tab: hint under Code font.</comment>
+  </data>
+  <data name="Settings_CodeFontBuiltIn" xml:space="preserve">
+    <value>JetBrains Mono (built in)</value>
+    <comment>Settings, Appearance tab: the first choice in the Code font list, the font that ships with pgNimbus. JetBrains Mono is a font name and stays as it is.</comment>
+  </data>
+  <data name="Settings_EditorFontSize" xml:space="preserve">
+    <value>Editor font size</value>
+    <comment>Settings, Appearance tab: the setting's name.</comment>
+  </data>
+  <data name="Settings_EditorFontSizeHint" xml:space="preserve">
+    <value>The size every SQL editor starts at, and returns to on {gesture}. Zooming changes only the editor you are in.</value>
+    <comment>Settings, Appearance tab: hint under Editor font size. {gesture} is the keyboard shortcut that resets the zoom, such as Ctrl+0 or ⌘0; it is built by the app and not translated.</comment>
+  </data>
+  <data name="Settings_ShowSizes" xml:space="preserve">
+    <value>Show relation sizes in the schema tree</value>
+    <comment>Settings, Appearance tab: the setting's name (a switch). A relation is a table or materialized view.</comment>
+  </data>
+  <data name="Settings_ShowSizesHint" xml:space="preserve">
+    <value>Adds each table and materialized view's on-disk size (heap + indexes + TOAST) as a dim hint next to its name</value>
+    <comment>Settings, Appearance tab: hint under Show relation sizes. Heap and TOAST are PostgreSQL storage terms.</comment>
+  </data>
+  <data name="Settings_CompletionSection" xml:space="preserve">
+    <value>COMPLETION</value>
+    <comment>Settings, Editor tab: section heading. Written in capitals in English; write it as your language writes a heading.</comment>
+  </data>
+  <data name="Settings_AutoAlias" xml:space="preserve">
+    <value>Auto-alias tables from completion</value>
+    <comment>Settings, Editor tab, Completion: the setting's name (a switch).</comment>
+  </data>
+  <data name="Settings_AutoAliasHint" xml:space="preserve">
+    <value>Accepting a table after FROM/JOIN also inserts a short alias (orders → orders o)</value>
+    <comment>Settings, Editor tab, Completion: hint under the setting. FROM and JOIN are SQL keywords; the example is SQL.</comment>
+  </data>
+  <data name="Settings_KeywordCase" xml:space="preserve">
+    <value>Keyword case</value>
+    <comment>Settings, Editor tab, Completion: the setting's name.</comment>
+  </data>
+  <data name="Settings_KeywordCaseHint" xml:space="preserve">
+    <value>How accepted keywords are written. As typed follows what you started: tr gives true, SEL gives SELECT.</value>
+    <comment>Settings, Editor tab, Completion: hint under Keyword case. "As typed" is the first choice of the list; tr/true and SEL/SELECT are typing examples and stay as they are.</comment>
+  </data>
+  <data name="Settings_KeywordCaseAsTyped" xml:space="preserve">
+    <value>As typed</value>
+    <comment>Settings, Editor tab: a choice in the Keyword case list; keywords follow the case the user started typing in.</comment>
+  </data>
+  <data name="Settings_KeywordCaseUpper" xml:space="preserve">
+    <value>UPPER</value>
+    <comment>Settings, Editor tab: a choice in the Keyword case list; keywords are written in capitals. Write it in capitals if your language has them.</comment>
+  </data>
+  <data name="Settings_KeywordCaseLower" xml:space="preserve">
+    <value>lower</value>
+    <comment>Settings, Editor tab: a choice in the Keyword case list; keywords are written in small letters.</comment>
+  </data>
+  <data name="Settings_AlwaysQualify" xml:space="preserve">
+    <value>Always write the table's schema</value>
+    <comment>Settings, Editor tab, Completion: the setting's name (a switch).</comment>
+  </data>
+  <data name="Settings_AlwaysQualifyHint" xml:space="preserve">
+    <value>Off, a table goes in bare when the search_path finds it (customers), and with its schema otherwise (saas.users). On, every table goes in with its schema.</value>
+    <comment>Settings, Editor tab, Completion: hint under the setting. search_path is a PostgreSQL setting; customers and saas.users are examples and stay as they are.</comment>
+  </data>
+  <data name="Settings_EnterAccepts" xml:space="preserve">
+    <value>Enter accepts a suggestion</value>
+    <comment>Settings, Editor tab, Completion: the setting's name (a switch).</comment>
+  </data>
+  <data name="Settings_EnterAcceptsHint" xml:space="preserve">
+    <value>On, Enter takes a suggestion you picked or started typing, and is a newline otherwise. Off, only Tab accepts and Enter always ends the line.</value>
+    <comment>Settings, Editor tab, Completion: hint under the setting. Enter and Tab are key names.</comment>
+  </data>
+  <data name="Settings_SafeMode" xml:space="preserve">
+    <value>Safe mode (stage &amp; review changes)</value>
+    <comment>Settings, Data tab: the setting's name (a switch).</comment>
+  </data>
+  <data name="Settings_SafeModeHint" xml:space="preserve">
+    <value>Grid edits, deletes, and Add-row inserts are staged locally and highlighted; review the generated SQL, then commit everything as one transaction — or discard</value>
+    <comment>Settings, Data tab: hint under Safe mode.</comment>
+  </data>
+  <data name="Settings_FilterBar" xml:space="preserve">
+    <value>Always show the filter bar while browsing</value>
+    <comment>Settings, Data tab: the setting's name (a switch).</comment>
+  </data>
+  <data name="Settings_FilterBarHint" xml:space="preserve">
+    <value>Keeps the filter line above the grid even with no conditions, so + Filter is always in reach. Off, it appears whenever a condition (or a WHERE you typed) filters the rows. Also toggled by the funnel in the status bar.</value>
+    <comment>Settings, Data tab: hint under the setting. "+ Filter" is the name of a button; WHERE is the SQL keyword.</comment>
+  </data>
+  <data name="Settings_BackupSection" xml:space="preserve">
+    <value>BACKUP</value>
+    <comment>Settings, Data tab: section heading. Written in capitals in English; write it as your language writes a heading.</comment>
+  </data>
+  <data name="Settings_PgTools" xml:space="preserve">
+    <value>PostgreSQL client programs</value>
+    <comment>Settings, Data tab, Backup: the card's name.</comment>
+  </data>
+  <data name="Settings_PgToolsHint" xml:space="preserve">
+    <value>pg_dump and pg_restore make and restore backups. pgNimbus finds them where PostgreSQL, pgAdmin, Postgres.app and Homebrew install them.</value>
+    <comment>Settings, Data tab, Backup: hint under the card's name. pg_dump, pg_restore, pgAdmin, Postgres.app and Homebrew are program names.</comment>
+  </data>
+  <data name="Settings_PgToolsChooseFolder" xml:space="preserve">
+    <value>Choose Folder…</value>
+    <comment>Settings, Data tab, Backup: button that opens a folder picker.</comment>
+  </data>
+  <data name="Settings_PgToolsChooseFolderTip" xml:space="preserve">
+    <value>Pick the folder that holds pg_dump and pg_restore</value>
+    <comment>Settings, Data tab, Backup: tooltip of the Choose Folder button.</comment>
+  </data>
+  <data name="Settings_PgToolsLookAgain" xml:space="preserve">
+    <value>Look Again</value>
+    <comment>Settings, Data tab, Backup: button that searches for the programs again.</comment>
+  </data>
+  <data name="Settings_PgToolsAutomatic" xml:space="preserve">
+    <value>Automatic</value>
+    <comment>Settings, Data tab, Backup: button that goes back to searching automatically.</comment>
+  </data>
+  <data name="Settings_PgToolsAutomaticTip" xml:space="preserve">
+    <value>Forget the folder and search again</value>
+    <comment>Settings, Data tab, Backup: tooltip of the Automatic button.</comment>
+  </data>
+  <data name="Settings_PgToolsLooking" xml:space="preserve">
+    <value>Looking for {tool}…</value>
+    <comment>Status line while the search runs, in Settings and in the Backup and Restore windows. {tool} is the program name: pg_dump or pg_restore.</comment>
+  </data>
+  <data name="Settings_PgToolsFromFolder" xml:space="preserve">
+    <value>From the folder you chose: {folder}</value>
+    <comment>Settings, Data tab, Backup: line under the card when the user picked a folder. {folder} is a folder path.</comment>
+  </data>
+  <data name="Settings_PgToolsFoundAutomatically" xml:space="preserve">
+    <value>Found automatically</value>
+    <comment>Settings, Data tab, Backup: line under the card when the programs were found without the user choosing a folder.</comment>
+  </data>
+  <data name="Settings_PgToolsNeeds" xml:space="preserve">
+    <value>pgNimbus needs {needed}</value>
+    <comment>Heading of the Backup and Restore windows when no usable program is installed. {needed} is a program with a version, such as "pg_dump 17 or newer", or just "pg_restore".</comment>
+  </data>
+  <data name="Settings_PgToolsNeededVersion" xml:space="preserve">
+    <value>{tool} {version} or newer</value>
+    <comment>Part of the heading "pgNimbus needs …": the program and the oldest major version that works. {tool} is pg_dump; {version} is a release such as 17.</comment>
+  </data>
+  <data name="Settings_PgToolsNotFound" xml:space="preserve">
+    <value>{tool} not found</value>
+    <comment>Status line when the program was not found. {tool} is pg_dump or pg_restore.</comment>
+  </data>
+  <data name="Settings_PgToolsExplainDump" xml:space="preserve">
+    <value>Backups are made by pg_dump, PostgreSQL's own backup program, which comes with pg_restore.</value>
+    <comment>Backup window, missing-program explanation: first line.</comment>
+  </data>
+  <data name="Settings_PgToolsExplainRestore" xml:space="preserve">
+    <value>Backups are restored by pg_restore, PostgreSQL's own restore program, which comes with pg_dump.</value>
+    <comment>Restore window, missing-program explanation: first line.</comment>
+  </data>
+  <data name="Settings_PgToolsFolderProblem" xml:space="preserve">
+    <value>Settings point pgNimbus at {folder}, but {reason}.</value>
+    <comment>Missing-program explanation: the folder chosen in Settings holds no usable program. {folder} is a path; {reason} is a clause saying why, such as "it did not start".</comment>
+  </data>
+  <data name="Settings_PgToolsFolderNoProblem" xml:space="preserve">
+    <value>Settings point pgNimbus at {folder}.</value>
+    <comment>Missing-program explanation: the folder chosen in Settings. {folder} is a path.</comment>
+  </data>
+  <data name="Settings_PgToolsTooOld" xml:space="preserve">
+    <value>The newest {tool} on this computer is {found}, in {folder}. This server runs PostgreSQL {server}, and {tool} has to be {version} or newer to back it up.</value>
+    <comment>Missing-program explanation: the installed program is older than the server. {tool} is pg_dump; {found} is its version, such as 15.4; {folder} is a path; {server} is the server's version, such as 17.2; {version} is the oldest major release that works, such as 17.</comment>
+  </data>
+  <data name="Settings_PgToolsNoneOnComputer" xml:space="preserve">
+    <value>pgNimbus didn't find {tool} on this computer.</value>
+    <comment>Missing-program explanation. {tool} is pg_dump or pg_restore.</comment>
+  </data>
+  <data name="Settings_PgToolsOtherProblem" xml:space="preserve">
+    <value>There's a {tool} in {folder}, but {reason}.</value>
+    <comment>Missing-program explanation: a program was found in a folder but does not work. {tool} is pg_dump or pg_restore; {folder} is a path; {reason} is a clause saying why.</comment>
+  </data>
+  <data name="Settings_PgToolsInstalled" xml:space="preserve">
+    <value>{tool} {version} · {folder}</value>
+    <comment>Status line of Settings, Backup and Restore: the program that will run. {tool} is pg_dump or pg_restore; {version} is its release, such as 18.6; {folder} is the folder it is in.</comment>
+  </data>
+  <data name="Settings_PgToolsInstalledFrom" xml:space="preserve">
+    <value>{tool} {version} from {source} · {folder}</value>
+    <comment>Status line of Settings, Backup and Restore: the program that will run, with what installed it. {tool} is pg_dump or pg_restore; {version} is its release, such as 18.6; {source} is the product that installed it, such as pgAdmin 4 or Homebrew; {folder} is the folder it is in.</comment>
+  </data>
+  <data name="Settings_FontInter" xml:space="preserve">
+    <value>Inter</value>
+    <comment>Settings, Appearance tab: a choice in the Interface font list. Inter is a font name: keep it as it is.</comment>
+  </data>
+  <data name="Settings_ModifierCtrl" xml:space="preserve">
+    <value>Ctrl</value>
+    <comment>Settings, General tab, Keyboard: a choice in the shortcut modifier list. A key name: keep it as it is, unless your keyboards label the key differently.</comment>
+  </data>
+  <data name="Settings_ModifierCmd" xml:space="preserve">
+    <value>Cmd</value>
+    <comment>Settings, General tab, Keyboard: a choice in the shortcut modifier list. A key name (the Command key of a Mac): keep it as it is, unless your keyboards label the key differently.</comment>
   </data>
 
   <!-- ===== Connection ===== -->

@@ -1,7 +1,9 @@
 using System.Reflection;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using PgNimbus.App.Platform;
+using PgNimbus.Core.Localization;
 
 namespace PgNimbus.App.Views;
 
@@ -26,9 +28,10 @@ public partial class AboutView : UserControl
         var assembly = Assembly.GetEntryAssembly();
         var version = assembly?.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
             .Split('+')[0] ?? "0.0.0";
-        VersionText.Text = $"Version {version}";
+        VersionText.Bind(TextBlock.TextProperty, Localizer.Observe(() => Strings.About_Version(version)).ToBinding());
         var copyright = assembly?.GetCustomAttribute<AssemblyCopyrightAttribute>()?.Copyright;
-        CopyrightText.Text = string.IsNullOrEmpty(copyright) ? "MIT License" : $"{copyright} · MIT License";
+        CopyrightText.Bind(TextBlock.TextProperty, Localizer.Observe(() =>
+            string.IsNullOrEmpty(copyright) ? Strings.About_License : Strings.About_CopyrightLicense(copyright)).ToBinding());
         ShowsStoreLink = StoreListing.IsPackaged;
     }
 

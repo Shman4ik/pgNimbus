@@ -20,7 +20,7 @@ public sealed record CodeFontOption(string? Name)
     public static CodeFontOption Bundled { get; } = new((string?)null);
 
     /// <summary>What the list shows.</summary>
-    public string Label => Name ?? "JetBrains Mono (built in)";
+    public string Label => Name ?? Strings.Settings_CodeFontBuiltIn;
 
     /// <summary>The face the row is drawn in, so the list previews each one.</summary>
     public FontFamily Family => NimbusFonts.Mono(Name);
@@ -123,6 +123,8 @@ public sealed partial class PreferencesViewModel : ObservableObject
     // the old item leaving, which is not a choice.
     private bool _loadingCodeFonts;
 
+    private IReadOnlyList<string> _installedFonts = [];
+
     public PreferencesViewModel(MainViewModel main)
     {
         _main = main;
@@ -156,7 +158,7 @@ public sealed partial class PreferencesViewModel : ObservableObject
     /// (re-spelled when the shortcut modifier changes on this same page).
     /// </summary>
     public string EditorFontSizeHint =>
-        $"The size every SQL editor starts at, and returns to on {CommandBindings.LabelFor(CommandId.ResetEditorZoom)}. Zooming changes only the editor you are in.";
+        Strings.Settings_EditorFontSizeHint(CommandBindings.LabelFor(CommandId.ResetEditorZoom));
 
     private void OnHotkeysChanged() => OnPropertyChanged(nameof(EditorFontSizeHint));
 
@@ -191,6 +193,7 @@ public sealed partial class PreferencesViewModel : ObservableObject
 
     private void SetCodeFonts(IReadOnlyList<string> installed, string? selected)
     {
+        _installedFonts = installed;
         var options = new List<CodeFontOption> { CodeFontOption.Bundled };
         options.AddRange(installed.Select(name => new CodeFontOption(name)));
 
@@ -366,6 +369,9 @@ public sealed partial class PreferencesViewModel : ObservableObject
     {
         Languages[0].Relabel(SystemLanguageName());
         OnPropertyChanged(nameof(EditorFontSizeHint));
+
+        // The bundled face's row names itself in the new language.
+        SetCodeFonts(_installedFonts, SelectedCodeFont?.Name);
     }
 
     partial void OnThemeIndexChanged(int value) =>
