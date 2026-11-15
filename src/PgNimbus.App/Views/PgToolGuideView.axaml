@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:PgNimbus.App.ViewModels"
+             xmlns:l="using:PgNimbus.App.Localization"
              x:Class="PgNimbus.App.Views.PgToolGuideView"
              x:DataType="vm:PgToolStatusViewModel">
 
@@ -53,9 +54,9 @@
                                 <Grid ColumnDefinitions="*,Auto">
                                     <SelectableTextBlock Classes="mono" Text="{Binding Command}" FontSize="12"
                                                          TextWrapping="Wrap" VerticalAlignment="Center" />
-                                    <Button Grid.Column="1" Classes="soft" Content="Copy" Margin="8,0,0,0"
+                                    <Button Grid.Column="1" Classes="soft" Content="{l:Tr Common_Copy}" Margin="8,0,0,0"
                                             VerticalAlignment="Top" Click="OnCopyCommandClick"
-                                            ToolTip.Tip="Copy the command" />
+                                            ToolTip.Tip="{l:Tr Backup_GuideCopyTip}" />
                                 </Grid>
                             </Border>
                             <Button Classes="soft" IsVisible="{Binding HasLink}" HorizontalAlignment="Left"
@@ -69,7 +70,7 @@
         </ItemsControl>
 
         <TextBlock Classes="dialogHint"
-                   Text="Installed them somewhere else? Choose Folder… and pick the folder that holds pg_dump." />
+                   Text="{l:Tr Backup_GuideChooseFolderHint}" />
     </StackPanel>
 
 </UserControl>

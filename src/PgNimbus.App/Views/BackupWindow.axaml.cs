@@ -3,6 +3,7 @@ using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using PgNimbus.App.ViewModels;
+using PgNimbus.Core.Localization;
 
 namespace PgNimbus.App.Views;
 
@@ -40,8 +41,8 @@ public partial class BackupWindow : Window
 
         e.Cancel = true;
         var stop = await new ConfirmDialog(
-            "A backup is still running. Stop it and close the window? The unfinished file is deleted.",
-            "Stop Backup").ShowDialog<bool>(this);
+            Strings.Backup_ConfirmStop,
+            Strings.Backup_ConfirmStopButton).ShowDialog<bool>(this);
         if (!stop)
         {
             return;
@@ -59,12 +60,12 @@ public partial class BackupWindow : Window
             return;
         }
 
-        var archive = new FilePickerFileType("Backup archive") { Patterns = ["*.dump"] };
-        var script = new FilePickerFileType("SQL script") { Patterns = ["*.sql"] };
+        var archive = new FilePickerFileType(Strings.Backup_FilterArchive) { Patterns = ["*.dump"] };
+        var script = new FilePickerFileType(Strings.Backup_FilterScript) { Patterns = ["*.sql"] };
         var isScript = string.Equals(Path.GetExtension(model.OutputPath), ".sql", StringComparison.OrdinalIgnoreCase);
         var file = await storage.SaveFilePickerAsync(new FilePickerSaveOptions
         {
-            Title = "Save backup as",
+            Title = Strings.Backup_SaveDialogTitle,
             SuggestedFileName = Path.GetFileNameWithoutExtension(model.OutputPath),
             SuggestedStartLocation = await storage.TryGetFolderFromPathAsync(model.FolderName),
             DefaultExtension = isScript ? "sql" : "dump",
@@ -105,7 +106,7 @@ public partial class BackupWindow : Window
 
         var folders = await storage.OpenFolderPickerAsync(new FolderPickerOpenOptions
         {
-            Title = "Choose the folder that holds pg_dump and pg_restore",
+            Title = Strings.Backup_ChooseToolsFolderTitle,
             AllowMultiple = false,
         });
         return folders.Count == 0 ? null : folders[0].TryGetLocalPath();

@@ -193,7 +193,7 @@ public sealed class BackupService(WriteGatedDataSource dataSource, PgToolConnect
         var directory = Path.GetDirectoryName(Path.GetFullPath(plan.OutputPath));
         if (directory is null || !Directory.Exists(directory))
         {
-            return Failed($"The folder {directory} doesn't exist.");
+            return Failed(Localization.Strings.Backup_FolderMissing(directory ?? ""));
         }
 
         IReadOnlyList<BackupTable> tables;
@@ -270,7 +270,7 @@ public sealed class BackupService(WriteGatedDataSource dataSource, PgToolConnect
         catch (PgToolStartException ex)
         {
             TryDelete(plan.PartialPath);
-            return Failed(ex.Message, "Check the folder pgNimbus uses for pg_dump in Settings, on the Data tab.");
+            return Failed(ex.Message, Localization.Strings.Backup_CheckToolsFolderDump);
         }
         finally
         {
@@ -291,7 +291,7 @@ public sealed class BackupService(WriteGatedDataSource dataSource, PgToolConnect
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            return Failed($"The backup finished, but it couldn't be saved as {plan.OutputPath}: {ex.Message}. It's still in {plan.PartialPath}.");
+            return Failed(Localization.Strings.Backup_SaveFailed(plan.OutputPath, ex.Message, plan.PartialPath));
         }
 
         lock (gate)

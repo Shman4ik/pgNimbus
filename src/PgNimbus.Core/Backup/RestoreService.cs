@@ -11,6 +11,19 @@ namespace PgNimbus.Core.Backup;
 public sealed record RestoreInspection(PgArchiveFormat Format, PgArchiveListing? Listing, string? Problem)
 {
     public bool CanRestore => Listing is not null && Problem is null;
+
+    /// <summary>
+    /// Why a file of this <paramref name="format"/> can't be restored, for the
+    /// formats where the answer is the same for every file; null for the rest.
+    /// The window asks again when the language changes.
+    /// </summary>
+    public static string? ProblemFor(PgArchiveFormat format) => format switch
+    {
+        PgArchiveFormat.Missing => Localization.Strings.Restore_ProblemMissing,
+        PgArchiveFormat.PlainSql => Localization.Strings.Restore_ProblemScript,
+        PgArchiveFormat.Unknown => Localization.Strings.Restore_ProblemNotArchive,
+        _ => null,
+    };
 }
 
 /// <summary>How a restore ended.</summary>
@@ -76,7 +89,7 @@ public sealed class RestoreService(WriteGatedDataSource dataSource, PgToolConnec
 
     public string DatabaseName => Connection.Database;
 
-    public string ServerLabel => Connection.IsTunnelled ? $"{Connection.Host} (through SSH)" : Connection.Host;
+    public string ServerLabel => Connection.IsTunnelled ? Localization.Strings.Restore_ServerThroughSsh(Connection.Host) : Connection.Host;
 
     public async Task<PgVersion> GetServerVersionAsync(CancellationToken cancellationToken)
     {
@@ -94,14 +107,11 @@ public sealed class RestoreService(WriteGatedDataSource dataSource, PgToolConnec
         switch (format)
         {
             case PgArchiveFormat.Missing:
-                return new RestoreInspection(format, null, "The file isn't there any more.");
+                return new RestoreInspection(format, null, RestoreInspection.ProblemFor(format));
             case PgArchiveFormat.PlainSql:
-                return new RestoreInspection(format, null,
-                    "This is a SQL script, pg_dump's plain format. pgNimbus restores pg_dump's archives (.dump). "
-                    + "Restore a script with psql (psql -f file.sql); pgNimbus doesn't run psql for you, because psql also runs the "
-                    + "shell commands a script can hold.");
+                return new RestoreInspection(format, null, RestoreInspection.ProblemFor(format));
             case PgArchiveFormat.Unknown:
-                return new RestoreInspection(format, null, "This isn't a pg_dump archive. pgNimbus restores the .dump files pg_dump writes.");
+                return new RestoreInspection(format, null, RestoreInspection.ProblemFor(format));
         }
 
         var output = await PgToolProcess.CaptureAsync(
@@ -112,8 +122,8 @@ public sealed class RestoreService(WriteGatedDataSource dataSource, PgToolConnec
         {
             var error = ErrorOf(output.StandardError) ?? PgToolLocator.DescribeFailure(output);
             var problem = error.Contains("unsupported version", StringComparison.OrdinalIgnoreCase)
-                ? $"This backup was made by a newer pg_dump than this pg_restore ({tool.Version}) can read. Install a newer PostgreSQL client."
-                : $"pg_restore can't read this file: {error}";
+                ? Localization.Strings.Restore_ProblemTooNew(tool.Version.ToString())
+                : Localization.Strings.Restore_ProblemCantRead(error);
             return new RestoreInspection(format, null, problem);
         }
 
@@ -244,11 +254,11 @@ public sealed class RestoreService(WriteGatedDataSource dataSource, PgToolConnec
                 var hint = ex.SqlState switch
                 {
                     PostgresErrorCodes.InsufficientPrivilege =>
-                        "Your role can't create databases. Restore into this database instead, or use a role with CREATEDB.",
-                    PostgresErrorCodes.DuplicateDatabase => "Pick another name.",
+                        Localization.Strings.Restore_HintNoCreateDb,
+                    PostgresErrorCodes.DuplicateDatabase => Localization.Strings.Restore_HintPickName,
                     _ => null,
                 };
-                return await EndAsync(RestoreOutcome.Failed, $"Couldn't create database {plan.DatabaseName}: {ex.MessageText}", hint);
+                return await EndAsync(RestoreOutcome.Failed, Localization.Strings.Restore_CreateFailed(plan.DatabaseName, ex.MessageText), hint);
             }
             catch (OperationCanceledException)
             {
@@ -309,7 +319,7 @@ public sealed class RestoreService(WriteGatedDataSource dataSource, PgToolConnec
         }
         catch (PgToolStartException ex)
         {
-            return await EndAsync(RestoreOutcome.Failed, ex.Message, "Check the folder pgNimbus uses for pg_restore in Settings, on the Data tab.");
+            return await EndAsync(RestoreOutcome.Failed, ex.Message, Localization.Strings.Restore_CheckToolsFolder);
         }
 
         if (exitCode != 0)

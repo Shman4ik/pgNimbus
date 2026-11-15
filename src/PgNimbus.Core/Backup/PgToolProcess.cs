@@ -234,7 +234,7 @@ public static class PgToolProcess
 
 /// <summary>A PostgreSQL client program that could not be started at all.</summary>
 public sealed class PgToolStartException(string fileName, Exception inner)
-    : Exception($"Could not start {Path.GetFileName(fileName)}: {inner.Message}", inner)
+    : Exception(Localization.Strings.Backup_CouldNotStart(Path.GetFileName(fileName), inner.Message), inner)
 {
     public string FileName { get; } = fileName;
 }

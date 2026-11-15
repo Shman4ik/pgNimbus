@@ -5539,6 +5539,670 @@
   <!-- ===== Security ===== -->
 
   <!-- ===== Backup ===== -->
+  <data name="Backup_WindowTitle" xml:space="preserve">
+    <value>pgNimbus — Back Up</value>
+    <comment>Title bar of the Backup window. pgNimbus is the product name; keep it and the dash.</comment>
+  </data>
+  <data name="Restore_WindowTitle" xml:space="preserve">
+    <value>pgNimbus — Restore</value>
+    <comment>Title bar of the Restore window. pgNimbus is the product name; keep it and the dash.</comment>
+  </data>
+  <data name="Backup_SaveTo" xml:space="preserve">
+    <value>Save to</value>
+    <comment>Backup window, form: label above the file path.</comment>
+  </data>
+  <data name="Backup_Change" xml:space="preserve">
+    <value>Change…</value>
+    <comment>Backup and Restore windows: button beside the file name that opens a file picker.</comment>
+  </data>
+  <data name="Backup_WhatToSave" xml:space="preserve">
+    <value>What to save</value>
+    <comment>Backup window, form: label above the two choices (everything, or the structure only).</comment>
+  </data>
+  <data name="Backup_Everything" xml:space="preserve">
+    <value>Everything</value>
+    <comment>Backup window, form: choice that saves the structure and the rows.</comment>
+  </data>
+  <data name="Backup_EverythingHint" xml:space="preserve">
+    <value>The structure and every row.</value>
+    <comment>Backup window, form: line under the Everything choice.</comment>
+  </data>
+  <data name="Backup_StructureOnly" xml:space="preserve">
+    <value>Structure only</value>
+    <comment>Backup window, form: choice that saves the definitions without rows.</comment>
+  </data>
+  <data name="Backup_StructureOnlyHint" xml:space="preserve">
+    <value>Tables, views, functions, types and permissions, without the rows.</value>
+    <comment>Backup window, form: line under the Structure only choice.</comment>
+  </data>
+  <data name="Backup_Command" xml:space="preserve">
+    <value>Command</value>
+    <comment>Backup window, form: button that shows or hides the pg_dump command line.</comment>
+  </data>
+  <data name="Backup_CommandNote" xml:space="preserve">
+    <value>Without the password: pgNimbus passes it to pg_dump in the environment, never on the command line.</value>
+    <comment>Backup window, form: note under the shown command line. pgNimbus is the product name; pg_dump is a program name.</comment>
+  </data>
+  <data name="Backup_StopNote" xml:space="preserve">
+    <value>You can keep working in the main window. Stop deletes the unfinished file; one already at that path stays as it was.</value>
+    <comment>Backup window, while running: note under the progress bar. Stop is the name of the Stop button.</comment>
+  </data>
+  <data name="Backup_LogToggle" xml:space="preserve">
+    <value>pg_dump's log</value>
+    <comment>Backup window, after a run: button that shows or hides what pg_dump wrote. pg_dump is a program name.</comment>
+  </data>
+  <data name="Restore_LogToggle" xml:space="preserve">
+    <value>pg_restore's log</value>
+    <comment>Restore window, after a run: button that shows or hides what pg_restore wrote. pg_restore is a program name.</comment>
+  </data>
+  <data name="Backup_CopyLog" xml:space="preserve">
+    <value>Copy Log</value>
+    <comment>Backup and Restore windows: button under the shown log that copies it.</comment>
+  </data>
+  <data name="Backup_UseAutomaticSearch" xml:space="preserve">
+    <value>Use Automatic Search</value>
+    <comment>Backup and Restore windows, when pg_dump or pg_restore is missing: button that forgets the folder chosen in Settings and searches again.</comment>
+  </data>
+  <data name="Backup_StartButton" xml:space="preserve">
+    <value>Back Up</value>
+    <comment>Backup window: the button that starts the backup.</comment>
+  </data>
+  <data name="Backup_BackUpAgain" xml:space="preserve">
+    <value>Back Up Again</value>
+    <comment>Backup window, after a successful backup: button that returns to the form for another backup.</comment>
+  </data>
+  <data name="Backup_ShowInFolder" xml:space="preserve">
+    <value>Show in Folder</value>
+    <comment>Backup window, after a successful backup: button that opens the folder holding the file.</comment>
+  </data>
+  <data name="Backup_TryAgain" xml:space="preserve">
+    <value>Try Again</value>
+    <comment>Backup and Restore windows, after a failure or a stop: button that returns to the form.</comment>
+  </data>
+  <data name="Backup_GuideCopyTip" xml:space="preserve">
+    <value>Copy the command</value>
+    <comment>Install steps shown when pg_dump or pg_restore is missing: tooltip of the Copy button beside a shell command.</comment>
+  </data>
+  <data name="Backup_GuideChooseFolderHint" xml:space="preserve">
+    <value>Installed them somewhere else? Choose Folder… and pick the folder that holds pg_dump.</value>
+    <comment>Install steps shown when pg_dump or pg_restore is missing: last line. Choose Folder… is the name of a button next to it; pg_dump is a program name.</comment>
+  </data>
+  <data name="Restore_ChooseTitle" xml:space="preserve">
+    <value>Choose a backup made by pg_dump</value>
+    <comment>Restore window, before a file is chosen: heading. pg_dump is a program name.</comment>
+  </data>
+  <data name="Restore_ChooseHint" xml:space="preserve">
+    <value>A .dump file, like the ones Back Up Database… saves, or a .backup or .tar archive. You'll see what it holds before anything is restored.</value>
+    <comment>Restore window, before a file is chosen: hint under the heading. Back Up Database… is the name of a command; .dump, .backup and .tar are file extensions.</comment>
+  </data>
+  <data name="Restore_Reading" xml:space="preserve">
+    <value>Reading {file}…</value>
+    <comment>Restore window: shown while the file's contents are read. {file} is a file name, such as shop.dump.</comment>
+  </data>
+  <data name="Restore_BackupLabel" xml:space="preserve">
+    <value>Backup</value>
+    <comment>Restore window, form: label above the chosen file's name.</comment>
+  </data>
+  <data name="Restore_RestoreInto" xml:space="preserve">
+    <value>Restore into</value>
+    <comment>Restore window, form: label above the two choices of where the backup goes.</comment>
+  </data>
+  <data name="Restore_NewDatabase" xml:space="preserve">
+    <value>A new database</value>
+    <comment>Restore window, form: choice that restores into a database created for it.</comment>
+  </data>
+  <data name="Restore_NewDatabaseHint" xml:space="preserve">
+    <value>Nothing that exists is touched. If the restore fails, the new database is removed again.</value>
+    <comment>Restore window, form: line under the new database name box.</comment>
+  </data>
+  <data name="Restore_CurrentDatabase" xml:space="preserve">
+    <value>This database: {name}</value>
+    <comment>Restore window, form: choice that restores into the window's own database. {name} is a database name, such as shop.</comment>
+  </data>
+  <data name="Restore_CurrentDatabaseHint" xml:space="preserve">
+    <value>What the backup holds is dropped and created again from it; other objects stay. pgNimbus asks before it starts.</value>
+    <comment>Restore window, form: line under the This database choice. pgNimbus is the product name.</comment>
+  </data>
+  <data name="Restore_KeepOwners" xml:space="preserve">
+    <value>Keep owners and permissions</value>
+    <comment>Restore window, form: check box.</comment>
+  </data>
+  <data name="Restore_StopNote" xml:space="preserve">
+    <value>It's one transaction: Stop leaves everything as it was, and removes a new database again.</value>
+    <comment>Restore window, while running: note under the progress bar. Stop is the name of the Stop button.</comment>
+  </data>
+  <data name="Restore_ChooseFile" xml:space="preserve">
+    <value>Choose File…</value>
+    <comment>Restore window: button that opens a file picker.</comment>
+  </data>
+  <data name="Restore_ChooseAnother" xml:space="preserve">
+    <value>Choose Another File…</value>
+    <comment>Restore window, when the chosen file can't be restored: button that opens a file picker.</comment>
+  </data>
+  <data name="Restore_Start" xml:space="preserve">
+    <value>Restore</value>
+    <comment>Restore window: the button that starts the restore.</comment>
+  </data>
+  <data name="Restore_OpenInNewWindow" xml:space="preserve">
+    <value>Open in New Window</value>
+    <comment>Restore window, after a restore into a new database: button that opens a window on that database.</comment>
+  </data>
+  <data name="Backup_SaveDialogTitle" xml:space="preserve">
+    <value>Save backup as</value>
+    <comment>Title of the file picker that chooses where the backup is saved.</comment>
+  </data>
+  <data name="Backup_FilterArchive" xml:space="preserve">
+    <value>Backup archive</value>
+    <comment>File picker of the Backup window: name of the file type for .dump files.</comment>
+  </data>
+  <data name="Backup_FilterScript" xml:space="preserve">
+    <value>SQL script</value>
+    <comment>File picker of the Backup window: name of the file type for .sql files.</comment>
+  </data>
+  <data name="Backup_ChooseToolsFolderTitle" xml:space="preserve">
+    <value>Choose the folder that holds pg_dump and pg_restore</value>
+    <comment>Title of the folder picker opened by Choose Folder… in the Backup and Restore windows. pg_dump and pg_restore are program names.</comment>
+  </data>
+  <data name="Restore_OpenDialogTitle" xml:space="preserve">
+    <value>Choose a backup to restore</value>
+    <comment>Title of the file picker of the Restore window.</comment>
+  </data>
+  <data name="Restore_FilterArchive" xml:space="preserve">
+    <value>pg_dump archive</value>
+    <comment>File picker of the Restore window: name of the file type for backup archives. pg_dump is a program name.</comment>
+  </data>
+  <data name="Restore_FilterAll" xml:space="preserve">
+    <value>All files</value>
+    <comment>File picker of the Restore window: name of the file type that shows every file.</comment>
+  </data>
+  <data name="Backup_ConfirmStop" xml:space="preserve">
+    <value>A backup is still running. Stop it and close the window? The unfinished file is deleted.</value>
+    <comment>Confirmation when the Backup window is closed while a backup runs.</comment>
+  </data>
+  <data name="Backup_ConfirmStopButton" xml:space="preserve">
+    <value>Stop Backup</value>
+    <comment>Confirm button of the dialog that asks to stop a running backup.</comment>
+  </data>
+  <data name="Restore_ConfirmStop" xml:space="preserve">
+    <value>A restore is still running. Stop it and close the window? It runs as one transaction, so nothing it did stays.</value>
+    <comment>Confirmation when the Restore window is closed while a restore runs.</comment>
+  </data>
+  <data name="Restore_ConfirmStopButton" xml:space="preserve">
+    <value>Stop Restore</value>
+    <comment>Confirm button of the dialog that asks to stop a running restore.</comment>
+  </data>
+  <data name="Restore_ConfirmReplace" xml:space="preserve">
+    <value>Restore into "{database}" on {server}? What the backup holds is dropped and created again from it, rows included. Other objects in the database stay. It happens in one transaction, but once it's done it can't be undone.</value>
+    <comment>Confirmation before a restore replaces what is in the window's own database. {database} is a database name, such as shop; {server} is the server's host, such as db.example.com, or with (through SSH) after it.</comment>
+  </data>
+  <data name="Restore_ConfirmReplaceButton" xml:space="preserve">
+    <value>Restore and Replace</value>
+    <comment>Confirm button of the dialog that asks before restoring into the current database.</comment>
+  </data>
+  <data name="Backup_TitleDatabase" xml:space="preserve">
+    <value>Back up {database}</value>
+    <comment>Heading of the Backup window when the whole database is backed up. {database} is a database name, such as shop.</comment>
+  </data>
+  <data name="Backup_TitleSchema" xml:space="preserve">
+    <value>Back up schema {schema}</value>
+    <comment>Heading of the Backup window for one schema. {schema} is a schema name, such as sales.</comment>
+  </data>
+  <data name="Backup_TitleTable" xml:space="preserve">
+    <value>Back up table {table}</value>
+    <comment>Heading of the Backup window for one table. {table} is a schema-qualified table name, such as sales.orders.</comment>
+  </data>
+  <data name="Backup_ScopeSchema" xml:space="preserve">
+    <value>schema {schema}</value>
+    <comment>Short description of what a backup covers: one schema. {schema} is a schema name, such as sales.</comment>
+  </data>
+  <data name="Backup_ScopeTable" xml:space="preserve">
+    <value>table {table}</value>
+    <comment>Short description of what a backup covers: one table. {table} is a schema-qualified table name, such as sales.orders.</comment>
+  </data>
+  <data name="Backup_FormatHintScript" xml:space="preserve">
+    <value>A SQL script you can read and keep in Git. Restore it with psql.</value>
+    <comment>Backup window, form: line under the file name when it ends in .sql. Git and psql are program names.</comment>
+  </data>
+  <data name="Backup_FormatHintArchive" xml:space="preserve">
+    <value>pg_dump's archive: compressed, and what Restore Backup… (or pg_restore) restores. Save as .sql for a readable script.</value>
+    <comment>Backup window, form: line under the file name when it ends in .dump. pg_dump and pg_restore are program names; Restore Backup… is the name of a command.</comment>
+  </data>
+  <data name="Backup_SetupErrorVersion" xml:space="preserve">
+    <value>Couldn't read the server's version: {reason}</value>
+    <comment>Backup window: error shown when the server's version can't be read. {reason} is the error's own message.</comment>
+  </data>
+  <data name="Backup_ProgressConnecting" xml:space="preserve">
+    <value>Connecting…</value>
+    <comment>Backup and Restore windows, while running: first progress line, before anything is known.</comment>
+  </data>
+  <data name="Backup_ProgressSavingTable" xml:space="preserve">
+    <value>Saving {table} · table {number} of {total}</value>
+    <comment>Backup window, while running: progress line. {table} is the table being saved, such as sales.orders; {number} is its position, such as 23; {total} is how many tables, such as 41.</comment>
+  </data>
+  <data name="Backup_ProgressSaving" xml:space="preserve">
+    <value>Saving {table}</value>
+    <comment>Backup window, while running: progress line when the number of tables is unknown. {table} is the table being saved, such as sales.orders.</comment>
+  </data>
+  <data name="Backup_ProgressStructure" xml:space="preserve">
+    <value>Saving the structure…</value>
+    <comment>Backup window, while running a structure-only backup: progress line.</comment>
+  </data>
+  <data name="Backup_ProgressFinishing" xml:space="preserve">
+    <value>Saving indexes, constraints and permissions…</value>
+    <comment>Backup window, while running: progress line once every table's rows are saved.</comment>
+  </data>
+  <data name="Backup_ProgressReading" xml:space="preserve">
+    <value>Reading the schema…</value>
+    <comment>Backup window, while running: progress line at the start, while pg_dump reads the catalog.</comment>
+  </data>
+  <data name="Backup_ResultSaved" xml:space="preserve">
+    <value>Saved {size} in {time}</value>
+    <comment>Backup window, after a successful backup: heading. {size} is a file size, such as 48.2 MB; {time} is the duration, such as 0:42.</comment>
+  </data>
+  <data name="Backup_ResultStopped" xml:space="preserve">
+    <value>Backup stopped</value>
+    <comment>Backup window, after the user stopped a backup: heading.</comment>
+  </data>
+  <data name="Backup_StoppedKept" xml:space="preserve">
+    <value>Nothing was saved. The file that was already there is unchanged.</value>
+    <comment>Backup window, after a stop: detail, when a file already existed at the chosen path.</comment>
+  </data>
+  <data name="Backup_StoppedNothing" xml:space="preserve">
+    <value>Nothing was saved.</value>
+    <comment>Backup window, after a stop: detail.</comment>
+  </data>
+  <data name="Backup_ResultFailed" xml:space="preserve">
+    <value>Backup failed</value>
+    <comment>Backup window, after a failed backup: heading.</comment>
+  </data>
+  <data name="Backup_FailedNoReason" xml:space="preserve">
+    <value>pg_dump stopped without saying why.</value>
+    <comment>Backup window, after a failure with no error message. pg_dump is a program name.</comment>
+  </data>
+  <data name="Restore_Title" xml:space="preserve">
+    <value>Restore a backup</value>
+    <comment>Heading of the Restore window.</comment>
+  </data>
+  <data name="Restore_ProblemMissing" xml:space="preserve">
+    <value>The file isn't there any more.</value>
+    <comment>Restore window: why a chosen file can't be restored. It was moved or deleted after it was chosen.</comment>
+  </data>
+  <data name="Restore_ProblemScript" xml:space="preserve">
+    <value>This is a SQL script, pg_dump's plain format. pgNimbus restores pg_dump's archives (.dump). Restore a script with psql (psql -f file.sql); pgNimbus doesn't run psql for you, because psql also runs the shell commands a script can hold.</value>
+    <comment>Restore window: why a plain SQL script can't be restored. pg_dump and psql are program names; pgNimbus is the product name; the command in parentheses is typed as it is.</comment>
+  </data>
+  <data name="Restore_ProblemNotArchive" xml:space="preserve">
+    <value>This isn't a pg_dump archive. pgNimbus restores the .dump files pg_dump writes.</value>
+    <comment>Restore window: why a chosen file can't be restored. pg_dump is a program name.</comment>
+  </data>
+  <data name="Restore_ProblemTooNew" xml:space="preserve">
+    <value>This backup was made by a newer pg_dump than this pg_restore ({version}) can read. Install a newer PostgreSQL client.</value>
+    <comment>Restore window: why a chosen file can't be restored. {version} is the installed pg_restore's release, such as 15.4.</comment>
+  </data>
+  <data name="Restore_ProblemCantRead" xml:space="preserve">
+    <value>pg_restore can't read this file: {reason}</value>
+    <comment>Restore window: why a chosen file can't be restored. {reason} is pg_restore's own error message.</comment>
+  </data>
+  <data name="Restore_ReadFailed" xml:space="preserve">
+    <value>The file couldn't be read: {reason}</value>
+    <comment>Restore window: why a chosen file can't be restored. {reason} is the error's own message.</comment>
+  </data>
+  <data name="Restore_ReadFailedShort" xml:space="preserve">
+    <value>The file couldn't be read.</value>
+    <comment>Restore window: why a chosen file can't be restored, when no reason is known.</comment>
+  </data>
+  <data name="Restore_ContentNoTablesLarge" xml:space="preserve">
+    <value>No tables, and large objects</value>
+    <comment>Restore window, form: what the backup holds, under the file name.</comment>
+  </data>
+  <data name="Restore_ContentNoTables" xml:space="preserve">
+    <value>No tables</value>
+    <comment>Restore window, form: what the backup holds, under the file name.</comment>
+  </data>
+  <data name="Restore_ContentWithRows_one" xml:space="preserve">
+    <value>{count} table, with its rows</value>
+    <comment>Restore window, form: what the backup holds. Singular. {count} is the number of tables.</comment>
+  </data>
+  <data name="Restore_ContentWithRows_other" xml:space="preserve">
+    <value>{count} tables, with their rows</value>
+    <comment>Restore window, form: what the backup holds. Plural. {count} is the number of tables, such as 5.</comment>
+  </data>
+  <data name="Restore_ContentStructure_one" xml:space="preserve">
+    <value>{count} table, structure only</value>
+    <comment>Restore window, form: what the backup holds. Singular. {count} is the number of tables.</comment>
+  </data>
+  <data name="Restore_ContentStructure_other" xml:space="preserve">
+    <value>{count} tables, structure only</value>
+    <comment>Restore window, form: what the backup holds. Plural. {count} is the number of tables, such as 5.</comment>
+  </data>
+  <data name="Restore_VersionWarning" xml:space="preserve">
+    <value>This backup is from PostgreSQL {backup}, and this server runs {server}. Something the newer release supports can stop the restore.</value>
+    <comment>Restore window, form: warning when the backup comes from a newer PostgreSQL than the server. {backup} and {server} are major releases, such as 18 and 17.</comment>
+  </data>
+  <data name="Restore_ArchiveDatabase" xml:space="preserve">
+    <value>Database {name}</value>
+    <comment>Restore window, form: first part of the line describing the backup. {name} is the database it was made from, such as shop.</comment>
+  </data>
+  <data name="Restore_ArchiveVersion" xml:space="preserve">
+    <value>PostgreSQL {version}</value>
+    <comment>Restore window, form: part of the line describing the backup. {version} is the server release it was made from, such as 17.11.</comment>
+  </data>
+  <data name="Restore_ArchiveSaved" xml:space="preserve">
+    <value>saved {created}</value>
+    <comment>Restore window, form: part of the line describing the backup. {created} is the date and time, such as 2026-10-10 09:32:12.</comment>
+  </data>
+  <data name="Restore_ArchiveSavedBy" xml:space="preserve">
+    <value>saved {created} by pg_dump {version}</value>
+    <comment>Restore window, form: part of the line describing the backup. {created} is the date and time, such as 2026-10-10 09:32:12; {version} is pg_dump's release, such as 18.6.</comment>
+  </data>
+  <data name="Restore_NameTaken" xml:space="preserve">
+    <value>There's already a database called {name}.</value>
+    <comment>Restore window, form: error under the new database name. {name} is the name typed.</comment>
+  </data>
+  <data name="Restore_NameEmpty" xml:space="preserve">
+    <value>Give the new database a name.</value>
+    <comment>Restore window, form: error under the new database name box when it is empty.</comment>
+  </data>
+  <data name="Restore_NameSpaces" xml:space="preserve">
+    <value>The name can't start or end with a space.</value>
+    <comment>Restore window, form: error under the new database name box.</comment>
+  </data>
+  <data name="Restore_NameTooLong" xml:space="preserve">
+    <value>The name is too long: PostgreSQL keeps {bytes} bytes.</value>
+    <comment>Restore window, form: error under the new database name box. {bytes} is the limit, 63.</comment>
+  </data>
+  <data name="Restore_NameControl" xml:space="preserve">
+    <value>The name can't hold control characters.</value>
+    <comment>Restore window, form: error under the new database name box.</comment>
+  </data>
+  <data name="Restore_OwnersMissingKeep_one" xml:space="preserve">
+    <value>Role {roles} doesn't exist on this server, so keeping owners will stop the restore.</value>
+    <comment>Restore window, form: note under Keep owners and permissions, when it is checked and a role the backup names is missing. Singular. {roles} is the role's name.</comment>
+  </data>
+  <data name="Restore_OwnersMissingKeep_other" xml:space="preserve">
+    <value>Roles {roles} don't exist on this server, so keeping owners will stop the restore.</value>
+    <comment>Restore window, form: note under Keep owners and permissions, when it is checked and roles the backup names are missing. Plural. {roles} is a comma-separated list of role names.</comment>
+  </data>
+  <data name="Restore_OwnersMissingDrop_one" xml:space="preserve">
+    <value>Role {roles} doesn't exist on this server, so you'll own everything restored.</value>
+    <comment>Restore window, form: note under Keep owners and permissions, when it is unchecked and a role the backup names is missing. Singular. {roles} is the role's name.</comment>
+  </data>
+  <data name="Restore_OwnersMissingDrop_other" xml:space="preserve">
+    <value>Roles {roles} don't exist on this server, so you'll own everything restored.</value>
+    <comment>Restore window, form: note under Keep owners and permissions, when it is unchecked and roles the backup names are missing. Plural. {roles} is a comma-separated list of role names.</comment>
+  </data>
+  <data name="Restore_OwnersKept" xml:space="preserve">
+    <value>Objects keep their owners and permissions from the backup.</value>
+    <comment>Restore window, form: note under Keep owners and permissions, when it is checked.</comment>
+  </data>
+  <data name="Restore_OwnersNotKept" xml:space="preserve">
+    <value>You'll own everything restored, and the backup's permissions are left out.</value>
+    <comment>Restore window, form: note under Keep owners and permissions, when it is unchecked.</comment>
+  </data>
+  <data name="Restore_ProgressCreatingDatabase" xml:space="preserve">
+    <value>Creating database {name}…</value>
+    <comment>Restore window, while running: first progress line when a new database is created. {name} is its name.</comment>
+  </data>
+  <data name="Restore_ProgressFinishing" xml:space="preserve">
+    <value>Finishing…</value>
+    <comment>Restore window, while running: progress line at the end.</comment>
+  </data>
+  <data name="Restore_ItemRows" xml:space="preserve">
+    <value>Restoring rows of {name}</value>
+    <comment>Restore window, while running: progress line. {name} is a table, such as public.orders.</comment>
+  </data>
+  <data name="Restore_ItemCreating" xml:space="preserve">
+    <value>Creating {name}</value>
+    <comment>Restore window, while running: progress line. {name} is the kind and name of an object, such as TABLE public.customers; the kind is PostgreSQL's own word and stays as it is.</comment>
+  </data>
+  <data name="Restore_ItemDropping" xml:space="preserve">
+    <value>Dropping {name}</value>
+    <comment>Restore window, while running: progress line. {name} is the kind and name of an object, such as TABLE public.customers; the kind is PostgreSQL's own word and stays as it is.</comment>
+  </data>
+  <data name="Restore_OpenFailed" xml:space="preserve">
+    <value>Couldn't open {database}: {reason}</value>
+    <comment>Restore window, after a restore: shown when the new window could not be opened. {database} is a database name; {reason} is the error's own message.</comment>
+  </data>
+  <data name="Restore_ResultRestored" xml:space="preserve">
+    <value>Restored into {database} in {time}</value>
+    <comment>Restore window, after a successful restore: heading. {database} is a database name, such as shop_restored; {time} is the duration, such as 0:12.</comment>
+  </data>
+  <data name="Restore_ResultNew" xml:space="preserve">
+    <value>{database} is a new database on this server.</value>
+    <comment>Restore window, after a successful restore into a new database: detail. {database} is its name.</comment>
+  </data>
+  <data name="Restore_ResultRefreshed" xml:space="preserve">
+    <value>The schema tree has been refreshed.</value>
+    <comment>Restore window, after a successful restore into the current database: detail.</comment>
+  </data>
+  <data name="Restore_ResultStopped" xml:space="preserve">
+    <value>Restore stopped</value>
+    <comment>Restore window, after the user stopped a restore: heading.</comment>
+  </data>
+  <data name="Restore_ResultFailed" xml:space="preserve">
+    <value>Restore failed</value>
+    <comment>Restore window, after a failed restore: heading.</comment>
+  </data>
+  <data name="Restore_FailedNoReason" xml:space="preserve">
+    <value>pg_restore stopped without saying why.</value>
+    <comment>Restore window, after a failure with no error message. pg_restore is a program name.</comment>
+  </data>
+  <data name="Restore_UnchangedRemoved" xml:space="preserve">
+    <value>Nothing was restored, and the new database {database} was removed again.</value>
+    <comment>Restore window, after a stop or a failure: detail. {database} is the new database's name.</comment>
+  </data>
+  <data name="Restore_UnchangedMaybeCreated" xml:space="preserve">
+    <value>Nothing was restored. If database {database} was created, it is empty; drop it when you like.</value>
+    <comment>Restore window, after a stop or a failure when the new database could not be removed. {database} is its name.</comment>
+  </data>
+  <data name="Restore_UnchangedCurrent" xml:space="preserve">
+    <value>Nothing was changed: the restore runs as one transaction, and {database} is as it was.</value>
+    <comment>Restore window, after a stop or a failure of a restore into the current database. {database} is its name.</comment>
+  </data>
+  <data name="Backup_FolderMissing" xml:space="preserve">
+    <value>The folder {folder} doesn't exist.</value>
+    <comment>Backup window, after a failure: the folder chosen for the file is missing. {folder} is a folder path.</comment>
+  </data>
+  <data name="Backup_CheckToolsFolderDump" xml:space="preserve">
+    <value>Check the folder pgNimbus uses for pg_dump in Settings, on the Data tab.</value>
+    <comment>Backup window, after a failure: hint when pg_dump could not be started. pgNimbus is the product name; Settings and Data are names of a page and a tab.</comment>
+  </data>
+  <data name="Restore_CheckToolsFolder" xml:space="preserve">
+    <value>Check the folder pgNimbus uses for pg_restore in Settings, on the Data tab.</value>
+    <comment>Restore window, after a failure: hint when pg_restore could not be started. pgNimbus is the product name; Settings and Data are names of a page and a tab.</comment>
+  </data>
+  <data name="Backup_SaveFailed" xml:space="preserve">
+    <value>The backup finished, but it couldn't be saved as {path}: {reason}. It's still in {partial}.</value>
+    <comment>Backup window, after a failure: the finished file could not be moved to its name. {path} is the chosen file; {reason} is the system's own message; {partial} is a temporary file path.</comment>
+  </data>
+  <data name="Backup_CouldNotStart" xml:space="preserve">
+    <value>Could not start {file}: {reason}</value>
+    <comment>Backup and Restore windows, after a failure: the program could not be started. {file} is a file name, such as pg_dump.exe; {reason} is the system's own message.</comment>
+  </data>
+  <data name="Restore_ServerThroughSsh" xml:space="preserve">
+    <value>{host} (through SSH)</value>
+    <comment>Restore window, in the question before restoring into the current database: the server's host when the connection goes through an SSH tunnel. {host} is a host name, such as db.example.com.</comment>
+  </data>
+  <data name="Restore_HintNoCreateDb" xml:space="preserve">
+    <value>Your role can't create databases. Restore into this database instead, or use a role with CREATEDB.</value>
+    <comment>Restore window, after a failure: hint. CREATEDB is a PostgreSQL role attribute and stays as it is.</comment>
+  </data>
+  <data name="Restore_HintPickName" xml:space="preserve">
+    <value>Pick another name.</value>
+    <comment>Restore window, after a failure: hint when a database of that name exists.</comment>
+  </data>
+  <data name="Restore_CreateFailed" xml:space="preserve">
+    <value>Couldn't create database {database}: {reason}</value>
+    <comment>Restore window, after a failure: the new database could not be created. {database} is its name; {reason} is the server's own message.</comment>
+  </data>
+  <data name="Backup_LogDropped_one" xml:space="preserve">
+    <value>({count} earlier line not kept)</value>
+    <comment>First line of the log shown after a backup or restore, when the oldest lines were dropped. Singular. {count} is the number of lines.</comment>
+  </data>
+  <data name="Backup_LogDropped_other" xml:space="preserve">
+    <value>({count} earlier lines not kept)</value>
+    <comment>First line of the log shown after a backup or restore, when the oldest lines were dropped. Plural. {count} is the number of lines, such as 120.</comment>
+  </data>
+  <data name="Backup_ReasonNoPgDump" xml:space="preserve">
+    <value>there's no pg_dump in this folder</value>
+    <comment>Reason a folder holds no usable PostgreSQL program. It is placed inside a sentence such as "Settings point pgNimbus at C:\tools, but there's no pg_dump in this folder." Write it as a clause that fits there; do not end it with a full stop.</comment>
+  </data>
+  <data name="Backup_ReasonNoPgRestore" xml:space="preserve">
+    <value>pg_dump is there, but pg_restore isn't</value>
+    <comment>Reason a folder holds no usable PostgreSQL program. It is placed inside a sentence; write it as a clause that fits there, without a full stop.</comment>
+  </data>
+  <data name="Backup_ReasonCantStart" xml:space="preserve">
+    <value>it can't be started ({detail})</value>
+    <comment>Reason a PostgreSQL program is not usable. It is placed inside a sentence; write it as a clause without a full stop. {detail} is the system's own message.</comment>
+  </data>
+  <data name="Backup_ReasonTimeout" xml:space="preserve">
+    <value>it didn't answer within {seconds} seconds</value>
+    <comment>Reason a PostgreSQL program is not usable. It is placed inside a sentence; write it as a clause without a full stop. {seconds} is a number, such as 10.</comment>
+  </data>
+  <data name="Backup_ReasonDllMissing" xml:space="preserve">
+    <value>it doesn't start: a library it needs is missing</value>
+    <comment>Reason a PostgreSQL program is not usable (Windows could not load a library). It is placed inside a sentence; write it as a clause without a full stop.</comment>
+  </data>
+  <data name="Backup_ReasonWrongCpu" xml:space="preserve">
+    <value>it doesn't start: it's built for a different processor</value>
+    <comment>Reason a PostgreSQL program is not usable. It is placed inside a sentence; write it as a clause without a full stop.</comment>
+  </data>
+  <data name="Backup_ReasonNoVersion" xml:space="preserve">
+    <value>it didn't report a PostgreSQL version</value>
+    <comment>Reason a PostgreSQL program is not usable. It is placed inside a sentence; write it as a clause without a full stop.</comment>
+  </data>
+  <data name="Backup_ReasonExitedLine" xml:space="preserve">
+    <value>it exited with code {code}: {line}</value>
+    <comment>Reason a PostgreSQL program is not usable or a run failed. It is placed inside a sentence; write it as a clause without a full stop. {code} is an exit code, such as 2; {line} is the program's own first error line.</comment>
+  </data>
+  <data name="Backup_ReasonExited" xml:space="preserve">
+    <value>it exited with code {code}</value>
+    <comment>Reason a PostgreSQL program is not usable or a run failed. It is placed inside a sentence; write it as a clause without a full stop. {code} is an exit code, such as 2.</comment>
+  </data>
+  <data name="Backup_HintPassword" xml:space="preserve">
+    <value>The server refused the password pgNimbus connected this window with. If it changed since, reconnect and try again.</value>
+    <comment>Hint under a backup or restore error. pgNimbus is the product name.</comment>
+  </data>
+  <data name="Backup_HintRoleMissing" xml:space="preserve">
+    <value>The backup names a role this server doesn't have. Turn off Keep owners and permissions to make you the owner of everything, or create the role first.</value>
+    <comment>Hint under a restore error. Keep owners and permissions is the name of a check box in the Restore window.</comment>
+  </data>
+  <data name="Backup_HintPointsOutside" xml:space="preserve">
+    <value>The backup refers to something it doesn't contain, such as a table in another schema. A schema or table backup needs what it points to, so restore it into a database that has it, like the one it came from.</value>
+    <comment>Hint under a restore error.</comment>
+  </data>
+  <data name="Backup_HintMustBeOwner" xml:space="preserve">
+    <value>Something in the backup belongs to a role you can't act for. Turn off Keep owners and permissions, or restore as that role.</value>
+    <comment>Hint under a restore error. Keep owners and permissions is the name of a check box in the Restore window.</comment>
+  </data>
+  <data name="Backup_HintRestorePermission" xml:space="preserve">
+    <value>Your role can't create everything the backup holds here. Restore into a new database, which you own, or use a role that can.</value>
+    <comment>Hint under a restore error.</comment>
+  </data>
+  <data name="Backup_HintToolTooOld" xml:space="preserve">
+    <value>This pg_dump is older than the server. Install a newer one; Settings, on the Data tab, shows which one pgNimbus uses.</value>
+    <comment>Hint under a backup error. pg_dump is a program name; Settings and Data are names of a page and a tab; pgNimbus is the product name.</comment>
+  </data>
+  <data name="Backup_HintBackupPermission" xml:space="preserve">
+    <value>Your role can't read everything this covers. Use a role that can, or back up a schema or table it can read.</value>
+    <comment>Hint under a backup error.</comment>
+  </data>
+  <data name="Backup_HintCertificate" xml:space="preserve">
+    <value>The server's certificate couldn't be checked. Check the connection's SSL settings and root certificate.</value>
+    <comment>Hint under a backup or restore error.</comment>
+  </data>
+  <data name="Backup_HintUnreachableTunnel" xml:space="preserve">
+    <value>{tool} couldn't reach the server through this window's SSH tunnel. Keep the window connected while it runs.</value>
+    <comment>Hint under a backup or restore error when the connection goes through an SSH tunnel. {tool} is pg_dump or pg_restore.</comment>
+  </data>
+  <data name="Backup_HintUnreachable" xml:space="preserve">
+    <value>{tool} couldn't reach the server. Check that it's up and that this computer can reach it.</value>
+    <comment>Hint under a backup or restore error. {tool} is pg_dump or pg_restore.</comment>
+  </data>
+  <data name="Backup_HintCannotWrite" xml:space="preserve">
+    <value>The file couldn't be written. Check that the folder exists, that you can write to it, and that the disk has room.</value>
+    <comment>Hint under a backup or restore error.</comment>
+  </data>
+  <data name="Backup_HintObjectGone" xml:space="preserve">
+    <value>Something this covers was dropped or renamed since the window loaded it. Refresh the schema and try again.</value>
+    <comment>Hint under a backup error.</comment>
+  </data>
+  <data name="Backup_GuideWinDownload" xml:space="preserve">
+    <value>Download the PostgreSQL {version} installer for Windows (Windows x86-64) from EDB, the official source.</value>
+    <comment>Install steps for Windows, step 1. {version} is a PostgreSQL release, such as 18. EDB is a company name.</comment>
+  </data>
+  <data name="Backup_GuideWinDownloadLink" xml:space="preserve">
+    <value>Open the download page</value>
+    <comment>Install steps for Windows, step 1: button that opens EDB's download page.</comment>
+  </data>
+  <data name="Backup_GuideWinRun" xml:space="preserve">
+    <value>Run it. On the Select Components page, leave only Command Line Tools checked: you don't need the server, pgAdmin or Stack Builder. Keep the suggested folder.</value>
+    <comment>Install steps for Windows, step 2. Select Components, Command Line Tools, pgAdmin and Stack Builder are names in the installer; write them as the installer shows them in your language if it is translated, else keep them.</comment>
+  </data>
+  <data name="Backup_GuideWinWinget" xml:space="preserve">
+    <value>Or install the same thing from a terminal, and pick only Command Line Tools when the installer asks:</value>
+    <comment>Install steps for Windows, step 3. A command to copy is shown under it.</comment>
+  </data>
+  <data name="Backup_GuideWinLookAgain" xml:space="preserve">
+    <value>Then click Look Again. pgNimbus finds C:\Program Files\PostgreSQL\{version}\bin on its own.</value>
+    <comment>Install steps for Windows, last step. Look Again is the name of a button; {version} is a PostgreSQL release, such as 18; the folder path is kept as it is.</comment>
+  </data>
+  <data name="Backup_GuideMacBrew" xml:space="preserve">
+    <value>Install PostgreSQL's client programs with Homebrew:</value>
+    <comment>Install steps for macOS with Homebrew, step 1. A command to copy is shown under it.</comment>
+  </data>
+  <data name="Backup_GuideMacBrewLookAgain" xml:space="preserve">
+    <value>Then click Look Again. pgNimbus finds them in Homebrew's libpq folder on its own; you don't need to add anything to PATH.</value>
+    <comment>Install steps for macOS with Homebrew, last step. Look Again is the name of a button; PATH is the environment variable.</comment>
+  </data>
+  <data name="Backup_GuideMacApp" xml:space="preserve">
+    <value>Download Postgres.app and move it to Applications. It includes pg_dump and pg_restore; you don't have to start its server.</value>
+    <comment>Install steps for macOS, step 1. Postgres.app is a product name.</comment>
+  </data>
+  <data name="Backup_GuideMacAppLink" xml:space="preserve">
+    <value>Open postgresapp.com</value>
+    <comment>Install steps for macOS, step 1: button that opens the Postgres.app website.</comment>
+  </data>
+  <data name="Backup_GuideMacOrBrew" xml:space="preserve">
+    <value>Or, if you use Homebrew:</value>
+    <comment>Install steps for macOS, step 2. A command to copy is shown under it.</comment>
+  </data>
+  <data name="Backup_GuideMacEither" xml:space="preserve">
+    <value>Then click Look Again. pgNimbus finds them in either place on its own.</value>
+    <comment>Install steps for macOS, last step. Look Again is the name of a button.</comment>
+  </data>
+  <data name="Backup_GuideDebRepo" xml:space="preserve">
+    <value>Add PostgreSQL's own package repository. Your distribution's packages are often older than the server, and pg_dump can't be older:</value>
+    <comment>Install steps for Debian and Ubuntu, step 1. A command to copy is shown under it.</comment>
+  </data>
+  <data name="Backup_GuideLinkPostgresql" xml:space="preserve">
+    <value>Instructions on postgresql.org</value>
+    <comment>Install steps for Linux: button that opens a page on postgresql.org.</comment>
+  </data>
+  <data name="Backup_GuideInstallClients" xml:space="preserve">
+    <value>Install the client programs:</value>
+    <comment>Install steps for Linux, a step. A command to copy is shown under it.</comment>
+  </data>
+  <data name="Backup_GuideDebLookAgain" xml:space="preserve">
+    <value>Then click Look Again. pgNimbus finds /usr/lib/postgresql/{version}/bin on its own.</value>
+    <comment>Install steps for Debian and Ubuntu, last step. Look Again is the name of a button; {version} is a PostgreSQL release, such as 18; the folder path is kept as it is.</comment>
+  </data>
+  <data name="Backup_GuideRhRepo" xml:space="preserve">
+    <value>Add PostgreSQL's own package repository for your distribution, as postgresql.org describes it.</value>
+    <comment>Install steps for Fedora and Red Hat, step 1.</comment>
+  </data>
+  <data name="Backup_GuideRhLookAgain" xml:space="preserve">
+    <value>Then click Look Again. pgNimbus finds /usr/pgsql-{version}/bin on its own.</value>
+    <comment>Install steps for Fedora and Red Hat, last step. Look Again is the name of a button; {version} is a PostgreSQL release, such as 18; the folder path is kept as it is.</comment>
+  </data>
+  <data name="Backup_GuideLookAgain" xml:space="preserve">
+    <value>Then click Look Again.</value>
+    <comment>Install steps for Linux, last step. Look Again is the name of a button.</comment>
+  </data>
+  <data name="Backup_GuideOtherLinux" xml:space="preserve">
+    <value>Install the PostgreSQL {version} client programs (the package that holds pg_dump and pg_restore) from your distribution, or from postgresql.org.</value>
+    <comment>Install steps for other Linux distributions, step 1. {version} is a PostgreSQL release, such as 18.</comment>
+  </data>
 
   <!-- ===== QueryLab ===== -->
   <data name="QueryLab_Title" xml:space="preserve">

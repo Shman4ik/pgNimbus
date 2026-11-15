@@ -985,9 +985,7 @@ public static class Scenarios
     {
         var model = BackupModel();
         model.State = BackupWindowState.Running;
-        model.ProgressIsIndeterminate = false;
-        model.ProgressPercent = 56;
-        model.ProgressText = "Saving sales.orders · table 23 of 41";
+        model.ShowProgress(new BackupProgress(BackupStage.SavingData, "sales.orders", 22, 41, 0.56, 184L * 1024 * 1024, TimeSpan.FromSeconds(72)));
         model.ProgressDetail = "1:12 · 184 MB";
         return new BackupWindow { DataContext = model };
     }
@@ -996,10 +994,9 @@ public static class Scenarios
     public static Window BackupDone()
     {
         var model = BackupModel();
-        model.State = BackupWindowState.Succeeded;
-        model.ResultTitle = "Saved 48.2 MB in 0:42";
-        model.ResultDetail = model.OutputPath;
-        model.Log = "pg_dump: reading schemas\npg_dump: dumping contents of table \"sales.orders\"";
+        model.ShowResult(new BackupResult(
+            BackupOutcome.Succeeded, model.OutputPath, 50_500_000, TimeSpan.FromSeconds(42), 41, null, null,
+            "pg_dump: reading schemas\npg_dump: dumping contents of table \"sales.orders\""));
         return new BackupWindow { DataContext = model };
     }
 
@@ -1007,12 +1004,12 @@ public static class Scenarios
     public static Window BackupFailed()
     {
         var model = BackupModel();
-        model.State = BackupWindowState.Failed;
-        model.ResultTitle = "Backup failed";
-        model.ResultDetail = "query failed: ERROR:  permission denied for table payroll\ndetail: Query was: LOCK TABLE hr.payroll IN ACCESS SHARE MODE";
-        model.ResultHint = PgToolErrorHints.For(model.ResultDetail, PgTool.PgDump, tunnelled: false);
+        const string error = "query failed: ERROR:  permission denied for table payroll\ndetail: Query was: LOCK TABLE hr.payroll IN ACCESS SHARE MODE";
+        model.ShowResult(new BackupResult(
+            BackupOutcome.Failed, model.OutputPath, 0, TimeSpan.Zero, 0, error,
+            PgToolErrorHints.For(error, PgTool.PgDump, tunnelled: false),
+            "pg_dump: reading schemas\npg_dump: error: query failed: ERROR:  permission denied for table payroll"));
         model.IsLogShown = true;
-        model.Log = "pg_dump: reading schemas\npg_dump: error: query failed: ERROR:  permission denied for table payroll";
         return new BackupWindow { DataContext = model };
     }
 
@@ -1024,7 +1021,7 @@ public static class Scenarios
     {
         var scan = new PgToolScan(
             [new PgToolInstall(@"C:\Program Files\PostgreSQL\15\bin", new PgVersion(15, 3), null, [])],
-            [new PgToolProblem(@"C:\Program Files\pgAdmin 4\runtime", "it doesn't start: a library it needs is missing")],
+            [new PgToolProblem(@"C:\Program Files\pgAdmin 4\runtime", () => PgToolLocator.DescribeFailure(new PgToolOutput(-1073741515, "", "")))],
             null);
         var tools = new PgToolStatusViewModel(
             PgTool.PgDump,
@@ -1077,9 +1074,7 @@ public static class Scenarios
         var model = RestoreModel();
         model.ShowInspection(ShopArchive, FakeRestoreService.ShopListing, [], "shop_restored");
         model.State = RestoreWindowState.Running;
-        model.ProgressPercent = 62;
-        model.ProgressText = "Restoring rows of public.orders";
-        model.ProgressDetail = "0:48";
+        model.ShowProgress(new RestoreProgress(RestoreStage.RestoringData, RestoreItemKind.RestoringRows, "public.orders", 0.62, TimeSpan.FromSeconds(48)));
         return RestoreWindowFor(model);
     }
 
@@ -1110,9 +1105,7 @@ public static class Scenarios
     public static Window RestoreScript()
     {
         var model = RestoreModel();
-        model.ShowProblem(@"C:\Users\me\Documents\shop.sql",
-            "This is a SQL script, pg_dump's plain format. pgNimbus restores pg_dump's archives (.dump). Restore a script with psql (psql -f file.sql); "
-            + "pgNimbus doesn't run psql for you, because psql also runs the shell commands a script can hold.");
+        model.ShowProblem(@"C:\Users\me\Documents\shop.sql", PgArchiveFormat.PlainSql);
         return RestoreWindowFor(model);
     }
 
