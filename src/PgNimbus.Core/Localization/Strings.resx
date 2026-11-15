@@ -1448,6 +1448,1118 @@
   </data>
 
   <!-- ===== Shell ===== -->
+  <data name="Shell_AppMenuTip" xml:space="preserve">
+    <value>Files, tabs and preferences</value>
+    <comment>Main window, command bar at the top: tooltip of the three-line application-menu button.</comment>
+  </data>
+  <data name="Shell_MenuNewQueryTab" xml:space="preserve">
+    <value>New Query Tab</value>
+    <comment>Main window: the application menu opened by the three-line button at the top left (on macOS the same commands are in the menu bar). A menu item (and macOS File menu item) that opens a new, empty query tab.</comment>
+  </data>
+  <data name="Shell_MenuOpen" xml:space="preserve">
+    <value>Open…</value>
+    <comment>Main window: the application menu opened by the three-line button at the top left (on macOS the same commands are in the menu bar). A menu item (and macOS File menu item) that opens a .sql file from disk. The ellipsis means a file picker follows.</comment>
+  </data>
+  <data name="Shell_MenuOpenRecent" xml:space="preserve">
+    <value>Open Recent</value>
+    <comment>Main window: the application menu opened by the three-line button at the top left (on macOS the same commands are in the menu bar). A menu item (and macOS File menu item) that opens a submenu of recently opened .sql files.</comment>
+  </data>
+  <data name="Shell_MenuNoRecentFiles" xml:space="preserve">
+    <value>No Recent Files</value>
+    <comment>Inside the Open Recent submenu: a disabled placeholder shown when no .sql file was opened yet.</comment>
+  </data>
+  <data name="Shell_MenuSaveAs" xml:space="preserve">
+    <value>Save As…</value>
+    <comment>Main window: the application menu opened by the three-line button at the top left (on macOS the same commands are in the menu bar). A menu item (and macOS File menu item): save the current tab under a new name, as a file or as a saved query.</comment>
+  </data>
+  <data name="Shell_MenuSaveToSavedQueries" xml:space="preserve">
+    <value>Save to Saved Queries…</value>
+    <comment>Main window: the application menu opened by the three-line button at the top left (on macOS the same commands are in the menu bar). A menu item (and macOS File menu item): save the current tab to the Saved Queries list in the sidebar. A name dialog follows.</comment>
+  </data>
+  <data name="Shell_MenuSaveToFile" xml:space="preserve">
+    <value>Save to File…</value>
+    <comment>Main window: the application menu opened by the three-line button at the top left (on macOS the same commands are in the menu bar). A menu item (and macOS File menu item): save the current tab to a .sql file on disk. A file picker may follow.</comment>
+  </data>
+  <data name="Shell_MenuCloseTab" xml:space="preserve">
+    <value>Close Tab</value>
+    <comment>Main window: the application menu opened by the three-line button at the top left (on macOS the same commands are in the menu bar). A menu item (and macOS File menu item) that closes the current query tab.</comment>
+  </data>
+  <data name="Shell_MenuReopenClosedTab" xml:space="preserve">
+    <value>Reopen Closed Tab</value>
+    <comment>Main window: the application menu opened by the three-line button at the top left (on macOS the same commands are in the menu bar). A menu item (and macOS File menu item) that brings back the most recently closed query tab.</comment>
+  </data>
+  <data name="Shell_MenuSwitchConnection" xml:space="preserve">
+    <value>Switch Connection…</value>
+    <comment>Main window: the application menu opened by the three-line button at the top left (on macOS the same commands are in the menu bar). A menu item (and macOS File menu item): close this connection and pick another one in the connection dialog.</comment>
+  </data>
+  <data name="Shell_MenuNewConnectionWindow" xml:space="preserve">
+    <value>New Connection Window…</value>
+    <comment>Main window: the application menu opened by the three-line button at the top left (on macOS the same commands are in the menu bar). A menu item (and macOS File menu item): open the connection dialog to connect in an additional window, keeping this one.</comment>
+  </data>
+  <data name="Shell_MenuBackUpDatabase" xml:space="preserve">
+    <value>Back Up Database…</value>
+    <comment>Main window: the application menu opened by the three-line button at the top left (on macOS the same commands are in the menu bar). A menu item (and macOS File menu item) that opens the backup window (pg_dump).</comment>
+  </data>
+  <data name="Shell_MenuRestoreBackup" xml:space="preserve">
+    <value>Restore Backup…</value>
+    <comment>Main window: the application menu opened by the three-line button at the top left (on macOS the same commands are in the menu bar). A menu item (and macOS File menu item) that opens the restore window (pg_restore).</comment>
+  </data>
+  <data name="Shell_MenuSettings" xml:space="preserve">
+    <value>Settings…</value>
+    <comment>Main window: the application menu opened by the three-line button at the top left (on macOS the same commands are in the menu bar). A menu item that opens the Settings page.</comment>
+  </data>
+  <data name="Shell_MenuKeyboardShortcuts" xml:space="preserve">
+    <value>Keyboard Shortcuts</value>
+    <comment>Main window: the application menu opened by the three-line button at the top left (on macOS the same commands are in the menu bar). A menu item (also macOS View menu item) that opens the keyboard shortcut sheet.</comment>
+  </data>
+  <data name="Shell_MenuAbout" xml:space="preserve">
+    <value>About pgNimbus</value>
+    <comment>Main window: the application menu opened by the three-line button at the top left (on macOS the same commands are in the menu bar). A menu item that opens the About box. The product name stays.</comment>
+  </data>
+  <data name="Shell_MenuRateInStore" xml:space="preserve">
+    <value>Rate pgNimbus in the Microsoft Store</value>
+    <comment>Main window: the application menu opened by the three-line button at the top left (on macOS the same commands are in the menu bar). A menu item shown only in the Microsoft Store version: opens the store page to leave a rating.</comment>
+  </data>
+  <data name="Shell_ToggleSidebarTip" xml:space="preserve">
+    <value>Show or hide the sidebar</value>
+    <comment>Main window, command bar at the top: tooltip of the button that collapses or expands the left sidebar. The shortcut is appended by the app.</comment>
+  </data>
+  <data name="Shell_SwitchDatabaseTip" xml:space="preserve">
+    <value>Switch to another database on this server</value>
+    <comment>Main window, command bar at the top: tooltip of the database name in the breadcrumb; clicking it lists the other databases of the server. The shortcut is appended by the app.</comment>
+  </data>
+  <data name="Shell_EnvironmentTip" xml:space="preserve">
+    <value>Environment: {environment}</value>
+    <comment>Main window, command bar at the top: tooltip of the environment label (Development, Staging) beside the breadcrumb. {environment} is the label, such as Staging.</comment>
+  </data>
+  <data name="Shell_ProductionMark" xml:space="preserve">
+    <value>production</value>
+    <comment>Main window, command bar at the top: label of the switch for a production connection while writes are off. A small lowercase tag.</comment>
+  </data>
+  <data name="Shell_ProductionWritesOn" xml:space="preserve">
+    <value>production · writes on</value>
+    <comment>Main window, command bar at the top: label of the production switch after writes were allowed in this window. A small lowercase tag.</comment>
+  </data>
+  <data name="Shell_ReadOnlyMark" xml:space="preserve">
+    <value>read-only</value>
+    <comment>Main window, command bar at the top (and status bar): small lowercase tag saying this connection or result cannot be written to.</comment>
+  </data>
+  <data name="Shell_ReadOnlyNotApplied" xml:space="preserve">
+    <value>read-only not applied</value>
+    <comment>Main window, command bar at the top: small amber warning tag shown when the profile asked for a read-only connection but the server still accepts writes.</comment>
+  </data>
+  <data name="Shell_ReadOnlyTip" xml:space="preserve">
+    <value>Read-only: {reason}</value>
+    <comment>Main window, command bar at the top: tooltip of the read-only tag. {reason} is a sentence fragment saying why, starting in lowercase, such as "the server is a standby replica, which refuses writes."</comment>
+  </data>
+  <data name="Shell_SwitchConnectionTip" xml:space="preserve">
+    <value>Connect to another database</value>
+    <comment>Main window, command bar at the top: tooltip of the swap button that opens the connection dialog. The shortcut is appended by the app.</comment>
+  </data>
+  <data name="Shell_SearchPill" xml:space="preserve">
+    <value>Search tables, queries, actions…</value>
+    <comment>Main window, command bar at the top: placeholder text of the centered search button that opens the command palette.</comment>
+  </data>
+  <data name="Shell_ActivityTip" xml:space="preserve">
+    <value>See who is connected and what is blocking what</value>
+    <comment>Main window, command bar at the top: tooltip of the pulse button that opens Server Activity. The shortcut is appended by the app.</comment>
+  </data>
+  <data name="Shell_ToggleThemeTip" xml:space="preserve">
+    <value>Toggle light/dark theme</value>
+    <comment>Main window, command bar at the top: tooltip of the button that switches between the light and the dark theme. The shortcut is appended by the app.</comment>
+  </data>
+  <data name="Shell_SettingsTip" xml:space="preserve">
+    <value>Settings</value>
+    <comment>Main window, command bar at the top: tooltip of the cog button that opens Settings. The shortcut is appended by the app.</comment>
+  </data>
+  <data name="Shell_ShortcutsTip" xml:space="preserve">
+    <value>Keyboard shortcuts</value>
+    <comment>Main window, command bar at the top: tooltip of the help button that opens the keyboard shortcut sheet. The shortcut is appended by the app.</comment>
+  </data>
+  <data name="Shell_SchemasTab" xml:space="preserve">
+    <value>Schemas</value>
+    <comment>Main window, sidebar: label of the first tab (the schema tree). Hidden when the sidebar is narrow, then only its icon shows.</comment>
+  </data>
+  <data name="Shell_SchemasTabTip" xml:space="preserve">
+    <value>Tables, views, functions and roles</value>
+    <comment>Main window, sidebar: tooltip of the Schemas tab; says what the tab holds.</comment>
+  </data>
+  <data name="Shell_QueriesTab" xml:space="preserve">
+    <value>Queries</value>
+    <comment>Main window, sidebar: label of the second tab (saved queries and history). Hidden when the sidebar is narrow.</comment>
+  </data>
+  <data name="Shell_QueriesTabTip" xml:space="preserve">
+    <value>Saved queries and run history</value>
+    <comment>Main window, sidebar: tooltip of the Queries tab; says what the tab holds.</comment>
+  </data>
+  <data name="Shell_NewTabTip" xml:space="preserve">
+    <value>New query tab</value>
+    <comment>Main window, above the editor: tooltip of the + button that opens a new query tab. The shortcut is appended by the app.</comment>
+  </data>
+  <data name="Shell_FindTabTip" xml:space="preserve">
+    <value>Find an open tab by name</value>
+    <comment>Main window, above the editor: tooltip of the small arrow button that lists every open tab so one can be found by name.</comment>
+  </data>
+  <data name="Shell_SearchTabs" xml:space="preserve">
+    <value>Search tabs…</value>
+    <comment>Main window, tab list popup: placeholder text of the search box.</comment>
+  </data>
+  <data name="Shell_ScrollTabsRight" xml:space="preserve">
+    <value>Scroll tabs right</value>
+    <comment>Main window, above the editor: tooltip of the arrow button that scrolls the tab strip to the right, shown when there are too many tabs to fit.</comment>
+  </data>
+  <data name="Shell_ScrollTabsLeft" xml:space="preserve">
+    <value>Scroll tabs left</value>
+    <comment>Main window, above the editor: tooltip of the arrow button that scrolls the tab strip to the left, shown when there are too many tabs to fit.</comment>
+  </data>
+  <data name="Shell_RunTip" xml:space="preserve">
+    <value>Run the script, or just the selection</value>
+    <comment>Main window, toolbar above the editor: tooltip of the Run button. The shortcut is appended by the app.</comment>
+  </data>
+  <data name="Shell_Run" xml:space="preserve">
+    <value>Run</value>
+    <comment>Main window, toolbar above the editor: label of the main button that runs the SQL.</comment>
+  </data>
+  <data name="Shell_CancelTip" xml:space="preserve">
+    <value>Stop the running query</value>
+    <comment>Main window, toolbar above the editor: tooltip of the Cancel button. The shortcut is appended by the app.</comment>
+  </data>
+  <data name="Shell_CancelQuery" xml:space="preserve">
+    <value>Cancel</value>
+    <comment>Main window, toolbar above the editor: label of the button that stops a running query.</comment>
+  </data>
+  <data name="Shell_BeginTip" xml:space="preserve">
+    <value>Start a transaction: nothing sticks until you commit</value>
+    <comment>Main window, toolbar: tooltip of the Begin button that starts a database transaction. The shortcut is appended by the app.</comment>
+  </data>
+  <data name="Shell_Begin" xml:space="preserve">
+    <value>Begin</value>
+    <comment>Main window, toolbar: label of the button that starts a database transaction (SQL BEGIN).</comment>
+  </data>
+  <data name="Shell_CommitTip" xml:space="preserve">
+    <value>Commit the transaction and keep its changes</value>
+    <comment>Main window, toolbar: tooltip of the Commit button shown while a transaction is open. The shortcut is appended by the app.</comment>
+  </data>
+  <data name="Shell_Commit" xml:space="preserve">
+    <value>Commit</value>
+    <comment>Main window, toolbar: label of the button that ends the open transaction and keeps its changes (SQL COMMIT).</comment>
+  </data>
+  <data name="Shell_RollbackTip" xml:space="preserve">
+    <value>Roll back the transaction and undo everything it did</value>
+    <comment>Main window, toolbar: tooltip of the Rollback button shown while a transaction is open. The shortcut is appended by the app.</comment>
+  </data>
+  <data name="Shell_Rollback" xml:space="preserve">
+    <value>Rollback</value>
+    <comment>Main window, toolbar: label of the button that ends the open transaction and undoes its changes (SQL ROLLBACK).</comment>
+  </data>
+  <data name="Shell_ExplainTip" xml:space="preserve">
+    <value>Show the query plan, estimated or measured</value>
+    <comment>Main window, toolbar: tooltip of the Explain button that opens a menu with two kinds of query plan.</comment>
+  </data>
+  <data name="Shell_Explain" xml:space="preserve">
+    <value>Explain</value>
+    <comment>Main window, toolbar: label of the button that opens the EXPLAIN menu.</comment>
+  </data>
+  <data name="Shell_ExplainEstimated" xml:space="preserve">
+    <value>Explain — Estimated Plan</value>
+    <comment>Main window, Explain menu: item that shows the planner estimate without running the query. The shortcut is shown beside it.</comment>
+  </data>
+  <data name="Shell_ExplainAnalyzeRuns" xml:space="preserve">
+    <value>Explain Analyze — Runs the Query</value>
+    <comment>Main window, Explain menu: item that runs the query and shows measured timings. The wording warns that the query really runs. The shortcut is shown beside it.</comment>
+  </data>
+  <data name="Shell_ExportTip" xml:space="preserve">
+    <value>Save the results as a CSV or JSON file</value>
+    <comment>Main window, toolbar: tooltip of the Export button.</comment>
+  </data>
+  <data name="Shell_Export" xml:space="preserve">
+    <value>Export</value>
+    <comment>Main window, toolbar: label of the button that opens the export menu.</comment>
+  </data>
+  <data name="Shell_ExportCsv" xml:space="preserve">
+    <value>Export as CSV…</value>
+    <comment>Main window, Export menu: item that saves the results as a CSV file. A file picker follows.</comment>
+  </data>
+  <data name="Shell_ExportJson" xml:space="preserve">
+    <value>Export as JSON…</value>
+    <comment>Main window, Export menu: item that saves the results as a JSON file. A file picker follows.</comment>
+  </data>
+  <data name="Shell_SpreadsheetSafe" xml:space="preserve">
+    <value>Safe for Spreadsheets</value>
+    <comment>Main window, Export menu: a checkbox item. When on, text that a spreadsheet could read as a formula gets a quote in front.</comment>
+  </data>
+  <data name="Shell_SpreadsheetSafeTip" xml:space="preserve">
+    <value>Put a ' in front of text that starts with =, +, -, or @ in CSV files and copied cells, so a spreadsheet shows it instead of running it as a formula</value>
+    <comment>Main window, Export menu: tooltip of the Safe for Spreadsheets checkbox. Keep the characters = + - @ and the single quote as they are.</comment>
+  </data>
+  <data name="Shell_ImportTip" xml:space="preserve">
+    <value>Load a CSV or JSON file into a table</value>
+    <comment>Main window, toolbar: tooltip of the Import button.</comment>
+  </data>
+  <data name="Shell_Import" xml:space="preserve">
+    <value>Import</value>
+    <comment>Main window, toolbar: label of the button that loads a CSV or JSON file into a table.</comment>
+  </data>
+  <data name="Shell_FormatSqlTip" xml:space="preserve">
+    <value>Format the SQL</value>
+    <comment>Main window, toolbar: tooltip of the icon button that reformats the SQL in the editor. The shortcut is appended by the app.</comment>
+  </data>
+  <data name="Shell_WordWrapTip" xml:space="preserve">
+    <value>Wrap long lines instead of scrolling sideways</value>
+    <comment>Main window, toolbar: tooltip of the toggle button for word wrap in the SQL editor. The shortcut is appended by the app.</comment>
+  </data>
+  <data name="Shell_InTransaction" xml:space="preserve">
+    <value>In transaction</value>
+    <comment>Main window, status bar: label shown while a database transaction is open.</comment>
+  </data>
+  <data name="Shell_InTransactionTip" xml:space="preserve">
+    <value>A transaction is open. Statements run inside it until you commit or roll back.</value>
+    <comment>Main window, status bar: tooltip of the In transaction label.</comment>
+  </data>
+  <data name="Shell_StagedTip" xml:space="preserve">
+    <value>Safe mode: these changes are staged locally and nothing has reached the database yet</value>
+    <comment>Main window, status bar: tooltip of the staged-changes segment. Safe mode is a setting that holds edits back for review.</comment>
+  </data>
+  <data name="Shell_ReviewStaged" xml:space="preserve">
+    <value>Review…</value>
+    <comment>Main window, status bar: button that opens a dialog showing the SQL of the staged changes.</comment>
+  </data>
+  <data name="Shell_ReviewStagedTip" xml:space="preserve">
+    <value>Show the generated SQL, then commit everything as one transaction</value>
+    <comment>Main window, status bar: tooltip of the Review button for staged changes.</comment>
+  </data>
+  <data name="Shell_DiscardStagedTip" xml:space="preserve">
+    <value>Drop all staged changes and reload from the server</value>
+    <comment>Main window, status bar: tooltip of the Discard button for staged changes.</comment>
+  </data>
+  <data name="Shell_FixRerun" xml:space="preserve">
+    <value>Fix &amp; re-run</value>
+    <comment>Main window, status bar: button offered after a statement failed on unquoted identifiers; rewrites them quoted and runs again.</comment>
+  </data>
+  <data name="Shell_FixRerunTip" xml:space="preserve">
+    <value>Rewrite the unquoted identifiers to match the database and run again</value>
+    <comment>Main window, status bar: tooltip of the Fix &amp; re-run button.</comment>
+  </data>
+  <data name="Shell_ResultsReadOnlyTip" xml:space="preserve">
+    <value>Results are read-only: {reason}</value>
+    <comment>Main window, status bar: tooltip of the read-only tag beside the results. {reason} is a sentence fragment starting in lowercase that says why the result cannot be edited, such as "this result is not mapped to one table."</comment>
+  </data>
+  <data name="Shell_FilterBarPinTip" xml:space="preserve">
+    <value>Always show the filter bar</value>
+    <comment>Main window, status bar: tooltip and accessible name of the funnel toggle that keeps the filter bar above a browsed table visible. The shortcut is appended by the app.</comment>
+  </data>
+  <data name="Shell_PreviousPage" xml:space="preserve">
+    <value>Previous page</value>
+    <comment>Main window, status bar: tooltip of the arrow button that shows the previous page of a browsed table.</comment>
+  </data>
+  <data name="Shell_NextPage" xml:space="preserve">
+    <value>Next page</value>
+    <comment>Main window, status bar: tooltip of the arrow button that shows the next page of a browsed table.</comment>
+  </data>
+  <data name="Shell_RowDetailsTip" xml:space="preserve">
+    <value>Row details: the selected row as a form</value>
+    <comment>Main window, status bar: tooltip of the button that opens the selected row as a form. The shortcut is appended by the app.</comment>
+  </data>
+  <data name="Shell_RowDetails" xml:space="preserve">
+    <value>Row details</value>
+    <comment>Main window, status bar: accessible name (read by screen readers) of the button that opens row details.</comment>
+  </data>
+  <data name="Shell_PalettePlaceholder" xml:space="preserve">
+    <value>Jump to a table, saved query, or action…</value>
+    <comment>Command palette: placeholder text of the search box.</comment>
+  </data>
+  <data name="Shell_PaletteNoMatches" xml:space="preserve">
+    <value>No matches</value>
+    <comment>Command palette: text in the middle of the empty list when nothing matches what was typed.</comment>
+  </data>
+  <data name="Shell_ShortcutsTitle" xml:space="preserve">
+    <value>Keyboard shortcuts</value>
+    <comment>Title of the overlay panel that lists the keyboard shortcuts.</comment>
+  </data>
+  <data name="Shell_SettingsTitle" xml:space="preserve">
+    <value>Settings</value>
+    <comment>Title of the overlay panel that holds the Settings page.</comment>
+  </data>
+  <data name="Shell_AboutTitle" xml:space="preserve">
+    <value>About</value>
+    <comment>Title of the overlay panel that holds the About box.</comment>
+  </data>
+  <data name="Shell_FindDatabase" xml:space="preserve">
+    <value>Find a database…</value>
+    <comment>Database list popup (click the database name in the title bar): placeholder text of the search box.</comment>
+  </data>
+  <data name="Shell_ReadingDatabases" xml:space="preserve">
+    <value>Reading the databases…</value>
+    <comment>Database list popup: shown while the list of databases is being read from the server.</comment>
+  </data>
+  <data name="Shell_OpenInNewWindow" xml:space="preserve">
+    <value>Open in New Window</value>
+    <comment>Right-click menu of a database in the database list popup: opens that database in an additional window.</comment>
+  </data>
+  <data name="Shell_DatabaseListFailed" xml:space="preserve">
+    <value>Couldn't list the databases: {error}</value>
+    <comment>Database list popup: shown when reading the list failed. {error} is the error text from the server or network, such as "connection refused".</comment>
+  </data>
+  <data name="Shell_NoDatabaseAllowed" xml:space="preserve">
+    <value>No database this role may connect to.</value>
+    <comment>Database list popup: shown when the list is empty because the current role may not connect to any database.</comment>
+  </data>
+  <data name="Shell_NoDatabaseMatches" xml:space="preserve">
+    <value>No database matches.</value>
+    <comment>Database list popup: shown when nothing in the list matches the text typed in the search box.</comment>
+  </data>
+  <data name="Shell_SearchToggleReplace" xml:space="preserve">
+    <value>Toggle replace</value>
+    <comment>Find bar of the SQL editor (also of the cell inspector), top right of the editor: tooltip of the arrow button that shows or hides the replace row.</comment>
+  </data>
+  <data name="Shell_SearchFind" xml:space="preserve">
+    <value>Find</value>
+    <comment>Find bar of the SQL editor (also of the cell inspector), top right of the editor: placeholder text of the search box.</comment>
+  </data>
+  <data name="Shell_SearchMatchCase" xml:space="preserve">
+    <value>Match case</value>
+    <comment>Find bar of the SQL editor (also of the cell inspector), top right of the editor: tooltip of the "Aa" toggle: when on, upper and lower case letters are different.</comment>
+  </data>
+  <data name="Shell_SearchWholeWords" xml:space="preserve">
+    <value>Whole words</value>
+    <comment>Find bar of the SQL editor (also of the cell inspector), top right of the editor: tooltip of the toggle that matches only whole words.</comment>
+  </data>
+  <data name="Shell_SearchRegex" xml:space="preserve">
+    <value>Regular expression</value>
+    <comment>Find bar of the SQL editor (also of the cell inspector), top right of the editor: tooltip of the ".*" toggle that treats the search text as a regular expression.</comment>
+  </data>
+  <data name="Shell_SearchPreviousMatch" xml:space="preserve">
+    <value>Previous match</value>
+    <comment>Find bar of the SQL editor (also of the cell inspector), top right of the editor: tooltip of the up-arrow button. The shortcut is appended by the app.</comment>
+  </data>
+  <data name="Shell_SearchNextMatch" xml:space="preserve">
+    <value>Next match</value>
+    <comment>Find bar of the SQL editor (also of the cell inspector), top right of the editor: tooltip of the down-arrow button. The shortcut is appended by the app.</comment>
+  </data>
+  <data name="Shell_SearchReplace" xml:space="preserve">
+    <value>Replace</value>
+    <comment>Find bar of the SQL editor (also of the cell inspector), top right of the editor: placeholder text of the replace box.</comment>
+  </data>
+  <data name="Shell_SearchReplaceNext" xml:space="preserve">
+    <value>Replace next</value>
+    <comment>Find bar of the SQL editor (also of the cell inspector), top right of the editor: tooltip of the button that replaces the current match.</comment>
+  </data>
+  <data name="Shell_SearchReplaceAll" xml:space="preserve">
+    <value>Replace all</value>
+    <comment>Find bar of the SQL editor (also of the cell inspector), top right of the editor: tooltip of the button that replaces every match.</comment>
+  </data>
+  <data name="Shell_MacHide" xml:space="preserve">
+    <value>Hide {appName}</value>
+    <comment>macOS app menu (the menu named after the app, in the menu bar): item that hides the app. {appName} is the product name, pgNimbus.</comment>
+  </data>
+  <data name="Shell_MacHideOthers" xml:space="preserve">
+    <value>Hide Others</value>
+    <comment>macOS app menu (the menu named after the app, in the menu bar): item that hides every other application.</comment>
+  </data>
+  <data name="Shell_MacShowAll" xml:space="preserve">
+    <value>Show All</value>
+    <comment>macOS app menu (the menu named after the app, in the menu bar): item that shows all hidden applications again.</comment>
+  </data>
+  <data name="Shell_MacQuit" xml:space="preserve">
+    <value>Quit {appName}</value>
+    <comment>macOS app menu (the menu named after the app, in the menu bar): item that quits the app. {appName} is the product name, pgNimbus.</comment>
+  </data>
+  <data name="Shell_MacServices" xml:space="preserve">
+    <value>Services</value>
+    <comment>macOS app menu (the menu named after the app, in the menu bar): submenu of the operating system's services.</comment>
+  </data>
+  <data name="Shell_MenuUndo" xml:space="preserve">
+    <value>Undo</value>
+    <comment>macOS menu bar, Edit menu: item that undoes the last edit in the focused text field.</comment>
+  </data>
+  <data name="Shell_MenuRedo" xml:space="preserve">
+    <value>Redo</value>
+    <comment>macOS menu bar, Edit menu: item that redoes an undone edit in the focused text field.</comment>
+  </data>
+  <data name="Shell_MenuCut" xml:space="preserve">
+    <value>Cut</value>
+    <comment>macOS menu bar, Edit menu: item that cuts the selected text to the clipboard.</comment>
+  </data>
+  <data name="Shell_MenuPaste" xml:space="preserve">
+    <value>Paste</value>
+    <comment>macOS menu bar, Edit menu: item that pastes the clipboard text.</comment>
+  </data>
+  <data name="Shell_MenuSelectAll" xml:space="preserve">
+    <value>Select All</value>
+    <comment>macOS menu bar, Edit menu: item that selects all text in the focused text field.</comment>
+  </data>
+  <data name="Shell_MenuFind" xml:space="preserve">
+    <value>Find…</value>
+    <comment>macOS menu bar, Edit menu: item that opens the find bar of the SQL editor.</comment>
+  </data>
+  <data name="Shell_ThemeSystem" xml:space="preserve">
+    <value>System</value>
+    <comment>macOS menu bar, View, Appearance submenu: radio item that makes the app follow the operating system's light or dark setting.</comment>
+  </data>
+  <data name="Shell_ThemeLight" xml:space="preserve">
+    <value>Light</value>
+    <comment>macOS menu bar, View, Appearance submenu: radio item that selects the light theme.</comment>
+  </data>
+  <data name="Shell_ThemeDark" xml:space="preserve">
+    <value>Dark</value>
+    <comment>macOS menu bar, View, Appearance submenu: radio item that selects the dark theme.</comment>
+  </data>
+  <data name="Shell_MenuMinimize" xml:space="preserve">
+    <value>Minimize</value>
+    <comment>macOS menu bar, Window menu: item that minimizes the window to the Dock.</comment>
+  </data>
+  <data name="Shell_MenuZoom" xml:space="preserve">
+    <value>Zoom</value>
+    <comment>macOS menu bar, Window menu: item that maximizes the window or returns it to its previous size.</comment>
+  </data>
+  <data name="Shell_MenuBringAllToFront" xml:space="preserve">
+    <value>Bring All to Front</value>
+    <comment>macOS menu bar, Window menu: item that raises every window of the app.</comment>
+  </data>
+  <data name="Shell_MenuFile" xml:space="preserve">
+    <value>File</value>
+    <comment>macOS menu bar: title of the File menu.</comment>
+  </data>
+  <data name="Shell_MenuEdit" xml:space="preserve">
+    <value>Edit</value>
+    <comment>macOS menu bar: title of the Edit menu (undo, copy, paste).</comment>
+  </data>
+  <data name="Shell_MenuQuery" xml:space="preserve">
+    <value>Query</value>
+    <comment>macOS menu bar: title of the Query menu (run, explain, transactions, monitors).</comment>
+  </data>
+  <data name="Shell_MenuView" xml:space="preserve">
+    <value>View</value>
+    <comment>macOS menu bar: title of the View menu (palette, sidebar, appearance).</comment>
+  </data>
+  <data name="Shell_MenuWindow" xml:space="preserve">
+    <value>Window</value>
+    <comment>macOS menu bar: title of the Window menu (minimize, tabs, window list).</comment>
+  </data>
+  <data name="Shell_MenuRun" xml:space="preserve">
+    <value>Run</value>
+    <comment>macOS menu bar, Query menu: item that runs the SQL of the current tab or the selection.</comment>
+  </data>
+  <data name="Shell_MenuCancel" xml:space="preserve">
+    <value>Cancel</value>
+    <comment>macOS menu bar, Query menu: item that stops the running query.</comment>
+  </data>
+  <data name="Shell_MenuExplain" xml:space="preserve">
+    <value>Explain</value>
+    <comment>macOS menu bar, Query menu: item that shows the estimated query plan.</comment>
+  </data>
+  <data name="Shell_MenuExplainAnalyze" xml:space="preserve">
+    <value>Explain Analyze</value>
+    <comment>macOS menu bar, Query menu: item that runs the query and shows the measured plan.</comment>
+  </data>
+  <data name="Shell_MenuFormatSql" xml:space="preserve">
+    <value>Format SQL</value>
+    <comment>macOS menu bar, Query menu: item that reformats the SQL in the editor.</comment>
+  </data>
+  <data name="Shell_MenuExpandStar" xml:space="preserve">
+    <value>Expand SELECT *</value>
+    <comment>macOS menu bar, Query menu: item that replaces SELECT * with the list of column names. Keep SELECT * as it is: it is SQL.</comment>
+  </data>
+  <data name="Shell_MenuBeginTransaction" xml:space="preserve">
+    <value>Begin Transaction</value>
+    <comment>macOS menu bar, Query menu: item that starts a database transaction.</comment>
+  </data>
+  <data name="Shell_MenuCommitTransaction" xml:space="preserve">
+    <value>Commit Transaction</value>
+    <comment>macOS menu bar, Query menu: item that ends the open transaction and keeps its changes.</comment>
+  </data>
+  <data name="Shell_MenuRollbackTransaction" xml:space="preserve">
+    <value>Rollback Transaction</value>
+    <comment>macOS menu bar, Query menu: item that ends the open transaction and undoes its changes.</comment>
+  </data>
+  <data name="Shell_MenuRefreshSchema" xml:space="preserve">
+    <value>Refresh Schema</value>
+    <comment>macOS menu bar, Query menu: item that reloads the schema tree from the server.</comment>
+  </data>
+  <data name="Shell_MenuServerActivity" xml:space="preserve">
+    <value>Server Activity…</value>
+    <comment>macOS menu bar, Query menu: item that opens the Server Activity window.</comment>
+  </data>
+  <data name="Shell_MenuDatabaseOverview" xml:space="preserve">
+    <value>Database Overview…</value>
+    <comment>macOS menu bar, Query menu: item that opens the Database Overview window.</comment>
+  </data>
+  <data name="Shell_MenuSlowQueries" xml:space="preserve">
+    <value>Slow Queries…</value>
+    <comment>macOS menu bar, Query menu: item that opens the Slow Queries window.</comment>
+  </data>
+  <data name="Shell_MenuQueryLab" xml:space="preserve">
+    <value>Query Lab…</value>
+    <comment>macOS menu bar, Query menu: item that opens Query Lab, where saved query plans are compared.</comment>
+  </data>
+  <data name="Shell_MenuNotifyMonitor" xml:space="preserve">
+    <value>LISTEN / NOTIFY Monitor…</value>
+    <comment>macOS menu bar, Query menu: item that opens the window that watches PostgreSQL LISTEN / NOTIFY messages. LISTEN and NOTIFY are SQL commands.</comment>
+  </data>
+  <data name="Shell_MenuRolesPermissions" xml:space="preserve">
+    <value>Roles and Permissions…</value>
+    <comment>macOS menu bar, Query menu: item that opens the Roles &amp; Permissions window.</comment>
+  </data>
+  <data name="Shell_MenuCommandPalette" xml:space="preserve">
+    <value>Command Palette…</value>
+    <comment>macOS menu bar, View menu: item that opens the command palette.</comment>
+  </data>
+  <data name="Shell_MenuHideSidebar" xml:space="preserve">
+    <value>Hide Sidebar</value>
+    <comment>macOS menu bar, View menu: item that hides the left sidebar. Shown while the sidebar is visible.</comment>
+  </data>
+  <data name="Shell_MenuShowSidebar" xml:space="preserve">
+    <value>Show Sidebar</value>
+    <comment>macOS menu bar, View menu: item that shows the left sidebar. Shown while the sidebar is hidden.</comment>
+  </data>
+  <data name="Shell_MenuAppearance" xml:space="preserve">
+    <value>Appearance</value>
+    <comment>macOS menu bar, View menu: item that opens the submenu with the System, Light and Dark themes.</comment>
+  </data>
+  <data name="Shell_MenuPreviousTab" xml:space="preserve">
+    <value>Show Previous Tab</value>
+    <comment>macOS menu bar, Window menu: item that switches to the query tab on the left.</comment>
+  </data>
+  <data name="Shell_MenuNextTab" xml:space="preserve">
+    <value>Show Next Tab</value>
+    <comment>macOS menu bar, Window menu: item that switches to the query tab on the right.</comment>
+  </data>
+  <data name="Shell_TabMenuSaveQuery" xml:space="preserve">
+    <value>Save Query…</value>
+    <comment>Right-click menu of a query tab: saves the tab to the Saved Queries list. A name dialog follows.</comment>
+  </data>
+  <data name="Shell_TabMenuRename" xml:space="preserve">
+    <value>Rename…</value>
+    <comment>Right-click menu of a query tab: renames the tab in place.</comment>
+  </data>
+  <data name="Shell_TabMenuCloseOthers" xml:space="preserve">
+    <value>Close Others</value>
+    <comment>Right-click menu of a query tab: closes every other tab.</comment>
+  </data>
+  <data name="Shell_TabMenuCloseToTheRight" xml:space="preserve">
+    <value>Close to the Right</value>
+    <comment>Right-click menu of a query tab: closes all tabs to the right of this one.</comment>
+  </data>
+  <data name="Shell_AllowWritesConfirm" xml:space="preserve">
+    <value>Allow writes to production ({connection}) in this window? Statements you run, grid edits, imports and schema actions can change data until you turn writes off or close the window. Other windows keep writes off.</value>
+    <comment>Confirmation dialog of the production switch in the title bar. {connection} is the connection and database, such as "prod-eu › shop". Writes are changes to data.</comment>
+  </data>
+  <data name="Shell_AllowWritesButton" xml:space="preserve">
+    <value>Allow Writes</value>
+    <comment>Confirmation dialog of the production switch: the red button that allows writes in this window.</comment>
+  </data>
+  <data name="Shell_ThisConnection" xml:space="preserve">
+    <value>this connection</value>
+    <comment>Confirmation dialog of the production switch: used in place of the connection name when there is none, so it reads "Allow writes to production (this connection) in this window?".</comment>
+  </data>
+  <data name="Shell_RenameDialogTitle" xml:space="preserve">
+    <value>pgNimbus — Rename</value>
+    <comment>Title of the dialog that asks for a new name of a table or view (from its Maintenance menu). pgNimbus is the product name.</comment>
+  </data>
+  <data name="Shell_NounRelation" xml:space="preserve">
+    <value>relation</value>
+    <comment>A noun (lowercase) naming a table or view, used inside the rename dialog's sentence "A relation named … already exists".</comment>
+  </data>
+  <data name="Shell_SwitchConnectionConfirm" xml:space="preserve">
+    <value>Switch connection? This window closes once the new connection is open. {losses}</value>
+    <comment>Confirmation dialog of Switch Connection. {losses} is one or two sentences saying what closing the window would lose, such as "2 staged changes will be discarded."</comment>
+  </data>
+  <data name="Shell_SwitchConnectionButton" xml:space="preserve">
+    <value>Switch Connection</value>
+    <comment>Confirmation dialog of Switch Connection: the button that continues.</comment>
+  </data>
+  <data name="Shell_SavePlanHeading" xml:space="preserve">
+    <value>Save plan to Query Lab</value>
+    <comment>Heading of the dialog that names a query plan to save in Query Lab.</comment>
+  </data>
+  <data name="Shell_NounSavedPlan" xml:space="preserve">
+    <value>saved plan</value>
+    <comment>A noun (lowercase) naming a plan saved in Query Lab, used inside the save dialog's sentence "A saved plan named … already exists".</comment>
+  </data>
+  <data name="Shell_SavePlanTitle" xml:space="preserve">
+    <value>pgNimbus — Save plan</value>
+    <comment>Window title of the dialog that names a query plan to save in Query Lab. pgNimbus is the product name.</comment>
+  </data>
+  <data name="Shell_PlanNotSaved" xml:space="preserve">
+    <value>The plan couldn't be saved</value>
+    <comment>Status line (bottom of the window): a plan could not be saved to Query Lab.</comment>
+  </data>
+  <data name="Shell_PlanSaved" xml:space="preserve">
+    <value>Saved plan “{name}” to Query Lab</value>
+    <comment>Status line (bottom of the window): a query plan was saved in Query Lab. {name} is the name the user gave it.</comment>
+  </data>
+  <data name="Shell_CloseRestoreRunning" xml:space="preserve">
+    <value>A restore is still running, and closing this window ends its connection. Stop the restore and close? It runs as one transaction, so nothing it did stays.</value>
+    <comment>Confirmation when closing a window while a restore (pg_restore) runs.</comment>
+  </data>
+  <data name="Shell_CloseRestoreRunningLosses" xml:space="preserve">
+    <value>A restore is still running, and closing this window ends its connection. Stop the restore and close? It runs as one transaction, so nothing it did stays. {losses}</value>
+    <comment>Confirmation when closing a window while a restore (pg_restore) runs and the window has more to lose. {losses} is one or two sentences, such as "2 staged changes will be discarded."</comment>
+  </data>
+  <data name="Shell_CloseBackupRunning" xml:space="preserve">
+    <value>A backup is still running, and closing this window ends its connection. Stop the backup and close?</value>
+    <comment>Confirmation when closing a window while a backup (pg_dump) runs.</comment>
+  </data>
+  <data name="Shell_CloseBackupRunningLosses" xml:space="preserve">
+    <value>A backup is still running, and closing this window ends its connection. Stop the backup and close? {losses}</value>
+    <comment>Confirmation when closing a window while a backup (pg_dump) runs and the window has more to lose. {losses} is one or two sentences, such as "2 staged changes will be discarded."</comment>
+  </data>
+  <data name="Shell_CloseWindowQuestion" xml:space="preserve">
+    <value>Close this window? {losses}</value>
+    <comment>Confirmation when closing a window that would lose work. {losses} is one or two sentences, such as "2 staged changes will be discarded."</comment>
+  </data>
+  <data name="Shell_StopRestore" xml:space="preserve">
+    <value>Stop Restore</value>
+    <comment>Confirmation when closing a window during a restore: the red button that stops the restore and closes.</comment>
+  </data>
+  <data name="Shell_StopBackup" xml:space="preserve">
+    <value>Stop Backup</value>
+    <comment>Confirmation when closing a window during a backup: the red button that stops the backup and closes.</comment>
+  </data>
+  <data name="Shell_CloseWindowButton" xml:space="preserve">
+    <value>Close Window</value>
+    <comment>Confirmation when closing a window that would lose work: the red button that closes it.</comment>
+  </data>
+  <data name="Shell_StagedSummary_one" xml:space="preserve">
+    <value>{count} staged change · {table}</value>
+    <comment>Title line of the dialog that reviews staged changes (safe mode). Singular. {count} is how many changes, {table} the table, such as public.orders.</comment>
+  </data>
+  <data name="Shell_StagedSummary_other" xml:space="preserve">
+    <value>{count} staged changes · {table}</value>
+    <comment>Title line of the dialog that reviews staged changes (safe mode). Plural. {count} is how many changes, such as 3; {table} the table, such as public.orders.</comment>
+  </data>
+  <data name="Shell_DiscardStagedConfirm_one" xml:space="preserve">
+    <value>Discard {count} staged change? The database hasn't been touched.</value>
+    <comment>Confirmation of the status bar Discard button. Singular. {count} is how many staged changes.</comment>
+  </data>
+  <data name="Shell_DiscardStagedConfirm_other" xml:space="preserve">
+    <value>Discard {count} staged changes? The database hasn't been touched.</value>
+    <comment>Confirmation of the status bar Discard button. Plural. {count} is how many staged changes, such as 3.</comment>
+  </data>
+  <data name="Shell_OpenSqlFileTitle" xml:space="preserve">
+    <value>Open SQL file</value>
+    <comment>Title of the system file picker that opens a .sql file.</comment>
+  </data>
+  <data name="Shell_SaveSqlFileTitle" xml:space="preserve">
+    <value>Save SQL file</value>
+    <comment>Title of the system file picker that saves a .sql file.</comment>
+  </data>
+  <data name="Shell_AllFiles" xml:space="preserve">
+    <value>All files</value>
+    <comment>File picker: name of the file type filter that shows every file.</comment>
+  </data>
+  <data name="Shell_CantOpenNonLocal" xml:space="preserve">
+    <value>Can't open a non-local file</value>
+    <comment>Status line: the chosen file is not on this computer (for example a cloud location) and cannot be opened.</comment>
+  </data>
+  <data name="Shell_OpenFailed" xml:space="preserve">
+    <value>Open failed: {error}</value>
+    <comment>Status line: a .sql file could not be read. {error} is the system error text, such as "Access to the path is denied."</comment>
+  </data>
+  <data name="Shell_FileNotFound" xml:space="preserve">
+    <value>File not found: {path}</value>
+    <comment>Status line: a recent file no longer exists. {path} is its full path.</comment>
+  </data>
+  <data name="Shell_CantSaveNonLocal" xml:space="preserve">
+    <value>Can't save to a non-local file</value>
+    <comment>Status line: the chosen location is not on this computer and cannot be written.</comment>
+  </data>
+  <data name="Shell_SavedFile" xml:space="preserve">
+    <value>Saved {file}</value>
+    <comment>Status line: a .sql file was written. {file} is the file name, such as report.sql.</comment>
+  </data>
+  <data name="Shell_SaveFailed" xml:space="preserve">
+    <value>Save failed: {error}</value>
+    <comment>Status line: a .sql file could not be written. {error} is the system error text.</comment>
+  </data>
+  <data name="Shell_NothingToSave" xml:space="preserve">
+    <value>Nothing to save: this tab is empty</value>
+    <comment>Status line: Save was used on a tab with no text.</comment>
+  </data>
+  <data name="Shell_SavedQuery" xml:space="preserve">
+    <value>Saved query “{name}”</value>
+    <comment>Status line: the tab was saved in the Saved Queries list. {name} is the name of the saved query.</comment>
+  </data>
+  <data name="Shell_SaveAsNewQueryHeading" xml:space="preserve">
+    <value>Save as a new query</value>
+    <comment>Heading of the dialog that names a new saved query (Save As).</comment>
+  </data>
+  <data name="Shell_SaveQueryHeading" xml:space="preserve">
+    <value>Save query</value>
+    <comment>Heading of the dialog that names a saved query.</comment>
+  </data>
+  <data name="Shell_FiltersNeedBrowse" xml:space="preserve">
+    <value>Filters apply while browsing a table: double-click one in the sidebar. A query you wrote is never rewritten; add a WHERE to it instead.</value>
+    <comment>Status line at the bottom of the main window: shown when the filter command is used outside a browsed table. WHERE is the SQL keyword.</comment>
+  </data>
+  <data name="Shell_AutoAliasOn" xml:space="preserve">
+    <value>Auto-alias tables: on (orders → orders o)</value>
+    <comment>Status line at the bottom of the main window: auto-alias was switched on. The example shows what it does to SQL: the table name orders gets the alias o.</comment>
+  </data>
+  <data name="Shell_AutoAliasOff" xml:space="preserve">
+    <value>Auto-alias tables: off</value>
+    <comment>Status line at the bottom of the main window: auto-alias was switched off.</comment>
+  </data>
+  <data name="Shell_SafeModeOn" xml:space="preserve">
+    <value>Safe mode: on — grid edits, deletes, and inserts are staged for review</value>
+    <comment>Status line at the bottom of the main window: safe mode was switched on. Safe mode holds changes back for review before they reach the database.</comment>
+  </data>
+  <data name="Shell_SafeModeOff" xml:space="preserve">
+    <value>Safe mode: off — grid changes apply immediately</value>
+    <comment>Status line at the bottom of the main window: safe mode was switched off.</comment>
+  </data>
+  <data name="Shell_NoPlanOnScreen" xml:space="preserve">
+    <value>No plan on screen: run Explain or Explain Analyze, or import a plan, first</value>
+    <comment>Status line at the bottom of the main window: a plan command (save or compare) was used while no query plan is shown.</comment>
+  </data>
+  <data name="Shell_CantSwitchDatabase" xml:space="preserve">
+    <value>This window can't switch databases: it has no connection profile to open another database with.</value>
+    <comment>Status line at the bottom of the main window: the Switch database command was used in a window that has no saved connection profile.</comment>
+  </data>
+  <data name="Shell_SwitchDatabaseConfirm" xml:space="preserve">
+    <value>Open {database} in this window? {losses}</value>
+    <comment>Confirmation dialog when switching database. {database} is the database name; {losses} is one or two sentences saying what closing the current connection would lose, such as "2 staged changes will be discarded."</comment>
+  </data>
+  <data name="Shell_SwitchDatabaseButton" xml:space="preserve">
+    <value>Switch Database</value>
+    <comment>Confirmation dialog when switching database: the button that continues.</comment>
+  </data>
+  <data name="Shell_StayedOn" xml:space="preserve">
+    <value>Stayed on {database}.</value>
+    <comment>Status line at the bottom of the main window: the database switch was declined. {database} is the current database.</comment>
+  </data>
+  <data name="Shell_ConnectingTo" xml:space="preserve">
+    <value>Connecting to {database}…</value>
+    <comment>Status line at the bottom of the main window: a connection to another database is being opened. {database} is its name.</comment>
+  </data>
+  <data name="Shell_OpenDatabaseFailed" xml:space="preserve">
+    <value>Couldn't open database {database}: {error}</value>
+    <comment>Status line at the bottom of the main window: connecting to another database failed. {database} is its name; {error} is the error text, such as "permission denied for database".</comment>
+  </data>
+  <data name="Shell_LossStaged_one" xml:space="preserve">
+    <value>{count} staged change will be discarded</value>
+    <comment>One item in the list of what closing a connection loses (joined into a sentence by the app). Singular. A sentence fragment starting in lowercase or with a number. {count} is how many changes staged in safe mode.</comment>
+  </data>
+  <data name="Shell_LossStaged_other" xml:space="preserve">
+    <value>{count} staged changes will be discarded</value>
+    <comment>One item in the list of what closing a connection loses. Plural. {count} is how many changes staged in safe mode, such as 3.</comment>
+  </data>
+  <data name="Shell_LossTransaction" xml:space="preserve">
+    <value>the open transaction will be rolled back</value>
+    <comment>One item in the list of what closing a connection loses (joined into a sentence by the app). A sentence fragment starting in lowercase.</comment>
+  </data>
+  <data name="Shell_LossRunning_one" xml:space="preserve">
+    <value>the running query will be cancelled</value>
+    <comment>One item in the list of what closing a connection loses. Singular: one query is running. A sentence fragment starting in lowercase.</comment>
+  </data>
+  <data name="Shell_LossRunning_other" xml:space="preserve">
+    <value>{count} running queries will be cancelled</value>
+    <comment>One item in the list of what closing a connection loses. Plural. {count} is how many queries are running, such as 2.</comment>
+  </data>
+  <data name="Shell_LossesTwo" xml:space="preserve">
+    <value>{first} and {second}</value>
+    <comment>Joins two items of the list of what closing a connection loses into one phrase. {first} and {second} are fragments such as "the open transaction will be rolled back".</comment>
+  </data>
+  <data name="Shell_LossesThree" xml:space="preserve">
+    <value>{first}, {second} and {third}</value>
+    <comment>Joins three items of the list of what closing a connection loses into one phrase. Each is a fragment such as "the open transaction will be rolled back".</comment>
+  </data>
+  <data name="Shell_LossesSentence" xml:space="preserve">
+    <value>{losses}.</value>
+    <comment>Ends the list of what closing a connection loses as a sentence. {losses} is the joined phrase; the app capitalizes its first letter.</comment>
+  </data>
+  <data name="Shell_RestoreNeedsConnection" xml:space="preserve">
+    <value>Restoring needs a connection that pg_restore can use, and this window has none.</value>
+    <comment>Status line at the bottom of the main window: Restore Backup was used in a window with no connection profile. pg_restore is PostgreSQL's program and keeps its name.</comment>
+  </data>
+  <data name="Shell_RestoreReadOnly" xml:space="preserve">
+    <value>This connection is read-only, so it can't restore a backup. Connect with a profile that can write.</value>
+    <comment>Status line at the bottom of the main window: Restore Backup was used on a read-only connection.</comment>
+  </data>
+  <data name="Shell_BackupNeedsConnection" xml:space="preserve">
+    <value>Backups need a connection that pg_dump can use, and this window has none.</value>
+    <comment>Status line at the bottom of the main window: Back Up Database was used in a window with no connection profile. pg_dump is PostgreSQL's program and keeps its name.</comment>
+  </data>
+  <data name="Shell_ReadOnlySessionHint" xml:space="preserve">
+    <value>the connection is read-only, so the server refuses writes.</value>
+    <comment>The reason a connection cannot write, shown after "Read-only: " in a tooltip and as the reason a grid cannot be edited. A sentence fragment starting in lowercase.</comment>
+  </data>
+  <data name="Shell_ProductionLockedHint" xml:space="preserve">
+    <value>this is a production connection, and writes are off in this window until you allow them.</value>
+    <comment>The reason a production connection cannot write yet, shown in tooltips after "Read-only: " or "Results are read-only: ". A sentence fragment starting in lowercase.</comment>
+  </data>
+  <data name="Shell_ProductionNotEnforcedHint" xml:space="preserve">
+    <value>writes should be off on this production connection, but the server or a connection pooler did not apply that option, and the server accepts writes. pgNimbus keeps the grid read-only, but only pgNimbus blocks writes now: SQL you run can still change data.</value>
+    <comment>Tooltip reason of the amber read-only warning on a production connection whose server did not apply the read-only option. A sentence fragment starting in lowercase. pgNimbus is the product name.</comment>
+  </data>
+  <data name="Shell_ReadOnlyNotEnforcedHint" xml:space="preserve">
+    <value>the profile asks for a read-only connection, but the server or a connection pooler did not apply that option, and the server accepts writes. pgNimbus keeps the grid read-only, but only pgNimbus blocks writes now: SQL you run can still change data. Don't rely on this profile's protection in this session.</value>
+    <comment>Tooltip reason of the amber read-only warning on a connection profile marked read-only whose server did not apply the option. A sentence fragment starting in lowercase. pgNimbus is the product name.</comment>
+  </data>
+  <data name="Shell_ReadOnlyNotApplied_Status" xml:space="preserve">
+    <value>Read-only was not applied: the server or a connection pooler ignored the profile's read-only option. The grid stays read-only, but SQL you run can write.</value>
+    <comment>Status line at the bottom of the main window: the connection should be read-only but the server accepts writes.</comment>
+  </data>
+  <data name="Shell_StandbyHint" xml:space="preserve">
+    <value>the server is a standby replica, which refuses writes.</value>
+    <comment>The reason a connection cannot write, shown after "Read-only: " in a tooltip. A sentence fragment starting in lowercase. A standby replica is a read-only copy of a PostgreSQL server.</comment>
+  </data>
+  <data name="Shell_WritesToggleOn" xml:space="preserve">
+    <value>Production: writes are allowed in this window. Click to turn them off.</value>
+    <comment>Tooltip of the production switch in the title bar while writes are allowed.</comment>
+  </data>
+  <data name="Shell_WritesToggleOff" xml:space="preserve">
+    <value>Production: writes are off in this window, and the server refuses them. Click to allow writes for this window.</value>
+    <comment>Tooltip of the production switch in the title bar while writes are off.</comment>
+  </data>
+  <data name="Shell_ProductionProfileReadOnly" xml:space="preserve">
+    <value>This production profile is read-only, so its windows can't allow writes. Turn off Read-only session in the profile.</value>
+    <comment>Status line at the bottom of the main window: the production switch was used on a production profile that is read-only. "Read-only session" is the name of an option in the connection dialog.</comment>
+  </data>
+  <data name="Shell_OnlyProductionToggles" xml:space="preserve">
+    <value>Only a production profile's window turns writes on and off.</value>
+    <comment>Status line at the bottom of the main window: a command for the production write switch was used in a window that is not a production window.</comment>
+  </data>
+  <data name="Shell_WritesAllowedStatus" xml:space="preserve">
+    <value>Writes are allowed in this window. Other windows on this profile still have them off.</value>
+    <comment>Status line at the bottom of the main window: writes were allowed in this production window.</comment>
+  </data>
+  <data name="Shell_CommitFirst" xml:space="preserve">
+    <value>Commit or roll back the open transaction first: it holds a connection that can write.</value>
+    <comment>Status line at the bottom of the main window: writes cannot be turned off while a transaction is open.</comment>
+  </data>
+  <data name="Shell_WritesOffAgain" xml:space="preserve">
+    <value>Writes are off in this window again.</value>
+    <comment>Status line at the bottom of the main window: writes were turned off again in this production window.</comment>
+  </data>
+  <data name="Shell_SignalsLockedHint" xml:space="preserve">
+    <value>Writes are off in this production window, so it doesn't cancel or terminate other sessions. Allow writes first.</value>
+    <comment>Server Activity window: tooltip explaining why the Cancel query and Terminate buttons are disabled in a production window while writes are off.</comment>
+  </data>
+  <data name="Shell_WordWrapOn" xml:space="preserve">
+    <value>Word wrap: on</value>
+    <comment>Status line at the bottom of the main window: word wrap in the SQL editor was switched on.</comment>
+  </data>
+  <data name="Shell_WordWrapOff" xml:space="preserve">
+    <value>Word wrap: off</value>
+    <comment>Status line at the bottom of the main window: word wrap in the SQL editor was switched off.</comment>
+  </data>
+  <data name="Shell_ImportedPlanUnreadable" xml:space="preserve">
+    <value>The imported plan could not be read back. Import it again with Import query plan…</value>
+    <comment>Status line at the bottom of the main window: a tab holding an imported query plan could not restore its plan after the app restarted. "Import query plan…" is the name of a command.</comment>
+  </data>
+  <data name="Shell_CompletionCatalogStale" xml:space="preserve">
+    <value>Autocomplete kept the previous catalog: refresh failed ({error})</value>
+    <comment>Status line at the bottom of the main window: reloading the names for autocomplete failed. {error} is the error text.</comment>
+  </data>
+  <data name="Shell_TransactionStarted" xml:space="preserve">
+    <value>Transaction started — BEGIN</value>
+    <comment>Status line at the bottom of the main window: a transaction was started. BEGIN is the SQL command and stays.</comment>
+  </data>
+  <data name="Shell_TransactionBeginFailed" xml:space="preserve">
+    <value>Couldn't begin transaction: {error}</value>
+    <comment>Status line at the bottom of the main window: starting a transaction failed. {error} is the error text.</comment>
+  </data>
+  <data name="Shell_TransactionCommitted" xml:space="preserve">
+    <value>Transaction committed — COMMIT</value>
+    <comment>Status line at the bottom of the main window: the transaction was committed. COMMIT is the SQL command and stays.</comment>
+  </data>
+  <data name="Shell_TransactionCommitFailed" xml:space="preserve">
+    <value>Commit failed: {error}</value>
+    <comment>Status line at the bottom of the main window: committing the transaction failed. {error} is the error text.</comment>
+  </data>
+  <data name="Shell_TransactionRolledBack" xml:space="preserve">
+    <value>Transaction rolled back — ROLLBACK</value>
+    <comment>Status line at the bottom of the main window: the transaction was rolled back. ROLLBACK is the SQL command and stays.</comment>
+  </data>
+  <data name="Shell_TransactionRollbackFailed" xml:space="preserve">
+    <value>Rollback failed: {error}</value>
+    <comment>Status line at the bottom of the main window: rolling back the transaction failed. {error} is the error text.</comment>
+  </data>
+  <data name="Shell_QueryTabName" xml:space="preserve">
+    <value>Query {number}</value>
+    <comment>Name of a new query tab in the tab strip. {number} is its running number, such as 3.</comment>
+  </data>
+  <data name="Shell_TabSourceTitle" xml:space="preserve">
+    <value>{name} · source</value>
+    <comment>Name of the tab that shows the CREATE statement of a table or function. {name} is the table or function name, such as orders. Keep the dot.</comment>
+  </data>
+  <data name="Shell_TabNewTableTitle" xml:space="preserve">
+    <value>{schema} · new table</value>
+    <comment>Name of the tab that holds a CREATE TABLE template for a schema. {schema} is the schema name, such as public. Keep the dot.</comment>
+  </data>
+  <data name="Shell_ImportedPlanTitle" xml:space="preserve">
+    <value>Imported plan</value>
+    <comment>Name of the tab that shows a query plan imported from pasted text.</comment>
+  </data>
+  <data name="Shell_SelectTableFirst" xml:space="preserve">
+    <value>Select a table in the schema tree, or browse one, first.</value>
+    <comment>Status line at the bottom of the main window: a table command (analyze, vacuum, truncate, rename, drop) was used with no table selected.</comment>
+  </data>
+  <data name="Shell_MaintVerb_Analyze" xml:space="preserve">
+    <value>analyze</value>
+    <comment>The verb "analyze" (lowercase, the base form) used inside the messages "Can't analyze …" and "Couldn't analyze …" about the ANALYZE command on a table.</comment>
+  </data>
+  <data name="Shell_MaintVerb_Vacuum" xml:space="preserve">
+    <value>vacuum</value>
+    <comment>The verb "vacuum" (lowercase, the base form) used inside the messages "Can't vacuum …" and "Couldn't vacuum …" about the VACUUM command on a table.</comment>
+  </data>
+  <data name="Shell_MaintVerb_Truncate" xml:space="preserve">
+    <value>truncate</value>
+    <comment>The verb "truncate" (lowercase, the base form) used inside the messages "Can't truncate …" and "Couldn't truncate …" about emptying a table.</comment>
+  </data>
+  <data name="Shell_MaintVerb_Rename" xml:space="preserve">
+    <value>rename</value>
+    <comment>The verb "rename" (lowercase, the base form) used inside the messages "Can't rename …" and "Couldn't rename …" about renaming a table.</comment>
+  </data>
+  <data name="Shell_MaintVerb_Drop" xml:space="preserve">
+    <value>drop</value>
+    <comment>The verb "drop" (lowercase, the base form) used inside the messages "Can't drop …" and "Couldn't drop …" about deleting a table.</comment>
+  </data>
+  <data name="Shell_MaintCantApply" xml:space="preserve">
+    <value>Can't {verb} "{table}": it is a {noun}.</value>
+    <comment>Status line at the bottom of the main window: a table command does not apply to this kind of object. {verb} is the verb, such as truncate; {table} is schema.name; {noun} is view or materialized view.</comment>
+  </data>
+  <data name="Shell_MaintCantReason" xml:space="preserve">
+    <value>Can't {verb} "{table}": {reason}</value>
+    <comment>Status line at the bottom of the main window: a table command was refused. {verb} is the verb, such as drop; {table} is schema.name; {reason} is a sentence that says why, such as "the connection is read-only, so the server refuses writes."</comment>
+  </data>
+  <data name="Shell_InDatabase" xml:space="preserve">
+    <value> in database "{database}"</value>
+    <comment>Fragment placed inside the Truncate and Drop confirmations, after the table name, with a leading space: " in database "shop"". {database} is the database name.</comment>
+  </data>
+  <data name="Shell_TruncateEffectPartitioned" xml:space="preserve">
+    <value>Every row in it and in all its partitions is deleted</value>
+    <comment>Part of the Truncate confirmation, for a partitioned table. A sentence without its final period; the confirmation continues with ", and this can't be undone."</comment>
+  </data>
+  <data name="Shell_TruncateEffect" xml:space="preserve">
+    <value>Every row in it is deleted</value>
+    <comment>Part of the Truncate confirmation, for an ordinary table. A sentence without its final period; the confirmation continues with ", and this can't be undone."</comment>
+  </data>
+  <data name="Shell_TruncateConfirm" xml:space="preserve">
+    <value>Truncate table "{table}"{database}? {effect}, and this can't be undone. It fails if another table's foreign key references it.</value>
+    <comment>Confirmation of Truncate in a table's Maintenance menu. {table} is schema.name; {database} is the fragment " in database "shop"" (or empty); {effect} is a phrase such as "Every row in it is deleted".</comment>
+  </data>
+  <data name="Shell_TruncateButton" xml:space="preserve">
+    <value>Truncate</value>
+    <comment>Confirmation of Truncate: the red button that empties the table.</comment>
+  </data>
+  <data name="Shell_DropEffectView" xml:space="preserve">
+    <value>The view is removed</value>
+    <comment>Part of the Drop confirmation, for a view. A sentence without its final period; the confirmation continues with ", and this can't be undone."</comment>
+  </data>
+  <data name="Shell_DropEffectMaterializedView" xml:space="preserve">
+    <value>The materialized view and its data are removed</value>
+    <comment>Part of the Drop confirmation, for a materialized view. A sentence without its final period.</comment>
+  </data>
+  <data name="Shell_DropEffectPartitioned" xml:space="preserve">
+    <value>The table and all its partitions, with every row in them, are removed</value>
+    <comment>Part of the Drop confirmation, for a partitioned table. A sentence without its final period.</comment>
+  </data>
+  <data name="Shell_DropEffectTable" xml:space="preserve">
+    <value>The table and every row in it are removed</value>
+    <comment>Part of the Drop confirmation, for an ordinary table. A sentence without its final period.</comment>
+  </data>
+  <data name="Shell_DropConfirm" xml:space="preserve">
+    <value>Drop {noun} "{table}"{database}? {effect}, and this can't be undone. It fails if a view or another table's foreign key depends on it.</value>
+    <comment>Confirmation of Drop in a table's Maintenance menu. {noun} is table, view or materialized view; {table} is schema.name; {database} is the fragment " in database "shop"" (or empty); {effect} is a phrase such as "The view is removed".</comment>
+  </data>
+  <data name="Shell_DropButton" xml:space="preserve">
+    <value>Drop</value>
+    <comment>Confirmation of Drop: the red button that deletes the table or view.</comment>
+  </data>
+  <data name="Shell_RenameHeading" xml:space="preserve">
+    <value>Rename {noun} "{table}"</value>
+    <comment>Heading of the dialog that asks for a new name. {noun} is table, view or materialized view; {table} is schema.name.</comment>
+  </data>
+  <data name="Shell_MaintRunningAnalyze" xml:space="preserve">
+    <value>Analyzing {table}…</value>
+    <comment>Status line at the bottom of the main window: ANALYZE is running. {table} is schema.name.</comment>
+  </data>
+  <data name="Shell_MaintRunningVacuum" xml:space="preserve">
+    <value>Vacuuming {table}…</value>
+    <comment>Status line at the bottom of the main window: VACUUM is running. {table} is schema.name.</comment>
+  </data>
+  <data name="Shell_MaintRunningTruncate" xml:space="preserve">
+    <value>Truncating {table}…</value>
+    <comment>Status line at the bottom of the main window: a table is being emptied. {table} is schema.name.</comment>
+  </data>
+  <data name="Shell_MaintRunningRename" xml:space="preserve">
+    <value>Renaming {table}…</value>
+    <comment>Status line at the bottom of the main window: a table is being renamed. {table} is schema.name.</comment>
+  </data>
+  <data name="Shell_MaintRunningDrop" xml:space="preserve">
+    <value>Dropping {table}…</value>
+    <comment>Status line at the bottom of the main window: a table is being deleted. {table} is schema.name.</comment>
+  </data>
+  <data name="Shell_MaintFailed" xml:space="preserve">
+    <value>Couldn't {verb} {table}: {error}</value>
+    <comment>Status line at the bottom of the main window: a table command failed. {verb} is the verb, such as drop; {table} is schema.name; {error} is the server error text.</comment>
+  </data>
+  <data name="Shell_MaintDoneAnalyze" xml:space="preserve">
+    <value>Analyzed {table} in {seconds} s</value>
+    <comment>Status line at the bottom of the main window: ANALYZE finished. {table} is schema.name; {seconds} is the duration, such as 0.4. s means seconds.</comment>
+  </data>
+  <data name="Shell_MaintDoneVacuum" xml:space="preserve">
+    <value>Vacuumed {table} in {seconds} s</value>
+    <comment>Status line at the bottom of the main window: VACUUM finished. {table} is schema.name; {seconds} is the duration, such as 0.4. s means seconds.</comment>
+  </data>
+  <data name="Shell_MaintDoneTruncate" xml:space="preserve">
+    <value>Truncated {table}</value>
+    <comment>Status line at the bottom of the main window: a table was emptied. {table} is schema.name.</comment>
+  </data>
+  <data name="Shell_MaintDoneRename" xml:space="preserve">
+    <value>Renamed {table} to {newName}</value>
+    <comment>Status line at the bottom of the main window: a table was renamed. {table} is the old schema.name; {newName} is the new schema.name.</comment>
+  </data>
+  <data name="Shell_MaintDoneDrop" xml:space="preserve">
+    <value>Dropped {table}</value>
+    <comment>Status line at the bottom of the main window: a table was deleted. {table} is schema.name.</comment>
+  </data>
+  <data name="Shell_SchemaExcluded" xml:space="preserve">
+    <value>Schema "{schema}" excluded from autocomplete</value>
+    <comment>Status line at the bottom of the main window: a schema was left out of autocomplete. {schema} is the schema name.</comment>
+  </data>
+  <data name="Shell_SchemaIncluded" xml:space="preserve">
+    <value>Schema "{schema}" back in autocomplete</value>
+    <comment>Status line at the bottom of the main window: a schema was put back into autocomplete. {schema} is the schema name.</comment>
+  </data>
+  <data name="Shell_ReopenedTab" xml:space="preserve">
+    <value>Reopened “{title}”</value>
+    <comment>Status line at the bottom of the main window: a closed tab was brought back. {title} is its name.</comment>
+  </data>
+  <data name="Shell_ClosedUnsaved_one" xml:space="preserve">
+    <value>Closed “{title}”, which had unsaved SQL. {how} reopens it.</value>
+    <comment>Status line at the bottom of the main window: a tab with unsaved SQL was closed. Singular. {title} is the tab name; {how} is the shortcut that brings it back (such as Ctrl+Shift+T) or the command name "Reopen closed tab".</comment>
+  </data>
+  <data name="Shell_ClosedUnsaved_other" xml:space="preserve">
+    <value>Closed {count} tabs with unsaved SQL. {how} reopens them one at a time.</value>
+    <comment>Status line at the bottom of the main window: several tabs with unsaved SQL were closed. Plural. {count} is how many, such as 3; {how} is the shortcut that brings them back (such as Ctrl+Shift+T) or the command name "Reopen closed tab".</comment>
+  </data>
+  <data name="Shell_PaletteAction" xml:space="preserve">
+    <value>Action</value>
+    <comment>Command palette: grey category label at the right end of a row that runs a command.</comment>
+  </data>
+  <data name="Shell_PaletteSavedQuery" xml:space="preserve">
+    <value>Saved query</value>
+    <comment>Command palette: grey category label at the right end of a row that opens a saved query.</comment>
+  </data>
+  <data name="Shell_PaletteRecentFile" xml:space="preserve">
+    <value>Recent file</value>
+    <comment>Command palette: grey category label at the right end of a row that opens a recently used .sql file.</comment>
+  </data>
+  <data name="Shell_PaletteTable" xml:space="preserve">
+    <value>Table</value>
+    <comment>Command palette: grey category label at the right end of a row that opens a table (also used for views).</comment>
+  </data>
+  <data name="Shell_SearchMatchCaseLabel" xml:space="preserve">
+    <value>Aa</value>
+    <comment>Find bar of the SQL editor (also of the cell inspector), top right of the editor: the short label on the Match case toggle: the same letter in upper and lower case. Adapt to the script of the language if "Aa" means nothing there.</comment>
+  </data>
+  <data name="Shell_SearchWholeWordsLabel" xml:space="preserve">
+    <value>ab</value>
+    <comment>Find bar of the SQL editor (also of the cell inspector), top right of the editor: the short label on the Whole words toggle, drawn underlined: a word. Adapt to the script of the language if "ab" means nothing there.</comment>
+  </data>
 
   <!-- ===== Sidebar ===== -->
 

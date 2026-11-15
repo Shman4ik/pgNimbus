@@ -1,4 +1,6 @@
+using CommunityToolkit.Mvvm.ComponentModel;
 using PgNimbus.Core.Commands;
+using PgNimbus.Core.Localization;
 
 namespace PgNimbus.App.ViewModels;
 
@@ -20,9 +22,19 @@ public sealed record ShortcutSection(string Title, IReadOnlyList<ShortcutRow> Ro
 /// remembered in four places; now it's rendered from the same list the key
 /// bindings, the palette and the published docs come from.
 /// </summary>
-public sealed class ShortcutsViewModel
+public sealed class ShortcutsViewModel : ObservableObject
 {
-    public IReadOnlyList<ShortcutSection> Sections { get; } = Build();
+    private IReadOnlyList<ShortcutSection> _sections = Build();
+
+    public ShortcutsViewModel() =>
+        // The titles and row names are text: they are projected again in the new language.
+        Localizer.WhenChanged(this, static vm =>
+        {
+            vm._sections = Build();
+            vm.OnPropertyChanged(nameof(Sections));
+        });
+
+    public IReadOnlyList<ShortcutSection> Sections => _sections;
 
     private static IReadOnlyList<ShortcutSection> Build()
     {

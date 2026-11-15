@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using PgNimbus.Core.Localization;
 
 namespace PgNimbus.App.ViewModels;
 
@@ -82,7 +83,7 @@ public sealed partial class DatabaseSwitcherViewModel : ObservableObject
         {
             _all = [];
             Shown.ReplaceAll([]);
-            Message = $"Couldn't list the databases: {ex.Message}";
+            Message = Strings.Shell_DatabaseListFailed(ex.Message);
         }
         finally
         {
@@ -104,8 +105,8 @@ public sealed partial class DatabaseSwitcherViewModel : ObservableObject
         Shown.ReplaceAll(matches);
         Selected = matches.FirstOrDefault(d => d.IsCurrent && query.Length == 0)
             ?? matches.FirstOrDefault();
-        Message = _all.Count == 0 ? "No database this role may connect to."
-            : matches.Count == 0 ? "No database matches."
+        Message = _all.Count == 0 ? Strings.Shell_NoDatabaseAllowed
+            : matches.Count == 0 ? Strings.Shell_NoDatabaseMatches
             : null;
     }
 

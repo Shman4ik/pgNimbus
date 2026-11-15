@@ -9,6 +9,7 @@
         xmlns:cmd="using:PgNimbus.App"
         xmlns:chrome="using:Avalonia.Controls.Chrome"
         xmlns:nui="using:Nimbus.Ui.Controls"
+        xmlns:l="using:PgNimbus.App.Localization"
         mc:Ignorable="d"
         d:DesignWidth="1000" d:DesignHeight="650"
         x:Class="PgNimbus.App.Views.MainWindow"
@@ -70,45 +71,45 @@
                          live in the native menu bar there (BuildMacNativeMenu). -->
                     <Button Name="AppMenuButton" Classes="chip" Padding="5"
                             Margin="0,0,4,0" VerticalAlignment="Center"
-                            ToolTip.Tip="Files, tabs and preferences">
+                            ToolTip.Tip="{l:Tr Shell_AppMenuTip}">
                         <PathIcon Data="{StaticResource MenuIconGeometry}" Width="14" Height="14" />
                         <Button.Flyout>
                             <MenuFlyout Placement="BottomEdgeAlignedLeft">
-                                <MenuItem Name="MenuNewTab" Header="New Query Tab" Command="{Binding AddTabCommand}" />
-                                <MenuItem Name="MenuOpenFile" Header="Open…" Command="{Binding OpenFileCommand}" />
-                                <MenuItem Name="MenuOpenRecent" Header="Open Recent" />
+                                <MenuItem Name="MenuNewTab" Header="{l:Tr Shell_MenuNewQueryTab}" Command="{Binding AddTabCommand}" />
+                                <MenuItem Name="MenuOpenFile" Header="{l:Tr Shell_MenuOpen}" Command="{Binding OpenFileCommand}" />
+                                <MenuItem Name="MenuOpenRecent" Header="{l:Tr Shell_MenuOpenRecent}" />
                                 <Separator />
                                 <!-- Save and Save as… follow the active tab (see
                                      MainViewModel.Save); the two rows under them name a
                                      destination outright, so "save this query somewhere I
                                      can find it again" is answerable without knowing
                                      which kind of tab is open. -->
-                                <MenuItem Name="MenuSaveFile" Header="Save" Command="{Binding SaveCommand}" />
-                                <MenuItem Name="MenuSaveFileAs" Header="Save As…" Command="{Binding SaveAsCommand}" />
-                                <MenuItem Name="MenuSaveQuery" Header="Save to Saved Queries…" Command="{Binding SaveQueryCommand}" />
-                                <MenuItem Name="MenuSaveToFile" Header="Save to File…" Command="{Binding SaveFileCommand}" />
+                                <MenuItem Name="MenuSaveFile" Header="{l:Tr Common_Save}" Command="{Binding SaveCommand}" />
+                                <MenuItem Name="MenuSaveFileAs" Header="{l:Tr Shell_MenuSaveAs}" Command="{Binding SaveAsCommand}" />
+                                <MenuItem Name="MenuSaveQuery" Header="{l:Tr Shell_MenuSaveToSavedQueries}" Command="{Binding SaveQueryCommand}" />
+                                <MenuItem Name="MenuSaveToFile" Header="{l:Tr Shell_MenuSaveToFile}" Command="{Binding SaveFileCommand}" />
                                 <Separator />
-                                <MenuItem Name="MenuCloseTab" Header="Close Tab" Command="{Binding CloseTabCommand}" />
-                                <MenuItem Name="MenuReopenClosedTab" Header="Reopen Closed Tab" Command="{Binding ReopenClosedTabCommand}" />
+                                <MenuItem Name="MenuCloseTab" Header="{l:Tr Shell_MenuCloseTab}" Command="{Binding CloseTabCommand}" />
+                                <MenuItem Name="MenuReopenClosedTab" Header="{l:Tr Shell_MenuReopenClosedTab}" Command="{Binding ReopenClosedTabCommand}" />
                                 <Separator />
-                                <MenuItem Name="MenuSwitchConnection" Header="Switch Connection…" Command="{Binding SwitchConnectionCommand}" />
-                                <MenuItem Name="MenuNewWindow" Header="New Connection Window…" Command="{Binding OpenNewWindowCommand}" />
+                                <MenuItem Name="MenuSwitchConnection" Header="{l:Tr Shell_MenuSwitchConnection}" Command="{Binding SwitchConnectionCommand}" />
+                                <MenuItem Name="MenuNewWindow" Header="{l:Tr Shell_MenuNewConnectionWindow}" Command="{Binding OpenNewWindowCommand}" />
                                 <Separator />
-                                <MenuItem Name="MenuBackupDatabase" Header="Back Up Database…" Command="{Binding BackupDatabaseCommand}" />
-                                <MenuItem Name="MenuRestoreBackup" Header="Restore Backup…" Command="{Binding RestoreBackupCommand}" />
+                                <MenuItem Name="MenuBackupDatabase" Header="{l:Tr Shell_MenuBackUpDatabase}" Command="{Binding BackupDatabaseCommand}" />
+                                <MenuItem Name="MenuRestoreBackup" Header="{l:Tr Shell_MenuRestoreBackup}" Command="{Binding RestoreBackupCommand}" />
                                 <Separator />
-                                <MenuItem Name="MenuPreferences" Header="Settings…" Command="{Binding ShowPreferencesCommand}" />
+                                <MenuItem Name="MenuPreferences" Header="{l:Tr Shell_MenuSettings}" Command="{Binding ShowPreferencesCommand}" />
                                 <!-- The cheat sheet and the About box, in the same
                                      place kubeNimbus's ☰ menu carries them. The
                                      macOS app menu has About too, but this is the
                                      only route to it on Windows and Linux, where
                                      there is no native menu bar to hold it. -->
-                                <MenuItem Name="MenuShortcuts" Header="Keyboard Shortcuts" Command="{Binding ShowShortcutsCommand}" />
-                                <MenuItem Name="MenuAbout" Header="About pgNimbus" Command="{Binding ShowAboutCommand}" />
+                                <MenuItem Name="MenuShortcuts" Header="{l:Tr Shell_MenuKeyboardShortcuts}" Command="{Binding ShowShortcutsCommand}" />
+                                <MenuItem Name="MenuAbout" Header="{l:Tr Shell_MenuAbout}" Command="{Binding ShowAboutCommand}" />
                                 <!-- Only in the Store MSIX (MainViewModel.CanRateInStore).
                                      Windows only, so it has no macOS menu-bar twin;
                                      a quiet item, never a prompt (UI rule 1). -->
-                                <MenuItem Name="MenuRateInStore" Header="Rate pgNimbus in the Microsoft Store"
+                                <MenuItem Name="MenuRateInStore" Header="{l:Tr Shell_MenuRateInStore}"
                                           Command="{Binding RateInStoreCommand}"
                                           IsVisible="{Binding CanRateInStore}" />
                             </MenuFlyout>
@@ -117,7 +118,7 @@
                     <Button Name="SidebarToggleButton" Classes="chip" Padding="5"
                             Margin="0,0,10,0" VerticalAlignment="Center"
                             Click="OnToggleSidebarClick"
-                            cmd:CommandTip.Text="Show or hide the sidebar"
+                            cmd:CommandTip.Text="{l:Tr Shell_ToggleSidebarTip}"
                             cmd:CommandTip.Command="ToggleSidebar">
                         <PathIcon Data="{OnPlatform Default={StaticResource SidebarToggleIconGeometry}, macOS={StaticResource SidebarToggleMacIconGeometry}}" Width="14" Height="14" />
                     </Button>
@@ -148,7 +149,7 @@
                         <Button Name="DatabaseSwitchButton" Classes="toolbar" Padding="6,3" Margin="-6,-3"
                                 VerticalAlignment="Center" CornerRadius="4"
                                 IsVisible="{Binding CanSwitchDatabase}"
-                                cmd:CommandTip.Text="Switch to another database on this server"
+                                cmd:CommandTip.Text="{l:Tr Shell_SwitchDatabaseTip}"
                                 cmd:CommandTip.Command="SwitchDatabase">
                             <TextBlock Text="{Binding ConnectionDatabase}" FontSize="12" Opacity="0.75" VerticalAlignment="Center"
                                        MaxWidth="200" TextTrimming="CharacterEllipsis" />
@@ -178,7 +179,7 @@
                             Classes.staging="{Binding IsStaging}"
                             Classes.production="{Binding IsProduction}"
                             IsVisible="{Binding ShowEnvironmentLabel}"
-                            ToolTip.Tip="{Binding EnvironmentTag, StringFormat='Environment: {0}'}">
+                            ToolTip.Tip="{Binding EnvironmentTip}">
                         <TextBlock Text="{Binding EnvironmentTag}" />
                     </Border>
                     <Button Name="ProductionWritesButton" Classes="envTag production" Margin="10,0,0,0" VerticalAlignment="Center"
@@ -191,15 +192,15 @@
                                       IsVisible="{Binding !WritesAllowed}" />
                             <PathIcon Data="{StaticResource LockOpenIconGeometry}" Width="10" Height="10"
                                       IsVisible="{Binding WritesAllowed}" />
-                            <TextBlock Text="production" IsVisible="{Binding !WritesAllowed}" />
-                            <TextBlock Text="production · writes on" IsVisible="{Binding WritesAllowed}" />
+                            <TextBlock Text="{l:Tr Shell_ProductionMark}" IsVisible="{Binding !WritesAllowed}" />
+                            <TextBlock Text="{l:Tr Shell_ProductionWritesOn}" IsVisible="{Binding WritesAllowed}" />
                         </StackPanel>
                     </Button>
                     <StackPanel Name="ReadOnlyMark" Orientation="Horizontal" Spacing="4" Margin="10,0,0,0" VerticalAlignment="Center"
                                 Background="Transparent"
                                 IsVisible="{Binding ShowReadOnlyMark}"
                                 Classes.warn="{Binding IsReadOnlyNotEnforced}"
-                                ToolTip.Tip="{Binding ConnectionReadOnlyHint, StringFormat='Read-only: {0}'}">
+                                ToolTip.Tip="{Binding ReadOnlyMarkTip}">
                         <StackPanel.Styles>
                             <Style Selector="StackPanel#ReadOnlyMark > PathIcon">
                                 <Setter Property="Opacity" Value="0.75" />
@@ -217,14 +218,14 @@
                             </Style>
                         </StackPanel.Styles>
                         <PathIcon Data="{StaticResource LockIconGeometry}" Width="11" Height="11" />
-                        <TextBlock Text="read-only" FontSize="12" VerticalAlignment="Center"
+                        <TextBlock Text="{l:Tr Shell_ReadOnlyMark}" FontSize="12" VerticalAlignment="Center"
                                    IsVisible="{Binding !IsReadOnlyNotEnforced}" />
-                        <TextBlock Name="ReadOnlyNotEnforcedText" Text="read-only not applied" FontSize="12" VerticalAlignment="Center"
+                        <TextBlock Name="ReadOnlyNotEnforcedText" Text="{l:Tr Shell_ReadOnlyNotApplied}" FontSize="12" VerticalAlignment="Center"
                                    IsVisible="{Binding IsReadOnlyNotEnforced}" />
                     </StackPanel>
                     <Button Classes="chip" Padding="5" VerticalAlignment="Center" Margin="10,0,0,0"
                             Click="OnSwitchConnectionClick"
-                            cmd:CommandTip.Text="Connect to another database"
+                            cmd:CommandTip.Text="{l:Tr Shell_SwitchConnectionTip}"
                             cmd:CommandTip.Command="SwitchConnection">
                         <PathIcon Data="{StaticResource SwapHorizontalIconGeometry}" Width="12" Height="12" />
                     </Button>
@@ -239,7 +240,7 @@
                         Click="OnPaletteSearchButtonClick">
                     <Grid ColumnDefinitions="Auto,*,Auto">
                         <PathIcon Grid.Column="0" Data="{StaticResource MagnifyIconGeometry}" Width="11" Height="11" Opacity="0.55" VerticalAlignment="Center" />
-                        <TextBlock Grid.Column="1" Text="Search tables, queries, actions…" FontSize="12" Opacity="0.55" Margin="7,0,0,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Grid.Column="1" Text="{l:Tr Shell_SearchPill}" FontSize="12" Opacity="0.55" Margin="7,0,0,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                         <TextBlock Grid.Column="2" Name="PaletteSearchShortcut" FontSize="11" Opacity="0.6" VerticalAlignment="Center"
                                    FontFamily="{DynamicResource KeyCapFont}" />
                     </Grid>
@@ -250,21 +251,21 @@
                     <Button Classes="chip" Padding="5"
                             Margin="0,0,4,0" VerticalAlignment="Center"
                             Click="OnShowActivityClick"
-                            cmd:CommandTip.Text="See who is connected and what is blocking what"
+                            cmd:CommandTip.Text="{l:Tr Shell_ActivityTip}"
                             cmd:CommandTip.Command="ServerActivity">
                         <PathIcon Data="{StaticResource PulseIconGeometry}" Width="14" Height="14" />
                     </Button>
                     <Button Name="ThemeToggleButton" Classes="chip" Padding="5"
                             Margin="0,0,4,0" VerticalAlignment="Center"
                             Click="OnToggleThemeClick"
-                            cmd:CommandTip.Text="Toggle light/dark theme"
+                            cmd:CommandTip.Text="{l:Tr Shell_ToggleThemeTip}"
                             cmd:CommandTip.Command="ToggleTheme">
                         <PathIcon Name="ThemeIcon" Data="{StaticResource WeatherNightIconGeometry}" Width="14" Height="14" />
                     </Button>
                     <Button Name="PreferencesButton" Classes="chip" Padding="5"
                             Margin="0,0,4,0" VerticalAlignment="Center"
                             Command="{Binding ShowPreferencesCommand}"
-                            cmd:CommandTip.Text="Settings"
+                            cmd:CommandTip.Text="{l:Tr Shell_SettingsTip}"
                             cmd:CommandTip.Command="Preferences">
                         <PathIcon Data="{StaticResource CogIconGeometry}" Width="14" Height="14" />
                     </Button>
@@ -275,7 +276,7 @@
                          Same glyph, same 15px box as kubeNimbus draws it. -->
                     <Button Classes="chip" Padding="5" VerticalAlignment="Center"
                             Command="{Binding ShowShortcutsCommand}"
-                            cmd:CommandTip.Text="Keyboard shortcuts"
+                            cmd:CommandTip.Text="{l:Tr Shell_ShortcutsTip}"
                             cmd:CommandTip.Command="ShortcutsWindow">
                         <PathIcon Data="{StaticResource HelpCircleIconGeometry}" Width="15" Height="15" />
                     </Button>
@@ -295,22 +296,22 @@
             <!-- The tooltips say what each tab holds rather than repeating its
                  label — and they're the only clue left once a narrow sidebar
                  collapses the headers to icons. -->
-            <TabItem ToolTip.Tip="Tables, views, functions and roles">
+            <TabItem ToolTip.Tip="{l:Tr Shell_SchemasTabTip}">
                 <TabItem.Header>
                     <StackPanel Orientation="Horizontal" Spacing="6">
                         <PathIcon Data="{StaticResource DatabaseIconGeometry}" Width="13" Height="13" VerticalAlignment="Center" />
                         <!-- Label collapses to icon-only when the sidebar is too narrow to fit both -->
-                        <TextBlock Text="Schemas" VerticalAlignment="Center"
+                        <TextBlock Text="{l:Tr Shell_SchemasTab}" VerticalAlignment="Center"
                                    IsVisible="{Binding $parent[TabControl].Bounds.Width, Converter={x:Static conv2:MinWidthVisibilityConverter.Instance}, ConverterParameter=210}" />
                     </StackPanel>
                 </TabItem.Header>
                 <views:SchemaTreePanel DataContext="{Binding SchemaTree}" />
             </TabItem>
-            <TabItem ToolTip.Tip="Saved queries and run history">
+            <TabItem ToolTip.Tip="{l:Tr Shell_QueriesTabTip}">
                 <TabItem.Header>
                     <StackPanel Orientation="Horizontal" Spacing="6">
                         <PathIcon Data="{StaticResource QueriesIconGeometry}" Width="13" Height="13" VerticalAlignment="Center" />
-                        <TextBlock Text="Queries" VerticalAlignment="Center"
+                        <TextBlock Text="{l:Tr Shell_QueriesTab}" VerticalAlignment="Center"
                                    IsVisible="{Binding $parent[TabControl].Bounds.Width, Converter={x:Static conv2:MinWidthVisibilityConverter.Instance}, ConverterParameter=210}" />
                     </StackPanel>
                 </TabItem.Header>
@@ -337,15 +338,15 @@
 
             <DockPanel Grid.Row="0" Margin="0,0,0,8">
                 <Button DockPanel.Dock="Right" Classes="chip" Content="+" FontSize="14" Command="{Binding AddTabCommand}"
-                        cmd:CommandTip.Text="New query tab" cmd:CommandTip.Command="NewTab" />
+                        cmd:CommandTip.Text="{l:Tr Shell_NewTabTip}" cmd:CommandTip.Command="NewTab" />
                 <!-- All-tabs dropdown: lists every open tab with type-to-search;
                      the one way to reach a tab that scrolling would take ages to find -->
-                <Button DockPanel.Dock="Right" Classes="chip" Name="TabListButton" ToolTip.Tip="Find an open tab by name">
+                <Button DockPanel.Dock="Right" Classes="chip" Name="TabListButton" ToolTip.Tip="{l:Tr Shell_FindTabTip}">
                     <PathIcon Data="{StaticResource MenuDownIconGeometry}" Width="12" Height="12" />
                     <Button.Flyout>
                         <Flyout Placement="BottomEdgeAlignedRight">
                             <StackPanel Width="260" Spacing="6">
-                                <TextBox Name="TabSearchBox" PlaceholderText="Search tabs…" />
+                                <TextBox Name="TabSearchBox" PlaceholderText="{l:Tr Shell_SearchTabs}" />
                                 <ListBox Name="TabSearchList" Classes="emphasized" MaxHeight="320">
                                     <ListBox.ItemTemplate>
                                         <DataTemplate x:DataType="vm:QueryViewModel">
@@ -364,11 +365,11 @@
                 </Button>
                 <!-- Scroll arrows: only visible when the strip actually overflows -->
                 <Button DockPanel.Dock="Right" Classes="chip" Name="TabScrollRightButton" IsVisible="False"
-                        Click="OnTabScrollRight" ToolTip.Tip="Scroll tabs right">
+                        Click="OnTabScrollRight" ToolTip.Tip="{l:Tr Shell_ScrollTabsRight}">
                     <PathIcon Data="{StaticResource ChevronRightIconGeometry}" Width="12" Height="12" />
                 </Button>
                 <Button DockPanel.Dock="Right" Classes="chip" Name="TabScrollLeftButton" IsVisible="False"
-                        Click="OnTabScrollLeft" ToolTip.Tip="Scroll tabs left">
+                        Click="OnTabScrollLeft" ToolTip.Tip="{l:Tr Shell_ScrollTabsLeft}">
                     <PathIcon Data="{StaticResource ChevronLeftIconGeometry}" Width="12" Height="12" />
                 </Button>
                 <!-- Horizontal scroll (not clipping): with many tabs the strip
@@ -434,19 +435,19 @@
                 <StackPanel Orientation="Horizontal" Spacing="2">
                     <!-- Group 1 — execution: the primary Run + its Cancel -->
                     <Button Classes="accent" Command="{Binding ActiveTab.RunCommand}"
-                            cmd:CommandTip.Text="Run the script, or just the selection"
+                            cmd:CommandTip.Text="{l:Tr Shell_RunTip}"
                             cmd:CommandTip.Command="Run">
                         <StackPanel Orientation="Horizontal" Spacing="7">
                             <PathIcon Data="{StaticResource PlayIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
-                            <TextBlock Text="Run" VerticalAlignment="Center" />
+                            <TextBlock Text="{l:Tr Shell_Run}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
                     <Button Classes="toolbar" Command="{Binding ActiveTab.CancelCommand}"
-                            cmd:CommandTip.Text="Stop the running query"
+                            cmd:CommandTip.Text="{l:Tr Shell_CancelTip}"
                             cmd:CommandTip.Command="Cancel">
                         <StackPanel Orientation="Horizontal" Spacing="7">
                             <PathIcon Data="{StaticResource StopIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
-                            <TextBlock Text="Cancel" VerticalAlignment="Center" Classes="collapsible" />
+                            <TextBlock Text="{l:Tr Shell_CancelQuery}" VerticalAlignment="Center" Classes="collapsible" />
                         </StackPanel>
                     </Button>
 
@@ -458,31 +459,31 @@
                     <Rectangle Classes="statusSeparator" Margin="7,0" />
                     <Button Classes="toolbar" Command="{Binding BeginTransactionCommand}"
                             IsVisible="{Binding !IsInTransaction}"
-                            cmd:CommandTip.Text="Start a transaction: nothing sticks until you commit"
+                            cmd:CommandTip.Text="{l:Tr Shell_BeginTip}"
                             cmd:CommandTip.Command="BeginTransaction">
                         <StackPanel Orientation="Horizontal" Spacing="7">
                             <PathIcon Data="{StaticResource FlagIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
-                            <TextBlock Text="Begin" VerticalAlignment="Center" Classes="collapsible" />
+                            <TextBlock Text="{l:Tr Shell_Begin}" VerticalAlignment="Center" Classes="collapsible" />
                         </StackPanel>
                     </Button>
                     <Button Classes="toolbar" Command="{Binding CommitTransactionCommand}"
                             IsVisible="{Binding IsInTransaction}"
                             Foreground="#D9822B"
-                            cmd:CommandTip.Text="Commit the transaction and keep its changes"
+                            cmd:CommandTip.Text="{l:Tr Shell_CommitTip}"
                             cmd:CommandTip.Command="CommitTransaction">
                         <StackPanel Orientation="Horizontal" Spacing="7">
                             <PathIcon Data="{StaticResource CheckIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
-                            <TextBlock Text="Commit" FontWeight="SemiBold" VerticalAlignment="Center" Classes="collapsible" />
+                            <TextBlock Text="{l:Tr Shell_Commit}" FontWeight="SemiBold" VerticalAlignment="Center" Classes="collapsible" />
                         </StackPanel>
                     </Button>
                     <Button Classes="toolbar" Command="{Binding RollbackTransactionCommand}"
                             IsVisible="{Binding IsInTransaction}"
                             Foreground="#D9822B"
-                            cmd:CommandTip.Text="Roll back the transaction and undo everything it did"
+                            cmd:CommandTip.Text="{l:Tr Shell_RollbackTip}"
                             cmd:CommandTip.Command="RollbackTransaction">
                         <StackPanel Orientation="Horizontal" Spacing="7">
                             <PathIcon Data="{StaticResource UndoIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
-                            <TextBlock Text="Rollback" VerticalAlignment="Center" Classes="collapsible" />
+                            <TextBlock Text="{l:Tr Shell_Rollback}" VerticalAlignment="Center" Classes="collapsible" />
                         </StackPanel>
                     </Button>
 
@@ -493,44 +494,44 @@
                     <!-- The two shortcuts differ per item, so they're shown on the
                          menu items themselves (captions set in BuildKeyBindings)
                          rather than crammed into the button's tooltip. -->
-                    <Button Classes="toolbar" ToolTip.Tip="Show the query plan, estimated or measured">
+                    <Button Classes="toolbar" ToolTip.Tip="{l:Tr Shell_ExplainTip}">
                         <StackPanel Orientation="Horizontal" Spacing="7">
                             <PathIcon Data="{StaticResource FlashIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
-                            <TextBlock Text="Explain" VerticalAlignment="Center" Classes="collapsible" />
+                            <TextBlock Text="{l:Tr Shell_Explain}" VerticalAlignment="Center" Classes="collapsible" />
                         </StackPanel>
                         <Button.Flyout>
                             <MenuFlyout>
-                                <MenuItem Name="MenuExplain" Header="Explain — Estimated Plan" Click="OnExplainClick" />
-                                <MenuItem Name="MenuExplainAnalyze" Header="Explain Analyze — Runs the Query" Click="OnExplainAnalyzeClick" />
+                                <MenuItem Name="MenuExplain" Header="{l:Tr Shell_ExplainEstimated}" Click="OnExplainClick" />
+                                <MenuItem Name="MenuExplainAnalyze" Header="{l:Tr Shell_ExplainAnalyzeRuns}" Click="OnExplainAnalyzeClick" />
                             </MenuFlyout>
                         </Button.Flyout>
                     </Button>
 
                     <!-- Group 4 — data out: export -->
                     <Rectangle Classes="statusSeparator" Margin="7,0" />
-                    <Button Classes="toolbar" ToolTip.Tip="Save the results as a CSV or JSON file">
+                    <Button Classes="toolbar" ToolTip.Tip="{l:Tr Shell_ExportTip}">
                         <StackPanel Orientation="Horizontal" Spacing="7">
                             <PathIcon Data="{StaticResource ExportIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
-                            <TextBlock Text="Export" VerticalAlignment="Center" Classes="collapsible" />
+                            <TextBlock Text="{l:Tr Shell_Export}" VerticalAlignment="Center" Classes="collapsible" />
                         </StackPanel>
                         <Button.Flyout>
                             <MenuFlyout>
-                                <MenuItem Header="Export as CSV…" Click="OnExportCsvClick" />
-                                <MenuItem Header="Export as JSON…" Click="OnExportJsonClick" />
+                                <MenuItem Header="{l:Tr Shell_ExportCsv}" Click="OnExportCsvClick" />
+                                <MenuItem Header="{l:Tr Shell_ExportJson}" Click="OnExportJsonClick" />
                                 <Separator />
                                 <!-- Security audit 2026-09, finding 18 (CSV formula injection).
                                      Off by default and remembered: the quote it adds changes the
                                      data for anything that isn't a spreadsheet. -->
-                                <MenuItem Name="SpreadsheetSafeMenuItem" Header="Safe for Spreadsheets"
+                                <MenuItem Name="SpreadsheetSafeMenuItem" Header="{l:Tr Shell_SpreadsheetSafe}"
                                           ToggleType="CheckBox" IsChecked="{Binding SpreadsheetSafeExport, Mode=TwoWay}"
-                                          ToolTip.Tip="Put a ' in front of text that starts with =, +, -, or @ in CSV files and copied cells, so a spreadsheet shows it instead of running it as a formula" />
+                                          ToolTip.Tip="{l:Tr Shell_SpreadsheetSafeTip}" />
                             </MenuFlyout>
                         </Button.Flyout>
                     </Button>
-                    <Button Classes="toolbar" Click="OnImportClick" ToolTip.Tip="Load a CSV or JSON file into a table">
+                    <Button Classes="toolbar" Click="OnImportClick" ToolTip.Tip="{l:Tr Shell_ImportTip}">
                         <StackPanel Orientation="Horizontal" Spacing="7">
                             <PathIcon Data="{StaticResource ImportIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
-                            <TextBlock Text="Import" VerticalAlignment="Center" Classes="collapsible" />
+                            <TextBlock Text="{l:Tr Shell_Import}" VerticalAlignment="Center" Classes="collapsible" />
                         </StackPanel>
                     </Button>
 
@@ -541,11 +542,11 @@
                          which the F1 sheet documents). -->
                     <Rectangle Classes="statusSeparator" Margin="7,0" />
                     <Button Classes="toolbar" Command="{Binding FormatSqlCommand}"
-                            cmd:CommandTip.Text="Format the SQL" cmd:CommandTip.Command="FormatSql">
+                            cmd:CommandTip.Text="{l:Tr Shell_FormatSqlTip}" cmd:CommandTip.Command="FormatSql">
                         <PathIcon Data="{StaticResource AutoFixIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
                     </Button>
                     <ToggleButton Classes="toolbar" IsChecked="{Binding WordWrapEditor, Mode=TwoWay}"
-                                  cmd:CommandTip.Text="Wrap long lines instead of scrolling sideways"
+                                  cmd:CommandTip.Text="{l:Tr Shell_WordWrapTip}"
                                   cmd:CommandTip.Command="ToggleWordWrap">
                         <PathIcon Data="{StaticResource WrapIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
                     </ToggleButton>
@@ -605,10 +606,10 @@
                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
                                 Margin="10,0,0,0"
                                 IsVisible="{Binding IsInTransaction}"
-                                ToolTip.Tip="A transaction is open. Statements run inside it until you commit or roll back.">
+                                ToolTip.Tip="{l:Tr Shell_InTransactionTip}">
                         <Rectangle Classes="statusSeparator" />
                         <Ellipse Width="8" Height="8" Fill="#D9822B" VerticalAlignment="Center" />
-                        <TextBlock Text="In transaction" Classes="statusText" Foreground="#D9822B"
+                        <TextBlock Text="{l:Tr Shell_InTransaction}" Classes="statusText" Foreground="#D9822B"
                                    FontWeight="SemiBold" VerticalAlignment="Center" />
                     </StackPanel>
                     <!-- Safe mode's staged-changes segment: count + review/commit + discard.
@@ -617,17 +618,17 @@
                     <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center"
                                 Margin="10,0,0,0"
                                 IsVisible="{Binding ActiveTab.HasPendingChanges}"
-                                ToolTip.Tip="Safe mode: these changes are staged locally and nothing has reached the database yet">
+                                ToolTip.Tip="{l:Tr Shell_StagedTip}">
                         <Rectangle Classes="statusSeparator" />
                         <Ellipse Width="8" Height="8" Fill="{DynamicResource AppAccentBrush}" VerticalAlignment="Center" />
                         <TextBlock Classes="statusText" FontWeight="SemiBold"
                                    Text="{Binding ActiveTab.PendingChangesText}" VerticalAlignment="Center" />
-                        <Button Classes="accent" FontSize="11" Padding="10,3" MinHeight="0" Content="Review…"
+                        <Button Classes="accent" FontSize="11" Padding="10,3" MinHeight="0" Content="{l:Tr Shell_ReviewStaged}"
                                 Click="OnReviewPendingClick"
-                                ToolTip.Tip="Show the generated SQL, then commit everything as one transaction" />
-                        <Button FontSize="11" Padding="10,3" MinHeight="0" Content="Discard"
+                                ToolTip.Tip="{l:Tr Shell_ReviewStagedTip}" />
+                        <Button FontSize="11" Padding="10,3" MinHeight="0" Content="{l:Tr Common_Discard}"
                                 Click="OnDiscardPendingClick"
-                                ToolTip.Tip="Drop all staged changes and reload from the server" />
+                                ToolTip.Tip="{l:Tr Shell_DiscardStagedTip}" />
                     </StackPanel>
                     <!-- "Did you mean the quoted form?" fix, offered after a failed unquoted-identifier run -->
                     <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center"
@@ -635,9 +636,9 @@
                                 IsVisible="{Binding ActiveTab.FixSuggestionSql, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
                         <Rectangle Classes="statusSeparator" />
                         <TextBlock Classes="statusText" Text="{Binding ActiveTab.FixSuggestionText}" VerticalAlignment="Center" />
-                        <Button Classes="accent" FontSize="11" Padding="10,3" MinHeight="0" Content="Fix &amp; re-run"
+                        <Button Classes="accent" FontSize="11" Padding="10,3" MinHeight="0" Content="{l:Tr Shell_FixRerun}"
                                 Command="{Binding ActiveTab.ApplyFixCommand}"
-                                ToolTip.Tip="Rewrite the unquoted identifiers to match the database and run again" />
+                                ToolTip.Tip="{l:Tr Shell_FixRerunTip}" />
                     </StackPanel>
                     <!-- Why this result set can't be edited inline. A dim lock +
                          "read-only", full reason in the tooltip — present only when
@@ -645,11 +646,11 @@
                     <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="6" Margin="10,0,0,0"
                                 VerticalAlignment="Center"
                                 IsVisible="{Binding ActiveTab.ReadOnlyHint, Converter={x:Static conv:ObjectConverters.IsNotNull}}"
-                                ToolTip.Tip="{Binding ActiveTab.ReadOnlyHint, StringFormat='Results are read-only: {0}'}">
+                                ToolTip.Tip="{Binding ResultsReadOnlyTip}">
                         <Rectangle Classes="statusSeparator" Margin="0,0,4,0" />
                         <PathIcon Data="{StaticResource LockIconGeometry}" Width="10" Height="10"
                                   Opacity="0.55" VerticalAlignment="Center" />
-                        <TextBlock Classes="statusText dim" Text="read-only" VerticalAlignment="Center" />
+                        <TextBlock Classes="statusText dim" Text="{l:Tr Shell_ReadOnlyMark}" VerticalAlignment="Center" />
                     </StackPanel>
                     <StackPanel Grid.Column="6" Orientation="Horizontal" Spacing="10" Margin="10,0,0,0"
                                 IsVisible="{Binding ActiveTab.RowCountStatusText, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
@@ -690,8 +691,8 @@
                              no Command (DESIGN rule 6). -->
                         <ToggleButton Classes="chip" Padding="4" VerticalAlignment="Center"
                                       IsChecked="{Binding ShowFilterBar, Mode=TwoWay}"
-                                      cmd:CommandTip.Text="Always show the filter bar" cmd:CommandTip.Command="FilterRows"
-                                      AutomationProperties.Name="Always show the filter bar">
+                                      cmd:CommandTip.Text="{l:Tr Shell_FilterBarPinTip}" cmd:CommandTip.Command="FilterRows"
+                                      AutomationProperties.Name="{l:Tr Shell_FilterBarPinTip}">
                             <PathIcon Data="{StaticResource FilterIconGeometry}" Width="11" Height="11" />
                         </ToggleButton>
                         <!-- The paging controls hang off the browse view model itself
@@ -705,11 +706,11 @@
                                     x:DataType="vm:TableBrowseViewModel" DataContext="{Binding ActiveTab.ShownBrowse}">
                             <TextBlock Classes="statusText dim" Text="{Binding PageLabel}" VerticalAlignment="Center" />
                             <Button Classes="chip" Padding="4" VerticalAlignment="Center"
-                                    Command="{Binding PreviousPageCommand}" ToolTip.Tip="Previous page">
+                                    Command="{Binding PreviousPageCommand}" ToolTip.Tip="{l:Tr Shell_PreviousPage}">
                                 <PathIcon Data="{StaticResource ChevronLeftIconGeometry}" Width="11" Height="11" />
                             </Button>
                             <Button Classes="chip" Padding="4" VerticalAlignment="Center"
-                                    Command="{Binding NextPageCommand}" ToolTip.Tip="Next page">
+                                    Command="{Binding NextPageCommand}" ToolTip.Tip="{l:Tr Shell_NextPage}">
                                 <PathIcon Data="{StaticResource ChevronRightIconGeometry}" Width="11" Height="11" />
                             </Button>
                         </StackPanel>
@@ -730,9 +731,9 @@
                              text, and must not make the bar grow the moment rows arrive. -->
                         <Button Classes="chip" Padding="4" VerticalAlignment="Center" Margin="0,-4"
                                 Command="{Binding ToggleRowDetailsCommand}"
-                                cmd:CommandTip.Text="Row details: the selected row as a form"
+                                cmd:CommandTip.Text="{l:Tr Shell_RowDetailsTip}"
                                 cmd:CommandTip.Command="RowDetails"
-                                AutomationProperties.Name="Row details">
+                                AutomationProperties.Name="{l:Tr Shell_RowDetails}">
                             <PathIcon Data="{StaticResource RowDetailsIconGeometry}" Width="11" Height="11" />
                         </Button>
                     </StackPanel>
@@ -765,7 +766,7 @@
                          Background="Transparent"
                          Text="{Binding SearchText, Mode=TwoWay}"
                          KeyDown="OnPaletteSearchKeyDown"
-                         PlaceholderText="Jump to a table, saved query, or action…">
+                         PlaceholderText="{l:Tr Shell_PalettePlaceholder}">
                     <TextBox.InnerLeftContent>
                         <PathIcon Data="{StaticResource MagnifyIconGeometry}" Width="15" Height="15"
                                   Opacity="0.5" Margin="8,0,4,0" VerticalAlignment="Center" />
@@ -799,7 +800,7 @@
                             </ListBox.ItemTemplate>
                         </ListBox>
                         <TextBlock IsVisible="{Binding !Results.Count}" IsHitTestVisible="False"
-                                   Text="No matches" Opacity="0.6" FontSize="13"
+                                   Text="{l:Tr Shell_PaletteNoMatches}" Opacity="0.6" FontSize="13"
                                    HorizontalAlignment="Center" VerticalAlignment="Center" Margin="16" />
                     </Grid>
                 </Border>
@@ -818,7 +819,7 @@
          binding writes it back. Never pair it with a closing Command — that is the
          double-toggle no-op of DESIGN.md rule 6. -->
     <nui:OverlayPanel IsOpen="{Binding IsShortcutsOpen, Mode=TwoWay}"
-                      Title="Keyboard shortcuts" PanelWidth="560" PanelMaxHeight="700"
+                      Title="{l:Tr Shell_ShortcutsTitle}" PanelWidth="560" PanelMaxHeight="700"
                       Content="{Binding Shortcuts}">
         <nui:OverlayPanel.ContentTemplate>
             <DataTemplate DataType="vm:ShortcutsViewModel">
@@ -828,7 +829,7 @@
     </nui:OverlayPanel>
 
     <nui:OverlayPanel IsOpen="{Binding IsPreferencesOpen, Mode=TwoWay}"
-                      Title="Settings" PanelWidth="580" PanelMaxHeight="640"
+                      Title="{l:Tr Shell_SettingsTitle}" PanelWidth="580" PanelMaxHeight="640"
                       Content="{Binding Preferences}">
         <nui:OverlayPanel.ContentTemplate>
             <DataTemplate DataType="vm:PreferencesViewModel">
@@ -840,7 +841,7 @@
     <!-- Sized to its content rather than to the 520 default: an About box is six short
          lines, and a half-empty card would look like a page that failed to load. -->
     <nui:OverlayPanel IsOpen="{Binding IsAboutOpen, Mode=TwoWay}"
-                      Title="About" PanelWidth="340" PanelMaxHeight="400">
+                      Title="{l:Tr Shell_AboutTitle}" PanelWidth="340" PanelMaxHeight="400">
         <views:AboutView />
     </nui:OverlayPanel>
 

@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:PgNimbus.App.ViewModels"
+             xmlns:l="using:PgNimbus.App.Localization"
              x:Class="PgNimbus.App.Views.DatabaseSwitcherView"
              x:DataType="vm:DatabaseSwitcherViewModel"
              Width="260">
@@ -10,8 +11,8 @@
          click opens the database in this window, and a row's right-click menu
          opens it in a new one. -->
     <StackPanel Spacing="6">
-        <TextBox Name="FilterBox" Text="{Binding Filter}" PlaceholderText="Find a database…" />
-        <TextBlock Classes="secondary" Text="Reading the databases…" FontSize="12" Margin="4,2"
+        <TextBox Name="FilterBox" Text="{Binding Filter}" PlaceholderText="{l:Tr Shell_FindDatabase}" />
+        <TextBlock Classes="secondary" Text="{l:Tr Shell_ReadingDatabases}" FontSize="12" Margin="4,2"
                    IsVisible="{Binding IsLoading}" />
         <TextBlock Name="MessageText" Classes="secondary" Text="{Binding Message}" FontSize="12" Margin="4,2"
                    TextWrapping="Wrap" IsVisible="{Binding HasMessage}" />

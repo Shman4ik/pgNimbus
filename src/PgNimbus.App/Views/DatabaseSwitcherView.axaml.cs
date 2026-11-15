@@ -3,6 +3,7 @@ using Avalonia.Input;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using PgNimbus.App.ViewModels;
+using PgNimbus.Core.Localization;
 
 namespace PgNimbus.App.Views;
 
@@ -80,7 +81,7 @@ public partial class DatabaseSwitcherView : UserControl
             return;
         }
 
-        var open = new MenuItem { Header = "Open in New Window" };
+        var open = new MenuItem { Header = Strings.Shell_OpenInNewWindow };
         open.Click += (_, _) => _ = model.OpenInNewWindowAsync(item);
         RowMenu = new ContextMenu { ItemsSource = new[] { open } };
         RowMenu.Open(row);
