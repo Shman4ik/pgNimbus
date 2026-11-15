@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Query;
 using PgNimbus.Core.Security;
 
@@ -30,15 +31,15 @@ public sealed record DefaultPrivilegeRow(
     /// applies wherever the creating role puts the object. Said in words rather
     /// than left as an empty cell, since a blank there reads as "unknown".
     /// </summary>
-    public string SchemaLabel => Schema ?? "(all schemas)";
+    public string SchemaLabel => Schema ?? Strings.Security_AllSchemas;
 
     public string AppliesToLabel => AppliesTo switch
     {
-        SecurableKind.Table => "Tables",
-        SecurableKind.Sequence => "Sequences",
-        SecurableKind.Function => "Functions",
-        SecurableKind.Type => "Types",
-        SecurableKind.Schema => "Schemas",
+        SecurableKind.Table => Strings.Security_AppliesToTables,
+        SecurableKind.Sequence => Strings.Security_AppliesToSequences,
+        SecurableKind.Function => Strings.Security_AppliesToFunctions,
+        SecurableKind.Type => Strings.Security_AppliesToTypes,
+        SecurableKind.Schema => Strings.Security_AppliesToSchemas,
         _ => AppliesTo.ToString(),
     };
 
@@ -62,7 +63,7 @@ public sealed record DefaultPrivilegeRow(
     public string GrantOptionNote => WithGrantOption ? "WITH GRANT OPTION" : "";
 
     /// <summary>The tab title for <see cref="Sql"/>, in the app's "subject · what" shape.</summary>
-    public string TabTitle => $"{OwnerRole} · default privileges";
+    public string TabTitle => Strings.Security_DefaultPrivilegesTabTitle(OwnerRole);
 
     /// <summary>
     /// The statement this row represents, ready to be edited into a REVOKE or
@@ -104,6 +105,17 @@ public sealed partial class DefaultPrivilegesTabViewModel(PrivilegeService privi
 
     public RangeObservableCollection<DefaultPrivilegeRow> Rows { get; } = [];
 
+    /// <summary>
+    /// The rows say their text through getters, and a record raises nothing, so
+    /// the list is replaced by copies of itself: the grid reads them again.
+    /// </summary>
+    internal void OnLanguageChanged()
+    {
+        var selected = SelectedRow;
+        Rows.ReplaceAll(Rows.Select(row => row with { }).ToList());
+        SelectedRow = selected is null ? null : Rows.FirstOrDefault(r => r.Identity == selected.Identity);
+    }
+
     public async Task RefreshAsync(CancellationToken ct)
     {
         try
@@ -126,7 +138,7 @@ public sealed partial class DefaultPrivilegesTabViewModel(PrivilegeService privi
         }
         catch (Exception ex)
         {
-            _host.ReportError("Default privileges", ex);
+            _host.ReportError(Strings.Security_TabDefaultPrivileges, ex);
         }
     }
 

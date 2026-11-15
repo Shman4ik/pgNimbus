@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="using:PgNimbus.App.Localization"
              xmlns:vm="using:PgNimbus.App.ViewModels.Security"
              x:Class="PgNimbus.App.Views.Security.RolesTabView"
              x:DataType="vm:RolesTabViewModel">
@@ -13,13 +14,13 @@
         <Grid Grid.Column="0" RowDefinitions="Auto,*,Auto" MinWidth="300">
 
             <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
-                <TextBox Grid.Column="0" Text="{Binding Filter}" PlaceholderText="Filter roles…" FontSize="12" />
+                <TextBox Grid.Column="0" Text="{Binding Filter}" PlaceholderText="{l:Tr Security_FilterRoles}" FontSize="12" />
                 <!-- A stock server carries a dozen pg_* roles nobody made and
                      nobody edits. Off by default, one click from visible. -->
                 <ToggleButton Grid.Column="1" Classes="chip" Margin="6,0,0,0" VerticalAlignment="Center"
                               IsChecked="{Binding ShowPredefinedRoles}"
-                              ToolTip.Tip="Also list the built-in pg_* roles the server ships with">
-                    <TextBlock Text="pg_*" />
+                              ToolTip.Tip="{l:Tr Security_BuiltinRolesTip}">
+                    <TextBlock Text="{l:Tr Security_BuiltinRolesChip}" />
                 </ToggleButton>
             </Grid>
 
@@ -34,9 +35,9 @@
                               CanUserResizeColumns="True" CanUserSortColumns="False"
                               GridLinesVisibility="Horizontal" HeadersVisibility="Column">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Role" Binding="{Binding Name}" Width="*" />
-                            <DataGridTextColumn Header="Attributes" Binding="{Binding AttributesLabel}" Width="160" />
-                            <DataGridTemplateColumn Header="Valid until" Width="112">
+                            <DataGridTextColumn Header="{l:Tr Security_ColRole}" Binding="{Binding Name}" Width="*" />
+                            <DataGridTextColumn Header="{l:Tr Security_ColAttributes}" Binding="{Binding AttributesLabel}" Width="160" />
+                            <DataGridTemplateColumn Header="{l:Tr Security_ColValidUntil}" Width="112">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate x:DataType="vm:RoleRowViewModel">
                                         <Panel Margin="12,0">
@@ -57,21 +58,21 @@
                     <!-- "No role is called that" and "this server has no roles"
                          send you looking for opposite problems, but only the
                          first can happen here: every server has roles. -->
-                    <TextBlock Text="No role matches that filter." Opacity="0.55" FontSize="12"
+                    <TextBlock Text="{l:Tr Security_NoRoleMatches}" Opacity="0.55" FontSize="12"
                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                IsVisible="{Binding !HasFilteredRoles}" />
                 </Panel>
             </Border>
 
             <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="6" Margin="0,8,0,0">
-                <Button Classes="soft" Content="New role…" Command="{Binding NewRoleCommand}"
-                        ToolTip.Tip="Create a role, with the CREATE ROLE statement shown before it runs" />
-                <Button Classes="soft" Content="Edit…" Command="{Binding EditRoleCommand}"
-                        ToolTip.Tip="Change the selected role's attributes and memberships" />
-                <Button Classes="soft danger" Content="Drop…" Command="{Binding DropRoleCommand}"
-                        ToolTip.Tip="Work out what the role owns and holds, then generate the drop recipe" />
-                <Button Classes="soft" Content="CREATE ROLE script" Command="{Binding CopyCreateScriptCommand}"
-                        ToolTip.Tip="Open this role's CREATE ROLE statement in a new query tab. It carries no password — pgNimbus never reads password hashes." />
+                <Button Classes="soft" Content="{l:Tr Security_NewRole}" Command="{Binding NewRoleCommand}"
+                        ToolTip.Tip="{l:Tr Security_NewRoleTip}" />
+                <Button Classes="soft" Content="{l:Tr Security_Edit}" Command="{Binding EditRoleCommand}"
+                        ToolTip.Tip="{l:Tr Security_EditTip}" />
+                <Button Classes="soft danger" Content="{l:Tr Security_DropRole}" Command="{Binding DropRoleCommand}"
+                        ToolTip.Tip="{l:Tr Security_DropRoleTip}" />
+                <Button Classes="soft" Content="{l:Tr Security_CreateRoleScript}" Command="{Binding CopyCreateScriptCommand}"
+                        ToolTip.Tip="{l:Tr Security_CreateRoleScriptTip}" />
             </StackPanel>
 
         </Grid>
@@ -100,7 +101,7 @@
         <Border Grid.Column="2" Classes="card" Padding="0" MinWidth="320">
             <Panel>
 
-                <TextBlock Text="Select a role to see its attributes and where it sits in the membership graph."
+                <TextBlock Text="{l:Tr Security_SelectRoleHint}"
                            Opacity="0.55" FontSize="12" TextWrapping="Wrap" MaxWidth="320"
                            TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center"
                            IsVisible="{Binding !HasSelection}" />
@@ -140,7 +141,7 @@
                         </StackPanel>
 
                         <StackPanel Spacing="4">
-                            <TextBlock Classes="sectionHeader" Text="MEMBER OF" />
+                            <TextBlock Classes="sectionHeader" Text="{l:Tr Security_MemberOf}" />
                             <TreeView ItemsSource="{Binding MemberOf}" MaxHeight="200">
                                 <TreeView.Styles>
                                     <!-- The whole chain at a glance: a privilege
@@ -158,7 +159,7 @@
                                             <!-- The membership that looks granted and behaves
                                                  as if it is not: NOINHERIT privileges are
                                                  dormant until an explicit SET ROLE. -->
-                                            <TextBlock Text="NOINHERIT · needs SET ROLE" FontSize="11"
+                                            <TextBlock Text="{l:Tr Security_NoInheritNeedsSetRole}" FontSize="11"
                                                        VerticalAlignment="Center"
                                                        Foreground="{StaticResource AppWarningBrush}"
                                                        IsVisible="{Binding IsDormant}" />
@@ -166,12 +167,12 @@
                                     </TreeDataTemplate>
                                 </TreeView.ItemTemplate>
                             </TreeView>
-                            <TextBlock Text="Belongs to no group." FontSize="12" Opacity="0.6"
+                            <TextBlock Text="{l:Tr Security_BelongsToNoGroup}" FontSize="12" Opacity="0.6"
                                        IsVisible="{Binding !HasMemberOf}" />
                         </StackPanel>
 
                         <StackPanel Spacing="4">
-                            <TextBlock Classes="sectionHeader" Text="MEMBERS" />
+                            <TextBlock Classes="sectionHeader" Text="{l:Tr Security_Members}" />
                             <TreeView ItemsSource="{Binding Members}" MaxHeight="200">
                                 <TreeView.Styles>
                                     <Style Selector="TreeViewItem">
@@ -183,7 +184,7 @@
                                         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2">
                                             <TextBlock Text="{Binding Role}" VerticalAlignment="Center"
                                                        Opacity="{Binding RowOpacity}" />
-                                            <TextBlock Text="NOINHERIT · needs SET ROLE" FontSize="11"
+                                            <TextBlock Text="{l:Tr Security_NoInheritNeedsSetRole}" FontSize="11"
                                                        VerticalAlignment="Center"
                                                        Foreground="{StaticResource AppWarningBrush}"
                                                        IsVisible="{Binding IsDormant}" />
@@ -191,14 +192,14 @@
                                     </TreeDataTemplate>
                                 </TreeView.ItemTemplate>
                             </TreeView>
-                            <TextBlock Text="No role belongs to this one." FontSize="12" Opacity="0.6"
+                            <TextBlock Text="{l:Tr Security_NoRoleBelongs}" FontSize="12" Opacity="0.6"
                                        IsVisible="{Binding !HasMembers}" />
                         </StackPanel>
 
                         <!-- ALTER ROLE … SET entries. Hidden when there are none,
                              which is the overwhelmingly common case. -->
                         <StackPanel Spacing="4" IsVisible="{Binding HasSettings}">
-                            <TextBlock Classes="sectionHeader" Text="SESSION DEFAULTS" />
+                            <TextBlock Classes="sectionHeader" Text="{l:Tr Security_SessionDefaults}" />
                             <ItemsControl ItemsSource="{Binding Settings}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="x:String">

@@ -447,7 +447,7 @@ public static class Fixtures
             ServerVersion = new Version(17, 2),
             ServerVersionText = "PostgreSQL 17.2",
             Graph = RoleGraph.Build(Roles(), RoleMemberships()),
-            Status = "5 roles · 09:41:02",
+            Status = PgNimbus.Core.Localization.Strings.Security_RolesStatus(5, "09:41:02"),
         };
 
         SeedRolesTab(vm);
@@ -494,7 +494,14 @@ public static class Fixtures
             objects,
             columns,
             rows,
-            "app_ro can SELECT sales.orders — inherited from readers. It cannot INSERT, UPDATE or DELETE.",
+            () => EffectivePrivilegeResolver.ExplainSentence(
+                "app_ro",
+                objects[0],
+                rows[0].Cells
+                    .Where(c => c.Privilege is PrivilegeKind.Select or PrivilegeKind.Insert or PrivilegeKind.Update or PrivilegeKind.Delete)
+                    .Select(c => c.Effective)
+                    .ToList(),
+                hasSchemaUsage: true),
             [new ColumnGrantRow("email", "app_ro: SELECT")]);
 
         static PermissionRowViewModel Row(

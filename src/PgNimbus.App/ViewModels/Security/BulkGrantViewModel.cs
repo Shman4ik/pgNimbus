@@ -1,11 +1,17 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Security;
 
 namespace PgNimbus.App.ViewModels.Security;
 
 /// <summary>One entry of the preset combo: the enum value plus the words a person reads.</summary>
-public sealed record BulkGrantPresetOption(BulkGrantPreset Preset, string Label, string Description);
+public sealed record BulkGrantPresetOption(BulkGrantPreset Preset, StringKey LabelKey, StringKey DescriptionKey)
+{
+    public string Label => Strings.Get(LabelKey);
+
+    public string Description => Strings.Get(DescriptionKey);
+}
 
 /// <summary>
 /// Backs the bulk-grant dialog — "give this role access to a whole schema",
@@ -52,14 +58,10 @@ public sealed partial class BulkGrantViewModel : ObservableObject
 
         Presets =
         [
-            new(BulkGrantPreset.ReadOnly, "Read only",
-                "SELECT on every table and view, plus USAGE and SELECT on sequences."),
-            new(BulkGrantPreset.ReadWrite, "Read and write",
-                "SELECT, INSERT, UPDATE and DELETE on tables, plus USAGE, SELECT and UPDATE on sequences."),
-            new(BulkGrantPreset.Full, "Everything in the schema",
-                "ALL PRIVILEGES on tables, sequences and functions, plus CREATE on the schema itself."),
-            new(BulkGrantPreset.RevokeAll, "Revoke everything",
-                "REVOKE ALL on tables, sequences, functions and the schema — and on default privileges too."),
+            new(BulkGrantPreset.ReadOnly, StringKey.Security_PresetReadOnly, StringKey.Security_PresetReadOnlyDescription),
+            new(BulkGrantPreset.ReadWrite, StringKey.Security_PresetReadWrite, StringKey.Security_PresetReadWriteDescription),
+            new(BulkGrantPreset.Full, StringKey.Security_PresetFull, StringKey.Security_PresetFullDescription),
+            new(BulkGrantPreset.RevokeAll, StringKey.Security_PresetRevokeAll, StringKey.Security_PresetRevokeAllDescription),
         ];
 
         _schema = initialSchema is not null && Schemas.Contains(initialSchema) ? initialSchema : Schemas.FirstOrDefault();
@@ -69,6 +71,12 @@ public sealed partial class BulkGrantViewModel : ObservableObject
             : CreatorRoles.FirstOrDefault();
 
         Rebuild();
+
+        Localizer.WhenChanged(this, static vm =>
+        {
+            vm.OnPropertyChanged(nameof(PresetDescription));
+            vm.OnPropertyChanged(nameof(ScriptTitle));
+        });
     }
 
     public ObservableCollection<string> Schemas { get; }
@@ -85,7 +93,7 @@ public sealed partial class BulkGrantViewModel : ObservableObject
     public bool CanOpen => Schema is { Length: > 0 } && Grantee is { Length: > 0 } && Script.Length > 0;
 
     /// <summary>The tab title the generated script gets in the editor.</summary>
-    public string ScriptTitle => $"grants · {Schema}";
+    public string ScriptTitle => Strings.Security_GrantsTabTitle(Schema);
 
     partial void OnSchemaChanged(string? value) => Rebuild();
 

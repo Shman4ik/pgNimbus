@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Security;
 
 namespace PgNimbus.App.ViewModels.Security;
@@ -32,11 +33,11 @@ public sealed partial class RoleEditorViewModel : ObservableObject
     /// PG14 added the data pair; <c>pg_monitor</c> is older but belongs in the
     /// same one-click group because it solves the same shape of problem.
     /// </summary>
-    private static readonly (string Name, string Hint)[] PredefinedGrantable =
+    private static readonly (string Name, StringKey Hint)[] PredefinedGrantable =
     [
-        ("pg_read_all_data", "SELECT on every table, view and sequence, in every schema"),
-        ("pg_write_all_data", "INSERT, UPDATE and DELETE on every table"),
-        ("pg_monitor", "read the statistics and monitoring views without superuser"),
+        ("pg_read_all_data", StringKey.Security_HintReadAllData),
+        ("pg_write_all_data", StringKey.Security_HintWriteAllData),
+        ("pg_monitor", StringKey.Security_HintMonitor),
     ];
 
     private readonly SecurityEditor _editor;
@@ -163,7 +164,7 @@ public sealed partial class RoleEditorViewModel : ObservableObject
 
                 GroupMemberships.Add(new RoleMembershipOption(
                     role.Name,
-                    role.CanLogin ? "login role" : "group role",
+                    role.CanLogin ? StringKey.Security_HintLoginRole : StringKey.Security_HintGroupRole,
                     existing.Contains(role.Name),
                     Recompute));
             }
@@ -186,6 +187,20 @@ public sealed partial class RoleEditorViewModel : ObservableObject
 
         _loaded = true;
         Recompute();
+
+        Localizer.WhenChanged(this, static vm => vm.OnLanguageChanged());
+    }
+
+    /// <summary>The title, the hints and the messages under the form say themselves again.</summary>
+    private void OnLanguageChanged()
+    {
+        OnPropertyChanged(nameof(Title));
+        foreach (var option in PredefinedMemberships.Concat(GroupMemberships))
+        {
+            option.NotifyLanguageChanged();
+        }
+
+        Recompute();
     }
 
     /// <summary>Closes the dialog. True means a script ran and the caller should re-read the catalog.</summary>
@@ -193,7 +208,7 @@ public sealed partial class RoleEditorViewModel : ObservableObject
 
     public bool IsCreate => _current is null;
 
-    public string Title => IsCreate ? "New role" : $"Alter role “{_current!.Name}”";
+    public string Title => IsCreate ? Strings.Security_RoleNew : Strings.Security_RoleAlter(_current!.Name);
 
     /// <summary>A role's name is its identity for every grant; renaming is <c>ALTER ROLE … RENAME</c>, not this form.</summary>
     public bool CanEditName => IsCreate;
@@ -263,7 +278,7 @@ public sealed partial class RoleEditorViewModel : ObservableObject
     public static string? NonAsciiPasswordWarning(string password, bool normalizationAvailable) =>
         normalizationAvailable || System.Text.Ascii.IsValid(password)
             ? null
-            : "This password has characters outside ASCII. Some PostgreSQL clients normalize those before they log in, and pgNimbus can't do the same here, so they may be refused. An ASCII password always works.";
+            : Strings.Security_NonAsciiPassword;
 
     public static RoleEditorViewModel ForCreate(SecurityEditor editor, SecurityViewModel host) =>
         new(editor, host, current: null, currentMemberOf: []);
@@ -317,20 +332,20 @@ public sealed partial class RoleEditorViewModel : ObservableObject
         LivePreview = BuildScript(maskPassword: true);
 
         ValidationMessage =
-            Name.Trim().Length == 0 ? "A role needs a name."
-            : Password != PasswordConfirm ? "The two passwords do not match."
+            Name.Trim().Length == 0 ? Strings.Security_NeedsName
+            : Password != PasswordConfirm ? Strings.Security_PasswordsDiffer
             // The password is sent as a SCRAM verifier, which a server before
             // PG10 would store as the password itself (review of the 2026-09
             // audit fixes): refused rather than silently locking the role out.
             : Password.Length > 0 && !PgFeatures.SupportsScramVerifier(_serverVersion)
-                ? "Setting a password needs PostgreSQL 10 or later. Set it with psql's \\password on this server."
-            : LivePreview.Length == 0 ? "Nothing has changed yet."
+                ? Strings.Security_PasswordNeedsPg10
+            : LivePreview.Length == 0 ? Strings.Security_NothingChanged
             : "";
 
         // Legal, and sometimes right: pg_hba.conf may authenticate this role by
         // peer, trust or an external method. So it is said out loud, not refused.
         WarningMessage = IsCreate && CanLogin && Password.Length == 0
-            ? "This role can log in but has no password. That works only if pg_hba.conf authenticates it another way."
+            ? Strings.Security_LoginWithoutPassword
             : NonAsciiPasswordWarning(Password, ScramSha256Verifier.NormalizationAvailable) ?? "";
 
         OnPropertyChanged(nameof(HasValidationMessage));
@@ -430,7 +445,7 @@ public sealed partial class RoleEditorViewModel : ObservableObject
 }
 
 /// <summary>One membership checkbox: a role this one may belong to.</summary>
-public sealed partial class RoleMembershipOption(string name, string hint, bool isMember, Action changed) : ObservableObject
+public sealed partial class RoleMembershipOption(string name, StringKey hintKey, bool isMember, Action changed) : ObservableObject
 {
     private readonly Action _changed = changed;
 
@@ -439,7 +454,9 @@ public sealed partial class RoleMembershipOption(string name, string hint, bool 
 
     public string Name { get; } = name;
 
-    public string Hint { get; } = hint;
+    public string Hint => Strings.Get(hintKey);
+
+    public void NotifyLanguageChanged() => OnPropertyChanged(nameof(Hint));
 
     partial void OnIsMemberChanged(bool value) => _changed();
 }
@@ -472,11 +489,19 @@ public sealed partial class DropRoleViewModel : ObservableObject
     [ObservableProperty]
     private bool _isLoading = true;
 
-    [ObservableProperty]
-    private string _ownedHeader = "Objects it owns";
+    /// <summary>True once the two lists were read, which is when the headings gain their counts.</summary>
+    private bool _listsRead;
 
-    [ObservableProperty]
-    private string _grantsHeader = "Privileges it holds";
+    public string OwnedHeader => _listsRead ? Strings.Security_OwnedHeaderCount(Owned.Count) : Strings.Security_OwnedHeader;
+
+    // A full page means the query hit its cap, not that this is the whole
+    // list - saying "200" there would be a number the user could act on
+    // and be wrong about.
+    public string GrantsHeader => !_listsRead
+        ? Strings.Security_GrantsHeader
+        : GrantsHeld.Count >= RoleService.GrantsHeldLimit
+            ? Strings.Security_GrantsHeaderTruncated(RoleService.GrantsHeldLimit)
+            : Strings.Security_GrantsHeaderCount(GrantsHeld.Count);
 
     /// <summary>
     /// Whether the script grants the executing role the memberships REASSIGN
@@ -515,6 +540,12 @@ public sealed partial class DropRoleViewModel : ObservableObject
                       ?? ReassignOption.Nobody;
 
         Rebuild();
+
+        Localizer.WhenChanged(this, static vm =>
+        {
+            vm.OnPropertyChanged(nameof(OwnedHeader));
+            vm.OnPropertyChanged(nameof(GrantsHeader));
+        });
     }
 
     public Action<bool>? CloseRequested { get; set; }
@@ -561,14 +592,9 @@ public sealed partial class DropRoleViewModel : ObservableObject
                 GrantsHeld.Add(dependency);
             }
 
-            OwnedHeader = $"Objects it owns ({Owned.Count})";
-
-            // A full page means the query hit its cap, not that this is the whole
-            // list - saying "200" there would be a number the user could act on
-            // and be wrong about.
-            GrantsHeader = GrantsHeld.Count >= RoleService.GrantsHeldLimit
-                ? $"Privileges it holds ({RoleService.GrantsHeldLimit}+, list truncated)"
-                : $"Privileges it holds ({GrantsHeld.Count})";
+            _listsRead = true;
+            OnPropertyChanged(nameof(OwnedHeader));
+            OnPropertyChanged(nameof(GrantsHeader));
         }
         catch (OperationCanceledException)
         {
@@ -633,7 +659,7 @@ public sealed partial class DropRoleViewModel : ObservableObject
     private void OpenInEditor()
     {
         // Null in the screenshot harness, which has no main window.
-        _openSqlInNewTab?.Invoke($"drop role · {RoleName}", Script);
+        _openSqlInNewTab?.Invoke(Strings.Security_DropRoleTabTitle(RoleName), Script);
         CloseRequested?.Invoke(false);
     }
 }
@@ -643,5 +669,12 @@ public sealed record ReassignOption(string? Role)
 {
     public static ReassignOption Nobody { get; } = new((string?)null);
 
-    public string Label => Role ?? "Nobody — delete the owned objects";
+    public string Label => Role ?? Strings.Security_ReassignNobody;
+
+    /// <summary>
+    /// What the combo box draws: the role's name, or for "nobody" the key itself,
+    /// which the app's <c>StringKeyTemplate</c> draws as text that follows a change
+    /// of language (a combo box copies the selected item, so a string would not).
+    /// </summary>
+    public object LabelContent => Role is { } role ? role : StringKey.Security_ReassignNobody;
 }

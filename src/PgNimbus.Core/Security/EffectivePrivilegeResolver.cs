@@ -1,3 +1,5 @@
+using PgNimbus.Core.Localization;
+
 namespace PgNimbus.Core.Security;
 
 /// <summary>
@@ -237,10 +239,9 @@ public static class EffectivePrivilegeResolver
 
         if (granted.Count == 0)
         {
-            var none = $"{role} has no privileges on {obj.Display}.";
             return blockedBySchema
-                ? none + $" {role} also lacks USAGE on schema {obj.Schema}, which blocks access to everything in it."
-                : none;
+                ? Strings.Security_SentenceNoneBlocked(role, obj.Display, obj.Schema)
+                : Strings.Security_SentenceNone(role, obj.Display);
         }
 
         // Granted but inert: lead with that. "can SELECT", followed a sentence later
@@ -248,23 +249,21 @@ public static class EffectivePrivilegeResolver
         // same privilege (found in the 0.14.0 release pass).
         if (blockedBySchema)
         {
-            var them = granted.Count == 1 ? "it" : "them";
-            var blocked = $"{role} holds {Join(granted, "and")} on {obj.Display} — {granted[0].Explanation} — "
-                + $"but cannot use {them}: it lacks USAGE on schema {obj.Schema}, which every object in it needs first.";
-            return denied.Count > 0 ? blocked + $" It has no {Join(denied, "or")} grant either." : blocked;
+            var held = Join(granted, Strings.Security_ListAnd);
+            return denied.Count > 0
+                ? Strings.Security_SentenceBlockedDenied(
+                    granted.Count, role, held, obj.Display, granted[0].Explanation, obj.Schema, Join(denied, Strings.Security_ListOr))
+                : Strings.Security_SentenceBlocked(granted.Count, role, held, obj.Display, granted[0].Explanation, obj.Schema);
         }
 
-        var sentence = $"{role} can {Join(granted, "and")} {obj.Display} — {granted[0].Explanation}.";
-        if (denied.Count > 0)
-        {
-            sentence += $" It cannot {Join(denied, "or")}.";
-        }
-
-        return sentence;
+        var can = Join(granted, Strings.Security_ListAnd);
+        return denied.Count > 0
+            ? Strings.Security_SentenceCanCannot(role, can, obj.Display, granted[0].Explanation, Join(denied, Strings.Security_ListOr))
+            : Strings.Security_SentenceCan(role, can, obj.Display, granted[0].Explanation);
     }
 
     /// <summary>"SELECT", "SELECT and INSERT", "SELECT, INSERT and UPDATE".</summary>
-    private static string Join(IReadOnlyList<EffectivePrivilege> items, string conjunction)
+    private static string Join(IReadOnlyList<EffectivePrivilege> items, Func<object?, object?, string> conjunction)
     {
         var names = items.Select(e => Privileges.Sql(e.Privilege)).ToList();
 
@@ -272,7 +271,7 @@ public static class EffectivePrivilegeResolver
         {
             0 => "",
             1 => names[0],
-            _ => $"{string.Join(", ", names.Take(names.Count - 1))} {conjunction} {names[^1]}",
+            _ => conjunction(string.Join(Strings.Security_ListSeparator, names.Take(names.Count - 1)), names[^1]),
         };
     }
 }

@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="using:PgNimbus.App.Localization"
              xmlns:vm="using:PgNimbus.App.ViewModels.Security"
              xmlns:sec="using:PgNimbus.Core.Security"
              x:Class="PgNimbus.App.Views.Security.PermissionsTabView"
@@ -9,25 +10,31 @@
 
         <!-- Picker and edit strip, one band: the window already carries a toolbar. -->
         <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto,Auto" Margin="0,0,0,10">
-            <ComboBox Grid.Column="0" ItemsSource="{Binding Kinds}" SelectedItem="{Binding SelectedKind, Mode=TwoWay}"
-                      MinWidth="110" VerticalAlignment="Center" />
+            <ComboBox Grid.Column="0" ItemsSource="{Binding KindOptions}" SelectedItem="{Binding SelectedKindOption, Mode=TwoWay}"
+                      MinWidth="110" VerticalAlignment="Center">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:SecurableKindOption">
+                        <ContentControl Content="{Binding LabelKey}" />
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
             <ComboBox Grid.Column="1" ItemsSource="{Binding Schemas}" SelectedItem="{Binding SelectedSchema, Mode=TwoWay}"
                       MinWidth="150" Margin="8,0,0,0" VerticalAlignment="Center"
-                      IsVisible="{Binding KindHasSchema}" PlaceholderText="Schema" />
-            <TextBox Grid.Column="2" Text="{Binding ObjectFilter}" PlaceholderText="Filter objects"
+                      IsVisible="{Binding KindHasSchema}" PlaceholderText="{l:Tr Security_Schema}" />
+            <TextBox Grid.Column="2" Text="{Binding ObjectFilter}" PlaceholderText="{l:Tr Security_ObjectFilterPlaceholder}"
                      MinWidth="160" Margin="8,0,0,0" VerticalAlignment="Center" />
-            <Button Grid.Column="3" Classes="soft" Content="Bulk grant…" Margin="8,0,0,0"
+            <Button Grid.Column="3" Classes="soft" Content="{l:Tr Security_BulkGrant}" Margin="8,0,0,0"
                     Command="{Binding BulkGrantCommand}"
-                    ToolTip.Tip="Give a role access to a whole schema, including objects created later" />
+                    ToolTip.Tip="{l:Tr Security_BulkGrantTip}" />
 
-            <ToggleButton Grid.Column="5" Classes="soft" Content="Edit grants" IsChecked="{Binding IsEditing, Mode=TwoWay}"
-                          ToolTip.Tip="Click cells to stage a GRANT or REVOKE; nothing runs until you review the script" />
+            <ToggleButton Grid.Column="5" Classes="soft" Content="{l:Tr Security_EditGrants}" IsChecked="{Binding IsEditing, Mode=TwoWay}"
+                          ToolTip.Tip="{l:Tr Security_EditGrantsTip}" />
             <TextBlock Grid.Column="6" Text="{Binding PendingLabel}" VerticalAlignment="Center"
                        FontSize="11" Opacity="0.7" Margin="10,0,0,0" IsVisible="{Binding IsEditing}" />
             <StackPanel Grid.Column="7" Orientation="Horizontal" Spacing="6" Margin="10,0,0,0"
                         IsVisible="{Binding HasPending}">
-                <Button Classes="soft" Content="Discard" Command="{Binding ClearPendingCommand}" />
-                <Button Classes="accent" Content="Review changes" Command="{Binding ReviewChangesCommand}" />
+                <Button Classes="soft" Content="{l:Tr Common_Discard}" Command="{Binding ClearPendingCommand}" />
+                <Button Classes="accent" Content="{l:Tr Security_ReviewChanges}" Command="{Binding ReviewChangesCommand}" />
             </StackPanel>
         </Grid>
 
@@ -75,11 +82,11 @@
                 </Border>
 
                 <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,0,0,6">
-                    <TextBox Grid.Column="0" Text="{Binding RoleFilter}" PlaceholderText="Filter roles" MaxWidth="240"
+                    <TextBox Grid.Column="0" Text="{Binding RoleFilter}" PlaceholderText="{l:Tr Security_RoleFilterPlaceholder}" MaxWidth="240"
                              HorizontalAlignment="Left" />
-                    <ToggleButton Grid.Column="1" Classes="chip" Content="Built-in roles"
+                    <ToggleButton Grid.Column="1" Classes="chip" Content="{l:Tr Security_BuiltinRolesToggle}"
                                   IsChecked="{Binding ShowPredefinedRoles, Mode=TwoWay}"
-                                  ToolTip.Tip="Show the pg_* roles initdb created" />
+                                  ToolTip.Tip="{l:Tr Security_BuiltinRolesToggleTip}" />
                 </Grid>
 
                 <!-- Fixed widths keep the header aligned with the rows; a DataGrid
@@ -90,7 +97,7 @@
                     <ScrollViewer HorizontalScrollBarVisibility="Auto">
                         <StackPanel>
                             <StackPanel Orientation="Horizontal" Margin="12,0,0,6">
-                                <TextBlock Text="ROLE" Width="150" Classes="sectionHeader" />
+                                <TextBlock Text="{l:Tr Security_ColRoleCaps}" Width="150" Classes="sectionHeader" />
                                 <ItemsControl ItemsSource="{Binding PrivilegeColumns}">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
@@ -104,7 +111,7 @@
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
-                                <TextBlock Text="HOW" Width="120" Classes="sectionHeader" />
+                                <TextBlock Text="{l:Tr Security_ColHowCaps}" Width="120" Classes="sectionHeader" />
                             </StackPanel>
 
                             <ListBox ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow, Mode=TwoWay}"
@@ -151,7 +158,7 @@
                 <!-- Column grants are additive on top of the table's, and no other
                      client surfaces them. A compact list is enough. -->
                 <StackPanel Grid.Row="3" Spacing="4" Margin="0,8,0,0" IsVisible="{Binding HasColumnGrants}">
-                    <TextBlock Text="COLUMN GRANTS" Classes="sectionHeader" />
+                    <TextBlock Text="{l:Tr Security_ColumnGrants}" Classes="sectionHeader" />
                     <ItemsControl ItemsSource="{Binding ColumnGrants}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:ColumnGrantRow">
