@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="using:PgNimbus.App.Localization"
              xmlns:ae="using:AvaloniaEdit"
              xmlns:folding="using:AvaloniaEdit.Folding"
              xmlns:vm="using:PgNimbus.App.ViewModels"
@@ -89,10 +90,10 @@
                 </TreeView.Styles>
                 <TreeView.ContextMenu>
                     <ContextMenu Name="TreeMenu">
-                        <MenuItem Header="Copy Value" Click="OnCopyValueClick" />
-                        <MenuItem Header="Copy SQL Path" Click="OnCopySqlPathClick"
+                        <MenuItem Header="{l:Tr Editor_CopyValue}" Click="OnCopyValueClick" />
+                        <MenuItem Header="{l:Tr Editor_CopySqlPath}" Click="OnCopySqlPathClick"
                                   IsVisible="{Binding CanCopySqlPath}" />
-                        <MenuItem Header="Copy JSON Path" Click="OnCopyJsonPathClick" />
+                        <MenuItem Header="{l:Tr Editor_CopyJsonPath}" Click="OnCopyJsonPathClick" />
                     </ContextMenu>
                 </TreeView.ContextMenu>
                 <TreeView.ItemTemplate>
@@ -122,7 +123,7 @@
                                          IsVisible="{Binding SelectedPath, Converter={x:Static ObjectConverters.IsNotNull}}"
                                          Classes="mono" FontSize="12"
                                          TextWrapping="Wrap" />
-                    <TextBlock Text="Select a value to see its path. Right-click to copy it."
+                    <TextBlock Text="{l:Tr Editor_SelectValueHint}"
                                IsVisible="{Binding SelectedPath, Converter={x:Static ObjectConverters.IsNull}}"
                                FontSize="12" Opacity="0.55" TextTrimming="CharacterEllipsis" />
                 </Panel>

@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="using:PgNimbus.App.Localization"
              xmlns:vm="using:PgNimbus.App.ViewModels"
              xmlns:views="using:PgNimbus.App.Views"
              xmlns:conv="using:Avalonia.Data.Converters"
@@ -27,11 +28,11 @@
                 <ComboBox Grid.Column="0" ItemsSource="{Binding ColumnNames}"
                           SelectedItem="{Binding Column, Mode=TwoWay}"
                           HorizontalAlignment="Stretch"
-                          AutomationProperties.Name="Filter column" />
+                          AutomationProperties.Name="{l:Tr Filter_ColumnAutomation}" />
                 <ComboBox Grid.Column="2" Name="OperatorInput" ItemsSource="{Binding Operators}"
                           SelectedItem="{Binding Operator, Mode=TwoWay}"
                           HorizontalAlignment="Stretch"
-                          AutomationProperties.Name="Comparison">
+                          AutomationProperties.Name="{l:Tr Filter_ComparisonAutomation}">
                     <ComboBox.ItemTemplate>
                         <DataTemplate x:DataType="vm:FilterOperatorOption">
                             <TextBlock Text="{Binding Label}" />
@@ -55,13 +56,13 @@
                    IsVisible="{Binding FilterError, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
 
         <Grid ColumnDefinitions="Auto,*,Auto">
-            <Button Grid.Column="0" Classes="soft danger" Content="Remove" FontSize="12" Padding="10,3" MinHeight="0"
+            <Button Grid.Column="0" Classes="soft danger" Content="{l:Tr Common_Remove}" FontSize="12" Padding="10,3" MinHeight="0"
                     IsVisible="{Binding IsEditingExisting}"
                     Command="{Binding RemoveFilterCommand}"
-                    ToolTip.Tip="Remove this condition" />
-            <Button Grid.Column="2" Classes="accent" Content="Apply" FontSize="12" Padding="16,3" MinHeight="0"
+                    ToolTip.Tip="{l:Tr Filter_RemoveTip}" />
+            <Button Grid.Column="2" Classes="accent" Content="{l:Tr Common_Apply}" FontSize="12" Padding="16,3" MinHeight="0"
                     Command="{Binding CommitDraftCommand}"
-                    ToolTip.Tip="Filter the rows by this condition (Enter)" />
+                    ToolTip.Tip="{l:Tr Filter_ApplyTip}" />
         </Grid>
     </StackPanel>
 </UserControl>

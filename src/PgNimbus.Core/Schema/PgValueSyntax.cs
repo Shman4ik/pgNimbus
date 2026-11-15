@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Numerics;
 using System.Text;
 using System.Text.Json;
+using PgNimbus.Core.Localization;
 
 namespace PgNimbus.Core.Schema;
 
@@ -26,17 +27,17 @@ public static class PgValueSyntax
             var eq = trimmed.IndexOf('=');
             if (eq < 0)
             {
-                return "An array dimension prefix ('[…]') must be followed by '='.";
+                return Strings.Editor_ArrayDimPrefix;
             }
 
             trimmed = trimmed[(eq + 1)..].TrimStart();
         }
 
-        return Validate(trimmed, '{', '}', "An array");
+        return Validate(trimmed, '{', '}', isArray: true);
     }
 
     /// <summary>Error message for a malformed composite (row) literal, or null when the structure is fine.</summary>
-    public static string? ValidateComposite(string text) => Validate(text.Trim(), '(', ')', "A composite");
+    public static string? ValidateComposite(string text) => Validate(text.Trim(), '(', ')', isArray: false);
 
     /// <summary>
     /// Error message for a value that isn't well-formed JSON, or null when it
@@ -65,10 +66,9 @@ public static class PgValueSyntax
         {
             // JsonException carries 0-based line/byte positions; present 1-based
             // and only when known (they're null for some low-level failures).
-            var where = ex.LineNumber is { } line && ex.BytePositionInLine is { } pos
-                ? $" (line {line + 1}, position {pos + 1})"
-                : string.Empty;
-            return $"Not valid JSON{where}.";
+            return ex.LineNumber is { } line && ex.BytePositionInLine is { } pos
+                ? Strings.Editor_JsonInvalidAt(line + 1, pos + 1)
+                : Strings.Editor_JsonInvalid;
         }
     }
 
@@ -123,7 +123,7 @@ public static class PgValueSyntax
             "real" or "float4" => ValidateFloatingPoint(value, "real"),
             "double precision" or "float8" => ValidateFloatingPoint(value, "double precision"),
             "numeric" or "decimal" => ValidateFloatingPoint(value, "numeric"),
-            "uuid" => Guid.TryParse(value, out _) ? null : $"'{value}' is not a valid UUID.",
+            "uuid" => Guid.TryParse(value, out _) ? null : Strings.Editor_NotUuid(value),
             _ => null,
         };
     }
@@ -132,12 +132,12 @@ public static class PgValueSyntax
     {
         if (!BigInteger.TryParse(value, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var parsed))
         {
-            return $"'{value}' is not a valid {label} — a whole number is expected.";
+            return Strings.Editor_NotWholeNumber(value, label);
         }
 
         if (parsed < min || parsed > max)
         {
-            return $"{value} is out of range for {label} ({min} to {max}).";
+            return Strings.Editor_OutOfRange(value, label, min, max);
         }
 
         return null;
@@ -159,7 +159,7 @@ public static class PgValueSyntax
         // the actual value is still parsed exactly by Postgres via the CAST.
         if (!double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out _))
         {
-            return $"'{value}' is not a valid {label} number.";
+            return Strings.Editor_NotNumber(value, label);
         }
 
         return null;
@@ -607,11 +607,12 @@ public static class PgValueSyntax
         public override string ToString() => builder.ToString();
     }
 
-    private static string? Validate(string trimmed, char open, char close, string kind)
+    private static string? Validate(string trimmed, char open, char close, bool isArray)
     {
         if (trimmed.Length == 0 || trimmed[0] != open)
         {
-            return $"{kind} literal must start with '{open}' (e.g. {(open == '{' ? "{1,2,3}" : "(1,abc)")}).";
+            var example = open == '{' ? "{1,2,3}" : "(1,abc)";
+            return isArray ? Strings.Editor_ArrayMustStart(open, example) : Strings.Editor_CompositeMustStart(open, example);
         }
 
         var depth = 0;
@@ -657,24 +658,24 @@ public static class PgValueSyntax
                 depth--;
                 if (depth == 0 && i != trimmed.Length - 1)
                 {
-                    return $"Unexpected text after the closing '{close}'.";
+                    return Strings.Editor_LiteralTrailingText(close);
                 }
 
                 if (depth < 0)
                 {
-                    return $"Unbalanced '{close}'.";
+                    return Strings.Editor_LiteralUnbalanced(close);
                 }
             }
         }
 
         if (inQuotes)
         {
-            return "Unterminated double-quoted section.";
+            return Strings.Editor_LiteralUnterminatedQuote;
         }
 
         if (depth != 0)
         {
-            return $"{kind} literal must end with '{close}'.";
+            return isArray ? Strings.Editor_ArrayMustEnd(close) : Strings.Editor_CompositeMustEnd(close);
         }
 
         return null;

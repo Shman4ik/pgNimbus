@@ -5,6 +5,7 @@
         xmlns:completion="using:PgNimbus.App.Completion"
         xmlns:conv="using:PgNimbus.App.Converters"
         xmlns:cmd="using:PgNimbus.App"
+        xmlns:l="using:PgNimbus.App.Localization"
         xmlns:nimbus="using:Nimbus.Ui.Controls">
 
     <!--
@@ -173,7 +174,7 @@
                                               Focusable="False"
                                               VerticalAlignment="Center"
                                               IsChecked="{Binding IsReplaceMode, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"
-                                              ToolTip.Tip="Toggle replace">
+                                              ToolTip.Tip="{l:Tr Editor_FindToggleReplace}">
                                     <PathIcon Data="{StaticResource ChevronRightIconGeometry}" Width="10" Height="10" />
                                 </ToggleButton>
                                 <TextBox Name="PART_searchTextBox"
@@ -182,23 +183,23 @@
                                          Padding="6,3"
                                          FontSize="12"
                                          VerticalContentAlignment="Center"
-                                         PlaceholderText="Find"
+                                         PlaceholderText="{l:Tr Editor_FindPlaceholder}"
                                          Text="{Binding SearchPattern, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
                                     <TextBox.InnerRightContent>
                                         <StackPanel Orientation="Horizontal" Spacing="1" Margin="0,0,3,0">
                                             <ToggleButton Classes="chip" Focusable="False" FontSize="10"
                                                           VerticalAlignment="Center" Content="Aa"
-                                                          ToolTip.Tip="Match case"
+                                                          ToolTip.Tip="{l:Tr Editor_FindMatchCase}"
                                                           IsChecked="{Binding $parent[search:SearchPanel].MatchCase, Mode=TwoWay}" />
                                             <ToggleButton Classes="chip" Focusable="False" FontSize="10"
                                                           VerticalAlignment="Center"
-                                                          ToolTip.Tip="Whole words"
+                                                          ToolTip.Tip="{l:Tr Editor_FindWholeWords}"
                                                           IsChecked="{Binding $parent[search:SearchPanel].WholeWords, Mode=TwoWay}">
                                                 <TextBlock Text="ab" FontSize="10" TextDecorations="Underline" />
                                             </ToggleButton>
                                             <ToggleButton Classes="chip" Focusable="False" FontSize="10"
                                                           VerticalAlignment="Center" Content=".*"
-                                                          ToolTip.Tip="Regular expression"
+                                                          ToolTip.Tip="{l:Tr Editor_FindRegex}"
                                                           IsChecked="{Binding $parent[search:SearchPanel].UseRegex, Mode=TwoWay}" />
                                         </StackPanel>
                                     </TextBox.InnerRightContent>
@@ -215,11 +216,11 @@
                                                VerticalAlignment="Center" />
                                 </StackPanel>
                                 <Button Name="PART_FindPreviousButton" Classes="chip" Focusable="False"
-                                        VerticalAlignment="Center" cmd:CommandTip.Text="Previous match" cmd:CommandTip.Keys="Shift+Enter">
+                                        VerticalAlignment="Center" cmd:CommandTip.Text="{l:Tr Editor_FindPrevious}" cmd:CommandTip.Keys="Shift+Enter">
                                     <PathIcon Data="{StaticResource ArrowUpIconGeometry}" Width="12" Height="12" />
                                 </Button>
                                 <Button Name="PART_FindNextButton" Classes="chip" Focusable="False"
-                                        VerticalAlignment="Center" cmd:CommandTip.Text="Next match" cmd:CommandTip.Keys="Enter">
+                                        VerticalAlignment="Center" cmd:CommandTip.Text="{l:Tr Editor_FindNext}" cmd:CommandTip.Keys="Enter">
                                     <PathIcon Data="{StaticResource ArrowDownIconGeometry}" Width="12" Height="12" />
                                 </Button>
                                 <Button Name="PART_CloseButton" Classes="chip" Focusable="False"
@@ -236,14 +237,14 @@
                                          FontSize="12"
                                          VerticalContentAlignment="Center"
                                          Margin="22,0,0,0"
-                                         PlaceholderText="Replace"
+                                         PlaceholderText="{l:Tr Editor_ReplacePlaceholder}"
                                          Text="{Binding ReplacePattern, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}" />
                                 <Button Name="PART_ReplaceNextButton" Classes="chip" Focusable="False"
-                                        VerticalAlignment="Center" ToolTip.Tip="Replace next">
+                                        VerticalAlignment="Center" ToolTip.Tip="{l:Tr Editor_ReplaceNext}">
                                     <PathIcon Data="{StaticResource ReplaceNextIconGeometry}" Width="13" Height="13" />
                                 </Button>
                                 <Button Name="PART_ReplaceAllButton" Classes="chip" Focusable="False"
-                                        VerticalAlignment="Center" ToolTip.Tip="Replace all">
+                                        VerticalAlignment="Center" ToolTip.Tip="{l:Tr Editor_ReplaceAll}">
                                     <PathIcon Data="{StaticResource ReplaceAllIconGeometry}" Width="13" Height="13" />
                                 </Button>
                             </StackPanel>

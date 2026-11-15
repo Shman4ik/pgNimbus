@@ -1,23 +1,21 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:l="using:PgNimbus.App.Localization"
         xmlns:vm="using:PgNimbus.App.ViewModels"
         xmlns:views="using:PgNimbus.App.Views"
         xmlns:conv="using:Avalonia.Data.Converters"
         x:Class="PgNimbus.App.Views.AddRowDialog"
         x:DataType="vm:AddRowViewModel"
-        Title="pgNimbus — Add Row"
+        Title="{l:Tr Editor_AddRowTitle}"
         Width="520" Height="560"
         WindowStartupLocation="CenterOwner">
 
     <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" Margin="20">
 
-        <TextBlock Grid.Row="0" Classes="dialogTitle" Margin="0,0,0,4">
-            <Run Text="Add row to" />
-            <Run Text="{Binding QualifiedName}" />
-        </TextBlock>
+        <TextBlock Grid.Row="0" Classes="dialogTitle" Margin="0,0,0,4" Text="{Binding Heading}" />
 
         <TextBlock Grid.Row="1" Classes="dialogHint" Margin="0,0,0,10"
-                   Text="Leave a field blank to use its default (serials, now(), …). Check NULL to insert an explicit NULL." />
+                   Text="{l:Tr Editor_AddRowHint}" />
 
         <Border Grid.Row="2" Classes="card" Padding="4">
             <ScrollViewer>
@@ -37,7 +35,7 @@
                                      no matter which one produced it. -->
                                 <views:ColumnValueEditorView Grid.Column="1" />
                                 <CheckBox Grid.Column="2" IsChecked="{Binding IsNull, Mode=TwoWay}"
-                                          Content="NULL" FontSize="11" Margin="8,0,0,0" VerticalAlignment="Center" />
+                                          Content="{l:Tr Editor_NullLabel}" FontSize="11" Margin="8,0,0,0" VerticalAlignment="Center" />
                             </Grid>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
@@ -49,7 +47,7 @@
                    IsVisible="{Binding StatusMessage, Converter={x:Static conv:ObjectConverters.IsNotNull}}" />
 
         <StackPanel Grid.Row="4" Classes="dialogButtons">
-            <Button Classes="soft" Content="Close" Click="OnCloseClick" />
+            <Button Classes="soft" Content="{l:Tr Common_Close}" Click="OnCloseClick" />
             <Button Classes="accent" Content="{Binding InsertButtonText}" Command="{Binding InsertCommand}" IsEnabled="{Binding !IsBusy}" />
         </StackPanel>
 

@@ -1,3 +1,4 @@
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Query;
 using PgNimbus.Core.Schema;
 using PgNimbus.Core.Text;
@@ -786,7 +787,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
                 CommonTypes.IndexOf(name) is var rank and >= 0 ? CommonTypePriority - (rank * 0.01) : TypePriority)
             {
                 Detail = name == type.DisplayName ? null : type.DisplayName,
-                DescriptionText = "type",
+                DescriptionText = Strings.Editor_KindType,
             };
         }
 
@@ -796,12 +797,12 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
             : $"{SqlIdentifier.QuoteIfNeeded(type.Schema)}.{SqlIdentifier.QuoteIfNeeded(type.Name)}";
         var kind = type.Kind switch
         {
-            'd' => "domain",
-            'e' => "enum",
-            'c' => "composite type",
-            'r' => "range type",
-            'm' => "multirange type",
-            _ => "type",
+            'd' => Strings.Editor_TypeDomain,
+            'e' => Strings.Editor_TypeEnum,
+            'c' => Strings.Editor_TypeComposite,
+            'r' => Strings.Editor_TypeRange,
+            'm' => Strings.Editor_TypeMultirange,
+            _ => Strings.Editor_KindType,
         };
         return new SqlCompletionData(type.Name, SqlCompletionKind.Type, insert, UserTypePriority)
         {
@@ -820,14 +821,14 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
     private const double CommonTypePriority = 11.5;
 
     // The everyday types, for a cast typed before the catalog has been read.
-    private static readonly IReadOnlyList<SqlCompletionData> FallbackTypeItems =
+    private static IReadOnlyList<SqlCompletionData> FallbackTypeItems =>
     [
         .. new[]
         {
             "integer", "bigint", "smallint", "numeric", "real", "float8", "text", "varchar", "boolean", "date",
             "time", "timestamp", "timestamptz", "interval", "uuid", "json", "jsonb", "bytea", "inet", "cidr",
             "money", "xml", "tsvector", "tsquery", "regclass", "oid",
-        }.Select(t => new SqlCompletionData(t, SqlCompletionKind.Type, t, TypePriority) { DescriptionText = "type" }),
+        }.Select(t => new SqlCompletionData(t, SqlCompletionKind.Type, t, TypePriority) { DescriptionText = Strings.Editor_KindType }),
     ];
 
     /// <summary>
@@ -955,7 +956,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
             .ToList();
         if (overloads.Count > 8)
         {
-            lines.Add($"… {overloads.Count - 8} more");
+            lines.Add(Strings.Editor_MoreOverloads(overloads.Count - 8));
         }
 
         if (overloads.Select(f => f.Description).FirstOrDefault(d => !string.IsNullOrWhiteSpace(d)) is { } description)
@@ -1012,16 +1013,16 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
     {
         var kind = table.Kind switch
         {
-            'v' => "view",
-            'm' => "materialized view",
-            'p' => "partitioned table",
-            'f' => "foreign table",
-            _ => table.IsPartition ? "partition" : "table",
+            'v' => Strings.Editor_RelKindView,
+            'm' => Strings.Editor_RelKindMatView,
+            'p' => Strings.Editor_RelKindPartitionedTable,
+            'f' => Strings.Editor_RelKindForeignTable,
+            _ => table.IsPartition ? Strings.Editor_RelKindPartition : Strings.Editor_KindTable,
         };
-        var line = $"{kind} · {table.Schema}";
+        var line = Strings.Editor_RelationDescription(kind, table.Schema);
         if (table.RowEstimate is { } rows && table.Kind is 'r' or 'm' or 'p')
         {
-            line += $" · ~{rows.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)} rows";
+            line = Strings.Editor_RelationDescriptionRows(kind, table.Schema, rows.ToString("N0", System.Globalization.CultureInfo.InvariantCulture));
         }
 
         return table.Comment is { Length: > 0 } comment ? $"{line}\n{comment}" : line;
@@ -1212,7 +1213,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
                 return (catalog?.Indexes ?? []).Select(x => new SqlCompletionData(x.Name, SqlCompletionKind.Index, QualifiedIfOffPath(x.Schema, x.Name, path), TablePriority)
                 {
                     Detail = x.Schema,
-                    DescriptionText = $"index on {x.Table}",
+                    DescriptionText = Strings.Editor_IndexOn(x.Table),
                 });
             case SqlObjectKind.Sequence:
                 return snapshot.Sequences.Select(s => new SqlCompletionData(s.Name, SqlCompletionKind.Sequence, QualifiedIfOffPath(s.Schema, s.Name, path), TablePriority)
@@ -1266,13 +1267,13 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
                     methods.AddRange(["hnsw", "ivfflat"]);
                 }
 
-                return methods.Select((m, i) => new SqlCompletionData(m, SqlCompletionKind.Value, m, TablePriority - (i * 0.01)) { DescriptionText = "index method" });
+                return methods.Select((m, i) => new SqlCompletionData(m, SqlCompletionKind.Value, m, TablePriority - (i * 0.01)) { DescriptionText = Strings.Editor_DescIndexMethod });
             case SqlObjectKind.Language:
-                return new[] { "plpgsql", "sql" }.Select((l, i) => new SqlCompletionData(l, SqlCompletionKind.Value, l, TablePriority - (i * 0.01)) { DescriptionText = "language" });
+                return new[] { "plpgsql", "sql" }.Select((l, i) => new SqlCompletionData(l, SqlCompletionKind.Value, l, TablePriority - (i * 0.01)) { DescriptionText = Strings.Editor_DescLanguage });
             case SqlObjectKind.Channel:
                 return NotifyChannels.Select(ch => new SqlCompletionData(ch, SqlCompletionKind.Value, SqlIdentifier.QuoteIfNeeded(ch), TablePriority)
                 {
-                    DescriptionText = "channel",
+                    DescriptionText = Strings.Editor_DescChannel,
                 });
             default:
                 return [];
@@ -1347,10 +1348,10 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         "isoyear", "milliseconds", "microseconds", "decade", "century", "millennium", "timezone", "julian",
     ];
 
-    private static readonly IReadOnlyList<SqlCompletionData> ExtractFieldItems =
+    private static IReadOnlyList<SqlCompletionData> ExtractFieldItems =>
         [.. DateFields.Select((f, i) => new SqlCompletionData(f.ToUpperInvariant(), SqlCompletionKind.Keyword, f.ToUpperInvariant(), ValuePriority - (i * 0.01))
         {
-            DescriptionText = "date/time field",
+            DescriptionText = Strings.Editor_DescDateField,
         })];
 
     // The units date_trunc('…') and date_bin take, in a string.
@@ -1374,8 +1375,8 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         {
             return
             [
-                new SqlCompletionData("TRUE", SqlCompletionKind.Keyword, "TRUE", ValuePriority) { DescriptionText = "boolean" },
-                new SqlCompletionData("FALSE", SqlCompletionKind.Keyword, "FALSE", ValuePriority - 0.01) { DescriptionText = "boolean" },
+                new SqlCompletionData("TRUE", SqlCompletionKind.Keyword, "TRUE", ValuePriority) { DescriptionText = Strings.Editor_DescBoolean },
+                new SqlCompletionData("FALSE", SqlCompletionKind.Keyword, "FALSE", ValuePriority - 0.01) { DescriptionText = Strings.Editor_DescBoolean },
             ];
         }
 
@@ -1383,7 +1384,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
             ? [.. labels.Select((label, i) => new SqlCompletionData(label, SqlCompletionKind.Value, $"'{label.Replace("'", "''", StringComparison.Ordinal)}'", ValuePriority - (i * 0.01))
             {
                 Detail = type,
-                DescriptionText = $"{type} label",
+                DescriptionText = Strings.Editor_EnumLabel(type),
             })]
             : null;
     }
@@ -1398,7 +1399,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
                 ? [.. labels.Select((label, i) => new SqlCompletionData(label, SqlCompletionKind.Value, label.Replace("'", "''", StringComparison.Ordinal), ValuePriority - (i * 0.01))
                 {
                     Detail = type,
-                    DescriptionText = $"{type} label",
+                    DescriptionText = Strings.Editor_EnumLabel(type),
                 })]
                 : [];
         }
@@ -1415,8 +1416,8 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
                     Detail = s.Schema,
                 };
             })],
-            ("date_trunc" or "date_bin", 0) => [.. TruncUnits.Select((u, i) => new SqlCompletionData(u, SqlCompletionKind.Value, u, ValuePriority - (i * 0.01)) { DescriptionText = "date/time unit" })],
-            ("date_part", 0) => [.. DateFields.Select((u, i) => new SqlCompletionData(u, SqlCompletionKind.Value, u, ValuePriority - (i * 0.01)) { DescriptionText = "date/time field" })],
+            ("date_trunc" or "date_bin", 0) => [.. TruncUnits.Select((u, i) => new SqlCompletionData(u, SqlCompletionKind.Value, u, ValuePriority - (i * 0.01)) { DescriptionText = Strings.Editor_DescDateUnit })],
+            ("date_part", 0) => [.. DateFields.Select((u, i) => new SqlCompletionData(u, SqlCompletionKind.Value, u, ValuePriority - (i * 0.01)) { DescriptionText = Strings.Editor_DescDateField })],
             _ => [],
         };
     }
@@ -1498,8 +1499,8 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         return new SqlCompletionData(expansion.Replacement, SqlCompletionKind.Snippet, expansion.Replacement, StatementKeywordPriority + 1)
         {
             ReplaceFrom = expansion.Start,
-            Detail = "expand *",
-            DescriptionText = "the select list with every star spelled out",
+            Detail = Strings.Editor_ExpandStarDetail,
+            DescriptionText = Strings.Editor_ExpandStarDesc,
         };
     }
 
@@ -1512,7 +1513,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         var writable = columns.Where(c => c.Facts is not { IsGenerated: true } && c.Facts?.Identity != 'a').ToList();
         var required = writable.Where(c => c.Facts is { NotNull: true, HasDefault: false, Identity: '\0' }).ToList();
         var items = new List<SqlCompletionData>();
-        foreach (var (list, what, priority) in new[] { (writable, "every column a row can be given", 1.0), (required, "the columns a row must be given", 0.5) })
+        foreach (var (list, what, priority) in new[] { (writable, Strings.Editor_ValuesAllColumns, 1.0), (required, Strings.Editor_ValuesRequiredColumns, 0.5) })
         {
             if (list.Count == 0 || (list == required && required.Count == writable.Count))
             {
@@ -1523,8 +1524,8 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
             items.Add(new SqlCompletionData(text, SqlCompletionKind.Snippet, text, StatementKeywordPriority + priority)
             {
                 CaretIndex = text.Length - 1,
-                Detail = "columns",
-                DescriptionText = $"column list and VALUES · {what}",
+                Detail = Strings.Editor_ColumnsDetail,
+                DescriptionText = what,
             });
         }
 
@@ -1547,8 +1548,8 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
             var text = string.Join(", ", groupBy);
             return [new SqlCompletionData(text, SqlCompletionKind.Snippet, text, CurrentColumnPriority + 10)
             {
-                Detail = "non-aggregated",
-                DescriptionText = "the select list's items that aren't aggregates",
+                Detail = Strings.Editor_NonAggregatedDetail,
+                DescriptionText = Strings.Editor_NonAggregatedDesc,
             }];
         }
 
@@ -1572,8 +1573,8 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
             var text = string.Join(", ", parts);
             return [new SqlCompletionData(text, SqlCompletionKind.Snippet, text, OperandKeywordPriority - 0.005)
             {
-                Detail = "all columns",
-                DescriptionText = $"every column of {string.Join(", ", block.Sources.Select(s => s.Label))}",
+                Detail = Strings.Editor_AllColumnsDetail,
+                DescriptionText = Strings.Editor_AllColumnsDesc(string.Join(", ", block.Sources.Select(s => s.Label))),
             }];
         }
 
@@ -1634,8 +1635,8 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         {
             var (insert, what) = keywords[i].Text switch
             {
-                "OVER" => ("OVER ()", "window"),
-                "FILTER" => ("FILTER (WHERE )", "aggregate filter"),
+                "OVER" => ("OVER ()", Strings.Editor_DescWindow),
+                "FILTER" => ("FILTER (WHERE )", Strings.Editor_DescAggregateFilter),
                 _ => (null, null),
             };
             if (insert is not null)
@@ -1860,7 +1861,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
                 items.Add(new SqlCompletionData(column.Name, SqlCompletionKind.Column, SqlIdentifier.QuoteIfNeeded(column.Name), priority)
                 {
                     Detail = relation.Label,
-                    DescriptionText = ColumnDescription(column, $"if {alias} is {relation.Label}"),
+                    DescriptionText = ColumnDescription(column, Strings.Editor_NoteIfAlias(alias, relation.Label)),
                 });
             }
         }
@@ -1930,7 +1931,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
             {
                 AliasTable = item.AliasTable,
                 Detail = item.Detail,
-                DescriptionText = "table · FK match",
+                DescriptionText = Strings.Editor_TableFkMatch,
             });
             items.AddRange(JoinSnippets(snapshot, statement, scope, statementTables, neighborSchema, neighborTable, item.InsertText, item.Priority));
         }
@@ -1955,7 +1956,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
             items.Add(new SqlCompletionData($"{table} {alias} ON {condition}", SqlCompletionKind.Snippet, $"{tableInsert} {alias} ON {condition}", priority - (0.001 * (i + 1)))
             {
                 Detail = constraint ?? schema,
-                DescriptionText = constraint is null ? $"join {schema}.{table} on its foreign key" : $"join {schema}.{table} on its foreign key · {constraint}",
+                DescriptionText = constraint is null ? Strings.Editor_JoinOnFk(schema, table) : Strings.Editor_JoinOnFkConstraint(schema, table, constraint),
             });
         }
 
@@ -2050,7 +2051,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
             return new SqlCompletionData(c.Text, c.Kind, c.InsertText, CurrentColumnPriority + (used ? UsedForeignKeyBoost : ForeignKeyBoost))
             {
                 Detail = c.Detail,
-                DescriptionText = $"{c.DescriptionText} · foreign key",
+                DescriptionText = Strings.Editor_WithForeignKey(c.DescriptionText),
             };
         })];
     }
@@ -2079,7 +2080,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
             items.Add(new SqlCompletionData(condition, SqlCompletionKind.JoinCondition, condition, JoinConditionPriority - i)
             {
                 Detail = constraint,
-                DescriptionText = constraint is null ? "FK join condition" : $"FK join condition · {constraint}",
+                DescriptionText = constraint is null ? Strings.Editor_KindJoinCondition : Strings.Editor_JoinConditionConstraint(constraint),
             });
         }
 
@@ -2236,7 +2237,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
             ColumnPriority + (onPath ? 0.4 : 0.2))
         {
             Detail = onPath ? table.Name : $"{table.Schema}.{table.Name}",
-            DescriptionText = ColumnDescription(source, $"adds FROM {label}"),
+            DescriptionText = ColumnDescription(source, Strings.Editor_NoteAddsFrom(label)),
             AppendClause = $"FROM {label}",
         };
     }
@@ -2298,7 +2299,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
                 items.Add(new SqlCompletionData(source.Alias, SqlCompletionKind.Alias, SqlIdentifier.QuoteIfNeeded(source.Alias), AliasPriority)
                 {
                     Detail = source.Table,
-                    DescriptionText = $"alias for {source.Table}",
+                    DescriptionText = Strings.Editor_AliasFor(source.Table),
                 });
             }
 
@@ -2332,7 +2333,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
                     {
                         DisplayText = $"{label}.{column.Name}",
                         Detail = column.DataType,
-                        DescriptionText = ColumnDescription(column, "also in another source"),
+                        DescriptionText = ColumnDescription(column, Strings.Editor_NoteOtherSource),
                     });
                 }
                 else
@@ -2448,8 +2449,8 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
                 {
                     items.Add(new SqlCompletionData(name, SqlCompletionKind.Column, SqlIdentifier.QuoteIfNeeded(name), CurrentColumnPriority)
                     {
-                        Detail = "output",
-                        DescriptionText = "output column of this SELECT",
+                        Detail = Strings.Editor_OutputDetail,
+                        DescriptionText = Strings.Editor_OutputDesc,
                     });
                 }
             }
@@ -2462,7 +2463,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
             items.Add(new SqlCompletionData("excluded", SqlCompletionKind.Alias, "excluded", AliasPriority)
             {
                 Detail = conflictTarget.Name,
-                DescriptionText = "the row proposed for insertion",
+                DescriptionText = Strings.Editor_ExcludedRowDesc,
             });
             foreach (var column in excludedColumns)
             {
@@ -2470,7 +2471,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
                 {
                     DisplayText = $"excluded.{column.Name}",
                     Detail = column.DataType,
-                    DescriptionText = "column · proposed row",
+                    DescriptionText = Strings.Editor_ProposedRowColumn,
                 });
             }
         }
@@ -2494,7 +2495,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
                     items.Add(new SqlCompletionData(source.Alias, SqlCompletionKind.Alias, SqlIdentifier.QuoteIfNeeded(source.Alias), AliasPriority)
                     {
                         Detail = target,
-                        DescriptionText = depth == 0 ? $"alias for {target}" : $"alias for {target} · outer query",
+                        DescriptionText = depth == 0 ? Strings.Editor_AliasFor(target) : Strings.Editor_AliasForOuter(target),
                     });
                 }
 
@@ -2519,7 +2520,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
                         {
                             DisplayText = $"{label}.{column.Name}",
                             Detail = column.DataType,
-                            DescriptionText = ColumnDescription(column, "outer query"),
+                            DescriptionText = ColumnDescription(column, Strings.Editor_NoteOuterQuery),
                         });
                     }
                 }
@@ -2560,7 +2561,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
                     {
                         DisplayText = $"{label}.{column.Name}",
                         Detail = column.DataType,
-                        DescriptionText = ColumnDescription(column, "also in another source"),
+                        DescriptionText = ColumnDescription(column, Strings.Editor_NoteOtherSource),
                     });
                 }
                 else
@@ -2599,8 +2600,8 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
                     var text = $"{name} = excluded.{name}";
                     items.Add(new SqlCompletionData(text, SqlCompletionKind.Snippet, text, CurrentColumnPriority - 1)
                     {
-                        Detail = "excluded",
-                        DescriptionText = "take the proposed row's value",
+                        Detail = Strings.Editor_ExcludedDetail,
+                        DescriptionText = Strings.Editor_ExcludedValueDesc,
                     });
                 }
             }
@@ -3001,7 +3002,7 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
     // "column · orders · PK · not null · → customers.id", its comment on the next line.
     private static string ColumnDescription(SourceColumn column, string? note)
     {
-        var parts = new List<string> { "column", column.Owner };
+        var parts = new List<string> { Strings.Editor_KindColumn, column.Owner };
         if (note is not null)
         {
             parts.Add(note);
@@ -3011,25 +3012,25 @@ public sealed class SqlCompletionProvider(SchemaService? schemaService) : IDispo
         {
             if (facts.IsPrimaryKey)
             {
-                parts.Add("PK");
+                parts.Add(Strings.Editor_FactPk);
             }
 
             if (facts.Identity != '\0')
             {
-                parts.Add(facts.Identity == 'a' ? "identity always" : "identity");
+                parts.Add(facts.Identity == 'a' ? Strings.Editor_FactIdentityAlways : Strings.Editor_FactIdentity);
             }
             else if (facts.IsGenerated)
             {
-                parts.Add("generated");
+                parts.Add(Strings.Editor_FactGenerated);
             }
             else if (facts.HasDefault)
             {
-                parts.Add("default");
+                parts.Add(Strings.Editor_FactDefault);
             }
 
             if (facts.NotNull && !facts.IsPrimaryKey)
             {
-                parts.Add("not null");
+                parts.Add(Strings.Editor_FactNotNull);
             }
         }
 

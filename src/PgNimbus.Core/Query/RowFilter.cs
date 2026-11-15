@@ -1,4 +1,5 @@
 using System.Globalization;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Schema;
 
 namespace PgNimbus.Core.Query;
@@ -73,14 +74,14 @@ public static class RowFilterSql
         FilterOperator.LessOrEqual => "≤",
         FilterOperator.Greater => ">",
         FilterOperator.GreaterOrEqual => "≥",
-        FilterOperator.Contains => "contains",
-        FilterOperator.NotContains => "doesn't contain",
-        FilterOperator.StartsWith => "starts with",
-        FilterOperator.EndsWith => "ends with",
-        FilterOperator.IsNull => "is null",
-        FilterOperator.IsNotNull => "is not null",
-        FilterOperator.IsTrue => "is true",
-        FilterOperator.IsFalse => "is false",
+        FilterOperator.Contains => Strings.Filter_OpContains,
+        FilterOperator.NotContains => Strings.Filter_OpNotContains,
+        FilterOperator.StartsWith => Strings.Filter_OpStartsWith,
+        FilterOperator.EndsWith => Strings.Filter_OpEndsWith,
+        FilterOperator.IsNull => Strings.Filter_OpIsNull,
+        FilterOperator.IsNotNull => Strings.Filter_OpIsNotNull,
+        FilterOperator.IsTrue => Strings.Filter_OpIsTrue,
+        FilterOperator.IsFalse => Strings.Filter_OpIsFalse,
         _ => op.ToString(),
     };
 
@@ -101,7 +102,7 @@ public static class RowFilterSql
 
         if (string.IsNullOrEmpty(filter.Value))
         {
-            return $"{filter.Column} {Label(filter.Operator)}: enter a value.";
+            return Strings.Filter_EnterValue(filter.Column, Label(filter.Operator));
         }
 
         if (IsTextSearch(filter.Operator) || editor != ColumnValueEditor.Text)
@@ -110,7 +111,7 @@ public static class RowFilterSql
         }
 
         return PgValueSyntax.ValidateScalar(domainBaseType ?? dataType, filter.Value) is { } error
-            ? $"{filter.Column}: {error}"
+            ? Strings.Editor_FieldError(filter.Column, error)
             : null;
     }
 

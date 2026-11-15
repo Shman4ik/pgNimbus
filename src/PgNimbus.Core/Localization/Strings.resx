@@ -1452,6 +1452,722 @@
   <!-- ===== Sidebar ===== -->
 
   <!-- ===== Editor ===== -->
+  <data name="Editor_KindKeyword" xml:space="preserve">
+    <value>keyword</value>
+    <comment>SQL editor completion popup: the kind of a completion item, shown in its description tooltip when nothing more specific is known (and as the first word of some descriptions). A lowercase SQL concept noun.</comment>
+  </data>
+  <data name="Editor_KindFunction" xml:space="preserve">
+    <value>function</value>
+    <comment>SQL editor completion popup: the kind of a completion item, shown in its description tooltip when nothing more specific is known (and as the first word of some descriptions). A lowercase SQL concept noun.</comment>
+  </data>
+  <data name="Editor_KindSchema" xml:space="preserve">
+    <value>schema</value>
+    <comment>SQL editor completion popup: the kind of a completion item, shown in its description tooltip when nothing more specific is known (and as the first word of some descriptions). A lowercase SQL concept noun.</comment>
+  </data>
+  <data name="Editor_KindTable" xml:space="preserve">
+    <value>table</value>
+    <comment>SQL editor completion popup: the kind of a completion item, shown in its description tooltip when nothing more specific is known (and as the first word of some descriptions). A lowercase SQL concept noun.</comment>
+  </data>
+  <data name="Editor_KindColumn" xml:space="preserve">
+    <value>column</value>
+    <comment>SQL editor completion popup: the kind of a completion item, shown in its description tooltip when nothing more specific is known (and as the first word of some descriptions). A lowercase SQL concept noun.</comment>
+  </data>
+  <data name="Editor_KindAlias" xml:space="preserve">
+    <value>alias</value>
+    <comment>SQL editor completion popup: the kind of a completion item, shown in its description tooltip when nothing more specific is known (and as the first word of some descriptions). A lowercase SQL concept noun.</comment>
+  </data>
+  <data name="Editor_KindCte" xml:space="preserve">
+    <value>CTE</value>
+    <comment>SQL editor completion popup: the kind of a completion item, shown in its description tooltip when nothing more specific is known (and as the first word of some descriptions). A lowercase SQL concept noun.</comment>
+  </data>
+  <data name="Editor_KindJoinCondition" xml:space="preserve">
+    <value>FK join condition</value>
+    <comment>SQL editor completion popup: the kind of a completion item, shown in its description tooltip when nothing more specific is known (and as the first word of some descriptions). A lowercase SQL concept noun.</comment>
+  </data>
+  <data name="Editor_KindType" xml:space="preserve">
+    <value>type</value>
+    <comment>SQL editor completion popup: the kind of a completion item, shown in its description tooltip when nothing more specific is known (and as the first word of some descriptions). A lowercase SQL concept noun.</comment>
+  </data>
+  <data name="Editor_KindValue" xml:space="preserve">
+    <value>value</value>
+    <comment>SQL editor completion popup: the kind of a completion item, shown in its description tooltip when nothing more specific is known (and as the first word of some descriptions). A lowercase SQL concept noun.</comment>
+  </data>
+  <data name="Editor_KindSequence" xml:space="preserve">
+    <value>sequence</value>
+    <comment>SQL editor completion popup: the kind of a completion item, shown in its description tooltip when nothing more specific is known (and as the first word of some descriptions). A lowercase SQL concept noun.</comment>
+  </data>
+  <data name="Editor_KindSnippet" xml:space="preserve">
+    <value>snippet</value>
+    <comment>SQL editor completion popup: the kind of a completion item, shown in its description tooltip when nothing more specific is known (and as the first word of some descriptions). A lowercase SQL concept noun.</comment>
+  </data>
+  <data name="Editor_KindRole" xml:space="preserve">
+    <value>role</value>
+    <comment>SQL editor completion popup: the kind of a completion item, shown in its description tooltip when nothing more specific is known (and as the first word of some descriptions). A lowercase SQL concept noun.</comment>
+  </data>
+  <data name="Editor_KindSetting" xml:space="preserve">
+    <value>setting</value>
+    <comment>SQL editor completion popup: the kind of a completion item, shown in its description tooltip when nothing more specific is known (and as the first word of some descriptions). A lowercase SQL concept noun.</comment>
+  </data>
+  <data name="Editor_KindExtension" xml:space="preserve">
+    <value>extension</value>
+    <comment>SQL editor completion popup: the kind of a completion item, shown in its description tooltip when nothing more specific is known (and as the first word of some descriptions). A lowercase SQL concept noun.</comment>
+  </data>
+  <data name="Editor_KindIndex" xml:space="preserve">
+    <value>index</value>
+    <comment>SQL editor completion popup: the kind of a completion item, shown in its description tooltip when nothing more specific is known (and as the first word of some descriptions). A lowercase SQL concept noun.</comment>
+  </data>
+  <data name="Editor_KindItem" xml:space="preserve">
+    <value>item</value>
+    <comment>SQL editor completion popup: the kind of a completion item, shown in its description tooltip when nothing more specific is known (and as the first word of some descriptions). A lowercase SQL concept noun.</comment>
+  </data>
+  <data name="Editor_TypeDomain" xml:space="preserve">
+    <value>domain</value>
+    <comment>SQL editor completion tooltip: a user-defined type that is a domain (a constrained base type).</comment>
+  </data>
+  <data name="Editor_TypeEnum" xml:space="preserve">
+    <value>enum</value>
+    <comment>SQL editor completion tooltip: a user-defined type that is an enumeration.</comment>
+  </data>
+  <data name="Editor_TypeComposite" xml:space="preserve">
+    <value>composite type</value>
+    <comment>SQL editor completion tooltip: a user-defined composite (row) type.</comment>
+  </data>
+  <data name="Editor_TypeRange" xml:space="preserve">
+    <value>range type</value>
+    <comment>SQL editor completion tooltip: a user-defined range type.</comment>
+  </data>
+  <data name="Editor_TypeMultirange" xml:space="preserve">
+    <value>multirange type</value>
+    <comment>SQL editor completion tooltip: a user-defined multirange type.</comment>
+  </data>
+  <data name="Editor_RelKindView" xml:space="preserve">
+    <value>view</value>
+    <comment>SQL editor completion tooltip: the kind of relation, first word of its description line.</comment>
+  </data>
+  <data name="Editor_RelKindMatView" xml:space="preserve">
+    <value>materialized view</value>
+    <comment>SQL editor completion tooltip: the kind of relation, first word of its description line.</comment>
+  </data>
+  <data name="Editor_RelKindPartitionedTable" xml:space="preserve">
+    <value>partitioned table</value>
+    <comment>SQL editor completion tooltip: the kind of relation, first word of its description line.</comment>
+  </data>
+  <data name="Editor_RelKindForeignTable" xml:space="preserve">
+    <value>foreign table</value>
+    <comment>SQL editor completion tooltip: the kind of relation, first word of its description line.</comment>
+  </data>
+  <data name="Editor_RelKindPartition" xml:space="preserve">
+    <value>partition</value>
+    <comment>SQL editor completion tooltip: the kind of relation, first word of its description line.</comment>
+  </data>
+  <data name="Editor_RelationDescription" xml:space="preserve">
+    <value>{kind} · {schema}</value>
+    <comment>SQL editor completion tooltip for a table, view or similar: its kind and schema. {kind} is a relation kind such as 'view'; {schema} is the schema name, such as public.</comment>
+  </data>
+  <data name="Editor_RelationDescriptionRows" xml:space="preserve">
+    <value>{kind} · {schema} · ~{rows} rows</value>
+    <comment>SQL editor completion tooltip for a table: kind, schema and the estimated row count. {kind} is a relation kind such as 'table'; {schema} is the schema name; {rows} is the estimate, such as 12,000.</comment>
+  </data>
+  <data name="Editor_MoreOverloads" xml:space="preserve">
+    <value>… {count} more</value>
+    <comment>SQL editor completion tooltip of a function: the last line when it has more overloads than are listed. {count} is how many are left out, such as 3.</comment>
+  </data>
+  <data name="Editor_FuncProcedure" xml:space="preserve">
+    <value>procedure</value>
+    <comment>SQL editor completion tooltip of a callable: leading label saying it is a procedure.</comment>
+  </data>
+  <data name="Editor_FuncAggregate" xml:space="preserve">
+    <value>aggregate</value>
+    <comment>SQL editor completion tooltip of a callable: leading label saying it is an aggregate function.</comment>
+  </data>
+  <data name="Editor_FuncWindow" xml:space="preserve">
+    <value>window function</value>
+    <comment>SQL editor completion tooltip of a callable: leading label saying it is a window function.</comment>
+  </data>
+  <data name="Editor_FuncFunction" xml:space="preserve">
+    <value>function</value>
+    <comment>SQL editor completion tooltip of a callable: leading label saying it is an ordinary function.</comment>
+  </data>
+  <data name="Editor_IndexOn" xml:space="preserve">
+    <value>index on {table}</value>
+    <comment>SQL editor completion tooltip of an index. {table} is the table the index belongs to, such as orders.</comment>
+  </data>
+  <data name="Editor_DescIndexMethod" xml:space="preserve">
+    <value>index method</value>
+    <comment>SQL editor completion tooltip: the item is an index access method (btree, gin, ...).</comment>
+  </data>
+  <data name="Editor_DescLanguage" xml:space="preserve">
+    <value>language</value>
+    <comment>SQL editor completion tooltip: the item is a procedural language name.</comment>
+  </data>
+  <data name="Editor_DescChannel" xml:space="preserve">
+    <value>channel</value>
+    <comment>SQL editor completion tooltip: the item is a LISTEN/NOTIFY channel name.</comment>
+  </data>
+  <data name="Editor_DescDateField" xml:space="preserve">
+    <value>date/time field</value>
+    <comment>SQL editor completion tooltip: the item is a field name of EXTRACT or date_part (year, month, ...).</comment>
+  </data>
+  <data name="Editor_DescDateUnit" xml:space="preserve">
+    <value>date/time unit</value>
+    <comment>SQL editor completion tooltip: the item is a unit name of date_trunc (day, hour, ...).</comment>
+  </data>
+  <data name="Editor_DescBoolean" xml:space="preserve">
+    <value>boolean</value>
+    <comment>SQL editor completion tooltip: the item is a boolean literal (TRUE or FALSE).</comment>
+  </data>
+  <data name="Editor_EnumLabel" xml:space="preserve">
+    <value>{type} label</value>
+    <comment>SQL editor completion tooltip: the item is a label of an enum type. {type} is the enum type's name, such as mood.</comment>
+  </data>
+  <data name="Editor_ExpandStarDetail" xml:space="preserve">
+    <value>expand *</value>
+    <comment>SQL editor completion row, right-hand detail: an item that replaces * with the column list.</comment>
+  </data>
+  <data name="Editor_ExpandStarDesc" xml:space="preserve">
+    <value>the select list with every star spelled out</value>
+    <comment>SQL editor completion tooltip of the expand-star item.</comment>
+  </data>
+  <data name="Editor_ColumnsDetail" xml:space="preserve">
+    <value>columns</value>
+    <comment>SQL editor completion row, right-hand detail: an INSERT column list item.</comment>
+  </data>
+  <data name="Editor_ValuesAllColumns" xml:space="preserve">
+    <value>column list and VALUES · every column a row can be given</value>
+    <comment>SQL editor completion tooltip of an INSERT snippet naming every column a row can be given. The middle dot separates two phrases.</comment>
+  </data>
+  <data name="Editor_ValuesRequiredColumns" xml:space="preserve">
+    <value>column list and VALUES · the columns a row must be given</value>
+    <comment>SQL editor completion tooltip of an INSERT snippet naming only the columns a row must be given. The middle dot separates two phrases.</comment>
+  </data>
+  <data name="Editor_NonAggregatedDetail" xml:space="preserve">
+    <value>non-aggregated</value>
+    <comment>SQL editor completion row, right-hand detail: a GROUP BY item listing the non-aggregated select-list items.</comment>
+  </data>
+  <data name="Editor_NonAggregatedDesc" xml:space="preserve">
+    <value>the select list's items that aren't aggregates</value>
+    <comment>SQL editor completion tooltip of the GROUP BY item.</comment>
+  </data>
+  <data name="Editor_AllColumnsDetail" xml:space="preserve">
+    <value>all columns</value>
+    <comment>SQL editor completion row, right-hand detail: an item listing every column of the FROM sources.</comment>
+  </data>
+  <data name="Editor_AllColumnsDesc" xml:space="preserve">
+    <value>every column of {sources}</value>
+    <comment>SQL editor completion tooltip. {sources} is a comma-separated list of table names or aliases, such as o, c.</comment>
+  </data>
+  <data name="Editor_DescWindow" xml:space="preserve">
+    <value>window</value>
+    <comment>SQL editor completion tooltip of the OVER keyword (a window specification follows).</comment>
+  </data>
+  <data name="Editor_DescAggregateFilter" xml:space="preserve">
+    <value>aggregate filter</value>
+    <comment>SQL editor completion tooltip of the FILTER keyword (a filter on an aggregate follows).</comment>
+  </data>
+  <data name="Editor_NoteIfAlias" xml:space="preserve">
+    <value>if {alias} is {relation}</value>
+    <comment>SQL editor completion tooltip note on a column when an alias is not yet resolved. {alias} is an alias such as o; {relation} is a table name such as orders.</comment>
+  </data>
+  <data name="Editor_NoteAddsFrom" xml:space="preserve">
+    <value>adds FROM {relation}</value>
+    <comment>SQL editor completion tooltip note on a column of a table not yet in FROM. {relation} is a table name such as orders; FROM is the SQL keyword.</comment>
+  </data>
+  <data name="Editor_NoteOtherSource" xml:space="preserve">
+    <value>also in another source</value>
+    <comment>SQL editor completion tooltip note: the column name also exists in another table of the query.</comment>
+  </data>
+  <data name="Editor_NoteOuterQuery" xml:space="preserve">
+    <value>outer query</value>
+    <comment>SQL editor completion tooltip note: the column belongs to an enclosing query.</comment>
+  </data>
+  <data name="Editor_AliasFor" xml:space="preserve">
+    <value>alias for {table}</value>
+    <comment>SQL editor completion tooltip of an alias. {table} is the table it stands for, such as orders.</comment>
+  </data>
+  <data name="Editor_AliasForOuter" xml:space="preserve">
+    <value>alias for {table} · outer query</value>
+    <comment>SQL editor completion tooltip of an alias that belongs to an enclosing query. {table} is the table it stands for.</comment>
+  </data>
+  <data name="Editor_TableFkMatch" xml:space="preserve">
+    <value>table · FK match</value>
+    <comment>SQL editor completion tooltip: a table suggested because a foreign key connects it. FK means foreign key.</comment>
+  </data>
+  <data name="Editor_JoinOnFk" xml:space="preserve">
+    <value>join {schema}.{table} on its foreign key</value>
+    <comment>SQL editor completion tooltip of a JOIN snippet. {schema} and {table} name the table to join, such as public and orders.</comment>
+  </data>
+  <data name="Editor_JoinOnFkConstraint" xml:space="preserve">
+    <value>join {schema}.{table} on its foreign key · {constraint}</value>
+    <comment>SQL editor completion tooltip of a JOIN snippet. {schema} and {table} name the table to join; {constraint} is the foreign key constraint's name.</comment>
+  </data>
+  <data name="Editor_WithForeignKey" xml:space="preserve">
+    <value>{description} · foreign key</value>
+    <comment>SQL editor completion tooltip: a description with a note that the column is a foreign key. {description} is the existing description text.</comment>
+  </data>
+  <data name="Editor_JoinConditionConstraint" xml:space="preserve">
+    <value>FK join condition · {constraint}</value>
+    <comment>SQL editor completion tooltip of a join-condition snippet. FK means foreign key; {constraint} is the constraint's name.</comment>
+  </data>
+  <data name="Editor_OutputDetail" xml:space="preserve">
+    <value>output</value>
+    <comment>SQL editor completion row, right-hand detail: a column that is an output of this SELECT (used in ORDER BY).</comment>
+  </data>
+  <data name="Editor_OutputDesc" xml:space="preserve">
+    <value>output column of this SELECT</value>
+    <comment>SQL editor completion tooltip of an output column.</comment>
+  </data>
+  <data name="Editor_ExcludedRowDesc" xml:space="preserve">
+    <value>the row proposed for insertion</value>
+    <comment>SQL editor completion tooltip of the 'excluded' pseudo-table of INSERT ... ON CONFLICT.</comment>
+  </data>
+  <data name="Editor_ProposedRowColumn" xml:space="preserve">
+    <value>column · proposed row</value>
+    <comment>SQL editor completion tooltip of a column of the proposed row in ON CONFLICT DO UPDATE.</comment>
+  </data>
+  <data name="Editor_ExcludedDetail" xml:space="preserve">
+    <value>excluded</value>
+    <comment>SQL editor completion row, right-hand detail: the item is the excluded pseudo-table (SQL keyword in INSERT ... ON CONFLICT).</comment>
+  </data>
+  <data name="Editor_ExcludedValueDesc" xml:space="preserve">
+    <value>take the proposed row's value</value>
+    <comment>SQL editor completion tooltip of the 'col = EXCLUDED.col' snippet.</comment>
+  </data>
+  <data name="Editor_FactPk" xml:space="preserve">
+    <value>PK</value>
+    <comment>SQL editor completion tooltip of a column: short for primary key.</comment>
+  </data>
+  <data name="Editor_FactIdentityAlways" xml:space="preserve">
+    <value>identity always</value>
+    <comment>SQL editor completion tooltip of a column: GENERATED ALWAYS AS IDENTITY.</comment>
+  </data>
+  <data name="Editor_FactIdentity" xml:space="preserve">
+    <value>identity</value>
+    <comment>SQL editor completion tooltip of a column: an identity column.</comment>
+  </data>
+  <data name="Editor_FactGenerated" xml:space="preserve">
+    <value>generated</value>
+    <comment>SQL editor completion tooltip of a column: a generated column.</comment>
+  </data>
+  <data name="Editor_FactDefault" xml:space="preserve">
+    <value>default</value>
+    <comment>SQL editor completion tooltip of a column: it has a default value.</comment>
+  </data>
+  <data name="Editor_FactNotNull" xml:space="preserve">
+    <value>not null</value>
+    <comment>SQL editor completion tooltip of a column: it is declared NOT NULL.</comment>
+  </data>
+  <data name="Editor_SignatureMore" xml:space="preserve">
+    <value>+{count} more</value>
+    <comment>SQL editor argument hint: last line when more overloads exist than are shown. {count} is how many are left out, such as 2.</comment>
+  </data>
+  <data name="Editor_StarNoStatement" xml:space="preserve">
+    <value>No statement at the caret.</value>
+    <comment>Status line: Expand * was used where there is no SQL statement.</comment>
+  </data>
+  <data name="Editor_StarNoSelectList" xml:space="preserve">
+    <value>No SELECT list in this statement.</value>
+    <comment>Status line: Expand * was used in a statement without a SELECT list.</comment>
+  </data>
+  <data name="Editor_StarUsing" xml:space="preserve">
+    <value>Can't expand *: USING / NATURAL JOIN merges columns, so an explicit list would change the result.</value>
+    <comment>Status line: Expand * is refused. USING and NATURAL JOIN are SQL keywords.</comment>
+  </data>
+  <data name="Editor_StarSubquery" xml:space="preserve">
+    <value>Can't expand *: FROM has a subquery or function whose columns aren't known.</value>
+    <comment>Status line: Expand * is refused. FROM is the SQL keyword.</comment>
+  </data>
+  <data name="Editor_StarUnknownColumns" xml:space="preserve">
+    <value>Can't expand *: the columns of {tables} aren't known.</value>
+    <comment>Status line: Expand * is refused. {tables} are the table names whose columns could not be read, such as orders, items.</comment>
+  </data>
+  <data name="Editor_StarItemUnknown" xml:space="preserve">
+    <value>Can't expand {item}: its columns aren't known.</value>
+    <comment>Status line: Expand * is refused for one item. {item} is the qualified star, such as o.*.</comment>
+  </data>
+  <data name="Editor_StarNone" xml:space="preserve">
+    <value>No * in the select list.</value>
+    <comment>Status line: Expand * was used but the select list has no star.</comment>
+  </data>
+  <data name="Editor_FindToggleReplace" xml:space="preserve">
+    <value>Toggle replace</value>
+    <comment>SQL editor find bar: tooltip of the button that shows or hides the replace row.</comment>
+  </data>
+  <data name="Editor_FindPlaceholder" xml:space="preserve">
+    <value>Find</value>
+    <comment>SQL editor find bar and value viewer find bar: placeholder of the search box.</comment>
+  </data>
+  <data name="Editor_FindMatchCase" xml:space="preserve">
+    <value>Match case</value>
+    <comment>Find bar: tooltip of the match-case toggle (its label is Aa).</comment>
+  </data>
+  <data name="Editor_FindWholeWords" xml:space="preserve">
+    <value>Whole words</value>
+    <comment>Find bar: tooltip of the whole-words toggle.</comment>
+  </data>
+  <data name="Editor_FindRegex" xml:space="preserve">
+    <value>Regular expression</value>
+    <comment>Find bar: tooltip of the regular-expression toggle (its label is .*).</comment>
+  </data>
+  <data name="Editor_FindPrevious" xml:space="preserve">
+    <value>Previous match</value>
+    <comment>Find bar: tooltip of the button that goes to the previous match.</comment>
+  </data>
+  <data name="Editor_FindNext" xml:space="preserve">
+    <value>Next match</value>
+    <comment>Find bar: tooltip of the button that goes to the next match.</comment>
+  </data>
+  <data name="Editor_ReplacePlaceholder" xml:space="preserve">
+    <value>Replace</value>
+    <comment>Find bar: placeholder of the replacement text box.</comment>
+  </data>
+  <data name="Editor_ReplaceNext" xml:space="preserve">
+    <value>Replace next</value>
+    <comment>Find bar: tooltip of the button that replaces the current match.</comment>
+  </data>
+  <data name="Editor_ReplaceAll" xml:space="preserve">
+    <value>Replace all</value>
+    <comment>Find bar: tooltip of the button that replaces every match.</comment>
+  </data>
+  <data name="Editor_NullLabel" xml:space="preserve">
+    <value>NULL</value>
+    <comment>Add-row dialog checkbox and row details toggle: sets the field to the SQL value NULL. NULL is the SQL keyword; most languages keep it as is.</comment>
+  </data>
+  <data name="Editor_CopyValue" xml:space="preserve">
+    <value>Copy Value</value>
+    <comment>Value viewer tree (cell inspector, notify payload): right-click menu item that copies the selected value.</comment>
+  </data>
+  <data name="Editor_CopySqlPath" xml:space="preserve">
+    <value>Copy SQL Path</value>
+    <comment>Value viewer tree: right-click menu item that copies the selected JSON path as a SQL expression.</comment>
+  </data>
+  <data name="Editor_CopyJsonPath" xml:space="preserve">
+    <value>Copy JSON Path</value>
+    <comment>Value viewer tree: right-click menu item that copies the selected value's JSON path.</comment>
+  </data>
+  <data name="Editor_SelectValueHint" xml:space="preserve">
+    <value>Select a value to see its path. Right-click to copy it.</value>
+    <comment>Value viewer tree: hint under the tree while nothing is selected.</comment>
+  </data>
+  <data name="Editor_PlaceholderDefault" xml:space="preserve">
+    <value>default</value>
+    <comment>Add-row dialog: placeholder of an empty value box; blank means the column's default is used.</comment>
+  </data>
+  <data name="Editor_PlaceholderEmptyString" xml:space="preserve">
+    <value>empty string</value>
+    <comment>Row details: placeholder of an empty text value box; blank is an empty string.</comment>
+  </data>
+  <data name="Editor_PlaceholderValue" xml:space="preserve">
+    <value>value</value>
+    <comment>Browse filter: placeholder of the empty value box.</comment>
+  </data>
+  <data name="Editor_TimePlaceholder" xml:space="preserve">
+    <value>HH:MM:SS</value>
+    <comment>Value editor for timestamps: format hint in the time box next to the date picker. Keep the pattern or adapt its letters to the language.</comment>
+  </data>
+  <data name="Editor_TypeWithPk" xml:space="preserve">
+    <value>{type} · PK</value>
+    <comment>Add-row dialog: a column's type with a primary-key mark. {type} is the type, such as integer; PK is short for primary key.</comment>
+  </data>
+  <data name="Editor_FieldError" xml:space="preserve">
+    <value>{field}: {error}</value>
+    <comment>An error line naming a field. {field} is a column name; {error} is the reason, such as a validation message.</comment>
+  </data>
+  <data name="Editor_ArrayDimPrefix" xml:space="preserve">
+    <value>An array dimension prefix ('[…]') must be followed by '='.</value>
+    <comment>Value editor validation error for an array literal.</comment>
+  </data>
+  <data name="Editor_ArrayMustStart" xml:space="preserve">
+    <value>An array literal must start with '{open}' (e.g. {example}).</value>
+    <comment>Value editor validation error. {open} is a single bracket character; {example} is an example literal.</comment>
+  </data>
+  <data name="Editor_CompositeMustStart" xml:space="preserve">
+    <value>A composite literal must start with '{open}' (e.g. {example}).</value>
+    <comment>Value editor validation error. {open} is a single bracket character; {example} is an example literal.</comment>
+  </data>
+  <data name="Editor_ArrayMustEnd" xml:space="preserve">
+    <value>An array literal must end with '{close}'.</value>
+    <comment>Value editor validation error. {close} is a single bracket character.</comment>
+  </data>
+  <data name="Editor_CompositeMustEnd" xml:space="preserve">
+    <value>A composite literal must end with '{close}'.</value>
+    <comment>Value editor validation error. {close} is a single bracket character.</comment>
+  </data>
+  <data name="Editor_LiteralTrailingText" xml:space="preserve">
+    <value>Unexpected text after the closing '{close}'.</value>
+    <comment>Value editor validation error. {close} is a single bracket character.</comment>
+  </data>
+  <data name="Editor_LiteralUnbalanced" xml:space="preserve">
+    <value>Unbalanced '{close}'.</value>
+    <comment>Value editor validation error. {close} is a single bracket character.</comment>
+  </data>
+  <data name="Editor_LiteralUnterminatedQuote" xml:space="preserve">
+    <value>Unterminated double-quoted section.</value>
+    <comment>Value editor validation error for an array or composite literal.</comment>
+  </data>
+  <data name="Editor_JsonInvalid" xml:space="preserve">
+    <value>Not valid JSON.</value>
+    <comment>Value editor validation error for a JSON value.</comment>
+  </data>
+  <data name="Editor_JsonInvalidAt" xml:space="preserve">
+    <value>Not valid JSON (line {line}, position {position}).</value>
+    <comment>Value editor validation error for a JSON value. {line} and {position} are 1-based numbers, such as 3 and 14.</comment>
+  </data>
+  <data name="Editor_NotWholeNumber" xml:space="preserve">
+    <value>'{value}' is not a valid {type} — a whole number is expected.</value>
+    <comment>Value editor validation error. {value} is what was typed; {type} is an integer type name such as smallint.</comment>
+  </data>
+  <data name="Editor_OutOfRange" xml:space="preserve">
+    <value>{value} is out of range for {type} ({min} to {max}).</value>
+    <comment>Value editor validation error. {value} is what was typed; {type} is an integer type name such as smallint; {min} and {max} are the type's limits.</comment>
+  </data>
+  <data name="Editor_NotNumber" xml:space="preserve">
+    <value>'{value}' is not a valid {type} number.</value>
+    <comment>Value editor validation error. {value} is what was typed; {type} is a numeric type name such as numeric or real.</comment>
+  </data>
+  <data name="Editor_NotUuid" xml:space="preserve">
+    <value>'{value}' is not a valid UUID.</value>
+    <comment>Value editor validation error. {value} is what was typed.</comment>
+  </data>
+  <data name="RowDetail_Heading" xml:space="preserve">
+    <value>Row details</value>
+    <comment>Row details panel: title when no row is shown or the position is unknown.</comment>
+  </data>
+  <data name="RowDetail_RowOf" xml:space="preserve">
+    <value>Row {row} of {total}</value>
+    <comment>Row details panel: title naming the row shown. {row} and {total} are formatted numbers, such as 3 and 1,250.</comment>
+  </data>
+  <data name="RowDetail_SelectRow" xml:space="preserve">
+    <value>Select a row to see its fields.</value>
+    <comment>Row details panel: first hint, before any row was shown.</comment>
+  </data>
+  <data name="RowDetail_SelectRowInGrid" xml:space="preserve">
+    <value>Select a row in the grid to see its fields.</value>
+    <comment>Row details panel: the hint shown while no row is selected.</comment>
+  </data>
+  <data name="RowDetail_ReadOnlyBecause" xml:space="preserve">
+    <value>Read-only: {reason}</value>
+    <comment>Row details panel: note saying why the row cannot be edited. {reason} is a sentence fragment from the results grid, such as 'the table has no primary key'.</comment>
+  </data>
+  <data name="RowDetail_ReadOnlyUnmapped" xml:space="preserve">
+    <value>Read-only: this result isn't mapped to one table.</value>
+    <comment>Row details panel: note saying the result cannot be edited because it is not one table.</comment>
+  </data>
+  <data name="RowDetail_NotAColumn" xml:space="preserve">
+    <value>not a column of the table</value>
+    <comment>Row details panel: reason under a read-only field that does not belong to the table.</comment>
+  </data>
+  <data name="RowDetail_PrimaryKeyType" xml:space="preserve">
+    <value>{type} · primary key</value>
+    <comment>Row details panel: a field's type label for a primary-key column. {type} is the type, such as bigint.</comment>
+  </data>
+  <data name="RowDetail_UnreadableType" xml:space="preserve">
+    <value>unreadable type</value>
+    <comment>Row details panel: reason under a field whose value pgNimbus cannot read.</comment>
+  </data>
+  <data name="RowDetail_LargeValue" xml:space="preserve">
+    <value>large value: open it in the inspector</value>
+    <comment>Row details panel: reason under a field too large for the form.</comment>
+  </data>
+  <data name="RowDetail_Stage" xml:space="preserve">
+    <value>Stage</value>
+    <comment>Row details panel: primary button when nothing was changed.</comment>
+  </data>
+  <data name="RowDetail_StageChanges_one" xml:space="preserve">
+    <value>Stage {count} change</value>
+    <comment>Row details panel: primary button, singular. {count} is the number of changed fields.</comment>
+  </data>
+  <data name="RowDetail_StageChanges_other" xml:space="preserve">
+    <value>Stage {count} changes</value>
+    <comment>Row details panel: primary button, plural. {count} is the number of changed fields, such as 3.</comment>
+  </data>
+  <data name="RowDetail_PreviousRow" xml:space="preserve">
+    <value>Previous row</value>
+    <comment>Row details panel: tooltip and accessibility name of the previous-row button.</comment>
+  </data>
+  <data name="RowDetail_NextRow" xml:space="preserve">
+    <value>Next row</value>
+    <comment>Row details panel: tooltip and accessibility name of the next-row button.</comment>
+  </data>
+  <data name="RowDetail_CloseAutomation" xml:space="preserve">
+    <value>Close row details</value>
+    <comment>Row details panel: accessibility name of the close button.</comment>
+  </data>
+  <data name="RowDetail_NoRowSelected" xml:space="preserve">
+    <value>No row selected</value>
+    <comment>Row details panel: heading shown when no row is selected.</comment>
+  </data>
+  <data name="RowDetail_SetNullTip" xml:space="preserve">
+    <value>Set this field to NULL</value>
+    <comment>Row details panel: tooltip of the NULL toggle on a field. NULL is the SQL value.</comment>
+  </data>
+  <data name="RowDetail_FieldIsNull" xml:space="preserve">
+    <value>{field} is NULL</value>
+    <comment>Accessibility name of a field's NULL toggle. {field} is the column name; NULL is the SQL value.</comment>
+  </data>
+  <data name="RowDetail_Inspect" xml:space="preserve">
+    <value>Inspect</value>
+    <comment>Row details panel: button on a read-only large value that opens the cell inspector.</comment>
+  </data>
+  <data name="RowDetail_InspectTip" xml:space="preserve">
+    <value>Open the full value in the cell inspector</value>
+    <comment>Row details panel: tooltip of the Inspect button.</comment>
+  </data>
+  <data name="RowDetail_ReviewedHint" xml:space="preserve">
+    <value>Reviewed before commit</value>
+    <comment>Row details panel footer: short hint that staged changes are reviewed before they are committed.</comment>
+  </data>
+  <data name="RowDetail_ReviewedTip" xml:space="preserve">
+    <value>Staged changes are listed, checked for conflicts and committed from the status bar</value>
+    <comment>Row details panel footer: tooltip of the review hint.</comment>
+  </data>
+  <data name="RowDetail_Revert" xml:space="preserve">
+    <value>Revert</value>
+    <comment>Row details panel: button that puts every field back to the row's values.</comment>
+  </data>
+  <data name="RowDetail_RevertTip" xml:space="preserve">
+    <value>Put every field back to the row's values</value>
+    <comment>Row details panel: tooltip of the Revert button.</comment>
+  </data>
+  <data name="RowDetail_StageTip" xml:space="preserve">
+    <value>Stage these changes; review and commit them from the status bar (Enter)</value>
+    <comment>Row details panel: tooltip of the Stage button. Enter is a key name.</comment>
+  </data>
+  <data name="Filter_FilteredBy" xml:space="preserve">
+    <value>Filtered by</value>
+    <comment>Browse filter bar: label before the condition chips while the rows are filtered.</comment>
+  </data>
+  <data name="Filter_NoConditions" xml:space="preserve">
+    <value>No conditions</value>
+    <comment>Browse filter bar: label when no condition is set.</comment>
+  </data>
+  <data name="Filter_RemoveTip" xml:space="preserve">
+    <value>Remove this condition</value>
+    <comment>Browse filter bar and filter editor: tooltip of the button that removes one condition.</comment>
+  </data>
+  <data name="Filter_RemoveAutomation" xml:space="preserve">
+    <value>Remove condition</value>
+    <comment>Browse filter bar: accessibility name of the remove button on a raw condition chip.</comment>
+  </data>
+  <data name="Filter_EditCondition" xml:space="preserve">
+    <value>Edit condition {condition}</value>
+    <comment>Browse filter bar: accessibility name of a condition chip. {condition} is the chip's text, such as total ≥ 50.</comment>
+  </data>
+  <data name="Filter_RemoveCondition" xml:space="preserve">
+    <value>Remove condition {condition}</value>
+    <comment>Browse filter bar: accessibility name of a chip's remove button. {condition} is the chip's text, such as total ≥ 50.</comment>
+  </data>
+  <data name="Filter_Add" xml:space="preserve">
+    <value>+ Filter</value>
+    <comment>Browse filter bar: button that adds a condition.</comment>
+  </data>
+  <data name="Filter_AddTip" xml:space="preserve">
+    <value>Add a condition; rows must match all of them</value>
+    <comment>Browse filter bar: tooltip of the + Filter button.</comment>
+  </data>
+  <data name="Filter_AddAutomation" xml:space="preserve">
+    <value>Add filter condition</value>
+    <comment>Browse filter bar: accessibility name of the + Filter button.</comment>
+  </data>
+  <data name="Filter_ClearAll" xml:space="preserve">
+    <value>Clear all</value>
+    <comment>Browse filter bar: button that removes every condition.</comment>
+  </data>
+  <data name="Filter_ClearAllTip" xml:space="preserve">
+    <value>Remove every condition</value>
+    <comment>Browse filter bar: tooltip of the Clear all button.</comment>
+  </data>
+  <data name="Filter_ColumnAutomation" xml:space="preserve">
+    <value>Filter column</value>
+    <comment>Filter editor: accessibility name of the column picker.</comment>
+  </data>
+  <data name="Filter_ComparisonAutomation" xml:space="preserve">
+    <value>Comparison</value>
+    <comment>Filter editor: accessibility name of the comparison (operator) picker.</comment>
+  </data>
+  <data name="Filter_ApplyTip" xml:space="preserve">
+    <value>Filter the rows by this condition (Enter)</value>
+    <comment>Filter editor: tooltip of the Apply button. Enter is a key name.</comment>
+  </data>
+  <data name="Filter_OpContains" xml:space="preserve">
+    <value>contains</value>
+    <comment>Filter operator in the picker and on a chip: the column's text contains the value.</comment>
+  </data>
+  <data name="Filter_OpNotContains" xml:space="preserve">
+    <value>doesn't contain</value>
+    <comment>Filter operator: the column's text does not contain the value.</comment>
+  </data>
+  <data name="Filter_OpStartsWith" xml:space="preserve">
+    <value>starts with</value>
+    <comment>Filter operator: the column's text starts with the value.</comment>
+  </data>
+  <data name="Filter_OpEndsWith" xml:space="preserve">
+    <value>ends with</value>
+    <comment>Filter operator: the column's text ends with the value.</comment>
+  </data>
+  <data name="Filter_OpIsNull" xml:space="preserve">
+    <value>is null</value>
+    <comment>Filter operator: the column is NULL (no value).</comment>
+  </data>
+  <data name="Filter_OpIsNotNull" xml:space="preserve">
+    <value>is not null</value>
+    <comment>Filter operator: the column is not NULL.</comment>
+  </data>
+  <data name="Filter_OpIsTrue" xml:space="preserve">
+    <value>is true</value>
+    <comment>Filter operator: the boolean column is true.</comment>
+  </data>
+  <data name="Filter_OpIsFalse" xml:space="preserve">
+    <value>is false</value>
+    <comment>Filter operator: the boolean column is false.</comment>
+  </data>
+  <data name="Filter_EnterValue" xml:space="preserve">
+    <value>{column} {op}: enter a value.</value>
+    <comment>Filter editor error. {column} is a column name; {op} is the chosen operator's label, such as contains.</comment>
+  </data>
+  <data name="Filter_PickColumn" xml:space="preserve">
+    <value>{column}: pick a column and a comparison.</value>
+    <comment>Filter editor error. {column} is the column name typed or picked (may be empty).</comment>
+  </data>
+  <data name="Editor_AddRowTitle" xml:space="preserve">
+    <value>pgNimbus — Add Row</value>
+    <comment>Add-row dialog: window title.</comment>
+  </data>
+  <data name="Editor_AddRowHeading" xml:space="preserve">
+    <value>Add row to {table}</value>
+    <comment>Add-row dialog: heading. {table} is the qualified table name, such as public.orders.</comment>
+  </data>
+  <data name="Editor_AddRowHint" xml:space="preserve">
+    <value>Leave a field blank to use its default (serials, now(), …). Check NULL to insert an explicit NULL.</value>
+    <comment>Add-row dialog: hint under the heading. now() is a SQL function and NULL the SQL value.</comment>
+  </data>
+  <data name="Editor_AddRowStage" xml:space="preserve">
+    <value>Stage row</value>
+    <comment>Add-row dialog: primary button when the row is staged for later commit.</comment>
+  </data>
+  <data name="Editor_AddRowInsert" xml:space="preserve">
+    <value>Insert row</value>
+    <comment>Add-row dialog: primary button that inserts the row at once.</comment>
+  </data>
+  <data name="Editor_AddRowLoadFailed" xml:space="preserve">
+    <value>Failed to load columns: {message}</value>
+    <comment>Add-row dialog status line. {message} is the error text.</comment>
+  </data>
+  <data name="Editor_AddRowStaged" xml:space="preserve">
+    <value>Row staged — commit or discard it from the status bar.</value>
+    <comment>Add-row dialog status line after the row was staged.</comment>
+  </data>
+  <data name="Editor_AddRowInserted" xml:space="preserve">
+    <value>Row inserted.</value>
+    <comment>Add-row dialog status line after a successful insert.</comment>
+  </data>
+  <data name="Editor_AddRowOutcomeUnknown" xml:space="preserve">
+    <value>The connection was lost after the row was sent, so it may or may not have been inserted. Check the table before adding it again.</value>
+    <comment>Add-row dialog status line when the connection dropped after the INSERT was sent.</comment>
+  </data>
+  <data name="Editor_AddRowFailed" xml:space="preserve">
+    <value>Insert failed: {message}</value>
+    <comment>Add-row dialog status line. {message} is the error text.</comment>
+  </data>
 
   <!-- ===== Results ===== -->
 
