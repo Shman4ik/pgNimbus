@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Notifications;
 
 namespace PgNimbus.App.ViewModels;
@@ -79,8 +80,8 @@ public sealed partial class NotifyMonitorViewModel : ObservableObject, IAsyncDis
 
     /// <summary>Human status line ("Listening on 2 channels" / "Not listening") instead of a raw bool.</summary>
     public string ListeningStatus => IsListening
-        ? $"Listening on {Channels.Count} channel{(Channels.Count == 1 ? "" : "s")}"
-        : "Not listening";
+        ? Strings.Monitoring_NotifyListening(Channels.Count)
+        : Strings.Monitoring_NotifyNotListening;
 
     /// <param name="channels">Channels remembered for this connection, restored on open.</param>
     /// <param name="persistChannels">Writes the list back when it changes; null for a connection with nowhere to persist to.</param>
@@ -100,6 +101,7 @@ public sealed partial class NotifyMonitorViewModel : ObservableObject, IAsyncDis
         _listener.Stopped += OnListenerStopped;
         _listener.Reconnected += OnListenerReconnected;
         _persistChannels = persistChannels;
+        Localizer.WhenChanged(this, static vm => vm.OnPropertyChanged(nameof(ListeningStatus)));
 
         foreach (var channel in channels ?? [])
         {
@@ -197,14 +199,14 @@ public sealed partial class NotifyMonitorViewModel : ObservableObject, IAsyncDis
         {
             IsListening = false;
             Notice = null;
-            ErrorMessage = $"Stopped listening: {error.Message}";
+            ErrorMessage = Strings.Monitoring_NotifyStopped(error.Message);
         });
 
     private void OnListenerReconnected() =>
         _post(() =>
         {
             ErrorMessage = null;
-            Notice = $"Reconnected at {DateTime.Now:HH:mm:ss} — notifications published while the connection was down were not delivered.";
+            Notice = Strings.Monitoring_NotifyReconnected($"{DateTime.Now:HH:mm:ss}");
         });
 
     private bool CanAddChannel() => !string.IsNullOrWhiteSpace(ChannelName) && !Channels.Contains(ChannelName.Trim());
@@ -281,7 +283,7 @@ public sealed partial class NotifyMonitorViewModel : ObservableObject, IAsyncDis
         {
             await _listener.SendAsync(channel, SendPayload, CancellationToken.None);
             ErrorMessage = null;
-            Notice = $"Sent on {channel} at {DateTime.Now:HH:mm:ss}.";
+            Notice = Strings.Monitoring_NotifySent(channel, $"{DateTime.Now:HH:mm:ss}");
         }
         catch (Exception ex)
         {

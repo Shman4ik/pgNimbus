@@ -4595,6 +4595,598 @@
   <!-- ===== Dialogs ===== -->
 
   <!-- ===== Monitoring ===== -->
+  <data name="Monitoring_ActivityTitle" xml:space="preserve">
+    <value>pgNimbus — Server Activity</value>
+    <comment>Title bar of the Server Activity window. Keep the product name.</comment>
+  </data>
+  <data name="Monitoring_ActivityCancelQuery" xml:space="preserve">
+    <value>Cancel query</value>
+    <comment>Server Activity window: button that stops the selected backend's running statement but keeps its session.</comment>
+  </data>
+  <data name="Monitoring_ActivityTerminate" xml:space="preserve">
+    <value>Terminate…</value>
+    <comment>Server Activity window: button that kills the selected backend's whole session; it asks for confirmation first.</comment>
+  </data>
+  <data name="Monitoring_ActivityRefreshTip" xml:space="preserve">
+    <value>Refresh now</value>
+    <comment>Server Activity window: tooltip of the Refresh button.</comment>
+  </data>
+  <data name="Monitoring_ActivityAutoToggle" xml:space="preserve">
+    <value>Auto</value>
+    <comment>Server Activity window: toggle button that turns the automatic refresh on or off.</comment>
+  </data>
+  <data name="Monitoring_ActivityAutoTip" xml:space="preserve">
+    <value>Refresh every 2 seconds while this window is open</value>
+    <comment>Server Activity window: tooltip of the Auto toggle.</comment>
+  </data>
+  <data name="Monitoring_ActivityTabBackends" xml:space="preserve">
+    <value>Backends</value>
+    <comment>Server Activity window: tab that lists every client connection (backend) of the server.</comment>
+  </data>
+  <data name="Monitoring_ActivityTabBlocking" xml:space="preserve">
+    <value>Blocking</value>
+    <comment>Server Activity window: tab that shows which backends wait on locks held by others.</comment>
+  </data>
+  <data name="Monitoring_ActivityNoLockWaits" xml:space="preserve">
+    <value>No backend is waiting on a lock right now.</value>
+    <comment>Server Activity window: Blocking tab, centred message when nothing is blocked.</comment>
+  </data>
+  <data name="Monitoring_ActivityCancelTip" xml:space="preserve">
+    <value>Stop the selected backend's running statement but keep the session (pg_cancel_backend). On the Blocking tab, aim at a lock holder to release everyone waiting beneath it.</value>
+    <comment>Server Activity window: tooltip of the Cancel query button. pg_cancel_backend is a PostgreSQL function name.</comment>
+  </data>
+  <data name="Monitoring_ActivityTerminateTip" xml:space="preserve">
+    <value>Kill the selected backend's whole session (pg_terminate_backend)</value>
+    <comment>Server Activity window: tooltip of the Terminate button. pg_terminate_backend is a PostgreSQL function name.</comment>
+  </data>
+  <data name="Monitoring_ActivityTerminateConfirm" xml:space="preserve">
+    <value>Terminate backend {pid} ({target})? Its session and any open transaction die with it.</value>
+    <comment>Server Activity window: confirmation text before a backend is terminated. {pid} is the process id, such as 4821; {target} is user@database, such as alice@shop.</comment>
+  </data>
+  <data name="Monitoring_ActivityTerminateButton" xml:space="preserve">
+    <value>Terminate</value>
+    <comment>Server Activity window: confirm button of the terminate dialog (red).</comment>
+  </data>
+  <data name="Monitoring_ActivityClientLocal" xml:space="preserve">
+    <value>local</value>
+    <comment>Server Activity window: Client column: shown for a connection that has no network address (a local socket).</comment>
+  </data>
+  <data name="Monitoring_ActivityBackends_one" xml:space="preserve">
+    <value>{count} backend</value>
+    <comment>Server Activity window: status line. Singular. {count} is how many backends, always 1. Joined with other parts by ' · '.</comment>
+  </data>
+  <data name="Monitoring_ActivityBackends_other" xml:space="preserve">
+    <value>{count} backends</value>
+    <comment>Server Activity window: status line. Plural. {count} is how many backends, such as 12. Joined with other parts by ' · '.</comment>
+  </data>
+  <data name="Monitoring_ActivityWaitingOnLocks" xml:space="preserve">
+    <value>{count} waiting on locks</value>
+    <comment>Server Activity window: status line part after the backend count. {count} is how many backends wait on a lock, such as 3.</comment>
+  </data>
+  <data name="Monitoring_ActivityNoLockWaitsStatus" xml:space="preserve">
+    <value>No lock waits.</value>
+    <comment>Server Activity window: status line of the Blocking tab when nothing is blocked.</comment>
+  </data>
+  <data name="Monitoring_ActivityBlockingStatus" xml:space="preserve">
+    <value>{waiters} waiting on {lockHolders}</value>
+    <comment>Server Activity window: status line of the Blocking tab. {waiters} is the backend count with its noun, such as '3 backends'; {lockHolders} is the holder count with its noun, such as '1 lock holder'. Read: '3 backends waiting on 1 lock holder'.</comment>
+  </data>
+  <data name="Monitoring_ActivityLockHolders_one" xml:space="preserve">
+    <value>{count} lock holder</value>
+    <comment>Server Activity window: part of the Blocking status line. Singular. {count} is how many backends hold the locks others wait for, always 1.</comment>
+  </data>
+  <data name="Monitoring_ActivityLockHolders_other" xml:space="preserve">
+    <value>{count} lock holders</value>
+    <comment>Server Activity window: part of the Blocking status line. Plural. {count} is how many backends hold the locks others wait for, such as 2.</comment>
+  </data>
+  <data name="Monitoring_ActivityCancelSent" xml:space="preserve">
+    <value>Cancel signal sent to pid {pid}</value>
+    <comment>Server Activity window: status line after Cancel query. {pid} is the process id of the backend, such as 4821.</comment>
+  </data>
+  <data name="Monitoring_ActivityPidGone" xml:space="preserve">
+    <value>Pid {pid} is already gone</value>
+    <comment>Server Activity window: status line after Cancel query or Terminate when that backend had already ended. {pid} is the process id, such as 4821.</comment>
+  </data>
+  <data name="Monitoring_ActivityTerminated" xml:space="preserve">
+    <value>Terminated backend {pid}</value>
+    <comment>Server Activity window: status line after Terminate. {pid} is the process id of the backend, such as 4821.</comment>
+  </data>
+  <data name="Monitoring_ActivityWaitForModeOn" xml:space="preserve">
+    <value>waiting for {mode} on {object}</value>
+    <comment>Server Activity window: Blocking tree row, amber text of a blocked backend. {mode} is a PostgreSQL lock mode such as RowExclusiveLock; {object} the locked object such as orders.</comment>
+  </data>
+  <data name="Monitoring_ActivityWaitForMode" xml:space="preserve">
+    <value>waiting for {mode}</value>
+    <comment>Server Activity window: Blocking tree row of a blocked backend when the locked object is unknown. {mode} is a lock mode such as ShareLock.</comment>
+  </data>
+  <data name="Monitoring_ActivityWaitOnObject" xml:space="preserve">
+    <value>waiting on {object}</value>
+    <comment>Server Activity window: Blocking tree row of a blocked backend when the lock mode is unknown. {object} is the locked object such as orders.</comment>
+  </data>
+  <data name="Monitoring_ActivityWaitOnLock" xml:space="preserve">
+    <value>waiting on a lock</value>
+    <comment>Server Activity window: Blocking tree row of a blocked backend when neither mode nor object is known.</comment>
+  </data>
+  <data name="Monitoring_ActivityWaitWithTime" xml:space="preserve">
+    <value>{wait} · {elapsed}</value>
+    <comment>Server Activity window: Blocking tree row: the waiting text followed by how long it has waited. {wait} is one of the 'waiting …' texts; {elapsed} is a time such as 0:42.</comment>
+  </data>
+  <data name="Monitoring_ActivityAlsoBlockedBy" xml:space="preserve">
+    <value>also blocked by {pids}</value>
+    <comment>Server Activity window: Blocking tree row of a waiter with several blockers (the tree shows it under the first). {pids} is a comma-separated list of process ids, such as 4822, 4823.</comment>
+  </data>
+  <data name="Monitoring_ActivityBlockedBy" xml:space="preserve">
+    <value>blocked by {pids}</value>
+    <comment>Server Activity window: Blocking tree row of a root whose blocker is outside the snapshot or in a deadlock cycle. {pids} is a comma-separated list of process ids, such as 999.</comment>
+  </data>
+  <data name="Monitoring_ActivityBlocking" xml:space="preserve">
+    <value>blocking {count}</value>
+    <comment>Server Activity window: Blocking tree row of a lock holder. {count} is how many backends wait behind it, such as 3.</comment>
+  </data>
+  <data name="Monitoring_ColPid" xml:space="preserve">
+    <value>PID</value>
+    <comment>Server Activity window: column header of the Backends grid: process id (a number PostgreSQL gives each backend). Also used by other monitoring grids when the word is the same.</comment>
+  </data>
+  <data name="Monitoring_ColUser" xml:space="preserve">
+    <value>User</value>
+    <comment>Server Activity window: column header of the Backends grid: database user. Also used by other monitoring grids when the word is the same.</comment>
+  </data>
+  <data name="Monitoring_ColDatabase" xml:space="preserve">
+    <value>Database</value>
+    <comment>Server Activity window: column header of the Backends grid: database name. Also used by other monitoring grids when the word is the same.</comment>
+  </data>
+  <data name="Monitoring_ColApplication" xml:space="preserve">
+    <value>Application</value>
+    <comment>Server Activity window: column header of the Backends grid: application_name the client reported. Also used by other monitoring grids when the word is the same.</comment>
+  </data>
+  <data name="Monitoring_ColClient" xml:space="preserve">
+    <value>Client</value>
+    <comment>Server Activity window: column header of the Backends grid: client network address. Also used by other monitoring grids when the word is the same.</comment>
+  </data>
+  <data name="Monitoring_ColState" xml:space="preserve">
+    <value>State</value>
+    <comment>Server Activity window: column header of the Backends grid: backend state, such as active or idle. Also used by other monitoring grids when the word is the same.</comment>
+  </data>
+  <data name="Monitoring_ColWait" xml:space="preserve">
+    <value>Wait</value>
+    <comment>Server Activity window: column header of the Backends grid: what the backend waits on. Also used by other monitoring grids when the word is the same.</comment>
+  </data>
+  <data name="Monitoring_ColTime" xml:space="preserve">
+    <value>Time</value>
+    <comment>Server Activity window: column header of the Backends grid: how long the statement has run. Also used by other monitoring grids when the word is the same.</comment>
+  </data>
+  <data name="Monitoring_ColQuery" xml:space="preserve">
+    <value>Query</value>
+    <comment>Server Activity window: column header of the Backends grid: SQL text. Also used by other monitoring grids when the word is the same.</comment>
+  </data>
+  <data name="Monitoring_OverviewTitle" xml:space="preserve">
+    <value>pgNimbus — Database Overview</value>
+    <comment>Title bar of the Database Overview window. Keep the product name.</comment>
+  </data>
+  <data name="Monitoring_OverviewRefreshTip" xml:space="preserve">
+    <value>Take a fresh snapshot of the statistics</value>
+    <comment>Database Overview window: tooltip of the Refresh button.</comment>
+  </data>
+  <data name="Monitoring_OverviewDatabase" xml:space="preserve">
+    <value>DATABASE</value>
+    <comment>Database Overview window: small heading above the database name. Upper case.</comment>
+  </data>
+  <data name="Monitoring_OverviewSize" xml:space="preserve">
+    <value>SIZE ON DISK</value>
+    <comment>Database Overview window: small heading above the database size. Upper case.</comment>
+  </data>
+  <data name="Monitoring_OverviewTableCache" xml:space="preserve">
+    <value>TABLE CACHE HIT</value>
+    <comment>Database Overview window: small heading above the table cache-hit percentage. Upper case.</comment>
+  </data>
+  <data name="Monitoring_OverviewTableCacheTip" xml:space="preserve">
+    <value>Fraction of table block reads served from shared_buffers rather than disk</value>
+    <comment>Database Overview window: tooltip of the table cache-hit figure. shared_buffers is a PostgreSQL setting name.</comment>
+  </data>
+  <data name="Monitoring_OverviewIndexCache" xml:space="preserve">
+    <value>INDEX CACHE HIT</value>
+    <comment>Database Overview window: small heading above the index cache-hit percentage. Upper case.</comment>
+  </data>
+  <data name="Monitoring_OverviewIndexCacheTip" xml:space="preserve">
+    <value>Fraction of index block reads served from shared_buffers rather than disk</value>
+    <comment>Database Overview window: tooltip of the index cache-hit figure. shared_buffers is a PostgreSQL setting name.</comment>
+  </data>
+  <data name="Monitoring_OverviewTabLargest" xml:space="preserve">
+    <value>Largest relations</value>
+    <comment>Database Overview window: tab: the biggest tables and materialized views.</comment>
+  </data>
+  <data name="Monitoring_OverviewTabScans" xml:space="preserve">
+    <value>Scans (seq vs index)</value>
+    <comment>Database Overview window: tab: how often each table is read by sequential scan against index scan.</comment>
+  </data>
+  <data name="Monitoring_OverviewTabUnused" xml:space="preserve">
+    <value>Unused indexes</value>
+    <comment>Database Overview window: tab: indexes that were never scanned.</comment>
+  </data>
+  <data name="Monitoring_OverviewUnusedNote" xml:space="preserve">
+    <value>Never scanned since the last stats reset. Unique and primary-key indexes are excluded — they enforce constraints regardless of scans.</value>
+    <comment>Database Overview window: note under the Unused indexes grid.</comment>
+  </data>
+  <data name="Monitoring_OverviewKindMatview" xml:space="preserve">
+    <value>matview</value>
+    <comment>Database Overview window: Kind column: a materialized view.</comment>
+  </data>
+  <data name="Monitoring_OverviewKindPartitioned" xml:space="preserve">
+    <value>partitioned</value>
+    <comment>Database Overview window: Kind column: a partitioned table.</comment>
+  </data>
+  <data name="Monitoring_OverviewKindTable" xml:space="preserve">
+    <value>table</value>
+    <comment>Database Overview window: Kind column: an ordinary table.</comment>
+  </data>
+  <data name="Monitoring_OverviewRelations_one" xml:space="preserve">
+    <value>{count} relation</value>
+    <comment>Database Overview window: status line. Singular. {count} is how many relations, always 1. Joined with other parts by ' · '.</comment>
+  </data>
+  <data name="Monitoring_OverviewRelations_other" xml:space="preserve">
+    <value>{count} relations</value>
+    <comment>Database Overview window: status line. Plural. {count} is how many relations, such as 50. Joined with other parts by ' · '.</comment>
+  </data>
+  <data name="Monitoring_OverviewUnusedIndexes_one" xml:space="preserve">
+    <value>{count} unused index</value>
+    <comment>Database Overview window: status line part. Singular. {count} is how many unused indexes, always 1.</comment>
+  </data>
+  <data name="Monitoring_OverviewUnusedIndexes_other" xml:space="preserve">
+    <value>{count} unused indexes</value>
+    <comment>Database Overview window: status line part. Plural. {count} is how many unused indexes, such as 0 or 4.</comment>
+  </data>
+  <data name="Monitoring_OverviewUnusedIndexesWasting_one" xml:space="preserve">
+    <value>{count} unused index wasting {size}</value>
+    <comment>Database Overview window: status line part. Singular. {count} is how many unused indexes, always 1; {size} their size, such as 12.0 MB.</comment>
+  </data>
+  <data name="Monitoring_OverviewUnusedIndexesWasting_other" xml:space="preserve">
+    <value>{count} unused indexes wasting {size}</value>
+    <comment>Database Overview window: status line part. Plural. {count} is how many unused indexes, such as 4; {size} their total size, such as 12.0 MB.</comment>
+  </data>
+  <data name="Monitoring_ColSchema" xml:space="preserve">
+    <value>Schema</value>
+    <comment>Column header in the Database Overview and Slow Queries grids: schema name.</comment>
+  </data>
+  <data name="Monitoring_ColName" xml:space="preserve">
+    <value>Name</value>
+    <comment>Column header in the Database Overview and Slow Queries grids: relation name.</comment>
+  </data>
+  <data name="Monitoring_ColKind" xml:space="preserve">
+    <value>Kind</value>
+    <comment>Column header in the Database Overview and Slow Queries grids: table, matview or partitioned.</comment>
+  </data>
+  <data name="Monitoring_ColRowsEstimate" xml:space="preserve">
+    <value>Rows (est.)</value>
+    <comment>Column header in the Database Overview and Slow Queries grids: estimated row count.</comment>
+  </data>
+  <data name="Monitoring_ColTable" xml:space="preserve">
+    <value>Table</value>
+    <comment>Column header in the Database Overview and Slow Queries grids: size of the table itself, or the table an index belongs to.</comment>
+  </data>
+  <data name="Monitoring_ColIndexes" xml:space="preserve">
+    <value>Indexes</value>
+    <comment>Column header in the Database Overview and Slow Queries grids: size of all indexes of the relation.</comment>
+  </data>
+  <data name="Monitoring_ColTotal" xml:space="preserve">
+    <value>Total</value>
+    <comment>Column header in the Database Overview and Slow Queries grids: table plus indexes; also the total time of a statement.</comment>
+  </data>
+  <data name="Monitoring_ColSeqScans" xml:space="preserve">
+    <value>Seq scans</value>
+    <comment>Column header in the Database Overview and Slow Queries grids: number of sequential scans.</comment>
+  </data>
+  <data name="Monitoring_ColIndexScans" xml:space="preserve">
+    <value>Index scans</value>
+    <comment>Column header in the Database Overview and Slow Queries grids: number of index scans.</comment>
+  </data>
+  <data name="Monitoring_ColIndexPercent" xml:space="preserve">
+    <value>Index %</value>
+    <comment>Column header in the Database Overview and Slow Queries grids: share of scans that used an index.</comment>
+  </data>
+  <data name="Monitoring_ColLiveRows" xml:space="preserve">
+    <value>Live rows</value>
+    <comment>Column header in the Database Overview and Slow Queries grids: number of live rows.</comment>
+  </data>
+  <data name="Monitoring_ColDeadRows" xml:space="preserve">
+    <value>Dead rows</value>
+    <comment>Column header in the Database Overview and Slow Queries grids: number of dead rows (not yet vacuumed).</comment>
+  </data>
+  <data name="Monitoring_ColIndex" xml:space="preserve">
+    <value>Index</value>
+    <comment>Column header in the Database Overview and Slow Queries grids: index name.</comment>
+  </data>
+  <data name="Monitoring_ColSize" xml:space="preserve">
+    <value>Size</value>
+    <comment>Column header in the Database Overview and Slow Queries grids: size on disk.</comment>
+  </data>
+  <data name="Monitoring_NotifyTitle" xml:space="preserve">
+    <value>pgNimbus — LISTEN / NOTIFY</value>
+    <comment>Title bar of the LISTEN / NOTIFY monitor window. Keep the product name; LISTEN and NOTIFY are PostgreSQL commands.</comment>
+  </data>
+  <data name="Monitoring_NotifyStart" xml:space="preserve">
+    <value>Start listening</value>
+    <comment>LISTEN / NOTIFY window: button that opens a connection and listens on every channel.</comment>
+  </data>
+  <data name="Monitoring_NotifyStartTip" xml:space="preserve">
+    <value>Open a dedicated connection and LISTEN on every channel below</value>
+    <comment>LISTEN / NOTIFY window: tooltip of Start listening. LISTEN is a PostgreSQL command.</comment>
+  </data>
+  <data name="Monitoring_NotifyClearFeed" xml:space="preserve">
+    <value>Clear feed</value>
+    <comment>LISTEN / NOTIFY window: button that empties the notification list.</comment>
+  </data>
+  <data name="Monitoring_NotifyChannels" xml:space="preserve">
+    <value>CHANNELS</value>
+    <comment>LISTEN / NOTIFY window: small heading above the channel list. Upper case.</comment>
+  </data>
+  <data name="Monitoring_NotifyChannelPlaceholder" xml:space="preserve">
+    <value>Channel name</value>
+    <comment>LISTEN / NOTIFY window: placeholder of the box where a channel to watch is typed.</comment>
+  </data>
+  <data name="Monitoring_NotifyRemoveChannelTip" xml:space="preserve">
+    <value>Stop watching this channel</value>
+    <comment>LISTEN / NOTIFY window: tooltip of the ✕ button on a channel row.</comment>
+  </data>
+  <data name="Monitoring_NotifyNotifications" xml:space="preserve">
+    <value>NOTIFICATIONS</value>
+    <comment>LISTEN / NOTIFY window: small heading above the received notifications. Upper case.</comment>
+  </data>
+  <data name="Monitoring_NotifyPid" xml:space="preserve">
+    <value>pid</value>
+    <comment>LISTEN / NOTIFY window: label before the process id of the sending backend in a feed row, such as 'pid 4821'. The number follows after a space.</comment>
+  </data>
+  <data name="Monitoring_NotifyNothingYet" xml:space="preserve">
+    <value>Nothing received yet</value>
+    <comment>LISTEN / NOTIFY window: heading of the empty feed.</comment>
+  </data>
+  <data name="Monitoring_NotifyEmptyHint" xml:space="preserve">
+    <value>Add a channel, press Start listening, and every NOTIFY on it lands here.</value>
+    <comment>LISTEN / NOTIFY window: hint under the empty feed. NOTIFY is a PostgreSQL command; 'Start listening' is the button's label.</comment>
+  </data>
+  <data name="Monitoring_NotifyPayload" xml:space="preserve">
+    <value>PAYLOAD</value>
+    <comment>LISTEN / NOTIFY window: small heading above the payload of the selected notification. Upper case.</comment>
+  </data>
+  <data name="Monitoring_NotifySelectHint" xml:space="preserve">
+    <value>Select a notification to see its payload.</value>
+    <comment>LISTEN / NOTIFY window: message in the empty payload pane.</comment>
+  </data>
+  <data name="Monitoring_NotifySendHeader" xml:space="preserve">
+    <value>Send NOTIFY</value>
+    <comment>LISTEN / NOTIFY window: small heading of the send box at the bottom. NOTIFY is a PostgreSQL command.</comment>
+  </data>
+  <data name="Monitoring_NotifySendChannelPlaceholder" xml:space="preserve">
+    <value>channel</value>
+    <comment>LISTEN / NOTIFY window: placeholder of the box for the channel to send on.</comment>
+  </data>
+  <data name="Monitoring_NotifySendPayloadPlaceholder" xml:space="preserve">
+    <value>payload (optional)</value>
+    <comment>LISTEN / NOTIFY window: placeholder of the box for the text to send.</comment>
+  </data>
+  <data name="Monitoring_NotifySend" xml:space="preserve">
+    <value>Send</value>
+    <comment>LISTEN / NOTIFY window: button that sends the notification.</comment>
+  </data>
+  <data name="Monitoring_NotifySendTip" xml:space="preserve">
+    <value>pg_notify() on this channel, from a pooled connection</value>
+    <comment>LISTEN / NOTIFY window: tooltip of the Send button. pg_notify() is a PostgreSQL function.</comment>
+  </data>
+  <data name="Monitoring_NotifyListening_one" xml:space="preserve">
+    <value>Listening on {count} channel</value>
+    <comment>LISTEN / NOTIFY window: live state beside the green dot. Singular. {count} is how many channels, always 1.</comment>
+  </data>
+  <data name="Monitoring_NotifyListening_other" xml:space="preserve">
+    <value>Listening on {count} channels</value>
+    <comment>LISTEN / NOTIFY window: live state beside the green dot. Plural. {count} is how many channels, such as 3.</comment>
+  </data>
+  <data name="Monitoring_NotifyNotListening" xml:space="preserve">
+    <value>Not listening</value>
+    <comment>LISTEN / NOTIFY window: live state beside the grey dot.</comment>
+  </data>
+  <data name="Monitoring_NotifyStopped" xml:space="preserve">
+    <value>Stopped listening: {error}</value>
+    <comment>LISTEN / NOTIFY window: error line when the connection dropped and could not be restored. {error} is the server's or driver's message.</comment>
+  </data>
+  <data name="Monitoring_NotifyReconnected" xml:space="preserve">
+    <value>Reconnected at {time} — notifications published while the connection was down were not delivered.</value>
+    <comment>LISTEN / NOTIFY window: status note after the connection was restored. {time} is a clock time such as 09:41:07.</comment>
+  </data>
+  <data name="Monitoring_NotifySent" xml:space="preserve">
+    <value>Sent on {channel} at {time}.</value>
+    <comment>LISTEN / NOTIFY window: status note after a notification was sent. {channel} is the channel name, such as orders; {time} a clock time such as 09:41:07.</comment>
+  </data>
+  <data name="Monitoring_SlowTitle" xml:space="preserve">
+    <value>pgNimbus — Slow Queries</value>
+    <comment>Title bar of the Slow Queries window. Keep the product name.</comment>
+  </data>
+  <data name="Monitoring_SlowRefreshTip" xml:space="preserve">
+    <value>Read pg_stat_statements again</value>
+    <comment>Slow Queries window: tooltip of the Refresh button. pg_stat_statements is a PostgreSQL extension.</comment>
+  </data>
+  <data name="Monitoring_SlowRestart" xml:space="preserve">
+    <value>Restart interval</value>
+    <comment>Slow Queries window: button that starts counting from now.</comment>
+  </data>
+  <data name="Monitoring_SlowRestartTip" xml:space="preserve">
+    <value>Count from now: run your workload, then Refresh to see only what it did. The server's own counters are left alone.</value>
+    <comment>Slow Queries window: tooltip of Restart interval.</comment>
+  </data>
+  <data name="Monitoring_SlowRankBy" xml:space="preserve">
+    <value>Rank by</value>
+    <comment>Slow Queries window: label before the three ranking buttons (Total time, Mean, Calls).</comment>
+  </data>
+  <data name="Monitoring_SlowRankTotal" xml:space="preserve">
+    <value>Total time</value>
+    <comment>Slow Queries window: ranking button: order by the time the server spent in total.</comment>
+  </data>
+  <data name="Monitoring_SlowRankTotalTip" xml:space="preserve">
+    <value>Where the server's time went</value>
+    <comment>Slow Queries window: tooltip of the Total time button.</comment>
+  </data>
+  <data name="Monitoring_SlowRankMean" xml:space="preserve">
+    <value>Mean</value>
+    <comment>Slow Queries window: ranking button: order by average time per call.</comment>
+  </data>
+  <data name="Monitoring_SlowRankMeanTip" xml:space="preserve">
+    <value>The slowest single calls, however rarely they run</value>
+    <comment>Slow Queries window: tooltip of the Mean button.</comment>
+  </data>
+  <data name="Monitoring_SlowRankCalls" xml:space="preserve">
+    <value>Calls</value>
+    <comment>Slow Queries window: ranking button: order by number of calls.</comment>
+  </data>
+  <data name="Monitoring_SlowRankCallsTip" xml:space="preserve">
+    <value>The chattiest statements</value>
+    <comment>Slow Queries window: tooltip of the Calls button.</comment>
+  </data>
+  <data name="Monitoring_SlowSinceReset" xml:space="preserve">
+    <value>Since reset</value>
+    <comment>Slow Queries window: scope button: everything since the server statistics were reset.</comment>
+  </data>
+  <data name="Monitoring_SlowSinceResetTip" xml:space="preserve">
+    <value>Everything since the statistics were last reset</value>
+    <comment>Slow Queries window: tooltip of the Since reset button.</comment>
+  </data>
+  <data name="Monitoring_SlowSinceOpened" xml:space="preserve">
+    <value>Since opened</value>
+    <comment>Slow Queries window: scope button before the first read: only what ran since this window opened.</comment>
+  </data>
+  <data name="Monitoring_SlowSince" xml:space="preserve">
+    <value>Since {time}</value>
+    <comment>Slow Queries window: scope button once a baseline exists. {time} is a clock time such as 10:04:05.</comment>
+  </data>
+  <data name="Monitoring_SlowSinceTip" xml:space="preserve">
+    <value>Only what ran since this window opened, or since Restart interval</value>
+    <comment>Slow Queries window: tooltip of the baseline scope button. 'Restart interval' is the button's label.</comment>
+  </data>
+  <data name="Monitoring_SlowOpenSetup" xml:space="preserve">
+    <value>Open setup script</value>
+    <comment>Slow Queries window: button in the 'not available' card that opens the setup SQL in a new tab.</comment>
+  </data>
+  <data name="Monitoring_SlowOpenSetupTip" xml:space="preserve">
+    <value>The two steps as SQL in a new tab, to review and run yourself</value>
+    <comment>Slow Queries window: tooltip of Open setup script.</comment>
+  </data>
+  <data name="Monitoring_SlowCheckAgain" xml:space="preserve">
+    <value>Check again</value>
+    <comment>Slow Queries window: button in the 'not available' card that reads the server again.</comment>
+  </data>
+  <data name="Monitoring_SlowOpenInTab" xml:space="preserve">
+    <value>Open in New Tab</value>
+    <comment>Slow Queries window: right-click menu item on a statement: opens its SQL in a new editor tab.</comment>
+  </data>
+  <data name="Monitoring_SlowCopyQuery" xml:space="preserve">
+    <value>Copy Query</value>
+    <comment>Slow Queries window: right-click menu item on a statement: copies the whole SQL text.</comment>
+  </data>
+  <data name="Monitoring_SlowRestartedTip" xml:space="preserve">
+    <value>Started counting again inside the interval (reset or evicted), so this covers only part of it</value>
+    <comment>Slow Queries window: tooltip of the ↺ mark in front of a statement.</comment>
+  </data>
+  <data name="Monitoring_SlowNotInstalledTitle" xml:space="preserve">
+    <value>pg_stat_statements isn't installed in this database</value>
+    <comment>Slow Queries window: heading of the card shown when the extension is missing. pg_stat_statements is a PostgreSQL extension name.</comment>
+  </data>
+  <data name="Monitoring_SlowNotInstalledDetail" xml:space="preserve">
+    <value>It ships with PostgreSQL but has to be switched on. Add pg_stat_statements to shared_preload_libraries and restart the server, then run CREATE EXTENSION pg_stat_statements in this database. Both need a superuser; on a managed service the first is usually a parameter-group setting. pgNimbus won't do either for you.</value>
+    <comment>Slow Queries window: explanation under the 'not installed' heading. shared_preload_libraries and CREATE EXTENSION pg_stat_statements are PostgreSQL names and SQL: keep them as they are.</comment>
+  </data>
+  <data name="Monitoring_SlowNotLoadedTitle" xml:space="preserve">
+    <value>pg_stat_statements is installed but the server hasn't loaded it</value>
+    <comment>Slow Queries window: heading of the card shown when the extension exists but the server did not load its library.</comment>
+  </data>
+  <data name="Monitoring_SlowNotLoadedDetail" xml:space="preserve">
+    <value>The server wasn't started with pg_stat_statements in shared_preload_libraries, so it has recorded nothing. Add it there and restart the server.</value>
+    <comment>Slow Queries window: explanation under the 'not loaded' heading. shared_preload_libraries is a PostgreSQL setting name.</comment>
+  </data>
+  <data name="Monitoring_SlowEmptyInterval" xml:space="preserve">
+    <value>Nothing ran {scope}. Run your workload, then Refresh.</value>
+    <comment>Slow Queries window: message over the empty grid in the baseline scope. {scope} is one of the 'between …' texts, such as 'between 10:04:05 and 10:06:12'. 'Refresh' is the button's label.</comment>
+  </data>
+  <data name="Monitoring_SlowEmptyNone" xml:space="preserve">
+    <value>No statements recorded for this database yet.</value>
+    <comment>Slow Queries window: message over the empty grid in the 'since reset' scope.</comment>
+  </data>
+  <data name="Monitoring_SlowScopeBetween" xml:space="preserve">
+    <value>between {from} and {to}</value>
+    <comment>Slow Queries window: a period inside a sentence. {from} and {to} are clock times such as 10:04:05.</comment>
+  </data>
+  <data name="Monitoring_SlowScopeSinceReset" xml:space="preserve">
+    <value>since the statistics were reset on {date}</value>
+    <comment>Slow Queries window: a period inside a sentence. {date} is a date and time such as 2026-07-01 09:00.</comment>
+  </data>
+  <data name="Monitoring_SlowScopeSinceStart" xml:space="preserve">
+    <value>since the server started counting</value>
+    <comment>Slow Queries window: a period inside a sentence, used when the reset time is unknown.</comment>
+  </data>
+  <data name="Monitoring_SlowStatementsTop" xml:space="preserve">
+    <value>Top {shown} of {total} statements {scope}</value>
+    <comment>Slow Queries window: status line start. {shown} is how many are listed, such as 100; {total} how many there are, such as 1,204; {scope} a period text such as 'since the server started counting'.</comment>
+  </data>
+  <data name="Monitoring_SlowStatements_one" xml:space="preserve">
+    <value>{count} statement {scope}</value>
+    <comment>Slow Queries window: status line start. Singular. {count} is always 1; {scope} a period text such as 'since the server started counting'.</comment>
+  </data>
+  <data name="Monitoring_SlowStatements_other" xml:space="preserve">
+    <value>{count} statements {scope}</value>
+    <comment>Slow Queries window: status line start. Plural. {count} is how many, such as 38; {scope} a period text such as 'since the server started counting'.</comment>
+  </data>
+  <data name="Monitoring_SlowNoteViewReset" xml:space="preserve">
+    <value>the statistics were reset in between, so this counts from that reset</value>
+    <comment>Slow Queries window: status line note, joined to the others by ' · '.</comment>
+  </data>
+  <data name="Monitoring_SlowNoteRestarted" xml:space="preserve">
+    <value>{count} started counting again in between (marked ↺)</value>
+    <comment>Slow Queries window: status line note. {count} is how many statements, such as 2. ↺ is the mark shown in the grid.</comment>
+  </data>
+  <data name="Monitoring_SlowNoteEvicted" xml:space="preserve">
+    <value>{count} entries were evicted in between (pg_stat_statements.max), so some may be missing</value>
+    <comment>Slow Queries window: status line note. {count} is how many entries, such as 12. pg_stat_statements.max is a PostgreSQL setting name.</comment>
+  </data>
+  <data name="Monitoring_SlowNoteHidden" xml:space="preserve">
+    <value>{count} statements of other roles are hidden (needs pg_read_all_stats)</value>
+    <comment>Slow Queries window: status line note. {count} is how many statements, such as 40. pg_read_all_stats is a PostgreSQL role name.</comment>
+  </data>
+  <data name="Monitoring_SlowNoteOwn" xml:space="preserve">
+    <value>{count} of pgNimbus's own catalog reads left out</value>
+    <comment>Slow Queries window: status line note. {count} is how many, such as 25.</comment>
+  </data>
+  <data name="Monitoring_SlowNoteRead" xml:space="preserve">
+    <value>read {time}</value>
+    <comment>Slow Queries window: status line note: when the data was read. {time} is a clock time such as 10:06:12.</comment>
+  </data>
+  <data name="Monitoring_SlowTabTitle" xml:space="preserve">
+    <value>slow query {rank}</value>
+    <comment>Slow Queries window: title of the editor tab that opens a statement. {rank} is its position in the list, such as 3.</comment>
+  </data>
+  <data name="Monitoring_SlowSetupTabTitle" xml:space="preserve">
+    <value>pg_stat_statements setup</value>
+    <comment>Slow Queries window: title of the editor tab that opens the setup script. pg_stat_statements is a PostgreSQL extension name.</comment>
+  </data>
+  <data name="Monitoring_ColRole" xml:space="preserve">
+    <value>Role</value>
+    <comment>Slow Queries window: column header: the database role that ran the statement.</comment>
+  </data>
+  <data name="Monitoring_ColCalls" xml:space="preserve">
+    <value>Calls</value>
+    <comment>Slow Queries window: column header: how many times the statement ran.</comment>
+  </data>
+  <data name="Monitoring_ColMean" xml:space="preserve">
+    <value>Mean</value>
+    <comment>Slow Queries window: column header: average time per call.</comment>
+  </data>
+  <data name="Monitoring_ColShare" xml:space="preserve">
+    <value>% time</value>
+    <comment>Slow Queries window: column header: the statement's share of all time.</comment>
+  </data>
+  <data name="Monitoring_ColRows" xml:space="preserve">
+    <value>Rows</value>
+    <comment>Slow Queries window: column header: rows the statement returned or changed.</comment>
+  </data>
+  <data name="Monitoring_ColCacheHit" xml:space="preserve">
+    <value>Cache hit</value>
+    <comment>Slow Queries window: column header: share of block reads served from memory.</comment>
+  </data>
 
   <!-- ===== Security ===== -->
 

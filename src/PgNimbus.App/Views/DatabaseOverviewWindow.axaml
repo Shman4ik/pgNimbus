@@ -1,9 +1,10 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:PgNimbus.App.ViewModels"
+        xmlns:l="using:PgNimbus.App.Localization"
         x:Class="PgNimbus.App.Views.DatabaseOverviewWindow"
         x:DataType="vm:DatabaseOverviewViewModel"
-        Title="pgNimbus — Database Overview"
+        Title="{l:Tr Monitoring_OverviewTitle}"
         Width="960" Height="600"
         MinWidth="720" MinHeight="360"
         WindowStartupLocation="CenterOwner">
@@ -12,10 +13,10 @@
 
         <!-- Toolbar -->
         <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="6" Margin="0,0,0,10">
-            <Button Classes="soft" Command="{Binding RefreshCommand}" ToolTip.Tip="Take a fresh snapshot of the statistics">
+            <Button Classes="soft" Command="{Binding RefreshCommand}" ToolTip.Tip="{l:Tr Monitoring_OverviewRefreshTip}">
                 <StackPanel Orientation="Horizontal" Spacing="7">
                     <PathIcon Data="{StaticResource RefreshIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
-                    <TextBlock Text="Refresh" VerticalAlignment="Center" />
+                    <TextBlock Text="{l:Tr Common_Refresh}" VerticalAlignment="Center" />
                 </StackPanel>
             </Button>
         </StackPanel>
@@ -26,51 +27,51 @@
                 CornerRadius="{StaticResource CardCornerRadius}" Padding="16,12" Margin="0,0,0,10">
             <StackPanel Orientation="Horizontal" Spacing="36">
                 <StackPanel Spacing="2">
-                    <TextBlock Text="DATABASE" Classes="sectionHeader" />
+                    <TextBlock Text="{l:Tr Monitoring_OverviewDatabase}" Classes="sectionHeader" />
                     <TextBlock Text="{Binding DatabaseName}" FontSize="16" FontWeight="SemiBold" />
                 </StackPanel>
                 <StackPanel Spacing="2">
-                    <TextBlock Text="SIZE ON DISK" Classes="sectionHeader" />
+                    <TextBlock Text="{l:Tr Monitoring_OverviewSize}" Classes="sectionHeader" />
                     <TextBlock Text="{Binding DatabaseSizeText}" FontSize="16" FontWeight="SemiBold" />
                 </StackPanel>
-                <StackPanel Spacing="2" ToolTip.Tip="Fraction of table block reads served from shared_buffers rather than disk">
-                    <TextBlock Text="TABLE CACHE HIT" Classes="sectionHeader" />
+                <StackPanel Spacing="2" ToolTip.Tip="{l:Tr Monitoring_OverviewTableCacheTip}">
+                    <TextBlock Text="{l:Tr Monitoring_OverviewTableCache}" Classes="sectionHeader" />
                     <TextBlock Text="{Binding TableCacheHitText}" FontSize="16" FontWeight="SemiBold" />
                 </StackPanel>
-                <StackPanel Spacing="2" ToolTip.Tip="Fraction of index block reads served from shared_buffers rather than disk">
-                    <TextBlock Text="INDEX CACHE HIT" Classes="sectionHeader" />
+                <StackPanel Spacing="2" ToolTip.Tip="{l:Tr Monitoring_OverviewIndexCacheTip}">
+                    <TextBlock Text="{l:Tr Monitoring_OverviewIndexCache}" Classes="sectionHeader" />
                     <TextBlock Text="{Binding IndexCacheHitText}" FontSize="16" FontWeight="SemiBold" />
                 </StackPanel>
             </StackPanel>
         </Border>
 
         <TabControl Grid.Row="2" Classes="segmented">
-            <TabItem Header="Largest relations">
+            <TabItem Header="{l:Tr Monitoring_OverviewTabLargest}">
                 <DataGrid ItemsSource="{Binding LargestRelations}" IsReadOnly="True" SelectionMode="Single"
                           CanUserResizeColumns="True" CanUserSortColumns="False"
                           GridLinesVisibility="Horizontal" HeadersVisibility="Column">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="Schema" Binding="{Binding Schema}" Width="120" />
-                        <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*" />
-                        <DataGridTextColumn Header="Kind" Binding="{Binding Kind}" Width="100" />
-                        <DataGridTextColumn Header="Rows (est.)" Binding="{Binding Rows}" Width="110" />
-                        <DataGridTextColumn Header="Table" Binding="{Binding TableSize}" Width="100" />
-                        <DataGridTextColumn Header="Indexes" Binding="{Binding IndexSize}" Width="100" />
-                        <DataGridTextColumn Header="Total" Binding="{Binding Total}" Width="110" />
+                        <DataGridTextColumn Header="{l:Tr Monitoring_ColSchema}" Binding="{Binding Schema}" Width="120" />
+                        <DataGridTextColumn Header="{l:Tr Monitoring_ColName}" Binding="{Binding Name}" Width="*" />
+                        <DataGridTextColumn Header="{l:Tr Monitoring_ColKind}" Binding="{Binding Kind}" Width="100" />
+                        <DataGridTextColumn Header="{l:Tr Monitoring_ColRowsEstimate}" Binding="{Binding Rows}" Width="110" />
+                        <DataGridTextColumn Header="{l:Tr Monitoring_ColTable}" Binding="{Binding TableSize}" Width="100" />
+                        <DataGridTextColumn Header="{l:Tr Monitoring_ColIndexes}" Binding="{Binding IndexSize}" Width="100" />
+                        <DataGridTextColumn Header="{l:Tr Monitoring_ColTotal}" Binding="{Binding Total}" Width="110" />
                     </DataGrid.Columns>
                 </DataGrid>
             </TabItem>
 
-            <TabItem Header="Scans (seq vs index)">
+            <TabItem Header="{l:Tr Monitoring_OverviewTabScans}">
                 <DataGrid ItemsSource="{Binding TableScans}" IsReadOnly="True" SelectionMode="Single"
                           CanUserResizeColumns="True" CanUserSortColumns="False"
                           GridLinesVisibility="Horizontal" HeadersVisibility="Column">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="Schema" Binding="{Binding Schema}" Width="120" />
-                        <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*" />
-                        <DataGridTextColumn Header="Seq scans" Binding="{Binding SeqScan}" Width="110" />
-                        <DataGridTextColumn Header="Index scans" Binding="{Binding IdxScan}" Width="110" />
-                        <DataGridTemplateColumn Header="Index %" Width="90">
+                        <DataGridTextColumn Header="{l:Tr Monitoring_ColSchema}" Binding="{Binding Schema}" Width="120" />
+                        <DataGridTextColumn Header="{l:Tr Monitoring_ColName}" Binding="{Binding Name}" Width="*" />
+                        <DataGridTextColumn Header="{l:Tr Monitoring_ColSeqScans}" Binding="{Binding SeqScan}" Width="110" />
+                        <DataGridTextColumn Header="{l:Tr Monitoring_ColIndexScans}" Binding="{Binding IdxScan}" Width="110" />
+                        <DataGridTemplateColumn Header="{l:Tr Monitoring_ColIndexPercent}" Width="90">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate x:DataType="vm:TableScanRow">
                                     <Panel Margin="12,0">
@@ -84,26 +85,26 @@
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        <DataGridTextColumn Header="Live rows" Binding="{Binding LiveRows}" Width="110" />
-                        <DataGridTextColumn Header="Dead rows" Binding="{Binding DeadRows}" Width="110" />
+                        <DataGridTextColumn Header="{l:Tr Monitoring_ColLiveRows}" Binding="{Binding LiveRows}" Width="110" />
+                        <DataGridTextColumn Header="{l:Tr Monitoring_ColDeadRows}" Binding="{Binding DeadRows}" Width="110" />
                     </DataGrid.Columns>
                 </DataGrid>
             </TabItem>
 
-            <TabItem Header="Unused indexes">
+            <TabItem Header="{l:Tr Monitoring_OverviewTabUnused}">
                 <Grid RowDefinitions="*,Auto">
                     <DataGrid Grid.Row="0" ItemsSource="{Binding UnusedIndexes}" IsReadOnly="True" SelectionMode="Single"
                               CanUserResizeColumns="True" CanUserSortColumns="False"
                               GridLinesVisibility="Horizontal" HeadersVisibility="Column">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Schema" Binding="{Binding Schema}" Width="120" />
-                            <DataGridTextColumn Header="Table" Binding="{Binding Table}" Width="200" />
-                            <DataGridTextColumn Header="Index" Binding="{Binding Name}" Width="*" />
-                            <DataGridTextColumn Header="Size" Binding="{Binding Size}" Width="110" />
+                            <DataGridTextColumn Header="{l:Tr Monitoring_ColSchema}" Binding="{Binding Schema}" Width="120" />
+                            <DataGridTextColumn Header="{l:Tr Monitoring_ColTable}" Binding="{Binding Table}" Width="200" />
+                            <DataGridTextColumn Header="{l:Tr Monitoring_ColIndex}" Binding="{Binding Name}" Width="*" />
+                            <DataGridTextColumn Header="{l:Tr Monitoring_ColSize}" Binding="{Binding Size}" Width="110" />
                         </DataGrid.Columns>
                     </DataGrid>
                     <TextBlock Grid.Row="1" Margin="4,8,4,0" FontSize="11" Opacity="0.6"
-                               Text="Never scanned since the last stats reset. Unique and primary-key indexes are excluded — they enforce constraints regardless of scans." />
+                               Text="{l:Tr Monitoring_OverviewUnusedNote}" />
                 </Grid>
             </TabItem>
         </TabControl>

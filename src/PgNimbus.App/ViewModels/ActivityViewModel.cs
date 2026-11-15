@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Monitoring;
 
 namespace PgNimbus.App.ViewModels;
@@ -40,7 +41,7 @@ public sealed record ActivityRow(BackendActivity Backend)
 
     public string Application => Backend.Application ?? "";
 
-    public string Client => Backend.ClientAddress ?? "local";
+    public string Client => Backend.ClientAddress ?? Strings.Monitoring_ActivityClientLocal;
 
     public string State => Backend.State;
 
@@ -61,9 +62,21 @@ public sealed record ActivityRow(BackendActivity Backend)
 /// (<see cref="IsBlocked"/>); a root holding a lock is the one to cancel to
 /// unstick its whole subtree.
 /// </summary>
-public sealed class BlockingNode(BlockingTreeNode node)
+public sealed class BlockingNode : ObservableObject
 {
-    private readonly BlockingTreeNode _node = node;
+    private readonly BlockingTreeNode _node;
+
+    public BlockingNode(BlockingTreeNode node)
+    {
+        _node = node;
+        Children = node.Children.Select(c => new BlockingNode(c)).ToList();
+        Localizer.WhenChanged(this, static n =>
+        {
+            n.OnPropertyChanged(nameof(WaitLabel));
+            n.OnPropertyChanged(nameof(OtherBlockersLabel));
+            n.OnPropertyChanged(nameof(BlockingLabel));
+        });
+    }
 
     /// <summary>
     /// Whether the node's row is open: every row starts open, so the wait chain
@@ -95,12 +108,12 @@ public sealed class BlockingNode(BlockingTreeNode node)
             var elapsed = ActivityFormat.Elapsed(_node.Backend.ElapsedSeconds);
             var what = (mode, obj) switch
             {
-                (not null, not null) => $"waiting for {mode} on {obj}",
-                (not null, null) => $"waiting for {mode}",
-                (null, not null) => $"waiting on {obj}",
-                _ => "waiting on a lock",
+                (not null, not null) => Strings.Monitoring_ActivityWaitForModeOn(mode, obj),
+                (not null, null) => Strings.Monitoring_ActivityWaitForMode(mode),
+                (null, not null) => Strings.Monitoring_ActivityWaitOnObject(obj),
+                _ => Strings.Monitoring_ActivityWaitOnLock,
             };
-            return elapsed.Length > 0 ? $"{what} · {elapsed}" : what;
+            return elapsed.Length > 0 ? Strings.Monitoring_ActivityWaitWithTime(what, elapsed) : what;
         }
     }
 
@@ -110,19 +123,31 @@ public sealed class BlockingNode(BlockingTreeNode node)
     /// "blocked by 999" for a root whose blocker is outside the snapshot or in a
     /// deadlock cycle. Empty for the ordinary one-blocker waiter.
     /// </summary>
-    public string OtherBlockersLabel { get; } = node.AlsoBlockedBy.Count == 0
-        ? ""
-        : $"{(node.Backend.BlockedByPids.Count > node.AlsoBlockedBy.Count ? "also blocked by" : "blocked by")} {string.Join(", ", node.AlsoBlockedBy)}";
+    public string OtherBlockersLabel
+    {
+        get
+        {
+            if (_node.AlsoBlockedBy.Count == 0)
+            {
+                return "";
+            }
 
-    public bool HasOtherBlockers => OtherBlockersLabel.Length > 0;
+            var pids = string.Join(", ", _node.AlsoBlockedBy);
+            return _node.Backend.BlockedByPids.Count > _node.AlsoBlockedBy.Count
+                ? Strings.Monitoring_ActivityAlsoBlockedBy(pids)
+                : Strings.Monitoring_ActivityBlockedBy(pids);
+        }
+    }
+
+    public bool HasOtherBlockers => _node.AlsoBlockedBy.Count > 0;
 
     /// <summary>"blocking 3" — only when other backends wait behind this one.</summary>
     public string BlockingLabel =>
-        _node.BlockedDescendants > 0 ? $"blocking {_node.BlockedDescendants}" : "";
+        _node.BlockedDescendants > 0 ? Strings.Monitoring_ActivityBlocking(_node.BlockedDescendants) : "";
 
     public string Query => ActivityFormat.OneLine(_node.Backend.Query);
 
-    public IReadOnlyList<BlockingNode> Children { get; } = node.Children.Select(c => new BlockingNode(c)).ToList();
+    public IReadOnlyList<BlockingNode> Children { get; }
 }
 
 /// <summary>
@@ -131,9 +156,19 @@ public sealed class BlockingNode(BlockingTreeNode node)
 /// tree built from pg_blocking_pids. The 2s auto-refresh timer lives in the
 /// window (a UI concern); this just exposes RefreshCommand for it to tick.
 /// </summary>
-public sealed partial class ActivityViewModel(ActivityService service) : ObservableObject
+public sealed partial class ActivityViewModel : ObservableObject
 {
-    private readonly ActivityService _service = service;
+    private readonly ActivityService _service;
+
+    public ActivityViewModel(ActivityService service)
+    {
+        _service = service;
+        Localizer.WhenChanged(this, static vm =>
+        {
+            vm.OnPropertyChanged(nameof(CancelTip));
+            vm.OnPropertyChanged(nameof(TerminateTip));
+        });
+    }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(TargetPid))]
@@ -177,10 +212,9 @@ public sealed partial class ActivityViewModel(ActivityService service) : Observa
     /// <summary>True when the header's Cancel query and Terminate act.</summary>
     public bool CanSignal => HasTarget && SignalsLockedHint is null;
 
-    public string CancelTip => SignalsLockedHint ??
-        "Stop the selected backend's running statement but keep the session (pg_cancel_backend). On the Blocking tab, aim at a lock holder to release everyone waiting beneath it.";
+    public string CancelTip => SignalsLockedHint ?? Strings.Monitoring_ActivityCancelTip;
 
-    public string TerminateTip => SignalsLockedHint ?? "Kill the selected backend's whole session (pg_terminate_backend)";
+    public string TerminateTip => SignalsLockedHint ?? Strings.Monitoring_ActivityTerminateTip;
 
     [ObservableProperty]
     private bool _autoRefresh = true;
@@ -191,7 +225,7 @@ public sealed partial class ActivityViewModel(ActivityService service) : Observa
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ActiveStatus))]
-    private string _blockingStatus = "No lock waits.";
+    private string _blockingStatus = Strings.Monitoring_ActivityNoLockWaitsStatus;
 
     [ObservableProperty]
     private bool _hasLockWaits;
@@ -242,8 +276,8 @@ public sealed partial class ActivityViewModel(ActivityService service) : Observa
             SelectedRow = selectedPid is { } pid ? Rows.FirstOrDefault(r => r.Pid == pid) : null;
 
             var locks = Rows.Count(r => r.IsWaitingOnLock);
-            Status = $"{Rows.Count} backend{(Rows.Count == 1 ? "" : "s")}"
-                + (locks > 0 ? $" · {locks} waiting on locks" : "")
+            Status = Strings.Monitoring_ActivityBackends(Rows.Count)
+                + (locks > 0 ? " · " + Strings.Monitoring_ActivityWaitingOnLocks(locks) : "")
                 + $" · {DateTime.Now:HH:mm:ss}";
         }
         catch (Exception ex)
@@ -270,8 +304,10 @@ public sealed partial class ActivityViewModel(ActivityService service) : Observa
 
             var waiters = backends.Count(b => b.BlockedByPids.Count > 0);
             BlockingStatus = waiters == 0
-                ? "No lock waits."
-                : $"{waiters} backend{(waiters == 1 ? "" : "s")} waiting on {BlockingRoots.Count} lock holder{(BlockingRoots.Count == 1 ? "" : "s")}";
+                ? Strings.Monitoring_ActivityNoLockWaitsStatus
+                : Strings.Monitoring_ActivityBlockingStatus(
+                    Strings.Monitoring_ActivityBackends(waiters),
+                    Strings.Monitoring_ActivityLockHolders(BlockingRoots.Count));
         }
         catch (Exception ex)
         {
@@ -323,7 +359,7 @@ public sealed partial class ActivityViewModel(ActivityService service) : Observa
         try
         {
             var signaled = await _service.CancelBackendAsync(pid, CancellationToken.None);
-            var message = signaled ? $"Cancel signal sent to pid {pid}" : $"Pid {pid} is already gone";
+            var message = signaled ? Strings.Monitoring_ActivityCancelSent(pid) : Strings.Monitoring_ActivityPidGone(pid);
             Status = message;
             BlockingStatus = message;
         }
@@ -348,7 +384,7 @@ public sealed partial class ActivityViewModel(ActivityService service) : Observa
         try
         {
             var signaled = await _service.TerminateBackendAsync(pid, CancellationToken.None);
-            var message = signaled ? $"Terminated backend {pid}" : $"Pid {pid} is already gone";
+            var message = signaled ? Strings.Monitoring_ActivityTerminated(pid) : Strings.Monitoring_ActivityPidGone(pid);
             Status = message;
             BlockingStatus = message;
         }

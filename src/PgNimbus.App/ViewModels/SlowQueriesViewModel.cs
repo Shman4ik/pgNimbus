@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PgNimbus.Core;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Monitoring;
 
 namespace PgNimbus.App.ViewModels;
@@ -48,15 +49,39 @@ public sealed partial record SlowQueryRow(int Rank, StatementActivity Activity, 
 /// statement opens in a new editor tab with its <c>$1</c> placeholders intact,
 /// since pg_stat_statements keeps the shape of a query, not its values.
 /// </summary>
-public sealed partial class SlowQueriesViewModel(StatementStatsService service) : ObservableObject
+public sealed partial class SlowQueriesViewModel : ObservableObject
 {
     /// <summary>How many statements the grid lists.</summary>
     public const int Limit = 100;
 
-    private readonly StatementStatsService _service = service;
+    private readonly StatementStatsService _service;
 
     private StatementStatsSnapshot? _baseline;
     private StatementStatsSnapshot? _latest;
+
+    // What the texts below are built from, kept so a change of language can write them again.
+    private StatementStatsProblem _problem;
+    private StatementInterval? _interval;
+    private int _activityCount;
+    private bool _statusFromRead;
+
+    public SlowQueriesViewModel(StatementStatsService service)
+    {
+        _service = service;
+        Localizer.WhenChanged(this, static vm => vm.OnLanguageChanged());
+    }
+
+    private void OnLanguageChanged()
+    {
+        OnPropertyChanged(nameof(ProblemTitle));
+        OnPropertyChanged(nameof(ProblemDetail));
+        OnPropertyChanged(nameof(BaselineLabel));
+        OnPropertyChanged(nameof(EmptyText));
+        if (_statusFromRead)
+        {
+            Status = BuildStatus();
+        }
+    }
 
     public ObservableCollection<SlowQueryRow> Rows { get; } = [];
 
@@ -81,24 +106,33 @@ public sealed partial class SlowQueriesViewModel(StatementStatsService service) 
     public bool IsSinceReset => !IsSinceBaseline;
 
     /// <summary>The baseline scope's chip: "Since 10:04:05".</summary>
-    [ObservableProperty]
-    private string _baselineLabel = "Since opened";
+    public string BaselineLabel =>
+        _baseline is { } baseline ? Strings.Monitoring_SlowSince($"{Local(baseline.TakenAt):HH:mm:ss}") : Strings.Monitoring_SlowSinceOpened;
 
     /// <summary>Why there's nothing to show (the extension missing or not loaded), or null.</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasProblem), nameof(HasGrid))]
-    private string? _problemTitle;
+    public string? ProblemTitle => _problem switch
+    {
+        StatementStatsProblem.NotInstalled => Strings.Monitoring_SlowNotInstalledTitle,
+        StatementStatsProblem.NotLoaded => Strings.Monitoring_SlowNotLoadedTitle,
+        _ => null,
+    };
 
-    [ObservableProperty]
-    private string? _problemDetail;
+    public string? ProblemDetail => _problem switch
+    {
+        StatementStatsProblem.NotInstalled => Strings.Monitoring_SlowNotInstalledDetail,
+        StatementStatsProblem.NotLoaded => Strings.Monitoring_SlowNotLoadedDetail,
+        _ => null,
+    };
 
     public bool HasProblem => ProblemTitle is not null;
 
     public bool HasGrid => ProblemTitle is null;
 
     /// <summary>Shown over an empty grid; null when there are rows.</summary>
-    [ObservableProperty]
-    private string? _emptyText;
+    public string? EmptyText => _latest is null || _baseline is null || Rows.Count > 0 ? null
+        : IsSinceBaseline
+            ? Strings.Monitoring_SlowEmptyInterval(ScopeText())
+            : Strings.Monitoring_SlowEmptyNone;
 
     [ObservableProperty]
     private string _status = "";
@@ -118,6 +152,7 @@ public sealed partial class SlowQueriesViewModel(StatementStatsService service) 
         }
         catch (Exception ex)
         {
+            _statusFromRead = false;
             Status = ex.Message;
         }
     }
@@ -129,35 +164,25 @@ public sealed partial class SlowQueriesViewModel(StatementStatsService service) 
     /// </summary>
     public void Load(StatementStatsRead read)
     {
-        ProblemTitle = read.Problem switch
-        {
-            StatementStatsProblem.NotInstalled => "pg_stat_statements isn't installed in this database",
-            StatementStatsProblem.NotLoaded => "pg_stat_statements is installed but the server hasn't loaded it",
-            _ => null,
-        };
-        ProblemDetail = read.Problem switch
-        {
-            StatementStatsProblem.NotInstalled =>
-                "It ships with PostgreSQL but has to be switched on. Add pg_stat_statements to shared_preload_libraries "
-                + "and restart the server, then run CREATE EXTENSION pg_stat_statements in this database. Both need a "
-                + "superuser; on a managed service the first is usually a parameter-group setting. pgNimbus won't do either for you.",
-            StatementStatsProblem.NotLoaded =>
-                "The server wasn't started with pg_stat_statements in shared_preload_libraries, so it has recorded "
-                + "nothing. Add it there and restart the server.",
-            _ => null,
-        };
+        _problem = read.Problem;
+        OnPropertyChanged(nameof(ProblemTitle));
+        OnPropertyChanged(nameof(ProblemDetail));
+        OnPropertyChanged(nameof(HasProblem));
+        OnPropertyChanged(nameof(HasGrid));
 
         if (read.Snapshot is not { } snapshot)
         {
             Rows.Clear();
-            EmptyText = null;
+            _latest = null;
+            _statusFromRead = false;
+            OnPropertyChanged(nameof(EmptyText));
             Status = "";
             return;
         }
 
         _baseline ??= snapshot;
         _latest = snapshot;
-        BaselineLabel = $"Since {Local(_baseline.TakenAt):HH:mm:ss}";
+        OnPropertyChanged(nameof(BaselineLabel));
         Rebuild();
     }
 
@@ -185,7 +210,7 @@ public sealed partial class SlowQueriesViewModel(StatementStatsService service) 
         }
 
         _baseline = _latest;
-        BaselineLabel = $"Since {Local(_baseline.TakenAt):HH:mm:ss}";
+        OnPropertyChanged(nameof(BaselineLabel));
         IsSinceBaseline = true;
         Rebuild();
     }
@@ -205,11 +230,11 @@ public sealed partial class SlowQueriesViewModel(StatementStatsService service) 
         var text = await GetQueryTextAsync(target);
         var activity = target.Activity;
         var sql = $"""
-            -- From pg_stat_statements: {activity.Calls:N0} calls, {DurationText.Format(activity.TotalMs)} in total, {DurationText.Format(activity.MeanMs)} per call ({ScopeText()}).
+            -- From pg_stat_statements: {activity.Calls:N0} calls, {DurationText.Format(activity.TotalMs)} in total, {DurationText.Format(activity.MeanMs)} per call ({EnglishScopeText()}).
             -- Its constants were replaced by $1, $2, …: put real values back before running it.
             {text}
             """;
-        OpenSqlRequested?.Invoke($"slow query {target.Rank}", sql);
+        OpenSqlRequested?.Invoke(Strings.Monitoring_SlowTabTitle(target.Rank), sql);
     }
 
     /// <summary>A statement's whole text; falls back to the preview when the entry is gone.</summary>
@@ -227,7 +252,7 @@ public sealed partial class SlowQueriesViewModel(StatementStatsService service) 
 
     /// <summary>The two setup steps as a script to review, never run from here.</summary>
     [RelayCommand]
-    private void OpenSetupScript() => OpenSqlRequested?.Invoke("pg_stat_statements setup", SetupScript);
+    private void OpenSetupScript() => OpenSqlRequested?.Invoke(Strings.Monitoring_SlowSetupTabTitle, SetupScript);
 
     internal const string SetupScript = """
         -- Setting up pg_stat_statements. Both steps need a superuser; review before running.
@@ -262,48 +287,67 @@ public sealed partial class SlowQueriesViewModel(StatementStatsService service) 
             Rows.Add(new SlowQueryRow(i + 1, ranked[i].Activity, ranked[i].TimeShare));
         }
 
-        EmptyText = Rows.Count > 0 ? null
-            : IsSinceBaseline
-                ? $"Nothing ran {ScopeText()}. Run your workload, then Refresh."
-                : "No statements recorded for this database yet.";
+        _interval = interval;
+        _activityCount = activity.Count;
+        _statusFromRead = true;
+        OnPropertyChanged(nameof(EmptyText));
+        Status = BuildStatus();
+    }
 
+    private string BuildStatus()
+    {
+        var latest = _latest!;
         var notes = new List<string>
         {
-            activity.Count > Rows.Count
-                ? $"Top {Rows.Count} of {activity.Count:N0} statements {ScopeText()}"
-                : $"{activity.Count:N0} statement{(activity.Count == 1 ? "" : "s")} {ScopeText()}",
+            _activityCount > Rows.Count
+                ? Strings.Monitoring_SlowStatementsTop(Rows.Count, _activityCount.ToString("N0"), ScopeText())
+                : Strings.Monitoring_SlowStatements(_activityCount, ScopeText()),
         };
 
-        if (interval is { ViewReset: true })
+        if (_interval is { ViewReset: true })
         {
-            notes.Add("the statistics were reset in between, so this counts from that reset");
+            notes.Add(Strings.Monitoring_SlowNoteViewReset);
         }
 
-        if (interval?.Activity.Count(a => a.Restarted) is > 0 and var restarted)
+        if (_interval?.Activity.Count(a => a.Restarted) is > 0 and var restarted)
         {
-            notes.Add($"{restarted} started counting again in between (marked ↺)");
+            notes.Add(Strings.Monitoring_SlowNoteRestarted(restarted));
         }
 
-        if (interval?.Evicted is > 0 and var evicted)
+        if (_interval?.Evicted is > 0 and var evicted)
         {
-            notes.Add($"{evicted:N0} entries were evicted in between (pg_stat_statements.max), so some may be missing");
+            notes.Add(Strings.Monitoring_SlowNoteEvicted(evicted.ToString("N0")));
         }
 
         if (latest.HiddenStatements > 0)
         {
-            notes.Add($"{latest.HiddenStatements:N0} statements of other roles are hidden (needs pg_read_all_stats)");
+            notes.Add(Strings.Monitoring_SlowNoteHidden(latest.HiddenStatements.ToString("N0")));
         }
 
         if (latest.OwnStatements > 0)
         {
-            notes.Add($"{latest.OwnStatements:N0} of pgNimbus's own catalog reads left out");
+            notes.Add(Strings.Monitoring_SlowNoteOwn(latest.OwnStatements.ToString("N0")));
         }
 
-        notes.Add($"read {Local(latest.TakenAt):HH:mm:ss}");
-        Status = string.Join(" · ", notes);
+        notes.Add(Strings.Monitoring_SlowNoteRead($"{Local(latest.TakenAt):HH:mm:ss}"));
+        return string.Join(" · ", notes);
     }
 
     private string ScopeText()
+    {
+        if (IsSinceBaseline && _baseline is { } baseline && _latest is { } latest)
+        {
+            return Strings.Monitoring_SlowScopeBetween($"{Local(baseline.TakenAt):HH:mm:ss}", $"{Local(latest.TakenAt):HH:mm:ss}");
+        }
+
+        return _latest?.StatsReset is { } reset
+            ? Strings.Monitoring_SlowScopeSinceReset($"{Local(reset):yyyy-MM-dd HH:mm}")
+            : Strings.Monitoring_SlowScopeSinceStart;
+    }
+
+    // The same period in English, for the comment at the top of a statement opened in
+    // a tab: generated SQL and its comments are not translated.
+    private string EnglishScopeText()
     {
         if (IsSinceBaseline && _baseline is { } baseline && _latest is { } latest)
         {

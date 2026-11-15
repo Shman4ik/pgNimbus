@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:PgNimbus.App.ViewModels"
+        xmlns:l="using:PgNimbus.App.Localization"
         xmlns:notify="using:PgNimbus.Core.Notifications"
         xmlns:views="using:PgNimbus.App.Views"
         xmlns:sys="using:System"
@@ -8,7 +9,7 @@
         xmlns:conv2="using:PgNimbus.App.Converters"
         x:Class="PgNimbus.App.Views.NotifyMonitorWindow"
         x:DataType="vm:NotifyMonitorViewModel"
-        Title="pgNimbus — LISTEN / NOTIFY"
+        Title="{l:Tr Monitoring_NotifyTitle}"
         Width="1040" Height="620"
         MinWidth="760" MinHeight="380"
         WindowStartupLocation="CenterOwner">
@@ -31,11 +32,11 @@
             </StackPanel>
 
             <StackPanel Orientation="Horizontal" Spacing="6">
-                <Button Classes="accent" Content="Start listening" Command="{Binding StartListeningCommand}"
-                        ToolTip.Tip="Open a dedicated connection and LISTEN on every channel below" />
-                <Button Classes="soft" Content="Stop" Command="{Binding StopListeningCommand}" />
+                <Button Classes="accent" Content="{l:Tr Monitoring_NotifyStart}" Command="{Binding StartListeningCommand}"
+                        ToolTip.Tip="{l:Tr Monitoring_NotifyStartTip}" />
+                <Button Classes="soft" Content="{l:Tr Common_Stop}" Command="{Binding StopListeningCommand}" />
                 <Rectangle Classes="statusSeparator" Margin="5,0" />
-                <Button Classes="soft" Content="Clear feed" Command="{Binding ClearNotificationsCommand}" />
+                <Button Classes="soft" Content="{l:Tr Monitoring_NotifyClearFeed}" Command="{Binding ClearNotificationsCommand}" />
             </StackPanel>
         </DockPanel>
 
@@ -44,14 +45,14 @@
 
             <!-- Channels: the subscription list, restored per connection. -->
             <Grid Grid.Column="0" RowDefinitions="Auto,Auto,*" Margin="0,0,10,0">
-                <TextBlock Grid.Row="0" Classes="sectionHeader" Text="CHANNELS" Margin="4,0,4,6" />
+                <TextBlock Grid.Row="0" Classes="sectionHeader" Text="{l:Tr Monitoring_NotifyChannels}" Margin="4,0,4,6" />
                 <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
-                    <TextBox Grid.Column="0" Text="{Binding ChannelName}" PlaceholderText="Channel name" Margin="0,0,6,0">
+                    <TextBox Grid.Column="0" Text="{Binding ChannelName}" PlaceholderText="{l:Tr Monitoring_NotifyChannelPlaceholder}" Margin="0,0,6,0">
                         <TextBox.KeyBindings>
                             <KeyBinding Gesture="Enter" Command="{Binding AddChannelCommand}" />
                         </TextBox.KeyBindings>
                     </TextBox>
-                    <Button Grid.Column="1" Classes="soft" Content="Add" Command="{Binding AddChannelCommand}" />
+                    <Button Grid.Column="1" Classes="soft" Content="{l:Tr Common_Add}" Command="{Binding AddChannelCommand}" />
                 </Grid>
                 <Border Grid.Row="2" Classes="card">
                     <ListBox ItemsSource="{Binding Channels}" SelectedItem="{Binding SelectedChannel, Mode=TwoWay}">
@@ -62,7 +63,7 @@
                                                TextTrimming="CharacterEllipsis" />
                                     <Button Grid.Column="1" Classes="chip" Content="✕" FontSize="10"
                                             Tag="{Binding}" Click="OnRemoveChannelClick"
-                                            ToolTip.Tip="Stop watching this channel" />
+                                            ToolTip.Tip="{l:Tr Monitoring_NotifyRemoveChannelTip}" />
                                 </Grid>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
@@ -72,7 +73,7 @@
 
             <!-- The feed. Newest first, capped — see NotifyMonitorViewModel.MaxNotifications. -->
             <Grid Grid.Column="1" RowDefinitions="Auto,*" Margin="0,0,10,0">
-                <TextBlock Grid.Row="0" Classes="sectionHeader" Text="NOTIFICATIONS" Margin="4,0,4,6" />
+                <TextBlock Grid.Row="0" Classes="sectionHeader" Text="{l:Tr Monitoring_NotifyNotifications}" Margin="4,0,4,6" />
                 <Border Grid.Row="1" Classes="card">
                     <Panel>
                         <ListBox ItemsSource="{Binding Notifications}"
@@ -84,8 +85,7 @@
                                             <TextBlock Text="{Binding Channel}" FontWeight="SemiBold" FontSize="12" />
                                             <TextBlock Text="{Binding ReceivedAt, StringFormat='{}{0:HH:mm:ss}'}"
                                                        Opacity="0.55" FontSize="11" VerticalAlignment="Center" />
-                                            <TextBlock Text="{Binding ProcessId, StringFormat='pid {0}'}"
-                                                       Opacity="0.6" FontSize="11" VerticalAlignment="Center" />
+                                            <TextBlock Opacity="0.6" FontSize="11" VerticalAlignment="Center"><Run Text="{l:Tr Monitoring_NotifyPid}" /><Run Text=" " /><Run Text="{Binding ProcessId}" /></TextBlock>
                                         </StackPanel>
                                         <!-- One line per notification: the whole payload is one click away
                                              in the pane beside it, so the feed stays scannable. -->
@@ -103,11 +103,11 @@
                         <StackPanel IsVisible="{Binding !Notifications.Count}"
                                     HorizontalAlignment="Stretch" VerticalAlignment="Center"
                                     Margin="16,0" Spacing="8" IsHitTestVisible="False">
-                            <TextBlock Text="Nothing received yet" FontSize="13" FontWeight="SemiBold"
+                            <TextBlock Text="{l:Tr Monitoring_NotifyNothingYet}" FontSize="13" FontWeight="SemiBold"
                                        Opacity="0.55" HorizontalAlignment="Center" />
                             <TextBlock Opacity="0.6" FontSize="12" HorizontalAlignment="Center" TextAlignment="Center"
                                        TextWrapping="Wrap"
-                                       Text="Add a channel, press Start listening, and every NOTIFY on it lands here." />
+                                       Text="{l:Tr Monitoring_NotifyEmptyHint}" />
                         </StackPanel>
                     </Panel>
                 </Border>
@@ -121,21 +121,21 @@
                 <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,6">
                     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" Margin="4,0,4,0"
                                 VerticalAlignment="Center">
-                        <TextBlock Classes="sectionHeader" Text="PAYLOAD" VerticalAlignment="Center" />
+                        <TextBlock Classes="sectionHeader" Text="{l:Tr Monitoring_NotifyPayload}" VerticalAlignment="Center" />
                         <!-- Which channel this payload came in on: two channels' payloads
                              look alike, and the feed selection scrolls away. -->
                         <TextBlock Text="{Binding ColumnName}" FontSize="11" Opacity="0.55"
                                    VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                     </StackPanel>
                     <StackPanel Grid.Column="1" Orientation="Horizontal" IsVisible="{Binding IsOpen}">
-                        <ToggleButton Content="Tree" Classes="chip"
+                        <ToggleButton Content="{l:Tr Results_InspectorTree}" Classes="chip"
                                       IsVisible="{Binding CanShowTreeToggle}"
                                       IsChecked="{Binding IsTreeView}"
-                                      ToolTip.Tip="Toggle tree / text view" />
-                        <ToggleButton Content="Wrap" Classes="chip" Margin="6,0,0,0"
+                                      ToolTip.Tip="{l:Tr Results_InspectorTreeTip}" />
+                        <ToggleButton Content="{l:Tr Results_InspectorWrap}" Classes="chip" Margin="6,0,0,0"
                                       IsVisible="{Binding ShowText}"
-                                      IsChecked="{Binding WordWrap}" ToolTip.Tip="Toggle word wrap" />
-                        <Button Content="Copy" Classes="chip" Margin="6,0,0,0" Click="OnCopyPayloadClick" />
+                                      IsChecked="{Binding WordWrap}" ToolTip.Tip="{l:Tr Results_InspectorWrapTip}" />
+                        <Button Content="{l:Tr Common_Copy}" Classes="chip" Margin="6,0,0,0" Click="OnCopyPayloadClick" />
                     </StackPanel>
                 </Grid>
 
@@ -144,7 +144,7 @@
                         <!-- The same viewer and tree as the results grid's cell inspector. -->
                         <views:CellValueView Name="PayloadValue" IsVisible="{Binding IsOpen}" Margin="6,6,4,6" />
 
-                        <TextBlock IsVisible="{Binding !IsOpen}" Text="Select a notification to see its payload."
+                        <TextBlock IsVisible="{Binding !IsOpen}" Text="{l:Tr Monitoring_NotifySelectHint}"
                                    Opacity="0.6" FontSize="12" TextWrapping="Wrap" TextAlignment="Center"
                                    HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Panel>
@@ -156,16 +156,16 @@
              round trip (send, then watch it arrive in the feed) is one window. -->
         <Border Grid.Row="2" Classes="card" Margin="0,10,0,0" Padding="10,8">
             <Grid ColumnDefinitions="Auto,150,*,Auto">
-                <TextBlock Grid.Column="0" Text="Send NOTIFY" Classes="sectionHeader"
+                <TextBlock Grid.Column="0" Text="{l:Tr Monitoring_NotifySendHeader}" Classes="sectionHeader"
                            VerticalAlignment="Center" Margin="0,0,10,0" />
-                <TextBox Grid.Column="1" Text="{Binding SendChannel}" PlaceholderText="channel" Margin="0,0,6,0" />
-                <TextBox Grid.Column="2" Text="{Binding SendPayload}" PlaceholderText="payload (optional)" Margin="0,0,6,0">
+                <TextBox Grid.Column="1" Text="{Binding SendChannel}" PlaceholderText="{l:Tr Monitoring_NotifySendChannelPlaceholder}" Margin="0,0,6,0" />
+                <TextBox Grid.Column="2" Text="{Binding SendPayload}" PlaceholderText="{l:Tr Monitoring_NotifySendPayloadPlaceholder}" Margin="0,0,6,0">
                     <TextBox.KeyBindings>
                         <KeyBinding Gesture="Enter" Command="{Binding SendCommand}" />
                     </TextBox.KeyBindings>
                 </TextBox>
-                <Button Grid.Column="3" Classes="soft" Content="Send" Command="{Binding SendCommand}"
-                        ToolTip.Tip="pg_notify() on this channel, from a pooled connection" />
+                <Button Grid.Column="3" Classes="soft" Content="{l:Tr Monitoring_NotifySend}" Command="{Binding SendCommand}"
+                        ToolTip.Tip="{l:Tr Monitoring_NotifySendTip}" />
             </Grid>
         </Border>
 
