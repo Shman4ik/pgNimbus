@@ -43,8 +43,8 @@ Crowdin. A plain text editor is fine.
   in by the app. Keep each placeholder exactly as written (do not translate the
   word inside the braces). You can move it to wherever your language needs it.
   You cannot add a placeholder that the English text does not have.
-- **`{chord:…}`** in a keyboard-shortcut note names a key combination. Keep it as
-  written.
+- **`{chord:…}` and `{key:cmd}`** in a keyboard-shortcut note stand for a key
+  combination and for the Ctrl or Command key. Keep them as written.
 - **Plurals.** A key ending in `_one` and `_other` (such as `Rows_one`,
   `Rows_other`) is one text with plural forms. English has two forms. Write the
   forms your language uses, following the
