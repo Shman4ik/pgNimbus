@@ -10,6 +10,7 @@ using PgNimbus.App.Platform;
 using PgNimbus.App.ViewModels;
 using Nimbus.Ui.Chrome;
 using PgNimbus.Core.Connections;
+using PgNimbus.Core.Localization;
 
 namespace PgNimbus.App.Views;
 
@@ -122,15 +123,15 @@ public partial class ConnectionDialog : Window
     {
         Items =
         {
-            new NativeMenuItem("File")
+            new NativeMenuItem(Strings.Connection_MenuFile)
             {
                 Menu = new NativeMenu
                 {
-                    Items = { MacMenus.Action("Close Window", Close, new KeyGesture(Key.W, Hotkeys.Command)) },
+                    Items = { MacMenus.Action(Strings.Connection_MenuCloseWindow, Close, new KeyGesture(Key.W, Hotkeys.Command)) },
                 },
             },
-            new NativeMenuItem("Edit") { Menu = MacMenus.Edit(this, includeFind: false) },
-            new NativeMenuItem("Window") { Menu = MacMenus.Window(this) },
+            new NativeMenuItem(Strings.Connection_MenuEdit) { Menu = MacMenus.Edit(this, includeFind: false) },
+            new NativeMenuItem(Strings.Connection_MenuWindow) { Menu = MacMenus.Window(this) },
         },
     };
 
@@ -253,7 +254,7 @@ public partial class ConnectionDialog : Window
             return;
         }
 
-        var confirm = new ConfirmDialog($"Delete the saved connection \"{profile.Name}\"? Its stored password goes with it.", "Delete");
+        var confirm = new ConfirmDialog(Strings.Connection_DeleteConfirm(profile.Name), Strings.Common_Delete);
         if (await confirm.ShowDialog<bool>(this))
         {
             vm.DeleteCommand.Execute(null);
@@ -282,7 +283,7 @@ public partial class ConnectionDialog : Window
         var sshDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".ssh");
         var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = "Choose SSH private key",
+            Title = Strings.Connection_PickSshKey,
             AllowMultiple = false,
             SuggestedStartLocation = Directory.Exists(sshDirectory)
                 ? await StorageProvider.TryGetFolderFromPathAsync(sshDirectory)
@@ -304,11 +305,11 @@ public partial class ConnectionDialog : Window
 
         var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = "Choose root certificate",
+            Title = Strings.Connection_PickRootCertificate,
             AllowMultiple = false,
             FileTypeFilter =
             [
-                new FilePickerFileType("Certificates") { Patterns = ["*.pem", "*.crt", "*.cer", "*.der"] },
+                new FilePickerFileType(Strings.Connection_FileTypeCertificates) { Patterns = ["*.pem", "*.crt", "*.cer", "*.der"] },
                 FilePickerFileTypes.All,
             ],
         });
@@ -322,7 +323,7 @@ public partial class ConnectionDialog : Window
     private async void OnBrowseClientCertificateClick(object? sender, RoutedEventArgs e)
     {
         if (DataContext is ConnectionDialogViewModel vm
-            && await PickFileAsync("Choose client certificate", "Certificates", ["*.crt", "*.pem", "*.cer", "*.der", "*.pfx", "*.p12"]) is { } path)
+            && await PickFileAsync(Strings.Connection_PickClientCertificate, Strings.Connection_FileTypeCertificates, ["*.crt", "*.pem", "*.cer", "*.der", "*.pfx", "*.p12"]) is { } path)
         {
             vm.ClientCertificatePath = path;
         }
@@ -331,7 +332,7 @@ public partial class ConnectionDialog : Window
     private async void OnBrowseClientKeyClick(object? sender, RoutedEventArgs e)
     {
         if (DataContext is ConnectionDialogViewModel vm
-            && await PickFileAsync("Choose client key", "Keys", ["*.key", "*.pem", "*.der"]) is { } path)
+            && await PickFileAsync(Strings.Connection_PickClientKey, Strings.Connection_FileTypeKeys, ["*.key", "*.pem", "*.der"]) is { } path)
         {
             vm.ClientKeyPath = path;
         }

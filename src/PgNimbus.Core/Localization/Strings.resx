@@ -148,6 +148,578 @@
   </data>
 
   <!-- ===== Connection ===== -->
+  <data name="Connection_WindowTitle" xml:space="preserve">
+    <value>pgNimbus — Connect</value>
+    <comment>Connection dialog: the window's title (read by screen readers and the window list).</comment>
+  </data>
+  <data name="Connection_SavedConnections" xml:space="preserve">
+    <value>Saved connections</value>
+    <comment>Connection dialog: heading in the title bar, over the list of saved connections.</comment>
+  </data>
+  <data name="Connection_Connect" xml:space="preserve">
+    <value>Connect</value>
+    <comment>Connection dialog: the primary button that opens the connection, and the first item of a saved connection's right-click menu.</comment>
+  </data>
+  <data name="Connection_MenuDuplicate" xml:space="preserve">
+    <value>Duplicate</value>
+    <comment>Connection dialog: right-click menu of a saved connection: makes a copy of it.</comment>
+  </data>
+  <data name="Connection_MenuDelete" xml:space="preserve">
+    <value>Delete…</value>
+    <comment>Connection dialog: right-click menu of a saved connection: deletes it after a confirmation.</comment>
+  </data>
+  <data name="Connection_ReadOnlySession" xml:space="preserve">
+    <value>Read-only session</value>
+    <comment>Connection dialog: tooltip of the lock icon on a saved connection that opens read-only, and the label of the Read-only switch.</comment>
+  </data>
+  <data name="Connection_NoSavedConnections" xml:space="preserve">
+    <value>No saved connections yet — fill in the form and it's kept here as you type</value>
+    <comment>Connection dialog: hint shown over the empty list of saved connections.</comment>
+  </data>
+  <data name="Connection_DeleteConfirm" xml:space="preserve">
+    <value>Delete the saved connection "{name}"? Its stored password goes with it.</value>
+    <comment>Connection dialog: confirmation question before a saved connection is deleted. {name} is the connection's name, such as prod-db.</comment>
+  </data>
+  <data name="Connection_ImportPlaceholder" xml:space="preserve">
+    <value>Paste a connection string (postgres://…, jdbc:…, Key=Value;…, psql …)</value>
+    <comment>Connection dialog: placeholder of the box that takes a pasted connection string. Keep the format examples as they are.</comment>
+  </data>
+  <data name="Connection_ImportTooltip" xml:space="preserve">
+    <value>Paste a postgres:// URI, JDBC URL, Npgsql Key=Value string, libpq keyword string or psql command line and the fields fill in by themselves</value>
+    <comment>Connection dialog: tooltip of the paste box.</comment>
+  </data>
+  <data name="Connection_CopyTooltip" xml:space="preserve">
+    <value>Copy the connection string without the password. Right-click to copy it with the password.</value>
+    <comment>Connection dialog: tooltip of the copy button beside the paste box.</comment>
+  </data>
+  <data name="Connection_CopyWithoutPassword" xml:space="preserve">
+    <value>Copy Without Password</value>
+    <comment>Connection dialog: menu item of the copy button: copies the connection string with no password.</comment>
+  </data>
+  <data name="Connection_CopyWithPassword" xml:space="preserve">
+    <value>Copy With Password</value>
+    <comment>Connection dialog: menu item of the copy button: copies the connection string including the password.</comment>
+  </data>
+  <data name="Connection_CopyWithPasswordTooltip" xml:space="preserve">
+    <value>Includes the password. Kept out of clipboard history where the system allows it, and cleared from the clipboard after 30 seconds.</value>
+    <comment>Connection dialog: tooltip of the Copy With Password menu item.</comment>
+  </data>
+  <data name="Connection_Name" xml:space="preserve">
+    <value>Name</value>
+    <comment>Connection dialog: label of the connection's name field.</comment>
+  </data>
+  <data name="Connection_AccentColorTooltip" xml:space="preserve">
+    <value>Accent color — tints this connection's window so prod and dev are told apart at a glance</value>
+    <comment>Connection dialog: tooltip of the colour swatch button beside the name.</comment>
+  </data>
+  <data name="Connection_NoAccentColor" xml:space="preserve">
+    <value>No accent color</value>
+    <comment>Connection dialog: tooltip of the first swatch in the accent colour palette, which clears the colour.</comment>
+  </data>
+  <data name="Connection_HostPort" xml:space="preserve">
+    <value>Host / Port</value>
+    <comment>Connection dialog: label over the host and port fields.</comment>
+  </data>
+  <data name="Connection_Database" xml:space="preserve">
+    <value>Database</value>
+    <comment>Connection dialog: label of the database name field.</comment>
+  </data>
+  <data name="Connection_Username" xml:space="preserve">
+    <value>Username</value>
+    <comment>Connection dialog: label of the user name field.</comment>
+  </data>
+  <data name="Connection_SslMode" xml:space="preserve">
+    <value>SSL Mode</value>
+    <comment>Connection dialog: label of the TLS mode picker. SSL Mode is the name of the PostgreSQL setting.</comment>
+  </data>
+  <data name="Connection_Recommended" xml:space="preserve">
+    <value>Recommended</value>
+    <comment>Connection dialog: small tag in the SSL mode list beside the mode to use.</comment>
+  </data>
+  <data name="Connection_RootCertificate" xml:space="preserve">
+    <value>Root Certificate</value>
+    <comment>Connection dialog: label of the field naming a certificate authority file to trust.</comment>
+  </data>
+  <data name="Connection_RootCertificatePlaceholder" xml:space="preserve">
+    <value>System trust store (default)</value>
+    <comment>Connection dialog: placeholder of the Root Certificate field when empty.</comment>
+  </data>
+  <data name="Connection_Password" xml:space="preserve">
+    <value>Password</value>
+    <comment>Connection dialog: label of the database password field.</comment>
+  </data>
+  <data name="Connection_Environment" xml:space="preserve">
+    <value>Environment</value>
+    <comment>Connection dialog: label of the picker that says whether this connection is development, staging or production.</comment>
+  </data>
+  <data name="Connection_ReadOnlyTooltip" xml:space="preserve">
+    <value>Every statement runs in a read-only transaction, so the server refuses INSERT, UPDATE, DELETE and DDL. It guards against mistakes; to make writes impossible, use a role without write privileges.</value>
+    <comment>Connection dialog: tooltip of the Read-only session switch. INSERT, UPDATE, DELETE and DDL are SQL words and stay.</comment>
+  </data>
+  <data name="Connection_UseSshTunnel" xml:space="preserve">
+    <value>Connect through an SSH tunnel</value>
+    <comment>Connection dialog: label of the switch that sends the connection through an SSH server.</comment>
+  </data>
+  <data name="Connection_SshHostPort" xml:space="preserve">
+    <value>SSH Host / Port</value>
+    <comment>Connection dialog, SSH block: label over the SSH server's host and port.</comment>
+  </data>
+  <data name="Connection_SshUsername" xml:space="preserve">
+    <value>SSH Username</value>
+    <comment>Connection dialog, SSH block: label of the SSH user name field.</comment>
+  </data>
+  <data name="Connection_SshAuthMethod" xml:space="preserve">
+    <value>Auth Method</value>
+    <comment>Connection dialog, SSH block: label of the picker for how to sign in to the SSH server.</comment>
+  </data>
+  <data name="Connection_PrivateKeyPath" xml:space="preserve">
+    <value>Private Key Path</value>
+    <comment>Connection dialog, SSH block: label of the field naming the private key file.</comment>
+  </data>
+  <data name="Connection_PrivateKeyPlaceholder" xml:space="preserve">
+    <value>~/.ssh/id_ed25519 (default)</value>
+    <comment>Connection dialog, SSH block: placeholder of the private key path field when empty.</comment>
+  </data>
+  <data name="Connection_SshAgentHint" xml:space="preserve">
+    <value>Signs in with the keys your SSH agent holds, so a key with a passphrase needs nothing typed here.</value>
+    <comment>Connection dialog, SSH block: shown in place of a key field when the SSH agent method is chosen.</comment>
+  </data>
+  <data name="Connection_SshAuthAgent" xml:space="preserve">
+    <value>SSH agent</value>
+    <comment>Connection dialog, SSH block: a choice of the Auth Method picker: sign in with the keys the SSH agent holds.</comment>
+  </data>
+  <data name="Connection_SshAuthKeyFile" xml:space="preserve">
+    <value>Key file</value>
+    <comment>Connection dialog, SSH block: a choice of the Auth Method picker: sign in with a private key file.</comment>
+  </data>
+  <data name="Connection_SshAuthPassword" xml:space="preserve">
+    <value>Password</value>
+    <comment>Connection dialog, SSH block: a choice of the Auth Method picker: sign in with a password.</comment>
+  </data>
+  <data name="Connection_SshKeyPassphrase" xml:space="preserve">
+    <value>Key Passphrase</value>
+    <comment>Connection dialog, SSH block: label of the field for the private key's passphrase.</comment>
+  </data>
+  <data name="Connection_SshPassword" xml:space="preserve">
+    <value>SSH Password</value>
+    <comment>Connection dialog, SSH block: label of the field for the SSH account's password.</comment>
+  </data>
+  <data name="Connection_Advanced" xml:space="preserve">
+    <value>Advanced</value>
+    <comment>Connection dialog: button that opens or closes the Advanced block (client certificate and timeouts).</comment>
+  </data>
+  <data name="Connection_ClientCertificate" xml:space="preserve">
+    <value>Client Certificate</value>
+    <comment>Connection dialog, Advanced block: label of the field naming the client certificate file (mutual TLS).</comment>
+  </data>
+  <data name="Connection_ClientCertificatePlaceholder" xml:space="preserve">
+    <value>None (libpq's default file, if any)</value>
+    <comment>Connection dialog, Advanced block: placeholder of the client certificate field when empty. libpq is the PostgreSQL client library.</comment>
+  </data>
+  <data name="Connection_ClientKey" xml:space="preserve">
+    <value>Client Key</value>
+    <comment>Connection dialog, Advanced block: label of the field naming the client certificate's private key file.</comment>
+  </data>
+  <data name="Connection_ClientKeyPlaceholder" xml:space="preserve">
+    <value>None (no passphrase supported)</value>
+    <comment>Connection dialog, Advanced block: placeholder of the client key field when empty.</comment>
+  </data>
+  <data name="Connection_StatementTimeout" xml:space="preserve">
+    <value>Statement Timeout (s)</value>
+    <comment>Connection dialog, Advanced block: label of the field for the longest a statement may run, in seconds.</comment>
+  </data>
+  <data name="Connection_LockTimeout" xml:space="preserve">
+    <value>Lock Timeout (s)</value>
+    <comment>Connection dialog, Advanced block: label of the field for the longest a statement may wait for a lock, in seconds.</comment>
+  </data>
+  <data name="Connection_TimeoutNone" xml:space="preserve">
+    <value>None</value>
+    <comment>Connection dialog, Advanced block: placeholder of a timeout field when empty (no timeout set).</comment>
+  </data>
+  <data name="Connection_TimeoutHint" xml:space="preserve">
+    <value>The server cancels a statement that runs, or waits for a lock, longer than this. Empty keeps the server's and the role's own settings. Exports, imports and backups are not cut short.</value>
+    <comment>Connection dialog, Advanced block: explains the two timeout fields.</comment>
+  </data>
+  <data name="Connection_AccessingPasswordStore" xml:space="preserve">
+    <value>Accessing password store…</value>
+    <comment>Connection dialog: shown while the operating system's credential store is being read or written.</comment>
+  </data>
+  <data name="Connection_NewConnection" xml:space="preserve">
+    <value>New Connection</value>
+    <comment>Connection dialog: tooltip and accessible name of the + button under the list that starts a new saved connection.</comment>
+  </data>
+  <data name="Connection_Test" xml:space="preserve">
+    <value>Test</value>
+    <comment>Connection dialog: button that tries the connection without opening it.</comment>
+  </data>
+  <data name="Connection_TestTooltip" xml:space="preserve">
+    <value>Verify the connection (and SSH tunnel, if enabled) without opening it</value>
+    <comment>Connection dialog: tooltip of the Test button.</comment>
+  </data>
+  <data name="Connection_AboutTitle" xml:space="preserve">
+    <value>About</value>
+    <comment>Connection dialog: title of the About panel that opens over the form.</comment>
+  </data>
+  <data name="Connection_PickSshKey" xml:space="preserve">
+    <value>Choose SSH private key</value>
+    <comment>Connection dialog: title of the file chooser for the SSH private key.</comment>
+  </data>
+  <data name="Connection_PickRootCertificate" xml:space="preserve">
+    <value>Choose root certificate</value>
+    <comment>Connection dialog: title of the file chooser for the root certificate.</comment>
+  </data>
+  <data name="Connection_PickClientCertificate" xml:space="preserve">
+    <value>Choose client certificate</value>
+    <comment>Connection dialog: title of the file chooser for the client certificate.</comment>
+  </data>
+  <data name="Connection_PickClientKey" xml:space="preserve">
+    <value>Choose client key</value>
+    <comment>Connection dialog: title of the file chooser for the client key.</comment>
+  </data>
+  <data name="Connection_FileTypeCertificates" xml:space="preserve">
+    <value>Certificates</value>
+    <comment>Connection dialog: name of the certificate file filter in a file chooser.</comment>
+  </data>
+  <data name="Connection_FileTypeKeys" xml:space="preserve">
+    <value>Keys</value>
+    <comment>Connection dialog: name of the key file filter in a file chooser.</comment>
+  </data>
+  <data name="Connection_MenuFile" xml:space="preserve">
+    <value>File</value>
+    <comment>Connection dialog: macOS menu bar, the File menu while the connect window is active.</comment>
+  </data>
+  <data name="Connection_MenuCloseWindow" xml:space="preserve">
+    <value>Close Window</value>
+    <comment>Connection dialog: macOS File menu item that closes the window.</comment>
+  </data>
+  <data name="Connection_MenuEdit" xml:space="preserve">
+    <value>Edit</value>
+    <comment>Connection dialog: macOS menu bar, the Edit menu.</comment>
+  </data>
+  <data name="Connection_MenuWindow" xml:space="preserve">
+    <value>Window</value>
+    <comment>Connection dialog: macOS menu bar, the Window menu.</comment>
+  </data>
+  <data name="Connection_EnvironmentHintReadOnly" xml:space="preserve">
+    <value>Read-only session is on, so writes stay off in every window.</value>
+    <comment>Connection dialog: line under the Environment picker for a production connection that is also read-only.</comment>
+  </data>
+  <data name="Connection_SaveFailed" xml:space="preserve">
+    <value>Couldn't save the connection: {message}</value>
+    <comment>Connection dialog: error line. {message} is the reason, such as Access to the path is denied.</comment>
+  </data>
+  <data name="Connection_CopyName" xml:space="preserve">
+    <value>{name} (copy)</value>
+    <comment>Connection dialog: the name given to a duplicated connection. {name} is the original's name, such as prod-db.</comment>
+  </data>
+  <data name="Connection_TestSucceeded" xml:space="preserve">
+    <value>Connection successful — PostgreSQL {version}</value>
+    <comment>Connection dialog: status line after Test worked. {version} is the server's version, such as 17.2.</comment>
+  </data>
+  <data name="Connection_TestFailed" xml:space="preserve">
+    <value>Connection test failed: {message}</value>
+    <comment>Connection dialog: error line after Test failed. {message} is the reason the server or network gave.</comment>
+  </data>
+  <data name="Connection_Connecting" xml:space="preserve">
+    <value>Connecting to {name}…</value>
+    <comment>Connection dialog: status line while connecting. {name} is the connection's name, such as prod-db.</comment>
+  </data>
+  <data name="Connection_ConnectFailed" xml:space="preserve">
+    <value>Connection failed: {message}</value>
+    <comment>Connection dialog: error line after Connect failed. {message} is the reason the server or network gave.</comment>
+  </data>
+  <data name="Connection_SshRequired" xml:space="preserve">
+    <value>SSH host and username are required when the tunnel is enabled.</value>
+    <comment>Connection dialog: error line when the SSH tunnel is on and its host or user is empty.</comment>
+  </data>
+  <data name="Connection_SslDisable" xml:space="preserve">
+    <value>Disable</value>
+    <comment>Connection dialog: SSL Mode choice. The name of the PostgreSQL sslmode value 'disable'.</comment>
+  </data>
+  <data name="Connection_SslDisableHint" xml:space="preserve">
+    <value>No encryption. Everything, the password included, is sent in the clear.</value>
+    <comment>Connection dialog: SSL Mode list: one line under the Disable choice.</comment>
+  </data>
+  <data name="Connection_SslAllow" xml:space="preserve">
+    <value>Allow</value>
+    <comment>Connection dialog: SSL Mode choice. The name of the PostgreSQL sslmode value 'allow'.</comment>
+  </data>
+  <data name="Connection_SslAllowHint" xml:space="preserve">
+    <value>Plaintext unless the server insists on encryption. Nothing is verified.</value>
+    <comment>Connection dialog: SSL Mode list: one line under the Allow choice.</comment>
+  </data>
+  <data name="Connection_SslPrefer" xml:space="preserve">
+    <value>Prefer</value>
+    <comment>Connection dialog: SSL Mode choice. The name of the PostgreSQL sslmode value 'prefer'.</comment>
+  </data>
+  <data name="Connection_SslPreferHint" xml:space="preserve">
+    <value>Encrypted if the server offers it, else plaintext. An attacker can force plaintext.</value>
+    <comment>Connection dialog: SSL Mode list: one line under the Prefer choice.</comment>
+  </data>
+  <data name="Connection_SslRequire" xml:space="preserve">
+    <value>Require</value>
+    <comment>Connection dialog: SSL Mode choice. The name of the PostgreSQL sslmode value 'require'.</comment>
+  </data>
+  <data name="Connection_SslRequireHint" xml:space="preserve">
+    <value>Encrypted, but the server's certificate is not checked.</value>
+    <comment>Connection dialog: SSL Mode list: one line under the Require choice.</comment>
+  </data>
+  <data name="Connection_SslVerifyCa" xml:space="preserve">
+    <value>Verify CA</value>
+    <comment>Connection dialog: SSL Mode choice. The name of the PostgreSQL sslmode value 'verify-ca'. CA is certificate authority.</comment>
+  </data>
+  <data name="Connection_SslVerifyCaHint" xml:space="preserve">
+    <value>Encrypted, and the certificate must come from a trusted CA. The host name is not checked.</value>
+    <comment>Connection dialog: SSL Mode list: one line under the Verify CA choice.</comment>
+  </data>
+  <data name="Connection_SslVerifyFull" xml:space="preserve">
+    <value>Verify full</value>
+    <comment>Connection dialog: SSL Mode choice. The name of the PostgreSQL sslmode value 'verify-full'.</comment>
+  </data>
+  <data name="Connection_SslVerifyFullHint" xml:space="preserve">
+    <value>Encrypted, and the certificate must be trusted and name this host.</value>
+    <comment>Connection dialog: SSL Mode list: one line under the Verify full choice.</comment>
+  </data>
+  <data name="Connection_ServerWithoutTlsHint" xml:space="preserve">
+    <value>The server does not accept TLS connections. For a local server without TLS, set SSL Mode to Prefer or Disable.</value>
+    <comment>Connection dialog: added to a connect error when the server has no TLS. Prefer and Disable are SSL Mode choices (translate them as they are in the picker).</comment>
+  </data>
+  <data name="Connection_EnvNone" xml:space="preserve">
+    <value>None</value>
+    <comment>Connection dialog: Environment picker choice for a connection with no environment label.</comment>
+  </data>
+  <data name="Connection_EnvDevelopment" xml:space="preserve">
+    <value>Development</value>
+    <comment>Connection dialog: Environment picker choice.</comment>
+  </data>
+  <data name="Connection_EnvStaging" xml:space="preserve">
+    <value>Staging</value>
+    <comment>Connection dialog: Environment picker choice.</comment>
+  </data>
+  <data name="Connection_EnvProduction" xml:space="preserve">
+    <value>Production</value>
+    <comment>Connection dialog: Environment picker choice.</comment>
+  </data>
+  <data name="Connection_EnvTagDevelopment" xml:space="preserve">
+    <value>dev</value>
+    <comment>Short lower-case tag beside a development connection in the saved connections list and the main window.</comment>
+  </data>
+  <data name="Connection_EnvTagStaging" xml:space="preserve">
+    <value>staging</value>
+    <comment>Short lower-case tag beside a staging connection in the saved connections list and the main window.</comment>
+  </data>
+  <data name="Connection_EnvTagProduction" xml:space="preserve">
+    <value>production</value>
+    <comment>Short lower-case tag beside a production connection in the saved connections list and the main window.</comment>
+  </data>
+  <data name="Connection_EnvDescriptionProduction" xml:space="preserve">
+    <value>Writes are off when a window opens. Allow them for that window when you mean to change data.</value>
+    <comment>Connection dialog: line under the Environment picker when Production is chosen.</comment>
+  </data>
+  <data name="Connection_EnvDescriptionNone" xml:space="preserve">
+    <value>No label.</value>
+    <comment>Connection dialog: line under the Environment picker when None is chosen.</comment>
+  </data>
+  <data name="Connection_EnvDescriptionOther" xml:space="preserve">
+    <value>A label in the window. Writes are allowed.</value>
+    <comment>Connection dialog: line under the Environment picker when Development or Staging is chosen.</comment>
+  </data>
+  <data name="Connection_ClientKeyNeedsCertificate" xml:space="preserve">
+    <value>A client key needs its client certificate. Choose the certificate file too.</value>
+    <comment>Connection dialog: error line when a client key is set without a client certificate.</comment>
+  </data>
+  <data name="Connection_ClientCertificateNotFound" xml:space="preserve">
+    <value>The client certificate file was not found: {path}</value>
+    <comment>Connection dialog: error line. {path} is the file path the user entered.</comment>
+  </data>
+  <data name="Connection_ClientKeyNotFound" xml:space="preserve">
+    <value>The client key file was not found: {path}</value>
+    <comment>Connection dialog: error line. {path} is the file path the user entered.</comment>
+  </data>
+  <data name="Connection_ClientKeyHasPassphrase" xml:space="preserve">
+    <value>The client key is protected by a passphrase, which pgNimbus does not support. Save a copy without it (openssl pkey -in client.key -out client-plain.key) and make that file readable only by you.</value>
+    <comment>Connection dialog: error line. Keep the openssl command as it is.</comment>
+  </data>
+  <data name="Connection_CredentialDeleteFailed" xml:space="preserve">
+    <value>A saved password could not be deleted. Unlock your OS credential store and retry, or remove the pgNimbus entry in your system password manager.</value>
+    <comment>Connection dialog: warning shown under the form when the operating system refused to delete a stored password.</comment>
+  </data>
+  <data name="Connection_CredentialStorageUnavailable" xml:space="preserve">
+    <value>Password storage is unavailable or migration could not finish. You can connect using the password in this dialog, but changes may last only for this session. Check your OS credential store (Keychain on macOS; Secret Service and libsecret-1 on Linux), then re-enter the password. Existing legacy credential files are kept until migration is verified.</value>
+    <comment>Connection dialog: warning shown under the form when the operating system's password store cannot be used. Keychain, Secret Service and libsecret-1 are product names.</comment>
+  </data>
+  <data name="Connection_LegacyCredentialLeft_one" xml:space="preserve">
+    <value>An old unencrypted credential file could not be moved into your OS credential store and is still on disk. Open the connection it belongs to and save its password again to remove it.</value>
+    <comment>Connection dialog: warning under the form, singular: one old credential file could not be migrated.</comment>
+  </data>
+  <data name="Connection_LegacyCredentialLeft_other" xml:space="preserve">
+    <value>{count} old unencrypted credential files could not be moved into your OS credential store and are still on disk. Open the connections they belong to and save their passwords again to remove them.</value>
+    <comment>Connection dialog: warning under the form, plural. {count} is how many files, such as 3.</comment>
+  </data>
+  <data name="Connection_CredentialStoreUnavailable" xml:space="preserve">
+    <value>The OS credential store is unavailable.</value>
+    <comment>Connection dialog: the reason in an error line when the operating system's credential store cannot be used.</comment>
+  </data>
+  <data name="Connection_SshKeyTypeNotOffered" xml:space="preserve">
+    <value>{server} did not offer a host key of the type known_hosts knows it by ({types}). This happens when the server's keys were replaced, and also when someone between you and the server is intercepting the connection. pgNimbus did not connect. If you know the server's keys really changed, remove its lines from known_hosts and connect again; you will be asked to confirm the new key.</value>
+    <comment>Connection dialog: SSH error line. {server} is host:port, such as bastion.example.com:22. {types} lists key types, such as ssh-ed25519, ssh-rsa. known_hosts is a file name.</comment>
+  </data>
+  <data name="Connection_SshNoKeyFile" xml:space="preserve">
+    <value>No key file was named, and none of the default keys ({defaults}) is in {directory}.</value>
+    <comment>Connection dialog: SSH error line. {defaults} lists file names such as id_ed25519, id_rsa; {directory} is a folder path.</comment>
+  </data>
+  <data name="Connection_SshKeyFilePassphrase" xml:space="preserve">
+    <value>The key file {path} is protected by a passphrase. Type it in the passphrase field, or choose "SSH agent" if the key is already loaded there (ssh-add).</value>
+    <comment>Connection dialog: SSH error line. {path} is a file path. "SSH agent" is the Auth Method choice (translate as in the picker); ssh-add is a command.</comment>
+  </data>
+  <data name="Connection_SshKeyFileMissing" xml:space="preserve">
+    <value>The key file {path} does not exist.</value>
+    <comment>Connection dialog: SSH error line. {path} is a file path.</comment>
+  </data>
+  <data name="Connection_SshKeyFileUnreadable" xml:space="preserve">
+    <value>Could not read the key file {path}: {message}</value>
+    <comment>Connection dialog: SSH error line. {path} is a file path; {message} is the reason.</comment>
+  </data>
+  <data name="Connection_SshKeyFileUnreadableWithPassphrase" xml:space="preserve">
+    <value>Could not read the key file {path}: {message} If the key has a passphrase, check that it is typed correctly.</value>
+    <comment>Connection dialog: SSH error line when a passphrase was typed. {path} is a file path; {message} is the reason.</comment>
+  </data>
+  <data name="Connection_SshNoAgentSocket" xml:space="preserve">
+    <value>SSH_AUTH_SOCK is not set, so there is no SSH agent to ask. Start ssh-agent and add your key with ssh-add, or pick another auth method.</value>
+    <comment>Connection dialog: SSH error line. SSH_AUTH_SOCK, ssh-agent and ssh-add are names and stay.</comment>
+  </data>
+  <data name="Connection_SshAgentNoKeys" xml:space="preserve">
+    <value>The SSH agent at {address} holds no keys. Add yours with ssh-add.</value>
+    <comment>Connection dialog: SSH error line. {address} is the agent's socket or pipe, such as /tmp/ssh-abc/agent.1.</comment>
+  </data>
+  <data name="Connection_SshLoginRefused" xml:space="preserve">
+    <value>The SSH server {server} refused the login as {user}: {message} {hint}</value>
+    <comment>Connection dialog: SSH error line. {server} is host:port; {user} is the SSH user name; {message} is the server's reason; {hint} is one of the next three sentences.</comment>
+  </data>
+  <data name="Connection_SshAuthHintAgent" xml:space="preserve">
+    <value>None of the SSH agent's keys is authorized for this user on the server.</value>
+    <comment>Connection dialog: SSH error hint after a refused login using the agent.</comment>
+  </data>
+  <data name="Connection_SshAuthHintKey" xml:space="preserve">
+    <value>Check that this key's public half is in the user's ~/.ssh/authorized_keys on the server.</value>
+    <comment>Connection dialog: SSH error hint after a refused login using a key file.</comment>
+  </data>
+  <data name="Connection_SshAuthHintPassword" xml:space="preserve">
+    <value>Check the SSH password.</value>
+    <comment>Connection dialog: SSH error hint after a refused login using a password.</comment>
+  </data>
+  <data name="Connection_SshUnreachable" xml:space="preserve">
+    <value>Could not reach the SSH server {server} ({message}). Check the address, and that the VPN or network it sits behind is up.</value>
+    <comment>Connection dialog: SSH error line. {server} is host:port; {message} is the network's reason.</comment>
+  </data>
+  <data name="Connection_SshClosed" xml:space="preserve">
+    <value>The SSH server {server} closed the connection: {message}</value>
+    <comment>Connection dialog: SSH error line. {server} is host:port; {message} is the reason.</comment>
+  </data>
+  <data name="Connection_SshFailed" xml:space="preserve">
+    <value>SSH tunnel to {server} failed: {message}</value>
+    <comment>Connection dialog: SSH error line. {server} is host:port; {message} is the reason.</comment>
+  </data>
+  <data name="Connection_SshHostKeyRevoked" xml:space="preserve">
+    <value>The {keyType} key that {server} presented ({fingerprint}) is marked @revoked in {file} (line {line}). pgNimbus did not connect.</value>
+    <comment>Connection dialog: SSH error line. {keyType} is such as ssh-ed25519; {server} is host:port; {fingerprint} is SHA256:…; {file} is a path to known_hosts; {line} is a line number. Keep @revoked.</comment>
+  </data>
+  <data name="Connection_SshHostKeyChanged" xml:space="preserve">
+    <value>The host key of {server} has changed. {file} (line {line}) knows its {keyType} key as {known}, but the server now presents {fingerprint}. This happens when the server was reinstalled or its keys were regenerated, and also when someone between you and the server is intercepting the connection. pgNimbus did not connect. If you know the key really changed, remove that line from {file} and connect again; you will be asked to confirm the new key.</value>
+    <comment>Connection dialog: SSH error line. {server} is host:port; {file} is a path to known_hosts; {line} a line number; {keyType} such as ssh-ed25519; {known} and {fingerprint} are SHA256:… fingerprints.</comment>
+  </data>
+  <data name="Connection_SshHostKeyNotAccepted" xml:space="preserve">
+    <value>The {keyType} key of {server} ({fingerprint}) was not accepted, so pgNimbus did not connect.</value>
+    <comment>Connection dialog: SSH error line after the user refused an unknown host key. {keyType} is such as ssh-ed25519; {server} is host:port; {fingerprint} is SHA256:….</comment>
+  </data>
+  <data name="Connection_SshHostKeyNotConfirmed" xml:space="preserve">
+    <value>The {keyType} key of {server} ({fingerprint}) could not be confirmed ({message}), so pgNimbus did not connect.</value>
+    <comment>Connection dialog: SSH error line when the host key question failed. {keyType} such as ssh-ed25519; {server} host:port; {fingerprint} SHA256:…; {message} the reason.</comment>
+  </data>
+  <data name="Connection_SshAgentRefusedList" xml:space="preserve">
+    <value>The SSH agent refused to list its keys.</value>
+    <comment>Connection dialog: SSH error line.</comment>
+  </data>
+  <data name="Connection_SshAgentDeclinedSign" xml:space="preserve">
+    <value>The SSH agent declined to sign with the key (it may have been removed, or it needs a confirmation that was refused).</value>
+    <comment>Connection dialog: SSH error line.</comment>
+  </data>
+  <data name="Connection_SshAgentNoAnswer" xml:space="preserve">
+    <value>No SSH agent answered at {address}. {hint}</value>
+    <comment>Connection dialog: SSH error line. {address} is the agent's socket or pipe; {hint} is one of the next two sentences.</comment>
+  </data>
+  <data name="Connection_SshAgentStartHintWindows" xml:space="preserve">
+    <value>Start the "OpenSSH Authentication Agent" Windows service and add your key with ssh-add.</value>
+    <comment>Connection dialog: SSH error hint on Windows. "OpenSSH Authentication Agent" is the name of the Windows service as Windows shows it.</comment>
+  </data>
+  <data name="Connection_SshAgentStartHintOther" xml:space="preserve">
+    <value>Check that SSH_AUTH_SOCK points at a running agent and add your key with ssh-add.</value>
+    <comment>Connection dialog: SSH error hint on macOS and Linux.</comment>
+  </data>
+  <data name="Connection_SshAgentMalformed" xml:space="preserve">
+    <value>The SSH agent sent a malformed reply.</value>
+    <comment>Connection dialog: SSH error line.</comment>
+  </data>
+  <data name="Connection_SshAgentDropped" xml:space="preserve">
+    <value>The SSH agent at {address} dropped the connection: {message}</value>
+    <comment>Connection dialog: SSH error line. {address} is the agent's socket or pipe; {message} is the reason.</comment>
+  </data>
+  <data name="Connection_SshAgentUnexpected" xml:space="preserve">
+    <value>The SSH agent sent an unexpected reply (message type {messageType}).</value>
+    <comment>Connection dialog: SSH error line. {messageType} is a number.</comment>
+  </data>
+  <data name="Connection_ParseNothing" xml:space="preserve">
+    <value>Nothing to parse.</value>
+    <comment>Connection dialog: error line under the paste box when it holds no text.</comment>
+  </data>
+  <data name="Connection_ParseUnrecognized" xml:space="preserve">
+    <value>Unrecognized connection string. Supported formats: postgres:// URI, jdbc:postgresql://, Key=Value;..., libpq "host=... dbname=...", or a psql command line.</value>
+    <comment>Connection dialog: error line for a pasted string in no known format. Keep the format examples as they are.</comment>
+  </data>
+  <data name="Connection_ParseSegment" xml:space="preserve">
+    <value>A segment is not in Key=Value form.</value>
+    <comment>Connection dialog: error line for a pasted Key=Value;… string.</comment>
+  </data>
+  <data name="Connection_ParseKeyword" xml:space="preserve">
+    <value>Part of the string is not in keyword=value form.</value>
+    <comment>Connection dialog: error line for a pasted libpq keyword string.</comment>
+  </data>
+  <data name="Connection_ParseQuote" xml:space="preserve">
+    <value>A quoted value is missing its closing quote.</value>
+    <comment>Connection dialog: error line for a pasted libpq keyword string.</comment>
+  </data>
+  <data name="Connection_ParsePsqlMissing" xml:space="preserve">
+    <value>Could not find the psql executable in the command line.</value>
+    <comment>Connection dialog: error line for a pasted psql command line. psql is a program name.</comment>
+  </data>
+  <data name="Connection_ParseOptionValue" xml:space="preserve">
+    <value>Option {flag} is missing its value.</value>
+    <comment>Connection dialog: error line for a pasted psql command line. {flag} is a command-line option, such as --host.</comment>
+  </data>
+  <data name="Connection_ParsePort" xml:space="preserve">
+    <value>The port is not a number from 1 to 65535.</value>
+    <comment>Connection dialog: error line for a pasted connection string.</comment>
+  </data>
+  <data name="Connection_ParseSslMode" xml:space="preserve">
+    <value>Unknown SSL mode. Use disable, allow, prefer, require, verify-ca or verify-full.</value>
+    <comment>Connection dialog: error line for a pasted connection string. The listed words are PostgreSQL values and stay.</comment>
+  </data>
+  <data name="Connection_ParseRootCertificateRemote" xml:space="preserve">
+    <value>A root certificate on another machine is not taken from a pasted connection string. Copy the file to this computer and choose it in the Root Certificate field.</value>
+    <comment>Connection dialog: error line for a pasted connection string. Root Certificate is a field label.</comment>
+  </data>
+  <data name="Connection_ParseClientCertificateRemote" xml:space="preserve">
+    <value>A client certificate on another machine is not taken from a pasted connection string. Copy the file to this computer and choose it in the Client Certificate field.</value>
+    <comment>Connection dialog: error line for a pasted connection string. Client Certificate is a field label.</comment>
+  </data>
+  <data name="Connection_ParseClientKeyRemote" xml:space="preserve">
+    <value>A client key on another machine is not taken from a pasted connection string. Copy the file to this computer and choose it in the Client Key field.</value>
+    <comment>Connection dialog: error line for a pasted connection string. Client Key is a field label.</comment>
+  </data>
+  <data name="Connection_ParseIpv6" xml:space="preserve">
+    <value>Unterminated IPv6 address (missing ']').</value>
+    <comment>Connection dialog: error line for a pasted connection string.</comment>
+  </data>
 
   <!-- ===== Commands ===== -->
 

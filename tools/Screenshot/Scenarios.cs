@@ -922,7 +922,7 @@ public static class Scenarios
     {
         var window = ConnectionDialog();
         var vm = (ConnectionDialogViewModel)window.DataContext!;
-        vm.CredentialWarning = "Password storage is unavailable or migration could not finish. You can connect using the password in this dialog, but changes may last only for this session. Check your OS credential store (Keychain on macOS; Secret Service and libsecret-1 on Linux), then re-enter the password. Existing legacy credential files are kept until migration is verified.";
+        vm.CredentialWarning = PgNimbus.Core.Localization.Strings.Connection_CredentialStorageUnavailable;
         return window;
     }
 

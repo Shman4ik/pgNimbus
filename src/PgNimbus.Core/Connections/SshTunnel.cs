@@ -1,6 +1,7 @@
 using System.Net.Sockets;
 using Renci.SshNet;
 using Renci.SshNet.Common;
+using PgNimbus.Core.Localization;
 
 namespace PgNimbus.Core.Connections;
 
@@ -121,9 +122,9 @@ public sealed class SshTunnel : IDisposable
             if (restricted && hostKeyFailure is null && trustedKey is null && ex is SshConnectionException)
             {
                 throw new SshTunnelException(
-                    $"{options.Host}:{options.Port} did not offer a host key of the type known_hosts knows it by ({string.Join(", ", knownTypes.Order(StringComparer.Ordinal))}). "
-                    + "This happens when the server's keys were replaced, and also when someone between you and the server is intercepting the connection. pgNimbus did not connect. "
-                    + "If you know the server's keys really changed, remove its lines from known_hosts and connect again; you will be asked to confirm the new key.",
+                    Strings.Connection_SshKeyTypeNotOffered(
+                        server: $"{options.Host}:{options.Port}",
+                        types: string.Join(", ", knownTypes.Order(StringComparer.Ordinal))),
                     ex);
             }
 
@@ -191,7 +192,9 @@ public sealed class SshTunnel : IDisposable
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         var path = ResolveKeyPath(options.PrivateKeyPath, home, File.Exists)
             ?? throw new SshTunnelException(
-                $"No key file was named, and none of the default keys ({string.Join(", ", DefaultKeyFileNames)}) is in {Path.Combine(home, ".ssh")}.");
+                Strings.Connection_SshNoKeyFile(
+                    defaults: string.Join(", ", DefaultKeyFileNames),
+                    directory: Path.Combine(home, ".ssh")));
 
         try
         {
@@ -199,26 +202,25 @@ public sealed class SshTunnel : IDisposable
         }
         catch (SshPassPhraseNullOrEmptyException ex)
         {
-            throw new SshTunnelException(
-                $"The key file {path} is protected by a passphrase. Type it in the passphrase field, or choose \"SSH agent\" if the key is already loaded there (ssh-add).",
-                ex);
+            throw new SshTunnelException(Strings.Connection_SshKeyFilePassphrase(path), ex);
         }
         catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
         {
-            throw new SshTunnelException($"The key file {path} does not exist.", ex);
+            throw new SshTunnelException(Strings.Connection_SshKeyFileMissing(path), ex);
         }
         catch (Exception ex) when (ex is SshException or NotSupportedException or IOException or UnauthorizedAccessException)
         {
-            var hint = string.IsNullOrEmpty(passphrase) ? string.Empty : " If the key has a passphrase, check that it is typed correctly.";
-            throw new SshTunnelException($"Could not read the key file {path}: {ex.Message}{hint}", ex);
+            var message = string.IsNullOrEmpty(passphrase)
+                ? Strings.Connection_SshKeyFileUnreadable(path, ex.Message)
+                : Strings.Connection_SshKeyFileUnreadableWithPassphrase(path, ex.Message);
+            throw new SshTunnelException(message, ex);
         }
     }
 
     private static SshAgentKeySource LoadAgentKeys()
     {
         var agent = SshAgentClient.FromEnvironment()
-            ?? throw new SshTunnelException(
-                "SSH_AUTH_SOCK is not set, so there is no SSH agent to ask. Start ssh-agent and add your key with ssh-add, or pick another auth method.");
+            ?? throw new SshTunnelException(Strings.Connection_SshNoAgentSocket);
 
         IReadOnlyList<SshAgentIdentity> identities;
         try
@@ -232,7 +234,7 @@ public sealed class SshTunnel : IDisposable
 
         if (identities.Count == 0)
         {
-            throw new SshTunnelException($"The SSH agent at {agent.Address} holds no keys. Add yours with ssh-add.");
+            throw new SshTunnelException(Strings.Connection_SshAgentNoKeys(agent.Address));
         }
 
         return new SshAgentKeySource(agent, identities);
@@ -274,19 +276,19 @@ public sealed class SshTunnel : IDisposable
             SshTunnelException tunnel => tunnel,
             SshAgentException agent => new SshTunnelException(agent.Message, agent),
             SshAuthenticationException => new SshTunnelException(
-                $"The SSH server {server} refused the login as {options.Username}: {ex.Message} {AuthHint(options.AuthMethod)}", ex),
+                Strings.Connection_SshLoginRefused(server, options.Username, ex.Message, AuthHint(options.AuthMethod)), ex),
             SocketException or SshOperationTimeoutException => new SshTunnelException(
-                $"Could not reach the SSH server {server} ({ex.Message}). Check the address, and that the VPN or network it sits behind is up.", ex),
-            SshConnectionException => new SshTunnelException($"The SSH server {server} closed the connection: {ex.Message}", ex),
-            _ => new SshTunnelException($"SSH tunnel to {server} failed: {ex.Message}", ex),
+                Strings.Connection_SshUnreachable(server, ex.Message), ex),
+            SshConnectionException => new SshTunnelException(Strings.Connection_SshClosed(server, ex.Message), ex),
+            _ => new SshTunnelException(Strings.Connection_SshFailed(server, ex.Message), ex),
         };
     }
 
     private static string AuthHint(SshAuthMethod method) => method switch
     {
-        SshAuthMethod.Agent => "None of the SSH agent's keys is authorized for this user on the server.",
-        SshAuthMethod.PrivateKey => "Check that this key's public half is in the user's ~/.ssh/authorized_keys on the server.",
-        _ => "Check the SSH password.",
+        SshAuthMethod.Agent => Strings.Connection_SshAuthHintAgent,
+        SshAuthMethod.PrivateKey => Strings.Connection_SshAuthHintKey,
+        _ => Strings.Connection_SshAuthHintPassword,
     };
 
     public void Dispose()
