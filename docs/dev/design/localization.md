@@ -1,6 +1,6 @@
 # Design: Localization (i18n)
 
-Status: proposed · Issue [#435](https://github.com/Shman4ik/pgNimbus/issues/435) · Created 2026-11-15
+Status: accepted (owner, 2026-11-15) · Issue [#435](https://github.com/Shman4ik/pgNimbus/issues/435) · Created 2026-11-15
 
 ## What was promised
 
@@ -54,14 +54,16 @@ carries a `<comment>` that tells the translator where the text appears. What we 
     translation supplies the forms its language has (`_few`, `_many`, … per CLDR; Chinese
     has `_other` only), chosen by `PluralRules`.
 
-  A typo in a key is a compile error in C# and in XAML alike, and the IDE shows the
-  English text on hover.
+  It also writes a `StringKey` enum of the plain entries. A typo in a key is a
+  compile error in C# and in XAML alike, and the IDE shows the English text on
+  hover.
 
-**XAML reads strings with `x:Static`:** `Text="{x:Static l:Strings.About_Tagline}"`
-with `xmlns:l="using:PgNimbus.Core.Localization"`. Avalonia's XAML compiler
-resolves it at build time (no reflection, nothing for compiled bindings or the
-trimmer to object to), and it is checked like the C# side. Strings built in view
-models and code-behind call `Strings.X` directly.
+**XAML reads strings with `{l:Tr Key}`** (`xmlns:l="using:PgNimbus.App.Localization"`),
+a markup extension whose constructor takes a `StringKey`: the XAML compiler
+converts the name at build time and refuses an unknown one (AVLN3000). It returns
+`Localizer.Observe(key).ToBinding()`, an observable binding with no reflection, so
+compiled bindings and NativeAOT are content. Strings built in view models and
+code-behind call `Strings.X` directly.
 
 **Why Core, not the App or nimbusUi.** Many user-facing strings are made in Core:
 command titles in `CommandCatalog`, the TLS mode labels in `SslModes`, plan
@@ -93,11 +95,15 @@ language the build carries: an exact tag, then Chinese by script (`zh-CN`,
 `zh-Hant`), then language and script, then the bare language, then any regional
 file of that language. Nothing matches → English.
 
-**Applied once, at startup, before any XAML loads** (`Program.Main`). A change
-in Settings applies on the next start. Live switching would mean every string
-in every window bound to a notifying source instead of `x:Static`, a rebuild of
-every view model's composed text, and tests for both states, for a setting
-people change once. Not worth it now; nothing here rules it out later.
+**Loaded at startup, changed live.** `Program.Main` loads the language before the
+first window. A change in Settings applies at once (the owner's choice over "on
+the next start"): `Localizer.Load` pushes the new text to every `Observe`
+subscriber (every `{l:Tr}` binding; observers are held in a
+`ConditionalWeakTable`, so a closed window is not kept alive), then calls the
+`Localizer.WhenChanged(owner, handler)` handlers, held weakly by owner, with which
+a view model re-raises the properties that compose text. A status line written by
+an action stays in the language it was written in. Menus built in code are built
+per opening or rebuilt.
 
 ## What is not translated
 
@@ -121,9 +127,14 @@ to a system font that has the glyph (`FontManager.TryMatchCharacter`), so Chines
 draws on Windows (Microsoft YaHei), macOS (PingFang) and Linux with Noto CJK
 installed. The interface face defaults to the system face already (CLAUDE.md UI
 rule 11), which on a Chinese Windows or macOS is the CJK-capable one. `KeyCapFont`
-only ever draws key glyphs. To check on the release pass: a zh-Hans screen on each
-OS, and the Linux packages' font dependency (`fonts-noto-cjk` is a recommendation,
-not a requirement).
+only ever draws key glyphs. Checked headlessly on Windows (the harness's
+`--language` option renders any scenario in a translation): Chinese draws.
+**Open:** which face the fallback picks for Han characters. With no language
+hint, Windows may choose a Japanese face for some of them. If a native reader
+sees that, the fix is a per-language fallback list ahead of the system's
+(`Microsoft YaHei UI`, `PingFang SC`, `Noto Sans CJK SC`) applied with the
+interface font. Also on the release pass: the Linux packages' font dependency
+(`fonts-noto-cjk` as a recommendation, not a requirement).
 
 ## Proving nothing is left behind
 
@@ -142,13 +153,18 @@ not a requirement).
    not a user's screen.
 4. **Screenshots stay English**: the harness and the UI tests never call
    `Localizer.Load` with anything but English (and the pseudo test), so the
-   baselines and published screenshots don't change.
+   baselines and published screenshots don't change. The harness's `--language`
+   renders a translation for review and refuses `--baseline` and `--publish`.
 
 ## Verified so far
 
 - A NativeAOT `win-x64` publish with a translation embedded: no satellite
-  directory, no IL2026/IL3050 warnings, and the published exe loads zh-Hans
-  (see the PR for the probe output).
+  directory, no IL2026/IL3050 warnings; the published exe loads the embedded
+  translation, the OS language reads `en-US`, and a `{l:Tr}` binding returns the
+  translation and follows a live switch to the pseudo-locale.
+- TUnit runs a key-less `[NotInParallel]` test only after every parallel test has
+  finished (measured with a probe), so a test that switches the process-wide
+  language disturbs no other test.
 
 ## Delivery
 

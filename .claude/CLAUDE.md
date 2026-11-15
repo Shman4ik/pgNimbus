@@ -2897,6 +2897,10 @@ translator's side is [`docs/dev/translating.md`](../docs/dev/translating.md).
   saying where it shows, what kind of text it is (button, tooltip, heading) and
   what each placeholder holds: the translator never sees the screen. Entries
   sit in the file under their area's `<!-- ===== Area ===== -->` marker.
+  **A change of meaning is a new key**: rename the key when the English text
+  changes what it says, so no translation of the old meaning is shown for the
+  new one (`docs/dev/translating.md` promises translators this). A fix that
+  keeps the meaning (a typo, punctuation) keeps the key.
 - **The language changes while the app runs**, so text must follow it. A
   `{l:Tr}` binding does by itself (`Localizer.Observe`, observers held weakly). A
   view-model property that composes text from `Strings` raises its change on

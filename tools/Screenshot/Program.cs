@@ -10,6 +10,7 @@ using PgNimbus.Screenshot;
 
 // Usage: dotnet run --project tools/Screenshot -- <outputDir> [scenario-substring]
 //                                                [--baseline <dir>] [--fail-on-new]
+//                                                [--language <tag or .resx file>]
 //
 // Renders every scenario in light and dark and writes one PNG per (scenario,
 // theme). No display, no xdotool, no Postgres — see CLAUDE.md, "Headless
@@ -27,6 +28,7 @@ var positional = new List<string>();
 string? baselineDir = null;
 string? publishRoot = null;
 var failOnNew = false;
+string? language = null;
 
 for (var i = 0; i < args.Length; i++)
 {
@@ -63,6 +65,20 @@ for (var i = 0; i < args.Length; i++)
             publishRoot = args[i];
             break;
 
+        // Renders in another language: a built-in tag (qps-ploc for the
+        // pseudo-locale) or a translation file, for checking that text fits and
+        // that its script draws. Never with --baseline or --publish: those are
+        // English (docs/dev/translating.md).
+        case "--language":
+            if (++i >= args.Length)
+            {
+                Console.Error.WriteLine("--language needs a tag or a .resx file");
+                return 2;
+            }
+
+            language = args[i];
+            break;
+
         default:
             positional.Add(args[i]);
             break;
@@ -73,7 +89,29 @@ var outDir = positional.Count > 0 ? positional[0] : "screenshots";
 var filter = positional.Count > 1 ? positional[1] : null;
 Directory.CreateDirectory(outDir);
 
+if (language is not null && (baselineDir is not null || publishRoot is not null))
+{
+    Console.Error.WriteLine("--language renders a translation; baselines and published screenshots are English.");
+    return 2;
+}
+
 BuildAvaloniaApp().SetupWithoutStarting();
+
+if (language is not null)
+{
+    if (File.Exists(language))
+    {
+        using var stream = File.OpenRead(language);
+        var tag = Path.GetFileNameWithoutExtension(language);
+        PgNimbus.Core.Localization.Localizer.LoadTable(
+            tag.StartsWith("Strings.", StringComparison.OrdinalIgnoreCase) ? tag["Strings.".Length..] : tag,
+            PgNimbus.Core.Localization.Localizer.Read(stream));
+    }
+    else
+    {
+        PgNimbus.Core.Localization.Localizer.Load(language);
+    }
+}
 
 var failures = 0;
 var mismatches = new List<string>();

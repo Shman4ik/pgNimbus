@@ -6,6 +6,9 @@ welcome — the [roadmap issues](https://github.com/Shman4ik/pgNimbus/issues?q=i
 as individually shippable pieces, and issues labeled `good first issue`
 are a fine place to start.
 
+**Translations** need no build at all: one file per language. See
+[`docs/dev/translating.md`](docs/dev/translating.md).
+
 ## Building
 
 See [Building and running](README.md#-building-and-running) in the README.
@@ -102,6 +105,10 @@ passwords never live on `ConnectionProfile` — they come from
 - `AvaloniaUseCompiledBindingsByDefault` is on — don't add uncompiled
   (reflection) bindings. This also matters for NativeAOT: the app ships
   as an AOT binary, so no reflection-dependent code paths.
+- No interface text in code or XAML: it goes in
+  `src/PgNimbus.Core/Localization/Strings.resx` and is read as
+  `{l:Tr Key}` in XAML or `Strings.Key` in C#. The rules are in the
+  "Localization" section of [`.claude/CLAUDE.md`](.claude/CLAUDE.md).
 
 ## Verifying UI changes
 
