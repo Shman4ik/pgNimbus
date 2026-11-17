@@ -272,7 +272,7 @@
     <comment>Settings, Editor tab: section heading. Written in capitals in English; write it as your language writes a heading.</comment>
   </data>
   <data name="Settings_AutoAlias" xml:space="preserve">
-    <value>Автоматические псевдонимы таблиц при дополнении</value>
+    <value>Псевдонимы таблиц при дополнении</value>
     <comment>Settings, Editor tab, Completion: the setting's name (a switch).</comment>
   </data>
   <data name="Settings_AutoAliasHint" xml:space="preserve">
@@ -316,7 +316,7 @@
     <comment>Settings, Editor tab, Completion: hint under the setting. Enter and Tab are key names.</comment>
   </data>
   <data name="Settings_SafeMode" xml:space="preserve">
-    <value>Безопасный режим (подготовка и проверка изменений)</value>
+    <value>Безопасный режим (с проверкой)</value>
     <comment>Settings, Data tab: the setting's name (a switch).</comment>
   </data>
   <data name="Settings_SafeModeHint" xml:space="preserve">
@@ -456,7 +456,7 @@
     <comment>Connection dialog: right-click menu of a saved connection: deletes it after a confirmation.</comment>
   </data>
   <data name="Connection_ReadOnlySession" xml:space="preserve">
-    <value>Сеанс только для чтения</value>
+    <value>Только чтение</value>
     <comment>Connection dialog: tooltip of the lock icon on a saved connection that opens read-only, and the label of the Read-only switch.</comment>
   </data>
   <data name="Connection_NoSavedConnections" xml:space="preserve">
@@ -512,7 +512,7 @@
     <comment>Connection dialog: label of the database name field.</comment>
   </data>
   <data name="Connection_Username" xml:space="preserve">
-    <value>Имя пользователя</value>
+    <value>Пользователь</value>
     <comment>Connection dialog: label of the user name field.</comment>
   </data>
   <data name="Connection_SslMode" xml:space="preserve">
@@ -1044,7 +1044,7 @@
     <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Import query plan (paste EXPLAIN JSON or text)…". Where it has a shortcut, it is listed beside it.</comment>
   </data>
   <data name="Command_QueryLab" xml:space="preserve">
-    <value>Query Lab (сравнение сохранённых планов)</value>
+    <value>Query Lab (сравнить планы)</value>
     <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Query Lab (compare saved plans)". Where it has a shortcut, it is listed beside it.</comment>
   </data>
   <data name="Command_QueryLab_Cheat" xml:space="preserve">
@@ -1060,7 +1060,7 @@
     <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Compare plan in Query Lab…". Where it has a shortcut, it is listed beside it.</comment>
   </data>
   <data name="Command_FormatSql" xml:space="preserve">
-    <value>Форматировать SQL</value>
+    <value>Формат SQL</value>
     <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Format SQL". Where it has a shortcut, it is listed beside it.</comment>
   </data>
   <data name="Command_FormatSql_Cheat" xml:space="preserve">
@@ -1076,7 +1076,7 @@
     <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Begin transaction". Where it has a shortcut, it is listed beside it.</comment>
   </data>
   <data name="Command_CommitTransaction" xml:space="preserve">
-    <value>Зафиксировать транзакцию</value>
+    <value>Коммит транзакции</value>
     <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Commit transaction". Where it has a shortcut, it is listed beside it.</comment>
   </data>
   <data name="Command_RollbackTransaction" xml:space="preserve">
@@ -1104,7 +1104,7 @@
     <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Close tab". Where it has a shortcut, it is listed beside it.</comment>
   </data>
   <data name="Command_ReopenClosedTab" xml:space="preserve">
-    <value>Открыть закрытую вкладку снова</value>
+    <value>Вернуть вкладку</value>
     <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Reopen closed tab". Where it has a shortcut, it is listed beside it.</comment>
   </data>
   <data name="Command_CloseOtherTabs" xml:space="preserve">
@@ -4808,15 +4808,15 @@
     <comment>Staged changes dialog: button that throws away every staged change. The database has not been touched yet.</comment>
   </data>
   <data name="Dialogs_CommitChanges_one" xml:space="preserve">
-    <value>Зафиксировать {count} изменение</value>
+    <value>Применить {count} изменение</value>
     <comment>Staged changes dialog: the button that commits the changes, plural. {count} is how many, such as 3.</comment>
   </data>
   <data name="Dialogs_CommitChanges_few" xml:space="preserve">
-    <value>Зафиксировать {count} изменения</value>
+    <value>Применить {count} изменения</value>
     <comment>Staged changes dialog: the button that commits the changes, plural. {count} is how many, such as 3.</comment>
   </data>
   <data name="Dialogs_CommitChanges_many" xml:space="preserve">
-    <value>Зафиксировать {count} изменений</value>
+    <value>Применить {count} изменений</value>
     <comment>Staged changes dialog: the button that commits the changes, plural. {count} is how many, such as 3.</comment>
   </data>
   <data name="Dialogs_PendingUnchecked" xml:space="preserve">
@@ -4852,7 +4852,7 @@
     <comment>Commit rolled back dialog: button that drops the staged changes of the conflicting rows only.</comment>
   </data>
   <data name="Dialogs_RestageButton" xml:space="preserve">
-    <value>Перечитать и подготовить заново</value>
+    <value>Перечитать</value>
     <comment>Commit rolled back dialog: button that reloads the conflicting rows and keeps the user's staged values on top.</comment>
   </data>
   <data name="Dialogs_ConflictSummaryLocked" xml:space="preserve">
@@ -5256,7 +5256,7 @@
     <comment>Database Overview window: tab: how often each table is read by sequential scan against index scan.</comment>
   </data>
   <data name="Monitoring_OverviewTabUnused" xml:space="preserve">
-    <value>Неиспользуемые индексы</value>
+    <value>Лишние</value>
     <comment>Database Overview window: tab: indexes that were never scanned.</comment>
   </data>
   <data name="Monitoring_OverviewUnusedNote" xml:space="preserve">
@@ -5872,11 +5872,11 @@
     <comment>Label of the superuser attribute of a role: a row in the Roles tab's details and a check box in the role dialog.</comment>
   </data>
   <data name="Security_AttrInherit" xml:space="preserve">
-    <value>Наследование</value>
+    <value>Наследует</value>
     <comment>Label of the inherit attribute of a role (it uses the privileges of the groups it belongs to): a row in the Roles tab's details and a check box in the role dialog.</comment>
   </data>
   <data name="Security_AttrCreateDb" xml:space="preserve">
-    <value>Создание БД</value>
+    <value>Создаёт БД</value>
     <comment>Label of the attribute that lets a role create databases: a row in the Roles tab's details and a check box in the role dialog.</comment>
   </data>
   <data name="Security_AttrCreateRole" xml:space="preserve">
@@ -5896,7 +5896,7 @@
     <comment>Roles tab, role details: label of the row with the most connections the role may hold.</comment>
   </data>
   <data name="Security_DetailComment" xml:space="preserve">
-    <value>Комментарий</value>
+    <value>Примечание</value>
     <comment>Roles tab, role details: label of the row with the role's comment.</comment>
   </data>
   <data name="Security_GroupPrivilegesNeedSetRole" xml:space="preserve">
@@ -6184,7 +6184,7 @@
     <comment>Label or placeholder of a schema picker: the bulk grant dialog, the Permissions tab and the Row-level security tab.</comment>
   </data>
   <data name="Security_Grantee" xml:space="preserve">
-    <value>Получатель</value>
+    <value>Кому</value>
     <comment>Bulk grant dialog: label of the picker for the role that gets access.</comment>
   </data>
   <data name="Security_SchemaPlaceholder" xml:space="preserve">
@@ -6196,7 +6196,7 @@
     <comment>Bulk grant dialog: placeholder of the role picker.</comment>
   </data>
   <data name="Security_Preset" xml:space="preserve">
-    <value>Набор прав</value>
+    <value>Шаблон</value>
     <comment>Bulk grant dialog: label of the picker for how much access to give.</comment>
   </data>
   <data name="Security_PresetReadOnly" xml:space="preserve">
@@ -6596,7 +6596,7 @@
     <comment>Row-level security tab: shown in the details of a table without policies.</comment>
   </data>
   <data name="Security_NoRlsTables" xml:space="preserve">
-    <value>Ни одна таблица здесь не использует защиту на уровне строк.</value>
+    <value>Нет таблиц с защитой на уровне строк</value>
     <comment>Row-level security tab: heading shown when no table has row-level security or a policy.</comment>
   </data>
   <data name="Security_NoRlsTablesHint" xml:space="preserve">
@@ -6724,7 +6724,7 @@
     <comment>Backup window, after a successful backup: button that returns to the form for another backup.</comment>
   </data>
   <data name="Backup_ShowInFolder" xml:space="preserve">
-    <value>Показать в папке</value>
+    <value>В папке</value>
     <comment>Backup window, after a successful backup: button that opens the folder holding the file.</comment>
   </data>
   <data name="Backup_TryAgain" xml:space="preserve">
@@ -6772,7 +6772,7 @@
     <comment>Restore window, form: choice that restores into the window's own database. {name} is a database name, such as shop.</comment>
   </data>
   <data name="Restore_CurrentDatabaseHint" xml:space="preserve">
-    <value>То, что есть в копии, удаляется и создаётся заново из неё; остальные объекты остаются. pgNimbus спросит перед началом.</value>
+    <value>То, что есть в копии, удаляется и создаётся заново; остальные объекты остаются. pgNimbus спросит заранее.</value>
     <comment>Restore window, form: line under the This database choice. pgNimbus is the product name.</comment>
   </data>
   <data name="Restore_KeepOwners" xml:space="preserve">
@@ -7272,7 +7272,7 @@
     <comment>Install steps for Windows, step 2. Select Components, Command Line Tools, pgAdmin and Stack Builder are names in the installer; write them as the installer shows them in your language if it is translated, else keep them.</comment>
   </data>
   <data name="Backup_GuideWinWinget" xml:space="preserve">
-    <value>Или установите то же самое из терминала и выберите только Command Line Tools, когда установщик спросит:</value>
+    <value>Или установите то же из терминала и выберите только Command Line Tools, по запросу установщика:</value>
     <comment>Install steps for Windows, step 3. A command to copy is shown under it.</comment>
   </data>
   <data name="Backup_GuideWinLookAgain" xml:space="preserve">
@@ -7556,7 +7556,7 @@
     <comment>Query Lab, plan tree: word beside a node that exists in both plans but differs.</comment>
   </data>
   <data name="QueryLab_NodeAdded" xml:space="preserve">
-    <value>Добавлен</value>
+    <value>Новый</value>
     <comment>Query Lab, plan tree: word beside a node that exists only in the after plan.</comment>
   </data>
   <data name="QueryLab_NodeRemoved" xml:space="preserve">
@@ -7568,7 +7568,7 @@
     <comment>Query Lab, plan tree: word beside a node that is the same but sits somewhere else in the tree.</comment>
   </data>
   <data name="QueryLab_NodeSame" xml:space="preserve">
-    <value>Без изменений</value>
+    <value>Равен</value>
     <comment>Query Lab, plan tree: word beside a node that did not change.</comment>
   </data>
   <data name="QueryLab_NodeChangedMoved" xml:space="preserve">
