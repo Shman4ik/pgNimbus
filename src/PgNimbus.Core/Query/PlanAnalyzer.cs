@@ -1,4 +1,5 @@
 using System.Globalization;
+using PgNimbus.Core.Localization;
 
 namespace PgNimbus.Core.Query;
 
@@ -94,8 +95,8 @@ public static class PlanAnalyzer
                 var more = count - perKind;
                 kept.Add(new PlanWarning(
                     severity,
-                    $"{more:N0} more: {kind}",
-                    $"The same at {more:N0} more node{(more == 1 ? "" : "s")} of this plan. The text view lists every node.",
+                    Strings.Plan_MoreTitle(more, more.ToString("N0"), kind),
+                    Strings.Plan_MoreDetail(more, more.ToString("N0")),
                     string.Empty,
                     null)
                 {
@@ -182,17 +183,17 @@ public static class PlanAnalyzer
             return;
         }
 
-        var direction = estimated > actual ? "over" : "under";
         var severity = factor >= EstimateCriticalFactor ? PlanWarningSeverity.Critical : PlanWarningSeverity.Warning;
         acc.Add(new PlanWarning(
             severity,
-            $"Row estimate off by {factor:0}×",
-            $"Planner {direction}estimated {ExplainTextFormatter.HeaderFor(node)}: estimated {estimated:0}, actual {actual:0} rows. "
-                + "Stale statistics or correlated columns can mislead the planner — try ANALYZE or extended statistics.",
+            Strings.Plan_RowEstimateTitle(factor.ToString("0")),
+            estimated > actual
+                ? Strings.Plan_RowEstimateOverDetail(ExplainTextFormatter.HeaderFor(node), estimated.ToString("0"), actual.ToString("0"))
+                : Strings.Plan_RowEstimateUnderDetail(ExplainTextFormatter.HeaderFor(node), estimated.ToString("0"), actual.ToString("0")),
             node.NodeType,
             node.RelationName)
         {
-            Kind = "Row estimates off",
+            Kind = Strings.Plan_RowEstimateKind,
             Node = node,
         });
     }
@@ -202,11 +203,12 @@ public static class PlanAnalyzer
     {
         if (Detail(node, "Sort Method") is { } method && method.Contains("external", StringComparison.OrdinalIgnoreCase))
         {
-            var used = Detail(node, "Sort Space Used") is { } kb ? $" ({kb} kB)" : string.Empty;
             acc.Add(new PlanWarning(
                 PlanWarningSeverity.Warning,
-                "Sort spilled to disk",
-                $"This sort used an on-disk method ({method}){used}. Raising work_mem may keep it in memory.",
+                Strings.Plan_SortSpillTitle,
+                Detail(node, "Sort Space Used") is { } kb
+                    ? Strings.Plan_SortSpillDetailSize(method, kb)
+                    : Strings.Plan_SortSpillDetail(method),
                 node.NodeType,
                 node.RelationName)
             {
@@ -218,8 +220,8 @@ public static class PlanAnalyzer
         {
             acc.Add(new PlanWarning(
                 PlanWarningSeverity.Warning,
-                "Hash spilled to disk",
-                $"The hash used {batches} batches (>1 means it didn't fit in memory). Raising work_mem may reduce batching.",
+                Strings.Plan_HashSpillTitle,
+                Strings.Plan_HashSpillDetail(batches.ToString()),
                 node.NodeType,
                 node.RelationName)
             {
@@ -245,12 +247,12 @@ public static class PlanAnalyzer
             return;
         }
 
-        var relation = node.RelationName is { } r ? $" on {r}" : string.Empty;
         acc.Add(new PlanWarning(
             PlanWarningSeverity.Warning,
-            "Sequential scan discards most rows",
-            $"The scan{relation} read {scanned:0} rows and filtered out {removed:0} of them. "
-                + "An index on the filtered column(s) would let the planner skip the discarded rows.",
+            Strings.Plan_SeqScanTitle,
+            node.RelationName is { } relation
+                ? Strings.Plan_SeqScanDetailOn(relation, scanned.ToString("0"), removed.ToString("0"))
+                : Strings.Plan_SeqScanDetail(scanned.ToString("0"), removed.ToString("0")),
             node.NodeType,
             node.RelationName)
             {
@@ -265,9 +267,8 @@ public static class PlanAnalyzer
         {
             acc.Add(new PlanWarning(
                 PlanWarningSeverity.Warning,
-                "Bitmap scan went lossy",
-                $"{lossy} heap blocks were rechecked lossily because the bitmap outgrew work_mem. "
-                    + "Raising work_mem lets more of the bitmap stay exact.",
+                Strings.Plan_LossyTitle,
+                Strings.Plan_LossyDetail(lossy.ToString()),
                 node.NodeType,
                 node.RelationName)
             {

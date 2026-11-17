@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using PgNimbus.Core.Connections;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Query;
 using PgNimbus.Core.Settings;
 
@@ -103,7 +104,7 @@ public sealed class SavedPlanStore
         if (planText.Length > MaxPlanLength)
         {
             throw new SavedPlanStoreException(
-                $"This plan is larger than {MaxPlanLength / (1024 * 1024)} MB of text, more than Query Lab keeps.");
+                Strings.QueryLabCore_PlanTooLarge(MaxPlanLength / (1024 * 1024)));
         }
 
         lock (Gate)
@@ -113,7 +114,7 @@ public sealed class SavedPlanStore
             if (at < 0 && index.Count >= MaxPlans)
             {
                 throw new SavedPlanStoreException(
-                    $"Query Lab already keeps {MaxPlans} plans, the most it holds. Delete some to save another.");
+                    Strings.QueryLabCore_TooManyPlans(MaxPlans));
             }
 
             WritePlan(plan.Id, planText);
@@ -182,7 +183,7 @@ public sealed class SavedPlanStore
         if (index is null && throwIfUnreadable && File.Exists(path))
         {
             throw new SavedPlanStoreException(
-                $"Query Lab's list of saved plans ({path}) can't be read, so nothing was changed.");
+                Strings.QueryLabCore_IndexUnreadable(path));
         }
 
         return index ?? [];
@@ -204,7 +205,7 @@ public sealed class SavedPlanStore
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-            throw new SavedPlanStoreException($"Query Lab couldn't write its list of saved plans: {e.Message}", e);
+            throw new SavedPlanStoreException(Strings.QueryLabCore_IndexWriteFailed(e.Message), e);
         }
     }
 
@@ -223,7 +224,7 @@ public sealed class SavedPlanStore
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-            throw new SavedPlanStoreException($"Query Lab couldn't save the plan: {e.Message}", e);
+            throw new SavedPlanStoreException(Strings.QueryLabCore_PlanWriteFailed(e.Message), e);
         }
     }
 
