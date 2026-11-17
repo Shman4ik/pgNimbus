@@ -8075,4 +8075,68 @@
   </data>
 
   <!-- ===== Core ===== -->
+  <data name="Core_QueryTransactionLost" xml:space="preserve">
+    <value>Connection to the server was lost. The open transaction is gone and nothing in it was committed. The next statement will reconnect automatically.</value>
+    <comment>Error shown in the results pane (and the status line) when the connection dropped inside an explicit transaction (BEGIN … COMMIT). Everything in the transaction was rolled back by the server.</comment>
+  </data>
+  <data name="Core_QueryLostAfterSend" xml:space="preserve">
+    <value>Connection to the server was lost while the statement was running: {detail}. It was not run again, so it may or may not have taken effect; check before running it again. The next statement will reconnect automatically.</value>
+    <comment>Error shown in the results pane, the status line or the Add row dialog when the connection dropped after a statement was sent, so nobody knows whether the server applied it. {detail} is the driver's or server's own message, in English, such as "Exception while reading from stream" or "terminating connection due to administrator command".</comment>
+  </data>
+  <data name="Core_QueryLostNotReconnected" xml:space="preserve">
+    <value>Connection to the server was lost and could not be re-established: {detail}</value>
+    <comment>Error shown in the results pane and the status line when the connection dropped before a statement was sent and the one automatic reconnect failed too. Nothing ran. {detail} is the driver's or server's own message, in English, such as "Failed to connect to 127.0.0.1:5432".</comment>
+  </data>
+  <data name="Core_StagedRowIsDeleted" xml:space="preserve">
+    <value>This row is staged for deletion — press Delete on it again to unstage the delete first.</value>
+    <comment>Status line in safe mode: the user tried to edit a cell of a row already staged for deletion. "Delete" is the Delete key.</comment>
+  </data>
+  <data name="Core_ImportFileTooLarge" xml:space="preserve">
+    <value>The file is larger than {megabytes} MB, the most pgNimbus imports at once. Split it into smaller files, or load it with psql's \copy.</value>
+    <comment>Shown after "Import failed:" on the status line: the chosen CSV or JSON file is too big. {megabytes} is the limit in mebibytes, formatted, such as "512". "\copy" is a psql command, keep it as is.</comment>
+  </data>
+  <data name="Core_ImportTooManyRows" xml:space="preserve">
+    <value>The file has more than {rows} rows, the most pgNimbus imports at once. Split it into smaller files.</value>
+    <comment>Shown after "Import failed:" on the status line: the CSV or JSON file has too many rows. {rows} is the limit, formatted, such as "1,000,000".</comment>
+  </data>
+  <data name="Core_ImportTooManyColumns" xml:space="preserve">
+    <value>The file has more than {columns} columns, the most pgNimbus imports into one table.</value>
+    <comment>Shown after "Import failed:" on the status line: the CSV or JSON file has too many columns. {columns} is the limit, formatted, such as "1,000".</comment>
+  </data>
+  <data name="Core_ImportTooManyCells" xml:space="preserve">
+    <value>The file would make {cells} cells (rows × columns), more than the {max} pgNimbus imports at once. Import fewer rows or columns at a time.</value>
+    <comment>Shown after "Import failed:" on the status line: rows times columns of the file is too many. {cells} is that product, formatted, such as "62,000,000"; {max} is the limit, formatted, such as "50,000,000".</comment>
+  </data>
+  <data name="Core_ImportJsonNotArray" xml:space="preserve">
+    <value>Expected a JSON array of objects.</value>
+    <comment>Shown after "Import failed:" on the status line: a JSON file to import is not an array at its top level.</comment>
+  </data>
+  <data name="Core_ImportJsonNotObject" xml:space="preserve">
+    <value>Expected every array element to be a JSON object.</value>
+    <comment>Shown after "Import failed:" on the status line: an element of the JSON array to import is not an object (it is a number, a string, an array …).</comment>
+  </data>
+  <data name="Core_RelationNounTable" xml:space="preserve">
+    <value>table</value>
+    <comment>The word for a table, lower case, put into sentences such as "Rename {noun} "public.orders"" and "Drop {noun} …?" in a table's Maintenance menu.</comment>
+  </data>
+  <data name="Core_RelationNounView" xml:space="preserve">
+    <value>view</value>
+    <comment>The word for a view (a stored query), lower case, put into sentences such as "Rename {noun} "public.orders"" in a table's Maintenance menu.</comment>
+  </data>
+  <data name="Core_RelationNounMaterializedView" xml:space="preserve">
+    <value>materialized view</value>
+    <comment>The word for a materialized view (a stored query whose rows are kept), lower case, put into sentences such as "Rename {noun} "public.orders"" in a table's Maintenance menu.</comment>
+  </data>
+  <data name="Core_RenameEmpty" xml:space="preserve">
+    <value>The new name is empty.</value>
+    <comment>Status line: the name typed in the Rename dialog of a table's Maintenance menu is empty.</comment>
+  </data>
+  <data name="Core_RenameNul" xml:space="preserve">
+    <value>A name can't contain a NUL character.</value>
+    <comment>Status line: the name typed in the Rename dialog of a table's Maintenance menu contains a NUL (zero) character.</comment>
+  </data>
+  <data name="Core_RenameTooLong" xml:space="preserve">
+    <value>The new name is longer than {bytes} bytes, and PostgreSQL would cut it short.</value>
+    <comment>Status line: the name typed in the Rename dialog of a table's Maintenance menu is too long. {bytes} is the limit, such as 63.</comment>
+  </data>
 </root>

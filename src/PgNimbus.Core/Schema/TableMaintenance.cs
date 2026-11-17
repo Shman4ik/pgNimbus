@@ -1,4 +1,5 @@
 using System.Text;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Query;
 
 namespace PgNimbus.Core.Schema;
@@ -57,12 +58,12 @@ public static class TableMaintenance
         _ => "TABLE",
     };
 
-    /// <summary>The noun the UI uses for <paramref name="kind"/>: "table", "view", "materialized view".</summary>
+    /// <summary>The noun the UI uses for <paramref name="kind"/>: "table", "view", "materialized view", in the loaded language.</summary>
     public static string Noun(RelationKind kind) => kind switch
     {
-        RelationKind.View => "view",
-        RelationKind.MaterializedView => "materialized view",
-        _ => "table",
+        RelationKind.View => Strings.Core_RelationNounView,
+        RelationKind.MaterializedView => Strings.Core_RelationNounMaterializedView,
+        _ => Strings.Core_RelationNounTable,
     };
 
     /// <summary><c>"schema"."name"</c>, both parts quoted.</summary>
@@ -108,16 +109,16 @@ public static class TableMaintenance
     {
         if (string.IsNullOrWhiteSpace(newName))
         {
-            return "The new name is empty.";
+            return Strings.Core_RenameEmpty;
         }
 
         if (newName.Contains('\0'))
         {
-            return "A name can't contain a NUL character.";
+            return Strings.Core_RenameNul;
         }
 
         return Encoding.UTF8.GetByteCount(newName) > MaxIdentifierBytes
-            ? $"The new name is longer than {MaxIdentifierBytes} bytes, and PostgreSQL would cut it short."
+            ? Strings.Core_RenameTooLong(MaxIdentifierBytes)
             : null;
     }
 }

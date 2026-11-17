@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using PgNimbus.Core.Localization;
 
 namespace PgNimbus.Core.Import;
 
@@ -72,16 +73,16 @@ public static class TabularFileParser
     }
 
     private static ImportLimitException TooLarge(long maxBytes) => new(
-        $"The file is larger than {maxBytes / (1024 * 1024):N0} MB, the most pgNimbus imports at once. Split it into smaller files, or load it with psql's \\copy.");
+        Strings.Core_ImportFileTooLarge((maxBytes / (1024 * 1024)).ToString("N0")));
 
     private static ImportLimitException TooManyRows() => new(
-        $"The file has more than {MaxRows:N0} rows, the most pgNimbus imports at once. Split it into smaller files.");
+        Strings.Core_ImportTooManyRows(MaxRows.ToString("N0")));
 
     private static ImportLimitException TooManyColumns() => new(
-        $"The file has more than {MaxColumns:N0} columns, the most pgNimbus imports into one table.");
+        Strings.Core_ImportTooManyColumns(MaxColumns.ToString("N0")));
 
     private static ImportLimitException TooManyCells(long cells) => new(
-        $"The file would make {cells:N0} cells (rows × columns), more than the {MaxCells:N0} pgNimbus imports at once. Import fewer rows or columns at a time.");
+        Strings.Core_ImportTooManyCells(cells.ToString("N0"), MaxCells.ToString("N0")));
 
     private static void CheckCells(int width, int rows)
     {
@@ -203,7 +204,7 @@ public static class TabularFileParser
         using var doc = JsonDocument.Parse(text);
         if (doc.RootElement.ValueKind != JsonValueKind.Array)
         {
-            throw new FormatException("Expected a JSON array of objects.");
+            throw new FormatException(Strings.Core_ImportJsonNotArray);
         }
 
         var columns = new List<string>();
@@ -214,7 +215,7 @@ public static class TabularFileParser
         {
             if (element.ValueKind != JsonValueKind.Object)
             {
-                throw new FormatException("Expected every array element to be a JSON object.");
+                throw new FormatException(Strings.Core_ImportJsonNotObject);
             }
 
             if (objects.Count == MaxRows)

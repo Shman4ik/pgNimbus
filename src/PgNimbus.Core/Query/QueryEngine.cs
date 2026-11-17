@@ -3,6 +3,7 @@ using System.Diagnostics;
 using Npgsql;
 using Npgsql.PostgresTypes;
 using PgNimbus.Core.Connections;
+using PgNimbus.Core.Localization;
 
 namespace PgNimbus.Core.Query;
 
@@ -245,8 +246,7 @@ public sealed class QueryEngine(WriteGatedDataSource dataSource)
     private static QueryError TransactionLostError(TimeSpan elapsed) => new()
     {
         Elapsed = elapsed,
-        Message = "Connection to the server was lost. The open transaction is gone and nothing in it "
-            + "was committed. The next statement will reconnect automatically.",
+        Message = Strings.Core_QueryTransactionLost,
         RolledBack = true,
         ConnectionLost = true,
     };
@@ -258,10 +258,8 @@ public sealed class QueryEngine(WriteGatedDataSource dataSource)
     // statement before the socket died, or a DBA may have terminated it — and
     // the user has to be told that it was not run again and why.
     private static string LossMessage(bool sent, string detail) => sent
-        ? "Connection to the server was lost while the statement was running: " + detail
-            + ". It was not run again, so it may or may not have taken effect; check before running it again. "
-            + "The next statement will reconnect automatically."
-        : $"Connection to the server was lost and could not be re-established: {detail}";
+        ? Strings.Core_QueryLostAfterSend(detail)
+        : Strings.Core_QueryLostNotReconnected(detail);
 
     // After a detected connection loss the pool may still be holding other
     // dead sockets — every connection that sat idle across the same laptop
@@ -912,7 +910,7 @@ public sealed class QueryEngine(WriteGatedDataSource dataSource)
                         reconnectFailure = new QueryError
                         {
                             Elapsed = firstLoss.Elapsed,
-                            Message = $"Connection to the server was lost and could not be re-established: {ex.Message}",
+                            Message = LossMessage(sent: false, ex.Message),
                             ConnectionLost = true,
                         };
                     }
