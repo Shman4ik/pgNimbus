@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Npgsql;
 using PgNimbus.Core.Connections;
+using PgNimbus.Core.Localization;
 
 namespace PgNimbus.Core.Query;
 
@@ -175,9 +176,8 @@ public sealed class ExplainService(WriteGatedDataSource dataSource)
         {
             1 => statements[0],
             // No parameter name: the message goes to the status line as it is.
-            0 => throw new ArgumentException("Nothing to explain: select or write one statement first."),
-            var n => throw new ArgumentException(
-                $"EXPLAIN takes one statement, and {n} were given. Select a single statement."),
+            0 => throw new ArgumentException(Strings.Plan_NothingToExplain),
+            var n => throw new ArgumentException(Strings.Plan_OneStatementOnly(n)),
         };
     }
 
@@ -210,7 +210,7 @@ public sealed class ExplainService(WriteGatedDataSource dataSource)
             // missing one, a number a long can't hold — is one readable error at the
             // boundary: the import dialog and the Run path catch FormatException only,
             // and anything else used to reach the crash window.
-            throw new FormatException($"That doesn't look like valid EXPLAIN JSON: {ex.Message}", ex);
+            throw new FormatException(Strings.Plan_InvalidJson(ex.Message), ex);
         }
     }
 
@@ -219,7 +219,7 @@ public sealed class ExplainService(WriteGatedDataSource dataSource)
         using var document = JsonDocument.Parse(json, new JsonDocumentOptions { MaxDepth = MaxJsonDepth });
         var root = document.RootElement;
         var entry = root.ValueKind == JsonValueKind.Array
-            ? (root.GetArrayLength() > 0 ? root[0] : throw new FormatException("The EXPLAIN JSON array is empty."))
+            ? (root.GetArrayLength() > 0 ? root[0] : throw new FormatException(Strings.Plan_JsonArrayEmpty))
             : root;
 
         // The entry is either the wrapper ({ "Plan": …, "Planning Time": … }) or the
@@ -235,12 +235,12 @@ public sealed class ExplainService(WriteGatedDataSource dataSource)
         }
         else
         {
-            throw new FormatException("Unrecognized EXPLAIN JSON: no \"Plan\" or \"Node Type\" element found.");
+            throw new FormatException(Strings.Plan_JsonNoPlan);
         }
 
         if (planElement.ValueKind != JsonValueKind.Object)
         {
-            throw new FormatException("The \"Plan\" element is not an object.");
+            throw new FormatException(Strings.Plan_JsonPlanNotObject);
         }
 
         var context = new ParseContext();
@@ -346,7 +346,7 @@ public sealed class ExplainService(WriteGatedDataSource dataSource)
     {
         if (string.IsNullOrWhiteSpace(raw))
         {
-            throw new FormatException("Nothing to import — paste an EXPLAIN plan first.");
+            throw new FormatException(Strings.Plan_NothingToImport);
         }
 
         var trimmed = raw.TrimStart();
@@ -382,14 +382,14 @@ public sealed class ExplainService(WriteGatedDataSource dataSource)
         {
             if (childPlans.ValueKind != JsonValueKind.Array)
             {
-                throw new FormatException("A node's \"Plans\" is not an array.");
+                throw new FormatException(Strings.Plan_JsonPlansNotArray);
             }
 
             foreach (var child in childPlans.EnumerateArray())
             {
                 if (child.ValueKind != JsonValueKind.Object)
                 {
-                    throw new FormatException("A child plan is not an object.");
+                    throw new FormatException(Strings.Plan_JsonChildNotObject);
                 }
 
                 children.Add(ParseNode(child, context));
@@ -435,7 +435,7 @@ public sealed class ExplainService(WriteGatedDataSource dataSource)
         // may hold anything, so every figure is optional and read by kind: a missing
         // or wrong-kind value is its zero, never an exception.
         return new ExplainNode(
-            GetString(element, "Node Type") ?? throw new FormatException("A plan node has no \"Node Type\"."),
+            GetString(element, "Node Type") ?? throw new FormatException(Strings.Plan_JsonNoNodeType),
             GetString(element, "Relation Name") ?? GetString(element, "Function Name") ?? GetString(element, "CTE Name"),
             GetString(element, "Alias"),
             GetString(element, "Index Name"),

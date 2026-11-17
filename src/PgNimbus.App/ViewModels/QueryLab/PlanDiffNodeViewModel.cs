@@ -36,10 +36,12 @@ public sealed partial class PlanDiffNodeViewModel : ObservableObject
     internal void RefreshText()
     {
         OnPropertyChanged(nameof(ChangeWord));
+        OnPropertyChanged(nameof(Header));
         OnPropertyChanged(nameof(WasHeader));
         OnPropertyChanged(nameof(Badge));
         OnPropertyChanged(nameof(MetricLine));
         OnPropertyChanged(nameof(Figures));
+        OnPropertyChanged(nameof(Differences));
         foreach (var child in Children)
         {
             child.RefreshText();
@@ -154,8 +156,12 @@ public sealed partial class PlanDiffNodeViewModel : ObservableObject
         };
     }
 
-    /// <summary>The differences in what the node does, one per line.</summary>
-    public IReadOnlyList<string> Differences => Node.Differences;
+    /// <summary>
+    /// The differences in what the node does, one per line. A new list on every read: Core
+    /// writes them in the language loaded when they are read, and a list control given the
+    /// same instance again would keep the old lines.
+    /// </summary>
+    public IReadOnlyList<string> Differences => [.. Node.Differences];
 
     public bool HasDifferences => Node.Differences.Count > 0;
 

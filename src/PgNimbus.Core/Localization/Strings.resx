@@ -7494,6 +7494,548 @@
     <comment>Query Lab, node details: the answer "no" to Went to disk.</comment>
   </data>
 
+  <!-- ===== Plans ===== -->
+  <data name="Plan_MoreTitle_one" xml:space="preserve">
+    <value>{number} more: {kind}</value>
+    <comment>Plan warnings strip (above a query plan, and in Query Lab's warning lists): heading of a line that sums up the warnings of one kind not listed above it. Singular. {number} is 1; {kind} is a warning heading, such as 'Sort spilled to disk' or 'Row estimates off'.</comment>
+  </data>
+  <data name="Plan_MoreTitle_other" xml:space="preserve">
+    <value>{number} more: {kind}</value>
+    <comment>Plan warnings strip (above a query plan, and in Query Lab's warning lists): heading of a line that sums up the warnings of one kind not listed above it. Plural. {number} is a count such as 1,200; {kind} is a warning heading, such as 'Sort spilled to disk' or 'Row estimates off'.</comment>
+  </data>
+  <data name="Plan_MoreDetail_one" xml:space="preserve">
+    <value>The same at {number} more node of this plan. The text view lists every node.</value>
+    <comment>Plan warnings strip (above a query plan, and in Query Lab's warning lists): text under the 'N more' heading. Singular. {number} is 1. The text view is the plan shown as EXPLAIN text.</comment>
+  </data>
+  <data name="Plan_MoreDetail_other" xml:space="preserve">
+    <value>The same at {number} more nodes of this plan. The text view lists every node.</value>
+    <comment>Plan warnings strip (above a query plan, and in Query Lab's warning lists): text under the 'N more' heading. Plural. {number} is a count such as 1,200. The text view is the plan shown as EXPLAIN text.</comment>
+  </data>
+  <data name="Plan_RowEstimateTitle" xml:space="preserve">
+    <value>Row estimate off by {factor}×</value>
+    <comment>Plan warnings strip (above a query plan, and in Query Lab's warning lists): heading of a warning that the planner's row estimate was wrong. {factor} is how many times off, such as 120.</comment>
+  </data>
+  <data name="Plan_RowEstimateKind" xml:space="preserve">
+    <value>Row estimates off</value>
+    <comment>Plan warnings strip (above a query plan, and in Query Lab's warning lists): the name of the 'row estimate off' warnings as a group, shown in the 'N more: …' line.</comment>
+  </data>
+  <data name="Plan_RowEstimateOverDetail" xml:space="preserve">
+    <value>Planner overestimated {node}: estimated {estimated}, actual {actual} rows. Stale statistics or correlated columns can mislead the planner — try ANALYZE or extended statistics.</value>
+    <comment>Plan warnings strip (above a query plan, and in Query Lab's warning lists): the planner expected more rows than the node returned. {node} is the plan node as EXPLAIN writes it, such as 'Seq Scan on orders o'; {estimated} and {actual} are row counts such as 5000 and 12. ANALYZE is a PostgreSQL command; keep it.</comment>
+  </data>
+  <data name="Plan_RowEstimateUnderDetail" xml:space="preserve">
+    <value>Planner underestimated {node}: estimated {estimated}, actual {actual} rows. Stale statistics or correlated columns can mislead the planner — try ANALYZE or extended statistics.</value>
+    <comment>Plan warnings strip (above a query plan, and in Query Lab's warning lists): the planner expected fewer rows than the node returned. {node} is the plan node as EXPLAIN writes it, such as 'Seq Scan on orders o'; {estimated} and {actual} are row counts such as 12 and 5000. ANALYZE is a PostgreSQL command; keep it.</comment>
+  </data>
+  <data name="Plan_SortSpillTitle" xml:space="preserve">
+    <value>Sort spilled to disk</value>
+    <comment>Plan warnings strip (above a query plan, and in Query Lab's warning lists): heading of a warning that a sort did not fit in memory.</comment>
+  </data>
+  <data name="Plan_SortSpillDetail" xml:space="preserve">
+    <value>This sort used an on-disk method ({method}). Raising work_mem may keep it in memory.</value>
+    <comment>Plan warnings strip (above a query plan, and in Query Lab's warning lists): text under 'Sort spilled to disk'. {method} is PostgreSQL's name of the sort method, such as 'external merge'. work_mem is a PostgreSQL setting; keep it.</comment>
+  </data>
+  <data name="Plan_SortSpillDetailSize" xml:space="preserve">
+    <value>This sort used an on-disk method ({method}) ({size} kB). Raising work_mem may keep it in memory.</value>
+    <comment>Plan warnings strip (above a query plan, and in Query Lab's warning lists): text under 'Sort spilled to disk', when the plan says how much it wrote. {method} is PostgreSQL's name of the sort method, such as 'external merge'; {size} is a number of kilobytes such as 2400. work_mem is a PostgreSQL setting; keep it.</comment>
+  </data>
+  <data name="Plan_HashSpillTitle" xml:space="preserve">
+    <value>Hash spilled to disk</value>
+    <comment>Plan warnings strip (above a query plan, and in Query Lab's warning lists): heading of a warning that a hash table did not fit in memory.</comment>
+  </data>
+  <data name="Plan_HashSpillDetail" xml:space="preserve">
+    <value>The hash used {batches} batches (&gt;1 means it didn't fit in memory). Raising work_mem may reduce batching.</value>
+    <comment>Plan warnings strip (above a query plan, and in Query Lab's warning lists): text under 'Hash spilled to disk'. {batches} is a number greater than 1, such as 4. work_mem is a PostgreSQL setting; keep it.</comment>
+  </data>
+  <data name="Plan_SeqScanTitle" xml:space="preserve">
+    <value>Sequential scan discards most rows</value>
+    <comment>Plan warnings strip (above a query plan, and in Query Lab's warning lists): heading of a warning that a full table scan threw away most of what it read.</comment>
+  </data>
+  <data name="Plan_SeqScanDetail" xml:space="preserve">
+    <value>The scan read {scanned} rows and filtered out {removed} of them. An index on the filtered column(s) would let the planner skip the discarded rows.</value>
+    <comment>Plan warnings strip (above a query plan, and in Query Lab's warning lists): text under 'Sequential scan discards most rows', when the plan names no table. {scanned} and {removed} are row counts such as 100000 and 99950.</comment>
+  </data>
+  <data name="Plan_SeqScanDetailOn" xml:space="preserve">
+    <value>The scan on {relation} read {scanned} rows and filtered out {removed} of them. An index on the filtered column(s) would let the planner skip the discarded rows.</value>
+    <comment>Plan warnings strip (above a query plan, and in Query Lab's warning lists): text under 'Sequential scan discards most rows'. {relation} is a table name, such as orders; {scanned} and {removed} are row counts such as 100000 and 99950.</comment>
+  </data>
+  <data name="Plan_LossyTitle" xml:space="preserve">
+    <value>Bitmap scan went lossy</value>
+    <comment>Plan warnings strip (above a query plan, and in Query Lab's warning lists): heading of a warning that a bitmap scan's bitmap did not fit in memory, so it kept whole pages instead of rows.</comment>
+  </data>
+  <data name="Plan_LossyDetail" xml:space="preserve">
+    <value>{blocks} heap blocks were rechecked lossily because the bitmap outgrew work_mem. Raising work_mem lets more of the bitmap stay exact.</value>
+    <comment>Plan warnings strip (above a query plan, and in Query Lab's warning lists): text under 'Bitmap scan went lossy'. {blocks} is a number of table pages, such as 120. work_mem is a PostgreSQL setting; keep it.</comment>
+  </data>
+  <data name="Plan_NothingToExplain" xml:space="preserve">
+    <value>Nothing to explain: select or write one statement first.</value>
+    <comment>Status line after Explain or Explain Analyze with an empty editor or selection.</comment>
+  </data>
+  <data name="Plan_OneStatementOnly_one" xml:space="preserve">
+    <value>EXPLAIN takes one statement, and {count} were given. Select a single statement.</value>
+    <comment>Status line after Explain with a selection of several SQL statements. Singular form (never shown in English, which always has 2 or more). {count} is how many statements. EXPLAIN is a PostgreSQL command; keep it.</comment>
+  </data>
+  <data name="Plan_OneStatementOnly_other" xml:space="preserve">
+    <value>EXPLAIN takes one statement, and {count} were given. Select a single statement.</value>
+    <comment>Status line after Explain with a selection of several SQL statements. Plural. {count} is how many statements, such as 2. EXPLAIN is a PostgreSQL command; keep it.</comment>
+  </data>
+  <data name="Plan_InvalidJson" xml:space="preserve">
+    <value>That doesn't look like valid EXPLAIN JSON: {reason}</value>
+    <comment>Error shown on the status line or in the Import Query Plan dialog: the pasted or returned plan is not readable JSON. {reason} is the JSON reader's own message, in English.</comment>
+  </data>
+  <data name="Plan_JsonArrayEmpty" xml:space="preserve">
+    <value>The EXPLAIN JSON array is empty.</value>
+    <comment>Error shown on the status line or in the Import Query Plan dialog: the pasted JSON plan is an empty array, [].</comment>
+  </data>
+  <data name="Plan_JsonNoPlan" xml:space="preserve">
+    <value>Unrecognized EXPLAIN JSON: no "Plan" or "Node Type" element found.</value>
+    <comment>Error shown on the status line or in the Import Query Plan dialog. "Plan" and "Node Type" are the names of JSON properties in PostgreSQL's EXPLAIN output; keep them as they are.</comment>
+  </data>
+  <data name="Plan_JsonPlanNotObject" xml:space="preserve">
+    <value>The "Plan" element is not an object.</value>
+    <comment>Error shown on the status line or in the Import Query Plan dialog. "Plan" is the name of a JSON property; keep it. An object is a JSON object, {…}.</comment>
+  </data>
+  <data name="Plan_JsonPlansNotArray" xml:space="preserve">
+    <value>A node's "Plans" is not an array.</value>
+    <comment>Error shown on the status line or in the Import Query Plan dialog. "Plans" is the name of a JSON property; keep it. An array is a JSON array, […].</comment>
+  </data>
+  <data name="Plan_JsonChildNotObject" xml:space="preserve">
+    <value>A child plan is not an object.</value>
+    <comment>Error shown on the status line or in the Import Query Plan dialog. An object is a JSON object, {…}.</comment>
+  </data>
+  <data name="Plan_JsonNoNodeType" xml:space="preserve">
+    <value>A plan node has no "Node Type".</value>
+    <comment>Error shown on the status line or in the Import Query Plan dialog. "Node Type" is the name of a JSON property; keep it.</comment>
+  </data>
+  <data name="Plan_NothingToImport" xml:space="preserve">
+    <value>Nothing to import — paste an EXPLAIN plan first.</value>
+    <comment>Error shown on the status line or in the Import Query Plan dialog: the box was empty.</comment>
+  </data>
+  <data name="Plan_TextTooLarge" xml:space="preserve">
+    <value>The plan is too large to import (over {size} MB of text).</value>
+    <comment>Error shown on the status line or in the Import Query Plan dialog. {size} is a number of megabytes, such as 4.</comment>
+  </data>
+  <data name="Plan_TextLineTimeout" xml:space="preserve">
+    <value>A line of the plan took too long to read.</value>
+    <comment>Error shown on the status line or in the Import Query Plan dialog: reading one line of a pasted text plan was stopped after a time limit.</comment>
+  </data>
+  <data name="Plan_TextNoNode" xml:space="preserve">
+    <value>This doesn't look like an EXPLAIN text plan — the first line has no plan node.</value>
+    <comment>Error shown on the status line or in the Import Query Plan dialog: the pasted text does not start with a plan node such as 'Seq Scan on orders'.</comment>
+  </data>
+  <data name="Plan_TextBadNode" xml:space="preserve">
+    <value>Couldn't parse a plan node from: {line}</value>
+    <comment>Error shown on the status line or in the Import Query Plan dialog. {line} is the line of the pasted plan that could not be read, as it was pasted.</comment>
+  </data>
+  <data name="Plan_TextBadIndent" xml:space="preserve">
+    <value>The plan's indentation is inconsistent — couldn't place a child node.</value>
+    <comment>Error shown on the status line or in the Import Query Plan dialog: the pasted text plan's indentation does not show which node a line belongs under.</comment>
+  </data>
+  <data name="Plan_TextTooDeep" xml:space="preserve">
+    <value>The plan nests deeper than {depth} levels, more than pgNimbus reads.</value>
+    <comment>Error shown on the status line or in the Import Query Plan dialog. {depth} is a number such as 128.</comment>
+  </data>
+  <data name="Plan_TextNoPlan" xml:space="preserve">
+    <value>No plan node found in the pasted text.</value>
+    <comment>Error shown on the status line or in the Import Query Plan dialog.</comment>
+  </data>
+  <data name="QueryLabCore_ExecutionTime" xml:space="preserve">
+    <value>Execution time</value>
+    <comment>Query Lab, Summary tab, the table of figures: name of a row, the time the query took to run.</comment>
+  </data>
+  <data name="QueryLabCore_PlanningTime" xml:space="preserve">
+    <value>Planning time</value>
+    <comment>Query Lab, Summary tab, the table of figures: name of a row, the time the planner took.</comment>
+  </data>
+  <data name="QueryLabCore_JitTime" xml:space="preserve">
+    <value>JIT time</value>
+    <comment>Query Lab, Summary tab, the table of figures: name of a row, the time spent on JIT compilation. JIT is a PostgreSQL term; keep it.</comment>
+  </data>
+  <data name="QueryLabCore_TriggerTime" xml:space="preserve">
+    <value>Trigger time</value>
+    <comment>Query Lab, Summary tab, the table of figures: name of a row, the time spent in triggers.</comment>
+  </data>
+  <data name="QueryLabCore_RowsReturned" xml:space="preserve">
+    <value>Rows returned</value>
+    <comment>Query Lab, Summary tab, the table of figures: name of a row, how many rows the query returned.</comment>
+  </data>
+  <data name="QueryLabCore_RowsEstimated" xml:space="preserve">
+    <value>Rows estimated</value>
+    <comment>Query Lab, Summary tab, the table of figures: name of a row, how many rows the planner expected.</comment>
+  </data>
+  <data name="QueryLabCore_EstimatedCost" xml:space="preserve">
+    <value>Estimated cost (planner units)</value>
+    <comment>Query Lab, Summary tab, the table of figures: name of a row, the planner's cost estimate. Planner units are PostgreSQL's arbitrary cost units, not time.</comment>
+  </data>
+  <data name="QueryLabCore_SharedHit" xml:space="preserve">
+    <value>Shared buffers hit</value>
+    <comment>Query Lab, Summary tab, the table of figures: name of a row, pages found in PostgreSQL's shared buffers (its cache). Shared buffers is a PostgreSQL term.</comment>
+  </data>
+  <data name="QueryLabCore_SharedRead" xml:space="preserve">
+    <value>Shared buffers read</value>
+    <comment>Query Lab, Summary tab, the table of figures: name of a row, pages read into PostgreSQL's shared buffers from outside them.</comment>
+  </data>
+  <data name="QueryLabCore_TempRead" xml:space="preserve">
+    <value>Temp blocks read</value>
+    <comment>Query Lab, Summary tab, the table of figures: name of a row, temporary-file blocks read.</comment>
+  </data>
+  <data name="QueryLabCore_TempWritten" xml:space="preserve">
+    <value>Temp blocks written</value>
+    <comment>Query Lab, Summary tab, the table of figures: name of a row, temporary-file blocks written.</comment>
+  </data>
+  <data name="QueryLabCore_PlanningBuffers" xml:space="preserve">
+    <value>Planning buffers</value>
+    <comment>Query Lab, Summary tab, the table of figures: name of a row, the pages the planner touched.</comment>
+  </data>
+  <data name="QueryLabCore_NodesToDisk" xml:space="preserve">
+    <value>Nodes that went to disk</value>
+    <comment>Query Lab, Summary tab, the table of figures: name of a row, how many plan nodes ran out of memory and used disk.</comment>
+  </data>
+  <data name="QueryLabCore_NotAnalyzed" xml:space="preserve">
+    <value>not analyzed</value>
+    <comment>Query Lab, Summary tab, the table of figures: why a side has no figure (tooltip of its dash): the plan came from EXPLAIN without ANALYZE.</comment>
+  </data>
+  <data name="QueryLabCore_NotReported" xml:space="preserve">
+    <value>not reported</value>
+    <comment>Query Lab, Summary tab, the table of figures: why a side has no planning time (tooltip of its dash): the plan does not say.</comment>
+  </data>
+  <data name="QueryLabCore_NotMeasured" xml:space="preserve">
+    <value>not measured</value>
+    <comment>Query Lab, Summary tab, the table of figures: why a side has no row count (tooltip of its dash).</comment>
+  </data>
+  <data name="QueryLabCore_NoBuffers" xml:space="preserve">
+    <value>no BUFFERS</value>
+    <comment>Query Lab, Summary tab, the table of figures: why a side has no buffer counts (tooltip of its dash): the plan was made without the BUFFERS option. BUFFERS is an EXPLAIN option; keep it.</comment>
+  </data>
+  <data name="QueryLabCore_BuffersUnknown" xml:space="preserve">
+    <value>BUFFERS unknown</value>
+    <comment>Query Lab, Summary tab, the table of figures: why a side has no buffer counts (tooltip of its dash): the plan does not say whether the BUFFERS option was on. BUFFERS is an EXPLAIN option; keep it.</comment>
+  </data>
+  <data name="QueryLabCore_OneRunEach" xml:space="preserve">
+    <value>one run each</value>
+    <comment>Query Lab, Summary tab, the table of figures: a short caveat beside Execution time: each side was measured once.</comment>
+  </data>
+  <data name="QueryLabCore_NoChange" xml:space="preserve">
+    <value>no change</value>
+    <comment>Query Lab, Summary tab, the table of figures: the Change column when a figure is the same on both sides.</comment>
+  </data>
+  <data name="QueryLabCore_EstimatesOnlyTitle" xml:space="preserve">
+    <value>Estimates only</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: heading. Neither or one plan was run with ANALYZE.</comment>
+  </data>
+  <data name="QueryLabCore_EstimatesOnlyNeither" xml:space="preserve">
+    <value>Neither plan was analyzed, so there is no time, actual row count or buffer use to compare there, only the planner's estimates. Estimated cost is in planner units, not time.</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under 'Estimates only', when neither plan was run with ANALYZE.</comment>
+  </data>
+  <data name="QueryLabCore_EstimatesOnlyBefore" xml:space="preserve">
+    <value>The before plan wasn't analyzed, so there is no time, actual row count or buffer use to compare there, only the planner's estimates. Estimated cost is in planner units, not time.</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under 'Estimates only', when the before plan was not run with ANALYZE. 'Before' is the left side of the comparison.</comment>
+  </data>
+  <data name="QueryLabCore_EstimatesOnlyAfter" xml:space="preserve">
+    <value>The after plan wasn't analyzed, so there is no time, actual row count or buffer use to compare there, only the planner's estimates. Estimated cost is in planner units, not time.</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under 'Estimates only', when the after plan was not run with ANALYZE. 'After' is the right side of the comparison.</comment>
+  </data>
+  <data name="QueryLabCore_OneRunTitle" xml:space="preserve">
+    <value>One run each</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: heading. Each side was measured once.</comment>
+  </data>
+  <data name="QueryLabCore_OneRunDetail" xml:space="preserve">
+    <value>Each side is a single run. Timings move between runs, with other load on the server and with what is already in memory, so run each a few times before reading much into the difference.</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under 'One run each'. Must not say which side is faster or better.</comment>
+  </data>
+  <data name="QueryLabCore_TimingOffTitle" xml:space="preserve">
+    <value>Timing was off</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: heading. A plan was run with EXPLAIN's TIMING OFF option.</comment>
+  </data>
+  <data name="QueryLabCore_TimingOffBoth" xml:space="preserve">
+    <value>Both plans ran with TIMING OFF, so only the total execution time compares, not each node's.</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under 'Timing was off'. TIMING OFF is an EXPLAIN option; keep it.</comment>
+  </data>
+  <data name="QueryLabCore_TimingOffBefore" xml:space="preserve">
+    <value>The before plan ran with TIMING OFF, so only the total execution time compares, not each node's.</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under 'Timing was off'. TIMING OFF is an EXPLAIN option; keep it.</comment>
+  </data>
+  <data name="QueryLabCore_TimingOffAfter" xml:space="preserve">
+    <value>The after plan ran with TIMING OFF, so only the total execution time compares, not each node's.</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under 'Timing was off'. TIMING OFF is an EXPLAIN option; keep it.</comment>
+  </data>
+  <data name="QueryLabCore_CacheTitle" xml:space="preserve">
+    <value>The cache may explain part of the difference</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: heading. One side read much more from disk than the other.</comment>
+  </data>
+  <data name="QueryLabCore_CacheBeforeMore" xml:space="preserve">
+    <value>The before run read {more} blocks from outside shared buffers (the disk or the OS cache) and the after run read {less}. A run that finds its data already in memory reads less from disk whatever its plan. Run both again in turn, or compare the buffers each node touched.</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under the cache heading, when the before side read more. {more} and {less} are block counts such as 12,400 and 80. Shared buffers is PostgreSQL's cache.</comment>
+  </data>
+  <data name="QueryLabCore_CacheAfterMore" xml:space="preserve">
+    <value>The after run read {more} blocks from outside shared buffers (the disk or the OS cache) and the before run read {less}. A run that finds its data already in memory reads less from disk whatever its plan. Run both again in turn, or compare the buffers each node touched.</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under the cache heading, when the after side read more. {more} and {less} are block counts such as 12,400 and 80. Shared buffers is PostgreSQL's cache.</comment>
+  </data>
+  <data name="QueryLabCore_CacheUnknownTitle" xml:space="preserve">
+    <value>Cache use unknown</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: heading. A plan has no buffer counts.</comment>
+  </data>
+  <data name="QueryLabCore_CacheUnknownNeither" xml:space="preserve">
+    <value>Neither plan has buffer counts, so a warm cache can't be told apart from a change in the plan. pgNimbus's Explain Analyze always asks for BUFFERS.</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under 'Cache use unknown'. Explain Analyze is the name of a pgNimbus command; BUFFERS is an EXPLAIN option; keep it.</comment>
+  </data>
+  <data name="QueryLabCore_CacheUnknownBefore" xml:space="preserve">
+    <value>The before plan has no buffer counts, so a warm cache can't be told apart from a change in the plan. pgNimbus's Explain Analyze always asks for BUFFERS.</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under 'Cache use unknown'. Explain Analyze is the name of a pgNimbus command; BUFFERS is an EXPLAIN option; keep it.</comment>
+  </data>
+  <data name="QueryLabCore_CacheUnknownAfter" xml:space="preserve">
+    <value>The after plan has no buffer counts, so a warm cache can't be told apart from a change in the plan. pgNimbus's Explain Analyze always asks for BUFFERS.</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under 'Cache use unknown'. Explain Analyze is the name of a pgNimbus command; BUFFERS is an EXPLAIN option; keep it.</comment>
+  </data>
+  <data name="QueryLabCore_VersionsTitle" xml:space="preserve">
+    <value>Different PostgreSQL versions</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: heading.</comment>
+  </data>
+  <data name="QueryLabCore_VersionsDetail" xml:space="preserve">
+    <value>The before plan comes from PostgreSQL {before} and the after plan from {after}. The planner, its cost model and the executor differ between versions.</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under 'Different PostgreSQL versions'. {before} and {after} are server versions, such as 16.4 and 17.2.</comment>
+  </data>
+  <data name="QueryLabCore_CostScalesTitle" xml:space="preserve">
+    <value>Costs are on different scales</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: heading. Settings that scale the planner's costs differ.</comment>
+  </data>
+  <data name="QueryLabCore_CostScalesDetail" xml:space="preserve">
+    <value>The settings that scale the planner's costs differ ({settings}), so its estimated costs are in different units on each side.</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under 'Costs are on different scales'. {settings} is a list of PostgreSQL setting names, such as 'random_page_cost, seq_page_cost'.</comment>
+  </data>
+  <data name="QueryLabCore_SettingsUnknownTitle" xml:space="preserve">
+    <value>Settings unknown on one side</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: heading. One plan does not list its planner settings.</comment>
+  </data>
+  <data name="QueryLabCore_SettingsUnknownBefore" xml:space="preserve">
+    <value>The before plan doesn't say which planner settings were changed from their defaults, so settings can't be compared.</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under 'Settings unknown on one side'.</comment>
+  </data>
+  <data name="QueryLabCore_SettingsUnknownAfter" xml:space="preserve">
+    <value>The after plan doesn't say which planner settings were changed from their defaults, so settings can't be compared.</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under 'Settings unknown on one side'.</comment>
+  </data>
+  <data name="QueryLabCore_JitTitle" xml:space="preserve">
+    <value>JIT compiled one side only</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: heading. JIT is a PostgreSQL term; keep it.</comment>
+  </data>
+  <data name="QueryLabCore_JitBefore" xml:space="preserve">
+    <value>JIT took {time} of the before run, and is part of its execution time. It starts above jit_above_cost, so a change in estimates can switch it on or off.</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under the JIT heading. {time} is a duration such as '12.5 ms'. jit_above_cost is a PostgreSQL setting; keep it.</comment>
+  </data>
+  <data name="QueryLabCore_JitAfter" xml:space="preserve">
+    <value>JIT took {time} of the after run, and is part of its execution time. It starts above jit_above_cost, so a change in estimates can switch it on or off.</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under the JIT heading. {time} is a duration such as '12.5 ms'. jit_above_cost is a PostgreSQL setting; keep it.</comment>
+  </data>
+  <data name="QueryLabCore_ConnectionsTitle" xml:space="preserve">
+    <value>Different connections</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: heading.</comment>
+  </data>
+  <data name="QueryLabCore_ConnectionsDetail" xml:space="preserve">
+    <value>The before plan ran on {before} and the after plan on {after}: the data, the statistics and the server can differ.</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under 'Different connections'. {before} and {after} are connection names such as 'db.example.com/shop'.</comment>
+  </data>
+  <data name="QueryLabCore_StatementsTitle" xml:space="preserve">
+    <value>Different statements</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: heading. The two plans are for different SQL text.</comment>
+  </data>
+  <data name="QueryLabCore_StatementsDetail" xml:space="preserve">
+    <value>The two plans are for different statement text, so a difference can come from the rewrite as well as from the data, the statistics or the indexes.</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under 'Different statements'.</comment>
+  </data>
+  <data name="QueryLabCore_RowsTitle" xml:space="preserve">
+    <value>Different rows returned</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: heading. The two runs returned different numbers of rows.</comment>
+  </data>
+  <data name="QueryLabCore_RowsDetail" xml:space="preserve">
+    <value>The before run returned {before} rows and the after run {after}: the data or the statement changed between them, so they did not do the same work.</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under 'Different rows returned'. {before} and {after} are row counts such as 1,200 and 1,180.</comment>
+  </data>
+  <data name="QueryLabCore_ShapeTitle" xml:space="preserve">
+    <value>The plan's shape changed</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: heading. Plan nodes were added, removed or moved.</comment>
+  </data>
+  <data name="QueryLabCore_ShapeDetail" xml:space="preserve">
+    <value>{changes}. The Plan changes tab shows where.</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under 'The plan's shape changed'. {changes} is a list such as '2 nodes added and 1 node removed'; its first letter is made upper case. Plan changes is the name of a tab.</comment>
+  </data>
+  <data name="QueryLabCore_ShapeAdded_one" xml:space="preserve">
+    <value>{number} node added</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: part of the list in the 'shape changed' note. Singular. {number} is 1.</comment>
+  </data>
+  <data name="QueryLabCore_ShapeAdded_other" xml:space="preserve">
+    <value>{number} nodes added</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: part of the list in the 'shape changed' note. Plural. {number} is a count such as 3.</comment>
+  </data>
+  <data name="QueryLabCore_ShapeRemoved_one" xml:space="preserve">
+    <value>{number} node removed</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: part of the list in the 'shape changed' note. Singular. {number} is 1.</comment>
+  </data>
+  <data name="QueryLabCore_ShapeRemoved_other" xml:space="preserve">
+    <value>{number} nodes removed</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: part of the list in the 'shape changed' note. Plural. {number} is a count such as 3.</comment>
+  </data>
+  <data name="QueryLabCore_ShapeMoved_one" xml:space="preserve">
+    <value>{number} node moved to another parent</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: part of the list in the 'shape changed' note. Singular. {number} is 1. A parent is the plan node above it.</comment>
+  </data>
+  <data name="QueryLabCore_ShapeMoved_other" xml:space="preserve">
+    <value>{number} nodes moved to another parent</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: part of the list in the 'shape changed' note. Plural. {number} is a count such as 3. A parent is the plan node above it.</comment>
+  </data>
+  <data name="QueryLabCore_ListTwo" xml:space="preserve">
+    <value>{first} and {second}</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: joins two parts of a list, such as '2 nodes added and 1 node removed'.</comment>
+  </data>
+  <data name="QueryLabCore_ListThree" xml:space="preserve">
+    <value>{first}, {second} and {third}</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: joins three parts of a list, such as '2 nodes added, 1 node removed and 1 node moved to another parent'.</comment>
+  </data>
+  <data name="QueryLabCore_WorkersShortTitle" xml:space="preserve">
+    <value>Fewer parallel workers than planned</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: heading. A Gather node started fewer parallel workers than it planned.</comment>
+  </data>
+  <data name="QueryLabCore_WorkersShortBefore" xml:space="preserve">
+    <value>A Gather launched fewer workers than it planned in the before run: the server had none to spare (max_parallel_workers), which changes the time without changing the plan.</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under 'Fewer parallel workers than planned'. Gather is a plan node name and max_parallel_workers a PostgreSQL setting; keep them.</comment>
+  </data>
+  <data name="QueryLabCore_WorkersShortAfter" xml:space="preserve">
+    <value>A Gather launched fewer workers than it planned in the after run: the server had none to spare (max_parallel_workers), which changes the time without changing the plan.</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under 'Fewer parallel workers than planned'. Gather is a plan node name and max_parallel_workers a PostgreSQL setting; keep them.</comment>
+  </data>
+  <data name="QueryLabCore_WorkersShortBoth" xml:space="preserve">
+    <value>A Gather launched fewer workers than it planned in the before and the after run: the server had none to spare (max_parallel_workers), which changes the time without changing the plan.</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under 'Fewer parallel workers than planned', when both runs were short. Gather is a plan node name and max_parallel_workers a PostgreSQL setting; keep them.</comment>
+  </data>
+  <data name="QueryLabCore_WorkersDiffTitle" xml:space="preserve">
+    <value>Different numbers of parallel workers</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: heading.</comment>
+  </data>
+  <data name="QueryLabCore_WorkersDiffDetail" xml:space="preserve">
+    <value>A Gather ran with {before} before and {after} after, which changes its time without the plan changing.</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under 'Different numbers of parallel workers'. {before} and {after} are counts of workers, such as '2 workers' and '1 worker'. Gather is a plan node name; keep it.</comment>
+  </data>
+  <data name="QueryLabCore_Workers_one" xml:space="preserve">
+    <value>{number} worker</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: a count of parallel workers, used in the 'different numbers of parallel workers' note. Singular. {number} is 1.</comment>
+  </data>
+  <data name="QueryLabCore_Workers_other" xml:space="preserve">
+    <value>{number} workers</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: a count of parallel workers, used in the 'different numbers of parallel workers' note. Plural. {number} is a count such as 2.</comment>
+  </data>
+  <data name="QueryLabCore_SpillSort" xml:space="preserve">
+    <value>sort on disk</value>
+    <comment>Query Lab, Plan changes tab: why a plan node went to disk, shown beside 'Went to disk' and on the node's line.</comment>
+  </data>
+  <data name="QueryLabCore_SpillSortSize" xml:space="preserve">
+    <value>sort on disk ({size} kB)</value>
+    <comment>Query Lab, Plan changes tab: why a plan node went to disk. {size} is a number of kilobytes such as 2400.</comment>
+  </data>
+  <data name="QueryLabCore_SpillHash" xml:space="preserve">
+    <value>hash in {batches} batches</value>
+    <comment>Query Lab, Plan changes tab: why a plan node went to disk: its hash table was split. {batches} is a number greater than 1, such as 4.</comment>
+  </data>
+  <data name="QueryLabCore_SpillHashAggregate" xml:space="preserve">
+    <value>hash aggregate in {batches} batches</value>
+    <comment>Query Lab, Plan changes tab: why a plan node went to disk: its hash aggregate was split. {batches} is a number greater than 1, such as 5.</comment>
+  </data>
+  <data name="QueryLabCore_SpillDisk" xml:space="preserve">
+    <value>{size} kB on disk</value>
+    <comment>Query Lab, Plan changes tab: why a plan node went to disk. {size} is a number of kilobytes such as 2400.</comment>
+  </data>
+  <data name="QueryLabCore_SpillTemp" xml:space="preserve">
+    <value>wrote {blocks} temp blocks</value>
+    <comment>Query Lab, Plan changes tab: why a plan node went to disk: it wrote temporary-file blocks. {blocks} is a count such as 120.</comment>
+  </data>
+  <data name="QueryLabCore_FoldedAdded_one" xml:space="preserve">
+    <value>{number} scan added</value>
+    <comment>Query Lab, Plan changes tab: a row of the tree that stands for many scans added at once (a partition list changed). Singular. {number} is 1 (English always has 5 or more).</comment>
+  </data>
+  <data name="QueryLabCore_FoldedAdded_other" xml:space="preserve">
+    <value>{number} scans added</value>
+    <comment>Query Lab, Plan changes tab: a row of the tree that stands for many scans added at once (a partition list changed). Plural. {number} is a count such as 312.</comment>
+  </data>
+  <data name="QueryLabCore_FoldedRemoved_one" xml:space="preserve">
+    <value>{number} scan removed</value>
+    <comment>Query Lab, Plan changes tab: a row of the tree that stands for many scans removed at once (a partition list changed). Singular. {number} is 1 (English always has 5 or more).</comment>
+  </data>
+  <data name="QueryLabCore_FoldedRemoved_other" xml:space="preserve">
+    <value>{number} scans removed</value>
+    <comment>Query Lab, Plan changes tab: a row of the tree that stands for many scans removed at once (a partition list changed). Plural. {number} is a count such as 312.</comment>
+  </data>
+  <data name="QueryLabCore_InputsSwapped" xml:space="preserve">
+    <value>outer and inner inputs swapped</value>
+    <comment>Query Lab, Plan changes tab, 'What changed' list of a changed node: a join's two inputs changed sides.</comment>
+  </data>
+  <data name="QueryLabCore_NowParallel" xml:space="preserve">
+    <value>now parallel</value>
+    <comment>Query Lab, Plan changes tab, 'What changed' list of a changed node: the node runs in parallel in the after plan and did not before.</comment>
+  </data>
+  <data name="QueryLabCore_NoLongerParallel" xml:space="preserve">
+    <value>no longer parallel</value>
+    <comment>Query Lab, Plan changes tab, 'What changed' list of a changed node: the node ran in parallel in the before plan and does not now.</comment>
+  </data>
+  <data name="QueryLabCore_DetailRemoved" xml:space="preserve">
+    <value>{key} removed: {value}</value>
+    <comment>Query Lab, Plan changes tab, 'What changed' list of a changed node: a condition only the before plan had. {key} is PostgreSQL's name of it, such as 'Filter' or 'Index Cond'; {value} is the condition, such as '(customer_id = 42)'.</comment>
+  </data>
+  <data name="QueryLabCore_DetailAdded" xml:space="preserve">
+    <value>{key} added: {value}</value>
+    <comment>Query Lab, Plan changes tab, 'What changed' list of a changed node: a condition only the after plan has. {key} is PostgreSQL's name of it, such as 'Recheck Cond'; {value} is the condition, such as '(customer_id = 42)'.</comment>
+  </data>
+  <data name="QueryLabCore_PropertyChange" xml:space="preserve">
+    <value>{property}: {before} → {after}</value>
+    <comment>Query Lab, Plan changes tab, 'What changed' list of a changed node: a property that differs. {property} is one of the property names below, such as 'join type'; {before} and {after} are PostgreSQL's values, such as Inner and Left, or 'none'.</comment>
+  </data>
+  <data name="QueryLabCore_PropJoinType" xml:space="preserve">
+    <value>join type</value>
+    <comment>Query Lab, Plan changes tab, 'What changed' list of a changed node: name of a property of a join node (Inner, Left, …).</comment>
+  </data>
+  <data name="QueryLabCore_PropStrategy" xml:space="preserve">
+    <value>strategy</value>
+    <comment>Query Lab, Plan changes tab, 'What changed' list of a changed node: name of a property of an aggregate or set operation node (Plain, Sorted, Hashed).</comment>
+  </data>
+  <data name="QueryLabCore_PropMode" xml:space="preserve">
+    <value>mode</value>
+    <comment>Query Lab, Plan changes tab, 'What changed' list of a changed node: name of a property of an aggregate node (Simple, Partial, Finalize).</comment>
+  </data>
+  <data name="QueryLabCore_PropOperation" xml:space="preserve">
+    <value>operation</value>
+    <comment>Query Lab, Plan changes tab, 'What changed' list of a changed node: name of a property of a ModifyTable node (Insert, Update, Delete).</comment>
+  </data>
+  <data name="QueryLabCore_PropIndex" xml:space="preserve">
+    <value>index</value>
+    <comment>Query Lab, Plan changes tab, 'What changed' list of a changed node: name of a property of an index scan, the index it uses.</comment>
+  </data>
+  <data name="QueryLabCore_PropDirection" xml:space="preserve">
+    <value>direction</value>
+    <comment>Query Lab, Plan changes tab, 'What changed' list of a changed node: name of a property of an index scan (Forward, Backward).</comment>
+  </data>
+  <data name="QueryLabCore_NoValue" xml:space="preserve">
+    <value>none</value>
+    <comment>Query Lab, Plan changes tab, 'What changed' list of a changed node: the value of a property one side does not have, such as no index.</comment>
+  </data>
+  <data name="QueryLabCore_PlanTooLarge" xml:space="preserve">
+    <value>This plan is larger than {size} MB of text, more than Query Lab keeps.</value>
+    <comment>Query Lab, status line after saving or changing a saved plan failed. {size} is a number of megabytes, such as 4. Query Lab is a feature name.</comment>
+  </data>
+  <data name="QueryLabCore_TooManyPlans" xml:space="preserve">
+    <value>Query Lab already keeps {count} plans, the most it holds. Delete some to save another.</value>
+    <comment>Query Lab, status line after saving or changing a saved plan failed. {count} is the limit, such as 200. Query Lab is a feature name.</comment>
+  </data>
+  <data name="QueryLabCore_IndexUnreadable" xml:space="preserve">
+    <value>Query Lab's list of saved plans ({path}) can't be read, so nothing was changed.</value>
+    <comment>Query Lab, status line after saving or changing a saved plan failed. {path} is the path of a file. Query Lab is a feature name.</comment>
+  </data>
+  <data name="QueryLabCore_IndexWriteFailed" xml:space="preserve">
+    <value>Query Lab couldn't write its list of saved plans: {reason}</value>
+    <comment>Query Lab, status line after saving or changing a saved plan failed. {reason} is the operating system's message, such as 'Access denied'. Query Lab is a feature name.</comment>
+  </data>
+  <data name="QueryLabCore_PlanWriteFailed" xml:space="preserve">
+    <value>Query Lab couldn't save the plan: {reason}</value>
+    <comment>Query Lab, status line after saving or changing a saved plan failed. {reason} is the operating system's message, such as 'Access denied'. Query Lab is a feature name.</comment>
+  </data>
+
   <!-- ===== Crash ===== -->
   <data name="Crash_Title" xml:space="preserve">
     <value>pgNimbus — Unexpected Error</value>

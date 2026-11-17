@@ -627,6 +627,10 @@ public sealed partial class QueryViewModel : ObservableObject
         OnPropertyChanged(nameof(ColumnCapText));
         OnPropertyChanged(nameof(CapStatusText));
         UpdateTabTitle();
+
+        // The plan's warnings strip and header line are written from the plan, so they
+        // are written again rather than left in the language they were shown in.
+        _describePlan?.Invoke();
     }
 
     /// <summary>This tab's row-detail sidebar state: the selected row as a name/value form.</summary>
@@ -1398,16 +1402,17 @@ public sealed partial class QueryViewModel : ObservableObject
     /// every source of one: the Explain commands, a hand-written EXPLAIN that was Run
     /// (see <see cref="TryParsePlanOutput"/>), and a pasted import. <paramref name="displayText"/>
     /// is what the text pane shows; <paramref name="summaryPrefix"/> leads the header line
-    /// ("Imported plan"); <paramref name="leadingWarnings"/> are pinned above the analyzer's
-    /// findings (the rolled-back / ran-for-real notes).
+    /// ("Imported plan"); <paramref name="leadingWarning"/> is pinned above the analyzer's
+    /// findings (the rolled-back / ran-for-real note). Both are functions so the strip and
+    /// the header line can be written again in another language.
     /// </summary>
     private void ShowPlan(
         ExplainResult result,
         string displayText,
         string? planJson,
         PlanCapture capture,
-        string? summaryPrefix = null,
-        IReadOnlyList<PlanWarningViewModel>? leadingWarnings = null)
+        Func<string>? summaryPrefix = null,
+        Func<PlanWarning>? leadingWarning = null)
     {
         ShownImport = null;
         PlanCapture = capture;
@@ -1415,22 +1420,30 @@ public sealed partial class QueryViewModel : ObservableObject
         ExplainRoot = root;
         ApplyPlanHeat(root);
 
-        var warnings = new List<PlanWarningViewModel>();
-        if (leadingWarnings is not null)
+        _describePlan = () =>
         {
-            warnings.AddRange(leadingWarnings);
-        }
+            var warnings = new List<PlanWarningViewModel>();
+            if (leadingWarning is not null)
+            {
+                warnings.Add(new PlanWarningViewModel(leadingWarning()));
+            }
 
-        warnings.AddRange(PlanAnalyzer.Condense(PlanAnalyzer.Analyze(result)).Select(w => new PlanWarningViewModel(w)));
-        PlanWarnings = warnings;
+            warnings.AddRange(PlanAnalyzer.Condense(PlanAnalyzer.Analyze(result)).Select(w => new PlanWarningViewModel(w)));
+            PlanWarnings = warnings;
+
+            var planningFragment = result.PlanningTimeMs is { } planMs ? Strings.Results_PlanPlanning(planMs.ToString("F3")) : null;
+            var executionFragment = result.ExecutionTimeMs is { } execMs ? Strings.Results_PlanExecution(execMs.ToString("F3")) : null;
+            ExplainSummary = string.Join("   ", new[] { summaryPrefix?.Invoke(), planningFragment, executionFragment }.Where(f => f is not null));
+        };
+        _describePlan();
 
         ExplainText = displayText;
         PlanJson = planJson;
-        var planningFragment = result.PlanningTimeMs is { } planMs ? Strings.Results_PlanPlanning(planMs.ToString("F3")) : null;
-        var executionFragment = result.ExecutionTimeMs is { } execMs ? Strings.Results_PlanExecution(execMs.ToString("F3")) : null;
-        ExplainSummary = string.Join("   ", new[] { summaryPrefix, planningFragment, executionFragment }.Where(f => f is not null));
         IsShowingPlan = true;
     }
+
+    /// <summary>Writes the plan's warnings strip and header line in the language now loaded; null with no plan shown yet.</summary>
+    private Action? _describePlan;
 
     /// <summary>
     /// Shows a plan that was imported from pasted text rather than run against the DB
@@ -1444,7 +1457,7 @@ public sealed partial class QueryViewModel : ObservableObject
     {
         ShowPlan(plan.Result, plan.DisplayText, plan.RawJson,
             new PlanCapture(plan.Result, plan.RawJson ?? plan.DisplayText, SavedPlanSource.Imported, null, null, HistoryText.Now()),
-            summaryPrefix: Strings.Results_PlanImported);
+            summaryPrefix: static () => Strings.Results_PlanImported);
         ShownImport = plan;
         Status = Strings.Results_PlanImported;
     }
@@ -1461,7 +1474,7 @@ public sealed partial class QueryViewModel : ObservableObject
             {
                 Saved = saved,
             },
-            summaryPrefix: Strings.Results_PlanSavedSummary);
+            summaryPrefix: static () => Strings.Results_PlanSavedSummary);
         ShownImport = plan;
         Status = Strings.Results_PlanSavedStatus(saved.Name);
     }
@@ -1522,22 +1535,20 @@ public sealed partial class QueryViewModel : ObservableObject
     private void ShowRunPlan(string sql, ImportedPlan plan)
     {
         var analyzed = plan.Result.Root.ActualLoops is not null || plan.Result.ExecutionTimeMs is not null;
-        var notes = analyzed && SqlStatementInspector.IsDataModifying(SqlStatementInspector.StripExplain(sql))
-            ? new List<PlanWarningViewModel>
-            {
-                new(new PlanWarning(
-                    PlanWarningSeverity.Warning,
-                    Strings.Results_PlanRunWriteTitle,
-                    Strings.Results_PlanRunWriteDetail,
-                    plan.Result.Root.NodeType,
-                    null)),
-            }
+        var nodeType = plan.Result.Root.NodeType;
+        Func<PlanWarning>? note = analyzed && SqlStatementInspector.IsDataModifying(SqlStatementInspector.StripExplain(sql))
+            ? () => new PlanWarning(
+                PlanWarningSeverity.Warning,
+                Strings.Results_PlanRunWriteTitle,
+                Strings.Results_PlanRunWriteDetail,
+                nodeType,
+                null)
             : null;
 
         ShowPlan(plan.Result, plan.DisplayText, plan.RawJson,
             new PlanCapture(plan.Result, plan.RawJson ?? plan.DisplayText, SavedPlanSource.Run,
                 SqlStatementInspector.StripExplain(sql).Trim(), null, HistoryText.Now()),
-            leadingWarnings: notes);
+            leadingWarning: note);
     }
 
     /// <summary>
@@ -1588,21 +1599,19 @@ public sealed partial class QueryViewModel : ObservableObject
 
             // Reassure the user their data is intact: ANALYZE ran the write, but ExplainService
             // rolled it back. Leads the strip so it's the first thing seen for a write plan.
-            var notes = analyze && SqlStatementInspector.IsDataModifying(target)
-                ? new List<PlanWarningViewModel>
-                {
-                    new(new PlanWarning(
-                        PlanWarningSeverity.Info,
-                        Strings.Results_PlanRolledBackTitle,
-                        Strings.Results_PlanRolledBackDetail,
-                        result.Root.NodeType,
-                        null)),
-                }
+            var nodeType = result.Root.NodeType;
+            Func<PlanWarning>? note = analyze && SqlStatementInspector.IsDataModifying(target)
+                ? () => new PlanWarning(
+                    PlanWarningSeverity.Info,
+                    Strings.Results_PlanRolledBackTitle,
+                    Strings.Results_PlanRolledBackDetail,
+                    nodeType,
+                    null)
                 : null;
 
             ShowPlan(result, ExplainTextFormatter.Format(result), run.Json,
                 new PlanCapture(result, run.Json, SavedPlanSource.Explain, target, run.ServerVersion, HistoryText.Now()),
-                leadingWarnings: notes);
+                leadingWarning: note);
             Status = Strings.Results_StatusPlanReady;
         }
         catch (OperationCanceledException)

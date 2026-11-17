@@ -1,4 +1,6 @@
+using System.Collections;
 using System.Globalization;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Query;
 
 namespace PgNimbus.Core.QueryLab;
@@ -31,14 +33,19 @@ public sealed record PlanDiffNode(
     IReadOnlyList<string> Differences,
     IReadOnlyList<PlanDiffNode> Children)
 {
-    /// <summary>
-    /// The node's header in EXPLAIN's text layout: the after plan's when there is one,
-    /// or what a folded row stands for ("312 partition scans").
-    /// </summary>
-    public string Header { get; init; } =
+    private readonly string _header =
         After is { } after ? ExplainTextFormatter.HeaderFor(after)
         : Before is { } before ? ExplainTextFormatter.HeaderFor(before)
         : string.Empty;
+
+    /// <summary>
+    /// The node's header in EXPLAIN's text layout: the after plan's when there is one,
+    /// or what a folded row stands for ("312 scans removed"), in the language now loaded.
+    /// </summary>
+    public string Header => Folded == 0 ? _header
+        : Change == PlanNodeChange.Added
+            ? Strings.QueryLabCore_FoldedAdded(Folded, Folded.ToString("N0", CultureInfo.InvariantCulture))
+            : Strings.QueryLabCore_FoldedRemoved(Folded, Folded.ToString("N0", CultureInfo.InvariantCulture));
 
     /// <summary>
     /// The node hangs under a different parent than before (a scan that moved to the
@@ -54,6 +61,27 @@ public sealed record PlanDiffNode(
     /// or all removed (a partition list after pruning changed); they are its children.
     /// </summary>
     public int Folded { get; init; }
+}
+
+/// <summary>
+/// Text that is written in the language loaded when it is read, so a tree kept on
+/// screen follows a change of language without being built again.
+/// </summary>
+internal sealed class LiveTexts(IReadOnlyList<Func<string>> texts) : IReadOnlyList<string>
+{
+    public string this[int index] => texts[index]();
+
+    public int Count => texts.Count;
+
+    public IEnumerator<string> GetEnumerator()
+    {
+        foreach (var text in texts)
+        {
+            yield return text();
+        }
+    }
+
+    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }
 
 /// <summary>The merged tree of two plans and how many nodes changed in each way.</summary>
@@ -167,7 +195,7 @@ public static class PlanDiff
             var swapped = InputsSwapped(beforeIndex, index);
             if (swapped)
             {
-                differences.Add("outer and inner inputs swapped");
+                differences.Add(() => Strings.QueryLabCore_InputsSwapped);
             }
 
             // Moved when the nearest matched ancestor is another node: a Gather put above
@@ -192,7 +220,7 @@ public static class PlanDiff
             }
 
             return new PlanDiffNode(
-                change, before, node, Metrics(beforeMetrics, before), Metrics(afterMetrics, node), differences, children)
+                change, before, node, Metrics(beforeMetrics, before), Metrics(afterMetrics, node), new LiveTexts(differences), children)
             {
                 Moved = moved,
                 InputsSwapped = swapped,
@@ -305,10 +333,8 @@ public static class PlanDiff
                 if (end - start >= FoldThreshold)
                 {
                     var run = children.GetRange(start, end - start);
-                    var word = change == PlanNodeChange.Added ? "added" : "removed";
                     folded.Add(new PlanDiffNode(change, null, null, null, null, [], run)
                     {
-                        Header = string.Create(CultureInfo.InvariantCulture, $"{run.Count:N0} scans {word}"),
                         Folded = run.Count,
                     });
                     start = end;
@@ -328,25 +354,30 @@ public static class PlanDiff
             && (node.After ?? node.Before) is { } plan
             && PlanNodeLabel.Of(plan).Family == PlanNodeFamily.Scan;
 
-        private List<string> Differences(int before, int after)
+        /// <summary>
+        /// What differs between two matched nodes, each line written when it is read, so the
+        /// tree follows a change of language. Node and property values are PostgreSQL's own.
+        /// </summary>
+        private List<Func<string>> Differences(int before, int after)
         {
             var a = _before.Labels[before];
             var b = _after.Labels[after];
-            var differences = new List<string>();
+            var differences = new List<Func<string>>();
             if (a.Type != b.Type)
             {
-                differences.Add($"{a.Type} → {b.Type}");
+                var text = $"{a.Type} → {b.Type}";
+                differences.Add(() => text);
             }
 
-            Compare("join type", a.JoinType, b.JoinType);
-            Compare("strategy", a.Strategy, b.Strategy);
-            Compare("mode", a.PartialMode ?? "Simple", b.PartialMode ?? "Simple");
-            Compare("operation", a.Operation, b.Operation);
-            Compare("index", a.Index, b.Index);
-            Compare("direction", a.Direction ?? "Forward", b.Direction ?? "Forward");
+            Compare(static () => Strings.QueryLabCore_PropJoinType, a.JoinType, b.JoinType);
+            Compare(static () => Strings.QueryLabCore_PropStrategy, a.Strategy, b.Strategy);
+            Compare(static () => Strings.QueryLabCore_PropMode, a.PartialMode ?? "Simple", b.PartialMode ?? "Simple");
+            Compare(static () => Strings.QueryLabCore_PropOperation, a.Operation, b.Operation);
+            Compare(static () => Strings.QueryLabCore_PropIndex, a.Index, b.Index);
+            Compare(static () => Strings.QueryLabCore_PropDirection, a.Direction ?? "Forward", b.Direction ?? "Forward");
             if (a.Parallel != b.Parallel)
             {
-                differences.Add(b.Parallel ? "now parallel" : "no longer parallel");
+                differences.Add(b.Parallel ? static () => Strings.QueryLabCore_NowParallel : static () => Strings.QueryLabCore_NoLongerParallel);
             }
 
             var beforeDetails = Conditions(_before.Nodes[before]);
@@ -355,11 +386,12 @@ public static class PlanDiff
             {
                 if (!afterDetails.TryGetValue(key, out var now))
                 {
-                    differences.Add($"{key} removed: {value}");
+                    differences.Add(() => Strings.QueryLabCore_DetailRemoved(key, value));
                 }
                 else if (now != value)
                 {
-                    differences.Add($"{key}: {value} → {now}");
+                    var text = $"{key}: {value} → {now}";
+                    differences.Add(() => text);
                 }
             }
 
@@ -367,17 +399,18 @@ public static class PlanDiff
             {
                 if (!beforeDetails.ContainsKey(key))
                 {
-                    differences.Add($"{key} added: {value}");
+                    differences.Add(() => Strings.QueryLabCore_DetailAdded(key, value));
                 }
             }
 
             return differences;
 
-            void Compare(string what, string? was, string? now)
+            void Compare(Func<string> what, string? was, string? now)
             {
                 if (was != now)
                 {
-                    differences.Add($"{what}: {was ?? "none"} → {now ?? "none"}");
+                    differences.Add(() => Strings.QueryLabCore_PropertyChange(
+                        what(), was ?? Strings.QueryLabCore_NoValue, now ?? Strings.QueryLabCore_NoValue));
                 }
             }
         }

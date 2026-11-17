@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using CommunityToolkit.Mvvm.ComponentModel;
 using PgNimbus.Core.Localization;
 using PgNimbus.Core.Query;
@@ -38,8 +39,6 @@ public sealed class WarningChangeViewModel(PlanWarning warning, bool introduced)
 
     public string Word => introduced ? Strings.QueryLab_WarningNew : Strings.QueryLab_WarningGone;
 
-    internal void RefreshText() => OnPropertyChanged(nameof(Word));
-
     public string Title => warning.Title;
 
     public string Detail => warning.Detail;
@@ -55,9 +54,17 @@ public sealed partial class PlanComparisonViewModel : ObservableObject
 {
     public PlanComparisonViewModel(PlanComparison comparison, string beforeLabel, string afterLabel)
     {
-        Comparison = comparison;
         BeforeLabel = beforeLabel;
         AfterLabel = afterLabel;
+        Describe(comparison);
+        Roots = [.. comparison.Diff.Roots.Select(r => new PlanDiffNodeViewModel(r))];
+    }
+
+    /// <summary>The figures, notes and warnings: everything Core wrote in words for this comparison.</summary>
+    [MemberNotNull(nameof(Comparison), nameof(Metrics), nameof(Notes), nameof(WarningChanges))]
+    private void Describe(PlanComparison comparison)
+    {
+        Comparison = comparison;
         Metrics = [.. comparison.Metrics.Select(r => new PlanMetricRowViewModel(r))];
         Notes = [.. comparison.Notes.Select(n => new PlanWarningViewModel(n))];
         WarningChanges =
@@ -65,35 +72,35 @@ public sealed partial class PlanComparisonViewModel : ObservableObject
             .. comparison.WarningsResolved.Select(w => new WarningChangeViewModel(w, introduced: false)),
             .. comparison.WarningsIntroduced.Select(w => new WarningChangeViewModel(w, introduced: true)),
         ];
-        Roots = [.. comparison.Diff.Roots.Select(r => new PlanDiffNodeViewModel(r))];
-
     }
 
     /// <summary>Raises the text that is composed from the language, after a change of language.</summary>
     internal void RefreshText()
     {
+        // Core wrote the figures' labels, the notes and the warnings; it writes them again
+        // over the same tree, so the tree keeps its selection and what is open.
+        Describe(Comparison.InCurrentLanguage());
+        OnPropertyChanged(nameof(Comparison));
+        OnPropertyChanged(nameof(Metrics));
+        OnPropertyChanged(nameof(Notes));
+        OnPropertyChanged(nameof(WarningChanges));
         OnPropertyChanged(nameof(SettingChanges));
         OnPropertyChanged(nameof(ChangeSummary));
-        foreach (var change in WarningChanges)
-        {
-            change.RefreshText();
-        }
-
         foreach (var root in Roots)
         {
             root.RefreshText();
         }
     }
 
-    public PlanComparison Comparison { get; }
+    public PlanComparison Comparison { get; private set; }
 
     public string BeforeLabel { get; }
 
     public string AfterLabel { get; }
 
-    public IReadOnlyList<PlanMetricRowViewModel> Metrics { get; }
+    public IReadOnlyList<PlanMetricRowViewModel> Metrics { get; private set; }
 
-    public IReadOnlyList<PlanWarningViewModel> Notes { get; }
+    public IReadOnlyList<PlanWarningViewModel> Notes { get; private set; }
 
     /// <summary>"enable_seqscan: default → off", one per planner setting that differs.</summary>
     public IReadOnlyList<string> SettingChanges =>
@@ -104,7 +111,7 @@ public sealed partial class PlanComparisonViewModel : ObservableObject
 
     public bool HasSettingChanges => Comparison.Settings.Count > 0;
 
-    public IReadOnlyList<WarningChangeViewModel> WarningChanges { get; }
+    public IReadOnlyList<WarningChangeViewModel> WarningChanges { get; private set; }
 
     public bool HasWarningChanges => WarningChanges.Count > 0;
 
