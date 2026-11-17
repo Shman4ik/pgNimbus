@@ -16,8 +16,8 @@ namespace PgNimbus.App.Tests;
 /// the fixtures show (names, values, SQL) is told apart by where it is drawn
 /// (<see cref="IsData"/>) or listed in <see cref="DataText"/>.
 /// <para>
-/// <see cref="Converted"/> is the scenarios already moved to the table; the list
-/// grows with each slice until it is <c>Scenarios.All</c>.
+/// <see cref="Converted"/> is every scenario but <see cref="NotScanned"/>, and
+/// <see cref="Every_scenario_is_scanned"/> fails when a new one is not added to it.
 /// </para>
 /// </summary>
 [NotInParallel]
@@ -44,7 +44,8 @@ public partial class PseudoLocaleTests
         ["main-window-empty"] = null,
         ["main-window-error"] = null,
         ["main-window-script"] = null,
-        // main-window-plan and -plan-tree join once Core's PlanAnalyzer warnings are in the table.
+        ["main-window-plan"] = null,
+        ["main-window-plan-tree"] = null,
         ["main-window-palette"] = null,
         ["main-window-sidebar-filter"] = null,
         ["main-window-cell-inspector"] = null,
@@ -76,7 +77,8 @@ public partial class PseudoLocaleTests
         ["crash-window"] = null,
         ["host-key-dialog"] = null,
         ["query-lab-empty"] = null,
-        // query-lab-window and query-lab-plan-changes join in PR 4 (Core's plan comparison text).
+        ["query-lab-window"] = null,
+        ["query-lab-plan-changes"] = null,
         ["backup-window"] = null,
         ["backup-window-running"] = null,
         ["backup-window-done"] = null,
@@ -98,10 +100,39 @@ public partial class PseudoLocaleTests
         ["bulk-grant-dialog"] = null,
     };
 
+    /// <summary>
+    /// Scenarios left out of the scan: the controls gallery is a developer's page of
+    /// sample controls with made-up labels, built by the harness, not a screen of the app.
+    /// </summary>
+    private static readonly HashSet<string> NotScanned = ["controls-gallery"];
+
+    [Test]
+    public async Task Every_scenario_is_scanned()
+    {
+        var missing = Scenarios.All
+            .Select(s => s.Name)
+            .Where(name => !Converted.ContainsKey(name) && !NotScanned.Contains(name))
+            .ToList();
+
+        await Assert.That(missing).IsEmpty();
+    }
+
     /// <summary>Text that is data in the fixtures, or a name never translated.</summary>
     private static readonly HashSet<string> DataText =
     [
         "pgNimbus",
+        // Query Lab's plan fixtures: a node, a node change and measured times.
+        "Bitmap Heap Scan on orders o",
+        "Seq Scan → Bitmap Heap Scan",
+        "0.204 ms",
+        "0.239 ms",
+        "0.365 ms",
+        "0.532 ms",
+        "11.4 ms",
+        "7.635 ms",
+        "9.712 ms",
+        "−11 ms (−96.8%)",
+        "−9.18 ms (−94.5%)",
         "Local shop",
         "Staging",
         "Production",

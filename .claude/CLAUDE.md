@@ -2957,10 +2957,20 @@ translator's side is [`docs/dev/translating.md`](../docs/dev/translating.md).
   open, which is what catches text computed once and kept (status lines, class
   `statusText`/`statusMessage`, are exempt from that pass). Data is told apart by
   kind (SQL, key caps, plans, JSON trees, completion items, history lines, grid
-  cells) and the rest is listed in its `DataText`. A
-  view converted to the table leaves `Pending` and joins `Converted` in the same
-  PR; both lists end empty and complete. The screenshot fixtures write their own
+  cells) and the rest is listed in its `DataText`. Since PR 4 of #435
+  `Pending` is empty and `Converted` holds every scenario but the controls
+  gallery (`NotScanned`: sample controls with made-up labels):
+  `Every_scenario_is_scanned` fails when a new scenario is not added there, and
+  a new view has no `Pending` to hide in. The screenshot fixtures write their own
   status text through `Strings` too, or the scan reads them as leftovers.
+  **Core text** goes through `Strings` too when it reaches the screen (plan
+  warnings, Query Lab's notes, a lost connection's message, import limits). It
+  stays English where it only reaches the crash log, is saved and read back
+  (`QueryHistoryStore.WithheldSummary`), is matched by code
+  (`QueryEngine.UnreadableCell`, the server's `<insufficient privilege>`), or
+  is a guard the UI never shows. Text Core writes once (a `QueryError`) is
+  history, like a status line; what a view keeps on screen is redrawn on a
+  switch (`PlanComparison.InCurrentLanguage()`, the plan's warnings strip).
 
 ## NativeAOT constraints
 

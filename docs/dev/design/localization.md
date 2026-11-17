@@ -143,7 +143,8 @@ interface font. Also on the release pass: the Linux packages' font dependency
    in it and fails on any visible text (TextBlock, button and menu header,
    placeholder, tooltip) that is neither pseudo-localized nor data from the
    fixture. That catches strings from code-behind and view models, which no
-   static check can.
+   static check can. It covers every scenario but the controls gallery (a page of
+  sample controls), and a scenario added later fails a test until it is listed.
 2. **A XAML lint** test fails on a literal `Text=`, `Content=`, `Header=`,
    `ToolTip.Tip=`, `PlaceholderText=`, `Watermark=`, `Title=` or
    `cmd:CommandTip.Text=` with letters in any view.
