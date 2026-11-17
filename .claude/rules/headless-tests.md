@@ -4,6 +4,7 @@ paths:
   - "tools/Screenshot/**"
   - "tests/PgNimbus.App.Tests/**"
   - "scripts/screenshots/**"
+  - ".github/workflows/l10n-review.yml"
 ---
 
 <!-- Moved out of .claude/CLAUDE.md so it loads only when working on these paths. Same rule applies: keep it current in the same PR. -->
@@ -23,7 +24,8 @@ dotnet run --project tools/Screenshot -- <outputDir> [scenario-substring]
 Pass a scratch directory — nothing it writes is committed. `--language <tag or
 Strings.<tag>.resx>` renders in a translation (`qps-ploc` is the pseudo-locale),
 to check that text fits and its script draws; it refuses `--baseline` and
-`--publish`, which are English (CLAUDE.md, "Localization"). Omit the filter to
+`--publish`, which are English (CLAUDE.md, "Localization"). `--theme light|dark`
+renders one theme (also refused with those two, which need both). Omit the filter to
 render every scenario in `Scenarios.All` (the single list: `Program` walks it,
 the baseline set is exactly its names × {light,dark}, and `Marketing` picks its
 sources out of it by name).
@@ -177,6 +179,59 @@ How the fixtures work, and why they're shaped this way:
   attach on the UI thread; `MainViewModel.WorkspaceFilesRestored` is the task a
   test waits on (`WorkspaceRestoreTests`, via the fixture's `workspace`
   parameter).
+
+## Translation review (`l10n-review.yml`)
+
+Two checks for a translation, both looked at on the pull request (#435):
+
+- **The fit test**, `TranslationFitTests` in `PgNimbus.App.Tests`. Every scenario
+  the pseudo-locale scan covers (`PseudoLocaleTests.Converted`, with its scope
+  for the overlays) is built in English and then in `qps-ploc` and every
+  `Strings.<tag>.resx` in `src/PgNimbus.Core/Localization` (read from the file,
+  so a translation not built in yet is checked too), every tab of every tab strip
+  opened, and every text block that is not data (`PseudoLocaleTests.IsData`)
+  measured: cut by trimming or a line limit (nimbusUi's `CutTextTip.IsCut`),
+  wider than its box on one line, taller than its box when it wraps, or drawn
+  past a clipping ancestor or the window's edge sideways (a row scrolled half
+  out of a list is scrolling, not a cut). The English and the translated build
+  have the same tree, so a block is matched with its English twin by its path
+  in the visual tree, and only what fits in English and not in the language is
+  reported (what is cut in English is a layout matter, counted but not listed).
+  **Report-only**: a Markdown table per language goes to the test output and to
+  `PGNIMBUS_FIT_REPORT` (default `bin/<cfg>/net11.0/TestResults/translation-fit.md`),
+  and the test fails only when it compared nothing. It is `[Explicit]`, about a
+  minute per language, so the ordinary suite skips it and only a filter that
+  names it runs it:
+
+  ```bash
+  dotnet run --project tests/PgNimbus.App.Tests -c Release -- --treenode-filter "/*/*/TranslationFitTests/*"
+  ```
+
+  `PGNIMBUS_FIT_LANGUAGES=de,ru` narrows the languages, `PGNIMBUS_FIT_SCENARIOS`
+  the scenarios (a substring). On 2026-11-17 the pseudo-locale alone gave 30
+  findings over 68 scenarios (4,835 blocks), most of them 2 to 15 px.
+- **The renders**, `scripts/screenshots/render-languages.sh <out> [filter]`:
+  every scenario in English and each translation, light only, as
+  `<out>/<lang>/<scenario>.png` (`PGNIMBUS_RENDER_LANGUAGES=en,qps-ploc` picks
+  the languages). It renders on the host, for reading, not for baselines.
+- **The workflow** runs both on a pull request touching
+  `src/PgNimbus.Core/Localization/**`, any `.axaml` or `tools/Screenshot/**`, and
+  on `workflow_dispatch`. Job `render` is read-only (installs `fonts-noto-cjk`,
+  or Chinese is boxes) and uploads a one-day `l10n-review` artifact. Job
+  `publish` runs only for a PR from this repository, never a fork, runs no code
+  from the PR (it downloads the artifact with `gh` and uses `git`, no actions),
+  and puts the images on the orphan branch **`l10n-review`** as
+  `pr-<number>/<lang>/<scenario>.png`, then upserts one PR comment (found by the
+  marker `<!-- pgnimbus-l10n-review -->`): the fit summary on top, the findings
+  collapsed, and a `<details>` per language with each screen captioned, from
+  `raw.githubusercontent.com` with `?<head sha>` against caching. A comment holds
+  at most 65,536 characters, about six languages of screens; languages past that
+  are listed as links to the branch. The branch is force-pushed as one commit
+  holding only open PRs' directories, so it never grows: each run drops closed
+  PRs' directories, and a PR's `closed` event drops its own and says so in the
+  comment. Pushes are serialized by the job's `l10n-review-branch` concurrency
+  group and guarded by `--force-with-lease` with a retry. Never protect or
+  delete the branch by hand; the next run rebuilds it.
 
 ## Headless UI tests (`PgNimbus.App.Tests`)
 

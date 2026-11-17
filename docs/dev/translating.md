@@ -99,6 +99,37 @@ The check fails for a key that is not in `Strings.resx` (it was renamed or
 removed), a placeholder that differs from the English text, a plural form your
 language does not have, or a missing `_LanguageName`.
 
+## Your pull request gets screenshots of every screen in your language
+
+When you open a pull request that changes a file in
+`src/PgNimbus.Core/Localization/`, a check named **Translation review** runs. It
+draws every screen of the app in English and in each translation, and adds one
+comment to your pull request:
+
+- At the top, a table of text that fits in English but not in your language:
+  the screen, the English text, your text, and how many pixels it needs and
+  has. Make that text shorter, or say in the pull request that a screen needs
+  more room.
+- Under it, one section per language. Open your language and look at each
+  screen. Look for text that is cut off, text that runs into other text, and
+  characters that show as boxes.
+
+Each new push to the pull request updates the same comment. The images are
+removed when the pull request is closed. A pull request from a fork gets no
+comment, because the check cannot write to the repository from a fork. The
+images are still in the check's run on the Actions tab, as the `l10n-review`
+download, for one day.
+
+To make the same images on your computer, from a clone of the repository:
+
+```bash
+scripts/screenshots/render-languages.sh /tmp/l10n
+dotnet run --project tests/PgNimbus.App.Tests -c Release -- --treenode-filter "/*/*/TranslationFitTests/*"
+```
+
+The first command writes `/tmp/l10n/<language>/<screen>.png`. The second prints
+the table of text that does not fit, and writes it to the file that it names.
+
 ## When the English text changes
 
 New keys are added to `Strings.resx` as pgNimbus grows. Until a translation has

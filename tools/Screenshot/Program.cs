@@ -11,9 +11,10 @@ using PgNimbus.Screenshot;
 // Usage: dotnet run --project tools/Screenshot -- <outputDir> [scenario-substring]
 //                                                [--baseline <dir>] [--fail-on-new]
 //                                                [--language <tag or .resx file>]
+//                                                [--theme light|dark]
 //
-// Renders every scenario in light and dark and writes one PNG per (scenario,
-// theme). No display, no xdotool, no Postgres — see CLAUDE.md, "Headless
+// Renders every scenario in light and dark (or the one --theme names) and writes
+// one PNG per (scenario, theme). No display, no xdotool, no Postgres — see CLAUDE.md, "Headless
 // screenshot harness".
 //
 // With --baseline it also becomes the visual-regression gate: each rendered
@@ -29,6 +30,7 @@ string? baselineDir = null;
 string? publishRoot = null;
 var failOnNew = false;
 string? language = null;
+ThemeVariant[] themes = [ThemeVariant.Light, ThemeVariant.Dark];
 
 for (var i = 0; i < args.Length; i++)
 {
@@ -79,6 +81,18 @@ for (var i = 0; i < args.Length; i++)
             language = args[i];
             break;
 
+        // One theme only: the translation review renders light alone, half the
+        // frames for the same check of what fits.
+        case "--theme":
+            if (++i >= args.Length || args[i] is not ("light" or "dark"))
+            {
+                Console.Error.WriteLine("--theme needs light or dark");
+                return 2;
+            }
+
+            themes = [args[i] == "dark" ? ThemeVariant.Dark : ThemeVariant.Light];
+            break;
+
         default:
             positional.Add(args[i]);
             break;
@@ -92,6 +106,12 @@ Directory.CreateDirectory(outDir);
 if (language is not null && (baselineDir is not null || publishRoot is not null))
 {
     Console.Error.WriteLine("--language renders a translation; baselines and published screenshots are English.");
+    return 2;
+}
+
+if (themes.Length == 1 && (baselineDir is not null || publishRoot is not null))
+{
+    Console.Error.WriteLine("--theme renders one theme; baselines and published screenshots need both.");
     return 2;
 }
 
@@ -124,7 +144,7 @@ foreach (var (name, build) in Scenarios.All)
         continue;
     }
 
-    foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
+    foreach (var theme in themes)
     {
         failures += Capture(name, theme, build) ? 0 : 1;
     }

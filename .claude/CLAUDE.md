@@ -2969,6 +2969,10 @@ translator's side is [`docs/dev/translating.md`](../docs/dev/translating.md).
   `Every_scenario_is_scanned` fails when a new scenario is not added there, and
   a new view has no `Pending` to hide in. The screenshot fixtures write their own
   status text through `Strings` too, or the scan reads them as leftovers.
+  `TranslationFitTests` (`[Explicit]`, report-only) lists text that fits in
+  English and not in a language, and `l10n-review.yml` posts every screen in
+  every language on the PR: `.claude/rules/headless-tests.md`, "Translation
+  review".
   **Core text** goes through `Strings` too when it reaches the screen (plan
   warnings, Query Lab's notes, a lost connection's message, import limits). It
   stays English where it only reaches the crash log, is saved and read back
