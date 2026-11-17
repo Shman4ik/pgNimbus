@@ -247,6 +247,9 @@ public partial class PseudoLocaleTests
         @"C:\Users\me\Documents\shop_2026-10-10_1432.dump",
         "shop_2026-10-10_1432.dump",
         "shop.sql",
+        // The same file shown whole on Linux and macOS, where Path.GetFileName
+        // does not split a Windows path.
+        @"C:\Users\me\Documents\shop.sql",
         "query failed: ERROR:  permission denied for table payroll\ndetail: Query was: LOCK TABLE hr.payroll IN ACCESS SHARE MODE",
         "https://www.enterprisedb.com/downloads/postgres-postgresql-downloads",
         "winget install -e --id PostgreSQL.PostgreSQL.18 --interactive",
@@ -364,6 +367,14 @@ public partial class PseudoLocaleTests
 
                     window.Close();
                     Ui.Settle();
+
+                    // The Localizer holds its observers weakly, and a closed window's
+                    // stay in its tables until a collection: without one, every later
+                    // switch also updated every earlier scenario's controls, and the
+                    // live-switch pass took 13 minutes on a CI runner.
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                    GC.Collect();
                 }
 
                 await Assert.That(scanned).IsGreaterThan(Converted.Count);
