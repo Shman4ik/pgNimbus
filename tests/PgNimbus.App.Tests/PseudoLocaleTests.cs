@@ -315,9 +315,22 @@ public partial class PseudoLocaleTests
             {
                 var leftovers = new List<string>();
                 var scanned = 0;
+
+                // Once, not per scenario: a change of language reaches every live
+                // binding in the process, the earlier scenarios' and earlier tests'
+                // included, so a switch that changes nothing still costs.
+                if (!switchWhileOpen)
+                {
+                    Localizer.Load(Localizer.Pseudo);
+                }
+
                 foreach (var (name, build) in Scenarios.All.Where(s => Converted.ContainsKey(s.Name)))
                 {
-                    Localizer.Load(switchWhileOpen ? Localizer.English : Localizer.Pseudo);
+                    if (switchWhileOpen)
+                    {
+                        Localizer.Load(Localizer.English);
+                    }
+
                     var window = build();
                     Ui.Show(window);
                     Ui.Settle();
@@ -365,16 +378,12 @@ public partial class PseudoLocaleTests
                         }
                     }
 
+                    // No forced collection here (there was one per scenario): with a
+                    // few GB of earlier tests still reachable it cost seconds each, and
+                    // what made the switches slow was FrameworkStrings rewriting the
+                    // resources of every Application the run had made (see there).
                     window.Close();
                     Ui.Settle();
-
-                    // The Localizer holds its observers weakly, and a closed window's
-                    // stay in its tables until a collection: without one, every later
-                    // switch also updated every earlier scenario's controls, and the
-                    // live-switch pass took 13 minutes on a CI runner.
-                    GC.Collect();
-                    GC.WaitForPendingFinalizers();
-                    GC.Collect();
                 }
 
                 await Assert.That(scanned).IsGreaterThan(Converted.Count);
