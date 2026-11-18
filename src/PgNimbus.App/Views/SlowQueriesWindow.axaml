@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:app="using:PgNimbus.App"
         xmlns:vm="using:PgNimbus.App.ViewModels"
         xmlns:l="using:PgNimbus.App.Localization"
         xmlns:mon="using:PgNimbus.Core.Monitoring"
@@ -64,7 +65,7 @@
         </Border>
 
         <Panel Grid.Row="1" IsVisible="{Binding HasGrid}">
-            <DataGrid Name="StatementsGrid" ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow}"
+            <DataGrid app:HeaderFit.Enabled="True" Name="StatementsGrid" ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow}"
                       IsReadOnly="True" SelectionMode="Single"
                       CanUserResizeColumns="True" CanUserSortColumns="False"
                       GridLinesVisibility="Horizontal" HeadersVisibility="Column">

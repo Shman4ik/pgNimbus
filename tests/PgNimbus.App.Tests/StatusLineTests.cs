@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
+using Avalonia.Layout;
 using Avalonia.VisualTree;
 using Nimbus.Ui.Converters;
 using PgNimbus.App.ViewModels;
@@ -150,6 +151,40 @@ public class StatusLineTests
             Ui.Show(window);
             return (window, _ => set(window));
         }
+    }
+
+    /// <summary>
+    /// Squeezed by the segments beside it (the staged-changes segment in Chinese
+    /// left "已暂存 co…"), the main window's message is a stub that says nothing, and
+    /// is not drawn below <see cref="Views.StatusStub"/>'s width; with room it is back.
+    /// </summary>
+    [Test]
+    public async Task A_message_squeezed_to_a_stub_is_not_drawn()
+    {
+        await Ui.Run(async () =>
+        {
+            var (window, vm) = Scenarios.Shell();
+            Ui.Show(window);
+            vm.ActiveTab.Status = Failure;
+            Ui.Settle();
+
+            var status = TextBlockShowing(window, Failure);
+            await Assert.That(Views.StatusStub.GetMinWidth(status)).IsEqualTo(100);
+            await Assert.That(status.Bounds.Width).IsGreaterThan(100);
+            var drawn = status.Opacity;
+            await Assert.That(drawn).IsGreaterThan(0);
+
+            status.MaxWidth = 60;
+            Ui.Settle();
+            await Assert.That(CutTextTip.IsCut(status)).IsTrue();
+            await Assert.That(status.Opacity).IsEqualTo(0);
+
+            status.ClearValue(Layoutable.MaxWidthProperty);
+            Ui.Settle();
+            await Assert.That(status.Opacity).IsEqualTo(drawn);
+
+            window.Close();
+        });
     }
 
     private static TextBlock TextBlockShowing(Window window, string text) =>

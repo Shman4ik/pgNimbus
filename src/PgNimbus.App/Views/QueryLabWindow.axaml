@@ -189,14 +189,22 @@
                             <Border Classes="card" Padding="14,10" IsVisible="{Binding HasWarningChanges}">
                                 <StackPanel Spacing="4">
                                     <TextBlock Text="{l:Tr QueryLab_PlanWarnings}" FontWeight="SemiBold" />
-                                    <ItemsControl ItemsSource="{Binding WarningChanges}">
+                                    <!-- The word column is as wide as the longest word in the list, and
+                                         never under 40 (an English "Gone" fits): a translated word
+                                         ("Исчезло") was cut at a fixed 40. -->
+                                    <ItemsControl ItemsSource="{Binding WarningChanges}" Grid.IsSharedSizeScope="True">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate x:DataType="vm:WarningChangeViewModel">
-                                                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2" ToolTip.Tip="{Binding Detail}">
-                                                    <TextBlock Text="{Binding Glyph}" Width="14" />
-                                                    <TextBlock Text="{Binding Word}" Width="40" Opacity="0.7" />
-                                                    <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
-                                                </StackPanel>
+                                                <Grid ColumnSpacing="8" Margin="0,2" ToolTip.Tip="{Binding Detail}">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="14" />
+                                                        <ColumnDefinition Width="Auto" MinWidth="40" SharedSizeGroup="WarningWord" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="{Binding Glyph}" />
+                                                    <TextBlock Grid.Column="1" Text="{Binding Word}" Opacity="0.7" />
+                                                    <TextBlock Grid.Column="2" Text="{Binding Title}" TextWrapping="Wrap" />
+                                                </Grid>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
