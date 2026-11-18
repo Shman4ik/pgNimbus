@@ -1,3 +1,4 @@
+using System.Reflection;
 using Avalonia.Controls;
 using Avalonia.VisualTree;
 using PgNimbus.App.Views;
@@ -64,5 +65,51 @@ public class LocalizationTests
                 return Task.CompletedTask;
             });
         }
+    }
+
+    /// <summary>
+    /// A new application adds nothing to <see cref="Localizer.LanguageChanged"/>,
+    /// a static event, which holds its handlers for the life of the process. The
+    /// framework strings once added one per <see cref="App"/>, capturing it, and
+    /// these tests make a new App per test: a full run kept ~570 alive, every
+    /// switch rewrote their resources and walked their windows, and the
+    /// pseudo-locale scan ran CI past its 30 minutes.
+    /// </summary>
+    [Test]
+    public async Task A_new_application_adds_no_language_handler()
+    {
+        try
+        {
+            await Ui.Run(async () =>
+            {
+                var before = LanguageHandlers();
+                new App().Initialize();
+                new App().Initialize();
+
+                await Assert.That(LanguageHandlers()).IsEqualTo(before);
+
+                // And the running application's Fluent strings still follow a switch.
+                Localizer.Load(Localizer.Pseudo);
+                await Assert.That(Avalonia.Application.Current!.Resources["StringTextFlyoutCutText"])
+                    .IsEqualTo(Strings.Get(StringKey.Framework_Cut));
+                await Assert.That(Strings.Get(StringKey.Framework_Cut)).Contains("[");
+
+                Localizer.Load(Localizer.English);
+                await Assert.That(Avalonia.Application.Current!.Resources["StringTextFlyoutCutText"])
+                    .IsEqualTo(Strings.Get(StringKey.Framework_Cut));
+            });
+        }
+        finally
+        {
+            await Ui.Run(() =>
+            {
+                Localizer.Load(Localizer.English);
+                return Task.CompletedTask;
+            });
+        }
+
+        static int LanguageHandlers() =>
+            (typeof(Localizer).GetField(nameof(Localizer.LanguageChanged), BindingFlags.NonPublic | BindingFlags.Static)!
+                .GetValue(null) as Delegate)?.GetInvocationList().Length ?? 0;
     }
 }
