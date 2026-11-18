@@ -56,9 +56,19 @@ public static class LanguageFonts
     /// <summary>Follows the interface language from now on (from <c>App.Initialize</c>).</summary>
     public static void Install()
     {
-        Localizer.LanguageChanged += Apply;
+        // Once per process: the UI tests make an App per test, and a handler per
+        // App is what LocalizationTests.A_new_application_adds_no_language_handler
+        // exists to catch.
+        if (!_installed)
+        {
+            _installed = true;
+            Localizer.LanguageChanged += Apply;
+        }
+
         Apply();
     }
+
+    private static bool _installed;
 
     /// <summary>
     /// The Simplified Chinese face on this platform, the one the system draws its own
