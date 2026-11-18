@@ -687,6 +687,7 @@ public static class CommandCatalog
         {
             Id = CommandId.NotifyMonitor,
             TitleKey = StringKey.Command_NotifyMonitor,
+            SearchKey = StringKey.Command_NotifyMonitor_Search,
             Category = CommandCategory.Navigation,
             Glyph = "⚑",
             Chord = new(CommandKey.L, CmdShift),

@@ -230,7 +230,7 @@ public sealed partial class SlowQueriesViewModel : ObservableObject
         var text = await GetQueryTextAsync(target);
         var activity = target.Activity;
         var sql = $"""
-            -- From pg_stat_statements: {activity.Calls:N0} calls, {DurationText.Format(activity.TotalMs)} in total, {DurationText.Format(activity.MeanMs)} per call ({EnglishScopeText()}).
+            -- From pg_stat_statements: {activity.Calls:N0} calls, {DurationText.FormatEnglish(activity.TotalMs)} in total, {DurationText.FormatEnglish(activity.MeanMs)} per call ({EnglishScopeText()}).
             -- Its constants were replaced by $1, $2, …: put real values back before running it.
             {text}
             """;

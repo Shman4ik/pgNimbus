@@ -7587,10 +7587,6 @@
     <value>返回的行数不同</value>
     <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: heading. The two runs returned different numbers of rows.</comment>
   </data>
-  <data name="QueryLabCore_RowsDetail" xml:space="preserve">
-    <value>“之前”的运行返回了 {before} 行，“之后”的运行返回了 {after} 行：两次之间数据或语句发生了变化，因此它们做的不是同样的工作。</value>
-    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under 'Different rows returned'. {before} and {after} are row counts such as 1,200 and 1,180.</comment>
-  </data>
   <data name="QueryLabCore_ShapeTitle" xml:space="preserve">
     <value>计划的形状发生了变化</value>
     <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: heading. Plan nodes were added, removed or moved.</comment>
@@ -7850,5 +7846,17 @@
   <data name="Core_RenameTooLong" xml:space="preserve">
     <value>新名称长度超过 {bytes} 字节，PostgreSQL 会将其截断。</value>
     <comment>Status line: the name typed in the Rename dialog of a table's Maintenance menu is too long. {bytes} is the limit, such as 63.</comment>
+  </data>
+  <data name="QueryLabCore_RowCountsDetail" xml:space="preserve">
+    <value>两次运行返回的行数不同（“之前”：{before}，“之后”：{after}）：两次之间数据或语句发生了变化，因此它们做的不是同样的工作。</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under 'Different rows returned'. {before} and {after} are the row counts of the two runs, such as 1,200 and 1,180.</comment>
+  </data>
+  <data name="Command_NotifyMonitor_Search" xml:space="preserve">
+    <value>通知 监听 频道 事件</value>
+    <comment>Command palette (Ctrl+K): extra words the LISTEN / NOTIFY monitor row is also found by, never shown. Separate them with spaces; add the words a user of your language would type to look for notifications or listening on a channel. The English title and these English words are searched too.</comment>
+  </data>
+  <data name="Core_UnitBytes_other" xml:space="preserve">
+    <value>{count} 字节</value>
+    <comment>A size under one kilobyte, in Database Overview, the schema tree and the Backup window. {count} is a whole number such as 512.</comment>
   </data>
 </root>

@@ -99,7 +99,7 @@ public sealed partial class PgToolStatusViewModel : ObservableObject
     }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsSearching), nameof(IsReady), nameof(IsMissing))]
+    [NotifyPropertyChangedFor(nameof(IsSearching), nameof(IsReady), nameof(IsMissing), nameof(FolderLabel), nameof(ShowsFolderLabel))]
     private PgToolState _state = PgToolState.Searching;
 
     public bool IsSearching => State == PgToolState.Searching;
@@ -129,15 +129,22 @@ public sealed partial class PgToolStatusViewModel : ObservableObject
 
     /// <summary>True when Settings points at a folder instead of searching.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(FolderLabel))]
+    [NotifyPropertyChangedFor(nameof(FolderLabel), nameof(ShowsFolderLabel))]
     private string? _configuredDirectory;
 
     public bool IsConfigured => ConfiguredDirectory is not null;
 
-    /// <summary>The Settings card's folder line.</summary>
+    /// <summary>
+    /// The Settings card's folder line: the folder the user chose, or "Found
+    /// automatically" once a search found a program. Empty while searching and
+    /// when nothing was found, where it used to sit under "pg_dump not found".
+    /// </summary>
     public string FolderLabel => ConfiguredDirectory is { } folder
         ? Strings.Settings_PgToolsFromFolder(folder)
-        : Strings.Settings_PgToolsFoundAutomatically;
+        : State == PgToolState.Ready ? Strings.Settings_PgToolsFoundAutomatically : "";
+
+    /// <summary>Whether the Settings card shows <see cref="FolderLabel"/> at all.</summary>
+    public bool ShowsFolderLabel => FolderLabel.Length > 0;
 
     /// <summary>Raised when <see cref="Install"/> may have changed, so the owner can re-check what it can run.</summary>
     public event Action? Changed;

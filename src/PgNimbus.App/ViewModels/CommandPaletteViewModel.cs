@@ -11,7 +11,12 @@ namespace PgNimbus.App.ViewModels;
 /// <param name="Glyph">A single-character icon shown at the leading edge.</param>
 /// <param name="InvokeAsync">Runs the entry's effect; awaited after the palette closes.</param>
 /// <param name="Shortcut">The action's hotkey ("Ctrl+Enter"), shown so users learn it; null when it has none.</param>
-public sealed record PaletteItem(string Title, string Category, string Glyph, Func<Task> InvokeAsync, string? Shortcut = null);
+/// <param name="Aliases">
+/// Other texts the entry is found by and never shows, each matched on its own: an
+/// action's English title and search words (<c>CommandDescriptor.SearchAliases</c>).
+/// </param>
+public sealed record PaletteItem(
+    string Title, string Category, string Glyph, Func<Task> InvokeAsync, string? Shortcut = null, IReadOnlyList<string>? Aliases = null);
 
 /// <summary>
 /// The command palette (Ctrl+K / Ctrl+P): one keyboard-first control to
@@ -28,6 +33,10 @@ public sealed partial class CommandPaletteViewModel : ObservableObject
     // What each candidate is matched against ("title category"), built once per
     // candidate set instead of per candidate per keystroke.
     private string[] _haystacks = [];
+
+    // Each candidate's aliases (its English title, search words), matched one by
+    // one: a subsequence across all of them joined would match nearly anything.
+    private IReadOnlyList<string>?[] _aliases = [];
 
     // The previous keystroke's query (lower case) and the indexes into _all it
     // matched. One more character can only narrow a subsequence match, so the
@@ -89,9 +98,11 @@ public sealed partial class CommandPaletteViewModel : ObservableObject
     {
         _all = items;
         _haystacks = new string[items.Count];
+        _aliases = new IReadOnlyList<string>?[items.Count];
         for (var i = 0; i < items.Count; i++)
         {
             _haystacks[i] = $"{items[i].Title} {items[i].Category}";
+            _aliases[i] = items[i].Aliases is { Count: > 0 } aliases ? aliases : null;
         }
 
         _matchedQuery = null;
@@ -129,7 +140,7 @@ public sealed partial class CommandPaletteViewModel : ObservableObject
             for (var n = 0; n < count; n++)
             {
                 var i = candidates?[n] ?? n;
-                if (FuzzyMatcher.Score(_haystacks[i], query) is { } score)
+                if (Score(i, query) is { } score)
                 {
                     matched.Add(i);
                     scored.Add((i, score));
@@ -145,6 +156,26 @@ public sealed partial class CommandPaletteViewModel : ObservableObject
         }
 
         SelectedItem = Results.Count > 0 ? Results[0] : null;
+    }
+
+    // The best of the title's score and each alias's: a title hit ranks as it
+    // always did, and an entry found only by an alias still ranks by how well
+    // that alias matched.
+    private int? Score(int index, string query)
+    {
+        var best = FuzzyMatcher.Score(_haystacks[index], query);
+        if (_aliases[index] is { } aliases)
+        {
+            foreach (var alias in aliases)
+            {
+                if (FuzzyMatcher.Score(alias, query) is { } score && (best is null || score > best))
+                {
+                    best = score;
+                }
+            }
+        }
+
+        return best;
     }
 
     /// <summary>Moves the highlighted row by <paramref name="delta"/>, wrapping around the list.</summary>

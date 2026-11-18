@@ -1446,6 +1446,10 @@
     <value>Navigation</value>
     <comment>Keyboard shortcut sheet (F1) section heading (shown in capitals in English) and heading in the shortcuts reference: navigation and application commands: windows, connections, settings.</comment>
   </data>
+  <data name="Command_NotifyMonitor_Search" xml:space="preserve">
+    <value>notifications listen channel events pg_notify</value>
+    <comment>Command palette (Ctrl+K): extra words the LISTEN / NOTIFY monitor row is also found by, never shown. Separate them with spaces; add the words a user of your language would type to look for notifications or listening on a channel. The English title and these English words are searched too.</comment>
+  </data>
 
   <!-- ===== Shell ===== -->
   <data name="Shell_AppMenuTip" xml:space="preserve">
@@ -7847,10 +7851,6 @@
     <value>Different rows returned</value>
     <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: heading. The two runs returned different numbers of rows.</comment>
   </data>
-  <data name="QueryLabCore_RowsDetail" xml:space="preserve">
-    <value>The before run returned {before} rows and the after run {after}: the data or the statement changed between them, so they did not do the same work.</value>
-    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under 'Different rows returned'. {before} and {after} are row counts such as 1,200 and 1,180.</comment>
-  </data>
   <data name="QueryLabCore_ShapeTitle" xml:space="preserve">
     <value>The plan's shape changed</value>
     <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: heading. Plan nodes were added, removed or moved.</comment>
@@ -8035,6 +8035,10 @@
     <value>Query Lab couldn't save the plan: {reason}</value>
     <comment>Query Lab, status line after saving or changing a saved plan failed. {reason} is the operating system's message, such as 'Access denied'. Query Lab is a feature name.</comment>
   </data>
+  <data name="QueryLabCore_RowCountsDetail" xml:space="preserve">
+    <value>The two runs returned different numbers of rows (before: {before}, after: {after}): the data or the statement changed between them, so they did not do the same work.</value>
+    <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under 'Different rows returned'. {before} and {after} are the row counts of the two runs, such as 1,200 and 1,180.</comment>
+  </data>
 
   <!-- ===== Crash ===== -->
   <data name="Crash_Title" xml:space="preserve">
@@ -8138,5 +8142,49 @@
   <data name="Core_RenameTooLong" xml:space="preserve">
     <value>The new name is longer than {bytes} bytes, and PostgreSQL would cut it short.</value>
     <comment>Status line: the name typed in the Rename dialog of a table's Maintenance menu is too long. {bytes} is the limit, such as 63.</comment>
+  </data>
+  <data name="Core_UnitMilliseconds" xml:space="preserve">
+    <value>{value} ms</value>
+    <comment>A duration in milliseconds, in Query Lab, Slow Queries and the plan views. {value} is a number written with a dot, such as 0.25 or 1,025.5. Write the unit as your language abbreviates it.</comment>
+  </data>
+  <data name="Core_UnitSeconds" xml:space="preserve">
+    <value>{value} s</value>
+    <comment>A duration in seconds, in Query Lab and Slow Queries. {value} is a number such as 3.3. Write the unit as your language abbreviates it.</comment>
+  </data>
+  <data name="Core_UnitMinutes" xml:space="preserve">
+    <value>{value} min</value>
+    <comment>A duration in minutes, in Slow Queries. {value} is a number such as 1.5. Write the unit as your language abbreviates it.</comment>
+  </data>
+  <data name="Core_UnitHours" xml:space="preserve">
+    <value>{value} h</value>
+    <comment>A duration in hours, in Slow Queries. {value} is a number such as 2.0. Write the unit as your language abbreviates it.</comment>
+  </data>
+  <data name="Core_UnitBytes_one" xml:space="preserve">
+    <value>{count} byte</value>
+    <comment>A size under one kilobyte, in Database Overview, the schema tree and the Backup window. {count} is a whole number.</comment>
+  </data>
+  <data name="Core_UnitBytes_other" xml:space="preserve">
+    <value>{count} bytes</value>
+    <comment>A size under one kilobyte, in Database Overview, the schema tree and the Backup window. {count} is a whole number such as 512.</comment>
+  </data>
+  <data name="Core_UnitKilobytes" xml:space="preserve">
+    <value>{value} KB</value>
+    <comment>A size in kilobytes (1024 bytes), in Database Overview, the schema tree and the Backup window. {value} is a number with one decimal, such as 208.0. Write the unit as your language abbreviates it.</comment>
+  </data>
+  <data name="Core_UnitMegabytes" xml:space="preserve">
+    <value>{value} MB</value>
+    <comment>A size in megabytes, as Core_UnitKilobytes. {value} is a number such as 64.6.</comment>
+  </data>
+  <data name="Core_UnitGigabytes" xml:space="preserve">
+    <value>{value} GB</value>
+    <comment>A size in gigabytes, as Core_UnitKilobytes. {value} is a number such as 1.2.</comment>
+  </data>
+  <data name="Core_UnitTerabytes" xml:space="preserve">
+    <value>{value} TB</value>
+    <comment>A size in terabytes, as Core_UnitKilobytes. {value} is a number such as 1.2.</comment>
+  </data>
+  <data name="Core_UnitPetabytes" xml:space="preserve">
+    <value>{value} PB</value>
+    <comment>A size in petabytes, as Core_UnitKilobytes. {value} is a number such as 1.2.</comment>
   </data>
 </root>

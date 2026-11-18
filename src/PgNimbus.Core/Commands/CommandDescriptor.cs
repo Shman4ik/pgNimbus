@@ -181,6 +181,44 @@ public sealed record CommandDescriptor
     /// <summary>The table entry behind <see cref="CheatTitle"/>, if the command has a shorter one.</summary>
     public StringKey? CheatTitleKey { get; init; }
 
+    /// <summary>
+    /// Words the palette also finds the command by and never shows ("notifications"
+    /// for the LISTEN / NOTIFY monitor), for a title that doesn't hold the word a
+    /// user of some language would look for; null for most commands.
+    /// </summary>
+    public StringKey? SearchKey { get; init; }
+
+    /// <summary>
+    /// What the palette matches besides <see cref="Title"/>: the English title, so
+    /// a user who knows the English name finds the command in any language, and
+    /// the <see cref="SearchKey"/> words in the interface language and in English.
+    /// Each is matched on its own; none is shown.
+    /// </summary>
+    public IReadOnlyList<string> SearchAliases
+    {
+        get
+        {
+            var title = Title;
+            var aliases = new List<string>(3);
+            void Add(string text)
+            {
+                if (text.Length > 0 && text != title && !aliases.Contains(text))
+                {
+                    aliases.Add(text);
+                }
+            }
+
+            Add(Strings.EnglishOf(TitleKey));
+            if (SearchKey is { } key)
+            {
+                Add(Strings.Get(key));
+                Add(Strings.EnglishOf(key));
+            }
+
+            return aliases;
+        }
+    }
+
     public required CommandCategory Category { get; init; }
 
     /// <summary>Which key handler owns this gesture; see <see cref="CommandScope"/>.</summary>
