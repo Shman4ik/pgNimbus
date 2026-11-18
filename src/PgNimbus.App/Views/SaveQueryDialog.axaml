@@ -1,7 +1,8 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:l="using:PgNimbus.App.Localization"
         x:Class="PgNimbus.App.Views.SaveQueryDialog"
-        Title="pgNimbus — Save query"
+        Title="{l:Tr Dialogs_SaveQueryTitle}"
         Width="420" SizeToContent="Height"
         CanResize="False"
         WindowStartupLocation="CenterOwner">
@@ -12,9 +13,9 @@
          selection rather than on the tab, and nobody found it. This asks at
          the moment of the gesture, next to what is being saved. -->
     <StackPanel Margin="20" Spacing="12">
-        <TextBlock Name="HeadingText" Classes="dialogTitle" Text="Save query" />
+        <TextBlock Name="HeadingText" Classes="dialogTitle" />
         <StackPanel Spacing="6">
-            <TextBlock Classes="dialogHint" Text="Name" />
+            <TextBlock Classes="dialogHint" Text="{l:Tr Dialogs_NameLabel}" />
             <TextBox Name="NameBox" KeyDown="OnNameBoxKeyDown" />
         </StackPanel>
         <!-- Only shown when the typed name already belongs to another entry:
@@ -23,8 +24,8 @@
         <TextBlock Name="ConflictText" Classes="statusText warn" FontSize="12"
                    TextWrapping="Wrap" IsVisible="False" />
         <StackPanel Classes="dialogButtons" Margin="0,4,0,0">
-            <Button Classes="soft" Content="Cancel" IsCancel="True" Click="OnCancelClick" />
-            <Button Name="SaveButton" Classes="accent" Content="Save" IsDefault="True" Click="OnSaveClick" />
+            <Button Classes="soft" Content="{l:Tr Common_Cancel}" IsCancel="True" Click="OnCancelClick" />
+            <Button Name="SaveButton" Classes="accent" IsDefault="True" Click="OnSaveClick" />
         </StackPanel>
     </StackPanel>
 

@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Query;
 using PgNimbus.Core.Security;
 
@@ -29,7 +30,7 @@ public sealed record RlsPolicyRow(RlsPolicyInfo Policy, bool RowSecurityEnabled)
     /// merely <em>named</em> PUBLIC is shown quoted, as the ACL grid shows it.
     /// </summary>
     public string RolesLabel => IsForEveryone
-        ? "public (every role)"
+        ? Strings.Security_PolicyForEveryone
         : string.Join(", ", Policy.Roles.Select(GrantScriptBuilder.GranteeLabel));
 
     public bool IsForEveryone => Policy.AppliesToEveryone;
@@ -58,13 +59,19 @@ public sealed record RlsPolicyRow(RlsPolicyInfo Policy, bool RowSecurityEnabled)
 /// One table's row-level security state, plus the sentence that explains a
 /// bypass when there is one.
 /// </summary>
-/// <param name="BypassReason">
+/// <param name="BypassReasonSource">
 /// Why the connected role sees every row anyway, or null when it does not. Built
 /// by the view model, which is the only place that knows the connected role's
 /// attributes.
 /// </param>
-public sealed record RlsTableRow(RlsTableState State, string? BypassReason)
+public sealed record RlsTableRow(RlsTableState State, Func<string?>? BypassReasonSource)
 {
+    /// <summary>The bypass explanation in the language in use, or null (see <see cref="BypassReasonSource"/>).</summary>
+    public string? BypassReason => BypassReasonSource?.Invoke();
+
+    /// <summary>The same table read again, so every text it says is composed anew (the policy rows are rebuilt too).</summary>
+    public RlsTableRow Rebuilt() => new(State, BypassReasonSource);
+
     public string Schema => State.Schema;
 
     public string Table => State.Table;
@@ -79,11 +86,11 @@ public sealed record RlsTableRow(RlsTableState State, string? BypassReason)
     public string Identity => Display;
 
     public string StatusLabel => State.RowSecurityEnabled
-        ? State.ForceRowSecurity ? "Enabled · FORCE" : "Enabled"
-        : "Not enabled";
+        ? State.ForceRowSecurity ? Strings.Security_RlsEnabledForce : Strings.Security_RlsEnabled
+        : Strings.Security_RlsNotEnabled;
 
     public string PolicyCountLabel =>
-        State.Policies.Count == 1 ? "1 policy" : $"{State.Policies.Count} policies";
+        Strings.Security_PolicyCount(State.Policies.Count);
 
     /// <summary>Policies exist and none of them does anything — protection that only looks like protection.</summary>
     public bool IsInert => State.HasInertPolicies;
@@ -117,8 +124,12 @@ public sealed record RlsTableRow(RlsTableState State, string? BypassReason)
 /// </summary>
 public sealed partial class RlsTabViewModel : ObservableObject, ISecuritySection
 {
-    /// <summary>The schema-filter entry that means "do not filter". Not a schema name.</summary>
-    public const string AllSchemas = "(all schemas)";
+    /// <summary>
+    /// The schema-filter entry that means "do not filter". Not a schema name: it is
+    /// the key itself, which the app's <c>StringKeyTemplate</c> draws as text that
+    /// follows a change of language, in the list and in the closed combo box.
+    /// </summary>
+    public static readonly object AllSchemas = StringKey.Security_AllSchemas;
 
     private readonly PrivilegeService _privileges;
     private readonly SecurityViewModel _host;
@@ -136,7 +147,7 @@ public sealed partial class RlsTabViewModel : ObservableObject, ISecuritySection
     /// filter reads null as "no filter" rather than as a schema named nothing.
     /// </summary>
     [ObservableProperty]
-    private string? _selectedSchema = AllSchemas;
+    private object? _selectedSchema = AllSchemas;
 
     [ObservableProperty]
     private RlsTableRow? _selectedTable;
@@ -156,7 +167,7 @@ public sealed partial class RlsTabViewModel : ObservableObject, ISecuritySection
     }
 
     /// <summary>The schema filter's entries: <see cref="AllSchemas"/> first, then every schema that has RLS.</summary>
-    public ObservableCollection<string> Schemas { get; } = [];
+    public ObservableCollection<object> Schemas { get; } = [];
 
     public RangeObservableCollection<RlsTableRow> Tables { get; } = [];
 
@@ -183,7 +194,7 @@ public sealed partial class RlsTabViewModel : ObservableObject, ISecuritySection
             // Clearing it makes the ComboBox push a null selection back through
             // the binding, so doing it on every refresh would churn the filter
             // for nothing.
-            if (!Schemas.Skip(1).SequenceEqual(schemas, StringComparer.Ordinal))
+            if (!Schemas.Skip(1).OfType<string>().SequenceEqual(schemas, StringComparer.Ordinal))
             {
                 Schemas.Clear();
                 Schemas.Add(AllSchemas);
@@ -195,11 +206,11 @@ public sealed partial class RlsTabViewModel : ObservableObject, ISecuritySection
 
             // Setting the property re-filters; when it is unchanged, filter by
             // hand so a refresh still picks up new tables.
-            var kept = previous is not null && schemas.Contains(previous, StringComparer.Ordinal)
-                ? previous
+            object kept = previous is string name && schemas.Contains(name, StringComparer.Ordinal)
+                ? name
                 : AllSchemas;
 
-            if (SelectedSchema == kept)
+            if (Equals(SelectedSchema, kept))
             {
                 ApplyFilter();
             }
@@ -214,11 +225,27 @@ public sealed partial class RlsTabViewModel : ObservableObject, ISecuritySection
         }
         catch (Exception ex)
         {
-            _host.ReportError("Row-level security", ex);
+            _host.ReportError(Strings.Security_TabRls, ex);
         }
     }
 
-    partial void OnSelectedSchemaChanged(string? value) => ApplyFilter();
+    partial void OnSelectedSchemaChanged(object? value) => ApplyFilter();
+
+    /// <summary>
+    /// The rows say their text through getters and are records, so they are built
+    /// again from the snapshot (no read of the server); what was selected stays.
+    /// </summary>
+    internal void OnLanguageChanged()
+    {
+        var policy = SelectedPolicy?.Name;
+        _allTables = _allTables.Select(table => table.Rebuilt()).ToList();
+        ApplyFilter();
+
+        if (policy is not null && SelectedTable?.Policies.FirstOrDefault(p => p.Name == policy) is { } same)
+        {
+            SelectedPolicy = same;
+        }
+    }
 
     /// <summary>
     /// Re-points the policy selection whenever the table changes — never left
@@ -232,8 +259,8 @@ public sealed partial class RlsTabViewModel : ObservableObject, ISecuritySection
     private void ApplyFilter()
     {
         var selected = SelectedTable;
-        var schema = SelectedSchema;
-        var all = schema is null || schema == AllSchemas;
+        var schema = SelectedSchema as string;
+        var all = schema is null;
 
         Tables.ReplaceAll(_allTables.Where(table => all || string.Equals(table.Schema, schema, StringComparison.Ordinal)));
 
@@ -257,7 +284,7 @@ public sealed partial class RlsTabViewModel : ObservableObject, ISecuritySection
     /// the table's owner skips it only while the table is not FORCE, so FORCE is
     /// the fix in that case and no fix at all in the other.</para>
     /// </summary>
-    private string? BypassReasonFor(RlsTableState state)
+    private Func<string?>? BypassReasonFor(RlsTableState state)
     {
         if (!state.BypassedByCurrentRole)
         {
@@ -269,28 +296,20 @@ public sealed partial class RlsTabViewModel : ObservableObject, ISecuritySection
 
         if (attributes is null)
         {
-            return $"{role} sees every row in this table, whatever the policies below say. "
-                + "Its role attributes could not be read, so this is either a superuser or BYPASSRLS role "
-                + "(which bypasses every table, always) or ownership of a table that is not FORCE ROW LEVEL SECURITY.";
+            return () => Strings.Security_BypassUnknown(role);
         }
 
         if (attributes.IsSuperuser)
         {
-            return $"{role} is a superuser, so it bypasses row-level security on every table in the cluster. "
-                + "That is unconditional: FORCE ROW LEVEL SECURITY does not apply the policies to it. "
-                + "Test these policies as the role your application connects as.";
+            return () => Strings.Security_BypassSuperuser(role);
         }
 
         if (attributes.BypassRls)
         {
-            return $"{role} has the BYPASSRLS attribute, so it bypasses row-level security on every table, always. "
-                + "FORCE ROW LEVEL SECURITY does not apply the policies to it. "
-                + "Test these policies as the role your application connects as.";
+            return () => Strings.Security_BypassAttribute(role);
         }
 
-        return $"{role} owns this table, or is a member of the role that does, and the table is not "
-            + "FORCE ROW LEVEL SECURITY — so the policies below are not applied to it, though they are "
-            + "applied to every other role. ALTER TABLE … FORCE ROW LEVEL SECURITY makes them apply to the owner too.";
+        return () => Strings.Security_BypassOwner(role);
     }
 
     /// <summary>

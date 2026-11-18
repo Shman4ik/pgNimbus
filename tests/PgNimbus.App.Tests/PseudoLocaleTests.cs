@@ -61,6 +61,41 @@ public partial class PseudoLocaleTests
         ["main-window-production"] = null,
         ["main-window-production-writes-on"] = null,
         ["shortcuts-window"] = typeof(Views.ShortcutsView),
+        ["activity-window"] = null,
+        ["activity-window-blocking"] = null,
+        ["database-overview-window"] = null,
+        ["slow-queries-window"] = null,
+        ["slow-queries-window-unavailable"] = null,
+        ["notify-window"] = null,
+        ["save-query-dialog"] = null,
+        ["staged-conflict-dialog"] = null,
+        ["confirm-dialog"] = null,
+        ["pending-changes-dialog"] = null,
+        ["import-plan-dialog"] = null,
+        ["import-dialog"] = null,
+        ["crash-window"] = null,
+        ["host-key-dialog"] = null,
+        ["query-lab-empty"] = null,
+        // query-lab-window and query-lab-plan-changes join in PR 4 (Core's plan comparison text).
+        ["backup-window"] = null,
+        ["backup-window-running"] = null,
+        ["backup-window-done"] = null,
+        ["backup-window-failed"] = null,
+        ["backup-window-tools-missing"] = null,
+        ["restore-window-choose"] = null,
+        ["restore-window"] = null,
+        ["restore-window-replace"] = null,
+        ["restore-window-running"] = null,
+        ["restore-window-done"] = null,
+        ["restore-window-failed"] = null,
+        ["restore-window-script"] = null,
+        ["security-window"] = null,
+        ["security-window-permissions"] = null,
+        ["security-window-default-privileges"] = null,
+        ["security-window-rls"] = null,
+        ["security-role-dialog"] = null,
+        ["security-drop-role-dialog"] = null,
+        ["bulk-grant-dialog"] = null,
     };
 
     /// <summary>Text that is data in the fixtures, or a name never translated.</summary>
@@ -145,6 +180,67 @@ public partial class PseudoLocaleTests
         "\"status\" <> 'cancelled'",
         "\"total\" >= '50'",
         "metadata->'notify'->>1",
+        // Monitoring windows
+        "app@shop",
+        "6 backends · 09:41:02",
+        "2 backends waiting on locks · 09:41:02",
+        "1.2 GB",
+        "6 relations · 3 unused indexes wasting 68 MB · 09:41:02",
+        "order_events",
+        "cache_invalidation",
+        "job_queue",
+        "products:24119",
+        "{\"event\":\"order.shipped\",\"order_id\":4815,\"carrier\":\"dhl\"}",
+        "customers:184002",
+        // Dialogs
+        "Delete 3 rows? This can't be undone.",
+        "2 staged changes to public.orders",
+        "order_id",
+        "line",
+        "qty",
+        "'packed'",
+        "'shipped'",
+        "note",
+        "NULL",
+        "'rush — customer called'",
+        "'gift wrap'",
+        "double precision",
+        "bastion.example.com:2222",
+        "ssh-ed25519",
+        "SHA256:N1SA3QGBX6UpjLt0OmRDWW3oayFMz/ZtKDZsysTgEag",
+        "orders for one customer · no index",
+        "orders for one customer · with index",
+        // Backup and Restore
+        "prod-eu · app@db.example.com:5432/shop",
+        "local · postgres@localhost:5432/shop",
+        @"C:\Users\me\Documents\shop_2026-10-10_1432.dump",
+        "shop_2026-10-10_1432.dump",
+        "shop.sql",
+        // The same file shown whole on Linux and macOS, where Path.GetFileName
+        // does not split a Windows path.
+        @"C:\Users\me\Documents\shop.sql",
+        "query failed: ERROR:  permission denied for table payroll\ndetail: Query was: LOCK TABLE hr.payroll IN ACCESS SHARE MODE",
+        "https://www.enterprisedb.com/downloads/postgres-postgresql-downloads",
+        "winget install -e --id PostgreSQL.PostgreSQL.18 --interactive",
+        // Security
+        "PostgreSQL 17.2",
+        "app_ro",
+        "app_rw",
+        "legacy_etl",
+        "readers",
+        "writers",
+        "the read-only API user",
+        "statement_timeout=30s",
+        "sales",
+        "sales.orders",
+        "sales.order_items",
+        "sales.customers",
+        "sales.shipments",
+        "email",
+        "app_ro: SELECT",
+        "REFERENCES",
+        "TRIGGER",
+        "MAINTAIN",
     ];
 
     /// <summary>The words of a key cap, which are written as the key is labelled.</summary>
@@ -158,7 +254,8 @@ public partial class PseudoLocaleTests
     private static partial Regex Word();
 
     // SQL a person wrote or the app shows as code: it starts with a statement keyword.
-    [GeneratedRegex(@"^(SELECT|UPDATE|INSERT|DELETE|WITH|WHERE|VACUUM|ANALYZE|EXPLAIN|CREATE|ALTER|DROP|SET|BEGIN|COMMIT|ROLLBACK|GRANT|REVOKE|TRUNCATE)\b")]
+    // A script that opens with a "--" comment is SQL too (the generated drop-role script).
+    [GeneratedRegex(@"^(--|(SELECT|UPDATE|INSERT|DELETE|WITH|WHERE|VACUUM|ANALYZE|EXPLAIN|CREATE|ALTER|DROP|SET|BEGIN|COMMIT|ROLLBACK|GRANT|REVOKE|TRUNCATE)\b)")]
     private static partial Regex Sql();
 
     // A query history row's second line ("09:41 · 18 ms · 50 rows"): written in the
@@ -187,9 +284,22 @@ public partial class PseudoLocaleTests
             {
                 var leftovers = new List<string>();
                 var scanned = 0;
+
+                // Once, not per scenario: a change of language reaches every live
+                // binding in the process, the earlier scenarios' and earlier tests'
+                // included, so a switch that changes nothing still costs.
+                if (!switchWhileOpen)
+                {
+                    Localizer.Load(Localizer.Pseudo);
+                }
+
                 foreach (var (name, build) in Scenarios.All.Where(s => Converted.ContainsKey(s.Name)))
                 {
-                    Localizer.Load(switchWhileOpen ? Localizer.English : Localizer.Pseudo);
+                    if (switchWhileOpen)
+                    {
+                        Localizer.Load(Localizer.English);
+                    }
+
                     var window = build();
                     Ui.Show(window);
                     Ui.Settle();
@@ -237,6 +347,10 @@ public partial class PseudoLocaleTests
                         }
                     }
 
+                    // No forced collection here (there was one per scenario): with a
+                    // few GB of earlier tests still reachable it cost seconds each, and
+                    // what made the switches slow was FrameworkStrings rewriting the
+                    // resources of every Application the run had made (see there).
                     window.Close();
                     Ui.Settle();
                 }

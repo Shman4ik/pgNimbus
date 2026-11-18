@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Security;
 
 namespace PgNimbus.App.ViewModels.Security;
@@ -79,6 +80,16 @@ public sealed partial class SecurityViewModel : ObservableObject
         Permissions = new PermissionsTabViewModel(privilegeService, this);
         DefaultPrivileges = new DefaultPrivilegesTabViewModel(privilegeService, this);
         Rls = new RlsTabViewModel(privilegeService, this);
+
+        // The sections' rows are built once and read many times, so each one is
+        // told to say its text again in the new language.
+        Localizer.WhenChanged(this, static vm =>
+        {
+            vm.Roles.OnLanguageChanged();
+            vm.Permissions.OnLanguageChanged();
+            vm.DefaultPrivileges.OnLanguageChanged();
+            vm.Rls.OnLanguageChanged();
+        });
     }
 
     public RolesTabViewModel Roles { get; }
@@ -157,7 +168,7 @@ public sealed partial class SecurityViewModel : ObservableObject
             // seeds a snapshot before the window's Opened refresh fires.
             if (Graph is null)
             {
-                Status = "Reading roles…";
+                Status = Strings.Security_ReadingRoles;
             }
 
             var rolesTask = _roleService.GetRolesAsync(includePredefined: true, ct);
@@ -178,7 +189,7 @@ public sealed partial class SecurityViewModel : ObservableObject
                 Rls.RefreshAsync(ct));
 
             var visible = Graph.Roles.Count(r => !r.IsPredefined);
-            Status = $"{visible} role{(visible == 1 ? "" : "s")} · {DateTime.Now:HH:mm:ss}";
+            Status = Strings.Security_RolesStatus(visible, DateTime.Now.ToString("HH:mm:ss"));
         }
         catch (OperationCanceledException)
         {
@@ -195,5 +206,5 @@ public sealed partial class SecurityViewModel : ObservableObject
     /// (an extension type the server will not expand, a permission the reader
     /// lacks) costs a status line rather than the whole window.
     /// </summary>
-    public void ReportError(string what, Exception ex) => Status = $"{what}: {ex.Message}";
+    public void ReportError(string what, Exception ex) => Status = Strings.Security_ErrorStatus(what, ex.Message);
 }

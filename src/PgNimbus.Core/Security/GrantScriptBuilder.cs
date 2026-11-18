@@ -1,4 +1,5 @@
 using System.Text;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Query;
 
 namespace PgNimbus.Core.Security;
@@ -287,7 +288,7 @@ public static class GrantScriptBuilder
     /// shown quoted (<c>"PUBLIC"</c>) so the two can be told apart on screen.
     /// </summary>
     public static string GranteeLabel(string? grantee) =>
-        grantee is null ? PublicGrantee
+        grantee is null ? Strings.Security_PublicGrantee
         : grantee.Equals(PublicGrantee, StringComparison.OrdinalIgnoreCase) ? SqlIdentifier.Quote(grantee)
         : grantee;
 

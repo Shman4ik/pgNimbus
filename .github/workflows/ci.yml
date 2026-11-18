@@ -74,9 +74,10 @@ jobs:
 
   build-test:
     runs-on: ubuntu-latest
-    # A green run takes ~3 minutes. Without a cap a hung test holds the runner
-    # for GitHub's default of six hours.
-    timeout-minutes: 20
+    # A green run takes about 12 minutes since the pseudo-locale scan covers every
+    # window (two passes over ~70 scenarios). Without a cap a hung test holds the
+    # runner for GitHub's default of six hours.
+    timeout-minutes: 30
 
     # QueryEngineReconnectTests kills real backends (pg_terminate_backend) to
     # exercise auto-reconnect end to end; PGNIMBUS_TEST_CONN below points them

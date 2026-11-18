@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:l="using:PgNimbus.App.Localization"
         xmlns:vm="using:PgNimbus.App.ViewModels.Security"
         x:Class="PgNimbus.App.Views.Security.RoleDialog"
         x:DataType="vm:RoleEditorViewModel"
@@ -18,8 +19,8 @@
 
                 <!-- Identity -->
                 <StackPanel Spacing="6">
-                    <TextBlock Text="NAME" Classes="sectionHeader" />
-                    <TextBox Text="{Binding Name}" IsEnabled="{Binding CanEditName}" PlaceholderText="app_ro" />
+                    <TextBlock Text="{l:Tr Security_RoleName}" Classes="sectionHeader" />
+                    <TextBox Text="{Binding Name}" IsEnabled="{Binding CanEditName}" PlaceholderText="{l:Tr Security_RoleNamePlaceholder}" />
                 </StackPanel>
 
                 <!-- Login and password -->
@@ -27,14 +28,14 @@
                         BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
                         CornerRadius="{StaticResource CardCornerRadius}" Padding="14,12">
                     <StackPanel Spacing="10">
-                        <CheckBox Content="Can log in" IsChecked="{Binding CanLogin}" />
+                        <CheckBox Content="{l:Tr Security_CanLogIn}" IsChecked="{Binding CanLogin}" />
                         <Grid ColumnDefinitions="*,12,*" IsVisible="{Binding CanLogin}">
                             <StackPanel Grid.Column="0" Spacing="4">
-                                <TextBlock Text="PASSWORD" Classes="sectionHeader" />
+                                <TextBlock Text="{l:Tr Security_Password}" Classes="sectionHeader" />
                                 <TextBox Text="{Binding Password}" PasswordChar="•" />
                             </StackPanel>
                             <StackPanel Grid.Column="2" Spacing="4">
-                                <TextBlock Text="CONFIRM" Classes="sectionHeader" />
+                                <TextBlock Text="{l:Tr Security_PasswordConfirm}" Classes="sectionHeader" />
                                 <TextBox Text="{Binding PasswordConfirm}" PasswordChar="•" />
                             </StackPanel>
                         </Grid>
@@ -43,27 +44,27 @@
 
                 <!-- Attributes -->
                 <StackPanel Spacing="6">
-                    <TextBlock Text="ATTRIBUTES" Classes="sectionHeader" />
+                    <TextBlock Text="{l:Tr Security_Attributes}" Classes="sectionHeader" />
                     <WrapPanel Orientation="Horizontal">
-                        <CheckBox Content="Inherit" IsChecked="{Binding Inherit}" Margin="0,0,18,4"
-                                  ToolTip.Tip="Off means the role must SET ROLE before a group's privileges apply" />
-                        <CheckBox Content="Superuser" IsChecked="{Binding IsSuperuser}" Margin="0,0,18,4" />
-                        <CheckBox Content="Create DB" IsChecked="{Binding CanCreateDb}" Margin="0,0,18,4" />
-                        <CheckBox Content="Create role" IsChecked="{Binding CanCreateRole}" Margin="0,0,18,4" />
-                        <CheckBox Content="Replication" IsChecked="{Binding CanReplicate}" Margin="0,0,18,4" />
-                        <CheckBox Content="Bypass RLS" IsChecked="{Binding BypassRls}" Margin="0,0,18,4"
-                                  ToolTip.Tip="Skips every row-level security policy, always" />
+                        <CheckBox Content="{l:Tr Security_AttrInherit}" IsChecked="{Binding Inherit}" Margin="0,0,18,4"
+                                  ToolTip.Tip="{l:Tr Security_InheritTip}" />
+                        <CheckBox Content="{l:Tr Security_AttrSuperuser}" IsChecked="{Binding IsSuperuser}" Margin="0,0,18,4" />
+                        <CheckBox Content="{l:Tr Security_AttrCreateDb}" IsChecked="{Binding CanCreateDb}" Margin="0,0,18,4" />
+                        <CheckBox Content="{l:Tr Security_AttrCreateRole}" IsChecked="{Binding CanCreateRole}" Margin="0,0,18,4" />
+                        <CheckBox Content="{l:Tr Security_AttrReplication}" IsChecked="{Binding CanReplicate}" Margin="0,0,18,4" />
+                        <CheckBox Content="{l:Tr Security_AttrBypassRls}" IsChecked="{Binding BypassRls}" Margin="0,0,18,4"
+                                  ToolTip.Tip="{l:Tr Security_BypassRlsTip}" />
                     </WrapPanel>
                 </StackPanel>
 
                 <Grid ColumnDefinitions="*,12,*">
                     <StackPanel Grid.Column="0" Spacing="4">
-                        <TextBlock Text="CONNECTION LIMIT" Classes="sectionHeader" />
+                        <TextBlock Text="{l:Tr Security_ConnectionLimit}" Classes="sectionHeader" />
                         <NumericUpDown Value="{Binding ConnectionLimitValue}" Minimum="0" Increment="1"
-                                       PlaceholderText="no limit" FormatString="0" />
+                                       PlaceholderText="{l:Tr Security_NoLimit}" FormatString="0" />
                     </StackPanel>
                     <StackPanel Grid.Column="2" Spacing="4">
-                        <TextBlock Text="VALID UNTIL" Classes="sectionHeader" />
+                        <TextBlock Text="{l:Tr Security_ValidUntil}" Classes="sectionHeader" />
                         <!-- CalendarDatePicker, not Fluent's segmented DatePicker:
                              the segmented one is a three-box month/day/year control
                              that the shared input styling does not reach, so it
@@ -71,7 +72,7 @@
                              it. This is also the picker AddRowDialog already uses,
                              so dates look the same everywhere in the app. -->
                         <CalendarDatePicker SelectedDate="{Binding ValidUntilDate, Mode=TwoWay}"
-                                            PlaceholderText="no expiry"
+                                            PlaceholderText="{l:Tr Security_NoExpiry}"
                                             HorizontalAlignment="Stretch" />
                     </StackPanel>
                 </Grid>
@@ -79,7 +80,7 @@
                 <!-- Predefined roles first: on PG14+ this is the whole answer to
                      "make a read-only user", instead of a per-schema grant script. -->
                 <StackPanel Spacing="6" IsVisible="{Binding HasPredefinedMemberships}">
-                    <TextBlock Text="BUILT-IN ROLES" Classes="sectionHeader" />
+                    <TextBlock Text="{l:Tr Security_BuiltinRoles}" Classes="sectionHeader" />
                     <ItemsControl ItemsSource="{Binding PredefinedMemberships}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:RoleMembershipOption">
@@ -101,7 +102,7 @@
                 </StackPanel>
 
                 <StackPanel Spacing="6">
-                    <TextBlock Text="MEMBER OF" Classes="sectionHeader" />
+                    <TextBlock Text="{l:Tr Security_MemberOf}" Classes="sectionHeader" />
                     <!-- No inner scroll: a capped, scrolling list inside a dialog
                          that already scrolls gives two bars competing for the
                          same wheel, and on a server with a handful of roles the
@@ -135,15 +136,15 @@
                 </StackPanel>
 
                 <StackPanel Spacing="4">
-                    <TextBlock Text="COMMENT" Classes="sectionHeader" />
-                    <TextBox Text="{Binding Comment}" PlaceholderText="what this role is for" />
+                    <TextBlock Text="{l:Tr Security_Comment}" Classes="sectionHeader" />
+                    <TextBox Text="{Binding Comment}" PlaceholderText="{l:Tr Security_CommentPlaceholder}" />
                 </StackPanel>
 
                 <!-- The preview is always the masked build. The executed statement
                      carries a SCRAM verifier computed from the password; neither it
                      nor the password is rendered anywhere. -->
                 <StackPanel Spacing="4">
-                    <TextBlock Text="GENERATED SQL" Classes="sectionHeader" />
+                    <TextBlock Text="{l:Tr Security_GeneratedSql}" Classes="sectionHeader" />
                     <Border Background="{StaticResource CardBackgroundBrush}"
                             BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
                             CornerRadius="{StaticResource CardCornerRadius}" Padding="12,10">
@@ -163,8 +164,8 @@
             <TextBlock Text="{Binding ErrorMessage}" IsVisible="{Binding HasErrorMessage}"
                        Foreground="{StaticResource AppDangerBrush}" FontSize="12" TextWrapping="Wrap" />
             <StackPanel Classes="dialogButtons" Margin="0">
-                <Button Classes="soft" Content="Cancel" Click="OnCancelClick" IsCancel="True" />
-                <Button Classes="accent" Content="Apply" Command="{Binding ApplyCommand}" IsDefault="True" />
+                <Button Classes="soft" Content="{l:Tr Common_Cancel}" Click="OnCancelClick" IsCancel="True" />
+                <Button Classes="accent" Content="{l:Tr Common_Apply}" Command="{Binding ApplyCommand}" IsDefault="True" />
             </StackPanel>
         </StackPanel>
 

@@ -1,9 +1,10 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:PgNimbus.App.ViewModels"
+        xmlns:l="using:PgNimbus.App.Localization"
         x:Class="PgNimbus.App.Views.QueryLabWindow"
         x:DataType="vm:QueryLabViewModel"
-        Title="pgNimbus — Query Lab"
+        Title="{l:Tr QueryLab_Title}"
         Width="1180" Height="720"
         MinWidth="820" MinHeight="420"
         WindowStartupLocation="CenterOwner">
@@ -32,27 +33,27 @@
         <!-- The saved plans: managed here, double-click opens one in a new tab. -->
         <Border Grid.Row="0" Grid.Column="0" Classes="card" Padding="0" Margin="0,0,12,0">
             <DockPanel>
-                <TextBlock DockPanel.Dock="Top" Text="Saved plans" FontWeight="SemiBold" Margin="12,10,12,6" />
-                <Button DockPanel.Dock="Bottom" Classes="soft" Content="Import Plan…" Margin="10"
+                <TextBlock DockPanel.Dock="Top" Text="{l:Tr QueryLab_SavedPlans}" FontWeight="SemiBold" Margin="12,10,12,6" />
+                <Button DockPanel.Dock="Bottom" Classes="soft" Content="{l:Tr QueryLab_ImportPlanButton}" Margin="10"
                         HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                         Command="{Binding ImportPlanCommand}"
-                        ToolTip.Tip="Paste an EXPLAIN plan from another tool or machine and keep it here; no connection needed" />
+                        ToolTip.Tip="{l:Tr QueryLab_ImportPlanTip}" />
                 <Panel>
                     <ListBox Name="PlansList" ItemsSource="{Binding Plans}" SelectedItem="{Binding SelectedPlan}"
                              IsVisible="{Binding HasPlans}" Background="Transparent">
                         <ListBox.ContextMenu>
                             <ContextMenu>
-                                <MenuItem Header="Compare as Before" Command="{Binding CompareAsBeforeCommand}"
+                                <MenuItem Header="{l:Tr QueryLab_CompareAsBefore}" Command="{Binding CompareAsBeforeCommand}"
                                           CommandParameter="{Binding SelectedPlan}" />
-                                <MenuItem Header="Compare as After" Command="{Binding CompareAsAfterCommand}"
-                                          CommandParameter="{Binding SelectedPlan}" />
-                                <Separator />
-                                <MenuItem Header="Open in New Tab" Command="{Binding OpenInNewTabCommand}"
-                                          CommandParameter="{Binding SelectedPlan}" />
-                                <MenuItem Header="Rename…" Command="{Binding RenameCommand}"
+                                <MenuItem Header="{l:Tr QueryLab_CompareAsAfter}" Command="{Binding CompareAsAfterCommand}"
                                           CommandParameter="{Binding SelectedPlan}" />
                                 <Separator />
-                                <MenuItem Header="Delete…" Command="{Binding DeleteCommand}"
+                                <MenuItem Header="{l:Tr QueryLab_OpenInNewTab}" Command="{Binding OpenInNewTabCommand}"
+                                          CommandParameter="{Binding SelectedPlan}" />
+                                <MenuItem Header="{l:Tr QueryLab_Rename}" Command="{Binding RenameCommand}"
+                                          CommandParameter="{Binding SelectedPlan}" />
+                                <Separator />
+                                <MenuItem Header="{l:Tr QueryLab_Delete}" Command="{Binding DeleteCommand}"
                                           CommandParameter="{Binding SelectedPlan}" />
                             </ContextMenu>
                         </ListBox.ContextMenu>
@@ -67,7 +68,7 @@
                         </ListBox.ItemTemplate>
                     </ListBox>
                     <TextBlock IsVisible="{Binding !HasPlans}" Margin="14,4" TextWrapping="Wrap" Opacity="0.6" FontSize="12"
-                               Text="Plans you save from a tab's Compare menu, or import here, are kept on this computer." />
+                               Text="{l:Tr QueryLab_NoPlansHint}" />
                 </Panel>
             </DockPanel>
         </Border>
@@ -76,9 +77,9 @@
 
             <!-- Before and after: either side may be a saved plan or the tab's unsaved one. -->
             <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto,*" Margin="0,0,0,10">
-                <TextBlock Grid.Column="0" Text="Before" VerticalAlignment="Center" Margin="0,0,8,0" Opacity="0.7" />
+                <TextBlock Grid.Column="0" Text="{l:Tr QueryLab_Before}" VerticalAlignment="Center" Margin="0,0,8,0" Opacity="0.7" />
                 <ComboBox Grid.Column="1" Name="BeforePicker" ItemsSource="{Binding Choices}" SelectedItem="{Binding Before}"
-                          HorizontalAlignment="Stretch" PlaceholderText="Pick a plan" IsEnabled="{Binding HasChoices}">
+                          HorizontalAlignment="Stretch" PlaceholderText="{l:Tr QueryLab_PickPlan}" IsEnabled="{Binding HasChoices}">
                     <ComboBox.ItemTemplate>
                         <DataTemplate x:DataType="vm:PlanChoice">
                             <!-- One line, trimmed as a whole: the name first, its figures after. -->
@@ -91,10 +92,10 @@
                     </ComboBox.ItemTemplate>
                 </ComboBox>
                 <Button Grid.Column="2" Classes="soft" Content="⇄" Margin="8,0" Padding="10,0" IsEnabled="{Binding HasChoices}"
-                        Command="{Binding SwapCommand}" ToolTip.Tip="Swap before and after" />
-                <TextBlock Grid.Column="3" Text="After" VerticalAlignment="Center" Margin="0,0,8,0" Opacity="0.7" />
+                        Command="{Binding SwapCommand}" ToolTip.Tip="{l:Tr QueryLab_SwapTip}" />
+                <TextBlock Grid.Column="3" Text="{l:Tr QueryLab_After}" VerticalAlignment="Center" Margin="0,0,8,0" Opacity="0.7" />
                 <ComboBox Grid.Column="4" Name="AfterPicker" ItemsSource="{Binding Choices}" SelectedItem="{Binding After}"
-                          HorizontalAlignment="Stretch" PlaceholderText="Pick a plan" IsEnabled="{Binding HasChoices}">
+                          HorizontalAlignment="Stretch" PlaceholderText="{l:Tr QueryLab_PickPlan}" IsEnabled="{Binding HasChoices}">
                     <ComboBox.ItemTemplate>
                         <DataTemplate x:DataType="vm:PlanChoice">
                             <!-- One line, trimmed as a whole: the name first, its figures after. -->
@@ -117,18 +118,18 @@
             <!-- capsule, not segmented: its selection must not fade in under a baseline. -->
             <TabControl Grid.Row="1" Name="LabTabs" Classes="capsule" SelectedIndex="{Binding SelectedTab}"
                         IsVisible="{Binding HasComparison}">
-                <TabItem Header="Summary">
+                <TabItem Header="{l:Tr QueryLab_TabSummary}">
                     <ScrollViewer Margin="0,10,0,0" DataContext="{Binding Comparison}" x:DataType="vm:PlanComparisonViewModel">
                         <StackPanel Spacing="12">
 
                             <!-- The figures, side by side. A dash says the side doesn't have it; hover says why. -->
                             <Border Classes="card" Padding="14,10">
                                 <Grid ColumnDefinitions="2*,*,*,1.6*" RowDefinitions="Auto,Auto">
-                                    <TextBlock Grid.Column="1" Text="Before" Classes="secondary" FontSize="11"
+                                    <TextBlock Grid.Column="1" Text="{l:Tr QueryLab_Before}" Classes="secondary" FontSize="11"
                                                ToolTip.Tip="{Binding BeforeLabel}" HorizontalAlignment="Right" Margin="8,0" />
-                                    <TextBlock Grid.Column="2" Text="After" Classes="secondary" FontSize="11"
+                                    <TextBlock Grid.Column="2" Text="{l:Tr QueryLab_After}" Classes="secondary" FontSize="11"
                                                ToolTip.Tip="{Binding AfterLabel}" HorizontalAlignment="Right" Margin="8,0" />
-                                    <TextBlock Grid.Column="3" Text="Change" Classes="secondary" FontSize="11" Margin="16,0,0,0" />
+                                    <TextBlock Grid.Column="3" Text="{l:Tr QueryLab_ChangeColumn}" Classes="secondary" FontSize="11" Margin="16,0,0,0" />
                                     <ItemsControl Grid.Row="1" Grid.ColumnSpan="4" ItemsSource="{Binding Metrics}" Margin="0,6,0,0">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate x:DataType="vm:PlanMetricRowViewModel">
@@ -174,7 +175,7 @@
 
                             <Border Classes="card" Padding="14,10" IsVisible="{Binding HasSettingChanges}">
                                 <StackPanel Spacing="4">
-                                    <TextBlock Text="Planner settings that differ" FontWeight="SemiBold" />
+                                    <TextBlock Text="{l:Tr QueryLab_SettingsDiffer}" FontWeight="SemiBold" />
                                     <ItemsControl ItemsSource="{Binding SettingChanges}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate x:DataType="x:String">
@@ -187,7 +188,7 @@
 
                             <Border Classes="card" Padding="14,10" IsVisible="{Binding HasWarningChanges}">
                                 <StackPanel Spacing="4">
-                                    <TextBlock Text="Plan warnings" FontWeight="SemiBold" />
+                                    <TextBlock Text="{l:Tr QueryLab_PlanWarnings}" FontWeight="SemiBold" />
                                     <ItemsControl ItemsSource="{Binding WarningChanges}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate x:DataType="vm:WarningChangeViewModel">
@@ -205,7 +206,7 @@
                     </ScrollViewer>
                 </TabItem>
 
-                <TabItem Header="Plan changes">
+                <TabItem Header="{l:Tr QueryLab_TabPlanChanges}">
                     <Grid Margin="0,10,0,0" RowDefinitions="Auto,*,Auto" DataContext="{Binding Comparison}"
                           x:DataType="vm:PlanComparisonViewModel">
                         <TextBlock Grid.Row="0" Text="{Binding ChangeSummary}" Opacity="0.75" Margin="2,0,0,6" />
@@ -246,9 +247,9 @@
                                     <TextBlock Grid.ColumnSpan="2" Text="{Binding Header}" FontWeight="SemiBold"
                                                TextTrimming="CharacterEllipsis" Margin="0,0,0,6" />
                                     <Grid Grid.Row="1" Grid.Column="0" ColumnDefinitions="2*,*,*" Margin="0,0,16,2">
-                                        <TextBlock Grid.Column="1" Text="Before" Classes="secondary" FontSize="11"
+                                        <TextBlock Grid.Column="1" Text="{l:Tr QueryLab_Before}" Classes="secondary" FontSize="11"
                                                    HorizontalAlignment="Right" Margin="6,0" />
-                                        <TextBlock Grid.Column="2" Text="After" Classes="secondary" FontSize="11"
+                                        <TextBlock Grid.Column="2" Text="{l:Tr QueryLab_After}" Classes="secondary" FontSize="11"
                                                    HorizontalAlignment="Right" Margin="6,0" />
                                     </Grid>
                                     <ItemsControl Grid.Row="2" Grid.Column="0" ItemsSource="{Binding Figures}" Margin="0,0,16,0">
@@ -265,7 +266,7 @@
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
                                     <StackPanel Grid.Row="1" Grid.RowSpan="2" Grid.Column="1" Spacing="2">
-                                        <TextBlock Text="What changed" Classes="secondary" FontSize="11" IsVisible="{Binding HasDifferences}" />
+                                        <TextBlock Text="{l:Tr QueryLab_WhatChanged}" Classes="secondary" FontSize="11" IsVisible="{Binding HasDifferences}" />
                                         <ItemsControl ItemsSource="{Binding Differences}">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate x:DataType="x:String">

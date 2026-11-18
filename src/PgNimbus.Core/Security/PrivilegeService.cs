@@ -1,6 +1,7 @@
 using Npgsql;
 using NpgsqlTypes;
 using PgNimbus.Core.Connections;
+using PgNimbus.Core.Localization;
 
 namespace PgNimbus.Core.Security;
 
@@ -219,8 +220,7 @@ public sealed class PrivilegeService(WriteGatedDataSource dataSource)
 
         if (owner is null)
         {
-            throw new InvalidOperationException(
-                $"{obj.Display} no longer exists — it was dropped since the object list was built.");
+            throw new InvalidOperationException(Strings.Security_ObjectDropped(obj.Display));
         }
 
         return new ObjectAcl(obj, owner, isDefault, entries);

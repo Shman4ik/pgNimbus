@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Query;
 using PgNimbus.Core.QueryLab;
 
@@ -31,6 +32,20 @@ public sealed partial class PlanDiffNodeViewModel : ObservableObject
     [ObservableProperty]
     private bool _isExpanded;
 
+    /// <summary>Raises the text that is composed from the language, after a change of language.</summary>
+    internal void RefreshText()
+    {
+        OnPropertyChanged(nameof(ChangeWord));
+        OnPropertyChanged(nameof(WasHeader));
+        OnPropertyChanged(nameof(Badge));
+        OnPropertyChanged(nameof(MetricLine));
+        OnPropertyChanged(nameof(Figures));
+        foreach (var child in Children)
+        {
+            child.RefreshText();
+        }
+    }
+
     public PlanNodeChange Change => Node.Change;
 
     public string Glyph => Node.Change switch
@@ -45,15 +60,18 @@ public sealed partial class PlanDiffNodeViewModel : ObservableObject
     {
         get
         {
-            var word = Node.Change switch
+            // A word per case, not a word with ", moved" added: each language writes its own.
+            return (Node.Change, Node.Moved) switch
             {
-                PlanNodeChange.Changed => "Changed",
-                PlanNodeChange.Added => "Added",
-                PlanNodeChange.Removed => "Removed",
-                _ => Node.Moved ? "Moved" : "Same",
+                (PlanNodeChange.Changed, true) => Strings.QueryLab_NodeChangedMoved,
+                (PlanNodeChange.Changed, _) => Strings.QueryLab_NodeChanged,
+                (PlanNodeChange.Added, true) => Strings.QueryLab_NodeAddedMoved,
+                (PlanNodeChange.Added, _) => Strings.QueryLab_NodeAdded,
+                (PlanNodeChange.Removed, true) => Strings.QueryLab_NodeRemovedMoved,
+                (PlanNodeChange.Removed, _) => Strings.QueryLab_NodeRemoved,
+                (_, true) => Strings.QueryLab_NodeMoved,
+                _ => Strings.QueryLab_NodeSame,
             };
-
-            return Node.Moved && Node.Change != PlanNodeChange.Same ? $"{word}, moved" : word;
         }
     }
 
@@ -71,7 +89,7 @@ public sealed partial class PlanDiffNodeViewModel : ObservableObject
     public string? WasHeader =>
         Node is { Change: PlanNodeChange.Changed, Before: { } before, After: { } after }
         && ExplainTextFormatter.HeaderFor(before) is var was && was != ExplainTextFormatter.HeaderFor(after)
-            ? $"was {was}"
+            ? Strings.QueryLab_WasHeader(was)
             : null;
 
     public bool HasWasHeader => WasHeader is not null;
@@ -93,31 +111,31 @@ public sealed partial class PlanDiffNodeViewModel : ObservableObject
             var b = Node.AfterMetrics;
             var parts = new List<string>();
             var rows = Pair(a, b, m => m.ActualRowsTotal ?? m.EstimatedRows, PlanMetricUnit.Rows);
-            parts.Add((a?.Analyzed ?? b?.Analyzed ?? false ? "rows " : "est. rows ") + rows);
+            parts.Add(a?.Analyzed ?? b?.Analyzed ?? false ? Strings.QueryLab_LineRows(rows) : Strings.QueryLab_LineEstRows(rows));
             if (a?.SelfMs is not null || b?.SelfMs is not null)
             {
                 var approximate = (a?.TimeApproximate ?? false) || (b?.TimeApproximate ?? false) ? "~" : string.Empty;
-                parts.Add($"self {approximate}" + Pair(a, b, m => m.SelfMs, PlanMetricUnit.Milliseconds));
+                parts.Add(Strings.QueryLab_LineSelf(approximate + Pair(a, b, m => m.SelfMs, PlanMetricUnit.Milliseconds)));
             }
 
             if (a?.Buffers is not null || b?.Buffers is not null)
             {
-                parts.Add("hit " + Pair(a, b, m => m.Buffers?.SharedHit, PlanMetricUnit.Blocks));
+                parts.Add(Strings.QueryLab_LineHit(Pair(a, b, m => m.Buffers?.SharedHit, PlanMetricUnit.Blocks)));
                 if ((a?.Buffers?.SharedRead ?? 0) > 0 || (b?.Buffers?.SharedRead ?? 0) > 0)
                 {
-                    parts.Add("read " + Pair(a, b, m => m.Buffers?.SharedRead, PlanMetricUnit.Blocks));
+                    parts.Add(Strings.QueryLab_LineRead(Pair(a, b, m => m.Buffers?.SharedRead, PlanMetricUnit.Blocks)));
                 }
             }
 
             if (a?.Spill is not null || b?.Spill is not null)
             {
-                parts.Add($"disk: {a?.Spill ?? "none"} → {b?.Spill ?? "none"}");
+                parts.Add(Strings.QueryLab_LineDisk(a?.Spill ?? Strings.QueryLab_None, b?.Spill ?? Strings.QueryLab_None));
             }
 
             if ((a?.NeverExecuted ?? false) || (b?.NeverExecuted ?? false))
             {
-                parts.Add(a?.NeverExecuted == true && b?.NeverExecuted == true ? "never executed"
-                    : a?.NeverExecuted == true ? "never executed before" : "never executed after");
+                parts.Add(a?.NeverExecuted == true && b?.NeverExecuted == true ? Strings.QueryLab_NeverExecuted
+                    : a?.NeverExecuted == true ? Strings.QueryLab_NeverExecutedBefore : Strings.QueryLab_NeverExecutedAfter);
             }
 
             return string.Join(" · ", parts);
@@ -161,20 +179,20 @@ public sealed partial class PlanDiffNodeViewModel : ObservableObject
                 figures.Add(new NodeFigure(label, Text(a), Text(b)));
             }
 
-            Add("Estimated rows (per loop)", m => m.EstimatedRows, PlanMetricUnit.Rows);
-            Add("Actual rows (per loop)", m => m.ActualRows, PlanMetricUnit.Rows);
-            Add("Loops", m => m.Loops, PlanMetricUnit.Count);
-            Add("Time, with children", m => m.InclusiveMs, PlanMetricUnit.Milliseconds);
-            Add("Self time", m => m.SelfMs, PlanMetricUnit.Milliseconds);
-            Add("Estimated cost (planner units)", m => m.TotalCost, PlanMetricUnit.PlannerUnits);
-            Add("Shared buffers hit", m => m.Buffers?.SharedHit, PlanMetricUnit.Blocks);
-            Add("Shared buffers read", m => m.Buffers?.SharedRead, PlanMetricUnit.Blocks);
+            Add(Strings.QueryLab_FigEstRows, m => m.EstimatedRows, PlanMetricUnit.Rows);
+            Add(Strings.QueryLab_FigActRows, m => m.ActualRows, PlanMetricUnit.Rows);
+            Add(Strings.QueryLab_FigLoops, m => m.Loops, PlanMetricUnit.Count);
+            Add(Strings.QueryLab_FigInclusiveTime, m => m.InclusiveMs, PlanMetricUnit.Milliseconds);
+            Add(Strings.QueryLab_FigSelfTime, m => m.SelfMs, PlanMetricUnit.Milliseconds);
+            Add(Strings.QueryLab_FigCost, m => m.TotalCost, PlanMetricUnit.PlannerUnits);
+            Add(Strings.QueryLab_FigBuffersHit, m => m.Buffers?.SharedHit, PlanMetricUnit.Blocks);
+            Add(Strings.QueryLab_FigBuffersRead, m => m.Buffers?.SharedRead, PlanMetricUnit.Blocks);
             if ((a?.Buffers?.TempWritten ?? 0) > 0 || (b?.Buffers?.TempWritten ?? 0) > 0)
             {
-                Add("Temp blocks written", m => m.Buffers?.TempWritten, PlanMetricUnit.Blocks);
+                Add(Strings.QueryLab_FigTempWritten, m => m.Buffers?.TempWritten, PlanMetricUnit.Blocks);
             }
 
-            figures.Add(new NodeFigure("Went to disk", a?.Spill ?? (a is null ? "—" : "no"), b?.Spill ?? (b is null ? "—" : "no")));
+            figures.Add(new NodeFigure(Strings.QueryLab_FigDisk, a?.Spill ?? (a is null ? "—" : Strings.QueryLab_No), b?.Spill ?? (b is null ? "—" : Strings.QueryLab_No)));
             return figures;
         }
     }

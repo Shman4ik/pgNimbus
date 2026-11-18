@@ -2056,10 +2056,6 @@
     <value>pgNimbus — Rename</value>
     <comment>Title of the dialog that asks for a new name of a table or view (from its Maintenance menu). pgNimbus is the product name.</comment>
   </data>
-  <data name="Shell_NounRelation" xml:space="preserve">
-    <value>relation</value>
-    <comment>A noun (lowercase) naming a table or view, used inside the rename dialog's sentence "A relation named … already exists".</comment>
-  </data>
   <data name="Shell_SwitchConnectionConfirm" xml:space="preserve">
     <value>Switch connection? This window closes once the new connection is open. {losses}</value>
     <comment>Confirmation dialog of Switch Connection. {losses} is one or two sentences saying what closing the window would lose, such as "2 staged changes will be discarded."</comment>
@@ -2071,10 +2067,6 @@
   <data name="Shell_SavePlanHeading" xml:space="preserve">
     <value>Save plan to Query Lab</value>
     <comment>Heading of the dialog that names a query plan to save in Query Lab.</comment>
-  </data>
-  <data name="Shell_NounSavedPlan" xml:space="preserve">
-    <value>saved plan</value>
-    <comment>A noun (lowercase) naming a plan saved in Query Lab, used inside the save dialog's sentence "A saved plan named … already exists".</comment>
   </data>
   <data name="Shell_SavePlanTitle" xml:space="preserve">
     <value>pgNimbus — Save plan</value>
@@ -4593,16 +4585,2952 @@
   </data>
 
   <!-- ===== Dialogs ===== -->
+  <data name="Dialogs_AlterTableTitle" xml:space="preserve">
+    <value>pgNimbus — Alter Table</value>
+    <comment>Window title of the Alter Table dialog (add, rename or drop a column of a table). pgNimbus is the product name.</comment>
+  </data>
+  <data name="Dialogs_PrimaryKeyBadge" xml:space="preserve">
+    <value>PK</value>
+    <comment>Alter Table dialog, column list: a small badge after a column's type marking that the column is part of the primary key. Keep it very short.</comment>
+  </data>
+  <data name="Dialogs_AddColumnHeading" xml:space="preserve">
+    <value>Add column</value>
+    <comment>Alter Table dialog: heading of the card for adding a column.</comment>
+  </data>
+  <data name="Dialogs_ColumnNamePlaceholder" xml:space="preserve">
+    <value>Column name</value>
+    <comment>Alter Table dialog, add-column card: placeholder of the box for the new column's name.</comment>
+  </data>
+  <data name="Dialogs_NullableLabel" xml:space="preserve">
+    <value>Nullable</value>
+    <comment>Alter Table dialog, add-column card: label of the switch that lets the new column hold NULL.</comment>
+  </data>
+  <data name="Dialogs_AddColumnButton" xml:space="preserve">
+    <value>Add column</value>
+    <comment>Alter Table dialog: button that adds the column.</comment>
+  </data>
+  <data name="Dialogs_RenameColumnHeading" xml:space="preserve">
+    <value>Rename selected column</value>
+    <comment>Alter Table dialog: heading of the card for renaming the column selected in the list.</comment>
+  </data>
+  <data name="Dialogs_NewNamePlaceholder" xml:space="preserve">
+    <value>New name</value>
+    <comment>Alter Table dialog, rename card: placeholder of the box for the column's new name.</comment>
+  </data>
+  <data name="Dialogs_DropColumnButton" xml:space="preserve">
+    <value>Drop selected column</value>
+    <comment>Alter Table dialog: button that drops (deletes) the column selected in the list. It asks for confirmation first.</comment>
+  </data>
+  <data name="Dialogs_DropColumnConfirm" xml:space="preserve">
+    <value>Drop column "{name}"? Its data is lost.</value>
+    <comment>Confirmation dialog of Alter Table's Drop selected column. {name} is the full column name, such as public.orders.status.</comment>
+  </data>
+  <data name="Dialogs_DropButton" xml:space="preserve">
+    <value>Drop</value>
+    <comment>Confirmation dialog of Alter Table's Drop selected column: the button that confirms the drop.</comment>
+  </data>
+  <data name="Dialogs_AlterLoadFailed" xml:space="preserve">
+    <value>Failed to load columns: {error}</value>
+    <comment>Alter Table dialog, status line: the table's columns could not be read. {error} is the server's or the app's error message.</comment>
+  </data>
+  <data name="Dialogs_AlterColumnAdded" xml:space="preserve">
+    <value>Added column "{name}".</value>
+    <comment>Alter Table dialog, status line: a column was added. {name} is the column's name, such as notes.</comment>
+  </data>
+  <data name="Dialogs_AlterAddFailed" xml:space="preserve">
+    <value>Failed to add column: {error}</value>
+    <comment>Alter Table dialog, status line: adding a column failed. {error} is the error message.</comment>
+  </data>
+  <data name="Dialogs_AlterColumnDropped" xml:space="preserve">
+    <value>Dropped column "{name}".</value>
+    <comment>Alter Table dialog, status line: a column was dropped. {name} is the column's name.</comment>
+  </data>
+  <data name="Dialogs_AlterDropFailed" xml:space="preserve">
+    <value>Failed to drop column: {error}</value>
+    <comment>Alter Table dialog, status line: dropping a column failed. {error} is the error message.</comment>
+  </data>
+  <data name="Dialogs_AlterColumnRenamed" xml:space="preserve">
+    <value>Renamed "{oldName}" to "{newName}".</value>
+    <comment>Alter Table dialog, status line: a column was renamed. {oldName} and {newName} are column names, such as note and notes.</comment>
+  </data>
+  <data name="Dialogs_AlterRenameFailed" xml:space="preserve">
+    <value>Failed to rename column: {error}</value>
+    <comment>Alter Table dialog, status line: renaming a column failed. {error} is the error message.</comment>
+  </data>
+  <data name="Dialogs_ImportTitle" xml:space="preserve">
+    <value>pgNimbus — Import</value>
+    <comment>Window title of the dialog that imports a CSV or JSON file into a table. pgNimbus is the product name.</comment>
+  </data>
+  <data name="Dialogs_ImportSchemaLabel" xml:space="preserve">
+    <value>Schema</value>
+    <comment>Import dialog: small label above the box that picks the schema (a PostgreSQL namespace) of the target table.</comment>
+  </data>
+  <data name="Dialogs_ImportTableLabel" xml:space="preserve">
+    <value>Table</value>
+    <comment>Import dialog: small label above the box for the target table's name.</comment>
+  </data>
+  <data name="Dialogs_ImportCreateNew" xml:space="preserve">
+    <value>Create new table</value>
+    <comment>Import dialog: option button. The import creates a new table from the column list.</comment>
+  </data>
+  <data name="Dialogs_ImportAppend" xml:space="preserve">
+    <value>Append to existing table</value>
+    <comment>Import dialog: option button. The import adds rows to a table that already exists.</comment>
+  </data>
+  <data name="Dialogs_ImportColumnsHeading" xml:space="preserve">
+    <value>COLUMNS</value>
+    <comment>Import dialog: small upper-case heading above the list of columns to import.</comment>
+  </data>
+  <data name="Dialogs_ImportButton" xml:space="preserve">
+    <value>Import</value>
+    <comment>Import dialogs (data file and query plan): the button that starts the import.</comment>
+  </data>
+  <data name="Dialogs_ImportColumns_one" xml:space="preserve">
+    <value>{number} column</value>
+    <comment>A count of columns, singular. {number} is 1.</comment>
+  </data>
+  <data name="Dialogs_ImportColumns_other" xml:space="preserve">
+    <value>{number} columns</value>
+    <comment>A count of columns, plural. {number} is the count, such as 12.</comment>
+  </data>
+  <data name="Dialogs_ImportSummary" xml:space="preserve">
+    <value>{rows} · {columns} parsed</value>
+    <comment>Import dialog, title: what was read from the file. {rows} is a count with its unit (1,200 rows), {columns} a count with its unit (4 columns).</comment>
+  </data>
+  <data name="Dialogs_ImportTableRequired" xml:space="preserve">
+    <value>Table name is required.</value>
+    <comment>Import dialog, error line: the table name box is empty.</comment>
+  </data>
+  <data name="Dialogs_ImportPlanTitle" xml:space="preserve">
+    <value>pgNimbus — Import query plan</value>
+    <comment>Window title of the dialog where an EXPLAIN plan is pasted. pgNimbus is the product name.</comment>
+  </data>
+  <data name="Dialogs_ImportPlanHeading" xml:space="preserve">
+    <value>Paste an EXPLAIN plan</value>
+    <comment>Import query plan dialog: heading. EXPLAIN is the SQL command and stays as it is.</comment>
+  </data>
+  <data name="Dialogs_ImportPlanHint" xml:space="preserve">
+    <value>Paste EXPLAIN output in JSON (FORMAT JSON — most reliable) or the plain text layout. It's parsed locally and shown with the warnings strip and time-heat tree; the database isn't touched.</value>
+    <comment>Import query plan dialog: hint under the heading. EXPLAIN and FORMAT JSON are SQL and stay as they are.</comment>
+  </data>
+  <data name="Dialogs_ImportPlanPlaceholder" xml:space="preserve">
+    <value>[ { "Plan": { … } } ]  — or —  Seq Scan on t  (cost=…) (actual …)</value>
+    <comment>Import query plan dialog: the paste box's placeholder, two example plans separated by "or". "Plan" and "Seq Scan on t" are what PostgreSQL prints and stay as they are; translate only "or".</comment>
+  </data>
+  <data name="Dialogs_PendingTitle" xml:space="preserve">
+    <value>pgNimbus — Staged changes</value>
+    <comment>Window title of the dialog that reviews staged changes (safe mode) before they are committed. pgNimbus is the product name.</comment>
+  </data>
+  <data name="Dialogs_PendingHint" xml:space="preserve">
+    <value>This SQL runs as one transaction when you commit — everything applies, or nothing does. Each edited or deleted row is first re-read and locked: if another session changed or deleted it since you loaded it, the whole commit rolls back and shows you what changed. Values are shown inline for review; execution is parameterized.</value>
+    <comment>Staged changes dialog: explanation under the title of what the commit does.</comment>
+  </data>
+  <data name="Dialogs_DiscardAllButton" xml:space="preserve">
+    <value>Discard all</value>
+    <comment>Staged changes dialog: button that throws away every staged change. The database has not been touched yet.</comment>
+  </data>
+  <data name="Dialogs_CommitChanges_one" xml:space="preserve">
+    <value>Commit {count} change</value>
+    <comment>Staged changes dialog: the button that commits the changes, singular. {count} is 1.</comment>
+  </data>
+  <data name="Dialogs_CommitChanges_other" xml:space="preserve">
+    <value>Commit {count} changes</value>
+    <comment>Staged changes dialog: the button that commits the changes, plural. {count} is how many, such as 3.</comment>
+  </data>
+  <data name="Dialogs_PendingUnchecked" xml:space="preserve">
+    <value>Not checked for changes by other sessions (pgNimbus can't read their type): {columns}.</value>
+    <comment>Staged changes dialog: warning naming the columns whose values cannot be compared with the server's current ones. {columns} is a comma-separated list of column names, such as shipping_box, notes.</comment>
+  </data>
+  <data name="Dialogs_ConflictTitle" xml:space="preserve">
+    <value>pgNimbus — Commit rolled back</value>
+    <comment>Window title of the dialog shown when a staged commit was rolled back because another session changed the rows. pgNimbus is the product name.</comment>
+  </data>
+  <data name="Dialogs_ConflictColumn" xml:space="preserve">
+    <value>Column</value>
+    <comment>Commit rolled back dialog: caption of the first column of the table of conflicting values, the column's name.</comment>
+  </data>
+  <data name="Dialogs_ConflictLoaded" xml:space="preserve">
+    <value>When you loaded it</value>
+    <comment>Commit rolled back dialog: caption of the column that shows the value as it was when the user loaded the row.</comment>
+  </data>
+  <data name="Dialogs_ConflictServer" xml:space="preserve">
+    <value>On the server now</value>
+    <comment>Commit rolled back dialog: caption of the column that shows the value the database holds now.</comment>
+  </data>
+  <data name="Dialogs_ConflictStaged" xml:space="preserve">
+    <value>You staged</value>
+    <comment>Commit rolled back dialog: caption of the column that shows the value the user staged.</comment>
+  </data>
+  <data name="Dialogs_ConflictNothingCommitted" xml:space="preserve">
+    <value>Nothing was committed. Restaging reloads the rows and keeps your values on top of the current ones, for you to review and commit again.</value>
+    <comment>Commit rolled back dialog: hint beside the buttons.</comment>
+  </data>
+  <data name="Dialogs_UnstageButton" xml:space="preserve">
+    <value>Unstage these rows</value>
+    <comment>Commit rolled back dialog: button that drops the staged changes of the conflicting rows only.</comment>
+  </data>
+  <data name="Dialogs_RestageButton" xml:space="preserve">
+    <value>Reload and restage</value>
+    <comment>Commit rolled back dialog: button that reloads the conflicting rows and keeps the user's staged values on top.</comment>
+  </data>
+  <data name="Dialogs_ConflictSummaryLocked" xml:space="preserve">
+    <value>A staged row is locked by another session</value>
+    <comment>Commit rolled back dialog: title line when a row is locked by another session.</comment>
+  </data>
+  <data name="Dialogs_ConflictSummaryMismatch" xml:space="preserve">
+    <value>The staged changes no longer match the table</value>
+    <comment>Commit rolled back dialog: title line when no particular row can be named.</comment>
+  </data>
+  <data name="Dialogs_ConflictSummaryRows_one" xml:space="preserve">
+    <value>{count} staged row no longer matches the server</value>
+    <comment>Commit rolled back dialog: title line, singular. {count} is 1.</comment>
+  </data>
+  <data name="Dialogs_ConflictSummaryRows_other" xml:space="preserve">
+    <value>{count} staged rows no longer match the server</value>
+    <comment>Commit rolled back dialog: title line, plural. {count} is how many rows, such as 3.</comment>
+  </data>
+  <data name="Dialogs_ConflictMore_one" xml:space="preserve">
+    <value>+{count} more conflicting row not shown.</value>
+    <comment>Commit rolled back dialog: note under the list when it is cut, singular. {count} is 1.</comment>
+  </data>
+  <data name="Dialogs_ConflictMore_other" xml:space="preserve">
+    <value>+{count} more conflicting rows not shown.</value>
+    <comment>Commit rolled back dialog: note under the list when it is cut, plural. {count} is how many rows are not shown, such as 450.</comment>
+  </data>
+  <data name="Dialogs_ConflictRowHeader" xml:space="preserve">
+    <value>Row {key}</value>
+    <comment>Commit rolled back dialog: header of one conflicting row. {key} is its key, such as order_id = 1042, line = 1.</comment>
+  </data>
+  <data name="Dialogs_ConflictDetailDeletedDelete" xml:space="preserve">
+    <value>Already deleted by another session (or its key changed). You staged a delete.</value>
+    <comment>Commit rolled back dialog: what happened to one row. Another session deleted it, and the user had staged a delete.</comment>
+  </data>
+  <data name="Dialogs_ConflictDetailDeletedEdit" xml:space="preserve">
+    <value>Deleted by another session (or its key changed). You staged an edit.</value>
+    <comment>Commit rolled back dialog: what happened to one row. Another session deleted it, and the user had staged an edit.</comment>
+  </data>
+  <data name="Dialogs_ConflictDetailChangedDelete" xml:space="preserve">
+    <value>Changed by another session. You staged a delete.</value>
+    <comment>Commit rolled back dialog: what happened to one row. Another session changed it, and the user had staged a delete.</comment>
+  </data>
+  <data name="Dialogs_ConflictDetailChangedEdit" xml:space="preserve">
+    <value>Changed by another session. You staged an edit.</value>
+    <comment>Commit rolled back dialog: what happened to one row. Another session changed it, and the user had staged an edit.</comment>
+  </data>
+  <data name="Dialogs_ConflictRowGone" xml:space="preserve">
+    <value>(row gone)</value>
+    <comment>Commit rolled back dialog: shown in a value cell when the row no longer exists on the server.</comment>
+  </data>
+  <data name="Dialogs_ConflictDeleteRow" xml:space="preserve">
+    <value>(delete row)</value>
+    <comment>Commit rolled back dialog: shown in the "You staged" cell when the user staged a delete of the whole row.</comment>
+  </data>
+  <data name="Dialogs_ConflictMessage" xml:space="preserve">
+    <value>Commit rolled back — nothing was applied. {what} by another session since you loaded them. {detail}</value>
+    <comment>Commit rolled back dialog (text under the title) and status line: why the commit was rolled back. {what} is the count part, such as "1 row was changed and 1 row was deleted"; {detail} is one sentence about the first row.</comment>
+  </data>
+  <data name="Dialogs_ConflictChanged_one" xml:space="preserve">
+    <value>{count} row was changed</value>
+    <comment>Part of the rolled-back commit message, singular. {count} is 1.</comment>
+  </data>
+  <data name="Dialogs_ConflictChanged_other" xml:space="preserve">
+    <value>{count} rows were changed</value>
+    <comment>Part of the rolled-back commit message, plural. {count} is how many rows, such as 3.</comment>
+  </data>
+  <data name="Dialogs_ConflictDeleted_one" xml:space="preserve">
+    <value>{count} row was deleted</value>
+    <comment>Part of the rolled-back commit message, singular. {count} is 1.</comment>
+  </data>
+  <data name="Dialogs_ConflictDeleted_other" xml:space="preserve">
+    <value>{count} rows were deleted</value>
+    <comment>Part of the rolled-back commit message, plural. {count} is how many rows, such as 3.</comment>
+  </data>
+  <data name="Dialogs_ConflictBoth" xml:space="preserve">
+    <value>{changed} and {deleted}</value>
+    <comment>Part of the rolled-back commit message: joins the two counts. {changed} is such as "1 row was changed", {deleted} such as "2 rows were deleted".</comment>
+  </data>
+  <data name="Dialogs_ConflictMessageLocked" xml:space="preserve">
+    <value>Commit rolled back — nothing was applied. A staged row is locked by another session's open transaction (waited {seconds} s). Try again once it commits or rolls back.</value>
+    <comment>Status line and dialog text: the commit gave up waiting for a row lock. {seconds} is how long it waited, such as 5.</comment>
+  </data>
+  <data name="Dialogs_ConflictMessageRowCount_one" xml:space="preserve">
+    <value>Commit rolled back — nothing was applied. A staged change was meant to touch {expected} row but touched {affected}; the table's rows no longer match what was staged. Reload and stage the change again.</value>
+    <comment>Status line and dialog text: a staged statement touched another number of rows than expected. Singular. {expected} is 1, {affected} is how many rows it touched, such as 0 or 2.</comment>
+  </data>
+  <data name="Dialogs_ConflictMessageRowCount_other" xml:space="preserve">
+    <value>Commit rolled back — nothing was applied. A staged change was meant to touch {expected} rows but touched {affected}; the table's rows no longer match what was staged. Reload and stage the change again.</value>
+    <comment>Status line and dialog text: a staged statement touched another number of rows than expected. Plural. {expected} is how many it was meant to touch, {affected} how many it touched.</comment>
+  </data>
+  <data name="Dialogs_ConflictStagedDelete" xml:space="preserve">
+    <value>you staged a delete</value>
+    <comment>Part of a sentence about a conflicting row, in brackets at its end: what the user had staged.</comment>
+  </data>
+  <data name="Dialogs_ConflictStagedEdit" xml:space="preserve">
+    <value>you staged {changes}</value>
+    <comment>Part of a sentence about a conflicting row, in brackets at its end. {changes} lists the values the user staged, such as qty = 5, status = 'packed'.</comment>
+  </data>
+  <data name="Dialogs_ConflictRowDeleted" xml:space="preserve">
+    <value>Row {key} no longer exists: another session deleted it or changed its key ({staged}).</value>
+    <comment>One sentence about a conflicting row. {key} is the row's key, such as id = 7; {staged} is what the user had staged, such as "you staged a delete".</comment>
+  </data>
+  <data name="Dialogs_ConflictColumnChange" xml:space="preserve">
+    <value>{column} was {before}, now {after}</value>
+    <comment>One column that another session changed, in a list separated by semicolons. {column} is the column, {before} and {after} are values, such as status was 'packed', now 'shipped'.</comment>
+  </data>
+  <data name="Dialogs_ConflictRowChanged" xml:space="preserve">
+    <value>Row {key} was changed by another session: {changes} ({staged}).</value>
+    <comment>One sentence about a conflicting row. {key} is the row's key; {changes} the list of changed columns; {staged} what the user had staged.</comment>
+  </data>
+  <data name="Dialogs_ConflictRowChangedMore" xml:space="preserve">
+    <value>Row {key} was changed by another session: {changes}; +{count} more column(s) ({staged}).</value>
+    <comment>One sentence about a conflicting row where more columns changed than are listed. {key}, {changes} and {staged} as in the sentence without "more"; {count} is how many columns are not listed, such as 2.</comment>
+  </data>
+  <data name="Dialogs_HostKeyTitle" xml:space="preserve">
+    <value>pgNimbus — Unknown SSH host</value>
+    <comment>Window title of the dialog that asks whether to trust an SSH server's key. pgNimbus is the product name.</comment>
+  </data>
+  <data name="Dialogs_HostKeyHeading" xml:space="preserve">
+    <value>Unknown SSH host</value>
+    <comment>SSH host key dialog: heading.</comment>
+  </data>
+  <data name="Dialogs_HostKeyHost" xml:space="preserve">
+    <value>Host</value>
+    <comment>SSH host key dialog: label of the server's address.</comment>
+  </data>
+  <data name="Dialogs_HostKeyType" xml:space="preserve">
+    <value>Key type</value>
+    <comment>SSH host key dialog: label of the key's type, such as ssh-ed25519.</comment>
+  </data>
+  <data name="Dialogs_HostKeyFingerprint" xml:space="preserve">
+    <value>Fingerprint</value>
+    <comment>SSH host key dialog: label of the key's fingerprint, a SHA256 string.</comment>
+  </data>
+  <data name="Dialogs_HostKeyHint" xml:space="preserve">
+    <value>Neither ~/.ssh/known_hosts nor pgNimbus's own list has a key for {server}, so pgNimbus cannot tell whether this is the right server. Compare the fingerprint with the one the server's administrator gave you before you accept it.</value>
+    <comment>SSH host key dialog: explanation under the heading. {server} is the server and port, such as bastion.example.com:2222.</comment>
+  </data>
+  <data name="Dialogs_HostKeyRemembered" xml:space="preserve">
+    <value>Accept remembers this key in {path}. If the server later presents a different key, the connection is refused until that line is removed.</value>
+    <comment>SSH host key dialog: what Accept does. {path} is the file the key is written to, such as /home/you/.config/pgNimbus/known_hosts.</comment>
+  </data>
+  <data name="Dialogs_HostKeySession" xml:space="preserve">
+    <value>Accept trusts this key until pgNimbus closes: there is no app data folder to remember it in, so you will be asked again next time.</value>
+    <comment>SSH host key dialog: what Accept does when there is no folder to keep the key in.</comment>
+  </data>
+  <data name="Dialogs_AcceptButton" xml:space="preserve">
+    <value>Accept</value>
+    <comment>SSH host key dialog: button that trusts the key.</comment>
+  </data>
+  <data name="Dialogs_SaveQueryTitle" xml:space="preserve">
+    <value>pgNimbus — Save query</value>
+    <comment>Window title of the dialog that names a query to save in the Saved Queries list. pgNimbus is the product name.</comment>
+  </data>
+  <data name="Dialogs_NameLabel" xml:space="preserve">
+    <value>Name</value>
+    <comment>Naming dialogs (save a query, a plan, rename): small label above the name box.</comment>
+  </data>
+  <data name="Dialogs_NameTakenQuery" xml:space="preserve">
+    <value>A saved query named “{name}” already exists. Saving replaces it.</value>
+    <comment>Save query dialog: warning when the typed name belongs to another saved query. {name} is that query's name.</comment>
+  </data>
+  <data name="Dialogs_NameTakenPlan" xml:space="preserve">
+    <value>A saved plan named “{name}” already exists. Saving replaces it.</value>
+    <comment>Save plan dialog (Query Lab): warning when the typed name belongs to another saved plan. {name} is that plan's name.</comment>
+  </data>
+  <data name="Dialogs_ReplaceButton" xml:space="preserve">
+    <value>Replace</value>
+    <comment>Naming dialogs: the primary button, in place of Save, when the typed name already exists.</comment>
+  </data>
 
   <!-- ===== Monitoring ===== -->
+  <data name="Monitoring_ActivityTitle" xml:space="preserve">
+    <value>pgNimbus — Server Activity</value>
+    <comment>Title bar of the Server Activity window. Keep the product name.</comment>
+  </data>
+  <data name="Monitoring_ActivityCancelQuery" xml:space="preserve">
+    <value>Cancel query</value>
+    <comment>Server Activity window: button that stops the selected backend's running statement but keeps its session.</comment>
+  </data>
+  <data name="Monitoring_ActivityTerminate" xml:space="preserve">
+    <value>Terminate…</value>
+    <comment>Server Activity window: button that kills the selected backend's whole session; it asks for confirmation first.</comment>
+  </data>
+  <data name="Monitoring_ActivityRefreshTip" xml:space="preserve">
+    <value>Refresh now</value>
+    <comment>Server Activity window: tooltip of the Refresh button.</comment>
+  </data>
+  <data name="Monitoring_ActivityAutoToggle" xml:space="preserve">
+    <value>Auto</value>
+    <comment>Server Activity window: toggle button that turns the automatic refresh on or off.</comment>
+  </data>
+  <data name="Monitoring_ActivityAutoTip" xml:space="preserve">
+    <value>Refresh every 2 seconds while this window is open</value>
+    <comment>Server Activity window: tooltip of the Auto toggle.</comment>
+  </data>
+  <data name="Monitoring_ActivityTabBackends" xml:space="preserve">
+    <value>Backends</value>
+    <comment>Server Activity window: tab that lists every client connection (backend) of the server.</comment>
+  </data>
+  <data name="Monitoring_ActivityTabBlocking" xml:space="preserve">
+    <value>Blocking</value>
+    <comment>Server Activity window: tab that shows which backends wait on locks held by others.</comment>
+  </data>
+  <data name="Monitoring_ActivityNoLockWaits" xml:space="preserve">
+    <value>No backend is waiting on a lock right now.</value>
+    <comment>Server Activity window: Blocking tab, centred message when nothing is blocked.</comment>
+  </data>
+  <data name="Monitoring_ActivityCancelTip" xml:space="preserve">
+    <value>Stop the selected backend's running statement but keep the session (pg_cancel_backend). On the Blocking tab, aim at a lock holder to release everyone waiting beneath it.</value>
+    <comment>Server Activity window: tooltip of the Cancel query button. pg_cancel_backend is a PostgreSQL function name.</comment>
+  </data>
+  <data name="Monitoring_ActivityTerminateTip" xml:space="preserve">
+    <value>Kill the selected backend's whole session (pg_terminate_backend)</value>
+    <comment>Server Activity window: tooltip of the Terminate button. pg_terminate_backend is a PostgreSQL function name.</comment>
+  </data>
+  <data name="Monitoring_ActivityTerminateConfirm" xml:space="preserve">
+    <value>Terminate backend {pid} ({target})? Its session and any open transaction die with it.</value>
+    <comment>Server Activity window: confirmation text before a backend is terminated. {pid} is the process id, such as 4821; {target} is user@database, such as alice@shop.</comment>
+  </data>
+  <data name="Monitoring_ActivityTerminateButton" xml:space="preserve">
+    <value>Terminate</value>
+    <comment>Server Activity window: confirm button of the terminate dialog (red).</comment>
+  </data>
+  <data name="Monitoring_ActivityClientLocal" xml:space="preserve">
+    <value>local</value>
+    <comment>Server Activity window: Client column: shown for a connection that has no network address (a local socket).</comment>
+  </data>
+  <data name="Monitoring_ActivityBackends_one" xml:space="preserve">
+    <value>{count} backend</value>
+    <comment>Server Activity window: status line. Singular. {count} is how many backends, always 1. Joined with other parts by ' · '.</comment>
+  </data>
+  <data name="Monitoring_ActivityBackends_other" xml:space="preserve">
+    <value>{count} backends</value>
+    <comment>Server Activity window: status line. Plural. {count} is how many backends, such as 12. Joined with other parts by ' · '.</comment>
+  </data>
+  <data name="Monitoring_ActivityWaitingOnLocks" xml:space="preserve">
+    <value>{count} waiting on locks</value>
+    <comment>Server Activity window: status line part after the backend count. {count} is how many backends wait on a lock, such as 3.</comment>
+  </data>
+  <data name="Monitoring_ActivityNoLockWaitsStatus" xml:space="preserve">
+    <value>No lock waits.</value>
+    <comment>Server Activity window: status line of the Blocking tab when nothing is blocked.</comment>
+  </data>
+  <data name="Monitoring_ActivityBlockingStatus" xml:space="preserve">
+    <value>{waiters} waiting on {lockHolders}</value>
+    <comment>Server Activity window: status line of the Blocking tab. {waiters} is the backend count with its noun, such as '3 backends'; {lockHolders} is the holder count with its noun, such as '1 lock holder'. Read: '3 backends waiting on 1 lock holder'.</comment>
+  </data>
+  <data name="Monitoring_ActivityLockHolders_one" xml:space="preserve">
+    <value>{count} lock holder</value>
+    <comment>Server Activity window: part of the Blocking status line. Singular. {count} is how many backends hold the locks others wait for, always 1.</comment>
+  </data>
+  <data name="Monitoring_ActivityLockHolders_other" xml:space="preserve">
+    <value>{count} lock holders</value>
+    <comment>Server Activity window: part of the Blocking status line. Plural. {count} is how many backends hold the locks others wait for, such as 2.</comment>
+  </data>
+  <data name="Monitoring_ActivityCancelSent" xml:space="preserve">
+    <value>Cancel signal sent to pid {pid}</value>
+    <comment>Server Activity window: status line after Cancel query. {pid} is the process id of the backend, such as 4821.</comment>
+  </data>
+  <data name="Monitoring_ActivityPidGone" xml:space="preserve">
+    <value>Pid {pid} is already gone</value>
+    <comment>Server Activity window: status line after Cancel query or Terminate when that backend had already ended. {pid} is the process id, such as 4821.</comment>
+  </data>
+  <data name="Monitoring_ActivityTerminated" xml:space="preserve">
+    <value>Terminated backend {pid}</value>
+    <comment>Server Activity window: status line after Terminate. {pid} is the process id of the backend, such as 4821.</comment>
+  </data>
+  <data name="Monitoring_ActivityWaitForModeOn" xml:space="preserve">
+    <value>waiting for {mode} on {object}</value>
+    <comment>Server Activity window: Blocking tree row, amber text of a blocked backend. {mode} is a PostgreSQL lock mode such as RowExclusiveLock; {object} the locked object such as orders.</comment>
+  </data>
+  <data name="Monitoring_ActivityWaitForMode" xml:space="preserve">
+    <value>waiting for {mode}</value>
+    <comment>Server Activity window: Blocking tree row of a blocked backend when the locked object is unknown. {mode} is a lock mode such as ShareLock.</comment>
+  </data>
+  <data name="Monitoring_ActivityWaitOnObject" xml:space="preserve">
+    <value>waiting on {object}</value>
+    <comment>Server Activity window: Blocking tree row of a blocked backend when the lock mode is unknown. {object} is the locked object such as orders.</comment>
+  </data>
+  <data name="Monitoring_ActivityWaitOnLock" xml:space="preserve">
+    <value>waiting on a lock</value>
+    <comment>Server Activity window: Blocking tree row of a blocked backend when neither mode nor object is known.</comment>
+  </data>
+  <data name="Monitoring_ActivityWaitWithTime" xml:space="preserve">
+    <value>{wait} · {elapsed}</value>
+    <comment>Server Activity window: Blocking tree row: the waiting text followed by how long it has waited. {wait} is one of the 'waiting …' texts; {elapsed} is a time such as 0:42.</comment>
+  </data>
+  <data name="Monitoring_ActivityAlsoBlockedBy" xml:space="preserve">
+    <value>also blocked by {pids}</value>
+    <comment>Server Activity window: Blocking tree row of a waiter with several blockers (the tree shows it under the first). {pids} is a comma-separated list of process ids, such as 4822, 4823.</comment>
+  </data>
+  <data name="Monitoring_ActivityBlockedBy" xml:space="preserve">
+    <value>blocked by {pids}</value>
+    <comment>Server Activity window: Blocking tree row of a root whose blocker is outside the snapshot or in a deadlock cycle. {pids} is a comma-separated list of process ids, such as 999.</comment>
+  </data>
+  <data name="Monitoring_ActivityBlocking" xml:space="preserve">
+    <value>blocking {count}</value>
+    <comment>Server Activity window: Blocking tree row of a lock holder. {count} is how many backends wait behind it, such as 3.</comment>
+  </data>
+  <data name="Monitoring_ColPid" xml:space="preserve">
+    <value>PID</value>
+    <comment>Server Activity window: column header of the Backends grid: process id (a number PostgreSQL gives each backend). Also used by other monitoring grids when the word is the same.</comment>
+  </data>
+  <data name="Monitoring_ColUser" xml:space="preserve">
+    <value>User</value>
+    <comment>Server Activity window: column header of the Backends grid: database user. Also used by other monitoring grids when the word is the same.</comment>
+  </data>
+  <data name="Monitoring_ColDatabase" xml:space="preserve">
+    <value>Database</value>
+    <comment>Server Activity window: column header of the Backends grid: database name. Also used by other monitoring grids when the word is the same.</comment>
+  </data>
+  <data name="Monitoring_ColApplication" xml:space="preserve">
+    <value>Application</value>
+    <comment>Server Activity window: column header of the Backends grid: application_name the client reported. Also used by other monitoring grids when the word is the same.</comment>
+  </data>
+  <data name="Monitoring_ColClient" xml:space="preserve">
+    <value>Client</value>
+    <comment>Server Activity window: column header of the Backends grid: client network address. Also used by other monitoring grids when the word is the same.</comment>
+  </data>
+  <data name="Monitoring_ColState" xml:space="preserve">
+    <value>State</value>
+    <comment>Server Activity window: column header of the Backends grid: backend state, such as active or idle. Also used by other monitoring grids when the word is the same.</comment>
+  </data>
+  <data name="Monitoring_ColWait" xml:space="preserve">
+    <value>Wait</value>
+    <comment>Server Activity window: column header of the Backends grid: what the backend waits on. Also used by other monitoring grids when the word is the same.</comment>
+  </data>
+  <data name="Monitoring_ColTime" xml:space="preserve">
+    <value>Time</value>
+    <comment>Server Activity window: column header of the Backends grid: how long the statement has run. Also used by other monitoring grids when the word is the same.</comment>
+  </data>
+  <data name="Monitoring_ColQuery" xml:space="preserve">
+    <value>Query</value>
+    <comment>Server Activity window: column header of the Backends grid: SQL text. Also used by other monitoring grids when the word is the same.</comment>
+  </data>
+  <data name="Monitoring_OverviewTitle" xml:space="preserve">
+    <value>pgNimbus — Database Overview</value>
+    <comment>Title bar of the Database Overview window. Keep the product name.</comment>
+  </data>
+  <data name="Monitoring_OverviewRefreshTip" xml:space="preserve">
+    <value>Take a fresh snapshot of the statistics</value>
+    <comment>Database Overview window: tooltip of the Refresh button.</comment>
+  </data>
+  <data name="Monitoring_OverviewDatabase" xml:space="preserve">
+    <value>DATABASE</value>
+    <comment>Database Overview window: small heading above the database name. Upper case.</comment>
+  </data>
+  <data name="Monitoring_OverviewSize" xml:space="preserve">
+    <value>SIZE ON DISK</value>
+    <comment>Database Overview window: small heading above the database size. Upper case.</comment>
+  </data>
+  <data name="Monitoring_OverviewTableCache" xml:space="preserve">
+    <value>TABLE CACHE HIT</value>
+    <comment>Database Overview window: small heading above the table cache-hit percentage. Upper case.</comment>
+  </data>
+  <data name="Monitoring_OverviewTableCacheTip" xml:space="preserve">
+    <value>Fraction of table block reads served from shared_buffers rather than disk</value>
+    <comment>Database Overview window: tooltip of the table cache-hit figure. shared_buffers is a PostgreSQL setting name.</comment>
+  </data>
+  <data name="Monitoring_OverviewIndexCache" xml:space="preserve">
+    <value>INDEX CACHE HIT</value>
+    <comment>Database Overview window: small heading above the index cache-hit percentage. Upper case.</comment>
+  </data>
+  <data name="Monitoring_OverviewIndexCacheTip" xml:space="preserve">
+    <value>Fraction of index block reads served from shared_buffers rather than disk</value>
+    <comment>Database Overview window: tooltip of the index cache-hit figure. shared_buffers is a PostgreSQL setting name.</comment>
+  </data>
+  <data name="Monitoring_OverviewTabLargest" xml:space="preserve">
+    <value>Largest relations</value>
+    <comment>Database Overview window: tab: the biggest tables and materialized views.</comment>
+  </data>
+  <data name="Monitoring_OverviewTabScans" xml:space="preserve">
+    <value>Scans (seq vs index)</value>
+    <comment>Database Overview window: tab: how often each table is read by sequential scan against index scan.</comment>
+  </data>
+  <data name="Monitoring_OverviewTabUnused" xml:space="preserve">
+    <value>Unused indexes</value>
+    <comment>Database Overview window: tab: indexes that were never scanned.</comment>
+  </data>
+  <data name="Monitoring_OverviewUnusedNote" xml:space="preserve">
+    <value>Never scanned since the last stats reset. Unique and primary-key indexes are excluded — they enforce constraints regardless of scans.</value>
+    <comment>Database Overview window: note under the Unused indexes grid.</comment>
+  </data>
+  <data name="Monitoring_OverviewKindMatview" xml:space="preserve">
+    <value>matview</value>
+    <comment>Database Overview window: Kind column: a materialized view.</comment>
+  </data>
+  <data name="Monitoring_OverviewKindPartitioned" xml:space="preserve">
+    <value>partitioned</value>
+    <comment>Database Overview window: Kind column: a partitioned table.</comment>
+  </data>
+  <data name="Monitoring_OverviewKindTable" xml:space="preserve">
+    <value>table</value>
+    <comment>Database Overview window: Kind column: an ordinary table.</comment>
+  </data>
+  <data name="Monitoring_OverviewRelations_one" xml:space="preserve">
+    <value>{count} relation</value>
+    <comment>Database Overview window: status line. Singular. {count} is how many relations, always 1. Joined with other parts by ' · '.</comment>
+  </data>
+  <data name="Monitoring_OverviewRelations_other" xml:space="preserve">
+    <value>{count} relations</value>
+    <comment>Database Overview window: status line. Plural. {count} is how many relations, such as 50. Joined with other parts by ' · '.</comment>
+  </data>
+  <data name="Monitoring_OverviewUnusedIndexes_one" xml:space="preserve">
+    <value>{count} unused index</value>
+    <comment>Database Overview window: status line part. Singular. {count} is how many unused indexes, always 1.</comment>
+  </data>
+  <data name="Monitoring_OverviewUnusedIndexes_other" xml:space="preserve">
+    <value>{count} unused indexes</value>
+    <comment>Database Overview window: status line part. Plural. {count} is how many unused indexes, such as 0 or 4.</comment>
+  </data>
+  <data name="Monitoring_OverviewUnusedIndexesWasting_one" xml:space="preserve">
+    <value>{count} unused index wasting {size}</value>
+    <comment>Database Overview window: status line part. Singular. {count} is how many unused indexes, always 1; {size} their size, such as 12.0 MB.</comment>
+  </data>
+  <data name="Monitoring_OverviewUnusedIndexesWasting_other" xml:space="preserve">
+    <value>{count} unused indexes wasting {size}</value>
+    <comment>Database Overview window: status line part. Plural. {count} is how many unused indexes, such as 4; {size} their total size, such as 12.0 MB.</comment>
+  </data>
+  <data name="Monitoring_ColSchema" xml:space="preserve">
+    <value>Schema</value>
+    <comment>Column header in the Database Overview and Slow Queries grids: schema name.</comment>
+  </data>
+  <data name="Monitoring_ColName" xml:space="preserve">
+    <value>Name</value>
+    <comment>Column header in the Database Overview and Slow Queries grids: relation name.</comment>
+  </data>
+  <data name="Monitoring_ColKind" xml:space="preserve">
+    <value>Kind</value>
+    <comment>Column header in the Database Overview and Slow Queries grids: table, matview or partitioned.</comment>
+  </data>
+  <data name="Monitoring_ColRowsEstimate" xml:space="preserve">
+    <value>Rows (est.)</value>
+    <comment>Column header in the Database Overview and Slow Queries grids: estimated row count.</comment>
+  </data>
+  <data name="Monitoring_ColTable" xml:space="preserve">
+    <value>Table</value>
+    <comment>Column header in the Database Overview and Slow Queries grids: size of the table itself, or the table an index belongs to.</comment>
+  </data>
+  <data name="Monitoring_ColIndexes" xml:space="preserve">
+    <value>Indexes</value>
+    <comment>Column header in the Database Overview and Slow Queries grids: size of all indexes of the relation.</comment>
+  </data>
+  <data name="Monitoring_ColTotal" xml:space="preserve">
+    <value>Total</value>
+    <comment>Column header in the Database Overview and Slow Queries grids: table plus indexes; also the total time of a statement.</comment>
+  </data>
+  <data name="Monitoring_ColSeqScans" xml:space="preserve">
+    <value>Seq scans</value>
+    <comment>Column header in the Database Overview and Slow Queries grids: number of sequential scans.</comment>
+  </data>
+  <data name="Monitoring_ColIndexScans" xml:space="preserve">
+    <value>Index scans</value>
+    <comment>Column header in the Database Overview and Slow Queries grids: number of index scans.</comment>
+  </data>
+  <data name="Monitoring_ColIndexPercent" xml:space="preserve">
+    <value>Index %</value>
+    <comment>Column header in the Database Overview and Slow Queries grids: share of scans that used an index.</comment>
+  </data>
+  <data name="Monitoring_ColLiveRows" xml:space="preserve">
+    <value>Live rows</value>
+    <comment>Column header in the Database Overview and Slow Queries grids: number of live rows.</comment>
+  </data>
+  <data name="Monitoring_ColDeadRows" xml:space="preserve">
+    <value>Dead rows</value>
+    <comment>Column header in the Database Overview and Slow Queries grids: number of dead rows (not yet vacuumed).</comment>
+  </data>
+  <data name="Monitoring_ColIndex" xml:space="preserve">
+    <value>Index</value>
+    <comment>Column header in the Database Overview and Slow Queries grids: index name.</comment>
+  </data>
+  <data name="Monitoring_ColSize" xml:space="preserve">
+    <value>Size</value>
+    <comment>Column header in the Database Overview and Slow Queries grids: size on disk.</comment>
+  </data>
+  <data name="Monitoring_NotifyTitle" xml:space="preserve">
+    <value>pgNimbus — LISTEN / NOTIFY</value>
+    <comment>Title bar of the LISTEN / NOTIFY monitor window. Keep the product name; LISTEN and NOTIFY are PostgreSQL commands.</comment>
+  </data>
+  <data name="Monitoring_NotifyStart" xml:space="preserve">
+    <value>Start listening</value>
+    <comment>LISTEN / NOTIFY window: button that opens a connection and listens on every channel.</comment>
+  </data>
+  <data name="Monitoring_NotifyStartTip" xml:space="preserve">
+    <value>Open a dedicated connection and LISTEN on every channel below</value>
+    <comment>LISTEN / NOTIFY window: tooltip of Start listening. LISTEN is a PostgreSQL command.</comment>
+  </data>
+  <data name="Monitoring_NotifyClearFeed" xml:space="preserve">
+    <value>Clear feed</value>
+    <comment>LISTEN / NOTIFY window: button that empties the notification list.</comment>
+  </data>
+  <data name="Monitoring_NotifyChannels" xml:space="preserve">
+    <value>CHANNELS</value>
+    <comment>LISTEN / NOTIFY window: small heading above the channel list. Upper case.</comment>
+  </data>
+  <data name="Monitoring_NotifyChannelPlaceholder" xml:space="preserve">
+    <value>Channel name</value>
+    <comment>LISTEN / NOTIFY window: placeholder of the box where a channel to watch is typed.</comment>
+  </data>
+  <data name="Monitoring_NotifyRemoveChannelTip" xml:space="preserve">
+    <value>Stop watching this channel</value>
+    <comment>LISTEN / NOTIFY window: tooltip of the ✕ button on a channel row.</comment>
+  </data>
+  <data name="Monitoring_NotifyNotifications" xml:space="preserve">
+    <value>NOTIFICATIONS</value>
+    <comment>LISTEN / NOTIFY window: small heading above the received notifications. Upper case.</comment>
+  </data>
+  <data name="Monitoring_NotifyPid" xml:space="preserve">
+    <value>pid</value>
+    <comment>LISTEN / NOTIFY window: label before the process id of the sending backend in a feed row, such as 'pid 4821'. The number follows after a space.</comment>
+  </data>
+  <data name="Monitoring_NotifyNothingYet" xml:space="preserve">
+    <value>Nothing received yet</value>
+    <comment>LISTEN / NOTIFY window: heading of the empty feed.</comment>
+  </data>
+  <data name="Monitoring_NotifyEmptyHint" xml:space="preserve">
+    <value>Add a channel, press Start listening, and every NOTIFY on it lands here.</value>
+    <comment>LISTEN / NOTIFY window: hint under the empty feed. NOTIFY is a PostgreSQL command; 'Start listening' is the button's label.</comment>
+  </data>
+  <data name="Monitoring_NotifyPayload" xml:space="preserve">
+    <value>PAYLOAD</value>
+    <comment>LISTEN / NOTIFY window: small heading above the payload of the selected notification. Upper case.</comment>
+  </data>
+  <data name="Monitoring_NotifySelectHint" xml:space="preserve">
+    <value>Select a notification to see its payload.</value>
+    <comment>LISTEN / NOTIFY window: message in the empty payload pane.</comment>
+  </data>
+  <data name="Monitoring_NotifySendHeader" xml:space="preserve">
+    <value>Send NOTIFY</value>
+    <comment>LISTEN / NOTIFY window: small heading of the send box at the bottom. NOTIFY is a PostgreSQL command.</comment>
+  </data>
+  <data name="Monitoring_NotifySendChannelPlaceholder" xml:space="preserve">
+    <value>channel</value>
+    <comment>LISTEN / NOTIFY window: placeholder of the box for the channel to send on.</comment>
+  </data>
+  <data name="Monitoring_NotifySendPayloadPlaceholder" xml:space="preserve">
+    <value>payload (optional)</value>
+    <comment>LISTEN / NOTIFY window: placeholder of the box for the text to send.</comment>
+  </data>
+  <data name="Monitoring_NotifySend" xml:space="preserve">
+    <value>Send</value>
+    <comment>LISTEN / NOTIFY window: button that sends the notification.</comment>
+  </data>
+  <data name="Monitoring_NotifySendTip" xml:space="preserve">
+    <value>pg_notify() on this channel, from a pooled connection</value>
+    <comment>LISTEN / NOTIFY window: tooltip of the Send button. pg_notify() is a PostgreSQL function.</comment>
+  </data>
+  <data name="Monitoring_NotifyListening_one" xml:space="preserve">
+    <value>Listening on {count} channel</value>
+    <comment>LISTEN / NOTIFY window: live state beside the green dot. Singular. {count} is how many channels, always 1.</comment>
+  </data>
+  <data name="Monitoring_NotifyListening_other" xml:space="preserve">
+    <value>Listening on {count} channels</value>
+    <comment>LISTEN / NOTIFY window: live state beside the green dot. Plural. {count} is how many channels, such as 3.</comment>
+  </data>
+  <data name="Monitoring_NotifyNotListening" xml:space="preserve">
+    <value>Not listening</value>
+    <comment>LISTEN / NOTIFY window: live state beside the grey dot.</comment>
+  </data>
+  <data name="Monitoring_NotifyStopped" xml:space="preserve">
+    <value>Stopped listening: {error}</value>
+    <comment>LISTEN / NOTIFY window: error line when the connection dropped and could not be restored. {error} is the server's or driver's message.</comment>
+  </data>
+  <data name="Monitoring_NotifyReconnected" xml:space="preserve">
+    <value>Reconnected at {time} — notifications published while the connection was down were not delivered.</value>
+    <comment>LISTEN / NOTIFY window: status note after the connection was restored. {time} is a clock time such as 09:41:07.</comment>
+  </data>
+  <data name="Monitoring_NotifySent" xml:space="preserve">
+    <value>Sent on {channel} at {time}.</value>
+    <comment>LISTEN / NOTIFY window: status note after a notification was sent. {channel} is the channel name, such as orders; {time} a clock time such as 09:41:07.</comment>
+  </data>
+  <data name="Monitoring_SlowTitle" xml:space="preserve">
+    <value>pgNimbus — Slow Queries</value>
+    <comment>Title bar of the Slow Queries window. Keep the product name.</comment>
+  </data>
+  <data name="Monitoring_SlowRefreshTip" xml:space="preserve">
+    <value>Read pg_stat_statements again</value>
+    <comment>Slow Queries window: tooltip of the Refresh button. pg_stat_statements is a PostgreSQL extension.</comment>
+  </data>
+  <data name="Monitoring_SlowRestart" xml:space="preserve">
+    <value>Restart interval</value>
+    <comment>Slow Queries window: button that starts counting from now.</comment>
+  </data>
+  <data name="Monitoring_SlowRestartTip" xml:space="preserve">
+    <value>Count from now: run your workload, then Refresh to see only what it did. The server's own counters are left alone.</value>
+    <comment>Slow Queries window: tooltip of Restart interval.</comment>
+  </data>
+  <data name="Monitoring_SlowRankBy" xml:space="preserve">
+    <value>Rank by</value>
+    <comment>Slow Queries window: label before the three ranking buttons (Total time, Mean, Calls).</comment>
+  </data>
+  <data name="Monitoring_SlowRankTotal" xml:space="preserve">
+    <value>Total time</value>
+    <comment>Slow Queries window: ranking button: order by the time the server spent in total.</comment>
+  </data>
+  <data name="Monitoring_SlowRankTotalTip" xml:space="preserve">
+    <value>Where the server's time went</value>
+    <comment>Slow Queries window: tooltip of the Total time button.</comment>
+  </data>
+  <data name="Monitoring_SlowRankMean" xml:space="preserve">
+    <value>Mean</value>
+    <comment>Slow Queries window: ranking button: order by average time per call.</comment>
+  </data>
+  <data name="Monitoring_SlowRankMeanTip" xml:space="preserve">
+    <value>The slowest single calls, however rarely they run</value>
+    <comment>Slow Queries window: tooltip of the Mean button.</comment>
+  </data>
+  <data name="Monitoring_SlowRankCalls" xml:space="preserve">
+    <value>Calls</value>
+    <comment>Slow Queries window: ranking button: order by number of calls.</comment>
+  </data>
+  <data name="Monitoring_SlowRankCallsTip" xml:space="preserve">
+    <value>The chattiest statements</value>
+    <comment>Slow Queries window: tooltip of the Calls button.</comment>
+  </data>
+  <data name="Monitoring_SlowSinceReset" xml:space="preserve">
+    <value>Since reset</value>
+    <comment>Slow Queries window: scope button: everything since the server statistics were reset.</comment>
+  </data>
+  <data name="Monitoring_SlowSinceResetTip" xml:space="preserve">
+    <value>Everything since the statistics were last reset</value>
+    <comment>Slow Queries window: tooltip of the Since reset button.</comment>
+  </data>
+  <data name="Monitoring_SlowSinceOpened" xml:space="preserve">
+    <value>Since opened</value>
+    <comment>Slow Queries window: scope button before the first read: only what ran since this window opened.</comment>
+  </data>
+  <data name="Monitoring_SlowSince" xml:space="preserve">
+    <value>Since {time}</value>
+    <comment>Slow Queries window: scope button once a baseline exists. {time} is a clock time such as 10:04:05.</comment>
+  </data>
+  <data name="Monitoring_SlowSinceTip" xml:space="preserve">
+    <value>Only what ran since this window opened, or since Restart interval</value>
+    <comment>Slow Queries window: tooltip of the baseline scope button. 'Restart interval' is the button's label.</comment>
+  </data>
+  <data name="Monitoring_SlowOpenSetup" xml:space="preserve">
+    <value>Open setup script</value>
+    <comment>Slow Queries window: button in the 'not available' card that opens the setup SQL in a new tab.</comment>
+  </data>
+  <data name="Monitoring_SlowOpenSetupTip" xml:space="preserve">
+    <value>The two steps as SQL in a new tab, to review and run yourself</value>
+    <comment>Slow Queries window: tooltip of Open setup script.</comment>
+  </data>
+  <data name="Monitoring_SlowCheckAgain" xml:space="preserve">
+    <value>Check again</value>
+    <comment>Slow Queries window: button in the 'not available' card that reads the server again.</comment>
+  </data>
+  <data name="Monitoring_SlowOpenInTab" xml:space="preserve">
+    <value>Open in New Tab</value>
+    <comment>Slow Queries window: right-click menu item on a statement: opens its SQL in a new editor tab.</comment>
+  </data>
+  <data name="Monitoring_SlowCopyQuery" xml:space="preserve">
+    <value>Copy Query</value>
+    <comment>Slow Queries window: right-click menu item on a statement: copies the whole SQL text.</comment>
+  </data>
+  <data name="Monitoring_SlowRestartedTip" xml:space="preserve">
+    <value>Started counting again inside the interval (reset or evicted), so this covers only part of it</value>
+    <comment>Slow Queries window: tooltip of the ↺ mark in front of a statement.</comment>
+  </data>
+  <data name="Monitoring_SlowNotInstalledTitle" xml:space="preserve">
+    <value>pg_stat_statements isn't installed in this database</value>
+    <comment>Slow Queries window: heading of the card shown when the extension is missing. pg_stat_statements is a PostgreSQL extension name.</comment>
+  </data>
+  <data name="Monitoring_SlowNotInstalledDetail" xml:space="preserve">
+    <value>It ships with PostgreSQL but has to be switched on. Add pg_stat_statements to shared_preload_libraries and restart the server, then run CREATE EXTENSION pg_stat_statements in this database. Both need a superuser; on a managed service the first is usually a parameter-group setting. pgNimbus won't do either for you.</value>
+    <comment>Slow Queries window: explanation under the 'not installed' heading. shared_preload_libraries and CREATE EXTENSION pg_stat_statements are PostgreSQL names and SQL: keep them as they are.</comment>
+  </data>
+  <data name="Monitoring_SlowNotLoadedTitle" xml:space="preserve">
+    <value>pg_stat_statements is installed but the server hasn't loaded it</value>
+    <comment>Slow Queries window: heading of the card shown when the extension exists but the server did not load its library.</comment>
+  </data>
+  <data name="Monitoring_SlowNotLoadedDetail" xml:space="preserve">
+    <value>The server wasn't started with pg_stat_statements in shared_preload_libraries, so it has recorded nothing. Add it there and restart the server.</value>
+    <comment>Slow Queries window: explanation under the 'not loaded' heading. shared_preload_libraries is a PostgreSQL setting name.</comment>
+  </data>
+  <data name="Monitoring_SlowEmptyInterval" xml:space="preserve">
+    <value>Nothing ran {scope}. Run your workload, then Refresh.</value>
+    <comment>Slow Queries window: message over the empty grid in the baseline scope. {scope} is one of the 'between …' texts, such as 'between 10:04:05 and 10:06:12'. 'Refresh' is the button's label.</comment>
+  </data>
+  <data name="Monitoring_SlowEmptyNone" xml:space="preserve">
+    <value>No statements recorded for this database yet.</value>
+    <comment>Slow Queries window: message over the empty grid in the 'since reset' scope.</comment>
+  </data>
+  <data name="Monitoring_SlowScopeBetween" xml:space="preserve">
+    <value>between {from} and {to}</value>
+    <comment>Slow Queries window: a period inside a sentence. {from} and {to} are clock times such as 10:04:05.</comment>
+  </data>
+  <data name="Monitoring_SlowScopeSinceReset" xml:space="preserve">
+    <value>since the statistics were reset on {date}</value>
+    <comment>Slow Queries window: a period inside a sentence. {date} is a date and time such as 2026-07-01 09:00.</comment>
+  </data>
+  <data name="Monitoring_SlowScopeSinceStart" xml:space="preserve">
+    <value>since the server started counting</value>
+    <comment>Slow Queries window: a period inside a sentence, used when the reset time is unknown.</comment>
+  </data>
+  <data name="Monitoring_SlowStatementsTop" xml:space="preserve">
+    <value>Top {shown} of {total} statements {scope}</value>
+    <comment>Slow Queries window: status line start. {shown} is how many are listed, such as 100; {total} how many there are, such as 1,204; {scope} a period text such as 'since the server started counting'.</comment>
+  </data>
+  <data name="Monitoring_SlowStatements_one" xml:space="preserve">
+    <value>{count} statement {scope}</value>
+    <comment>Slow Queries window: status line start. Singular. {count} is always 1; {scope} a period text such as 'since the server started counting'.</comment>
+  </data>
+  <data name="Monitoring_SlowStatements_other" xml:space="preserve">
+    <value>{count} statements {scope}</value>
+    <comment>Slow Queries window: status line start. Plural. {count} is how many, such as 38; {scope} a period text such as 'since the server started counting'.</comment>
+  </data>
+  <data name="Monitoring_SlowNoteViewReset" xml:space="preserve">
+    <value>the statistics were reset in between, so this counts from that reset</value>
+    <comment>Slow Queries window: status line note, joined to the others by ' · '.</comment>
+  </data>
+  <data name="Monitoring_SlowNoteRestarted" xml:space="preserve">
+    <value>{count} started counting again in between (marked ↺)</value>
+    <comment>Slow Queries window: status line note. {count} is how many statements, such as 2. ↺ is the mark shown in the grid.</comment>
+  </data>
+  <data name="Monitoring_SlowNoteEvicted" xml:space="preserve">
+    <value>{count} entries were evicted in between (pg_stat_statements.max), so some may be missing</value>
+    <comment>Slow Queries window: status line note. {count} is how many entries, such as 12. pg_stat_statements.max is a PostgreSQL setting name.</comment>
+  </data>
+  <data name="Monitoring_SlowNoteHidden" xml:space="preserve">
+    <value>{count} statements of other roles are hidden (needs pg_read_all_stats)</value>
+    <comment>Slow Queries window: status line note. {count} is how many statements, such as 40. pg_read_all_stats is a PostgreSQL role name.</comment>
+  </data>
+  <data name="Monitoring_SlowNoteOwn" xml:space="preserve">
+    <value>{count} of pgNimbus's own catalog reads left out</value>
+    <comment>Slow Queries window: status line note. {count} is how many, such as 25.</comment>
+  </data>
+  <data name="Monitoring_SlowNoteRead" xml:space="preserve">
+    <value>read {time}</value>
+    <comment>Slow Queries window: status line note: when the data was read. {time} is a clock time such as 10:06:12.</comment>
+  </data>
+  <data name="Monitoring_SlowTabTitle" xml:space="preserve">
+    <value>slow query {rank}</value>
+    <comment>Slow Queries window: title of the editor tab that opens a statement. {rank} is its position in the list, such as 3.</comment>
+  </data>
+  <data name="Monitoring_SlowSetupTabTitle" xml:space="preserve">
+    <value>pg_stat_statements setup</value>
+    <comment>Slow Queries window: title of the editor tab that opens the setup script. pg_stat_statements is a PostgreSQL extension name.</comment>
+  </data>
+  <data name="Monitoring_ColRole" xml:space="preserve">
+    <value>Role</value>
+    <comment>Slow Queries window: column header: the database role that ran the statement.</comment>
+  </data>
+  <data name="Monitoring_ColCalls" xml:space="preserve">
+    <value>Calls</value>
+    <comment>Slow Queries window: column header: how many times the statement ran.</comment>
+  </data>
+  <data name="Monitoring_ColMean" xml:space="preserve">
+    <value>Mean</value>
+    <comment>Slow Queries window: column header: average time per call.</comment>
+  </data>
+  <data name="Monitoring_ColShare" xml:space="preserve">
+    <value>% time</value>
+    <comment>Slow Queries window: column header: the statement's share of all time.</comment>
+  </data>
+  <data name="Monitoring_ColRows" xml:space="preserve">
+    <value>Rows</value>
+    <comment>Slow Queries window: column header: rows the statement returned or changed.</comment>
+  </data>
+  <data name="Monitoring_ColCacheHit" xml:space="preserve">
+    <value>Cache hit</value>
+    <comment>Slow Queries window: column header: share of block reads served from memory.</comment>
+  </data>
 
   <!-- ===== Security ===== -->
+  <data name="Security_WindowTitle" xml:space="preserve">
+    <value>pgNimbus — Roles and Permissions</value>
+    <comment>Window title of the Roles and Permissions window. Keep the product name pgNimbus.</comment>
+  </data>
+  <data name="Security_Database" xml:space="preserve">
+    <value>DATABASE</value>
+    <comment>Roles and Permissions window, top bar: small capitals label above the connected database's name.</comment>
+  </data>
+  <data name="Security_ConnectedAs" xml:space="preserve">
+    <value>CONNECTED AS</value>
+    <comment>Roles and Permissions window, top bar: small capitals label above the role this connection acts as.</comment>
+  </data>
+  <data name="Security_ConnectedAsTip" xml:space="preserve">
+    <value>The role this window reads the catalog as — it only ever sees what this role is allowed to see</value>
+    <comment>Tooltip of the CONNECTED AS block in the Roles and Permissions window.</comment>
+  </data>
+  <data name="Security_Server" xml:space="preserve">
+    <value>SERVER</value>
+    <comment>Roles and Permissions window, top bar: small capitals label above the PostgreSQL version of the server.</comment>
+  </data>
+  <data name="Security_RefreshTip" xml:space="preserve">
+    <value>Re-read roles, privileges and policies from the catalog</value>
+    <comment>Tooltip of the Refresh button of the Roles and Permissions window.</comment>
+  </data>
+  <data name="Security_TabRoles" xml:space="preserve">
+    <value>Roles</value>
+    <comment>Roles and Permissions window: name of the first tab, the list of roles. Also names that area in an error line ("Roles: message").</comment>
+  </data>
+  <data name="Security_TabPermissions" xml:space="preserve">
+    <value>Permissions</value>
+    <comment>Roles and Permissions window: name of the second tab, the permissions matrix. Also names that area in an error line.</comment>
+  </data>
+  <data name="Security_TabDefaultPrivileges" xml:space="preserve">
+    <value>Default privileges</value>
+    <comment>Roles and Permissions window: name of the third tab (PostgreSQL's ALTER DEFAULT PRIVILEGES). Also names that area in an error line.</comment>
+  </data>
+  <data name="Security_TabRls" xml:space="preserve">
+    <value>Row-level security</value>
+    <comment>Roles and Permissions window: name of the fourth tab (PostgreSQL row-level security policies). Also names that area in an error line.</comment>
+  </data>
+  <data name="Security_AreaObjects" xml:space="preserve">
+    <value>Objects</value>
+    <comment>Names what failed to load in an error line of the Roles and Permissions window: the list of database objects (tables, schemas and so on). Used as {what} in Security_ErrorStatus.</comment>
+  </data>
+  <data name="Security_AreaAccess" xml:space="preserve">
+    <value>Access</value>
+    <comment>Names what failed to load in an error line of the Roles and Permissions window: the plain-language sentence about what a role can do. Used as {what} in Security_ErrorStatus.</comment>
+  </data>
+  <data name="Security_ErrorStatus" xml:space="preserve">
+    <value>{what}: {message}</value>
+    <comment>Status line of the Roles and Permissions window after something failed to load. {what} names the part, such as Roles or Permissions; {message} is the error text from the server.</comment>
+  </data>
+  <data name="Security_ReadingRoles" xml:space="preserve">
+    <value>Reading roles…</value>
+    <comment>Status line of the Roles and Permissions window while it reads the catalog for the first time.</comment>
+  </data>
+  <data name="Security_RolesStatus_one" xml:space="preserve">
+    <value>{count} role · {time}</value>
+    <comment>Status line of the Roles and Permissions window after a read. Singular. {count} is how many roles (not counting built-in ones), {time} the time of the read such as 09:41:02.</comment>
+  </data>
+  <data name="Security_RolesStatus_other" xml:space="preserve">
+    <value>{count} roles · {time}</value>
+    <comment>Status line of the Roles and Permissions window after a read. Plural. {count} is how many roles (not counting built-in ones), such as 5; {time} the time of the read such as 09:41:02.</comment>
+  </data>
+  <data name="Security_FilterRoles" xml:space="preserve">
+    <value>Filter roles…</value>
+    <comment>Roles tab: placeholder of the filter box above the list of roles.</comment>
+  </data>
+  <data name="Security_BuiltinRolesChip" xml:space="preserve">
+    <value>pg_*</value>
+    <comment>Roles tab: label of the small toggle that also lists the built-in roles whose names start with pg_. A name pattern; leave it as it is.</comment>
+  </data>
+  <data name="Security_BuiltinRolesTip" xml:space="preserve">
+    <value>Also list the built-in pg_* roles the server ships with</value>
+    <comment>Roles tab: tooltip of the pg_* toggle next to the filter box.</comment>
+  </data>
+  <data name="Security_ColRole" xml:space="preserve">
+    <value>Role</value>
+    <comment>Roles tab: column header of the role names.</comment>
+  </data>
+  <data name="Security_ColAttributes" xml:space="preserve">
+    <value>Attributes</value>
+    <comment>Roles tab: column header of the short list of attributes of each role.</comment>
+  </data>
+  <data name="Security_ColValidUntil" xml:space="preserve">
+    <value>Valid until</value>
+    <comment>Roles tab: column header of the role's password expiry date. Also the label of that row in the role's details.</comment>
+  </data>
+  <data name="Security_NoRoleMatches" xml:space="preserve">
+    <value>No role matches that filter.</value>
+    <comment>Roles tab: shown over the empty list when the filter box matches no role.</comment>
+  </data>
+  <data name="Security_NewRole" xml:space="preserve">
+    <value>New role…</value>
+    <comment>Roles tab: button that opens the dialog to create a role.</comment>
+  </data>
+  <data name="Security_NewRoleTip" xml:space="preserve">
+    <value>Create a role, with the CREATE ROLE statement shown before it runs</value>
+    <comment>Roles tab: tooltip of the New role button. CREATE ROLE is the SQL statement.</comment>
+  </data>
+  <data name="Security_Edit" xml:space="preserve">
+    <value>Edit…</value>
+    <comment>Roles tab: button and right-click menu item that open the dialog to change the selected role.</comment>
+  </data>
+  <data name="Security_EditTip" xml:space="preserve">
+    <value>Change the selected role's attributes and memberships</value>
+    <comment>Roles tab: tooltip of the Edit button.</comment>
+  </data>
+  <data name="Security_DropRole" xml:space="preserve">
+    <value>Drop…</value>
+    <comment>Roles tab: button that opens the dialog to delete (drop) the selected role.</comment>
+  </data>
+  <data name="Security_DropRoleTip" xml:space="preserve">
+    <value>Work out what the role owns and holds, then generate the drop recipe</value>
+    <comment>Roles tab: tooltip of the Drop button.</comment>
+  </data>
+  <data name="Security_CreateRoleScript" xml:space="preserve">
+    <value>CREATE ROLE script</value>
+    <comment>Roles tab: button that opens the selected role's CREATE ROLE statement in a new query tab. CREATE ROLE is SQL.</comment>
+  </data>
+  <data name="Security_CreateRoleScriptTip" xml:space="preserve">
+    <value>Open this role's CREATE ROLE statement in a new query tab. It carries no password — pgNimbus never reads password hashes.</value>
+    <comment>Roles tab: tooltip of the CREATE ROLE script button.</comment>
+  </data>
+  <data name="Security_MenuCopyName" xml:space="preserve">
+    <value>Copy Name</value>
+    <comment>Roles tab, right-click menu on a role: copies the role's name to the clipboard.</comment>
+  </data>
+  <data name="Security_MenuCreateRoleScript" xml:space="preserve">
+    <value>CREATE ROLE Script</value>
+    <comment>Roles tab, right-click menu on a role: opens the CREATE ROLE statement in a new query tab. CREATE ROLE is SQL.</comment>
+  </data>
+  <data name="Security_MenuDropRole" xml:space="preserve">
+    <value>Drop Role…</value>
+    <comment>Roles tab, right-click menu on a role: opens the dialog to delete the role.</comment>
+  </data>
+  <data name="Security_SelectRoleHint" xml:space="preserve">
+    <value>Select a role to see its attributes and where it sits in the membership graph.</value>
+    <comment>Roles tab: shown in the empty detail pane while no role is selected.</comment>
+  </data>
+  <data name="Security_MemberOf" xml:space="preserve">
+    <value>MEMBER OF</value>
+    <comment>Small capitals heading above the groups a role belongs to. Used in the Roles tab and in the role dialog.</comment>
+  </data>
+  <data name="Security_Members" xml:space="preserve">
+    <value>MEMBERS</value>
+    <comment>Roles tab, role details: small capitals heading above the roles that belong to the selected role.</comment>
+  </data>
+  <data name="Security_SessionDefaults" xml:space="preserve">
+    <value>SESSION DEFAULTS</value>
+    <comment>Roles tab, role details: small capitals heading above the per-role settings (ALTER ROLE … SET).</comment>
+  </data>
+  <data name="Security_NoInheritNeedsSetRole" xml:space="preserve">
+    <value>NOINHERIT · needs SET ROLE</value>
+    <comment>Roles tab, membership tree: marks a membership whose privileges only apply after SET ROLE. NOINHERIT and SET ROLE are SQL keywords and stay as they are.</comment>
+  </data>
+  <data name="Security_BelongsToNoGroup" xml:space="preserve">
+    <value>Belongs to no group.</value>
+    <comment>Roles tab, role details: shown under MEMBER OF when the role is in no group.</comment>
+  </data>
+  <data name="Security_NoRoleBelongs" xml:space="preserve">
+    <value>No role belongs to this one.</value>
+    <comment>Roles tab, role details: shown under MEMBERS when the role has no members.</comment>
+  </data>
+  <data name="Security_FlagSuperuser" xml:space="preserve">
+    <value>superuser</value>
+    <comment>Roles tab: one word in a role's short attribute list, joined with a dot. Matches the SQL attribute SUPERUSER; a translation may keep it.</comment>
+  </data>
+  <data name="Security_FlagLogin" xml:space="preserve">
+    <value>login</value>
+    <comment>Roles tab: one word in a role's short attribute list. Matches the SQL attribute LOGIN; a translation may keep it.</comment>
+  </data>
+  <data name="Security_FlagCreateDb" xml:space="preserve">
+    <value>createdb</value>
+    <comment>Roles tab: one word in a role's short attribute list. Matches the SQL attribute CREATEDB; a translation may keep it.</comment>
+  </data>
+  <data name="Security_FlagCreateRole" xml:space="preserve">
+    <value>createrole</value>
+    <comment>Roles tab: one word in a role's short attribute list. Matches the SQL attribute CREATEROLE; a translation may keep it.</comment>
+  </data>
+  <data name="Security_FlagReplication" xml:space="preserve">
+    <value>replication</value>
+    <comment>Roles tab: one word in a role's short attribute list. Matches the SQL attribute REPLICATION; a translation may keep it.</comment>
+  </data>
+  <data name="Security_FlagBypassRls" xml:space="preserve">
+    <value>bypassrls</value>
+    <comment>Roles tab: one word in a role's short attribute list. Matches the SQL attribute BYPASSRLS; a translation may keep it.</comment>
+  </data>
+  <data name="Security_FlagNoInherit" xml:space="preserve">
+    <value>noinherit</value>
+    <comment>Roles tab: one word in a role's short attribute list. Matches the SQL attribute NOINHERIT; a translation may keep it.</comment>
+  </data>
+  <data name="Security_Expired" xml:space="preserve">
+    <value>expired</value>
+    <comment>Roles tab: shown in the Valid until column when the role's expiry date has passed.</comment>
+  </data>
+  <data name="Security_DetailLogin" xml:space="preserve">
+    <value>Login</value>
+    <comment>Roles tab, role details: label of the row that says whether the role can log in.</comment>
+  </data>
+  <data name="Security_AttrSuperuser" xml:space="preserve">
+    <value>Superuser</value>
+    <comment>Label of the superuser attribute of a role: a row in the Roles tab's details and a check box in the role dialog.</comment>
+  </data>
+  <data name="Security_AttrInherit" xml:space="preserve">
+    <value>Inherit</value>
+    <comment>Label of the inherit attribute of a role (it uses the privileges of the groups it belongs to): a row in the Roles tab's details and a check box in the role dialog.</comment>
+  </data>
+  <data name="Security_AttrCreateDb" xml:space="preserve">
+    <value>Create DB</value>
+    <comment>Label of the attribute that lets a role create databases: a row in the Roles tab's details and a check box in the role dialog.</comment>
+  </data>
+  <data name="Security_AttrCreateRole" xml:space="preserve">
+    <value>Create role</value>
+    <comment>Label of the attribute that lets a role create other roles: a row in the Roles tab's details and a check box in the role dialog.</comment>
+  </data>
+  <data name="Security_AttrReplication" xml:space="preserve">
+    <value>Replication</value>
+    <comment>Label of the replication attribute of a role: a row in the Roles tab's details and a check box in the role dialog.</comment>
+  </data>
+  <data name="Security_AttrBypassRls" xml:space="preserve">
+    <value>Bypass RLS</value>
+    <comment>Label of the attribute that makes a role skip row-level security: a row in the Roles tab's details and a check box in the role dialog.</comment>
+  </data>
+  <data name="Security_DetailConnectionLimit" xml:space="preserve">
+    <value>Connection limit</value>
+    <comment>Roles tab, role details: label of the row with the most connections the role may hold.</comment>
+  </data>
+  <data name="Security_DetailComment" xml:space="preserve">
+    <value>Comment</value>
+    <comment>Roles tab, role details: label of the row with the role's comment.</comment>
+  </data>
+  <data name="Security_GroupPrivilegesNeedSetRole" xml:space="preserve">
+    <value>group privileges need SET ROLE</value>
+    <comment>Roles tab, role details: small note beside Inherit = no. SET ROLE is SQL.</comment>
+  </data>
+  <data name="Security_Yes" xml:space="preserve">
+    <value>yes</value>
+    <comment>Roles tab, role details: the value of a yes-or-no attribute that is on.</comment>
+  </data>
+  <data name="Security_No" xml:space="preserve">
+    <value>no</value>
+    <comment>Roles tab, role details: the value of a yes-or-no attribute that is off.</comment>
+  </data>
+  <data name="Security_NoLimit" xml:space="preserve">
+    <value>no limit</value>
+    <comment>A role has no connection limit. Shown in the Roles tab's details and as the placeholder of the connection limit box in the role dialog.</comment>
+  </data>
+  <data name="Security_NoExpiry" xml:space="preserve">
+    <value>no expiry</value>
+    <comment>A role's password never expires. Shown in the Roles tab's details and as the placeholder of the date box in the role dialog.</comment>
+  </data>
+  <data name="Security_RoleScriptTabTitle" xml:space="preserve">
+    <value>role · {name}</value>
+    <comment>Title of the query tab that opens with a role's CREATE ROLE statement. {name} is the role's name, such as app_ro.</comment>
+  </data>
+  <data name="Security_RoleNew" xml:space="preserve">
+    <value>New role</value>
+    <comment>Title of the role dialog when it creates a role.</comment>
+  </data>
+  <data name="Security_RoleAlter" xml:space="preserve">
+    <value>Alter role “{name}”</value>
+    <comment>Title of the role dialog when it changes a role. {name} is the role's name, such as app_ro. Keep the quotation marks around it.</comment>
+  </data>
+  <data name="Security_RoleName" xml:space="preserve">
+    <value>NAME</value>
+    <comment>Role dialog: small capitals label of the role name box.</comment>
+  </data>
+  <data name="Security_RoleNamePlaceholder" xml:space="preserve">
+    <value>app_ro</value>
+    <comment>Role dialog: example role name shown dimmed in the empty name box. An identifier; a translation may keep it.</comment>
+  </data>
+  <data name="Security_CanLogIn" xml:space="preserve">
+    <value>Can log in</value>
+    <comment>Role dialog: check box that lets the role log in.</comment>
+  </data>
+  <data name="Security_Password" xml:space="preserve">
+    <value>PASSWORD</value>
+    <comment>Role dialog: small capitals label of the password box.</comment>
+  </data>
+  <data name="Security_PasswordConfirm" xml:space="preserve">
+    <value>CONFIRM</value>
+    <comment>Role dialog: small capitals label of the box that repeats the password.</comment>
+  </data>
+  <data name="Security_Attributes" xml:space="preserve">
+    <value>ATTRIBUTES</value>
+    <comment>Role dialog: small capitals heading above the attribute check boxes.</comment>
+  </data>
+  <data name="Security_InheritTip" xml:space="preserve">
+    <value>Off means the role must SET ROLE before a group's privileges apply</value>
+    <comment>Role dialog: tooltip of the Inherit check box. SET ROLE is SQL.</comment>
+  </data>
+  <data name="Security_BypassRlsTip" xml:space="preserve">
+    <value>Skips every row-level security policy, always</value>
+    <comment>Role dialog: tooltip of the Bypass RLS check box.</comment>
+  </data>
+  <data name="Security_ConnectionLimit" xml:space="preserve">
+    <value>CONNECTION LIMIT</value>
+    <comment>Role dialog: small capitals label of the box with the most connections the role may hold.</comment>
+  </data>
+  <data name="Security_ValidUntil" xml:space="preserve">
+    <value>VALID UNTIL</value>
+    <comment>Role dialog: small capitals label of the date box where the role's password expires.</comment>
+  </data>
+  <data name="Security_BuiltinRoles" xml:space="preserve">
+    <value>BUILT-IN ROLES</value>
+    <comment>Role dialog: small capitals heading above the check boxes for roles PostgreSQL ships with, such as pg_read_all_data.</comment>
+  </data>
+  <data name="Security_Comment" xml:space="preserve">
+    <value>COMMENT</value>
+    <comment>Role dialog: small capitals label of the comment box.</comment>
+  </data>
+  <data name="Security_CommentPlaceholder" xml:space="preserve">
+    <value>what this role is for</value>
+    <comment>Role dialog: placeholder of the comment box.</comment>
+  </data>
+  <data name="Security_GeneratedSql" xml:space="preserve">
+    <value>GENERATED SQL</value>
+    <comment>Role dialog: small capitals heading above the SQL statement the dialog will run.</comment>
+  </data>
+  <data name="Security_HintReadAllData" xml:space="preserve">
+    <value>SELECT on every table, view and sequence, in every schema</value>
+    <comment>Role dialog: hint beside the pg_read_all_data check box. SELECT is SQL.</comment>
+  </data>
+  <data name="Security_HintWriteAllData" xml:space="preserve">
+    <value>INSERT, UPDATE and DELETE on every table</value>
+    <comment>Role dialog: hint beside the pg_write_all_data check box. INSERT, UPDATE and DELETE are SQL.</comment>
+  </data>
+  <data name="Security_HintMonitor" xml:space="preserve">
+    <value>read the statistics and monitoring views without superuser</value>
+    <comment>Role dialog: hint beside the pg_monitor check box.</comment>
+  </data>
+  <data name="Security_HintLoginRole" xml:space="preserve">
+    <value>login role</value>
+    <comment>Role dialog: hint beside a role in the MEMBER OF list: this role can log in.</comment>
+  </data>
+  <data name="Security_HintGroupRole" xml:space="preserve">
+    <value>group role</value>
+    <comment>Role dialog: hint beside a role in the MEMBER OF list: this role cannot log in, so it is a group.</comment>
+  </data>
+  <data name="Security_NeedsName" xml:space="preserve">
+    <value>A role needs a name.</value>
+    <comment>Role dialog: validation message under the form.</comment>
+  </data>
+  <data name="Security_PasswordsDiffer" xml:space="preserve">
+    <value>The two passwords do not match.</value>
+    <comment>Role dialog: validation message under the form.</comment>
+  </data>
+  <data name="Security_PasswordNeedsPg10" xml:space="preserve">
+    <value>Setting a password needs PostgreSQL 10 or later. Set it with psql's \password on this server.</value>
+    <comment>Role dialog: validation message under the form, shown on a server older than PostgreSQL 10. psql's \password is a psql command and stays as written.</comment>
+  </data>
+  <data name="Security_NothingChanged" xml:space="preserve">
+    <value>Nothing has changed yet.</value>
+    <comment>Role dialog: validation message under the form while nothing differs from the saved role.</comment>
+  </data>
+  <data name="Security_LoginWithoutPassword" xml:space="preserve">
+    <value>This role can log in but has no password. That works only if pg_hba.conf authenticates it another way.</value>
+    <comment>Role dialog: warning under the form. pg_hba.conf is the name of a server configuration file.</comment>
+  </data>
+  <data name="Security_NonAsciiPassword" xml:space="preserve">
+    <value>This password has characters outside ASCII. Some PostgreSQL clients normalize those before they log in, and pgNimbus can't do the same here, so they may be refused. An ASCII password always works.</value>
+    <comment>Role dialog: warning under the form when the password has characters outside plain ASCII (accented letters and similar). ASCII means the basic Latin letters, digits and punctuation.</comment>
+  </data>
+  <data name="Security_DropWindowTitle" xml:space="preserve">
+    <value>pgNimbus — Drop role</value>
+    <comment>Window title of the dialog that drops a role. Keep the product name pgNimbus.</comment>
+  </data>
+  <data name="Security_DropHint" xml:space="preserve">
+    <value>A role that owns objects or holds privileges cannot be dropped outright. Reassigning its objects and clearing its privileges first is what makes DROP ROLE succeed.</value>
+    <comment>Drop role dialog: explanation under the role's name. DROP ROLE is SQL.</comment>
+  </data>
+  <data name="Security_OwnedHeader" xml:space="preserve">
+    <value>Objects it owns</value>
+    <comment>Drop role dialog: heading above the list of objects the role owns, before the list has loaded.</comment>
+  </data>
+  <data name="Security_OwnedHeaderCount" xml:space="preserve">
+    <value>Objects it owns ({count})</value>
+    <comment>Drop role dialog: heading above the list of objects the role owns. {count} is how many, such as 3.</comment>
+  </data>
+  <data name="Security_GrantsHeader" xml:space="preserve">
+    <value>Privileges it holds</value>
+    <comment>Drop role dialog: heading above the list of privileges granted to the role, before the list has loaded.</comment>
+  </data>
+  <data name="Security_GrantsHeaderCount" xml:space="preserve">
+    <value>Privileges it holds ({count})</value>
+    <comment>Drop role dialog: heading above the list of privileges granted to the role. {count} is how many, such as 3.</comment>
+  </data>
+  <data name="Security_GrantsHeaderTruncated" xml:space="preserve">
+    <value>Privileges it holds ({count}+, list truncated)</value>
+    <comment>Drop role dialog: heading above the list of privileges granted to the role when the list was cut at a limit. {count} is that limit, such as 200; the plus sign means more exist.</comment>
+  </data>
+  <data name="Security_ColKind" xml:space="preserve">
+    <value>Kind</value>
+    <comment>Drop role dialog: column header of the kind of object (table, view, schema …).</comment>
+  </data>
+  <data name="Security_ColObject" xml:space="preserve">
+    <value>Object</value>
+    <comment>Drop role dialog: column header of the object's name.</comment>
+  </data>
+  <data name="Security_OwnsNothing" xml:space="preserve">
+    <value>Owns nothing in this database.</value>
+    <comment>Drop role dialog: shown in place of the list of owned objects when it is empty.</comment>
+  </data>
+  <data name="Security_HoldsNoPrivileges" xml:space="preserve">
+    <value>Holds no privileges in this database.</value>
+    <comment>Drop role dialog: shown in place of the list of granted privileges when it is empty.</comment>
+  </data>
+  <data name="Security_ReassignTo" xml:space="preserve">
+    <value>Reassign owned objects to</value>
+    <comment>Drop role dialog: label of the drop-down that picks the role that takes over the objects.</comment>
+  </data>
+  <data name="Security_ReassignNobody" xml:space="preserve">
+    <value>Nobody — delete the owned objects</value>
+    <comment>Drop role dialog: the drop-down choice that gives the objects to no one, so they are deleted.</comment>
+  </data>
+  <data name="Security_GrantMembership" xml:space="preserve">
+    <value>Grant myself the memberships the script needs</value>
+    <comment>Drop role dialog: check box text.</comment>
+  </data>
+  <data name="Security_GrantMembershipTip" xml:space="preserve">
+    <value>REASSIGN OWNED and DROP OWNED require the privileges of the role being emptied. The script grants them to you and gives back the one that outlives it.</value>
+    <comment>Drop role dialog: tooltip of the check box. REASSIGN OWNED and DROP OWNED are SQL statements.</comment>
+  </data>
+  <data name="Security_WillDeleteOwned" xml:space="preserve">
+    <value>With no successor named, DROP OWNED deletes the objects this role owns instead of transferring them.</value>
+    <comment>Drop role dialog: warning shown when no role is chosen to take over the objects. DROP OWNED is SQL.</comment>
+  </data>
+  <data name="Security_DropCurrentDatabaseOnly" xml:space="preserve">
+    <value>REASSIGN OWNED and DROP OWNED act on the current database only. If this role owns objects in other databases, run the script again while connected to each of them before the role will drop.</value>
+    <comment>Drop role dialog: note under the form. REASSIGN OWNED and DROP OWNED are SQL statements.</comment>
+  </data>
+  <data name="Security_OpenInEditor" xml:space="preserve">
+    <value>Open in editor</value>
+    <comment>Button in the drop role dialog and the bulk grant dialog: opens the generated script in a new query tab.</comment>
+  </data>
+  <data name="Security_OpenInEditorDropTip" xml:space="preserve">
+    <value>Run it yourself — and re-run it in every other database this role owns objects in</value>
+    <comment>Drop role dialog: tooltip of the Open in editor button.</comment>
+  </data>
+  <data name="Security_RunIt" xml:space="preserve">
+    <value>Run it</value>
+    <comment>Drop role dialog: the button that runs the generated script now.</comment>
+  </data>
+  <data name="Security_DropRoleTabTitle" xml:space="preserve">
+    <value>drop role · {name}</value>
+    <comment>Title of the query tab that opens with the drop-role script. {name} is the role's name, such as legacy_etl.</comment>
+  </data>
+  <data name="Security_KindTable" xml:space="preserve">
+    <value>table</value>
+    <comment>Drop role dialog, Kind column: a table.</comment>
+  </data>
+  <data name="Security_KindPartitionedTable" xml:space="preserve">
+    <value>partitioned table</value>
+    <comment>Drop role dialog, Kind column: a partitioned table.</comment>
+  </data>
+  <data name="Security_KindView" xml:space="preserve">
+    <value>view</value>
+    <comment>Drop role dialog, Kind column: a view.</comment>
+  </data>
+  <data name="Security_KindMaterializedView" xml:space="preserve">
+    <value>materialized view</value>
+    <comment>Drop role dialog, Kind column: a materialized view.</comment>
+  </data>
+  <data name="Security_KindSequence" xml:space="preserve">
+    <value>sequence</value>
+    <comment>Drop role dialog, Kind column: a sequence.</comment>
+  </data>
+  <data name="Security_KindForeignTable" xml:space="preserve">
+    <value>foreign table</value>
+    <comment>Drop role dialog, Kind column: a foreign table.</comment>
+  </data>
+  <data name="Security_KindSchema" xml:space="preserve">
+    <value>schema</value>
+    <comment>Drop role dialog, Kind column: a schema.</comment>
+  </data>
+  <data name="Security_KindProcedure" xml:space="preserve">
+    <value>procedure</value>
+    <comment>Drop role dialog, Kind column: a procedure.</comment>
+  </data>
+  <data name="Security_KindFunction" xml:space="preserve">
+    <value>function</value>
+    <comment>Drop role dialog, Kind column: a function.</comment>
+  </data>
+  <data name="Security_KindType" xml:space="preserve">
+    <value>type</value>
+    <comment>Drop role dialog, Kind column: a data type.</comment>
+  </data>
+  <data name="Security_KindDatabase" xml:space="preserve">
+    <value>database</value>
+    <comment>Drop role dialog, Kind column: a database.</comment>
+  </data>
+  <data name="Security_KindPrivilegeOnTable" xml:space="preserve">
+    <value>privilege on table</value>
+    <comment>Drop role dialog, Kind column of the privileges list: a privilege granted on a table.</comment>
+  </data>
+  <data name="Security_KindPrivilegeOnSchema" xml:space="preserve">
+    <value>privilege on schema</value>
+    <comment>Drop role dialog, Kind column of the privileges list: a privilege granted on a schema.</comment>
+  </data>
+  <data name="Security_BulkWindowTitle" xml:space="preserve">
+    <value>pgNimbus — Bulk grant</value>
+    <comment>Window title of the bulk grant dialog. Keep the product name pgNimbus.</comment>
+  </data>
+  <data name="Security_BulkTitle" xml:space="preserve">
+    <value>Give a role access to a whole schema</value>
+    <comment>Bulk grant dialog: heading.</comment>
+  </data>
+  <data name="Security_BulkHint" xml:space="preserve">
+    <value>The script always starts with USAGE on the schema itself — without it every table grant below is inert. Nothing runs from here: the script opens in the editor for you to read and run.</value>
+    <comment>Bulk grant dialog: explanation under the heading. USAGE is a SQL privilege name and stays as written.</comment>
+  </data>
+  <data name="Security_Schema" xml:space="preserve">
+    <value>Schema</value>
+    <comment>Label or placeholder of a schema picker: the bulk grant dialog, the Permissions tab and the Row-level security tab.</comment>
+  </data>
+  <data name="Security_Grantee" xml:space="preserve">
+    <value>Grantee</value>
+    <comment>Bulk grant dialog: label of the picker for the role that gets access.</comment>
+  </data>
+  <data name="Security_SchemaPlaceholder" xml:space="preserve">
+    <value>Pick a schema</value>
+    <comment>Bulk grant dialog: placeholder of the schema picker.</comment>
+  </data>
+  <data name="Security_GranteePlaceholder" xml:space="preserve">
+    <value>Pick a role</value>
+    <comment>Bulk grant dialog: placeholder of the role picker.</comment>
+  </data>
+  <data name="Security_Preset" xml:space="preserve">
+    <value>Preset</value>
+    <comment>Bulk grant dialog: label of the picker for how much access to give.</comment>
+  </data>
+  <data name="Security_PresetReadOnly" xml:space="preserve">
+    <value>Read only</value>
+    <comment>Bulk grant dialog: name of a preset in the picker.</comment>
+  </data>
+  <data name="Security_PresetReadOnlyDescription" xml:space="preserve">
+    <value>SELECT on every table and view, plus USAGE and SELECT on sequences.</value>
+    <comment>Bulk grant dialog: what the Read only preset does. SELECT and USAGE are SQL privilege names.</comment>
+  </data>
+  <data name="Security_PresetReadWrite" xml:space="preserve">
+    <value>Read and write</value>
+    <comment>Bulk grant dialog: name of a preset in the picker.</comment>
+  </data>
+  <data name="Security_PresetReadWriteDescription" xml:space="preserve">
+    <value>SELECT, INSERT, UPDATE and DELETE on tables, plus USAGE, SELECT and UPDATE on sequences.</value>
+    <comment>Bulk grant dialog: what the Read and write preset does. SELECT, INSERT, UPDATE, DELETE and USAGE are SQL privilege names.</comment>
+  </data>
+  <data name="Security_PresetFull" xml:space="preserve">
+    <value>Everything in the schema</value>
+    <comment>Bulk grant dialog: name of a preset in the picker.</comment>
+  </data>
+  <data name="Security_PresetFullDescription" xml:space="preserve">
+    <value>ALL PRIVILEGES on tables, sequences and functions, plus CREATE on the schema itself.</value>
+    <comment>Bulk grant dialog: what the Everything in the schema preset does. ALL PRIVILEGES and CREATE are SQL.</comment>
+  </data>
+  <data name="Security_PresetRevokeAll" xml:space="preserve">
+    <value>Revoke everything</value>
+    <comment>Bulk grant dialog: name of a preset in the picker.</comment>
+  </data>
+  <data name="Security_PresetRevokeAllDescription" xml:space="preserve">
+    <value>REVOKE ALL on tables, sequences, functions and the schema — and on default privileges too.</value>
+    <comment>Bulk grant dialog: what the Revoke everything preset does. REVOKE ALL is SQL.</comment>
+  </data>
+  <data name="Security_IncludeFuture" xml:space="preserve">
+    <value>Also cover objects created later (adds ALTER DEFAULT PRIVILEGES)</value>
+    <comment>Bulk grant dialog: check box text. ALTER DEFAULT PRIVILEGES is a SQL statement.</comment>
+  </data>
+  <data name="Security_IncludeFutureHint" xml:space="preserve">
+    <value>Without this, the grant reaches only the tables, views and sequences that exist at the moment it runs. Anything a later migration creates is not covered.</value>
+    <comment>Bulk grant dialog: explanation under the check box about objects created later.</comment>
+  </data>
+  <data name="Security_CreatedBy" xml:space="preserve">
+    <value>Created by</value>
+    <comment>Bulk grant dialog: label of the picker for the role that will create the future objects.</comment>
+  </data>
+  <data name="Security_CreatedByPlaceholder" xml:space="preserve">
+    <value>The role that will create the objects</value>
+    <comment>Bulk grant dialog: placeholder of the Created by picker.</comment>
+  </data>
+  <data name="Security_CreatedByWarning" xml:space="preserve">
+    <value>ALTER DEFAULT PRIVILEGES is keyed to the role that creates an object, not to the schema the object lands in. Point it at the wrong creator and it runs cleanly and does nothing — name the role your migrations connect as.</value>
+    <comment>Bulk grant dialog: warning under the Created by picker. ALTER DEFAULT PRIVILEGES is a SQL statement.</comment>
+  </data>
+  <data name="Security_GrantsTabTitle" xml:space="preserve">
+    <value>grants · {name}</value>
+    <comment>Title of the query tab that opens with a GRANT script. {name} is a schema or an object, such as sales.orders.</comment>
+  </data>
+  <data name="Security_ObjectFilterPlaceholder" xml:space="preserve">
+    <value>Filter objects</value>
+    <comment>Permissions tab: placeholder of the box that filters the list of objects.</comment>
+  </data>
+  <data name="Security_BulkGrant" xml:space="preserve">
+    <value>Bulk grant…</value>
+    <comment>Permissions tab: button that opens the bulk grant dialog.</comment>
+  </data>
+  <data name="Security_BulkGrantTip" xml:space="preserve">
+    <value>Give a role access to a whole schema, including objects created later</value>
+    <comment>Permissions tab: tooltip of the Bulk grant button.</comment>
+  </data>
+  <data name="Security_EditGrants" xml:space="preserve">
+    <value>Edit grants</value>
+    <comment>Permissions tab: toggle button that lets the cells of the matrix be clicked to stage changes.</comment>
+  </data>
+  <data name="Security_EditGrantsTip" xml:space="preserve">
+    <value>Click cells to stage a GRANT or REVOKE; nothing runs until you review the script</value>
+    <comment>Permissions tab: tooltip of the Edit grants button. GRANT and REVOKE are SQL.</comment>
+  </data>
+  <data name="Security_ReviewChanges" xml:space="preserve">
+    <value>Review changes</value>
+    <comment>Permissions tab: button that opens the staged GRANT and REVOKE statements in a new query tab.</comment>
+  </data>
+  <data name="Security_RoleFilterPlaceholder" xml:space="preserve">
+    <value>Filter roles</value>
+    <comment>Permissions tab: placeholder of the box that filters the roles in the matrix.</comment>
+  </data>
+  <data name="Security_BuiltinRolesToggle" xml:space="preserve">
+    <value>Built-in roles</value>
+    <comment>Permissions tab: toggle that also shows the roles PostgreSQL ships with.</comment>
+  </data>
+  <data name="Security_BuiltinRolesToggleTip" xml:space="preserve">
+    <value>Show the pg_* roles initdb created</value>
+    <comment>Permissions tab: tooltip of the Built-in roles toggle. initdb is the PostgreSQL program that creates a cluster.</comment>
+  </data>
+  <data name="Security_ColRoleCaps" xml:space="preserve">
+    <value>ROLE</value>
+    <comment>Permissions tab: small capitals header of the role names above the matrix.</comment>
+  </data>
+  <data name="Security_ColHowCaps" xml:space="preserve">
+    <value>HOW</value>
+    <comment>Permissions tab: small capitals header of the column that says how each role gets its privileges (directly, inherited, owner …).</comment>
+  </data>
+  <data name="Security_ColumnGrants" xml:space="preserve">
+    <value>COLUMN GRANTS</value>
+    <comment>Permissions tab: small capitals heading above the privileges granted on single columns.</comment>
+  </data>
+  <data name="Security_KindOptionTable" xml:space="preserve">
+    <value>Table</value>
+    <comment>Permissions tab: choice in the picker of what kind of object to show.</comment>
+  </data>
+  <data name="Security_KindOptionSequence" xml:space="preserve">
+    <value>Sequence</value>
+    <comment>Permissions tab: choice in the picker of what kind of object to show.</comment>
+  </data>
+  <data name="Security_KindOptionSchema" xml:space="preserve">
+    <value>Schema</value>
+    <comment>Permissions tab: choice in the picker of what kind of object to show.</comment>
+  </data>
+  <data name="Security_KindOptionDatabase" xml:space="preserve">
+    <value>Database</value>
+    <comment>Permissions tab: choice in the picker of what kind of object to show.</comment>
+  </data>
+  <data name="Security_KindOptionFunction" xml:space="preserve">
+    <value>Function</value>
+    <comment>Permissions tab: choice in the picker of what kind of object to show.</comment>
+  </data>
+  <data name="Security_KindOptionType" xml:space="preserve">
+    <value>Type</value>
+    <comment>Permissions tab: choice in the picker of what kind of object to show.</comment>
+  </data>
+  <data name="Security_NoPendingChanges" xml:space="preserve">
+    <value>No pending changes</value>
+    <comment>Permissions tab: label beside Edit grants while nothing is staged.</comment>
+  </data>
+  <data name="Security_PendingChanges_one" xml:space="preserve">
+    <value>{count} pending change</value>
+    <comment>Permissions tab: label beside Edit grants. Singular. {count} is how many changes are staged.</comment>
+  </data>
+  <data name="Security_PendingChanges_other" xml:space="preserve">
+    <value>{count} pending changes</value>
+    <comment>Permissions tab: label beside Edit grants. Plural. {count} is how many changes are staged, such as 3.</comment>
+  </data>
+  <data name="Security_DefaultAclNote" xml:space="preserve">
+    <value>No GRANT or REVOKE has ever been run on this object. {owner} owns it and holds every privilege; everyone else has only what Postgres grants by default for this object type.</value>
+    <comment>Permissions tab: banner shown when the object's privileges were never changed. GRANT and REVOKE are SQL. {owner} is the owning role's name, such as postgres.</comment>
+  </data>
+  <data name="Security_CellTip" xml:space="preserve">
+    <value>{privilege} — {explanation}</value>
+    <comment>Permissions tab: tooltip of a cell of the matrix. {privilege} is the SQL privilege such as SELECT; {explanation} says why the role has it or not, such as inherited from readers.</comment>
+  </data>
+  <data name="Security_CellTipPendingRevoke" xml:space="preserve">
+    <value>Pending: REVOKE</value>
+    <comment>Permissions tab: second line of a cell's tooltip when a REVOKE is staged for it. REVOKE is SQL.</comment>
+  </data>
+  <data name="Security_CellTipPendingGrant" xml:space="preserve">
+    <value>Pending: GRANT</value>
+    <comment>Permissions tab: second line of a cell's tooltip when a GRANT is staged for it. GRANT is SQL.</comment>
+  </data>
+  <data name="Security_CellTipNotRevocable" xml:space="preserve">
+    <value>Ownership and superuser are not grants, so this cannot be revoked.</value>
+    <comment>Permissions tab: second line of a cell's tooltip when the privilege comes from owning the object or being a superuser.</comment>
+  </data>
+  <data name="Security_SourceSuperuser" xml:space="preserve">
+    <value>superuser</value>
+    <comment>Permissions tab, HOW column: the role has everything because it is a superuser.</comment>
+  </data>
+  <data name="Security_SourceOwner" xml:space="preserve">
+    <value>owner</value>
+    <comment>Permissions tab, HOW column: the role has everything because it owns the object.</comment>
+  </data>
+  <data name="Security_SourceVia" xml:space="preserve">
+    <value>via {role}</value>
+    <comment>Permissions tab, HOW column: the role has the privileges through its membership in another role. {role} is that group role, such as readers.</comment>
+  </data>
+  <data name="Security_SourceDirect" xml:space="preserve">
+    <value>direct</value>
+    <comment>Permissions tab, HOW column: the privilege was granted to the role itself.</comment>
+  </data>
+  <data name="Security_SourcePublic" xml:space="preserve">
+    <value>PUBLIC</value>
+    <comment>Permissions tab, HOW column: the privilege was granted to PUBLIC, the SQL keyword for every role. A translation may keep it.</comment>
+  </data>
+  <data name="Security_SourceUnknown" xml:space="preserve">
+    <value>not visible</value>
+    <comment>Permissions tab, HOW column: the server says the role has the privilege but the catalog does not show why.</comment>
+  </data>
+  <data name="Security_PublicGrantee" xml:space="preserve">
+    <value>PUBLIC</value>
+    <comment>The grantee shown for a privilege or policy that applies to every role: the SQL keyword PUBLIC. A translation may keep it. A role that is merely named PUBLIC is shown in quotation marks by the app, so the two can be told apart.</comment>
+  </data>
+  <data name="Security_ExplainNone" xml:space="preserve">
+    <value>not granted</value>
+    <comment>Why a role does or does not have a privilege (tooltip of a matrix cell, and part of the sentence under the matrix): it was not granted.</comment>
+  </data>
+  <data name="Security_ExplainDirectBy" xml:space="preserve">
+    <value>granted directly by {grantor}</value>
+    <comment>Why a role has a privilege: it was granted to the role itself. {grantor} is the role that ran the GRANT, such as postgres.</comment>
+  </data>
+  <data name="Security_ExplainDirect" xml:space="preserve">
+    <value>granted directly</value>
+    <comment>Why a role has a privilege: it was granted to the role itself, by a role we cannot name.</comment>
+  </data>
+  <data name="Security_ExplainInherited" xml:space="preserve">
+    <value>inherited from {role}</value>
+    <comment>Why a role has a privilege: through its membership in a group role. {role} is that group, such as readers.</comment>
+  </data>
+  <data name="Security_ExplainPublic" xml:space="preserve">
+    <value>granted to PUBLIC</value>
+    <comment>Why a role has a privilege: it was granted to PUBLIC, the SQL keyword for every role.</comment>
+  </data>
+  <data name="Security_ExplainOwner" xml:space="preserve">
+    <value>owns the object</value>
+    <comment>Why a role has a privilege: it owns the object.</comment>
+  </data>
+  <data name="Security_ExplainSuperuser" xml:space="preserve">
+    <value>superuser</value>
+    <comment>Why a role has a privilege: it is a superuser.</comment>
+  </data>
+  <data name="Security_ExplainUnknown" xml:space="preserve">
+    <value>granted, source not visible from here</value>
+    <comment>Why a role has a privilege: the server says yes but the catalog the app can read does not explain it.</comment>
+  </data>
+  <data name="Security_ListSeparator" xml:space="preserve">
+    <value>, </value>
+    <comment>Separator between the items of a list of privileges, such as SELECT, INSERT and UPDATE. Put a space after it if your language uses one.</comment>
+  </data>
+  <data name="Security_ListAnd" xml:space="preserve">
+    <value>{head} and {last}</value>
+    <comment>Joins a list of privileges with and: {head} is the items before the last one, joined by the list separator (SELECT, INSERT), {last} is the last one (UPDATE).</comment>
+  </data>
+  <data name="Security_ListOr" xml:space="preserve">
+    <value>{head} or {last}</value>
+    <comment>Joins a list of privileges with or: {head} is the items before the last one, joined by the list separator (SELECT, INSERT), {last} is the last one (UPDATE).</comment>
+  </data>
+  <data name="Security_SentenceNone" xml:space="preserve">
+    <value>{role} has no privileges on {object}.</value>
+    <comment>Permissions tab, sentence under the matrix. {role} is a role name, {object} the object such as sales.orders.</comment>
+  </data>
+  <data name="Security_SentenceNoneBlocked" xml:space="preserve">
+    <value>{role} has no privileges on {object}. {role} also lacks USAGE on schema {schema}, which blocks access to everything in it.</value>
+    <comment>Permissions tab, sentence under the matrix. {role} is a role name, {object} the object such as sales.orders, {schema} its schema. USAGE is a SQL privilege name.</comment>
+  </data>
+  <data name="Security_SentenceBlocked_one" xml:space="preserve">
+    <value>{role} holds {privileges} on {object} — {explanation} — but cannot use it: it lacks USAGE on schema {schema}, which every object in it needs first.</value>
+    <comment>Permissions tab, sentence under the matrix. Singular: one privilege is held but unusable. {role} is a role name, {privileges} the privilege such as SELECT, {object} the object, {explanation} why the role has it, {schema} the schema. "it" is the privilege. USAGE is a SQL privilege name.</comment>
+  </data>
+  <data name="Security_SentenceBlocked_other" xml:space="preserve">
+    <value>{role} holds {privileges} on {object} — {explanation} — but cannot use them: it lacks USAGE on schema {schema}, which every object in it needs first.</value>
+    <comment>Permissions tab, sentence under the matrix. Plural: several privileges are held but unusable. {role} is a role name, {privileges} a list such as SELECT and INSERT, {object} the object, {explanation} why the role has them, {schema} the schema. "them" is the privileges. USAGE is a SQL privilege name.</comment>
+  </data>
+  <data name="Security_SentenceBlockedDenied_one" xml:space="preserve">
+    <value>{role} holds {privileges} on {object} — {explanation} — but cannot use it: it lacks USAGE on schema {schema}, which every object in it needs first. It has no {denied} grant either.</value>
+    <comment>Permissions tab, sentence under the matrix. Singular: one privilege is held but unusable, and others are missing. Same placeholders as Security_SentenceBlocked_one, plus {denied}, the missing privileges as a list joined with or, such as INSERT or UPDATE.</comment>
+  </data>
+  <data name="Security_SentenceBlockedDenied_other" xml:space="preserve">
+    <value>{role} holds {privileges} on {object} — {explanation} — but cannot use them: it lacks USAGE on schema {schema}, which every object in it needs first. It has no {denied} grant either.</value>
+    <comment>Permissions tab, sentence under the matrix. Plural: several privileges are held but unusable, and others are missing. Same placeholders as Security_SentenceBlocked_other, plus {denied}, the missing privileges as a list joined with or, such as INSERT or UPDATE.</comment>
+  </data>
+  <data name="Security_SentenceCan" xml:space="preserve">
+    <value>{role} can {privileges} {object} — {explanation}.</value>
+    <comment>Permissions tab, sentence under the matrix. {role} is a role name, {privileges} what it can do as SQL verbs such as SELECT and INSERT, {object} the object such as sales.orders, {explanation} why, such as inherited from readers.</comment>
+  </data>
+  <data name="Security_SentenceCanCannot" xml:space="preserve">
+    <value>{role} can {privileges} {object} — {explanation}. It cannot {denied}.</value>
+    <comment>Permissions tab, sentence under the matrix. Same placeholders as Security_SentenceCan, plus {denied}, what the role cannot do as a list joined with or, such as INSERT or UPDATE.</comment>
+  </data>
+  <data name="Security_CopyAsSql" xml:space="preserve">
+    <value>Copy as SQL</value>
+    <comment>Default privileges tab: button that opens the selected row's ALTER DEFAULT PRIVILEGES statement in a new query tab.</comment>
+  </data>
+  <data name="Security_CopyAsSqlTip" xml:space="preserve">
+    <value>Open the ALTER DEFAULT PRIVILEGES statement this row represents in a new editor tab</value>
+    <comment>Default privileges tab: tooltip of the Copy as SQL button. ALTER DEFAULT PRIVILEGES is SQL.</comment>
+  </data>
+  <data name="Security_ColCreatedBy" xml:space="preserve">
+    <value>Created by</value>
+    <comment>Default privileges tab: column header of the role that will create the objects the default applies to.</comment>
+  </data>
+  <data name="Security_ColInSchema" xml:space="preserve">
+    <value>In schema</value>
+    <comment>Default privileges tab: column header of the schema the default applies in.</comment>
+  </data>
+  <data name="Security_ColAppliesTo" xml:space="preserve">
+    <value>Applies to</value>
+    <comment>Default privileges tab: column header of the kind of object the default applies to (tables, sequences …).</comment>
+  </data>
+  <data name="Security_ColGrantee" xml:space="preserve">
+    <value>Grantee</value>
+    <comment>Default privileges tab: column header of the role that gets the privileges.</comment>
+  </data>
+  <data name="Security_ColPrivileges" xml:space="preserve">
+    <value>Privileges</value>
+    <comment>Default privileges tab: column header of the list of privileges.</comment>
+  </data>
+  <data name="Security_AllSchemas" xml:space="preserve">
+    <value>(all schemas)</value>
+    <comment>Shown instead of a schema name in the Default privileges tab (the default applies in every schema) and as the first choice of the schema filter in the Row-level security tab. Keep the parentheses.</comment>
+  </data>
+  <data name="Security_AppliesToTables" xml:space="preserve">
+    <value>Tables</value>
+    <comment>Default privileges tab, Applies to column: the default applies to tables.</comment>
+  </data>
+  <data name="Security_AppliesToSequences" xml:space="preserve">
+    <value>Sequences</value>
+    <comment>Default privileges tab, Applies to column: the default applies to sequences.</comment>
+  </data>
+  <data name="Security_AppliesToFunctions" xml:space="preserve">
+    <value>Functions</value>
+    <comment>Default privileges tab, Applies to column: the default applies to functions.</comment>
+  </data>
+  <data name="Security_AppliesToTypes" xml:space="preserve">
+    <value>Types</value>
+    <comment>Default privileges tab, Applies to column: the default applies to data types.</comment>
+  </data>
+  <data name="Security_AppliesToSchemas" xml:space="preserve">
+    <value>Schemas</value>
+    <comment>Default privileges tab, Applies to column: the default applies to schemas.</comment>
+  </data>
+  <data name="Security_NoDefaultPrivileges" xml:space="preserve">
+    <value>No default privileges are configured.</value>
+    <comment>Default privileges tab: heading shown when there are none.</comment>
+  </data>
+  <data name="Security_NoDefaultPrivilegesHint" xml:space="preserve">
+    <value>Every object created from now on will carry only the built-in defaults: its owner gets everything, PUBLIC gets EXECUTE on functions and USAGE on types, and nothing at all on tables and sequences.</value>
+    <comment>Default privileges tab: explanation under the heading shown when there are none. PUBLIC, EXECUTE and USAGE are SQL words and stay as written.</comment>
+  </data>
+  <data name="Security_DefaultsNoteExisting" xml:space="preserve">
+    <value>These do not affect objects that already exist. They apply to objects created from now on, which is why a GRANT … ON ALL TABLES IN SCHEMA … and a default privilege are both needed: neither replaces the other.</value>
+    <comment>Default privileges tab: first note under the list. The GRANT statement is SQL and stays as written.</comment>
+  </data>
+  <data name="Security_DefaultsNoteCreator" xml:space="preserve">
+    <value>They are keyed to the role that creates the object, not to the schema it lands in. A default privilege set for the wrong creator runs fine and silently does nothing — the single most common reason someone says they set default privileges and nothing changed.</value>
+    <comment>Default privileges tab: second note under the list.</comment>
+  </data>
+  <data name="Security_DefaultPrivilegesTabTitle" xml:space="preserve">
+    <value>{owner} · default privileges</value>
+    <comment>Title of the query tab that opens with an ALTER DEFAULT PRIVILEGES statement. {owner} is the role that creates the objects, such as app_rw.</comment>
+  </data>
+  <data name="Security_SchemaFilterTip" xml:space="preserve">
+    <value>Only schemas that have row-level security anywhere are listed</value>
+    <comment>Row-level security tab: tooltip of the schema filter.</comment>
+  </data>
+  <data name="Security_CopyPolicyAsSql" xml:space="preserve">
+    <value>Copy policy as SQL</value>
+    <comment>Row-level security tab: button that opens the selected policy's CREATE POLICY statement in a new query tab.</comment>
+  </data>
+  <data name="Security_CopyPolicyAsSqlTip" xml:space="preserve">
+    <value>Open the selected policy's CREATE POLICY statement in a new editor tab — Postgres cannot change a policy's command or permissiveness in place, so re-creating it is how one gets edited</value>
+    <comment>Row-level security tab: tooltip of the Copy policy as SQL button. CREATE POLICY is SQL.</comment>
+  </data>
+  <data name="Security_PoliciesInert" xml:space="preserve">
+    <value>Policies inert — RLS is off</value>
+    <comment>Row-level security tab, list of tables: warning on a table that has policies but row-level security is switched off. RLS means row-level security.</comment>
+  </data>
+  <data name="Security_PoliciesDoNothing" xml:space="preserve">
+    <value>These policies do nothing.</value>
+    <comment>Row-level security tab: heading of a warning about a table whose policies have no effect.</comment>
+  </data>
+  <data name="Security_PoliciesDoNothingHint" xml:space="preserve">
+    <value>Row-level security was never switched on for this table, so every policy below is inert and every role reads every row. Writing policies does not enable it — ALTER TABLE … ENABLE ROW LEVEL SECURITY does.</value>
+    <comment>Row-level security tab: explanation of the warning. The ALTER TABLE statement is SQL and stays as written.</comment>
+  </data>
+  <data name="Security_YouBypass" xml:space="preserve">
+    <value>You bypass these policies.</value>
+    <comment>Row-level security tab: heading of a warning that the connected role is not subject to the policies.</comment>
+  </data>
+  <data name="Security_DeniesEverything" xml:space="preserve">
+    <value>Row-level security is enabled and this table has no policies, so it returns no rows to any role that does not bypass it. That is the default-deny state, not a misconfiguration in itself.</value>
+    <comment>Row-level security tab: note on a table with row-level security on and no policies.</comment>
+  </data>
+  <data name="Security_PolicyAppliesTo" xml:space="preserve">
+    <value>Applies to</value>
+    <comment>Row-level security tab: label before the roles a policy applies to.</comment>
+  </data>
+  <data name="Security_PolicyUsing" xml:space="preserve">
+    <value>USING — which existing rows are visible</value>
+    <comment>Row-level security tab: label above a policy's USING expression. USING is the SQL keyword and stays first.</comment>
+  </data>
+  <data name="Security_PolicyWithCheck" xml:space="preserve">
+    <value>WITH CHECK — which new or updated rows are allowed</value>
+    <comment>Row-level security tab: label above a policy's WITH CHECK expression. WITH CHECK is the SQL keyword and stays first.</comment>
+  </data>
+  <data name="Security_NoPolicies" xml:space="preserve">
+    <value>This table has no policies.</value>
+    <comment>Row-level security tab: shown in the details of a table without policies.</comment>
+  </data>
+  <data name="Security_NoRlsTables" xml:space="preserve">
+    <value>No table here uses row-level security.</value>
+    <comment>Row-level security tab: heading shown when no table has row-level security or a policy.</comment>
+  </data>
+  <data name="Security_NoRlsTablesHint" xml:space="preserve">
+    <value>Tables appear here as soon as they have row security enabled or carry a policy, in either order.</value>
+    <comment>Row-level security tab: explanation under the heading shown when no table has row-level security.</comment>
+  </data>
+  <data name="Security_RlsEnabledForce" xml:space="preserve">
+    <value>Enabled · FORCE</value>
+    <comment>Row-level security tab: state of a table. Row-level security is on and also applies to the table's owner (SQL option FORCE).</comment>
+  </data>
+  <data name="Security_RlsEnabled" xml:space="preserve">
+    <value>Enabled</value>
+    <comment>Row-level security tab: state of a table. Row-level security is on.</comment>
+  </data>
+  <data name="Security_RlsNotEnabled" xml:space="preserve">
+    <value>Not enabled</value>
+    <comment>Row-level security tab: state of a table. Row-level security is off.</comment>
+  </data>
+  <data name="Security_PolicyCount_one" xml:space="preserve">
+    <value>{count} policy</value>
+    <comment>Row-level security tab: how many policies a table has. Singular.</comment>
+  </data>
+  <data name="Security_PolicyCount_other" xml:space="preserve">
+    <value>{count} policies</value>
+    <comment>Row-level security tab: how many policies a table has. Plural. {count} is the number, such as 3.</comment>
+  </data>
+  <data name="Security_PolicyForEveryone" xml:space="preserve">
+    <value>public (every role)</value>
+    <comment>Row-level security tab: the policy applies to every role (the SQL keyword PUBLIC).</comment>
+  </data>
+  <data name="Security_BypassUnknown" xml:space="preserve">
+    <value>{role} sees every row in this table, whatever the policies below say. Its role attributes could not be read, so this is either a superuser or BYPASSRLS role (which bypasses every table, always) or ownership of a table that is not FORCE ROW LEVEL SECURITY.</value>
+    <comment>Row-level security tab: warning body. {role} is the connected role. BYPASSRLS and FORCE ROW LEVEL SECURITY are SQL and stay as written.</comment>
+  </data>
+  <data name="Security_BypassSuperuser" xml:space="preserve">
+    <value>{role} is a superuser, so it bypasses row-level security on every table in the cluster. That is unconditional: FORCE ROW LEVEL SECURITY does not apply the policies to it. Test these policies as the role your application connects as.</value>
+    <comment>Row-level security tab: warning body. {role} is the connected role. FORCE ROW LEVEL SECURITY is SQL and stays as written.</comment>
+  </data>
+  <data name="Security_BypassAttribute" xml:space="preserve">
+    <value>{role} has the BYPASSRLS attribute, so it bypasses row-level security on every table, always. FORCE ROW LEVEL SECURITY does not apply the policies to it. Test these policies as the role your application connects as.</value>
+    <comment>Row-level security tab: warning body. {role} is the connected role. BYPASSRLS and FORCE ROW LEVEL SECURITY are SQL and stay as written.</comment>
+  </data>
+  <data name="Security_BypassOwner" xml:space="preserve">
+    <value>{role} owns this table, or is a member of the role that does, and the table is not FORCE ROW LEVEL SECURITY — so the policies below are not applied to it, though they are applied to every other role. ALTER TABLE … FORCE ROW LEVEL SECURITY makes them apply to the owner too.</value>
+    <comment>Row-level security tab: warning body. {role} is the connected role. FORCE ROW LEVEL SECURITY and the ALTER TABLE statement are SQL and stay as written.</comment>
+  </data>
+  <data name="Security_ObjectDropped" xml:space="preserve">
+    <value>{object} no longer exists — it was dropped since the object list was built.</value>
+    <comment>Error line of the Roles and Permissions window. {object} is the name of the object, such as sales.orders.</comment>
+  </data>
 
   <!-- ===== Backup ===== -->
+  <data name="Backup_WindowTitle" xml:space="preserve">
+    <value>pgNimbus — Back Up</value>
+    <comment>Title bar of the Backup window. pgNimbus is the product name; keep it and the dash.</comment>
+  </data>
+  <data name="Restore_WindowTitle" xml:space="preserve">
+    <value>pgNimbus — Restore</value>
+    <comment>Title bar of the Restore window. pgNimbus is the product name; keep it and the dash.</comment>
+  </data>
+  <data name="Backup_SaveTo" xml:space="preserve">
+    <value>Save to</value>
+    <comment>Backup window, form: label above the file path.</comment>
+  </data>
+  <data name="Backup_Change" xml:space="preserve">
+    <value>Change…</value>
+    <comment>Backup and Restore windows: button beside the file name that opens a file picker.</comment>
+  </data>
+  <data name="Backup_WhatToSave" xml:space="preserve">
+    <value>What to save</value>
+    <comment>Backup window, form: label above the two choices (everything, or the structure only).</comment>
+  </data>
+  <data name="Backup_Everything" xml:space="preserve">
+    <value>Everything</value>
+    <comment>Backup window, form: choice that saves the structure and the rows.</comment>
+  </data>
+  <data name="Backup_EverythingHint" xml:space="preserve">
+    <value>The structure and every row.</value>
+    <comment>Backup window, form: line under the Everything choice.</comment>
+  </data>
+  <data name="Backup_StructureOnly" xml:space="preserve">
+    <value>Structure only</value>
+    <comment>Backup window, form: choice that saves the definitions without rows.</comment>
+  </data>
+  <data name="Backup_StructureOnlyHint" xml:space="preserve">
+    <value>Tables, views, functions, types and permissions, without the rows.</value>
+    <comment>Backup window, form: line under the Structure only choice.</comment>
+  </data>
+  <data name="Backup_Command" xml:space="preserve">
+    <value>Command</value>
+    <comment>Backup window, form: button that shows or hides the pg_dump command line.</comment>
+  </data>
+  <data name="Backup_CommandNote" xml:space="preserve">
+    <value>Without the password: pgNimbus passes it to pg_dump in the environment, never on the command line.</value>
+    <comment>Backup window, form: note under the shown command line. pgNimbus is the product name; pg_dump is a program name.</comment>
+  </data>
+  <data name="Backup_StopNote" xml:space="preserve">
+    <value>You can keep working in the main window. Stop deletes the unfinished file; one already at that path stays as it was.</value>
+    <comment>Backup window, while running: note under the progress bar. Stop is the name of the Stop button.</comment>
+  </data>
+  <data name="Backup_LogToggle" xml:space="preserve">
+    <value>pg_dump's log</value>
+    <comment>Backup window, after a run: button that shows or hides what pg_dump wrote. pg_dump is a program name.</comment>
+  </data>
+  <data name="Restore_LogToggle" xml:space="preserve">
+    <value>pg_restore's log</value>
+    <comment>Restore window, after a run: button that shows or hides what pg_restore wrote. pg_restore is a program name.</comment>
+  </data>
+  <data name="Backup_CopyLog" xml:space="preserve">
+    <value>Copy Log</value>
+    <comment>Backup and Restore windows: button under the shown log that copies it.</comment>
+  </data>
+  <data name="Backup_UseAutomaticSearch" xml:space="preserve">
+    <value>Use Automatic Search</value>
+    <comment>Backup and Restore windows, when pg_dump or pg_restore is missing: button that forgets the folder chosen in Settings and searches again.</comment>
+  </data>
+  <data name="Backup_StartButton" xml:space="preserve">
+    <value>Back Up</value>
+    <comment>Backup window: the button that starts the backup.</comment>
+  </data>
+  <data name="Backup_BackUpAgain" xml:space="preserve">
+    <value>Back Up Again</value>
+    <comment>Backup window, after a successful backup: button that returns to the form for another backup.</comment>
+  </data>
+  <data name="Backup_ShowInFolder" xml:space="preserve">
+    <value>Show in Folder</value>
+    <comment>Backup window, after a successful backup: button that opens the folder holding the file.</comment>
+  </data>
+  <data name="Backup_TryAgain" xml:space="preserve">
+    <value>Try Again</value>
+    <comment>Backup and Restore windows, after a failure or a stop: button that returns to the form.</comment>
+  </data>
+  <data name="Backup_GuideCopyTip" xml:space="preserve">
+    <value>Copy the command</value>
+    <comment>Install steps shown when pg_dump or pg_restore is missing: tooltip of the Copy button beside a shell command.</comment>
+  </data>
+  <data name="Backup_GuideChooseFolderHint" xml:space="preserve">
+    <value>Installed them somewhere else? Choose Folder… and pick the folder that holds pg_dump.</value>
+    <comment>Install steps shown when pg_dump or pg_restore is missing: last line. Choose Folder… is the name of a button next to it; pg_dump is a program name.</comment>
+  </data>
+  <data name="Restore_ChooseTitle" xml:space="preserve">
+    <value>Choose a backup made by pg_dump</value>
+    <comment>Restore window, before a file is chosen: heading. pg_dump is a program name.</comment>
+  </data>
+  <data name="Restore_ChooseHint" xml:space="preserve">
+    <value>A .dump file, like the ones Back Up Database… saves, or a .backup or .tar archive. You'll see what it holds before anything is restored.</value>
+    <comment>Restore window, before a file is chosen: hint under the heading. Back Up Database… is the name of a command; .dump, .backup and .tar are file extensions.</comment>
+  </data>
+  <data name="Restore_Reading" xml:space="preserve">
+    <value>Reading {file}…</value>
+    <comment>Restore window: shown while the file's contents are read. {file} is a file name, such as shop.dump.</comment>
+  </data>
+  <data name="Restore_BackupLabel" xml:space="preserve">
+    <value>Backup</value>
+    <comment>Restore window, form: label above the chosen file's name.</comment>
+  </data>
+  <data name="Restore_RestoreInto" xml:space="preserve">
+    <value>Restore into</value>
+    <comment>Restore window, form: label above the two choices of where the backup goes.</comment>
+  </data>
+  <data name="Restore_NewDatabase" xml:space="preserve">
+    <value>A new database</value>
+    <comment>Restore window, form: choice that restores into a database created for it.</comment>
+  </data>
+  <data name="Restore_NewDatabaseHint" xml:space="preserve">
+    <value>Nothing that exists is touched. If the restore fails, the new database is removed again.</value>
+    <comment>Restore window, form: line under the new database name box.</comment>
+  </data>
+  <data name="Restore_CurrentDatabase" xml:space="preserve">
+    <value>This database: {name}</value>
+    <comment>Restore window, form: choice that restores into the window's own database. {name} is a database name, such as shop.</comment>
+  </data>
+  <data name="Restore_CurrentDatabaseHint" xml:space="preserve">
+    <value>What the backup holds is dropped and created again from it; other objects stay. pgNimbus asks before it starts.</value>
+    <comment>Restore window, form: line under the This database choice. pgNimbus is the product name.</comment>
+  </data>
+  <data name="Restore_KeepOwners" xml:space="preserve">
+    <value>Keep owners and permissions</value>
+    <comment>Restore window, form: check box.</comment>
+  </data>
+  <data name="Restore_StopNote" xml:space="preserve">
+    <value>It's one transaction: Stop leaves everything as it was, and removes a new database again.</value>
+    <comment>Restore window, while running: note under the progress bar. Stop is the name of the Stop button.</comment>
+  </data>
+  <data name="Restore_ChooseFile" xml:space="preserve">
+    <value>Choose File…</value>
+    <comment>Restore window: button that opens a file picker.</comment>
+  </data>
+  <data name="Restore_ChooseAnother" xml:space="preserve">
+    <value>Choose Another File…</value>
+    <comment>Restore window, when the chosen file can't be restored: button that opens a file picker.</comment>
+  </data>
+  <data name="Restore_Start" xml:space="preserve">
+    <value>Restore</value>
+    <comment>Restore window: the button that starts the restore.</comment>
+  </data>
+  <data name="Restore_OpenInNewWindow" xml:space="preserve">
+    <value>Open in New Window</value>
+    <comment>Restore window, after a restore into a new database: button that opens a window on that database.</comment>
+  </data>
+  <data name="Backup_SaveDialogTitle" xml:space="preserve">
+    <value>Save backup as</value>
+    <comment>Title of the file picker that chooses where the backup is saved.</comment>
+  </data>
+  <data name="Backup_FilterArchive" xml:space="preserve">
+    <value>Backup archive</value>
+    <comment>File picker of the Backup window: name of the file type for .dump files.</comment>
+  </data>
+  <data name="Backup_FilterScript" xml:space="preserve">
+    <value>SQL script</value>
+    <comment>File picker of the Backup window: name of the file type for .sql files.</comment>
+  </data>
+  <data name="Backup_ChooseToolsFolderTitle" xml:space="preserve">
+    <value>Choose the folder that holds pg_dump and pg_restore</value>
+    <comment>Title of the folder picker opened by Choose Folder… in the Backup and Restore windows. pg_dump and pg_restore are program names.</comment>
+  </data>
+  <data name="Restore_OpenDialogTitle" xml:space="preserve">
+    <value>Choose a backup to restore</value>
+    <comment>Title of the file picker of the Restore window.</comment>
+  </data>
+  <data name="Restore_FilterArchive" xml:space="preserve">
+    <value>pg_dump archive</value>
+    <comment>File picker of the Restore window: name of the file type for backup archives. pg_dump is a program name.</comment>
+  </data>
+  <data name="Restore_FilterAll" xml:space="preserve">
+    <value>All files</value>
+    <comment>File picker of the Restore window: name of the file type that shows every file.</comment>
+  </data>
+  <data name="Backup_ConfirmStop" xml:space="preserve">
+    <value>A backup is still running. Stop it and close the window? The unfinished file is deleted.</value>
+    <comment>Confirmation when the Backup window is closed while a backup runs.</comment>
+  </data>
+  <data name="Backup_ConfirmStopButton" xml:space="preserve">
+    <value>Stop Backup</value>
+    <comment>Confirm button of the dialog that asks to stop a running backup.</comment>
+  </data>
+  <data name="Restore_ConfirmStop" xml:space="preserve">
+    <value>A restore is still running. Stop it and close the window? It runs as one transaction, so nothing it did stays.</value>
+    <comment>Confirmation when the Restore window is closed while a restore runs.</comment>
+  </data>
+  <data name="Restore_ConfirmStopButton" xml:space="preserve">
+    <value>Stop Restore</value>
+    <comment>Confirm button of the dialog that asks to stop a running restore.</comment>
+  </data>
+  <data name="Restore_ConfirmReplace" xml:space="preserve">
+    <value>Restore into "{database}" on {server}? What the backup holds is dropped and created again from it, rows included. Other objects in the database stay. It happens in one transaction, but once it's done it can't be undone.</value>
+    <comment>Confirmation before a restore replaces what is in the window's own database. {database} is a database name, such as shop; {server} is the server's host, such as db.example.com, or with (through SSH) after it.</comment>
+  </data>
+  <data name="Restore_ConfirmReplaceButton" xml:space="preserve">
+    <value>Restore and Replace</value>
+    <comment>Confirm button of the dialog that asks before restoring into the current database.</comment>
+  </data>
+  <data name="Backup_TitleDatabase" xml:space="preserve">
+    <value>Back up {database}</value>
+    <comment>Heading of the Backup window when the whole database is backed up. {database} is a database name, such as shop.</comment>
+  </data>
+  <data name="Backup_TitleSchema" xml:space="preserve">
+    <value>Back up schema {schema}</value>
+    <comment>Heading of the Backup window for one schema. {schema} is a schema name, such as sales.</comment>
+  </data>
+  <data name="Backup_TitleTable" xml:space="preserve">
+    <value>Back up table {table}</value>
+    <comment>Heading of the Backup window for one table. {table} is a schema-qualified table name, such as sales.orders.</comment>
+  </data>
+  <data name="Backup_ScopeSchema" xml:space="preserve">
+    <value>schema {schema}</value>
+    <comment>Short description of what a backup covers: one schema. {schema} is a schema name, such as sales.</comment>
+  </data>
+  <data name="Backup_ScopeTable" xml:space="preserve">
+    <value>table {table}</value>
+    <comment>Short description of what a backup covers: one table. {table} is a schema-qualified table name, such as sales.orders.</comment>
+  </data>
+  <data name="Backup_FormatHintScript" xml:space="preserve">
+    <value>A SQL script you can read and keep in Git. Restore it with psql.</value>
+    <comment>Backup window, form: line under the file name when it ends in .sql. Git and psql are program names.</comment>
+  </data>
+  <data name="Backup_FormatHintArchive" xml:space="preserve">
+    <value>pg_dump's archive: compressed, and what Restore Backup… (or pg_restore) restores. Save as .sql for a readable script.</value>
+    <comment>Backup window, form: line under the file name when it ends in .dump. pg_dump and pg_restore are program names; Restore Backup… is the name of a command.</comment>
+  </data>
+  <data name="Backup_SetupErrorVersion" xml:space="preserve">
+    <value>Couldn't read the server's version: {reason}</value>
+    <comment>Backup window: error shown when the server's version can't be read. {reason} is the error's own message.</comment>
+  </data>
+  <data name="Backup_ProgressConnecting" xml:space="preserve">
+    <value>Connecting…</value>
+    <comment>Backup and Restore windows, while running: first progress line, before anything is known.</comment>
+  </data>
+  <data name="Backup_ProgressSavingTable" xml:space="preserve">
+    <value>Saving {table} · table {number} of {total}</value>
+    <comment>Backup window, while running: progress line. {table} is the table being saved, such as sales.orders; {number} is its position, such as 23; {total} is how many tables, such as 41.</comment>
+  </data>
+  <data name="Backup_ProgressSaving" xml:space="preserve">
+    <value>Saving {table}</value>
+    <comment>Backup window, while running: progress line when the number of tables is unknown. {table} is the table being saved, such as sales.orders.</comment>
+  </data>
+  <data name="Backup_ProgressStructure" xml:space="preserve">
+    <value>Saving the structure…</value>
+    <comment>Backup window, while running a structure-only backup: progress line.</comment>
+  </data>
+  <data name="Backup_ProgressFinishing" xml:space="preserve">
+    <value>Saving indexes, constraints and permissions…</value>
+    <comment>Backup window, while running: progress line once every table's rows are saved.</comment>
+  </data>
+  <data name="Backup_ProgressReading" xml:space="preserve">
+    <value>Reading the schema…</value>
+    <comment>Backup window, while running: progress line at the start, while pg_dump reads the catalog.</comment>
+  </data>
+  <data name="Backup_ResultSaved" xml:space="preserve">
+    <value>Saved {size} in {time}</value>
+    <comment>Backup window, after a successful backup: heading. {size} is a file size, such as 48.2 MB; {time} is the duration, such as 0:42.</comment>
+  </data>
+  <data name="Backup_ResultStopped" xml:space="preserve">
+    <value>Backup stopped</value>
+    <comment>Backup window, after the user stopped a backup: heading.</comment>
+  </data>
+  <data name="Backup_StoppedKept" xml:space="preserve">
+    <value>Nothing was saved. The file that was already there is unchanged.</value>
+    <comment>Backup window, after a stop: detail, when a file already existed at the chosen path.</comment>
+  </data>
+  <data name="Backup_StoppedNothing" xml:space="preserve">
+    <value>Nothing was saved.</value>
+    <comment>Backup window, after a stop: detail.</comment>
+  </data>
+  <data name="Backup_ResultFailed" xml:space="preserve">
+    <value>Backup failed</value>
+    <comment>Backup window, after a failed backup: heading.</comment>
+  </data>
+  <data name="Backup_FailedNoReason" xml:space="preserve">
+    <value>pg_dump stopped without saying why.</value>
+    <comment>Backup window, after a failure with no error message. pg_dump is a program name.</comment>
+  </data>
+  <data name="Restore_Title" xml:space="preserve">
+    <value>Restore a backup</value>
+    <comment>Heading of the Restore window.</comment>
+  </data>
+  <data name="Restore_ProblemMissing" xml:space="preserve">
+    <value>The file isn't there any more.</value>
+    <comment>Restore window: why a chosen file can't be restored. It was moved or deleted after it was chosen.</comment>
+  </data>
+  <data name="Restore_ProblemScript" xml:space="preserve">
+    <value>This is a SQL script, pg_dump's plain format. pgNimbus restores pg_dump's archives (.dump). Restore a script with psql (psql -f file.sql); pgNimbus doesn't run psql for you, because psql also runs the shell commands a script can hold.</value>
+    <comment>Restore window: why a plain SQL script can't be restored. pg_dump and psql are program names; pgNimbus is the product name; the command in parentheses is typed as it is.</comment>
+  </data>
+  <data name="Restore_ProblemNotArchive" xml:space="preserve">
+    <value>This isn't a pg_dump archive. pgNimbus restores the .dump files pg_dump writes.</value>
+    <comment>Restore window: why a chosen file can't be restored. pg_dump is a program name.</comment>
+  </data>
+  <data name="Restore_ProblemTooNew" xml:space="preserve">
+    <value>This backup was made by a newer pg_dump than this pg_restore ({version}) can read. Install a newer PostgreSQL client.</value>
+    <comment>Restore window: why a chosen file can't be restored. {version} is the installed pg_restore's release, such as 15.4.</comment>
+  </data>
+  <data name="Restore_ProblemCantRead" xml:space="preserve">
+    <value>pg_restore can't read this file: {reason}</value>
+    <comment>Restore window: why a chosen file can't be restored. {reason} is pg_restore's own error message.</comment>
+  </data>
+  <data name="Restore_ReadFailed" xml:space="preserve">
+    <value>The file couldn't be read: {reason}</value>
+    <comment>Restore window: why a chosen file can't be restored. {reason} is the error's own message.</comment>
+  </data>
+  <data name="Restore_ReadFailedShort" xml:space="preserve">
+    <value>The file couldn't be read.</value>
+    <comment>Restore window: why a chosen file can't be restored, when no reason is known.</comment>
+  </data>
+  <data name="Restore_ContentNoTablesLarge" xml:space="preserve">
+    <value>No tables, and large objects</value>
+    <comment>Restore window, form: what the backup holds, under the file name.</comment>
+  </data>
+  <data name="Restore_ContentNoTables" xml:space="preserve">
+    <value>No tables</value>
+    <comment>Restore window, form: what the backup holds, under the file name.</comment>
+  </data>
+  <data name="Restore_ContentWithRows_one" xml:space="preserve">
+    <value>{count} table, with its rows</value>
+    <comment>Restore window, form: what the backup holds. Singular. {count} is the number of tables.</comment>
+  </data>
+  <data name="Restore_ContentWithRows_other" xml:space="preserve">
+    <value>{count} tables, with their rows</value>
+    <comment>Restore window, form: what the backup holds. Plural. {count} is the number of tables, such as 5.</comment>
+  </data>
+  <data name="Restore_ContentStructure_one" xml:space="preserve">
+    <value>{count} table, structure only</value>
+    <comment>Restore window, form: what the backup holds. Singular. {count} is the number of tables.</comment>
+  </data>
+  <data name="Restore_ContentStructure_other" xml:space="preserve">
+    <value>{count} tables, structure only</value>
+    <comment>Restore window, form: what the backup holds. Plural. {count} is the number of tables, such as 5.</comment>
+  </data>
+  <data name="Restore_VersionWarning" xml:space="preserve">
+    <value>This backup is from PostgreSQL {backup}, and this server runs {server}. Something the newer release supports can stop the restore.</value>
+    <comment>Restore window, form: warning when the backup comes from a newer PostgreSQL than the server. {backup} and {server} are major releases, such as 18 and 17.</comment>
+  </data>
+  <data name="Restore_ArchiveDatabase" xml:space="preserve">
+    <value>Database {name}</value>
+    <comment>Restore window, form: first part of the line describing the backup. {name} is the database it was made from, such as shop.</comment>
+  </data>
+  <data name="Restore_ArchiveVersion" xml:space="preserve">
+    <value>PostgreSQL {version}</value>
+    <comment>Restore window, form: part of the line describing the backup. {version} is the server release it was made from, such as 17.11.</comment>
+  </data>
+  <data name="Restore_ArchiveSaved" xml:space="preserve">
+    <value>saved {created}</value>
+    <comment>Restore window, form: part of the line describing the backup. {created} is the date and time, such as 2026-10-10 09:32:12.</comment>
+  </data>
+  <data name="Restore_ArchiveSavedBy" xml:space="preserve">
+    <value>saved {created} by pg_dump {version}</value>
+    <comment>Restore window, form: part of the line describing the backup. {created} is the date and time, such as 2026-10-10 09:32:12; {version} is pg_dump's release, such as 18.6.</comment>
+  </data>
+  <data name="Restore_NameTaken" xml:space="preserve">
+    <value>There's already a database called {name}.</value>
+    <comment>Restore window, form: error under the new database name. {name} is the name typed.</comment>
+  </data>
+  <data name="Restore_NameEmpty" xml:space="preserve">
+    <value>Give the new database a name.</value>
+    <comment>Restore window, form: error under the new database name box when it is empty.</comment>
+  </data>
+  <data name="Restore_NameSpaces" xml:space="preserve">
+    <value>The name can't start or end with a space.</value>
+    <comment>Restore window, form: error under the new database name box.</comment>
+  </data>
+  <data name="Restore_NameTooLong" xml:space="preserve">
+    <value>The name is too long: PostgreSQL keeps {bytes} bytes.</value>
+    <comment>Restore window, form: error under the new database name box. {bytes} is the limit, 63.</comment>
+  </data>
+  <data name="Restore_NameControl" xml:space="preserve">
+    <value>The name can't hold control characters.</value>
+    <comment>Restore window, form: error under the new database name box.</comment>
+  </data>
+  <data name="Restore_OwnersMissingKeep_one" xml:space="preserve">
+    <value>Role {roles} doesn't exist on this server, so keeping owners will stop the restore.</value>
+    <comment>Restore window, form: note under Keep owners and permissions, when it is checked and a role the backup names is missing. Singular. {roles} is the role's name.</comment>
+  </data>
+  <data name="Restore_OwnersMissingKeep_other" xml:space="preserve">
+    <value>Roles {roles} don't exist on this server, so keeping owners will stop the restore.</value>
+    <comment>Restore window, form: note under Keep owners and permissions, when it is checked and roles the backup names are missing. Plural. {roles} is a comma-separated list of role names.</comment>
+  </data>
+  <data name="Restore_OwnersMissingDrop_one" xml:space="preserve">
+    <value>Role {roles} doesn't exist on this server, so you'll own everything restored.</value>
+    <comment>Restore window, form: note under Keep owners and permissions, when it is unchecked and a role the backup names is missing. Singular. {roles} is the role's name.</comment>
+  </data>
+  <data name="Restore_OwnersMissingDrop_other" xml:space="preserve">
+    <value>Roles {roles} don't exist on this server, so you'll own everything restored.</value>
+    <comment>Restore window, form: note under Keep owners and permissions, when it is unchecked and roles the backup names are missing. Plural. {roles} is a comma-separated list of role names.</comment>
+  </data>
+  <data name="Restore_OwnersKept" xml:space="preserve">
+    <value>Objects keep their owners and permissions from the backup.</value>
+    <comment>Restore window, form: note under Keep owners and permissions, when it is checked.</comment>
+  </data>
+  <data name="Restore_OwnersNotKept" xml:space="preserve">
+    <value>You'll own everything restored, and the backup's permissions are left out.</value>
+    <comment>Restore window, form: note under Keep owners and permissions, when it is unchecked.</comment>
+  </data>
+  <data name="Restore_ProgressCreatingDatabase" xml:space="preserve">
+    <value>Creating database {name}…</value>
+    <comment>Restore window, while running: first progress line when a new database is created. {name} is its name.</comment>
+  </data>
+  <data name="Restore_ProgressFinishing" xml:space="preserve">
+    <value>Finishing…</value>
+    <comment>Restore window, while running: progress line at the end.</comment>
+  </data>
+  <data name="Restore_ItemRows" xml:space="preserve">
+    <value>Restoring rows of {name}</value>
+    <comment>Restore window, while running: progress line. {name} is a table, such as public.orders.</comment>
+  </data>
+  <data name="Restore_ItemCreating" xml:space="preserve">
+    <value>Creating {name}</value>
+    <comment>Restore window, while running: progress line. {name} is the kind and name of an object, such as TABLE public.customers; the kind is PostgreSQL's own word and stays as it is.</comment>
+  </data>
+  <data name="Restore_ItemDropping" xml:space="preserve">
+    <value>Dropping {name}</value>
+    <comment>Restore window, while running: progress line. {name} is the kind and name of an object, such as TABLE public.customers; the kind is PostgreSQL's own word and stays as it is.</comment>
+  </data>
+  <data name="Restore_OpenFailed" xml:space="preserve">
+    <value>Couldn't open {database}: {reason}</value>
+    <comment>Restore window, after a restore: shown when the new window could not be opened. {database} is a database name; {reason} is the error's own message.</comment>
+  </data>
+  <data name="Restore_ResultRestored" xml:space="preserve">
+    <value>Restored into {database} in {time}</value>
+    <comment>Restore window, after a successful restore: heading. {database} is a database name, such as shop_restored; {time} is the duration, such as 0:12.</comment>
+  </data>
+  <data name="Restore_ResultNew" xml:space="preserve">
+    <value>{database} is a new database on this server.</value>
+    <comment>Restore window, after a successful restore into a new database: detail. {database} is its name.</comment>
+  </data>
+  <data name="Restore_ResultRefreshed" xml:space="preserve">
+    <value>The schema tree has been refreshed.</value>
+    <comment>Restore window, after a successful restore into the current database: detail.</comment>
+  </data>
+  <data name="Restore_ResultStopped" xml:space="preserve">
+    <value>Restore stopped</value>
+    <comment>Restore window, after the user stopped a restore: heading.</comment>
+  </data>
+  <data name="Restore_ResultFailed" xml:space="preserve">
+    <value>Restore failed</value>
+    <comment>Restore window, after a failed restore: heading.</comment>
+  </data>
+  <data name="Restore_FailedNoReason" xml:space="preserve">
+    <value>pg_restore stopped without saying why.</value>
+    <comment>Restore window, after a failure with no error message. pg_restore is a program name.</comment>
+  </data>
+  <data name="Restore_UnchangedRemoved" xml:space="preserve">
+    <value>Nothing was restored, and the new database {database} was removed again.</value>
+    <comment>Restore window, after a stop or a failure: detail. {database} is the new database's name.</comment>
+  </data>
+  <data name="Restore_UnchangedMaybeCreated" xml:space="preserve">
+    <value>Nothing was restored. If database {database} was created, it is empty; drop it when you like.</value>
+    <comment>Restore window, after a stop or a failure when the new database could not be removed. {database} is its name.</comment>
+  </data>
+  <data name="Restore_UnchangedCurrent" xml:space="preserve">
+    <value>Nothing was changed: the restore runs as one transaction, and {database} is as it was.</value>
+    <comment>Restore window, after a stop or a failure of a restore into the current database. {database} is its name.</comment>
+  </data>
+  <data name="Backup_FolderMissing" xml:space="preserve">
+    <value>The folder {folder} doesn't exist.</value>
+    <comment>Backup window, after a failure: the folder chosen for the file is missing. {folder} is a folder path.</comment>
+  </data>
+  <data name="Backup_CheckToolsFolderDump" xml:space="preserve">
+    <value>Check the folder pgNimbus uses for pg_dump in Settings, on the Data tab.</value>
+    <comment>Backup window, after a failure: hint when pg_dump could not be started. pgNimbus is the product name; Settings and Data are names of a page and a tab.</comment>
+  </data>
+  <data name="Restore_CheckToolsFolder" xml:space="preserve">
+    <value>Check the folder pgNimbus uses for pg_restore in Settings, on the Data tab.</value>
+    <comment>Restore window, after a failure: hint when pg_restore could not be started. pgNimbus is the product name; Settings and Data are names of a page and a tab.</comment>
+  </data>
+  <data name="Backup_SaveFailed" xml:space="preserve">
+    <value>The backup finished, but it couldn't be saved as {path}: {reason}. It's still in {partial}.</value>
+    <comment>Backup window, after a failure: the finished file could not be moved to its name. {path} is the chosen file; {reason} is the system's own message; {partial} is a temporary file path.</comment>
+  </data>
+  <data name="Backup_CouldNotStart" xml:space="preserve">
+    <value>Could not start {file}: {reason}</value>
+    <comment>Backup and Restore windows, after a failure: the program could not be started. {file} is a file name, such as pg_dump.exe; {reason} is the system's own message.</comment>
+  </data>
+  <data name="Restore_ServerThroughSsh" xml:space="preserve">
+    <value>{host} (through SSH)</value>
+    <comment>Restore window, in the question before restoring into the current database: the server's host when the connection goes through an SSH tunnel. {host} is a host name, such as db.example.com.</comment>
+  </data>
+  <data name="Restore_HintNoCreateDb" xml:space="preserve">
+    <value>Your role can't create databases. Restore into this database instead, or use a role with CREATEDB.</value>
+    <comment>Restore window, after a failure: hint. CREATEDB is a PostgreSQL role attribute and stays as it is.</comment>
+  </data>
+  <data name="Restore_HintPickName" xml:space="preserve">
+    <value>Pick another name.</value>
+    <comment>Restore window, after a failure: hint when a database of that name exists.</comment>
+  </data>
+  <data name="Restore_CreateFailed" xml:space="preserve">
+    <value>Couldn't create database {database}: {reason}</value>
+    <comment>Restore window, after a failure: the new database could not be created. {database} is its name; {reason} is the server's own message.</comment>
+  </data>
+  <data name="Backup_LogDropped_one" xml:space="preserve">
+    <value>({count} earlier line not kept)</value>
+    <comment>First line of the log shown after a backup or restore, when the oldest lines were dropped. Singular. {count} is the number of lines.</comment>
+  </data>
+  <data name="Backup_LogDropped_other" xml:space="preserve">
+    <value>({count} earlier lines not kept)</value>
+    <comment>First line of the log shown after a backup or restore, when the oldest lines were dropped. Plural. {count} is the number of lines, such as 120.</comment>
+  </data>
+  <data name="Backup_ReasonNoPgDump" xml:space="preserve">
+    <value>there's no pg_dump in this folder</value>
+    <comment>Reason a folder holds no usable PostgreSQL program. It is placed inside a sentence such as "Settings point pgNimbus at C:\tools, but there's no pg_dump in this folder." Write it as a clause that fits there; do not end it with a full stop.</comment>
+  </data>
+  <data name="Backup_ReasonNoPgRestore" xml:space="preserve">
+    <value>pg_dump is there, but pg_restore isn't</value>
+    <comment>Reason a folder holds no usable PostgreSQL program. It is placed inside a sentence; write it as a clause that fits there, without a full stop.</comment>
+  </data>
+  <data name="Backup_ReasonCantStart" xml:space="preserve">
+    <value>it can't be started ({detail})</value>
+    <comment>Reason a PostgreSQL program is not usable. It is placed inside a sentence; write it as a clause without a full stop. {detail} is the system's own message.</comment>
+  </data>
+  <data name="Backup_ReasonTimeout" xml:space="preserve">
+    <value>it didn't answer within {seconds} seconds</value>
+    <comment>Reason a PostgreSQL program is not usable. It is placed inside a sentence; write it as a clause without a full stop. {seconds} is a number, such as 10.</comment>
+  </data>
+  <data name="Backup_ReasonDllMissing" xml:space="preserve">
+    <value>it doesn't start: a library it needs is missing</value>
+    <comment>Reason a PostgreSQL program is not usable (Windows could not load a library). It is placed inside a sentence; write it as a clause without a full stop.</comment>
+  </data>
+  <data name="Backup_ReasonWrongCpu" xml:space="preserve">
+    <value>it doesn't start: it's built for a different processor</value>
+    <comment>Reason a PostgreSQL program is not usable. It is placed inside a sentence; write it as a clause without a full stop.</comment>
+  </data>
+  <data name="Backup_ReasonNoVersion" xml:space="preserve">
+    <value>it didn't report a PostgreSQL version</value>
+    <comment>Reason a PostgreSQL program is not usable. It is placed inside a sentence; write it as a clause without a full stop.</comment>
+  </data>
+  <data name="Backup_ReasonExitedLine" xml:space="preserve">
+    <value>it exited with code {code}: {line}</value>
+    <comment>Reason a PostgreSQL program is not usable or a run failed. It is placed inside a sentence; write it as a clause without a full stop. {code} is an exit code, such as 2; {line} is the program's own first error line.</comment>
+  </data>
+  <data name="Backup_ReasonExited" xml:space="preserve">
+    <value>it exited with code {code}</value>
+    <comment>Reason a PostgreSQL program is not usable or a run failed. It is placed inside a sentence; write it as a clause without a full stop. {code} is an exit code, such as 2.</comment>
+  </data>
+  <data name="Backup_HintPassword" xml:space="preserve">
+    <value>The server refused the password pgNimbus connected this window with. If it changed since, reconnect and try again.</value>
+    <comment>Hint under a backup or restore error. pgNimbus is the product name.</comment>
+  </data>
+  <data name="Backup_HintRoleMissing" xml:space="preserve">
+    <value>The backup names a role this server doesn't have. Turn off Keep owners and permissions to make you the owner of everything, or create the role first.</value>
+    <comment>Hint under a restore error. Keep owners and permissions is the name of a check box in the Restore window.</comment>
+  </data>
+  <data name="Backup_HintPointsOutside" xml:space="preserve">
+    <value>The backup refers to something it doesn't contain, such as a table in another schema. A schema or table backup needs what it points to, so restore it into a database that has it, like the one it came from.</value>
+    <comment>Hint under a restore error.</comment>
+  </data>
+  <data name="Backup_HintMustBeOwner" xml:space="preserve">
+    <value>Something in the backup belongs to a role you can't act for. Turn off Keep owners and permissions, or restore as that role.</value>
+    <comment>Hint under a restore error. Keep owners and permissions is the name of a check box in the Restore window.</comment>
+  </data>
+  <data name="Backup_HintRestorePermission" xml:space="preserve">
+    <value>Your role can't create everything the backup holds here. Restore into a new database, which you own, or use a role that can.</value>
+    <comment>Hint under a restore error.</comment>
+  </data>
+  <data name="Backup_HintToolTooOld" xml:space="preserve">
+    <value>This pg_dump is older than the server. Install a newer one; Settings, on the Data tab, shows which one pgNimbus uses.</value>
+    <comment>Hint under a backup error. pg_dump is a program name; Settings and Data are names of a page and a tab; pgNimbus is the product name.</comment>
+  </data>
+  <data name="Backup_HintBackupPermission" xml:space="preserve">
+    <value>Your role can't read everything this covers. Use a role that can, or back up a schema or table it can read.</value>
+    <comment>Hint under a backup error.</comment>
+  </data>
+  <data name="Backup_HintCertificate" xml:space="preserve">
+    <value>The server's certificate couldn't be checked. Check the connection's SSL settings and root certificate.</value>
+    <comment>Hint under a backup or restore error.</comment>
+  </data>
+  <data name="Backup_HintUnreachableTunnel" xml:space="preserve">
+    <value>{tool} couldn't reach the server through this window's SSH tunnel. Keep the window connected while it runs.</value>
+    <comment>Hint under a backup or restore error when the connection goes through an SSH tunnel. {tool} is pg_dump or pg_restore.</comment>
+  </data>
+  <data name="Backup_HintUnreachable" xml:space="preserve">
+    <value>{tool} couldn't reach the server. Check that it's up and that this computer can reach it.</value>
+    <comment>Hint under a backup or restore error. {tool} is pg_dump or pg_restore.</comment>
+  </data>
+  <data name="Backup_HintCannotWrite" xml:space="preserve">
+    <value>The file couldn't be written. Check that the folder exists, that you can write to it, and that the disk has room.</value>
+    <comment>Hint under a backup or restore error.</comment>
+  </data>
+  <data name="Backup_HintObjectGone" xml:space="preserve">
+    <value>Something this covers was dropped or renamed since the window loaded it. Refresh the schema and try again.</value>
+    <comment>Hint under a backup error.</comment>
+  </data>
+  <data name="Backup_GuideWinDownload" xml:space="preserve">
+    <value>Download the PostgreSQL {version} installer for Windows (Windows x86-64) from EDB, the official source.</value>
+    <comment>Install steps for Windows, step 1. {version} is a PostgreSQL release, such as 18. EDB is a company name.</comment>
+  </data>
+  <data name="Backup_GuideWinDownloadLink" xml:space="preserve">
+    <value>Open the download page</value>
+    <comment>Install steps for Windows, step 1: button that opens EDB's download page.</comment>
+  </data>
+  <data name="Backup_GuideWinRun" xml:space="preserve">
+    <value>Run it. On the Select Components page, leave only Command Line Tools checked: you don't need the server, pgAdmin or Stack Builder. Keep the suggested folder.</value>
+    <comment>Install steps for Windows, step 2. Select Components, Command Line Tools, pgAdmin and Stack Builder are names in the installer; write them as the installer shows them in your language if it is translated, else keep them.</comment>
+  </data>
+  <data name="Backup_GuideWinWinget" xml:space="preserve">
+    <value>Or install the same thing from a terminal, and pick only Command Line Tools when the installer asks:</value>
+    <comment>Install steps for Windows, step 3. A command to copy is shown under it.</comment>
+  </data>
+  <data name="Backup_GuideWinLookAgain" xml:space="preserve">
+    <value>Then click Look Again. pgNimbus finds C:\Program Files\PostgreSQL\{version}\bin on its own.</value>
+    <comment>Install steps for Windows, last step. Look Again is the name of a button; {version} is a PostgreSQL release, such as 18; the folder path is kept as it is.</comment>
+  </data>
+  <data name="Backup_GuideMacBrew" xml:space="preserve">
+    <value>Install PostgreSQL's client programs with Homebrew:</value>
+    <comment>Install steps for macOS with Homebrew, step 1. A command to copy is shown under it.</comment>
+  </data>
+  <data name="Backup_GuideMacBrewLookAgain" xml:space="preserve">
+    <value>Then click Look Again. pgNimbus finds them in Homebrew's libpq folder on its own; you don't need to add anything to PATH.</value>
+    <comment>Install steps for macOS with Homebrew, last step. Look Again is the name of a button; PATH is the environment variable.</comment>
+  </data>
+  <data name="Backup_GuideMacApp" xml:space="preserve">
+    <value>Download Postgres.app and move it to Applications. It includes pg_dump and pg_restore; you don't have to start its server.</value>
+    <comment>Install steps for macOS, step 1. Postgres.app is a product name.</comment>
+  </data>
+  <data name="Backup_GuideMacAppLink" xml:space="preserve">
+    <value>Open postgresapp.com</value>
+    <comment>Install steps for macOS, step 1: button that opens the Postgres.app website.</comment>
+  </data>
+  <data name="Backup_GuideMacOrBrew" xml:space="preserve">
+    <value>Or, if you use Homebrew:</value>
+    <comment>Install steps for macOS, step 2. A command to copy is shown under it.</comment>
+  </data>
+  <data name="Backup_GuideMacEither" xml:space="preserve">
+    <value>Then click Look Again. pgNimbus finds them in either place on its own.</value>
+    <comment>Install steps for macOS, last step. Look Again is the name of a button.</comment>
+  </data>
+  <data name="Backup_GuideDebRepo" xml:space="preserve">
+    <value>Add PostgreSQL's own package repository. Your distribution's packages are often older than the server, and pg_dump can't be older:</value>
+    <comment>Install steps for Debian and Ubuntu, step 1. A command to copy is shown under it.</comment>
+  </data>
+  <data name="Backup_GuideLinkPostgresql" xml:space="preserve">
+    <value>Instructions on postgresql.org</value>
+    <comment>Install steps for Linux: button that opens a page on postgresql.org.</comment>
+  </data>
+  <data name="Backup_GuideInstallClients" xml:space="preserve">
+    <value>Install the client programs:</value>
+    <comment>Install steps for Linux, a step. A command to copy is shown under it.</comment>
+  </data>
+  <data name="Backup_GuideDebLookAgain" xml:space="preserve">
+    <value>Then click Look Again. pgNimbus finds /usr/lib/postgresql/{version}/bin on its own.</value>
+    <comment>Install steps for Debian and Ubuntu, last step. Look Again is the name of a button; {version} is a PostgreSQL release, such as 18; the folder path is kept as it is.</comment>
+  </data>
+  <data name="Backup_GuideRhRepo" xml:space="preserve">
+    <value>Add PostgreSQL's own package repository for your distribution, as postgresql.org describes it.</value>
+    <comment>Install steps for Fedora and Red Hat, step 1.</comment>
+  </data>
+  <data name="Backup_GuideRhLookAgain" xml:space="preserve">
+    <value>Then click Look Again. pgNimbus finds /usr/pgsql-{version}/bin on its own.</value>
+    <comment>Install steps for Fedora and Red Hat, last step. Look Again is the name of a button; {version} is a PostgreSQL release, such as 18; the folder path is kept as it is.</comment>
+  </data>
+  <data name="Backup_GuideLookAgain" xml:space="preserve">
+    <value>Then click Look Again.</value>
+    <comment>Install steps for Linux, last step. Look Again is the name of a button.</comment>
+  </data>
+  <data name="Backup_GuideOtherLinux" xml:space="preserve">
+    <value>Install the PostgreSQL {version} client programs (the package that holds pg_dump and pg_restore) from your distribution, or from postgresql.org.</value>
+    <comment>Install steps for other Linux distributions, step 1. {version} is a PostgreSQL release, such as 18.</comment>
+  </data>
 
   <!-- ===== QueryLab ===== -->
+  <data name="QueryLab_Title" xml:space="preserve">
+    <value>pgNimbus — Query Lab</value>
+    <comment>Window title of Query Lab, where saved query plans are compared. Query Lab is a feature name; pgNimbus is the product name.</comment>
+  </data>
+  <data name="QueryLab_SavedPlans" xml:space="preserve">
+    <value>Saved plans</value>
+    <comment>Query Lab: heading of the list of saved plans on the left.</comment>
+  </data>
+  <data name="QueryLab_ImportPlanButton" xml:space="preserve">
+    <value>Import Plan…</value>
+    <comment>Query Lab: button under the list that opens the paste-a-plan dialog.</comment>
+  </data>
+  <data name="QueryLab_ImportPlanTip" xml:space="preserve">
+    <value>Paste an EXPLAIN plan from another tool or machine and keep it here; no connection needed</value>
+    <comment>Query Lab: tooltip of the Import Plan button.</comment>
+  </data>
+  <data name="QueryLab_CompareAsBefore" xml:space="preserve">
+    <value>Compare as Before</value>
+    <comment>Query Lab, right-click menu of a saved plan: use it as the "before" side of the comparison.</comment>
+  </data>
+  <data name="QueryLab_CompareAsAfter" xml:space="preserve">
+    <value>Compare as After</value>
+    <comment>Query Lab, right-click menu of a saved plan: use it as the "after" side of the comparison.</comment>
+  </data>
+  <data name="QueryLab_OpenInNewTab" xml:space="preserve">
+    <value>Open in New Tab</value>
+    <comment>Query Lab, right-click menu of a saved plan: shows the plan in a new editor tab.</comment>
+  </data>
+  <data name="QueryLab_Rename" xml:space="preserve">
+    <value>Rename…</value>
+    <comment>Query Lab, right-click menu of a saved plan: asks for a new name.</comment>
+  </data>
+  <data name="QueryLab_Delete" xml:space="preserve">
+    <value>Delete…</value>
+    <comment>Query Lab, right-click menu of a saved plan: asks to delete it.</comment>
+  </data>
+  <data name="QueryLab_NoPlansHint" xml:space="preserve">
+    <value>Plans you save from a tab's Compare menu, or import here, are kept on this computer.</value>
+    <comment>Query Lab: shown in the list while no plan is saved. Compare is the name of a menu in the plan header.</comment>
+  </data>
+  <data name="QueryLab_Before" xml:space="preserve">
+    <value>Before</value>
+    <comment>Query Lab: label of the "before" side (a plan picker, a column of the figures).</comment>
+  </data>
+  <data name="QueryLab_After" xml:space="preserve">
+    <value>After</value>
+    <comment>Query Lab: label of the "after" side (a plan picker, a column of the figures).</comment>
+  </data>
+  <data name="QueryLab_PickPlan" xml:space="preserve">
+    <value>Pick a plan</value>
+    <comment>Query Lab: placeholder of a plan picker with nothing chosen.</comment>
+  </data>
+  <data name="QueryLab_SwapTip" xml:space="preserve">
+    <value>Swap before and after</value>
+    <comment>Query Lab: tooltip of the button that exchanges the two sides.</comment>
+  </data>
+  <data name="QueryLab_TabSummary" xml:space="preserve">
+    <value>Summary</value>
+    <comment>Query Lab: name of the tab with the summary figures.</comment>
+  </data>
+  <data name="QueryLab_TabPlanChanges" xml:space="preserve">
+    <value>Plan changes</value>
+    <comment>Query Lab: name of the tab with the merged plan tree.</comment>
+  </data>
+  <data name="QueryLab_ChangeColumn" xml:space="preserve">
+    <value>Change</value>
+    <comment>Query Lab, summary table: caption of the column that shows how a figure changed.</comment>
+  </data>
+  <data name="QueryLab_SettingsDiffer" xml:space="preserve">
+    <value>Planner settings that differ</value>
+    <comment>Query Lab, summary: heading of the list of planner settings that differ between the two plans.</comment>
+  </data>
+  <data name="QueryLab_PlanWarnings" xml:space="preserve">
+    <value>Plan warnings</value>
+    <comment>Query Lab, summary: heading of the list of plan warnings that appeared or went away.</comment>
+  </data>
+  <data name="QueryLab_WhatChanged" xml:space="preserve">
+    <value>What changed</value>
+    <comment>Query Lab, details of a plan node: small heading above the list of differences in what the node does.</comment>
+  </data>
+  <data name="QueryLab_SettingChange" xml:space="preserve">
+    <value>{name}: {before} → {after}</value>
+    <comment>Query Lab, summary: one planner setting that differs. {name} is the setting, {before} and {after} its values or the word for default, such as enable_seqscan: default → off.</comment>
+  </data>
+  <data name="QueryLab_SettingDefault" xml:space="preserve">
+    <value>default</value>
+    <comment>Query Lab, summary: stands for a planner setting's value when it was not changed from the server default.</comment>
+  </data>
+  <data name="QueryLab_SourceExplain" xml:space="preserve">
+    <value>From the Explain command</value>
+    <comment>Query Lab: tooltip line of a saved plan. It was made with the Explain command.</comment>
+  </data>
+  <data name="QueryLab_SourceRun" xml:space="preserve">
+    <value>From an EXPLAIN that was run</value>
+    <comment>Query Lab: tooltip line of a saved plan. It was made by running an EXPLAIN statement. EXPLAIN is SQL.</comment>
+  </data>
+  <data name="QueryLab_Imported" xml:space="preserve">
+    <value>Imported</value>
+    <comment>Query Lab: a saved plan that was pasted in, not made here. Shown in the list line and the tooltip.</comment>
+  </data>
+  <data name="QueryLab_EstimatesOnly" xml:space="preserve">
+    <value>estimates only</value>
+    <comment>Query Lab: a plan that was not run (EXPLAIN without ANALYZE), so it holds the planner's estimates only. Shown in a list line beside the time.</comment>
+  </data>
+  <data name="QueryLab_ServerVersion" xml:space="preserve">
+    <value>PG {version}</value>
+    <comment>Query Lab: the PostgreSQL server version a plan came from, in a list line. {version} is such as 17.11. PG is short for PostgreSQL.</comment>
+  </data>
+  <data name="QueryLab_UnsavedChoice" xml:space="preserve">
+    <value>Unsaved: the plan in “{tab}”</value>
+    <comment>Query Lab: the entry in a plan picker for the plan a tab shows that is not saved. {tab} is the tab's title.</comment>
+  </data>
+  <data name="QueryLab_EmptyNoPlans" xml:space="preserve">
+    <value>No saved plans yet. Show a plan in a tab with Explain, Explain Analyze or Import query plan, then choose Save to Query Lab in its Compare menu. Import Plan here adds one without a connection.</value>
+    <comment>Query Lab: what the right side says while no plan is saved. Explain, Explain Analyze, Import query plan, Save to Query Lab, Compare and Import Plan are names of commands and buttons.</comment>
+  </data>
+  <data name="QueryLab_EmptyPick" xml:space="preserve">
+    <value>Pick a plan for each side to compare them.</value>
+    <comment>Query Lab: what the right side says while one side has no plan chosen.</comment>
+  </data>
+  <data name="QueryLab_EmptySame" xml:space="preserve">
+    <value>Pick two different plans.</value>
+    <comment>Query Lab: what the right side says when both sides are the same plan.</comment>
+  </data>
+  <data name="QueryLab_Comparing" xml:space="preserve">
+    <value>Comparing…</value>
+    <comment>Query Lab: shown while a comparison is being computed.</comment>
+  </data>
+  <data name="QueryLab_SavedStatus" xml:space="preserve">
+    <value>Saved “{name}” to Query Lab</value>
+    <comment>Query Lab, status line: a plan was saved. {name} is the plan's name.</comment>
+  </data>
+  <data name="QueryLab_DeletedStatus" xml:space="preserve">
+    <value>Deleted “{name}”</value>
+    <comment>Query Lab, status line: a saved plan was deleted. {name} is the plan's name.</comment>
+  </data>
+  <data name="QueryLab_SaveImportedHeading" xml:space="preserve">
+    <value>Save the imported plan</value>
+    <comment>Heading of the naming dialog that opens after a plan was pasted into Query Lab.</comment>
+  </data>
+  <data name="QueryLab_RenameHeading" xml:space="preserve">
+    <value>Rename saved plan</value>
+    <comment>Heading of the naming dialog that renames a saved plan.</comment>
+  </data>
+  <data name="QueryLab_ImportedName" xml:space="preserve">
+    <value>Imported plan</value>
+    <comment>Query Lab: the name suggested for a plan that was pasted in. A number is added if the name is taken.</comment>
+  </data>
+  <data name="QueryLab_PlanMissing" xml:space="preserve">
+    <value>The plan saved as “{name}” is missing from Query Lab's folder.</value>
+    <comment>Query Lab, status line: the file of a saved plan could not be found. {name} is the plan's name.</comment>
+  </data>
+  <data name="QueryLab_ConfirmDelete" xml:space="preserve">
+    <value>Delete the saved plan “{name}” from Query Lab? A tab showing it keeps it until the tab closes.</value>
+    <comment>Confirmation dialog of deleting a saved plan. {name} is the plan's name.</comment>
+  </data>
+  <data name="QueryLab_SameNodes" xml:space="preserve">
+    <value>Same plan: every node matches</value>
+    <comment>Query Lab, plan changes tab: line above the tree when the two plans have no difference.</comment>
+  </data>
+  <data name="QueryLab_NodesChanged_one" xml:space="preserve">
+    <value>{number} changed</value>
+    <comment>Query Lab, plan changes tab: part of the line above the tree, the number of plan nodes that changed. Singular.</comment>
+  </data>
+  <data name="QueryLab_NodesChanged_other" xml:space="preserve">
+    <value>{number} changed</value>
+    <comment>Query Lab, plan changes tab: part of the line above the tree, the number of plan nodes that changed. Plural. {number} is such as 2.</comment>
+  </data>
+  <data name="QueryLab_NodesAdded_one" xml:space="preserve">
+    <value>{number} added</value>
+    <comment>Query Lab, plan changes tab: the number of plan nodes that are new. Singular.</comment>
+  </data>
+  <data name="QueryLab_NodesAdded_other" xml:space="preserve">
+    <value>{number} added</value>
+    <comment>Query Lab, plan changes tab: the number of plan nodes that are new. Plural. {number} is such as 2.</comment>
+  </data>
+  <data name="QueryLab_NodesRemoved_one" xml:space="preserve">
+    <value>{number} removed</value>
+    <comment>Query Lab, plan changes tab: the number of plan nodes that are gone. Singular.</comment>
+  </data>
+  <data name="QueryLab_NodesRemoved_other" xml:space="preserve">
+    <value>{number} removed</value>
+    <comment>Query Lab, plan changes tab: the number of plan nodes that are gone. Plural. {number} is such as 2.</comment>
+  </data>
+  <data name="QueryLab_NodesMoved_one" xml:space="preserve">
+    <value>{number} moved</value>
+    <comment>Query Lab, plan changes tab: the number of plan nodes that moved to another place in the tree. Singular.</comment>
+  </data>
+  <data name="QueryLab_NodesMoved_other" xml:space="preserve">
+    <value>{number} moved</value>
+    <comment>Query Lab, plan changes tab: the number of plan nodes that moved to another place in the tree. Plural. {number} is such as 2.</comment>
+  </data>
+  <data name="QueryLab_WarningNew" xml:space="preserve">
+    <value>New</value>
+    <comment>Query Lab, summary: marks a plan warning that appears only in the after plan.</comment>
+  </data>
+  <data name="QueryLab_WarningGone" xml:space="preserve">
+    <value>Gone</value>
+    <comment>Query Lab, summary: marks a plan warning that appears only in the before plan.</comment>
+  </data>
+  <data name="QueryLab_NodeChanged" xml:space="preserve">
+    <value>Changed</value>
+    <comment>Query Lab, plan tree: word beside a node that exists in both plans but differs.</comment>
+  </data>
+  <data name="QueryLab_NodeAdded" xml:space="preserve">
+    <value>Added</value>
+    <comment>Query Lab, plan tree: word beside a node that exists only in the after plan.</comment>
+  </data>
+  <data name="QueryLab_NodeRemoved" xml:space="preserve">
+    <value>Removed</value>
+    <comment>Query Lab, plan tree: word beside a node that exists only in the before plan.</comment>
+  </data>
+  <data name="QueryLab_NodeMoved" xml:space="preserve">
+    <value>Moved</value>
+    <comment>Query Lab, plan tree: word beside a node that is the same but sits somewhere else in the tree.</comment>
+  </data>
+  <data name="QueryLab_NodeSame" xml:space="preserve">
+    <value>Same</value>
+    <comment>Query Lab, plan tree: word beside a node that did not change.</comment>
+  </data>
+  <data name="QueryLab_NodeChangedMoved" xml:space="preserve">
+    <value>Changed, moved</value>
+    <comment>Query Lab, plan tree: word beside a node that differs and also moved.</comment>
+  </data>
+  <data name="QueryLab_NodeAddedMoved" xml:space="preserve">
+    <value>Added, moved</value>
+    <comment>Query Lab, plan tree: word beside a node that is new and sits in a different place than its twin would.</comment>
+  </data>
+  <data name="QueryLab_NodeRemovedMoved" xml:space="preserve">
+    <value>Removed, moved</value>
+    <comment>Query Lab, plan tree: word beside a node that is gone and sat in a different place.</comment>
+  </data>
+  <data name="QueryLab_WasHeader" xml:space="preserve">
+    <value>was {header}</value>
+    <comment>Query Lab, plan tree: after a node's name, says what the node was in the before plan. {header} is such as Seq Scan on orders o.</comment>
+  </data>
+  <data name="QueryLab_LineRows" xml:space="preserve">
+    <value>rows {value}</value>
+    <comment>Query Lab, plan tree: figure line of a node. {value} is the actual row count on both sides, such as 40 → 40.</comment>
+  </data>
+  <data name="QueryLab_LineEstRows" xml:space="preserve">
+    <value>est. rows {value}</value>
+    <comment>Query Lab, plan tree: figure line of a node in a plan that was not run. est. is short for estimated. {value} is the planner's row estimate on both sides.</comment>
+  </data>
+  <data name="QueryLab_LineSelf" xml:space="preserve">
+    <value>self {value}</value>
+    <comment>Query Lab, plan tree: figure line. The time the node spent itself, without its children. {value} is such as 12 ms → 0.4 ms, with a leading ~ when approximate.</comment>
+  </data>
+  <data name="QueryLab_LineHit" xml:space="preserve">
+    <value>hit {value}</value>
+    <comment>Query Lab, plan tree: figure line. Shared buffer blocks found in cache. {value} is a count on both sides.</comment>
+  </data>
+  <data name="QueryLab_LineRead" xml:space="preserve">
+    <value>read {value}</value>
+    <comment>Query Lab, plan tree: figure line. Shared buffer blocks read from disk. {value} is a count on both sides.</comment>
+  </data>
+  <data name="QueryLab_LineDisk" xml:space="preserve">
+    <value>disk: {before} → {after}</value>
+    <comment>Query Lab, plan tree: figure line. What went to disk on each side, such as Sort 4 MB, or the word for none.</comment>
+  </data>
+  <data name="QueryLab_None" xml:space="preserve">
+    <value>none</value>
+    <comment>Query Lab, plan tree: nothing went to disk on that side.</comment>
+  </data>
+  <data name="QueryLab_NeverExecuted" xml:space="preserve">
+    <value>never executed</value>
+    <comment>Query Lab, plan tree: figure line. The node never ran in either plan.</comment>
+  </data>
+  <data name="QueryLab_NeverExecutedBefore" xml:space="preserve">
+    <value>never executed before</value>
+    <comment>Query Lab, plan tree: figure line. The node never ran in the before plan.</comment>
+  </data>
+  <data name="QueryLab_NeverExecutedAfter" xml:space="preserve">
+    <value>never executed after</value>
+    <comment>Query Lab, plan tree: figure line. The node never ran in the after plan.</comment>
+  </data>
+  <data name="QueryLab_FigEstRows" xml:space="preserve">
+    <value>Estimated rows (per loop)</value>
+    <comment>Query Lab, node details: name of a figure, the planner's row estimate for one loop of the node.</comment>
+  </data>
+  <data name="QueryLab_FigActRows" xml:space="preserve">
+    <value>Actual rows (per loop)</value>
+    <comment>Query Lab, node details: name of a figure, the rows the node returned in one loop.</comment>
+  </data>
+  <data name="QueryLab_FigLoops" xml:space="preserve">
+    <value>Loops</value>
+    <comment>Query Lab, node details: name of a figure, how many times the node ran.</comment>
+  </data>
+  <data name="QueryLab_FigInclusiveTime" xml:space="preserve">
+    <value>Time, with children</value>
+    <comment>Query Lab, node details: name of a figure, the node's time including the nodes below it.</comment>
+  </data>
+  <data name="QueryLab_FigSelfTime" xml:space="preserve">
+    <value>Self time</value>
+    <comment>Query Lab, node details: name of a figure, the node's time without the nodes below it.</comment>
+  </data>
+  <data name="QueryLab_FigCost" xml:space="preserve">
+    <value>Estimated cost (planner units)</value>
+    <comment>Query Lab, node details: name of a figure, the planner's cost estimate in its own units, not a time.</comment>
+  </data>
+  <data name="QueryLab_FigBuffersHit" xml:space="preserve">
+    <value>Shared buffers hit</value>
+    <comment>Query Lab, node details: name of a figure, blocks found in PostgreSQL's shared buffer cache.</comment>
+  </data>
+  <data name="QueryLab_FigBuffersRead" xml:space="preserve">
+    <value>Shared buffers read</value>
+    <comment>Query Lab, node details: name of a figure, blocks read from outside the shared buffers.</comment>
+  </data>
+  <data name="QueryLab_FigTempWritten" xml:space="preserve">
+    <value>Temp blocks written</value>
+    <comment>Query Lab, node details: name of a figure, blocks written to temporary files.</comment>
+  </data>
+  <data name="QueryLab_FigDisk" xml:space="preserve">
+    <value>Went to disk</value>
+    <comment>Query Lab, node details: name of a figure, whether the node spilled to disk.</comment>
+  </data>
+  <data name="QueryLab_No" xml:space="preserve">
+    <value>no</value>
+    <comment>Query Lab, node details: the answer "no" to Went to disk.</comment>
+  </data>
 
   <!-- ===== Crash ===== -->
+  <data name="Crash_Title" xml:space="preserve">
+    <value>pgNimbus — Unexpected Error</value>
+    <comment>Window title of the crash window shown after an unexpected failure. pgNimbus is the product name.</comment>
+  </data>
+  <data name="Crash_Heading" xml:space="preserve">
+    <value>pgNimbus ran into an unexpected error</value>
+    <comment>Crash window: heading.</comment>
+  </data>
+  <data name="Crash_Body" xml:space="preserve">
+    <value>The application hit a critical error and has to close. Nothing you were doing was necessarily lost — reopen pgNimbus to carry on.</value>
+    <comment>Crash window: what happened and what to do next.</comment>
+  </data>
+  <data name="Crash_LogLabel" xml:space="preserve">
+    <value>A detailed log was saved to:</value>
+    <comment>Crash window: label above the path of the log file.</comment>
+  </data>
+  <data name="Crash_ReportHint" xml:space="preserve">
+    <value>Please report this so it can be fixed — the button below opens a pre-filled GitHub issue. Attaching the log file above helps a lot.</value>
+    <comment>Crash window: asks the user to report the crash. The GitHub issue it opens is in English on purpose.</comment>
+  </data>
+  <data name="Crash_OpenLog" xml:space="preserve">
+    <value>Open log file</value>
+    <comment>Crash window: button that opens the folder holding the log file.</comment>
+  </data>
+  <data name="Crash_Report" xml:space="preserve">
+    <value>Report on GitHub</value>
+    <comment>Crash window: button that opens a pre-filled GitHub issue in the browser.</comment>
+  </data>
+  <data name="Crash_NoLog" xml:space="preserve">
+    <value>No log was written: pgNimbus found no application data directory.</value>
+    <comment>Crash window: shown in place of the log path when no log could be written.</comment>
+  </data>
+  <data name="Crash_UnknownError" xml:space="preserve">
+    <value>An unknown error occurred.</value>
+    <comment>Crash window: shown in the error box when there is no error message to show.</comment>
+  </data>
 
   <!-- ===== Core ===== -->
 </root>

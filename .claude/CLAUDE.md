@@ -2942,7 +2942,13 @@ translator's side is [`docs/dev/translating.md`](../docs/dev/translating.md).
   generator project removes `PublishAot`/`RuntimeIdentifier` from what a publish
   hands it (`TreatAsLocalProperty`): it is a netstandard2.0 compiler plug-in.
 - **Avalonia's own text** (a text box's Cut/Copy/Paste, the date picker's parts)
-  is overridden through application resources by `Localization/FrameworkStrings`.
+  is overridden through application resources by `Localization/FrameworkStrings`,
+  which subscribes to `LanguageChanged` once per process and writes to
+  `Application.Current` (2026-11). It used to add a handler per `App`, capturing
+  it, and the UI tests make an `App` per test: a full run kept ~570 alive with
+  their windows, each switch rewrote nine resources in all of them (seconds per
+  switch), and the pseudo-locale scan took 29 minutes on Linux, past CI's limit.
+  `LocalizationTests.A_new_application_adds_no_language_handler` holds it.
 - **Tests.** The language is process-wide, so a test that switches it is
   `[NotInParallel]` (TUnit runs those after every parallel test, one at a time;
   measured) and puts English back in a `finally`. The screenshot harness and the

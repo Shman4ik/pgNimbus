@@ -5,6 +5,7 @@ using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using PgNimbus.App.ViewModels.Security;
+using PgNimbus.Core.Localization;
 
 namespace PgNimbus.App.Views.Security;
 
@@ -87,27 +88,25 @@ public partial class RolesTabView : UserControl
         // the menu's verbs read against the role the user is looking at.
         vm.SelectedRole = role;
 
-        _roleMenu ??= BuildRoleMenu(vm);
-        _roleMenu.ShowAt(row, showAtPointer: true);
+        // Built per opening, so its words are the language in use now.
+        BuildRoleMenu(vm).ShowAt(row, showAtPointer: true);
         e.Handled = true;
     }
 
-    private MenuFlyout? _roleMenu;
-
     private MenuFlyout BuildRoleMenu(RolesTabViewModel vm)
     {
-        var copyName = new MenuItem { Header = "Copy Name" };
+        var copyName = new MenuItem { Header = Strings.Security_MenuCopyName };
         copyName.Click += OnCopyRoleNameClick;
 
         return new MenuFlyout
         {
             Items =
             {
-                new MenuItem { Header = "Edit…", Command = vm.EditRoleCommand },
+                new MenuItem { Header = Strings.Security_Edit, Command = vm.EditRoleCommand },
                 copyName,
-                new MenuItem { Header = "CREATE ROLE Script", Command = vm.CopyCreateScriptCommand },
+                new MenuItem { Header = Strings.Security_MenuCreateRoleScript, Command = vm.CopyCreateScriptCommand },
                 new Separator(),
-                new MenuItem { Header = "Drop Role…", Command = vm.DropRoleCommand },
+                new MenuItem { Header = Strings.Security_MenuDropRole, Command = vm.DropRoleCommand },
             },
         };
     }

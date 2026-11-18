@@ -1,5 +1,5 @@
 using System.Collections;
-using System.Text;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Schema;
 
 namespace PgNimbus.Core.Query;
@@ -172,19 +172,20 @@ public sealed record RowConflict(
     public string Describe()
     {
         var staged = StagedAs == StagedRowKind.Delete
-            ? "you staged a delete"
-            : "you staged " + string.Join(", ", Columns.Where(c => c.HasProposed).Select(c => $"{c.Column} = {CellDisplay.Format(c.Proposed, 40)}"));
+            ? Strings.Dialogs_ConflictStagedDelete
+            : Strings.Dialogs_ConflictStagedEdit(string.Join(", ", Columns.Where(c => c.HasProposed).Select(c => $"{c.Column} = {CellDisplay.Format(c.Proposed, 40)}")));
 
         if (Kind == RowConflictKind.Deleted)
         {
-            return $"Row {KeyText} no longer exists: another session deleted it or changed its key ({staged}).";
+            return Strings.Dialogs_ConflictRowDeleted(KeyText, staged);
         }
 
         var changed = Columns.Where(c => c.ChangedElsewhere).ToList();
         var shown = string.Join("; ", changed.Take(3).Select(c =>
-            $"{c.Column} was {CellDisplay.Format(c.Before, 40)}, now {CellDisplay.Format(c.Current, 40)}"));
-        var more = changed.Count > 3 ? $"; +{changed.Count - 3} more column(s)" : "";
-        return $"Row {KeyText} was changed by another session: {shown}{more} ({staged}).";
+            Strings.Dialogs_ConflictColumnChange(c.Column, CellDisplay.Format(c.Before, 40), CellDisplay.Format(c.Current, 40))));
+        return changed.Count > 3
+            ? Strings.Dialogs_ConflictRowChangedMore(KeyText, shown, changed.Count - 3, staged)
+            : Strings.Dialogs_ConflictRowChanged(KeyText, shown, staged);
     }
 }
 
@@ -388,18 +389,27 @@ public sealed class StagedRowCheck(
 /// </summary>
 public sealed class StagedChangesConflictException : Exception
 {
+    // The message is composed each time it is read, in the language in use then, so
+    // the conflict dialog that shows it follows a change of language; the status
+    // line that copies it is written once, like every status line.
+    private readonly Func<string> _message;
+
     public StagedChangesConflictException(IReadOnlyList<RowConflict> conflicts)
         : base(Summarize(conflicts))
     {
         Conflicts = conflicts;
+        _message = () => Summarize(conflicts);
     }
 
-    private StagedChangesConflictException(string message, bool rowsLocked, Exception? inner = null)
-        : base(message, inner)
+    private StagedChangesConflictException(Func<string> message, bool rowsLocked, Exception? inner = null)
+        : base(message(), inner)
     {
+        _message = message;
         Conflicts = [];
         RowsLocked = rowsLocked;
     }
+
+    public override string Message => _message();
 
     public IReadOnlyList<RowConflict> Conflicts { get; }
 
@@ -407,39 +417,25 @@ public sealed class StagedChangesConflictException : Exception
     public bool RowsLocked { get; }
 
     public static StagedChangesConflictException Locked(Exception inner) => new(
-        $"Commit rolled back — nothing was applied. A staged row is locked by another session's open transaction "
-        + $"(waited {StagedRowCheck.LockTimeout.TotalSeconds:0} s). Try again once it commits or rolls back.",
+        () => Strings.Dialogs_ConflictMessageLocked($"{StagedRowCheck.LockTimeout.TotalSeconds:0}"),
         rowsLocked: true,
         inner);
 
     public static StagedChangesConflictException UnexpectedRowCount(int expected, int affected) => new(
-        $"Commit rolled back — nothing was applied. A staged change was meant to touch {expected} row but touched {affected}; "
-        + "the table's rows no longer match what was staged. Reload and stage the change again.",
+        () => Strings.Dialogs_ConflictMessageRowCount(expected, expected, affected),
         rowsLocked: false);
 
     private static string Summarize(IReadOnlyList<RowConflict> conflicts)
     {
         var changed = conflicts.Count(c => c.Kind == RowConflictKind.Changed);
         var deleted = conflicts.Count(c => c.Kind == RowConflictKind.Deleted);
-        var parts = new List<string>(2);
-        if (changed > 0)
-        {
-            parts.Add(changed == 1 ? "1 row was changed" : $"{changed} rows were changed");
-        }
+        var changedText = Strings.Dialogs_ConflictChanged(changed);
+        var deletedText = Strings.Dialogs_ConflictDeleted(deleted);
+        var what = changed > 0 && deleted > 0 ? Strings.Dialogs_ConflictBoth(changedText, deletedText)
+            : changed > 0 ? changedText
+            : deleted > 0 ? deletedText
+            : string.Empty;
 
-        if (deleted > 0)
-        {
-            parts.Add(deleted == 1 ? "1 row was deleted" : $"{deleted} rows were deleted");
-        }
-
-        var sb = new StringBuilder("Commit rolled back — nothing was applied. ")
-            .Append(string.Join(" and ", parts))
-            .Append(" by another session since you loaded them. ");
-        if (conflicts.Count > 0)
-        {
-            sb.Append(conflicts[0].Describe());
-        }
-
-        return sb.ToString().TrimEnd();
+        return Strings.Dialogs_ConflictMessage(what, conflicts.Count > 0 ? conflicts[0].Describe() : string.Empty).TrimEnd();
     }
 }

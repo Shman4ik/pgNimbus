@@ -98,7 +98,7 @@ public sealed record PgToolHost(
 public sealed record PgToolCandidate(string Directory, string? Source, IReadOnlyList<string> ExtraPath);
 
 /// <summary>What checking one directory found: a version, or why it did not count.</summary>
-public sealed record PgToolProbeResult(PgVersion? Version, string? Problem);
+public sealed record PgToolProbeResult(PgVersion? Version, string? Problem, Func<string>? LiveProblem = null);
 
 /// <summary>
 /// Finds PostgreSQL's <c>pg_dump</c> and <c>pg_restore</c> on this machine. A
@@ -254,7 +254,7 @@ public static class PgToolLocator
                 // every PATH entry without one is not.
                 if (configured is not null)
                 {
-                    problems.Add(new PgToolProblem(candidate.Directory, "there's no pg_dump in this folder"));
+                    problems.Add(new PgToolProblem(candidate.Directory, () => Localization.Strings.Backup_ReasonNoPgDump));
                 }
 
                 continue;
@@ -262,7 +262,7 @@ public static class PgToolLocator
 
             if (!host.FileExists(host.Combine(candidate.Directory, ExecutableName(host, PgTool.PgRestore))))
             {
-                problems.Add(new PgToolProblem(candidate.Directory, "pg_dump is there, but pg_restore isn't"));
+                problems.Add(new PgToolProblem(candidate.Directory, () => Localization.Strings.Backup_ReasonNoPgRestore));
                 continue;
             }
 
@@ -273,7 +273,7 @@ public static class PgToolLocator
             }
             else
             {
-                problems.Add(new PgToolProblem(candidate.Directory, result.Problem ?? "it didn't report a PostgreSQL version"));
+                problems.Add(new PgToolProblem(candidate.Directory, result.LiveProblem ?? (result.Problem is { } problem ? () => problem : () => Localization.Strings.Backup_ReasonNoVersion)));
             }
         }
 
@@ -299,7 +299,8 @@ public static class PgToolLocator
         }
         catch (PgToolStartException ex)
         {
-            return new PgToolProbeResult(null, $"it can't be started ({ex.InnerException?.Message ?? ex.Message})");
+            var detail = ex.InnerException?.Message ?? ex.Message;
+            return new PgToolProbeResult(null, Localization.Strings.Backup_ReasonCantStart(detail), () => Localization.Strings.Backup_ReasonCantStart(detail));
         }
 
         if (output.ExitCode == 0 && PgVersion.TryParseToolOutput(output.StandardOutput, out var version))
@@ -307,21 +308,21 @@ public static class PgToolLocator
             return new PgToolProbeResult(version, null);
         }
 
-        return new PgToolProbeResult(null, DescribeFailure(output));
+        return new PgToolProbeResult(null, DescribeFailure(output), () => DescribeFailure(output));
     }
 
     /// <summary>Why a <c>--version</c> run did not count, in words for the status line.</summary>
     public static string DescribeFailure(PgToolOutput output) => output.ExitCode switch
     {
-        -1 => $"it didn't answer within {ProbeTimeout.TotalSeconds.ToString(CultureInfo.InvariantCulture)} seconds",
+        -1 => Localization.Strings.Backup_ReasonTimeout(ProbeTimeout.TotalSeconds.ToString(CultureInfo.InvariantCulture)),
         // STATUS_DLL_NOT_FOUND: Windows could not load a library the program needs.
-        -1073741515 => "it doesn't start: a library it needs is missing",
+        -1073741515 => Localization.Strings.Backup_ReasonDllMissing,
         // STATUS_INVALID_IMAGE_FORMAT: built for another processor.
-        -1073741701 => "it doesn't start: it's built for a different processor",
-        0 => "it didn't report a PostgreSQL version",
+        -1073741701 => Localization.Strings.Backup_ReasonWrongCpu,
+        0 => Localization.Strings.Backup_ReasonNoVersion,
         var code => FirstLine(output.StandardError) is { } line
-            ? $"it exited with code {code.ToString(CultureInfo.InvariantCulture)}: {line}"
-            : $"it exited with code {code.ToString(CultureInfo.InvariantCulture)}",
+            ? Localization.Strings.Backup_ReasonExitedLine(code.ToString(CultureInfo.InvariantCulture), line)
+            : Localization.Strings.Backup_ReasonExited(code.ToString(CultureInfo.InvariantCulture)),
     };
 
     private static string? FirstLine(string text)

@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PgNimbus.Core.Backup;
+using PgNimbus.Core.Localization;
 
 namespace PgNimbus.App.ViewModels;
 
@@ -39,6 +40,15 @@ public sealed partial class RestoreViewModel : ObservableObject, IDisposable
     private PgArchiveListing? _listing;
     private PgVersion? _server;
     private int _nameCheck;
+    private string? _takenName;
+    private string? _problemText;
+    private PgArchiveFormat? _problemFormat;
+    private string? _creatingDatabase;
+    private RestoreProgress? _progress;
+    private RestoreResult? _result;
+    private RestorePlan? _resultPlan;
+    private bool? _hintTunnelled;
+    private (string Database, string Reason)? _openError;
 
     /// <param name="openDatabase">Opens a window on a database of this server, for after a restore into a new one; null hides the button.</param>
     public RestoreViewModel(
@@ -52,9 +62,28 @@ public sealed partial class RestoreViewModel : ObservableObject, IDisposable
         ConnectionLabel = connectionLabel;
         Tools = tools ?? new PgToolStatusViewModel(PgTool.PgRestore);
         Tools.Changed += OnToolsChanged;
+        Localizer.WhenChanged(this, static vm => vm.OnLanguageChanged());
     }
 
-    public string Title => "Restore a backup";
+    // What is words here is composed from what happened, so it is written again in the new language.
+    private void OnLanguageChanged()
+    {
+        OnPropertyChanged(nameof(Title));
+        OnPropertyChanged(nameof(ReadingText));
+        OnPropertyChanged(nameof(ArchiveSummary));
+        OnPropertyChanged(nameof(ContentSummary));
+        OnPropertyChanged(nameof(Problem));
+        OnPropertyChanged(nameof(VersionWarning));
+        OnPropertyChanged(nameof(CurrentDatabaseLabel));
+        OnPropertyChanged(nameof(NameError));
+        OnPropertyChanged(nameof(OwnersNote));
+        OnPropertyChanged(nameof(ProgressText));
+        OnPropertyChanged(nameof(ResultTitle));
+        OnPropertyChanged(nameof(ResultDetail));
+        OnPropertyChanged(nameof(ResultHint));
+    }
+
+    public string Title => Strings.Restore_Title;
 
     /// <summary>The line under the heading: the connection the restore goes to.</summary>
     public string ConnectionLabel { get; }
@@ -103,26 +132,33 @@ public sealed partial class RestoreViewModel : ObservableObject, IDisposable
 
     /// <summary>The archive chosen.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(FileName))]
+    [NotifyPropertyChangedFor(nameof(FileName), nameof(ReadingText))]
     private string? _archivePath;
 
     public string FileName => ArchivePath is null ? "" : Path.GetFileName(ArchivePath);
 
+    /// <summary>"Reading shop.dump…", while the file's contents are read.</summary>
+    public string ReadingText => Strings.Restore_Reading(FileName);
+
     /// <summary>"Database shop · PostgreSQL 17.11 · saved 2026-10-10 09:32:12 by pg_dump 18.6".</summary>
-    [ObservableProperty]
-    private string _archiveSummary = "";
+    public string ArchiveSummary => _listing is null ? "" : Summarize(_listing);
 
     /// <summary>"5 tables, with their rows" or "5 tables, structure only".</summary>
-    [ObservableProperty]
-    private string _contentSummary = "";
+    public string ContentSummary => _listing is not { } listing
+        ? ""
+        : listing.TableCount switch
+        {
+            0 => listing.HasRows ? Strings.Restore_ContentNoTablesLarge : Strings.Restore_ContentNoTables,
+            var n => listing.HasRows ? Strings.Restore_ContentWithRows(n) : Strings.Restore_ContentStructure(n),
+        };
 
     /// <summary>Why the file can't be restored.</summary>
-    [ObservableProperty]
-    private string? _problem;
+    public string? Problem => _problemFormat is { } format && RestoreInspection.ProblemFor(format) is { } text ? text : _problemText;
 
     /// <summary>A backup from a newer PostgreSQL than this server.</summary>
-    [ObservableProperty]
-    private string? _versionWarning;
+    public string? VersionWarning => _listing?.DumpedFrom is { } from && _server is { } server && from.MajorKey > server.MajorKey
+        ? Strings.Restore_VersionWarning(from.MajorLabel, server.MajorLabel)
+        : null;
 
     // --- Where it goes ------------------------------------------------------
 
@@ -139,18 +175,27 @@ public sealed partial class RestoreViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>The window's own database, as the second choice names it.</summary>
-    public string CurrentDatabaseLabel => $"This database: {_service.DatabaseName}";
+    public string CurrentDatabaseLabel => Strings.Restore_CurrentDatabase(_service.DatabaseName);
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(StartCommand))]
     private string _newDatabaseName = "";
 
     /// <summary>Why the name can't be used: empty, too long, already taken.</summary>
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(StartCommand))]
-    private string? _nameError;
+    public string? NameError => RestorePlan.ValidateDatabaseName(NewDatabaseName) ?? (_takenName == NewDatabaseName ? Strings.Restore_NameTaken(NewDatabaseName) : null);
 
-    partial void OnNewDatabaseNameChanged(string value) => _ = CheckNameAsync(value);
+    private void SetNameTaken(string? name)
+    {
+        _takenName = name;
+        OnPropertyChanged(nameof(NameError));
+        StartCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnNewDatabaseNameChanged(string value)
+    {
+        OnPropertyChanged(nameof(NameError));
+        _ = CheckNameAsync(value);
+    }
 
     /// <summary>
     /// Keep the owners and permissions the backup names. Defaults to on only when
@@ -176,15 +221,12 @@ public sealed partial class RestoreViewModel : ObservableObject, IDisposable
             var missing = string.Join(", ", MissingRoles);
             if (MissingRoles.Count > 0)
             {
-                var roles = MissingRoles.Count == 1 ? $"Role {missing} doesn't" : $"Roles {missing} don't";
                 return KeepOwners
-                    ? $"{roles} exist on this server, so keeping owners will stop the restore."
-                    : $"{roles} exist on this server, so you'll own everything restored.";
+                    ? Strings.Restore_OwnersMissingKeep(MissingRoles.Count, missing)
+                    : Strings.Restore_OwnersMissingDrop(MissingRoles.Count, missing);
             }
 
-            return KeepOwners
-                ? "Objects keep their owners and permissions from the backup."
-                : "You'll own everything restored, and the backup's permissions are left out.";
+            return KeepOwners ? Strings.Restore_OwnersKept : Strings.Restore_OwnersNotKept;
         }
     }
 
@@ -193,20 +235,39 @@ public sealed partial class RestoreViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private double _progressPercent;
 
-    [ObservableProperty]
-    private string _progressText = "";
+    public string ProgressText => _progress is null
+        ? _creatingDatabase is { } name ? Strings.Restore_ProgressCreatingDatabase(name) : Strings.Backup_ProgressConnecting
+        : _progress.CurrentItem ?? (_progress.Stage == RestoreStage.Finishing ? Strings.Restore_ProgressFinishing : Strings.Backup_ProgressConnecting);
 
     [ObservableProperty]
     private string _progressDetail = "";
 
-    [ObservableProperty]
-    private string _resultTitle = "";
+    public string ResultTitle => _result?.Outcome switch
+    {
+        null => "",
+        RestoreOutcome.Succeeded => Strings.Restore_ResultRestored(_result.Database, BackupViewModel.ClockText(_result.Elapsed)),
+        RestoreOutcome.Cancelled => Strings.Restore_ResultStopped,
+        _ => Strings.Restore_ResultFailed,
+    };
 
-    [ObservableProperty]
-    private string _resultDetail = "";
+    public string ResultDetail => _result?.Outcome switch
+    {
+        null => "",
+        RestoreOutcome.Succeeded => _restoredIntoNew ? Strings.Restore_ResultNew(_result.Database) : Strings.Restore_ResultRefreshed,
+        RestoreOutcome.Cancelled => Unchanged(_result, _resultPlan!),
+        _ => (_result.Error ?? Strings.Restore_FailedNoReason) + "\n" + Unchanged(_result, _resultPlan!),
+    };
 
-    [ObservableProperty]
-    private string? _resultHint;
+    /// <summary>
+    /// What to do about the error, when it is a familiar one. One of this app's own
+    /// sentences is written again in the language in use; any other is kept as the
+    /// service wrote it.
+    /// </summary>
+    public string? ResultHint => _openError is { } open
+        ? Strings.Restore_OpenFailed(open.Database, open.Reason)
+        : _result is not { Outcome: RestoreOutcome.Failed } result
+            ? null
+            : _hintTunnelled is { } tunnelled ? PgToolErrorHints.For(result.Error, PgTool.PgRestore, tunnelled) : result.Hint;
 
     [ObservableProperty]
     private string _log = "";
@@ -267,7 +328,9 @@ public sealed partial class RestoreViewModel : ObservableObject, IDisposable
         }
 
         State = RestoreWindowState.Inspecting;
-        Problem = null;
+        _problemFormat = null;
+        _problemText = null;
+        OnPropertyChanged(nameof(Problem));
         RestoreInspection inspection;
         try
         {
@@ -275,12 +338,20 @@ public sealed partial class RestoreViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            inspection = new RestoreInspection(PgArchiveFormat.Unknown, null, $"The file couldn't be read: {ex.Message}");
+            inspection = new RestoreInspection(PgArchiveFormat.Unknown, null, Strings.Restore_ReadFailed(ex.Message));
         }
 
         if (!inspection.CanRestore || inspection.Listing is not { } listing)
         {
-            ShowProblem(path, inspection.Problem ?? "The file couldn't be read.");
+            if (inspection.Problem is not null && RestoreInspection.ProblemFor(inspection.Format) == inspection.Problem)
+            {
+                ShowProblem(path, inspection.Format);
+            }
+            else
+            {
+                ShowProblem(path, inspection.Problem ?? Strings.Restore_ReadFailedShort);
+            }
+
             return;
         }
 
@@ -311,7 +382,19 @@ public sealed partial class RestoreViewModel : ObservableObject, IDisposable
     public void ShowProblem(string path, string problem)
     {
         ArchivePath = path;
-        Problem = problem;
+        _problemFormat = null;
+        _problemText = problem;
+        OnPropertyChanged(nameof(Problem));
+        State = RestoreWindowState.Unusable;
+    }
+
+    /// <summary>Shows why a file of a kind that is never restored can't be (written again when the language changes).</summary>
+    public void ShowProblem(string path, PgArchiveFormat format)
+    {
+        ArchivePath = path;
+        _problemFormat = format;
+        _problemText = null;
+        OnPropertyChanged(nameof(Problem));
         State = RestoreWindowState.Unusable;
     }
 
@@ -324,18 +407,13 @@ public sealed partial class RestoreViewModel : ObservableObject, IDisposable
     public void ShowInspection(string path, PgArchiveListing listing, IReadOnlyList<string> missingRoles, string suggestedName)
     {
         ArchivePath = path;
-        Problem = null;
+        _problemFormat = null;
+        _problemText = null;
+        OnPropertyChanged(nameof(Problem));
         _listing = listing;
-        ArchiveSummary = Summarize(listing);
-        ContentSummary = listing.TableCount switch
-        {
-            0 => listing.HasRows ? "No tables, and large objects" : "No tables",
-            1 => listing.HasRows ? "1 table, with its rows" : "1 table, structure only",
-            var n => listing.HasRows ? $"{n} tables, with their rows" : $"{n} tables, structure only",
-        };
-        VersionWarning = listing.DumpedFrom is { } from && _server is { } server && from.MajorKey > server.MajorKey
-            ? $"This backup is from PostgreSQL {from.MajorLabel}, and this server runs {server.MajorLabel}. Something the newer release supports can stop the restore."
-            : null;
+        OnPropertyChanged(nameof(ArchiveSummary));
+        OnPropertyChanged(nameof(ContentSummary));
+        OnPropertyChanged(nameof(VersionWarning));
         MissingRoles = missingRoles;
         KeepOwners = missingRoles.Count == 0;
         NewDatabaseName = suggestedName;
@@ -348,17 +426,17 @@ public sealed partial class RestoreViewModel : ObservableObject, IDisposable
         var parts = new List<string>();
         if (listing.DatabaseName is { } database)
         {
-            parts.Add($"Database {database}");
+            parts.Add(Strings.Restore_ArchiveDatabase(database));
         }
 
         if (listing.DumpedFrom is { } from)
         {
-            parts.Add($"PostgreSQL {from}");
+            parts.Add(Strings.Restore_ArchiveVersion(from.ToString()));
         }
 
         if (listing.CreatedAt is { } created)
         {
-            parts.Add(listing.DumpedBy is { } by ? $"saved {created} by pg_dump {by}" : $"saved {created}");
+            parts.Add(listing.DumpedBy is { } by ? Strings.Restore_ArchiveSavedBy(created.ToString(), by.ToString()) : Strings.Restore_ArchiveSaved(created.ToString()));
         }
 
         return string.Join(" · ", parts);
@@ -367,19 +445,19 @@ public sealed partial class RestoreViewModel : ObservableObject, IDisposable
     private async Task CheckNameAsync(string name)
     {
         var check = ++_nameCheck;
-        if (RestorePlan.ValidateDatabaseName(name) is { } invalid)
+        if (RestorePlan.ValidateDatabaseName(name) is not null)
         {
-            NameError = invalid;
+            SetNameTaken(null);
             return;
         }
 
-        NameError = null;
+        SetNameTaken(null);
         try
         {
             var exists = await Task.Run(() => _service.DatabaseExistsAsync(name, CancellationToken.None));
             if (check == _nameCheck)
             {
-                NameError = exists ? $"There's already a database called {name}." : null;
+                SetNameTaken(exists ? name : null);
             }
         }
         catch (Exception)
@@ -404,8 +482,7 @@ public sealed partial class RestoreViewModel : ObservableObject, IDisposable
         }
 
         if (IntoCurrentDatabase && ConfirmReplace is { } confirm
-            && !await confirm($"Restore into \"{_service.DatabaseName}\" on {_service.ServerLabel}? What the backup holds is dropped and created "
-                              + "again from it, rows included. Other objects in the database stay. It happens in one transaction, but once it's done it can't be undone."))
+            && !await confirm(Strings.Restore_ConfirmReplace(_service.DatabaseName, _service.ServerLabel)))
         {
             return;
         }
@@ -419,7 +496,9 @@ public sealed partial class RestoreViewModel : ObservableObject, IDisposable
         _run = new CancellationTokenSource();
         State = RestoreWindowState.Running;
         ProgressPercent = 0;
-        ProgressText = IntoNewDatabase ? $"Creating database {plan.DatabaseName}…" : "Connecting…";
+        _progress = null;
+        _creatingDatabase = IntoNewDatabase ? plan.DatabaseName : null;
+        OnPropertyChanged(nameof(ProgressText));
         ProgressDetail = "";
 
         var progress = new Progress<RestoreProgress>(ShowProgress);
@@ -498,12 +577,14 @@ public sealed partial class RestoreViewModel : ObservableObject, IDisposable
             }
             catch (Exception ex)
             {
-                ResultHint = $"Couldn't open {database}: {ex.Message}";
+                _openError = (database, ex.Message);
+                OnPropertyChanged(nameof(ResultHint));
             }
         }
     }
 
-    private void ShowProgress(RestoreProgress progress)
+    /// <summary>Shows how far a running restore is (the service's progress reports, and the screenshot scenarios).</summary>
+    public void ShowProgress(RestoreProgress progress)
     {
         if (State != RestoreWindowState.Running)
         {
@@ -511,11 +592,8 @@ public sealed partial class RestoreViewModel : ObservableObject, IDisposable
         }
 
         ProgressPercent = (progress.Fraction ?? 0) * 100;
-        ProgressText = progress.CurrentItem ?? progress.Stage switch
-        {
-            RestoreStage.Finishing => "Finishing…",
-            _ => "Connecting…",
-        };
+        _progress = progress;
+        OnPropertyChanged(nameof(ProgressText));
         ProgressDetail = BackupViewModel.ClockText(progress.Elapsed);
     }
 
@@ -527,16 +605,36 @@ public sealed partial class RestoreViewModel : ObservableObject, IDisposable
     {
         Log = result.Log;
         IsLogShown = false;
+        _result = result;
+        _resultPlan = plan;
+        _openError = null;
+        // A hint made by PgToolErrorHints is words, so it is written again when the language changes.
+        // Which of its two readings (through a tunnel or not) made it is told by what it equals.
+        _hintTunnelled = null;
+        if (result.Hint is not null)
+        {
+            foreach (var tunnelled in new[] { false, true })
+            {
+                if (PgToolErrorHints.For(result.Error, PgTool.PgRestore, tunnelled) == result.Hint)
+                {
+                    _hintTunnelled = tunnelled;
+                    break;
+                }
+            }
+        }
+
+        if (result.Outcome == RestoreOutcome.Succeeded)
+        {
+            _restoredIntoNew = plan.Target == RestoreTarget.NewDatabase;
+            RestoredDatabase = result.Database;
+        }
+
+        OnPropertyChanged(nameof(ResultTitle));
+        OnPropertyChanged(nameof(ResultDetail));
+        OnPropertyChanged(nameof(ResultHint));
         switch (result.Outcome)
         {
             case RestoreOutcome.Succeeded:
-                _restoredIntoNew = plan.Target == RestoreTarget.NewDatabase;
-                RestoredDatabase = result.Database;
-                ResultTitle = $"Restored into {result.Database} in {BackupViewModel.ClockText(result.Elapsed)}";
-                ResultDetail = _restoredIntoNew
-                    ? $"{result.Database} is a new database on this server."
-                    : "The schema tree has been refreshed.";
-                ResultHint = null;
                 State = RestoreWindowState.Succeeded;
                 if (!_restoredIntoNew)
                 {
@@ -545,15 +643,9 @@ public sealed partial class RestoreViewModel : ObservableObject, IDisposable
 
                 break;
             case RestoreOutcome.Cancelled:
-                ResultTitle = "Restore stopped";
-                ResultDetail = Unchanged(result, plan);
-                ResultHint = null;
                 State = RestoreWindowState.Cancelled;
                 break;
             default:
-                ResultTitle = "Restore failed";
-                ResultDetail = (result.Error ?? "pg_restore stopped without saying why.") + "\n" + Unchanged(result, plan);
-                ResultHint = result.Hint;
                 State = RestoreWindowState.Failed;
                 break;
         }
@@ -561,9 +653,9 @@ public sealed partial class RestoreViewModel : ObservableObject, IDisposable
 
     private static string Unchanged(RestoreResult result, RestorePlan plan) => plan.Target switch
     {
-        RestoreTarget.NewDatabase when result.CreatedDatabaseRemoved => $"Nothing was restored, and the new database {plan.DatabaseName} was removed again.",
-        RestoreTarget.NewDatabase => $"Nothing was restored. If database {plan.DatabaseName} was created, it is empty; drop it when you like.",
-        _ => $"Nothing was changed: the restore runs as one transaction, and {plan.DatabaseName} is as it was.",
+        RestoreTarget.NewDatabase when result.CreatedDatabaseRemoved => Strings.Restore_UnchangedRemoved(plan.DatabaseName),
+        RestoreTarget.NewDatabase => Strings.Restore_UnchangedMaybeCreated(plan.DatabaseName),
+        _ => Strings.Restore_UnchangedCurrent(plan.DatabaseName),
     };
 
     public void Dispose()

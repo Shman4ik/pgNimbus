@@ -1,9 +1,10 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:PgNimbus.App.ViewModels"
+        xmlns:l="using:PgNimbus.App.Localization"
         x:Class="PgNimbus.App.Views.ActivityWindow"
         x:DataType="vm:ActivityViewModel"
-        Title="pgNimbus — Server Activity"
+        Title="{l:Tr Monitoring_ActivityTitle}"
         Width="980" Height="560"
         MinWidth="720" MinHeight="320"
         WindowStartupLocation="CenterOwner">
@@ -27,7 +28,7 @@
                             ToolTip.Tip="{Binding CancelTip}">
                         <StackPanel Orientation="Horizontal" Spacing="7">
                             <PathIcon Data="{StaticResource StopIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
-                            <TextBlock Text="Cancel query" VerticalAlignment="Center" />
+                            <TextBlock Text="{l:Tr Monitoring_ActivityCancelQuery}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
                     <Button Name="TerminateBackendButton" Classes="soft danger" Click="OnTerminateClick"
@@ -36,7 +37,7 @@
                             ToolTip.Tip="{Binding TerminateTip}">
                         <StackPanel Orientation="Horizontal" Spacing="7">
                             <PathIcon Data="{StaticResource CloseIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
-                            <TextBlock Text="Terminate…" VerticalAlignment="Center" />
+                            <TextBlock Text="{l:Tr Monitoring_ActivityTerminate}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
 
@@ -44,21 +45,21 @@
                          different jobs — keep them visibly apart. -->
                     <Rectangle Classes="statusSeparator" Margin="5,0" />
 
-                    <Button Classes="soft" Command="{Binding RefreshCommand}" ToolTip.Tip="Refresh now">
+                    <Button Classes="soft" Command="{Binding RefreshCommand}" ToolTip.Tip="{l:Tr Monitoring_ActivityRefreshTip}">
                         <StackPanel Orientation="Horizontal" Spacing="7">
                             <PathIcon Data="{StaticResource RefreshIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
-                            <TextBlock Text="Refresh" VerticalAlignment="Center" />
+                            <TextBlock Text="{l:Tr Common_Refresh}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
                     <ToggleButton Classes="soft" IsChecked="{Binding AutoRefresh}"
-                                  ToolTip.Tip="Refresh every 2 seconds while this window is open">
-                        <TextBlock Text="Auto" VerticalAlignment="Center" />
+                                  ToolTip.Tip="{l:Tr Monitoring_ActivityAutoTip}">
+                        <TextBlock Text="{l:Tr Monitoring_ActivityAutoToggle}" VerticalAlignment="Center" />
                     </ToggleButton>
                 </StackPanel>
             </TabControl.Tag>
 
             <!-- Every client backend, live -->
-            <TabItem Header="Backends">
+            <TabItem Header="{l:Tr Monitoring_ActivityTabBackends}">
                 <!-- Framed content pane so both tabs read as the same surface;
                      clipped so the grid's header and last row respect the radius. -->
                 <Border Margin="0,8,0,0" ClipToBounds="True"
@@ -68,7 +69,7 @@
                               IsReadOnly="True" SelectionMode="Single" CanUserResizeColumns="True"
                               GridLinesVisibility="Horizontal" HeadersVisibility="Column">
                         <DataGrid.Columns>
-                            <DataGridTemplateColumn Header="PID" Width="70">
+                            <DataGridTemplateColumn Header="{l:Tr Monitoring_ColPid}" Width="70">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate x:DataType="vm:ActivityRow">
                                         <!-- Monospace, like the pid badge in the blocking tree -->
@@ -77,12 +78,12 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="User" Binding="{Binding User}" Width="90" />
-                            <DataGridTextColumn Header="Database" Binding="{Binding Database}" Width="100" />
-                            <DataGridTextColumn Header="Application" Binding="{Binding Application}" Width="110" />
-                            <DataGridTextColumn Header="Client" Binding="{Binding Client}" Width="90" />
-                            <DataGridTextColumn Header="State" Binding="{Binding State}" Width="90" />
-                            <DataGridTemplateColumn Header="Wait" Width="130">
+                            <DataGridTextColumn Header="{l:Tr Monitoring_ColUser}" Binding="{Binding User}" Width="90" />
+                            <DataGridTextColumn Header="{l:Tr Monitoring_ColDatabase}" Binding="{Binding Database}" Width="100" />
+                            <DataGridTextColumn Header="{l:Tr Monitoring_ColApplication}" Binding="{Binding Application}" Width="110" />
+                            <DataGridTextColumn Header="{l:Tr Monitoring_ColClient}" Binding="{Binding Client}" Width="90" />
+                            <DataGridTextColumn Header="{l:Tr Monitoring_ColState}" Binding="{Binding State}" Width="90" />
+                            <DataGridTemplateColumn Header="{l:Tr Monitoring_ColWait}" Width="130">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate x:DataType="vm:ActivityRow">
                                         <Panel Margin="12,0">
@@ -96,8 +97,8 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="Time" Binding="{Binding Elapsed}" Width="80" />
-                            <DataGridTemplateColumn Header="Query" Width="*">
+                            <DataGridTextColumn Header="{l:Tr Monitoring_ColTime}" Binding="{Binding Elapsed}" Width="80" />
+                            <DataGridTemplateColumn Header="{l:Tr Monitoring_ColQuery}" Width="*">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate x:DataType="vm:ActivityRow">
                                         <TextBlock Text="{Binding Query}" Margin="12,0" VerticalAlignment="Center"
@@ -111,7 +112,7 @@
             </TabItem>
 
             <!-- Who blocks whom: lock holders at the top, waiters nested beneath -->
-            <TabItem Header="Blocking">
+            <TabItem Header="{l:Tr Monitoring_ActivityTabBlocking}">
                 <Border Margin="0,8,0,0" ClipToBounds="True"
                         BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
                         CornerRadius="{StaticResource CardCornerRadius}">
@@ -155,7 +156,7 @@
                         </TreeView>
 
                         <!-- Nothing blocked: the calm, common case -->
-                        <TextBlock Text="No backend is waiting on a lock right now."
+                        <TextBlock Text="{l:Tr Monitoring_ActivityNoLockWaits}"
                                    Opacity="0.55" HorizontalAlignment="Center" VerticalAlignment="Center"
                                    IsVisible="{Binding !HasLockWaits}" />
                     </Panel>

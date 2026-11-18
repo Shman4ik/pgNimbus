@@ -1,12 +1,20 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Security;
 
 namespace PgNimbus.App.ViewModels.Security;
 
 /// <summary>One column of the matrix: a privilege, and the header text for it.</summary>
 public sealed record PrivilegeColumn(PrivilegeKind Privilege, string Header);
+
+/// <summary>
+/// One choice of the object-kind picker: the kind, and the key of the word for it.
+/// A key, not text, because a combo box copies the selected item and a string
+/// would not follow a change of language.
+/// </summary>
+public sealed record SecurableKindOption(SecurableKind Kind, StringKey LabelKey);
 
 /// <summary>
 /// One cell: whether the role holds the privilege, and — the part no other
@@ -61,15 +69,15 @@ public sealed partial class PrivilegeCellViewModel(EffectivePrivilege effective,
     {
         get
         {
-            var head = $"{Privileges.Sql(Privilege)} — {Effective.Explanation}";
+            var head = Strings.Security_CellTip(Privileges.Sql(Privilege), Effective.Explanation);
             if (IsPending)
             {
-                return head + (Granted ? "\nPending: REVOKE" : "\nPending: GRANT");
+                return head + "\n" + (Granted ? Strings.Security_CellTipPendingRevoke : Strings.Security_CellTipPendingGrant);
             }
 
             return IsEditable
                 ? head
-                : head + "\nOwnership and superuser are not grants, so this cannot be revoked.";
+                : head + "\n" + Strings.Security_CellTipNotRevocable;
         }
     }
 
@@ -82,6 +90,9 @@ public sealed partial class PrivilegeCellViewModel(EffectivePrivilege effective,
         }
     }
 
+    /// <summary>The tooltip says why in words, so it is composed again.</summary>
+    public void NotifyLanguageChanged() => OnPropertyChanged(nameof(Tooltip));
+
     partial void OnIsPendingChanged(bool value)
     {
         OnPropertyChanged(nameof(Glyph));
@@ -90,28 +101,45 @@ public sealed partial class PrivilegeCellViewModel(EffectivePrivilege effective,
 }
 
 /// <summary>One role's row of the matrix, plus the one-word answer to "how?".</summary>
-public sealed class PermissionRowViewModel
+public sealed class PermissionRowViewModel : ObservableObject
 {
     public PermissionRowViewModel(string role, IReadOnlyList<PrivilegeCellViewModel> cells)
     {
         Role = role;
         Cells = cells;
+        SourceSummary = Summarize();
+    }
+
+    /// <summary>Re-words the summary and every cell's tooltip, for a new language.</summary>
+    public void NotifyLanguageChanged()
+    {
+        SourceSummary = Summarize();
+        OnPropertyChanged(nameof(SourceSummary));
+        foreach (var cell in Cells)
+        {
+            cell.NotifyLanguageChanged();
+        }
+    }
+
+    private string Summarize()
+    {
+        var cells = Cells;
 
         // The dominant source, so the answer is readable without hovering every
         // cell. Superuser and owner win outright; otherwise the most common
         // explanation among the privileges actually held.
         var held = cells.Where(c => c.Granted).ToList();
-        SourceSummary = held.Count == 0
+        return held.Count == 0
             ? "—"
-            : held.Any(c => c.Effective.Source == PrivilegeSource.Superuser) ? "superuser"
-            : held.Any(c => c.Effective.Source == PrivilegeSource.Owner) ? "owner"
+            : held.Any(c => c.Effective.Source == PrivilegeSource.Superuser) ? Strings.Security_SourceSuperuser
+            : held.Any(c => c.Effective.Source == PrivilegeSource.Owner) ? Strings.Security_SourceOwner
             : held.GroupBy(c => c.Effective.Source == PrivilegeSource.Inherited
-                    ? $"via {c.Effective.Via}"
+                    ? Strings.Security_SourceVia(c.Effective.Via)
                     : c.Effective.Source switch
                     {
-                        PrivilegeSource.Direct => "direct",
-                        PrivilegeSource.Public => "PUBLIC",
-                        PrivilegeSource.Unknown => "not visible",
+                        PrivilegeSource.Direct => Strings.Security_SourceDirect,
+                        PrivilegeSource.Public => Strings.Security_SourcePublic,
+                        PrivilegeSource.Unknown => Strings.Security_SourceUnknown,
                         _ => "—",
                     })
                 .OrderByDescending(g => g.Count())
@@ -122,7 +150,7 @@ public sealed class PermissionRowViewModel
 
     public IReadOnlyList<PrivilegeCellViewModel> Cells { get; }
 
-    public string SourceSummary { get; }
+    public string SourceSummary { get; private set; }
 }
 
 /// <summary>A column that carries grants of its own, on top of the table's.</summary>
@@ -191,6 +219,30 @@ public sealed partial class PermissionsTabViewModel(PrivilegeService privileges,
         SecurableKind.Database, SecurableKind.Function, SecurableKind.Type,
     ];
 
+    /// <summary>The kinds the picker offers, each with the key of its word.</summary>
+    public IReadOnlyList<SecurableKindOption> KindOptions { get; } =
+    [
+        new(SecurableKind.Table, StringKey.Security_KindOptionTable),
+        new(SecurableKind.Sequence, StringKey.Security_KindOptionSequence),
+        new(SecurableKind.Schema, StringKey.Security_KindOptionSchema),
+        new(SecurableKind.Database, StringKey.Security_KindOptionDatabase),
+        new(SecurableKind.Function, StringKey.Security_KindOptionFunction),
+        new(SecurableKind.Type, StringKey.Security_KindOptionType),
+    ];
+
+    /// <summary><see cref="SelectedKind"/> as the picker's item.</summary>
+    public SecurableKindOption SelectedKindOption
+    {
+        get => KindOptions.First(o => o.Kind == SelectedKind);
+        set
+        {
+            if (value is not null)
+            {
+                SelectedKind = value.Kind;
+            }
+        }
+    }
+
     public ObservableCollection<string> Schemas { get; } = [];
 
     public RangeObservableCollection<SecurableRef> Objects { get; } = [];
@@ -215,12 +267,9 @@ public sealed partial class PermissionsTabViewModel(PrivilegeService privileges,
 
     public bool HasPending => _pending.Count > 0;
 
-    public string PendingLabel => _pending.Count switch
-    {
-        0 => "No pending changes",
-        1 => "1 pending change",
-        var n => $"{n} pending changes",
-    };
+    public string PendingLabel => _pending.Count == 0
+        ? Strings.Security_NoPendingChanges
+        : Strings.Security_PendingChanges(_pending.Count);
 
     /// <summary>
     /// Shown instead of an empty grid when the catalog ACL column is NULL. In
@@ -229,8 +278,7 @@ public sealed partial class PermissionsTabViewModel(PrivilegeService privileges,
     /// "no privileges" is how a permissions UI teaches the wrong thing.
     /// </summary>
     public string DefaultAclNote =>
-        $"No GRANT or REVOKE has ever been run on this object. {OwnerLabel} owns it and holds every privilege; "
-        + "everyone else has only what Postgres grants by default for this object type.";
+        Strings.Security_DefaultAclNote(OwnerLabel);
 
     /// <summary>
     /// Re-reads schemas, objects and the matrix. The matrix reload is driven
@@ -276,13 +324,14 @@ public sealed partial class PermissionsTabViewModel(PrivilegeService privileges,
         }
         catch (Exception ex)
         {
-            _host.ReportError("Permissions", ex);
+            _host.ReportError(Strings.Security_TabPermissions, ex);
         }
     }
 
     partial void OnSelectedKindChanged(SecurableKind value)
     {
         OnPropertyChanged(nameof(KindHasSchema));
+        OnPropertyChanged(nameof(SelectedKindOption));
         if (!_suppressLoads)
         {
             _ = LoadObjectsAsync(CancellationToken.None);
@@ -337,6 +386,34 @@ public sealed partial class PermissionsTabViewModel(PrivilegeService privileges,
     partial void OnAccessSentenceChanged(string value) => OnPropertyChanged(nameof(HasAccessSentence));
 
     /// <summary>
+    /// What makes <see cref="AccessSentence"/>, kept so the sentence can be worded
+    /// again when the language changes, without asking the server anything.
+    /// </summary>
+    private Func<string>? _accessSentenceSource;
+
+    private void SetAccessSentence(Func<string>? source)
+    {
+        _accessSentenceSource = source;
+        AccessSentence = source?.Invoke() ?? "";
+    }
+
+    /// <summary>The rows, their tooltips, the pending label and the sentences say themselves again.</summary>
+    internal void OnLanguageChanged()
+    {
+        foreach (var row in Rows)
+        {
+            row.NotifyLanguageChanged();
+        }
+
+        OnPropertyChanged(nameof(PendingLabel));
+        OnPropertyChanged(nameof(DefaultAclNote));
+        if (_accessSentenceSource is { } source)
+        {
+            AccessSentence = source();
+        }
+    }
+
+    /// <summary>
     /// Harness-only: points the matrix at a snapshot that was never read from a
     /// server, so the screenshot scenarios and the headless UI tests can render
     /// a populated tab with no database behind them. Production always goes
@@ -348,7 +425,7 @@ public sealed partial class PermissionsTabViewModel(PrivilegeService privileges,
         IReadOnlyList<SecurableRef> objects,
         IReadOnlyList<PrivilegeColumn> columns,
         IReadOnlyList<PermissionRowViewModel> rows,
-        string accessSentence,
+        Func<string> accessSentence,
         IEnumerable<ColumnGrantRow> columnGrants)
     {
         _suppressLoads = true;
@@ -377,7 +454,7 @@ public sealed partial class PermissionsTabViewModel(PrivilegeService privileges,
             Rows.ReplaceAll(rows);
 
             SelectedRow = Rows.FirstOrDefault();
-            AccessSentence = accessSentence;
+            SetAccessSentence(accessSentence);
 
             ColumnGrants.Clear();
             foreach (var grant in columnGrants)
@@ -409,7 +486,7 @@ public sealed partial class PermissionsTabViewModel(PrivilegeService privileges,
         }
         catch (Exception ex)
         {
-            _host.ReportError("Objects", ex);
+            _host.ReportError(Strings.Security_AreaObjects, ex);
         }
     }
 
@@ -434,7 +511,7 @@ public sealed partial class PermissionsTabViewModel(PrivilegeService privileges,
         Rows.Clear();
         ColumnGrants.Clear();
         OnPropertyChanged(nameof(HasColumnGrants));
-        AccessSentence = "";
+        SetAccessSentence(null);
 
         if (SelectedObject is not { } obj || _host.Graph is not { } graph)
         {
@@ -495,7 +572,7 @@ public sealed partial class PermissionsTabViewModel(PrivilegeService privileges,
         }
         catch (Exception ex)
         {
-            _host.ReportError("Permissions", ex);
+            _host.ReportError(Strings.Security_TabPermissions, ex);
         }
     }
 
@@ -508,22 +585,22 @@ public sealed partial class PermissionsTabViewModel(PrivilegeService privileges,
     {
         if (SelectedObject is not { } obj || SelectedRow is not { } row)
         {
-            AccessSentence = "";
+            SetAccessSentence(null);
             return;
         }
 
         try
         {
             var usage = obj.Schema is null || await _privileges.HasSchemaUsageAsync(row.Role, obj.Schema, ct);
-            AccessSentence = EffectivePrivilegeResolver.ExplainSentence(
-                row.Role, obj, row.Cells.Select(c => c.Effective).ToList(), usage);
+            var effective = row.Cells.Select(c => c.Effective).ToList();
+            SetAccessSentence(() => EffectivePrivilegeResolver.ExplainSentence(row.Role, obj, effective, usage));
         }
         catch (OperationCanceledException)
         {
         }
         catch (Exception ex)
         {
-            _host.ReportError("Access", ex);
+            _host.ReportError(Strings.Security_AreaAccess, ex);
         }
     }
 
@@ -568,7 +645,7 @@ public sealed partial class PermissionsTabViewModel(PrivilegeService privileges,
             return;
         }
 
-        openSql($"grants · {obj.Display}", GrantScriptBuilder.Build(_pending));
+        openSql(Strings.Security_GrantsTabTitle(obj.Display), GrantScriptBuilder.Build(_pending));
     }
 
     [RelayCommand]

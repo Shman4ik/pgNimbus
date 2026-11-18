@@ -1,4 +1,5 @@
 using System.Globalization;
+using PgNimbus.Core.Localization;
 
 namespace PgNimbus.Core.Backup;
 
@@ -47,26 +48,26 @@ public static class PgToolInstallGuide
         {
             PgToolPlatform.Windows =>
             [
-                new($"Download the PostgreSQL {n} installer for Windows (Windows x86-64) from EDB, the official source.",
+                new(Strings.Backup_GuideWinDownload(n),
                     LinkUrl: "https://www.enterprisedb.com/downloads/postgres-postgresql-downloads",
-                    LinkText: "Open the download page"),
-                new("Run it. On the Select Components page, leave only Command Line Tools checked: you don't need the server, pgAdmin or Stack Builder. Keep the suggested folder."),
-                new("Or install the same thing from a terminal, and pick only Command Line Tools when the installer asks:",
+                    LinkText: Strings.Backup_GuideWinDownloadLink),
+                new(Strings.Backup_GuideWinRun),
+                new(Strings.Backup_GuideWinWinget,
                     Command: $"winget install -e --id PostgreSQL.PostgreSQL.{n} --interactive"),
-                new($"Then click Look Again. pgNimbus finds C:\\Program Files\\PostgreSQL\\{n}\\bin on its own."),
+                new(Strings.Backup_GuideWinLookAgain(n)),
             ],
             PgToolPlatform.MacOS when hasHomebrew =>
             [
-                new("Install PostgreSQL's client programs with Homebrew:", Command: "brew install libpq"),
-                new("Then click Look Again. pgNimbus finds them in Homebrew's libpq folder on its own; you don't need to add anything to PATH."),
+                new(Strings.Backup_GuideMacBrew, Command: "brew install libpq"),
+                new(Strings.Backup_GuideMacBrewLookAgain),
             ],
             PgToolPlatform.MacOS =>
             [
-                new("Download Postgres.app and move it to Applications. It includes pg_dump and pg_restore; you don't have to start its server.",
+                new(Strings.Backup_GuideMacApp,
                     LinkUrl: "https://postgresapp.com/downloads.html",
-                    LinkText: "Open postgresapp.com"),
-                new("Or, if you use Homebrew:", Command: "brew install libpq"),
-                new("Then click Look Again. pgNimbus finds them in either place on its own."),
+                    LinkText: Strings.Backup_GuideMacAppLink),
+                new(Strings.Backup_GuideMacOrBrew, Command: "brew install libpq"),
+                new(Strings.Backup_GuideMacEither),
             ],
             _ => LinuxSteps(linux, n),
         };
@@ -76,32 +77,32 @@ public static class PgToolInstallGuide
     {
         LinuxFamily.Debian or LinuxFamily.Ubuntu =>
         [
-            new("Add PostgreSQL's own package repository. Your distribution's packages are often older than the server, and pg_dump can't be older:",
+            new(Strings.Backup_GuideDebRepo,
                 Command: "sudo apt install -y postgresql-common\nsudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh",
                 LinkUrl: family == LinuxFamily.Debian ? "https://www.postgresql.org/download/linux/debian/" : "https://www.postgresql.org/download/linux/ubuntu/",
-                LinkText: "Instructions on postgresql.org"),
-            new("Install the client programs:", Command: $"sudo apt install postgresql-client-{n}"),
-            new($"Then click Look Again. pgNimbus finds /usr/lib/postgresql/{n}/bin on its own."),
+                LinkText: Strings.Backup_GuideLinkPostgresql),
+            new(Strings.Backup_GuideInstallClients, Command: $"sudo apt install postgresql-client-{n}"),
+            new(Strings.Backup_GuideDebLookAgain(n)),
         ],
         LinuxFamily.RedHat =>
         [
-            new("Add PostgreSQL's own package repository for your distribution, as postgresql.org describes it.",
+            new(Strings.Backup_GuideRhRepo,
                 LinkUrl: "https://www.postgresql.org/download/linux/redhat/",
-                LinkText: "Instructions on postgresql.org"),
-            new("Install the client programs:", Command: $"sudo dnf install postgresql{n}"),
-            new($"Then click Look Again. pgNimbus finds /usr/pgsql-{n}/bin on its own."),
+                LinkText: Strings.Backup_GuideLinkPostgresql),
+            new(Strings.Backup_GuideInstallClients, Command: $"sudo dnf install postgresql{n}"),
+            new(Strings.Backup_GuideRhLookAgain(n)),
         ],
         LinuxFamily.Arch =>
         [
-            new("Install the client programs:", Command: "sudo pacman -S postgresql-libs"),
-            new("Then click Look Again."),
+            new(Strings.Backup_GuideInstallClients, Command: "sudo pacman -S postgresql-libs"),
+            new(Strings.Backup_GuideLookAgain),
         ],
         _ =>
         [
-            new($"Install the PostgreSQL {n} client programs (the package that holds pg_dump and pg_restore) from your distribution, or from postgresql.org.",
+            new(Strings.Backup_GuideOtherLinux(n),
                 LinkUrl: "https://www.postgresql.org/download/linux/",
-                LinkText: "Instructions on postgresql.org"),
-            new("Then click Look Again."),
+                LinkText: Strings.Backup_GuideLinkPostgresql),
+            new(Strings.Backup_GuideLookAgain),
         ],
     };
 

@@ -25,10 +25,34 @@ internal static class FrameworkStrings
         ("StringTimePickerSecondText", StringKey.Framework_Second),
     ];
 
+    private static bool _subscribed;
+
     public static void Install(Application app)
     {
         Apply(app);
-        Localizer.LanguageChanged += () => Apply(app);
+
+        // One handler for the process, writing to the application of the moment.
+        // It used to be one per Install capturing its app, and a static event
+        // holds its handlers strongly: the UI tests get a new Application per
+        // test, so a full run kept ~570 of them alive with their windows, and every
+        // change of language rewrote these nine resources in each, walking every
+        // window's tree nine times. The pseudo-locale scan, which switches twice per
+        // scenario, took 29 minutes on Linux and CI timed out. Holding the apps
+        // weakly is not enough: an old test's Application stays reachable through
+        // geometries and brushes kept in statics, which hold their dispatcher.
+        if (!_subscribed)
+        {
+            _subscribed = true;
+            Localizer.LanguageChanged += ApplyToCurrent;
+        }
+    }
+
+    private static void ApplyToCurrent()
+    {
+        if (Application.Current is { } app)
+        {
+            Apply(app);
+        }
     }
 
     private static void Apply(Application app)

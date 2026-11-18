@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using PgNimbus.App.ViewModels;
+using PgNimbus.Core.Localization;
 
 namespace PgNimbus.App.Views;
 
@@ -44,7 +45,7 @@ public partial class ActivityWindow : Window
             return;
         }
 
-        var confirm = new ConfirmDialog($"Terminate backend {pid} ({vm.TargetLabel})? Its session and any open transaction die with it.", "Terminate");
+        var confirm = new ConfirmDialog(Strings.Monitoring_ActivityTerminateConfirm(pid, vm.TargetLabel), Strings.Monitoring_ActivityTerminateButton);
         if (await confirm.ShowDialog<bool>(this))
         {
             await vm.TerminateCommand.ExecuteAsync(null);

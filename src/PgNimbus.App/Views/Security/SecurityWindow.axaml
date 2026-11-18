@@ -1,10 +1,11 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:l="using:PgNimbus.App.Localization"
         xmlns:vm="using:PgNimbus.App.ViewModels.Security"
         xmlns:views="using:PgNimbus.App.Views.Security"
         x:Class="PgNimbus.App.Views.Security.SecurityWindow"
         x:DataType="vm:SecurityViewModel"
-        Title="pgNimbus — Roles and Permissions"
+        Title="{l:Tr Security_WindowTitle}"
         Width="1100" Height="720"
         MinWidth="820" MinHeight="440"
         WindowStartupLocation="CenterOwner">
@@ -18,40 +19,40 @@
                 CornerRadius="{StaticResource CardCornerRadius}" Padding="16,12" Margin="0,0,0,10">
             <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto">
                 <StackPanel Grid.Column="0" Spacing="2" Margin="0,0,36,0">
-                    <TextBlock Text="DATABASE" Classes="sectionHeader" />
+                    <TextBlock Text="{l:Tr Security_Database}" Classes="sectionHeader" />
                     <TextBlock Text="{Binding DatabaseName}" FontSize="16" FontWeight="SemiBold" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Spacing="2" Margin="0,0,36,0"
-                            ToolTip.Tip="The role this window reads the catalog as — it only ever sees what this role is allowed to see">
-                    <TextBlock Text="CONNECTED AS" Classes="sectionHeader" />
+                            ToolTip.Tip="{l:Tr Security_ConnectedAsTip}">
+                    <TextBlock Text="{l:Tr Security_ConnectedAs}" Classes="sectionHeader" />
                     <TextBlock Text="{Binding CurrentRole}" FontSize="16" FontWeight="SemiBold" />
                 </StackPanel>
                 <StackPanel Grid.Column="2" Spacing="2">
-                    <TextBlock Text="SERVER" Classes="sectionHeader" />
+                    <TextBlock Text="{l:Tr Security_Server}" Classes="sectionHeader" />
                     <TextBlock Text="{Binding ServerVersionText}" FontSize="16" FontWeight="SemiBold" />
                 </StackPanel>
                 <Button Grid.Column="4" Classes="soft" VerticalAlignment="Center"
                         Command="{Binding RefreshCommand}"
-                        ToolTip.Tip="Re-read roles, privileges and policies from the catalog">
+                        ToolTip.Tip="{l:Tr Security_RefreshTip}">
                     <StackPanel Orientation="Horizontal" Spacing="7">
                         <PathIcon Data="{StaticResource RefreshIconGeometry}" Width="12" Height="12" VerticalAlignment="Center" />
-                        <TextBlock Text="Refresh" VerticalAlignment="Center" />
+                        <TextBlock Text="{l:Tr Common_Refresh}" VerticalAlignment="Center" />
                     </StackPanel>
                 </Button>
             </Grid>
         </Border>
 
         <TabControl Grid.Row="1" Classes="segmented">
-            <TabItem Header="Roles">
+            <TabItem Header="{l:Tr Security_TabRoles}">
                 <views:RolesTabView DataContext="{Binding Roles}" />
             </TabItem>
-            <TabItem Header="Permissions">
+            <TabItem Header="{l:Tr Security_TabPermissions}">
                 <views:PermissionsTabView DataContext="{Binding Permissions}" />
             </TabItem>
-            <TabItem Header="Default privileges">
+            <TabItem Header="{l:Tr Security_TabDefaultPrivileges}">
                 <views:DefaultPrivilegesTabView DataContext="{Binding DefaultPrivileges}" />
             </TabItem>
-            <TabItem Header="Row-level security">
+            <TabItem Header="{l:Tr Security_TabRls}">
                 <views:RlsTabView DataContext="{Binding Rls}" />
             </TabItem>
         </TabControl>

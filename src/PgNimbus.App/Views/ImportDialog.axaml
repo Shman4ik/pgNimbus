@@ -1,10 +1,11 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:l="using:PgNimbus.App.Localization"
         xmlns:vm="using:PgNimbus.App.ViewModels"
         xmlns:conv="using:Avalonia.Data.Converters"
         x:Class="PgNimbus.App.Views.ImportDialog"
         x:DataType="vm:ImportViewModel"
-        Title="pgNimbus — Import"
+        Title="{l:Tr Dialogs_ImportTitle}"
         Width="560" Height="620"
         MinWidth="480" MinHeight="420"
         WindowStartupLocation="CenterOwner">
@@ -15,21 +16,21 @@
 
         <Grid Grid.Row="1" ColumnDefinitions="150,*" Margin="0,0,0,10">
             <StackPanel Grid.Column="0" Margin="0,0,8,0">
-                <TextBlock Classes="dialogHint" Text="Schema" Margin="0,0,0,4" />
+                <TextBlock Classes="dialogHint" Text="{l:Tr Dialogs_ImportSchemaLabel}" Margin="0,0,0,4" />
                 <ComboBox ItemsSource="{Binding Schemas}" SelectedItem="{Binding Schema}" HorizontalAlignment="Stretch" />
             </StackPanel>
             <StackPanel Grid.Column="1">
-                <TextBlock Classes="dialogHint" Text="Table" Margin="0,0,0,4" />
+                <TextBlock Classes="dialogHint" Text="{l:Tr Dialogs_ImportTableLabel}" Margin="0,0,0,4" />
                 <TextBox Text="{Binding TableName}" />
             </StackPanel>
         </Grid>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="16" Margin="0,0,0,12">
-            <RadioButton Content="Create new table" IsChecked="{Binding CreateNewTable}" />
-            <RadioButton Content="Append to existing table" IsChecked="{Binding !CreateNewTable}" />
+            <RadioButton Content="{l:Tr Dialogs_ImportCreateNew}" IsChecked="{Binding CreateNewTable}" />
+            <RadioButton Content="{l:Tr Dialogs_ImportAppend}" IsChecked="{Binding !CreateNewTable}" />
         </StackPanel>
 
-        <TextBlock Grid.Row="3" Classes="sectionHeader" Text="COLUMNS" Margin="2,0,0,6" />
+        <TextBlock Grid.Row="3" Classes="sectionHeader" Text="{l:Tr Dialogs_ImportColumnsHeading}" Margin="2,0,0,6" />
 
         <Border Grid.Row="4" Classes="card" Padding="8">
             <ScrollViewer HorizontalScrollBarVisibility="Disabled">
@@ -53,8 +54,8 @@
                    IsVisible="{Binding ErrorMessage, Converter={x:Static conv:ObjectConverters.IsNotNull}}" Margin="0,8,0,0" />
 
         <StackPanel Grid.Row="6" Classes="dialogButtons">
-            <Button Classes="soft" Content="Cancel" Click="OnCancelClick" />
-            <Button Classes="accent" Content="Import" Command="{Binding ImportCommand}" IsEnabled="{Binding !IsImporting}" />
+            <Button Classes="soft" Content="{l:Tr Common_Cancel}" Click="OnCancelClick" />
+            <Button Classes="accent" Content="{l:Tr Dialogs_ImportButton}" Command="{Binding ImportCommand}" IsEnabled="{Binding !IsImporting}" />
         </StackPanel>
 
     </Grid>

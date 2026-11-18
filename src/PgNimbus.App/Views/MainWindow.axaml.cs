@@ -557,7 +557,8 @@ public partial class MainWindow : Window, IEditCommandTarget
     // Rename uses, with nothing to collide with (the server refuses a taken name).
     private async Task<string?> AskNewRelationNameAsync(string heading, string currentName)
     {
-        var dialog = new SaveQueryDialog(heading, currentName, null, _ => null, Strings.Shell_NounRelation, Strings.Shell_RenameDialogTitle, Strings.Common_Rename);
+        var dialog = new SaveQueryDialog(() => heading, currentName, null, _ => null, SaveQueryKind.Relation,
+            () => Strings.Shell_RenameDialogTitle, () => Strings.Common_Rename);
         return (await dialog.ShowDialog<SaveQueryResult?>(this))?.Name;
     }
 
@@ -1304,12 +1305,12 @@ public partial class MainWindow : Window, IEditCommandTarget
         await lab.ReloadAsync();
         var current = capture.Saved is { } saved && lab.FindByName(saved.Name)?.Id == saved.Id ? saved : null;
         var dialog = new SaveQueryDialog(
-            Strings.Shell_SavePlanHeading,
+            () => Strings.Shell_SavePlanHeading,
             current?.Name ?? SaveQueryNames.Suggest(tab.TabTitle, name => lab.FindByName(name) is not null),
             current?.Id,
             name => lab.FindByName(name) is { } plan ? (plan.Id, plan.Name) : null,
-            Strings.Shell_NounSavedPlan,
-            Strings.Shell_SavePlanTitle);
+            SaveQueryKind.SavedPlan,
+            () => Strings.Shell_SavePlanTitle);
 
         if (await dialog.ShowDialog<SaveQueryResult?>(this) is not { } result)
         {

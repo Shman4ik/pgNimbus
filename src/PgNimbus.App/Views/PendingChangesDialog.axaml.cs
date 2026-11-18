@@ -1,5 +1,7 @@
 using Avalonia.Controls;
+using Avalonia;
 using Avalonia.Interactivity;
+using PgNimbus.Core.Localization;
 
 namespace PgNimbus.App.Views;
 
@@ -28,13 +30,14 @@ public partial class PendingChangesDialog : Window
     {
         SummaryText.Text = summary;
         SqlText.Text = sqlScript;
-        CommitButton.Content = changeCount == 1 ? "Commit 1 change" : $"Commit {changeCount} changes";
+        CommitButton.Bind(ContentControl.ContentProperty, Localizer.Observe(() => Strings.Dialogs_CommitChanges(changeCount)).ToBinding());
 
         // "Checked" must never quietly mean "partly checked": name the columns
         // the concurrency check can't compare.
         if (uncheckedColumns is { Count: > 0 })
         {
-            UncheckedText.Text = $"Not checked for changes by other sessions (pgNimbus can't read their type): {string.Join(", ", uncheckedColumns)}.";
+            var columns = string.Join(", ", uncheckedColumns);
+            UncheckedText.Bind(TextBlock.TextProperty, Localizer.Observe(() => Strings.Dialogs_PendingUnchecked(columns)).ToBinding());
             UncheckedText.IsVisible = true;
         }
     }
