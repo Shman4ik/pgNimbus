@@ -22,7 +22,7 @@ internal static class ActivityFormat
             ? $"{(int)time.TotalHours}:{time.Minutes:00}:{time.Seconds:00}"
             : time.TotalMinutes >= 1
                 ? $"{time.Minutes}:{time.Seconds:00}"
-                : $"{time.TotalSeconds:0.0}s";
+                : Strings.Monitoring_ActivitySeconds(time.TotalSeconds.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture));
     }
 
     /// <summary>Collapse multi-line SQL to one line so it never blows out a row's height.</summary>

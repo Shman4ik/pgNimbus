@@ -7859,4 +7859,8 @@
     <value>{count} 字节</value>
     <comment>A size under one kilobyte, in Database Overview, the schema tree and the Backup window. {count} is a whole number such as 512.</comment>
   </data>
+  <data name="Monitoring_ActivitySeconds" xml:space="preserve">
+    <value>{value}s</value>
+    <comment>Server Activity window, Time column: how long a backend has been in its state, under a minute. {value} is the seconds with one decimal, such as 2.0. English writes no space before the s.</comment>
+  </data>
 </root>

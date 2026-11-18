@@ -1284,7 +1284,7 @@
     <comment>Keyboard shortcut sheet (F1) and the shortcuts reference: a shorter name for the command, shown there instead of its palette name.</comment>
   </data>
   <data name="Command_FilterRows" xml:space="preserve">
-    <value>Отфильтровать строки просматриваемой таблицы…</value>
+    <value>Фильтр строк таблицы…</value>
     <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Filter rows of the browsed table…". Where it has a shortcut, it is listed beside it.</comment>
   </data>
   <data name="Command_FilterRows_Note" xml:space="preserve">
@@ -1332,7 +1332,7 @@
     <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Server activity". Where it has a shortcut, it is listed beside it.</comment>
   </data>
   <data name="Command_DatabaseOverview" xml:space="preserve">
-    <value>Обзор базы данных (размеры, попадания в кэш, неиспользуемые индексы)</value>
+    <value>Обзор базы данных (размеры, попадания в кеш, неиспользуемые индексы)</value>
     <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Database overview (sizes, cache hit, unused indexes)". Where it has a shortcut, it is listed beside it.</comment>
   </data>
   <data name="Command_DatabaseOverview_Cheat" xml:space="preserve">
@@ -5232,7 +5232,7 @@
     <comment>Database Overview window: small heading above the database size. Upper case.</comment>
   </data>
   <data name="Monitoring_OverviewTableCache" xml:space="preserve">
-    <value>Попадания в кэш таблиц</value>
+    <value>Попадания в кеш таблиц</value>
     <comment>Database Overview window: small heading above the table cache-hit percentage. Upper case.</comment>
   </data>
   <data name="Monitoring_OverviewTableCacheTip" xml:space="preserve">
@@ -5240,7 +5240,7 @@
     <comment>Database Overview window: tooltip of the table cache-hit figure. shared_buffers is a PostgreSQL setting name.</comment>
   </data>
   <data name="Monitoring_OverviewIndexCache" xml:space="preserve">
-    <value>Попадания в кэш индексов</value>
+    <value>Попадания в кеш индексов</value>
     <comment>Database Overview window: small heading above the index cache-hit percentage. Upper case.</comment>
   </data>
   <data name="Monitoring_OverviewIndexCacheTip" xml:space="preserve">
@@ -5660,7 +5660,7 @@
     <comment>Slow Queries window: column header: rows the statement returned or changed.</comment>
   </data>
   <data name="Monitoring_ColCacheHit" xml:space="preserve">
-    <value>Попадания в кэш</value>
+    <value>Попадания в кеш</value>
     <comment>Slow Queries window: column header: share of block reads served from memory.</comment>
   </data>
   <data name="Security_WindowTitle" xml:space="preserve">
@@ -7600,7 +7600,7 @@
     <comment>Query Lab, plan tree: figure line. The time the node spent itself, without its children. {value} is such as 12 ms → 0.4 ms, with a leading ~ when approximate.</comment>
   </data>
   <data name="QueryLab_LineHit" xml:space="preserve">
-    <value>в кэше {value}</value>
+    <value>в кеше {value}</value>
     <comment>Query Lab, plan tree: figure line. Shared buffer blocks found in cache. {value} is a count on both sides.</comment>
   </data>
   <data name="QueryLab_LineRead" xml:space="preserve">
@@ -7952,27 +7952,27 @@
     <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: heading. One side read much more from disk than the other.</comment>
   </data>
   <data name="QueryLabCore_CacheBeforeMore" xml:space="preserve">
-    <value>Запуск «До» прочитал {more} блоков из-за пределов общего буферного кеша (с диска или из кэша ОС), а запуск «После» — {less}. Запуск, который находит данные уже в памяти, читает с диска меньше при любом плане. Выполните оба снова по очереди или сравните буферы, затронутые каждым узлом.</value>
+    <value>Запуск «До» прочитал {more} блоков из-за пределов общего буферного кеша (с диска или из кеша ОС), а запуск «После» — {less}. Запуск, который находит данные уже в памяти, читает с диска меньше при любом плане. Выполните оба снова по очереди или сравните буферы, затронутые каждым узлом.</value>
     <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under the cache heading, when the before side read more. {more} and {less} are block counts such as 12,400 and 80. Shared buffers is PostgreSQL's cache.</comment>
   </data>
   <data name="QueryLabCore_CacheAfterMore" xml:space="preserve">
-    <value>Запуск «После» прочитал {more} блоков из-за пределов общего буферного кеша (с диска или из кэша ОС), а запуск «До» — {less}. Запуск, который находит данные уже в памяти, читает с диска меньше при любом плане. Выполните оба снова по очереди или сравните буферы, затронутые каждым узлом.</value>
+    <value>Запуск «После» прочитал {more} блоков из-за пределов общего буферного кеша (с диска или из кеша ОС), а запуск «До» — {less}. Запуск, который находит данные уже в памяти, читает с диска меньше при любом плане. Выполните оба снова по очереди или сравните буферы, затронутые каждым узлом.</value>
     <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under the cache heading, when the after side read more. {more} and {less} are block counts such as 12,400 and 80. Shared buffers is PostgreSQL's cache.</comment>
   </data>
   <data name="QueryLabCore_CacheUnknownTitle" xml:space="preserve">
-    <value>Использование кэша неизвестно</value>
+    <value>Использование кеша неизвестно</value>
     <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: heading. A plan has no buffer counts.</comment>
   </data>
   <data name="QueryLabCore_CacheUnknownNeither" xml:space="preserve">
-    <value>Ни у одного плана нет счётчиков буферов, поэтому прогретый кэш нельзя отличить от изменения плана. Explain Analyze в pgNimbus всегда запрашивает BUFFERS.</value>
+    <value>Ни у одного плана нет счётчиков буферов, поэтому прогретый кеш нельзя отличить от изменения плана. Explain Analyze в pgNimbus всегда запрашивает BUFFERS.</value>
     <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under 'Cache use unknown'. Explain Analyze is the name of a pgNimbus command; BUFFERS is an EXPLAIN option; keep it.</comment>
   </data>
   <data name="QueryLabCore_CacheUnknownBefore" xml:space="preserve">
-    <value>У плана «До» нет счётчиков буферов, поэтому прогретый кэш нельзя отличить от изменения плана. Explain Analyze в pgNimbus всегда запрашивает BUFFERS.</value>
+    <value>У плана «До» нет счётчиков буферов, поэтому прогретый кеш нельзя отличить от изменения плана. Explain Analyze в pgNimbus всегда запрашивает BUFFERS.</value>
     <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under 'Cache use unknown'. Explain Analyze is the name of a pgNimbus command; BUFFERS is an EXPLAIN option; keep it.</comment>
   </data>
   <data name="QueryLabCore_CacheUnknownAfter" xml:space="preserve">
-    <value>У плана «После» нет счётчиков буферов, поэтому прогретый кэш нельзя отличить от изменения плана. Explain Analyze в pgNimbus всегда запрашивает BUFFERS.</value>
+    <value>У плана «После» нет счётчиков буферов, поэтому прогретый кеш нельзя отличить от изменения плана. Explain Analyze в pgNimbus всегда запрашивает BUFFERS.</value>
     <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under 'Cache use unknown'. Explain Analyze is the name of a pgNimbus command; BUFFERS is an EXPLAIN option; keep it.</comment>
   </data>
   <data name="QueryLabCore_VersionsTitle" xml:space="preserve">
@@ -8398,5 +8398,9 @@
   <data name="Core_UnitPetabytes" xml:space="preserve">
     <value>{value} ПБ</value>
     <comment>A size in petabytes, as Core_UnitKilobytes. {value} is a number such as 1.2.</comment>
+  </data>
+  <data name="Monitoring_ActivitySeconds" xml:space="preserve">
+    <value>{value} с</value>
+    <comment>Server Activity window, Time column: how long a backend has been in its state, under a minute. {value} is the seconds with one decimal, such as 2.0. English writes no space before the s.</comment>
   </data>
 </root>
