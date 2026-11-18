@@ -12,6 +12,7 @@ using Nimbus.Ui.Chrome;
 using PgNimbus.App.ViewModels;
 using PgNimbus.Core.Backup;
 using PgNimbus.Core.Commands;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Query;
 
 namespace PgNimbus.App.Views;
@@ -36,6 +37,11 @@ public partial class MainWindow : Window, IEditCommandTarget
         BuildKeyBindings();
         Hotkeys.Changed += BuildKeyBindings;
         Closed += (_, _) => Hotkeys.Changed -= BuildKeyBindings;
+
+        // The macOS menu bar is built once, in the language of the moment, so it is
+        // built again when the language changes (everything else in the window
+        // follows through its bindings).
+        Localizer.WhenChanged(this, static window => window.BuildMacNativeMenu());
 
         // Closing this window ends its connection, and the SSH tunnel a running
         // backup or restore may be using, so what that would lose is asked
@@ -199,23 +205,23 @@ public partial class MainWindow : Window, IEditCommandTarget
         {
             Items =
             {
-                CommandItem("New Query Tab", CommandId.NewTab),
-                CommandItem("Open…", CommandId.OpenFile),
-                new NativeMenuItem("Open Recent") { Menu = recentMenu },
+                CommandItem(Strings.Shell_MenuNewQueryTab, CommandId.NewTab),
+                CommandItem(Strings.Shell_MenuOpen, CommandId.OpenFile),
+                new NativeMenuItem(Strings.Shell_MenuOpenRecent) { Menu = recentMenu },
                 new NativeMenuItemSeparator(),
-                CommandItem("Save", CommandId.Save),
-                CommandItem("Save As…", CommandId.SaveAs),
-                CommandItem("Save to Saved Queries…", CommandId.SaveQuery),
-                CommandItem("Save to File…", CommandId.SaveFile),
+                CommandItem(Strings.Common_Save, CommandId.Save),
+                CommandItem(Strings.Shell_MenuSaveAs, CommandId.SaveAs),
+                CommandItem(Strings.Shell_MenuSaveToSavedQueries, CommandId.SaveQuery),
+                CommandItem(Strings.Shell_MenuSaveToFile, CommandId.SaveFile),
                 new NativeMenuItemSeparator(),
-                CommandItem("Close Tab", CommandId.CloseTab),
-                CommandItem("Reopen Closed Tab", CommandId.ReopenClosedTab),
+                CommandItem(Strings.Shell_MenuCloseTab, CommandId.CloseTab),
+                CommandItem(Strings.Shell_MenuReopenClosedTab, CommandId.ReopenClosedTab),
                 new NativeMenuItemSeparator(),
-                CommandItem("Switch Connection…", CommandId.SwitchConnection),
-                CommandItem("New Connection Window…", CommandId.NewWindow),
+                CommandItem(Strings.Shell_MenuSwitchConnection, CommandId.SwitchConnection),
+                CommandItem(Strings.Shell_MenuNewConnectionWindow, CommandId.NewWindow),
                 new NativeMenuItemSeparator(),
-                CommandItem("Back Up Database…", CommandId.BackupDatabase),
-                CommandItem("Restore Backup…", CommandId.RestoreBackup),
+                CommandItem(Strings.Shell_MenuBackUpDatabase, CommandId.BackupDatabase),
+                CommandItem(Strings.Shell_MenuRestoreBackup, CommandId.RestoreBackup),
             },
         };
         // Like the ☰ menu's submenu: reflects the list as of menu open.
@@ -225,49 +231,49 @@ public partial class MainWindow : Window, IEditCommandTarget
         {
             Items =
             {
-                CommandItem("Run", CommandId.Run),
-                CommandItem("Cancel", CommandId.Cancel),
+                CommandItem(Strings.Shell_MenuRun, CommandId.Run),
+                CommandItem(Strings.Shell_MenuCancel, CommandId.Cancel),
                 new NativeMenuItemSeparator(),
-                CommandItem("Explain", CommandId.Explain),
-                CommandItem("Explain Analyze", CommandId.ExplainAnalyze),
+                CommandItem(Strings.Shell_MenuExplain, CommandId.Explain),
+                CommandItem(Strings.Shell_MenuExplainAnalyze, CommandId.ExplainAnalyze),
                 new NativeMenuItemSeparator(),
-                CommandItem("Format SQL", CommandId.FormatSql),
-                CommandItem("Expand SELECT *", CommandId.ExpandStar),
+                CommandItem(Strings.Shell_MenuFormatSql, CommandId.FormatSql),
+                CommandItem(Strings.Shell_MenuExpandStar, CommandId.ExpandStar),
                 new NativeMenuItemSeparator(),
-                CommandItem("Begin Transaction", CommandId.BeginTransaction),
-                CommandItem("Commit Transaction", CommandId.CommitTransaction),
-                CommandItem("Rollback Transaction", CommandId.RollbackTransaction),
+                CommandItem(Strings.Shell_MenuBeginTransaction, CommandId.BeginTransaction),
+                CommandItem(Strings.Shell_MenuCommitTransaction, CommandId.CommitTransaction),
+                CommandItem(Strings.Shell_MenuRollbackTransaction, CommandId.RollbackTransaction),
                 new NativeMenuItemSeparator(),
-                CommandItem("Refresh Schema", CommandId.RefreshSchema),
-                CommandItem("Server Activity…", CommandId.ServerActivity),
-                CommandItem("Database Overview…", CommandId.DatabaseOverview),
-                CommandItem("Slow Queries…", CommandId.SlowQueries),
-                CommandItem("Query Lab…", CommandId.QueryLab),
-                CommandItem("LISTEN / NOTIFY Monitor…", CommandId.NotifyMonitor),
-                CommandItem("Roles and Permissions…", CommandId.SecurityManager),
+                CommandItem(Strings.Shell_MenuRefreshSchema, CommandId.RefreshSchema),
+                CommandItem(Strings.Shell_MenuServerActivity, CommandId.ServerActivity),
+                CommandItem(Strings.Shell_MenuDatabaseOverview, CommandId.DatabaseOverview),
+                CommandItem(Strings.Shell_MenuSlowQueries, CommandId.SlowQueries),
+                CommandItem(Strings.Shell_MenuQueryLab, CommandId.QueryLab),
+                CommandItem(Strings.Shell_MenuNotifyMonitor, CommandId.NotifyMonitor),
+                CommandItem(Strings.Shell_MenuRolesPermissions, CommandId.SecurityManager),
             },
         };
 
         // Finder-style Show/Hide phrasing, re-resolved every time the menu
         // opens. AppKit appends its own "Enter Full Screen" item to the menu
         // titled "View", so full screen isn't added here.
-        var sidebarItem = MacMenus.Action("Hide Sidebar", ToggleSidebar, CommandBindings.GestureFor(CommandId.ToggleSidebar));
+        var sidebarItem = MacMenus.Action(Strings.Shell_MenuHideSidebar, ToggleSidebar, CommandBindings.GestureFor(CommandId.ToggleSidebar));
         var appearanceMenu = MacMenus.Appearance();
         var viewMenu = new NativeMenu
         {
             Items =
             {
-                MacMenus.Action("Command Palette…", OpenCommandPalette, CommandBindings.GestureFor(CommandId.CommandPalette)),
+                MacMenus.Action(Strings.Shell_MenuCommandPalette, OpenCommandPalette, CommandBindings.GestureFor(CommandId.CommandPalette)),
                 new NativeMenuItemSeparator(),
                 sidebarItem,
-                new NativeMenuItem("Appearance") { Menu = appearanceMenu },
+                new NativeMenuItem(Strings.Shell_MenuAppearance) { Menu = appearanceMenu },
                 new NativeMenuItemSeparator(),
-                MacMenus.Action("Keyboard Shortcuts", () => _viewModel?.ShowShortcutsCommand.Execute(null), CommandBindings.GestureFor(CommandId.ShortcutsWindow)),
+                MacMenus.Action(Strings.Shell_MenuKeyboardShortcuts, () => _viewModel?.ShowShortcutsCommand.Execute(null), CommandBindings.GestureFor(CommandId.ShortcutsWindow)),
             },
         };
         viewMenu.NeedsUpdate += (_, _) =>
         {
-            sidebarItem.Header = _sidebarCollapsed ? "Show Sidebar" : "Hide Sidebar";
+            sidebarItem.Header = _sidebarCollapsed ? Strings.Shell_MenuShowSidebar : Strings.Shell_MenuHideSidebar;
             // The palette's theme toggle and the preferences page change the
             // theme too, so the checkmark is re-read here as well as when the
             // submenu itself opens.
@@ -279,8 +285,8 @@ public partial class MainWindow : Window, IEditCommandTarget
         // window doesn't bind.
         var windowMenu = MacMenus.Window(this,
         [
-            CommandItem("Show Previous Tab", CommandId.PreviousTab),
-            CommandItem("Show Next Tab", CommandId.NextTab),
+            CommandItem(Strings.Shell_MenuPreviousTab, CommandId.PreviousTab),
+            CommandItem(Strings.Shell_MenuNextTab, CommandId.NextTab),
         ]);
 
         // No Help menu on purpose: AppKit force-inserts a search field into
@@ -291,11 +297,11 @@ public partial class MainWindow : Window, IEditCommandTarget
         {
             Items =
             {
-                new NativeMenuItem("File") { Menu = fileMenu },
-                new NativeMenuItem("Edit") { Menu = MacMenus.Edit(this, includeFind: true) },
-                new NativeMenuItem("Query") { Menu = queryMenu },
-                new NativeMenuItem("View") { Menu = viewMenu },
-                new NativeMenuItem("Window") { Menu = windowMenu },
+                new NativeMenuItem(Strings.Shell_MenuFile) { Menu = fileMenu },
+                new NativeMenuItem(Strings.Shell_MenuEdit) { Menu = MacMenus.Edit(this, includeFind: true) },
+                new NativeMenuItem(Strings.Shell_MenuQuery) { Menu = queryMenu },
+                new NativeMenuItem(Strings.Shell_MenuView) { Menu = viewMenu },
+                new NativeMenuItem(Strings.Shell_MenuWindow) { Menu = windowMenu },
             },
         };
     }
@@ -334,7 +340,7 @@ public partial class MainWindow : Window, IEditCommandTarget
         menu.Items.Clear();
         if (_viewModel is not { RecentSqlFiles.Count: > 0 } viewModel)
         {
-            menu.Items.Add(new NativeMenuItem("No Recent Files") { IsEnabled = false });
+            menu.Items.Add(new NativeMenuItem(Strings.Shell_MenuNoRecentFiles) { IsEnabled = false });
             return;
         }
 
@@ -537,10 +543,8 @@ public partial class MainWindow : Window, IEditCommandTarget
     // allows is exactly what the label exists to stop by accident.
     private Task<bool> ConfirmAllowWritesAsync()
     {
-        var name = _viewModel is { } vm ? $"{vm.ConnectionName} › {vm.ConnectionDatabase}" : "this connection";
-        var confirm = new ConfirmDialog(
-            $"Allow writes to production ({name}) in this window? Statements you run, grid edits, imports and schema actions can change data until you turn writes off or close the window. Other windows keep writes off.",
-            "Allow Writes");
+        var name = _viewModel is { } vm ? $"{vm.ConnectionName} › {vm.ConnectionDatabase}" : Strings.Shell_ThisConnection;
+        var confirm = new ConfirmDialog(Strings.Shell_AllowWritesConfirm(name), Strings.Shell_AllowWritesButton);
         return confirm.ShowDialog<bool>(this);
     }
 
@@ -553,7 +557,7 @@ public partial class MainWindow : Window, IEditCommandTarget
     // Rename uses, with nothing to collide with (the server refuses a taken name).
     private async Task<string?> AskNewRelationNameAsync(string heading, string currentName)
     {
-        var dialog = new SaveQueryDialog(heading, currentName, null, _ => null, "relation", "pgNimbus — Rename", "Rename");
+        var dialog = new SaveQueryDialog(heading, currentName, null, _ => null, Strings.Shell_NounRelation, Strings.Shell_RenameDialogTitle, Strings.Common_Rename);
         return (await dialog.ShowDialog<SaveQueryResult?>(this))?.Name;
     }
 
@@ -794,30 +798,33 @@ public partial class MainWindow : Window, IEditCommandTarget
         // reported gap, not by being one more thing that could go here.
         _tabMenuSaveQuery = new MenuItem
         {
-            Header = "Save Query…",
             Command = viewModel.SaveQueryCommand,
         };
         _tabMenuRename = new MenuItem
         {
-            Header = "Rename…",
             Command = viewModel.RenameTabCommand,
         };
         _tabMenuClose = new MenuItem
         {
-            Header = "Close",
             Command = viewModel.CloseTabCommand,
             InputGesture = CommandBindings.GestureFor(CommandId.CloseTab),
         };
         _tabMenuCloseOthers = new MenuItem
         {
-            Header = "Close Others",
             Command = viewModel.CloseOtherTabsCommand,
         };
         _tabMenuCloseRight = new MenuItem
         {
-            Header = "Close to the Right",
             Command = viewModel.CloseTabsToTheRightCommand,
         };
+
+        // The menu is built once and kept, so its labels are bound to the table and
+        // follow a change of language.
+        _tabMenuSaveQuery.Bind(MenuItem.HeaderProperty, Localizer.Observe(StringKey.Shell_TabMenuSaveQuery).ToBinding());
+        _tabMenuRename.Bind(MenuItem.HeaderProperty, Localizer.Observe(StringKey.Shell_TabMenuRename).ToBinding());
+        _tabMenuClose.Bind(MenuItem.HeaderProperty, Localizer.Observe(StringKey.Common_Close).ToBinding());
+        _tabMenuCloseOthers.Bind(MenuItem.HeaderProperty, Localizer.Observe(StringKey.Shell_TabMenuCloseOthers).ToBinding());
+        _tabMenuCloseRight.Bind(MenuItem.HeaderProperty, Localizer.Observe(StringKey.Shell_TabMenuCloseToTheRight).ToBinding());
 
         return new MenuFlyout
         {
@@ -1167,7 +1174,7 @@ public partial class MainWindow : Window, IEditCommandTarget
         // come after the fact. The close that follows a connect doesn't ask again.
         if (_viewModel?.DescribeConnectionLosses() is { } losses
             && !await new ConfirmDialog(
-                $"Switch connection? This window closes once the new connection is open. {losses}", "Switch Connection")
+                Strings.Shell_SwitchConnectionConfirm(losses), Strings.Shell_SwitchConnectionButton)
                 .ShowDialog<bool>(this))
         {
             return;
@@ -1297,12 +1304,12 @@ public partial class MainWindow : Window, IEditCommandTarget
         await lab.ReloadAsync();
         var current = capture.Saved is { } saved && lab.FindByName(saved.Name)?.Id == saved.Id ? saved : null;
         var dialog = new SaveQueryDialog(
-            "Save plan to Query Lab",
+            Strings.Shell_SavePlanHeading,
             current?.Name ?? SaveQueryNames.Suggest(tab.TabTitle, name => lab.FindByName(name) is not null),
             current?.Id,
             name => lab.FindByName(name) is { } plan ? (plan.Id, plan.Name) : null,
-            "saved plan",
-            "pgNimbus — Save plan");
+            Strings.Shell_NounSavedPlan,
+            Strings.Shell_SavePlanTitle);
 
         if (await dialog.ShowDialog<SaveQueryResult?>(this) is not { } result)
         {
@@ -1312,7 +1319,7 @@ public partial class MainWindow : Window, IEditCommandTarget
         var entry = await lab.SaveAsync(capture, result.Name, result.OverwriteId);
         if (entry is null)
         {
-            tab.Status = lab.Status ?? "The plan couldn't be saved";
+            tab.Status = lab.Status ?? Strings.Shell_PlanNotSaved;
             tab.HasError = true;
             return;
         }
@@ -1323,7 +1330,7 @@ public partial class MainWindow : Window, IEditCommandTarget
             tab.PlanCapture = capture with { Saved = entry };
         }
 
-        tab.Status = $"Saved plan “{entry.Name}” to Query Lab";
+        tab.Status = Strings.Shell_PlanSaved(entry.Name);
         tab.HasError = false;
     }
 
@@ -1473,17 +1480,15 @@ public partial class MainWindow : Window, IEditCommandTarget
     {
         if (restoreRunning)
         {
-            return (Join("A restore is still running, and closing this window ends its connection. Stop the restore and close? It runs as one transaction, so nothing it did stays.", losses), "Stop Restore");
+            return (losses is null ? Strings.Shell_CloseRestoreRunning : Strings.Shell_CloseRestoreRunningLosses(losses), Strings.Shell_StopRestore);
         }
 
         if (backupRunning)
         {
-            return (Join("A backup is still running, and closing this window ends its connection. Stop the backup and close?", losses), "Stop Backup");
+            return (losses is null ? Strings.Shell_CloseBackupRunning : Strings.Shell_CloseBackupRunningLosses(losses), Strings.Shell_StopBackup);
         }
 
-        return losses is null ? null : ($"Close this window? {losses}", "Close Window");
-
-        static string Join(string first, string? then) => then is null ? first : $"{first} {then}";
+        return losses is null ? null : (Strings.Shell_CloseWindowQuestion(losses), Strings.Shell_CloseWindowButton);
     }
 
     private async void OnClosingAsync(object? sender, WindowClosingEventArgs e)
@@ -1588,7 +1593,7 @@ public partial class MainWindow : Window, IEditCommandTarget
         }
 
         // Long-form summary here; the status bar's text is deliberately terse.
-        var summary = $"{pending.Count} staged change{(pending.Count == 1 ? "" : "s")} · {pending.Schema}.{pending.Table}";
+        var summary = Strings.Shell_StagedSummary(pending.Count, $"{pending.Schema}.{pending.Table}");
         var dialog = new PendingChangesDialog(summary, pending.BuildScript(), pending.Count, pending.UncheckedColumns);
         var result = await dialog.ShowDialog<PendingChangesDialog.Result>(this);
         switch (result)
@@ -1634,8 +1639,7 @@ public partial class MainWindow : Window, IEditCommandTarget
         }
 
         var count = query.PendingChanges!.Count;
-        var noun = count == 1 ? "1 staged change" : $"{count} staged changes";
-        var confirm = new ConfirmDialog($"Discard {noun}? The database hasn't been touched.", "Discard");
+        var confirm = new ConfirmDialog(Strings.Shell_DiscardStagedConfirm(count), Strings.Common_Discard);
         if (await confirm.ShowDialog<bool>(this))
         {
             await query.DiscardPendingCommand.ExecuteAsync(null);
@@ -1661,7 +1665,7 @@ public partial class MainWindow : Window, IEditCommandTarget
         {
             MenuOpenRecent.Items.Add(new MenuItem
             {
-                Header = new TextBlock { Text = "No Recent Files" },
+                Header = new TextBlock { Text = Strings.Shell_MenuNoRecentFiles },
                 IsEnabled = false,
             });
             return;
@@ -1700,12 +1704,12 @@ public partial class MainWindow : Window, IEditCommandTarget
 
         var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = "Open SQL file",
+            Title = Strings.Shell_OpenSqlFileTitle,
             AllowMultiple = false,
             FileTypeFilter =
             [
                 new FilePickerFileType("SQL") { Patterns = ["*.sql"] },
-                new FilePickerFileType("All files") { Patterns = ["*"] },
+                new FilePickerFileType(Strings.Shell_AllFiles) { Patterns = ["*"] },
             ],
         });
 
@@ -1717,7 +1721,7 @@ public partial class MainWindow : Window, IEditCommandTarget
         var path = files[0].TryGetLocalPath();
         if (path is null)
         {
-            _viewModel.ActiveTab.Status = "Can't open a non-local file";
+            _viewModel.ActiveTab.Status = Strings.Shell_CantOpenNonLocal;
             _viewModel.ActiveTab.HasError = true;
             return;
         }
@@ -1729,7 +1733,7 @@ public partial class MainWindow : Window, IEditCommandTarget
         }
         catch (Exception ex)
         {
-            _viewModel.ActiveTab.Status = $"Open failed: {ex.Message}";
+            _viewModel.ActiveTab.Status = Strings.Shell_OpenFailed(ex.Message);
             _viewModel.ActiveTab.HasError = true;
         }
     }
@@ -1744,7 +1748,7 @@ public partial class MainWindow : Window, IEditCommandTarget
 
         if (!File.Exists(path))
         {
-            _viewModel.ActiveTab.Status = $"File not found: {path}";
+            _viewModel.ActiveTab.Status = Strings.Shell_FileNotFound(path);
             _viewModel.ActiveTab.HasError = true;
             return;
         }
@@ -1756,7 +1760,7 @@ public partial class MainWindow : Window, IEditCommandTarget
         }
         catch (Exception ex)
         {
-            _viewModel.ActiveTab.Status = $"Open failed: {ex.Message}";
+            _viewModel.ActiveTab.Status = Strings.Shell_OpenFailed(ex.Message);
             _viewModel.ActiveTab.HasError = true;
         }
     }
@@ -1787,7 +1791,7 @@ public partial class MainWindow : Window, IEditCommandTarget
             var suggestedName = SanitizeFileName(tab.TabTitle) + ".sql";
             var file = await storageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
-                Title = "Save SQL file",
+                Title = Strings.Shell_SaveSqlFileTitle,
                 SuggestedFileName = suggestedName,
                 DefaultExtension = "sql",
                 FileTypeChoices = [new FilePickerFileType("SQL") { Patterns = ["*.sql"] }],
@@ -1801,7 +1805,7 @@ public partial class MainWindow : Window, IEditCommandTarget
             path = file.TryGetLocalPath();
             if (path is null)
             {
-                tab.Status = "Can't save to a non-local file";
+                tab.Status = Strings.Shell_CantSaveNonLocal;
                 tab.HasError = true;
                 return;
             }
@@ -1812,12 +1816,12 @@ public partial class MainWindow : Window, IEditCommandTarget
             await File.WriteAllTextAsync(path, tab.Sql);
             tab.MarkSaved(path);
             _viewModel.RecordRecentFile(path);
-            tab.Status = $"Saved {Path.GetFileName(path)}";
+            tab.Status = Strings.Shell_SavedFile(Path.GetFileName(path));
             tab.HasError = false;
         }
         catch (Exception ex)
         {
-            tab.Status = $"Save failed: {ex.Message}";
+            tab.Status = Strings.Shell_SaveFailed(ex.Message);
             tab.HasError = true;
         }
     }
@@ -1842,7 +1846,7 @@ public partial class MainWindow : Window, IEditCommandTarget
 
         if (string.IsNullOrWhiteSpace(tab.Sql))
         {
-            tab.Status = "Nothing to save: this tab is empty";
+            tab.Status = Strings.Shell_NothingToSave;
             tab.HasError = true;
             return;
         }
@@ -1856,13 +1860,13 @@ public partial class MainWindow : Window, IEditCommandTarget
         {
             var updated = saved.SaveQuery(existing.Name, tab.Sql, existing.Id);
             tab.MarkSavedAsQuery(updated.Id, updated.Name);
-            tab.Status = $"Saved query “{updated.Name}”";
+            tab.Status = Strings.Shell_SavedQuery(updated.Name);
             tab.HasError = false;
             return;
         }
 
         var dialog = new SaveQueryDialog(
-            saveAsNew ? "Save as a new query" : "Save query",
+            saveAsNew ? Strings.Shell_SaveAsNewQueryHeading : Strings.Shell_SaveQueryHeading,
             SaveQueryDialog.SuggestName(tab.TabTitle, saved.FindByName),
             currentId: null,
             saved.FindByName);
@@ -1874,7 +1878,7 @@ public partial class MainWindow : Window, IEditCommandTarget
 
         var entry = saved.SaveQuery(result.Name, tab.Sql, result.OverwriteId);
         tab.MarkSavedAsQuery(entry.Id, entry.Name);
-        tab.Status = $"Saved query “{entry.Name}”";
+        tab.Status = Strings.Shell_SavedQuery(entry.Name);
         tab.HasError = false;
     }
 

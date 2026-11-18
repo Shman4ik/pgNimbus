@@ -93,6 +93,9 @@ public partial class ConnectionDialog : Window
         if (OperatingSystem.IsMacOS())
         {
             NativeMenu.SetMenu(this, CreateNativeMenuBar());
+
+            // The menu bar's items are plain text: rebuild it in a new language.
+            Localizer.WhenChanged(this, static dialog => NativeMenu.SetMenu(dialog, dialog.CreateNativeMenuBar()));
         }
     }
 

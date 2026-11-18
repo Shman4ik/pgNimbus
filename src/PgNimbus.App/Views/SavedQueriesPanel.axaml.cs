@@ -6,6 +6,7 @@ using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using PgNimbus.App.ViewModels;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Query;
 
 namespace PgNimbus.App.Views;
@@ -73,7 +74,7 @@ public partial class SavedQueriesPanel : UserControl
 
     // Pin and Unpin are one item whose header follows the entry right-clicked.
     private void OnHistoryMenuOpening(object? sender, EventArgs e) =>
-        PinHistoryMenuItem.Header = SelectedHistoryEntry is { Pinned: true } ? "Unpin" : "Pin";
+        PinHistoryMenuItem.Header = SelectedHistoryEntry is { Pinned: true } ? Strings.Sidebar_Unpin : Strings.Sidebar_Pin;
 
     private void OnOpenHistoryEntryClick(object? sender, RoutedEventArgs e)
     {
@@ -124,7 +125,7 @@ public partial class SavedQueriesPanel : UserControl
             return;
         }
 
-        var dialog = new SaveQueryDialog("Rename saved query", query.Name, query.Id, model.FindByName);
+        var dialog = new SaveQueryDialog(Strings.Sidebar_RenameSavedQueryTitle, query.Name, query.Id, model.FindByName);
         if (await dialog.ShowDialog<SaveQueryResult?>(owner) is { } result)
         {
             model.RenameSavedQuery(query, result.Name);

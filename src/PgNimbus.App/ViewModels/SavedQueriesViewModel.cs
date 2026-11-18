@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Query;
 
 namespace PgNimbus.App.ViewModels;
@@ -61,6 +62,13 @@ public sealed partial class SavedQueriesViewModel : ObservableObject
     /// </summary>
     public string? CurrentConnection => _getConnectionLabel();
 
+    /// <summary>
+    /// Bumped on every change of language. A history row's "Yesterday 13:41" and
+    /// "Ran … on …" are composed per row by converters; this is the input that makes
+    /// them run again (the stored summary part stays as it was written).
+    /// </summary>
+    public int LanguageStamp { get; private set; }
+
     /// <summary>Drives the empty-state hint under an empty saved-queries list.</summary>
     public bool HasNoSavedQueries => SavedQueries.Count == 0;
 
@@ -100,6 +108,11 @@ public sealed partial class SavedQueriesViewModel : ObservableObject
         bool recordHistory = true,
         Action<bool>? persistRecordHistory = null)
     {
+        Localizer.WhenChanged(this, static vm =>
+        {
+            vm.LanguageStamp++;
+            vm.OnPropertyChanged(nameof(LanguageStamp));
+        });
         _savedQueryStore = savedQueryStore;
         _historyStore = historyStore;
         _openInNewTab = openInNewTab;

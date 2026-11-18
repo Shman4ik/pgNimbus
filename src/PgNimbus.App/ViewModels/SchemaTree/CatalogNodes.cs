@@ -1,3 +1,4 @@
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Schema;
 
 namespace PgNimbus.App.ViewModels;
@@ -11,7 +12,7 @@ public sealed class FunctionsGroupNode : SchemaTreeNode
     {
         _schemaService = schemaService;
         Schema = schema;
-        Name = "Functions";
+        SetLocalizedName(static () => Strings.Sidebar_Functions);
         MarkExpandable();
     }
 
@@ -54,13 +55,25 @@ public sealed class FunctionNode : SchemaTreeNode
     {
         get
         {
-            var kind = Kind switch { 'p' => "procedure", 'a' => "aggregate", 'w' => "window", _ => null };
+            var kind = Kind switch
+            {
+                'p' => Strings.Sidebar_FunctionProcedure,
+                'a' => Strings.Sidebar_FunctionAggregate,
+                'w' => Strings.Sidebar_FunctionWindow,
+                _ => null,
+            };
             var arrow = ReturnType.Length == 0 ? null : $"→ {ReturnType}";
             return string.Join("  ", new[] { arrow, kind }.Where(s => s is not null));
         }
     }
 
     public string Tooltip => $"{Signature}{(ReturnType.Length == 0 ? "" : $" → {ReturnType}")}";
+
+    public override void RefreshLanguage()
+    {
+        base.RefreshLanguage();
+        OnPropertyChanged(nameof(Detail));
+    }
 }
 
 /// <summary>Root-level "Extensions" group — installed extensions first, then the rest of pg_available_extensions.</summary>
@@ -71,7 +84,7 @@ public sealed class ExtensionsGroupNode : SchemaTreeNode
     public ExtensionsGroupNode(SchemaService schemaService)
     {
         _schemaService = schemaService;
-        Name = "Extensions";
+        SetLocalizedName(static () => Strings.Sidebar_Extensions);
         MarkExpandable();
     }
 
@@ -89,16 +102,26 @@ public sealed class ExtensionNode : SchemaTreeNode
         Group = group;
         Name = info.Name;
         IsInstalled = info.IsInstalled;
-        VersionLabel = info.IsInstalled ? info.InstalledVersion! : $"{info.DefaultVersion} available";
+        _installedVersion = info.IsInstalled ? info.InstalledVersion! : null;
+        _defaultVersion = info.DefaultVersion;
         Description = info.Description;
     }
+
+    private readonly string? _installedVersion;
+    private readonly string? _defaultVersion;
 
     /// <summary>The owning group, so install/drop can refresh the whole list in place.</summary>
     public ExtensionsGroupNode Group { get; }
 
     public bool IsInstalled { get; }
 
-    public string VersionLabel { get; }
+    public string VersionLabel => _installedVersion ?? Strings.Sidebar_ExtensionAvailable(_defaultVersion ?? string.Empty);
+
+    public override void RefreshLanguage()
+    {
+        base.RefreshLanguage();
+        OnPropertyChanged(nameof(VersionLabel));
+    }
 
     public string? Description { get; }
 }
@@ -111,7 +134,7 @@ public sealed class RolesGroupNode : SchemaTreeNode
     public RolesGroupNode(SchemaService schemaService)
     {
         _schemaService = schemaService;
-        Name = "Roles";
+        SetLocalizedName(static () => Strings.Sidebar_Roles);
         MarkExpandable();
     }
 

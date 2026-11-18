@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using Avalonia.Data.Converters;
 using Avalonia.Media;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Schema;
 
 namespace PgNimbus.App.Converters;
@@ -29,18 +30,18 @@ public static class RelationKindVisuals
         [RelationKind.PartitionedTable] = "M9,2V8H11V11H5C3.89,11 3,11.89 3,13V16H1V22H7V16H5V13H11V16H9V22H15V16H13V13H19V16H17V22H23V16H21V13C21,11.89 20.1,11 19,11H13V8H15V2H9Z",
     };
 
-    private static readonly Dictionary<RelationKind, string> Labels = new()
-    {
-        [RelationKind.Table] = "Table",
-        [RelationKind.View] = "View",
-        [RelationKind.MaterializedView] = "Materialized view",
-        [RelationKind.PartitionedTable] = "Partitioned table",
-    };
-
     private static readonly Dictionary<RelationKind, Geometry?> GeometryCache = new();
 
-    public static string LabelFor(RelationKind kind) =>
-        Labels.TryGetValue(kind, out var label) ? label : "Relation";
+    public static StringKey KeyFor(RelationKind kind) => kind switch
+    {
+        RelationKind.Table => StringKey.Sidebar_KindTable,
+        RelationKind.View => StringKey.Sidebar_KindView,
+        RelationKind.MaterializedView => StringKey.Sidebar_KindMaterializedView,
+        RelationKind.PartitionedTable => StringKey.Sidebar_KindPartitionedTable,
+        _ => StringKey.Sidebar_KindRelation,
+    };
+
+    public static string LabelFor(RelationKind kind) => Strings.Get(KeyFor(kind));
 
     public static Geometry? IconFor(RelationKind kind)
     {
@@ -85,7 +86,7 @@ public sealed class RelationKindLabelConverter : IValueConverter
     public static readonly RelationKindLabelConverter Instance = new();
 
     public object? Convert(object? value, System.Type targetType, object? parameter, CultureInfo culture) =>
-        value is RelationKind kind ? RelationKindVisuals.LabelFor(kind) : string.Empty;
+        value is RelationKind kind ? RelationKindVisuals.KeyFor(kind) : null;
 
     public object? ConvertBack(object? value, System.Type targetType, object? parameter, CultureInfo culture) =>
         throw new System.NotSupportedException();

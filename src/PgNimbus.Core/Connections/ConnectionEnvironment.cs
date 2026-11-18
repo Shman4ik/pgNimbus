@@ -23,23 +23,30 @@ public static class ConnectionEnvironments
         [ConnectionEnvironment.None, ConnectionEnvironment.Development, ConnectionEnvironment.Staging, ConnectionEnvironment.Production];
 
     /// <summary>The picker's label for <paramref name="environment"/>.</summary>
-    public static string Label(this ConnectionEnvironment environment) => environment switch
+    public static string Label(this ConnectionEnvironment environment) => Strings.Get(environment.LabelKey());
+
+    /// <summary>The key of the picker's label, for a control that must follow a change of language.</summary>
+    public static StringKey LabelKey(this ConnectionEnvironment environment) => environment switch
     {
-        ConnectionEnvironment.Development => Strings.Connection_EnvDevelopment,
-        ConnectionEnvironment.Staging => Strings.Connection_EnvStaging,
-        ConnectionEnvironment.Production => Strings.Connection_EnvProduction,
-        _ => Strings.Connection_EnvNone,
+        ConnectionEnvironment.Development => StringKey.Connection_EnvDevelopment,
+        ConnectionEnvironment.Staging => StringKey.Connection_EnvStaging,
+        ConnectionEnvironment.Production => StringKey.Connection_EnvProduction,
+        _ => StringKey.Connection_EnvNone,
     };
 
     /// <summary>
     /// The short word the window and the connection list show, or null for
     /// <see cref="ConnectionEnvironment.None"/>, which shows nothing.
     /// </summary>
-    public static string? Tag(this ConnectionEnvironment environment) => environment switch
+    public static string? Tag(this ConnectionEnvironment environment) =>
+        environment.TagKey() is { } key ? Strings.Get(key) : null;
+
+    /// <summary>The key of <see cref="Tag"/>, or null for none.</summary>
+    public static StringKey? TagKey(this ConnectionEnvironment environment) => environment switch
     {
-        ConnectionEnvironment.Development => Strings.Connection_EnvTagDevelopment,
-        ConnectionEnvironment.Staging => Strings.Connection_EnvTagStaging,
-        ConnectionEnvironment.Production => Strings.Connection_EnvTagProduction,
+        ConnectionEnvironment.Development => StringKey.Connection_EnvTagDevelopment,
+        ConnectionEnvironment.Staging => StringKey.Connection_EnvTagStaging,
+        ConnectionEnvironment.Production => StringKey.Connection_EnvTagProduction,
         _ => null,
     };
 

@@ -4,6 +4,7 @@
              xmlns:views="using:PgNimbus.App.Views"
              xmlns:conv="using:Avalonia.Data.Converters"
              xmlns:cmd="using:PgNimbus.App"
+             xmlns:l="using:PgNimbus.App.Localization"
              x:Class="PgNimbus.App.Views.ResultsGridPanel"
              x:DataType="vm:MainViewModel">
     <!-- The results surface, peeled out of MainWindow (UI design rule 7). It owns
@@ -88,7 +89,7 @@
                     <Panel.Styles>
                         <Style Selector="Panel.stale">
                             <Setter Property="Opacity" Value="0.5" />
-                            <Setter Property="ToolTip.Tip" Value="The query was edited: run it to update the filters" />
+                            <Setter Property="ToolTip.Tip" Value="{l:Tr Results_StaleFiltersTip}" />
                         </Style>
                     </Panel.Styles>
                     <views:BrowseFilterBar Name="FilterBar"
@@ -116,32 +117,32 @@
                               CellPointerPressed="OnResultsGridCellPointerPressed">
                         <DataGrid.ContextMenu>
                             <ContextMenu x:DataType="vm:MainViewModel">
-                                <MenuItem Name="CopyMenuItem" Header="Copy" Click="OnCopyCells" />
+                                <MenuItem Name="CopyMenuItem" Header="{l:Tr Common_Copy}" Click="OnCopyCells" />
                                 <Separator />
-                                <MenuItem Header="Copy As">
-                                    <MenuItem Header="CSV" Click="OnCopyAsCsv" />
-                                    <MenuItem Header="JSON" Click="OnCopyAsJson" />
-                                    <MenuItem Header="Markdown Table" Click="OnCopyAsMarkdown" />
-                                    <MenuItem Header="INSERT Statements" Click="OnCopyAsInsert" />
+                                <MenuItem Header="{l:Tr Results_CopyAsMenu}">
+                                    <MenuItem Header="{l:Tr Results_FormatCsv}" Click="OnCopyAsCsv" />
+                                    <MenuItem Header="{l:Tr Results_FormatJson}" Click="OnCopyAsJson" />
+                                    <MenuItem Header="{l:Tr Results_CopyAsMarkdown}" Click="OnCopyAsMarkdown" />
+                                    <MenuItem Header="{l:Tr Results_CopyAsInsert}" Click="OnCopyAsInsert" />
                                 </MenuItem>
                                 <Separator />
-                                <MenuItem Header="Inspect Cell…" Click="OnInspectCellClick" />
-                                <MenuItem x:Name="RowDetailsMenuItem" Header="Row Details" Click="OnRowDetailsClick" />
+                                <MenuItem Header="{l:Tr Results_InspectCell}" Click="OnInspectCellClick" />
+                                <MenuItem x:Name="RowDetailsMenuItem" Header="{l:Tr Results_RowDetails}" Click="OnRowDetailsClick" />
                                 <!-- Browse mode only: = / ≠ / is null for the pressed cell, composed
                                      per cell in OnResultsGridMenuOpening. -->
-                                <MenuItem x:Name="FilterByValueMenuItem" Header="Filter" IsVisible="False" />
-                                <MenuItem Header="Set Cell to NULL" Click="OnSetCellNullClick"
+                                <MenuItem x:Name="FilterByValueMenuItem" Header="{l:Tr Results_FilterMenu}" IsVisible="False" />
+                                <MenuItem Header="{l:Tr Results_SetCellNull}" Click="OnSetCellNullClick"
                                           IsEnabled="{Binding ActiveTab.IsEditable}" />
                                 <!-- FK navigation: headers/sub-items are composed per-cell in
                                      OnResultsGridMenuOpening; hidden when the cell has no key. -->
-                                <MenuItem x:Name="FollowFkMenuItem" Header="Follow Foreign Key"
+                                <MenuItem x:Name="FollowFkMenuItem" Header="{l:Tr Results_FollowForeignKey}"
                                           IsVisible="False" Click="OnFollowFkClick" />
-                                <MenuItem x:Name="ReferencingRowsMenuItem" Header="Referencing Rows"
+                                <MenuItem x:Name="ReferencingRowsMenuItem" Header="{l:Tr Results_ReferencingRows}"
                                           IsVisible="False" />
                                 <Separator />
-                                <MenuItem Header="Add Row…" Click="OnAddRowClick"
+                                <MenuItem Header="{l:Tr Results_AddRow}" Click="OnAddRowClick"
                                           IsEnabled="{Binding ActiveTab.IsEditable}" />
-                                <MenuItem Header="Delete Selected Rows" InputGesture="Delete" Click="OnDeleteRowsClick"
+                                <MenuItem Header="{l:Tr Results_DeleteSelectedRows}" InputGesture="Delete" Click="OnDeleteRowsClick"
                                           IsEnabled="{Binding ActiveTab.IsEditable}" />
                             </ContextMenu>
                         </DataGrid.ContextMenu>
@@ -157,7 +158,7 @@
                         </StackPanel.IsVisible>
                         <PathIcon Data="{StaticResource TableIconGeometry}" Width="34" Height="34"
                                   Opacity="0.28" HorizontalAlignment="Center" />
-                        <TextBlock Text="No results yet" FontSize="14" FontWeight="SemiBold"
+                        <TextBlock Text="{l:Tr Results_NoResultsYet}" FontSize="14" FontWeight="SemiBold"
                                    Opacity="0.6" HorizontalAlignment="Center" />
                         <!-- "Run a query with Ctrl+Enter or F5" / "…with ⌘↩ or F5": the
                              chords are the catalog's Run chords in the live scheme,
@@ -189,9 +190,9 @@
                                 </StackPanel.IsVisible>
                                 <PathIcon Data="{StaticResource TableIconGeometry}" Width="34" Height="34"
                                           Opacity="0.28" HorizontalAlignment="Center" />
-                                <TextBlock Text="No rows match these conditions" FontSize="14" FontWeight="SemiBold"
+                                <TextBlock Text="{l:Tr Results_NoRowsMatch}" FontSize="14" FontWeight="SemiBold"
                                            Opacity="0.6" HorizontalAlignment="Center" />
-                                <Button Classes="soft" Content="Clear conditions" FontSize="12" Padding="12,4" MinHeight="0"
+                                <Button Classes="soft" Content="{l:Tr Results_ClearConditions}" FontSize="12" Padding="12,4" MinHeight="0"
                                         HorizontalAlignment="Center"
                                         Command="{Binding ClearFiltersCommand}" />
                             </StackPanel>
@@ -218,21 +219,21 @@
                             <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="2"
                                         VerticalAlignment="Center" Margin="0,0,12,0"
                                         IsVisible="{Binding !ActiveTab.IsPlanTextView}">
-                                <TextBlock Text="Color:" FontSize="11" Opacity="0.7" VerticalAlignment="Center" Margin="0,0,4,0" />
-                                <Button Classes="chip" Content="Time" FontSize="11" Padding="8,2"
+                                <TextBlock Text="{l:Tr Results_PlanColor}" FontSize="11" Opacity="0.7" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                <Button Classes="chip" Content="{l:Tr Results_PlanMetricTime}" FontSize="11" Padding="8,2"
                                         Classes.active="{Binding ActiveTab.IsMetricSelfTime}"
                                         IsEnabled="{Binding ActiveTab.PlanHasTiming}"
                                         Command="{Binding ActiveTab.SetPlanMetricCommand}"
                                         CommandParameter="{x:Static vm:PlanMetric.SelfTime}" />
-                                <Button Classes="chip" Content="Rows" FontSize="11" Padding="8,2"
+                                <Button Classes="chip" Content="{l:Tr Results_PlanMetricRows}" FontSize="11" Padding="8,2"
                                         Classes.active="{Binding ActiveTab.IsMetricRows}"
                                         Command="{Binding ActiveTab.SetPlanMetricCommand}"
                                         CommandParameter="{x:Static vm:PlanMetric.Rows}" />
-                                <Button Classes="chip" Content="Cost" FontSize="11" Padding="8,2"
+                                <Button Classes="chip" Content="{l:Tr Results_PlanMetricCost}" FontSize="11" Padding="8,2"
                                         Classes.active="{Binding ActiveTab.IsMetricCost}"
                                         Command="{Binding ActiveTab.SetPlanMetricCommand}"
                                         CommandParameter="{x:Static vm:PlanMetric.Cost}" />
-                                <Button Classes="chip" Content="Buffers" FontSize="11" Padding="8,2"
+                                <Button Classes="chip" Content="{l:Tr Results_PlanMetricBuffers}" FontSize="11" Padding="8,2"
                                         Classes.active="{Binding ActiveTab.IsMetricBuffers}"
                                         IsEnabled="{Binding ActiveTab.PlanHasBuffers}"
                                         Command="{Binding ActiveTab.SetPlanMetricCommand}"
@@ -244,46 +245,46 @@
                                      like Export. The Compare With list is built as the menu opens (the
                                      saved plans change from any window), in OnComparePlanFlyoutOpening;
                                      the top level stays here, see that handler for why. -->
-                                <Button Name="ComparePlanButton" Classes="chip" Content="Compare ▾" FontSize="11"
+                                <Button Name="ComparePlanButton" Classes="chip" Content="{l:Tr Results_PlanCompare}" FontSize="11"
                                         Padding="8,2" Margin="0,0,6,0"
-                                        ToolTip.Tip="Save this plan to Query Lab, or compare it with a saved one">
+                                        ToolTip.Tip="{l:Tr Results_PlanCompareTip}">
                                     <Button.Flyout>
                                         <MenuFlyout Opening="OnComparePlanFlyoutOpening">
-                                            <MenuItem Header="Save to Query Lab…" Click="OnSavePlanToQueryLab" />
-                                            <MenuItem Name="ComparePlanWithMenu" Header="Compare With" />
+                                            <MenuItem Header="{l:Tr Results_PlanSaveToLab}" Click="OnSavePlanToQueryLab" />
+                                            <MenuItem Name="ComparePlanWithMenu" Header="{l:Tr Results_PlanCompareWith}" />
                                             <Separator />
-                                            <MenuItem Header="Open Query Lab" Click="OnOpenQueryLab" />
+                                            <MenuItem Header="{l:Tr Results_PlanOpenLab}" Click="OnOpenQueryLab" />
                                         </MenuFlyout>
                                     </Button.Flyout>
                                 </Button>
                                 <!-- Share the plan into external tools (pev2, depesz). Plan-scoped,
                                      shown only while a plan is on screen — not a main-toolbar control. -->
-                                <Button Classes="chip" Content="Export ▾" FontSize="11" Padding="8,2" Margin="0,0,6,0"
-                                        ToolTip.Tip="Copy or save this plan">
+                                <Button Classes="chip" Content="{l:Tr Results_PlanExport}" FontSize="11" Padding="8,2" Margin="0,0,6,0"
+                                        ToolTip.Tip="{l:Tr Results_PlanExportTip}">
                                     <Button.Flyout>
                                         <MenuFlyout>
-                                            <MenuItem Header="Copy as JSON" Click="OnCopyPlanJson"
+                                            <MenuItem Header="{l:Tr Results_PlanCopyJson}" Click="OnCopyPlanJson"
                                                       IsVisible="{Binding ActiveTab.HasPlanJson}" />
-                                            <MenuItem Header="Copy as Text" Click="OnCopyPlanText" />
+                                            <MenuItem Header="{l:Tr Results_PlanCopyText}" Click="OnCopyPlanText" />
                                             <Separator />
-                                            <MenuItem Header="Save as .json…" Click="OnSavePlanJson"
+                                            <MenuItem Header="{l:Tr Results_PlanSaveJson}" Click="OnSavePlanJson"
                                                       IsVisible="{Binding ActiveTab.HasPlanJson}" />
-                                            <MenuItem Header="Save as .txt…" Click="OnSavePlanText" />
+                                            <MenuItem Header="{l:Tr Results_PlanSaveText}" Click="OnSavePlanText" />
                                         </MenuFlyout>
                                     </Button.Flyout>
                                 </Button>
                                 <Button Classes="chip" Classes.active="{Binding ActiveTab.IsPlanTextView}"
                                         Command="{Binding ActiveTab.ShowPlanAsTextCommand}"
-                                        Content="Text" FontSize="11" Padding="8,2" />
+                                        Content="{l:Tr Results_PlanViewText}" FontSize="11" Padding="8,2" />
                                 <Button Classes="chip" Classes.active="{Binding !ActiveTab.IsPlanTextView}"
                                         Command="{Binding ActiveTab.ShowPlanAsTreeCommand}"
-                                        Content="Tree" FontSize="11" Padding="8,2" />
+                                        Content="{l:Tr Results_PlanViewTree}" FontSize="11" Padding="8,2" />
                                 <!-- Fixed 18x18: in this StackPanel the taller Text/Tree chips would
                                      otherwise stretch the ✕ chip and push its glyph off-center -->
                                 <Button Classes="chip" Command="{Binding ActiveTab.ShowResultsCommand}"
                                         Content="✕" FontSize="10" Width="18" Height="18" Padding="0"
                                         Margin="6,0,0,0" VerticalAlignment="Center"
-                                        ToolTip.Tip="Close the plan and show results" />
+                                        ToolTip.Tip="{l:Tr Results_PlanCloseTip}" />
                             </StackPanel>
                             <TextBlock Text="{Binding ActiveTab.ExplainSummary}" FontSize="12" Opacity="0.8"
                                        VerticalAlignment="Center" />
@@ -428,20 +429,20 @@
                             <!-- No tooltips on View/Edit: the labels already say it,
                                  and "edit this JSON value" was wrong anyway — every
                                  free-text column type reaches this tab. -->
-                            <Button Content="View" Classes="chip" Classes.active="{Binding !IsEditing}"
+                            <Button Content="{l:Tr Results_InspectorView}" Classes="chip" Classes.active="{Binding !IsEditing}"
                                     IsVisible="{Binding CanEdit}"
                                     Command="{Binding ViewTextCommand}" />
-                            <Button Content="Edit" Classes="chip" Margin="6,0,0,0" Classes.active="{Binding IsEditing}"
+                            <Button Content="{l:Tr Results_InspectorEdit}" Classes="chip" Margin="6,0,0,0" Classes.active="{Binding IsEditing}"
                                     IsVisible="{Binding CanEdit}"
                                     Command="{Binding EditCommand}" />
-                            <ToggleButton Content="Tree" Classes="chip" Margin="6,0,0,0"
+                            <ToggleButton Content="{l:Tr Results_InspectorTree}" Classes="chip" Margin="6,0,0,0"
                                           IsVisible="{Binding CanShowTreeToggle}"
                                           IsChecked="{Binding IsTreeView}"
-                                          ToolTip.Tip="Toggle tree / text view" />
-                            <ToggleButton Content="Wrap" Classes="chip" Margin="6,0,0,0"
+                                          ToolTip.Tip="{l:Tr Results_InspectorTreeTip}" />
+                            <ToggleButton Content="{l:Tr Results_InspectorWrap}" Classes="chip" Margin="6,0,0,0"
                                           IsVisible="{Binding ShowText}"
-                                          IsChecked="{Binding WordWrap}" ToolTip.Tip="Toggle word wrap" />
-                            <Button Content="Copy" Classes="chip" Margin="6,0,0,0"
+                                          IsChecked="{Binding WordWrap}" ToolTip.Tip="{l:Tr Results_InspectorWrapTip}" />
+                            <Button Content="{l:Tr Common_Copy}" Classes="chip" Margin="6,0,0,0"
                                     IsVisible="{Binding !IsEditing}"
                                     Click="OnCellInspectorCopyClick" />
                             <Button Content="✕" Classes="chip" Margin="6,0,0,0"
@@ -462,14 +463,14 @@
                                    Foreground="{DynamicResource SystemControlErrorTextForegroundBrush}"
                                    TextWrapping="Wrap" FontSize="12" />
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="6">
-                            <Button Content="Format" Classes="chip" Command="{Binding FormatCommand}"
-                                    IsVisible="{Binding IsJson}" ToolTip.Tip="Pretty-print" />
-                            <Button Content="Minify" Classes="chip" Command="{Binding MinifyCommand}"
-                                    IsVisible="{Binding IsJson}" ToolTip.Tip="Collapse to one line" />
-                            <Button Content="Cancel" Classes="chip" Command="{Binding CancelEditCommand}" />
-                            <Button Content="Save" Classes="chip" Command="{Binding SaveCommand}"
+                            <Button Content="{l:Tr Results_InspectorFormat}" Classes="chip" Command="{Binding FormatCommand}"
+                                    IsVisible="{Binding IsJson}" ToolTip.Tip="{l:Tr Results_InspectorFormatTip}" />
+                            <Button Content="{l:Tr Results_InspectorMinify}" Classes="chip" Command="{Binding MinifyCommand}"
+                                    IsVisible="{Binding IsJson}" ToolTip.Tip="{l:Tr Results_InspectorMinifyTip}" />
+                            <Button Content="{l:Tr Common_Cancel}" Classes="chip" Command="{Binding CancelEditCommand}" />
+                            <Button Content="{l:Tr Common_Save}" Classes="chip" Command="{Binding SaveCommand}"
                                     IsEnabled="{Binding !HasValidationError}"
-                                    cmd:CommandTip.Text="Save" cmd:CommandTip.Command="Run" />
+                                    cmd:CommandTip.Text="{l:Tr Common_Save}" cmd:CommandTip.Command="Run" />
                         </StackPanel>
                     </StackPanel>
                 </Grid>

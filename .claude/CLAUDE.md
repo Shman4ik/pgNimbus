@@ -2909,6 +2909,17 @@ translator's side is [`docs/dev/translating.md`](../docs/dev/translating.md).
   event keeps it alive). A status line written by an action is history and is
   left in the language it was written in. Menus built in code (the macOS menu
   bar, a context menu built as it opens) rebuild or are built per opening.
+  **A string a control copies never follows**: a `ComboBox` copies the selected
+  item's text into its closed box when the selection is made, and a converter
+  runs once. So content that names a choice is the *key*, drawn by
+  `Localization/StringKeyTemplate` (an application data template for
+  `StringKey` that binds live): `<ComboBoxItem Content="{x:Static lk:StringKey.X}" />`
+  (`xmlns:lk="using:PgNimbus.Core.Localization"`), an option record exposes a
+  `StringKey` label, a converter that names a kind returns the key, a tooltip may
+  be a key. Where the text must keep a `TextBlock`'s classes,
+  `l:KeyText.Key="{Binding …}"` binds its text to a key instead. Never rebuild an
+  `ItemsSource` on a change of language: swapping the list nulls a two-way
+  `SelectedItem`, and the connection dialog autosaves on every change.
 - **What is not translated**: SQL, generated scripts and their comments, data,
   server messages, the crash log and the GitHub issue it pre-fills, the docs
   (`ShortcutDocs` runs in English), key names on keycaps, brand names.
@@ -2941,9 +2952,15 @@ translator's side is [`docs/dev/translating.md`](../docs/dev/translating.md).
   `XamlStringLintTests` fails on a literal text attribute in any view not in its
   `Pending` list; `PseudoLocaleTests` renders the scenarios in its `Converted`
   list in the pseudo-locale (`qps-ploc`, every table string `[Àççéñţéð]`) and
-  fails on visible text that isn't, which is what catches text set from code. A
+  fails on visible text that isn't, which is what catches text set from code; it
+  runs a second time building each scenario in English and switching while it is
+  open, which is what catches text computed once and kept (status lines, class
+  `statusText`/`statusMessage`, are exempt from that pass). Data is told apart by
+  kind (SQL, key caps, plans, JSON trees, completion items, history lines, grid
+  cells) and the rest is listed in its `DataText`. A
   view converted to the table leaves `Pending` and joins `Converted` in the same
-  PR; both lists end empty and complete.
+  PR; both lists end empty and complete. The screenshot fixtures write their own
+  status text through `Strings` too, or the scan reads them as leftovers.
 
 ## NativeAOT constraints
 

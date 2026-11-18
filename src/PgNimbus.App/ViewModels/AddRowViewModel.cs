@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Text;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Query;
 using PgNimbus.Core.Schema;
 
@@ -35,10 +36,12 @@ public sealed partial class AddRowViewModel(
 
     public string QualifiedName => $"{Schema}.{Table}";
 
+    public string Heading => Strings.Editor_AddRowHeading(QualifiedName);
+
     /// <summary>True when Insert stages the row for later commit instead of executing it — relabels the dialog's primary button.</summary>
     public bool IsStaging => _stageInsert is not null;
 
-    public string InsertButtonText => IsStaging ? "Stage row" : "Insert row";
+    public string InsertButtonText => IsStaging ? Strings.Editor_AddRowStage : Strings.Editor_AddRowInsert;
 
     public ObservableCollection<NewRowField> Fields { get; } = [];
 
@@ -65,7 +68,7 @@ public sealed partial class AddRowViewModel(
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Failed to load columns: {ex.Message}";
+            StatusMessage = Strings.Editor_AddRowLoadFailed(ex.Message);
         }
         finally
         {
@@ -83,7 +86,7 @@ public sealed partial class AddRowViewModel(
         // before anything is sent (Postgres still parses the elements).
         if (Fields.FirstOrDefault(f => !f.IsNull && f.HasValidationError) is { } invalid)
         {
-            StatusMessage = $"{invalid.Name}: {invalid.ValidationError}";
+            StatusMessage = Strings.Editor_FieldError(invalid.Name, invalid.ValidationError);
             IsBusy = false;
             return;
         }
@@ -98,7 +101,7 @@ public sealed partial class AddRowViewModel(
 
         if (_stageInsert is { } stage)
         {
-            StatusMessage = stage(values) ?? "Row staged — commit or discard it from the status bar.";
+            StatusMessage = stage(values) ?? Strings.Editor_AddRowStaged;
             IsBusy = false;
             return;
         }
@@ -132,18 +135,18 @@ public sealed partial class AddRowViewModel(
         try
         {
             await _engine.ExecuteNonQueryAsync(sql, parameters, CancellationToken.None);
-            StatusMessage = "Row inserted.";
+            StatusMessage = Strings.Editor_AddRowInserted;
             Inserted?.Invoke();
         }
         catch (StatementOutcomeUnknownException)
         {
             // Not "failed": the INSERT may have committed before the connection
             // dropped, and Add again would insert the row twice.
-            StatusMessage = "The connection was lost after the row was sent, so it may or may not have been inserted. Check the table before adding it again.";
+            StatusMessage = Strings.Editor_AddRowOutcomeUnknown;
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Insert failed: {ex.Message}";
+            StatusMessage = Strings.Editor_AddRowFailed(ex.Message);
         }
         finally
         {

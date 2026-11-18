@@ -70,6 +70,21 @@ public sealed partial class CommandPaletteViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Swaps in the same candidates re-titled (a language change while the palette
+    /// is open), keeping the typed query and the highlighted row's position.
+    /// </summary>
+    public void Refresh(IReadOnlyList<PaletteItem> items)
+    {
+        var index = SelectedItem is null ? -1 : Results.IndexOf(SelectedItem);
+        UseItems(items);
+        RebuildResults();
+        if (index >= 0 && index < Results.Count)
+        {
+            SelectedItem = Results[index];
+        }
+    }
+
     private void UseItems(IReadOnlyList<PaletteItem> items)
     {
         _all = items;

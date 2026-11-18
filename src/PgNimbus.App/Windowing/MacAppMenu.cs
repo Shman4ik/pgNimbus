@@ -1,5 +1,7 @@
+using System.Runtime.CompilerServices;
 using Avalonia.Controls;
 using Avalonia.Input;
+using PgNimbus.Core.Localization;
 
 namespace PgNimbus.App;
 
@@ -21,9 +23,12 @@ namespace PgNimbus.App;
 /// The exporter adds them during platform setup, which runs after the
 /// application's XAML is loaded and before
 /// <see cref="Avalonia.Application.OnFrameworkInitializationCompleted"/>, where
-/// this is called. Items are found by the headers Avalonia gives them ("Hide
-/// Others", and the bare "Quit"), so if a later Avalonia fixes either one, this
-/// simply finds nothing to change.
+/// this is called. Items are found once, by the English headers Avalonia gives
+/// them ("Hide Others", and the bare "Quit"), so if a later Avalonia fixes
+/// either one, this simply finds nothing to change. Their labels are then
+/// written from the string table (Avalonia's are English whatever the app's
+/// language), and the found items are remembered, since a header the language
+/// changed can no longer be used to find them again.
 /// </para>
 /// </summary>
 public static class MacAppMenu
@@ -31,9 +36,31 @@ public static class MacAppMenu
     /// <summary>The standard Hide Others gesture, ⌥⌘H.</summary>
     public static KeyGesture HideOthersGesture { get; } = new(Key.H, KeyModifiers.Meta | KeyModifiers.Alt);
 
+    private sealed record StandardItems(
+        NativeMenuItem? Hide,
+        NativeMenuItem? HideOthers,
+        NativeMenuItem? ShowAll,
+        NativeMenuItem? Quit,
+        NativeMenuItem? Services);
+
+    private static readonly ConditionalWeakTable<NativeMenu, StandardItems> Known = new();
+
+    private static StandardItems FindStandardItems(NativeMenu appMenu)
+    {
+        var items = appMenu.Items.OfType<NativeMenuItem>().ToList();
+        return new StandardItems(
+            items.FirstOrDefault(i => i.Header is { } h && h.StartsWith("Hide ", StringComparison.Ordinal) && h != "Hide Others"),
+            items.FirstOrDefault(i => i.Header == "Hide Others"),
+            items.FirstOrDefault(i => i.Header == "Show All"),
+            items.FirstOrDefault(i => i.Header == "Quit"),
+            items.FirstOrDefault(i => i.Header == "Services"));
+    }
+
     /// <summary>
-    /// Rebinds Hide Others to ⌥⌘H and names the app in the Quit item. Returns the
-    /// number of items changed.
+    /// Rebinds Hide Others to ⌥⌘H, names the app in the Quit item, and writes the
+    /// block's labels in the current language (call it again after a change of
+    /// language). Returns the number of corrections made to the gesture and to
+    /// Quit's name, not counting a translation of a label.
     /// </summary>
     public static int FixStandardItems(NativeMenu? appMenu, string appName)
     {
@@ -42,27 +69,50 @@ public static class MacAppMenu
             return 0;
         }
 
-        var changed = 0;
-        foreach (var item in appMenu.Items.OfType<NativeMenuItem>())
+        if (!Known.TryGetValue(appMenu, out var found))
         {
-            if (item.Header == "Hide Others" && !HideOthersGesture.Equals(item.Gesture))
+            found = FindStandardItems(appMenu);
+            if (found.HideOthers is not null || found.Quit is not null)
             {
-                item.Gesture = HideOthersGesture;
-                changed++;
-            }
-            else if (item.Header == "Quit")
-            {
-                item.Header = $"Quit {appName}";
-                changed++;
+                Known.AddOrUpdate(appMenu, found);
             }
         }
 
+        var changed = 0;
+        Label(found.Hide, Strings.Shell_MacHide(appName));
+        Label(found.ShowAll, Strings.Shell_MacShowAll);
+        Label(found.Services, Strings.Shell_MacServices);
+        Label(found.HideOthers, Strings.Shell_MacHideOthers);
+        if (found.HideOthers is { } hideOthers && !HideOthersGesture.Equals(hideOthers.Gesture))
+        {
+            hideOthers.Gesture = HideOthersGesture;
+            changed++;
+        }
+
+        if (found.Quit is { } quit && quit.Header != Strings.Shell_MacQuit(appName))
+        {
+            quit.Header = Strings.Shell_MacQuit(appName);
+            changed++;
+        }
+
         return changed;
+
+        static void Label(NativeMenuItem? item, string header)
+        {
+            if (item is not null && item.Header != header)
+            {
+                item.Header = header;
+            }
+        }
     }
 
-    /// <summary>The app menu's Settings… item (App.axaml), if the menu has one.</summary>
+    /// <summary>
+    /// The app menu's Settings… item (App.axaml), if the menu has one. Found by
+    /// its gesture, ⌘, : its header changes with the language.
+    /// </summary>
     public static NativeMenuItem? SettingsItem(NativeMenu? appMenu) =>
-        appMenu?.Items.OfType<NativeMenuItem>().FirstOrDefault(i => i.Header == "Settings…");
+        appMenu?.Items.OfType<NativeMenuItem>().FirstOrDefault(i =>
+            i.Gesture is { Key: Key.OemComma } gesture && gesture.KeyModifiers == KeyModifiers.Meta);
 
     /// <summary>
     /// Enables Settings… only while a main window is open. The preferences page

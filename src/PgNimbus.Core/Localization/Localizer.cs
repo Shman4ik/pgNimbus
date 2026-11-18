@@ -407,25 +407,40 @@ public static class Localizer
     {
         var sb = new StringBuilder(english.Length + 2);
         sb.Append('[');
-        var depth = 0;
-        foreach (var c in english)
+        var i = 0;
+        while (i < english.Length)
         {
-            // Placeholders and the gesture glyphs stay as they are.
-            if (c == '{')
+            // A placeholder ({name}) and a catalog token ({chord:Run}, {key:cmd}) stay as
+            // they are: Format and the catalog look them up by name. Any other brace is text.
+            if (english[i] == '{' && PlaceholderLength(english, i) is var length and > 0)
             {
-                depth++;
-            }
-            else if (c == '}' && depth > 0)
-            {
-                depth--;
-                sb.Append(c);
+                sb.Append(english, i, length);
+                i += length;
                 continue;
             }
 
-            sb.Append(depth > 0 ? c : Accent(c));
+            sb.Append(Accent(english[i]));
+            i++;
         }
 
         return sb.Append(']').ToString();
+    }
+
+    // The length of a {name} or {name:name} token starting at start, or 0.
+    private static int PlaceholderLength(string text, int start)
+    {
+        var i = start + 1;
+        if (i >= text.Length || !(char.IsAsciiLetter(text[i]) || text[i] == '_'))
+        {
+            return 0;
+        }
+
+        while (i < text.Length && (char.IsAsciiLetterOrDigit(text[i]) || text[i] is '_' or ':'))
+        {
+            i++;
+        }
+
+        return i < text.Length && text[i] == '}' ? i - start + 1 : 0;
     }
 
     private static char Accent(char c) => c switch

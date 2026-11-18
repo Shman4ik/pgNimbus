@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Schema;
 
 namespace PgNimbus.App.ViewModels;
@@ -83,7 +84,29 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
     public bool ShowNoMatches =>
         !_awaitingCatalog && FilterText.Trim().Length > 0 && !Schemas.Any(n => n.IsFilteredIn);
 
-    public string NoMatchesMessage => $"Nothing matches “{FilterText.Trim()}”";
+    public string NoMatchesMessage => Strings.Sidebar_NoMatches(FilterText.Trim());
+
+    /// <summary>
+    /// After a change of language: the cue's text, and every node that composes its
+    /// words from the string table (group names, details, tooltips).
+    /// </summary>
+    private void OnLanguageChanged()
+    {
+        OnPropertyChanged(nameof(NoMatchesMessage));
+        foreach (var schema in Schemas)
+        {
+            RefreshNodeLanguage(schema);
+        }
+    }
+
+    private static void RefreshNodeLanguage(SchemaTreeNode node)
+    {
+        node.RefreshLanguage();
+        foreach (var child in node.Children)
+        {
+            RefreshNodeLanguage(child);
+        }
+    }
 
     private void NotifyFilterOutcomeChanged()
     {
@@ -259,6 +282,7 @@ public sealed partial class SchemaTreeViewModel : ObservableObject
         _persistShowAdvanced = persistShowAdvanced;
         _showSizes = showSizes;
         _persistShowSizes = persistShowSizes;
+        Localizer.WhenChanged(this, static vm => vm.OnLanguageChanged());
 
         // A schema the filter revealed from the catalog is expanded to show its
         // match, and its children arrive later, all defaulting to visible. Watch

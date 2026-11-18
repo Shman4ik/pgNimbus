@@ -351,6 +351,7 @@ public partial class App : Application
         Platform.EditorTypingUndo.Install();
         Nimbus.Ui.Controls.ToolTipHitTesting.Install();
         Localization.FrameworkStrings.Install(this);
+        DataTemplates.Add(Localization.StringKeyTemplate.Instance);
     }
 
     public override void OnFrameworkInitializationCompleted()
@@ -485,6 +486,11 @@ public partial class App : Application
         }
 
         MacAppMenu.FixStandardItems(appMenu, Name ?? "pgNimbus");
+
+        // Avalonia's standard block is English whatever the app's language: write
+        // its labels again when the language changes (App lives as long as the
+        // process, so the static event cannot keep anything alive).
+        Localizer.LanguageChanged += () => MacAppMenu.FixStandardItems(appMenu, Name ?? "pgNimbus");
 
         void Update() => MacAppMenu.UpdateSettingsItem(appMenu, ActiveMainViewModel() is not null);
         void Post() => Avalonia.Threading.Dispatcher.UIThread.Post(Update);

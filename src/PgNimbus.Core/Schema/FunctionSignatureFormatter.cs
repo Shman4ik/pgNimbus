@@ -1,3 +1,5 @@
+using PgNimbus.Core.Localization;
+
 namespace PgNimbus.Core.Schema;
 
 /// <summary>
@@ -24,9 +26,9 @@ public static class FunctionSignatureFormatter
     /// <summary>The tooltip's leading label — what kind of callable this is, spelled out rather than the bare pg_proc.prokind letter.</summary>
     public static string KindLabel(FunctionInfo info) => info.Kind switch
     {
-        'p' => "procedure",
-        'a' => "aggregate",
-        'w' => "window function",
-        _ => "function",
+        'p' => Strings.Editor_FuncProcedure,
+        'a' => Strings.Editor_FuncAggregate,
+        'w' => Strings.Editor_FuncWindow,
+        _ => Strings.Editor_FuncFunction,
     };
 }

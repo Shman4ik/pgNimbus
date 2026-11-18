@@ -6,6 +6,7 @@ using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using PgNimbus.App.ViewModels;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Query;
 using PgNimbus.Core.Schema;
 
@@ -321,10 +322,10 @@ public partial class SchemaTreePanel : UserControl
         // it says so; the plain drop is a RESTRICT that simply fails on a
         // non-empty schema, and the confirm says that too.
         var message = cascade
-            ? $"Drop schema \"{schema.Name}\" and everything in it? Tables, views and their data are removed."
-            : $"Drop schema \"{schema.Name}\"? This fails if the schema still contains objects.";
+            ? Strings.Sidebar_DropSchemaCascadeConfirm(schema.Name)
+            : Strings.Sidebar_DropSchemaConfirm(schema.Name);
 
-        var confirm = new ConfirmDialog(message, "Drop");
+        var confirm = new ConfirmDialog(message, Strings.Sidebar_DropButton);
         if (await confirm.ShowDialog<bool>(owner))
         {
             await dropSchema(schema, cascade);
@@ -350,10 +351,10 @@ public partial class SchemaTreePanel : UserControl
 
         var database = Model.DatabaseName;
         var message = string.IsNullOrEmpty(database)
-            ? $"Install extension \"{extension.Name}\"? This runs against the connected database."
-            : $"Install extension \"{extension.Name}\" in database \"{database}\"? This runs against it directly.";
+            ? Strings.Sidebar_InstallExtensionConfirmNoDb(extension.Name)
+            : Strings.Sidebar_InstallExtensionConfirm(extension.Name, database);
 
-        var confirm = new ConfirmDialog(message, "Install");
+        var confirm = new ConfirmDialog(message, Strings.Sidebar_InstallButton);
         if (await confirm.ShowDialog<bool>(owner))
         {
             await setInstalled(extension, true);
@@ -372,7 +373,7 @@ public partial class SchemaTreePanel : UserControl
             return;
         }
 
-        var confirm = new ConfirmDialog($"Drop extension \"{extension.Name}\"? Objects it provides will be removed.", "Drop");
+        var confirm = new ConfirmDialog(Strings.Sidebar_DropExtensionConfirm(extension.Name), Strings.Sidebar_DropButton);
         if (await confirm.ShowDialog<bool>(owner))
         {
             await setInstalled(extension, false);

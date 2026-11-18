@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:l="using:PgNimbus.App.Localization"
              xmlns:vm="using:PgNimbus.App.ViewModels"
              xmlns:views="using:PgNimbus.App.Views"
              xmlns:conv="using:PgNimbus.App.Converters"
@@ -53,8 +54,8 @@
             ToolTip.Tip="{Binding WhereSql}">
         <Grid ColumnDefinitions="Auto,*,Auto">
             <Panel Grid.Column="0" VerticalAlignment="Center" Margin="4,0,10,0">
-                <TextBlock Text="Filtered by" FontSize="11" Opacity="0.55" IsVisible="{Binding IsFiltering}" />
-                <TextBlock Text="No conditions" FontSize="11" Opacity="0.6" IsVisible="{Binding !IsFiltering}" />
+                <TextBlock Text="{l:Tr Filter_FilteredBy}" FontSize="11" Opacity="0.55" IsVisible="{Binding IsFiltering}" />
+                <TextBlock Text="{l:Tr Filter_NoConditions}" FontSize="11" Opacity="0.6" IsVisible="{Binding !IsFiltering}" />
             </Panel>
 
             <WrapPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
@@ -81,8 +82,8 @@
                                     <Button Classes="chip x" Content="✕"
                                             Command="{Binding $parent[views:BrowseFilterBar].((vm:TableBrowseViewModel)DataContext).ClearRawFilterCommand}"
                                             CommandParameter="{Binding}"
-                                            ToolTip.Tip="Remove this condition"
-                                            AutomationProperties.Name="Remove condition" />
+                                            ToolTip.Tip="{l:Tr Filter_RemoveTip}"
+                                            AutomationProperties.Name="{l:Tr Filter_RemoveAutomation}" />
                                 </StackPanel>
                             </Border>
                         </DataTemplate>
@@ -103,31 +104,31 @@
                                          as an access key and eats it (placed_at → placedat). -->
                                     <Button Classes="label" Click="OnChipClick"
                                             ToolTip.Tip="{Binding PredicateText}"
-                                            AutomationProperties.Name="{Binding Summary, StringFormat='Edit condition {0}'}">
+                                            AutomationProperties.Name="{Binding EditAutomationName}">
                                         <TextBlock Text="{Binding Summary}" />
                                     </Button>
                                     <Button Classes="chip x" Content="✕"
                                             Command="{Binding $parent[views:BrowseFilterBar].((vm:TableBrowseViewModel)DataContext).RemoveFilterCommand}"
                                             CommandParameter="{Binding}"
-                                            ToolTip.Tip="Remove this condition"
-                                            AutomationProperties.Name="{Binding Summary, StringFormat='Remove condition {0}'}" />
+                                            ToolTip.Tip="{l:Tr Filter_RemoveTip}"
+                                            AutomationProperties.Name="{Binding RemoveAutomationName}" />
                                 </StackPanel>
                             </Border>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
-                <Button Name="AddButton" Classes="chip" Content="+ Filter" FontSize="12" Padding="8,0"
+                <Button Name="AddButton" Classes="chip" Content="{l:Tr Filter_Add}" FontSize="12" Padding="8,0"
                         Height="24" Margin="0,2" Opacity="0.8"
                         Click="OnAddClick"
-                        ToolTip.Tip="Add a condition; rows must match all of them"
-                        AutomationProperties.Name="Add filter condition" />
+                        ToolTip.Tip="{l:Tr Filter_AddTip}"
+                        AutomationProperties.Name="{l:Tr Filter_AddAutomation}" />
             </WrapPanel>
 
-            <Button Grid.Column="2" Classes="chip" Content="Clear all" FontSize="11.5" Padding="8,0" Height="24"
+            <Button Grid.Column="2" Classes="chip" Content="{l:Tr Filter_ClearAll}" FontSize="11.5" Padding="8,0" Height="24"
                     VerticalAlignment="Center" IsVisible="{Binding IsFiltering}"
                     Command="{Binding ClearFiltersCommand}"
-                    ToolTip.Tip="Remove every condition" />
+                    ToolTip.Tip="{l:Tr Filter_ClearAllTip}" />
         </Grid>
     </Border>
 </UserControl>

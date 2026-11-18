@@ -3,6 +3,7 @@
              xmlns:vm="using:PgNimbus.App.ViewModels"
              xmlns:views="using:PgNimbus.App.Views"
              xmlns:l="using:PgNimbus.App.Localization"
+             xmlns:lk="using:PgNimbus.Core.Localization"
              x:Class="PgNimbus.App.Views.PreferencesView"
              x:DataType="vm:PreferencesViewModel">
 
@@ -76,9 +77,9 @@
                             </StackPanel>
                             <ComboBox Grid.Column="1" MinWidth="130" VerticalAlignment="Center"
                                       SelectedIndex="{Binding HotkeySchemeIndex}">
-                                <ComboBoxItem Content="{l:Tr Settings_ModifierAuto}" />
-                                <ComboBoxItem Content="{l:Tr Settings_ModifierCtrl}" />
-                                <ComboBoxItem Content="{l:Tr Settings_ModifierCmd}" />
+                                <ComboBoxItem Content="{x:Static lk:StringKey.Settings_ModifierAuto}" />
+                                <ComboBoxItem Content="{x:Static lk:StringKey.Settings_ModifierCtrl}" />
+                                <ComboBoxItem Content="{x:Static lk:StringKey.Settings_ModifierCmd}" />
                             </ComboBox>
                         </Grid>
                     </Border>
@@ -109,9 +110,9 @@
                             </StackPanel>
                             <ComboBox Grid.Column="1" MinWidth="130" VerticalAlignment="Center"
                                       SelectedIndex="{Binding ThemeIndex}">
-                                <ComboBoxItem Content="{l:Tr Settings_ThemeSystem}" />
-                                <ComboBoxItem Content="{l:Tr Settings_ThemeLight}" />
-                                <ComboBoxItem Content="{l:Tr Settings_ThemeDark}" />
+                                <ComboBoxItem Content="{x:Static lk:StringKey.Settings_ThemeSystem}" />
+                                <ComboBoxItem Content="{x:Static lk:StringKey.Settings_ThemeLight}" />
+                                <ComboBoxItem Content="{x:Static lk:StringKey.Settings_ThemeDark}" />
                             </ComboBox>
                         </Grid>
                     </Border>
@@ -124,8 +125,8 @@
                             </StackPanel>
                             <ComboBox Name="InterfaceFontBox" Grid.Column="1" MinWidth="130" VerticalAlignment="Center"
                                       SelectedIndex="{Binding InterfaceFontIndex}">
-                                <ComboBoxItem Content="{l:Tr Settings_FontSystem}" />
-                                <ComboBoxItem Content="{l:Tr Settings_FontInter}" />
+                                <ComboBoxItem Content="{x:Static lk:StringKey.Settings_FontSystem}" />
+                                <ComboBoxItem Content="{x:Static lk:StringKey.Settings_FontInter}" />
                             </ComboBox>
                         </Grid>
                     </Border>
@@ -201,9 +202,9 @@
                             </StackPanel>
                             <ComboBox Grid.Column="1" MinWidth="130" VerticalAlignment="Center"
                                       SelectedIndex="{Binding KeywordCaseIndex}">
-                                <ComboBoxItem Content="{l:Tr Settings_KeywordCaseAsTyped}" />
-                                <ComboBoxItem Content="{l:Tr Settings_KeywordCaseUpper}" />
-                                <ComboBoxItem Content="{l:Tr Settings_KeywordCaseLower}" />
+                                <ComboBoxItem Content="{x:Static lk:StringKey.Settings_KeywordCaseAsTyped}" />
+                                <ComboBoxItem Content="{x:Static lk:StringKey.Settings_KeywordCaseUpper}" />
+                                <ComboBoxItem Content="{x:Static lk:StringKey.Settings_KeywordCaseLower}" />
                             </ComboBox>
                         </Grid>
                     </Border>

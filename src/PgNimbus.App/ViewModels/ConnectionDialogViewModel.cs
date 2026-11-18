@@ -324,11 +324,14 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
     public string SshSecretLabel => SshAuthMethod == SshAuthMethod.PrivateKey ? Strings.Connection_SshKeyPassphrase : Strings.Connection_SshPassword;
 
     /// <summary>The names the auth-method picker shows; the enum's own names read as code.</summary>
-    public static string DescribeSshAuthMethod(SshAuthMethod method) => method switch
+    public static string DescribeSshAuthMethod(SshAuthMethod method) => Strings.Get(SshAuthMethodKey(method));
+
+    /// <summary>The key of the picker's label for <paramref name="method"/>, so the picker follows a change of language.</summary>
+    public static StringKey SshAuthMethodKey(SshAuthMethod method) => method switch
     {
-        SshAuthMethod.Agent => Strings.Connection_SshAuthAgent,
-        SshAuthMethod.PrivateKey => Strings.Connection_SshAuthKeyFile,
-        _ => Strings.Connection_SshAuthPassword,
+        SshAuthMethod.Agent => StringKey.Connection_SshAuthAgent,
+        SshAuthMethod.PrivateKey => StringKey.Connection_SshAuthKeyFile,
+        _ => StringKey.Connection_SshAuthPassword,
     };
 
     [ObservableProperty]
@@ -422,6 +425,12 @@ public sealed partial class ConnectionDialogViewModel : ObservableObject
         {
             vm.OnPropertyChanged(nameof(EnvironmentHint));
             vm.OnPropertyChanged(nameof(SshSecretLabel));
+
+            // The store composes its warning on read; show it again in the new language.
+            if (vm.CredentialWarning is not null)
+            {
+                vm.CredentialWarning = vm._credentialStore.Warning ?? vm.CredentialWarning;
+            }
         });
 
         // Old base64 .cred files (non-Windows) move into the OS store in one pass,

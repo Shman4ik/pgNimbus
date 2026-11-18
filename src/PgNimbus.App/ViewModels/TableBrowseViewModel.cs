@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Text;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Query;
 using PgNimbus.Core.Schema;
 
@@ -143,7 +144,22 @@ public sealed partial class TableBrowseViewModel(string schema, string name, IRe
     /// What Apply would add for the draft, shown in the editor before it runs —
     /// the generated SQL, visible up front. A hint while the draft isn't valid.
     /// </summary>
-    public string DraftPreviewSql => Draft?.Predicate() ?? "Pick a column, a comparison and a value";
+    public string DraftPreviewSql
+    {
+        get
+        {
+            // The hint is table text, so a language change must re-read it; the class has
+            // a primary constructor, so the watch starts with the first read instead.
+            if (Interlocked.Exchange(ref _watchingLanguage, 1) == 0)
+            {
+                Localizer.WhenChanged(this, static browse => browse.OnPropertyChanged(nameof(DraftPreviewSql)));
+            }
+
+            return Draft?.Predicate() ?? Strings.Results_DraftPlaceholder;
+        }
+    }
+
+    private int _watchingLanguage;
 
     [ObservableProperty]
     private string? _sortColumn;
@@ -228,8 +244,8 @@ public sealed partial class TableBrowseViewModel(string schema, string name, IRe
 
         var filtered = HasActiveFilters || HasRawFilter;
         PageLabel = count == 0
-            ? (Offset > 0 ? "No more rows" : filtered ? "No matching rows" : "No rows")
-            : $"Rows {Offset + 1:N0}–{Offset + count:N0}";
+            ? (Offset > 0 ? Strings.Results_BrowseNoMore : filtered ? Strings.Results_BrowseNoMatch : Strings.Results_BrowseNoRows)
+            : Strings.Results_BrowseRange((Offset + 1).ToString("N0"), (Offset + count).ToString("N0"));
     }
 
     [RelayCommand(CanExecute = nameof(CanGoNext))]

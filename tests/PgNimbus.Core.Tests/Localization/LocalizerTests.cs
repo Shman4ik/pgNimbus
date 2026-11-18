@@ -76,6 +76,8 @@ public class LocalizerTests
     public async Task The_pseudo_locale_accents_text_and_keeps_placeholders()
     {
         await Assert.That(Localizer.Pseudolocalize("Save {name} as…")).IsEqualTo("[Šávé {name} áš…]");
+        await Assert.That(Localizer.Pseudolocalize("{ {count} fields }")).IsEqualTo("[{ {count} fíéldš }]");
+        await Assert.That(Localizer.Pseudolocalize("{key:cmd}+wheel")).IsEqualTo("[{key:cmd}+whéél]");
     }
 
     [Test]

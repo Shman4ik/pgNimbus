@@ -8,6 +8,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Npgsql;
 using PgNimbus.Core.Export;
+using PgNimbus.Core.Localization;
 using PgNimbus.App.Converters;
 using PgNimbus.Core.Query;
 using PgNimbus.Core.QueryLab;
@@ -134,7 +135,7 @@ public sealed partial class QueryViewModel : ObservableObject
         && (string.IsNullOrWhiteSpace(Sql) || string.Equals(Sql, ScratchSql, StringComparison.Ordinal));
 
     [ObservableProperty]
-    private string _status = "Ready";
+    private string _status = Strings.Results_StatusReady;
 
     /// <summary>Paints the status-bar message red for error outcomes.</summary>
     [ObservableProperty]
@@ -200,7 +201,7 @@ public sealed partial class QueryViewModel : ObservableObject
     partial void OnRowCountTextChanged(string? value) => OnPropertyChanged(nameof(RowCountStatusText));
 
     [ObservableProperty]
-    private string _tabTitle = "Query";
+    private string _tabTitle = Strings.Results_TabTitle;
 
     /// <summary>
     /// Fallback tab label used when the SQL names no table to derive a title
@@ -212,7 +213,7 @@ public sealed partial class QueryViewModel : ObservableObject
     /// name on a tab that no longer has anything to do with it.
     /// </summary>
     [ObservableProperty]
-    private string _defaultTitle = "Query";
+    private string _defaultTitle = Strings.Results_TabTitle;
 
     /// <summary>
     /// A fixed tab label that wins over both the SQL-derived name and
@@ -281,8 +282,8 @@ public sealed partial class QueryViewModel : ObservableObject
     /// instead of guessing at "unsaved changes".
     /// </summary>
     public string DirtyHint => FilePath is null
-        ? "Edited since the last run"
-        : "Unsaved changes: this tab differs from the file on disk";
+        ? Strings.Results_DirtyScratch
+        : Strings.Results_DirtyFile;
 
     // The SQL as of the last run; edits away from it mark a scratch tab dirty.
     private string _lastRunSql;
@@ -439,7 +440,7 @@ public sealed partial class QueryViewModel : ObservableObject
 
     /// <summary>"showing 300 of 5,000 columns" when the grid builds fewer columns than the result has; null otherwise.</summary>
     public string? ColumnCapText => ColumnNames.Count > MaxGridColumns
-        ? $"showing {MaxGridColumns:N0} of {ColumnNames.Count:N0} columns"
+        ? Strings.Results_ColumnCap(MaxGridColumns.ToString("N0"), ColumnNames.Count.ToString("N0"))
         : null;
 
     /// <summary>What the status bar's warning segment shows: the row or byte cap, the column cap, or both.</summary>
@@ -457,9 +458,9 @@ public sealed partial class QueryViewModel : ObservableObject
     public static string? CapTextFor(ResultCap cap) => cap switch
     {
         ResultCap.None => null,
-        ResultCap.Rows => $"capped at {MaxDisplayRows:N0} rows — refine the query for the full set",
-        ResultCap.Bytes => $"capped at {MaxDisplayBytes / (1024 * 1024):N0} MB of results, refine the query for the full set",
-        _ => $"later rows not kept: the script's results reached {MaxDisplayRows:N0} rows or {MaxDisplayBytes / (1024 * 1024):N0} MB",
+        ResultCap.Rows => Strings.Results_CapRows(MaxDisplayRows.ToString("N0")),
+        ResultCap.Bytes => Strings.Results_CapBytes((MaxDisplayBytes / (1024 * 1024)).ToString("N0")),
+        _ => Strings.Results_CapScript(MaxDisplayRows.ToString("N0"), (MaxDisplayBytes / (1024 * 1024)).ToString("N0")),
     };
 
     /// <summary>
@@ -616,6 +617,16 @@ public sealed partial class QueryViewModel : ObservableObject
         _lastRunSql = Sql;
         RowDetail = new RowDetailViewModel(this);
         UpdateTabTitle();
+        Localizer.WhenChanged(this, static tab => tab.OnLanguageChanged());
+    }
+
+    // What the tab composes from the string table is read again after a language change.
+    private void OnLanguageChanged()
+    {
+        OnPropertyChanged(nameof(DirtyHint));
+        OnPropertyChanged(nameof(ColumnCapText));
+        OnPropertyChanged(nameof(CapStatusText));
+        UpdateTabTitle();
     }
 
     /// <summary>This tab's row-detail sidebar state: the selected row as a name/value form.</summary>
@@ -678,7 +689,7 @@ public sealed partial class QueryViewModel : ObservableObject
             ShownBrowse = null;
             EditContext = null;
             ReadOnlyHint = OtherTableHint(browsed.Schema, browsed.Name);
-            Status = $"This query doesn't read {browsed.Schema}.{browsed.Name}, the table this tab browsed, so it ran as an ordinary query: no filters, no editing.";
+            Status = Strings.Results_OtherTableStatus($"{browsed.Schema}.{browsed.Name}");
             return;
         }
 
@@ -691,13 +702,13 @@ public sealed partial class QueryViewModel : ObservableObject
 
     // Completes "Results are read-only: …" for rows loaded before writes were
     // allowed in a production window.
-    public const string WritesAllowedRerunHint = "writes are allowed now. Run the query again to edit these rows.";
+    public static string WritesAllowedRerunHint => Strings.Results_WritesAllowedHint;
 
     // Completes "Results are read-only: …" for a browse-shaped query whose rows
     // came from somewhere other than the browsed table (or from a table nobody
     // could confirm was it).
     private static string OtherTableHint(string schema, string name) =>
-        $"the query doesn't read {schema}.{name}, the table this tab browsed. Write {schema}.{name} in full to browse and edit it.";
+        Strings.Results_OtherTableHint($"{schema}.{name}");
 
     // The browsed table's pg_class OID, 0 while unknown. Learned from the
     // browse page's own result (its composed query names the table in full,
@@ -817,7 +828,7 @@ public sealed partial class QueryViewModel : ObservableObject
         }
 
         IsRunning = true;
-        Status = "Running...";
+        Status = Strings.Results_StatusRunning;
         HasError = false;
         ErrorMarker = null;
         _runDocumentOffset = documentOffset;
@@ -922,7 +933,7 @@ public sealed partial class QueryViewModel : ObservableObject
                                 }
 
                                 var rowText = RowLabel(allRows.Count);
-                                var timeText = $"{resultSet.Elapsed.TotalMilliseconds:F0} ms · first byte {firstByteMs} ms";
+                                var timeText = Strings.Results_TimingFirstByte(resultSet.Elapsed.TotalMilliseconds.ToString("F0"), firstByteMs);
 
                                 if (!firstScreenShown)
                                 {
@@ -955,9 +966,9 @@ public sealed partial class QueryViewModel : ObservableObject
                         Rows = new AvaloniaList<object?[]>(allRows);
                     }
 
-                    Status = "Done";
+                    Status = Strings.Results_StatusDone;
                     RowCountText = RowLabel(allRows.Count);
-                    TimingText = $"{stopwatch.Elapsed.TotalMilliseconds:F0} ms · first byte {firstByteMs} ms";
+                    TimingText = Strings.Results_TimingFirstByte(stopwatch.Elapsed.TotalMilliseconds.ToString("F0"), firstByteMs);
                     CapText = CapTextFor(cap);
                     ReapplyPendingEditsToGrid();
                     break;
@@ -975,9 +986,9 @@ public sealed partial class QueryViewModel : ObservableObject
                         : materialized.Rows;
 
                     Rows = new AvaloniaList<object?[]>(shown);
-                    Status = "Done";
+                    Status = Strings.Results_StatusDone;
                     RowCountText = RowLabel(shown.Count);
-                    TimingText = $"{materialized.Elapsed.TotalMilliseconds:F0} ms";
+                    TimingText = Strings.Results_TimingMs(materialized.Elapsed.TotalMilliseconds.ToString("F0"));
                     CapText = overCap
                         ? CapTextFor(materialized.CappedBy == ResultCap.None ? ResultCap.Rows : materialized.CappedBy)
                         : null;
@@ -986,8 +997,8 @@ public sealed partial class QueryViewModel : ObservableObject
 
                 case CommandResult commandResult:
                     Status = commandResult.CommandTag;
-                    RowCountText = $"{RowLabel(commandResult.RowsAffected)} affected";
-                    TimingText = $"{commandResult.Elapsed.TotalMilliseconds:F0} ms";
+                    RowCountText = Strings.Results_RowsAffected(RowLabel(commandResult.RowsAffected));
+                    TimingText = Strings.Results_TimingMs(commandResult.Elapsed.TotalMilliseconds.ToString("F0"));
                     break;
 
                 case QueryError error:
@@ -1017,7 +1028,7 @@ public sealed partial class QueryViewModel : ObservableObject
         }
         catch (OperationCanceledException)
         {
-            Status = "Cancelled";
+            Status = Strings.Results_StatusCancelled;
             Executed?.Invoke(new QueryHistoryEntry(executedSql, DateTimeOffset.UtcNow, stopwatch.Elapsed.TotalMilliseconds, StatusSummary()));
         }
         catch (Exception ex)
@@ -1026,7 +1037,7 @@ public sealed partial class QueryViewModel : ObservableObject
             // (e.g. a dropped connection surfacing while the batches enumerate on
             // the background thread). Surface it in the status bar instead of
             // letting it escape the command and crash the app.
-            Status = $"Error: {ex.Message}";
+            Status = Strings.Results_StatusError(ex.Message);
             HasError = true;
             Executed?.Invoke(new QueryHistoryEntry(executedSql, DateTimeOffset.UtcNow, stopwatch.Elapsed.TotalMilliseconds, StatusSummary()));
         }
@@ -1118,11 +1129,11 @@ public sealed partial class QueryViewModel : ObservableObject
         else
         {
             var count = ResultSections.Count;
-            Status = $"Script: {count} statement{(count == 1 ? "" : "s")} OK";
+            Status = Strings.Results_ScriptOk(count);
         }
 
         // The selected section fills the row-count segment; append the whole-script total here.
-        TimingText = $"{stopwatch.Elapsed.TotalMilliseconds:F0} ms total";
+        TimingText = Strings.Results_TimingTotal(stopwatch.Elapsed.TotalMilliseconds.ToString("F0"));
     }
 
     // After a failed run, ask the catalog-backed reconciler whether the query's
@@ -1145,8 +1156,8 @@ public sealed partial class QueryViewModel : ObservableObject
             {
                 FixSuggestionSql = fixedSql;
                 FixSuggestionText = fixes.Count == 1
-                    ? $"Did you mean {fixes[0].Replacement}?"
-                    : $"Quote {fixes.Count} identifiers to match the database?";
+                    ? Strings.Results_DidYouMean(fixes[0].Replacement)
+                    : Strings.Results_QuoteIdentifiers(fixes.Count);
             }
         }
         catch
@@ -1156,14 +1167,14 @@ public sealed partial class QueryViewModel : ObservableObject
     }
 
     /// <summary>What a failure inside an explicit transaction adds to its error line.</summary>
-    internal const string RolledBackSuffix = " — transaction rolled back";
+    internal static string RolledBackSuffix => Strings.Results_ErrorRolledBack;
 
     /// <summary>
     /// A failed statement's status line: the message, then its location in the
     /// editor (" (line 3, column 15)", or ""), then the rolled-back note.
     /// </summary>
     internal static string ErrorStatus(QueryError error, string location = "") =>
-        $"Error: {error.Message}{location}{(error.RolledBack ? RolledBackSuffix : "")}";
+        Strings.Results_ErrorStatus(error.Message, location, error.RolledBack ? RolledBackSuffix : "");
 
     // Where the current run's text starts in the document (see RunCoreAsync).
     private int? _runDocumentOffset;
@@ -1195,7 +1206,7 @@ public sealed partial class QueryViewModel : ObservableObject
 
         ErrorMarker = span;
         var (line, column) = SqlErrorLocation.LineColumn(Sql, span.Start);
-        return $" (line {line}, column {column})";
+        return Strings.Results_ErrorLocation(line, column);
     }
 
     /// <summary>
@@ -1217,7 +1228,7 @@ public sealed partial class QueryViewModel : ObservableObject
             HasError = results[0] is QueryError;
             Status = results[0] is QueryError error
                 ? ErrorStatus(error, MarkError(executedSql, 0, error.Position))
-                : "Done";
+                : Strings.Results_StatusDone;
             return;
         }
 
@@ -1301,7 +1312,7 @@ public sealed partial class QueryViewModel : ObservableObject
         // session; results are materialized snapshots) — say so, but only for
         // sections that actually show a grid someone might try to edit.
         ReadOnlyHint = value.Columns.Count > 0
-            ? "multi-statement scripts run read-only — run the statement on its own to edit."
+            ? Strings.Results_HintScriptReadOnly
             : null;
     }
 
@@ -1318,7 +1329,7 @@ public sealed partial class QueryViewModel : ObservableObject
     public void SeedResult(
         IReadOnlyList<ColumnInfo> columns,
         IReadOnlyList<object?[]> rows,
-        string status = "Done",
+        string? status = null,
         string? rowCountText = null,
         string? timingText = null,
         string? executedSql = null,
@@ -1330,7 +1341,7 @@ public sealed partial class QueryViewModel : ObservableObject
         SetColumnNames(columns.Select(c => c.Name));
 
         Rows = new AvaloniaList<object?[]>(rows);
-        Status = status;
+        Status = status ?? Strings.Results_StatusDone;
         HasError = false;
         RowCountText = rowCountText ?? RowLabel(rows.Count);
         TimingText = timingText;
@@ -1342,7 +1353,7 @@ public sealed partial class QueryViewModel : ObservableObject
         OnPropertyChanged(nameof(HasNoResults));
     }
 
-    private static string RowLabel(long count) => count == 1 ? "1 row" : $"{count:N0} rows";
+    private static string RowLabel(long count) => Strings.Results_Rows(count, count.ToString("N0"));
 
     /// <summary>Flattens the segmented status back into one line for query-history entries.</summary>
     private string StatusSummary() =>
@@ -1415,8 +1426,8 @@ public sealed partial class QueryViewModel : ObservableObject
 
         ExplainText = displayText;
         PlanJson = planJson;
-        var planningFragment = result.PlanningTimeMs is { } planMs ? $"Planning: {planMs:F3} ms" : null;
-        var executionFragment = result.ExecutionTimeMs is { } execMs ? $"Execution: {execMs:F3} ms" : null;
+        var planningFragment = result.PlanningTimeMs is { } planMs ? Strings.Results_PlanPlanning(planMs.ToString("F3")) : null;
+        var executionFragment = result.ExecutionTimeMs is { } execMs ? Strings.Results_PlanExecution(execMs.ToString("F3")) : null;
         ExplainSummary = string.Join("   ", new[] { summaryPrefix, planningFragment, executionFragment }.Where(f => f is not null));
         IsShowingPlan = true;
     }
@@ -1433,9 +1444,9 @@ public sealed partial class QueryViewModel : ObservableObject
     {
         ShowPlan(plan.Result, plan.DisplayText, plan.RawJson,
             new PlanCapture(plan.Result, plan.RawJson ?? plan.DisplayText, SavedPlanSource.Imported, null, null, HistoryText.Now()),
-            summaryPrefix: "Imported plan");
+            summaryPrefix: Strings.Results_PlanImported);
         ShownImport = plan;
-        Status = "Imported plan";
+        Status = Strings.Results_PlanImported;
     }
 
     /// <summary>
@@ -1450,9 +1461,9 @@ public sealed partial class QueryViewModel : ObservableObject
             {
                 Saved = saved,
             },
-            summaryPrefix: "Saved plan");
+            summaryPrefix: Strings.Results_PlanSavedSummary);
         ShownImport = plan;
-        Status = $"Saved plan “{saved.Name}”";
+        Status = Strings.Results_PlanSavedStatus(saved.Name);
     }
 
     /// <summary>
@@ -1516,10 +1527,8 @@ public sealed partial class QueryViewModel : ObservableObject
             {
                 new(new PlanWarning(
                     PlanWarningSeverity.Warning,
-                    "EXPLAIN ANALYZE executed this write",
-                    "Run executes the statement as written, so its changes were applied (subject to the "
-                        + "surrounding transaction). The Explain command analyzes a write inside a "
-                        + "transaction it always rolls back.",
+                    Strings.Results_PlanRunWriteTitle,
+                    Strings.Results_PlanRunWriteDetail,
                     plan.Result.Root.NodeType,
                     null)),
             }
@@ -1562,7 +1571,7 @@ public sealed partial class QueryViewModel : ObservableObject
         var ct = _cts.Token;
 
         IsRunning = true;
-        Status = analyze ? "Running EXPLAIN ANALYZE..." : "Running EXPLAIN...";
+        Status = analyze ? Strings.Results_StatusRunningExplainAnalyze : Strings.Results_StatusRunningExplain;
         HasError = false;
         // An Explain sends "EXPLAIN ..." around text it may have cut out of the
         // editor, so its errors are not marked; a marker from the last run goes.
@@ -1584,9 +1593,8 @@ public sealed partial class QueryViewModel : ObservableObject
                 {
                     new(new PlanWarning(
                         PlanWarningSeverity.Info,
-                        "Data-modifying statement rolled back",
-                        "EXPLAIN ANALYZE executed this statement inside a transaction and rolled it back, "
-                            + "so no changes were persisted.",
+                        Strings.Results_PlanRolledBackTitle,
+                        Strings.Results_PlanRolledBackDetail,
                         result.Root.NodeType,
                         null)),
                 }
@@ -1595,20 +1603,20 @@ public sealed partial class QueryViewModel : ObservableObject
             ShowPlan(result, ExplainTextFormatter.Format(result), run.Json,
                 new PlanCapture(result, run.Json, SavedPlanSource.Explain, target, run.ServerVersion, HistoryText.Now()),
                 leadingWarnings: notes);
-            Status = "Plan ready";
+            Status = Strings.Results_StatusPlanReady;
         }
         catch (OperationCanceledException)
         {
-            Status = "Cancelled";
+            Status = Strings.Results_StatusCancelled;
         }
         catch (PostgresException ex)
         {
-            Status = $"Explain failed: {ex.MessageText}";
+            Status = Strings.Results_StatusExplainFailed(ex.MessageText);
             HasError = true;
         }
         catch (Exception ex)
         {
-            Status = $"Explain failed: {ex.Message}";
+            Status = Strings.Results_StatusExplainFailed(ex.Message);
             HasError = true;
         }
         finally
@@ -1662,7 +1670,7 @@ public sealed partial class QueryViewModel : ObservableObject
     }
 
     private void OnRunClockTick(object? sender, EventArgs e) =>
-        RunningElapsedText = $"{_runClock.Elapsed.TotalSeconds:F1} s";
+        RunningElapsedText = Strings.Results_ElapsedSeconds(_runClock.Elapsed.TotalSeconds.ToString("F1"));
 
     partial void OnRowsChanged(AvaloniaList<object?[]> value) => OnPropertyChanged(nameof(HasNoResults));
 
@@ -1904,17 +1912,36 @@ public sealed partial class QueryViewModel : ObservableObject
             // Browsing a view or a table without a primary key: rows show fine
             // but can't be targeted for edits — say so instead of silently
             // ignoring edit gestures.
-            ReadOnlyHint = $"{pkless.Schema}.{pkless.Name} has no primary key, so rows can't be targeted exactly.";
+            ReadOnlyHint = Strings.Results_HintNoPrimaryKey($"{pkless.Schema}.{pkless.Name}");
         }
     }
 
-    partial void OnDefaultTitleChanged(string value) => UpdateTabTitle();
+    // A label set by the app replaces a scratch tab's number.
+    partial void OnDefaultTitleChanged(string value)
+    {
+        _defaultTitleNumber = null;
+        UpdateTabTitle();
+    }
+
+    private int? _defaultTitleNumber;
+
+    /// <summary>The N of a scratch tab's default name ("Query N" in English), written in the language in use whenever it is shown; null for any other default. Set it after <see cref="DefaultTitle"/>, which clears it.</summary>
+    public int? DefaultTitleNumber
+    {
+        get => _defaultTitleNumber;
+        set
+        {
+            _defaultTitleNumber = value;
+            UpdateTabTitle();
+        }
+    }
 
     partial void OnTitleOverrideChanged(string? value) => UpdateTabTitle();
 
     // A fixed override wins; otherwise name the tab after the first table the SQL
     // references, falling back to "Query N".
-    private void UpdateTabTitle() => TabTitle = TitleOverride ?? DeriveTableName(Sql) ?? DefaultTitle;
+    private void UpdateTabTitle() => TabTitle = TitleOverride ?? DeriveTableName(Sql)
+        ?? (_defaultTitleNumber is { } number ? Strings.Results_TabTitleNumbered(number) : DefaultTitle);
 
     // How much of the buffer the tab title is looked for in.
     private const int TitleScanLength = 64 * 1024;
@@ -2013,26 +2040,26 @@ public sealed partial class QueryViewModel : ObservableObject
     // to change (include the key, drop the alias) where that's actionable.
     private static string ReadOnlyHintFor(EditBlocker blocker, RelationInfo? table) => blocker switch
     {
-        EditBlocker.ComputedColumns => "some columns are expressions or system columns, not table columns.",
-        EditBlocker.MultipleTables => "the result combines columns from more than one table.",
-        EditBlocker.RepeatedColumn => "the same column appears more than once.",
-        EditBlocker.NotAPlainTable => "the source is a view, function, or another relation whose rows can't be updated by key.",
-        EditBlocker.RenamedColumns => "columns are renamed (AS …), so edits can't be mapped back to the table's real columns.",
-        EditBlocker.NoPrimaryKey => $"{TableName(table)} has no primary key, so rows can't be targeted exactly.",
-        EditBlocker.PrimaryKeyNotSelected => $"the primary key of {TableName(table)} isn't in the result — include it to edit.",
+        EditBlocker.ComputedColumns => Strings.Results_HintComputedColumns,
+        EditBlocker.MultipleTables => Strings.Results_HintMultipleTables,
+        EditBlocker.RepeatedColumn => Strings.Results_HintRepeatedColumn,
+        EditBlocker.NotAPlainTable => Strings.Results_HintNotPlainTable,
+        EditBlocker.RenamedColumns => Strings.Results_HintRenamedColumns,
+        EditBlocker.NoPrimaryKey => Strings.Results_HintNoPrimaryKey(TableName(table)),
+        EditBlocker.PrimaryKeyNotSelected => Strings.Results_HintPrimaryKeyNotSelected(TableName(table)),
         EditBlocker.UnreadableKey => UnreadableKeyHint(table is null ? null : $"{table.Schema}.{table.Name}", key: null),
-        EditBlocker.RepeatedTable => "the query reads the same table more than once (a self-join), so an edit could change a different row than the one it shows.",
-        _ => "this result set can't be mapped back to a table.",
+        EditBlocker.RepeatedTable => Strings.Results_HintRepeatedTable,
+        _ => Strings.Results_HintNotMappable,
     };
 
     // The row-identity blocker needs the key column's name and type to be
     // useful, so it has its own phrasing helper both edit paths share.
     private static string UnreadableKeyHint(string? table, ColumnInfo? key) =>
         key is null
-            ? $"a primary-key column of {table ?? "the table"} has a type pgNimbus can't read, so rows can't be identified exactly."
-            : $"primary-key column {key.Name} ({key.DataTypeName}) has a type pgNimbus can't read, so rows can't be identified exactly.";
+            ? Strings.Results_HintUnreadableKeyTable(table ?? Strings.Results_TheTable)
+            : Strings.Results_HintUnreadableKeyColumn(key.Name, key.DataTypeName);
 
-    private static string TableName(RelationInfo? table) => table is null ? "the table" : $"{table.Schema}.{table.Name}";
+    private static string TableName(RelationInfo? table) => table is null ? Strings.Results_TheTable : $"{table.Schema}.{table.Name}";
 
     /// <summary>
     /// Commits an inline grid edit (the raw text typed into the cell editor)
@@ -2049,7 +2076,7 @@ public sealed partial class QueryViewModel : ObservableObject
 
         if (EditContext is not { } context)
         {
-            Status = "Editing isn't available for this result set.";
+            Status = Strings.Results_EditUnavailable;
             return false;
         }
 
@@ -2057,14 +2084,14 @@ public sealed partial class QueryViewModel : ObservableObject
 
         if (context.PrimaryKeyColumns.Contains(columnName))
         {
-            Status = "Editing primary key columns isn't supported yet.";
+            Status = Strings.Results_EditPkUnsupported;
             return false;
         }
 
         var pkIndexes = context.PrimaryKeyColumns.Select(pk => ColumnNames.IndexOf(pk)).ToList();
         if (pkIndexes.Any(i => i < 0))
         {
-            Status = "Cannot edit: primary key column isn't present in this result set.";
+            Status = Strings.Results_EditPkMissing;
             return false;
         }
 
@@ -2103,12 +2130,12 @@ public sealed partial class QueryViewModel : ObservableObject
         {
             await _engine.ExecuteNonQueryAsync(sql, parameters, CancellationToken.None);
             ReplaceRowCell(row, columnIndex, newValue);
-            Status = $"Saved {context.Schema}.{context.Table}.{columnName}";
+            Status = Strings.Results_CellSaved($"{context.Schema}.{context.Table}.{columnName}");
             return true;
         }
         catch (Exception ex)
         {
-            Status = $"Update failed: {ex.Message}";
+            Status = Strings.Results_UpdateFailed(ex.Message);
             HasError = true;
             return false;
         }
@@ -2144,7 +2171,7 @@ public sealed partial class QueryViewModel : ObservableObject
 
             if (syntaxError is not null)
             {
-                error = $"Invalid value for {columnName}: {syntaxError}";
+                error = Strings.Results_InvalidValue(columnName, syntaxError);
                 return false;
             }
 
@@ -2159,7 +2186,7 @@ public sealed partial class QueryViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            error = $"Invalid value for {columnName}: {ex.Message}";
+            error = Strings.Results_InvalidValue(columnName, ex.Message);
             return false;
         }
     }
@@ -2179,13 +2206,13 @@ public sealed partial class QueryViewModel : ObservableObject
         HasError = false;
         if (EditContext is not { } context)
         {
-            return (row, "Editing isn't available for this result set.");
+            return (row, Strings.Results_EditUnavailable);
         }
 
         var pkIndexes = context.PrimaryKeyColumns.Select(pk => ColumnNames.IndexOf(pk)).ToList();
         if (pkIndexes.Any(i => i < 0))
         {
-            return (row, "Cannot edit: primary key column isn't present in this result set.");
+            return (row, Strings.Results_EditPkMissing);
         }
 
         var converted = new List<(int Index, string Column, object? Value, string? Cast)>(edits.Count);
@@ -2194,7 +2221,7 @@ public sealed partial class QueryViewModel : ObservableObject
             var column = ColumnNames[index];
             if (context.PrimaryKeyColumns.Contains(column))
             {
-                return (row, $"{column} is part of the primary key, and editing key columns isn't supported yet.");
+                return (row, Strings.Results_EditPartOfKey(column));
             }
 
             if (text is null)
@@ -2223,8 +2250,8 @@ public sealed partial class QueryViewModel : ObservableObject
         }
 
         Status = converted.Count == 1
-            ? $"Staged {context.Schema}.{context.Table}.{converted[0].Column} — nothing applied until you commit"
-            : $"Staged {converted.Count} fields of {context.Schema}.{context.Table} — nothing applied until you commit";
+            ? Strings.Results_StagedCell($"{context.Schema}.{context.Table}.{converted[0].Column}")
+            : Strings.Results_StagedFields(converted.Count, $"{context.Schema}.{context.Table}");
         return (current, null);
     }
 
@@ -2242,7 +2269,7 @@ public sealed partial class QueryViewModel : ObservableObject
 
         if (EditContext is not { } context)
         {
-            Status = "Editing isn't available for this result set.";
+            Status = Strings.Results_EditUnavailable;
             return;
         }
 
@@ -2255,7 +2282,7 @@ public sealed partial class QueryViewModel : ObservableObject
 
         if (context.PrimaryKeyColumns.Contains(columnName))
         {
-            Status = "Primary key columns can't be set to NULL.";
+            Status = Strings.Results_PkNotNull;
             HasError = true;
             return;
         }
@@ -2263,7 +2290,7 @@ public sealed partial class QueryViewModel : ObservableObject
         var pkIndexes = context.PrimaryKeyColumns.Select(pk => ColumnNames.IndexOf(pk)).ToList();
         if (pkIndexes.Any(i => i < 0))
         {
-            Status = "Cannot edit: primary key column isn't present in this result set.";
+            Status = Strings.Results_EditPkMissing;
             return;
         }
 
@@ -2293,11 +2320,11 @@ public sealed partial class QueryViewModel : ObservableObject
         {
             await _engine.ExecuteNonQueryAsync(sql, parameters, CancellationToken.None);
             ReplaceRowCell(row, columnIndex, null);
-            Status = $"Set {context.Schema}.{context.Table}.{columnName} to NULL";
+            Status = Strings.Results_CellSetNull($"{context.Schema}.{context.Table}.{columnName}");
         }
         catch (Exception ex)
         {
-            Status = $"Update failed: {ex.Message}";
+            Status = Strings.Results_UpdateFailed(ex.Message);
             HasError = true;
         }
     }
@@ -2433,7 +2460,7 @@ public sealed partial class QueryViewModel : ObservableObject
 
         if (EditContext is not { PrimaryKeyColumns.Count: > 0 } context)
         {
-            Status = "Delete isn't available for this result set.";
+            Status = Strings.Results_DeleteUnavailable;
             HasError = true;
             return 0;
         }
@@ -2441,7 +2468,7 @@ public sealed partial class QueryViewModel : ObservableObject
         var pkIndexes = context.PrimaryKeyColumns.Select(pk => ColumnNames.IndexOf(pk)).ToList();
         if (pkIndexes.Any(i => i < 0))
         {
-            Status = "Cannot delete: a primary key column isn't present in this result set.";
+            Status = Strings.Results_DeletePkMissing;
             HasError = true;
             return 0;
         }
@@ -2479,12 +2506,12 @@ public sealed partial class QueryViewModel : ObservableObject
                 RemoveRowsFromGrid(rows);
             }
 
-            Status = deleted == 1 ? "Deleted 1 row" : $"Deleted {deleted:N0} rows";
+            Status = Strings.Results_Deleted(deleted, deleted.ToString("N0"));
         }
         catch (Exception ex)
         {
             deleted = 0;
-            Status = $"Delete failed, nothing deleted: {ex.Message}";
+            Status = Strings.Results_DeleteFailed(ex.Message);
             HasError = true;
         }
 
@@ -2587,7 +2614,7 @@ public sealed partial class QueryViewModel : ObservableObject
 
         var updated = ReplaceRowCell(row, columnIndex, newValue);
         NotifyPendingChangesChanged();
-        Status = $"Staged {context.Schema}.{context.Table}.{columnName} — nothing applied until you commit";
+        Status = Strings.Results_StagedCell($"{context.Schema}.{context.Table}.{columnName}");
         return updated;
     }
 
@@ -2634,9 +2661,9 @@ public sealed partial class QueryViewModel : ObservableObject
         NotifyPendingChangesChanged();
         Status = (staged, unstaged) switch
         {
-            (> 0, 0) => $"Staged {staged} delete{(staged == 1 ? "" : "s")} — nothing applied until you commit",
-            (0, > 0) => $"Unstaged {unstaged} delete{(unstaged == 1 ? "" : "s")}",
-            _ => $"Staged {staged} delete{(staged == 1 ? "" : "s")}, unstaged {unstaged}",
+            (> 0, 0) => Strings.Results_StagedDeletes(staged),
+            (0, > 0) => Strings.Results_UnstagedDeletes(unstaged),
+            _ => Strings.Results_StagedUnstagedDeletes(staged, unstaged),
         };
     }
 
@@ -2648,7 +2675,7 @@ public sealed partial class QueryViewModel : ObservableObject
     {
         if (EditContext is not { } context)
         {
-            return "Staging isn't available for this result set.";
+            return Strings.Results_StagingUnavailable;
         }
 
         if (EnsurePendingSet(context, out var error) is not { } pending)
@@ -2658,7 +2685,7 @@ public sealed partial class QueryViewModel : ObservableObject
 
         pending.StageInsert(values);
         NotifyPendingChangesChanged();
-        Status = "Staged 1 insert — nothing applied until you commit";
+        Status = Strings.Results_StagedInsert;
         HasError = false;
         return null;
     }
@@ -2700,7 +2727,7 @@ public sealed partial class QueryViewModel : ObservableObject
             var affected = await _engine.ApplyBatchAsync(pending.BuildStatements(), pending.BuildRowCheck(), CancellationToken.None);
             ClearPendingSet();
             await RefreshCurrentAsync();
-            Status = $"Committed {count} staged change{(count == 1 ? "" : "s")} in one transaction — {RowLabel(affected)} affected";
+            Status = Strings.Results_Committed(count, RowLabel(affected));
             HasError = false;
         }
         catch (StagedChangesConflictException conflict)
@@ -2711,7 +2738,7 @@ public sealed partial class QueryViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            Status = $"Commit failed — no staged changes were applied: {ex.Message}";
+            Status = Strings.Results_CommitFailed(ex.Message);
             HasError = true;
         }
     }
@@ -2738,17 +2765,17 @@ public sealed partial class QueryViewModel : ObservableObject
         var parts = new List<string>(2);
         if (rebased > 0)
         {
-            parts.Add($"{rebased} row{(rebased == 1 ? "" : "s")} restaged on the current values");
+            parts.Add(Strings.Results_Restaged(rebased));
         }
 
         if (dropped > 0)
         {
-            parts.Add($"{dropped} staged row{(dropped == 1 ? "" : "s")} dropped (deleted elsewhere)");
+            parts.Add(Strings.Results_StagedDropped(dropped));
         }
 
         Status = parts.Count == 0
-            ? "Reloaded — review and commit again"
-            : $"Reloaded: {string.Join(", ", parts)} — review and commit again";
+            ? Strings.Results_ReloadedNothing
+            : Strings.Results_Reloaded(string.Join(", ", parts));
         HasError = false;
     }
 
@@ -2772,7 +2799,7 @@ public sealed partial class QueryViewModel : ObservableObject
         }
 
         await RefreshCurrentAsync();
-        Status = $"Unstaged {count} conflicting row{(count == 1 ? "" : "s")}; {pending.Count} staged change{(pending.Count == 1 ? "" : "s")} left";
+        Status = Strings.Results_UnstagedConflicts(count, Strings.Results_StagedLeft(pending.Count));
         HasError = false;
     }
 
@@ -2788,7 +2815,7 @@ public sealed partial class QueryViewModel : ObservableObject
         var count = pending.Count;
         ClearPendingSet();
         await RefreshCurrentAsync();
-        Status = $"Discarded {count} staged change{(count == 1 ? "" : "s")}";
+        Status = Strings.Results_Discarded(count);
         HasError = false;
     }
 
@@ -2820,7 +2847,7 @@ public sealed partial class QueryViewModel : ObservableObject
             if (!string.Equals(existing.Schema, context.Schema, StringComparison.Ordinal)
                 || !string.Equals(existing.Table, context.Table, StringComparison.Ordinal))
             {
-                error = $"Commit or discard the staged changes for {existing.Schema}.{existing.Table} first.";
+                error = Strings.Results_CommitFirst($"{existing.Schema}.{existing.Table}");
                 return null;
             }
 
@@ -2875,7 +2902,7 @@ public sealed partial class QueryViewModel : ObservableObject
         {
             if (QueryEngine.IsUnreadableCell(pkValues[i]))
             {
-                return $"Can't stage this row: its key column {context.PrimaryKeyColumns[i]} couldn't be read, so the row can't be identified exactly.";
+                return Strings.Results_CantStageRow(context.PrimaryKeyColumns[i]);
             }
         }
 
@@ -2897,7 +2924,7 @@ public sealed partial class QueryViewModel : ObservableObject
         // Deliberately terse — this shares one status-bar line with the
         // metrics and paging segments; the review dialog carries the long form.
         PendingChangesText = PendingChanges is { IsEmpty: false } pending
-            ? $"{pending.Count} staged · {pending.Schema}.{pending.Table}"
+            ? Strings.Results_PendingSummary(pending.Count, $"{pending.Schema}.{pending.Table}")
             : null;
         // A mutation can leave the summary text equal (e.g. staging one delete
         // while unstaging another), which the property setter would swallow —
@@ -3017,7 +3044,7 @@ public sealed partial class QueryViewModel : ObservableObject
         {
             return new ExportSource(null, section.CapText is null
                 ? null
-                : "a statement from a script can't be run again on its own.");
+                : Strings.Results_ExportShortfallScript);
         }
 
         string? sql;
@@ -3044,12 +3071,12 @@ public sealed partial class QueryViewModel : ObservableObject
         // transaction's own uncommitted rows.
         if (_engine.IsInTransaction)
         {
-            return new ExportSource(null, "inside a transaction the rest can't be read. Commit or roll back, then export again.");
+            return new ExportSource(null, Strings.Results_ExportShortfallTransaction);
         }
 
         if (sql is null)
         {
-            return new ExportSource(null, "a query you wrote isn't run again for the rest. Browse the table to export every row.");
+            return new ExportSource(null, Strings.Results_ExportShortfallQuery);
         }
 
         return new ExportSource(sql, null);
@@ -3082,7 +3109,7 @@ public sealed partial class QueryViewModel : ObservableObject
         var ct = _cts.Token;
         IsRunning = true;
         HasError = false;
-        Status = "Exporting...";
+        Status = Strings.Results_Exporting;
 
         // Progress ticks are posted from the writer's thread, so one can still be
         // queued when the export ends; it must not overwrite the final line.
@@ -3111,11 +3138,11 @@ public sealed partial class QueryViewModel : ObservableObject
                         batches = InBatches(materialized.Rows);
                         break;
                     case QueryError error:
-                        Status = $"Export failed: {error.Message}";
+                        Status = Strings.Results_ExportFailed(error.Message);
                         HasError = true;
                         return false;
                     default:
-                        Status = "Export failed: the query returned no rows this time.";
+                        Status = Strings.Results_ExportNoRows;
                         HasError = true;
                         return false;
                 }
@@ -3135,27 +3162,27 @@ public sealed partial class QueryViewModel : ObservableObject
                     {
                         if (!finished)
                         {
-                            Status = $"Exporting... {RowLabel(rows)}";
+                            Status = Strings.Results_ExportingProgress(RowLabel(rows));
                         }
                     });
                 }
             }, ct, spreadsheetSafe, types));
 
             Status = source.Shortfall is { } shortfall
-                ? $"Exported only the {RowLabel(written)} shown to {fileName}: {shortfall}"
-                : $"Exported {RowLabel(written)} to {fileName}";
+                ? Strings.Results_ExportedPartial(RowLabel(written), fileName, shortfall)
+                : Strings.Results_Exported(RowLabel(written), fileName);
             return true;
         }
         catch (OperationCanceledException)
         {
-            Status = "Export cancelled";
+            Status = Strings.Results_ExportCancelled;
             return false;
         }
         catch (Exception ex)
         {
             // A dropped connection mid-stream, or the file itself failing (disk
             // full, the file locked by the spreadsheet that has it open).
-            Status = $"Export failed: {ex.Message}";
+            Status = Strings.Results_ExportFailed(ex.Message);
             HasError = true;
             return false;
         }
@@ -3222,17 +3249,17 @@ public sealed partial class QueryViewModel : ObservableObject
         var announce = rows.Count >= CopyProgressRows;
         if (announce)
         {
-            Status = $"Copying {RowLabel(rows.Count)}...";
+            Status = Strings.Results_Copying(RowLabel(rows.Count));
         }
 
         var text = await Task.Run(() => FormatRows(format, table, columns, rows, spreadsheetSafe, MaxCopyChars, types));
         if (text is null)
         {
-            Status = $"Not copied: {RowLabel(rows.Count)} come to more than {MaxCopyChars / (1024 * 1024)}M characters of text. Export them to a file instead.";
+            Status = Strings.Results_NotCopied(RowLabel(rows.Count), MaxCopyChars / (1024 * 1024));
         }
         else if (announce)
         {
-            Status = $"Copied {RowLabel(rows.Count)}";
+            Status = Strings.Results_Copied(RowLabel(rows.Count));
         }
 
         return text;

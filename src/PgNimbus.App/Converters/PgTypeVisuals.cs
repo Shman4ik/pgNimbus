@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using Avalonia.Data.Converters;
 using Avalonia.Media;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Schema;
 
 namespace PgNimbus.App.Converters;
@@ -40,31 +41,31 @@ public static class PgTypeVisuals
         [PgTypeCategory.Composite] = "M10,10.02H15V21H10V10.02M17,21H20C21.1,21 22,20.1 22,19V10H17V21M20,3H5C3.9,3 3,3.9 3,5V8H22V5C22,3.9 21.1,3 20,3M3,19C3,20.1 3.9,21 5,21H8V10H3V19Z",
     };
 
-    private static readonly Dictionary<PgTypeCategory, string> Labels = new()
-    {
-        [PgTypeCategory.Numeric] = "Numeric",
-        [PgTypeCategory.Text] = "Text",
-        [PgTypeCategory.Boolean] = "Boolean",
-        [PgTypeCategory.DateTime] = "Date / time",
-        [PgTypeCategory.Uuid] = "UUID",
-        [PgTypeCategory.Json] = "JSON",
-        [PgTypeCategory.Network] = "Network address",
-        [PgTypeCategory.Geometric] = "Geometric",
-        [PgTypeCategory.Range] = "Range",
-        [PgTypeCategory.Binary] = "Binary",
-        [PgTypeCategory.BitString] = "Bit string",
-        [PgTypeCategory.Vector] = "Vector",
-        [PgTypeCategory.FullText] = "Full-text search",
-        [PgTypeCategory.Array] = "Array",
-        [PgTypeCategory.Enum] = "Enum",
-        [PgTypeCategory.Composite] = "Composite",
-    };
-
     private static readonly Dictionary<PgTypeCategory, Geometry?> GeometryCache = new();
 
     /// <summary>The friendly family label for an already-resolved category, or empty for Other.</summary>
-    public static string LabelFor(PgTypeCategory category) =>
-        Labels.TryGetValue(category, out var label) ? label : string.Empty;
+    public static StringKey? KeyFor(PgTypeCategory category) => category switch
+    {
+        PgTypeCategory.Numeric => StringKey.Sidebar_TypeNumeric,
+        PgTypeCategory.Text => StringKey.Sidebar_TypeText,
+        PgTypeCategory.Boolean => StringKey.Sidebar_TypeBoolean,
+        PgTypeCategory.DateTime => StringKey.Sidebar_TypeDateTime,
+        PgTypeCategory.Uuid => StringKey.Sidebar_TypeUuid,
+        PgTypeCategory.Json => StringKey.Sidebar_TypeJson,
+        PgTypeCategory.Network => StringKey.Sidebar_TypeNetwork,
+        PgTypeCategory.Geometric => StringKey.Sidebar_TypeGeometric,
+        PgTypeCategory.Range => StringKey.Sidebar_TypeRange,
+        PgTypeCategory.Binary => StringKey.Sidebar_TypeBinary,
+        PgTypeCategory.BitString => StringKey.Sidebar_TypeBitString,
+        PgTypeCategory.Vector => StringKey.Sidebar_TypeVector,
+        PgTypeCategory.FullText => StringKey.Sidebar_TypeFullText,
+        PgTypeCategory.Array => StringKey.Sidebar_TypeArray,
+        PgTypeCategory.Enum => StringKey.Sidebar_TypeEnum,
+        PgTypeCategory.Composite => StringKey.Sidebar_TypeComposite,
+        _ => null,
+    };
+
+    public static string LabelFor(PgTypeCategory category) => KeyFor(category) is { } key ? Strings.Get(key) : string.Empty;
 
     /// <summary>The icon for an already-resolved category, or null when the family has no glyph (Other) or the path failed to parse.</summary>
     public static Geometry? IconFor(PgTypeCategory category)
@@ -110,7 +111,7 @@ public sealed class PgTypeLabelConverter : IValueConverter
     public static readonly PgTypeLabelConverter Instance = new();
 
     public object? Convert(object? value, System.Type targetType, object? parameter, CultureInfo culture) =>
-        value is PgTypeCategory category ? PgTypeVisuals.LabelFor(category) : string.Empty;
+        value is PgTypeCategory category ? PgTypeVisuals.KeyFor(category) : null;
 
     public object? ConvertBack(object? value, System.Type targetType, object? parameter, CultureInfo culture) =>
         throw new System.NotSupportedException();
