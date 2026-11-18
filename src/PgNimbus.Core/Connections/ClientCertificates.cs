@@ -1,3 +1,5 @@
+using PgNimbus.Core.Localization;
+
 namespace PgNimbus.Core.Connections;
 
 /// <summary>
@@ -30,12 +32,12 @@ public static class ClientCertificates
         var key = Blank(keyPath) ? null : keyPath!.Trim();
         if (certificate is null)
         {
-            return key is null ? null : "A client key needs its client certificate. Choose the certificate file too.";
+            return key is null ? null : Strings.Connection_ClientKeyNeedsCertificate;
         }
 
         if (!File.Exists(certificate))
         {
-            return $"The client certificate file was not found: {certificate}";
+            return Strings.Connection_ClientCertificateNotFound(certificate);
         }
 
         if (key is null)
@@ -45,11 +47,11 @@ public static class ClientCertificates
 
         if (!File.Exists(key))
         {
-            return $"The client key file was not found: {key}";
+            return Strings.Connection_ClientKeyNotFound(key);
         }
 
         return IsPassphraseProtected(key)
-            ? "The client key is protected by a passphrase, which pgNimbus does not support. Save a copy without it (openssl pkey -in client.key -out client-plain.key) and make that file readable only by you."
+            ? Strings.Connection_ClientKeyHasPassphrase
             : null;
     }
 

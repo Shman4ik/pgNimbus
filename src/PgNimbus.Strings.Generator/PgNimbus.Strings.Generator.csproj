@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk" TreatAsLocalProperty="PublishAot;PublishTrimmed;RuntimeIdentifier;SelfContained">
+
+  <!-- Build-time only: turns the English base file
+       (src/PgNimbus.Core/Localization/Strings.resx) into the typed accessors
+       PgNimbus.Core.Localization.Strings. Referenced by Core as an analyzer, so
+       nothing from here ships. netstandard2.0 because the compiler loads it. -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <IsRoslynComponent>true</IsRoslynComponent>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <!-- Release tracking is for analyzers shipped to others; this one is private. -->
+    <NoWarn>$(NoWarn);RS2008</NoWarn>
+    <!-- `dotnet publish -r … -p:PublishAot=true` passes these to every project in
+         the graph, restore included; a compiler plug-in takes none of them. -->
+    <PublishAot>false</PublishAot>
+    <PublishTrimmed>false</PublishTrimmed>
+    <RuntimeIdentifier></RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.12.0" PrivateAssets="all" />
+  </ItemGroup>
+
+</Project>

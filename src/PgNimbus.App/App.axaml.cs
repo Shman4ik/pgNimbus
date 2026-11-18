@@ -6,11 +6,13 @@ using Avalonia.Styling;
 using Nimbus.Ui.Fonts;
 using Npgsql;
 using PgNimbus.App.Completion;
+using PgNimbus.App.Platform;
 using PgNimbus.App.ViewModels;
 using PgNimbus.App.Views;
 using PgNimbus.Core.Backup;
 using PgNimbus.Core.Connections;
 using PgNimbus.Core.Import;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Monitoring;
 using PgNimbus.Core.Notifications;
 using PgNimbus.Core.Query;
@@ -201,6 +203,16 @@ public partial class App : Application
         SettingsStore.Save(SettingsStore.Load() with { Theme = theme });
     }
 
+    /// <summary>
+    /// Persists the interface language (<c>"auto"</c> or a tag) and switches to it at
+    /// once: every <c>{l:Tr}</c> binding follows (<see cref="Localizer"/>).
+    /// </summary>
+    internal static void SetLanguage(string language)
+    {
+        SettingsStore.Save(SettingsStore.Load() with { Language = language });
+        Localizer.Load(Localizer.Resolve(language, SystemLanguages.Preferred()));
+    }
+
     /// <summary>Persists the hotkey scheme and re-resolves the live command modifier (see <see cref="Hotkeys"/>).</summary>
     internal static void SetHotkeyScheme(string scheme)
     {
@@ -338,6 +350,7 @@ public partial class App : Application
         Platform.MacTextKeys.Install();
         Platform.EditorTypingUndo.Install();
         Nimbus.Ui.Controls.ToolTipHitTesting.Install();
+        Localization.FrameworkStrings.Install(this);
     }
 
     public override void OnFrameworkInitializationCompleted()

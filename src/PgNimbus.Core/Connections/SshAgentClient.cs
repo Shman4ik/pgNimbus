@@ -2,6 +2,7 @@ using System.Buffers.Binary;
 using System.IO.Pipes;
 using System.Net.Sockets;
 using System.Text;
+using PgNimbus.Core.Localization;
 
 namespace PgNimbus.Core.Connections;
 
@@ -94,7 +95,7 @@ public sealed class SshAgentClient
         var type = reader.ReadByte();
         if (type == AgentFailure)
         {
-            throw new SshAgentException("The SSH agent refused to list its keys.");
+            throw new SshAgentException(Strings.Connection_SshAgentRefusedList);
         }
 
         if (type != IdentitiesAnswer)
@@ -131,8 +132,7 @@ public sealed class SshAgentClient
         var type = reader.ReadByte();
         if (type == AgentFailure)
         {
-            throw new SshAgentException(
-                "The SSH agent declined to sign with the key (it may have been removed, or it needs a confirmation that was refused).");
+            throw new SshAgentException(Strings.Connection_SshAgentDeclinedSign);
         }
 
         if (type != SignResponse)
@@ -165,7 +165,7 @@ public sealed class SshAgentClient
         }
         catch (Exception ex) when (ex is IOException or TimeoutException or SocketException or UnauthorizedAccessException)
         {
-            throw new SshAgentException($"No SSH agent answered at {Address}. {StartHint}", ex);
+            throw new SshAgentException(Strings.Connection_SshAgentNoAnswer(Address, StartHint), ex);
         }
 
         using (stream)
@@ -182,7 +182,7 @@ public sealed class SshAgentClient
                 var length = BinaryPrimitives.ReadUInt32BigEndian(header);
                 if (length is 0 or > MaxMessageLength)
                 {
-                    throw new SshAgentException("The SSH agent sent a malformed reply.");
+                    throw new SshAgentException(Strings.Connection_SshAgentMalformed);
                 }
 
                 var body = new byte[length];
@@ -191,17 +191,17 @@ public sealed class SshAgentClient
             }
             catch (Exception ex) when (ex is IOException or SocketException)
             {
-                throw new SshAgentException($"The SSH agent at {Address} dropped the connection: {ex.Message}", ex);
+                throw new SshAgentException(Strings.Connection_SshAgentDropped(Address, ex.Message), ex);
             }
         }
     }
 
     private static string StartHint => OperatingSystem.IsWindows()
-        ? "Start the \"OpenSSH Authentication Agent\" Windows service and add your key with ssh-add."
-        : "Check that SSH_AUTH_SOCK points at a running agent and add your key with ssh-add.";
+        ? Strings.Connection_SshAgentStartHintWindows
+        : Strings.Connection_SshAgentStartHintOther;
 
     private static SshAgentException Unexpected(byte type) =>
-        new($"The SSH agent sent an unexpected reply (message type {type}).");
+        new(Strings.Connection_SshAgentUnexpected(type));
 
     private static Stream ConnectPipe(string name)
     {
@@ -287,6 +287,6 @@ public sealed class SshAgentClient
             }
         }
 
-        private static SshAgentException Malformed() => new("The SSH agent sent a malformed reply.");
+        private static SshAgentException Malformed() => new(Strings.Connection_SshAgentMalformed);
     }
 }

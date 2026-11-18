@@ -20,7 +20,10 @@ dotnet run --project tools/Screenshot -- <outputDir> [scenario-substring]
                                         [--baseline <dir>] [--publish <repo-root>]
 ```
 
-Pass a scratch directory — nothing it writes is committed. Omit the filter to
+Pass a scratch directory — nothing it writes is committed. `--language <tag or
+Strings.<tag>.resx>` renders in a translation (`qps-ploc` is the pseudo-locale),
+to check that text fits and its script draws; it refuses `--baseline` and
+`--publish`, which are English (CLAUDE.md, "Localization"). Omit the filter to
 render every scenario in `Scenarios.All` (the single list: `Program` walks it,
 the baseline set is exactly its names × {light,dark}, and `Marketing` picks its
 sources out of it by name).

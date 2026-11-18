@@ -21,6 +21,24 @@
     <InternalsVisibleTo Include="PgNimbus.Core.Tests" />
   </ItemGroup>
 
+  <!-- Localization (see Localization/Localizer.cs). The English base file is not
+       shipped: the generator compiles its text into the Strings accessors. Each
+       translation is embedded as it is, in this assembly, under a plain name:
+       never compiled to .resources and never a culture-named satellite assembly
+       (which InvariantGlobalization and NativeAOT can't take). -->
+  <ItemGroup>
+    <EmbeddedResource Remove="Localization\Strings.resx" />
+    <AdditionalFiles Include="Localization\Strings.resx" />
+    <EmbeddedResource Update="Localization\Strings.*.resx"
+                      Type="Non-Resx"
+                      WithCulture="false"
+                      LogicalName="PgNimbus.%(Filename)%(Extension)" />
+    <ProjectReference Include="..\PgNimbus.Strings.Generator\PgNimbus.Strings.Generator.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false"
+                      GlobalPropertiesToRemove="PublishAot;PublishTrimmed;RuntimeIdentifier;SelfContained" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Npgsql" Version="10.0.3" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="11.0.0" />

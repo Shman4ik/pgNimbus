@@ -1,3 +1,5 @@
+using PgNimbus.Core.Localization;
+
 namespace PgNimbus.Core.Connections;
 
 /// <summary>
@@ -23,10 +25,10 @@ public static class ConnectionEnvironments
     /// <summary>The picker's label for <paramref name="environment"/>.</summary>
     public static string Label(this ConnectionEnvironment environment) => environment switch
     {
-        ConnectionEnvironment.Development => "Development",
-        ConnectionEnvironment.Staging => "Staging",
-        ConnectionEnvironment.Production => "Production",
-        _ => "None",
+        ConnectionEnvironment.Development => Strings.Connection_EnvDevelopment,
+        ConnectionEnvironment.Staging => Strings.Connection_EnvStaging,
+        ConnectionEnvironment.Production => Strings.Connection_EnvProduction,
+        _ => Strings.Connection_EnvNone,
     };
 
     /// <summary>
@@ -35,9 +37,9 @@ public static class ConnectionEnvironments
     /// </summary>
     public static string? Tag(this ConnectionEnvironment environment) => environment switch
     {
-        ConnectionEnvironment.Development => "dev",
-        ConnectionEnvironment.Staging => "staging",
-        ConnectionEnvironment.Production => "production",
+        ConnectionEnvironment.Development => Strings.Connection_EnvTagDevelopment,
+        ConnectionEnvironment.Staging => Strings.Connection_EnvTagStaging,
+        ConnectionEnvironment.Production => Strings.Connection_EnvTagProduction,
         _ => null,
     };
 
@@ -47,9 +49,8 @@ public static class ConnectionEnvironments
     /// </summary>
     public static string Description(this ConnectionEnvironment environment) => environment switch
     {
-        ConnectionEnvironment.Production =>
-            "Writes are off when a window opens. Allow them for that window when you mean to change data.",
-        ConnectionEnvironment.None => "No label.",
-        _ => "A label in the window. Writes are allowed.",
+        ConnectionEnvironment.Production => Strings.Connection_EnvDescriptionProduction,
+        ConnectionEnvironment.None => Strings.Connection_EnvDescriptionNone,
+        _ => Strings.Connection_EnvDescriptionOther,
     };
 }

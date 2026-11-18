@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:PgNimbus.App.ViewModels"
              xmlns:views="using:PgNimbus.App.Views"
+             xmlns:l="using:PgNimbus.App.Localization"
              x:Class="PgNimbus.App.Views.PreferencesView"
              x:DataType="vm:PreferencesViewModel">
 
@@ -31,15 +32,34 @@
          The page keeps one height whichever tab shows (PreferencesView.axaml.cs),
          so the strip never moves under the pointer. -->
     <TabControl Classes="capsule settings" SelectedIndex="{Binding SelectedTab}">
-        <TabItem Header="General">
+        <TabItem Header="{l:Tr Settings_TabGeneral}">
             <ScrollViewer HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Margin="20,14,20,20" Spacing="6">
-                    <TextBlock Classes="sectionHeader" Text="STARTUP" Margin="4,0,4,4" />
+                    <TextBlock Classes="sectionHeader" Text="{l:Tr Settings_LanguageSection}" Margin="4,0,4,4" />
                     <Border Classes="card" Padding="14,12">
                         <Grid ColumnDefinitions="*,Auto">
                             <StackPanel Spacing="2" Margin="0,0,16,0">
-                                <TextBlock Classes="label" Text="Open the last connection on startup" />
-                                <TextBlock Classes="hint" Text="Connects straight to whatever you used last instead of waiting at the connection dialog. The dialog is still one Switch connection away, and a failed connect lands back in it with the error." />
+                                <TextBlock Classes="label" Text="{l:Tr Settings_Language}" />
+                                <TextBlock Classes="hint" Text="{l:Tr Settings_LanguageHint}" />
+                            </StackPanel>
+                            <ComboBox Name="LanguageBox" Grid.Column="1" MinWidth="130" VerticalAlignment="Center"
+                                      ItemsSource="{Binding Languages}"
+                                      SelectedItem="{Binding SelectedLanguage}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:LanguageOption">
+                                        <TextBlock Text="{Binding Label}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </Grid>
+                    </Border>
+
+                    <TextBlock Classes="sectionHeader" Text="{l:Tr Settings_StartupSection}" Margin="4,10,4,4" />
+                    <Border Classes="card" Padding="14,12">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Spacing="2" Margin="0,0,16,0">
+                                <TextBlock Classes="label" Text="{l:Tr Settings_AutoConnect}" />
+                                <TextBlock Classes="hint" Text="{l:Tr Settings_AutoConnectHint}" />
                             </StackPanel>
                             <ToggleSwitch Grid.Column="1" VerticalAlignment="Center"
                                           OnContent="" OffContent=""
@@ -47,28 +67,28 @@
                         </Grid>
                     </Border>
 
-                    <TextBlock Classes="sectionHeader" Text="KEYBOARD" Margin="4,10,4,4" />
+                    <TextBlock Classes="sectionHeader" Text="{l:Tr Settings_KeyboardSection}" Margin="4,10,4,4" />
                     <Border Classes="card" Padding="14,12">
                         <Grid ColumnDefinitions="*,Auto">
                             <StackPanel Spacing="2" Margin="0,0,16,0">
-                                <TextBlock Classes="label" Text="Shortcut modifier" />
-                                <TextBlock Classes="hint" Text="Auto uses Cmd on macOS and Ctrl elsewhere. Applies immediately to shortcuts, the command palette, and the cheat sheet." />
+                                <TextBlock Classes="label" Text="{l:Tr Settings_ShortcutModifier}" />
+                                <TextBlock Classes="hint" Text="{l:Tr Settings_ShortcutModifierHint}" />
                             </StackPanel>
                             <ComboBox Grid.Column="1" MinWidth="130" VerticalAlignment="Center"
                                       SelectedIndex="{Binding HotkeySchemeIndex}">
-                                <ComboBoxItem Content="Auto" />
-                                <ComboBoxItem Content="Ctrl" />
-                                <ComboBoxItem Content="Cmd" />
+                                <ComboBoxItem Content="{l:Tr Settings_ModifierAuto}" />
+                                <ComboBoxItem Content="{l:Tr Settings_ModifierCtrl}" />
+                                <ComboBoxItem Content="{l:Tr Settings_ModifierCmd}" />
                             </ComboBox>
                         </Grid>
                     </Border>
 
-                    <TextBlock Classes="sectionHeader" Text="HISTORY" Margin="4,10,4,4" />
+                    <TextBlock Classes="sectionHeader" Text="{l:Tr Settings_HistorySection}" Margin="4,10,4,4" />
                     <Border Classes="card" Padding="14,12">
                         <Grid ColumnDefinitions="*,Auto">
                             <StackPanel Spacing="2" Margin="0,0,16,0">
-                                <TextBlock Classes="label" Text="Record query history" />
-                                <TextBlock Classes="hint" Text="Keeps the text of every query you run in a local file that is not encrypted. Passwords in statements are masked." />
+                                <TextBlock Classes="label" Text="{l:Tr Settings_RecordHistory}" />
+                                <TextBlock Classes="hint" Text="{l:Tr Settings_RecordHistoryHint}" />
                             </StackPanel>
                             <ToggleSwitch Name="RecordQueryHistorySwitch" Grid.Column="1" VerticalAlignment="Center"
                                           OnContent="" OffContent=""
@@ -78,20 +98,20 @@
                 </StackPanel>
             </ScrollViewer>
         </TabItem>
-        <TabItem Header="Appearance">
+        <TabItem Header="{l:Tr Settings_TabAppearance}">
             <ScrollViewer HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Margin="20,14,20,20" Spacing="6">
                     <Border Classes="card" Padding="14,12">
                         <Grid ColumnDefinitions="*,Auto">
                             <StackPanel Spacing="2" Margin="0,0,16,0">
-                                <TextBlock Classes="label" Text="Theme" />
-                                <TextBlock Classes="hint" Text="System follows the OS light/dark setting" />
+                                <TextBlock Classes="label" Text="{l:Tr Settings_Theme}" />
+                                <TextBlock Classes="hint" Text="{l:Tr Settings_ThemeHint}" />
                             </StackPanel>
                             <ComboBox Grid.Column="1" MinWidth="130" VerticalAlignment="Center"
                                       SelectedIndex="{Binding ThemeIndex}">
-                                <ComboBoxItem Content="System" />
-                                <ComboBoxItem Content="Light" />
-                                <ComboBoxItem Content="Dark" />
+                                <ComboBoxItem Content="{l:Tr Settings_ThemeSystem}" />
+                                <ComboBoxItem Content="{l:Tr Settings_ThemeLight}" />
+                                <ComboBoxItem Content="{l:Tr Settings_ThemeDark}" />
                             </ComboBox>
                         </Grid>
                     </Border>
@@ -99,13 +119,13 @@
                     <Border Classes="card" Padding="14,12" Margin="0,6,0,0">
                         <Grid ColumnDefinitions="*,Auto">
                             <StackPanel Spacing="2" Margin="0,0,16,0">
-                                <TextBlock Classes="label" Text="Interface font" />
-                                <TextBlock Classes="hint" Text="System is San Francisco on macOS, Segoe UI on Windows and your desktop's font on Linux. Inter looks the same everywhere." />
+                                <TextBlock Classes="label" Text="{l:Tr Settings_InterfaceFont}" />
+                                <TextBlock Classes="hint" Text="{l:Tr Settings_InterfaceFontHint}" />
                             </StackPanel>
                             <ComboBox Name="InterfaceFontBox" Grid.Column="1" MinWidth="130" VerticalAlignment="Center"
                                       SelectedIndex="{Binding InterfaceFontIndex}">
-                                <ComboBoxItem Content="System" />
-                                <ComboBoxItem Content="Inter" />
+                                <ComboBoxItem Content="{l:Tr Settings_FontSystem}" />
+                                <ComboBoxItem Content="{l:Tr Settings_FontInter}" />
                             </ComboBox>
                         </Grid>
                     </Border>
@@ -113,8 +133,8 @@
                     <Border Classes="card" Padding="14,12" Margin="0,6,0,0">
                         <Grid ColumnDefinitions="*,Auto">
                             <StackPanel Spacing="2" Margin="0,0,16,0">
-                                <TextBlock Classes="label" Text="Code font" />
-                                <TextBlock Classes="hint" Text="For the SQL editor, values, plans and every other place that shows code. Lists the monospace fonts installed on this computer." />
+                                <TextBlock Classes="label" Text="{l:Tr Settings_CodeFont}" />
+                                <TextBlock Classes="hint" Text="{l:Tr Settings_CodeFontHint}" />
                             </StackPanel>
                             <ComboBox Name="CodeFontBox" Grid.Column="1" MinWidth="200" MaxWidth="260" VerticalAlignment="Center"
                                       ItemsSource="{Binding CodeFonts}"
@@ -132,7 +152,7 @@
                     <Border Classes="card" Padding="14,12" Margin="0,6,0,0">
                         <Grid ColumnDefinitions="*,Auto">
                             <StackPanel Spacing="2" Margin="0,0,16,0">
-                                <TextBlock Classes="label" Text="Editor font size" />
+                                <TextBlock Classes="label" Text="{l:Tr Settings_EditorFontSize}" />
                                 <TextBlock Classes="hint" Text="{Binding EditorFontSizeHint}"
                                            FontFamily="{DynamicResource KeyCapFont}" />
                             </StackPanel>
@@ -147,8 +167,8 @@
                     <Border Classes="card" Padding="14,12" Margin="0,6,0,0">
                         <Grid ColumnDefinitions="*,Auto">
                             <StackPanel Spacing="2" Margin="0,0,16,0">
-                                <TextBlock Classes="label" Text="Show relation sizes in the schema tree" />
-                                <TextBlock Classes="hint" Text="Adds each table and materialized view's on-disk size (heap + indexes + TOAST) as a dim hint next to its name" />
+                                <TextBlock Classes="label" Text="{l:Tr Settings_ShowSizes}" />
+                                <TextBlock Classes="hint" Text="{l:Tr Settings_ShowSizesHint}" />
                             </StackPanel>
                             <ToggleSwitch Grid.Column="1" VerticalAlignment="Center"
                                           OnContent="" OffContent=""
@@ -158,15 +178,15 @@
                 </StackPanel>
             </ScrollViewer>
         </TabItem>
-        <TabItem Header="Editor">
+        <TabItem Header="{l:Tr Settings_TabEditor}">
             <ScrollViewer HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Margin="20,14,20,20" Spacing="6">
-                    <TextBlock Classes="sectionHeader" Text="COMPLETION" Margin="4,0,4,4" />
+                    <TextBlock Classes="sectionHeader" Text="{l:Tr Settings_CompletionSection}" Margin="4,0,4,4" />
                     <Border Classes="card" Padding="14,12">
                         <Grid ColumnDefinitions="*,Auto">
                             <StackPanel Spacing="2" Margin="0,0,16,0">
-                                <TextBlock Classes="label" Text="Auto-alias tables from completion" />
-                                <TextBlock Classes="hint" Text="Accepting a table after FROM/JOIN also inserts a short alias (orders → orders o)" />
+                                <TextBlock Classes="label" Text="{l:Tr Settings_AutoAlias}" />
+                                <TextBlock Classes="hint" Text="{l:Tr Settings_AutoAliasHint}" />
                             </StackPanel>
                             <ToggleSwitch Grid.Column="1" VerticalAlignment="Center"
                                           OnContent="" OffContent=""
@@ -176,22 +196,22 @@
                     <Border Classes="card" Padding="14,12" Margin="0,6,0,0">
                         <Grid ColumnDefinitions="*,Auto">
                             <StackPanel Spacing="2" Margin="0,0,16,0">
-                                <TextBlock Classes="label" Text="Keyword case" />
-                                <TextBlock Classes="hint" Text="How accepted keywords are written. As typed follows what you started: tr gives true, SEL gives SELECT." />
+                                <TextBlock Classes="label" Text="{l:Tr Settings_KeywordCase}" />
+                                <TextBlock Classes="hint" Text="{l:Tr Settings_KeywordCaseHint}" />
                             </StackPanel>
                             <ComboBox Grid.Column="1" MinWidth="130" VerticalAlignment="Center"
                                       SelectedIndex="{Binding KeywordCaseIndex}">
-                                <ComboBoxItem Content="As typed" />
-                                <ComboBoxItem Content="UPPER" />
-                                <ComboBoxItem Content="lower" />
+                                <ComboBoxItem Content="{l:Tr Settings_KeywordCaseAsTyped}" />
+                                <ComboBoxItem Content="{l:Tr Settings_KeywordCaseUpper}" />
+                                <ComboBoxItem Content="{l:Tr Settings_KeywordCaseLower}" />
                             </ComboBox>
                         </Grid>
                     </Border>
                     <Border Classes="card" Padding="14,12" Margin="0,6,0,0">
                         <Grid ColumnDefinitions="*,Auto">
                             <StackPanel Spacing="2" Margin="0,0,16,0">
-                                <TextBlock Classes="label" Text="Always write the table's schema" />
-                                <TextBlock Classes="hint" Text="Off, a table goes in bare when the search_path finds it (customers), and with its schema otherwise (saas.users). On, every table goes in with its schema." />
+                                <TextBlock Classes="label" Text="{l:Tr Settings_AlwaysQualify}" />
+                                <TextBlock Classes="hint" Text="{l:Tr Settings_AlwaysQualifyHint}" />
                             </StackPanel>
                             <ToggleSwitch Grid.Column="1" VerticalAlignment="Center"
                                           OnContent="" OffContent=""
@@ -201,8 +221,8 @@
                     <Border Classes="card" Padding="14,12" Margin="0,6,0,0">
                         <Grid ColumnDefinitions="*,Auto">
                             <StackPanel Spacing="2" Margin="0,0,16,0">
-                                <TextBlock Classes="label" Text="Enter accepts a suggestion" />
-                                <TextBlock Classes="hint" Text="On, Enter takes a suggestion you picked or started typing, and is a newline otherwise. Off, only Tab accepts and Enter always ends the line." />
+                                <TextBlock Classes="label" Text="{l:Tr Settings_EnterAccepts}" />
+                                <TextBlock Classes="hint" Text="{l:Tr Settings_EnterAcceptsHint}" />
                             </StackPanel>
                             <ToggleSwitch Grid.Column="1" VerticalAlignment="Center"
                                           OnContent="" OffContent=""
@@ -212,14 +232,14 @@
                 </StackPanel>
             </ScrollViewer>
         </TabItem>
-        <TabItem Header="Data">
+        <TabItem Header="{l:Tr Settings_TabData}">
             <ScrollViewer HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Margin="20,14,20,20" Spacing="6">
                     <Border Classes="card" Padding="14,12">
                         <Grid ColumnDefinitions="*,Auto">
                             <StackPanel Spacing="2" Margin="0,0,16,0">
-                                <TextBlock Classes="label" Text="Safe mode (stage &amp; review changes)" />
-                                <TextBlock Classes="hint" Text="Grid edits, deletes, and Add-row inserts are staged locally and highlighted; review the generated SQL, then commit everything as one transaction — or discard" />
+                                <TextBlock Classes="label" Text="{l:Tr Settings_SafeMode}" />
+                                <TextBlock Classes="hint" Text="{l:Tr Settings_SafeModeHint}" />
                             </StackPanel>
                             <ToggleSwitch Grid.Column="1" VerticalAlignment="Center"
                                           OnContent="" OffContent=""
@@ -229,8 +249,8 @@
                     <Border Classes="card" Padding="14,12" Margin="0,6,0,0">
                         <Grid ColumnDefinitions="*,Auto">
                             <StackPanel Spacing="2" Margin="0,0,16,0">
-                                <TextBlock Classes="label" Text="Always show the filter bar while browsing" />
-                                <TextBlock Classes="hint" Text="Keeps the filter line above the grid even with no conditions, so + Filter is always in reach. Off, it appears whenever a condition (or a WHERE you typed) filters the rows. Also toggled by the funnel in the status bar." />
+                                <TextBlock Classes="label" Text="{l:Tr Settings_FilterBar}" />
+                                <TextBlock Classes="hint" Text="{l:Tr Settings_FilterBarHint}" />
                             </StackPanel>
                             <ToggleSwitch Grid.Column="1" VerticalAlignment="Center"
                                           OnContent="" OffContent=""
@@ -241,27 +261,27 @@
                     <!-- Which pg_dump and pg_restore backups run with. Found on its
                          own almost always; this is where to point at a folder the
                          search can't know, and where to see what it found. -->
-                    <TextBlock Classes="sectionHeader" Text="BACKUP" Margin="4,10,4,4" />
+                    <TextBlock Classes="sectionHeader" Text="{l:Tr Settings_BackupSection}" Margin="4,10,4,4" />
                     <Border Name="PgToolsCard" Classes="card" Padding="14,12">
                         <StackPanel Spacing="10">
                             <Grid ColumnDefinitions="*,Auto">
                                 <StackPanel Spacing="2" Margin="0,0,16,0">
-                                    <TextBlock Classes="label" Text="PostgreSQL client programs" />
-                                    <TextBlock Classes="hint" Text="pg_dump and pg_restore make and restore backups. pgNimbus finds them where PostgreSQL, pgAdmin, Postgres.app and Homebrew install them." />
+                                    <TextBlock Classes="label" Text="{l:Tr Settings_PgTools}" />
+                                    <TextBlock Classes="hint" Text="{l:Tr Settings_PgToolsHint}" />
                                     <TextBlock Name="PgToolsStatus" Classes="hint" Text="{Binding PgTools.StatusLine}"
                                                TextWrapping="Wrap" Opacity="0.85" Margin="0,4,0,0" />
                                     <TextBlock Classes="hint" Text="{Binding PgTools.FolderLabel}" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
-                                    <Button Classes="soft" Content="Choose Folder…" HorizontalAlignment="Stretch"
+                                    <Button Classes="soft" Content="{l:Tr Settings_PgToolsChooseFolder}" HorizontalAlignment="Stretch"
                                             Click="OnChooseToolsFolderClick"
-                                            ToolTip.Tip="Pick the folder that holds pg_dump and pg_restore" />
-                                    <Button Classes="soft" Content="Look Again" HorizontalAlignment="Stretch"
+                                            ToolTip.Tip="{l:Tr Settings_PgToolsChooseFolderTip}" />
+                                    <Button Classes="soft" Content="{l:Tr Settings_PgToolsLookAgain}" HorizontalAlignment="Stretch"
                                             Command="{Binding PgTools.LookAgainCommand}" />
-                                    <Button Classes="soft" Content="Automatic" HorizontalAlignment="Stretch"
+                                    <Button Classes="soft" Content="{l:Tr Settings_PgToolsAutomatic}" HorizontalAlignment="Stretch"
                                             Command="{Binding PgTools.UseAutomaticSearchCommand}"
                                             IsVisible="{Binding PgTools.IsConfigured}"
-                                            ToolTip.Tip="Forget the folder and search again" />
+                                            ToolTip.Tip="{l:Tr Settings_PgToolsAutomaticTip}" />
                                 </StackPanel>
                             </Grid>
                             <views:PgToolGuideView DataContext="{Binding PgTools}" IsVisible="{Binding IsMissing}" />

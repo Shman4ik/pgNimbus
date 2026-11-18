@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.VisualTree;
 using PgNimbus.Core.Commands;
+using PgNimbus.Core.Localization;
 
 namespace PgNimbus.App;
 
@@ -115,12 +116,21 @@ public static class CommandTip
 
         void OnSchemeChanged() => ToolTip.SetTip(control, Compose(control));
 
-        control.AttachedToVisualTree += (_, _) => Hotkeys.Changed += OnSchemeChanged;
-        control.DetachedFromVisualTree += (_, _) => Hotkeys.Changed -= OnSchemeChanged;
+        control.AttachedToVisualTree += (_, _) =>
+        {
+            Hotkeys.Changed += OnSchemeChanged;
+            Localizer.LanguageChanged += OnSchemeChanged;
+        };
+        control.DetachedFromVisualTree += (_, _) =>
+        {
+            Hotkeys.Changed -= OnSchemeChanged;
+            Localizer.LanguageChanged -= OnSchemeChanged;
+        };
 
         if (control.IsAttachedToVisualTree())
         {
             Hotkeys.Changed += OnSchemeChanged;
+            Localizer.LanguageChanged += OnSchemeChanged;
         }
     }
 }

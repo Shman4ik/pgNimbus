@@ -7,6 +7,7 @@
   <Folder Name="/src/">
     <Project Path="src/PgNimbus.App/PgNimbus.App.csproj" />
     <Project Path="src/PgNimbus.Core/PgNimbus.Core.csproj" />
+    <Project Path="src/PgNimbus.Strings.Generator/PgNimbus.Strings.Generator.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/PgNimbus.App.Tests/PgNimbus.App.Tests.csproj" />

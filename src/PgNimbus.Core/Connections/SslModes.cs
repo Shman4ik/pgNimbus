@@ -1,3 +1,5 @@
+using PgNimbus.Core.Localization;
+
 namespace PgNimbus.Core.Connections;
 
 /// <summary>What the SSL mode picker shows for one <see cref="SslMode"/>.</summary>
@@ -15,25 +17,20 @@ public sealed record SslModeInfo(SslMode Mode, string Label, string Description,
 /// </summary>
 public static class SslModes
 {
-    private static readonly SslModeInfo[] Infos =
+    // Built on each read, in the language in force then.
+    private static SslModeInfo[] Infos() =>
     [
-        new(SslMode.Disable, "Disable",
-            "No encryption. Everything, the password included, is sent in the clear."),
-        new(SslMode.Allow, "Allow",
-            "Plaintext unless the server insists on encryption. Nothing is verified."),
-        new(SslMode.Prefer, "Prefer",
-            "Encrypted if the server offers it, else plaintext. An attacker can force plaintext."),
-        new(SslMode.Require, "Require",
-            "Encrypted, but the server's certificate is not checked."),
-        new(SslMode.VerifyCa, "Verify CA",
-            "Encrypted, and the certificate must come from a trusted CA. The host name is not checked."),
-        new(SslMode.VerifyFull, "Verify full",
-            "Encrypted, and the certificate must be trusted and name this host.",
+        new(SslMode.Disable, Strings.Connection_SslDisable, Strings.Connection_SslDisableHint),
+        new(SslMode.Allow, Strings.Connection_SslAllow, Strings.Connection_SslAllowHint),
+        new(SslMode.Prefer, Strings.Connection_SslPrefer, Strings.Connection_SslPreferHint),
+        new(SslMode.Require, Strings.Connection_SslRequire, Strings.Connection_SslRequireHint),
+        new(SslMode.VerifyCa, Strings.Connection_SslVerifyCa, Strings.Connection_SslVerifyCaHint),
+        new(SslMode.VerifyFull, Strings.Connection_SslVerifyFull, Strings.Connection_SslVerifyFullHint,
             Recommended: true),
     ];
 
     /// <summary>Every mode, in the enum's order.</summary>
-    public static IReadOnlyList<SslModeInfo> All => Infos;
+    public static IReadOnlyList<SslModeInfo> All => Infos();
 
     /// <summary>
     /// The mode a new profile starts at for <paramref name="host"/>: Require,
@@ -68,7 +65,7 @@ public static class SslModes
     }
 
     public static SslModeInfo Describe(SslMode mode) =>
-        Array.Find(Infos, info => info.Mode == mode)
+        Array.Find(Infos(), info => info.Mode == mode)
         ?? throw new ArgumentOutOfRangeException(nameof(mode), mode, "Unknown SSL mode.");
 
     /// <summary>
@@ -90,7 +87,7 @@ public static class SslModes
         {
             if (e.Message.Contains("No SSL enabled connection", StringComparison.OrdinalIgnoreCase))
             {
-                return "The server does not accept TLS connections. For a local server without TLS, set SSL Mode to Prefer or Disable.";
+                return Strings.Connection_ServerWithoutTlsHint;
             }
         }
 

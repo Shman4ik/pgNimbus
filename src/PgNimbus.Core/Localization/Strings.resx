@@ -1,0 +1,1471 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!--
+    pgNimbus's interface text, in English: the base every translation follows.
+    How to translate: docs/dev/translating.md. How to add a string: .claude/CLAUDE.md,
+    "Localization". Keys are grouped by area under the markers below; add a new key
+    under its area's marker. A <comment> says where the text shows and what each
+    {placeholder} holds.
+  -->
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <!-- ===== Language ===== -->
+  <data name="_LanguageName" xml:space="preserve">
+    <value>English</value>
+    <comment>The name of this file's language, written in that language. Shown in Settings.</comment>
+  </data>
+
+  <!-- ===== Common ===== -->
+  <data name="Common_Cancel" xml:space="preserve">
+    <value>Cancel</value>
+    <comment>A button that closes a dialog and changes nothing.</comment>
+  </data>
+  <data name="Common_Close" xml:space="preserve">
+    <value>Close</value>
+    <comment>A button or menu item that closes a window, a panel or a tab.</comment>
+  </data>
+  <data name="Common_Save" xml:space="preserve">
+    <value>Save</value>
+    <comment>A button that saves what was edited.</comment>
+  </data>
+  <data name="Common_Delete" xml:space="preserve">
+    <value>Delete</value>
+    <comment>A button or menu item that deletes the selected thing.</comment>
+  </data>
+  <data name="Common_Apply" xml:space="preserve">
+    <value>Apply</value>
+    <comment>A button that applies what was set in a dialog or panel.</comment>
+  </data>
+  <data name="Common_Refresh" xml:space="preserve">
+    <value>Refresh</value>
+    <comment>A button that reads the shown information again from the server.</comment>
+  </data>
+  <data name="Common_Copy" xml:space="preserve">
+    <value>Copy</value>
+    <comment>A button or menu item that copies to the clipboard.</comment>
+  </data>
+  <data name="Common_Stop" xml:space="preserve">
+    <value>Stop</value>
+    <comment>A button that stops a running operation.</comment>
+  </data>
+  <data name="Common_Discard" xml:space="preserve">
+    <value>Discard</value>
+    <comment>A button that throws away unsaved or staged changes.</comment>
+  </data>
+  <data name="Common_Remove" xml:space="preserve">
+    <value>Remove</value>
+    <comment>A button that removes an item from a list.</comment>
+  </data>
+  <data name="Common_Add" xml:space="preserve">
+    <value>Add</value>
+    <comment>A button that adds an item.</comment>
+  </data>
+  <data name="Common_Rename" xml:space="preserve">
+    <value>Rename</value>
+    <comment>A button that renames an item.</comment>
+  </data>
+  <data name="Common_Commit" xml:space="preserve">
+    <value>Commit</value>
+    <comment>A button that commits a transaction or staged changes to the database (a database COMMIT).</comment>
+  </data>
+  <data name="Common_Browse" xml:space="preserve">
+    <value>Browse…</value>
+    <comment>A button that opens a file or folder chooser.</comment>
+  </data>
+  <data name="Common_Retry" xml:space="preserve">
+    <value>Retry</value>
+    <comment>A button that tries a failed operation again.</comment>
+  </data>
+  <data name="Common_Open" xml:space="preserve">
+    <value>Open</value>
+    <comment>A button that opens the selected item.</comment>
+  </data>
+
+  <!-- ===== Framework ===== -->
+  <data name="Framework_Cut" xml:space="preserve">
+    <value>Cut</value>
+    <comment>The right-click menu of every text box.</comment>
+  </data>
+  <data name="Framework_Copy" xml:space="preserve">
+    <value>Copy</value>
+    <comment>The right-click menu of every text box.</comment>
+  </data>
+  <data name="Framework_Paste" xml:space="preserve">
+    <value>Paste</value>
+    <comment>The right-click menu of every text box.</comment>
+  </data>
+  <data name="Framework_Day" xml:space="preserve">
+    <value>day</value>
+    <comment>A date picker's day part.</comment>
+  </data>
+  <data name="Framework_Month" xml:space="preserve">
+    <value>month</value>
+    <comment>A date picker's month part.</comment>
+  </data>
+  <data name="Framework_Year" xml:space="preserve">
+    <value>year</value>
+    <comment>A date picker's year part.</comment>
+  </data>
+  <data name="Framework_Hour" xml:space="preserve">
+    <value>hour</value>
+    <comment>A time picker's hour part.</comment>
+  </data>
+  <data name="Framework_Minute" xml:space="preserve">
+    <value>minute</value>
+    <comment>A time picker's minute part.</comment>
+  </data>
+  <data name="Framework_Second" xml:space="preserve">
+    <value>second</value>
+    <comment>A time picker's second part.</comment>
+  </data>
+
+  <!-- ===== About ===== -->
+  <data name="About_Tagline" xml:space="preserve">
+    <value>A fast, open-source PostgreSQL client</value>
+  </data>
+  <data name="About_GitHub" xml:space="preserve">
+    <value>pgNimbus on GitHub</value>
+  </data>
+  <data name="About_Version" xml:space="preserve">
+    <value>Version {version}</value>
+    <comment>About box: under the name. {version} is the release number, such as 1.4.0.</comment>
+  </data>
+  <data name="About_License" xml:space="preserve">
+    <value>MIT License</value>
+    <comment>About box: the license line when the copyright text is unknown.</comment>
+  </data>
+  <data name="About_CopyrightLicense" xml:space="preserve">
+    <value>{copyright} · MIT License</value>
+    <comment>About box: copyright and license on one line. {copyright} is the copyright notice, such as "Copyright (c) 2026 Name".</comment>
+  </data>
+  <data name="About_RateInStore" xml:space="preserve">
+    <value>Rate pgNimbus in the Microsoft Store</value>
+    <comment>About box: link shown only in the Microsoft Store version.</comment>
+  </data>
+
+  <!-- ===== Settings ===== -->
+  <data name="Settings_LanguageSection" xml:space="preserve">
+    <value>LANGUAGE</value>
+    <comment>Settings, General tab: section header. Written in capitals in English; write it as your language writes a heading.</comment>
+  </data>
+  <data name="Settings_Language" xml:space="preserve">
+    <value>Language</value>
+    <comment>Settings, General tab: the setting's name.</comment>
+  </data>
+  <data name="Settings_LanguageHint" xml:space="preserve">
+    <value>Menus, dialogs and messages. SQL, server messages and your data stay as they are, and a string with no translation yet shows in English.</value>
+    <comment>Settings, General tab: under the Language setting.</comment>
+  </data>
+  <data name="Settings_LanguageSystem" xml:space="preserve">
+    <value>System ({language})</value>
+    <comment>Settings, General tab: the first choice in the Language list, which follows the operating system. {language} is that language's name in itself, such as English or 简体中文.</comment>
+  </data>
+  <data name="Settings_TabGeneral" xml:space="preserve">
+    <value>General</value>
+    <comment>Settings: name of the first tab.</comment>
+  </data>
+  <data name="Settings_TabAppearance" xml:space="preserve">
+    <value>Appearance</value>
+    <comment>Settings: name of the second tab.</comment>
+  </data>
+  <data name="Settings_TabEditor" xml:space="preserve">
+    <value>Editor</value>
+    <comment>Settings: name of the third tab.</comment>
+  </data>
+  <data name="Settings_TabData" xml:space="preserve">
+    <value>Data</value>
+    <comment>Settings: name of the fourth tab.</comment>
+  </data>
+  <data name="Settings_StartupSection" xml:space="preserve">
+    <value>STARTUP</value>
+    <comment>Settings, General tab: section heading. Written in capitals in English; write it as your language writes a heading.</comment>
+  </data>
+  <data name="Settings_AutoConnect" xml:space="preserve">
+    <value>Open the last connection on startup</value>
+    <comment>Settings, General tab, Startup: the setting's name (a switch).</comment>
+  </data>
+  <data name="Settings_AutoConnectHint" xml:space="preserve">
+    <value>Connects straight to whatever you used last instead of waiting at the connection dialog. The dialog is still one Switch connection away, and a failed connect lands back in it with the error.</value>
+    <comment>Settings, General tab, Startup: hint under the setting. "Switch connection" is the name of a menu command.</comment>
+  </data>
+  <data name="Settings_KeyboardSection" xml:space="preserve">
+    <value>KEYBOARD</value>
+    <comment>Settings, General tab: section heading. Written in capitals in English; write it as your language writes a heading.</comment>
+  </data>
+  <data name="Settings_ShortcutModifier" xml:space="preserve">
+    <value>Shortcut modifier</value>
+    <comment>Settings, General tab, Keyboard: the setting's name.</comment>
+  </data>
+  <data name="Settings_ShortcutModifierHint" xml:space="preserve">
+    <value>Auto uses Cmd on macOS and Ctrl elsewhere. Applies immediately to shortcuts, the command palette, and the cheat sheet.</value>
+    <comment>Settings, General tab, Keyboard: hint under the setting. Cmd and Ctrl are key names and stay as they are.</comment>
+  </data>
+  <data name="Settings_ModifierAuto" xml:space="preserve">
+    <value>Auto</value>
+    <comment>Settings, General tab, Keyboard: a choice in the shortcut modifier list (pick Cmd or Ctrl by platform).</comment>
+  </data>
+  <data name="Settings_HistorySection" xml:space="preserve">
+    <value>HISTORY</value>
+    <comment>Settings, General tab: section heading. Written in capitals in English; write it as your language writes a heading.</comment>
+  </data>
+  <data name="Settings_RecordHistory" xml:space="preserve">
+    <value>Record query history</value>
+    <comment>Settings, General tab, History: the setting's name (a switch).</comment>
+  </data>
+  <data name="Settings_RecordHistoryHint" xml:space="preserve">
+    <value>Keeps the text of every query you run in a local file that is not encrypted. Passwords in statements are masked.</value>
+    <comment>Settings, General tab, History: hint under the setting.</comment>
+  </data>
+  <data name="Settings_Theme" xml:space="preserve">
+    <value>Theme</value>
+    <comment>Settings, Appearance tab: the setting's name.</comment>
+  </data>
+  <data name="Settings_ThemeHint" xml:space="preserve">
+    <value>System follows the OS light/dark setting</value>
+    <comment>Settings, Appearance tab: hint under Theme.</comment>
+  </data>
+  <data name="Settings_ThemeSystem" xml:space="preserve">
+    <value>System</value>
+    <comment>Settings, Appearance tab: a choice in the Theme list, following the operating system's light or dark setting.</comment>
+  </data>
+  <data name="Settings_ThemeLight" xml:space="preserve">
+    <value>Light</value>
+    <comment>Settings, Appearance tab: a choice in the Theme list.</comment>
+  </data>
+  <data name="Settings_ThemeDark" xml:space="preserve">
+    <value>Dark</value>
+    <comment>Settings, Appearance tab: a choice in the Theme list.</comment>
+  </data>
+  <data name="Settings_InterfaceFont" xml:space="preserve">
+    <value>Interface font</value>
+    <comment>Settings, Appearance tab: the setting's name.</comment>
+  </data>
+  <data name="Settings_InterfaceFontHint" xml:space="preserve">
+    <value>System is San Francisco on macOS, Segoe UI on Windows and your desktop's font on Linux. Inter looks the same everywhere.</value>
+    <comment>Settings, Appearance tab: hint under Interface font. San Francisco, Segoe UI and Inter are font names and stay as they are; System is the first choice of the list.</comment>
+  </data>
+  <data name="Settings_FontSystem" xml:space="preserve">
+    <value>System</value>
+    <comment>Settings, Appearance tab: a choice in the Interface font list, the operating system's own font.</comment>
+  </data>
+  <data name="Settings_CodeFont" xml:space="preserve">
+    <value>Code font</value>
+    <comment>Settings, Appearance tab: the setting's name.</comment>
+  </data>
+  <data name="Settings_CodeFontHint" xml:space="preserve">
+    <value>For the SQL editor, values, plans and every other place that shows code. Lists the monospace fonts installed on this computer.</value>
+    <comment>Settings, Appearance tab: hint under Code font.</comment>
+  </data>
+  <data name="Settings_CodeFontBuiltIn" xml:space="preserve">
+    <value>JetBrains Mono (built in)</value>
+    <comment>Settings, Appearance tab: the first choice in the Code font list, the font that ships with pgNimbus. JetBrains Mono is a font name and stays as it is.</comment>
+  </data>
+  <data name="Settings_EditorFontSize" xml:space="preserve">
+    <value>Editor font size</value>
+    <comment>Settings, Appearance tab: the setting's name.</comment>
+  </data>
+  <data name="Settings_EditorFontSizeHint" xml:space="preserve">
+    <value>The size every SQL editor starts at, and returns to on {gesture}. Zooming changes only the editor you are in.</value>
+    <comment>Settings, Appearance tab: hint under Editor font size. {gesture} is the keyboard shortcut that resets the zoom, such as Ctrl+0 or ⌘0; it is built by the app and not translated.</comment>
+  </data>
+  <data name="Settings_ShowSizes" xml:space="preserve">
+    <value>Show relation sizes in the schema tree</value>
+    <comment>Settings, Appearance tab: the setting's name (a switch). A relation is a table or materialized view.</comment>
+  </data>
+  <data name="Settings_ShowSizesHint" xml:space="preserve">
+    <value>Adds each table and materialized view's on-disk size (heap + indexes + TOAST) as a dim hint next to its name</value>
+    <comment>Settings, Appearance tab: hint under Show relation sizes. Heap and TOAST are PostgreSQL storage terms.</comment>
+  </data>
+  <data name="Settings_CompletionSection" xml:space="preserve">
+    <value>COMPLETION</value>
+    <comment>Settings, Editor tab: section heading. Written in capitals in English; write it as your language writes a heading.</comment>
+  </data>
+  <data name="Settings_AutoAlias" xml:space="preserve">
+    <value>Auto-alias tables from completion</value>
+    <comment>Settings, Editor tab, Completion: the setting's name (a switch).</comment>
+  </data>
+  <data name="Settings_AutoAliasHint" xml:space="preserve">
+    <value>Accepting a table after FROM/JOIN also inserts a short alias (orders → orders o)</value>
+    <comment>Settings, Editor tab, Completion: hint under the setting. FROM and JOIN are SQL keywords; the example is SQL.</comment>
+  </data>
+  <data name="Settings_KeywordCase" xml:space="preserve">
+    <value>Keyword case</value>
+    <comment>Settings, Editor tab, Completion: the setting's name.</comment>
+  </data>
+  <data name="Settings_KeywordCaseHint" xml:space="preserve">
+    <value>How accepted keywords are written. As typed follows what you started: tr gives true, SEL gives SELECT.</value>
+    <comment>Settings, Editor tab, Completion: hint under Keyword case. "As typed" is the first choice of the list; tr/true and SEL/SELECT are typing examples and stay as they are.</comment>
+  </data>
+  <data name="Settings_KeywordCaseAsTyped" xml:space="preserve">
+    <value>As typed</value>
+    <comment>Settings, Editor tab: a choice in the Keyword case list; keywords follow the case the user started typing in.</comment>
+  </data>
+  <data name="Settings_KeywordCaseUpper" xml:space="preserve">
+    <value>UPPER</value>
+    <comment>Settings, Editor tab: a choice in the Keyword case list; keywords are written in capitals. Write it in capitals if your language has them.</comment>
+  </data>
+  <data name="Settings_KeywordCaseLower" xml:space="preserve">
+    <value>lower</value>
+    <comment>Settings, Editor tab: a choice in the Keyword case list; keywords are written in small letters.</comment>
+  </data>
+  <data name="Settings_AlwaysQualify" xml:space="preserve">
+    <value>Always write the table's schema</value>
+    <comment>Settings, Editor tab, Completion: the setting's name (a switch).</comment>
+  </data>
+  <data name="Settings_AlwaysQualifyHint" xml:space="preserve">
+    <value>Off, a table goes in bare when the search_path finds it (customers), and with its schema otherwise (saas.users). On, every table goes in with its schema.</value>
+    <comment>Settings, Editor tab, Completion: hint under the setting. search_path is a PostgreSQL setting; customers and saas.users are examples and stay as they are.</comment>
+  </data>
+  <data name="Settings_EnterAccepts" xml:space="preserve">
+    <value>Enter accepts a suggestion</value>
+    <comment>Settings, Editor tab, Completion: the setting's name (a switch).</comment>
+  </data>
+  <data name="Settings_EnterAcceptsHint" xml:space="preserve">
+    <value>On, Enter takes a suggestion you picked or started typing, and is a newline otherwise. Off, only Tab accepts and Enter always ends the line.</value>
+    <comment>Settings, Editor tab, Completion: hint under the setting. Enter and Tab are key names.</comment>
+  </data>
+  <data name="Settings_SafeMode" xml:space="preserve">
+    <value>Safe mode (stage &amp; review changes)</value>
+    <comment>Settings, Data tab: the setting's name (a switch).</comment>
+  </data>
+  <data name="Settings_SafeModeHint" xml:space="preserve">
+    <value>Grid edits, deletes, and Add-row inserts are staged locally and highlighted; review the generated SQL, then commit everything as one transaction — or discard</value>
+    <comment>Settings, Data tab: hint under Safe mode.</comment>
+  </data>
+  <data name="Settings_FilterBar" xml:space="preserve">
+    <value>Always show the filter bar while browsing</value>
+    <comment>Settings, Data tab: the setting's name (a switch).</comment>
+  </data>
+  <data name="Settings_FilterBarHint" xml:space="preserve">
+    <value>Keeps the filter line above the grid even with no conditions, so + Filter is always in reach. Off, it appears whenever a condition (or a WHERE you typed) filters the rows. Also toggled by the funnel in the status bar.</value>
+    <comment>Settings, Data tab: hint under the setting. "+ Filter" is the name of a button; WHERE is the SQL keyword.</comment>
+  </data>
+  <data name="Settings_BackupSection" xml:space="preserve">
+    <value>BACKUP</value>
+    <comment>Settings, Data tab: section heading. Written in capitals in English; write it as your language writes a heading.</comment>
+  </data>
+  <data name="Settings_PgTools" xml:space="preserve">
+    <value>PostgreSQL client programs</value>
+    <comment>Settings, Data tab, Backup: the card's name.</comment>
+  </data>
+  <data name="Settings_PgToolsHint" xml:space="preserve">
+    <value>pg_dump and pg_restore make and restore backups. pgNimbus finds them where PostgreSQL, pgAdmin, Postgres.app and Homebrew install them.</value>
+    <comment>Settings, Data tab, Backup: hint under the card's name. pg_dump, pg_restore, pgAdmin, Postgres.app and Homebrew are program names.</comment>
+  </data>
+  <data name="Settings_PgToolsChooseFolder" xml:space="preserve">
+    <value>Choose Folder…</value>
+    <comment>Settings, Data tab, Backup: button that opens a folder picker.</comment>
+  </data>
+  <data name="Settings_PgToolsChooseFolderTip" xml:space="preserve">
+    <value>Pick the folder that holds pg_dump and pg_restore</value>
+    <comment>Settings, Data tab, Backup: tooltip of the Choose Folder button.</comment>
+  </data>
+  <data name="Settings_PgToolsLookAgain" xml:space="preserve">
+    <value>Look Again</value>
+    <comment>Settings, Data tab, Backup: button that searches for the programs again.</comment>
+  </data>
+  <data name="Settings_PgToolsAutomatic" xml:space="preserve">
+    <value>Automatic</value>
+    <comment>Settings, Data tab, Backup: button that goes back to searching automatically.</comment>
+  </data>
+  <data name="Settings_PgToolsAutomaticTip" xml:space="preserve">
+    <value>Forget the folder and search again</value>
+    <comment>Settings, Data tab, Backup: tooltip of the Automatic button.</comment>
+  </data>
+  <data name="Settings_PgToolsLooking" xml:space="preserve">
+    <value>Looking for {tool}…</value>
+    <comment>Status line while the search runs, in Settings and in the Backup and Restore windows. {tool} is the program name: pg_dump or pg_restore.</comment>
+  </data>
+  <data name="Settings_PgToolsFromFolder" xml:space="preserve">
+    <value>From the folder you chose: {folder}</value>
+    <comment>Settings, Data tab, Backup: line under the card when the user picked a folder. {folder} is a folder path.</comment>
+  </data>
+  <data name="Settings_PgToolsFoundAutomatically" xml:space="preserve">
+    <value>Found automatically</value>
+    <comment>Settings, Data tab, Backup: line under the card when the programs were found without the user choosing a folder.</comment>
+  </data>
+  <data name="Settings_PgToolsNeeds" xml:space="preserve">
+    <value>pgNimbus needs {needed}</value>
+    <comment>Heading of the Backup and Restore windows when no usable program is installed. {needed} is a program with a version, such as "pg_dump 17 or newer", or just "pg_restore".</comment>
+  </data>
+  <data name="Settings_PgToolsNeededVersion" xml:space="preserve">
+    <value>{tool} {version} or newer</value>
+    <comment>Part of the heading "pgNimbus needs …": the program and the oldest major version that works. {tool} is pg_dump; {version} is a release such as 17.</comment>
+  </data>
+  <data name="Settings_PgToolsNotFound" xml:space="preserve">
+    <value>{tool} not found</value>
+    <comment>Status line when the program was not found. {tool} is pg_dump or pg_restore.</comment>
+  </data>
+  <data name="Settings_PgToolsExplainDump" xml:space="preserve">
+    <value>Backups are made by pg_dump, PostgreSQL's own backup program, which comes with pg_restore.</value>
+    <comment>Backup window, missing-program explanation: first line.</comment>
+  </data>
+  <data name="Settings_PgToolsExplainRestore" xml:space="preserve">
+    <value>Backups are restored by pg_restore, PostgreSQL's own restore program, which comes with pg_dump.</value>
+    <comment>Restore window, missing-program explanation: first line.</comment>
+  </data>
+  <data name="Settings_PgToolsFolderProblem" xml:space="preserve">
+    <value>Settings point pgNimbus at {folder}, but {reason}.</value>
+    <comment>Missing-program explanation: the folder chosen in Settings holds no usable program. {folder} is a path; {reason} is a clause saying why, such as "it did not start".</comment>
+  </data>
+  <data name="Settings_PgToolsFolderNoProblem" xml:space="preserve">
+    <value>Settings point pgNimbus at {folder}.</value>
+    <comment>Missing-program explanation: the folder chosen in Settings. {folder} is a path.</comment>
+  </data>
+  <data name="Settings_PgToolsTooOld" xml:space="preserve">
+    <value>The newest {tool} on this computer is {found}, in {folder}. This server runs PostgreSQL {server}, and {tool} has to be {version} or newer to back it up.</value>
+    <comment>Missing-program explanation: the installed program is older than the server. {tool} is pg_dump; {found} is its version, such as 15.4; {folder} is a path; {server} is the server's version, such as 17.2; {version} is the oldest major release that works, such as 17.</comment>
+  </data>
+  <data name="Settings_PgToolsNoneOnComputer" xml:space="preserve">
+    <value>pgNimbus didn't find {tool} on this computer.</value>
+    <comment>Missing-program explanation. {tool} is pg_dump or pg_restore.</comment>
+  </data>
+  <data name="Settings_PgToolsOtherProblem" xml:space="preserve">
+    <value>There's a {tool} in {folder}, but {reason}.</value>
+    <comment>Missing-program explanation: a program was found in a folder but does not work. {tool} is pg_dump or pg_restore; {folder} is a path; {reason} is a clause saying why.</comment>
+  </data>
+  <data name="Settings_PgToolsInstalled" xml:space="preserve">
+    <value>{tool} {version} · {folder}</value>
+    <comment>Status line of Settings, Backup and Restore: the program that will run. {tool} is pg_dump or pg_restore; {version} is its release, such as 18.6; {folder} is the folder it is in.</comment>
+  </data>
+  <data name="Settings_PgToolsInstalledFrom" xml:space="preserve">
+    <value>{tool} {version} from {source} · {folder}</value>
+    <comment>Status line of Settings, Backup and Restore: the program that will run, with what installed it. {tool} is pg_dump or pg_restore; {version} is its release, such as 18.6; {source} is the product that installed it, such as pgAdmin 4 or Homebrew; {folder} is the folder it is in.</comment>
+  </data>
+  <data name="Settings_FontInter" xml:space="preserve">
+    <value>Inter</value>
+    <comment>Settings, Appearance tab: a choice in the Interface font list. Inter is a font name: keep it as it is.</comment>
+  </data>
+  <data name="Settings_ModifierCtrl" xml:space="preserve">
+    <value>Ctrl</value>
+    <comment>Settings, General tab, Keyboard: a choice in the shortcut modifier list. A key name: keep it as it is, unless your keyboards label the key differently.</comment>
+  </data>
+  <data name="Settings_ModifierCmd" xml:space="preserve">
+    <value>Cmd</value>
+    <comment>Settings, General tab, Keyboard: a choice in the shortcut modifier list. A key name (the Command key of a Mac): keep it as it is, unless your keyboards label the key differently.</comment>
+  </data>
+
+  <!-- ===== Connection ===== -->
+  <data name="Connection_WindowTitle" xml:space="preserve">
+    <value>pgNimbus — Connect</value>
+    <comment>Connection dialog: the window's title (read by screen readers and the window list).</comment>
+  </data>
+  <data name="Connection_SavedConnections" xml:space="preserve">
+    <value>Saved connections</value>
+    <comment>Connection dialog: heading in the title bar, over the list of saved connections.</comment>
+  </data>
+  <data name="Connection_Connect" xml:space="preserve">
+    <value>Connect</value>
+    <comment>Connection dialog: the primary button that opens the connection, and the first item of a saved connection's right-click menu.</comment>
+  </data>
+  <data name="Connection_MenuDuplicate" xml:space="preserve">
+    <value>Duplicate</value>
+    <comment>Connection dialog: right-click menu of a saved connection: makes a copy of it.</comment>
+  </data>
+  <data name="Connection_MenuDelete" xml:space="preserve">
+    <value>Delete…</value>
+    <comment>Connection dialog: right-click menu of a saved connection: deletes it after a confirmation.</comment>
+  </data>
+  <data name="Connection_ReadOnlySession" xml:space="preserve">
+    <value>Read-only session</value>
+    <comment>Connection dialog: tooltip of the lock icon on a saved connection that opens read-only, and the label of the Read-only switch.</comment>
+  </data>
+  <data name="Connection_NoSavedConnections" xml:space="preserve">
+    <value>No saved connections yet — fill in the form and it's kept here as you type</value>
+    <comment>Connection dialog: hint shown over the empty list of saved connections.</comment>
+  </data>
+  <data name="Connection_DeleteConfirm" xml:space="preserve">
+    <value>Delete the saved connection "{name}"? Its stored password goes with it.</value>
+    <comment>Connection dialog: confirmation question before a saved connection is deleted. {name} is the connection's name, such as prod-db.</comment>
+  </data>
+  <data name="Connection_ImportPlaceholder" xml:space="preserve">
+    <value>Paste a connection string (postgres://…, jdbc:…, Key=Value;…, psql …)</value>
+    <comment>Connection dialog: placeholder of the box that takes a pasted connection string. Keep the format examples as they are.</comment>
+  </data>
+  <data name="Connection_ImportTooltip" xml:space="preserve">
+    <value>Paste a postgres:// URI, JDBC URL, Npgsql Key=Value string, libpq keyword string or psql command line and the fields fill in by themselves</value>
+    <comment>Connection dialog: tooltip of the paste box.</comment>
+  </data>
+  <data name="Connection_CopyTooltip" xml:space="preserve">
+    <value>Copy the connection string without the password. Right-click to copy it with the password.</value>
+    <comment>Connection dialog: tooltip of the copy button beside the paste box.</comment>
+  </data>
+  <data name="Connection_CopyWithoutPassword" xml:space="preserve">
+    <value>Copy Without Password</value>
+    <comment>Connection dialog: menu item of the copy button: copies the connection string with no password.</comment>
+  </data>
+  <data name="Connection_CopyWithPassword" xml:space="preserve">
+    <value>Copy With Password</value>
+    <comment>Connection dialog: menu item of the copy button: copies the connection string including the password.</comment>
+  </data>
+  <data name="Connection_CopyWithPasswordTooltip" xml:space="preserve">
+    <value>Includes the password. Kept out of clipboard history where the system allows it, and cleared from the clipboard after 30 seconds.</value>
+    <comment>Connection dialog: tooltip of the Copy With Password menu item.</comment>
+  </data>
+  <data name="Connection_Name" xml:space="preserve">
+    <value>Name</value>
+    <comment>Connection dialog: label of the connection's name field.</comment>
+  </data>
+  <data name="Connection_AccentColorTooltip" xml:space="preserve">
+    <value>Accent color — tints this connection's window so prod and dev are told apart at a glance</value>
+    <comment>Connection dialog: tooltip of the colour swatch button beside the name.</comment>
+  </data>
+  <data name="Connection_NoAccentColor" xml:space="preserve">
+    <value>No accent color</value>
+    <comment>Connection dialog: tooltip of the first swatch in the accent colour palette, which clears the colour.</comment>
+  </data>
+  <data name="Connection_HostPort" xml:space="preserve">
+    <value>Host / Port</value>
+    <comment>Connection dialog: label over the host and port fields.</comment>
+  </data>
+  <data name="Connection_Database" xml:space="preserve">
+    <value>Database</value>
+    <comment>Connection dialog: label of the database name field.</comment>
+  </data>
+  <data name="Connection_Username" xml:space="preserve">
+    <value>Username</value>
+    <comment>Connection dialog: label of the user name field.</comment>
+  </data>
+  <data name="Connection_SslMode" xml:space="preserve">
+    <value>SSL Mode</value>
+    <comment>Connection dialog: label of the TLS mode picker. SSL Mode is the name of the PostgreSQL setting.</comment>
+  </data>
+  <data name="Connection_Recommended" xml:space="preserve">
+    <value>Recommended</value>
+    <comment>Connection dialog: small tag in the SSL mode list beside the mode to use.</comment>
+  </data>
+  <data name="Connection_RootCertificate" xml:space="preserve">
+    <value>Root Certificate</value>
+    <comment>Connection dialog: label of the field naming a certificate authority file to trust.</comment>
+  </data>
+  <data name="Connection_RootCertificatePlaceholder" xml:space="preserve">
+    <value>System trust store (default)</value>
+    <comment>Connection dialog: placeholder of the Root Certificate field when empty.</comment>
+  </data>
+  <data name="Connection_Password" xml:space="preserve">
+    <value>Password</value>
+    <comment>Connection dialog: label of the database password field.</comment>
+  </data>
+  <data name="Connection_Environment" xml:space="preserve">
+    <value>Environment</value>
+    <comment>Connection dialog: label of the picker that says whether this connection is development, staging or production.</comment>
+  </data>
+  <data name="Connection_ReadOnlyTooltip" xml:space="preserve">
+    <value>Every statement runs in a read-only transaction, so the server refuses INSERT, UPDATE, DELETE and DDL. It guards against mistakes; to make writes impossible, use a role without write privileges.</value>
+    <comment>Connection dialog: tooltip of the Read-only session switch. INSERT, UPDATE, DELETE and DDL are SQL words and stay.</comment>
+  </data>
+  <data name="Connection_UseSshTunnel" xml:space="preserve">
+    <value>Connect through an SSH tunnel</value>
+    <comment>Connection dialog: label of the switch that sends the connection through an SSH server.</comment>
+  </data>
+  <data name="Connection_SshHostPort" xml:space="preserve">
+    <value>SSH Host / Port</value>
+    <comment>Connection dialog, SSH block: label over the SSH server's host and port.</comment>
+  </data>
+  <data name="Connection_SshUsername" xml:space="preserve">
+    <value>SSH Username</value>
+    <comment>Connection dialog, SSH block: label of the SSH user name field.</comment>
+  </data>
+  <data name="Connection_SshAuthMethod" xml:space="preserve">
+    <value>Auth Method</value>
+    <comment>Connection dialog, SSH block: label of the picker for how to sign in to the SSH server.</comment>
+  </data>
+  <data name="Connection_PrivateKeyPath" xml:space="preserve">
+    <value>Private Key Path</value>
+    <comment>Connection dialog, SSH block: label of the field naming the private key file.</comment>
+  </data>
+  <data name="Connection_PrivateKeyPlaceholder" xml:space="preserve">
+    <value>~/.ssh/id_ed25519 (default)</value>
+    <comment>Connection dialog, SSH block: placeholder of the private key path field when empty.</comment>
+  </data>
+  <data name="Connection_SshAgentHint" xml:space="preserve">
+    <value>Signs in with the keys your SSH agent holds, so a key with a passphrase needs nothing typed here.</value>
+    <comment>Connection dialog, SSH block: shown in place of a key field when the SSH agent method is chosen.</comment>
+  </data>
+  <data name="Connection_SshAuthAgent" xml:space="preserve">
+    <value>SSH agent</value>
+    <comment>Connection dialog, SSH block: a choice of the Auth Method picker: sign in with the keys the SSH agent holds.</comment>
+  </data>
+  <data name="Connection_SshAuthKeyFile" xml:space="preserve">
+    <value>Key file</value>
+    <comment>Connection dialog, SSH block: a choice of the Auth Method picker: sign in with a private key file.</comment>
+  </data>
+  <data name="Connection_SshAuthPassword" xml:space="preserve">
+    <value>Password</value>
+    <comment>Connection dialog, SSH block: a choice of the Auth Method picker: sign in with a password.</comment>
+  </data>
+  <data name="Connection_SshKeyPassphrase" xml:space="preserve">
+    <value>Key Passphrase</value>
+    <comment>Connection dialog, SSH block: label of the field for the private key's passphrase.</comment>
+  </data>
+  <data name="Connection_SshPassword" xml:space="preserve">
+    <value>SSH Password</value>
+    <comment>Connection dialog, SSH block: label of the field for the SSH account's password.</comment>
+  </data>
+  <data name="Connection_Advanced" xml:space="preserve">
+    <value>Advanced</value>
+    <comment>Connection dialog: button that opens or closes the Advanced block (client certificate and timeouts).</comment>
+  </data>
+  <data name="Connection_ClientCertificate" xml:space="preserve">
+    <value>Client Certificate</value>
+    <comment>Connection dialog, Advanced block: label of the field naming the client certificate file (mutual TLS).</comment>
+  </data>
+  <data name="Connection_ClientCertificatePlaceholder" xml:space="preserve">
+    <value>None (libpq's default file, if any)</value>
+    <comment>Connection dialog, Advanced block: placeholder of the client certificate field when empty. libpq is the PostgreSQL client library.</comment>
+  </data>
+  <data name="Connection_ClientKey" xml:space="preserve">
+    <value>Client Key</value>
+    <comment>Connection dialog, Advanced block: label of the field naming the client certificate's private key file.</comment>
+  </data>
+  <data name="Connection_ClientKeyPlaceholder" xml:space="preserve">
+    <value>None (no passphrase supported)</value>
+    <comment>Connection dialog, Advanced block: placeholder of the client key field when empty.</comment>
+  </data>
+  <data name="Connection_StatementTimeout" xml:space="preserve">
+    <value>Statement Timeout (s)</value>
+    <comment>Connection dialog, Advanced block: label of the field for the longest a statement may run, in seconds.</comment>
+  </data>
+  <data name="Connection_LockTimeout" xml:space="preserve">
+    <value>Lock Timeout (s)</value>
+    <comment>Connection dialog, Advanced block: label of the field for the longest a statement may wait for a lock, in seconds.</comment>
+  </data>
+  <data name="Connection_TimeoutNone" xml:space="preserve">
+    <value>None</value>
+    <comment>Connection dialog, Advanced block: placeholder of a timeout field when empty (no timeout set).</comment>
+  </data>
+  <data name="Connection_TimeoutHint" xml:space="preserve">
+    <value>The server cancels a statement that runs, or waits for a lock, longer than this. Empty keeps the server's and the role's own settings. Exports, imports and backups are not cut short.</value>
+    <comment>Connection dialog, Advanced block: explains the two timeout fields.</comment>
+  </data>
+  <data name="Connection_AccessingPasswordStore" xml:space="preserve">
+    <value>Accessing password store…</value>
+    <comment>Connection dialog: shown while the operating system's credential store is being read or written.</comment>
+  </data>
+  <data name="Connection_NewConnection" xml:space="preserve">
+    <value>New Connection</value>
+    <comment>Connection dialog: tooltip and accessible name of the + button under the list that starts a new saved connection.</comment>
+  </data>
+  <data name="Connection_Test" xml:space="preserve">
+    <value>Test</value>
+    <comment>Connection dialog: button that tries the connection without opening it.</comment>
+  </data>
+  <data name="Connection_TestTooltip" xml:space="preserve">
+    <value>Verify the connection (and SSH tunnel, if enabled) without opening it</value>
+    <comment>Connection dialog: tooltip of the Test button.</comment>
+  </data>
+  <data name="Connection_AboutTitle" xml:space="preserve">
+    <value>About</value>
+    <comment>Connection dialog: title of the About panel that opens over the form.</comment>
+  </data>
+  <data name="Connection_PickSshKey" xml:space="preserve">
+    <value>Choose SSH private key</value>
+    <comment>Connection dialog: title of the file chooser for the SSH private key.</comment>
+  </data>
+  <data name="Connection_PickRootCertificate" xml:space="preserve">
+    <value>Choose root certificate</value>
+    <comment>Connection dialog: title of the file chooser for the root certificate.</comment>
+  </data>
+  <data name="Connection_PickClientCertificate" xml:space="preserve">
+    <value>Choose client certificate</value>
+    <comment>Connection dialog: title of the file chooser for the client certificate.</comment>
+  </data>
+  <data name="Connection_PickClientKey" xml:space="preserve">
+    <value>Choose client key</value>
+    <comment>Connection dialog: title of the file chooser for the client key.</comment>
+  </data>
+  <data name="Connection_FileTypeCertificates" xml:space="preserve">
+    <value>Certificates</value>
+    <comment>Connection dialog: name of the certificate file filter in a file chooser.</comment>
+  </data>
+  <data name="Connection_FileTypeKeys" xml:space="preserve">
+    <value>Keys</value>
+    <comment>Connection dialog: name of the key file filter in a file chooser.</comment>
+  </data>
+  <data name="Connection_MenuFile" xml:space="preserve">
+    <value>File</value>
+    <comment>Connection dialog: macOS menu bar, the File menu while the connect window is active.</comment>
+  </data>
+  <data name="Connection_MenuCloseWindow" xml:space="preserve">
+    <value>Close Window</value>
+    <comment>Connection dialog: macOS File menu item that closes the window.</comment>
+  </data>
+  <data name="Connection_MenuEdit" xml:space="preserve">
+    <value>Edit</value>
+    <comment>Connection dialog: macOS menu bar, the Edit menu.</comment>
+  </data>
+  <data name="Connection_MenuWindow" xml:space="preserve">
+    <value>Window</value>
+    <comment>Connection dialog: macOS menu bar, the Window menu.</comment>
+  </data>
+  <data name="Connection_EnvironmentHintReadOnly" xml:space="preserve">
+    <value>Read-only session is on, so writes stay off in every window.</value>
+    <comment>Connection dialog: line under the Environment picker for a production connection that is also read-only.</comment>
+  </data>
+  <data name="Connection_SaveFailed" xml:space="preserve">
+    <value>Couldn't save the connection: {message}</value>
+    <comment>Connection dialog: error line. {message} is the reason, such as Access to the path is denied.</comment>
+  </data>
+  <data name="Connection_CopyName" xml:space="preserve">
+    <value>{name} (copy)</value>
+    <comment>Connection dialog: the name given to a duplicated connection. {name} is the original's name, such as prod-db.</comment>
+  </data>
+  <data name="Connection_TestSucceeded" xml:space="preserve">
+    <value>Connection successful — PostgreSQL {version}</value>
+    <comment>Connection dialog: status line after Test worked. {version} is the server's version, such as 17.2.</comment>
+  </data>
+  <data name="Connection_TestFailed" xml:space="preserve">
+    <value>Connection test failed: {message}</value>
+    <comment>Connection dialog: error line after Test failed. {message} is the reason the server or network gave.</comment>
+  </data>
+  <data name="Connection_Connecting" xml:space="preserve">
+    <value>Connecting to {name}…</value>
+    <comment>Connection dialog: status line while connecting. {name} is the connection's name, such as prod-db.</comment>
+  </data>
+  <data name="Connection_ConnectFailed" xml:space="preserve">
+    <value>Connection failed: {message}</value>
+    <comment>Connection dialog: error line after Connect failed. {message} is the reason the server or network gave.</comment>
+  </data>
+  <data name="Connection_SshRequired" xml:space="preserve">
+    <value>SSH host and username are required when the tunnel is enabled.</value>
+    <comment>Connection dialog: error line when the SSH tunnel is on and its host or user is empty.</comment>
+  </data>
+  <data name="Connection_SslDisable" xml:space="preserve">
+    <value>Disable</value>
+    <comment>Connection dialog: SSL Mode choice. The name of the PostgreSQL sslmode value 'disable'.</comment>
+  </data>
+  <data name="Connection_SslDisableHint" xml:space="preserve">
+    <value>No encryption. Everything, the password included, is sent in the clear.</value>
+    <comment>Connection dialog: SSL Mode list: one line under the Disable choice.</comment>
+  </data>
+  <data name="Connection_SslAllow" xml:space="preserve">
+    <value>Allow</value>
+    <comment>Connection dialog: SSL Mode choice. The name of the PostgreSQL sslmode value 'allow'.</comment>
+  </data>
+  <data name="Connection_SslAllowHint" xml:space="preserve">
+    <value>Plaintext unless the server insists on encryption. Nothing is verified.</value>
+    <comment>Connection dialog: SSL Mode list: one line under the Allow choice.</comment>
+  </data>
+  <data name="Connection_SslPrefer" xml:space="preserve">
+    <value>Prefer</value>
+    <comment>Connection dialog: SSL Mode choice. The name of the PostgreSQL sslmode value 'prefer'.</comment>
+  </data>
+  <data name="Connection_SslPreferHint" xml:space="preserve">
+    <value>Encrypted if the server offers it, else plaintext. An attacker can force plaintext.</value>
+    <comment>Connection dialog: SSL Mode list: one line under the Prefer choice.</comment>
+  </data>
+  <data name="Connection_SslRequire" xml:space="preserve">
+    <value>Require</value>
+    <comment>Connection dialog: SSL Mode choice. The name of the PostgreSQL sslmode value 'require'.</comment>
+  </data>
+  <data name="Connection_SslRequireHint" xml:space="preserve">
+    <value>Encrypted, but the server's certificate is not checked.</value>
+    <comment>Connection dialog: SSL Mode list: one line under the Require choice.</comment>
+  </data>
+  <data name="Connection_SslVerifyCa" xml:space="preserve">
+    <value>Verify CA</value>
+    <comment>Connection dialog: SSL Mode choice. The name of the PostgreSQL sslmode value 'verify-ca'. CA is certificate authority.</comment>
+  </data>
+  <data name="Connection_SslVerifyCaHint" xml:space="preserve">
+    <value>Encrypted, and the certificate must come from a trusted CA. The host name is not checked.</value>
+    <comment>Connection dialog: SSL Mode list: one line under the Verify CA choice.</comment>
+  </data>
+  <data name="Connection_SslVerifyFull" xml:space="preserve">
+    <value>Verify full</value>
+    <comment>Connection dialog: SSL Mode choice. The name of the PostgreSQL sslmode value 'verify-full'.</comment>
+  </data>
+  <data name="Connection_SslVerifyFullHint" xml:space="preserve">
+    <value>Encrypted, and the certificate must be trusted and name this host.</value>
+    <comment>Connection dialog: SSL Mode list: one line under the Verify full choice.</comment>
+  </data>
+  <data name="Connection_ServerWithoutTlsHint" xml:space="preserve">
+    <value>The server does not accept TLS connections. For a local server without TLS, set SSL Mode to Prefer or Disable.</value>
+    <comment>Connection dialog: added to a connect error when the server has no TLS. Prefer and Disable are SSL Mode choices (translate them as they are in the picker).</comment>
+  </data>
+  <data name="Connection_EnvNone" xml:space="preserve">
+    <value>None</value>
+    <comment>Connection dialog: Environment picker choice for a connection with no environment label.</comment>
+  </data>
+  <data name="Connection_EnvDevelopment" xml:space="preserve">
+    <value>Development</value>
+    <comment>Connection dialog: Environment picker choice.</comment>
+  </data>
+  <data name="Connection_EnvStaging" xml:space="preserve">
+    <value>Staging</value>
+    <comment>Connection dialog: Environment picker choice.</comment>
+  </data>
+  <data name="Connection_EnvProduction" xml:space="preserve">
+    <value>Production</value>
+    <comment>Connection dialog: Environment picker choice.</comment>
+  </data>
+  <data name="Connection_EnvTagDevelopment" xml:space="preserve">
+    <value>dev</value>
+    <comment>Short lower-case tag beside a development connection in the saved connections list and the main window.</comment>
+  </data>
+  <data name="Connection_EnvTagStaging" xml:space="preserve">
+    <value>staging</value>
+    <comment>Short lower-case tag beside a staging connection in the saved connections list and the main window.</comment>
+  </data>
+  <data name="Connection_EnvTagProduction" xml:space="preserve">
+    <value>production</value>
+    <comment>Short lower-case tag beside a production connection in the saved connections list and the main window.</comment>
+  </data>
+  <data name="Connection_EnvDescriptionProduction" xml:space="preserve">
+    <value>Writes are off when a window opens. Allow them for that window when you mean to change data.</value>
+    <comment>Connection dialog: line under the Environment picker when Production is chosen.</comment>
+  </data>
+  <data name="Connection_EnvDescriptionNone" xml:space="preserve">
+    <value>No label.</value>
+    <comment>Connection dialog: line under the Environment picker when None is chosen.</comment>
+  </data>
+  <data name="Connection_EnvDescriptionOther" xml:space="preserve">
+    <value>A label in the window. Writes are allowed.</value>
+    <comment>Connection dialog: line under the Environment picker when Development or Staging is chosen.</comment>
+  </data>
+  <data name="Connection_ClientKeyNeedsCertificate" xml:space="preserve">
+    <value>A client key needs its client certificate. Choose the certificate file too.</value>
+    <comment>Connection dialog: error line when a client key is set without a client certificate.</comment>
+  </data>
+  <data name="Connection_ClientCertificateNotFound" xml:space="preserve">
+    <value>The client certificate file was not found: {path}</value>
+    <comment>Connection dialog: error line. {path} is the file path the user entered.</comment>
+  </data>
+  <data name="Connection_ClientKeyNotFound" xml:space="preserve">
+    <value>The client key file was not found: {path}</value>
+    <comment>Connection dialog: error line. {path} is the file path the user entered.</comment>
+  </data>
+  <data name="Connection_ClientKeyHasPassphrase" xml:space="preserve">
+    <value>The client key is protected by a passphrase, which pgNimbus does not support. Save a copy without it (openssl pkey -in client.key -out client-plain.key) and make that file readable only by you.</value>
+    <comment>Connection dialog: error line. Keep the openssl command as it is.</comment>
+  </data>
+  <data name="Connection_CredentialDeleteFailed" xml:space="preserve">
+    <value>A saved password could not be deleted. Unlock your OS credential store and retry, or remove the pgNimbus entry in your system password manager.</value>
+    <comment>Connection dialog: warning shown under the form when the operating system refused to delete a stored password.</comment>
+  </data>
+  <data name="Connection_CredentialStorageUnavailable" xml:space="preserve">
+    <value>Password storage is unavailable or migration could not finish. You can connect using the password in this dialog, but changes may last only for this session. Check your OS credential store (Keychain on macOS; Secret Service and libsecret-1 on Linux), then re-enter the password. Existing legacy credential files are kept until migration is verified.</value>
+    <comment>Connection dialog: warning shown under the form when the operating system's password store cannot be used. Keychain, Secret Service and libsecret-1 are product names.</comment>
+  </data>
+  <data name="Connection_LegacyCredentialLeft_one" xml:space="preserve">
+    <value>An old unencrypted credential file could not be moved into your OS credential store and is still on disk. Open the connection it belongs to and save its password again to remove it.</value>
+    <comment>Connection dialog: warning under the form, singular: one old credential file could not be migrated.</comment>
+  </data>
+  <data name="Connection_LegacyCredentialLeft_other" xml:space="preserve">
+    <value>{count} old unencrypted credential files could not be moved into your OS credential store and are still on disk. Open the connections they belong to and save their passwords again to remove them.</value>
+    <comment>Connection dialog: warning under the form, plural. {count} is how many files, such as 3.</comment>
+  </data>
+  <data name="Connection_CredentialStoreUnavailable" xml:space="preserve">
+    <value>The OS credential store is unavailable.</value>
+    <comment>Connection dialog: the reason in an error line when the operating system's credential store cannot be used.</comment>
+  </data>
+  <data name="Connection_SshKeyTypeNotOffered" xml:space="preserve">
+    <value>{server} did not offer a host key of the type known_hosts knows it by ({types}). This happens when the server's keys were replaced, and also when someone between you and the server is intercepting the connection. pgNimbus did not connect. If you know the server's keys really changed, remove its lines from known_hosts and connect again; you will be asked to confirm the new key.</value>
+    <comment>Connection dialog: SSH error line. {server} is host:port, such as bastion.example.com:22. {types} lists key types, such as ssh-ed25519, ssh-rsa. known_hosts is a file name.</comment>
+  </data>
+  <data name="Connection_SshNoKeyFile" xml:space="preserve">
+    <value>No key file was named, and none of the default keys ({defaults}) is in {directory}.</value>
+    <comment>Connection dialog: SSH error line. {defaults} lists file names such as id_ed25519, id_rsa; {directory} is a folder path.</comment>
+  </data>
+  <data name="Connection_SshKeyFilePassphrase" xml:space="preserve">
+    <value>The key file {path} is protected by a passphrase. Type it in the passphrase field, or choose "SSH agent" if the key is already loaded there (ssh-add).</value>
+    <comment>Connection dialog: SSH error line. {path} is a file path. "SSH agent" is the Auth Method choice (translate as in the picker); ssh-add is a command.</comment>
+  </data>
+  <data name="Connection_SshKeyFileMissing" xml:space="preserve">
+    <value>The key file {path} does not exist.</value>
+    <comment>Connection dialog: SSH error line. {path} is a file path.</comment>
+  </data>
+  <data name="Connection_SshKeyFileUnreadable" xml:space="preserve">
+    <value>Could not read the key file {path}: {message}</value>
+    <comment>Connection dialog: SSH error line. {path} is a file path; {message} is the reason.</comment>
+  </data>
+  <data name="Connection_SshKeyFileUnreadableWithPassphrase" xml:space="preserve">
+    <value>Could not read the key file {path}: {message} If the key has a passphrase, check that it is typed correctly.</value>
+    <comment>Connection dialog: SSH error line when a passphrase was typed. {path} is a file path; {message} is the reason.</comment>
+  </data>
+  <data name="Connection_SshNoAgentSocket" xml:space="preserve">
+    <value>SSH_AUTH_SOCK is not set, so there is no SSH agent to ask. Start ssh-agent and add your key with ssh-add, or pick another auth method.</value>
+    <comment>Connection dialog: SSH error line. SSH_AUTH_SOCK, ssh-agent and ssh-add are names and stay.</comment>
+  </data>
+  <data name="Connection_SshAgentNoKeys" xml:space="preserve">
+    <value>The SSH agent at {address} holds no keys. Add yours with ssh-add.</value>
+    <comment>Connection dialog: SSH error line. {address} is the agent's socket or pipe, such as /tmp/ssh-abc/agent.1.</comment>
+  </data>
+  <data name="Connection_SshLoginRefused" xml:space="preserve">
+    <value>The SSH server {server} refused the login as {user}: {message} {hint}</value>
+    <comment>Connection dialog: SSH error line. {server} is host:port; {user} is the SSH user name; {message} is the server's reason; {hint} is one of the next three sentences.</comment>
+  </data>
+  <data name="Connection_SshAuthHintAgent" xml:space="preserve">
+    <value>None of the SSH agent's keys is authorized for this user on the server.</value>
+    <comment>Connection dialog: SSH error hint after a refused login using the agent.</comment>
+  </data>
+  <data name="Connection_SshAuthHintKey" xml:space="preserve">
+    <value>Check that this key's public half is in the user's ~/.ssh/authorized_keys on the server.</value>
+    <comment>Connection dialog: SSH error hint after a refused login using a key file.</comment>
+  </data>
+  <data name="Connection_SshAuthHintPassword" xml:space="preserve">
+    <value>Check the SSH password.</value>
+    <comment>Connection dialog: SSH error hint after a refused login using a password.</comment>
+  </data>
+  <data name="Connection_SshUnreachable" xml:space="preserve">
+    <value>Could not reach the SSH server {server} ({message}). Check the address, and that the VPN or network it sits behind is up.</value>
+    <comment>Connection dialog: SSH error line. {server} is host:port; {message} is the network's reason.</comment>
+  </data>
+  <data name="Connection_SshClosed" xml:space="preserve">
+    <value>The SSH server {server} closed the connection: {message}</value>
+    <comment>Connection dialog: SSH error line. {server} is host:port; {message} is the reason.</comment>
+  </data>
+  <data name="Connection_SshFailed" xml:space="preserve">
+    <value>SSH tunnel to {server} failed: {message}</value>
+    <comment>Connection dialog: SSH error line. {server} is host:port; {message} is the reason.</comment>
+  </data>
+  <data name="Connection_SshHostKeyRevoked" xml:space="preserve">
+    <value>The {keyType} key that {server} presented ({fingerprint}) is marked @revoked in {file} (line {line}). pgNimbus did not connect.</value>
+    <comment>Connection dialog: SSH error line. {keyType} is such as ssh-ed25519; {server} is host:port; {fingerprint} is SHA256:…; {file} is a path to known_hosts; {line} is a line number. Keep @revoked.</comment>
+  </data>
+  <data name="Connection_SshHostKeyChanged" xml:space="preserve">
+    <value>The host key of {server} has changed. {file} (line {line}) knows its {keyType} key as {known}, but the server now presents {fingerprint}. This happens when the server was reinstalled or its keys were regenerated, and also when someone between you and the server is intercepting the connection. pgNimbus did not connect. If you know the key really changed, remove that line from {file} and connect again; you will be asked to confirm the new key.</value>
+    <comment>Connection dialog: SSH error line. {server} is host:port; {file} is a path to known_hosts; {line} a line number; {keyType} such as ssh-ed25519; {known} and {fingerprint} are SHA256:… fingerprints.</comment>
+  </data>
+  <data name="Connection_SshHostKeyNotAccepted" xml:space="preserve">
+    <value>The {keyType} key of {server} ({fingerprint}) was not accepted, so pgNimbus did not connect.</value>
+    <comment>Connection dialog: SSH error line after the user refused an unknown host key. {keyType} is such as ssh-ed25519; {server} is host:port; {fingerprint} is SHA256:….</comment>
+  </data>
+  <data name="Connection_SshHostKeyNotConfirmed" xml:space="preserve">
+    <value>The {keyType} key of {server} ({fingerprint}) could not be confirmed ({message}), so pgNimbus did not connect.</value>
+    <comment>Connection dialog: SSH error line when the host key question failed. {keyType} such as ssh-ed25519; {server} host:port; {fingerprint} SHA256:…; {message} the reason.</comment>
+  </data>
+  <data name="Connection_SshAgentRefusedList" xml:space="preserve">
+    <value>The SSH agent refused to list its keys.</value>
+    <comment>Connection dialog: SSH error line.</comment>
+  </data>
+  <data name="Connection_SshAgentDeclinedSign" xml:space="preserve">
+    <value>The SSH agent declined to sign with the key (it may have been removed, or it needs a confirmation that was refused).</value>
+    <comment>Connection dialog: SSH error line.</comment>
+  </data>
+  <data name="Connection_SshAgentNoAnswer" xml:space="preserve">
+    <value>No SSH agent answered at {address}. {hint}</value>
+    <comment>Connection dialog: SSH error line. {address} is the agent's socket or pipe; {hint} is one of the next two sentences.</comment>
+  </data>
+  <data name="Connection_SshAgentStartHintWindows" xml:space="preserve">
+    <value>Start the "OpenSSH Authentication Agent" Windows service and add your key with ssh-add.</value>
+    <comment>Connection dialog: SSH error hint on Windows. "OpenSSH Authentication Agent" is the name of the Windows service as Windows shows it.</comment>
+  </data>
+  <data name="Connection_SshAgentStartHintOther" xml:space="preserve">
+    <value>Check that SSH_AUTH_SOCK points at a running agent and add your key with ssh-add.</value>
+    <comment>Connection dialog: SSH error hint on macOS and Linux.</comment>
+  </data>
+  <data name="Connection_SshAgentMalformed" xml:space="preserve">
+    <value>The SSH agent sent a malformed reply.</value>
+    <comment>Connection dialog: SSH error line.</comment>
+  </data>
+  <data name="Connection_SshAgentDropped" xml:space="preserve">
+    <value>The SSH agent at {address} dropped the connection: {message}</value>
+    <comment>Connection dialog: SSH error line. {address} is the agent's socket or pipe; {message} is the reason.</comment>
+  </data>
+  <data name="Connection_SshAgentUnexpected" xml:space="preserve">
+    <value>The SSH agent sent an unexpected reply (message type {messageType}).</value>
+    <comment>Connection dialog: SSH error line. {messageType} is a number.</comment>
+  </data>
+  <data name="Connection_ParseNothing" xml:space="preserve">
+    <value>Nothing to parse.</value>
+    <comment>Connection dialog: error line under the paste box when it holds no text.</comment>
+  </data>
+  <data name="Connection_ParseUnrecognized" xml:space="preserve">
+    <value>Unrecognized connection string. Supported formats: postgres:// URI, jdbc:postgresql://, Key=Value;..., libpq "host=... dbname=...", or a psql command line.</value>
+    <comment>Connection dialog: error line for a pasted string in no known format. Keep the format examples as they are.</comment>
+  </data>
+  <data name="Connection_ParseSegment" xml:space="preserve">
+    <value>A segment is not in Key=Value form.</value>
+    <comment>Connection dialog: error line for a pasted Key=Value;… string.</comment>
+  </data>
+  <data name="Connection_ParseKeyword" xml:space="preserve">
+    <value>Part of the string is not in keyword=value form.</value>
+    <comment>Connection dialog: error line for a pasted libpq keyword string.</comment>
+  </data>
+  <data name="Connection_ParseQuote" xml:space="preserve">
+    <value>A quoted value is missing its closing quote.</value>
+    <comment>Connection dialog: error line for a pasted libpq keyword string.</comment>
+  </data>
+  <data name="Connection_ParsePsqlMissing" xml:space="preserve">
+    <value>Could not find the psql executable in the command line.</value>
+    <comment>Connection dialog: error line for a pasted psql command line. psql is a program name.</comment>
+  </data>
+  <data name="Connection_ParseOptionValue" xml:space="preserve">
+    <value>Option {flag} is missing its value.</value>
+    <comment>Connection dialog: error line for a pasted psql command line. {flag} is a command-line option, such as --host.</comment>
+  </data>
+  <data name="Connection_ParsePort" xml:space="preserve">
+    <value>The port is not a number from 1 to 65535.</value>
+    <comment>Connection dialog: error line for a pasted connection string.</comment>
+  </data>
+  <data name="Connection_ParseSslMode" xml:space="preserve">
+    <value>Unknown SSL mode. Use disable, allow, prefer, require, verify-ca or verify-full.</value>
+    <comment>Connection dialog: error line for a pasted connection string. The listed words are PostgreSQL values and stay.</comment>
+  </data>
+  <data name="Connection_ParseRootCertificateRemote" xml:space="preserve">
+    <value>A root certificate on another machine is not taken from a pasted connection string. Copy the file to this computer and choose it in the Root Certificate field.</value>
+    <comment>Connection dialog: error line for a pasted connection string. Root Certificate is a field label.</comment>
+  </data>
+  <data name="Connection_ParseClientCertificateRemote" xml:space="preserve">
+    <value>A client certificate on another machine is not taken from a pasted connection string. Copy the file to this computer and choose it in the Client Certificate field.</value>
+    <comment>Connection dialog: error line for a pasted connection string. Client Certificate is a field label.</comment>
+  </data>
+  <data name="Connection_ParseClientKeyRemote" xml:space="preserve">
+    <value>A client key on another machine is not taken from a pasted connection string. Copy the file to this computer and choose it in the Client Key field.</value>
+    <comment>Connection dialog: error line for a pasted connection string. Client Key is a field label.</comment>
+  </data>
+  <data name="Connection_ParseIpv6" xml:space="preserve">
+    <value>Unterminated IPv6 address (missing ']').</value>
+    <comment>Connection dialog: error line for a pasted connection string.</comment>
+  </data>
+
+  <!-- ===== Commands ===== -->
+  <data name="Command_Run" xml:space="preserve">
+    <value>Run query</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Run query". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_RunStatementUnderCursor" xml:space="preserve">
+    <value>Run just the statement under the cursor</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Run just the statement under the cursor". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_Cancel" xml:space="preserve">
+    <value>Cancel query</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Cancel query". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_Explain" xml:space="preserve">
+    <value>Explain</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Explain". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_Explain_Cheat" xml:space="preserve">
+    <value>Explain — estimated plan</value>
+    <comment>Keyboard shortcut sheet (F1) and the shortcuts reference: a shorter name for the command, shown there instead of its palette name.</comment>
+  </data>
+  <data name="Command_ExplainAnalyze" xml:space="preserve">
+    <value>Explain Analyze</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Explain Analyze". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_ExplainAnalyze_Cheat" xml:space="preserve">
+    <value>Explain Analyze — runs the query</value>
+    <comment>Keyboard shortcut sheet (F1) and the shortcuts reference: a shorter name for the command, shown there instead of its palette name.</comment>
+  </data>
+  <data name="Command_ImportPlan" xml:space="preserve">
+    <value>Import query plan (paste EXPLAIN JSON or text)…</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Import query plan (paste EXPLAIN JSON or text)…". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_QueryLab" xml:space="preserve">
+    <value>Query Lab (compare saved plans)</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Query Lab (compare saved plans)". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_QueryLab_Cheat" xml:space="preserve">
+    <value>Query Lab</value>
+    <comment>Keyboard shortcut sheet (F1) and the shortcuts reference: a shorter name for the command, shown there instead of its palette name.</comment>
+  </data>
+  <data name="Command_SavePlanToQueryLab" xml:space="preserve">
+    <value>Save plan to Query Lab…</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Save plan to Query Lab…". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_ComparePlan" xml:space="preserve">
+    <value>Compare plan in Query Lab…</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Compare plan in Query Lab…". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_FormatSql" xml:space="preserve">
+    <value>Format SQL</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Format SQL". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_FormatSql_Cheat" xml:space="preserve">
+    <value>Format the statement under the cursor</value>
+    <comment>Keyboard shortcut sheet (F1) and the shortcuts reference: a shorter name for the command, shown there instead of its palette name.</comment>
+  </data>
+  <data name="Command_ExpandStar" xml:space="preserve">
+    <value>Expand SELECT * into columns</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Expand SELECT * into columns". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_BeginTransaction" xml:space="preserve">
+    <value>Begin transaction</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Begin transaction". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_CommitTransaction" xml:space="preserve">
+    <value>Commit transaction</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Commit transaction". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_RollbackTransaction" xml:space="preserve">
+    <value>Rollback transaction</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Rollback transaction". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_ToggleSafeMode" xml:space="preserve">
+    <value>Toggle safe mode (stage grid changes, review &amp; commit)</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Toggle safe mode (stage grid changes, review &amp; commit)". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_AllowWrites" xml:space="preserve">
+    <value>Allow writes in this window</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Allow writes in this window". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_LockWrites" xml:space="preserve">
+    <value>Turn writes off in this window</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Turn writes off in this window". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_NewTab" xml:space="preserve">
+    <value>New query tab</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "New query tab". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_CloseTab" xml:space="preserve">
+    <value>Close tab</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Close tab". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_ReopenClosedTab" xml:space="preserve">
+    <value>Reopen closed tab</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Reopen closed tab". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_CloseOtherTabs" xml:space="preserve">
+    <value>Close other tabs</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Close other tabs". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_CloseTabsToTheRight" xml:space="preserve">
+    <value>Close tabs to the right</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Close tabs to the right". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_RenameTab" xml:space="preserve">
+    <value>Rename tab</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Rename tab". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_NextTab" xml:space="preserve">
+    <value>Next tab</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Next tab". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_PreviousTab" xml:space="preserve">
+    <value>Previous tab</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Previous tab". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_GoToTabByNumber" xml:space="preserve">
+    <value>Go to tab 1…9</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Go to tab 1…9". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_GoToTabByNumber_Note" xml:space="preserve">
+    <value>{key:cmd}+1 … {key:cmd}+9</value>
+    <comment>Keyboard shortcut sheet (F1) and the command palette's shortcut column: a gesture that is not a plain key chord, written next to or instead of the key caps. Keep {key:cmd} and {chord:...} exactly as written, braces included (they are not placeholders to translate): the app replaces {key:cmd} with Ctrl or the Command key, and {chord:Name} with another command's shortcut.</comment>
+  </data>
+  <data name="Command_OpenFile" xml:space="preserve">
+    <value>Open file…</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Open file…". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_Save" xml:space="preserve">
+    <value>Save</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Save". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_Save_Cheat" xml:space="preserve">
+    <value>Save — to the tab's file, or to Saved Queries</value>
+    <comment>Keyboard shortcut sheet (F1) and the shortcuts reference: a shorter name for the command, shown there instead of its palette name.</comment>
+  </data>
+  <data name="Command_SaveAs" xml:space="preserve">
+    <value>Save as…</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Save as…". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_SaveAs_Cheat" xml:space="preserve">
+    <value>Save as — a new file, or a new saved query</value>
+    <comment>Keyboard shortcut sheet (F1) and the shortcuts reference: a shorter name for the command, shown there instead of its palette name.</comment>
+  </data>
+  <data name="Command_SaveQuery" xml:space="preserve">
+    <value>Save to Saved Queries…</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Save to Saved Queries…". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_SaveFile" xml:space="preserve">
+    <value>Save to file…</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Save to file…". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_Completion" xml:space="preserve">
+    <value>Autocomplete (also triggers while typing)</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Autocomplete (also triggers while typing)". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_ParameterHints" xml:space="preserve">
+    <value>Show the argument hint (also opens after typing "(")</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Show the argument hint (also opens after typing "(")". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_Find" xml:space="preserve">
+    <value>Find in editor</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Find in editor". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_FindReplace" xml:space="preserve">
+    <value>Find &amp; replace in editor</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Find &amp; replace in editor". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_FindNextPrevious" xml:space="preserve">
+    <value>Next / previous match</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Next / previous match". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_ToggleLineComment" xml:space="preserve">
+    <value>Toggle line comment</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Toggle line comment". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_DuplicateLine" xml:space="preserve">
+    <value>Duplicate line (or selection)</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Duplicate line (or selection)". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_MoveLineUp" xml:space="preserve">
+    <value>Move line up</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Move line up". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_MoveLineDown" xml:space="preserve">
+    <value>Move line down</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Move line down". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_DeleteLine" xml:space="preserve">
+    <value>Delete whole line</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Delete whole line". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_UndoRedo" xml:space="preserve">
+    <value>Undo / Redo</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Undo / Redo". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_ToggleWordWrap" xml:space="preserve">
+    <value>Toggle word wrap</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Toggle word wrap". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_ToggleAutoAlias" xml:space="preserve">
+    <value>Toggle auto-alias tables (orders → orders o)</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Toggle auto-alias tables (orders → orders o)". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_ToggleAutoAlias_Cheat" xml:space="preserve">
+    <value>Toggle auto-alias on table completion</value>
+    <comment>Keyboard shortcut sheet (F1) and the shortcuts reference: a shorter name for the command, shown there instead of its palette name.</comment>
+  </data>
+  <data name="Command_ZoomEditor" xml:space="preserve">
+    <value>Zoom font size in / out</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Zoom font size in / out". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_ZoomEditor_Note" xml:space="preserve">
+    <value>{key:cmd}+wheel</value>
+    <comment>Keyboard shortcut sheet (F1) and the command palette's shortcut column: a gesture that is not a plain key chord, written next to or instead of the key caps. Keep {key:cmd} and {chord:...} exactly as written, braces included (they are not placeholders to translate): the app replaces {key:cmd} with Ctrl or the Command key, and {chord:Name} with another command's shortcut.</comment>
+  </data>
+  <data name="Command_ResetEditorZoom" xml:space="preserve">
+    <value>Reset font size</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Reset font size". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_WordNavigation" xml:space="preserve">
+    <value>Move to word start / end</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Move to word start / end". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_EditCell" xml:space="preserve">
+    <value>Edit selected cell</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Edit selected cell". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_EditCell_Note" xml:space="preserve">
+    <value>double-click</value>
+    <comment>Keyboard shortcut sheet (F1) and the command palette's shortcut column: a gesture that is not a plain key chord, written next to or instead of the key caps.</comment>
+  </data>
+  <data name="Command_CommitCellEdit" xml:space="preserve">
+    <value>Commit / cancel cell edit</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Commit / cancel cell edit". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_CommitCellEdit_Cheat" xml:space="preserve">
+    <value>Commit / cancel a cell edit; stage / revert row-detail edits</value>
+    <comment>Keyboard shortcut sheet (F1) and the shortcuts reference: a shorter name for the command, shown there instead of its palette name.</comment>
+  </data>
+  <data name="Command_InspectCell" xml:space="preserve">
+    <value>Inspect cell (full value, pretty-printed JSON)</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Inspect cell (full value, pretty-printed JSON)". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_InspectCell_Note" xml:space="preserve">
+    <value>double-click (read-only) / context menu</value>
+    <comment>Keyboard shortcut sheet (F1) and the command palette's shortcut column: a gesture that is not a plain key chord, written next to or instead of the key caps.</comment>
+  </data>
+  <data name="Command_SaveInspectedValue" xml:space="preserve">
+    <value>Save the value being edited in the cell inspector</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Save the value being edited in the cell inspector". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_SaveInspectedValue_Note" xml:space="preserve">
+    <value>{chord:Run} in the cell inspector's editor</value>
+    <comment>Keyboard shortcut sheet (F1) and the command palette's shortcut column: a gesture that is not a plain key chord, written next to or instead of the key caps. Keep {key:cmd} and {chord:...} exactly as written, braces included (they are not placeholders to translate): the app replaces {key:cmd} with Ctrl or the Command key, and {chord:Name} with another command's shortcut.</comment>
+  </data>
+  <data name="Command_CopySelection" xml:space="preserve">
+    <value>Copy the selected cells</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Copy the selected cells". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_DeleteRow" xml:space="preserve">
+    <value>Delete the selected row (editable results)</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Delete the selected row (editable results)". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_RowDetails" xml:space="preserve">
+    <value>Toggle row details (the selected row as a name/value form)</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Toggle row details (the selected row as a name/value form)". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_RowDetails_Cheat" xml:space="preserve">
+    <value>Show / hide row details</value>
+    <comment>Keyboard shortcut sheet (F1) and the shortcuts reference: a shorter name for the command, shown there instead of its palette name.</comment>
+  </data>
+  <data name="Command_FilterRows" xml:space="preserve">
+    <value>Filter rows of the browsed table…</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Filter rows of the browsed table…". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_FilterRows_Note" xml:space="preserve">
+    <value>{key:cmd}+F in the results grid while browsing a table</value>
+    <comment>Keyboard shortcut sheet (F1) and the command palette's shortcut column: a gesture that is not a plain key chord, written next to or instead of the key caps. Keep {key:cmd} and {chord:...} exactly as written, braces included (they are not placeholders to translate): the app replaces {key:cmd} with Ctrl or the Command key, and {chord:Name} with another command's shortcut.</comment>
+  </data>
+  <data name="Command_SetCellNull" xml:space="preserve">
+    <value>Set cell to NULL</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Set cell to NULL". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_SetCellNull_Note" xml:space="preserve">
+    <value>context menu</value>
+    <comment>Keyboard shortcut sheet (F1) and the command palette's shortcut column: a gesture that is not a plain key chord, written next to or instead of the key caps.</comment>
+  </data>
+  <data name="Command_CommandPalette" xml:space="preserve">
+    <value>Command palette (jump to table / query / action)</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Command palette (jump to table / query / action)". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_RefreshSchema" xml:space="preserve">
+    <value>Refresh database &amp; schema</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Refresh database &amp; schema". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_FocusSwap" xml:space="preserve">
+    <value>Switch focus: editor ↔ results grid</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Switch focus: editor ↔ results grid". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_ToggleSidebar" xml:space="preserve">
+    <value>Toggle sidebar</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Toggle sidebar". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_ToggleSidebar_Cheat" xml:space="preserve">
+    <value>Collapse / show the sidebar</value>
+    <comment>Keyboard shortcut sheet (F1) and the shortcuts reference: a shorter name for the command, shown there instead of its palette name.</comment>
+  </data>
+  <data name="Command_PreviewTable" xml:space="preserve">
+    <value>Preview a table (in the schema tree)</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Preview a table (in the schema tree)". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_PreviewTable_Note" xml:space="preserve">
+    <value>Double-click</value>
+    <comment>Keyboard shortcut sheet (F1) and the command palette's shortcut column: a gesture that is not a plain key chord, written next to or instead of the key caps.</comment>
+  </data>
+  <data name="Command_ServerActivity" xml:space="preserve">
+    <value>Server activity</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Server activity". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_DatabaseOverview" xml:space="preserve">
+    <value>Database overview (sizes, cache hit, unused indexes)</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Database overview (sizes, cache hit, unused indexes)". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_DatabaseOverview_Cheat" xml:space="preserve">
+    <value>Database overview</value>
+    <comment>Keyboard shortcut sheet (F1) and the shortcuts reference: a shorter name for the command, shown there instead of its palette name.</comment>
+  </data>
+  <data name="Command_SlowQueries" xml:space="preserve">
+    <value>Slow queries (pg_stat_statements)</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Slow queries (pg_stat_statements)". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_SlowQueries_Cheat" xml:space="preserve">
+    <value>Slow queries</value>
+    <comment>Keyboard shortcut sheet (F1) and the shortcuts reference: a shorter name for the command, shown there instead of its palette name.</comment>
+  </data>
+  <data name="Command_NotifyMonitor" xml:space="preserve">
+    <value>LISTEN / NOTIFY monitor</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "LISTEN / NOTIFY monitor". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_SecurityManager" xml:space="preserve">
+    <value>Roles and permissions…</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Roles and permissions…". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_SecurityManager_Cheat" xml:space="preserve">
+    <value>Roles and permissions</value>
+    <comment>Keyboard shortcut sheet (F1) and the shortcuts reference: a shorter name for the command, shown there instead of its palette name.</comment>
+  </data>
+  <data name="Command_SwitchConnection" xml:space="preserve">
+    <value>Switch connection…</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Switch connection…". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_SwitchDatabase" xml:space="preserve">
+    <value>Switch database…</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Switch database…". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_NewWindow" xml:space="preserve">
+    <value>Open connection in new window…</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Open connection in new window…". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_BackupDatabase" xml:space="preserve">
+    <value>Back up database…</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Back up database…". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_RestoreBackup" xml:space="preserve">
+    <value>Restore backup…</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Restore backup…". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_AnalyzeTable" xml:space="preserve">
+    <value>Analyze table</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Analyze table". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_VacuumTable" xml:space="preserve">
+    <value>Vacuum table</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Vacuum table". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_TruncateTable" xml:space="preserve">
+    <value>Truncate table…</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Truncate table…". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_RenameTable" xml:space="preserve">
+    <value>Rename table…</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Rename table…". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_DropTable" xml:space="preserve">
+    <value>Drop table…</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Drop table…". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_ToggleTheme" xml:space="preserve">
+    <value>Toggle light/dark theme</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Toggle light/dark theme". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_Preferences" xml:space="preserve">
+    <value>Settings…</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Settings…". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_ShortcutsWindow" xml:space="preserve">
+    <value>Keyboard shortcuts</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Keyboard shortcuts". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_RateInStore" xml:space="preserve">
+    <value>Rate pgNimbus in the Microsoft Store</value>
+    <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Rate pgNimbus in the Microsoft Store". Where it has a shortcut, it is listed beside it.</comment>
+  </data>
+  <data name="Command_Category_Query" xml:space="preserve">
+    <value>Query</value>
+    <comment>Keyboard shortcut sheet (F1) section heading (shown in capitals in English) and heading in the shortcuts reference: the commands that run, explain and format queries and manage transactions.</comment>
+  </data>
+  <data name="Command_Category_Tabs" xml:space="preserve">
+    <value>Tabs &amp; files</value>
+    <comment>Keyboard shortcut sheet (F1) section heading (shown in capitals in English) and heading in the shortcuts reference: the commands for tabs and files.</comment>
+  </data>
+  <data name="Command_Category_Editor" xml:space="preserve">
+    <value>SQL editor</value>
+    <comment>Keyboard shortcut sheet (F1) section heading (shown in capitals in English) and heading in the shortcuts reference: the SQL editor's commands.</comment>
+  </data>
+  <data name="Command_Category_Results" xml:space="preserve">
+    <value>Results grid</value>
+    <comment>Keyboard shortcut sheet (F1) section heading (shown in capitals in English) and heading in the shortcuts reference: the results grid's commands.</comment>
+  </data>
+  <data name="Command_Category_Navigation" xml:space="preserve">
+    <value>Navigation</value>
+    <comment>Keyboard shortcut sheet (F1) section heading (shown in capitals in English) and heading in the shortcuts reference: navigation and application commands: windows, connections, settings.</comment>
+  </data>
+
+  <!-- ===== Shell ===== -->
+
+  <!-- ===== Sidebar ===== -->
+
+  <!-- ===== Editor ===== -->
+
+  <!-- ===== Results ===== -->
+
+  <!-- ===== Dialogs ===== -->
+
+  <!-- ===== Monitoring ===== -->
+
+  <!-- ===== Security ===== -->
+
+  <!-- ===== Backup ===== -->
+
+  <!-- ===== QueryLab ===== -->
+
+  <!-- ===== Crash ===== -->
+
+  <!-- ===== Core ===== -->
+</root>

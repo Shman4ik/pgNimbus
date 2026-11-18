@@ -1,5 +1,6 @@
 using System.Text;
 using Npgsql;
+using PgNimbus.Core.Localization;
 
 namespace PgNimbus.Core.Connections;
 
@@ -58,7 +59,7 @@ public static class ConnectionStringParser
         var text = input?.Trim();
         if (string.IsNullOrEmpty(text))
         {
-            error = "Nothing to parse.";
+            error = Strings.Connection_ParseNothing;
             return false;
         }
 
@@ -96,7 +97,7 @@ public static class ConnectionStringParser
             return TryParseLibpqKeywords(text, out parsed, out error);
         }
 
-        error = "Unrecognized connection string. Supported formats: postgres:// URI, jdbc:postgresql://, Key=Value;..., libpq \"host=... dbname=...\", or a psql command line.";
+        error = Strings.Connection_ParseUnrecognized;
         return false;
     }
 
@@ -322,7 +323,7 @@ public static class ConnectionStringParser
             var equalsIndex = pair.IndexOf('=');
             if (equalsIndex <= 0)
             {
-                error = "A segment is not in Key=Value form.";
+                error = Strings.Connection_ParseSegment;
                 return false;
             }
 
@@ -391,7 +392,7 @@ public static class ConnectionStringParser
             var equalsIndex = text.IndexOf('=', i);
             if (equalsIndex < 0)
             {
-                error = "Part of the string is not in keyword=value form.";
+                error = Strings.Connection_ParseKeyword;
                 return false;
             }
 
@@ -433,7 +434,7 @@ public static class ConnectionStringParser
 
                 if (!closed)
                 {
-                    error = "A quoted value is missing its closing quote.";
+                    error = Strings.Connection_ParseQuote;
                     return false;
                 }
 
@@ -509,7 +510,7 @@ public static class ConnectionStringParser
 
         if (index >= tokens.Count)
         {
-            error = "Could not find the psql executable in the command line.";
+            error = Strings.Connection_ParsePsqlMissing;
             return false;
         }
 
@@ -568,7 +569,7 @@ public static class ConnectionStringParser
             {
                 if (index >= tokens.Count)
                 {
-                    error = $"Option {flag} is missing its value.";
+                    error = Strings.Connection_ParseOptionValue(flag);
                     return false;
                 }
 
@@ -717,7 +718,7 @@ public static class ConnectionStringParser
                 case "port":
                     if (!int.TryParse(value, out var port) || port is < 1 or > 65535)
                     {
-                        error = "The port is not a number from 1 to 65535.";
+                        error = Strings.Connection_ParsePort;
                         return false;
                     }
 
@@ -735,7 +736,7 @@ public static class ConnectionStringParser
                 case "sslmode":
                     if (!TryParseSslMode(value, out var mode))
                     {
-                        error = "Unknown SSL mode. Use disable, allow, prefer, require, verify-ca or verify-full.";
+                        error = Strings.Connection_ParseSslMode;
                         return false;
                     }
 
@@ -765,7 +766,7 @@ public static class ConnectionStringParser
                     // or browsed to by hand.
                     if (IsRemotePath(value.Trim()))
                     {
-                        error = "A root certificate on another machine is not taken from a pasted connection string. Copy the file to this computer and choose it in the Root Certificate field.";
+                        error = Strings.Connection_ParseRootCertificateRemote;
                         return false;
                     }
 
@@ -780,7 +781,7 @@ public static class ConnectionStringParser
                 case "sslcert" or "sslcertificate":
                     if (IsRemotePath(value.Trim()))
                     {
-                        error = "A client certificate on another machine is not taken from a pasted connection string. Copy the file to this computer and choose it in the Client Certificate field.";
+                        error = Strings.Connection_ParseClientCertificateRemote;
                         return false;
                     }
 
@@ -789,7 +790,7 @@ public static class ConnectionStringParser
                 case "sslkey":
                     if (IsRemotePath(value.Trim()))
                     {
-                        error = "A client key on another machine is not taken from a pasted connection string. Copy the file to this computer and choose it in the Client Key field.";
+                        error = Strings.Connection_ParseClientKeyRemote;
                         return false;
                     }
 
@@ -846,7 +847,7 @@ public static class ConnectionStringParser
             var closeIndex = authority.IndexOf(']');
             if (closeIndex < 0)
             {
-                error = "Unterminated IPv6 address (missing ']').";
+                error = Strings.Connection_ParseIpv6;
                 return false;
             }
 
@@ -877,7 +878,7 @@ public static class ConnectionStringParser
         {
             if (!int.TryParse(portPart, out var parsedPort) || parsedPort is < 1 or > 65535)
             {
-                error = "The port is not a number from 1 to 65535.";
+                error = Strings.Connection_ParsePort;
                 return false;
             }
 

@@ -2871,6 +2871,80 @@ Moved to [`.claude/rules/logo-assets.md`](rules/logo-assets.md), which loads whe
   output grows with its square, and 100,000 nested subqueries threw from the
   StringBuilder on the Format gesture (2026-09, review of the audit fixes).
 
+## Localization: no interface text in code or XAML
+
+Since 2026-11 (issue #435) every string a user reads lives in
+[`src/PgNimbus.Core/Localization/Strings.resx`](../src/PgNimbus.Core/Localization/Strings.resx),
+English, and a language is one more file beside it (`Strings.zh-Hans.resx`)
+holding the keys it translates. The design and what was rejected are in
+[`docs/dev/design/localization.md`](../docs/dev/design/localization.md); the
+translator's side is [`docs/dev/translating.md`](../docs/dev/translating.md).
+
+- **How text is written.** XAML: `Text="{l:Tr Settings_Language}"` with
+  `xmlns:l="using:PgNimbus.App.Localization"` (also for `Content`, `Header`,
+  `ToolTip.Tip`, `PlaceholderText`, `Title`, `cmd:CommandTip.Text`, a
+  `ComboBoxItem`). C#: `Strings.Settings_Language`, `Strings.Rows(count)`.
+  `Strings` and the `StringKey` enum are generated from `Strings.resx` by
+  `src/PgNimbus.Strings.Generator`, so a misspelt key fails the build in C# and in
+  XAML (AVLN3000). A value with `{name}` placeholders becomes a method taking
+  them by name; a `Key_one` + `Key_other` pair becomes a plural method taking
+  `count`. Never build a sentence from pieces (`Strings.A + name + Strings.B`): one
+  entry with a placeholder, because word order differs between languages.
+- **Keys** are `Area_Name`, PascalCase, a C# identifier: `Settings_`, `About_`,
+  `Connection_`, `Command_` (catalog titles), `Common_` for the words every
+  dialog shares (Cancel, Close, Save, Delete). The name says what the text is
+  for, not its words (`Settings_HistoryHint`). Every entry has a `<comment>`
+  saying where it shows, what kind of text it is (button, tooltip, heading) and
+  what each placeholder holds: the translator never sees the screen. Entries
+  sit in the file under their area's `<!-- ===== Area ===== -->` marker.
+  **A change of meaning is a new key**: rename the key when the English text
+  changes what it says, so no translation of the old meaning is shown for the
+  new one (`docs/dev/translating.md` promises translators this). A fix that
+  keeps the meaning (a typo, punctuation) keeps the key.
+- **The language changes while the app runs**, so text must follow it. A
+  `{l:Tr}` binding does by itself (`Localizer.Observe`, observers held weakly). A
+  view-model property that composes text from `Strings` raises its change on
+  `Localizer.WhenChanged(this, static vm => …)`, which holds its owner weakly;
+  never `Localizer.LanguageChanged +=` from anything that can close (a static
+  event keeps it alive). A status line written by an action is history and is
+  left in the language it was written in. Menus built in code (the macOS menu
+  bar, a context menu built as it opens) rebuild or are built per opening.
+- **What is not translated**: SQL, generated scripts and their comments, data,
+  server messages, the crash log and the GitHub issue it pre-fills, the docs
+  (`ShortcutDocs` runs in English), key names on keycaps, brand names.
+  Everything else is, including Core's text for the user (command titles, plan
+  warnings, error messages written for a form): Core reads `Strings` too, since
+  the table has no UI dependency (hard rule 1 holds).
+- **No ResourceManager and no satellite assemblies.** The App runs with
+  `InvariantGlobalization`, and a culture-named satellite crashed Avalonia's
+  asset resolver under NativeAOT (the App csproj's `SatelliteResourceLanguages`
+  note). A translation is embedded in `PgNimbus.Core.dll` as the file itself
+  (`Type="Non-Resx" WithCulture="false"`) and read by `Localizer` with
+  `XmlReader` (no DTD); English is compiled into the accessors, so a key a
+  translation lacks reads as English. The OS language comes from
+  `Platform/SystemLanguages` (Windows `GetUserPreferredUILanguages`, macOS
+  `CFLocaleCopyPreferredLanguages`, POSIX variables), never from
+  `CultureInfo`, which is invariant. `AppSettings.Language` is `"auto"` or a tag;
+  `Program.Main` loads it before the first window, Settings ▸ General changes it
+  live (`App.SetLanguage`). `PGNIMBUS_TRANSLATION_FILE` loads a `.resx` from
+  disk instead, so a translator can try a file in a released build. The
+  generator project removes `PublishAot`/`RuntimeIdentifier` from what a publish
+  hands it (`TreatAsLocalProperty`): it is a netstandard2.0 compiler plug-in.
+- **Avalonia's own text** (a text box's Cut/Copy/Paste, the date picker's parts)
+  is overridden through application resources by `Localization/FrameworkStrings`.
+- **Tests.** The language is process-wide, so a test that switches it is
+  `[NotInParallel]` (TUnit runs those after every parallel test, one at a time;
+  measured) and puts English back in a `finally`. The screenshot harness and the
+  UI tests never load a language, so the baselines and the published screenshots
+  stay English. `TranslationFileTests` checks each translation against the base
+  (unknown keys, placeholders, plural forms of its language, `_LanguageName`);
+  `XamlStringLintTests` fails on a literal text attribute in any view not in its
+  `Pending` list; `PseudoLocaleTests` renders the scenarios in its `Converted`
+  list in the pseudo-locale (`qps-ploc`, every table string `[Àççéñţéð]`) and
+  fails on visible text that isn't, which is what catches text set from code. A
+  view converted to the table leaves `Pending` and joins `Converted` in the same
+  PR; both lists end empty and complete.
+
 ## NativeAOT constraints
 
 The linux-x64 NativeAOT publish works and is the build to use for
