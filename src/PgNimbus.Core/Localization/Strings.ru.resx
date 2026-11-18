@@ -260,11 +260,11 @@
     <comment>Settings, Appearance tab: hint under Editor font size. {gesture} is the keyboard shortcut that resets the zoom, such as Ctrl+0 or ⌘0; it is built by the app and not translated.</comment>
   </data>
   <data name="Settings_ShowSizes" xml:space="preserve">
-    <value>Показывать размеры отношений в дереве схем</value>
+    <value>Показывать размеры таблиц и представлений в дереве схем</value>
     <comment>Settings, Appearance tab: the setting's name (a switch). A relation is a table or materialized view.</comment>
   </data>
   <data name="Settings_ShowSizesHint" xml:space="preserve">
-    <value>Добавляет рядом с именем каждой таблицы и материализованного представления тусклую подсказку с размером на диске (heap + индексы + TOAST)</value>
+    <value>Добавляет рядом с именем каждой таблицы и материализованного представления приглушённую подсказку с размером на диске (heap + индексы + TOAST)</value>
     <comment>Settings, Appearance tab: hint under Show relation sizes. Heap and TOAST are PostgreSQL storage terms.</comment>
   </data>
   <data name="Settings_CompletionSection" xml:space="preserve">
@@ -272,7 +272,7 @@
     <comment>Settings, Editor tab: section heading. Written in capitals in English; write it as your language writes a heading.</comment>
   </data>
   <data name="Settings_AutoAlias" xml:space="preserve">
-    <value>Псевдонимы таблиц при дополнении</value>
+    <value>Псевдонимы таблиц при автодополнении</value>
     <comment>Settings, Editor tab, Completion: the setting's name (a switch).</comment>
   </data>
   <data name="Settings_AutoAliasHint" xml:space="preserve">
@@ -768,7 +768,7 @@
     <comment>Connection dialog: SSL Mode list: one line under the Verify full choice.</comment>
   </data>
   <data name="Connection_ServerWithoutTlsHint" xml:space="preserve">
-    <value>Сервер не принимает соединения TLS. Для локального сервера без TLS задайте режим SSL Prefer или Disable.</value>
+    <value>Сервер не принимает подключения TLS. Для локального сервера без TLS задайте режим SSL Prefer или Disable.</value>
     <comment>Connection dialog: added to a connect error when the server has no TLS. Prefer and Disable are SSL Mode choices (translate them as they are in the picker).</comment>
   </data>
   <data name="Connection_EnvNone" xml:space="preserve">
@@ -904,7 +904,7 @@
     <comment>Connection dialog: SSH error line. {server} is host:port; {message} is the network's reason.</comment>
   </data>
   <data name="Connection_SshClosed" xml:space="preserve">
-    <value>SSH-сервер {server} закрыл соединение: {message}</value>
+    <value>SSH-сервер {server} закрыл подключение: {message}</value>
     <comment>Connection dialog: SSH error line. {server} is host:port; {message} is the reason.</comment>
   </data>
   <data name="Connection_SshFailed" xml:space="preserve">
@@ -952,7 +952,7 @@
     <comment>Connection dialog: SSH error line.</comment>
   </data>
   <data name="Connection_SshAgentDropped" xml:space="preserve">
-    <value>SSH-агент по адресу {address} разорвал соединение: {message}</value>
+    <value>SSH-агент по адресу {address} разорвал подключение: {message}</value>
     <comment>Connection dialog: SSH error line. {address} is the agent's socket or pipe; {message} is the reason.</comment>
   </data>
   <data name="Connection_SshAgentUnexpected" xml:space="preserve">
@@ -1076,7 +1076,7 @@
     <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Begin transaction". Where it has a shortcut, it is listed beside it.</comment>
   </data>
   <data name="Command_CommitTransaction" xml:space="preserve">
-    <value>Коммит транзакции</value>
+    <value>Зафиксировать транзакцию</value>
     <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Commit transaction". Where it has a shortcut, it is listed beside it.</comment>
   </data>
   <data name="Command_RollbackTransaction" xml:space="preserve">
@@ -1084,7 +1084,7 @@
     <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Rollback transaction". Where it has a shortcut, it is listed beside it.</comment>
   </data>
   <data name="Command_ToggleSafeMode" xml:space="preserve">
-    <value>Переключить безопасный режим (подготовка изменений, проверка и фиксация)</value>
+    <value>Переключить безопасный режим (подготовка и проверка)</value>
     <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Toggle safe mode (stage grid changes, review &amp; commit)". Where it has a shortcut, it is listed beside it.</comment>
   </data>
   <data name="Command_AllowWrites" xml:space="preserve">
@@ -1388,7 +1388,7 @@
     <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Vacuum table". Where it has a shortcut, it is listed beside it.</comment>
   </data>
   <data name="Command_TruncateTable" xml:space="preserve">
-    <value>Очистить таблицу (TRUNCATE)…</value>
+    <value>Удалить все строки таблицы (TRUNCATE)…</value>
     <comment>Command palette row (Ctrl+K) and keyboard shortcut sheet (F1): the name of the command "Truncate table…". Where it has a shortcut, it is listed beside it.</comment>
   </data>
   <data name="Command_RenameTable" xml:space="preserve">
@@ -1620,7 +1620,7 @@
     <comment>Main window, toolbar: tooltip of the Begin button that starts a database transaction. The shortcut is appended by the app.</comment>
   </data>
   <data name="Shell_Begin" xml:space="preserve">
-    <value>Begin</value>
+    <value>Начать</value>
     <comment>Main window, toolbar: label of the button that starts a database transaction (SQL BEGIN).</comment>
   </data>
   <data name="Shell_CommitTip" xml:space="preserve">
@@ -1628,7 +1628,7 @@
     <comment>Main window, toolbar: tooltip of the Commit button shown while a transaction is open. The shortcut is appended by the app.</comment>
   </data>
   <data name="Shell_Commit" xml:space="preserve">
-    <value>Commit</value>
+    <value>Зафиксировать</value>
     <comment>Main window, toolbar: label of the button that ends the open transaction and keeps its changes (SQL COMMIT).</comment>
   </data>
   <data name="Shell_RollbackTip" xml:space="preserve">
@@ -1636,7 +1636,7 @@
     <comment>Main window, toolbar: tooltip of the Rollback button shown while a transaction is open. The shortcut is appended by the app.</comment>
   </data>
   <data name="Shell_Rollback" xml:space="preserve">
-    <value>Rollback</value>
+    <value>Откатить</value>
     <comment>Main window, toolbar: label of the button that ends the open transaction and undoes its changes (SQL ROLLBACK).</comment>
   </data>
   <data name="Shell_ExplainTip" xml:space="preserve">
@@ -2284,15 +2284,15 @@
     <comment>The reason a production connection cannot write yet, shown in tooltips after "Read-only: " or "Results are read-only: ". A sentence fragment starting in lowercase.</comment>
   </data>
   <data name="Shell_ProductionNotEnforcedHint" xml:space="preserve">
-    <value>запись на этом подключении к production должна быть отключена, но сервер или пулер соединений не применил этот параметр, и сервер принимает запись. pgNimbus оставляет таблицу только для чтения, но теперь запись блокирует только pgNimbus: выполняемый вами SQL всё ещё может менять данные.</value>
+    <value>запись на этом подключении к production должна быть отключена, но сервер или пулер подключений не применил этот параметр, и сервер принимает запись. pgNimbus оставляет таблицу только для чтения, но теперь запись блокирует только pgNimbus: выполняемый вами SQL всё ещё может менять данные.</value>
     <comment>Tooltip reason of the amber read-only warning on a production connection whose server did not apply the read-only option. A sentence fragment starting in lowercase. pgNimbus is the product name.</comment>
   </data>
   <data name="Shell_ReadOnlyNotEnforcedHint" xml:space="preserve">
-    <value>профиль требует подключения только для чтения, но сервер или пулер соединений не применил этот параметр, и сервер принимает запись. pgNimbus оставляет таблицу только для чтения, но теперь запись блокирует только pgNimbus: выполняемый вами SQL всё ещё может менять данные. Не полагайтесь на защиту этого профиля в этом сеансе.</value>
+    <value>профиль требует подключения только для чтения, но сервер или пулер подключений не применил этот параметр, и сервер принимает запись. pgNimbus оставляет таблицу только для чтения, но теперь запись блокирует только pgNimbus: выполняемый вами SQL всё ещё может менять данные. Не полагайтесь на защиту этого профиля в этом сеансе.</value>
     <comment>Tooltip reason of the amber read-only warning on a connection profile marked read-only whose server did not apply the option. A sentence fragment starting in lowercase. pgNimbus is the product name.</comment>
   </data>
   <data name="Shell_ReadOnlyNotApplied_Status" xml:space="preserve">
-    <value>Режим только для чтения не применён: сервер или пулер соединений проигнорировал параметр профиля. Таблица остаётся только для чтения, но выполняемый вами SQL может писать.</value>
+    <value>Режим только для чтения не применён: сервер или пулер подключений проигнорировал параметр профиля. Таблица остаётся только для чтения, но выполняемый вами SQL может писать.</value>
     <comment>Status line at the bottom of the main window: the connection should be read-only but the server accepts writes.</comment>
   </data>
   <data name="Shell_StandbyHint" xml:space="preserve">
@@ -2428,11 +2428,11 @@
     <comment>Part of the Truncate confirmation, for an ordinary table. A sentence without its final period; the confirmation continues with ", and this can't be undone."</comment>
   </data>
   <data name="Shell_TruncateConfirm" xml:space="preserve">
-    <value>Очистить таблицу «{table}»{database}? {effect}, и это нельзя отменить. Операция завершится ошибкой, если на таблицу ссылается внешний ключ другой таблицы.</value>
+    <value>Удалить все строки таблицы «{table}»{database}? {effect}, и это нельзя отменить. Операция завершится ошибкой, если на таблицу ссылается внешний ключ другой таблицы.</value>
     <comment>Confirmation of Truncate in a table's Maintenance menu. {table} is schema.name; {database} is the fragment " in database "shop"" (or empty); {effect} is a phrase such as "Every row in it is deleted".</comment>
   </data>
   <data name="Shell_TruncateButton" xml:space="preserve">
-    <value>Очистить</value>
+    <value>Удалить строки</value>
     <comment>Confirmation of Truncate: the red button that empties the table.</comment>
   </data>
   <data name="Shell_DropEffectView" xml:space="preserve">
@@ -2608,15 +2608,15 @@
     <comment>Sidebar tree, right-click menu of a table, view or materialized view: submenu holding Analyze, Vacuum, Truncate, Rename and Drop.</comment>
   </data>
   <data name="Sidebar_Analyze" xml:space="preserve">
-    <value>Analyze</value>
+    <value>Собрать статистику (ANALYZE)</value>
     <comment>Sidebar tree, Maintenance submenu: runs ANALYZE (refreshes the planner's statistics) on the relation. Analyze is the PostgreSQL command name.</comment>
   </data>
   <data name="Sidebar_Vacuum" xml:space="preserve">
-    <value>Vacuum</value>
+    <value>Очистить (VACUUM)</value>
     <comment>Sidebar tree, Maintenance submenu: runs VACUUM (reclaims space) on the relation. Vacuum is the PostgreSQL command name.</comment>
   </data>
   <data name="Sidebar_Truncate" xml:space="preserve">
-    <value>Очистить…</value>
+    <value>Удалить все строки (TRUNCATE)…</value>
     <comment>Sidebar tree, Maintenance submenu: removes every row of the table after a confirmation. Truncate is the PostgreSQL command name.</comment>
   </data>
   <data name="Sidebar_RenameItem" xml:space="preserve">
@@ -4344,7 +4344,7 @@
     <comment>Completes the tooltip 'Results are read-only: …'.</comment>
   </data>
   <data name="Results_HintNotPlainTable" xml:space="preserve">
-    <value>источник — представление, функция или другое отношение, строки которого нельзя обновлять по ключу.</value>
+    <value>источник — представление, функция или другой объект, строки которого нельзя обновлять по ключу.</value>
     <comment>Completes the tooltip 'Results are read-only: …'.</comment>
   </data>
   <data name="Results_HintRenamedColumns" xml:space="preserve">
@@ -5248,7 +5248,7 @@
     <comment>Database Overview window: tooltip of the index cache-hit figure. shared_buffers is a PostgreSQL setting name.</comment>
   </data>
   <data name="Monitoring_OverviewTabLargest" xml:space="preserve">
-    <value>Крупнейшие отношения</value>
+    <value>Крупнейшие таблицы</value>
     <comment>Database Overview window: tab: the biggest tables and materialized views.</comment>
   </data>
   <data name="Monitoring_OverviewTabScans" xml:space="preserve">
@@ -5256,7 +5256,7 @@
     <comment>Database Overview window: tab: how often each table is read by sequential scan against index scan.</comment>
   </data>
   <data name="Monitoring_OverviewTabUnused" xml:space="preserve">
-    <value>Лишние</value>
+    <value>Неисп. индексы</value>
     <comment>Database Overview window: tab: indexes that were never scanned.</comment>
   </data>
   <data name="Monitoring_OverviewUnusedNote" xml:space="preserve">
@@ -5276,15 +5276,15 @@
     <comment>Database Overview window: Kind column: an ordinary table.</comment>
   </data>
   <data name="Monitoring_OverviewRelations_one" xml:space="preserve">
-    <value>{count} отношение</value>
+    <value>{count} объект</value>
     <comment>Database Overview window: status line. Plural. {count} is how many relations, such as 50. Joined with other parts by ' · '.</comment>
   </data>
   <data name="Monitoring_OverviewRelations_few" xml:space="preserve">
-    <value>{count} отношения</value>
+    <value>{count} объекта</value>
     <comment>Database Overview window: status line. Plural. {count} is how many relations, such as 50. Joined with other parts by ' · '.</comment>
   </data>
   <data name="Monitoring_OverviewRelations_many" xml:space="preserve">
-    <value>{count} отношений</value>
+    <value>{count} объектов</value>
     <comment>Database Overview window: status line. Plural. {count} is how many relations, such as 50. Joined with other parts by ' · '.</comment>
   </data>
   <data name="Monitoring_OverviewUnusedIndexes_one" xml:space="preserve">
@@ -5876,7 +5876,7 @@
     <comment>Label of the inherit attribute of a role (it uses the privileges of the groups it belongs to): a row in the Roles tab's details and a check box in the role dialog.</comment>
   </data>
   <data name="Security_AttrCreateDb" xml:space="preserve">
-    <value>Создаёт БД</value>
+    <value>Создание БД</value>
     <comment>Label of the attribute that lets a role create databases: a row in the Roles tab's details and a check box in the role dialog.</comment>
   </data>
   <data name="Security_AttrCreateRole" xml:space="preserve">
@@ -6008,7 +6008,7 @@
     <comment>Role dialog: hint beside a role in the MEMBER OF list: this role cannot log in, so it is a group.</comment>
   </data>
   <data name="Security_NeedsName" xml:space="preserve">
-    <value>Роли нужно имя.</value>
+    <value>Укажите имя роли.</value>
     <comment>Role dialog: validation message under the form.</comment>
   </data>
   <data name="Security_PasswordsDiffer" xml:space="preserve">
@@ -6240,7 +6240,7 @@
     <comment>Bulk grant dialog: explanation under the check box about objects created later.</comment>
   </data>
   <data name="Security_CreatedBy" xml:space="preserve">
-    <value>Создаёт роль</value>
+    <value>Роль-создатель</value>
     <comment>Bulk grant dialog: label of the picker for the role that will create the future objects.</comment>
   </data>
   <data name="Security_CreatedByPlaceholder" xml:space="preserve">
@@ -6260,7 +6260,7 @@
     <comment>Permissions tab: placeholder of the box that filters the list of objects.</comment>
   </data>
   <data name="Security_BulkGrant" xml:space="preserve">
-    <value>Массовая выдача…</value>
+    <value>Массовая выдача прав…</value>
     <comment>Permissions tab: button that opens the bulk grant dialog.</comment>
   </data>
   <data name="Security_BulkGrantTip" xml:space="preserve">
@@ -6268,7 +6268,7 @@
     <comment>Permissions tab: tooltip of the Bulk grant button.</comment>
   </data>
   <data name="Security_EditGrants" xml:space="preserve">
-    <value>Правка прав</value>
+    <value>Изменить права</value>
     <comment>Permissions tab: toggle button that lets the cells of the matrix be clicked to stage changes.</comment>
   </data>
   <data name="Security_EditGrantsTip" xml:space="preserve">
@@ -6296,7 +6296,7 @@
     <comment>Permissions tab: small capitals header of the role names above the matrix.</comment>
   </data>
   <data name="Security_ColHowCaps" xml:space="preserve">
-    <value>Как</value>
+    <value>Через</value>
     <comment>Permissions tab: small capitals header of the column that says how each role gets its privileges (directly, inherited, owner …).</comment>
   </data>
   <data name="Security_ColumnGrants" xml:space="preserve">
@@ -7548,7 +7548,7 @@
     <comment>Query Lab, summary: marks a plan warning that appears only in the after plan.</comment>
   </data>
   <data name="QueryLab_WarningGone" xml:space="preserve">
-    <value>Исчезло</value>
+    <value>Убрано</value>
     <comment>Query Lab, summary: marks a plan warning that appears only in the before plan.</comment>
   </data>
   <data name="QueryLab_NodeChanged" xml:space="preserve">
@@ -7652,11 +7652,11 @@
     <comment>Query Lab, node details: name of a figure, the planner's cost estimate in its own units, not a time.</comment>
   </data>
   <data name="QueryLab_FigBuffersHit" xml:space="preserve">
-    <value>Попаданий в shared buffers</value>
+    <value>Попаданий в буферный кеш</value>
     <comment>Query Lab, node details: name of a figure, blocks found in PostgreSQL's shared buffer cache.</comment>
   </data>
   <data name="QueryLab_FigBuffersRead" xml:space="preserve">
-    <value>Чтений в shared buffers</value>
+    <value>Чтений вне буферного кеша</value>
     <comment>Query Lab, node details: name of a figure, blocks read from outside the shared buffers.</comment>
   </data>
   <data name="QueryLab_FigTempWritten" xml:space="preserve">
@@ -7736,11 +7736,11 @@
     <comment>Plan warnings strip (above a query plan, and in Query Lab's warning lists): heading of a warning that a full table scan threw away most of what it read.</comment>
   </data>
   <data name="Plan_SeqScanDetail" xml:space="preserve">
-    <value>Сканирование прочитало {scanned} строк и отфильтровало из них {removed}. Индекс по отфильтровываемым столбцам позволил бы планировщику пропустить отброшенные строки.</value>
+    <value>Сканирование прочитало {scanned} строк и отфильтровало из них {removed}. Индекс по столбцам фильтра позволил бы планировщику пропустить отброшенные строки.</value>
     <comment>Plan warnings strip (above a query plan, and in Query Lab's warning lists): text under 'Sequential scan discards most rows', when the plan names no table. {scanned} and {removed} are row counts such as 100000 and 99950.</comment>
   </data>
   <data name="Plan_SeqScanDetailOn" xml:space="preserve">
-    <value>Сканирование {relation} прочитало {scanned} строк и отфильтровало из них {removed}. Индекс по отфильтровываемым столбцам позволил бы планировщику пропустить отброшенные строки.</value>
+    <value>Сканирование {relation} прочитало {scanned} строк и отфильтровало из них {removed}. Индекс по столбцам фильтра позволил бы планировщику пропустить отброшенные строки.</value>
     <comment>Plan warnings strip (above a query plan, and in Query Lab's warning lists): text under 'Sequential scan discards most rows'. {relation} is a table name, such as orders; {scanned} and {removed} are row counts such as 100000 and 99950.</comment>
   </data>
   <data name="Plan_LossyTitle" xml:space="preserve">
@@ -7848,7 +7848,7 @@
     <comment>Query Lab, Summary tab, the table of figures: name of a row, how many rows the query returned.</comment>
   </data>
   <data name="QueryLabCore_RowsEstimated" xml:space="preserve">
-    <value>Оценено строк</value>
+    <value>Строк (оценка)</value>
     <comment>Query Lab, Summary tab, the table of figures: name of a row, how many rows the planner expected.</comment>
   </data>
   <data name="QueryLabCore_EstimatedCost" xml:space="preserve">
@@ -7856,11 +7856,11 @@
     <comment>Query Lab, Summary tab, the table of figures: name of a row, the planner's cost estimate. Planner units are PostgreSQL's arbitrary cost units, not time.</comment>
   </data>
   <data name="QueryLabCore_SharedHit" xml:space="preserve">
-    <value>Попаданий в shared buffers</value>
+    <value>Попаданий в буферный кеш</value>
     <comment>Query Lab, Summary tab, the table of figures: name of a row, pages found in PostgreSQL's shared buffers (its cache). Shared buffers is a PostgreSQL term.</comment>
   </data>
   <data name="QueryLabCore_SharedRead" xml:space="preserve">
-    <value>Чтений в shared buffers</value>
+    <value>Чтений вне буферного кеша</value>
     <comment>Query Lab, Summary tab, the table of figures: name of a row, pages read into PostgreSQL's shared buffers from outside them.</comment>
   </data>
   <data name="QueryLabCore_TempRead" xml:space="preserve">
@@ -7952,11 +7952,11 @@
     <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: heading. One side read much more from disk than the other.</comment>
   </data>
   <data name="QueryLabCore_CacheBeforeMore" xml:space="preserve">
-    <value>Запуск «До» прочитал {more} блоков из-за пределов shared buffers (с диска или из кэша ОС), а запуск «После» — {less}. Запуск, который находит данные уже в памяти, читает с диска меньше при любом плане. Выполните оба снова по очереди или сравните буферы, затронутые каждым узлом.</value>
+    <value>Запуск «До» прочитал {more} блоков из-за пределов общего буферного кеша (с диска или из кэша ОС), а запуск «После» — {less}. Запуск, который находит данные уже в памяти, читает с диска меньше при любом плане. Выполните оба снова по очереди или сравните буферы, затронутые каждым узлом.</value>
     <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under the cache heading, when the before side read more. {more} and {less} are block counts such as 12,400 and 80. Shared buffers is PostgreSQL's cache.</comment>
   </data>
   <data name="QueryLabCore_CacheAfterMore" xml:space="preserve">
-    <value>Запуск «После» прочитал {more} блоков из-за пределов shared buffers (с диска или из кэша ОС), а запуск «До» — {less}. Запуск, который находит данные уже в памяти, читает с диска меньше при любом плане. Выполните оба снова по очереди или сравните буферы, затронутые каждым узлом.</value>
+    <value>Запуск «После» прочитал {more} блоков из-за пределов общего буферного кеша (с диска или из кэша ОС), а запуск «До» — {less}. Запуск, который находит данные уже в памяти, читает с диска меньше при любом плане. Выполните оба снова по очереди или сравните буферы, затронутые каждым узлом.</value>
     <comment>Query Lab, Summary tab, a note about what the comparison can and cannot show: text under the cache heading, when the after side read more. {more} and {less} are block counts such as 12,400 and 80. Shared buffers is PostgreSQL's cache.</comment>
   </data>
   <data name="QueryLabCore_CacheUnknownTitle" xml:space="preserve">
