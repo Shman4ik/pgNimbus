@@ -1,4 +1,5 @@
 using System.Globalization;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Query;
 
 namespace PgNimbus.Core.QueryLab;
@@ -53,7 +54,7 @@ public sealed record PlanMetricRow(string Label, double? Before, double? After, 
             var delta = after - before;
             if (delta == 0)
             {
-                return "no change";
+                return Strings.QueryLabCore_NoChange;
             }
 
             var sign = delta < 0 ? "−" : "+";
@@ -114,13 +115,33 @@ public sealed record PlanComparison(
     /// <summary>A side read at least this many blocks outside shared buffers for cache warmth to be worth a note.</summary>
     private const long CacheReadFloor = 100;
 
+    /// <summary>
+    /// Writes the figures' labels, the notes and the warnings again in the language now
+    /// loaded, over the same alignment and tree: the expensive half of a comparison has
+    /// no words in it, so a change of language costs only the cheap half.
+    /// </summary>
+    private Func<PlanComparison>? _describe;
+
+    /// <summary>This comparison with its text in the language now loaded.</summary>
+    public PlanComparison InCurrentLanguage() => _describe?.Invoke() ?? this;
+
     public static PlanComparison Compare(PlanSide before, PlanSide after)
     {
         var beforeMetrics = PlanMetrics.Compute(before.Plan);
         var afterMetrics = PlanMetrics.Compute(after.Plan);
         var alignment = PlanAlignment.Align(before.Plan, after.Plan);
         var diff = PlanDiff.Build(alignment, beforeMetrics, afterMetrics);
+        return Describe(before, after, alignment, diff, beforeMetrics, afterMetrics);
+    }
 
+    private static PlanComparison Describe(
+        PlanSide before,
+        PlanSide after,
+        PlanAlignment alignment,
+        PlanDiffResult diff,
+        IReadOnlyDictionary<ExplainNode, PlanNodeMetrics> beforeMetrics,
+        IReadOnlyDictionary<ExplainNode, PlanNodeMetrics> afterMetrics)
+    {
         var a = Facts.Of(before.Plan, beforeMetrics);
         var b = Facts.Of(after.Plan, afterMetrics);
 
@@ -136,7 +157,10 @@ public sealed record PlanComparison(
             PlanAnalyzer.Condense(resolved),
             PlanAnalyzer.Condense(introduced),
             diff,
-            notes);
+            notes)
+        {
+            _describe = () => Describe(before, after, alignment, diff, beforeMetrics, afterMetrics),
+        };
     }
 
     /// <summary>The figures of one plan that the rows and notes read.</summary>
@@ -160,10 +184,10 @@ public sealed record PlanComparison(
                 Spills: metrics.Values.Count(m => m.Spill is not null));
         }
 
-        public string? MissingAnalyze => Analyzed ? null : "not analyzed";
+        public string? MissingAnalyze => Analyzed ? null : Strings.QueryLabCore_NotAnalyzed;
 
-        public string? MissingBuffers => !Analyzed ? "not analyzed"
-            : Buffers is null ? Plan.Capture.Buffers == false ? "no BUFFERS" : "BUFFERS unknown"
+        public string? MissingBuffers => !Analyzed ? Strings.QueryLabCore_NotAnalyzed
+            : Buffers is null ? Plan.Capture.Buffers == false ? Strings.QueryLabCore_NoBuffers : Strings.QueryLabCore_BuffersUnknown
             : null;
     }
 
@@ -171,16 +195,16 @@ public sealed record PlanComparison(
     {
         var rows = new List<PlanMetricRow>
         {
-            new("Execution time", a.Plan.ExecutionTimeMs, b.Plan.ExecutionTimeMs, PlanMetricUnit.Milliseconds)
+            new(Strings.QueryLabCore_ExecutionTime, a.Plan.ExecutionTimeMs, b.Plan.ExecutionTimeMs, PlanMetricUnit.Milliseconds)
             {
-                BeforeMissing = a.Plan.ExecutionTimeMs is null ? "not analyzed" : null,
-                AfterMissing = b.Plan.ExecutionTimeMs is null ? "not analyzed" : null,
-                Note = a.Plan.ExecutionTimeMs is not null && b.Plan.ExecutionTimeMs is not null ? "one run each" : null,
+                BeforeMissing = a.Plan.ExecutionTimeMs is null ? Strings.QueryLabCore_NotAnalyzed : null,
+                AfterMissing = b.Plan.ExecutionTimeMs is null ? Strings.QueryLabCore_NotAnalyzed : null,
+                Note = a.Plan.ExecutionTimeMs is not null && b.Plan.ExecutionTimeMs is not null ? Strings.QueryLabCore_OneRunEach : null,
             },
-            new("Planning time", a.Plan.PlanningTimeMs, b.Plan.PlanningTimeMs, PlanMetricUnit.Milliseconds)
+            new(Strings.QueryLabCore_PlanningTime, a.Plan.PlanningTimeMs, b.Plan.PlanningTimeMs, PlanMetricUnit.Milliseconds)
             {
-                BeforeMissing = a.Plan.PlanningTimeMs is null ? "not reported" : null,
-                AfterMissing = b.Plan.PlanningTimeMs is null ? "not reported" : null,
+                BeforeMissing = a.Plan.PlanningTimeMs is null ? Strings.QueryLabCore_NotReported : null,
+                AfterMissing = b.Plan.PlanningTimeMs is null ? Strings.QueryLabCore_NotReported : null,
             },
         };
 
@@ -204,16 +228,16 @@ public sealed record PlanComparison(
             });
         }
 
-        PartOfExecution("JIT time", c => c.JitMs);
-        PartOfExecution("Trigger time", c => c.TriggerMs);
+        PartOfExecution(Strings.QueryLabCore_JitTime, c => c.JitMs);
+        PartOfExecution(Strings.QueryLabCore_TriggerTime, c => c.TriggerMs);
 
-        rows.Add(new PlanMetricRow("Rows returned", a.Root.ActualRowsTotal, b.Root.ActualRowsTotal, PlanMetricUnit.Rows)
+        rows.Add(new PlanMetricRow(Strings.QueryLabCore_RowsReturned, a.Root.ActualRowsTotal, b.Root.ActualRowsTotal, PlanMetricUnit.Rows)
         {
-            BeforeMissing = a.Root.ActualRowsTotal is null ? a.MissingAnalyze ?? "not measured" : null,
-            AfterMissing = b.Root.ActualRowsTotal is null ? b.MissingAnalyze ?? "not measured" : null,
+            BeforeMissing = a.Root.ActualRowsTotal is null ? a.MissingAnalyze ?? Strings.QueryLabCore_NotMeasured : null,
+            AfterMissing = b.Root.ActualRowsTotal is null ? b.MissingAnalyze ?? Strings.QueryLabCore_NotMeasured : null,
         });
-        rows.Add(new PlanMetricRow("Rows estimated", a.Root.EstimatedRows, b.Root.EstimatedRows, PlanMetricUnit.Rows));
-        rows.Add(new PlanMetricRow("Estimated cost (planner units)", a.Root.TotalCost, b.Root.TotalCost, PlanMetricUnit.PlannerUnits));
+        rows.Add(new PlanMetricRow(Strings.QueryLabCore_RowsEstimated, a.Root.EstimatedRows, b.Root.EstimatedRows, PlanMetricUnit.Rows));
+        rows.Add(new PlanMetricRow(Strings.QueryLabCore_EstimatedCost, a.Root.TotalCost, b.Root.TotalCost, PlanMetricUnit.PlannerUnits));
 
         void Blocks(string label, Func<BufferCounts, long> pick, bool always)
         {
@@ -229,21 +253,21 @@ public sealed record PlanComparison(
             }
         }
 
-        Blocks("Shared buffers hit", c => c.SharedHit, always: true);
-        Blocks("Shared buffers read", c => c.SharedRead, always: true);
-        Blocks("Temp blocks read", c => c.TempRead, always: false);
-        Blocks("Temp blocks written", c => c.TempWritten, always: false);
+        Blocks(Strings.QueryLabCore_SharedHit, c => c.SharedHit, always: true);
+        Blocks(Strings.QueryLabCore_SharedRead, c => c.SharedRead, always: true);
+        Blocks(Strings.QueryLabCore_TempRead, c => c.TempRead, always: false);
+        Blocks(Strings.QueryLabCore_TempWritten, c => c.TempWritten, always: false);
 
         var planningA = BufferCounts.From(a.Plan.Capture.PlanningBuffers);
         var planningB = BufferCounts.From(b.Plan.Capture.PlanningBuffers);
         if (planningA.Total > 0 || planningB.Total > 0)
         {
             rows.Add(new PlanMetricRow(
-                "Planning buffers", planningA.SharedHit + planningA.SharedRead, planningB.SharedHit + planningB.SharedRead,
+                Strings.QueryLabCore_PlanningBuffers, planningA.SharedHit + planningA.SharedRead, planningB.SharedHit + planningB.SharedRead,
                 PlanMetricUnit.Blocks));
         }
 
-        rows.Add(new PlanMetricRow("Nodes that went to disk", a.Analyzed ? a.Spills : null, b.Analyzed ? b.Spills : null, PlanMetricUnit.Count)
+        rows.Add(new PlanMetricRow(Strings.QueryLabCore_NodesToDisk, a.Analyzed ? a.Spills : null, b.Analyzed ? b.Spills : null, PlanMetricUnit.Count)
         {
             BeforeMissing = a.MissingAnalyze,
             AfterMissing = b.MissingAnalyze,
@@ -339,24 +363,23 @@ public sealed record PlanComparison(
     {
         if (!a.Analyzed || !b.Analyzed)
         {
-            var which = !a.Analyzed && !b.Analyzed ? "Neither plan was" : !a.Analyzed ? "The before plan wasn't" : "The after plan wasn't";
-            Add(PlanWarningSeverity.Info, "Estimates only",
-                $"{which} analyzed, so there is no time, actual row count or buffer use to compare there, only the "
-                + "planner's estimates. Estimated cost is in planner units, not time.");
+            Add(PlanWarningSeverity.Info, Strings.QueryLabCore_EstimatesOnlyTitle,
+                !a.Analyzed && !b.Analyzed ? Strings.QueryLabCore_EstimatesOnlyNeither
+                : !a.Analyzed ? Strings.QueryLabCore_EstimatesOnlyBefore
+                : Strings.QueryLabCore_EstimatesOnlyAfter);
         }
 
         if (a.Plan.ExecutionTimeMs is not null && b.Plan.ExecutionTimeMs is not null)
         {
-            Add(PlanWarningSeverity.Info, "One run each",
-                "Each side is a single run. Timings move between runs, with other load on the server and with what "
-                + "is already in memory, so run each a few times before reading much into the difference.");
+            Add(PlanWarningSeverity.Info, Strings.QueryLabCore_OneRunTitle, Strings.QueryLabCore_OneRunDetail);
         }
 
         if (a.Analyzed && b.Analyzed && (!a.Timed || !b.Timed))
         {
-            var which = !a.Timed && !b.Timed ? "Both plans" : !a.Timed ? "The before plan" : "The after plan";
-            Add(PlanWarningSeverity.Info, "Timing was off",
-                $"{which} ran with TIMING OFF, so only the total execution time compares, not each node's.");
+            Add(PlanWarningSeverity.Info, Strings.QueryLabCore_TimingOffTitle,
+                !a.Timed && !b.Timed ? Strings.QueryLabCore_TimingOffBoth
+                : !a.Timed ? Strings.QueryLabCore_TimingOffBefore
+                : Strings.QueryLabCore_TimingOffAfter);
         }
 
         if (a.Buffers is { } ab && b.Buffers is { } bb)
@@ -365,73 +388,62 @@ public sealed record PlanComparison(
             var lo = Math.Min(ab.SharedRead, bb.SharedRead);
             if (hi >= CacheReadFloor && lo * 10 <= hi)
             {
-                var (more, less) = ab.SharedRead > bb.SharedRead ? ("before", "after") : ("after", "before");
-                Add(PlanWarningSeverity.Warning, "The cache may explain part of the difference",
-                    string.Create(CultureInfo.InvariantCulture,
-                        $"The {more} run read {hi:N0} blocks from outside shared buffers (the disk or the OS cache) and the {less} run read {lo:N0}. ")
-                    + "A run that finds its data already in memory reads less from disk whatever its plan. Run both "
-                    + "again in turn, or compare the buffers each node touched.");
+                Add(PlanWarningSeverity.Warning, Strings.QueryLabCore_CacheTitle,
+                    ab.SharedRead > bb.SharedRead
+                        ? Strings.QueryLabCore_CacheBeforeMore(Number(hi), Number(lo))
+                        : Strings.QueryLabCore_CacheAfterMore(Number(hi), Number(lo)));
             }
         }
         else if (a.Analyzed && b.Analyzed)
         {
-            var which = a.Buffers is null && b.Buffers is null ? "Neither plan has" : a.Buffers is null ? "The before plan has no" : "The after plan has no";
-            Add(PlanWarningSeverity.Info, "Cache use unknown",
-                $"{which} buffer counts, so a warm cache can't be told apart from a change in the plan. "
-                + "pgNimbus's Explain Analyze always asks for BUFFERS.");
+            Add(PlanWarningSeverity.Info, Strings.QueryLabCore_CacheUnknownTitle,
+                a.Buffers is null && b.Buffers is null ? Strings.QueryLabCore_CacheUnknownNeither
+                : a.Buffers is null ? Strings.QueryLabCore_CacheUnknownBefore
+                : Strings.QueryLabCore_CacheUnknownAfter);
         }
 
         if (before.ServerVersion is { } va && after.ServerVersion is { } vb && va != vb)
         {
-            Add(PlanWarningSeverity.Warning, "Different PostgreSQL versions",
-                $"The before plan comes from PostgreSQL {va} and the after plan from {vb}. The planner, its cost model "
-                + "and the executor differ between versions.");
+            Add(PlanWarningSeverity.Warning, Strings.QueryLabCore_VersionsTitle, Strings.QueryLabCore_VersionsDetail(va, vb));
         }
 
         var costChanges = settings.Where(s => CostSettings.Contains(s.Name)).Select(s => s.Name).ToList();
         if (costChanges.Count > 0)
         {
-            Add(PlanWarningSeverity.Warning, "Costs are on different scales",
-                $"The settings that scale the planner's costs differ ({string.Join(", ", costChanges)}), so its "
-                + "estimated costs are in different units on each side.");
+            Add(PlanWarningSeverity.Warning, Strings.QueryLabCore_CostScalesTitle,
+                Strings.QueryLabCore_CostScalesDetail(string.Join(", ", costChanges)));
         }
 
         if ((a.Plan.Capture.Settings is null) != (b.Plan.Capture.Settings is null))
         {
-            Add(PlanWarningSeverity.Info, "Settings unknown on one side",
-                $"The {(a.Plan.Capture.Settings is null ? "before" : "after")} plan doesn't say which planner settings "
-                + "were changed from their defaults, so settings can't be compared.");
+            Add(PlanWarningSeverity.Info, Strings.QueryLabCore_SettingsUnknownTitle,
+                a.Plan.Capture.Settings is null ? Strings.QueryLabCore_SettingsUnknownBefore : Strings.QueryLabCore_SettingsUnknownAfter);
         }
 
         AddWorkerNotes(notes, alignment, beforeMetrics, afterMetrics);
 
         if ((a.Plan.Capture.JitMs is null) != (b.Plan.Capture.JitMs is null))
         {
-            var (side, ms) = a.Plan.Capture.JitMs is { } jitA ? ("before", jitA) : ("after", b.Plan.Capture.JitMs!.Value);
-            Add(PlanWarningSeverity.Info, "JIT compiled one side only",
-                $"JIT took {PlanMetricRow.Format(ms, PlanMetricUnit.Milliseconds)} of the {side} run, and is part of its "
-                + "execution time. It starts above jit_above_cost, so a change in estimates can switch it on or off.");
+            Add(PlanWarningSeverity.Info, Strings.QueryLabCore_JitTitle,
+                a.Plan.Capture.JitMs is { } jitA
+                    ? Strings.QueryLabCore_JitBefore(PlanMetricRow.Format(jitA, PlanMetricUnit.Milliseconds))
+                    : Strings.QueryLabCore_JitAfter(PlanMetricRow.Format(b.Plan.Capture.JitMs!.Value, PlanMetricUnit.Milliseconds)));
         }
 
         if (before.Connection is { } ca && after.Connection is { } cb && ca != cb)
         {
-            Add(PlanWarningSeverity.Info, "Different connections",
-                $"The before plan ran on {ca} and the after plan on {cb}: the data, the statistics and the server can differ.");
+            Add(PlanWarningSeverity.Info, Strings.QueryLabCore_ConnectionsTitle, Strings.QueryLabCore_ConnectionsDetail(ca, cb));
         }
 
         if (before.Statement is { } sa && after.Statement is { } sb && Normalize(sa) != Normalize(sb))
         {
-            Add(PlanWarningSeverity.Info, "Different statements",
-                "The two plans are for different statement text, so a difference can come from the rewrite as well "
-                + "as from the data, the statistics or the indexes.");
+            Add(PlanWarningSeverity.Info, Strings.QueryLabCore_StatementsTitle, Strings.QueryLabCore_StatementsDetail);
         }
 
         if (a.Root.ActualRowsTotal is { } rowsA && b.Root.ActualRowsTotal is { } rowsB && rowsA != rowsB)
         {
-            Add(PlanWarningSeverity.Warning, "Different rows returned",
-                string.Create(CultureInfo.InvariantCulture,
-                    $"The before run returned {rowsA:N0} rows and the after run {rowsB:N0}: the data or the statement ")
-                + "changed between them, so they did not do the same work.");
+            Add(PlanWarningSeverity.Warning, Strings.QueryLabCore_RowsTitle, Strings.QueryLabCore_RowsDetail(
+                rowsA.ToString("N0", CultureInfo.InvariantCulture), rowsB.ToString("N0", CultureInfo.InvariantCulture)));
         }
 
         if (diff.ShapeChanged)
@@ -439,22 +451,28 @@ public sealed record PlanComparison(
             var parts = new List<string>();
             if (diff.Added > 0)
             {
-                parts.Add($"{Count(diff.Added, "node")} added");
+                parts.Add(Strings.QueryLabCore_ShapeAdded(diff.Added, Number(diff.Added)));
             }
 
             if (diff.Removed > 0)
             {
-                parts.Add($"{Count(diff.Removed, "node")} removed");
+                parts.Add(Strings.QueryLabCore_ShapeRemoved(diff.Removed, Number(diff.Removed)));
             }
 
             if (diff.Moved > 0)
             {
-                parts.Add($"{Count(diff.Moved, "node")} moved to another parent");
+                parts.Add(Strings.QueryLabCore_ShapeMoved(diff.Moved, Number(diff.Moved)));
             }
 
-            var list = parts.Count == 1 ? parts[0] : string.Join(", ", parts[..^1]) + " and " + parts[^1];
-            Add(PlanWarningSeverity.Info, "The plan's shape changed",
-                char.ToUpperInvariant(list[0]) + list[1..] + ". The Plan changes tab shows where.");
+            // A list joined by the language's own words: "A and B", "A, B and C".
+            var list = parts.Count switch
+            {
+                1 => parts[0],
+                2 => Strings.QueryLabCore_ListTwo(parts[0], parts[1]),
+                _ => Strings.QueryLabCore_ListThree(parts[0], parts[1], parts[2]),
+            };
+            var detail = Strings.QueryLabCore_ShapeDetail(list);
+            Add(PlanWarningSeverity.Info, Strings.QueryLabCore_ShapeTitle, char.ToUpperInvariant(detail[0]) + detail[1..]);
         }
 
         void Add(PlanWarningSeverity severity, string title, string detail) =>
@@ -471,23 +489,16 @@ public sealed record PlanComparison(
         IReadOnlyDictionary<ExplainNode, PlanNodeMetrics> beforeMetrics,
         IReadOnlyDictionary<ExplainNode, PlanNodeMetrics> afterMetrics)
     {
-        var shortOn = new List<string>();
-        foreach (var (side, metrics) in (ReadOnlySpan<(string, IReadOnlyDictionary<ExplainNode, PlanNodeMetrics>)>)
-                 [("before", beforeMetrics), ("after", afterMetrics)])
-        {
-            if (metrics.Values.Any(m => m.WorkersLaunched < m.WorkersPlanned))
-            {
-                shortOn.Add(side);
-            }
-        }
-
-        if (shortOn.Count > 0)
+        var shortBefore = beforeMetrics.Values.Any(m => m.WorkersLaunched < m.WorkersPlanned);
+        var shortAfter = afterMetrics.Values.Any(m => m.WorkersLaunched < m.WorkersPlanned);
+        if (shortBefore || shortAfter)
         {
             notes.Add(new PlanWarning(
                 PlanWarningSeverity.Warning,
-                "Fewer parallel workers than planned",
-                $"A Gather launched fewer workers than it planned in the {string.Join(" and the ", shortOn)} run: "
-                    + "the server had none to spare (max_parallel_workers), which changes the time without changing the plan.",
+                Strings.QueryLabCore_WorkersShortTitle,
+                shortBefore && shortAfter ? Strings.QueryLabCore_WorkersShortBoth
+                : shortBefore ? Strings.QueryLabCore_WorkersShortBefore
+                : Strings.QueryLabCore_WorkersShortAfter,
                 string.Empty,
                 null));
             return;
@@ -500,9 +511,10 @@ public sealed record PlanComparison(
             {
                 notes.Add(new PlanWarning(
                     PlanWarningSeverity.Info,
-                    "Different numbers of parallel workers",
-                    $"A Gather ran with {Count(launchedA, "worker")} before and {Count(launchedB, "worker")} after, "
-                        + "which changes its time without the plan changing.",
+                    Strings.QueryLabCore_WorkersDiffTitle,
+                    Strings.QueryLabCore_WorkersDiffDetail(
+                        Strings.QueryLabCore_Workers(launchedA, Number(launchedA)),
+                        Strings.QueryLabCore_Workers(launchedB, Number(launchedB))),
                     string.Empty,
                     null));
                 return;
@@ -510,8 +522,7 @@ public sealed record PlanComparison(
         }
     }
 
-    private static string Count(long count, string noun) =>
-        string.Create(CultureInfo.InvariantCulture, $"{count:N0} {noun}{(count == 1 ? "" : "s")}");
+    private static string Number(long count) => count.ToString("N0", CultureInfo.InvariantCulture);
 
     /// <summary>Statement text with runs of whitespace folded and the trailing semicolon dropped.</summary>
     private static string Normalize(string sql) =>

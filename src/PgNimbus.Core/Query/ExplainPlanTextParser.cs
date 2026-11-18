@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
+using PgNimbus.Core.Localization;
 
 namespace PgNimbus.Core.Query;
 
@@ -111,7 +112,7 @@ public static class ExplainPlanTextParser
     {
         if (text.Length > MaxInputLength)
         {
-            throw new FormatException($"The plan is too large to import (over {MaxInputLength / (1024 * 1024)} MB of text).");
+            throw new FormatException(Strings.Plan_TextTooLarge(MaxInputLength / (1024 * 1024)));
         }
 
         try
@@ -120,7 +121,7 @@ public static class ExplainPlanTextParser
         }
         catch (RegexMatchTimeoutException ex)
         {
-            throw new FormatException("A line of the plan took too long to read.", ex);
+            throw new FormatException(Strings.Plan_TextLineTimeout, ex);
         }
     }
 
@@ -184,7 +185,7 @@ public static class ExplainPlanTextParser
                 root = ParseHeader(trimmedStart);
                 if (root is null)
                 {
-                    throw new FormatException("This doesn't look like an EXPLAIN text plan — the first line has no plan node.");
+                    throw new FormatException(Strings.Plan_TextNoNode);
                 }
 
                 rootIndent = indent;
@@ -236,7 +237,7 @@ public static class ExplainPlanTextParser
             {
                 inTrailer = false;
                 var node = ParseHeader(trimmedStart[2..].TrimStart())
-                    ?? throw new FormatException($"Couldn't parse a plan node from: {trimmedStart}");
+                    ?? throw new FormatException(Strings.Plan_TextBadNode(trimmedStart));
                 if (pendingSubplan is not null)
                 {
                     node.SubplanName = pendingSubplan;
@@ -253,12 +254,12 @@ public static class ExplainPlanTextParser
 
                 if (stack.Count == 0)
                 {
-                    throw new FormatException("The plan's indentation is inconsistent — couldn't place a child node.");
+                    throw new FormatException(Strings.Plan_TextBadIndent);
                 }
 
                 if (stack.Count >= MaxDepth)
                 {
-                    throw new FormatException($"The plan nests deeper than {MaxDepth} levels, more than pgNimbus reads.");
+                    throw new FormatException(Strings.Plan_TextTooDeep(MaxDepth));
                 }
 
                 stack[^1].Node.Children.Add(node);
@@ -292,7 +293,7 @@ public static class ExplainPlanTextParser
 
         if (root is null)
         {
-            throw new FormatException("No plan node found in the pasted text.");
+            throw new FormatException(Strings.Plan_TextNoPlan);
         }
 
         return new ExplainResult(root.ToExplainNode(), planningTime, executionTime)

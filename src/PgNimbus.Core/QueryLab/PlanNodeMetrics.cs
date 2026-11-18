@@ -1,4 +1,5 @@
 using System.Globalization;
+using PgNimbus.Core.Localization;
 using PgNimbus.Core.Query;
 
 namespace PgNimbus.Core.QueryLab;
@@ -112,8 +113,11 @@ public sealed record PlanNodeMetrics
     /// <summary>Counters of this node alone; null as <see cref="Buffers"/>.</summary>
     public BufferCounts? SelfBuffers { get; init; }
 
-    /// <summary>Why this node went to disk ("sort on disk (2400 kB)"), or null.</summary>
-    public string? Spill { get; init; }
+    /// <summary>Why this node went to disk ("sort on disk (2400 kB)"), or null; in the language now loaded.</summary>
+    public string? Spill => SpillText?.Invoke();
+
+    /// <summary>Writes <see cref="Spill"/>, so a tree kept on screen follows a change of language.</summary>
+    internal Func<string>? SpillText { get; init; }
 
     public long? WorkersPlanned { get; init; }
 
@@ -195,7 +199,7 @@ public static class PlanMetrics
             SelfCost = Math.Max(0, node.TotalCost - subtracted.Sum(c => c.TotalCost)),
             Buffers = buffers,
             SelfBuffers = selfBuffers,
-            Spill = SpillOf(node, selfBuffers),
+            SpillText = SpillOf(node, selfBuffers),
             WorkersPlanned = workersPlanned,
             WorkersLaunched = workersLaunched,
         };
@@ -212,31 +216,34 @@ public static class PlanMetrics
     /// Why the node went to disk. The temp blocks it wrote itself are the signal that
     /// also catches a sort that spilled in a worker while the leader's line says quicksort.
     /// </summary>
-    private static string? SpillOf(ExplainNode node, BufferCounts? selfBuffers)
+    private static Func<string>? SpillOf(ExplainNode node, BufferCounts? selfBuffers)
     {
         if (Detail(node, "Sort Method") is { } method && method.Contains("external", StringComparison.OrdinalIgnoreCase))
         {
-            return Detail(node, "Sort Space Used") is { } kb ? $"sort on disk ({kb} kB)" : "sort on disk";
+            return Detail(node, "Sort Space Used") is { } kb
+                ? () => Strings.QueryLabCore_SpillSortSize(kb)
+                : static () => Strings.QueryLabCore_SpillSort;
         }
 
         if (ParseLong(Detail(node, "Hash Batches")) is > 1 and var batches)
         {
-            return $"hash in {batches} batches";
+            return () => Strings.QueryLabCore_SpillHash(batches);
         }
 
         if (ParseLong(Detail(node, "HashAgg Batches")) is > 1 and var aggBatches)
         {
-            return $"hash aggregate in {aggBatches} batches";
+            return () => Strings.QueryLabCore_SpillHashAggregate(aggBatches);
         }
 
         if (ParseLong(Detail(node, "Disk Usage")) is > 0 and var disk)
         {
-            return $"{disk} kB on disk";
+            return () => Strings.QueryLabCore_SpillDisk(disk);
         }
 
         if (selfBuffers is { TempWritten: > 0 } temp)
         {
-            return string.Create(CultureInfo.InvariantCulture, $"wrote {temp.TempWritten:N0} temp blocks");
+            var blocks = temp.TempWritten.ToString("N0", CultureInfo.InvariantCulture);
+            return () => Strings.QueryLabCore_SpillTemp(blocks);
         }
 
         return null;

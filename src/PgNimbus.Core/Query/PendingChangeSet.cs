@@ -1,4 +1,5 @@
 using System.Text;
+using PgNimbus.Core.Localization;
 
 namespace PgNimbus.Core.Query;
 
@@ -118,7 +119,7 @@ public sealed class PendingChangeSet
 
         if (_deleteIndex.ContainsKey(key))
         {
-            throw new InvalidOperationException("This row is staged for deletion — press Delete on it again to unstage the delete first.");
+            throw new InvalidOperationException(Strings.Core_StagedRowIsDeleted);
         }
 
         EditedRow row;
