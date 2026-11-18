@@ -1,6 +1,7 @@
 using Avalonia;
 using Nimbus.Ui.Fonts;
 using PgNimbus.App.Diagnostics;
+using PgNimbus.App.Localization;
 using PgNimbus.Core.Diagnostics;
 using PgNimbus.App.Platform;
 using PgNimbus.Core.Localization;
@@ -67,5 +68,6 @@ internal static class Program
         .UsePlatformDetect()
         .WithInterFont()
         .WithNimbusFonts()
+        .WithLanguageFonts()
         .LogToTrace();
 }

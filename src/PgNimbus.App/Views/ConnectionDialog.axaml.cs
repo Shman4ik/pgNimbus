@@ -54,6 +54,9 @@ public partial class ConnectionDialog : Window
         Opened += OnDialogOpened;
         Closing += OnDialogClosing;
 
+        // The language button names the language on screen in itself, and follows a switch.
+        LanguageButtonText.Bind(TextBlock.TextProperty, Localizer.Observe(LanguageOption.CurrentName).ToBinding());
+
         // The form block is centred once the window outgrows it; keep the bar's
         // heading over the list rather than at the bar's own left edge.
         FormLayout.PropertyChanged += (_, e) =>
@@ -97,6 +100,36 @@ public partial class ConnectionDialog : Window
             // The menu bar's items are plain text: rebuild it in a new language.
             Localizer.WhenChanged(this, static dialog => NativeMenu.SetMenu(dialog, dialog.CreateNativeMenuBar()));
         }
+    }
+
+    /// <summary>
+    /// Opens the language menu: Settings' list ("System (…)" first, then each language
+    /// named in itself), the saved choice checked. Built per opening, so every label is
+    /// current. A choice switches the interface at once and is saved, so the main window
+    /// opens in it and Settings shows it.
+    /// </summary>
+    /// <summary>The language menu last opened, for the tests.</summary>
+    public MenuFlyout? LanguageMenu { get; private set; }
+
+    private void OnLanguageButtonClick(object? sender, RoutedEventArgs e)
+    {
+        var current = App.LoadSettings().Language;
+        var flyout = new MenuFlyout { Placement = PlacementMode.BottomEdgeAlignedRight };
+        foreach (var option in LanguageOption.All())
+        {
+            var setting = option.Setting;
+            var item = new MenuItem
+            {
+                Header = option.Label,
+                ToggleType = MenuItemToggleType.Radio,
+                IsChecked = string.Equals(setting, current, StringComparison.OrdinalIgnoreCase),
+            };
+            item.Click += (_, _) => App.SetLanguage(setting);
+            flyout.Items.Add(item);
+        }
+
+        LanguageMenu = flyout;
+        flyout.ShowAt(LanguageButton);
     }
 
     /// <summary>

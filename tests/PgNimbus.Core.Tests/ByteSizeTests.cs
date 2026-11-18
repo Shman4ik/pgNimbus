@@ -8,7 +8,7 @@ public class ByteSizeTests
     [Test]
     [Arguments(0L, "0 bytes")]
     [Arguments(-5L, "0 bytes")]
-    [Arguments(1L, "1 bytes")]
+    [Arguments(1L, "1 byte")]
     [Arguments(512L, "512 bytes")]
     [Arguments(1023L, "1023 bytes")]
     [Arguments(1024L, "1.0 KB")]

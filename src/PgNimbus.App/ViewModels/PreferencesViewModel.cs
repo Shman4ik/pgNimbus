@@ -43,6 +43,30 @@ public sealed partial class LanguageOption(string setting, string nativeName) : 
         nativeName = name;
         OnPropertyChanged(nameof(Label));
     }
+
+    /// <summary>
+    /// The list Settings and the connection dialog's language menu both offer: "System (…)"
+    /// first, then each language the build carries, named in itself.
+    /// </summary>
+    public static IReadOnlyList<LanguageOption> All() =>
+    [
+        new LanguageOption("auto", SystemLanguageName()),
+        .. Localizer.Available.Select(l => new LanguageOption(l.Tag, l.NativeName)),
+    ];
+
+    /// <summary>The name of the language "auto" picks on this machine.</summary>
+    public static string SystemLanguageName()
+    {
+        var tag = Localizer.Resolve("auto", SystemLanguages.Preferred());
+        return Localizer.Available.FirstOrDefault(l => l.Tag == tag)?.NativeName ?? "English";
+    }
+
+    /// <summary>
+    /// The language on screen, named in itself ("Русский"); the word "Language" in the
+    /// language on screen when it is not one the build carries (the pseudo-locale).
+    /// </summary>
+    public static string CurrentName() =>
+        Localizer.Available.FirstOrDefault(l => l.Tag == Localizer.Language)?.NativeName ?? Strings.Settings_Language;
 }
 
 /// <summary>
@@ -130,12 +154,7 @@ public sealed partial class PreferencesViewModel : ObservableObject
         _main = main;
         _selectedTab = main.PreferencesTab;
         var settings = App.LoadSettings();
-        var systemLanguage = SystemLanguageName();
-        Languages =
-        [
-            new LanguageOption("auto", systemLanguage),
-            .. Localizer.Available.Select(l => new LanguageOption(l.Tag, l.NativeName)),
-        ];
+        Languages = LanguageOption.All();
         _selectedLanguage = Languages.FirstOrDefault(l => string.Equals(l.Setting, settings.Language, StringComparison.OrdinalIgnoreCase))
             ?? Languages[0];
         Localizer.WhenChanged(this, static vm => vm.OnLanguageChanged());
@@ -356,18 +375,11 @@ public sealed partial class PreferencesViewModel : ObservableObject
         }
     }
 
-    /// <summary>The name of the language "auto" picks on this machine.</summary>
-    private static string SystemLanguageName()
-    {
-        var tag = Localizer.Resolve("auto", SystemLanguages.Preferred());
-        return Localizer.Available.FirstOrDefault(l => l.Tag == tag)?.NativeName ?? "English";
-    }
-
     partial void OnSelectedLanguageChanged(LanguageOption value) => App.SetLanguage(value.Setting);
 
     private void OnLanguageChanged()
     {
-        Languages[0].Relabel(SystemLanguageName());
+        Languages[0].Relabel(LanguageOption.SystemLanguageName());
         OnPropertyChanged(nameof(EditorFontSizeHint));
 
         // The bundled face's row names itself in the new language.

@@ -590,8 +590,11 @@
                  truncates the same way. -->
             <Border Grid.Row="1" Classes="statusBar">
                 <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+                    <!-- Squeezed under 100 px by the segments beside it, the message is a
+                         stub ("Stage…") and is not drawn; hover still shows it (StatusStub). -->
                     <TextBlock Grid.Column="0" Text="{Binding ActiveTab.Status}"
                                Classes="statusText statusMessage" Classes.error="{Binding ActiveTab.HasError}"
+                               views:StatusStub.MinWidth="100"
                                VerticalAlignment="Center" HorizontalAlignment="Left" />
                     <!-- Running indicator: indeterminate bar + live elapsed tick while a query is in flight -->
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center"
@@ -784,7 +787,9 @@
                                     <Grid ColumnDefinitions="Auto,*,Auto,Auto">
                                         <TextBlock Grid.Column="0" Text="{Binding Glyph}" Width="20"
                                                    Classes="secondary" VerticalAlignment="Center" />
-                                        <TextBlock Grid.Column="1" Text="{Binding Title}"
+                                        <!-- Two lines before it is cut: a translated title is often
+                                             longer than the row ("Toggle safe mode (…)"). -->
+                                        <TextBlock Grid.Column="1" Text="{Binding Title}" TextWrapping="Wrap" MaxLines="2"
                                                    TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
                                         <!-- The action's hotkey, so the palette doubles as a way to learn them -->
                                         <TextBlock Grid.Column="2" Text="{Binding Shortcut}"

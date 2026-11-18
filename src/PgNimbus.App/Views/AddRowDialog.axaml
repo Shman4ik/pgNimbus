@@ -22,7 +22,9 @@
                 <ItemsControl ItemsSource="{Binding Fields}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="vm:NewRowField">
-                            <Grid ColumnDefinitions="150,*,Auto" Margin="6,5">
+                            <!-- 14 on the right keeps the NULL box clear of the scroll bar,
+                                 which draws over the rows. -->
+                            <Grid ColumnDefinitions="150,*,Auto" Margin="6,5,14,5">
                                 <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,8,0">
                                     <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12"
                                                TextTrimming="CharacterEllipsis" />

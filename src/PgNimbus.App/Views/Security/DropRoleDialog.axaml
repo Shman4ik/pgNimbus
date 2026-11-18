@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:app="using:PgNimbus.App"
         xmlns:l="using:PgNimbus.App.Localization"
         xmlns:vm="using:PgNimbus.App.ViewModels.Security"
         xmlns:sec="using:PgNimbus.Core.Security"
@@ -37,7 +38,7 @@
                         <!-- Hidden rather than left under the empty-state text: a DataGrid with
                              no rows still draws its column headers, and they showed
                              through the sentence explaining there is nothing to show. -->
-                        <DataGrid IsVisible="{Binding HasOwned}"
+                        <DataGrid app:HeaderFit.Enabled="True" IsVisible="{Binding HasOwned}"
                                   ItemsSource="{Binding Owned}" IsReadOnly="True" SelectionMode="Single"
                                   CanUserSortColumns="False" GridLinesVisibility="Horizontal" HeadersVisibility="Column">
                             <DataGrid.Columns>
@@ -64,7 +65,7 @@
                         <!-- Hidden rather than left under the empty-state text: a DataGrid with
                              no rows still draws its column headers, and they showed
                              through the sentence explaining there is nothing to show. -->
-                        <DataGrid IsVisible="{Binding HasGrantsHeld}"
+                        <DataGrid app:HeaderFit.Enabled="True" IsVisible="{Binding HasGrantsHeld}"
                                   ItemsSource="{Binding GrantsHeld}" IsReadOnly="True" SelectionMode="Single"
                                   CanUserSortColumns="False" GridLinesVisibility="Horizontal" HeadersVisibility="Column">
                             <DataGrid.Columns>

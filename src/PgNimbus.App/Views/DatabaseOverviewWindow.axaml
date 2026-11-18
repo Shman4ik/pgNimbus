@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:app="using:PgNimbus.App"
         xmlns:vm="using:PgNimbus.App.ViewModels"
         xmlns:l="using:PgNimbus.App.Localization"
         x:Class="PgNimbus.App.Views.DatabaseOverviewWindow"
@@ -47,7 +48,7 @@
 
         <TabControl Grid.Row="2" Classes="segmented">
             <TabItem Header="{l:Tr Monitoring_OverviewTabLargest}">
-                <DataGrid ItemsSource="{Binding LargestRelations}" IsReadOnly="True" SelectionMode="Single"
+                <DataGrid app:HeaderFit.Enabled="True" ItemsSource="{Binding LargestRelations}" IsReadOnly="True" SelectionMode="Single"
                           CanUserResizeColumns="True" CanUserSortColumns="False"
                           GridLinesVisibility="Horizontal" HeadersVisibility="Column">
                     <DataGrid.Columns>
@@ -63,7 +64,7 @@
             </TabItem>
 
             <TabItem Header="{l:Tr Monitoring_OverviewTabScans}">
-                <DataGrid ItemsSource="{Binding TableScans}" IsReadOnly="True" SelectionMode="Single"
+                <DataGrid app:HeaderFit.Enabled="True" ItemsSource="{Binding TableScans}" IsReadOnly="True" SelectionMode="Single"
                           CanUserResizeColumns="True" CanUserSortColumns="False"
                           GridLinesVisibility="Horizontal" HeadersVisibility="Column">
                     <DataGrid.Columns>
@@ -93,7 +94,7 @@
 
             <TabItem Header="{l:Tr Monitoring_OverviewTabUnused}">
                 <Grid RowDefinitions="*,Auto">
-                    <DataGrid Grid.Row="0" ItemsSource="{Binding UnusedIndexes}" IsReadOnly="True" SelectionMode="Single"
+                    <DataGrid app:HeaderFit.Enabled="True" Grid.Row="0" ItemsSource="{Binding UnusedIndexes}" IsReadOnly="True" SelectionMode="Single"
                               CanUserResizeColumns="True" CanUserSortColumns="False"
                               GridLinesVisibility="Horizontal" HeadersVisibility="Column">
                         <DataGrid.Columns>
@@ -103,7 +104,7 @@
                             <DataGridTextColumn Header="{l:Tr Monitoring_ColSize}" Binding="{Binding Size}" Width="110" />
                         </DataGrid.Columns>
                     </DataGrid>
-                    <TextBlock Grid.Row="1" Margin="4,8,4,0" FontSize="11" Opacity="0.6"
+                    <TextBlock Grid.Row="1" Margin="4,8,4,0" FontSize="11" Opacity="0.6" TextWrapping="Wrap"
                                Text="{l:Tr Monitoring_OverviewUnusedNote}" />
                 </Grid>
             </TabItem>

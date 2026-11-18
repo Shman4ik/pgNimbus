@@ -6,6 +6,7 @@ using Avalonia.Styling;
 using Avalonia.Threading;
 using Nimbus.Ui.Fonts;
 using PgNimbus.App;
+using PgNimbus.App.Localization;
 using PgNimbus.Screenshot;
 
 // Usage: dotnet run --project tools/Screenshot -- <outputDir> [scenario-substring]
@@ -257,4 +258,5 @@ static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<App>()
     .UseSkia()
     .UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false })
     .WithInterFont()
-    .WithNimbusFonts();
+    .WithNimbusFonts()
+    .WithLanguageFonts();

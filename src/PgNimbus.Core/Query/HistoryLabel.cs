@@ -126,17 +126,17 @@ public static class HistoryLabel
     {
         if (milliseconds < 1)
         {
-            return "<1 ms";
+            return Strings.Core_UnitMilliseconds("<1");
         }
 
         if (milliseconds < 1000)
         {
-            return milliseconds.ToString("F0", CultureInfo.InvariantCulture) + " ms";
+            return Strings.Core_UnitMilliseconds(milliseconds.ToString("F0", CultureInfo.InvariantCulture));
         }
 
         if (milliseconds < 60_000)
         {
-            return (milliseconds / 1000).ToString("0.0", CultureInfo.InvariantCulture) + " s";
+            return Strings.Core_UnitSeconds((milliseconds / 1000).ToString("0.0", CultureInfo.InvariantCulture));
         }
 
         var span = TimeSpan.FromMilliseconds(milliseconds);

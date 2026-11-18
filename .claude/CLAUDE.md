@@ -2936,8 +2936,9 @@ translator's side is [`docs/dev/translating.md`](../docs/dev/translating.md).
   `Platform/SystemLanguages` (Windows `GetUserPreferredUILanguages`, macOS
   `CFLocaleCopyPreferredLanguages`, POSIX variables), never from
   `CultureInfo`, which is invariant. `AppSettings.Language` is `"auto"` or a tag;
-  `Program.Main` loads it before the first window, Settings ▸ General changes it
-  live (`App.SetLanguage`). `PGNIMBUS_TRANSLATION_FILE` loads a `.resx` from
+  `Program.Main` loads it before the first window, Settings ▸ General and the
+  connection dialog's globe button change it live (`App.SetLanguage`, both from
+  `LanguageOption.All`). `PGNIMBUS_TRANSLATION_FILE` loads a `.resx` from
   disk instead, so a translator can try a file in a released build. The
   generator project removes `PublishAot`/`RuntimeIdentifier` from what a publish
   hands it (`TreatAsLocalProperty`): it is a netstandard2.0 compiler plug-in.
@@ -2949,6 +2950,19 @@ translator's side is [`docs/dev/translating.md`](../docs/dev/translating.md).
   their windows, each switch rewrote nine resources in all of them (seconds per
   switch), and the pseudo-locale scan took 29 minutes on Linux, past CI's limit.
   `LocalizationTests.A_new_application_adds_no_language_handler` holds it.
+- **Units, the CJK face and the palette** (2026-11, the ru/zh-Hans release walk).
+  Unit words are table entries (`Core_UnitMilliseconds`, `Core_UnitBytes`,
+  `Core_UnitKilobytes`, ...) that `ByteSize`, `DurationText`, `PlanMetricRow` and
+  `HistoryLabel` fill with an invariant number, so Russian reads мс/МБ; text that
+  is not translated (a generated script's comment) uses `DurationText.FormatEnglish`.
+  Han text is drawn in the language's own face through `Localization/LanguageFonts`:
+  a `FontManagerOptions` fallback for the CJK ranges (YaHei UI, PingFang SC, Noto
+  Sans CJK SC) while the language is zh-Hans, empty otherwise. Every app builder
+  calls `.WithLanguageFonts()`. Not a face added to the font stacks: Avalonia 12.1
+  asks the system for a character the first face lacks without trying the rest
+  of the stack (measured), and the system gave JhengHei, the Traditional face. The
+  palette matches a command's English title and its `SearchKey` words
+  (`CommandDescriptor.SearchAliases`) besides the translated title.
 - **Tests.** The language is process-wide, so a test that switches it is
   `[NotInParallel]` (TUnit runs those after every parallel test, one at a time;
   measured) and puts English back in a `finally`. The screenshot harness and the

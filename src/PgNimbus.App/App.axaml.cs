@@ -352,6 +352,11 @@ public partial class App : Application
         Nimbus.Ui.Controls.ToolTipHitTesting.Install();
         Localization.FrameworkStrings.Install(this);
         DataTemplates.Add(Localization.StringKeyTemplate.Instance);
+
+        // A Simplified Chinese interface names its CJK face, now and on every switch
+        // (here, not in OnFrameworkInitializationCompleted, so the screenshot
+        // harness renders a translation in the same face).
+        Localization.LanguageFonts.Install();
     }
 
     public override void OnFrameworkInitializationCompleted()

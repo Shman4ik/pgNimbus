@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:app="using:PgNimbus.App"
              xmlns:l="using:PgNimbus.App.Localization"
              xmlns:vm="using:PgNimbus.App.ViewModels.Security"
              x:Class="PgNimbus.App.Views.Security.RolesTabView"
@@ -28,7 +29,7 @@
                     BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
                     CornerRadius="{StaticResource CardCornerRadius}">
                 <Panel>
-                    <DataGrid Name="RolesGrid"
+                    <DataGrid app:HeaderFit.Enabled="True" Name="RolesGrid"
                               ItemsSource="{Binding FilteredRoles}"
                               SelectedItem="{Binding SelectedRole, Mode=TwoWay}"
                               IsReadOnly="True" SelectionMode="Single"

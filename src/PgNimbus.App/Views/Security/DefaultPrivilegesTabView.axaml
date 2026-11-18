@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:app="using:PgNimbus.App"
              xmlns:l="using:PgNimbus.App.Localization"
              xmlns:vm="using:PgNimbus.App.ViewModels.Security"
              x:Class="PgNimbus.App.Views.Security.DefaultPrivilegesTabView"
@@ -22,7 +23,7 @@
                 BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1"
                 CornerRadius="{StaticResource CardCornerRadius}">
             <Panel>
-                <DataGrid ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow, Mode=TwoWay}"
+                <DataGrid app:HeaderFit.Enabled="True" ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow, Mode=TwoWay}"
                           IsVisible="{Binding HasRows}"
                           IsReadOnly="True" SelectionMode="Single"
                           CanUserResizeColumns="True" CanUserSortColumns="False"

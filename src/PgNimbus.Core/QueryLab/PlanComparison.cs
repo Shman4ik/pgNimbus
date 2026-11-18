@@ -77,9 +77,9 @@ public sealed record PlanMetricRow(string Label, double? Before, double? After, 
 
     private static string Milliseconds(double ms) => ms switch
     {
-        < 10 => ms.ToString("0.###", CultureInfo.InvariantCulture) + " ms",
-        < 10_000 => ms.ToString("#,0.#", CultureInfo.InvariantCulture) + " ms",
-        _ => (ms / 1000).ToString("N1", CultureInfo.InvariantCulture) + " s",
+        < 10 => Strings.Core_UnitMilliseconds(ms.ToString("0.###", CultureInfo.InvariantCulture)),
+        < 10_000 => Strings.Core_UnitMilliseconds(ms.ToString("#,0.#", CultureInfo.InvariantCulture)),
+        _ => Strings.Core_UnitSeconds((ms / 1000).ToString("N1", CultureInfo.InvariantCulture)),
     };
 }
 
@@ -442,7 +442,7 @@ public sealed record PlanComparison(
 
         if (a.Root.ActualRowsTotal is { } rowsA && b.Root.ActualRowsTotal is { } rowsB && rowsA != rowsB)
         {
-            Add(PlanWarningSeverity.Warning, Strings.QueryLabCore_RowsTitle, Strings.QueryLabCore_RowsDetail(
+            Add(PlanWarningSeverity.Warning, Strings.QueryLabCore_RowsTitle, Strings.QueryLabCore_RowCountsDetail(
                 rowsA.ToString("N0", CultureInfo.InvariantCulture), rowsB.ToString("N0", CultureInfo.InvariantCulture)));
         }
 

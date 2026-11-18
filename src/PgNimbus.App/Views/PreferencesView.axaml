@@ -271,7 +271,7 @@
                                     <TextBlock Classes="hint" Text="{l:Tr Settings_PgToolsHint}" />
                                     <TextBlock Name="PgToolsStatus" Classes="hint" Text="{Binding PgTools.StatusLine}"
                                                TextWrapping="Wrap" Opacity="0.85" Margin="0,4,0,0" />
-                                    <TextBlock Classes="hint" Text="{Binding PgTools.FolderLabel}" />
+                                    <TextBlock Classes="hint" Text="{Binding PgTools.FolderLabel}" IsVisible="{Binding PgTools.ShowsFolderLabel}" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
                                     <Button Classes="soft" Content="{l:Tr Settings_PgToolsChooseFolder}" HorizontalAlignment="Stretch"

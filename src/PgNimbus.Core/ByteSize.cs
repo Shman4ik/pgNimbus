@@ -1,4 +1,5 @@
 using System.Globalization;
+using PgNimbus.Core.Localization;
 
 namespace PgNimbus.Core;
 
@@ -12,26 +13,28 @@ namespace PgNimbus.Core;
 /// </summary>
 public static class ByteSize
 {
-    private static readonly string[] Units = ["bytes", "KB", "MB", "GB", "TB", "PB"];
+    // Past bytes, one unit per step of 1024. The unit words come from Strings
+    // (Russian writes КБ, МБ); the number is always invariant.
+    private static readonly Func<string, string>[] Units =
+    [
+        Strings.Core_UnitKilobytes, Strings.Core_UnitMegabytes, Strings.Core_UnitGigabytes,
+        Strings.Core_UnitTerabytes, Strings.Core_UnitPetabytes,
+    ];
 
     /// <summary>
-    /// Formats <paramref name="bytes"/> as e.g. "512 bytes", "1.5 KB", "2.0 GB".
-    /// Bytes are shown whole (no "0.5 bytes"); everything above uses one decimal.
-    /// Negative inputs are clamped to 0 — a size is never negative.
+    /// Formats <paramref name="bytes"/> as e.g. "512 bytes", "1.5 KB", "2.0 GB",
+    /// with the unit in the interface language. Bytes are shown whole (no "0.5
+    /// bytes"); everything above uses one decimal. Negative inputs are clamped
+    /// to 0 — a size is never negative.
     /// </summary>
     public static string Format(long bytes)
     {
-        if (bytes <= 0)
-        {
-            return "0 bytes";
-        }
-
         if (bytes < 1024)
         {
-            return $"{bytes} bytes";
+            return Strings.Core_UnitBytes(Math.Max(0, bytes));
         }
 
-        double value = bytes;
+        double value = bytes / 1024d;
         var unit = 0;
         while (value >= 1024 && unit < Units.Length - 1)
         {
@@ -39,6 +42,6 @@ public static class ByteSize
             unit++;
         }
 
-        return string.Create(CultureInfo.InvariantCulture, $"{value:0.0} {Units[unit]}");
+        return Units[unit](value.ToString("0.0", CultureInfo.InvariantCulture));
     }
 }

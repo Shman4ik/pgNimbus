@@ -2718,7 +2718,8 @@ public sealed partial class MainViewModel : ObservableObject
             Strings.Shell_PaletteAction,
             descriptor.Glyph,
             Invoke(() => CommandBindings.Resolve(descriptor.Id, this)),
-            descriptor.ShortcutLabel(Hotkeys.Scheme)));
+            descriptor.ShortcutLabel(Hotkeys.Scheme),
+            descriptor.SearchAliases));
 
     // The write switch's two rows are listed only in a production window that
     // can allow writes, and only the one that would change something; the Store
